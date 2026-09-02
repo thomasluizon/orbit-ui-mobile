@@ -40,17 +40,18 @@ interface DestinationShellProps {
   onCreate: () => void
 }
 
-type ComposerRenderer = () => ReactNode
+type ShellSlotRenderer = () => ReactNode
 
 interface ShellComposerSlotContextValue {
-  register: (renderer: ComposerRenderer) => () => void
+  register: (renderer: ShellSlotRenderer) => () => void
 }
 
 const ShellComposerSlotContext = createContext<ShellComposerSlotContextValue | null>(null)
+const ShellNoticeSlotContext = createContext<ShellComposerSlotContextValue | null>(null)
 
-function useShellComposerHost() {
-  const [renderer, setRenderer] = useState<ComposerRenderer | null>(null)
-  const register = useCallback((nextRenderer: ComposerRenderer) => {
+function useShellSlotHost() {
+  const [renderer, setRenderer] = useState<ShellSlotRenderer | null>(null)
+  const register = useCallback((nextRenderer: ShellSlotRenderer) => {
     setRenderer(() => nextRenderer)
     return () => setRenderer(null)
   }, [])
@@ -60,11 +61,25 @@ function useShellComposerHost() {
 
 export function useShellComposerSlot(
   enabled: boolean,
-  renderer: ComposerRenderer,
+  renderer: ShellSlotRenderer,
   refreshKey: string,
 ) {
   const host = useContext(ShellComposerSlotContext)
   const registerRenderer = useEffectEvent(() => host?.register(renderer))
+
+  useEffect(() => {
+    if (!enabled) return
+    return registerRenderer()
+  }, [enabled, host, refreshKey])
+}
+
+export function useShellNoticeSlot(
+  enabled: boolean,
+  content: ReactNode,
+  refreshKey: string,
+) {
+  const host = useContext(ShellNoticeSlotContext)
+  const registerRenderer = useEffectEvent(() => host?.register(() => content))
 
   useEffect(() => {
     if (!enabled) return
@@ -92,20 +107,31 @@ export function DestinationShell({
   conversationLabel,
   onCreate,
 }: Readonly<DestinationShellProps>) {
-  const registeredComposer = useShellComposerHost()
+  const registeredComposer = useShellSlotHost()
+  const registeredNotice = useShellSlotHost()
+  const resolvedNotice = notice === undefined
+    ? registeredNotice.content
+    : (
+        <>
+          {registeredNotice.content}
+          {notice}
+        </>
+      )
 
   return (
     <ShellComposerSlotContext.Provider value={registeredComposer.value}>
-      <DestinationShellContent
-        notice={notice}
-        composer={registeredComposer.content ?? composer}
-        conversation={conversation}
-        conversationOpen={conversationOpen}
-        conversationLabel={conversationLabel}
-        onCreate={onCreate}
-      >
-        {children}
-      </DestinationShellContent>
+      <ShellNoticeSlotContext.Provider value={registeredNotice.value}>
+        <DestinationShellContent
+          notice={resolvedNotice}
+          composer={registeredComposer.content ?? composer}
+          conversation={conversation}
+          conversationOpen={conversationOpen}
+          conversationLabel={conversationLabel}
+          onCreate={onCreate}
+        >
+          {children}
+        </DestinationShellContent>
+      </ShellNoticeSlotContext.Provider>
     </ShellComposerSlotContext.Provider>
   )
 }

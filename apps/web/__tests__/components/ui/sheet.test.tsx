@@ -1,10 +1,19 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
 describe('Sheet', () => {
+  it('leaves a 24 pixel content peek on a long sheet', () => {
+    const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+      .replaceAll('\r\n', '\n')
+
+    expect(stylesheet).toContain('max-height: calc(85dvh - 24px);')
+  })
+
   it('keeps the body and fixed action row in separate slots', () => {
     render(
       <Sheet open title="Delete habit" actions={<button type="button">Delete</button>}>

@@ -5,14 +5,20 @@ import type { Shell412Props } from '@orbit/shared/contracts/shell'
 import { zLayers } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { ShellComposerSlotProvider, useShellComposerHost } from './shell-composer-slot'
+import {
+  ShellComposerSlotProvider,
+  ShellNoticeSlotProvider,
+  useShellSlotHost,
+} from './shell-composer-slot'
 
 export function Shell412(props: Readonly<Shell412Props>) {
-  const registeredComposer = useShellComposerHost()
+  const registeredComposer = useShellSlotHost()
+  const registeredNotice = useShellSlotHost()
   const navigationEnabled = props.nav !== false
   const pinnedSlot = navigationEnabled ? (props.composer ?? registeredComposer.content) : props.action
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
-  const hasBottomChrome = navigationEnabled || props.notice !== undefined || pinnedSlot !== undefined
+  const notice = registeredNotice.content ?? props.notice
+  const hasBottomChrome = navigationEnabled || notice !== undefined || pinnedSlot !== undefined
   const insets = useSafeAreaInsets()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -22,6 +28,7 @@ export function Shell412(props: Readonly<Shell412Props>) {
 
   return (
     <ShellComposerSlotProvider value={registeredComposer.value}>
+    <ShellNoticeSlotProvider value={registeredNotice.value}>
     <View
       testID="shell-412"
       className="flex-1 overflow-hidden"
@@ -52,8 +59,8 @@ export function Shell412(props: Readonly<Shell412Props>) {
               },
             ]}
           >
-            {props.notice !== undefined ? (
-              <View testID="shell-notice">{props.notice}</View>
+            {notice !== undefined ? (
+              <View testID="shell-notice">{notice}</View>
             ) : null}
             <View style={styles.destinationBottom}>
               {pinnedSlot !== undefined ? (
@@ -86,6 +93,7 @@ export function Shell412(props: Readonly<Shell412Props>) {
         </View>
       ) : null}
     </View>
+    </ShellNoticeSlotProvider>
     </ShellComposerSlotProvider>
   )
 }

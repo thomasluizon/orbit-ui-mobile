@@ -11,6 +11,7 @@ const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
+const shellNoticeSlot = vi.hoisted(() => vi.fn())
 
 
 const mockHabitsData = {
@@ -55,6 +56,10 @@ vi.mock('next-intl', () => ({
     return t
   },
   useLocale: () => 'en',
+}))
+
+vi.mock('@/components/shell/destination-shell', () => ({
+  useShellNoticeSlot: shellNoticeSlot,
 }))
 
 vi.mock('next/navigation', () => ({
@@ -328,6 +333,7 @@ describe('HabitList', () => {
     mockDrillState.drillLoading = false
     mockDrillState.drillError = null
     skipHabitMutateAsync.mockReset()
+    skipHabitMutateAsync.mockResolvedValue(undefined)
     deleteHabitMutateAsync.mockReset()
     duplicateHabitMutateAsync.mockReset()
     toggleSelectionSpy.mockReset()
@@ -2043,7 +2049,6 @@ describe('HabitList', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
-    await confirmVisibleSheet('habits.skipConfirmTitle', 'habits.skipConfirmButton')
     await confirmVisibleSheet('habits.autoSkipParentTitle', 'habits.autoSkipParentConfirm')
     await confirmVisibleSheet('habits.autoSkipParentTitle', 'habits.autoSkipParentConfirm')
 
@@ -2126,13 +2131,11 @@ describe('HabitList', () => {
     await act(async () => {
       fireEvent.click(screen.getByTestId('skip-child-a'))
     })
-    await confirmVisibleSheet('habits.skipConfirmTitle', 'habits.skipConfirmButton')
     expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: 'parent' })
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('skip-child-b'))
     })
-    await confirmVisibleSheet('habits.skipConfirmTitle', 'habits.skipConfirmButton')
     await confirmVisibleSheet('habits.autoSkipParentTitle', 'habits.autoSkipParentConfirm')
 
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a', date: TODAY })
@@ -2272,18 +2275,49 @@ describe('HabitList', () => {
    * irreversible act only. Skipping is reversible, so it acts on one press;
    * deleting is not, so it asks first.
    */
-  it('asks before skip and delete', async () => {
+  it('skips directly but asks before delete', async () => {
     const habit = createMockHabit({ id: 'h-1', title: 'Stretch' })
+    const child = createMockHabit({ id: 'h-2', title: 'Warm up', parentId: habit.id })
     mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(habit.id, [child.id])
     mockHabitsData.topLevelHabits = [habit]
 
-    renderWithProviders(<HabitList filters={defaultFilters} />)
+    const { rerenderWithProviders } = renderWithProviders(
+      <HabitList filters={defaultFilters} selectedDate={new Date(`${TODAY}T12:00:00Z`)} />,
+    )
 
     await act(async () => {
       fireEvent.click(screen.getByTestId('skip-h-1'))
     })
-    await confirmVisibleSheet('habits.skipConfirmTitle', 'habits.skipConfirmButton')
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'h-1', date: TODAY })
+    expect(screen.queryByRole('dialog', { name: 'habits.skipConfirmTitle' })).toBeNull()
+    const noticeCall = shellNoticeSlot.mock.calls
+      .slice()
+      .reverse()
+      .find((call: unknown[]) => call[0] === true)
+    const notice = noticeCall?.[1] as React.ReactElement<{
+      actionLabel: string
+      kind: string
+      message: string
+      onAction: () => void
+    }> | undefined
+    expect(notice?.props).toMatchObject({
+      actionLabel: 'undo.action',
+      kind: 'neutral',
+      message: 'habits.skipToast({"name":"Stretch"})',
+    })
+    act(() => notice?.props.onAction())
+    expect(skipHabitMutateAsync).toHaveBeenCalledTimes(2)
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('skip-h-1'))
+    })
+    expect(shellNoticeSlot.mock.calls.at(-1)?.[0]).toBe(true)
+    rerenderWithProviders(
+      <HabitList filters={defaultFilters} selectedDate={new Date(`${TOMORROW}T12:00:00Z`)} />,
+    )
+    expect(shellNoticeSlot.mock.calls.at(-1)?.[0]).toBe(false)
     expect(screen.queryByRole('dialog', { name: 'habits.deleteConfirmTitle' })).toBeNull()
 
     await act(async () => {
@@ -2294,6 +2328,9 @@ describe('HabitList', () => {
     const confirmation = await screen.findByRole('dialog', {
       name: 'habits.deleteConfirmTitle',
     })
+    expect(within(confirmation).getByText(
+      'habits.deleteConfirmMessage({"name":"Stretch","count":1})',
+    )).toBeInTheDocument()
     await act(async () => {
       fireEvent.click(within(confirmation).getByRole('button', { name: 'common.delete' }))
     })
@@ -2313,7 +2350,7 @@ describe('HabitList', () => {
     expect(duplicateHabitMutateAsync).toHaveBeenCalledWith('h-1')
   })
 
-  it('asks before postponing an overdue one-time habit', async () => {
+  it('postpones an overdue one-time habit directly', async () => {
     const overdue = createMockHabit({
       id: 'overdue-1',
       title: 'Overdue task',
@@ -2329,9 +2366,8 @@ describe('HabitList', () => {
     await act(async () => {
       fireEvent.click(screen.getByTestId('skip-overdue-1'))
     })
-    await confirmVisibleSheet('habits.postponeConfirmTitle', 'habits.postponeConfirmButton')
-
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1', date: TODAY })
+    expect(screen.queryByRole('dialog', { name: 'habits.postponeConfirmTitle' })).toBeNull()
   })
 
   it('renders a selectable checkbox for an overdue row in select mode', () => {

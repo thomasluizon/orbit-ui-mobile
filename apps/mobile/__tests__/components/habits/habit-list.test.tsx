@@ -18,6 +18,7 @@ const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
+const shellNoticeSlot = vi.hoisted(() => vi.fn())
 
 const TestRenderer = require('react-test-renderer')
 
@@ -188,6 +189,10 @@ vi.mock('react-i18next', () => ({
       params ? `${key}(${JSON.stringify(params)})` : key,
     i18n: { language: 'en' },
   }),
+}))
+
+vi.mock('@/components/shell/shell-composer-slot', () => ({
+  useShellNoticeSlot: shellNoticeSlot,
 }))
 
 vi.mock('expo-router', () => ({
@@ -442,6 +447,7 @@ describe('HabitList', () => {
     habitListRefetch.mockResolvedValue(undefined)
     logMutateAsync.mockReset()
     skipMutateAsync.mockReset()
+    skipMutateAsync.mockResolvedValue(undefined)
     bulkDeleteMutateAsync.mockReset()
     bulkLogMutateAsync.mockReset()
     bulkSkipMutateAsync.mockReset()
@@ -514,7 +520,7 @@ describe('HabitList', () => {
     expect(onSeeUpcoming).toHaveBeenCalledOnce()
   })
 
-  it('asks before skipping a recurring habit', async () => {
+  it('skips a recurring habit directly', async () => {
     const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
     seedHabits([habit])
 
@@ -539,12 +545,47 @@ describe('HabitList', () => {
       habitCard?.props.actions.onSkip()
       await Promise.resolve()
     })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1', date: TODAY })
+    expect(confirmationSheets(tree, 'habits.skipConfirmTitle')).toHaveLength(0)
+    const noticeCall = shellNoticeSlot.mock.calls
+      .slice()
+      .reverse()
+      .find((call: unknown[]) => call[0] === true)
+    const notice = noticeCall?.[1] as React.ReactElement<{
+      actionLabel: string
+      kind: string
+      message: string
+      onAction: () => void
+    }> | undefined
+    expect(notice?.props).toMatchObject({
+      actionLabel: 'undo.action',
+      kind: 'neutral',
+      message: 'habits.skipToast({"name":"Exercise"})',
+    })
     await TestRenderer.act(async () => {
-      pressConfirm(tree, 'habits.skipConfirmButton')
+      notice?.props.onAction()
       await Promise.resolve()
     })
+    expect(skipMutateAsync).toHaveBeenCalledTimes(2)
 
-    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1', date: TODAY })
+    await TestRenderer.act(async () => {
+      habitCard?.props.actions.onSkip()
+      await Promise.resolve()
+    })
+    expect(shellNoticeSlot.mock.calls.at(-1)?.[0]).toBe(true)
+    await TestRenderer.act(async () => {
+      tree.update(
+        <HabitList
+          view="today"
+          filters={{}}
+          selectedDate={new Date(`${TOMORROW}T12:00:00Z`)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+      await Promise.resolve()
+    })
+    expect(shellNoticeSlot.mock.calls.at(-1)?.[0]).toBe(false)
     expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
   })
 
@@ -555,7 +596,8 @@ describe('HabitList', () => {
    */
   it('asks before the irreversible delete, unlike the reversible skip', async () => {
     const habit = createMockHabit({ id: 'habit-1', title: 'Exercise' })
-    seedHabits([habit])
+    const child = createMockHabit({ id: 'habit-2', title: 'Warm up', parentId: habit.id })
+    seedHabits([habit, child])
 
     let tree: any
 
@@ -582,6 +624,9 @@ describe('HabitList', () => {
     expect(deleteMutateAsync).not.toHaveBeenCalled()
     const [confirmation] = confirmationSheets(tree, 'habits.deleteConfirmTitle')
     expect(confirmation).toBeDefined()
+    expect(flattenRenderedText(confirmation)).toContain(
+      'habits.deleteConfirmMessage({"name":"Exercise","count":1})',
+    )
 
     await TestRenderer.act(async () => {
       pressConfirm(tree, 'common.delete')
@@ -627,7 +672,7 @@ describe('HabitList', () => {
     expect(descriptionNodes).toHaveLength(0)
   })
 
-  it('asks before postponing a one-time task', async () => {
+  it('postpones a one-time task directly', async () => {
     const oneTimeTask = createMockHabit({
       id: 'habit-1',
       title: 'Pay bill',
@@ -656,12 +701,8 @@ describe('HabitList', () => {
       habitCard?.props.actions.onSkip()
       await Promise.resolve()
     })
-    await TestRenderer.act(async () => {
-      pressConfirm(tree, 'habits.postponeConfirmButton')
-      await Promise.resolve()
-    })
-
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1', date: TODAY })
+    expect(confirmationSheets(tree, 'habits.postponeConfirmTitle')).toHaveLength(0)
     expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
   })
 
@@ -2259,10 +2300,6 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
     await TestRenderer.act(async () => {
-      pressConfirm(tree, 'habits.skipConfirmButton')
-      await Promise.resolve()
-    })
-    await TestRenderer.act(async () => {
       pressConfirm(tree, 'habits.autoSkipParentConfirm')
       await Promise.resolve()
     })
@@ -2305,10 +2342,6 @@ describe('HabitList', () => {
         .find((node: any) => node.props.habit.id === childId)
       await TestRenderer.act(async () => {
         card?.props.actions.onSkip()
-        await Promise.resolve()
-      })
-      await TestRenderer.act(async () => {
-        pressConfirm(tree, 'habits.skipConfirmButton')
         await Promise.resolve()
       })
     }
@@ -2479,11 +2512,6 @@ describe('HabitList', () => {
       overdueCard?.props.actions.onSkip()
       await Promise.resolve()
     })
-    await TestRenderer.act(async () => {
-      pressConfirm(tree, 'habits.postponeConfirmButton')
-      await Promise.resolve()
-    })
-
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1', date: TODAY })
   })
 

@@ -3,7 +3,6 @@
 import {
   useEffect,
   useEffectEvent,
-  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -11,10 +10,12 @@ import {
   type RefObject,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { Popover } from '@base-ui/react/popover'
 import type { MenuItem, MenuProps } from '@orbit/shared/contracts/overlay'
 import { Badge } from '@/components/ui/badge'
 import { Icon } from '@/components/ui/icon'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { PopoverPositioner } from '@/components/ui/popover-positioner'
 
 const DEFAULT_WIDE_FROM = 900
 const EMPTY_MENU_ITEMS: readonly MenuItem[] = []
@@ -102,12 +103,6 @@ function MenuItems({ items, onActivate }: Readonly<MenuItemsProps>) {
   )
 }
 
-interface Position {
-  left: number
-  top: number
-  origin: string
-}
-
 function anchorElement(anchorRef: RefObject<unknown> | undefined): HTMLElement | null {
   return anchorRef?.current instanceof HTMLElement ? anchorRef.current : null
 }
@@ -160,7 +155,6 @@ export function Menu({
   const panelRef = useRef<HTMLDivElement>(null)
   const focusReturnTargetRef = useRef<HTMLElement | null>(null)
   const restoreFocusOnCleanupRef = useRef(true)
-  const [position, setPosition] = useState<Position | null>(null)
   const portalTarget = useSyncExternalStore(
     subscribeToPortalTarget,
     getPortalTarget,
@@ -170,36 +164,13 @@ export function Menu({
 
   const closeMenu = useEffectEvent(() => onClose?.())
 
-  useLayoutEffect(() => {
-    if (!open || resolvedPresentation !== 'anchored') return
-    const anchor = anchorElement(anchorRef)
-    const panel = panelRef.current
-    if (!anchor || !panel) return
-    const anchorRect = anchor.getBoundingClientRect()
-    const panelRect = panel.getBoundingClientRect()
-    const margin = 8
-    const preferredLeft = align === 'start' ? anchorRect.left : anchorRect.right - panelRect.width
-    const left = Math.max(margin, Math.min(preferredLeft, globalThis.innerWidth - panelRect.width - margin))
-    const opensUp = anchorRect.bottom + panelRect.height + margin > globalThis.innerHeight
-    const top = opensUp
-      ? Math.max(margin, anchorRect.top - panelRect.height - margin)
-      : anchorRect.bottom + margin
-    setPosition({
-      left,
-      top,
-      origin: `${align === 'start' ? 'left' : 'right'} ${opensUp ? 'bottom' : 'top'}`,
-    })
-  }, [align, anchorRef, open, resolvedPresentation])
-
   useEffect(() => {
     if (!open || resolvedPresentation !== 'anchored') return
-    const panel = panelRef.current
     const anchor = anchorElement(anchorRef)
     const activeElement = activeFocusReturnTarget()
     const focusReturnTarget = activeElement && anchor?.contains(activeElement) ? activeElement : anchor
     focusReturnTargetRef.current = focusReturnTarget
     restoreFocusOnCleanupRef.current = true
-    panel?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])')?.focus()
 
     function dismiss(event: Event) {
       const target = event.target
@@ -207,7 +178,7 @@ export function Menu({
         closeMenu()
         return
       }
-      if (panel?.contains(target)) return
+      if (panelRef.current?.contains(target)) return
       if (anchorElement(anchorRef)?.contains(target)) return
       closeMenu()
     }
@@ -261,26 +232,31 @@ export function Menu({
   if (!portalTarget) return null
 
   return createPortal(
-    <>
-      <div className="orbit-menu-catcher" aria-hidden="true" />
-      <div
-        ref={panelRef}
-        role="menu"
-        aria-label={title}
-        className="orbit-menu-panel"
-        data-positioned={position ? '' : undefined}
-        style={position ? { left: position.left, top: position.top, transformOrigin: position.origin } : undefined}
-        onKeyDown={handleMenuKeyDown}
-      >
-        <MenuItems
-          items={items}
-          onActivate={(id) => {
-            onSelect?.(id)
-            onClose?.()
-          }}
-        />
-      </div>
-    </>,
+    <Popover.Root open modal={false}>
+      <Popover.Portal>
+        <div className="orbit-menu-catcher" aria-hidden="true" />
+        <PopoverPositioner align={align} anchorRef={anchorRef}>
+          <Popover.Popup
+            ref={panelRef}
+            role="menu"
+            aria-label={title}
+            className="orbit-menu-panel"
+            data-positioned=""
+            initialFocus
+            finalFocus={false}
+            onKeyDown={handleMenuKeyDown}
+          >
+            <MenuItems
+              items={items}
+              onActivate={(id) => {
+                onSelect?.(id)
+                onClose?.()
+              }}
+            />
+          </Popover.Popup>
+        </PopoverPositioner>
+      </Popover.Portal>
+    </Popover.Root>,
     portalTarget,
   )
 }

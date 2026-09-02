@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import {
   buildHabitDateBuckets,
   canLogHabitOnDate,
+  collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
   computeHabitCardStatus,
   computeHabitFrequencyLabel,
@@ -61,6 +62,8 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { useConfig } from '@/hooks/use-config'
+import { useShellNoticeSlot } from '@/components/shell/destination-shell'
+import { Toast } from '@/components/ui/toast'
 import {
   DndContext,
   closestCenter,
@@ -113,7 +116,6 @@ function DeferredConfirmDialogs(
 ) {
   const open =
     props.showDeleteConfirm ||
-    props.skipHabitName !== null ||
     props.duplicateHabitName !== null ||
     props.parentPrompt !== null
   return open ? <HabitListConfirmDialogs {...props} /> : null
@@ -145,11 +147,6 @@ interface HabitListProps {
 }
 
 const HABIT_PANEL_CLASS_NAME = 'habit-panel'
-
-function getSkipKind(habit: NormalizedHabit | null): 'recurring' | 'flexible' | 'one-time' {
-  if (habit?.frequencyUnit === null) return 'one-time'
-  return habit?.isFlexible ? 'flexible' : 'recurring'
-}
 
 export interface HabitListHandle {
   collapseAll: () => void
@@ -190,6 +187,58 @@ function createConfirmedResolutionRecord(date: string): ConfirmedResolutionRecor
     skippedIds: new Set(),
     activeSettlements: 0,
     clearWhenIdle: false,
+  }
+}
+
+interface HabitSkipNotice {
+  habitId: string
+  habitName: string
+  date: string
+}
+
+function useHabitSkipNotice(
+  selectedDate: string,
+  translate: (key: string, params?: Record<string, string | number | Date>) => string,
+  skip: (variables: { habitId: string; date: string }) => Promise<unknown>,
+) {
+  const [notice, setNotice] = useState<HabitSkipNotice | null>(null)
+  const activeNotice = notice?.date === selectedDate ? notice : null
+
+  function undo() {
+    if (!activeNotice) return
+    const { habitId, date } = activeNotice
+    setNotice(null)
+    void skip({ habitId, date }).catch(() => {})
+  }
+
+  useShellNoticeSlot(
+    activeNotice !== null,
+    activeNotice ? (
+      <Toast
+        kind="neutral"
+        message={translate('habits.skipToast', { name: activeNotice.habitName })}
+        actionLabel={translate('undo.action')}
+        onAction={undo}
+      />
+    ) : null,
+    activeNotice ? `${activeNotice.habitId}:${activeNotice.date}` : 'closed',
+  )
+
+  return setNotice
+}
+
+function getDeleteConfirmation(
+  habitId: string | null,
+  habitsById: ReadonlyMap<string, NormalizedHabit>,
+  childrenByParent: ReadonlyMap<string, string[]>,
+) {
+  if (!habitId) return { name: '', descendantCount: 0 }
+  return {
+    name: habitsById.get(habitId)?.title ?? '',
+    descendantCount: collectSelectableDescendantIds(
+      habitId,
+      (descendantId) => childrenByParent.get(descendantId) ?? [],
+    ).length,
   }
 }
 
@@ -622,7 +671,6 @@ export function HabitList({
   const [habitToReschedule, setHabitToReschedule] = useState<NormalizedHabit | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
-  const [habitToSkip, setHabitToSkip] = useState<NormalizedHabit | null>(null)
   const [habitToDuplicate, setHabitToDuplicate] = useState<NormalizedHabit | null>(null)
 
   const [showMoveParentOverlay, setShowMoveParentOverlay] = useState(false)
@@ -630,6 +678,11 @@ export function HabitList({
   const [selectedMoveParentId, setSelectedMoveParentId] = useState<string | null>(null)
   const [isMovingParent, setIsMovingParent] = useState(false)
   const movingHabit = movingHabitId ? habitsById.get(movingHabitId) ?? null : null
+  const deleteConfirmation = getDeleteConfirmation(
+    habitToDelete,
+    habitsById,
+    childrenByParent,
+  )
 
   const surfaceOpen = Boolean(
     drill.currentParent ||
@@ -637,7 +690,6 @@ export function HabitList({
     showSubHabitModal ||
     showRescheduleSheet ||
     showDeleteConfirm ||
-    habitToSkip ||
     habitToDuplicate ||
     parentPrompt ||
     showMoveParentOverlay,
@@ -645,6 +697,12 @@ export function HabitList({
   useEffect(() => {
     onSurfaceOpenChange?.(surfaceOpen)
   }, [onSurfaceOpenChange, surfaceOpen])
+
+  const showSkipNotice = useHabitSkipNotice(
+    selectedDateStr,
+    t,
+    (variables) => skipHabit.mutateAsync(variables),
+  )
 
   function recordHabitResolution(
     confirmedResolutions: ConfirmedResolutionRecord,
@@ -928,18 +986,16 @@ export function HabitList({
     }
   }
 
-  async function confirmSkip() {
-    if (!habitToSkip) return
-    const habitId = habitToSkip.id
+  async function skipFromRow(habit: NormalizedHabit) {
+    const habitId = habit.id
     try {
       await skipHabit.mutateAsync({ habitId, date: selectedDateStr })
       const confirmedResolutions = confirmedResolutionsRef.current
       recordHabitResolution(confirmedResolutions, habitId, 'skip')
       markRecentlyCompleted(habitId)
       checkAndSettleParent(habitId, confirmedResolutions)
+      showSkipNotice({ habitId, habitName: habit.title, date: selectedDateStr })
     } catch {
-    } finally {
-      setHabitToSkip(null)
     }
   }
 
@@ -1110,7 +1166,7 @@ export function HabitList({
         actions={{
           onLog: () => { void handleDirectToggle(habit.id, 'log') },
           onUnlog: () => { void handleDirectToggle(habit.id, 'unlog') },
-          onSkip: readOnly ? undefined : () => setHabitToSkip(habit),
+          onSkip: readOnly ? undefined : () => { void skipFromRow(habit) },
           onDuplicate: () => setHabitToDuplicate(habit),
           onEdit: () => {
             setHabitToEdit(habit)
@@ -1315,8 +1371,8 @@ export function HabitList({
       <DeferredConfirmDialogs
         t={t}
         showDeleteConfirm={showDeleteConfirm}
-        skipHabitName={habitToSkip?.title ?? null}
-        skipKind={getSkipKind(habitToSkip)}
+        deleteHabitName={deleteConfirmation.name}
+        deleteDescendantCount={deleteConfirmation.descendantCount}
         duplicateHabitName={habitToDuplicate?.title ?? null}
         parentPrompt={parentPrompt?.date === selectedDateStr
           ? { name: parentPrompt.habit.title, mode: parentPrompt.mode }
@@ -1326,8 +1382,6 @@ export function HabitList({
           setHabitToDelete(null)
           setShowDeleteConfirm(false)
         }}
-        onConfirmSkip={() => void confirmSkip()}
-        onCancelSkip={() => setHabitToSkip(null)}
         onConfirmDuplicate={() => void confirmDuplicate()}
         onCancelDuplicate={() => setHabitToDuplicate(null)}
         onConfirmParent={confirmParentSettlement}
