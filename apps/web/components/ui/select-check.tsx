@@ -36,6 +36,7 @@ interface SelectCheckProps {
   onClick?: () => void
   ariaLabel?: string
   disabled?: boolean
+  habitRowControl?: boolean
 }
 
 export function SelectCheck({
@@ -44,6 +45,7 @@ export function SelectCheck({
   onClick,
   ariaLabel,
   disabled = false,
+  habitRowControl = false,
 }: Readonly<SelectCheckProps>) {
   const t = useTranslations('common')
 
@@ -58,9 +60,10 @@ export function SelectCheck({
       type="button"
       onClick={handleClick}
       disabled={disabled}
+      data-habit-row-control={habitRowControl ? 'selection' : undefined}
       aria-label={ariaLabel ?? t('select')}
       aria-pressed={selected}
-      className={`touch-target appearance-none border-0 bg-transparent p-0 shrink-0 inline-flex items-center justify-center ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+      className={`touch-target appearance-none border-0 bg-transparent p-0 shrink-0 inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${disabled ? 'cursor-default' : 'cursor-pointer active:scale-[0.96]'}`}
       style={{ width: size, height: size }}
     >
       <RadioGlyph selected={selected} size={size} />

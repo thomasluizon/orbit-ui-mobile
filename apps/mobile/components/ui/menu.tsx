@@ -103,7 +103,7 @@ export function Menu({
           accessibilityElementsHidden
           importantForAccessibility="no"
           onPress={onClose}
-          style={StyleSheet.absoluteFill}
+          style={[StyleSheet.absoluteFill, styles.catcher]}
         />
         <View
           accessibilityLabel={title}
@@ -171,7 +171,7 @@ function MenuItems({ items, onActivate }: Readonly<MenuItemsProps>) {
         style={({ pressed }) => [
           styles.item,
           item.destructive ? { borderTopColor: tokens.hairline, borderTopWidth: 1 } : null,
-          pressed ? { backgroundColor: tokens.bgElevPressed } : null,
+          pressed ? { backgroundColor: tokens.bgHover } : null,
           disabled ? styles.disabled : null,
         ]}
       >
@@ -199,6 +199,9 @@ function orderMenuItems(items: readonly MenuItem[]) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
+  },
+  catcher: {
+    backgroundColor: 'transparent',
   },
   panel: {
     ...shadowsV2.shadow2,

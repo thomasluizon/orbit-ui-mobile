@@ -50,7 +50,7 @@ function AttachmentTray({
             onPress={() => onRemove(attachment.id)}
             style={({ pressed }) => [
               styles.iconButton,
-              pressed ? { backgroundColor: tokens.bgElevPressed } : null,
+              pressed ? { backgroundColor: tokens.bgHover } : null,
             ]}
           >
             <X size={20} strokeWidth={1.8} color={tokens.fg3} />
@@ -80,7 +80,7 @@ function SuggestionStrip({
           onPress={suggestion.onSelect}
           style={({ pressed }) => [
             styles.suggestion,
-            { backgroundColor: pressed ? tokens.bgElevPressed : tokens.bgWell, borderColor: tokens.hairline },
+            { backgroundColor: pressed ? tokens.bgHover : tokens.bgWell, borderColor: tokens.hairline },
           ]}
         >
           {suggestion.icon}
@@ -160,7 +160,7 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
         </Pressable>
       ) : null}
       <View
-        style={[styles.field, { backgroundColor: tokens.bgField, borderColor: tokens.hairline }]}
+        style={[styles.field, { backgroundColor: tokens.bgField, borderColor: tokens.borderControl }]}
       >
         <TextInput
           accessibilityLabel={props.words.placeholder}
@@ -186,7 +186,7 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
             onPress={props.onAttachFile}
             style={({ pressed }) => [
               styles.iconButton,
-              pressed ? { backgroundColor: tokens.bgElevPressed } : null,
+              pressed ? { backgroundColor: tokens.bgHover } : null,
               inputDisabled ? styles.disabled : null,
             ]}
           >
@@ -203,7 +203,7 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
             onPress={props.onAttachImage}
             style={({ pressed }) => [
               styles.iconButton,
-              pressed ? { backgroundColor: tokens.bgElevPressed } : null,
+              pressed ? { backgroundColor: tokens.bgHover } : null,
               inputDisabled ? styles.disabled : null,
             ]}
           >
@@ -223,7 +223,7 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
             style={({ pressed }) => [
               styles.iconButton,
               isRecording ? { backgroundColor: tokens.primary } : null,
-              pressed && !isRecording ? { backgroundColor: tokens.bgElevPressed } : null,
+              pressed && !isRecording ? { backgroundColor: tokens.bgHover } : null,
               voiceDisabled ? styles.disabled : null,
             ]}
           >

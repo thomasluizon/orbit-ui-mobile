@@ -1,233 +1,95 @@
-import type { ColorScheme, SchemeMode } from './types'
-import { schemes } from './color-schemes'
+import type { SchemeMode } from './types'
 
-function srgbCompand(channel: number): number {
-  return channel <= 0.0031308
-    ? channel * 12.92
-    : 1.055 * Math.pow(channel, 1 / 2.4) - 0.055
-}
-
-function oklchToRgbChannels(
-  lightness: number,
-  chroma: number,
-  hueDegrees: number,
-): [number, number, number] {
-  const hueRad = (hueDegrees * Math.PI) / 180
-  const a = chroma * Math.cos(hueRad)
-  const b = chroma * Math.sin(hueRad)
-
-  const lLin = lightness + 0.3963377774 * a + 0.2158037573 * b
-  const mLin = lightness - 0.1055613458 * a - 0.0638541728 * b
-  const sLin = lightness - 0.0894841775 * a - 1.2914855480 * b
-
-  const l = lLin * lLin * lLin
-  const m = mLin * mLin * mLin
-  const s = sLin * sLin * sLin
-
-  const clamp = (channel: number) =>
-    Math.round(Math.max(0, Math.min(1, srgbCompand(channel))) * 255)
-
-  return [
-    clamp(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
-    clamp(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
-    clamp(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s),
-  ]
-}
-
-/** Converts an OKLCH color to an sRGB hex string (the platform-shared pipeline). */
-export function oklchToHex(
-  lightness: number,
-  chroma: number,
-  hueDegrees: number,
-): string {
-  const [r, g, b] = oklchToRgbChannels(lightness, chroma, hueDegrees)
-  const toHexByte = (channel: number) => channel.toString(16).padStart(2, '0')
-  return `#${toHexByte(r)}${toHexByte(g)}${toHexByte(b)}`
-}
-
-/** Converts an OKLCH color to an rgba() string with the given alpha. */
-export function oklchToRgba(
-  lightness: number,
-  chroma: number,
-  hueDegrees: number,
-  alpha: number,
-): string {
-  const [r, g, b] = oklchToRgbChannels(lightness, chroma, hueDegrees)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
-
-export interface NeutralTokenSpec {
-  readonly lightness: number
-  readonly chroma: number
-  readonly hueOffset: number
-  readonly group: 'bg' | 'fg'
-}
-
-export interface NeutralRamp {
-  readonly dark: {
-    readonly bg: NeutralTokenSpec
-    readonly fg1: NeutralTokenSpec
-    readonly fg2: NeutralTokenSpec
-    readonly fg3: NeutralTokenSpec
-    readonly fg4: NeutralTokenSpec
-  }
-  readonly light: {
-    readonly bg: NeutralTokenSpec
-    readonly bgSunk: NeutralTokenSpec
-    readonly fg1: NeutralTokenSpec
-    readonly fg2: NeutralTokenSpec
-    readonly fg3: NeutralTokenSpec
-    readonly fg4: NeutralTokenSpec
-  }
-}
-
-/**
- * Locked OKLCH ramp shape shared by all schemes. Lightness and chroma are
- * fixed per token; each token carries the handoff ramp's hue drift as an
- * offset from the scheme's canvas hue. Purple resolves byte-exact to the
- * handoff slate palette (see DESIGN.md derivation rules).
- */
-export const neutralRamp: NeutralRamp = {
-  dark: {
-    bg: { lightness: 0.1298, chroma: 0.0425, hueOffset: 0, group: 'bg' },
-    fg1: { lightness: 0.9842, chroma: 0.0034, hueOffset: -17.2746, group: 'fg' },
-    fg2: { lightness: 0.8686, chroma: 0.0216, hueOffset: -12.6185, group: 'fg' },
-    fg3: { lightness: 0.7038, chroma: 0.0402, hueOffset: -8.1393, group: 'fg' },
-    fg4: { lightness: 0.5542, chroma: 0.046, hueOffset: -7.6061, group: 'fg' },
-  },
-  light: {
-    bg: { lightness: 0.9842, chroma: 0.0034, hueOffset: -17.2746, group: 'bg' },
-    bgSunk: { lightness: 0.9683, chroma: 0.0069, hueOffset: -17.2366, group: 'bg' },
-    fg1: { lightness: 0.2084, chroma: 0.0417, hueOffset: 1.227, group: 'fg' },
-    fg2: { lightness: 0.3717, chroma: 0.0449, hueOffset: -7.7086, group: 'fg' },
-    fg3: { lightness: 0.5542, chroma: 0.046, hueOffset: -7.6061, group: 'fg' },
-    fg4: { lightness: 0.7038, chroma: 0.0402, hueOffset: -8.1393, group: 'fg' },
-  },
-}
-
-/** Resolves one neutral token to hex for the given scheme. */
-export function resolveNeutralToken(
-  scheme: ColorScheme,
-  spec: NeutralTokenSpec,
-): string {
-  const def = schemes[scheme]
-  const scale = spec.group === 'bg' ? def.chromaScaleBg : def.chromaScaleFg
-  const hue = (def.neutralHue + spec.hueOffset + 360) % 360
-  return oklchToHex(spec.lightness, spec.chroma * scale, hue)
-}
-
-export interface DarkNeutrals {
-  bg: string
-  fg1: string
-  fg2: string
-  fg3: string
-  fg4: string
-}
-
-export interface LightNeutrals extends DarkNeutrals {
-  bgSunk: string
-}
-
-export function resolveDarkNeutrals(scheme: ColorScheme): DarkNeutrals {
-  const ramp = neutralRamp.dark
-  return {
-    bg: resolveNeutralToken(scheme, ramp.bg),
-    fg1: resolveNeutralToken(scheme, ramp.fg1),
-    fg2: resolveNeutralToken(scheme, ramp.fg2),
-    fg3: resolveNeutralToken(scheme, ramp.fg3),
-    fg4: resolveNeutralToken(scheme, ramp.fg4),
-  }
-}
-
-export function resolveLightNeutrals(scheme: ColorScheme): LightNeutrals {
-  const ramp = neutralRamp.light
-  return {
-    bg: resolveNeutralToken(scheme, ramp.bg),
-    bgSunk: resolveNeutralToken(scheme, ramp.bgSunk),
-    fg1: resolveNeutralToken(scheme, ramp.fg1),
-    fg2: resolveNeutralToken(scheme, ramp.fg2),
-    fg3: resolveNeutralToken(scheme, ramp.fg3),
-    fg4: resolveNeutralToken(scheme, ramp.fg4),
-  }
-}
-
-export interface AlphaSurfaceConstants {
+export interface NeutralColors {
+  readonly bg: string
   readonly bgCard: string
-  readonly bgField?: string
+  readonly bgField: string
+  readonly bgWell: string
   readonly bgElev: string
   readonly bgElev2: string
-  readonly bgSunk?: string
+  readonly bgHover: string
+  readonly bgSunk: string
   readonly hairline: string
+  readonly borderControl: string
+  readonly hairlineGhost: string
   readonly hairlineStrong: string
-  readonly statusEmpty: string
+  readonly fg1: string
+  readonly fg2: string
+  readonly fg3: string
+  readonly fg4: string
+  readonly scrim: string
 }
 
-/**
- * Scheme-independent alpha surfaces: white-alpha over the dark canvas,
- * ink-alpha over the light canvas. They inherit tint optically from the
- * canvas beneath and are identical across all 6 schemes (handoff mechanism).
- * Dark translucency ladder: 0.04 card / 0.05 field / 0.06 well / 0.10 elev-2.
- * Light cards are opaque white; light fields use the scheme-tinted bgSunk
- * (resolved in the token factories, not a constant here).
- */
-export const alphaSurfaces: Record<SchemeMode, AlphaSurfaceConstants> = {
+/** Byte-exact neutral and surface roles from the DESIGN.md token table. */
+export const neutralColors: Record<SchemeMode, NeutralColors> = {
   dark: {
-    bgCard: 'rgba(248, 250, 252, 0.04)',
-    bgField: 'rgba(248, 250, 252, 0.05)',
-    bgElev: 'rgba(248, 250, 252, 0.06)',
-    bgElev2: 'rgba(248, 250, 252, 0.10)',
-    bgSunk: 'rgba(0, 0, 0, 0.28)',
-    hairline: 'rgba(248, 250, 252, 0.10)',
-    hairlineStrong: 'rgba(248, 250, 252, 0.18)',
-    statusEmpty: 'rgba(248, 250, 252, 0.22)',
+    bg: '#09090B',
+    bgCard: 'rgba(250,250,250,0.04)',
+    bgField: 'rgba(250,250,250,0.06)',
+    bgWell: 'rgba(250,250,250,0.08)',
+    bgElev: '#1C1C1E',
+    bgElev2: 'rgba(250,250,250,0.12)',
+    bgHover: 'rgba(250,250,250,0.14)',
+    bgSunk: 'rgba(0,0,0,0.28)',
+    hairline: 'rgba(255,255,255,0.08)',
+    borderControl: 'rgba(255,255,255,0.08)',
+    hairlineGhost: 'rgba(255,255,255,0.10)',
+    hairlineStrong: 'rgba(255,255,255,0.16)',
+    fg1: '#F4F4F6',
+    fg2: '#C9C9CC',
+    fg3: '#8F8F93',
+    fg4: '#5D5D60',
+    scrim: 'rgba(0,0,0,0.55)',
   },
   light: {
-    bgCard: 'rgb(255, 255, 255)',
-    bgElev: 'rgb(255, 255, 255)',
-    bgElev2: 'rgb(255, 255, 255)',
-    hairline: 'rgba(2, 6, 24, 0.08)',
-    hairlineStrong: 'rgba(2, 6, 24, 0.16)',
-    statusEmpty: 'rgba(2, 6, 24, 0.18)',
+    bg: '#FAFAFA',
+    bgCard: '#FFFFFF',
+    bgField: '#FFFFFF',
+    bgWell: 'rgba(9,9,11,0.04)',
+    bgElev: '#FFFFFF',
+    bgElev2: '#FFFFFF',
+    bgHover: 'rgba(9,9,11,0.06)',
+    bgSunk: 'rgba(9,9,11,0.04)',
+    hairline: 'rgba(9,9,11,0.08)',
+    borderControl: 'rgba(9,9,11,0.08)',
+    hairlineGhost: 'rgba(9,9,11,0.10)',
+    hairlineStrong: 'rgba(9,9,11,0.16)',
+    fg1: '#1A1A1D',
+    fg2: '#424247',
+    fg3: '#68686D',
+    fg4: '#89898D',
+    scrim: 'rgba(0,0,0,0.55)',
   },
 }
 
 export interface StatusConstants {
   readonly overdue: string
   readonly bad: string
-  readonly frozen: string
   readonly overdueText: string
   readonly badText: string
   readonly fgOnBad: string
+  readonly fgOnOverdue: string
 }
 
-/**
- * Fixed (not scheme-tinted) chromatic status colors per mode. Dots, rings and
- * icons use the base values; status-colored TEXT uses the `-Text` variants,
- * guaranteed >= 4.5:1 WCAG AA on the mode canvas (only light overdue needed
- * darkening; the other three equal their base). `fgOnBad` is the foreground for
- * text/icons painted ON a `bad` fill (e.g. destructive confirm pill): ink in
- * dark (white-on-bad is only 3.81:1), white in light (ink-on-bad is only 4.23:1).
- */
 export const statusConstants: Record<SchemeMode, StatusConstants> = {
   dark: {
-    overdue: '#fe9a00',
-    bad: '#fb2c36',
-    frozen: '#00d3f3',
-    overdueText: '#fe9a00',
-    badText: '#fb2c36',
+    overdue: '#FE9A00',
+    bad: '#FB2C36',
+    overdueText: '#FE9A00',
+    badText: '#FB2C36',
     fgOnBad: '#020618',
+    fgOnOverdue: '#020618',
   },
   light: {
-    overdue: '#e17100',
-    bad: '#e7000b',
-    frozen: '#0092b8',
-    overdueText: '#b45b00',
-    badText: '#e7000b',
-    fgOnBad: '#ffffff',
+    overdue: '#946A00',
+    bad: '#E7000B',
+    overdueText: '#946A00',
+    badText: '#E7000B',
+    fgOnBad: '#FFFFFF',
+    fgOnOverdue: '#FFFFFF',
   },
 }
 
-/** Alpha applied to the scheme's primaryRgb for text selection. */
 export const selectionAlpha: Record<SchemeMode, number> = {
   dark: 0.32,
   light: 0.18,
