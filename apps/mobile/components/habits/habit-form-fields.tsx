@@ -10,13 +10,15 @@ import {
   buildHabitUnderstandingSentence,
   EMPTY_HABIT_FORM_PROPOSAL,
   coalesceFormText,
+  formatHabitReminderLabel,
   formatLocaleDate,
   getFriendlyErrorMessage,
-  HABIT_REMINDER_PRESETS,
   isFeatureEnabled,
   isHabitAstraLimitReached,
   readHabitPhrase,
+  resolveHabitStartDate,
   resolveSupportedLocale,
+  shouldShowHabitAstraFallback,
 } from '@orbit/shared/utils'
 import { MAX_HABIT_DESCRIPTION_LENGTH, validateTagForm } from '@orbit/shared/validation'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
@@ -89,20 +91,12 @@ interface AstraFallbackProps {
   tokens: AppTokens
 }
 
-function shouldShowAstraFallback(title: string, sentence: string | null, action: unknown, proposed: boolean): boolean {
-  return title.trim().length > 0 && sentence === null && typeof action === 'function' && !proposed
-}
-
 async function askAstra(
   action: HabitFormFieldsProps['onSuggestSetup'],
   atLimit: boolean,
 ): Promise<HabitFormProposal> {
   if (!action || atLimit) return EMPTY_HABIT_FORM_PROPOSAL
   return action()
-}
-
-function resolveStartDate(startDate: string | null | undefined, dueDate: string): string | null {
-  return startDate === undefined ? dueDate : startDate
 }
 
 function AstraFallback({
@@ -137,18 +131,6 @@ function AstraFallback({
       )}
     </View>
   )
-}
-
-function reminderLabel(minutes: number, t: (key: string) => string): string {
-  const preset = HABIT_REMINDER_PRESETS.find((item) => item.value === minutes)
-  if (preset) return t(preset.key)
-  if (minutes < 60) return `${minutes} ${t('habits.form.reminderMinutes')}`
-  if (minutes < 1440) {
-    const hours = Math.floor(minutes / 60)
-    return `${hours} ${t(hours === 1 ? 'habits.form.reminderHour' : 'habits.form.reminderHours')}`
-  }
-  const days = Math.floor(minutes / 1440)
-  return `${days} ${t(days === 1 ? 'habits.form.reminderDay' : 'habits.form.reminderDays')}`
 }
 
 interface ReminderEditorsProps {
@@ -212,7 +194,7 @@ function ReminderEditors({
   }
   return (
     <>
-      <ReminderSection tokens={tokens} reminderEnabled={reminderEnabled} reminderTimes={reminderTimes} onReminderTimesChange={onReminderTimesChange} onToggleReminder={onToggle} reminderLabel={(minutes) => reminderLabel(minutes, t)} />
+      <ReminderSection tokens={tokens} reminderEnabled={reminderEnabled} reminderTimes={reminderTimes} onReminderTimesChange={onReminderTimesChange} onToggleReminder={onToggle} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, t)} />
       <ScheduledReminderSection tokens={tokens} reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} onToggleReminder={onToggle} onSetScheduledReminders={onSetScheduledReminders} onValidationError={onValidationError} nested />
     </>
   )
@@ -269,7 +251,7 @@ export function HabitFormFields({
   const isBadHabit = useWatch({ control: form.control, name: 'isBadHabit' }) ?? false
   const slipAlertEnabled = useWatch({ control: form.control, name: 'slipAlertEnabled' }) ?? false
   const canUseSubHabits = isFeatureEnabled(config, 'habits.subHabits', featurePlan(hasProAccess))
-  const displayedStartDate = resolveStartDate(startDate, dueDate)
+  const displayedStartDate = resolveHabitStartDate(startDate, dueDate)
   const [detailsOpen, setDetailsOpen] = useState(defaultExpanded)
   const [proposal, setProposal] = useState(EMPTY_HABIT_FORM_PROPOSAL)
   const phraseOwnershipRef = useRef({ cadence: false, dueTime: false })
@@ -430,7 +412,7 @@ export function HabitFormFields({
       />
 
       <AstraFallback
-        visible={shouldShowAstraFallback(title, sentence, onSuggestSetup, proposal.setup || proposal.checklist || proposal.subHabits)}
+        visible={shouldShowHabitAstraFallback(title, sentence, onSuggestSetup, proposal)}
         atLimit={atMessageLimit}
         isSuggesting={isSuggesting}
         unresolved={t('habits.form.unresolved')}
