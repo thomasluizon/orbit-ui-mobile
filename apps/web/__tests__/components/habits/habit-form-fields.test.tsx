@@ -16,6 +16,7 @@ const COMBINED_PROPOSAL: HabitFormProposal = { setup: true, checklist: true, sub
 
 const testTranslations: Record<string, string> = {
   'habits.form.understoodDaily': 'Every day',
+  'habits.form.understoodDailyAt': 'Every day at {time}',
   'habits.form.understoodDaysAt': 'On {days} at {time}',
   'habits.form.understoodCountAt': '{count} times a week, any day at {time}',
 }
@@ -156,7 +157,7 @@ describe('HabitFormFields', () => {
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 4, { shouldDirty: true })
   })
 
-  it('states daily, timed fixed-day, and timed flexible schedules exactly', () => {
+  it('states daily, timed daily, timed fixed-day, and timed flexible schedules exactly', () => {
     const formHelpers = createFormHelpers({
       title: 'Run',
       frequencyUnit: 'Day',
@@ -165,6 +166,11 @@ describe('HabitFormFields', () => {
     const view = renderForm(formHelpers)
 
     expect(screen.getByText('Every day')).toBeDefined()
+
+    formHelpers.testValues.dueTime = '07:00'
+    view.rerenderForm()
+
+    expect(screen.getByText('Every day at 07:00')).toBeDefined()
 
     formHelpers.testValues.days = ['Monday']
     formHelpers.testValues.dueTime = '08:00'

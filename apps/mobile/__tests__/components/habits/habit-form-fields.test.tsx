@@ -15,6 +15,7 @@ const COMBINED_PROPOSAL: HabitFormProposal = { setup: true, checklist: true, sub
 
 const testTranslations: Record<string, string> = {
   'habits.form.understoodDaily': 'Every day',
+  'habits.form.understoodDailyAt': 'Every day at {time}',
   'habits.form.understoodDaysAt': 'On {days} at {time}',
   'habits.form.understoodCountAt': '{count} times a week, any day at {time}',
 }
@@ -90,7 +91,7 @@ describe('HabitFormFields mobile', () => {
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 4, { shouldDirty: true })
   })
 
-  it('states daily, timed fixed-day, and timed flexible schedules exactly', async () => {
+  it('states daily, timed daily, timed fixed-day, and timed flexible schedules exactly', async () => {
     const formHelpers = createFormHelpers({ frequencyUnit: 'Day', frequencyQuantity: 1 })
     const renderNode = () => <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
     let tree: any
@@ -102,6 +103,14 @@ describe('HabitFormFields mobile', () => {
     expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('Every day')
 
     const controlValues = (formHelpers.form.control as unknown as { values: Record<string, unknown> }).values
+    controlValues.dueTime = '07:00'
+    await TestRenderer.act(async () => {
+      tree.update(renderNode())
+      await Promise.resolve()
+    })
+
+    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('Every day at 07:00')
+
     controlValues.days = ['Monday']
     controlValues.dueTime = '08:00'
     await TestRenderer.act(async () => {
