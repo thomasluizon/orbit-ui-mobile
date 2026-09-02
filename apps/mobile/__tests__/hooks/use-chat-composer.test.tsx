@@ -407,9 +407,10 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.sendError).toBe('chat.sendError')
   })
 
-  it('adds the daily allowance event inline without routing or arming retry', async () => {
+  it('replaces a streamed draft with the daily allowance without routing or arming retry', async () => {
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(
       frame('{"type":"started"}'),
+      frame('{"type":"delta","text":"Checking"}'),
       frame('{"type":"error","status":403,"error":"Daily message limit reached"}'),
     ))
     const composer = await renderComposer()
@@ -1092,6 +1093,26 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.composerProps.limitReason).toBe(
       `shell.composer.limit.reason:{"allowance":${allowance}}`,
     )
+  })
+
+  it('shows the daily allowance instead of sending when the account is already at its limit', async () => {
+    mocks.state.profile = createMockProfile({
+      hasProAccess: false,
+      aiMessagesUsed: 5,
+      aiMessagesLimit: 5,
+    })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage('plan my morning')
+    })
+
+    expect(mocks.openChatStream).not.toHaveBeenCalled()
+    expect(useChatStore.getState().messages.at(-1)).toMatchObject({
+      role: 'ai',
+      content: 'shell.composer.limit.reason:{"allowance":5}',
+    })
+    expect(composer.current.sendError).toBeNull()
   })
 
   it('commits a finished voice transcript after the current draft', async () => {
