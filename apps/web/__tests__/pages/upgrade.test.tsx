@@ -238,6 +238,24 @@ describe('UpgradePage', () => {
     }
     render(<UpgradePage />)
     expect(document.body.textContent).toContain('upgrade.convert.trialHeading')
+    expect(document.body.textContent).not.toContain('upgrade.convert.freeHeading')
+    expect(document.body.textContent).not.toContain('upgrade.convert.trustLine')
+  })
+
+  it('uses the last day eyebrow instead of a count of one', () => {
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    mockHasProAccess = true
+    mockProfile = {
+      ...mockProfile,
+      isTrialActive: true,
+      trialEndsAt: tomorrow.toISOString(),
+    }
+
+    render(<UpgradePage />)
+
+    expect(document.body.textContent).toContain('upgrade.convert.trialLastDay')
+    expect(document.body.textContent).not.toContain('upgrade.convert.trialDaysLeft')
   })
 
   it('renders the trial countdown from trialEndsAt', () => {
@@ -703,8 +721,10 @@ describe('UpgradePage', () => {
     expect(screen.getByText(
       trialActive ? 'upgrade.convert.trialHeading' : 'upgrade.convert.freeHeading',
     )).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /upgrade\.plans\.monthly\.name/ })).toBeDisabled()
+    const paidActions = screen.getAllByRole('button', { name: 'upgrade.plans.cta' })
+    expect(paidActions).toHaveLength(2)
+    expect(paidActions[0]).toBeDisabled()
+    expect(paidActions[1]).toBeDisabled()
   })
 
   it('keeps the Play dashboard and disables its handoff while offline', () => {
@@ -754,7 +774,7 @@ describe('UpgradePage', () => {
     vi.stubGlobal('location', { href: '' })
 
     render(<UpgradePage />)
-    fireEvent.click(screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'upgrade.plans.cta' })[0]!)
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
     const call = fetchMock.mock.calls[0]
@@ -787,22 +807,22 @@ describe('UpgradePage', () => {
     vi.stubGlobal('location', { href: '' })
 
     render(<UpgradePage />)
-    fireEvent.click(screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'upgrade.plans.cta' })[0]!)
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1)
-      expect(screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ })).toHaveAttribute(
+      expect(screen.getAllByRole('button', { name: 'upgrade.plans.cta' })[0]).toHaveAttribute(
         'aria-busy',
         'true',
       )
     })
-    fireEvent.click(screen.getByRole('button', { name: /upgrade\.plans\.monthly\.name/ }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'upgrade.plans.cta' })[1]!)
     expect(fetchMock).toHaveBeenCalledTimes(1)
 
     resolveCheckout?.({ ok: true, json: async () => ({}) })
     await waitFor(() => {
       expect(
-        screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ }),
+        screen.getAllByRole('button', { name: 'upgrade.plans.cta' })[0],
       ).not.toBeDisabled()
     })
   })

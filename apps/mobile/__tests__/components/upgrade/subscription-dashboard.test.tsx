@@ -446,6 +446,7 @@ describe('subscription dashboards (mobile)', () => {
     const text = renderedText(tree)
 
     expect(text).toContain('upgrade.convert.freeAllowance')
+    expect(text).toContain('upgrade.convert.freeEyebrow')
     expect(text).toContain('upgrade.convert.proAllowance')
     expect(text).toContain('upgrade.convert.allowanceNote')
     expect(text.match(/upgrade\.outcomes\.(calendar|retrospective|noticing)\.title/g)).toHaveLength(3)
@@ -456,9 +457,13 @@ describe('subscription dashboards (mobile)', () => {
   it.each([
     [null, 'upgrade.convert.trialEyebrow'],
     [0, 'upgrade.convert.trialLastDay'],
+    [1, 'upgrade.convert.trialLastDay'],
+    [5, 'upgrade.convert.trialDaysLeft'],
   ] as const)('renders the trial countdown boundary for %s days', (trialDaysLeft, label) => {
     const tree = renderPricing({ profile: { isTrialActive: true }, trialDaysLeft })
     expect(renderedText(tree)).toContain(label)
+    expect(renderedText(tree)).toContain('upgrade.convert.trialHeading')
+    expect(renderedText(tree)).not.toContain('upgrade.convert.freeHeading')
     expect(renderedText(tree)).not.toContain('upgrade.convert.trustLine')
   })
 

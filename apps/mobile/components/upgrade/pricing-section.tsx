@@ -70,7 +70,7 @@ export function PricingSection({
   const trialEyebrow =
     trialDaysLeft === null
       ? t('upgrade.convert.trialEyebrow')
-      : trialDaysLeft === 0
+      : trialDaysLeft <= 1
       ? t('upgrade.convert.trialLastDay')
       : plural(t('upgrade.convert.trialDaysLeft', { days: trialDaysLeft }), trialDaysLeft)
   const eyebrow = trialActive ? trialEyebrow : t('upgrade.convert.freeEyebrow')

@@ -60,6 +60,11 @@ describe('upgrade utils', () => {
     const copyKeys = [
       'upgrade.convert.promise',
       'upgrade.convert.freeHeading',
+      'upgrade.convert.freeEyebrow',
+      'upgrade.convert.trialEyebrow',
+      'upgrade.convert.trialDaysLeft',
+      'upgrade.convert.trialLastDay',
+      'upgrade.convert.trialHeading',
       'upgrade.convert.allowanceLabel',
       'upgrade.convert.freeAllowance',
       'upgrade.convert.proAllowance',

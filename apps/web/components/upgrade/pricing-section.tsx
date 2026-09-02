@@ -49,7 +49,7 @@ export function PricingSection({
     eyebrow = t('upgrade.convert.freeEyebrow')
   } else if (trialDaysLeft === null) {
     eyebrow = t('upgrade.convert.trialEyebrow')
-  } else if (trialDaysLeft === 0) {
+  } else if (trialDaysLeft <= 1) {
     eyebrow = t('upgrade.convert.trialLastDay')
   } else {
     eyebrow = plural(t('upgrade.convert.trialDaysLeft', { days: trialDaysLeft }), trialDaysLeft)
