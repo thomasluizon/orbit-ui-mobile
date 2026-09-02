@@ -289,6 +289,24 @@ describe('apiFetch', () => {
     })
   })
 
+  it('lets a caller handle a 503 without a global toast', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: () => Promise.resolve({
+        error: 'Payment service temporarily unavailable',
+        code: 'PAYMENT_SERVICE_UNAVAILABLE',
+      }),
+    })
+
+    await expect(
+      apiFetch('/api/subscriptions/plans', undefined, undefined, {
+        handlesError: true,
+      }),
+    ).rejects.toThrow(ApiError)
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
   it('shows server error toast on 502', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
