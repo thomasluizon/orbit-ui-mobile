@@ -275,6 +275,7 @@ describe('HabitFormFields', () => {
     await waitFor(() => {
       expect(screen.getAllByRole('group', { name: 'habits.form.proposed' })).toHaveLength(1)
     })
+    expect(screen.queryByRole('button', { name: 'habits.form.askAstra' })).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
     expect(screen.queryByRole('group', { name: 'habits.form.proposed' })).toBeNull()

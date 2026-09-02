@@ -235,6 +235,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
     expect(tree.root.findAll((node: any) => node.props?.testID === 'proposed-field').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'button-secondary-md')).toHaveLength(0)
 
     const understanding = tree.root.findByType('HabitUnderstanding')
     TestRenderer.act(() => understanding.props.onQuantityChange(4))

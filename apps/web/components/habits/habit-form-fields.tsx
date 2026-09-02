@@ -83,8 +83,8 @@ interface AstraFallbackProps {
   onAsk: () => void
 }
 
-function shouldShowAstraFallback(title: string, sentence: string | null, action: unknown): boolean {
-  return title.trim().length > 0 && sentence === null && typeof action === 'function'
+function shouldShowAstraFallback(title: string, sentence: string | null, action: unknown, proposed: boolean): boolean {
+  return title.trim().length > 0 && sentence === null && typeof action === 'function' && !proposed
 }
 
 async function askAstra(
@@ -413,7 +413,7 @@ export function HabitFormFields({
       />
 
       <AstraFallback
-        visible={shouldShowAstraFallback(title, sentence, onSuggestSetup)}
+        visible={shouldShowAstraFallback(title, sentence, onSuggestSetup, proposed)}
         atLimit={atMessageLimit}
         isSuggesting={isSuggesting}
         unresolved={t('habits.form.unresolved')}

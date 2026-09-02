@@ -38,6 +38,7 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildSubHabitRequest, buildCreateHabitRequest } from '@/lib/habit-request-builders'
 import {
   MAX_GOALS_PER_HABIT,
+  MAX_SUB_HABITS,
   habitFormSchema,
 } from '@orbit/shared/validation'
 
@@ -274,7 +275,7 @@ export function CreateHabitModal({
           setSubHabits((prev) => [
             ...prev.filter((entry) => entry.value.trim().length > 0),
             ...patch.subHabitTitles.map((subHabitTitle) => createSubHabitEntry(subHabitTitle)),
-          ])
+          ].slice(0, MAX_SUB_HABITS))
         }
 
         if (appliedChecklist || appliedSubHabits) {

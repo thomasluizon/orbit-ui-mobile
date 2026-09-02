@@ -41,7 +41,7 @@ import {
   buildSubHabitRequest,
   buildCreateHabitRequest,
 } from '@/lib/habit-request-builders'
-import { MAX_GOALS_PER_HABIT, habitFormSchema } from '@orbit/shared/validation'
+import { MAX_GOALS_PER_HABIT, MAX_SUB_HABITS, habitFormSchema } from '@orbit/shared/validation'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -371,7 +371,7 @@ export function CreateHabitModal({
         setSubHabits((prev) => [
           ...prev.filter((entry) => entry.value.trim().length > 0),
           ...patch.subHabitTitles.map((subHabitTitle) => createSubHabitEntry(subHabitTitle)),
-        ])
+        ].slice(0, MAX_SUB_HABITS))
       }
 
       if (appliedChecklist || appliedSubHabits) {

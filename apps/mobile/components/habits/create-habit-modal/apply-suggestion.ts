@@ -1,5 +1,6 @@
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { HabitFormSuggestionPatch } from '@orbit/shared/utils'
+import { MAX_CHECKLIST_ITEMS } from '@orbit/shared/validation'
 
 type SuggestionScheduleTarget = Pick<
   HabitFormHelpers,
@@ -46,7 +47,9 @@ export function applySuggestionChecklist(
 ): boolean {
   if (patch.checklistItems.length === 0) return false
   const existingChecklist = form.getValues('checklistItems') ?? []
-  form.setValue('checklistItems', [...existingChecklist, ...patch.checklistItems], {
+  const suggestedChecklist = patch.checklistItems.slice(0, MAX_CHECKLIST_ITEMS - existingChecklist.length)
+  if (suggestedChecklist.length === 0) return false
+  form.setValue('checklistItems', [...existingChecklist, ...suggestedChecklist], {
     shouldDirty: true,
   })
   return true
