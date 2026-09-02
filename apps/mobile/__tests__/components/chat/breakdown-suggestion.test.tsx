@@ -11,6 +11,11 @@ vi.mock('@/hooks/use-habits', () => ({
   useBulkCreateHabits: () => ({ mutateAsync: bulkCreate, isPending: false }),
 }))
 
+vi.mock('@/components/ui/confirm-sheet', () => ({
+  ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
+    open ? React.createElement('ConfirmSheet', { onConfirm }) : null,
+}))
+
 vi.mock('@/lib/theme', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/theme')>()
   return {
@@ -77,13 +82,17 @@ beforeEach(() => {
 })
 
 describe('BreakdownSuggestion (mobile)', () => {
-  it('withholds the batch until approval', async () => {
+  it('withholds the batch until the approval sheet is confirmed', async () => {
     bulkCreate.mockResolvedValue(response(['Success', 'Success']))
     const tree = renderBreakdown()
 
     expect(bulkCreate).not.toHaveBeenCalled()
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       press(tree, 'chat.preview.approve').props.onPress()
+    })
+    expect(bulkCreate).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => {
+      tree.root.findByType('ConfirmSheet').props.onConfirm()
       await Promise.resolve()
     })
 
@@ -139,8 +148,11 @@ describe('BreakdownSuggestion (mobile)', () => {
       .mockResolvedValueOnce(response(['Success']))
     const tree = renderBreakdown()
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       press(tree, 'chat.preview.approve').props.onPress()
+    })
+    await TestRenderer.act(async () => {
+      tree.root.findByType('ConfirmSheet').props.onConfirm()
       await Promise.resolve()
     })
     await TestRenderer.act(async () => {

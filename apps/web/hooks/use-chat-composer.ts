@@ -265,7 +265,20 @@ export function useChatComposer() {
       setSendError(t('chat.timeoutError'))
       setLastFailedSend(failedAttempt)
     } else if (failure.kind === 'limit') {
-      setSendError(t('chat.limitReachedError'))
+      setSendError(null)
+      const limitReason = t('shell.composer.limit.reason', { allowance: aiMessagesLimit })
+      if (draftMessageId) {
+        updateMessage(draftMessageId, { content: limitReason })
+      } else {
+        addMessage({
+          id: crypto.randomUUID(),
+          role: 'ai',
+          content: limitReason,
+          timestamp: new Date(),
+        })
+      }
+      scrollToBottom()
+      return
     } else {
       setSendError(t('chat.sendError'))
       setLastFailedSend(failedAttempt)
@@ -282,7 +295,7 @@ export function useChatComposer() {
       })
     }
     scrollToBottom()
-  }, [addMessage, scrollToBottom, setInput, setIsTyping, t, updateMessage])
+  }, [addMessage, aiMessagesLimit, scrollToBottom, setInput, setIsTyping, t, updateMessage])
 
   const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null) => {
     setIsTyping(false)

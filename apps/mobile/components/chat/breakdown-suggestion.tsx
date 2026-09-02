@@ -5,6 +5,7 @@ import type { ConflictWarning, SuggestedSubHabit } from '@orbit/shared/types/cha
 import type { BreakdownEditableHabit } from '@orbit/shared/utils'
 import { buildBreakdownCreateRequest, filterValidBreakdownHabits } from '@orbit/shared/utils'
 import { BlockFrame } from '@/components/ui/block-frame'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Button } from '@/components/ui/pill-button'
 import { AlertTriangle } from '@/components/ui/icons'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
@@ -42,6 +43,7 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
   const [habits, setHabits] = useState<DraftHabit[]>(() => subHabits.map(toDraftHabit))
   const [editingId, setEditingId] = useState<string | null>(null)
   const [rejected, setRejected] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [results, setResults] = useState<Record<string, ItemResult>>({})
   const failedIds = habits.filter((habit) => results[habit.id] === 'failed').map((habit) => habit.id)
   const submit = async (onlyIds?: readonly string[]) => {
@@ -69,10 +71,11 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
     meta: results[habit.id] === 'failed' ? t('blockFrame.status.failed') : undefined,
     status: results[habit.id],
     proposed: results[habit.id] == null,
+    irreversible: results[habit.id] == null,
     control: results[habit.id] == null ? <Pressable accessibilityRole="button" accessibilityLabel={t('chat.breakdown.frequency', { name: habit.title })} onPress={() => setHabits((current) => current.map((item) => item.id === habit.id ? { ...item, frequencyUnit: nextCadence(item.frequencyUnit) } : item))} style={{ minHeight: 40, justifyContent: 'center', borderRadius: 999, paddingHorizontal: 12, backgroundColor: tokens.bgWell }}><Text style={{ color: tokens.fg2 }}>{t(`habits.filter.${habit.frequencyUnit === 'Week' ? 'weekly' : habit.frequencyUnit === 'Month' ? 'monthly' : 'daily'}`)}</Text></Pressable> : undefined,
   }))
-  return <BlockFrame state={bulkCreate.isPending ? 'acting' : partiallyFailed ? 'partiallyFailed' : 'resting'} title={t('chat.breakdown.title', { name: parentName })} items={rows} proposedLabel={t('chat.preview.proposed')} editLabel={t('chat.preview.editItem')} onEditItem={setEditingId} actions={<View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+  return <><BlockFrame state={bulkCreate.isPending ? 'acting' : partiallyFailed ? 'partiallyFailed' : 'resting'} title={t('chat.breakdown.title', { name: parentName })} items={rows} proposedLabel={t('chat.preview.proposed')} editLabel={t('chat.preview.editItem')} onEditItem={setEditingId} irreversibleLabel={t('chat.operation.irreversible')} confirmNote={t('chat.breakdown.confirmNote')} actions={<View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
     {warning?.hasConflict ? <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 8 }}><AlertTriangle size={16} color={tokens.statusOverdue} /><Text style={{ color: tokens.fg2 }}>{t('chat.breakdown.conflict', { name: warning.conflictingHabits[0]?.habitTitle ?? parentName })}</Text></View> : null}
-    {partiallyFailed ? <Button size="sm" onClick={() => void submit(failedIds)}>{t('chat.batch.retry', { count: failedIds.length })}</Button> : <><Button size="sm" disabled={bulkCreate.isPending} onClick={() => void submit()}>{t('chat.preview.approve')}</Button><Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={() => setEditingId(habits[0]?.id ?? null)}>{t('chat.preview.edit')}</Button><Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={() => setRejected(true)}>{t('chat.preview.reject')}</Button></>}
-  </View>} />
+    {partiallyFailed ? <Button size="sm" onClick={() => void submit(failedIds)}>{t('chat.batch.retry', { count: failedIds.length })}</Button> : <><Button size="sm" disabled={bulkCreate.isPending} onClick={() => setConfirmOpen(true)}>{t('chat.preview.approve')}</Button><Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={() => setEditingId(habits[0]?.id ?? null)}>{t('chat.preview.edit')}</Button><Button size="sm" variant="ghost" disabled={bulkCreate.isPending} onClick={() => setRejected(true)}>{t('chat.preview.reject')}</Button></>}
+  </View>} /><ConfirmSheet open={confirmOpen} title={t('chat.breakdown.confirmTitle')} message={t('chat.breakdown.confirmBody', { name: parentName })} confirmLabel={t('chat.breakdown.confirm')} onCancel={() => setConfirmOpen(false)} onConfirm={() => { setConfirmOpen(false); void submit() }} /></>
 }

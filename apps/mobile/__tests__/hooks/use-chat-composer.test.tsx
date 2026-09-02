@@ -407,7 +407,7 @@ describe('mobile useChatComposer', () => {
     expect(composer.current.sendError).toBe('chat.sendError')
   })
 
-  it('surfaces the limit error without routing when the stream reports a non-upgrade 403', async () => {
+  it('adds the daily allowance event inline without routing or arming retry', async () => {
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(
       frame('{"type":"started"}'),
       frame('{"type":"error","status":403,"error":"Daily message limit reached"}'),
@@ -419,7 +419,11 @@ describe('mobile useChatComposer', () => {
     })
 
     expect(mocks.routerPush).not.toHaveBeenCalled()
-    expect(composer.current.sendError).toBe('chat.limitReachedError')
+    expect(composer.current.sendError).toBeNull()
+    expect(useChatStore.getState().messages.at(-1)).toMatchObject({
+      role: 'ai',
+      content: 'shell.composer.limit.reason:{"allowance":5}',
+    })
     expect(composer.current.canRetryLastSend).toBe(false)
   })
 

@@ -34,9 +34,9 @@ const OPERATION_LABEL_KEYS: Readonly<Record<string, string>> = {
 
 /**
  * i18n key for a confirmation-gated agent capability's display name, or null when the
- * capability has no localized label yet (callers fall back to the server's English
- * DisplayName). Dots in capability ids are folded to hyphens because both i18n runtimes
- * treat dots as nesting separators.
+ * capability has no localized label yet. Callers use generic local copy for null so a
+ * server symbol never reaches the interface. Dots in capability ids are folded to hyphens
+ * because both i18n runtimes treat dots as nesting separators.
  */
 export function getAgentCapabilityLabelKey(capabilityId: string): string | null {
   return LOCALIZED_CAPABILITY_IDS.has(capabilityId)

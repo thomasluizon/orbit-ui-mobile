@@ -63,6 +63,18 @@ afterEach(() => {
 })
 
 describe('BlockFrame on mobile', () => {
+  it('renders an interactive row label outside a native Text container', () => {
+    const onPress = vi.fn()
+    const tree = render(<BlockFrame {...frame({ items: [{
+      id: 'interactive',
+      label: <Pressable accessibilityLabel="Open habit" onPress={onPress}><Text>Water</Text></Pressable>,
+    }] })} />)
+
+    const label = tree.root.findByProps({ accessibilityLabel: 'Open habit' })
+    prop<() => void>(label, 'onPress')()
+    expect(onPress).toHaveBeenCalledOnce()
+  })
+
   it('renders a busy loading skeleton without row labels', () => {
     const tree = render(<BlockFrame {...frame({ state: 'loading', actions: <Text>Save</Text> })} />)
     const root = tree.root.findByProps({ testID: 'block-frame-loading' })

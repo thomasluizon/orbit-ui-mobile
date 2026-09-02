@@ -1032,7 +1032,6 @@
     "fileAttached": "Attached file \"{name}\":",
     "sendError": "Failed to send message. Please try again.",
     "timeoutError": "The request timed out. Please try again.",
-    "limitReachedError": "You've reached today's AI message limit.",
     "aiError": "Sorry, something went wrong. Please try again.",
     "operationDone": "Done.",
     "operationFailed": "That didn't work. Try again.",
@@ -1130,7 +1129,11 @@
     "breakdown": {
       "title": "Split {name}",
       "frequency": "Frequency of {name}, tap to change",
-      "conflict": "A habit called {name} already exists."
+      "conflict": "A habit called {name} already exists.",
+      "confirmNote": "Approving creates every proposed habit at once.",
+      "confirmTitle": "Create these habits?",
+      "confirmBody": "This adds every proposed habit under {name}.",
+      "confirm": "Create habits"
     },
     "batch": {
       "retry": "Retry the {count} that failed"

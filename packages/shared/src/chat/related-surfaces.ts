@@ -39,8 +39,8 @@ export const RELATED_SURFACE_ROUTES: Readonly<Record<string, RelatedSurface>> = 
   subscriptions: {
     id: 'subscriptions',
     labelKey: 'chat.related.surface.subscriptions',
-    webRoute: '/upgrade',
-    mobileRoute: '/upgrade',
+    webRoute: '/profile',
+    mobileRoute: '/profile',
   },
   'ai-settings': {
     id: 'ai-settings',

@@ -327,7 +327,7 @@ describe('web useChatComposer streaming send', () => {
     expect(useChatStore.getState().isTyping).toBe(false)
   })
 
-  it('does not arm retry when the stream reports the monthly message limit', async () => {
+  it('adds the daily allowance event inline without arming retry', async () => {
     mocks.fetch.mockResolvedValue(sseResponse(
       frame('{"type":"started"}'),
       frame('{"type":"error","status":403,"error":"limit reached"}'),
@@ -338,7 +338,11 @@ describe('web useChatComposer streaming send', () => {
       await result.current.sendMessage('hello')
     })
 
-    expect(result.current.sendError).toBe('chat.limitReachedError')
+    expect(result.current.sendError).toBeNull()
+    expect(useChatStore.getState().messages.at(-1)).toMatchObject({
+      role: 'ai',
+      content: 'shell.composer.limit.reason:{"allowance":5}',
+    })
     expect(result.current.canRetryLastSend).toBe(false)
   })
 
@@ -544,7 +548,11 @@ describe('web useChatComposer streaming send', () => {
       await result.current.sendMessage('hello')
     })
 
-    expect(result.current.sendError).toBe('chat.limitReachedError')
+    expect(result.current.sendError).toBeNull()
+    expect(useChatStore.getState().messages.at(-1)).toMatchObject({
+      role: 'ai',
+      content: 'shell.composer.limit.reason:{"allowance":5}',
+    })
     expect(result.current.canRetryLastSend).toBe(false)
   })
 

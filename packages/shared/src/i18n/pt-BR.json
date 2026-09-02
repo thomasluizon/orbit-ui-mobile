@@ -1032,7 +1032,6 @@
     "fileAttached": "Arquivo anexado \"{name}\":",
     "sendError": "Não foi possível enviar a mensagem. Tente de novo.",
     "timeoutError": "A resposta demorou demais. Tente de novo.",
-    "limitReachedError": "Você atingiu o limite de mensagens de IA de hoje.",
     "aiError": "Desculpe, algo deu errado. Tente de novo.",
     "operationDone": "Pronto.",
     "operationFailed": "Não funcionou. Tente de novo.",
@@ -1130,7 +1129,11 @@
     "breakdown": {
       "title": "Dividir {name}",
       "frequency": "Frequência de {name}, toque para mudar",
-      "conflict": "Já existe um hábito chamado {name}."
+      "conflict": "Já existe um hábito chamado {name}.",
+      "confirmNote": "A aprovação cria todos os hábitos propostos de uma vez.",
+      "confirmTitle": "Criar estes hábitos?",
+      "confirmBody": "Isso adiciona todos os hábitos propostos em {name}.",
+      "confirm": "Criar hábitos"
     },
     "batch": {
       "retry": "Tentar os {count} que faltaram"

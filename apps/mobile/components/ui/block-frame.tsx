@@ -70,9 +70,11 @@ function FrameRow(props: FrameRowProps) {
       testID={`block-frame-item-${item.id}-${status ?? 'pending'}${item.proposed ? '-proposed' : ''}`}
     >
       <View style={styles.rowWords}>
-        <Text numberOfLines={1} style={[styles.rowLabel, { color: item.proposed ? tokens.fg3 : tokens.fg1 }]}>
-          {item.label}
-        </Text>
+        {typeof item.label === 'string' || typeof item.label === 'number' ? (
+          <Text numberOfLines={1} style={[styles.rowLabel, { color: item.proposed ? tokens.fg3 : tokens.fg1 }]}>
+            {item.label}
+          </Text>
+        ) : <View style={styles.rowLabelNode}>{item.label}</View>}
         {item.meta ? <Text numberOfLines={1} style={[styles.meta, { color: tokens.fg3 }]}>{item.meta}</Text> : null}
         {item.irreversible && props.irreversibleLabel ? (
           <IrreversibleMark label={props.irreversibleLabel} tokens={tokens} />
@@ -278,6 +280,7 @@ const styles = StyleSheet.create({
   row: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
   rowWords: { flex: 1, minWidth: 0 },
   rowLabel: { fontFamily: 'Geist_500Medium', fontSize: 14 },
+  rowLabelNode: { minWidth: 0 },
   meta: { fontFamily: 'Geist_400Regular', fontSize: 12 },
   trailing: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8 },

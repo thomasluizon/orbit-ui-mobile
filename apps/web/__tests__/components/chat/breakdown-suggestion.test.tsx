@@ -9,6 +9,11 @@ vi.mock('next-intl', () => ({
     params ? `${key}(${JSON.stringify(params)})` : key,
 }))
 
+vi.mock('@/components/ui/confirm-sheet', () => ({
+  ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
+    open ? <button type="button" onClick={onConfirm}>confirm-breakdown</button> : null,
+}))
+
 const bulkCreate = vi.fn<(request: unknown) => Promise<BulkCreateResponse>>()
 
 vi.mock('@/hooks/use-habits', () => ({
@@ -46,12 +51,14 @@ describe('BreakdownSuggestion', () => {
     defaultProps.onConfirmed.mockReset()
   })
 
-  it('withholds the batch until Approve is pressed', async () => {
+  it('withholds the batch until the approval sheet is confirmed', async () => {
     bulkCreate.mockResolvedValue(response(['Success', 'Success']))
     render(<BreakdownSuggestion {...defaultProps} />)
 
     expect(bulkCreate).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+    expect(bulkCreate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
 
     await waitFor(() => expect(bulkCreate).toHaveBeenCalledTimes(1))
     expect(defaultProps.onConfirmed).toHaveBeenCalledTimes(1)
@@ -103,6 +110,7 @@ describe('BreakdownSuggestion', () => {
     render(<BreakdownSuggestion {...defaultProps} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'chat.preview.approve' }))
+    fireEvent.click(screen.getByRole('button', { name: 'confirm-breakdown' }))
     const retry = await screen.findByRole('button', { name: /chat\.batch\.retry/ })
     fireEvent.click(retry)
 
