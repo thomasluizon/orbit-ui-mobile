@@ -71,7 +71,6 @@ vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () =
 vi.mock('@/components/habits/habit-detail-drawer', () => ({ HabitDetailDrawer: () => null }))
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 vi.mock('@/components/ui/astra-avatar', () => ({ AstraMark: () => null }))
-vi.mock('@/components/ui/gradient-top', () => ({ GradientTop: () => null }))
 vi.mock('@/components/ui/offline-unavailable-state', () => ({ OfflineUnavailableState: () => null }))
 vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
   KeyboardAwareFlatList: () => null,

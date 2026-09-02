@@ -93,8 +93,6 @@ describe('mobile theme runtime', () => {
     expect(dark.fgOnBad).toBe('#020618')
     expect(dark.fgOnOverdue).toBe('#020618')
     expect(dark.selectionBg).toBe('rgba(196,83,15,0.32)')
-    expect(dark.gradientHeaderFrom).toBe('#22094f')
-    expect(dark.gradientHeaderTo).toBe('rgba(9, 9, 11, 0)')
   })
 
   it('resolves every served scheme to the granted accent', () => {
