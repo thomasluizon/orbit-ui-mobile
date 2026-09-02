@@ -142,9 +142,9 @@ describe('ChatPage', () => {
 
     render(<ChatPage />)
 
-    expect(screen.getByText('chat.offline.description')).toBeInTheDocument()
-    expect(screen.getByText('send failed sentinel')).toHaveAttribute('role', 'alert')
+    expect(screen.getByRole('alert')).toHaveTextContent('send failed sentinel')
     expect(screen.getByRole('log', { name: 'chat.title' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.queryByTestId('typing-indicator')).not.toBeInTheDocument()
   })
 
   it('goes back on Escape when no text is being edited', () => {

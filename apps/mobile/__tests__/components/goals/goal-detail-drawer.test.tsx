@@ -1,8 +1,9 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { buildTempGoal } from '@/lib/goal-mutation-helpers'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -191,6 +192,8 @@ describe('GoalDetailDrawer', () => {
     mockStatusMutateAsync.mockReset()
     mockStatusMutateAsync.mockResolvedValue(undefined)
     mockPush.mockClear()
+    useChatStore.setState({ draft: '', draftHydrated: true })
+    useUIStore.setState({ astraConversationOpen: false })
   })
 
   function renderDrawer(onClose: () => void = vi.fn()) {
@@ -477,8 +480,7 @@ describe('GoalDetailDrawer', () => {
     )
   }
 
-  it('seeds a chat draft, closes the mounted sheet, and navigates to Astra', () => {
-    const setItem = vi.spyOn(AsyncStorage, 'setItem').mockResolvedValue(undefined)
+  it('seeds a chat draft, closes the mounted sheet, and opens Astra', () => {
     let tree: any
     TestRenderer.act(() => {
       tree = TestRenderer.create(<GoalListHostReplica />)
@@ -489,12 +491,9 @@ describe('GoalDetailDrawer', () => {
 
     press(tree, 'ask-astra')
 
-    expect(setItem).toHaveBeenCalledWith(
-      'orbit-chat-draft',
-      'goals.detail.askAstraSeedDefault:{"title":"Read 12 books"}',
-    )
-    expect(mockPush).toHaveBeenCalledWith('/chat')
-    expect(mockPush).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState().draft).toBe('goals.detail.askAstraSeedDefault:{"title":"Read 12 books"}')
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(mockPush).not.toHaveBeenCalled()
     expect(tree.root.findAllByType('Sheet')).toHaveLength(0)
   })
 

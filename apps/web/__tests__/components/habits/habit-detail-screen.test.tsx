@@ -5,6 +5,8 @@ import { formatAPIDate } from '@orbit/shared/utils'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { HabitDetail, HabitMetrics, NormalizedHabit } from '@orbit/shared/types/habit'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 
 const mocks = vi.hoisted(() => ({
   logs: [] as HabitLog[],
@@ -274,6 +276,8 @@ describe('HabitDetailScreen', () => {
     mocks.routerReplace.mockReset()
     mocks.history = []
     mocks.hasProAccess = true
+    useChatStore.setState({ draft: '', draftHydrated: true })
+    useUIStore.setState({ astraConversationOpen: false })
     mocks.suggestion = null
     localStorage.clear()
   })
@@ -618,8 +622,9 @@ describe('HabitDetailScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.askAstra' }))
 
-    expect(localStorage.getItem('orbit-chat-draft')).toBe('habits.detail.askAstraSeedDefault:{"title":"Read"}')
-    expect(mocks.routerPush).toHaveBeenCalledWith('/chat')
+    expect(useChatStore.getState().draft).toBe('habits.detail.askAstraSeedDefault:{"title":"Read"}')
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
   it('keeps delete confirmation open and reports a delete failure', async () => {

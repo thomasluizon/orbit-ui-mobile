@@ -1,19 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen } from '@testing-library/react'
-import type { ComposerProps } from '@orbit/shared/contracts/composer'
+import { fireEvent, render, screen } from '@testing-library/react'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { TodayAstra } from '@/components/today/today-astra'
-import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
 interface TodayAstraMocks {
-  composerProps: ComposerProps | null
   notifications: NotificationItem[]
   markRead: ReturnType<typeof vi.fn>
 }
 
 const mocks = vi.hoisted((): TodayAstraMocks => ({
-  composerProps: null,
   notifications: [],
   markRead: vi.fn(),
 }))
@@ -29,39 +25,7 @@ vi.mock('@/hooks/use-notifications', () => ({
   useNotifications: () => ({ notifications: mocks.notifications }),
   useMarkNotificationRead: () => ({ mutate: mocks.markRead }),
 }))
-vi.mock('@/hooks/use-chat-composer', () => ({
-  useChatComposer: () => ({
-    composerProps: {
-      state: 'idle',
-      value: '',
-      onChangeValue: vi.fn(),
-      onSend: vi.fn(),
-      words: {
-        placeholder: 'placeholder',
-        send: 'send',
-        suggestionsLabel: 'suggestions',
-        retry: 'retry',
-      },
-      suggestions: [],
-    },
-    starterChips: ['Plan a walk', 'Plan reading', 'Plan sleep'],
-    isOnline: true,
-    atMessageLimit: false,
-  }),
-}))
-vi.mock('@/components/shell/composer', () => ({
-  Composer: (props: ComposerProps) => {
-    mocks.composerProps = props
-    return <div data-testid="today-composer" />
-  },
-}))
 vi.mock('@/components/ui/astra-glyph', () => ({ AstraGlyph: () => null }))
-
-function ConversationComposer() {
-  const open = useUIStore((state) => state.astraConversationOpen)
-  const draft = useChatStore((state) => state.draft)
-  return open ? <input aria-label="conversation draft" readOnly value={draft} /> : null
-}
 
 function renderTodayAstra() {
   return render(<TodayAstra isTodaySelected suppressed={false} />)
@@ -69,10 +33,8 @@ function renderTodayAstra() {
 
 describe('web Today Astra', () => {
   beforeEach(() => {
-    mocks.composerProps = null
     mocks.notifications = []
     mocks.markRead.mockReset()
-    useChatStore.setState({ draft: '', draftHydrated: true })
     useUIStore.setState({ astraConversationOpen: false })
     document.getElementById('today-composer-slot')?.remove()
   })
@@ -84,20 +46,18 @@ describe('web Today Astra', () => {
     return slot
   }
 
-  it('renders the composer into its slot after the target resolves', async () => {
+  it('leaves the retired Today composer slot empty', () => {
     const slot = appendComposerSlot()
 
     renderTodayAstra()
 
-    expect(slot).toContainElement(await screen.findByTestId('today-composer'))
+    expect(slot).toBeEmptyDOMElement()
   })
 
-  it('renders no composer or stray portal when the slot is absent', async () => {
-    expect(() => renderTodayAstra()).not.toThrow()
-    await act(async () => Promise.resolve())
+  it('renders no proactive row when there is no unread check-in', () => {
+    const { container } = renderTodayAstra()
 
-    expect(screen.queryByTestId('today-composer')).not.toBeInTheDocument()
-    expect(mocks.composerProps).toBeNull()
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('renders a proactive check-in and opens its conversation', () => {
@@ -121,26 +81,4 @@ describe('web Today Astra', () => {
     expect(useUIStore.getState().astraConversationOpen).toBe(true)
   })
 
-  it('hands a selected chip to the conversation with 50 habits', async () => {
-    appendComposerSlot()
-
-    render(
-      <>
-        {Array.from({ length: 50 }, (_, index) => <div key={index} data-testid="habit" />)}
-        <TodayAstra isTodaySelected suppressed={false} />
-        <ConversationComposer />
-      </>,
-    )
-
-    await screen.findByTestId('today-composer')
-    expect(mocks.composerProps?.suggestions).toHaveLength(4)
-    const selectedSuggestion = mocks.composerProps?.suggestions[0]
-    if (!selectedSuggestion) throw new Error('Today suggestion was not registered')
-
-    act(() => selectedSuggestion.onSelect())
-
-    expect(screen.getByRole('textbox', { name: 'conversation draft' })).toHaveValue(
-      'todayAstra.createSentence',
-    )
-  })
 })
