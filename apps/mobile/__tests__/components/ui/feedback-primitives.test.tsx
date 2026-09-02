@@ -97,8 +97,10 @@ describe('mobile feedback primitives', () => {
     )
 
     expect(textValues(tree)).toContain('Check the connection and try again.')
-    const error = tree.root.findByProps({ testID: 'error-state' })
-    expect(error.props.accessibilityRole).toBe('alert')
+    const container = tree.root.findByProps({ testID: 'error-state' })
+    expect(container.props.accessible).toBeUndefined()
+    const error = tree.root.findByProps({ accessibilityRole: 'alert' })
+    expect(error).not.toBe(container)
     expect(error.props.accessibilityLiveRegion).toBe('polite')
     expect(error.props.accessibilityLabel).toBe('Check the connection and try again.')
     expect(tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityRole === 'button')).toHaveLength(1)

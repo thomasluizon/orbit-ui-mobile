@@ -218,7 +218,7 @@ export default function UpgradePage() {
         onBack={() => goBackOrFallback('/profile')}
         title={t('upgrade.title')}
       />
-      <main className="mx-auto w-full max-w-[760px] flex-1 px-5 py-6">
+      <main className="mx-auto w-full max-w-[620px] flex-1 px-4 py-6">
         {model.state === 'offline' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
         {content}
       </main>
