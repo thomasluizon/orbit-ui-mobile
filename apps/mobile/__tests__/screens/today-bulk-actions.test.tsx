@@ -34,10 +34,6 @@ const mocks = vi.hoisted(() => ({
   },
 }))
 
-vi.mock('expo-router', () => ({
-  useRouter: () => ({ push: vi.fn() }),
-}))
-
 vi.mock('@tanstack/react-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-query')>()
   const queryClient = {
@@ -96,6 +92,7 @@ vi.mock('react-native-safe-area-context', () => ({
 }))
 
 vi.mock('expo-router', () => ({
+  useRouter: () => ({ push: vi.fn() }),
   useFocusEffect: (callback: () => void | (() => void)) => {
     React.useEffect(callback, [callback])
   },
