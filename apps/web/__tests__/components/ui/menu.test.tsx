@@ -29,6 +29,7 @@ const items = [
 describe('Menu', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
     document.body.innerHTML = ''
   })
 
@@ -344,12 +345,12 @@ describe('Menu', () => {
 
     const menu = await screen.findByRole('menu')
     await waitFor(() => expect(menu).toHaveAttribute('data-positioned'))
-    expect(menu).toHaveStyle({ left: '120px', top: '80px' })
-    expect(menu.style.transformOrigin).toBe('left top')
+    expect(menu).toHaveAttribute('data-align', 'start')
   })
 
   it('opens upward when there is no room below the anchor', async () => {
     setWide(true)
+    vi.stubGlobal('innerHeight', 640)
     const anchorRef = createRef<HTMLButtonElement>()
     const { rerender } = render(
       <>
@@ -369,8 +370,8 @@ describe('Menu', () => {
 
     const menu = await screen.findByRole('menu')
     await waitFor(() => expect(menu).toHaveAttribute('data-positioned'))
-    expect(menu.style.transformOrigin).toBe('right bottom')
-    expect(menu).toHaveStyle({ top: '692px' })
+    await waitFor(() => expect(menu).toHaveAttribute('data-side', 'top'))
+    expect(menu).toHaveAttribute('data-align', 'end')
   })
 
   it('honours an explicit sheet presentation at the wide width', async () => {

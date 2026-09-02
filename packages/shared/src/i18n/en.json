@@ -464,6 +464,7 @@
     "postponeConfirmButton": "Postpone",
     "deleteConfirmTitle": "Delete Habit",
     "deleteConfirmMessage": "This deletes the habit. It cannot be undone.",
+    "deleteListConfirmMessage": "{name} and {count} item inside it leave your list. This cannot be undone. | {name} and {count} items inside it leave your list. This cannot be undone.",
     "duplicateConfirmTitle": "Duplicate habit?",
     "duplicateConfirmMessage": "A copy of \"{name}\" will be created with all its settings (frequency, tags, reminders, checklist).",
     "duplicateConfirm": "Duplicate",

@@ -464,6 +464,7 @@
     "postponeConfirmButton": "Adiar",
     "deleteConfirmTitle": "Excluir hábito",
     "deleteConfirmMessage": "Quer mesmo excluir este hábito? Não dá para desfazer.",
+    "deleteListConfirmMessage": "{name} e o {count} item dentro dele saem da sua lista. Não dá para desfazer. | {name} e os {count} itens dentro dele saem da sua lista. Não dá para desfazer.",
     "duplicateConfirmTitle": "Duplicar hábito?",
     "duplicateConfirmMessage": "Vamos criar uma cópia de \"{name}\" com tudo: frequência, tags, lembretes e checklist.",
     "duplicateConfirm": "Duplicar",

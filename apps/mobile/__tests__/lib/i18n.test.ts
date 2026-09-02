@@ -18,6 +18,12 @@ describe('mobile i18n interpolation', () => {
       plural(i18n.t('habits.bulkDeleteMessage', { count: 1 }), 1),
     ).toBe('This deletes 1 habit and its sub habits. It cannot be undone.')
     expect(
+      plural(i18n.t('habits.deleteListConfirmMessage', { name: 'Read', count: 1 }), 1),
+    ).toBe('Read and 1 item inside it leave your list. This cannot be undone.')
+    expect(
+      plural(i18n.t('habits.deleteListConfirmMessage', { name: 'Read', count: 2 }), 2),
+    ).toBe('Read and 2 items inside it leave your list. This cannot be undone.')
+    expect(
       plural(
         i18n.t('calendar.dayDetail.completionSummary', { done: 1, total: 1 }),
         1,
