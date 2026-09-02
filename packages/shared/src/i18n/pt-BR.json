@@ -453,7 +453,6 @@
     "skipConfirmMessage": "Isso adianta a data para a próxima vez, sem registrar como concluído.",
     "skipConfirmMessageFlexible": "Isso reduz em 1 as conclusões necessárias neste período.",
     "skipConfirmButton": "Pular",
-    "skipToast": "{name} foi pulado e saiu do dia. Pular de volta desfaz.",
     "postponeConfirmTitle": "Adiar tarefa",
     "postponeConfirmMessage": "Isso move a tarefa para amanhã.",
     "postponeConfirmButton": "Adiar",

@@ -18,7 +18,6 @@ const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
-const shellNoticeSlot = vi.hoisted(() => vi.fn())
 
 const TestRenderer = require('react-test-renderer')
 
@@ -189,10 +188,6 @@ vi.mock('react-i18next', () => ({
       params ? `${key}(${JSON.stringify(params)})` : key,
     i18n: { language: 'en' },
   }),
-}))
-
-vi.mock('@/components/shell/shell-composer-slot', () => ({
-  useShellNoticeSlot: shellNoticeSlot,
 }))
 
 vi.mock('expo-router', () => ({
@@ -547,45 +542,6 @@ describe('HabitList', () => {
     })
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'habit-1', date: TODAY })
     expect(confirmationSheets(tree, 'habits.skipConfirmTitle')).toHaveLength(0)
-    const noticeCall = shellNoticeSlot.mock.calls
-      .slice()
-      .reverse()
-      .find((call: unknown[]) => call[0] === true)
-    const notice = noticeCall?.[1] as React.ReactElement<{
-      actionLabel: string
-      kind: string
-      message: string
-      onAction: () => void
-    }> | undefined
-    expect(notice?.props).toMatchObject({
-      actionLabel: 'undo.action',
-      kind: 'neutral',
-      message: 'habits.skipToast({"name":"Exercise"})',
-    })
-    await TestRenderer.act(async () => {
-      notice?.props.onAction()
-      await Promise.resolve()
-    })
-    expect(skipMutateAsync).toHaveBeenCalledTimes(2)
-
-    await TestRenderer.act(async () => {
-      habitCard?.props.actions.onSkip()
-      await Promise.resolve()
-    })
-    expect(shellNoticeSlot.mock.calls.at(-1)?.[0]).toBe(true)
-    await TestRenderer.act(async () => {
-      tree.update(
-        <HabitList
-          view="today"
-          filters={{}}
-          selectedDate={new Date(`${TOMORROW}T12:00:00Z`)}
-          showCompleted
-          onCreatePress={vi.fn()}
-        />,
-      )
-      await Promise.resolve()
-    })
-    expect(shellNoticeSlot.mock.calls.at(-1)?.[0]).toBe(false)
     expect(confirmationSheets(tree, 'habits.deleteConfirmTitle')).toHaveLength(0)
   })
 

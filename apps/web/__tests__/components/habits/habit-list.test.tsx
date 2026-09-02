@@ -11,7 +11,6 @@ const TODAY = formatAPIDate(new Date())
 const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
-const shellNoticeSlot = vi.hoisted(() => vi.fn())
 
 
 const mockHabitsData = {
@@ -56,10 +55,6 @@ vi.mock('next-intl', () => ({
     return t
   },
   useLocale: () => 'en',
-}))
-
-vi.mock('@/components/shell/destination-shell', () => ({
-  useShellNoticeSlot: shellNoticeSlot,
 }))
 
 vi.mock('next/navigation', () => ({
@@ -2283,7 +2278,7 @@ describe('HabitList', () => {
     mockHabitsData.childrenByParent.set(habit.id, [child.id])
     mockHabitsData.topLevelHabits = [habit]
 
-    const { rerenderWithProviders } = renderWithProviders(
+    renderWithProviders(
       <HabitList filters={defaultFilters} selectedDate={new Date(`${TODAY}T12:00:00Z`)} />,
     )
 
@@ -2292,32 +2287,6 @@ describe('HabitList', () => {
     })
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'h-1', date: TODAY })
     expect(screen.queryByRole('dialog', { name: 'habits.skipConfirmTitle' })).toBeNull()
-    const noticeCall = shellNoticeSlot.mock.calls
-      .slice()
-      .reverse()
-      .find((call: unknown[]) => call[0] === true)
-    const notice = noticeCall?.[1] as React.ReactElement<{
-      actionLabel: string
-      kind: string
-      message: string
-      onAction: () => void
-    }> | undefined
-    expect(notice?.props).toMatchObject({
-      actionLabel: 'undo.action',
-      kind: 'neutral',
-      message: 'habits.skipToast({"name":"Stretch"})',
-    })
-    act(() => notice?.props.onAction())
-    expect(skipHabitMutateAsync).toHaveBeenCalledTimes(2)
-
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('skip-h-1'))
-    })
-    expect(shellNoticeSlot.mock.calls.at(-1)?.[0]).toBe(true)
-    rerenderWithProviders(
-      <HabitList filters={defaultFilters} selectedDate={new Date(`${TOMORROW}T12:00:00Z`)} />,
-    )
-    expect(shellNoticeSlot.mock.calls.at(-1)?.[0]).toBe(false)
     expect(screen.queryByRole('dialog', { name: 'habits.deleteConfirmTitle' })).toBeNull()
 
     await act(async () => {

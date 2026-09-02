@@ -57,20 +57,11 @@ describe('habit list overlay caller guards', () => {
     const caller = source(overlay.sourcePath)
     const sheet = source('components/ui/sheet.tsx')
     const habitList = source('components/habit-list.tsx')
-    const notice = habitList.slice(
-      habitList.indexOf('useShellNoticeSlot('),
-      habitList.indexOf('return setNotice'),
-    )
-
     expect(caller).toMatch(overlay.mount)
     expect(caller).toContain(overlay.firstLine)
     expect(caller).not.toMatch(/<ScrollView\b|<FlatList\b/)
     expect(sheet.indexOf('const header =')).toBeLessThan(sheet.indexOf('<KeyboardAwareSheetScrollView'))
     expect(habitList).not.toContain('skipConfirmTitle')
     expect(habitList).toContain('await skipMutation.mutateAsync({ habitId, date: selectedDateStr })')
-    expect(notice).toContain('kind="neutral"')
-    expect(notice).toContain("actionLabel={translate('undo.action')}")
-    expect(notice).toContain('onAction={() =>')
-    expect(notice).not.toContain('setTimeout')
   })
 })

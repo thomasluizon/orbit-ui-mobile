@@ -62,8 +62,6 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { useConfig } from '@/hooks/use-config'
-import { useShellNoticeSlot } from '@/components/shell/destination-shell'
-import { Toast } from '@/components/ui/toast'
 import {
   DndContext,
   closestCenter,
@@ -188,43 +186,6 @@ function createConfirmedResolutionRecord(date: string): ConfirmedResolutionRecor
     activeSettlements: 0,
     clearWhenIdle: false,
   }
-}
-
-interface HabitSkipNotice {
-  habitId: string
-  habitName: string
-  date: string
-}
-
-function useHabitSkipNotice(
-  selectedDate: string,
-  translate: (key: string, params?: Record<string, string | number | Date>) => string,
-  skip: (variables: { habitId: string; date: string }) => Promise<unknown>,
-) {
-  const [notice, setNotice] = useState<HabitSkipNotice | null>(null)
-  const activeNotice = notice?.date === selectedDate ? notice : null
-
-  function undo() {
-    if (!activeNotice) return
-    const { habitId, date } = activeNotice
-    setNotice(null)
-    void skip({ habitId, date }).catch(() => {})
-  }
-
-  useShellNoticeSlot(
-    activeNotice !== null,
-    activeNotice ? (
-      <Toast
-        kind="neutral"
-        message={translate('habits.skipToast', { name: activeNotice.habitName })}
-        actionLabel={translate('undo.action')}
-        onAction={undo}
-      />
-    ) : null,
-    activeNotice ? `${activeNotice.habitId}:${activeNotice.date}` : 'closed',
-  )
-
-  return setNotice
 }
 
 function getDeleteConfirmation(
@@ -698,12 +659,6 @@ export function HabitList({
     onSurfaceOpenChange?.(surfaceOpen)
   }, [onSurfaceOpenChange, surfaceOpen])
 
-  const showSkipNotice = useHabitSkipNotice(
-    selectedDateStr,
-    t,
-    (variables) => skipHabit.mutateAsync(variables),
-  )
-
   function recordHabitResolution(
     confirmedResolutions: ConfirmedResolutionRecord,
     habitId: string,
@@ -994,7 +949,6 @@ export function HabitList({
       recordHabitResolution(confirmedResolutions, habitId, 'skip')
       markRecentlyCompleted(habitId)
       checkAndSettleParent(habitId, confirmedResolutions)
-      showSkipNotice({ habitId, habitName: habit.title, date: selectedDateStr })
     } catch {
     }
   }

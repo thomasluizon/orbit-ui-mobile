@@ -66,8 +66,6 @@ import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
 import { HabitRow } from '@/components/habits/habit-row'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Toast } from '@/components/ui/app-toast'
-import { useShellNoticeSlot } from '@/components/shell/shell-composer-slot'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
 import {
@@ -198,40 +196,6 @@ function createConfirmedResolutionRecord(date: string): ConfirmedResolutionRecor
     activeSettlements: 0,
     clearWhenIdle: false,
   }
-}
-
-interface HabitSkipNotice {
-  habitId: string
-  habitName: string
-  date: string
-}
-
-function useHabitSkipNotice(
-  selectedDate: string,
-  translate: (key: string, params?: Record<string, unknown>) => string,
-  skip: (variables: { habitId: string; date: string }) => Promise<unknown>,
-) {
-  const [notice, setNotice] = useState<HabitSkipNotice | null>(null)
-  const activeNotice = notice?.date === selectedDate ? notice : null
-
-  useShellNoticeSlot(
-    activeNotice !== null,
-    activeNotice ? (
-      <Toast
-        kind="neutral"
-        message={translate('habits.skipToast', { name: activeNotice.habitName })}
-        actionLabel={translate('undo.action')}
-        onAction={() => {
-          const { habitId, date } = activeNotice
-          setNotice(null)
-          void skip({ habitId, date }).catch(() => {})
-        }}
-      />
-    ) : null,
-    activeNotice ? `${activeNotice.habitId}:${activeNotice.date}` : 'closed',
-  )
-
-  return setNotice
 }
 
 function getDeleteConfirmation(
@@ -418,11 +382,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       habitToDelete,
       habitsById,
       childrenByParent,
-    )
-    const showSkipNotice = useHabitSkipNotice(
-      selectedDateStr,
-      t,
-      (variables) => skipMutation.mutateAsync(variables),
     )
     const selectedIds = useMemo(
       () => selectedHabitIds ?? new Set<string>(),
@@ -1089,7 +1048,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         recordHabitResolution(confirmedResolutions, habitId, 'skip')
         markRecentlyCompleted(habitId)
         checkAndSettleParent(habitId, confirmedResolutions)
-        showSkipNotice({ habitId, habitName: habit.title, date: selectedDateStr })
       } catch {
       }
     }, [
@@ -1097,7 +1055,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       markRecentlyCompleted,
       recordHabitResolution,
       selectedDateStr,
-      showSkipNotice,
       skipMutation,
     ])
 
