@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import { applySubscriptionDiscount } from '@orbit/shared/utils'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { Badge } from '@/components/ui/badge'
@@ -40,7 +40,6 @@ export function PlanSelection({
   checkoutDisabled,
   onSelectInterval,
   onCheckout,
-  onStayFree,
   onRetry,
   t,
   tokens,
@@ -58,7 +57,6 @@ export function PlanSelection({
   checkoutDisabled: boolean
   onSelectInterval: (interval: SubscriptionInterval) => void
   onCheckout: (interval: SubscriptionInterval) => void
-  onStayFree: () => void
   onRetry: () => void
   t: UpgradeTextFn
   tokens: Tokens
@@ -155,15 +153,6 @@ export function PlanSelection({
         ))}
       </View>
       {checkoutError ? <Text style={[styles.errorText, { color: tokens.statusBad }]}>{checkoutError}</Text> : null}
-      <Pressable
-        accessibilityRole="button"
-        onPress={onStayFree}
-        disabled={checkoutPending}
-        accessibilityState={{ disabled: checkoutPending }}
-        style={({ pressed }) => [styles.freeLink, pressed ? styles.pressedScale : null]}
-      >
-        <Text style={[styles.freeLinkText, { color: tokens.fg2 }]}>{t('upgrade.convert.stayFree')}</Text>
-      </Pressable>
     </View>
   )
 }

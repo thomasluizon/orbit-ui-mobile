@@ -190,8 +190,8 @@ export const styles = StyleSheet.create({
   },
   freeLink: {
     alignSelf: 'flex-start',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    justifyContent: 'center',
+    minHeight: 44,
   },
   freeLinkText: {
     fontFamily: 'Geist_400Regular',
@@ -288,34 +288,34 @@ export const styles = StyleSheet.create({
   },
   renewalNote: {
     fontFamily: 'Geist_400Regular',
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'center',
-    marginHorizontal: 4,
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  handoffNote: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 22,
   },
   reassurance: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 8,
-    marginTop: 24,
+    marginTop: 16,
     paddingHorizontal: 16,
   },
   reassurancePrimary: {
-    fontFamily: 'Geist_500Medium',
-    fontSize: 13,
-    lineHeight: 18,
-    textAlign: 'center',
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 22,
   },
   restoreLink: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 13,
+    fontFamily: 'Geist_500Medium',
+    fontSize: 14,
   },
-  actionChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    alignItems: 'center',
+  restoreAction: {
+    alignSelf: 'center',
     justifyContent: 'center',
+    marginTop: 24,
+    minHeight: 44,
   },
   pressedScale: {
     transform: [{ scale: 0.96 }],

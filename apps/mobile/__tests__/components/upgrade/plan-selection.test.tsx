@@ -42,7 +42,6 @@ function renderSelection(
         checkoutDisabled={false}
         onSelectInterval={() => {}}
         onCheckout={() => {}}
-        onStayFree={() => {}}
         onRetry={() => {}}
         t={t}
         tokens={tokens}
@@ -140,16 +139,12 @@ describe('PlanSelection (mobile)', () => {
     expect(JSON.stringify(tree.toJSON()).match(/upgrade\.plans\.cta/g)).toHaveLength(2)
   })
 
-  it('keeps the free escape separate and locks actions during checkout', () => {
-    const onStayFree = vi.fn()
+  it('locks paid actions during checkout', () => {
     const tree = renderSelection('yearly', {
       checkoutLoading: 'yearly',
-      onStayFree,
     })
     const buttons = tree.root.findAllByType('Pressable')
 
-    expect(buttons.filter((button: { props: { disabled?: boolean } }) => button.props.disabled)).toHaveLength(5)
-    expect(JSON.stringify(tree.toJSON())).toContain('upgrade.convert.stayFree')
-    expect(onStayFree).not.toHaveBeenCalled()
+    expect(buttons.filter((button: { props: { disabled?: boolean } }) => button.props.disabled)).toHaveLength(4)
   })
 })

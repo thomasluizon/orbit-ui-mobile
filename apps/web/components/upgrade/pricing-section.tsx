@@ -113,25 +113,38 @@ export function PricingSection({
         checkoutLoading={checkoutLoading}
         checkoutDisabled={!isOnline}
         onCheckout={onCheckout}
-        onStayFree={onStayFree}
         onRetry={onRetryPlans}
         t={t}
       />
 
       {plans ? (
         <>
-          <div className="mt-6 flex flex-col items-center gap-2">
+          <div className="mt-6 flex flex-col items-start gap-2">
             {checkoutError ? (
               <p className="text-center text-xs text-[var(--status-bad)]">
                 {checkoutError}
               </p>
             ) : null}
-            <p className="text-center text-[13px] font-medium text-[var(--fg-2)]">
+            <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">
               {t('upgrade.convert.cancelAnytime')}
             </p>
-            <p className="max-w-[52ch] text-center text-xs leading-[1.5] text-[var(--fg-3)]">
+            <p className="max-w-[52ch] text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
               {t('upgrade.plans.renewalNote')}
             </p>
+            <p className="max-w-[52ch] text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
+              {t('upgrade.convert.handOff')}
+            </p>
+            <a
+              href="/profile"
+              aria-disabled={checkoutLoading !== null}
+              onClick={(event) => {
+                event.preventDefault()
+                if (checkoutLoading === null) onStayFree()
+              }}
+              className="text-base leading-6 text-[var(--fg-1)] underline underline-offset-4 aria-disabled:pointer-events-none aria-disabled:opacity-40"
+            >
+              {t('upgrade.convert.stayFree')}
+            </a>
           </div>
         </>
       ) : null}

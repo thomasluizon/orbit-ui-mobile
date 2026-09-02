@@ -442,7 +442,8 @@ describe('subscription dashboards (mobile)', () => {
   })
 
   it('renders the arithmetic pitch and exactly three outcome rows', () => {
-    const tree = renderPricing({ plans })
+    const onStayFree = vi.fn()
+    const tree = renderPricing({ plans, onStayFree })
     const text = renderedText(tree)
 
     expect(text).toContain('upgrade.convert.freeAllowance')
@@ -453,6 +454,14 @@ describe('subscription dashboards (mobile)', () => {
     expect(text).toContain('upgrade.convert.trustLine')
     expect(text).toContain('upgrade.convert.cancelAnytime')
     expect(text).toContain('upgrade.plans.renewalNote')
+    expect(text).toContain('upgrade.convert.handOff')
+    expect(text).toContain('upgrade.convert.stayFree')
+    const decline = tree.root.findAll(
+      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'link',
+    ).at(-1)
+    expect(decline).toBeDefined()
+    TestRenderer.act(() => (decline?.props.onPress as (() => void) | undefined)?.())
+    expect(onStayFree).toHaveBeenCalledTimes(1)
     expect(text.match(/upgrade\.outcomes\.(calendar|retrospective|noticing)\.title/g)).toHaveLength(3)
     expect(text).not.toContain('upgrade.features.')
     expect(text).not.toContain('upgrade.matrix.')
@@ -492,15 +501,15 @@ describe('subscription dashboards (mobile)', () => {
     const restoring = renderPricing({ plans, isOnline: false, isRestoring: true })
     expect(renderedText(restoring)).not.toContain('upgrade.restorePurchase')
     const restoreButton = restoring.root.findAll(
-      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
-    ).at(-1)
+      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'link',
+    )[0]
     expect(restoreButton?.props.accessibilityState).toEqual({ disabled: true })
 
     const offlinePlans = renderPricing({ plans, isOnline: false, isRestoring: false })
     expect(renderedText(offlinePlans)).toContain('upgrade.restorePurchase')
     const offlineRestore = offlinePlans.root.findAll(
-      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
-    ).at(-1)
+      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'link',
+    )[0]
     expect(offlineRestore?.props.accessibilityState).toEqual({ disabled: true })
   })
 

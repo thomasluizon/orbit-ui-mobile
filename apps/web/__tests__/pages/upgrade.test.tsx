@@ -5,6 +5,7 @@ import en from '@orbit/shared/i18n/en.json'
 import { UsageStats } from '@/components/upgrade/usage-stats'
 
 const mockOpenCustomerPortal = vi.hoisted(() => vi.fn())
+const mockGoBackOrFallback = vi.hoisted(() => vi.fn())
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -35,7 +36,7 @@ vi.mock('@/lib/plural', () => ({
 }))
 
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({
-  useGoBackOrFallback: () => vi.fn(),
+  useGoBackOrFallback: () => mockGoBackOrFallback,
 }))
 
 vi.mock('@/app/actions/subscription', () => ({
@@ -169,6 +170,7 @@ describe('UpgradePage', () => {
     mockIsBillingError = false
     mockUseBilling.mockClear()
     mockOpenCustomerPortal.mockReset()
+    mockGoBackOrFallback.mockReset()
     globalThis.sessionStorage.clear()
   })
 
@@ -204,6 +206,11 @@ describe('UpgradePage', () => {
     expect(screen.getByLabelText('upgrade.outcomes.label').children).toHaveLength(3)
     expect(document.body.textContent).toContain('upgrade.convert.cancelAnytime')
     expect(document.body.textContent).toContain('upgrade.plans.renewalNote')
+    expect(document.body.textContent).toContain('upgrade.convert.handOff')
+    const decline = screen.getByRole('link', { name: 'upgrade.convert.stayFree' })
+    expect(decline).toHaveAttribute('href', '/profile')
+    fireEvent.click(decline)
+    expect(mockGoBackOrFallback).toHaveBeenCalledWith('/profile')
     expect(document.body.textContent).not.toContain('upgrade.features.')
     expect(document.body.textContent).not.toContain('upgrade.matrix.')
   })

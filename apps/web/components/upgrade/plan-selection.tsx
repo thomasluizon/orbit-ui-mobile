@@ -22,7 +22,6 @@ interface PlanSelectionProps {
   checkoutLoading: SubscriptionInterval | null
   checkoutDisabled?: boolean
   onCheckout: (interval: SubscriptionInterval) => void
-  onStayFree: () => void
   onRetry: () => void
   t: ReturnType<typeof useTranslations>
 }
@@ -46,7 +45,6 @@ export function PlanSelection({
   checkoutLoading,
   checkoutDisabled = false,
   onCheckout,
-  onStayFree,
   onRetry,
   t,
 }: Readonly<PlanSelectionProps>) {
@@ -138,14 +136,6 @@ export function PlanSelection({
           />
         ))}
       </div>
-      <button
-        type="button"
-        onClick={onStayFree}
-        disabled={checkoutPending}
-        className="self-start text-base text-[var(--fg-2)] underline underline-offset-4 transition-[color] duration-[var(--dur-hover)] hover:text-[var(--fg-1)] disabled:opacity-40"
-      >
-        {t('upgrade.convert.stayFree')}
-      </button>
     </div>
   )
 }

@@ -1,5 +1,4 @@
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
-import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { Calendar, Eye, FileText } from '@/components/ui/icons'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import type { PlayOffer } from '@/hooks/use-play-billing'
@@ -7,12 +6,6 @@ import { plural } from '@/lib/plural'
 import { PlanSelection } from './plan-selection'
 import { styles } from './styles'
 import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
-
-function sectionEntrance(index: number) {
-  return FadeInDown.duration(280)
-    .delay(index * 40)
-    .reduceMotion(ReduceMotion.System)
-}
 
 const OUTCOMES = [
   { key: 'calendar', Icon: Calendar },
@@ -78,14 +71,14 @@ export function PricingSection({
 
   return (
     <>
-      <Animated.View entering={sectionEntrance(0)}>
+      <View>
         <Text style={[styles.convertEyebrow, { color: tokens.fg3 }]}>{eyebrow}</Text>
         <Text style={[styles.convertHeading, { color: tokens.fg1 }]}>{heading}</Text>
         <Text style={[styles.convertPromise, { color: tokens.fg2 }]}>{t('upgrade.convert.promise')}</Text>
         {!trialActive ? (
           <Text style={[styles.convertTrust, { color: tokens.fg3 }]}>{t('upgrade.convert.trustLine')}</Text>
         ) : null}
-      </Animated.View>
+      </View>
 
       <View
         accessible
@@ -123,7 +116,7 @@ export function PricingSection({
         ))}
       </View>
 
-      <Animated.View entering={sectionEntrance(1)}>
+      <View>
         <PlanSelection
           plans={plans}
           isLoading={isLoadingPlans}
@@ -138,32 +131,22 @@ export function PricingSection({
           checkoutDisabled={checkoutDisabled}
           onSelectInterval={onSelectInterval}
           onCheckout={onCheckout}
-          onStayFree={onStayFree}
           onRetry={onRetryPlans}
           t={t}
           tokens={tokens}
         />
-      </Animated.View>
+      </View>
 
       {plans ? (
         <>
-          <View style={styles.reassurance}>
-            <Text style={[styles.reassurancePrimary, { color: tokens.fg2 }]}>
-              {t('upgrade.convert.cancelAnytime')}
-            </Text>
-            <Text style={[styles.renewalNote, { color: tokens.fg3 }]}>
-              {t('upgrade.plans.renewalNote')}
-            </Text>
-          </View>
           <Pressable
-            accessibilityRole="button"
+            accessibilityRole="link"
             onPress={onRestore}
             disabled={isRestoring || !isOnline}
             accessibilityState={{ disabled: isRestoring || !isOnline }}
             hitSlop={{ top: 6, bottom: 6 }}
             style={({ pressed }) => [
-              styles.actionChip,
-              { alignSelf: 'center', marginTop: 20, backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev, borderColor: tokens.hairline },
+              styles.restoreAction,
               pressed ? styles.pressedScale : null,
             ]}
           >
@@ -173,6 +156,28 @@ export function PricingSection({
               <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>{t('upgrade.restorePurchase')}</Text>
             )}
           </Pressable>
+          <View style={styles.reassurance}>
+            <Text style={[styles.reassurancePrimary, { color: tokens.fg2 }]}>
+              {t('upgrade.convert.cancelAnytime')}
+            </Text>
+            <Text style={[styles.renewalNote, { color: tokens.fg3 }]}>
+              {t('upgrade.plans.renewalNote')}
+            </Text>
+            <Text style={[styles.handoffNote, { color: tokens.fg3 }]}>
+              {t('upgrade.convert.handOff')}
+            </Text>
+            <Pressable
+              accessibilityRole="link"
+              onPress={onStayFree}
+              disabled={checkoutLoading !== null}
+              accessibilityState={{ disabled: checkoutLoading !== null }}
+              style={({ pressed }) => [styles.freeLink, pressed ? styles.pressedScale : null]}
+            >
+              <Text style={[styles.freeLinkText, { color: tokens.fg1 }]}>
+                {t('upgrade.convert.stayFree')}
+              </Text>
+            </Pressable>
+          </View>
         </>
       ) : null}
     </>

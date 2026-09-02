@@ -30,7 +30,6 @@ function renderSelection(overrides: Partial<Parameters<typeof PlanSelection>[0]>
     discountedAmount: (amount: number) => amount,
     checkoutLoading: null,
     onCheckout: vi.fn(),
-    onStayFree: vi.fn(),
     onRetry: vi.fn(),
     t,
     ...overrides,
@@ -137,17 +136,13 @@ describe('PlanSelection', () => {
     expect(onCheckout).toHaveBeenNthCalledWith(2, 'monthly')
   })
 
-  it('keeps the free escape hatch separate and locks actions during checkout', () => {
+  it('locks paid actions during checkout', () => {
     const onCheckout = vi.fn()
-    const onStayFree = vi.fn()
-    renderSelection({ checkoutLoading: 'yearly', onCheckout, onStayFree })
+    renderSelection({ checkoutLoading: 'yearly', onCheckout })
 
     const paidActions = screen.getAllByRole('button', { name: 'upgrade.plans.cta' })
-    const stayFree = screen.getByRole('button', { name: 'upgrade.convert.stayFree' })
     expect(paidActions.every((action) => action.hasAttribute('disabled'))).toBe(true)
     expect(paidActions[0]).toHaveAttribute('aria-busy', 'true')
-    expect(stayFree).toBeDisabled()
-    expect(onStayFree).not.toHaveBeenCalled()
     expect(onCheckout).not.toHaveBeenCalled()
   })
 })

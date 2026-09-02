@@ -68,6 +68,7 @@ describe('upgrade utils', () => {
       'upgrade.convert.promise',
       'upgrade.convert.trustLine',
       'upgrade.convert.cancelAnytime',
+      'upgrade.convert.handOff',
       'upgrade.plans.renewalNote',
       'upgrade.convert.allowanceLabel',
       'upgrade.convert.freeAllowance',
