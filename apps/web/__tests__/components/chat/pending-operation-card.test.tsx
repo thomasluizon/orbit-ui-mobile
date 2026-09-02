@@ -8,14 +8,7 @@ vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
     open ? <button type="button" onClick={onConfirm}>confirm-sheet</button> : null,
 }))
-vi.mock('@/components/ui/sheet', () => ({
-  useSheetHost: () => ({
-    sheetRef: { current: null },
-    closeSheet: (exitAction?: () => void) => exitAction?.(),
-  }),
-  Sheet: ({ children, actions }: { children: React.ReactNode; actions: React.ReactNode }) =>
-    <section aria-label="step-up-sheet">{children}{actions}</section>,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
 vi.mock('@/components/ui/otp-input', () => ({
   OtpInput: ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) =>
     <input aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} />,

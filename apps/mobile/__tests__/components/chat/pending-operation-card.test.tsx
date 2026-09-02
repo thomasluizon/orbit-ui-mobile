@@ -1,6 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { TextInput, View } from 'react-native'
+import { TextInput } from 'react-native'
 import type { PendingAgentOperation } from '@orbit/shared/types/ai'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { renderedText } from '../../support/react-test-renderer'
@@ -11,14 +11,7 @@ vi.mock('@/components/ui/confirm-sheet', () => ({
   ConfirmSheet: ({ open, onConfirm }: { open: boolean; onConfirm: () => void }) =>
     open ? React.createElement('ConfirmSheet', { onConfirm }) : null,
 }))
-vi.mock('@/components/ui/sheet', () => ({
-  useSheetHost: () => ({
-    sheetRef: { current: null },
-    closeSheet: (exitAction?: () => void) => exitAction?.(),
-  }),
-  Sheet: ({ children, actions }: { children: React.ReactNode; actions: React.ReactNode }) =>
-    <View>{children}{actions}</View>,
-}))
+vi.mock('@/components/ui/sheet', async () => await import('../../support/sheet-double'))
 vi.mock('@/components/ui/otp-input', () => ({
   OtpInput: ({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) =>
     <TextInput accessibilityLabel={label} value={value} onChangeText={onChange} />,
