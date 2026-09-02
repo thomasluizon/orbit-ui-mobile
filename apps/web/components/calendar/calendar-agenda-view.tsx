@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
   addDays,
   subDays,
@@ -401,6 +401,7 @@ export function CalendarAgendaView({
   const queryClient = useQueryClient()
   const updateHabit = useUpdateHabit()
   const { showSuccess, showError } = useAppToast()
+  const dndContextId = useId()
 
   const [selectedDate, setSelectedDate] = useState(() => new Date())
   const dateStr = formatAPIDate(selectedDate)
@@ -510,7 +511,7 @@ export function CalendarAgendaView({
         <ShowRecurringToggle checked={showRecurring} onChange={onShowRecurringChange} />
       </div>
 
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <DndContext id={dndContextId} sensors={sensors} onDragEnd={handleDragEnd}>
         <div
           data-testid="calendar-agenda"
           style={{
