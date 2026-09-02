@@ -66,7 +66,11 @@ vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () 
 vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: () => <div>offset-reminders</div> }))
 vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: () => <div>scheduled-reminders</div> }))
 vi.mock('@/components/habits/habit-form-fields/slip-alert-section', () => ({ SlipAlertSection: () => <div>slip-alert</div> }))
-vi.mock('@/components/ui/time-field', () => ({ TimeField: () => <div>time-field</div> }))
+vi.mock('@/components/ui/time-field', () => ({
+  TimeField: ({ onChange }: { onChange: (value: string) => void }) => (
+    <button type="button" onClick={() => onChange('10:00')}>time-field</button>
+  ),
+}))
 vi.mock('@/components/ui/date-field', () => ({ DateField: () => <div>date-field</div> }))
 
 type TestHabitFormHelpers = HabitFormHelpers & { testValues: Record<string, unknown> }
@@ -306,6 +310,16 @@ describe('HabitFormFields', () => {
 
     expect(screen.getByText('offset-reminders')).toBeDefined()
     expect(screen.getByText('scheduled-reminders')).toBeDefined()
+  })
+
+  it('clears a prefilled end time when the exact time changes', () => {
+    const formHelpers = createFormHelpers({ title: 'Run', dueTime: '08:00', dueEndTime: '09:00' })
+    renderForm(formHelpers, undefined, true)
+
+    fireEvent.click(screen.getByRole('button', { name: 'time-field' }))
+
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '10:00', { shouldDirty: true })
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueEndTime', '', { shouldDirty: true })
   })
 
   it('keeps every local control live when the Astra allowance is exhausted', () => {

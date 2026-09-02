@@ -56,6 +56,39 @@ describe('applySuggestionChecklist mobile', () => {
     expect(applySuggestionSchedule({ ...patch, dueTime: '08:00' }, target)).toBe(true)
   })
 
+  it('clears a prefilled end time when Astra replaces the exact time', () => {
+    const values: Record<string, unknown> = {
+      emoji: '',
+      days: [],
+      dueTime: '08:00',
+      dueEndTime: '09:00',
+    }
+    const target = {
+      form: {
+        getValues: (field: string) => values[field],
+        setValue: vi.fn((field: string, value: unknown) => { values[field] = value }),
+      },
+      isOneTime: true,
+      isRecurring: false,
+      isFlexible: false,
+      setFlexible: vi.fn(),
+      setRecurring: vi.fn(),
+      setOneTime: vi.fn(),
+    } as unknown as HabitFormHelpers
+
+    expect(applySuggestionSchedule({
+      mode: 'oneTime',
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      dueTime: '10:00',
+      emoji: null,
+      subHabitTitles: [],
+      checklistItems: [],
+    }, target)).toBe(true)
+    expect(values).toMatchObject({ dueTime: '10:00', dueEndTime: '' })
+  })
+
   it('moves a recurring form to one-time only when Astra changes its mode', () => {
     const setOneTime = vi.fn()
     const target = {

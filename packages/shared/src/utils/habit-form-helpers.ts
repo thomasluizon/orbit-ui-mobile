@@ -286,6 +286,7 @@ interface HabitCadenceCorrectionTarget {
 type HabitControllerField =
   | PhraseField
   | 'checklistItems'
+  | 'dueEndTime'
   | 'reminderEnabled'
   | 'slipAlertEnabled'
   | 'title'
@@ -372,10 +373,12 @@ export function createHabitFormController({
     setDueTime: (dueTime: string): void => {
       releaseOwnership('dueTime')
       target.setField('dueTime', dueTime)
+      target.setField('dueEndTime', '')
     },
     clearDueTime: (): void => {
       releaseOwnership('dueTime')
       target.setField('dueTime', '')
+      target.setField('dueEndTime', '')
     },
     setChecklistItems: (items: ChecklistItem[]): void => {
       resolveSection('checklist')

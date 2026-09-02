@@ -58,7 +58,9 @@ export function applySuggestionSchedule(
     changed = true
   }
 
-  changed = applySuggestionField(target, 'dueTime', patch.dueTime) || changed
+  const replacedDueTime = applySuggestionField(target, 'dueTime', patch.dueTime)
+  if (replacedDueTime) target.form.setValue('dueEndTime', '', { shouldDirty: true })
+  changed = replacedDueTime || changed
 
   return changed
 }

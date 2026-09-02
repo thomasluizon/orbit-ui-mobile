@@ -563,6 +563,7 @@ describe('habit form helpers', () => {
     expect(fields.get('dueTime')?.value).toBe('15:00')
     controller.setDueTime('16:00')
     expect(fields.get('dueTime')?.value).toBe('16:00')
+    expect(fields.get('dueEndTime')?.value).toBe('')
     controller.clearDueTime()
     expect(fields.get('dueTime')?.value).toBe('')
     controller.toggleDay('Monday')
