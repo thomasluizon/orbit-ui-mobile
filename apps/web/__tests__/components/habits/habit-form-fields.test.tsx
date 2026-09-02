@@ -13,9 +13,23 @@ const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHa
 const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false }
 const SUB_HABIT_PROPOSAL: HabitFormProposal = { setup: false, checklist: false, subHabits: true }
 
+const testTranslations: Record<string, string> = {
+  'habits.form.understoodDaily': 'Every day',
+  'habits.form.understoodDaysAt': 'On {days} at {time}',
+  'habits.form.understoodCountAt': '{count} times a week, any day at {time}',
+}
+
+function translateTestValue(key: string, values?: Record<string, unknown>): string {
+  const template = testTranslations[key]
+  if (!template) return values ? `${key}:${JSON.stringify(values)}` : key
+  return Object.entries(values ?? {}).reduce(
+    (message, [name, value]) => message.replace(`{${name}}`, String(value)),
+    template,
+  )
+}
+
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
-    values ? `${key}:${JSON.stringify(values)}` : key,
+  useTranslations: () => translateTestValue,
   useLocale: () => 'en',
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockRouterPush }) }))
@@ -141,7 +155,7 @@ describe('HabitFormFields', () => {
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 4, { shouldDirty: true })
   })
 
-  it('states daily and timed fixed-day schedules exactly', () => {
+  it('states daily, timed fixed-day, and timed flexible schedules exactly', () => {
     const formHelpers = createFormHelpers({
       title: 'Run',
       frequencyUnit: 'Day',
@@ -149,13 +163,22 @@ describe('HabitFormFields', () => {
     })
     const view = renderForm(formHelpers)
 
-    expect(screen.getByText('habits.form.understoodDaily:{}')).toBeDefined()
+    expect(screen.getByText('Every day')).toBeDefined()
 
     formHelpers.testValues.days = ['Monday']
     formHelpers.testValues.dueTime = '08:00'
     view.rerenderForm()
 
-    expect(screen.getByText('habits.form.understoodDaysAt:{"days":"Mon","time":"08:00"}')).toBeDefined()
+    expect(screen.getByText('On Mon at 08:00')).toBeDefined()
+
+    formHelpers.testValues.days = []
+    formHelpers.testValues.isFlexible = true
+    formHelpers.testValues.frequencyUnit = 'Week'
+    formHelpers.testValues.frequencyQuantity = 3
+    formHelpers.testValues.dueTime = '09:00'
+    view.rerenderForm()
+
+    expect(screen.getByText('3 times a week, any day at 09:00')).toBeDefined()
   })
 
   it('applies a time-only local phrase without inventing a cadence', async () => {

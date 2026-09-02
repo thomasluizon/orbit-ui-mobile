@@ -12,7 +12,23 @@ const SETUP_PROPOSAL: HabitFormProposal = { setup: true, checklist: false, subHa
 const CHECKLIST_PROPOSAL: HabitFormProposal = { setup: false, checklist: true, subHabits: false }
 const SUB_HABIT_PROPOSAL: HabitFormProposal = { setup: false, checklist: false, subHabits: true }
 
+const testTranslations: Record<string, string> = {
+  'habits.form.understoodDaily': 'Every day',
+  'habits.form.understoodDaysAt': 'On {days} at {time}',
+  'habits.form.understoodCountAt': '{count} times a week, any day at {time}',
+}
+
+function translateTestValue(key: string, values?: Record<string, unknown>): string {
+  const template = testTranslations[key]
+  if (!template) return values ? `${key}:${JSON.stringify(values)}` : key
+  return Object.entries(values ?? {}).reduce(
+    (message, [name, value]) => message.replace(`{${name}}`, String(value)),
+    template,
+  )
+}
+
 vi.mock('react-hook-form', () => ({ useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) => useWatchMock(args) }))
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: translateTestValue, i18n: { language: 'en' } }) }))
 vi.mock('@/hooks/use-config', () => ({
   useConfig: () => ({ config: { features: { 'habits.subHabits': { enabled: true, planRequirement: 'Pro' } } } }),
 }))
@@ -73,7 +89,7 @@ describe('HabitFormFields mobile', () => {
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 4, { shouldDirty: true })
   })
 
-  it('states daily and timed fixed-day schedules exactly', async () => {
+  it('states daily, timed fixed-day, and timed flexible schedules exactly', async () => {
     const formHelpers = createFormHelpers({ frequencyUnit: 'Day', frequencyQuantity: 1 })
     const renderNode = () => <HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} />
     let tree: any
@@ -82,7 +98,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('habits.form.understoodDaily:{}')
+    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('Every day')
 
     const controlValues = (formHelpers.form.control as unknown as { values: Record<string, unknown> }).values
     controlValues.days = ['Monday']
@@ -92,7 +108,19 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('habits.form.understoodDaysAt:{"days":"Mon","time":"08:00"}')
+    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('On Mon at 08:00')
+
+    controlValues.days = []
+    controlValues.isFlexible = true
+    controlValues.frequencyUnit = 'Week'
+    controlValues.frequencyQuantity = 3
+    controlValues.dueTime = '09:00'
+    await TestRenderer.act(async () => {
+      tree.update(renderNode())
+      await Promise.resolve()
+    })
+
+    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('3 times a week, any day at 09:00')
   })
 
   it('applies a time-only local phrase without inventing a cadence', async () => {
