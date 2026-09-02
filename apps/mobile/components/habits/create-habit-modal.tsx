@@ -293,6 +293,11 @@ export function CreateHabitModal({
   const handleSubmit = useCallback(async () => {
     flushBufferedInputsRef.current()
 
+    if (isSubHabitMode && !canUseSubHabits) {
+      navigateToUpgrade()
+      return
+    }
+
     const subHabitValues = canUseSubHabits ? subHabits.map((entry) => entry.value) : []
     const error = formHelpers.validateAll({
       reminderTimes,
@@ -345,6 +350,7 @@ export function CreateHabitModal({
     tags,
     selectedGoalIds,
     canUseSubHabits,
+    navigateToUpgrade,
     subHabits,
     reminderTimes,
     createHabit,

@@ -18,6 +18,7 @@ const mockSetFlexible = vi.fn()
 const mockValidateAll = vi.fn()
 const mockResetTags = vi.fn()
 const mockShowError = vi.fn()
+const mockPush = vi.fn()
 const mockBuildCreateHabitRequest = vi.hoisted(() => vi.fn(
   (_form: unknown, _reminders: unknown, _tags: unknown, _goals: unknown, _subHabits: unknown) => ({}),
 ))
@@ -38,7 +39,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: vi.fn(),
+    push: mockPush,
     replace: vi.fn(),
     back: vi.fn(),
     refresh: vi.fn(),
@@ -324,6 +325,24 @@ describe('CreateHabitModal', () => {
 
     await waitFor(() => expect(mockBuildCreateHabitRequest).toHaveBeenCalled())
     expect(mockBuildCreateHabitRequest.mock.calls[0]?.[4]).toEqual([])
+  })
+
+  it('routes a Free standalone sub-habit attempt to upgrade without calling the API', async () => {
+    mockProfileState.hasProAccess = false
+    const onOpenChange = vi.fn()
+    renderWithProviders(
+      <CreateHabitModal
+        open={true}
+        onOpenChange={onOpenChange}
+        parentHabit={createMockHabit({ id: 'parent-1' })}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.create' }))
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/upgrade'))
+    expect(mockCreateSubMutateAsync).not.toHaveBeenCalled()
+    expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
   it('keeps goal linking in the create request without a plan gate', async () => {

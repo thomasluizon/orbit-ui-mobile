@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useId, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
@@ -85,6 +86,7 @@ export function CreateHabitModal({
   parentHabit,
 }: Readonly<CreateHabitModalProps>) {
   const t = useTranslations()
+  const router = useRouter()
   const translate = useCallback(
     (key: string, values?: Record<string, string | number | Date>) =>
       t(key, values),
@@ -142,6 +144,12 @@ export function CreateHabitModal({
     isDirty,
     onDismiss: () => closeSheet(() => onOpenChange(false)),
   })
+  const navigateToUpgrade = useCallback(() => {
+    closeSheet(() => {
+      onOpenChange(false)
+      router.push('/upgrade')
+    })
+  }, [closeSheet, onOpenChange, router])
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
@@ -224,6 +232,11 @@ export function CreateHabitModal({
     async (e: React.SubmitEvent<HTMLFormElement>) => {
       e.preventDefault()
 
+      if (isSubHabitMode && !canUseSubHabits) {
+        navigateToUpgrade()
+        return
+      }
+
       const subHabitValues = canUseSubHabits ? subHabits.map((entry) => entry.value) : []
       const error = formHelpers.validateAll({
         reminderTimes,
@@ -257,7 +270,7 @@ export function CreateHabitModal({
         )
       }
     },
-    [canUseSubHabits, closeSheet, createHabit, createSubHabit, formHelpers, isSubHabitMode, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags, translate],
+    [canUseSubHabits, closeSheet, createHabit, createSubHabit, formHelpers, isSubHabitMode, navigateToUpgrade, onOpenChange, parentHabit, reminderTimes, selectedGoalIds, showError, subHabits, tags, translate],
   )
 
   const handleSuggest = useCallback(

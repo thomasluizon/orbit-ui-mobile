@@ -370,6 +370,27 @@ await Promise.resolve()
     expect(mockBuildCreateHabitRequest.mock.calls[0]?.[4]).toEqual([])
   })
 
+  it('routes a Free standalone sub-habit attempt to upgrade without calling the API', async () => {
+    mockProfileState.hasProAccess = false
+    const onClose = vi.fn()
+    const tree = renderModal(
+      <CreateHabitModal
+        open
+        onClose={onClose}
+        parentHabit={createMockHabit({ id: 'parent-1' })}
+      />,
+    )
+
+    await TestRenderer.act(async () => {
+      findSubmit(tree.root).props.onPress()
+      await Promise.resolve()
+    })
+
+    expect(mockPush).toHaveBeenCalledWith('/upgrade')
+    expect(mockCreateSubMutateAsync).not.toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
   it('surfaces the validation error and does not create when the form is invalid', async () => {
     mockValidateAll.mockReturnValue('habits.form.errors.title')
     const onClose = vi.fn()
