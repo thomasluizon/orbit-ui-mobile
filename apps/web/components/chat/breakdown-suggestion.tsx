@@ -4,7 +4,12 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { ConflictWarning, SuggestedSubHabit } from '@orbit/shared/types/chat'
 import type { BreakdownEditableHabit } from '@orbit/shared/utils'
-import { buildBreakdownCreateRequest, filterValidBreakdownHabits } from '@orbit/shared/utils'
+import {
+  buildBreakdownCreateRequest,
+  filterValidBreakdownHabits,
+  getBreakdownCadenceKey,
+  nextBreakdownCadence,
+} from '@orbit/shared/utils'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Button } from '@/components/ui/pill-button'
@@ -13,7 +18,6 @@ import { useBulkCreateHabits } from '@/hooks/use-habits'
 
 type DraftHabit = BreakdownEditableHabit & { id: string }
 type ItemResult = 'done' | 'failed' | undefined
-const CADENCES = ['Day', 'Week', 'Month'] as const
 
 function toDraftHabit(habit: SuggestedSubHabit, index: number): DraftHabit {
   return {
@@ -27,11 +31,6 @@ function toDraftHabit(habit: SuggestedSubHabit, index: number): DraftHabit {
     dueDate: habit.dueDate ?? null,
     checklistItems: habit.checklistItems ?? null,
   }
-}
-
-function nextCadence(current: DraftHabit['frequencyUnit']): typeof CADENCES[number] {
-  const index = CADENCES.indexOf(current as typeof CADENCES[number])
-  return CADENCES[(index + 1) % CADENCES.length] ?? 'Day'
 }
 
 export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirmed }: Readonly<{ parentName: string; subHabits: SuggestedSubHabit[]; warning?: ConflictWarning | null; onConfirmed: () => void; onCancelled: () => void }>) {
@@ -75,8 +74,8 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
     proposed: results[habit.id] == null,
     irreversible: results[habit.id] == null,
     control: results[habit.id] == null ? (
-      <button type="button" aria-label={t('chat.breakdown.frequency', { name: habit.title })} className="min-h-10 rounded-full border-0 bg-[var(--bg-well)] px-3 text-sm text-[var(--fg-2)] hover:bg-[var(--bg-hover)]" onClick={() => setHabits((current) => current.map((item) => item.id === habit.id ? { ...item, frequencyUnit: nextCadence(item.frequencyUnit) } : item))}>
-        {t(`habits.filter.${habit.frequencyUnit === 'Week' ? 'weekly' : habit.frequencyUnit === 'Month' ? 'monthly' : 'daily'}`)}
+      <button type="button" aria-label={t('chat.breakdown.frequency', { name: habit.title })} className="min-h-10 rounded-full border-0 bg-[var(--bg-well)] px-3 text-sm text-[var(--fg-2)] hover:bg-[var(--bg-hover)]" onClick={() => setHabits((current) => current.map((item) => item.id === habit.id ? { ...item, frequencyUnit: nextBreakdownCadence(item.frequencyUnit) } : item))}>
+        {t(getBreakdownCadenceKey(habit.frequencyUnit))}
       </button>
     ) : undefined,
   }))

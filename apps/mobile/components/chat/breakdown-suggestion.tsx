@@ -3,7 +3,7 @@ import { Pressable, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { ConflictWarning, SuggestedSubHabit } from '@orbit/shared/types/chat'
 import type { BreakdownEditableHabit } from '@orbit/shared/utils'
-import { buildBreakdownCreateRequest, filterValidBreakdownHabits } from '@orbit/shared/utils'
+import { buildBreakdownCreateRequest, filterValidBreakdownHabits, getBreakdownCadenceKey, nextBreakdownCadence } from '@orbit/shared/utils'
 import { BlockFrame } from '@/components/ui/block-frame'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Button } from '@/components/ui/pill-button'
@@ -14,7 +14,6 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 type DraftHabit = BreakdownEditableHabit & { id: string }
 type ItemResult = 'done' | 'failed' | undefined
-const CADENCES = ['Day', 'Week', 'Month'] as const
 
 function toDraftHabit(habit: SuggestedSubHabit, index: number): DraftHabit {
   return {
@@ -28,11 +27,6 @@ function toDraftHabit(habit: SuggestedSubHabit, index: number): DraftHabit {
     dueDate: habit.dueDate ?? null,
     checklistItems: habit.checklistItems ?? null,
   }
-}
-
-function nextCadence(current: DraftHabit['frequencyUnit']): typeof CADENCES[number] {
-  const index = CADENCES.indexOf(current as typeof CADENCES[number])
-  return CADENCES[(index + 1) % CADENCES.length] ?? 'Day'
 }
 
 export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirmed }: Readonly<{ parentName: string; subHabits: SuggestedSubHabit[]; warning?: ConflictWarning | null; onConfirmed: () => void; onCancelled: () => void }>) {
@@ -72,7 +66,7 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
     status: results[habit.id],
     proposed: results[habit.id] == null,
     irreversible: results[habit.id] == null,
-    control: results[habit.id] == null ? <Pressable accessibilityRole="button" accessibilityLabel={t('chat.breakdown.frequency', { name: habit.title })} onPress={() => setHabits((current) => current.map((item) => item.id === habit.id ? { ...item, frequencyUnit: nextCadence(item.frequencyUnit) } : item))} style={{ minHeight: 40, justifyContent: 'center', borderRadius: 999, paddingHorizontal: 12, backgroundColor: tokens.bgWell }}><Text style={{ color: tokens.fg2 }}>{t(`habits.filter.${habit.frequencyUnit === 'Week' ? 'weekly' : habit.frequencyUnit === 'Month' ? 'monthly' : 'daily'}`)}</Text></Pressable> : undefined,
+    control: results[habit.id] == null ? <Pressable accessibilityRole="button" accessibilityLabel={t('chat.breakdown.frequency', { name: habit.title })} onPress={() => setHabits((current) => current.map((item) => item.id === habit.id ? { ...item, frequencyUnit: nextBreakdownCadence(item.frequencyUnit) } : item))} style={{ minHeight: 40, justifyContent: 'center', borderRadius: 999, paddingHorizontal: 12, backgroundColor: tokens.bgWell }}><Text style={{ color: tokens.fg2 }}>{t(getBreakdownCadenceKey(habit.frequencyUnit))}</Text></Pressable> : undefined,
   }))
   return <><BlockFrame state={bulkCreate.isPending ? 'acting' : partiallyFailed ? 'partiallyFailed' : 'resting'} title={t('chat.breakdown.title', { name: parentName })} items={rows} proposedLabel={t('chat.preview.proposed')} editLabel={t('chat.preview.editItem')} onEditItem={setEditingId} irreversibleLabel={t('chat.operation.irreversible')} confirmNote={t('chat.breakdown.confirmNote')} actions={<View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
     {warning?.hasConflict ? <View style={{ width: '100%', flexDirection: 'row', alignItems: 'center', gap: 8 }}><AlertTriangle size={16} color={tokens.statusOverdue} /><Text style={{ color: tokens.fg2 }}>{t('chat.breakdown.conflict', { name: warning.conflictingHabits[0]?.habitTitle ?? parentName })}</Text></View> : null}

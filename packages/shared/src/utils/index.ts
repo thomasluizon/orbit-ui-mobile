@@ -446,6 +446,8 @@ export { initialsOf } from './name-initials'
 export {
   buildBreakdownCreateRequest,
   filterValidBreakdownHabits,
+  getBreakdownCadenceKey,
+  nextBreakdownCadence,
 } from './breakdown-suggestion'
 export type { BreakdownEditableHabit } from './breakdown-suggestion'
 export {

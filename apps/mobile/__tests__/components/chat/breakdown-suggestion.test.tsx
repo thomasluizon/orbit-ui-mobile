@@ -130,6 +130,36 @@ describe('BreakdownSuggestion (mobile)', () => {
     expect(text(cadence.props.children)).toContain('habits.filter.weekly')
   })
 
+  it('preserves yearly and one-time proposal cadences', () => {
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<BreakdownSuggestion
+        {...defaultProps}
+        subHabits={[
+          { title: 'Year review', frequencyUnit: 'Year' },
+          { title: 'File taxes', frequencyUnit: null },
+        ]}
+      />)
+    })
+    const yearly = tree.root.findAll((node: any) =>
+      typeof node.props?.onPress === 'function' &&
+      String(node.props?.accessibilityLabel).includes('Year review'),
+    )[0]
+    const oneTime = tree.root.findAll((node: any) =>
+      typeof node.props?.onPress === 'function' &&
+      String(node.props?.accessibilityLabel).includes('File taxes'),
+    )[0]
+
+    expect(text(yearly.props.children)).toContain('habits.filter.yearly')
+    expect(text(oneTime.props.children)).toContain('habits.filter.oneTime')
+    TestRenderer.act(() => yearly.props.onPress())
+    const updatedYearly = tree.root.findAll((node: any) =>
+      typeof node.props?.onPress === 'function' &&
+      String(node.props?.accessibilityLabel).includes('Year review'),
+    )[0]
+    expect(text(updatedYearly.props.children)).toContain('habits.filter.oneTime')
+  })
+
   it('names a colliding habit', () => {
     const warning: ConflictWarning = {
       hasConflict: true,

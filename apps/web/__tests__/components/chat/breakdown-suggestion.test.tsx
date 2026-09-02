@@ -93,6 +93,23 @@ describe('BreakdownSuggestion', () => {
     expect(frequency).toHaveTextContent('habits.filter.weekly')
   })
 
+  it('preserves yearly and one-time proposal cadences', () => {
+    render(<BreakdownSuggestion
+      {...defaultProps}
+      subHabits={[
+        { title: 'Year review', frequencyUnit: 'Year' },
+        { title: 'File taxes', frequencyUnit: null },
+      ]}
+    />)
+    const yearly = screen.getByRole('button', { name: /chat\.breakdown\.frequency.*Year review/ })
+    const oneTime = screen.getByRole('button', { name: /chat\.breakdown\.frequency.*File taxes/ })
+
+    expect(yearly).toHaveTextContent('habits.filter.yearly')
+    expect(oneTime).toHaveTextContent('habits.filter.oneTime')
+    fireEvent.click(yearly)
+    expect(yearly).toHaveTextContent('habits.filter.oneTime')
+  })
+
   it('names a colliding habit above the actions', () => {
     const warning: ConflictWarning = {
       hasConflict: true,
