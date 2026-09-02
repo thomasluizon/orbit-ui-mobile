@@ -17154,6 +17154,7 @@
           "habits.detail.proGate",
           "habits.detail.proposed",
           "habits.detail.readOnlyWord",
+          "habits.detail.reminders",
           "habits.detail.rename",
           "habits.detail.rescheduleAccept",
           "habits.detail.rescheduleError",
