@@ -1,12 +1,14 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AstraConversation } from '@/components/chat/conversation'
+import { dismissTopOverlay } from '@/lib/overlay-stack'
 
 const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
   openSettings: vi.fn(),
   useTourTarget: vi.fn(),
+  setAstraConversationOpen: vi.fn(),
   router: { push: vi.fn() },
   composer: {
     flatListRef: { current: null },
@@ -53,6 +55,10 @@ vi.mock('react-native', async (importOriginal) => {
 vi.mock('@/hooks/use-tour-target', () => ({ useTourTarget: mocks.useTourTarget }))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => mocks.composer }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
+vi.mock('@/stores/ui-store', () => ({
+  useUIStore: (selector: (state: { setAstraConversationOpen: typeof mocks.setAstraConversationOpen }) => unknown) =>
+    selector({ setAstraConversationOpen: mocks.setAstraConversationOpen }),
+}))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
 vi.mock('@/hooks/use-habits', () => ({ useHabitDetail: () => ({ data: null }) }))
 vi.mock('@/lib/theme', () => ({
@@ -97,12 +103,21 @@ type TestNode = {
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
 
+type TestTree = {
+  root: TestNode
+  update: (element: React.ReactElement) => void
+  unmount: () => void
+}
+
+const mountedTrees: TestTree[] = []
+
 async function renderScreen() {
-  let tree!: { root: TestNode; update: (element: React.ReactElement) => void }
+  let tree!: TestTree
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(<AstraConversation chat={mocks.composer as never} />)
     await Promise.resolve()
   })
+  mountedTrees.push(tree)
   return tree
 }
 
@@ -150,5 +165,26 @@ describe('ChatScreen composer recoveries', () => {
     const tree = await renderScreen()
 
     expect(findByLabel(tree.root, 'common.openSettings')).toBeUndefined()
+  })
+
+  afterEach(async () => {
+    await TestRenderer.act(async () => {
+      while (mountedTrees.length > 0) mountedTrees.pop()?.unmount()
+      await Promise.resolve()
+    })
+  })
+
+  it('consumes hardware Back and unregisters when the conversation closes', async () => {
+    const tree = await renderScreen()
+
+    expect(dismissTopOverlay('system-back')).toBe(true)
+    expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(false)
+
+    await TestRenderer.act(async () => {
+      tree.unmount()
+      mountedTrees.splice(mountedTrees.indexOf(tree), 1)
+      await Promise.resolve()
+    })
+    expect(dismissTopOverlay('system-back')).toBe(false)
   })
 })

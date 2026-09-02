@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useTourTarget } from "@/hooks/use-tour-target";
+import { useOverlayBack } from "@/hooks/use-overlay-back";
 import {
   View,
   Text,
@@ -72,6 +73,11 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const [keyboardInset, setKeyboardInset] = useState(0);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
   const [goalDrawerOpen, setGoalDrawerOpen] = useState(false);
+  const closeConversation = useCallback(() => {
+    setAstraConversationOpen(false);
+  }, [setAstraConversationOpen]);
+
+  useOverlayBack(true, closeConversation);
 
   useEffect(() => {
     if (Platform.OS !== "android") return;
@@ -148,9 +154,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       >
         <AppBar
           back
-          onBack={() => {
-            setAstraConversationOpen(false);
-          }}
+          onBack={closeConversation}
           backLabel={t("common.goBack")}
           titleIcon={<AstraMark size={18} />}
           title={t("chat.title")}
