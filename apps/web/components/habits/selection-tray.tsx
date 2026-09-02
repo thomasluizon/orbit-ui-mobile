@@ -1,6 +1,5 @@
 'use client'
 
-import { createPortal } from 'react-dom'
 import {
   CheckCircle2,
   FastForward,
@@ -12,7 +11,6 @@ import {
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import { resolveMotionPreset } from '@orbit/shared/theme'
-import { useIsClient } from '@/hooks/use-is-client'
 import { plural } from '@/lib/plural'
 
 const SELECT_ALL_BUTTON_STYLE = {
@@ -27,8 +25,8 @@ const SELECT_ALL_BUTTON_STYLE = {
   textDecorationThickness: 1,
 } as const
 
-/** Floating bulk action toolbar on an elevated solid sheet surface. */
-export interface BulkActionBarV2Props {
+/** Selection actions rendered in the shell's pinned composer position. */
+export interface SelectionTrayProps {
   selectedCount: number
   allSelected: boolean
   onSelectAll: () => void
@@ -72,7 +70,7 @@ function BulkBtn({ icon: Icon, label, color, onClick, disabled = false }: Readon
   )
 }
 
-export function BulkActionBarV2({
+export function SelectionTray({
   selectedCount,
   allSelected,
   onSelectAll,
@@ -81,25 +79,21 @@ export function BulkActionBarV2({
   onBulkSkip,
   onBulkDelete,
   onCancel,
-}: Readonly<BulkActionBarV2Props>) {
+}: Readonly<SelectionTrayProps>) {
   const t = useTranslations()
   const prefersReducedMotion = useReducedMotion()
   const motionPreset = resolveMotionPreset('selection', Boolean(prefersReducedMotion))
   const nothingSelected = selectedCount === 0
-  const mounted = useIsClient()
-
-  if (!mounted) return null
-
-  return createPortal(
+  return (
     <motion.div
       data-testid="bulk-action-bar"
-      className="fixed bottom-6 left-1/2 z-50 flex w-[calc(100%-var(--app-px)*2)] max-w-[calc(var(--app-max-w)-var(--app-px)*2)] -translate-x-1/2 flex-col md:sticky md:left-auto md:mx-auto md:w-fit md:max-w-[480px] md:translate-x-0"
+      className="mx-auto flex w-full max-w-[480px] flex-col"
       style={{
         gap: 8,
         background: 'var(--bg-sheet)',
         borderRadius: 20,
         padding: '12px 16px',
-        boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline)',
+        boxShadow: 'inset 0 0 0 1px var(--hairline)',
       }}
       initial={{
         opacity: 0,
@@ -160,7 +154,7 @@ export function BulkActionBarV2({
         <BulkBtn
           icon={FastForward}
           label={t('habits.bulkBar.skip')}
-          color="var(--status-skip)"
+          color="var(--fg-3)"
           onClick={onBulkSkip}
           disabled={nothingSelected}
         />
@@ -179,8 +173,6 @@ export function BulkActionBarV2({
           onClick={onCancel}
         />
       </div>
-    </motion.div>,
-    // react-doctor-disable-next-line no-unguarded-browser-global-in-render-or-hook-init -- unreachable during SSR: the `if (!mounted) return null` above (useIsClient) returns before this createPortal on the server and first hydration render https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    document.querySelector('main') ?? document.body,
+    </motion.div>
   )
 }

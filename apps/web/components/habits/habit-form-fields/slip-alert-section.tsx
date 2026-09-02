@@ -1,4 +1,4 @@
-import { ShieldAlert } from '@/components/ui/icons'
+import { ChevronRight, ShieldAlert } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
@@ -61,26 +61,7 @@ export function SlipAlertSection({
               {t('habits.form.slipAlertDescription')}
             </span>
           </div>
-          <span
-            aria-hidden="true"
-            className="inline-flex shrink-0 items-center rounded-full opacity-50"
-            style={{
-              width: 48,
-              height: 28,
-              padding: 4,
-              background: 'color-mix(in srgb, var(--fg-1) 16%, transparent)',
-            }}
-          >
-            <span
-              className="rounded-full"
-              style={{
-                width: 22,
-                height: 22,
-                background: 'var(--fg-on-primary)',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.35)',
-              }}
-            />
-          </span>
+          <ChevronRight size={20} strokeWidth={1.8} className="shrink-0 text-[var(--fg-3)]" aria-hidden="true" />
         </button>
       )}
     </div>

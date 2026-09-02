@@ -214,13 +214,11 @@ export function AdvancedSection({
         />
       )}
 
-      {hasProAccess && (
-        <GoalLinkingField
-          selectedGoalIds={selectedGoalIds}
-          atGoalLimit={atGoalLimit}
-          onToggleGoal={onToggleGoal}
-        />
-      )}
+      <GoalLinkingField
+        selectedGoalIds={selectedGoalIds}
+        atGoalLimit={atGoalLimit}
+        onToggleGoal={onToggleGoal}
+      />
 
       {!isGeneral && (
         <View style={styles.fieldGroup}>

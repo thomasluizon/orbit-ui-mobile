@@ -132,6 +132,7 @@ export {
   isMissingBillingStatus,
   validateHabitFormInput,
   buildCalendarDayMap,
+  buildUnresolvedBulkFailures,
   computeHabitReorderPositions,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,

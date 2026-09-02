@@ -26,7 +26,7 @@ const FILLED_STATES: ReadonlySet<StatusDotState> = new Set(['done', 'skip', 'fro
 const COLOR_VAR: Record<StatusDotState, string> = {
   done: 'var(--status-done)',
   empty: 'var(--status-empty)',
-  skip: 'var(--status-skip)',
+  skip: 'var(--fg-3)',
   overdue: 'var(--status-overdue)',
   bad: 'var(--status-bad)',
   frozen: 'var(--status-frozen)',

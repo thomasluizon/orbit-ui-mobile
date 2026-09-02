@@ -183,6 +183,16 @@ export function hasAncestorInSet(
   return false
 }
 
+export function buildUnresolvedBulkFailures<TItem, TResult>(
+  items: readonly TItem[],
+  startIndex: number,
+  error: unknown,
+  buildFailure: (item: TItem, index: number, message: string) => TResult,
+): TResult[] {
+  const message = error instanceof Error ? error.message : String(error)
+  return items.map((item, offset) => buildFailure(item, startIndex + offset, message))
+}
+
 export interface ReorderableHabitItem {
   id: string
   parentId: string | null

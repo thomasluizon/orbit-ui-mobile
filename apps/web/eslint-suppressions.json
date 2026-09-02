@@ -4,11 +4,6 @@
       "count": 1
     }
   },
-  "__tests__/components/habits/habit-row-context-menu.test.tsx": {
-    "local/react19-api": {
-      "count": 1
-    }
-  },
   "__tests__/components/milestone-share/milestone-share-prompt.test.tsx": {
     "local/react19-api": {
       "count": 1
@@ -637,11 +632,6 @@
       "count": 7
     }
   },
-  "components/habits/controls-menu.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
   "components/habits/create-habit-modal/sub-habit-editor.tsx": {
     "local/icon-size-grid": {
       "count": 1
@@ -768,9 +758,6 @@
     }
   },
   "components/habits/habit-form-fields/slip-alert-section.tsx": {
-    "local/no-pill-radius-on-static": {
-      "count": 1
-    },
     "local/no-space-x-y": {
       "count": 1
     },
@@ -796,18 +783,12 @@
       "count": 2
     },
     "local/spacing-scale": {
-      "count": 3
+      "count": 2
     }
   },
   "components/habits/reschedule-sheet.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-sparkle-ai-marker": {
-      "count": 2
-    },
     "local/spacing-scale": {
-      "count": 8
+      "count": 4
     }
   },
   "components/marketing-consent/marketing-consent-prompt.tsx": {

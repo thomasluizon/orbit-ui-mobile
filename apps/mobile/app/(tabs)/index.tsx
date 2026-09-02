@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { useRouter } from 'expo-router'
 import {
   getTodayBoundary,
   parseShowGeneralOnTodayPreference,
@@ -13,14 +12,15 @@ import { plural } from '@/lib/plural'
 import { EMPTY_HABITS_BY_ID, useHabits } from '@/hooks/use-habits'
 import { useUIStore } from '@/stores/ui-store'
 import { HabitList, type HabitListHandle } from '@/components/habit-list'
-import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
+import { SelectionTray } from '@/components/habits/selection-tray'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
-import { TodayDateControl } from '@/components/today/today-shell'
+import { TodayDateControl } from '@/components/today/today-date-control'
 import { TodayModals } from '@/components/today/today-modals'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useTodayDate } from './use-today-date'
 import { useTodaySelection } from './use-today-selection'
+import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 
 function getBoundaryMessageKey(
   boundary: ReturnType<typeof getTodayBoundary>,
@@ -34,7 +34,6 @@ function getBoundaryMessageKey(
 export default function TodayScreen() {
   const { t } = useTranslation()
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -45,7 +44,10 @@ export default function TodayScreen() {
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null)
   const [editHabitOnSaved, setEditHabitOnSaved] = useState<(() => void | Promise<void>) | null>(null)
   const [allLoadedIds, setAllLoadedIds] = useState<Set<string>>(() => new Set())
+  const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
+  const [todayFocused, setTodayFocused] = useState(false)
   const habitListRef = useRef<HabitListHandle>(null)
+  const [showCompleted, setShowCompleted] = useState(false)
   const isSelectMode = useUIStore((state) => state.isSelectMode)
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
   const showCreateModal = useUIStore((state) => state.showCreateModal)
@@ -75,9 +77,48 @@ export default function TodayScreen() {
     habitListRef,
     habitListAllLoadedIds: allLoadedIds,
     visibleHabitIds,
+    habitsById,
     closeControlsMenu,
   })
+  const clearSelection = selection.clearSelection
   const boundaryKey = getBoundaryMessageKey(getTodayBoundary(date.dateStr, date.today))
+
+  useFocusEffect(
+    useCallback(() => {
+      setTodayFocused(true)
+      return () => {
+        clearSelection()
+        setTodayFocused(false)
+      }
+    }, [clearSelection]),
+  )
+
+  useShellComposerSlot(
+    isSelectMode && todayFocused,
+    () => (
+      <View style={styles.selectionTray}>
+        <SelectionTray
+          count={selection.selectedCount}
+          allSelected={selection.allSelected}
+          onSelectAll={selection.handleSelectAll}
+          onDeselectAll={selection.handleDeselectAll}
+          onLog={selection.handleOpenBulkLog}
+          onSkip={selection.handleOpenBulkSkip}
+          onDelete={selection.handleOpenBulkDelete}
+          onClose={clearSelection}
+          countSuffixLabel={plural(t('common.selectedSuffix'), selection.selectedCount)}
+          selectAllLabel={t('common.selectAll')}
+          deselectAllLabel={t('common.deselectAll')}
+          logLabel={t('habits.bulkBar.log')}
+          skipLabel={t('habits.bulkBar.skip')}
+          deleteLabel={t('habits.bulkBar.delete')}
+          closeLabel={t('common.cancel')}
+        />
+      </View>
+    ),
+    `${Array.from(selectedHabitIds).sort().join(',')}:${selection.allSelected ? 'all' : 'some'}`,
+  )
+
   const listHeader = (
     <>
       <TodayDateControl
@@ -88,6 +129,19 @@ export default function TodayScreen() {
         previousLabel={t('dates.previousDay')}
         todayLabel={t('dates.goToToday')}
         nextLabel={t('dates.nextDay')}
+        moreLabel={t('habits.actions.more')}
+        selectLabel={isSelectMode ? t('common.cancel') : t('common.select')}
+        collapseLabel={habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
+        refreshLabel={t('habits.refresh')}
+        completedLabel={showCompleted ? t('habits.hideCompleted') : t('habits.showCompleted')}
+        isFetching={habitsQuery.isFetching}
+        onToggleSelect={selection.handleToggleSelectMode}
+        onToggleCollapse={() => {
+          if (habitListAllCollapsed) habitListRef.current?.expandAll()
+          else habitListRef.current?.collapseAll()
+        }}
+        onRefresh={() => void habitsQuery.refetch()}
+        onToggleCompleted={() => setShowCompleted(!showCompleted)}
         onGoToPreviousDay={date.goToPreviousDay}
         onGoToToday={date.goToToday}
         onGoToNextDay={date.goToNextDay}
@@ -107,7 +161,7 @@ export default function TodayScreen() {
         view="today"
         filters={filters}
         selectedDate={date.selectedDate}
-        showCompleted={false}
+        showCompleted={showCompleted}
         isSelectMode={isSelectMode}
         selectedHabitIds={selectedHabitIds}
         listHeader={listHeader}
@@ -122,29 +176,8 @@ export default function TodayScreen() {
           setEditHabitOnSaved(() => onSaved ?? null)
         }}
         onAllLoadedIdsChange={setAllLoadedIds}
+        onAllCollapsedChange={setHabitListAllCollapsed}
       />
-
-      {isSelectMode ? (
-        <View style={[styles.bulkBar, { bottom: insets.bottom + 24 }]}>
-          <BulkActionBarV2
-            count={selection.selectedCount}
-            allSelected={selection.allSelected}
-            onSelectAll={selection.handleSelectAll}
-            onDeselectAll={selection.handleDeselectAll}
-            onLog={selection.handleOpenBulkLog}
-            onSkip={selection.handleOpenBulkSkip}
-            onDelete={selection.handleOpenBulkDelete}
-            onClose={selection.clearSelection}
-            countSuffixLabel={plural(t('common.selectedSuffix'), selection.selectedCount)}
-            selectAllLabel={t('common.selectAll')}
-            deselectAllLabel={t('common.deselectAll')}
-            logLabel={t('habits.bulkBar.log')}
-            skipLabel={t('habits.bulkBar.skip')}
-            deleteLabel={t('habits.bulkBar.delete')}
-            closeLabel={t('common.cancel')}
-          />
-        </View>
-      ) : null}
 
       <TodayModals
         showCreateModal={showCreateModal}
@@ -173,9 +206,5 @@ export default function TodayScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   notice: { paddingBottom: 16, paddingHorizontal: 16 },
-  bulkBar: {
-    left: 20,
-    position: 'absolute',
-    right: 20,
-  },
+  selectionTray: { paddingHorizontal: 20, paddingVertical: 12 },
 })

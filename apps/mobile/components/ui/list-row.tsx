@@ -23,6 +23,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
         {description ? <Text style={[styles.description, { color: tokens.fg3 }]}>{description}</Text> : null}
       </View>
       {value ? <Text style={[styles.value, { color: tokens.fg3 }]} numberOfLines={1}>{value}</Text> : null}
+      {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
     </>
   )
 
@@ -31,9 +32,8 @@ export function ListRow(props: Readonly<ListRowProps>) {
       {readOnly || !onClick ? (
         <View style={styles.body}>{body}</View>
       ) : (
-        <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onClick} style={({ pressed }) => [styles.body, pressed ? { backgroundColor: tokens.bgElevPressed } : null]}>{body}</Pressable>
+        <Pressable accessibilityRole="button" onPress={onClick} style={({ pressed }) => [styles.body, pressed ? { backgroundColor: tokens.bgElevPressed } : null]}>{body}</Pressable>
       )}
-      {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
       {action ? (
         <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={({ pressed }) => [styles.control, pressed ? { backgroundColor: tokens.bgElevPressed, transform: [{ scale: 0.96 }] } : null]}>
           <Icon name={action.icon} size={20} color={action.danger ? tokens.statusBad : tokens.fg2} />

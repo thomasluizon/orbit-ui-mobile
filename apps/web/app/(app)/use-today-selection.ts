@@ -83,8 +83,10 @@ export function useTodaySelection({
     selectedHabitIds,
     selectedDateStr,
     readOnly,
+    habitsById,
     habitListRef,
     onSuccess: clearSelection,
+    onPartialFailure: selectAllHabits,
   })
   const { setShowBulkDeleteConfirm } = bulkActions
 

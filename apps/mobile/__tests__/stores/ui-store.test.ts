@@ -13,10 +13,6 @@ import { useUIStore } from "@/stores/ui-store";
 const TestRenderer: typeof import("react-test-renderer") = require("react-test-renderer");
 type RenderedTree = import("react-test-renderer").ReactTestRenderer;
 
-vi.mock("@/components/today/today-shell", () => ({
-  TodayDateNavigation: () => null,
-}));
-
 vi.mock("expo-router", () => ({
   usePathname: () => "/",
   useRouter: () => ({ push: vi.fn() }),

@@ -1313,16 +1313,12 @@ describe('useBulkDeleteHabits', () => {
     mockFetch.mockReset()
   })
 
-  it('calls bulkDeleteHabits action', async () => {
+  it('deletes each selected root through the single-habit action', async () => {
     const { useBulkDeleteHabits } = await import('@/hooks/use-habits')
-    const { bulkDeleteHabits } = await import('@/app/actions/habits')
-    const mockedBulkDelete = vi.mocked(bulkDeleteHabits)
-    mockedBulkDelete.mockResolvedValue({
-      results: [
-        { index: 0, status: 'Success' as const, habitId: 'h-1', error: null },
-        { index: 1, status: 'Success' as const, habitId: 'h-2', error: null },
-      ],
-    })
+    const { deleteHabit } = await import('@/app/actions/habits')
+    const mockedDeleteHabit = vi.mocked(deleteHabit)
+    mockedDeleteHabit.mockReset()
+    mockedDeleteHabit.mockResolvedValue(undefined)
 
     const wrapper = createWrapper()
     const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper })
@@ -1331,7 +1327,33 @@ describe('useBulkDeleteHabits', () => {
       await result.current.mutateAsync(['h-1', 'h-2'])
     })
 
-    expect(mockedBulkDelete).toHaveBeenCalledWith(['h-1', 'h-2'])
+    expect(mockedDeleteHabit).toHaveBeenNthCalledWith(1, 'h-1')
+    expect(mockedDeleteHabit).toHaveBeenNthCalledWith(2, 'h-2')
+  })
+
+  it('limits parallel deletes to four and preserves global result indices', async () => {
+    const { useBulkDeleteHabits } = await import('@/hooks/use-habits')
+    const { deleteHabit } = await import('@/app/actions/habits')
+    const mockedDeleteHabit = vi.mocked(deleteHabit)
+    let activeDeletes = 0
+    let maximumActiveDeletes = 0
+    mockedDeleteHabit.mockReset()
+    mockedDeleteHabit.mockImplementation(async () => {
+      activeDeletes += 1
+      maximumActiveDeletes = Math.max(maximumActiveDeletes, activeDeletes)
+      await Promise.resolve()
+      activeDeletes -= 1
+    })
+    const ids = Array.from({ length: 9 }, (_, index) => `h-${index}`)
+    const wrapper = createWrapper()
+    const { result } = renderHook(() => useBulkDeleteHabits(), { wrapper })
+
+    let response: Awaited<ReturnType<typeof result.current.mutateAsync>> | undefined
+    await act(async () => { response = await result.current.mutateAsync(ids) })
+
+    expect(maximumActiveDeletes).toBe(4)
+    expect(mockedDeleteHabit.mock.calls.map(([habitId]) => habitId)).toEqual(ids)
+    expect(response?.results.map((item) => item.index)).toEqual(Array.from({ length: 9 }, (_, index) => index))
   })
 })
 

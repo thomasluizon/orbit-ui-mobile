@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
+import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { HabitListHandle } from '@/components/habits/habit-list'
 
 const bulkDelete = { mutateAsync: vi.fn() }
 const bulkLog = { mutateAsync: vi.fn() }
 const bulkSkip = { mutateAsync: vi.fn() }
+const showToast = vi.fn()
+const showQueued = vi.fn()
 const VIEWED_DATE = '2026-04-01'
 
 vi.mock('@/hooks/use-habits', () => ({
@@ -14,8 +17,21 @@ vi.mock('@/hooks/use-habits', () => ({
   useBulkSkipHabits: () => bulkSkip,
 }))
 
-function renderBulkActions(selectedHabitIds: Set<string>, readOnly = false) {
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showToast, showQueued }),
+}))
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}))
+
+function renderBulkActions(
+  selectedHabitIds: Set<string>,
+  readOnly = false,
+  habitsById = new Map<string, NormalizedHabit>(),
+) {
   const onSuccess = vi.fn()
+  const onPartialFailure = vi.fn()
   const settleBulkHabitResolutions = vi.fn()
   const habitListRef = {
     current: { settleBulkHabitResolutions },
@@ -26,12 +42,14 @@ function renderBulkActions(selectedHabitIds: Set<string>, readOnly = false) {
       selectedHabitIds,
       selectedDateStr: VIEWED_DATE,
       readOnly,
+      habitsById,
       habitListRef,
       onSuccess,
+      onPartialFailure,
     }),
   )
 
-  return { result, onSuccess, settleBulkHabitResolutions }
+  return { result, onSuccess, onPartialFailure, settleBulkHabitResolutions }
 }
 
 function bulkSuccess(ids: string[]) {
@@ -45,7 +63,9 @@ function bulkSuccess(ids: string[]) {
  */
 describe('useBulkActions reversibility boundary', () => {
   beforeEach(() => {
-    bulkDelete.mutateAsync.mockReset().mockResolvedValue(undefined)
+    showToast.mockReset()
+    showQueued.mockReset()
+    bulkDelete.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1']))
     bulkLog.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
     bulkSkip.mutateAsync.mockReset().mockResolvedValue(bulkSuccess(['h-1', 'h-2']))
   })
@@ -110,6 +130,47 @@ describe('useBulkActions reversibility boundary', () => {
     })
     expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['h-1'])
     expect(result.current.showBulkDeleteConfirm).toBe(false)
+  })
+
+  it('retries only failed rows and keeps them selected', async () => {
+    bulkLog.mutateAsync
+      .mockResolvedValueOnce({
+        results: [
+          { habitId: 'h-1', status: 'Success' },
+          { habitId: 'h-2', status: 'Failed' },
+        ],
+      })
+      .mockResolvedValueOnce(bulkSuccess(['h-2']))
+    const { result, onPartialFailure } = renderBulkActions(new Set(['h-1', 'h-2']))
+
+    await act(async () => {
+      await result.current.confirmBulkLog()
+    })
+
+    expect(onPartialFailure).toHaveBeenCalledWith(['h-2'])
+    const retry = showQueued.mock.calls[0]?.[2] as (() => void) | undefined
+    expect(retry).toBeTypeOf('function')
+    await act(async () => {
+      retry?.()
+      await Promise.resolve()
+    })
+    expect(bulkLog.mutateAsync).toHaveBeenLastCalledWith([
+      { habitId: 'h-2', date: VIEWED_DATE },
+    ])
+  })
+
+  it('deletes only selected roots so one request covers each server-side subtree', async () => {
+    const habitsById = new Map<string, NormalizedHabit>([
+      ['parent', { id: 'parent', parentId: null } as NormalizedHabit],
+      ['child', { id: 'child', parentId: 'parent' } as NormalizedHabit],
+    ])
+    const { result } = renderBulkActions(new Set(['parent', 'child']), false, habitsById)
+
+    await act(async () => {
+      await result.current.confirmBulkDelete()
+    })
+
+    expect(bulkDelete.mutateAsync).toHaveBeenCalledWith(['parent'])
   })
 
   it('refuses log, skip, and delete mutations on a read-only date', async () => {

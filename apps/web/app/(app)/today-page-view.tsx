@@ -1,15 +1,15 @@
 'use client'
 
-import { AnimatePresence } from 'motion/react'
 import { useTranslations } from 'next-intl'
+import { usePathname } from 'next/navigation'
 import { getTodayBoundary } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
-import { useIsClient } from '@/hooks/use-is-client'
 import { HabitList } from '@/components/habits/habit-list'
-import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
+import { SelectionTray } from '@/components/habits/selection-tray'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { TodayDateControl } from './today-shell'
+import { useShellComposerSlot } from '@/components/shell/destination-shell'
 import type { TodayView } from './use-today-page'
 
 function boundaryKey(boundary: ReturnType<typeof getTodayBoundary>): string | null {
@@ -25,7 +25,22 @@ export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
 
   return (
     <>
-      <TodayDateControl {...view.nav.dateNav} />
+      <TodayDateControl
+        {...view.nav.dateNav}
+        moreLabel={t('habits.actions.more')}
+        selectLabel={view.isSelectMode ? t('common.cancel') : t('common.select')}
+        collapseLabel={view.habitListAllCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
+        refreshLabel={t('habits.refresh')}
+        completedLabel={view.showCompleted ? t('habits.hideCompleted') : t('habits.showCompleted')}
+        isFetching={view.data.isFetching}
+        onToggleSelect={view.toggleSelectMode}
+        onToggleCollapse={() => {
+          if (view.habitListAllCollapsed) view.habitListRef.current?.expandAll()
+          else view.habitListRef.current?.collapseAll()
+        }}
+        onRefresh={() => void view.data.refetch()}
+        onToggleCompleted={() => view.setShowCompleted(!view.showCompleted)}
+      />
       {key ? (
         <div className="px-4 pb-4">
           <CapacityNotice message={t(key)} />
@@ -45,6 +60,7 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
     selection,
     setHabitListAllCollapsed,
     setShowCreateModal,
+    showCompleted,
     toggleSelectMode,
   } = view
 
@@ -53,7 +69,7 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
       ref={habitListRef}
       view="today"
       selectedDate={nav.selectedDate}
-      showCompleted={false}
+      showCompleted={showCompleted}
       isSelectMode={isSelectMode}
       selectedHabitIds={selectedHabitIds}
       filters={data.filters}
@@ -71,25 +87,28 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
 
 export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
   const t = useTranslations()
-  const isClient = useIsClient()
+  const pathname = usePathname()
   const count = view.selectedHabitIds.size
+
+  useShellComposerSlot(
+    pathname === '/' && view.isSelectMode,
+    () => (
+      <SelectionTray
+        selectedCount={count}
+        allSelected={view.selection.allSelected}
+        onSelectAll={view.selection.selectAll}
+        onDeselectAll={view.selection.deselectAll}
+        onBulkLog={() => void view.selection.confirmBulkLog()}
+        onBulkSkip={() => void view.selection.confirmBulkSkip()}
+        onBulkDelete={() => view.selection.setShowBulkDeleteConfirm(true)}
+        onCancel={view.toggleSelectMode}
+      />
+    ),
+    `${Array.from(view.selectedHabitIds).sort().join(',')}:${view.selection.allSelected ? 'all' : 'some'}`,
+  )
 
   return (
     <>
-      <AnimatePresence initial={false}>
-        {view.isSelectMode && isClient ? (
-          <BulkActionBarV2
-            selectedCount={count}
-            allSelected={view.selection.allSelected}
-            onSelectAll={view.selection.selectAll}
-            onDeselectAll={view.selection.deselectAll}
-            onBulkLog={() => void view.selection.confirmBulkLog()}
-            onBulkSkip={() => void view.selection.confirmBulkSkip()}
-            onBulkDelete={() => view.selection.setShowBulkDeleteConfirm(true)}
-            onCancel={view.toggleSelectMode}
-          />
-        ) : null}
-      </AnimatePresence>
       <ConfirmSheet
         open={view.selection.showBulkDeleteConfirm}
         title={t('habits.bulkDeleteTitle')}

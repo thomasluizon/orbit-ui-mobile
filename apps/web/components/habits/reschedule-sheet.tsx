@@ -2,7 +2,6 @@
 
 import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarClock, Sparkles } from '@/components/ui/icons'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   computeHabitFrequencyLabel,
@@ -12,94 +11,21 @@ import {
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildRescheduleUpdateRequest } from '@/lib/habit-request-builders'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { AstraGlyph } from '@/components/ui/astra-glyph'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useUpdateHabit } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
-
-const AI_LABEL_STYLE = {
-  fontFamily: 'var(--font-mono)',
-  // react-doctor-disable-next-line no-tiny-text -- intentional "AI" indicator pill (mono badge per DESIGN.md), not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  fontSize: 10,
-  fontWeight: 500,
-  letterSpacing: '0.06em',
-  color: 'var(--fg-3)',
-  boxShadow: 'inset 0 0 0 1px var(--hairline)',
-  borderRadius: 999,
-  padding: '1px 7px',
-} as const
+import { RescheduleProposal } from './reschedule-proposal'
 
 interface RescheduleSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   habit: NormalizedHabit | null
-}
-
-interface RescheduleSuggestionCardProps {
-  dateLabel: string
-  timeLabel: string | null
-  scheduleLabel: string
-  rationale: string
-}
-
-function RescheduleSuggestionCard({
-  dateLabel,
-  timeLabel,
-  scheduleLabel,
-  rationale,
-}: Readonly<RescheduleSuggestionCardProps>) {
-  const t = useTranslations()
-
-  return (
-    <div className="flex flex-col" style={{ gap: 14 }}>
-      <div
-        className="flex items-center rounded-[18px]"
-        style={{
-          padding: '14px 16px',
-          gap: 12,
-          background: 'rgba(var(--primary-rgb), 0.10)',
-          boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)',
-        }}
-      >
-        <CalendarClock size={22} strokeWidth={1.9} className="shrink-0 text-[var(--primary-soft)]" aria-hidden="true" />
-        <div className="min-w-0 flex-1">
-          <div
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 12,
-              fontWeight: 500,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase',
-              color: 'var(--fg-3)',
-            }}
-          >
-            {t('habits.reschedule.proposedScheduleLabel')}
-          </div>
-          <div
-            data-testid="reschedule-proposed-schedule"
-            style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 500, color: 'var(--fg-1)', marginTop: 2 }}
-          >
-            {dateLabel}
-            {timeLabel ? ` · ${timeLabel}` : ''}
-          </div>
-          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, color: 'var(--fg-3)', marginTop: 2 }}>
-            {scheduleLabel}
-          </div>
-        </div>
-      </div>
-
-      <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.5, color: 'var(--fg-1)', textWrap: 'pretty' }}>
-        {rationale}
-      </p>
-
-      {/* react-doctor-disable-next-line no-tiny-text -- intentional AI-disclosure fine-print caption (meta scale per DESIGN.md), deliberately de-emphasized below the rationale copy https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
-      <p style={{ fontFamily: 'var(--font-sans)', fontSize: 11, lineHeight: 1.4, color: 'var(--fg-3)' }}>
-        {t('aiDisclosure.notMedicalAdvice')}
-      </p>
-    </div>
-  )
 }
 
 /**
@@ -228,17 +154,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
             {t('habits.reschedule.loading')}
           </p>
-          <div
-            data-testid="reschedule-loading-skeleton"
-            aria-hidden="true"
-            className="animate-pulse"
-            style={{
-              height: 76,
-              borderRadius: 18,
-              background: 'var(--bg-field)',
-              boxShadow: 'inset 0 0 0 1px var(--hairline)',
-            }}
-          />
+          <div data-testid="reschedule-loading-skeleton"><Skeleton variant="settings" label={t('habits.reschedule.loading')} /></div>
         </div>
       )
     }
@@ -254,11 +170,13 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     }
     if (suggestion) {
       return (
-        <RescheduleSuggestionCard
+        <RescheduleProposal
+          proposedLabel={t('habits.reschedule.proposedScheduleLabel')}
           dateLabel={dateLabel}
           timeLabel={timeLabel}
           scheduleLabel={scheduleLabel}
           rationale={suggestion.rationale}
+          disclosure={t('aiDisclosure.notMedicalAdvice')}
         />
       )
     }
@@ -275,7 +193,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     >
       <div className="stagger-enter">
         <div className="flex items-center" style={{ gap: 8, marginBottom: 12 }}>
-          <Sparkles size={16} strokeWidth={1.9} color="var(--primary-soft)" aria-hidden="true" />
+          <AstraGlyph size={20} color="var(--fg-3)" />
           <span
             style={{
               fontFamily: 'var(--font-sans)',
@@ -288,12 +206,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
           >
             Astra
           </span>
-          <span
-            title={t('aiDisclosure.isAiTooltip')}
-            style={AI_LABEL_STYLE}
-          >
-            {t('aiDisclosure.isAiLabel')}
-          </span>
+          <Badge variant="outline">{t('aiDisclosure.isAiLabel')}</Badge>
         </div>
 
         {renderBody()}

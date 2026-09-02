@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { BackHandler } from "react-native";
 import { getTodayBoundary } from "@orbit/shared/utils";
+import type { NormalizedHabit } from "@orbit/shared/types/habit";
 import type { HabitListHandle } from "@/components/habit-list";
 import { useUIStore } from "@/stores/ui-store";
 import { useBulkActions } from "@/hooks/use-bulk-actions";
@@ -12,6 +13,7 @@ interface TodaySelectionInput {
   habitListRef: RefObject<HabitListHandle | null>;
   habitListAllLoadedIds: Set<string>;
   visibleHabitIds: Set<string>;
+  habitsById: Map<string, NormalizedHabit>;
   closeControlsMenu: () => void;
 }
 
@@ -27,6 +29,7 @@ export function useTodaySelection({
   habitListRef,
   habitListAllLoadedIds,
   visibleHabitIds,
+  habitsById,
   closeControlsMenu,
 }: TodaySelectionInput) {
   const activeView = useUIStore((s) => s.activeView);
@@ -45,8 +48,10 @@ export function useTodaySelection({
     selectedHabitIds,
     selectedDateStr,
     readOnly,
+    habitsById,
     habitListRef,
     onSuccess: clearSelection,
+    onPartialFailure: selectAllHabits,
   });
   const { setShowBulkDeleteConfirm, confirmBulkLog, confirmBulkSkip } =
     bulkActions;

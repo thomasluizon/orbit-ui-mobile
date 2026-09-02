@@ -25,7 +25,9 @@ const MUTATION_RESPONSE_SCHEMAS: Partial<Record<MutationType, ZodType>> = {
  * validated (opt-in), preserving prior behavior.
  * See https://github.com/thomasluizon/orbit-ui-mobile/issues/479
  */
-export function getMutationResponseSchema(type: string): ZodType | undefined {
+export function getMutationResponseSchema<TResult = unknown>(type: string): ZodType<TResult> | undefined {
   const currentType = mutationTypeSchema.safeParse(type)
-  return currentType.success ? MUTATION_RESPONSE_SCHEMAS[currentType.data] : undefined
+  return currentType.success
+    ? MUTATION_RESPONSE_SCHEMAS[currentType.data] as ZodType<TResult> | undefined
+    : undefined
 }
