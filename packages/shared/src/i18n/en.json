@@ -1475,12 +1475,13 @@
       "heading": "Your Pro trial has ended",
       "paused": "Paused",
       "subtitleQuiet": "These Pro features will pause unless you subscribe.",
-      "aiChat": "50 AI messages per day",
-      "aiSummary": "Daily AI summaries",
-      "subHabits": "Sub-habits",
-      "goals": "AI goal review",
-      "subscribe": "Subscribe to Pro",
-      "continueFree": "Continue with Free"
+      "astraCeiling": "50 Astra messages per day",
+      "calendarSync": "Calendar sync",
+      "retrospective": "Periodic retrospective",
+      "proactiveAstra": "Proactive Astra",
+      "savings": "Annual saves {percent}%",
+      "subscribe": "View plans",
+      "continueFree": "Stay free"
     }
   },
   "metrics": {

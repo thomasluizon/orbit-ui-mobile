@@ -1475,12 +1475,13 @@
       "heading": "Seu teste Pro acabou",
       "paused": "Pausado",
       "subtitleQuiet": "Estes recursos Pro vão pausar se você não assinar.",
-      "aiChat": "50 mensagens de IA por dia",
-      "aiSummary": "Resumos diários da IA",
-      "subHabits": "Sub-hábitos",
-      "goals": "Análise de metas por IA",
-      "subscribe": "Assinar Pro",
-      "continueFree": "Continuar no plano grátis"
+      "astraCeiling": "50 mensagens da Astra por dia",
+      "calendarSync": "Sincronização do calendário",
+      "retrospective": "Retrospectiva periódica",
+      "proactiveAstra": "Astra proativa",
+      "savings": "Anual economiza {percent}%",
+      "subscribe": "Ver planos",
+      "continueFree": "Ficar grátis"
     }
   },
   "metrics": {
