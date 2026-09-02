@@ -1,7 +1,10 @@
 import { Text } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
-  usePendingOperationCardState,
+  SharedPendingOperationCard,
+  type PendingOperationCardRenderers,
+} from '@orbit/shared/chat'
+import {
   usePendingOperationStepUpVerification,
   type PendingOperationExecutionResult,
   type PendingOperationStepUpPreparationResult,
@@ -69,6 +72,15 @@ function StepUpVerificationSheet({
   )
 }
 
+const pendingOperationRenderers = {
+  blockFrame: (props) => <BlockFrame {...props} />,
+  button: ({ label, ...props }) => <Button size="sm" {...props}>{label}</Button>,
+  confirmSheet: (props) => <ConfirmSheet {...props} />,
+  risk: (label) => <Badge variant="outline">{label}</Badge>,
+  stepUp: (props) => <StepUp {...props} />,
+  verification: (props) => <StepUpVerificationSheet {...props} />,
+} satisfies PendingOperationCardRenderers
+
 export function PendingOperationCard({
   pendingOperation,
   onConfirmExecute,
@@ -76,49 +88,28 @@ export function PendingOperationCard({
   onVerifyStepUp,
 }: Readonly<PendingOperationCardProps>) {
   const { t } = useTranslation()
-  const card = usePendingOperationCardState({
-    pendingOperationId: pendingOperation.id,
-    onConfirmExecute,
-    onPrepareStepUp,
-  })
   const capabilityKey = getAgentCapabilityLabelKey(pendingOperation.capabilityId)
-  const name = capabilityKey ? t(capabilityKey) : t('chat.operation.unknown')
-  const destructive = pendingOperation.riskClass === 'Destructive'
-  const risk = t(`chat.operation.risk.${pendingOperation.riskClass.toLowerCase()}`)
 
-  if (card.dismissed) return null
-
-  const items = [{
-    id: pendingOperation.id,
-    label: name,
-    meta: t('chat.operation.pending'),
-    status: card.status,
-    irreversible: destructive && card.status == null,
-  }]
-  const state = card.busy
-    ? 'acting'
-    : card.status === 'failed'
-      ? 'partiallyFailed'
-      : 'resting'
-  let actions: React.ReactNode
-  if (!card.status && pendingOperation.confirmationRequirement === 'StepUp') {
-    actions = <StepUp message={t('chat.operation.stepUpMessage')} actionLabel={t('chat.operation.stepUpAction')} onAction={() => void card.startStepUp()} busy={card.busy} />
-  } else if (!card.status) {
-    actions = <>
-      <Button size="sm" variant="ghost" onClick={card.dismiss}>{t('common.cancel')}</Button>
-      <Button size="sm" variant={destructive ? 'destructive' : 'primary'} onClick={() => destructive ? card.setConfirmOpen(true) : void card.execute()}>{t('chat.operation.approve')}</Button>
-    </>
-  }
-
-  return <>
-    <BlockFrame state={state} title={t('chat.operation.pendingTitle')} items={items} risk={<Badge variant="outline">{risk}</Badge>} irreversibleLabel={t('chat.operation.irreversible')} confirmNote={t('chat.operation.confirmNote')} actions={actions} />
-    <ConfirmSheet open={card.confirmOpen} title={t('chat.operation.confirmTitle')} message={t('chat.operation.confirmBody')} confirmLabel={t('chat.operation.confirm')} destructive onCancel={() => card.setConfirmOpen(false)} onConfirm={() => { card.setConfirmOpen(false); void card.execute() }} />
-    {card.preparedStepUp ? <StepUpVerificationSheet
-      pendingOperationId={pendingOperation.id}
-      prepared={card.preparedStepUp}
-      onClose={card.closeStepUp}
-      onCompleted={card.completeStepUp}
-      onVerify={onVerifyStepUp}
-    /> : null}
-  </>
+  return <SharedPendingOperationCard
+    pendingOperation={pendingOperation}
+    onConfirmExecute={onConfirmExecute}
+    onPrepareStepUp={onPrepareStepUp}
+    onVerifyStepUp={onVerifyStepUp}
+    render={pendingOperationRenderers}
+    labels={{
+      approve: t('chat.operation.approve'),
+      cancel: t('common.cancel'),
+      confirm: t('chat.operation.confirm'),
+      confirmBody: t('chat.operation.confirmBody'),
+      confirmNote: t('chat.operation.confirmNote'),
+      confirmTitle: t('chat.operation.confirmTitle'),
+      irreversible: t('chat.operation.irreversible'),
+      name: capabilityKey ? t(capabilityKey) : t('chat.operation.unknown'),
+      pending: t('chat.operation.pending'),
+      pendingTitle: t('chat.operation.pendingTitle'),
+      risk: t(`chat.operation.risk.${pendingOperation.riskClass.toLowerCase()}`),
+      stepUpAction: t('chat.operation.stepUpAction'),
+      stepUpMessage: t('chat.operation.stepUpMessage'),
+    }}
+  />
 }

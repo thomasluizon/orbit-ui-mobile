@@ -3346,6 +3346,14 @@
       },
       {
         "from": "packages/shared/src/chat",
+        "to": "packages/shared/src/contracts"
+      },
+      {
+        "from": "packages/shared/src/chat",
+        "to": "packages/shared/src/hooks"
+      },
+      {
+        "from": "packages/shared/src/chat",
         "to": "packages/shared/src/types"
       },
       {
