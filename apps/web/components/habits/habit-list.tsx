@@ -168,6 +168,7 @@ interface ParentSettlementOperation {
   data: ParentSettlementData
   date: string
   confirmedResolutions: ConfirmedResolutionRecord
+  requiresLogConfirmation: boolean
 }
 
 interface ConfirmedResolutionRecord {
@@ -742,6 +743,11 @@ export function HabitList({
     }
     if (promptedParentIdsRef.current.has(parent.id)) return
 
+    if (mode === 'log' && operation.requiresLogConfirmation) {
+      checkAndSettleParent(childHabitId, operation.confirmedResolutions, operation.data)
+      return
+    }
+
     promptedParentIdsRef.current.add(parent.id)
     void settleCompletedParent(parent.id, mode, operation, true)
   }
@@ -814,6 +820,7 @@ export function HabitList({
       data: settlementData,
       date: settlementData.selectedDateStr,
       confirmedResolutions,
+      requiresLogConfirmation: false,
     }
     for (const childId of childIdByAffectedParent.values()) {
       settleParentAutomatically(childId, operation)
@@ -944,17 +951,23 @@ export function HabitList({
 
   async function skipFromRow(habit: NormalizedHabit) {
     const habitId = habit.id
+    const date = selectedDateStr
+    const settlementData = promptDataRef.current
+    const confirmedResolutions = confirmedResolutionsRef.current
     try {
-      await skipHabit.mutateAsync({ habitId, date: selectedDateStr })
-      const confirmedResolutions = confirmedResolutionsRef.current
+      await skipHabit.mutateAsync({ habitId, date })
+      if (
+        promptDataRef.current?.selectedDateStr !== date ||
+        confirmedResolutionsRef.current !== confirmedResolutions
+      ) return
       recordHabitResolution(confirmedResolutions, habitId, 'skip')
       markRecentlyCompleted(habitId)
-      const settlementData = promptDataRef.current
       if (settlementData) {
         settleParentAutomatically(habitId, {
           data: settlementData,
-          date: selectedDateStr,
+          date,
           confirmedResolutions,
+          requiresLogConfirmation: true,
         })
       }
     } catch {
@@ -981,6 +994,7 @@ export function HabitList({
       data: settlementData,
       date: parentPrompt.date,
       confirmedResolutions,
+      requiresLogConfirmation: true,
     })
   }
 

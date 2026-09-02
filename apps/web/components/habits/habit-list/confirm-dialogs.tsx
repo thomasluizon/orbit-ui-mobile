@@ -1,6 +1,7 @@
 'use client'
 
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
+import { plural } from '@/lib/plural'
 
 interface HabitListConfirmDialogsProps {
   t: (key: string, params?: Record<string, string | number | Date>) => string
@@ -57,10 +58,13 @@ export function HabitListConfirmDialogs({
       <ConfirmSheet
         open={showDeleteConfirm}
         title={t('habits.deleteConfirmTitle')}
-        message={t('habits.deleteConfirmMessage', {
-          name: deleteHabitName,
-          count: deleteDescendantCount,
-        })}
+        message={plural(
+          t('habits.deleteListConfirmMessage', {
+            name: deleteHabitName,
+            count: deleteDescendantCount,
+          }),
+          deleteDescendantCount,
+        )}
         confirmLabel={t('common.delete')}
         destructive
         onCancel={onCancelDelete}

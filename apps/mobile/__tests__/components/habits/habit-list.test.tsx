@@ -581,7 +581,7 @@ describe('HabitList', () => {
     const [confirmation] = confirmationSheets(tree, 'habits.deleteConfirmTitle')
     expect(confirmation).toBeDefined()
     expect(flattenRenderedText(confirmation)).toContain(
-      'habits.deleteConfirmMessage({"name":"Exercise","count":1})',
+      'habits.deleteListConfirmMessage({"name":"Exercise","count":1})',
     )
 
     await TestRenderer.act(async () => {
@@ -2305,6 +2305,119 @@ describe('HabitList', () => {
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a', date: TODAY })
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b', date: TODAY })
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
+    expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
+  })
+
+  it('asks before logging a parent when the final row action is a skip', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      scheduledDates: [TODAY],
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const loggedChild = createMockHabit({
+      id: 'child-logged',
+      title: 'Logged child',
+      parentId: parent.id,
+      isCompleted: true,
+      scheduledDates: [TODAY],
+    })
+    const skippedChild = createMockHabit({
+      id: 'child-skipped',
+      title: 'Skipped child',
+      parentId: parent.id,
+      scheduledDates: [TODAY],
+    })
+    seedHabits([parent, loggedChild, skippedChild])
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+
+    await TestRenderer.act(async () => {
+      const childRow = tree.root
+        .findAllByType(HabitRow)
+        .find((node: any) => node.props.habit.id === skippedChild.id)
+      childRow?.props.actions.onSkip()
+      await Promise.resolve()
+    })
+
+    expect(logMutateAsync).not.toHaveBeenCalledWith({
+      habitId: parent.id,
+      date: TODAY,
+      intent: 'log',
+    })
+    expect(confirmationSheets(tree, 'habits.autoLogParentTitle')).toHaveLength(1)
+    await TestRenderer.act(async () => {
+      pressConfirm(tree, 'habits.autoLogParentConfirm')
+      await Promise.resolve()
+    })
+    expect(logMutateAsync).toHaveBeenCalledWith({
+      habitId: parent.id,
+      date: TODAY,
+      intent: 'log',
+    })
+  })
+
+  it('does not settle a parent when a row skip resolves after the viewed date changes', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY, TODAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: parent.id,
+      scheduledDates: [YESTERDAY, TODAY],
+    })
+    seedHabits([parent, child])
+    let resolveSkip!: () => void
+    skipMutateAsync.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      resolveSkip = resolve
+    }))
+    const renderList = (date: string) => (
+      <HabitList
+        view="today"
+        filters={{}}
+        selectedDate={new Date(`${date}T12:00:00Z`)}
+        showCompleted
+        onCreatePress={vi.fn()}
+      />
+    )
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(renderList(YESTERDAY))
+    })
+
+    TestRenderer.act(() => {
+      const childRow = tree.root
+        .findAllByType(HabitRow)
+        .find((node: any) => node.props.habit.id === child.id)
+      childRow?.props.actions.onSkip()
+    })
+    TestRenderer.act(() => {
+      tree.update(renderList(TODAY))
+    })
+    await TestRenderer.act(async () => {
+      resolveSkip()
+      await Promise.resolve()
+    })
+
+    expect(skipMutateAsync.mock.calls).toEqual([
+      [{ habitId: child.id, date: YESTERDAY }],
+    ])
+    expect(logMutateAsync).not.toHaveBeenCalledWith({
+      habitId: parent.id,
+      date: YESTERDAY,
+      intent: 'log',
+    })
     expect(tree.root.findAllByType('ConfirmDialog')).toHaveLength(0)
   })
 

@@ -2173,6 +2173,93 @@ describe('HabitList', () => {
     expect(screen.queryByRole('dialog', { name: 'habits.autoSkipParentTitle' })).toBeNull()
   })
 
+  it('asks before logging a parent when the final row action is a skip', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      scheduledDates: [TODAY],
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const loggedChild = createMockHabit({
+      id: 'child-logged',
+      title: 'Logged child',
+      parentId: parent.id,
+      isCompleted: true,
+      scheduledDates: [TODAY],
+    })
+    const skippedChild = createMockHabit({
+      id: 'child-skipped',
+      title: 'Skipped child',
+      parentId: parent.id,
+      scheduledDates: [TODAY],
+    })
+    for (const habit of [parent, loggedChild, skippedChild]) {
+      mockHabitsData.habitsById.set(habit.id, habit)
+    }
+    mockHabitsData.childrenByParent.set(parent.id, [loggedChild.id, skippedChild.id])
+    mockHabitsData.topLevelHabits = [parent]
+
+    renderWithProviders(<HabitList filters={defaultFilters} view="all" />)
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('skip-child-skipped'))
+      await Promise.resolve()
+    })
+
+    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
+    await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
+  })
+
+  it('does not settle a parent when a row skip resolves after the viewed date changes', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      scheduledDates: [YESTERDAY, TODAY],
+      instances: [{ date: YESTERDAY, status: 'Pending', logId: null }],
+    })
+    const child = createMockHabit({
+      id: 'child',
+      title: 'Child',
+      parentId: parent.id,
+      scheduledDates: [YESTERDAY, TODAY],
+    })
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(child.id, child)
+    mockHabitsData.childrenByParent.set(parent.id, [child.id])
+    mockHabitsData.topLevelHabits = [parent]
+    let resolveSkip!: () => void
+    skipHabitMutateAsync.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      resolveSkip = resolve
+    }))
+    const renderList = (date: string) => (
+      <HabitList
+        filters={defaultFilters}
+        selectedDate={new Date(`${date}T12:00:00Z`)}
+      />
+    )
+    const { rerenderWithProviders } = renderWithProviders(renderList(YESTERDAY))
+
+    act(() => {
+      fireEvent.click(screen.getByTestId('skip-child'))
+    })
+    act(() => {
+      rerenderWithProviders(renderList(TODAY))
+    })
+    await act(async () => {
+      resolveSkip()
+      await Promise.resolve()
+    })
+
+    expect(skipHabitMutateAsync.mock.calls).toEqual([
+      [{ habitId: child.id, date: YESTERDAY }],
+    ])
+    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, date: YESTERDAY })
+    expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
+  })
+
   it('stores drill edit onSaved callback without invoking refresh eagerly', async () => {
     const parent = createMockHabit({
       id: 'parent',
@@ -2333,7 +2420,7 @@ describe('HabitList', () => {
       name: 'habits.deleteConfirmTitle',
     })
     expect(within(confirmation).getByText(
-      'habits.deleteConfirmMessage({"name":"Stretch","count":1})',
+      'habits.deleteListConfirmMessage({"name":"Stretch","count":1})',
     )).toBeInTheDocument()
     await act(async () => {
       fireEvent.click(within(confirmation).getByRole('button', { name: 'common.delete' }))

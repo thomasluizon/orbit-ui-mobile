@@ -178,6 +178,7 @@ interface ParentSettlementOperation {
   data: ParentSettlementData
   date: string
   confirmedResolutions: ConfirmedResolutionRecord
+  requiresLogConfirmation: boolean
 }
 
 interface ConfirmedResolutionRecord {
@@ -840,6 +841,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         }
         if (promptedParentIdsRef.current.has(parentHabit.id)) return
 
+        if (mode === 'log' && operation.requiresLogConfirmation) {
+          checkAndSettleParent(childHabitId, operation.confirmedResolutions, operation.data)
+          return
+        }
+
         promptedParentIdsRef.current.add(parentHabit.id)
         operation.confirmedResolutions.activeSettlements += 1
         markRecentlyCompleted(parentHabit.id)
@@ -880,6 +886,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       },
       [
         clearRecentlyCompleted,
+        checkAndSettleParent,
         finishParentSettlement,
         getChildrenProgressForPrompt,
         logMutation,
@@ -921,6 +928,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         data: settlementData,
         date: settlementData.selectedDateStr,
         confirmedResolutions,
+        requiresLogConfirmation: false,
       }
       for (const childId of childIdByAffectedParent.values()) {
         settleParentAutomatically(childId, operation)
@@ -1041,18 +1049,24 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const skipHabit = useCallback(async (habit: NormalizedHabit) => {
+      const habitId = habit.id
+      const date = selectedDateStr
+      const settlementData = promptDataRef.current
+      const confirmedResolutions = confirmedResolutionsRef.current
       try {
-        const habitId = habit.id
-        await skipMutation.mutateAsync({ habitId, date: selectedDateStr })
-        const confirmedResolutions = confirmedResolutionsRef.current
+        await skipMutation.mutateAsync({ habitId, date })
+        if (
+          promptDataRef.current?.selectedDateStr !== date ||
+          confirmedResolutionsRef.current !== confirmedResolutions
+        ) return
         recordHabitResolution(confirmedResolutions, habitId, 'skip')
         markRecentlyCompleted(habitId)
-        const settlementData = promptDataRef.current
         if (settlementData) {
           settleParentAutomatically(habitId, {
             data: settlementData,
-            date: selectedDateStr,
+            date,
             confirmedResolutions,
+            requiresLogConfirmation: true,
           })
         }
       } catch {
