@@ -65,7 +65,10 @@ import { OverlayLayer } from '@/components/global-overlays'
 import * as Sentry from '@sentry/react-native'
 import { AppToast } from '@/components/ui/app-toast'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
-import ChatScreen from '@/app/chat'
+import { AstraConversation } from '@/components/chat/conversation'
+import { Composer } from '@/components/shell/composer'
+import { useChatComposer } from '@/hooks/use-chat-composer'
+import { useOffline } from '@/hooks/use-offline'
 import { captureError } from '@/lib/sentry'
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
 import {
@@ -192,6 +195,12 @@ function RootLayoutNav() {
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const todayFabHidden = useUIStore((s) => s.todayFabHidden)
   const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
+  const setAstraConversationOpen = useUIStore((s) => s.setAstraConversationOpen)
+  const offline = useOffline()
+  const chat = useChatComposer({
+    isOnline: offline.isOnline,
+    offlineTitle: t('chat.offline.title'),
+  })
   useOnboardingFlush()
 
   const topSegment = segments[0] as string | undefined
@@ -211,11 +220,11 @@ function RootLayoutNav() {
     topSegment === 'r'
 
   const showBottomNav = isAuthenticated && !hideAppShellChrome
-  const todayConversation = pathname === '/' ? {
-    conversation: <ChatScreen />,
+  const conversation = {
+    conversation: <AstraConversation chat={chat} />,
     conversationOpen: astraConversationOpen,
     conversationLabel: t('todayAstra.openConversation'),
-  } : {}
+  }
   const androidBackFallbackRoute = useMemo(
     () =>
       getAndroidBackFallbackRoute(pathname, {
@@ -283,7 +292,14 @@ function RootLayoutNav() {
       <View style={{ flex: 1 }}>
         {showBottomNav ? (
           <Shell412
-            {...todayConversation}
+            {...conversation}
+            composer={
+              <Composer
+                {...chat.composerProps}
+                onOpenConversation={() => setAstraConversationOpen(true)}
+                conversationLabel={t('todayAstra.openConversation')}
+              />
+            }
             tabBar={<AppBottomTabBar pathname={pathname} />}
             fab={pathname === '/' && !todayFabHidden
               ? <AppCreateFab onCreate={handleCreate} />

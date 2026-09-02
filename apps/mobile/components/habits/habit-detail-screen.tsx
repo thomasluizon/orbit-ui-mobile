@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
@@ -55,6 +54,8 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 
 type ConfirmAction = 'clear' | 'delete' | 'log' | 'delete-child' | null
 
@@ -282,10 +283,10 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
     setChildToDelete(null)
   }
   const openChild = (id: string) => router.push({ pathname: '/habits/[id]', params: { id, date: dateStr, parent: habitId, ...(fromToday ? { from: 'today' } : {}) } })
-  const askAstra = async () => {
+  const askAstra = () => {
     const key = habit?.checklistItems.length ? 'habits.detail.askAstraSeedSubHabits' : 'habits.detail.askAstraSeedDefault'
-    await AsyncStorage.setItem('orbit-chat-draft', t(key, { title: habit?.title ?? '' }))
-    router.push('/chat')
+    useChatStore.getState().setDraft(t(key, { title: habit?.title ?? '' }))
+    useUIStore.getState().setAstraConversationOpen(true)
   }
 
   const appBar = <AppBar back title={t('habits.detail.screenTitle')} onBack={back} />

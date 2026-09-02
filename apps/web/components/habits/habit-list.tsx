@@ -79,6 +79,7 @@ import {
 } from '@dnd-kit/sortable'
 import { SortableHabitItem } from './habit-list/sortable-habit-item'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
+import { useUIStore } from '@/stores/ui-store'
 
 const CreateHabitModal = dynamic(() =>
   import('./create-habit-modal').then((module) => module.CreateHabitModal),
@@ -1210,7 +1211,7 @@ export function HabitList({
           title={view === 'today' ? t('habits.emptyState') : t(getHabitEmptyStateKey(view))}
           description={view === 'today' ? t('habits.noHabitsBody') : getEmptyHabitsMessage(view, t)}
           askAstraLabel={t('habits.askAstra')}
-          onAskAstra={() => router.push('/chat')}
+          onAskAstra={() => useUIStore.getState().setAstraConversationOpen(true)}
           actionLabel={t('habits.createManually')}
           onAction={onCreate}
         />

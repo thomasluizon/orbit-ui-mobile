@@ -62,7 +62,12 @@ vi.mock('@/hooks/use-tour-mock-data', () => ({
 }))
 
 import { TourProvider } from '@/components/tour/tour-provider'
-import ChatPage from '@/app/(chat)/chat/page'
+import { AstraConversation } from '@/components/chat/conversation'
+import { useChatComposer } from '@/hooks/use-chat-composer'
+
+function ChatPage() {
+  return <AstraConversation chat={useChatComposer()} />
+}
 
 let observedShellScroller: HTMLElement | null = null
 

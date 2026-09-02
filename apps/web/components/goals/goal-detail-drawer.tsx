@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
@@ -28,6 +27,8 @@ import {
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useGoals, useGoalDetail, useDeleteGoal } from '@/hooks/use-goals'
+import { useChatStore } from '@/stores/chat-store'
+import { useUIStore } from '@/stores/ui-store'
 
 export type { GoalDrawerInitialAction } from './goal-detail-drawer/use-goal-drawer-initial-action'
 
@@ -121,16 +122,15 @@ export function GoalDetailDrawer({
     }
   }, [closeSheet, deleteGoalMut, goalId, onOpenChange, showError, translate])
 
-  const router = useRouter()
   function handleAskAstra() {
     if (!goal) return
     const seed = t('goals.detail.askAstraSeedDefault', { title: goal.title })
     if ('localStorage' in globalThis) {
-      globalThis.localStorage.setItem('orbit-chat-draft', seed)
+      useChatStore.getState().setDraft(seed)
     }
     closeSheet(() => {
       onOpenChange(false)
-      router.push('/chat')
+      useUIStore.getState().setAstraConversationOpen(true)
     })
   }
 

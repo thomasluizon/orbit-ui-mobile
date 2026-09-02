@@ -1,6 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import ChatScreen from '@/app/chat'
+import { AstraConversation } from '@/components/chat/conversation'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -102,7 +102,7 @@ vi.mock('@/components/ui/pill-button', () => ({
 vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
   KeyboardAwareFlatList: () => null,
 }))
-vi.mock('@/app/chat.styles', () => ({
+vi.mock('@/components/chat/conversation.styles', () => ({
   createStyles: () => new Proxy({}, { get: () => ({}) }),
 }))
 
@@ -115,7 +115,7 @@ type TestNode = {
 async function renderScreen() {
   let tree!: { root: TestNode; update: (element: React.ReactElement) => void }
   await TestRenderer.act(async () => {
-    tree = TestRenderer.create(<ChatScreen />)
+    tree = TestRenderer.create(<AstraConversation chat={mocks.composer as never} />)
     await Promise.resolve()
   })
   return tree
@@ -168,7 +168,7 @@ describe('ChatScreen composer recoveries', () => {
     expect(findByLabel(tree.root, 'common.openSettings')).toBeDefined()
 
     mocks.composer.sendError = null
-    TestRenderer.act(() => tree.update(<ChatScreen />))
+    TestRenderer.act(() => tree.update(<AstraConversation chat={mocks.composer as never} />))
     const settingsAction = findByLabel(tree.root, 'common.openSettings')
     TestRenderer.act(() => press(settingsAction))
 
