@@ -16,7 +16,7 @@ const COMBINED_PROPOSAL: HabitFormProposal = { setup: true, checklist: true, sub
 const testTranslations: Record<string, string> = {
   'habits.form.understoodDaily': 'Every day',
   'habits.form.understoodDailyAt': 'Every day at {time}',
-  'habits.form.understoodDaysAt': 'On {days} at {time}',
+  'habits.form.understoodDaysAt': 'Every {days} at {time}',
   'habits.form.understoodCountAt': '{count} times a week, any day at {time}',
   'habits.form.understoodTime': 'At {time}',
 }
@@ -119,7 +119,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('On Mon at 08:00')
+    expect(tree.root.findByType('HabitUnderstanding').props.sentence).toBe('Every Mon at 08:00')
 
     controlValues.days = []
     controlValues.isFlexible = true

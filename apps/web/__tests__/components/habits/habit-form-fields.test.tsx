@@ -17,7 +17,7 @@ const COMBINED_PROPOSAL: HabitFormProposal = { setup: true, checklist: true, sub
 const testTranslations: Record<string, string> = {
   'habits.form.understoodDaily': 'Every day',
   'habits.form.understoodDailyAt': 'Every day at {time}',
-  'habits.form.understoodDaysAt': 'On {days} at {time}',
+  'habits.form.understoodDaysAt': 'Every {days} at {time}',
   'habits.form.understoodCountAt': '{count} times a week, any day at {time}',
   'habits.form.understoodTime': 'At {time}',
 }
@@ -177,7 +177,7 @@ describe('HabitFormFields', () => {
     formHelpers.testValues.dueTime = '08:00'
     view.rerenderForm()
 
-    expect(screen.getByText('On Mon at 08:00')).toBeDefined()
+    expect(screen.getByText('Every Mon at 08:00')).toBeDefined()
 
     formHelpers.testValues.days = []
     formHelpers.testValues.isFlexible = true
