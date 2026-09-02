@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { Plus, X } from '@/components/ui/icons'
+import { X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { applyChecklistTemplate } from '@orbit/shared/utils'
@@ -11,6 +11,8 @@ import {
   useDeleteChecklistTemplate,
 } from '@/hooks/use-checklist-templates'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { ListRow } from '@/components/ui/list-row'
+import { Sheet } from '@/components/ui/sheet'
 
 interface ChecklistTemplatesProps {
   items: ChecklistItem[]
@@ -23,6 +25,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
   const { data: templates = [] } = useChecklistTemplates()
   const createTemplate = useCreateChecklistTemplate()
   const deleteTemplate = useDeleteChecklistTemplate()
+  const [open, setOpen] = useState(false)
   const [showSave, setShowSave] = useState(false)
   const [templateName, setTemplateName] = useState('')
 
@@ -47,7 +50,10 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
   const handleLoad = useCallback(
     (id: string) => {
       const tmpl = templates.find((entry) => entry.id === id)
-      if (tmpl) onLoad(applyChecklistTemplate(tmpl))
+      if (tmpl) {
+        onLoad(applyChecklistTemplate(tmpl))
+        setOpen(false)
+      }
     },
     [onLoad, templates],
   )
@@ -64,67 +70,26 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
   )
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-3 flex-wrap">
-        {items.length > 0 && !showSave && (
-          <button
-            type="button"
-            className="chip"
-            onClick={() => setShowSave(true)}
-          >
-            <Plus size={14} strokeWidth={2} aria-hidden="true" />
-            {t('habits.form.saveAsTemplate')}
-          </button>
-        )}
-        {templates.length > 0 && (
-          <>
-            {items.length > 0 && !showSave && (
-              <span aria-hidden="true" className="self-stretch w-px bg-[var(--hairline)]" />
-            )}
-            <div className="flex items-center gap-2 flex-wrap min-w-0">
-              <span
-                className="uppercase text-[var(--fg-3)]"
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  letterSpacing: '0.08em',
-                }}
-              >
-                {t('habits.form.templates')}:
-              </span>
-              {templates.map((tmpl) => (
-                <span
-                  key={tmpl.id}
-                  className="inline-flex items-center rounded-full bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-fast)] hover:bg-[var(--bg-elev-2)]"
-                  style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
-                >
-                  <button
-                    type="button"
-                    className="pl-3.5 pr-1.5 py-2 text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-colors duration-150"
-                    onClick={() => handleLoad(tmpl.id)}
-                    aria-label={`${t('habits.form.templates')}: ${tmpl.name}`}
-                  >
-                    {tmpl.name}
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`${t('common.delete')}: ${tmpl.name}`}
-                    className="pl-0.5 pr-3 py-2 text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors disabled:opacity-50"
-                    onClick={() => handleDelete(tmpl.id)}
-                    disabled={deleteTemplate.isPending && deleteTemplate.variables === tmpl.id}
-                  >
-                    <X size={13} strokeWidth={1.8} aria-hidden="true" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-
-      {showSave && (
-        <div className="flex items-center gap-2">
+    <>
+      <ListRow
+        icon="template"
+        title={t('habits.form.templates')}
+        value={templates.length > 0 ? String(templates.length) : undefined}
+        onClick={() => setOpen(true)}
+      />
+      {open ? (
+        <Sheet open title={t('habits.form.templates')} onClose={() => setOpen(false)}>
+          <div className="flex flex-col" style={{ gap: 4 }}>
+            {items.length > 0 && !showSave ? (
+              <ListRow
+                icon="device-floppy"
+                title={t('habits.form.saveAsTemplate')}
+                chevron={false}
+                onClick={() => setShowSave(true)}
+              />
+            ) : null}
+            {showSave ? (
+              <div className="flex items-center px-4 py-2" style={{ gap: 8 }}>
           <input
             value={templateName}
             type="text"
@@ -161,8 +126,27 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           >
             <X size={16} strokeWidth={1.8} aria-hidden="true" />
           </button>
-        </div>
-      )}
-    </div>
+              </div>
+            ) : null}
+            {templates.map((template) => (
+              <ListRow
+                key={template.id}
+                icon="template"
+                title={template.name}
+                description={t('habits.form.templateItemCount', { count: template.items.length })}
+                chevron={false}
+                action={{
+                  icon: 'trash',
+                  label: `${t('common.delete')}: ${template.name}`,
+                  danger: true,
+                  onPress: () => handleDelete(template.id),
+                }}
+                onClick={() => handleLoad(template.id)}
+              />
+            ))}
+          </div>
+        </Sheet>
+      ) : null}
+    </>
   )
 }

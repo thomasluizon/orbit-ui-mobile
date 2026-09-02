@@ -637,6 +637,7 @@
       "checklist": "Checklist",
       "checklistPlaceholder": "Add an item...",
       "templates": "Templates",
+      "templateItemCount": "{count, plural, one {# item} other {# items}}",
       "saveAsTemplate": "Save as template",
       "templateNamePlaceholder": "e.g. Weekly groceries",
       "saveTemplateError": "Couldn't save template. Please try again.",

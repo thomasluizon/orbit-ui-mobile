@@ -637,6 +637,7 @@
       "checklist": "Checklist",
       "checklistPlaceholder": "Adicionar um item...",
       "templates": "Modelos",
+      "templateItemCount": "{count, plural, one {# item} other {# itens}}",
       "saveAsTemplate": "Salvar como modelo",
       "templateNamePlaceholder": "ex: Compras da semana",
       "saveTemplateError": "Não foi possível salvar o modelo. Tente de novo.",
