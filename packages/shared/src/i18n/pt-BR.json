@@ -1465,10 +1465,10 @@
   "trial": {
     "proBadge": "Período de teste",
     "banner": {
-      "trialEyebrow": "Teste Pro",
+      "freeLine": "Plano grátis",
       "daysLeft": "{days} dia restante | {days} dias restantes",
       "lastDay": "O teste acaba hoje",
-      "upgrade": "Upgrade"
+      "upgrade": "Ver Pro"
     },
     "expired": {
       "eyebrow": "Teste encerrado",

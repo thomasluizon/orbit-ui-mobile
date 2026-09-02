@@ -7,7 +7,6 @@ import type { ThemeMode } from '@orbit/shared/types/profile'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { usePersistentReminder } from '@/hooks/use-persistent-reminder'
 import { useSheetHost } from '@/components/ui/sheet'
-import { TrialBanner } from '@/components/ui/trial-banner'
 import { createTokensV2 } from '@/lib/theme'
 import { AppBar } from '@/components/ui/app-bar'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -124,8 +123,6 @@ export default function PreferencesScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <TrialBanner />
-
         <PreferenceSettingsList
           tokens={tokens}
           t={t}

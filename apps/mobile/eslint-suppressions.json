@@ -769,14 +769,6 @@
       "count": 4
     }
   },
-  "components/ui/trial-banner.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
   "components/ui/year-picker.tsx": {
     "local/spacing-scale": {
       "count": 1

@@ -2,24 +2,32 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-// react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ChevronRight, X } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
-import { useProfile, useTrialDaysLeft, useTrialUrgent } from '@/hooks/use-profile'
+import { useProfile, useTrialDaysLeft } from '@/hooks/use-profile'
 import { resolveTrialBannerColors } from '@/components/ui/trial-banner-colors'
 
 export function TrialBanner() {
   const t = useTranslations()
   const { profile } = useProfile()
   const trialDaysLeft = useTrialDaysLeft()
-  const trialUrgent = useTrialUrgent()
   const [dismissed, setDismissed] = useState(false)
   const shouldReduceMotion = useReducedMotion()
+  const bannerColors = resolveTrialBannerColors()
 
-  const visible = profile?.isTrialActive && !dismissed
-  const bannerColors = resolveTrialBannerColors(!!trialUrgent)
+  const isTrialActive = profile?.isTrialActive === true
+  const isFree = profile?.hasProAccess === false
+  const visible = (isTrialActive || isFree) && !dismissed
+  const label = isTrialActive
+    ? (trialDaysLeft ?? 0) <= 1
+      ? t('trial.banner.lastDay')
+      : plural(
+          t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 }),
+          trialDaysLeft ?? 0,
+        )
+    : t('trial.banner.freeLine')
 
   return (
     <AnimatePresence initial={false}>
@@ -29,73 +37,53 @@ export function TrialBanner() {
           role="status"
           aria-live="polite"
           className="flex items-center md:mt-2 md:rounded-[12px]"
-          exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -4 }}
-          transition={{ duration: shouldReduceMotion ? 0 : 0.16, ease: [0.2, 0, 0, 1] }}
+          exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -12 }}
+          transition={{
+            duration: shouldReduceMotion ? 0 : 0.16,
+            ease: [0.16, 1, 0.3, 1],
+          }}
           style={{
-            padding: '9px 14px',
+            minHeight: 52,
+            padding: '4px 12px',
             gap: 12,
             background: bannerColors.background,
             boxShadow: bannerColors.boxShadow,
           }}
         >
           <span
-            className="flex-1"
+            className="min-w-0 flex-1 text-pretty"
             style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 13,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 12,
+              lineHeight: 1.4,
+              fontVariantNumeric: 'tabular-nums',
               color: 'var(--fg-2)',
             }}
           >
-            {t('trial.banner.trialEyebrow')} ·{' '}
-            {trialDaysLeft === 0 ? (
-              <span style={{ color: 'var(--status-overdue-text)' }}>
-                {t('trial.banner.lastDay')}
-              </span>
-            ) : (
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontVariantNumeric: 'tabular-nums',
-                  color: 'var(--fg-1)',
-                }}
-              >
-                {plural(
-                  t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 }),
-                  trialDaysLeft ?? 0,
-                )}
-              </span>
-            )}
+            {label}
           </span>
           <Link
             href="/upgrade"
-            className="inline-flex items-center transition-opacity duration-150 ease-out hover:opacity-80"
+            className="inline-flex min-h-11 items-center gap-1 transition-colors duration-[240ms] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
             style={{
-              gap: 2,
-              minHeight: 44,
-              margin: '-12px 0',
               fontFamily: 'var(--font-sans)',
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 500,
-              color: bannerColors.accentColor,
+              color: bannerColors.actionColor,
               padding: '0 4px',
             }}
           >
             {t('trial.banner.upgrade')}
-            <ChevronRight size={14} strokeWidth={2.2} aria-hidden="true" />
+            <ChevronRight size={16} strokeWidth={2} aria-hidden="true" />
           </Link>
           <button
             type="button"
             aria-label={t('common.dismiss')}
-            className="icon-btn touch-target hover:text-[var(--fg-1)]"
-            style={{
-              width: 40,
-              height: 40,
-              margin: '-10px -8px',
-              color: bannerColors.dismissColor,
-            }}
+            className="icon-btn touch-target h-11 w-11 hover:text-[var(--fg-1)]"
+            style={{ color: bannerColors.dismissColor }}
             onClick={() => setDismissed(true)}
           >
-            <X size={18} strokeWidth={1.8} aria-hidden="true" />
+            <X size={20} strokeWidth={2} aria-hidden="true" />
           </button>
         </motion.div>
       ) : null}

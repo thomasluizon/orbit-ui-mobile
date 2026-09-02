@@ -1465,10 +1465,10 @@
   "trial": {
     "proBadge": "Trial",
     "banner": {
-      "trialEyebrow": "Pro Trial",
+      "freeLine": "Free plan",
       "daysLeft": "{days} day left | {days} days left",
       "lastDay": "Trial ends today",
-      "upgrade": "Upgrade"
+      "upgrade": "View Pro"
     },
     "expired": {
       "eyebrow": "Trial ended",

@@ -1004,14 +1004,6 @@
       "count": 3
     }
   },
-  "components/ui/trial-banner.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
   "components/ui/update-available-banner.tsx": {
     "local/icon-size-grid": {
       "count": 2
