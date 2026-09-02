@@ -391,7 +391,6 @@ export function EditHabitModal({
               reminderTimes={reminderTimes}
               onReminderTimesChange={setReminderTimes}
               onSlipAlertEnabledChange={handleSlipAlertEnabledChange}
-              hasScheduledReminders={(habit?.scheduledReminders.length ?? 0) > 0}
               onSuggestSetup={handleSuggest}
               isSuggesting={suggestion.isPending}
               lockedGeneral={resolvedLockedGeneral}

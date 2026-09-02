@@ -22,6 +22,8 @@ vi.mock('@/components/habits/habit-form-fields/habit-understanding', () => ({ Ha
 vi.mock('@/components/habits/habit-checklist', () => ({ HabitChecklist: () => React.createElement('View', { testID: 'checklist' }) }))
 vi.mock('@/components/habits/checklist-templates', () => ({ ChecklistTemplates: () => React.createElement('View') }))
 vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => React.createElement('View') }))
+vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: () => React.createElement('View', { testID: 'offset-reminders' }) }))
+vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: () => React.createElement('View', { testID: 'scheduled-reminders' }) }))
 vi.mock('@/components/ui/time-field', () => ({ TimeField: () => React.createElement('View') }))
 
 function createFormHelpers(overrides: Record<string, unknown> = {}): HabitFormHelpers {
@@ -72,6 +74,18 @@ describe('HabitFormFields mobile', () => {
 
     expect(formHelpers.setOneTime).toHaveBeenCalledOnce()
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '', { shouldDirty: true })
+  })
+
+  it('nests fixed clock reminders under the offset reminder switch for a timed habit', async () => {
+    const formHelpers = createFormHelpers({ dueTime: '08:00' })
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />)
+      await Promise.resolve()
+    })
+
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'offset-reminders')).toHaveLength(1)
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'scheduled-reminders')).toHaveLength(1)
   })
 
   it('keeps local corrections and details live at the Astra ceiling', async () => {

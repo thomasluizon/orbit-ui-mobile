@@ -52,7 +52,6 @@ interface HabitFormFieldsProps {
   onReminderTimesChange: (times: number[]) => void
   onReminderEnabledChange?: (nextEnabled: boolean) => void
   onSlipAlertEnabledChange?: (nextEnabled: boolean) => void
-  hasScheduledReminders?: boolean
   onFlushBufferedInputsReady?: (flush: () => void) => void
   defaultExpanded?: boolean
   expandAdvancedSignal?: number
@@ -191,7 +190,6 @@ function buildUnderstandingSentence(
 
 interface ReminderEditorsProps {
   dueTime: string
-  hasScheduledReminders: boolean
   reminderEnabled: boolean
   reminderTimes: number[]
   scheduledReminders: { when: ScheduledReminderWhen; time: string }[]
@@ -205,7 +203,6 @@ interface ReminderEditorsProps {
 
 function ReminderEditors({
   dueTime,
-  hasScheduledReminders,
   reminderEnabled,
   reminderTimes,
   scheduledReminders,
@@ -222,7 +219,7 @@ function ReminderEditors({
   return (
     <>
       <ReminderSection tokens={tokens} reminderEnabled={reminderEnabled} reminderTimes={reminderTimes} onReminderTimesChange={onReminderTimesChange} onToggleReminder={onToggle} reminderLabel={(minutes) => reminderLabel(minutes, t)} />
-      {hasScheduledReminders ? <ScheduledReminderSection tokens={tokens} reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} onToggleReminder={onToggle} onSetScheduledReminders={onSetScheduledReminders} onValidationError={onValidationError} nested /> : null}
+      <ScheduledReminderSection tokens={tokens} reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} onToggleReminder={onToggle} onSetScheduledReminders={onSetScheduledReminders} onValidationError={onValidationError} nested />
     </>
   )
 }
@@ -237,7 +234,6 @@ export function HabitFormFields({
   onReminderTimesChange,
   onReminderEnabledChange,
   onSlipAlertEnabledChange,
-  hasScheduledReminders = false,
   onFlushBufferedInputsReady,
   expandAdvancedSignal = 0,
   onSuggestSetup,
@@ -426,7 +422,6 @@ export function HabitFormFields({
               <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.reminders')}</SectionLabel>
               <ReminderEditors
                 dueTime={dueTime}
-                hasScheduledReminders={hasScheduledReminders}
                 reminderEnabled={reminderEnabled}
                 reminderTimes={reminderTimes}
                 scheduledReminders={scheduledReminders}

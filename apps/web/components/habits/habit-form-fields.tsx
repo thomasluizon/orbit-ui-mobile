@@ -51,7 +51,6 @@ interface HabitFormFieldsProps {
   onReminderTimesChange: (times: number[]) => void
   onReminderEnabledChange?: (nextEnabled: boolean) => void
   onSlipAlertEnabledChange?: (nextEnabled: boolean) => void
-  hasScheduledReminders?: boolean
   defaultExpanded?: boolean
   lockedGeneral?: boolean | null
   expandAdvancedSignal?: number
@@ -191,7 +190,6 @@ function buildUnderstandingSentence(
 
 interface ReminderEditorsProps {
   dueTime: string
-  hasScheduledReminders: boolean
   reminderEnabled: boolean
   reminderTimes: number[]
   scheduledReminders: { when: ScheduledReminderWhen; time: string }[]
@@ -204,7 +202,6 @@ interface ReminderEditorsProps {
 
 function ReminderEditors({
   dueTime,
-  hasScheduledReminders,
   reminderEnabled,
   reminderTimes,
   scheduledReminders,
@@ -220,7 +217,7 @@ function ReminderEditors({
   return (
     <>
       <ReminderSection reminderEnabled={reminderEnabled} reminderTimes={reminderTimes} onReminderTimesChange={onReminderTimesChange} onToggleReminder={onToggle} reminderLabel={(minutes) => reminderLabel(minutes, t)} t={t} />
-      {hasScheduledReminders ? <ScheduledReminderSection reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} onToggleReminder={onToggle} onSetScheduledReminders={onSetScheduledReminders} onValidationError={onValidationError} nested t={t} /> : null}
+      <ScheduledReminderSection reminderEnabled={reminderEnabled} scheduledReminders={scheduledReminders} onToggleReminder={onToggle} onSetScheduledReminders={onSetScheduledReminders} onValidationError={onValidationError} nested t={t} />
     </>
   )
 }
@@ -235,7 +232,6 @@ export function HabitFormFields({
   onReminderTimesChange,
   onReminderEnabledChange,
   onSlipAlertEnabledChange,
-  hasScheduledReminders = false,
   expandAdvancedSignal = 0,
   onSuggestSetup,
   isSuggesting = false,
@@ -435,7 +431,6 @@ export function HabitFormFields({
               <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.reminders')}</SectionLabel>
               <ReminderEditors
                 dueTime={dueTime}
-                hasScheduledReminders={hasScheduledReminders}
                 reminderEnabled={reminderEnabled}
                 reminderTimes={reminderTimes}
                 scheduledReminders={scheduledReminders}

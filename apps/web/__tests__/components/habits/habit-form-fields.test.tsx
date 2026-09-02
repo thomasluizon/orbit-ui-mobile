@@ -138,6 +138,13 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('slip-alert')).toBeDefined()
   })
 
+  it('nests fixed clock reminders under the offset reminder switch for a timed habit', () => {
+    renderForm(createFormHelpers({ title: 'Run', dueTime: '08:00' }), undefined, true)
+
+    expect(screen.getByText('offset-reminders')).toBeDefined()
+    expect(screen.getByText('scheduled-reminders')).toBeDefined()
+  })
+
   it('keeps every local control live when the Astra allowance is exhausted', () => {
     mockProfileState.aiMessagesUsed = 5
     const onSuggestSetup = vi.fn(() => true)
