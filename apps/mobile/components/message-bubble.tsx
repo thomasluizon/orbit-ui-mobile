@@ -100,7 +100,10 @@ export function MessageBubble({
     clarificationActions,
     nonSuggestionActions,
     suggestionActions,
-  } = useMemo(() => partitionMessageActions(message.actions), [message.actions]);
+  } = useMemo(
+    () => partitionMessageActions(message.actions, message.policyDenials),
+    [message.actions, message.policyDenials],
+  );
   const relatedSurfaces = useMemo(
     () => getRelatedSurfaces(message.relatedSurfaces),
     [message.relatedSurfaces],

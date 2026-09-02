@@ -45,7 +45,10 @@ export function MessageBubble({
     clarificationActions,
     nonSuggestionActions,
     suggestionActions,
-  } = useMemo(() => partitionMessageActions(message.actions), [message.actions])
+  } = useMemo(
+    () => partitionMessageActions(message.actions, message.policyDenials),
+    [message.actions, message.policyDenials],
+  )
 
   function dismissBreakdown(key: string) {
     setDismissedBreakdowns((prev) => new Set([...prev, key]))

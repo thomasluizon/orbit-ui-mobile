@@ -39,4 +39,24 @@ describe('partitionMessageActions', () => {
       suggestionActions: [],
     })
   })
+
+  it('excludes only the failed action represented by an upgrade policy denial', () => {
+    const deniedAction: ActionResult = { type: 'CreateHabit', status: 'Failed' }
+    const ordinaryFailure: ActionResult = { type: 'LogHabit', status: 'Failed' }
+
+    const groups = partitionMessageActions(
+      [deniedAction, ordinaryFailure],
+      [
+        {
+          operationId: 'operation-1',
+          sourceName: 'create_habit',
+          riskClass: 'Low',
+          confirmationRequirement: 'None',
+          reason: 'feature_plan_required:pro',
+        },
+      ],
+    )
+
+    expect(groups.nonSuggestionActions).toEqual([ordinaryFailure])
+  })
 })
