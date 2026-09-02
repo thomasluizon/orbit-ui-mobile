@@ -87,6 +87,35 @@ vi.mock('@/components/chat/clarification-card', () => ({
 vi.mock('@/components/chat/pending-operation-card', () => ({
   PendingOperationCard: () => null,
 }))
+vi.mock('@/components/chat/habit-list-card', () => ({
+  HabitListCard: ({ habitList }: { habitList: { items: { id: string; title: string; status: string }[] } }) => {
+    const React = require('react')
+    return React.createElement(
+      'HabitListCard',
+      null,
+      ...habitList.items.flatMap((item) => [
+        React.createElement('Text', { key: `${item.id}-title` }, item.title),
+        React.createElement('Text', { key: `${item.id}-status` }, `chat.habitList.${item.status}`),
+      ]),
+    )
+  },
+}))
+vi.mock('@/components/chat/goal-list-card', () => ({
+  GoalListCard: ({ goalList }: { goalList: { items: { id: string; title: string; current: number; target: number }[] } }) => {
+    const React = require('react')
+    return React.createElement(
+      'GoalListCard',
+      null,
+      ...goalList.items.flatMap((item) => [
+        React.createElement('Text', { key: `${item.id}-title` }, item.title),
+        React.createElement('Text', { key: `${item.id}-progress` }, `chat.goalList.percentage:{"pct":${Math.round((item.current / item.target) * 100)}}`),
+      ]),
+    )
+  },
+}))
+vi.mock('@/components/chat/operation-outcomes', () => ({
+  OperationOutcomes: () => null,
+}))
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
   return {

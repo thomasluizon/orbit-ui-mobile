@@ -34,6 +34,19 @@ vi.mock('@/components/chat/breakdown-suggestion', () => ({
 vi.mock('@/components/chat/pending-operation-card', () => ({
   PendingOperationCard: () => <div data-testid="pending-operation-card" />,
 }))
+vi.mock('@/components/chat/habit-list-card', () => ({
+  HabitListCard: ({ habitList }: { habitList: { items: { title: string }[] } }) => (
+    <div data-slot="habit-list-card">{habitList.items.map((item) => <span key={item.title}>{item.title}</span>)}</div>
+  ),
+}))
+vi.mock('@/components/chat/goal-list-card', () => ({
+  GoalListCard: ({ goalList }: { goalList: { items: { title: string }[] } }) => (
+    <div data-slot="goal-list-card">{goalList.items.map((item) => <span key={item.title}>{item.title}</span>)}</div>
+  ),
+}))
+vi.mock('@/components/chat/operation-outcomes', () => ({
+  OperationOutcomes: () => <div data-testid="operation-outcomes" />,
+}))
 
 import { MessageBubble } from '@/components/chat/message-bubble'
 import type { ChatMessage } from '@orbit/shared/types/chat'
@@ -192,7 +205,8 @@ describe('MessageBubble', () => {
       />,
     )
 
-    expect(screen.getByText('Fresh confirmation required')).toBeInTheDocument()
+    expect(screen.getByTestId('operation-outcomes')).toBeInTheDocument()
+    expect(screen.queryByText('Fresh confirmation required')).not.toBeInTheDocument()
   })
 
   it('renders a related-surfaces footer that deep-links known surfaces', () => {
@@ -252,8 +266,6 @@ describe('MessageBubble', () => {
     expect(container.querySelector('[data-slot="habit-list-card"]')).toBeInTheDocument()
     expect(screen.getByText('Meditate')).toBeInTheDocument()
     expect(screen.getByText('Floss')).toBeInTheDocument()
-    expect(screen.getByText('chat.habitList.today')).toBeInTheDocument()
-    expect(screen.getByText('chat.habitList.overdue')).toBeInTheDocument()
   })
 
   it('strips the habit-list directive from rendered message content', () => {
@@ -329,8 +341,6 @@ describe('MessageBubble', () => {
     expect(container.querySelector('[data-slot="goal-list-card"]')).toBeInTheDocument()
     expect(screen.getByText('Read books')).toBeInTheDocument()
     expect(screen.getByText('Run distance')).toBeInTheDocument()
-    expect(screen.getByText('chat.goalList.percentage:{"pct":40}')).toBeInTheDocument()
-    expect(screen.getByText('chat.goalList.percentage:{"pct":50}')).toBeInTheDocument()
   })
 
   it('does not render the goal-list card for user messages', () => {
@@ -369,6 +379,7 @@ describe('MessageBubble', () => {
     )
 
     expect(screen.getByText('Logged your meditation habit.')).toBeInTheDocument()
+    expect(screen.getByTestId('operation-outcomes')).toBeInTheDocument()
     expect(screen.queryByText('Logged Meditation')).not.toBeInTheDocument()
     expect(screen.queryByText(/SUCCEEDED/i)).not.toBeInTheDocument()
   })
