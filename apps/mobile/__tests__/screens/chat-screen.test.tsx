@@ -11,6 +11,10 @@ const mocks = vi.hoisted(() => ({
   useTourTarget: vi.fn(),
   setAstraConversationOpen: vi.fn(),
   router: { push: vi.fn() },
+  keyboardDidShow: null as null | ((event: { endCoordinates: { height: number } }) => void),
+  keyboardDidHide: null as null | (() => void),
+  removeKeyboardDidShow: vi.fn(),
+  removeKeyboardDidHide: vi.fn(),
   composer: {
     flatListRef: { current: null },
     messages: [] as ChatMessage[],
@@ -53,8 +57,22 @@ vi.mock('react-native', async (importOriginal) => {
   return {
     ...actual,
     Linking: { openSettings: (...arguments_: unknown[]) => mocks.openSettings(...arguments_) },
+    Platform: { ...actual.Platform, OS: 'android' },
+    Keyboard: {
+      addListener: vi.fn((event: string, callback: unknown) => {
+        if (event === 'keyboardDidShow') {
+          mocks.keyboardDidShow = callback as typeof mocks.keyboardDidShow
+          return { remove: mocks.removeKeyboardDidShow }
+        }
+        mocks.keyboardDidHide = callback as typeof mocks.keyboardDidHide
+        return { remove: mocks.removeKeyboardDidHide }
+      }),
+    },
   }
 })
+vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 20, left: 0 }),
+}))
 vi.mock('@/hooks/use-tour-target', () => ({ useTourTarget: mocks.useTourTarget }))
 vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => mocks.composer }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: true }) }))
@@ -171,6 +189,8 @@ describe('ChatScreen composer recoveries', () => {
     mocks.composer.showSuggestions = true
     mocks.composer.speechError = null
     mocks.composer.streamingMessageId = null
+    mocks.keyboardDidShow = null
+    mocks.keyboardDidHide = null
   })
 
   it('keeps the at-limit composer free of rewarded recovery', async () => {
@@ -281,6 +301,25 @@ describe('ChatScreen composer recoveries', () => {
     })
 
     expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(false)
+  })
+
+  it('keeps the composer above the Android keyboard and restores it when the keyboard closes', async () => {
+    const tree = await renderScreen()
+    const composerContainer = () => tree.root.findAll((node) => {
+      const style = node.props.style
+      return typeof style === 'object' && style !== null && 'marginBottom' in style && 'paddingBottom' in style
+    })[0]
+
+    expect(composerContainer()?.props.style).toMatchObject({ marginBottom: 0, paddingBottom: 20 })
+    TestRenderer.act(() => {
+      mocks.keyboardDidShow?.({ endCoordinates: { height: 300 } })
+    })
+    expect(composerContainer()?.props.style).toMatchObject({ marginBottom: 290, paddingBottom: 20 })
+
+    TestRenderer.act(() => {
+      mocks.keyboardDidHide?.()
+    })
+    expect(composerContainer()?.props.style).toMatchObject({ marginBottom: 0, paddingBottom: 20 })
   })
 
   afterEach(async () => {
