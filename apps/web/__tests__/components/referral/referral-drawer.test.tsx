@@ -48,7 +48,6 @@ describe('ReferralDrawer', () => {
 
   it.each([
     'referral.drawer.title',
-    'referral.drawer.howItWorks',
     'referral.drawer.yourLink',
   ])('renders %s when open', (text) => {
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
@@ -121,7 +120,20 @@ describe('ReferralDrawer', () => {
   })
 
   it('shows disclaimer', () => {
+    mockStats = {
+      successfulReferrals: 0,
+      maxReferrals: 10,
+      pendingReferrals: 0,
+      discountPercent: 15,
+    }
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
     expect(document.body.textContent).toContain('referral.drawer.disclaimer')
+    expect(document.body.textContent).toContain('"discount":15')
+  })
+
+  it('does not invent discount copy before stats load', () => {
+    render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
+    expect(document.body.textContent).not.toContain('referral.drawer.howItWorks')
+    expect(document.body.textContent).not.toContain('referral.drawer.disclaimer')
   })
 })

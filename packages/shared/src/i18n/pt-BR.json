@@ -1255,7 +1255,8 @@
       "couponsEarned": "Cupons ganhos",
       "howItWorks": "Como funciona",
       "explanation": "Compartilhe seu link com os amigos. Quando eles entrarem no Orbit e começarem a usar o app, vocês dois ganham um cupom de {discount}% de desconto no Pro. Dá para indicar até 10 amigos",
-      "disclaimer": "Cada indicação rende um cupom de {discount}% de desconto, de uso único. O cupom vale para um único ciclo de cobrança e não acumula. Uma nova indicação substitui qualquer cupom que você não tenha usado. Se você já assina pela web, o desconto entra automaticamente na sua próxima fatura. Assinaturas do Google Play não podem ter desconto no meio do ciclo. Nesse caso, o cupom fica guardado para a próxima compra ou troca de plano."
+      "disclaimer": "Cada indicação rende um cupom de {discount}% de desconto, de uso único. O cupom vale para um único ciclo de cobrança e não acumula. Uma nova indicação substitui qualquer cupom que você não tenha usado. Se você já assina pela web, o desconto entra automaticamente na sua próxima fatura. Assinaturas do Google Play não podem ter desconto no meio do ciclo. Nesse caso, o cupom fica guardado para a próxima compra ou troca de plano.",
+      "actionFailed": "Não foi possível concluir. Tente de novo."
     },
     "share": {
       "title": "Vem pro Orbit comigo",
@@ -1266,6 +1267,7 @@
       "streakTitle": "Sequência de {count} dias",
       "levelTitle": "Você chegou ao nível {level}",
       "body": "Convide um amigo e vocês dois ganham um cupom de {discount}% de desconto no Pro.",
+      "bodyFallback": "Convide um amigo para criar hábitos melhores com você.",
       "cta": "Convidar amigos",
       "later": "Agora não"
     },

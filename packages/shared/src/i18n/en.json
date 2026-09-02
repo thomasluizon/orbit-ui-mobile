@@ -1238,12 +1238,12 @@
     "applied": "Referral applied. You both got a discount.",
     "eyebrow": "Referral applied",
     "card": {
-      "title": "Invite Friends",
+      "title": "Invite friends",
       "hint": "Earn discount coupons for you and your friends",
       "progress": "{count}/{max} successful referrals"
     },
     "drawer": {
-      "title": "Invite Friends",
+      "title": "Invite friends",
       "yourLink": "Your referral link",
       "copy": "Copy",
       "copyLink": "Copy link",
@@ -1255,7 +1255,8 @@
       "couponsEarned": "Coupons earned",
       "howItWorks": "How it works",
       "explanation": "Share your link with friends. When they join Orbit and start using the app, you both earn a {discount}% discount coupon for Pro. You can refer up to 10 friends",
-      "disclaimer": "Each referral earns a one-time {discount}% discount coupon. Coupons apply to a single billing cycle and do not accumulate. A new referral replaces any unused coupon. If you're already subscribed on the web, the discount is applied to your next invoice automatically. Google Play subscriptions can't be discounted mid-cycle, so your coupon is saved for your next purchase or plan change."
+      "disclaimer": "Each referral earns a one-time {discount}% discount coupon. Coupons apply to a single billing cycle and do not accumulate. A new referral replaces any unused coupon. If you're already subscribed on the web, the discount is applied to your next invoice automatically. Google Play subscriptions can't be discounted mid-cycle, so your coupon is saved for your next purchase or plan change.",
+      "actionFailed": "That action did not work. Try again."
     },
     "share": {
       "title": "Join me on Orbit",
@@ -1266,6 +1267,7 @@
       "streakTitle": "{count}-day streak",
       "levelTitle": "You reached level {level}",
       "body": "Invite a friend and you both get a {discount}% discount coupon for Pro.",
+      "bodyFallback": "Invite a friend to build better habits together.",
       "cta": "Invite friends",
       "later": "Maybe later"
     },

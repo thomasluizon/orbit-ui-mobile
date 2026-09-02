@@ -610,27 +610,6 @@
       "count": 1
     }
   },
-  "components/referral/referral-card.tsx": {
-    "local/icon-size-grid": {
-      "count": 3
-    },
-    "local/spacing-scale": {
-      "count": 5
-    }
-  },
-  "components/referral/referral-drawer.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 10
-    }
-  },
-  "components/referral/referral-prompt.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
   "components/review-moment/review-moment-sheet.tsx": {
     "local/spacing-scale": {
       "count": 2
