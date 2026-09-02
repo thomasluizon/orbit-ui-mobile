@@ -150,6 +150,10 @@ describe("HabitUnderstanding mobile", () => {
     const consumedMonday = tree.root.findAll(
       (node) => node.type === "Text" && node.props.children === "Monday",
     )[0]!;
+    const unconsumedPrefix = tree.root.findAll(
+      (node) => node.type === "Text" && node.props.children === "Run ",
+    )[0]!;
+    expect(unconsumedPrefix.props.style).toBeNull();
     expect(consumedMonday.props.style).toMatchObject({
       backgroundColor: tokens.bgWell,
       textDecorationColor: tokens.hairlineStrong,
