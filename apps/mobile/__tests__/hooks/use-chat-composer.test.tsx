@@ -381,7 +381,7 @@ describe('mobile useChatComposer', () => {
     expect(updater({ aiMessagesUsed: 3 } as Profile)?.aiMessagesUsed).toBe(4)
   })
 
-  it('does not bump usage for pro users', async () => {
+  it('bumps daily usage for pro users', async () => {
     mocks.state.profile = { hasProAccess: true, aiMessagesUsed: 0 } as Profile
     mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
     const composer = await renderComposer()
@@ -390,10 +390,10 @@ describe('mobile useChatComposer', () => {
       await composer.current.sendMessage('hello')
     })
 
-    expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+    expect(mocks.queryClient.setQueryData).toHaveBeenCalled()
   })
 
-  it('routes to upgrade when the backend denies with a premium 403 before streaming', async () => {
+  it('keeps a premium denial inline without upgrade routing', async () => {
     mocks.openChatStream.mockResolvedValue(
       httpErrorResponse(403, { error: 'Premium plan required to use AI chat' }),
     )
@@ -403,8 +403,8 @@ describe('mobile useChatComposer', () => {
       await composer.current.sendMessage('hello')
     })
 
-    expect(mocks.routerPush).toHaveBeenCalledWith('/upgrade')
-    expect(composer.current.sendError).toBe('chat.proGate.body')
+    expect(mocks.routerPush).not.toHaveBeenCalled()
+    expect(composer.current.sendError).toBe('chat.sendError')
   })
 
   it('surfaces the limit error without routing when the stream reports a non-upgrade 403', async () => {
@@ -431,7 +431,8 @@ describe('mobile useChatComposer', () => {
     })
 
     expect(mocks.openChatStream).not.toHaveBeenCalled()
-    expect(composer.current.sendError).toBe('You are offline')
+    expect(composer.current.sendError).toBe('shell.composer.offline.reason')
+    expect(composer.current.composerProps.state).toBe('offline')
   })
 
   it('aborts an idle stream at the watchdog and arms retry with the timeout copy', async () => {
@@ -1069,6 +1070,24 @@ describe('mobile useChatComposer', () => {
     })
 
     expect(mocks.openChatStream).not.toHaveBeenCalled()
+    expect(composer.current.sendError).toBe('shell.composer.busy.reason')
+  })
+
+  it.each([
+    [false, 5],
+    [true, 50],
+  ])('enforces the daily allowance for free and Pro, pro=%s', async (hasProAccess, allowance) => {
+    mocks.state.profile = createMockProfile({
+      hasProAccess,
+      aiMessagesUsed: allowance,
+      aiMessagesLimit: allowance,
+    })
+    const composer = await renderComposer()
+
+    expect(composer.current.atMessageLimit).toBe(true)
+    expect(composer.current.composerProps.limitReason).toBe(
+      `shell.composer.limit.reason:{"allowance":${allowance}}`,
+    )
   })
 
   it('commits a finished voice transcript after the current draft', async () => {

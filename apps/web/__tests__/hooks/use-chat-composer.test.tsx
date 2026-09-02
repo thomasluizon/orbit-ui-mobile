@@ -726,6 +726,7 @@ describe('web useChatComposer streaming send', () => {
 
       expect(result.current.isOnline).toBe(false)
       expect(result.current.canSend).toBe(false)
+      expect(result.current.composerProps.state).toBe('offline')
 
       act(() => {
         Object.defineProperty(globalThis.navigator, 'onLine', {
@@ -742,17 +743,20 @@ describe('web useChatComposer streaming send', () => {
     }
   })
 
-  it('states only the allowance at the message limit', () => {
+  it.each([
+    [false, 5],
+    [true, 50],
+  ])('states the daily allowance at the message limit, pro=%s', (hasProAccess, allowance) => {
     mocks.state.profile = createMockProfile({
-      hasProAccess: false,
-      aiMessagesUsed: 20,
-      aiMessagesLimit: 20,
+      hasProAccess,
+      aiMessagesUsed: allowance,
+      aiMessagesLimit: allowance,
       timeZone: 'America/New_York',
     })
 
     const { result } = renderHook(() => useChatComposer())
     expect(result.current.composerProps.limitReason).toBe(
-      'shell.composer.limit.reason:{"allowance":20}',
+      `shell.composer.limit.reason:{"allowance":${allowance}}`,
     )
     expect(result.current.composerProps.limitReason).not.toContain('resetsAt')
     expect(result.current.composerProps.limitReason).not.toContain('midnight')
@@ -873,7 +877,7 @@ describe('web useChatComposer streaming send', () => {
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: tagKeys.lists() })
   })
 
-  it('routes a final premium denial to upgrade', async () => {
+  it('keeps a final policy denial in the conversation without upgrade routing', async () => {
     mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse({
       policyDenials: [{
         operationId: 'operation-1',
@@ -889,7 +893,17 @@ describe('web useChatComposer streaming send', () => {
       await result.current.sendMessage('make a yearly goal')
     })
 
-    expect(mocks.routerPush).toHaveBeenCalledWith('/upgrade')
+    expect(mocks.routerPush).not.toHaveBeenCalled()
+  })
+
+  it('refuses a concurrent send inline without queuing another request', async () => {
+    useChatStore.setState({ isTyping: true })
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => result.current.sendMessage('second message'))
+
+    expect(mocks.fetch).not.toHaveBeenCalled()
+    expect(result.current.sendError).toBe('shell.composer.busy.reason')
   })
 
   it('increments the current non-pro usage cache after a final response', async () => {

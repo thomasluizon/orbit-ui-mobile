@@ -2,8 +2,9 @@ import { useState, useMemo } from "react";
 // react-doctor-disable-next-line rn-prefer-expo-image -- expo-image is not a project dependency; the only <Image> is a transient chat-attachment preview (a per-message URI) where expo-image's disk cache brings no benefit, and adding a native image library is out of scope for a React Doctor burn-down (SDK 57 native-ABI/rebuild risk). https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { View, Text, Image, StyleSheet, Pressable } from "react-native";
 import Animated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
+import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
-import { ArrowUpRight } from "@/components/ui/icons";
+import { ArrowUpRight, Check, Copy } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types/chat";
 import type { AgentExecuteOperationResponse } from "@orbit/shared/types";
@@ -38,7 +39,53 @@ interface MessageBubbleProps {
     code: string,
     confirmationToken: string,
   ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>;
-  onUpgradeClick?: () => void;
+}
+
+function MessageCopyControl({ sourceText, tokens, styles }: Readonly<{
+  sourceText: string;
+  tokens: ReturnType<typeof createTokensV2>;
+  styles: ReturnType<typeof createStyles>;
+}>) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+
+  async function copySourceText() {
+    await Clipboard.setStringAsync(sourceText);
+    setCopied(true);
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={copied ? t("chat.copied") : t("chat.copy")}
+      onPress={() => void copySourceText()}
+      style={styles.copyControl}
+    >
+      {copied ? (
+        <Check size={16} strokeWidth={1.8} color={tokens.fg3} />
+      ) : (
+        <Copy size={16} strokeWidth={1.8} color={tokens.fg3} />
+      )}
+      <Text style={styles.copyText}>{copied ? t("chat.copied") : t("chat.copy")}</Text>
+    </Pressable>
+  );
+}
+
+function MessageDataLists({
+  message,
+  onActionChipClick,
+}: Readonly<Pick<MessageBubbleProps, "message" | "onActionChipClick">>) {
+  return (
+    <>
+      {message.habitList ? <HabitListCard habitList={message.habitList} /> : null}
+      {message.goalList ? (
+        <GoalListCard
+          goalList={message.goalList}
+          onOpenGoal={(id) => onActionChipClick?.(id, "CreateGoal")}
+        />
+      ) : null}
+    </>
+  );
 }
 
 export function MessageBubble({
@@ -64,6 +111,7 @@ export function MessageBubble({
   );
 
   const isUser = message.role === "user";
+  const sourceText = isUser ? message.content : stripChatDirectives(message.content, false);
 
   const suggestionActions = useMemo(
     () =>
@@ -135,12 +183,10 @@ export function MessageBubble({
           </Markdown>
         </View>
 
-        {!isUser && message.habitList ? (
-          <HabitListCard habitList={message.habitList} />
-        ) : null}
+        <MessageCopyControl sourceText={sourceText} styles={styles} tokens={tokens} />
 
-        {!isUser && message.goalList ? (
-          <GoalListCard goalList={message.goalList} onOpenGoal={(id) => onActionChipClick?.(id, "CreateGoal")} />
+        {!isUser ? (
+          <MessageDataLists message={message} onActionChipClick={onActionChipClick} />
         ) : null}
 
         {!isUser && relatedSurfaces.length > 0 ? (
@@ -324,6 +370,18 @@ function createStyles(tokens: AppTokens) {
       borderWidth: 1,
       borderColor: tokens.hairline,
       marginBottom: 8,
+    },
+    copyControl: {
+      minHeight: 44,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 8,
+    },
+    copyText: {
+      color: tokens.fg3,
+      fontFamily: "Geist_500Medium",
+      fontSize: 14,
     },
 
     relatedContainer: {

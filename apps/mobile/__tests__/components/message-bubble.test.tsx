@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { ChatMessage } from '@orbit/shared/types/chat'
+import * as Clipboard from 'expo-clipboard'
 
 import { MessageBubble } from '@/components/message-bubble'
 
@@ -59,8 +60,12 @@ vi.mock('@/components/ui/icons', () => {
       React.createElement('Sparkles', props),
     ArrowUpRight: (props: Record<string, unknown>) =>
       React.createElement('ArrowUpRight', props),
+    Copy: (props: Record<string, unknown>) => React.createElement('Copy', props),
+    Check: (props: Record<string, unknown>) => React.createElement('Check', props),
   }
 })
+
+vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(undefined) }))
 
 const push = vi.fn()
 vi.mock('expo-router', () => ({
@@ -143,6 +148,45 @@ describe('MessageBubble trace footer (mobile)', () => {
             node.props.children.includes('req-abc-123')),
     )
     expect(traceNodes).toHaveLength(0)
+  })
+})
+
+describe('MessageBubble copy control (mobile)', () => {
+  it('copies directive-free AI source text and confirms the action', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <MessageBubble
+          message={makeMessage({ content: 'Your habits\n[[orbit:habits:today]]' })}
+        />,
+      )
+    })
+
+    const copy = tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')[0]
+    await TestRenderer.act(async () => {
+      await copy?.props.onPress?.()
+    })
+
+    expect(Clipboard.setStringAsync).toHaveBeenCalledWith('Your habits')
+    expect(
+      tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copied').length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('copies sent source text', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <MessageBubble message={makeMessage({ role: 'user', content: '**Walk**\n- Water' })} />,
+      )
+    })
+
+    const copy = tree.root.findAll((node) => node.props.accessibilityLabel === 'chat.copy')[0]
+    await TestRenderer.act(async () => {
+      await copy?.props.onPress?.()
+    })
+
+    expect(Clipboard.setStringAsync).toHaveBeenCalledWith('**Walk**\n- Water')
   })
 })
 

@@ -16,63 +16,18 @@ import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types";
 import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
 import type { useChatComposer } from "@/hooks/use-chat-composer";
-import { useChatReward } from "@/hooks/use-chat-reward";
 import { MessageBubble } from "@/components/message-bubble";
 import { Composer } from "@/components/shell/composer";
 import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
 import { AstraMark } from "@/components/ui/astra-avatar";
-import { ErrorState } from "@/components/ui/error-state";
-import { PillButton } from "@/components/ui/pill-button";
+import { RefreshCw } from "@/components/ui/icons";
 import { KeyboardAwareFlatList } from "@/components/ui/keyboard-aware-scroll-view";
 import { createStyles } from "@/components/chat/conversation.styles";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
-import { useOffline } from "@/hooks/use-offline";
 import { useUIStore } from "@/stores/ui-store";
-
-interface ChatRewardRecoveryProps {
-  canWatchRewardAd: boolean;
-  rewardsClaimedToday: number;
-  dailyRewardCap: number;
-  rewardMessage: string | null;
-  onWatchAd: () => void;
-  textColor: string;
-  mutedTextColor: string;
-}
-
-function ChatRewardRecovery({
-  canWatchRewardAd,
-  rewardsClaimedToday,
-  dailyRewardCap,
-  rewardMessage,
-  onWatchAd,
-  textColor,
-  mutedTextColor,
-}: Readonly<ChatRewardRecoveryProps>) {
-  const { t } = useTranslation();
-  return (
-    <View style={{ gap: 8, alignItems: "flex-start" }}>
-      <PillButton size="sm" disabled={!canWatchRewardAd} onClick={onWatchAd}>
-        {t("ads.watchForMessages")}
-      </PillButton>
-      <Text
-        style={{ color: mutedTextColor, fontFamily: "GeistMono_400Regular", fontSize: 12 }}
-      >
-        {rewardsClaimedToday}/{dailyRewardCap} {t("ads.dailyLimitReached")}
-      </Text>
-      {rewardMessage ? (
-        <Text
-          accessibilityLiveRegion="polite"
-          style={{ color: textColor, fontFamily: "Geist_400Regular", fontSize: 14 }}
-        >
-          {rewardMessage}
-        </Text>
-      ) : null}
-    </View>
-  );
-}
 
 type ChatController = ReturnType<typeof useChatComposer>;
 
@@ -85,7 +40,6 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     [currentScheme, currentTheme],
   );
   const styles = useMemo(() => createStyles(tokens), [tokens]);
-  const { isOnline } = useOffline();
   const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen);
   const insets = useSafeAreaInsets();
   const chatAreaRef = useRef<View>(null);
@@ -93,14 +47,14 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   useTourTarget("tour-chat-area", chatAreaRef);
   useTourTarget("tour-chat-input", chatInputRef);
 
-  const offlineDescription = t("chat.offline.description");
-
   const {
     flatListRef,
     messages,
     isTyping,
     streamingMessageId,
     sendError,
+    canRetryLastSend,
+    retryLastSend,
     speechError,
     composerProps,
     showSuggestions,
@@ -112,16 +66,6 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     verifyStepUpForBubble,
   } = chat;
 
-  const {
-    adsEnabledForUser,
-    canWatchRewardAd,
-    rewardsClaimedToday,
-    dailyRewardCap,
-    rewardMessage,
-    watchAdForMessages,
-  } = useChatReward();
-  const canRecoverWithReward =
-    adsEnabledForUser && rewardsClaimedToday < dailyRewardCap;
   const microphonePermissionDenied = speechError === t("speech.micDenied");
 
   const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)));
@@ -232,6 +176,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               onContentSizeChange={scrollToBottom}
               accessibilityLabel={t("chat.title")}
               accessibilityLiveRegion="polite"
+              accessibilityState={{ busy: isTyping }}
             />
           </View>
         )}
@@ -246,26 +191,41 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
             paddingBottom: insets.bottom,
           }}
         >
-          {!isOnline ? (
-            <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
-              <ErrorState message={offlineDescription} />
-            </View>
-          ) : null}
           {sendError ? (
-            <Text
+            <View
               accessibilityRole="alert"
               accessibilityLiveRegion="assertive"
               style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 12,
                 paddingHorizontal: 16,
                 paddingTop: 12,
-                textAlign: "center",
-                color: tokens.statusBad,
-                fontFamily: "Geist_400Regular",
-                fontSize: 14,
               }}
             >
-              {sendError}
-            </Text>
+              <Text
+                style={{
+                  color: tokens.statusBad,
+                  fontFamily: "Geist_400Regular",
+                  fontSize: 14,
+                }}
+              >
+                {sendError}
+              </Text>
+              {canRetryLastSend ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => void retryLastSend()}
+                  style={{ minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8 }}
+                >
+                  <RefreshCw size={16} strokeWidth={1.8} color={tokens.fg2} />
+                  <Text style={{ color: tokens.fg2, fontFamily: "Geist_500Medium", fontSize: 14 }}>
+                    {t("shell.composer.retry")}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
           ) : null}
           {microphonePermissionDenied ? (
             <Pressable
@@ -293,26 +253,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               </Text>
             </Pressable>
           ) : null}
-          {composerProps.state === "atLimit" && canRecoverWithReward ? (
-            <Composer
-              {...composerProps}
-              limitRecovery={
-                <ChatRewardRecovery
-                  canWatchRewardAd={canWatchRewardAd}
-                  rewardsClaimedToday={rewardsClaimedToday}
-                  dailyRewardCap={dailyRewardCap}
-                  rewardMessage={rewardMessage}
-                  onWatchAd={() => {
-                    void watchAdForMessages();
-                  }}
-                  textColor={tokens.fg2}
-                  mutedTextColor={tokens.fg3}
-                />
-              }
-            />
-          ) : (
-            <Composer {...composerProps} />
-          )}
+          <Composer {...composerProps} />
         </View>
       </KeyboardAvoidingView>
 

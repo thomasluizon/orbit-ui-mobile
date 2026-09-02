@@ -4,7 +4,6 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { File } from "expo-file-system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -33,16 +32,13 @@ import {
   buildAgentExecutionMessage,
   CHAT_DRAFT_STORAGE_KEY,
   classifySendFailure,
-  findPremiumPolicyDenial,
   invalidateAgentQueries,
   selectActionInvalidations,
 } from "@orbit/shared/hooks";
 import {
   buildRecentChatHistory,
-  canAccessEntitlement,
   detectDefaultTimeFormat,
   getFriendlyErrorMessage,
-  resolveUpgradeEntitlementFromPolicyDenial,
 } from "@orbit/shared/utils";
 import { openChatStream } from "@/lib/chat-stream";
 import { useProfile } from "@/hooks/use-profile";
@@ -129,7 +125,6 @@ interface UseChatComposerOptions {
  */
 export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptions) {
   const { t, i18n } = useTranslation();
-  const router = useRouter();
   const queryClient = useQueryClient();
   const { profile } = useProfile();
 
@@ -169,8 +164,8 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
   const hasProAccess = profile?.hasProAccess ?? false;
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0;
-  const aiMessagesLimit = profile?.aiMessagesLimit ?? 20;
-  const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit;
+  const aiMessagesLimit = profile?.aiMessagesLimit ?? (hasProAccess ? 50 : 5);
+  const atMessageLimit = aiMessagesUsed >= aiMessagesLimit;
   const isSending = isTyping || streamingMessageId !== null;
   const imageName = selectedImage?.fileName ?? selectedImage?.uri.split("/").at(-1);
   const attachments = useMemo(
@@ -231,13 +226,6 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     }, 100);
   }, []);
 
-  const shouldRouteToUpgrade = useCallback(
-    (resolution: { shouldUpgrade: boolean; requirement: "pro" | "yearlyPro" | null }) =>
-      resolution.shouldUpgrade &&
-      !canAccessEntitlement(profile, resolution.requirement),
-    [profile],
-  );
-
   const appendExecutionMessage = useCallback(
     async (response: AgentExecuteOperationResponse) => {
       addMessage({
@@ -260,17 +248,8 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       if (response.operation.status === "Succeeded") {
         await invalidateAgentQueries(queryClient);
       }
-      if (response.policyDenial) {
-        const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(
-          response.policyDenial,
-        );
-        if (shouldRouteToUpgrade(upgradeResolution)) {
-          setSendError(response.policyDenial.reason);
-          router.push("/upgrade");
-        }
-      }
     },
-    [addMessage, queryClient, router, scrollToBottom, shouldRouteToUpgrade, t],
+    [addMessage, queryClient, scrollToBottom, t],
   );
 
   useEffect(() => {
@@ -402,12 +381,6 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         reason: resolvedError,
       });
 
-      if (failure.kind === "upgrade" && shouldRouteToUpgrade(failure.upgrade)) {
-        setSendError(t("chat.proGate.body"));
-        router.push("/upgrade");
-        return;
-      }
-
       if (failure.kind === "timeout") {
         setSendError(t("chat.timeoutError"));
         setLastFailedSend(failedAttempt);
@@ -430,7 +403,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       }
       scrollToBottom();
     },
-    [addMessage, router, scrollToBottom, setInput, setIsTyping, shouldRouteToUpgrade, t, updateMessage],
+    [addMessage, scrollToBottom, setInput, setIsTyping, t, updateMessage],
   );
 
   const applyFinalResponse = useCallback(
@@ -465,25 +438,14 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
       scrollToBottom();
 
-      const premiumDenial = findPremiumPolicyDenial(response.policyDenials);
-      if (premiumDenial) {
-        const upgradeResolution =
-          resolveUpgradeEntitlementFromPolicyDenial(premiumDenial);
-        if (shouldRouteToUpgrade(upgradeResolution)) {
-          router.push("/upgrade");
-        }
-      }
-
-      if (!(profile?.hasProAccess ?? false)) {
-        queryClient.setQueryData<Profile>(profileKeys.detail(), (current) =>
-          current
-            ? {
-                ...current,
-                aiMessagesUsed: current.aiMessagesUsed + 1,
-              }
-            : current,
-        );
-      }
+      queryClient.setQueryData<Profile>(profileKeys.detail(), (current) =>
+        current
+          ? {
+              ...current,
+              aiMessagesUsed: current.aiMessagesUsed + 1,
+            }
+          : current,
+      );
 
       const invalidations = selectActionInvalidations(response.actions);
       if (invalidations.habits) {
@@ -502,13 +464,10 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     },
     [
       addMessage,
-      profile?.hasProAccess,
       queryClient,
-      router,
       scrollToBottom,
       setIsTyping,
       setStreamingMessageId,
-      shouldRouteToUpgrade,
       updateMessage,
     ],
   );
@@ -688,13 +647,24 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
           })
         : typedContent;
       const sendState = useChatStore.getState();
-      if (
-        !hasComposerContent(typedContent, attachments) ||
-        sendState.isTyping ||
-        sendState.streamingMessageId !== null
-      ) return;
+      if (!hasComposerContent(typedContent, attachments)) return;
+      if (sendState.isTyping || sendState.streamingMessageId !== null) {
+        setSendError(t("shell.composer.busy.reason"));
+        return;
+      }
       if (!isOnline) {
-        setSendError(offlineTitle);
+        setSendError(t("shell.composer.offline.reason"));
+        return;
+      }
+      if (atMessageLimit) {
+        setSendError(null);
+        addMessage({
+          id: `msg-${Date.now()}-limit`,
+          role: "ai",
+          content: t("shell.composer.limit.reason", { allowance: aiMessagesLimit }),
+          timestamp: new Date(),
+        });
+        scrollToBottom();
         return;
       }
 
@@ -717,14 +687,17 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     },
     [
       attachments,
+      addMessage,
+      aiMessagesLimit,
+      atMessageLimit,
       imagePreview,
       input,
       isOnline,
-      offlineTitle,
       performSend,
       selectedImage,
       selectedTextFile,
       setInput,
+      scrollToBottom,
       t,
     ],
   );
@@ -809,7 +782,14 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         : { ...common, state: "atLimit", limitReason };
     }
 
-    const state: "idle" | "sending" = isSending || !isOnline ? "sending" : "idle";
+    if (!isOnline) {
+      const limitReason = t("shell.composer.offline.reason");
+      return speechSupported
+        ? { ...common, state: "offline", limitReason, onVoice: toggleRecording, voiceWords }
+        : { ...common, state: "offline", limitReason };
+    }
+
+    const state: "idle" | "sending" = isSending ? "sending" : "idle";
     return speechSupported
       ? { ...common, state, onVoice: toggleRecording, voiceWords }
       : { ...common, state };

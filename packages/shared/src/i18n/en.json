@@ -221,7 +221,13 @@
         "remove": "Remove {name}"
       },
       "limit": {
-        "reason": "Today's allowance of {allowance} messages is used."
+        "reason": "Today's allowance of {allowance} Astra messages is used. Lists, habit logging, and voice input still work without using Astra."
+      },
+      "busy": {
+        "reason": "Astra is still answering. Wait for this response before sending another message."
+      },
+      "offline": {
+        "reason": "Astra needs a connection. Reconnect and try again. Habit logging still works offline."
       }
     }
   },
@@ -718,7 +724,7 @@
       "linkedGoals": "Linked goals",
       "noLinkedGoals": "No linked goals",
       "askAstra": "Ask Astra",
-      "askAstraLimit": "Daily Astra limit reached. It resets at local midnight. Pro raises it.",
+      "askAstraLimit": "Today's Astra messages have been used. Your habit list and logging still work.",
       "moreDetails": "More details",
       "schedule": "Schedule",
       "time": "Time",
@@ -1006,6 +1012,8 @@
       "title": "How did the day land?"
     },
     "placeholder": "Ask Astra",
+    "copy": "Copy",
+    "copied": "Copied",
     "attachImage": "Attach image",
     "send": "Send message",
     "removeImage": "Remove image",
@@ -1028,10 +1036,6 @@
     "aiError": "Sorry, something went wrong. Please try again.",
     "operationDone": "Done.",
     "operationFailed": "That didn't work. Try again.",
-    "proGate": {
-      "title": "Pro feature",
-      "body": "This action needs Orbit Pro. Upgrade to use it."
-    },
     "suggestion": {
       "prompt": "I can recap, plan, or help you adjust a habit.",
       "meditated": "I meditated today",

@@ -221,7 +221,13 @@
         "remove": "Remover {name}"
       },
       "limit": {
-        "reason": "A cota de {allowance} mensagens de hoje foi usada."
+        "reason": "A cota de {allowance} mensagens para a Astra de hoje foi usada. Listas, registro de hábitos e entrada por voz continuam funcionando sem usar a Astra."
+      },
+      "busy": {
+        "reason": "A Astra ainda está respondendo. Aguarde esta resposta antes de enviar outra mensagem."
+      },
+      "offline": {
+        "reason": "A Astra precisa de conexão. Reconecte-se e tente de novo. O registro de hábitos continua funcionando offline."
       }
     }
   },
@@ -718,7 +724,7 @@
       "linkedGoals": "Metas vinculadas",
       "noLinkedGoals": "Nenhuma meta vinculada",
       "askAstra": "Perguntar à Astra",
-      "askAstraLimit": "O limite diário da Astra foi atingido. Ele reinicia à meia-noite local. O Pro aumenta esse limite.",
+      "askAstraLimit": "As mensagens de hoje para a Astra foram usadas. Sua lista de hábitos e os registros continuam funcionando.",
       "moreDetails": "Mais detalhes",
       "schedule": "Agenda",
       "time": "Horário",
@@ -1006,6 +1012,8 @@
       "title": "Como foi seu dia?"
     },
     "placeholder": "Pergunte à Astra",
+    "copy": "Copiar",
+    "copied": "Copiado",
     "attachImage": "Anexar imagem",
     "send": "Enviar mensagem",
     "removeImage": "Remover imagem",
@@ -1028,10 +1036,6 @@
     "aiError": "Desculpe, algo deu errado. Tente de novo.",
     "operationDone": "Pronto.",
     "operationFailed": "Não funcionou. Tente de novo.",
-    "proGate": {
-      "title": "Recurso Pro",
-      "body": "Esta ação é do Orbit Pro. Faça upgrade para usá-la."
-    },
     "suggestion": {
       "prompt": "Posso resumir, planejar ou te ajudar a ajustar um hábito.",
       "meditated": "Meditei hoje",

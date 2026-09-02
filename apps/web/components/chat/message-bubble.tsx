@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ArrowUpRight } from '@/components/ui/icons'
+import { ArrowUpRight, Check, Copy } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { ChatMessage } from '@orbit/shared/types/chat'
@@ -36,7 +36,6 @@ interface MessageBubbleProps {
     code: string,
     confirmationToken: string,
   ) => Promise<{ ok: boolean; error?: string; response?: AgentExecuteOperationResponse }>
-  onUpgradeClick?: () => void
 }
 
 export function MessageBubble({
@@ -52,6 +51,7 @@ export function MessageBubble({
   const t = useTranslations()
   const router = useRouter()
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
+  const [copied, setCopied] = useState(false)
 
   const relatedSurfaces = useMemo(
     () => getRelatedSurfaces(message.relatedSurfaces),
@@ -90,6 +90,12 @@ export function MessageBubble({
   }
 
   const isUser = message.role === 'user'
+  const sourceText = isUser ? message.content : stripChatDirectives(message.content, false)
+
+  async function copySourceText() {
+    await globalThis.navigator.clipboard.writeText(sourceText)
+    setCopied(true)
+  }
 
   return (
     <div
@@ -147,6 +153,19 @@ export function MessageBubble({
             content={isUser ? message.content : stripChatDirectives(message.content, isStreaming)}
           />
         </div>
+
+        <button
+          type="button"
+          onClick={() => void copySourceText()}
+          className="mt-1 flex min-h-11 items-center gap-2 border-0 bg-transparent px-2 text-sm font-medium text-[var(--fg-3)] transition-colors hover:text-[var(--fg-1)]"
+        >
+          {copied ? (
+            <Check size={16} strokeWidth={1.8} aria-hidden="true" />
+          ) : (
+            <Copy size={16} strokeWidth={1.8} aria-hidden="true" />
+          )}
+          {copied ? t('chat.copied') : t('chat.copy')}
+        </button>
 
         {!isUser && message.habitList && (
           <HabitListCard habitList={message.habitList} />

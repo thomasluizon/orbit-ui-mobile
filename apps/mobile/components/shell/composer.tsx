@@ -141,11 +141,10 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
   useTourTarget('tour-chat-voice', voiceRef)
   const inputDisabled = props.state !== 'idle'
   const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
-  const isBlocked = props.state === 'atLimit' || props.state === 'offline'
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
-  const sendIsAccent = props.state === 'idle' || props.state === 'sending'
-  const voiceDisabled = isTranscribing || props.state === 'sending' || isBlocked
+  const sendIsAccent = props.state === 'idle'
+  const voiceDisabled = isTranscribing || props.state === 'sending' || props.state === 'offline'
 
   return (
     <View style={styles.inputRow}>

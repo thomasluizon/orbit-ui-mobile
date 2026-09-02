@@ -10,7 +10,7 @@ import type { useChatComposer } from '@/hooks/use-chat-composer'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { Composer } from '@/components/shell/composer'
-import { ErrorState } from '@/components/ui/error-state'
+import { RefreshCw } from '@/components/ui/icons'
 import { useUIStore } from '@/stores/ui-store'
 import { ChatEmptyState } from './chat-empty-state'
 
@@ -37,6 +37,8 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     verifyStepUpForBubble,
     isOnline,
     sendError,
+    canRetryLastSend,
+    retryLastSend,
     composerProps,
   } = chat
   const registerChatContainer = useCallback((element: HTMLDivElement | null) => {
@@ -128,15 +130,20 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
       </div>
 
       <div className="shrink-0">
-        {!isOnline ? (
-          <div className="px-4 pt-3">
-            <ErrorState message={t('chat.offline.description')} />
-          </div>
-        ) : null}
         {sendError ? (
-          <p role="alert" aria-live="assertive" className="m-0 px-4 pt-3 text-center text-sm text-[var(--status-bad)]">
-            {sendError}
-          </p>
+          <div role="alert" aria-live="assertive" className="flex items-center justify-center gap-3 px-4 pt-3 text-sm text-[var(--status-bad)]">
+            <p className="m-0">{sendError}</p>
+            {canRetryLastSend && isOnline ? (
+              <button
+                type="button"
+                onClick={() => void retryLastSend()}
+                className="orbit-link-action flex min-h-11 items-center gap-2 border-0 bg-transparent font-medium text-[var(--fg-2)]"
+              >
+                <RefreshCw size={16} strokeWidth={1.8} aria-hidden="true" />
+                {t('shell.composer.retry')}
+              </button>
+            ) : null}
+          </div>
         ) : null}
         <Composer {...composerProps} />
       </div>

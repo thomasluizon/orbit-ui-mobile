@@ -65,6 +65,10 @@ function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
 describe('MessageBubble', () => {
   beforeEach(() => {
     push.mockClear()
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    })
   })
 
   it('renders user message with user label announced exactly once', () => {
@@ -77,6 +81,31 @@ describe('MessageBubble', () => {
     render(<MessageBubble message={makeMessage({ role: 'ai', content: 'Hi there' })} />)
     expect(screen.getByText('chat.senderOrbit')).toBeInTheDocument()
     expect(screen.queryByLabelText('chat.senderOrbit')).not.toBeInTheDocument()
+  })
+
+  it('copies directive-free AI source text and confirms the action', async () => {
+    render(
+      <MessageBubble
+        message={makeMessage({ role: 'ai', content: 'Your habits\n[[orbit:habits:today]]' })}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'chat.copy' }))
+
+    await waitFor(() => {
+      expect(globalThis.navigator.clipboard.writeText).toHaveBeenCalledWith('Your habits')
+    })
+    expect(screen.getByRole('button', { name: 'chat.copied' })).toBeInTheDocument()
+  })
+
+  it('copies sent source text', async () => {
+    render(<MessageBubble message={makeMessage({ role: 'user', content: '**Walk**\n- Water' })} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'chat.copy' }))
+
+    await waitFor(() => {
+      expect(globalThis.navigator.clipboard.writeText).toHaveBeenCalledWith('**Walk**\n- Water')
+    })
   })
 
   it('renders message content', () => {

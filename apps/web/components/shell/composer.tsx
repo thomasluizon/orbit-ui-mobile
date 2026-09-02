@@ -115,11 +115,10 @@ function ComposerStatus({ props }: Readonly<{ props: WebComposerProps }>) {
 function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
   const inputDisabled = props.state !== 'idle'
   const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
-  const isBlocked = props.state === 'atLimit' || props.state === 'offline'
   const isRecording = props.state === 'recording'
   const isTranscribing = props.state === 'transcribing'
-  const sendIsAccent = props.state === 'idle' || props.state === 'sending'
-  const voiceDisabled = isTranscribing || props.state === 'sending' || isBlocked
+  const sendIsAccent = props.state === 'idle'
+  const voiceDisabled = isTranscribing || props.state === 'sending' || props.state === 'offline'
 
   return (
     <div className="flex items-end gap-2">
