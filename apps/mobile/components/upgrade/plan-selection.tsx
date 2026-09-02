@@ -152,7 +152,15 @@ export function PlanSelection({
           />
         ))}
       </View>
-      {checkoutError ? <Text style={[styles.errorText, { color: tokens.statusBad }]}>{checkoutError}</Text> : null}
+      {checkoutError ? (
+        <Text
+          accessibilityLiveRegion="polite"
+          accessibilityRole="alert"
+          style={[styles.errorText, { color: tokens.statusBad }]}
+        >
+          {checkoutError}
+        </Text>
+      ) : null}
     </View>
   )
 }
@@ -187,7 +195,7 @@ function TierCard({
       ]}
     >
       <View style={styles.tierHeader}>
-        <Text style={[styles.tierName, { color: tokens.fg1 }]}>{tier.name}</Text>
+        <Text accessibilityRole="header" style={[styles.tierName, { color: tokens.fg1 }]}>{tier.name}</Text>
         {recommended ? <Badge>{t('upgrade.plans.recommended')}</Badge> : null}
       </View>
       <Text style={[styles.tierPrice, { color: tokens.fg1 }]}>

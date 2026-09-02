@@ -73,7 +73,7 @@ export function PricingSection({
     <>
       <View style={styles.convertHeader}>
         <Text style={[styles.convertEyebrow, { color: tokens.fg3 }]}>{eyebrow}</Text>
-        <Text style={[styles.convertHeading, { color: tokens.fg1 }]}>{heading}</Text>
+        <Text accessibilityRole="header" style={[styles.convertHeading, { color: tokens.fg1 }]}>{heading}</Text>
         <Text style={[styles.convertPromise, { color: tokens.fg2 }]}>{t('upgrade.convert.promise')}</Text>
         {!trialActive ? (
           <Text style={[styles.convertTrust, { color: tokens.fg3 }]}>{t('upgrade.convert.trustLine')}</Text>
@@ -101,11 +101,15 @@ export function PricingSection({
       <View accessibilityLabel={t('upgrade.outcomes.label')} style={styles.outcomes}>
         {OUTCOMES.map(({ key, Icon }) => (
           <View key={key} style={styles.outcomeRow}>
-            <View style={styles.outcomeIcon}>
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={styles.outcomeIcon}
+            >
               <Icon size={20} strokeWidth={1.8} color={tokens.fg3} />
             </View>
             <View style={styles.outcomeCopy}>
-              <Text style={[styles.outcomeTitle, { color: tokens.fg1 }]}>
+              <Text accessibilityRole="header" style={[styles.outcomeTitle, { color: tokens.fg1 }]}>
                 {t(`upgrade.outcomes.${key}.title`)}
               </Text>
               <Text style={[styles.outcomeBody, { color: tokens.fg3 }]}>

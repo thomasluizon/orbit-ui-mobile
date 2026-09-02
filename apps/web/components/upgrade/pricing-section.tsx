@@ -121,7 +121,11 @@ export function PricingSection({
         <>
           <div className="mt-6 flex flex-col items-start gap-2">
             {checkoutError ? (
-              <p className="text-center text-xs text-[var(--status-bad)]">
+              <p
+                role="alert"
+                aria-live="polite"
+                className="text-center text-xs text-[var(--status-bad)]"
+              >
                 {checkoutError}
               </p>
             ) : null}

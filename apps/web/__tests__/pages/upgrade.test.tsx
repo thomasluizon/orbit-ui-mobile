@@ -798,6 +798,26 @@ describe('UpgradePage', () => {
     })
   })
 
+  it('announces checkout failures', async () => {
+    mockPlans = {
+      monthly: { unitAmount: 999 },
+      yearly: { unitAmount: 4999 },
+      currency: 'usd',
+      savingsPercent: 58,
+      couponPercentOff: null,
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => null,
+    }))
+
+    render(<UpgradePage />)
+    fireEvent.click(screen.getAllByRole('button', { name: 'upgrade.plans.cta' })[0]!)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('toast.errors.server')
+  })
+
   it('prevents a second paid checkout while the first request is pending', async () => {
     mockPlans = {
       monthly: { unitAmount: 999 },

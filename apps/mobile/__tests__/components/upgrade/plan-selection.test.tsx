@@ -147,4 +147,12 @@ describe('PlanSelection (mobile)', () => {
 
     expect(buttons.filter((button: { props: { disabled?: boolean } }) => button.props.disabled)).toHaveLength(4)
   })
+
+  it('announces checkout failures', () => {
+    const tree = renderSelection('yearly', { checkoutError: 'purchase failed' })
+    const error = tree.root.findByProps({ children: 'purchase failed' })
+
+    expect(error.props.accessibilityRole).toBe('alert')
+    expect(error.props.accessibilityLiveRegion).toBe('polite')
+  })
 })

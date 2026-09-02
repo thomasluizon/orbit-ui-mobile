@@ -456,6 +456,20 @@ describe('subscription dashboards (mobile)', () => {
     expect(text).toContain('upgrade.plans.renewalNote')
     expect(text).toContain('upgrade.convert.handOff')
     expect(text).toContain('upgrade.convert.stayFree')
+    expect(
+      tree.root.findByProps({ children: 'upgrade.convert.freeHeading' }).props.accessibilityRole,
+    ).toBe('header')
+    expect(tree.root.findAll(
+      (node) => node.type === 'View'
+        && node.props.accessibilityElementsHidden === true
+        && node.props.importantForAccessibility === 'no-hide-descendants',
+    )).toHaveLength(4)
+    expect(tree.root.findAll(
+      (node) => node.type === 'Text'
+        && node.props.accessibilityRole === 'header'
+        && typeof node.props.children === 'string'
+        && node.props.children.startsWith('upgrade.outcomes.'),
+    )).toHaveLength(3)
     const decline = tree.root.findAll(
       (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'link',
     ).at(-1)
