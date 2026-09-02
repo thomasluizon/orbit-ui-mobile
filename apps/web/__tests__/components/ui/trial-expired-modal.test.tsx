@@ -22,13 +22,18 @@ vi.mock('@/lib/plural', () => ({
 let mockTrialExpired = false
 let mockPathname = '/'
 const mockPush = vi.fn()
+const { mockUseSubscriptionPlans } = vi.hoisted(() => ({
+  mockUseSubscriptionPlans: vi.fn(() => ({
+    plans: { savingsPercent: 41 },
+  })),
+}))
 
 vi.mock('@/hooks/use-profile', () => ({
   useTrialExpired: () => mockTrialExpired,
 }))
 
 vi.mock('@/hooks/use-subscription-plans', () => ({
-  useSubscriptionPlans: () => ({ plans: { savingsPercent: 41 } }),
+  useSubscriptionPlans: mockUseSubscriptionPlans,
 }))
 
 vi.mock('next/navigation', () => ({
@@ -45,6 +50,7 @@ describe('TrialExpiredModal', () => {
     mockTrialExpired = false
     mockPathname = '/'
     mockPush.mockClear()
+    mockUseSubscriptionPlans.mockClear()
     localStorage.clear()
   })
 
@@ -52,6 +58,10 @@ describe('TrialExpiredModal', () => {
     mockTrialExpired = false
     const { container } = render(<TrialExpiredModal />)
     expect(container.innerHTML).toBe('')
+    expect(mockUseSubscriptionPlans).toHaveBeenCalledWith({
+      enabled: false,
+      handlesError: true,
+    })
   })
 
   it('renders nothing when already dismissed via localStorage', () => {
@@ -73,6 +83,10 @@ describe('TrialExpiredModal', () => {
     render(<TrialExpiredModal />)
     expect(screen.getByTestId('sheet')).toBeInTheDocument()
     expect(screen.getByText('trial.expired.heading')).toBeInTheDocument()
+    expect(mockUseSubscriptionPlans).toHaveBeenCalledWith({
+      enabled: true,
+      handlesError: true,
+    })
   })
 
   it('renders the paused feature rows', () => {

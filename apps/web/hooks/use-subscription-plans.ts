@@ -13,7 +13,12 @@ import {
 } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
 
-export function useSubscriptionPlans() {
+interface SubscriptionPlansQueryOptions {
+  enabled?: boolean
+  handlesError?: boolean
+}
+
+export function useSubscriptionPlans(options: SubscriptionPlansQueryOptions = {}) {
   const plansUrl = (() => {
     const timeZone = getClientTimeZone()
     return timeZone
@@ -23,7 +28,11 @@ export function useSubscriptionPlans() {
 
   const query = useQuery({
     queryKey: subscriptionKeys.plans(),
-    queryFn: () => fetchJson<SubscriptionPlans>(plansUrl),
+    queryFn: () => fetchJson<SubscriptionPlans>(plansUrl, undefined, {
+      handlesError: options.handlesError,
+    }),
+    enabled: options.enabled,
+    meta: { handlesError: options.handlesError === true },
     staleTime: QUERY_STALE_TIMES.subscriptionPlans,
     refetchOnMount: 'always',
   })

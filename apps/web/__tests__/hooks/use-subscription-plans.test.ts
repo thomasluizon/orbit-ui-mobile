@@ -126,6 +126,27 @@ describe('useSubscriptionPlans', () => {
     expect(result.current.plans).toBeNull()
   })
 
+  it('marks and handles a caller owned plans failure', async () => {
+    const queryClient = createQueryClient()
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: () => Promise.resolve({
+        error: 'Payment service temporarily unavailable',
+        code: 'PAYMENT_SERVICE_UNAVAILABLE',
+      }),
+    })
+
+    const { result } = renderHook(
+      () => useSubscriptionPlans({ handlesError: true }),
+      { wrapper: createWrapperWithClient(queryClient) },
+    )
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(queryClient.getQueryCache().find({ queryKey: subscriptionKeys.plans() })?.meta)
+      .toEqual({ handlesError: true })
+  })
+
   it('exposes formatPrice and monthlyEquivalent utilities', async () => {
     mockFetch.mockResolvedValue({
       ok: true,

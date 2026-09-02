@@ -20,6 +20,10 @@ import type { ZodType } from 'zod'
 
 type TranslateFn = (key: string) => string
 
+export interface ApiFetchBehavior {
+  handlesError?: boolean
+}
+
 let _translate: TranslateFn | null = null
 
 /**
@@ -110,6 +114,7 @@ export async function apiFetch<T>(
   url: string,
   options?: RequestInit,
   schema?: ZodType<T>,
+  behavior?: ApiFetchBehavior,
 ): Promise<T> {
   const headers = new Headers(options?.headers)
   for (const [key, value] of Object.entries(buildClientTimeZoneHeaders())) {
@@ -134,10 +139,12 @@ export async function apiFetch<T>(
 
     const title = getToastTitle(status)
 
-    toast.error(title, {
-      description: backendMsg || undefined,
-      duration: 5000,
-    })
+    if (!behavior?.handlesError) {
+      toast.error(title, {
+        description: backendMsg || undefined,
+        duration: 5000,
+      })
+    }
 
     throw new ApiError(status, backendMsg || title, body)
   }
@@ -149,6 +156,10 @@ export async function apiFetch<T>(
  * Convenience wrapper for GET requests matching the old fetchJson pattern. An optional Zod
  * `schema` is forwarded to {@link apiFetch} to validate the response at the trust boundary.
  */
-export function fetchJson<T>(url: string, schema?: ZodType<T>): Promise<T> {
-  return apiFetch<T>(url, undefined, schema)
+export function fetchJson<T>(
+  url: string,
+  schema?: ZodType<T>,
+  behavior?: ApiFetchBehavior,
+): Promise<T> {
+  return apiFetch<T>(url, undefined, schema, behavior)
 }

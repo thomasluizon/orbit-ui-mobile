@@ -30,13 +30,15 @@ vi.mock('@/lib/api-client', () => ({
   apiClient: vi.fn(),
 }))
 
-async function renderUseSubscriptionPlans(): Promise<ReturnType<typeof useSubscriptionPlans>> {
+async function renderUseSubscriptionPlans(
+  options?: Parameters<typeof useSubscriptionPlans>[0],
+): Promise<ReturnType<typeof useSubscriptionPlans>> {
   const latestValueHolder: {
     current: ReturnType<typeof useSubscriptionPlans> | null
   } = { current: null }
 
   function Harness() {
-    latestValueHolder.current = useSubscriptionPlans()
+    latestValueHolder.current = useSubscriptionPlans(options)
     return null
   }
 
@@ -85,6 +87,14 @@ describe('mobile useSubscriptionPlans', () => {
 
     expect(mocks.useQuery).toHaveBeenCalledWith(expect.objectContaining({
       refetchOnMount: 'always',
+    }))
+  })
+
+  it('marks a caller handled plans failure without disabling upgrade errors', async () => {
+    await renderUseSubscriptionPlans({ handlesError: true })
+
+    expect(mocks.useQuery).toHaveBeenCalledWith(expect.objectContaining({
+      meta: { handlesError: true },
     }))
   })
 })
