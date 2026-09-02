@@ -200,9 +200,6 @@
     "local/icon-size-grid": {
       "count": 2
     },
-    "local/no-raw-gradient": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 3
     }
@@ -313,7 +310,7 @@
       "count": 2
     },
     "local/no-raw-gradient": {
-      "count": 2
+      "count": 1
     },
     "local/spacing-scale": {
       "count": 3
@@ -323,11 +320,8 @@
     "local/icon-size-grid": {
       "count": 2
     },
-    "local/no-raw-gradient": {
-      "count": 1
-    },
     "local/spacing-scale": {
-      "count": 11
+      "count": 8
     }
   },
   "components/calendar/calendar-load-error.tsx": {
@@ -347,10 +341,10 @@
   },
   "components/calendar/calendar-time-grid.tsx": {
     "local/no-raw-gradient": {
-      "count": 2
+      "count": 1
     },
     "local/spacing-scale": {
-      "count": 13
+      "count": 11
     }
   },
   "components/calendar/calendar-week-view.tsx": {

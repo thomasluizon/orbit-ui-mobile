@@ -371,7 +371,6 @@ vi.mock('react-native-svg', () => {
     __esModule: true,
     default: createSvg('Svg'),
     Defs: createSvg('Defs'),
-    LinearGradient: createSvg('LinearGradient'),
     Path: createSvg('Path'),
     Rect: createSvg('Rect'),
     Stop: createSvg('Stop'),
