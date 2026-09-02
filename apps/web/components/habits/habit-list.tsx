@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect, useRef as useReactRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
+import { useState, useMemo, useCallback, useEffect, useId, useRef as useReactRef, useImperativeHandle, type ComponentProps, type Ref } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
@@ -227,6 +227,7 @@ export function HabitList({
   const { profile } = useProfile()
   const locale = useLocale()
   const { displayTime } = useTimeFormat()
+  const dndContextId = useId()
 
   const habitsQuery = useHabits(filters)
   const logHabit = useLogHabit()
@@ -1255,6 +1256,7 @@ export function HabitList({
     if (isDndEnabled) {
       return (
         <DndContext
+          id={dndContextId}
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragStart={handleDragStart}
