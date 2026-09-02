@@ -72,6 +72,7 @@ describe('upgrade utils', () => {
       'upgrade.outcomes.retrospective.body',
       'upgrade.outcomes.noticing.title',
       'upgrade.outcomes.noticing.body',
+      'upgrade.plans.loading',
     ]
 
     for (const locale of [en, ptBR]) {

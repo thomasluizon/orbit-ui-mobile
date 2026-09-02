@@ -1054,10 +1054,10 @@
   },
   "components/upgrade/pricing-section.tsx": {
     "local/icon-size-grid": {
-      "count": 2
+      "count": 1
     },
     "local/spacing-scale": {
-      "count": 9
+      "count": 3
     }
   },
   "components/upgrade/usage-stats.tsx": {

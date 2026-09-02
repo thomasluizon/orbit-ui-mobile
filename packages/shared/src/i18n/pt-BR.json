@@ -1957,6 +1957,7 @@
       },
       "equivalent": "{price}/mês",
       "renewalNote": "A assinatura é renovada automaticamente. Cancele quando quiser, com pelo menos 24h de antecedência, para evitar cobranças futuras.",
+      "loading": "Buscando os valores",
       "error": "Não foi possível carregar os preços",
       "retry": "Tentar de novo"
     },

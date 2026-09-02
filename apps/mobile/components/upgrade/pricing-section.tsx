@@ -1,10 +1,9 @@
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import { AlertTriangle, Calendar, Eye, FileText, Tag } from '@/components/ui/icons'
+import { Calendar, Eye, FileText, Tag } from '@/components/ui/icons'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 import { plural } from '@/lib/plural'
-import { Skeleton } from '@/components/ui/skeleton'
 import { PlanSelection } from './plan-selection'
 import { styles } from './styles'
 import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
@@ -118,49 +117,26 @@ export function PricingSection({
         ))}
       </View>
 
-      {isLoadingPlans ? (
-        <View style={{ marginTop: 18 }}>
-          {[0, 1].map((index) => (
-            <Skeleton key={index} variant="stat-tile" label={t('common.loading')} />
-          ))}
-        </View>
-      ) : null}
-
-      {isPlansError && !plans && !isLoadingPlans && isOnline ? (
-        <View style={styles.padBlock}>
-          <AlertTriangle size={26} strokeWidth={1.8} color={tokens.fg3} />
-          <Text style={[styles.noticeText, { color: tokens.fg2 }]}>{t('upgrade.plans.error')}</Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onRetryPlans}
-            hitSlop={{ top: 6, bottom: 6 }}
-            style={({ pressed }) => [
-              styles.actionChip,
-              { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev, borderColor: tokens.hairline },
-              pressed ? styles.pressedScale : null,
-            ]}
-          >
-            <Text style={[styles.link, { color: tokens.fg1 }]}>{t('upgrade.plans.retry')}</Text>
-          </Pressable>
-        </View>
-      ) : null}
+      <Animated.View entering={sectionEntrance(1)}>
+        <PlanSelection
+          plans={plans}
+          isLoading={isLoadingPlans}
+          isError={isPlansError}
+          isOnline={isOnline}
+          yearlyOffer={yearlyOffer}
+          monthlyPrice={monthlyDisplayPrice}
+          yearlyPrice={yearlyDisplayPrice}
+          selectedInterval={selectedInterval}
+          onSelectInterval={onSelectInterval}
+          onStayFree={onStayFree}
+          onRetry={onRetryPlans}
+          t={t}
+          tokens={tokens}
+        />
+      </Animated.View>
 
       {plans ? (
         <>
-          <Animated.View entering={sectionEntrance(1)}>
-            <PlanSelection
-              plans={plans}
-              yearlyOffer={yearlyOffer}
-              monthlyPrice={monthlyDisplayPrice}
-              yearlyPrice={yearlyDisplayPrice}
-              selectedInterval={selectedInterval}
-              onSelectInterval={onSelectInterval}
-              onStayFree={onStayFree}
-              t={t}
-              tokens={tokens}
-            />
-          </Animated.View>
-
           {isReferralPricing ? (
             <View style={[styles.couponRow, { alignSelf: 'center', marginTop: 2 }]}>
               <Tag size={13} strokeWidth={1.8} color={tokens.statusDone} />

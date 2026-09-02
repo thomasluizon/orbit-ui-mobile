@@ -76,6 +76,11 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  planState: {
+    gap: 12,
+    marginTop: 32,
+    paddingHorizontal: 16,
+  },
   safe: { flex: 1 },
   container: { flex: 1 },
   scrollContent: {

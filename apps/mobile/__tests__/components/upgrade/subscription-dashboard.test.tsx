@@ -19,10 +19,6 @@ vi.mock('@/components/upgrade/usage-card', () => ({
   UsageCard: (props: Record<string, unknown>) => React.createElement('UsageCard', props),
 }))
 
-vi.mock('@/components/upgrade/plan-selection', () => ({
-  PlanSelection: (props: Record<string, unknown>) => React.createElement('PlanSelection', props),
-}))
-
 vi.mock('@/hooks/use-subscription-plans', () => ({
   formatPrice: (amount: number, currency: string) =>
     `${currency} ${(amount / 100).toFixed(2)}`,
@@ -464,7 +460,7 @@ describe('subscription dashboards (mobile)', () => {
 
   it('renders plan loading, retry, referral, and restore outcomes', () => {
     const loading = renderPricing({ isLoadingPlans: true })
-    expect(renderedText(loading)).toContain('common.loading')
+    expect(renderedText(loading)).toContain('upgrade.plans.loading')
 
     const onRetryPlans = vi.fn()
     const failed = renderPricing({ isPlansError: true, onRetryPlans })
@@ -484,14 +480,14 @@ describe('subscription dashboards (mobile)', () => {
     expect(renderedText(restoring)).not.toContain('upgrade.restorePurchase')
     const restoreButton = restoring.root.findAll(
       (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
-    )[0]
+    ).at(-1)
     expect(restoreButton?.props.accessibilityState).toEqual({ disabled: true })
 
     const offlinePlans = renderPricing({ plans, isOnline: false, isRestoring: false })
     expect(renderedText(offlinePlans)).toContain('upgrade.restorePurchase')
     const offlineRestore = offlinePlans.root.findAll(
       (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
-    )[0]
+    ).at(-1)
     expect(offlineRestore?.props.accessibilityState).toEqual({ disabled: true })
   })
 

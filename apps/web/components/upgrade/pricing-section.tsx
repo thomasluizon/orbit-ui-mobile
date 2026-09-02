@@ -1,7 +1,6 @@
-import { AlertTriangle, Calendar, Eye, FileText, Tag } from '@/components/ui/icons'
+import { Calendar, Eye, FileText, Tag } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { PlanSelection } from './plan-selection'
-import { cardSurface } from './styles'
 import { plural } from '@/lib/plural'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 
@@ -105,43 +104,23 @@ export function PricingSection({
         ))}
       </section>
 
-      {isLoadingPlans ? (
-        <div className="grid grid-cols-1" style={{ gap: 16 }}>
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-[18px]" style={{ padding: '22px', ...cardSurface }}>
-              <div className="skeleton-pulse h-4 w-20 rounded" style={{ background: 'var(--bg-elev-2)' }} />
-              <div className="skeleton-pulse mt-3 h-7 w-24 rounded" style={{ background: 'var(--bg-elev-2)' }} />
-              <div className="skeleton-pulse mt-5 h-9 w-full rounded-full" style={{ background: 'var(--bg-elev-2)' }} />
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      {isPlansError && !plans && !isLoadingPlans && isOnline ? (
-        <div className="rounded-[18px] text-center" style={{ padding: '28px 18px', ...cardSurface }}>
-          <AlertTriangle size={26} strokeWidth={1.8} className="mx-auto text-[var(--fg-3)]" />
-          <p style={{ margin: '10px 0 0', fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
-            {t('upgrade.plans.error')}
-          </p>
-          <button type="button" className="chip touch-target" style={{ marginTop: 10 }} onClick={onRetryPlans}>
-            {t('upgrade.plans.retry')}
-          </button>
-        </div>
-      ) : null}
+      <PlanSelection
+        plans={plans}
+        isLoading={isLoadingPlans}
+        isError={isPlansError}
+        isOnline={isOnline}
+        discountedAmount={discountedAmount}
+        trialActive={trialActive}
+        checkoutLoading={checkoutLoading}
+        checkoutDisabled={!isOnline}
+        onCheckout={onCheckout}
+        onStayFree={onStayFree}
+        onRetry={onRetryPlans}
+        t={t}
+      />
 
       {plans ? (
         <>
-          <PlanSelection
-            plans={plans}
-            discountedAmount={discountedAmount}
-            trialActive={trialActive}
-            checkoutLoading={checkoutLoading}
-            checkoutDisabled={!isOnline}
-            onCheckout={onCheckout}
-            onStayFree={onStayFree}
-            t={t}
-          />
-
           <div className="flex flex-col items-center" style={{ gap: 6, marginTop: 20 }}>
             {plans.couponPercentOff ? (
               <p

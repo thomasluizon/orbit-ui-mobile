@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import type { useTranslations } from 'next-intl'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
+import { formatPrice } from '@/hooks/use-subscription-plans'
 
 vi.mock('@/hooks/use-subscription-plans', () => ({
   useSubscriptionPlans: () => ({}),
@@ -23,16 +24,20 @@ const plans = {
 function renderSelection(overrides: Partial<Parameters<typeof PlanSelection>[0]> = {}) {
   const props = {
     plans,
+    isLoading: false,
+    isError: false,
+    isOnline: true,
     discountedAmount: (amount: number) => amount,
     trialActive: false,
     checkoutLoading: null,
     onCheckout: vi.fn(),
     onStayFree: vi.fn(),
+    onRetry: vi.fn(),
     t,
     ...overrides,
   }
-  render(<PlanSelection {...props} />)
-  return props
+  const view = render(<PlanSelection {...props} />)
+  return { ...props, unmount: view.unmount }
 }
 
 describe('PlanSelection', () => {
@@ -51,17 +56,35 @@ describe('PlanSelection', () => {
       'aria-pressed',
       'false',
     )
+    expect(screen.getByRole('button', { name: /upgrade\.plans\.yearly\.name/ })).toHaveTextContent(
+      formatPrice(plans.yearly.unitAmount, plans.currency),
+    )
+  })
+
+  it('owns loading and retry states for the price tiers', () => {
+    const loading = renderSelection({ plans: null, isLoading: true })
+    expect(screen.getAllByRole('progressbar')).toHaveLength(2)
+
+    const onRetry = vi.fn()
+    loading.unmount()
+    renderSelection({ plans: null, isLoading: false, isError: true, onRetry })
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.plans.retry' }))
+    expect(onRetry).toHaveBeenCalledTimes(1)
   })
 
   it('keeps the same accessible plan choices across trial states', () => {
     const { unmount } = render(
       <PlanSelection
         plans={plans}
+        isLoading={false}
+        isError={false}
+        isOnline
         discountedAmount={(amount) => amount}
         trialActive
         checkoutLoading={null}
         onCheckout={vi.fn()}
         onStayFree={vi.fn()}
+        onRetry={vi.fn()}
         t={t}
       />,
     )
@@ -74,11 +97,15 @@ describe('PlanSelection', () => {
     render(
       <PlanSelection
         plans={plans}
+        isLoading={false}
+        isError={false}
+        isOnline
         discountedAmount={(amount) => amount}
         trialActive={false}
         checkoutLoading={null}
         onCheckout={vi.fn()}
         onStayFree={vi.fn()}
+        onRetry={vi.fn()}
         t={t}
       />,
     )

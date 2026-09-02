@@ -1957,6 +1957,7 @@
       },
       "equivalent": "{price}/mo",
       "renewalNote": "Your subscription renews automatically. Cancel anytime, at least 24 hours before renewal, to avoid future charges.",
+      "loading": "Fetching the amounts",
       "error": "Couldn't load pricing",
       "retry": "Try again"
     },

@@ -3,32 +3,64 @@ import { applySubscriptionDiscount } from '@orbit/shared/utils'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { PlanCard } from '@/components/upgrade/plan-card'
 import { Badge } from '@/components/ui/badge'
+import { ErrorState } from '@/components/ui/error-state'
+import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 import { formatPrice } from '@/hooks/use-subscription-plans'
 import { styles } from './styles'
-import { monthlyEquivalentPriceLabel } from './types'
 import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
 
 export function PlanSelection({
   plans,
-  yearlyOffer,
+  isLoading,
+  isError,
+  isOnline,
   monthlyPrice,
+  yearlyPrice,
   selectedInterval,
   onSelectInterval,
   onStayFree,
+  onRetry,
   t,
   tokens,
 }: Readonly<{
-  plans: SubscriptionPlans
+  plans: SubscriptionPlans | null | undefined
+  isLoading: boolean
+  isError: boolean
+  isOnline: boolean
   yearlyOffer: PlayOffer | null
   monthlyPrice?: string
   yearlyPrice?: string
   selectedInterval: SubscriptionInterval
   onSelectInterval: (interval: SubscriptionInterval) => void
   onStayFree: () => void
+  onRetry: () => void
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
+  if (isLoading) {
+    return (
+      <View accessibilityLabel={t('upgrade.plans.loading')} style={styles.planState}>
+        <Skeleton variant="stat-tile" label={t('upgrade.plans.loading')} />
+        <Skeleton variant="stat-tile" label={t('upgrade.plans.loading')} />
+      </View>
+    )
+  }
+
+  if (isError && !plans && isOnline) {
+    return (
+      <View style={styles.planState}>
+        <ErrorState
+          message={t('upgrade.plans.error')}
+          action={<PillButton variant="ghost" onClick={onRetry}>{t('upgrade.plans.retry')}</PillButton>}
+        />
+      </View>
+    )
+  }
+
+  if (!plans) return null
+
   const monthlyCharge =
     monthlyPrice ??
     formatPrice(applySubscriptionDiscount(plans.monthly.unitAmount, plans.couponPercentOff), plans.currency)
@@ -38,9 +70,10 @@ export function PlanSelection({
       <PlanCard
         name={t('upgrade.plans.yearly.name')}
         badge={<Badge>{t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}</Badge>}
-        price={t('upgrade.plans.equivalent', {
-          price: monthlyEquivalentPriceLabel(plans, yearlyOffer),
-        })}
+        price={yearlyPrice ?? formatPrice(
+          applySubscriptionDiscount(plans.yearly.unitAmount, plans.couponPercentOff),
+          plans.currency,
+        )}
         selected={selectedInterval === 'yearly'}
         onClick={() => onSelectInterval('yearly')}
       />
