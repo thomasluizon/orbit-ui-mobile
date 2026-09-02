@@ -1,4 +1,5 @@
-import { View, Text, Pressable } from "react-native";
+import { useEffect, useState } from "react";
+import { AccessibilityInfo, Animated, Text, Pressable } from "react-native";
 import { X, PenSquare } from "@/components/ui/icons";
 import { type AppTokens, createStyles } from "./styles";
 
@@ -29,12 +30,32 @@ export function HabitTagChip({
   styles,
   tokens,
 }: Readonly<HabitTagChipProps>) {
+  const [scale] = useState(() => new Animated.Value(1));
+
+  useEffect(() => {
+    if (!selected) return;
+    let mounted = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) => {
+      if (!mounted || reduceMotion) return;
+      scale.setValue(0.96);
+      Animated.timing(scale, {
+        duration: 160,
+        toValue: 1,
+        useNativeDriver: true,
+      }).start();
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [scale, selected]);
+
   return (
-    <View
+    <Animated.View
       style={[
         styles.tagChip,
         selected && styles.tagChipSelected,
         !selected && styles.tagChipInactive,
+        { transform: [{ scale }] },
       ]}
     >
       <Pressable
@@ -94,6 +115,6 @@ export function HabitTagChip({
           color={tokens.fg3}
         />
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
