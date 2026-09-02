@@ -1039,6 +1039,9 @@
       "groceries": "Preciso fazer compras amanhã"
     },
     "action": {
+      "changes": "Alterações",
+      "completed": "A Astra atualizou o Orbit",
+      "open": "Abrir",
       "created": "Criou {name}",
       "logged": "Registrou {name}",
       "updated": "Atualizou {name}",

@@ -182,6 +182,8 @@ export function TourProvider() {
       executePreAction(currentStep.preAction)
     }
 
+    useUIStore.getState().setAstraConversationOpen(currentStep.targetId.startsWith('tour-chat'))
+
     const normalizedPathname = pathname === '/' ? '/' : pathname
     const normalizedRoute = resolveStepRoute(currentStep)
 

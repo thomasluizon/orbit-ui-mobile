@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { usePathname, useRouter } from 'expo-router'
+import { usePathname } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
@@ -12,6 +12,7 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useUIStore } from '@/stores/ui-store'
 
 /**
  * One-time-per-account post-login "Import from another app?" sheet. Gated on the
@@ -21,7 +22,6 @@ import { useAppTheme } from '@/lib/use-app-theme'
  */
 export function AstraImportPrompt() {
   const { t } = useTranslation()
-  const router = useRouter()
   const pathname = usePathname()
   const { profile, patchProfile } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -36,6 +36,7 @@ export function AstraImportPrompt() {
   const pendingOnboardingAnswers = useOnboardingDraftStore((s) =>
     s.hasPendingAnswers(),
   )
+  const astraConversationOpen = useUIStore((state) => state.astraConversationOpen)
 
   const calendarPromptWouldShow = Boolean(
     profile?.hasCompletedOnboarding &&
@@ -49,7 +50,7 @@ export function AstraImportPrompt() {
       !profile.hasSeenImportPrompt &&
       !calendarPromptWouldShow &&
       !pendingOnboardingAnswers &&
-      !pathname.startsWith('/chat') &&
+      !astraConversationOpen &&
       pathname !== '/calendar-sync' &&
       !dismissed,
   )
@@ -78,9 +79,9 @@ export function AstraImportPrompt() {
     closeSheet(() => {
       setSheetMounted(false)
       void markSeen()
-      router.replace('/chat')
+      useUIStore.getState().setAstraConversationOpen(true)
     })
-  }, [closeSheet, markSeen, router, t])
+  }, [closeSheet, markSeen, t])
 
   if (shouldShow && !sheetMounted) {
     setSheetMounted(true)

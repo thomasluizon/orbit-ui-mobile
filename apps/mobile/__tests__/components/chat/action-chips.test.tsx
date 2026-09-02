@@ -1,182 +1,84 @@
+import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ActionResult } from '@orbit/shared/types/chat'
-
 import { ActionChips } from '@/components/chat/action-chips'
 
 const TestRenderer = require('react-test-renderer')
 
-const colorProxy: any = new Proxy(
-  {},
-  {
-    get: (_target, prop) => {
-      if (prop === 'white') return '#ffffff'
-      return '#111111'
-    },
-  },
-)
-
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) => {
-      if (params) return `${key}:${JSON.stringify(params)}`
-      return key
-    },
-  }),
+vi.mock('@/components/ui/block-frame', () => ({
+  BlockFrame: (props: Record<string, any>) => React.createElement(
+    'BlockFrame',
+    props,
+    ...props.items.map((item: Record<string, any>) => React.createElement('Item', item, item.label, item.meta, item.control)),
+    props.actions,
+  ),
 }))
 
-vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({
-    colors: colorProxy,
-  }),
+vi.mock('@/components/ui/pill-button', () => ({
+  Button: ({ onClick, children }: { onClick: () => void; children: React.ReactNode }) =>
+    React.createElement('Button', { onPress: onClick }, children),
 }))
 
-vi.mock('@/lib/theme', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/theme')>()
-  return {
-    ...actual,
-    createColors: () => colorProxy,
-  }
-})
+vi.mock('@/components/chat/conflict-warning', () => ({
+  ConflictWarning: () => React.createElement('ConflictWarning'),
+}))
 
-vi.mock('@/components/chat/conflict-warning', () => {
-  const React = require('react')
+function action(overrides: Partial<ActionResult> = {}): ActionResult {
   return {
-    ConflictWarning: () => React.createElement('ConflictWarning'),
-  }
-})
-
-vi.mock('@/components/ui/icons', () => {
-  const React = require('react')
-  const createIcon = (name: string) => (props: any) => React.createElement(name, props)
-  return {
-    CheckCircle: createIcon('CheckCircle'),
-    XCircle: createIcon('XCircle'),
-    Info: createIcon('Info'),
-  }
-})
-
-function makeAction(overrides: Partial<ActionResult> = {}): ActionResult {
-  return {
-    type: 'CreateHabit',
+    type: 'LogHabit',
     status: 'Success',
-    entityId: 'h-1',
+    entityId: 'habit-1',
     entityName: 'Meditate',
-    error: null,
-    field: null,
-    suggestedSubHabits: null,
-    conflictWarning: null,
     ...overrides,
   }
 }
 
-function findPressableByType(root: any) {
-  // Pressable from react-native expands into a host View AND a function-component
-  // node in react-test-renderer; both inherit accessibilityRole and onPress.
-  // Count only the outermost owner: nodes whose `type` is a function/object
-  // (the Pressable component itself), not the inner host View string.
-  return root.findAll(
-    (node: any) =>
-      node.props &&
-      node.props.accessibilityRole === 'button' &&
-      typeof node.props.onPress === 'function' &&
-      typeof node.type !== 'string',
-  )
+function renderActions(actions: ActionResult[], onChipClick?: (id: string, type: string) => void) {
+  let tree: any
+  TestRenderer.act(() => {
+    tree = TestRenderer.create(<ActionChips actions={actions} onChipClick={onChipClick} />)
+  })
+  return tree
 }
 
 describe('ActionChips (mobile)', () => {
-  it.each<{ name: string; overrides: Partial<ActionResult>; handler: boolean; expected: number }>([
-    { name: 'renders successful Create chip as a Pressable when onChipClick is provided', overrides: { type: 'CreateHabit', status: 'Success', entityId: 'h-1' }, handler: true, expected: 1 },
-    { name: 'does not render Delete chip as Pressable even with handler', overrides: { type: 'DeleteHabit', status: 'Success', entityId: 'h-1' }, handler: true, expected: 0 },
-    { name: 'does not render DeleteGoal chip as Pressable even with handler', overrides: { type: 'DeleteGoal', status: 'Success', entityId: 'g-1' }, handler: true, expected: 0 },
-    { name: 'does not render Failed chip as Pressable even with handler', overrides: { type: 'CreateHabit', status: 'Failed', entityId: 'h-1', error: 'oops' }, handler: true, expected: 0 },
-    { name: 'does not render as Pressable when no handler is provided', overrides: { type: 'CreateHabit', status: 'Success', entityId: 'h-1' }, handler: false, expected: 0 },
-    { name: 'does not render chip with null entityId as Pressable', overrides: { type: 'CreateHabit', status: 'Success', entityId: null }, handler: true, expected: 0 },
-  ])('$name', ({ overrides, handler, expected }) => {
-    let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <ActionChips
-          actions={[makeAction(overrides)]}
-          onChipClick={handler ? () => {} : undefined}
-        />,
-      )
-    })
-    expect(findPressableByType(tree.root)).toHaveLength(expected)
+  it('renders legacy results as one block and omits suggestions', () => {
+    const tree = renderActions([action(), action({ status: 'Suggestion' })])
+    const frame = tree.root.findByType('BlockFrame')
+
+    expect(frame.props.title).toBe('chat.action.changes')
+    expect(frame.props.items).toHaveLength(1)
+    expect(frame.props.items[0].status).toBe('done')
   })
 
-  it('calls onChipClick with entityId and actionType on press', () => {
+  it('uses the frame failed state without exposing a server error', () => {
+    const tree = renderActions([action({ status: 'Failed', error: 'database unavailable' })])
+    const frame = tree.root.findByType('BlockFrame')
+
+    expect(frame.props.state).toBe('partiallyFailed')
+    expect(frame.props.items[0].meta).toBe('chat.operation.status.Failed')
+    expect(JSON.stringify(tree.toJSON())).not.toContain('database unavailable')
+  })
+
+  it('opens a successful navigable result', () => {
     const onChipClick = vi.fn()
-    let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <ActionChips
-          actions={[makeAction({ type: 'CreateHabit', status: 'Success', entityId: 'h-42' })]}
-          onChipClick={onChipClick}
-        />,
-      )
-    })
-    const [pressable] = findPressableByType(tree.root)
-    TestRenderer.act(() => {
-      pressable?.props.onPress?.()
-    })
-    expect(onChipClick).toHaveBeenCalledWith('h-42', 'CreateHabit')
+    const tree = renderActions([action()], onChipClick)
+
+    TestRenderer.act(() => tree.root.findByType('Button').props.onPress())
+    expect(onChipClick).toHaveBeenCalledWith('habit-1', 'LogHabit')
   })
 
-  it('calls onChipClick with goal entityId and actionType on press', () => {
-    const onChipClick = vi.fn()
-    let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <ActionChips
-          actions={[makeAction({ type: 'UpdateGoal', status: 'Success', entityId: 'g-42' })]}
-          onChipClick={onChipClick}
-        />,
-      )
-    })
-    const [pressable] = findPressableByType(tree.root)
-    TestRenderer.act(() => {
-      pressable?.props.onPress?.()
-    })
-    expect(onChipClick).toHaveBeenCalledWith('g-42', 'UpdateGoal')
+  it('does not add a control for a destructive result', () => {
+    const tree = renderActions([action({ type: 'DeleteHabit' })], vi.fn())
+
+    expect(tree.root.findAllByType('Button')).toHaveLength(0)
   })
 
-  it('does not render tag mutation chips as Pressable even with handler', () => {
-    for (const type of ['CreateTag', 'UpdateTag', 'DeleteTag']) {
-      let tree: any
-      TestRenderer.act(() => {
-        tree = TestRenderer.create(
-          <ActionChips
-            actions={[makeAction({ type, status: 'Success', entityId: 'tag-1' })]}
-            onChipClick={() => {}}
-          />,
-        )
-      })
-      expect(findPressableByType(tree.root)).toHaveLength(0)
-    }
-  })
+  it('localizes unknown operation symbols instead of rendering them', () => {
+    const tree = renderActions([action({ type: 'UnexpectedServerSymbol' })])
+    const frame = tree.root.findByType('BlockFrame')
 
-  it('renders localized labels for the new tag and reorder action types', () => {
-    const cases: Array<[string, string]> = [
-      ['CreateTag', 'chat.action.createdTag'],
-      ['UpdateTag', 'chat.action.updatedTag'],
-      ['DeleteTag', 'chat.action.deletedTag'],
-      ['ReorderGoals', 'chat.action.reorderedGoals'],
-      ['ReorderHabits', 'chat.action.reorderedHabits'],
-    ]
-    for (const [type, labelKey] of cases) {
-      let tree: any
-      TestRenderer.act(() => {
-        tree = TestRenderer.create(
-          <ActionChips actions={[makeAction({ type, entityName: 'Work' })]} />,
-        )
-      })
-      const matches = tree.root.findAll(
-        (node: any) =>
-          typeof node.props?.children === 'string' &&
-          node.props.children.startsWith(labelKey),
-      )
-      expect(matches.length).toBeGreaterThan(0)
-    }
+    expect(frame.props.items[0].label).toBe('chat.action.completed')
+    expect(JSON.stringify(tree.toJSON())).not.toContain('UnexpectedServerSymbol')
   })
-
 })

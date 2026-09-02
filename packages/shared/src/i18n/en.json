@@ -1039,6 +1039,9 @@
       "groceries": "I need to buy groceries tomorrow"
     },
     "action": {
+      "changes": "Changes",
+      "completed": "Astra updated Orbit",
+      "open": "Open",
       "created": "Created {name}",
       "logged": "Logged {name}",
       "updated": "Updated {name}",

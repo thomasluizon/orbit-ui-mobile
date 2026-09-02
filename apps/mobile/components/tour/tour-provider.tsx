@@ -261,10 +261,11 @@ export function TourProvider({ children }: Readonly<{ children: React.ReactNode 
       executePreAction(currentStep.preAction)
     }
 
+    useUIStore.getState().setAstraConversationOpen(currentStep.targetId.startsWith('tour-chat'))
+
     const normalizedPathname = pathname === '/' ? '/' : pathname
     const routeMap: Record<string, string> = {
       '/': '/(tabs)',
-      '/chat': '/chat',
       '/calendar': '/(tabs)/calendar',
       '/profile': '/(tabs)/profile',
     }
@@ -306,7 +307,6 @@ export function TourProvider({ children }: Readonly<{ children: React.ReactNode 
     const normalizedPathname = pathname === '/' ? '/' : pathname
     const routeMap: Record<string, string> = {
       '/': '/(tabs)',
-      '/chat': '/chat',
       '/calendar': '/(tabs)/calendar',
       '/profile': '/(tabs)/profile',
     }

@@ -188,20 +188,10 @@
       "count": 2
     }
   },
-  "components/chat/action-chips.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/chat/conflict-warning.tsx": {
     "local/icon-size-grid": {
       "count": 1
     },
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "components/chat/typing-indicator.tsx": {
     "local/spacing-scale": {
       "count": 3
     }

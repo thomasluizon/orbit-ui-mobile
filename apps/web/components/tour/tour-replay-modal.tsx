@@ -29,11 +29,11 @@ const SECTION_ICON_MAP = {
 
 const SECTION_ROUTE_MAP: Record<TourSection, string> = {
   habits: '/',
-  chat: '/chat',
+  chat: '/',
   calendar: '/calendar',
   profile: '/profile',
   'coach-today': '/',
-  'coach-astra': '/chat',
+  'coach-astra': '/',
   'coach-calendar': '/calendar',
 }
 

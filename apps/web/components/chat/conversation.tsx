@@ -8,7 +8,6 @@ import { AppBar } from '@/components/ui/app-bar'
 import { AstraMark } from '@/components/ui/astra-avatar'
 import type { useChatComposer } from '@/hooks/use-chat-composer'
 import { MessageBubble } from '@/components/chat/message-bubble'
-import { TypingIndicator } from '@/components/chat/typing-indicator'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { Composer } from '@/components/shell/composer'
 import { ErrorState } from '@/components/ui/error-state'
@@ -126,7 +125,6 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
           />
         ))}
 
-        {isTyping && <TypingIndicator />}
       </div>
 
       <div className="shrink-0">

@@ -18,7 +18,6 @@ import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
 import type { useChatComposer } from "@/hooks/use-chat-composer";
 import { useChatReward } from "@/hooks/use-chat-reward";
 import { MessageBubble } from "@/components/message-bubble";
-import { TypingIndicator } from "@/components/chat/typing-indicator";
 import { Composer } from "@/components/shell/composer";
 import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
@@ -231,7 +230,6 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
               contentContainerStyle={styles.messageList}
               showsVerticalScrollIndicator={false}
               onContentSizeChange={scrollToBottom}
-              ListFooterComponent={isTyping ? <TypingIndicator /> : null}
               accessibilityLabel={t("chat.title")}
               accessibilityLiveRegion="polite"
             />

@@ -386,11 +386,6 @@
       "count": 2
     }
   },
-  "components/chat/typing-indicator.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
   "components/gamification/achievement-toast.tsx": {
     "local/icon-size-grid": {
       "count": 1

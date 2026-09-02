@@ -16,6 +16,7 @@ import { useCreateGoal } from '@/hooks/use-goals'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { useUIStore } from '@/stores/ui-store'
 
 /**
  * The mode-blind action surface the onboarding step components call. The pre-auth
@@ -194,7 +195,8 @@ export function useLiveOnboardingActions(): OnboardingActions {
             CHAT_DRAFT_STORAGE_KEY,
             t('onboarding.flow.meetAstra.importPrompt'),
           )
-          router.replace('/chat')
+          useUIStore.getState().setAstraConversationOpen(true)
+          router.replace('/')
         })()
       },
     }),

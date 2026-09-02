@@ -135,7 +135,7 @@ describe('ChatPage', () => {
     expect(mocks.setOpen).toHaveBeenCalledWith(false)
   })
 
-  it('renders offline, transport-error, and typing feedback together', () => {
+  it('marks the feed busy without adding a typing animation', () => {
     mocks.composer.isOnline = false
     mocks.composer.sendError = 'send failed sentinel'
     mocks.composer.isTyping = true
@@ -144,7 +144,7 @@ describe('ChatPage', () => {
 
     expect(screen.getByText('chat.offline.description')).toBeInTheDocument()
     expect(screen.getByText('send failed sentinel')).toHaveAttribute('role', 'alert')
-    expect(screen.getByTestId('typing-indicator')).toBeInTheDocument()
+    expect(screen.getByRole('log', { name: 'chat.title' })).toHaveAttribute('aria-busy', 'true')
   })
 
   it('goes back on Escape when no text is being edited', () => {

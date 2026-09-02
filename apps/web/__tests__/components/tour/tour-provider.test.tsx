@@ -1,13 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
-import { useEffect } from 'react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types'
 import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
 import {
   ShellScrollerProvider,
-  useShellScroller,
   useShellScrollerRegistration,
 } from '@/components/shell/shell-scroller-context'
 import { FlowShell } from '@/components/shell/flow-shell'
@@ -69,8 +67,6 @@ function ChatPage() {
   return <AstraConversation chat={useChatComposer()} />
 }
 
-let observedShellScroller: HTMLElement | null = null
-
 function TourHarness() {
   const registerScroller = useShellScrollerRegistration()
   return (
@@ -100,18 +96,9 @@ function ChatTourHarness() {
   return (
     <>
       <ChatPage />
-      <ShellScrollerProbe />
       <TourProvider />
     </>
   )
-}
-
-function ShellScrollerProbe() {
-  const shellScroller = useShellScroller()
-  useEffect(() => {
-    observedShellScroller = shellScroller
-  }, [shellScroller])
-  return null
 }
 
 function stubMatchMedia(matches: boolean) {
@@ -166,7 +153,6 @@ describe('TourProvider session lifecycle', () => {
     mockPathname = '/'
     mockProfile = createMockProfile({ hasProAccess: true })
     useUIStore.setState({ searchQuery: '' })
-    observedShellScroller = null
     mockChatComposer.chatContainerRef.current = null
     stubMatchMedia(false)
   })
@@ -227,39 +213,18 @@ describe('TourProvider session lifecycle', () => {
     target.remove()
   })
 
-  it('remeasures chat targets only from the registered message pane', async () => {
-    mockPathname = '/chat'
+  it('opens chat tour targets in the shell layer without routing', () => {
+    mockPathname = '/'
     renderChatTourProvider()
 
     const chatMessagePane = screen.getByRole('log', { name: 'chat.title' })
     expect(chatMessagePane).toHaveAttribute('data-tour', 'tour-chat-area')
-    expect(observedShellScroller).toBe(chatMessagePane)
-    chatMessagePane.scrollIntoView = vi.fn()
-
     act(() => {
       useTourStore.getState().startSectionReplay('chat')
     })
     const step = useTourStore.getState().getCurrentStep()
     expect(step?.id).toBe('chat-area')
-
-    act(() => {
-      useTourStore.getState().setTargetRect(null)
-    })
-
-    await act(async () => {
-      document.querySelector<HTMLElement>('[data-flow-mode="full"]')?.dispatchEvent(
-        new Event('scroll'),
-      )
-      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
-    })
-
-    expect(useTourStore.getState().targetRect).toBeNull()
-
-    await act(async () => {
-      chatMessagePane.dispatchEvent(new Event('scroll'))
-      await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
-    })
-
-    expect(useTourStore.getState().targetRect).not.toBeNull()
+    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(mockRouterPush).not.toHaveBeenCalledWith('/chat')
   })
 })

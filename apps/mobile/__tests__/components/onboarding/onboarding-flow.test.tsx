@@ -11,8 +11,9 @@ import {
 
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 
-const { routerMock, pathnameState, actionsMock, captured } = vi.hoisted(() => {
+const { routerMock, astraState, actionsMock, captured } = vi.hoisted(() => {
   const router = { replace: vi.fn(), push: vi.fn(), navigate: vi.fn() }
+  const astra = { open: false }
   const capturedState: {
     beginPress?: () => void
     importPress?: () => void | Promise<void>
@@ -20,7 +21,7 @@ const { routerMock, pathnameState, actionsMock, captured } = vi.hoisted(() => {
   } = { welcomeRendered: false }
   return {
     routerMock: router,
-    pathnameState: { value: '/' },
+    astraState: astra,
     actionsMock: {
       createHabit: vi.fn((input: { title: string }) => Promise.resolve({
         id: '0',
@@ -31,7 +32,7 @@ const { routerMock, pathnameState, actionsMock, captured } = vi.hoisted(() => {
       createGoal: vi.fn(() => Promise.resolve(undefined)),
       setWeekStartDay: vi.fn(() => Promise.resolve(undefined)),
       finishOnboarding: vi.fn(() => Promise.resolve(undefined)),
-      onImport: () => router.replace('/chat'),
+      onImport: () => { astra.open = true },
     },
     captured: capturedState,
   }
@@ -39,7 +40,11 @@ const { routerMock, pathnameState, actionsMock, captured } = vi.hoisted(() => {
 
 vi.mock('expo-router', () => ({
   useRouter: () => routerMock,
-  usePathname: () => pathnameState.value,
+}))
+
+vi.mock('@/stores/ui-store', () => ({
+  useUIStore: (selector: (state: { astraConversationOpen: boolean }) => unknown) =>
+    selector({ astraConversationOpen: astraState.open }),
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -152,7 +157,7 @@ describe('OnboardingFlow import handoff + resume', () => {
     captured.beginPress = undefined
     captured.importPress = undefined
     captured.welcomeRendered = false
-    pathnameState.value = '/'
+    astraState.open = false
   })
 
   it('routes into Astra on import without completing onboarding', async () => {
@@ -168,19 +173,19 @@ describe('OnboardingFlow import handoff + resume', () => {
       await captured.importPress?.()
     })
 
-    expect(routerMock.replace).toHaveBeenCalledWith('/chat')
+    expect(astraState.open).toBe(true)
     expect(actionsMock.finishOnboarding).not.toHaveBeenCalled()
   })
 
-  it('hides the overlay while on the chat route and restores it after leaving chat', async () => {
-    pathnameState.value = '/chat'
+  it('hides the overlay while the conversation is open and restores it after closing', async () => {
+    astraState.open = true
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<OnboardingFlow />)
     })
     expect(captured.welcomeRendered).toBe(false)
 
-    pathnameState.value = '/'
+    astraState.open = false
     captured.welcomeRendered = false
     await TestRenderer.act(() => {
       tree.update(<OnboardingFlow />)
