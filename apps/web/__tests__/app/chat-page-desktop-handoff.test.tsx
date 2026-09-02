@@ -50,7 +50,6 @@ const mocks = vi.hoisted(() => ({
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => mocks.goBack }))
-vi.mock('@/hooks/use-habits', () => ({ useHabitDetail: () => ({ data: undefined }) }))
 vi.mock('@/components/ui/app-bar', () => ({
   AppBar: ({ onBack }: { onBack: () => void }) => <button onClick={onBack}>back sentinel</button>,
 }))
@@ -72,15 +71,6 @@ vi.mock('@/components/goals/goal-detail-drawer', () => ({
       {goalId}
       <button onClick={() => onOpenChange(false)}>close goal sentinel</button>
     </div>
-  ),
-}))
-vi.mock('@/components/habits/habit-detail-drawer', () => ({
-  HabitDetailDrawer: ({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) => (
-    open ? (
-      <div data-testid="habit-drawer">
-        <button onClick={() => onOpenChange(false)}>close habit sentinel</button>
-      </div>
-    ) : null
   ),
 }))
 vi.mock('@/components/chat/typing-indicator', () => ({
@@ -225,14 +215,12 @@ describe('ChatPage', () => {
     expect(screen.queryByTestId('goal-drawer')).not.toBeInTheDocument()
   })
 
-  it('opens the habit drawer for a non-goal action chip', () => {
+  it('routes a non-goal action chip into the habit flow', () => {
     mocks.composer.messages = [{ id: 'm1' }]
     render(<ChatPage />)
 
     act(() => mocks.onActionChipClick?.('habit-3', 'view_habit'))
 
-    expect(screen.getByTestId('habit-drawer')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'close habit sentinel' }))
-    expect(screen.queryByTestId('habit-drawer')).not.toBeInTheDocument()
+    expect(mocks.push).toHaveBeenCalledWith('/habits/habit-3')
   })
 })
