@@ -1,12 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import {
+  EMPTY_HABIT_FORM_PROPOSAL,
   HABIT_REMINDER_PRESETS,
+  applyHabitPhraseRead,
   buildHabitDaysList,
   buildHabitFrequencyUnits,
+  buildHabitUnderstandingSentence,
+  formatHabitReminderLabel,
   formatHabitTimeInput,
   getHabitFormFlags,
+  hasHabitFormProposal,
+  isHabitAstraLimitReached,
   isValidHabitTimeInput,
   normalizeHabitFormData,
+  resolveHabitStartDate,
+  shouldShowHabitAstraFallback,
   validateHabitFormInput,
 } from '../utils/habit-form-helpers'
 import {
@@ -167,6 +175,85 @@ describe('habit form helpers', () => {
       value: 1440,
       key: 'habits.form.reminder1day',
     })
+  })
+
+  it('applies a time-only phrase as a one-time schedule', () => {
+    const calls: string[] = []
+    const fields: Record<string, string | number | string[]> = {}
+
+    applyHabitPhraseRead(true, {
+      cadence: null,
+      days: [],
+      frequencyQuantity: null,
+      dueTime: '15:00',
+      emoji: null,
+      consumed: [],
+    }, '', false, {
+      setOneTime: () => calls.push('one-time'),
+      setRecurring: () => calls.push('recurring'),
+      setFlexible: () => calls.push('flexible'),
+      setGeneral: () => calls.push('general'),
+      setField: (field, value) => { fields[field] = value },
+    })
+
+    expect(calls).toEqual(['one-time'])
+    expect(fields).toEqual({ dueTime: '15:00' })
+  })
+
+  it('preserves a locked General schedule during phrase application', () => {
+    const calls: string[] = []
+    const fields: Record<string, string | number | string[]> = {}
+
+    applyHabitPhraseRead(true, {
+      cadence: 'fixed',
+      days: ['Monday'],
+      frequencyQuantity: null,
+      dueTime: '08:00',
+      emoji: '🏃',
+      consumed: [],
+    }, '', true, {
+      setOneTime: () => calls.push('one-time'),
+      setRecurring: () => calls.push('recurring'),
+      setFlexible: () => calls.push('flexible'),
+      setGeneral: () => calls.push('general'),
+      setField: (field, value) => { fields[field] = value },
+    })
+
+    expect(calls).toEqual(['general'])
+    expect(fields).toEqual({})
+  })
+
+  it('builds truthful daily, fixed-day, flexible, and time-only summaries', () => {
+    const translate = (key: string, values?: Record<string, string | number>) =>
+      `${key}:${JSON.stringify(values ?? {})}`
+    const days = [{ value: 'Monday', label: 'Monday' }]
+
+    expect(buildHabitUnderstandingSentence([], days, false, 'Day', 1, '', translate))
+      .toBe('habits.form.understoodDaily:{}')
+    expect(buildHabitUnderstandingSentence(['Monday'], days, false, 'Day', 1, '08:00', translate))
+      .toBe('habits.form.understoodDaysAt:{"days":"Monday","time":"08:00"}')
+    expect(buildHabitUnderstandingSentence([], days, true, 'Week', 3, '09:00', translate))
+      .toBe('habits.form.understoodCountAt:{"count":3,"time":"09:00"}')
+    expect(buildHabitUnderstandingSentence([], days, false, null, 3, '15:00', translate))
+      .toBe('habits.form.understoodTime:{"time":"15:00"}')
+  })
+
+  it('tracks proposal visibility, Astra limits, start dates, and reminder labels', () => {
+    const proposal = { ...EMPTY_HABIT_FORM_PROPOSAL, checklist: true }
+    const translate = (key: string) => key
+
+    expect(hasHabitFormProposal(EMPTY_HABIT_FORM_PROPOSAL)).toBe(false)
+    expect(hasHabitFormProposal(proposal)).toBe(true)
+    expect(shouldShowHabitAstraFallback('Read', null, () => true, EMPTY_HABIT_FORM_PROPOSAL)).toBe(true)
+    expect(shouldShowHabitAstraFallback('Read', null, () => true, proposal)).toBe(false)
+    expect(isHabitAstraLimitReached(4, 5)).toBe(false)
+    expect(isHabitAstraLimitReached(5, 5)).toBe(true)
+    expect(resolveHabitStartDate(undefined, '2026-09-02')).toBe('2026-09-02')
+    expect(resolveHabitStartDate(null, '2026-09-02')).toBeNull()
+    expect(formatHabitReminderLabel(0, translate)).toBe('habits.form.reminderAtTime')
+    expect(formatHabitReminderLabel(31, translate)).toBe('31 habits.form.reminderMinutes')
+    expect(formatHabitReminderLabel(61, translate)).toBe('1 habits.form.reminderHour')
+    expect(formatHabitReminderLabel(2880, translate)).toBe('2 habits.form.reminderDays')
   })
 
   it('validates reminder selection with due-time reminders', () => {

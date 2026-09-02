@@ -146,17 +146,26 @@ export type {
 export {
   buildHabitDaysList,
   buildHabitFormPatchFromSuggestion,
+  buildHabitUnderstandingSentence,
+  EMPTY_HABIT_FORM_PROPOSAL,
+  applyHabitPhraseRead,
+  formatHabitReminderLabel,
   buildHabitFrequencyUnits,
   coalesceFormText,
   HABIT_REMINDER_PRESETS,
   formatHabitTimeInput,
   getHabitFormFlags,
+  hasHabitFormProposal,
+  isHabitAstraLimitReached,
   normalizeHabitFormData,
+  resolveHabitStartDate,
+  shouldShowHabitAstraFallback,
   isValidHabitTimeInput,
   validateHabitFormInput,
 } from './habit-form-helpers'
 export type {
   HabitFormSuggestionPatch,
+  HabitFormProposal,
   HabitFormTranslationAdapter,
   HabitFormValidationContext,
 } from './habit-form-helpers'

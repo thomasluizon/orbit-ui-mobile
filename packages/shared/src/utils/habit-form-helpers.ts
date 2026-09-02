@@ -1,4 +1,5 @@
 import type { ChecklistItem, FrequencyUnit, HabitSetupSuggestion } from '../types/habit'
+import type { HabitPhraseRead } from './habit-phrase-parser'
 import type { HabitFormData } from '../validation/habit-form'
 import {
   validateGoalSelection,
@@ -125,6 +126,137 @@ export interface HabitFormSuggestionPatch {
   dueTime: string | null
   subHabitTitles: string[]
   checklistItems: ChecklistItem[]
+}
+
+export interface HabitFormProposal {
+  setup: boolean
+  checklist: boolean
+  subHabits: boolean
+}
+
+export const EMPTY_HABIT_FORM_PROPOSAL: HabitFormProposal = {
+  setup: false,
+  checklist: false,
+  subHabits: false,
+}
+
+export function hasHabitFormProposal(proposal: HabitFormProposal): boolean {
+  return proposal.setup || proposal.checklist || proposal.subHabits
+}
+
+type PhraseField = 'days' | 'dueTime' | 'emoji' | 'frequencyQuantity' | 'frequencyUnit'
+
+interface HabitPhraseFormTarget {
+  setOneTime: () => void
+  setRecurring: () => void
+  setFlexible: () => void
+  setGeneral: () => void
+  setField: (field: PhraseField, value: string | number | string[]) => void
+}
+
+export function applyHabitPhraseRead(
+  enabled: boolean,
+  read: HabitPhraseRead,
+  emoji: string,
+  lockedGeneral: boolean | null,
+  target: HabitPhraseFormTarget,
+): void {
+  if (!enabled) return
+  if (lockedGeneral === true) {
+    target.setGeneral()
+    return
+  }
+
+  target.setField('dueTime', read.dueTime ?? '')
+  if (read.emoji && !emoji) target.setField('emoji', read.emoji)
+  if (!read.cadence) {
+    target.setOneTime()
+    return
+  }
+  if (read.cadence === 'flexible') {
+    target.setFlexible()
+    target.setField('frequencyUnit', 'Week')
+    target.setField('frequencyQuantity', read.frequencyQuantity)
+    target.setField('days', [])
+    return
+  }
+
+  target.setRecurring()
+  target.setField('frequencyUnit', 'Day')
+  target.setField('frequencyQuantity', 1)
+  target.setField('days', read.days)
+}
+
+type UnderstandingTranslator = (
+  key: string,
+  values?: Record<string, string | number>,
+) => string
+
+export function buildHabitUnderstandingSentence(
+  days: string[],
+  dayOptions: { value: string; label: string }[],
+  isFlexible: boolean,
+  frequencyUnit: FrequencyUnit | null | undefined,
+  quantity: number,
+  dueTime: string,
+  translate: UnderstandingTranslator,
+): string | null {
+  let key: string
+  let values: Record<string, string | number> = {}
+  if (days.length > 0) {
+    key = 'habits.form.understoodDays'
+    values.days = dayOptions.filter((day) => days.includes(day.value)).map((day) => day.label).join(', ')
+  } else if (!isFlexible && frequencyUnit === 'Day' && quantity === 1) {
+    key = 'habits.form.understoodDaily'
+  } else if (isFlexible || frequencyUnit) {
+    key = 'habits.form.understoodCount'
+    values.count = quantity
+  } else if (dueTime) {
+    return translate('habits.form.understoodTime', { time: dueTime })
+  } else {
+    return null
+  }
+
+  if (dueTime) {
+    values = { ...values, time: dueTime }
+    key = `${key}At`
+  }
+  return translate(key, values)
+}
+
+export function shouldShowHabitAstraFallback(
+  title: string,
+  sentence: string | null,
+  action: unknown,
+  proposal: HabitFormProposal,
+): boolean {
+  return title.trim().length > 0 && sentence === null && typeof action === 'function' && !hasHabitFormProposal(proposal)
+}
+
+export function isHabitAstraLimitReached(used: number, allowance: number): boolean {
+  return used >= allowance
+}
+
+export function resolveHabitStartDate(
+  startDate: string | null | undefined,
+  dueDate: string,
+): string | null {
+  return startDate === undefined ? dueDate : startDate
+}
+
+export function formatHabitReminderLabel(
+  minutes: number,
+  translate: (key: string) => string,
+): string {
+  const preset = HABIT_REMINDER_PRESETS.find((item) => item.value === minutes)
+  if (preset) return translate(preset.key)
+  if (minutes < 60) return `${minutes} ${translate('habits.form.reminderMinutes')}`
+  if (minutes < 1440) {
+    const hours = Math.floor(minutes / 60)
+    return `${hours} ${translate(hours === 1 ? 'habits.form.reminderHour' : 'habits.form.reminderHours')}`
+  }
+  const days = Math.floor(minutes / 1440)
+  return `${days} ${translate(days === 1 ? 'habits.form.reminderDay' : 'habits.form.reminderDays')}`
 }
 
 /**
