@@ -297,6 +297,18 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('slip-alert')).toBeDefined()
   })
 
+  it.each([
+    { mode: 'one-time', isOneTime: true, isGeneral: false },
+    { mode: 'General', isOneTime: false, isGeneral: true },
+  ])('hides the end date for $mode habits', ({ isOneTime, isGeneral }) => {
+    const formHelpers = createFormHelpers({ title: 'Run' })
+    Object.assign(formHelpers, { isOneTime, isGeneral, showEndDate: false })
+
+    renderForm(formHelpers, undefined, true)
+
+    expect(screen.queryByText('date-field')).toBeNull()
+  })
+
   it('routes the free sub-habit row to upgrade while keeping goals available', () => {
     renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
 

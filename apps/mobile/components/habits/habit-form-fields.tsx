@@ -134,6 +134,23 @@ interface SubHabitSectionProps {
   t: (key: string) => string
 }
 
+interface EndDateEditorProps {
+  visible: boolean
+  value: string
+  onChange: (value: string) => void
+  t: (key: string) => string
+}
+
+function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorProps>) {
+  if (!visible) return null
+  return (
+    <View>
+      <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.endDate')}</SectionLabel>
+      <DateField value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={onChange} />
+    </View>
+  )
+}
+
 function SubHabitSection({
   canUseSubHabits,
   proposed,
@@ -212,7 +229,7 @@ export function HabitFormFields({
   const hasProAccess = useHasProAccess()
   const { config } = useConfig()
   const { profile } = useProfile()
-  const { form, daysList, toggleDay, setOneTime, setRecurring, setFlexible, setGeneral } = formHelpers
+  const { form, daysList, showEndDate, toggleDay, setOneTime, setRecurring, setFlexible, setGeneral } = formHelpers
   const { setValue, formState: { errors } } = form
   const title = coalesceFormText(useWatch({ control: form.control, name: 'title' }))
   const emoji = useWatch({ control: form.control, name: 'emoji' }) ?? ''
@@ -429,7 +446,7 @@ export function HabitFormFields({
               {tags.editingTagId ? <TagEditorRow value={tags.editTagName} disabled={updateTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={tags.setEditTagName} onCommit={() => void saveEditedTag()} onCancel={tags.cancelEditTag} styles={formStyles} tokens={tokens} /> : null}
             </View>
             <View><SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.goals')}</SectionLabel><GoalLinkingField selectedGoalIds={selectedGoalIds} atGoalLimit={atGoalLimit} onToggleGoal={onToggleGoal} /></View>
-            <View><SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.endDate')}</SectionLabel><DateField value={endDate} placeholder={t('habits.form.endDatePlaceholder')} onChange={(value) => setValue('endDate', value, { shouldDirty: true })} /></View>
+            <EndDateEditor visible={showEndDate} value={endDate} onChange={(value) => setValue('endDate', value, { shouldDirty: true })} t={t} />
             <View><SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.description')}</SectionLabel><Input label={t('habits.form.description')} value={description} onChange={(value) => setValue('description', value, { shouldDirty: true })} placeholder={t('habits.form.descriptionPlaceholder')} multiline rows={3} maxLength={MAX_HABIT_DESCRIPTION_LENGTH} /></View>
           </View>
         ) : null}

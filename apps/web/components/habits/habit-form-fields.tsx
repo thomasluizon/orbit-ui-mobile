@@ -129,6 +129,23 @@ interface SubHabitSectionProps {
   t: ReturnType<typeof useTranslations>
 }
 
+interface EndDateEditorProps {
+  visible: boolean
+  value: string
+  onChange: (value: string) => void
+  t: (key: string) => string
+}
+
+function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorProps>) {
+  if (!visible) return null
+  return (
+    <section>
+      <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.endDate')}</SectionLabel>
+      <DateField value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={onChange} />
+    </section>
+  )
+}
+
 function SubHabitSection({
   canUseSubHabits,
   proposed,
@@ -204,7 +221,7 @@ export function HabitFormFields({
   const hasProAccess = useHasProAccess()
   const { config } = useConfig()
   const { profile } = useProfile()
-  const { form, daysList, toggleDay, setOneTime, setRecurring, setFlexible, setGeneral } = formHelpers
+  const { form, daysList, showEndDate, toggleDay, setOneTime, setRecurring, setFlexible, setGeneral } = formHelpers
   const { watch, setValue, formState: { errors } } = form
   const title = coalesceFormText(watch('title'))
   const emoji = watch('emoji') ?? ''
@@ -494,14 +511,7 @@ export function HabitFormFields({
               />
             </section>
 
-            <section>
-              <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.endDate')}</SectionLabel>
-              <DateField
-                value={endDate}
-                placeholder={t('habits.form.endDatePlaceholder')}
-                onChange={(value) => setValue('endDate', value, { shouldDirty: true })}
-              />
-            </section>
+            <EndDateEditor visible={showEndDate} value={endDate} onChange={(value) => setValue('endDate', value, { shouldDirty: true })} t={t} />
 
             <section>
               <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.description')}</SectionLabel>

@@ -51,6 +51,7 @@ vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () 
 vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: () => React.createElement('View', { testID: 'offset-reminders' }) }))
 vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: () => React.createElement('View', { testID: 'scheduled-reminders' }) }))
 vi.mock('@/components/ui/time-field', () => ({ TimeField: (props: Record<string, unknown>) => React.createElement('TimeField', props) }))
+vi.mock('@/components/ui/date-field', () => ({ DateField: (props: Record<string, unknown>) => React.createElement('DateField', { ...props, testID: 'date-field' }) }))
 
 function createFormHelpers(overrides: Record<string, unknown> = {}): HabitFormHelpers {
   const values: Record<string, unknown> = { title: 'Run', emoji: '', frequencyUnit: null, frequencyQuantity: 3, days: [], isFlexible: false, dueDate: '2026-09-02', dueTime: '', dueEndTime: '', endDate: '', description: '', reminderEnabled: false, scheduledReminders: [], checklistItems: [], isBadHabit: false, slipAlertEnabled: false, ...overrides }
@@ -262,6 +263,21 @@ describe('HabitFormFields mobile', () => {
 
     expect(tree.root.findAll((node: any) => node.props?.testID === 'offset-reminders')).toHaveLength(1)
     expect(tree.root.findAll((node: any) => node.props?.testID === 'scheduled-reminders')).toHaveLength(1)
+  })
+
+  it.each([
+    { mode: 'one-time', isOneTime: true, isGeneral: false },
+    { mode: 'General', isOneTime: false, isGeneral: true },
+  ])('hides the end date for $mode habits', async ({ isOneTime, isGeneral }) => {
+    const formHelpers = createFormHelpers()
+    Object.assign(formHelpers, { isOneTime, isGeneral, showEndDate: false })
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<HabitFormFields formHelpers={formHelpers} tags={createTags()} selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} onUpgrade={vi.fn()} reminderTimes={[]} onReminderTimesChange={vi.fn()} defaultExpanded />)
+      await Promise.resolve()
+    })
+
+    expect(tree.root.findAll((node: any) => node.props?.testID === 'date-field')).toHaveLength(0)
   })
 
   it('clears a prefilled end time when the exact time changes', async () => {
