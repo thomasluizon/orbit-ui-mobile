@@ -1264,7 +1264,6 @@
       "text": "I've been using Orbit to build better habits. Join me and we both get a {discount}% discount coupon"
     },
     "prompt": {
-      "eyebrow": "You're on a roll",
       "streakTitle": "{count}-day streak",
       "levelTitle": "You reached level {level}",
       "body": "Invite a friend and you both get a {discount}% discount coupon for Pro.",
