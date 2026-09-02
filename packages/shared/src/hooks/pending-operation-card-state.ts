@@ -1,3 +1,5 @@
+'use client'
+
 import { useCallback, useState, type Dispatch, type SetStateAction } from 'react'
 import type { AgentExecuteOperationResponse } from '../types/ai'
 
