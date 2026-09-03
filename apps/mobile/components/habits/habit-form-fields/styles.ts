@@ -33,7 +33,7 @@ export function createSectionStyles(tokens: AppTokens) {
       gap: 10,
     },
     headerLabel: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 15,
       color: tokens.fg1,
     },
@@ -55,12 +55,12 @@ export function createSectionStyles(tokens: AppTokens) {
       backgroundColor: tintFromPrimary(tokens, 0.12),
     },
     chipText: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 12,
       color: tokens.fg1,
     },
     hintText: {
-      fontFamily: "Rubik_400Regular",
+      fontFamily: "Geist_400Regular",
       fontSize: 13,
       color: tokens.fg3,
     },
@@ -77,7 +77,7 @@ export function createSectionStyles(tokens: AppTokens) {
       borderColor: tokens.hairline,
     },
     addButtonText: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 13,
       color: tokens.fg2,
     },
@@ -95,12 +95,12 @@ export function createSectionStyles(tokens: AppTokens) {
       borderRadius: 10,
     },
     dropdownItemText: {
-      fontFamily: "Rubik_400Regular",
+      fontFamily: "Geist_400Regular",
       fontSize: 15,
       color: tokens.fg1,
     },
     dropdownItemTextAccent: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 15,
       color: tokens.fg1,
     },
@@ -118,7 +118,7 @@ export function createSectionStyles(tokens: AppTokens) {
       borderRadius: 12,
       paddingVertical: 10,
       paddingHorizontal: 12,
-      fontFamily: "Rubik_400Regular",
+      fontFamily: "Geist_400Regular",
       fontSize: 14,
       borderWidth: 1,
       borderColor: tokens.hairline,
@@ -140,7 +140,7 @@ export function createSectionStyles(tokens: AppTokens) {
       borderColor: tokens.primary,
     },
     unitButtonText: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 12,
       color: tokens.fg3,
     },
@@ -156,7 +156,7 @@ export function createSectionStyles(tokens: AppTokens) {
       justifyContent: "center",
     },
     limitText: {
-      fontFamily: "Rubik_400Regular",
+      fontFamily: "Geist_400Regular",
       fontSize: 13,
       color: tokens.fg3,
     },
@@ -182,7 +182,7 @@ export function createSectionStyles(tokens: AppTokens) {
       borderColor: tokens.primary,
     },
     whenButtonText: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 13,
       color: tokens.fg3,
     },
@@ -200,7 +200,7 @@ export function createSectionStyles(tokens: AppTokens) {
       backgroundColor: tokens.primary,
     },
     timeAddButtonText: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 13,
       color: tokens.fgOnPrimary,
     },
@@ -211,7 +211,7 @@ export function createSectionStyles(tokens: AppTokens) {
       justifyContent: "center",
     },
     slipDescription: {
-      fontFamily: "Rubik_400Regular",
+      fontFamily: "Geist_400Regular",
       fontSize: 13,
       color: tokens.fg3,
       marginLeft: 30,
@@ -243,7 +243,7 @@ export function createStyles(tokens: AppTokens) {
       gap: 8,
     },
     label: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 14,
       color: tokens.fg2,
     },
@@ -252,18 +252,18 @@ export function createStyles(tokens: AppTokens) {
       textAlignVertical: "top",
     },
     fieldError: {
-      fontFamily: "Rubik_400Regular",
+      fontFamily: "Geist_400Regular",
       fontSize: 13,
       color: tokens.statusBad,
       marginTop: 2,
     },
     hintText: {
-      fontFamily: "Rubik_400Regular",
+      fontFamily: "Geist_400Regular",
       fontSize: 13,
       color: tokens.fg3,
     },
     flexibleHint: {
-      fontFamily: "Rubik_400Regular",
+      fontFamily: "Geist_400Regular",
       fontSize: 13,
       color: tokens.fg3,
     },
@@ -328,7 +328,7 @@ export function createStyles(tokens: AppTokens) {
       paddingVertical: 8,
     },
     emojiRemoveButtonText: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 13,
       color: tokens.fg2,
     },
@@ -351,7 +351,7 @@ export function createStyles(tokens: AppTokens) {
       borderColor: tokens.primary,
     },
     emojiCategoryTabText: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 13,
       color: tokens.fg3,
     },
@@ -366,12 +366,12 @@ export function createStyles(tokens: AppTokens) {
       gap: 8,
     },
     emojiCategoryTitle: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 12,
       color: tokens.fg3,
     },
     emojiEmptyText: {
-      fontFamily: "Rubik_400Regular",
+      fontFamily: "Geist_400Regular",
       fontSize: 14,
       color: tokens.fg3,
       textAlign: "center",
@@ -467,18 +467,18 @@ export function createStyles(tokens: AppTokens) {
       gap: 4,
     },
     frequencyCardTitle: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 16,
       color: tokens.fg1,
     },
     frequencyCardDesc: {
-      fontFamily: "Rubik_400Regular",
+      fontFamily: "Geist_400Regular",
       fontSize: 13,
       color: tokens.fg3,
       lineHeight: 19,
     },
     frequencyCardExample: {
-      fontFamily: "Rubik_400Regular",
+      fontFamily: "Geist_400Regular",
       fontSize: 12,
       color: tokens.fg3,
       lineHeight: 17,
@@ -507,7 +507,7 @@ export function createStyles(tokens: AppTokens) {
       backgroundColor: tokens.primary,
     },
     dayButtonText: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 14,
       color: tokens.fg3,
     },
@@ -562,7 +562,7 @@ export function createStyles(tokens: AppTokens) {
       paddingVertical: 8,
     },
     tagChipText: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 13,
       color: tokens.fg2,
     },
@@ -582,7 +582,7 @@ export function createStyles(tokens: AppTokens) {
       borderColor: tokens.hairline,
     },
     newTagButtonText: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 13,
       color: tokens.fg2,
     },
@@ -598,7 +598,7 @@ export function createStyles(tokens: AppTokens) {
       borderColor: tintFromPrimary(tokens, 0.28),
     },
     aiChipText: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 13,
       color: tokens.fg1,
     },
@@ -637,7 +637,7 @@ export function createStyles(tokens: AppTokens) {
       backgroundColor: tokens.primary,
     },
     tagFormSaveText: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 13,
       color: tokens.fgOnPrimary,
     },
@@ -655,13 +655,13 @@ export function createStyles(tokens: AppTokens) {
       paddingVertical: 12,
     },
     moreOptionsLabel: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 14,
       color: tokens.fg2,
       flex: 1,
     },
     moreOptionsBadge: {
-      fontFamily: "Roboto_400Regular",
+      fontFamily: "GeistMono_400Regular",
       fontSize: 12,
       fontVariant: ["tabular-nums"],
       letterSpacing: 0.24,
@@ -692,7 +692,7 @@ export function createStyles(tokens: AppTokens) {
       backgroundColor: tintFromPrimary(tokens, 0.14),
     },
     segmentText: {
-      fontFamily: "Rubik_500Medium",
+      fontFamily: "Geist_500Medium",
       fontSize: 14,
       color: tokens.fg3,
     },

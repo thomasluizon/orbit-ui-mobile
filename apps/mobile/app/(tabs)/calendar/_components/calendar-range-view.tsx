@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   },
   hintText: {
     flexShrink: 1,
-    fontFamily: "Rubik_400Regular",
+    fontFamily: "Geist_400Regular",
     fontSize: 13,
   },
 });

@@ -354,7 +354,7 @@ function createStyles(tokens: AppTokens) {
       width: "100%",
     },
     relatedTitle: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 12,
       color: tokens.fg3,
       marginBottom: 4,
@@ -378,7 +378,7 @@ function createStyles(tokens: AppTokens) {
       alignSelf: "flex-start",
     },
     relatedChipText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 13,
       color: tokens.fg2,
     },

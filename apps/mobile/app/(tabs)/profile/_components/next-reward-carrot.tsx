@@ -101,12 +101,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   title: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 12,
     letterSpacing: 0.96,
   },
   toNextLevel: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 16,
     lineHeight: 22,
   },
@@ -128,11 +128,11 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   teaserTitle: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 13,
   },
   teaserSub: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 13,
   },
   pill: {
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   pillLabel: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 13,
   },
 })

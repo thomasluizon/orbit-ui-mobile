@@ -178,7 +178,7 @@ function createStyles(tokens: Tokens) {
     title: {
       color: tokens.fg1,
       flex: 1,
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 22,
     },
     titleSpacer: {

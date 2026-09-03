@@ -39,12 +39,12 @@ export const styles = StyleSheet.create({
     gap: 4,
   },
   title: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     letterSpacing: -0.08,
     lineHeight: 20,
   },
   meta: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 13,
     fontVariant: ['tabular-nums'],
   },
@@ -77,7 +77,7 @@ export const styles = StyleSheet.create({
     borderRadius: 6,
   },
   menuItemLabel: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
   },
   menuDivider: {

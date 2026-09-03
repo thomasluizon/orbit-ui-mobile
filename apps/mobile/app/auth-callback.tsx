@@ -211,7 +211,7 @@ function createStyles(tokens: AppTokens) {
       gap: 20,
     },
     text: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       letterSpacing: 0.24,
       color: tokens.fg3,
@@ -227,7 +227,7 @@ function createStyles(tokens: AppTokens) {
       borderColor: tokens.hairline,
     },
     errorTitle: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 22,
       lineHeight: 29,
       color: tokens.fg1,

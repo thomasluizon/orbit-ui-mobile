@@ -51,7 +51,7 @@ function createStyles(tokens: Tokens) {
       minHeight: 44,
     },
     label: {
-      fontFamily: "Rubik_400Regular",
+      fontFamily: "Geist_400Regular",
       fontSize: 14,
       color: tokens.fg2,
     },

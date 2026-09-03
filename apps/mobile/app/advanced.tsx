@@ -274,7 +274,7 @@ const localStyles = StyleSheet.create({
     marginBottom: 8,
   },
   mcpDescription: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
     lineHeight: 21,
   },

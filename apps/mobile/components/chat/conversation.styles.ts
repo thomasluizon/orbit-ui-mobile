@@ -25,14 +25,14 @@ export function createStyles(tokens: Tokens) {
       zIndex: 1,
     },
     emptyTitle: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 22,
       letterSpacing: -0.22,
       textAlign: "center",
       color: tokens.fg1,
     },
     emptyText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 15,
       lineHeight: 22,
       maxWidth: 280,
@@ -40,7 +40,7 @@ export function createStyles(tokens: Tokens) {
       color: tokens.fg2,
     },
     aiDisclaimer: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 11,
       lineHeight: 15,
       textAlign: "center",

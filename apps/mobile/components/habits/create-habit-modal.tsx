@@ -544,7 +544,7 @@ function createStyles(
       gap: 22,
     },
     fieldLabel: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 14,
       color: tokens.fg2,
     },
@@ -574,7 +574,7 @@ function createStyles(
     subHabitIndex: {
       width: 16,
       textAlign: 'right',
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       fontVariant: ['tabular-nums'],
       letterSpacing: 0.24,
@@ -585,7 +585,7 @@ function createStyles(
       minHeight: 44,
       backgroundColor: 'transparent',
       color: tokens.fg1,
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 15,
       borderWidth: 0,
       borderRadius: 0,
@@ -611,7 +611,7 @@ function createStyles(
       backgroundColor: tokens.bgElev,
     },
     addSubHabitText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 13,
       color: tokens.fg2,
     },

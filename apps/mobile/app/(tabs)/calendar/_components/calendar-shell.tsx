@@ -94,7 +94,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       transform: [{ scale: 0.96 }],
     },
     monthTitle: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 17,
       letterSpacing: -0.17,
       color: tokens.fg1,
@@ -108,7 +108,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingHorizontal: 8,
     },
     yearTitle: {
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 17,
       color: tokens.fg1,
       fontVariant: ['tabular-nums'],
@@ -165,7 +165,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderColor: tokens.fg4,
     },
     legendLabel: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.fg3,
     },

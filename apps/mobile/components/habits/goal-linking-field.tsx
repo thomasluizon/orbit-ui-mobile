@@ -27,7 +27,10 @@ async function fetchGoals(): Promise<Goal[]> {
 export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }: Readonly<GoalLinkingFieldProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -69,14 +72,14 @@ function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingTop: 8 },
     chip: { backgroundColor: tokens.bgWell, borderRadius: 8, maxWidth: '100%', paddingHorizontal: 8, paddingVertical: 8 },
-    chipText: { color: tokens.fg2, fontFamily: 'Rubik_500Medium', fontSize: 13, flexShrink: 1 },
-    list: { gap: 4 }, count: { color: tokens.fg3, fontFamily: 'Rubik_400Regular', fontSize: 12, padding: 8 },
+    chipText: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 13, flexShrink: 1 },
+    list: { gap: 4 }, count: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12, padding: 8 },
     search: { backgroundColor: tokens.bgField, borderColor: tokens.hairline, borderRadius: 12, borderWidth: 1, color: tokens.fg1, marginBottom: 8, minHeight: 44, paddingHorizontal: 12 },
     virtualList: { maxHeight: 360 },
     row: { alignItems: 'center', borderRadius: 12, flexDirection: 'row', gap: 12, minHeight: 48, paddingHorizontal: 12 },
     rowTitle: { color: tokens.fg1, flex: 1, fontFamily: 'Geist_400Regular', fontSize: 16 },
-    rowValue: { color: tokens.fg3, fontFamily: 'Roboto_400Regular', fontSize: 12 }, disabled: { opacity: 0.4 }, pressed: { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
+    rowValue: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 }, disabled: { opacity: 0.4 }, pressed: { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] },
     empty: { alignItems: 'center', gap: 16, padding: 32 }, emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' },
-    action: { backgroundColor: tokens.bgWell, borderRadius: 999, minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 }, actionText: { color: tokens.fg1, fontFamily: 'Rubik_500Medium', fontSize: 14 },
+    action: { backgroundColor: tokens.bgWell, borderRadius: 999, minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 }, actionText: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
   })
 }

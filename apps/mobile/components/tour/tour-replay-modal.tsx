@@ -195,12 +195,12 @@ function createStyles(tokens: AppTokens) {
       gap: 2,
     },
     sectionTitle: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 18,
       color: tokens.fg1,
     },
     sectionSteps: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       color: tokens.fg3,
     },

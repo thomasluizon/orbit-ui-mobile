@@ -205,12 +205,12 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 4,
     },
     sectionTitle: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 16,
       color: tokens.fg1,
     },
     sectionDesc: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13.5,
       color: tokens.fg3,
       lineHeight: 21,

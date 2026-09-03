@@ -315,19 +315,19 @@ function createTooltipStyles(tokens: AppTokens) {
       marginBottom: 12,
     },
     sectionName: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
       letterSpacing: 0.96,
       textTransform: 'uppercase',
       color: tokens.fg3,
     },
     headerDot: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 12,
       color: tokens.fg4,
     },
     stepCount: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontVariant: ['tabular-nums'],
       fontSize: 12,
       letterSpacing: 0.48,
@@ -338,14 +338,14 @@ function createTooltipStyles(tokens: AppTokens) {
       marginLeft: 'auto' as const,
     },
     title: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 16,
       letterSpacing: -0.16,
       color: tokens.fg1,
       marginBottom: 6,
     },
     description: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 22,
       color: tokens.fg2,
@@ -389,7 +389,7 @@ function createTooltipStyles(tokens: AppTokens) {
       transform: [{ scale: 0.96 }],
     },
     nextButtonText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 15,
       color: tokens.fgOnPrimary,
     },
@@ -407,7 +407,7 @@ function createTooltipStyles(tokens: AppTokens) {
       transform: [{ scale: 0.96 }],
     },
     skipButtonText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.fg3,
     },

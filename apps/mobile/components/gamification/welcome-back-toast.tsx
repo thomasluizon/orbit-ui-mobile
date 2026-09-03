@@ -254,13 +254,13 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   eyebrow: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 11,
     letterSpacing: 0.88,
     textTransform: 'uppercase',
   },
   message: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
     lineHeight: 21,
   },

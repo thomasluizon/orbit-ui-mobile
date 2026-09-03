@@ -49,7 +49,7 @@ const features: FeatureItem[] = [
 
 /**
  * Features step: "What else Orbit does." Hairline-divided kit list rows with
- * 22px icons, Rubik titles, and muted descriptions.
+ * 22px icons, Geist Sans titles, and muted descriptions.
  */
 export function OnboardingFeatures() {
   const { t } = useTranslation()
@@ -135,7 +135,7 @@ function createStyles(tokens: AppTokensV2) {
       paddingBottom: 12,
     },
     title: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 24,
       letterSpacing: -0.24,
       lineHeight: 31,
@@ -164,12 +164,12 @@ function createStyles(tokens: AppTokensV2) {
       gap: 3,
     },
     featureTitle: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 16,
       color: tokens.fg1,
     },
     featureDesc: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13.5,
       lineHeight: 19,
       color: tokens.fg3,

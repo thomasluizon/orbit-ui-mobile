@@ -91,7 +91,7 @@ const rowStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     textAlign: 'center',
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 13,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },

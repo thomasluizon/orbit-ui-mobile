@@ -62,7 +62,7 @@ function createStyles(tokens: Tokens) {
       gap: 8,
     },
     title: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 15,
       color: tokens.fg1,
       flexShrink: 1,
@@ -73,7 +73,7 @@ function createStyles(tokens: Tokens) {
       textDecorationColor: tokens.hairlineStrong,
     },
     time: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       color: tokens.fg3,
       fontVariant: ["tabular-nums"],
@@ -87,7 +87,7 @@ function createStyles(tokens: Tokens) {
       borderColor: tokens.hairline,
     },
     statusText: {
-      fontFamily: 'Rubik_600SemiBold',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 10.5,
       letterSpacing: 0.63,
     },

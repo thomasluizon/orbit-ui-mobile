@@ -78,7 +78,7 @@ function createStyles(tokens: AppTokens) {
       transform: [{ scale: 0.96 }],
     },
     chipText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 13,
       color: tokens.fg2,
     },

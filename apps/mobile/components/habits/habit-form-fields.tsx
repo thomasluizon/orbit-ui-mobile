@@ -487,8 +487,8 @@ function createStyles(tokens: AppTokens) {
     avoidRow: { alignItems: 'center', flexDirection: 'row', gap: 16 },
     avoidCopy: { flex: 1, minWidth: 0, gap: 4 },
     avoidTitle: { color: tokens.fg1, fontFamily: 'Geist_400Regular', fontSize: 17 },
-    meta: { color: tokens.fg3, fontFamily: 'Rubik_400Regular', fontSize: 12 },
-    hint: { color: tokens.fg3, fontFamily: 'Rubik_400Regular', fontSize: 14, lineHeight: 21 },
+    meta: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 },
+    hint: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
     startDateValue: { color: tokens.fg1, fontFamily: 'Geist_400Regular', fontSize: 17 },
   })
 }

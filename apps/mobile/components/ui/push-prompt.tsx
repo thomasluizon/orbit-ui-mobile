@@ -16,7 +16,7 @@ const STORAGE_KEY = 'orbit_push_prompted'
 /**
  * Push prompt per the PushPrompt artboard: a bottom sheet in its own Modal
  * (dimmed backdrop, docked over the tab bar) with a primary-tinted bell disc,
- * Rubik 20/500 title, fg-2 body, and stacked primary/ghost pill actions.
+ * Geist Sans 20/500 title, fg-2 body, and stacked primary/ghost pill actions.
  * Permission flow unchanged.
  */
 export function PushPrompt() {
@@ -218,18 +218,18 @@ function createStyles(tokens: AppTokensV2) {
       marginTop: -4,
     },
     title: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 20,
       color: tokens.fg1,
     },
     description: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 15,
       lineHeight: 22,
       color: tokens.fg2,
     },
     retryText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 12,
       color: tokens.statusOverdueText,
     },
