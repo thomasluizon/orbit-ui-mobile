@@ -137,7 +137,7 @@ export function HabitEmojiSelector({
                     accessibilityLabel={t(category.labelKey)}
                     accessibilityState={{ selected }}
                   >
-                    <Text style={[styles.emojiCategoryTabText, selected ? styles.emojiCategoryTabTextActive : null]}>
+                    <Text numberOfLines={1} style={[styles.emojiCategoryTabText, selected ? styles.emojiCategoryTabTextActive : null]}>
                       {t(category.labelKey)}
                     </Text>
                   </Pressable>

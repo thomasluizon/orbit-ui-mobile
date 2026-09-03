@@ -110,7 +110,7 @@ export function Sheet({
 
   const header = title || headerAccessory || onClose ? (
     <View style={styles.header}>
-      {title ? <Text style={styles.title}>{title}</Text> : <View style={styles.titleSpacer} />}
+      {title ? <Text numberOfLines={1} style={styles.title}>{title}</Text> : <View style={styles.titleSpacer} />}
       {headerAccessory}
       {onClose ? (
         <Pressable

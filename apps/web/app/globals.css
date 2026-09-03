@@ -97,7 +97,9 @@
   font-weight: 500;
   line-height: 1.2;
   letter-spacing: -0.02em;
-  text-wrap: balance;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .orbit-sheet-close {

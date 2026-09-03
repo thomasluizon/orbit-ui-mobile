@@ -38,10 +38,10 @@ interface ChecklistTemplatesEmptyStateProps {
 function ChecklistTemplatesEmptyState({ canSave, onSave, styles, translate }: Readonly<ChecklistTemplatesEmptyStateProps>) {
   return (
     <View style={styles.emptyState}>
-      <Text style={styles.emptyTitle}>{translate('habits.form.noTemplates')}</Text>
+      <Text numberOfLines={1} style={styles.emptyTitle}>{translate('habits.form.noTemplates')}</Text>
       <Text style={styles.emptyDescription}>{translate('habits.form.noTemplatesDescription')}</Text>
       <Pressable accessibilityRole="button" accessibilityState={{ disabled: !canSave }} disabled={!canSave} style={[styles.emptyAction, !canSave ? styles.saveButtonDisabled : null]} onPress={onSave}>
-        <Text style={styles.emptyActionText}>{translate('habits.form.saveCurrentList')}</Text>
+        <Text numberOfLines={1} style={styles.emptyActionText}>{translate('habits.form.saveCurrentList')}</Text>
       </Pressable>
       {!canSave ? <Text style={styles.emptyReason}>{translate('habits.form.saveCurrentListDisabled')}</Text> : null}
     </View>
@@ -232,9 +232,9 @@ function createStyles(tokens: AppTokens) {
     },
     emptyState: { alignItems: 'center', gap: 12, paddingHorizontal: 24, paddingVertical: 32 },
     emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' },
-    emptyDescription: { color: tokens.fg3, fontFamily: 'Rubik_400Regular', fontSize: 14, textAlign: 'center' },
+    emptyDescription: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' },
     emptyAction: { backgroundColor: tokens.bgWell, borderRadius: 999, minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 },
-    emptyActionText: { color: tokens.fg1, fontFamily: 'Rubik_500Medium', fontSize: 14 },
-    emptyReason: { color: tokens.fg3, fontFamily: 'Rubik_400Regular', fontSize: 12, textAlign: 'center' },
+    emptyActionText: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
+    emptyReason: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 12, textAlign: 'center' },
   })
 }

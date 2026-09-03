@@ -19,7 +19,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
         </View>
       ) : null}
       <View style={styles.textBlock}>
-        <Text style={[styles.title, { color: titleColor }]}>{title}</Text>
+        <Text numberOfLines={1} style={[styles.title, { color: titleColor }]}>{title}</Text>
         {description ? <Text style={[styles.description, { color: tokens.fg3 }]}>{description}</Text> : null}
       </View>
       {value ? <Text style={[styles.value, { color: tokens.fg3 }]} numberOfLines={1}>{value}</Text> : null}
