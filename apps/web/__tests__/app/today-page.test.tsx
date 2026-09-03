@@ -169,6 +169,20 @@ function createMotionView(
   } as unknown as TodayView
 }
 
+function getRenderedMotionStyle(testId: string) {
+  const style = motionTestState.renderedStyles.get(testId)
+  if (!style || style.opacity === undefined || style.y === undefined) {
+    throw new Error(`${testId} must own opacity and y motion values`)
+  }
+  return style
+}
+
+function getAnimationForStyleValue(styleValue: unknown) {
+  const animation = motionTestState.animations.find((entry) => entry.value === styleValue)
+  if (!animation) throw new Error('Expected the wrapper MotionValue to be animated')
+  return animation
+}
+
 describe('Hoje date control', () => {
   beforeEach(() => {
     motionTestState.animations.length = 0
@@ -325,26 +339,28 @@ describe('Hoje date control', () => {
     const { rerender } = render(<TodayHabitsPanel view={createMotionView('2026-04-08')} />)
     const refetchWrapper = screen.getByTestId('today-refetch-motion')
     const dayWrapper = screen.getByTestId('today-day-motion')
+    const refetchStyle = getRenderedMotionStyle('today-refetch-motion')
+    const dayStyle = getRenderedMotionStyle('today-day-motion')
 
     expect(refetchWrapper).toContainElement(dayWrapper)
     expect(dayWrapper).toContainElement(screen.getByTestId('today-habit-list'))
+    expect(dayStyle.opacity).not.toBe(refetchStyle.opacity)
+    expect(dayStyle.y).not.toBe(refetchStyle.y)
     motionTestState.animations.length = 0
 
     rerender(<TodayHabitsPanel view={createMotionView('2026-04-09')} />)
-    const firstDayOpacity = motionTestState.animations.find((entry) => (
-      entry.from === 0.9 && entry.target === 1
-    ))
-    const firstDayShift = motionTestState.animations.find((entry) => (
-      entry.from === 8 && entry.target === 0
-    ))
-    const dayStyle = motionTestState.renderedStyles.get('today-day-motion')
-    expect(dayStyle?.opacity).toBe(firstDayOpacity?.value)
-    expect(dayStyle?.y).toBe(firstDayShift?.value)
-    expect(firstDayShift?.options).toMatchObject({
-      duration: 0.22,
-      ease: [0.16, 1, 0.3, 1],
+    const firstDayOpacity = getAnimationForStyleValue(dayStyle.opacity)
+    const firstDayShift = getAnimationForStyleValue(dayStyle.y)
+    expect(firstDayOpacity).toMatchObject({ from: 0.9, target: 1 })
+    expect(firstDayShift).toMatchObject({
+      from: 8,
+      target: 0,
+      options: {
+        duration: 0.22,
+        ease: [0.16, 1, 0.3, 1],
+      },
     })
-    firstDayShift?.value.set(3)
+    firstDayShift.value.set(3)
     motionTestState.animations.length = 0
 
     rerender(<TodayHabitsPanel view={createMotionView('2026-04-10')} />)
@@ -354,15 +370,10 @@ describe('Hoje date control', () => {
     motionTestState.animations.length = 0
 
     rerender(<TodayHabitsPanel view={createMotionView('2026-04-10', true)} />)
-    const refetchOpacity = motionTestState.animations.find((entry) => (
-      entry.from === 1 && entry.target === 0.8
-    ))
-    const refetchShift = motionTestState.animations.find((entry) => (
-      entry.from === 0 && entry.target === 4
-    ))
-    const refetchStyle = motionTestState.renderedStyles.get('today-refetch-motion')
-    expect(refetchStyle?.opacity).toBe(refetchOpacity?.value)
-    expect(refetchStyle?.y).toBe(refetchShift?.value)
+    const refetchOpacity = getAnimationForStyleValue(refetchStyle.opacity)
+    const refetchShift = getAnimationForStyleValue(refetchStyle.y)
+    expect(refetchOpacity).toMatchObject({ from: 1, target: 0.8 })
+    expect(refetchShift).toMatchObject({ from: 0, target: 4 })
   })
 
   it('does not apply refetch motion during a cold client fetch', () => {
