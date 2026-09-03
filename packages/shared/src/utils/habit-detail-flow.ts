@@ -337,6 +337,7 @@ export function appendHabitDetailChild(
     emoji: request.emoji ?? null,
     frequencyUnit: request.frequencyUnit ?? null,
     frequencyQuantity: request.frequencyQuantity ?? null,
+    intervalWeeks: request.intervalWeeks ?? null,
     isBadHabit: request.isBadHabit ?? false,
     isCompleted: false,
     isGeneral: detail.isGeneral,

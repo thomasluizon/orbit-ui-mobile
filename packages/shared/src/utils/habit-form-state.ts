@@ -156,7 +156,7 @@ export function buildEditHabitFormState(
       emoji: detail?.emoji ?? habit.emoji ?? '',
       frequencyUnit: habit.frequencyUnit,
       frequencyQuantity: habit.frequencyQuantity,
-      intervalWeeks: habit.intervalWeeks ?? 1,
+      intervalWeeks: detail?.intervalWeeks ?? habit.intervalWeeks ?? 1,
       days: [...habit.days],
       isBadHabit: habit.isBadHabit,
       isGeneral: habit.isGeneral,

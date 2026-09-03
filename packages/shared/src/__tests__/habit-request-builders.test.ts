@@ -240,6 +240,18 @@ describe('habit-request-builders', () => {
     })
   })
 
+  it('sends a preserved biweekly detail interval on save', () => {
+    const request = buildUpdateHabitRequest(
+      makeFormData({ frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 2 }),
+      false,
+      '',
+      [],
+      [],
+    )
+
+    expect(request.intervalWeeks).toBe(2)
+  })
+
   it('builds update requests with due-time reminders and leaves the scheduled store untouched', () => {
     const timedRequest = buildUpdateHabitRequest(
       makeFormData({

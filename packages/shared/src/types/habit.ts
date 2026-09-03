@@ -78,7 +78,7 @@ const baseHabitFieldsSchema = z.object({
   emoji: z.string().nullable().optional(),
   frequencyUnit: frequencyUnitSchema.nullable(),
   frequencyQuantity: z.number().nullable(),
-  intervalWeeks: z.number().int().min(1).max(MAX_HABIT_INTERVAL_WEEKS).optional(),
+  intervalWeeks: z.number().int().min(1).max(MAX_HABIT_INTERVAL_WEEKS).nullable().optional(),
   isBadHabit: z.boolean(),
   isCompleted: z.boolean(),
   isGeneral: z.boolean(),
@@ -99,6 +99,7 @@ export const habitScheduleChildSchema: z.ZodType<{
   emoji?: string | null
   frequencyUnit: FrequencyUnit | null
   frequencyQuantity: number | null
+  intervalWeeks?: number | null
   isBadHabit: boolean
   isCompleted: boolean
   isGeneral: boolean
@@ -181,6 +182,7 @@ export const habitDetailChildSchema: z.ZodType<{
   emoji?: string | null
   frequencyUnit: FrequencyUnit | null
   frequencyQuantity: number | null
+  intervalWeeks?: number | null
   isBadHabit: boolean
   isCompleted: boolean
   isGeneral: boolean

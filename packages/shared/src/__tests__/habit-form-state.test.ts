@@ -20,6 +20,7 @@ function makeHabit(overrides: Partial<NormalizedHabit> = {}): NormalizedHabit {
     emoji: overrides.emoji ?? null,
     frequencyUnit: 'frequencyUnit' in overrides ? (overrides.frequencyUnit ?? null) : 'Day',
     frequencyQuantity: overrides.frequencyQuantity ?? 1,
+    intervalWeeks: overrides.intervalWeeks,
     isBadHabit: overrides.isBadHabit ?? false,
     isCompleted: overrides.isCompleted ?? false,
     isGeneral: overrides.isGeneral ?? false,
@@ -61,6 +62,7 @@ function makeDetail(overrides: Partial<HabitDetail> = {}): HabitDetail {
     emoji: overrides.emoji ?? null,
     frequencyUnit: overrides.frequencyUnit ?? 'Day',
     frequencyQuantity: overrides.frequencyQuantity ?? 1,
+    intervalWeeks: 'intervalWeeks' in overrides ? overrides.intervalWeeks : null,
     isBadHabit: overrides.isBadHabit ?? false,
     isCompleted: overrides.isCompleted ?? false,
     isGeneral: overrides.isGeneral ?? false,
@@ -156,6 +158,15 @@ describe('habit-form-state', () => {
     expect(state.formValues.dueEndTime).toBe('09:00')
     expect(state.formValues.emoji).toBe('📚')
     expect(state.originalEndDate).toBe('2025-02-10')
+  })
+
+  it('prefers a biweekly detail interval when the schedule-list fallback omitted it', () => {
+    const state = buildEditHabitFormState(
+      makeHabit({ intervalWeeks: undefined }),
+      makeDetail({ intervalWeeks: 2 }),
+    )
+
+    expect(state.formValues.intervalWeeks).toBe(2)
   })
 
   it('resolves and applies modes', () => {
