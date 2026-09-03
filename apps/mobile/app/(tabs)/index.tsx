@@ -189,30 +189,32 @@ export default function TodayScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: tokens.bg }]}>
-      <Animated.View style={[styles.listBand, motion.dayAnimatedStyle, motion.refetchAnimatedStyle]}>
-        <HabitList
-          ref={habitListRef}
-          view="today"
-          filters={filters}
-          selectedDate={date.selectedDate}
-          showCompleted={showCompleted}
-          isSelectMode={isSelectMode}
-          selectedHabitIds={selectedHabitIds}
-          listHeader={listHeader}
-          onCreatePress={() => setShowCreateModal(true)}
-          onSeeUpcoming={date.nextDisabled ? undefined : date.goToNextDay}
-          onDetailHabit={(habit) => router.push({
-            pathname: '/habits/[id]',
-            params: { id: habit.id, date: date.dateStr, from: 'today' },
-          })}
-          onEditHabit={(habit, onSaved) => {
-            setEditHabit(habit)
-            setEditHabitOnSaved(() => onSaved ?? null)
-          }}
-          onAllLoadedIdsChange={setAllLoadedIds}
-          onAllCollapsedChange={setHabitListAllCollapsed}
-          onSurfaceOpenChange={setListSurfaceOpen}
-        />
+      <Animated.View style={[styles.listBand, motion.refetchAnimatedStyle]}>
+        <Animated.View style={[styles.listBand, motion.dayAnimatedStyle]}>
+          <HabitList
+            ref={habitListRef}
+            view="today"
+            filters={filters}
+            selectedDate={date.selectedDate}
+            showCompleted={showCompleted}
+            isSelectMode={isSelectMode}
+            selectedHabitIds={selectedHabitIds}
+            listHeader={listHeader}
+            onCreatePress={() => setShowCreateModal(true)}
+            onSeeUpcoming={date.nextDisabled ? undefined : date.goToNextDay}
+            onDetailHabit={(habit) => router.push({
+              pathname: '/habits/[id]',
+              params: { id: habit.id, date: date.dateStr, from: 'today' },
+            })}
+            onEditHabit={(habit, onSaved) => {
+              setEditHabit(habit)
+              setEditHabitOnSaved(() => onSaved ?? null)
+            }}
+            onAllLoadedIdsChange={setAllLoadedIds}
+            onAllCollapsedChange={setHabitListAllCollapsed}
+            onSurfaceOpenChange={setListSurfaceOpen}
+          />
+        </Animated.View>
       </Animated.View>
 
       <TodayModals

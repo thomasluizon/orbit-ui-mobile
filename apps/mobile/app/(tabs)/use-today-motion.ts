@@ -100,15 +100,17 @@ export function useTodayMotion({
 
   useEffect(() => {
     if (isSelectMode) {
-      bulkBarAnim.stopAnimation();
-      bulkBarAnim.setValue(selectionMotion.reducedMotionEnabled ? 1 : 0);
-      Animated.timing(
-        bulkBarAnim,
-        createAnimatedTimingConfig(
-          selectionMotion.enterDuration,
-          selectionMotion.enterEasing,
-        ),
-      ).start();
+      bulkBarAnim.stopAnimation(() => {
+        setRenderBulkActionBar(true);
+        bulkBarAnim.setValue(selectionMotion.reducedMotionEnabled ? 1 : 0);
+        Animated.timing(
+          bulkBarAnim,
+          createAnimatedTimingConfig(
+            selectionMotion.enterDuration,
+            selectionMotion.enterEasing,
+          ),
+        ).start();
+      });
       return;
     }
 
@@ -190,6 +192,5 @@ export function useTodayMotion({
     refetchAnimatedStyle,
     bulkBarAnimatedStyle,
     renderBulkActionBar: isSelectMode || renderBulkActionBar,
-    setRenderBulkActionBar,
   };
 }

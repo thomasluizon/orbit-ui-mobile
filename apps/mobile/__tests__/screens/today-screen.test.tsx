@@ -1,4 +1,5 @@
 import React from 'react'
+import { Animated } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
@@ -229,6 +230,23 @@ describe('Hoje date boundaries', () => {
   it('keeps seven days back loggable and marks the next day read only', () => {
     expect(getTodayBoundary('2026-04-01', '2026-04-08')).toBe('last-loggable')
     expect(getTodayBoundary('2026-03-31', '2026-04-08')).toBe('read-only')
+  })
+
+  it('composes day and refetch motion without flattening either transform', async () => {
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<TodayScreen />)
+      await Promise.resolve()
+    })
+
+    const motionViews = tree.root.findAll((node) => node.type === Animated.View).filter((node) => {
+      const styles = Array.isArray(node.props.style) ? node.props.style : [node.props.style]
+      return styles.some((style: unknown) => (
+        typeof style === 'object' && style !== null && 'transform' in style
+      ))
+    })
+
+    expect(motionViews).toHaveLength(2)
   })
 
   it('registers the selection tray only while Today is focused', async () => {

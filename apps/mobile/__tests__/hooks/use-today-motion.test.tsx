@@ -105,4 +105,39 @@ describe('useTodayMotion', () => {
     expect(values.translateY.value).toBe(3)
     await motion.unmount()
   })
+
+  it('keeps the bulk action tray mounted until its exit motion completes', async () => {
+    const exitCompletions: ((result: { finished: boolean }) => void)[] = []
+    const timing = vi.spyOn(Animated, 'timing').mockImplementation(() => ({
+      start: (completion?: (result: { finished: boolean }) => void) => {
+        if (completion) exitCompletions.push(completion)
+      },
+      stop: vi.fn(),
+      reset: vi.fn(),
+    }))
+    const motion = await renderMotion('2026-04-08')
+
+    await TestRenderer.act(async () => {
+      useUIStore.setState({ isSelectMode: true })
+      await Promise.resolve()
+    })
+    expect(motion.latest.renderBulkActionBar).toBe(true)
+
+    exitCompletions.length = 0
+    await TestRenderer.act(async () => {
+      useUIStore.setState({ isSelectMode: false })
+      await Promise.resolve()
+    })
+    expect(motion.latest.renderBulkActionBar).toBe(true)
+    expect(exitCompletions).toHaveLength(1)
+
+    await TestRenderer.act(async () => {
+      exitCompletions[0]?.({ finished: true })
+      await Promise.resolve()
+    })
+    expect(motion.latest.renderBulkActionBar).toBe(false)
+
+    await motion.unmount()
+    timing.mockRestore()
+  })
 })
