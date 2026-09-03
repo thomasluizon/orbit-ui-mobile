@@ -23019,6 +23019,7 @@
         "apps/mobile/__tests__/screens/support-screen.test.tsx",
         "apps/mobile/__tests__/screens/today-astra-surfaces.test.tsx",
         "apps/mobile/__tests__/screens/today-bulk-actions.test.tsx",
+        "apps/mobile/__tests__/screens/today-motion.test.tsx",
         "apps/mobile/__tests__/screens/today-screen.test.tsx",
         "apps/mobile/__tests__/screens/upgrade-screen.test.tsx"
       ],
