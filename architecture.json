@@ -23577,6 +23577,7 @@
         "apps/web/__tests__/components/command/command-palette.test.tsx",
         "apps/web/__tests__/components/habits/apply-suggestion.test.ts",
         "apps/web/__tests__/components/habits/habit-form-fields.test.tsx",
+        "apps/web/__tests__/components/shell/shell-hydration.test.tsx",
         "apps/web/__tests__/components/tour/tour-provider.test.tsx",
         "apps/web/__tests__/components/upgrade/plan-selection.test.tsx",
         "apps/web/__tests__/hooks/use-app-toast.test.ts",
