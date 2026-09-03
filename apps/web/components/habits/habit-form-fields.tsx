@@ -420,6 +420,7 @@ export function HabitFormFields({
           <div
             className="habit-form-disclosure flex flex-col px-4"
             data-open={detailsOpen}
+            inert={!detailsOpen ? true : undefined}
             style={{ gap: 24 }}
             onTransitionEnd={(event) => {
               if (!detailsOpen && event.propertyName === 'opacity') setDetailsPresented(false)
