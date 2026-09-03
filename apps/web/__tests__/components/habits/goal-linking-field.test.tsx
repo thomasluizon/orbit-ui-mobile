@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
@@ -11,6 +11,7 @@ const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 import { GoalLinkingField } from '@/components/habits/goal-linking-field'
+import { useUIStore } from '@/stores/ui-store'
 
 function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -20,6 +21,9 @@ function createWrapper() {
 }
 
 describe('GoalLinkingField', () => {
+  beforeEach(() => {
+    useUIStore.getState().setShowCreateGoalModal(false)
+  })
   it('renders label', () => {
     mockFetch.mockResolvedValue({
       ok: true,
@@ -83,6 +87,24 @@ describe('GoalLinkingField', () => {
 
     fireEvent.click(screen.getByText(/Run 100km/))
     expect(onToggleGoal).toHaveBeenCalledWith('g1')
+  })
+
+  it('retires the empty picker before opening goal creation and can reopen it', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve([]) })
+    render(
+      <GoalLinkingField selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} />,
+      { wrapper: createWrapper() },
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'habits.form.createGoal' }))
+
+    await waitFor(() => expect(screen.queryByText('habits.form.noGoals')).not.toBeInTheDocument())
+    expect(useUIStore.getState().showCreateGoalModal).toBe(true)
+
+    useUIStore.getState().setShowCreateGoalModal(false)
+    fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
+    expect(await screen.findByText('habits.form.noGoals')).toBeInTheDocument()
   })
 
   it('windows a large goal collection and keeps search above the scrolling list', async () => {

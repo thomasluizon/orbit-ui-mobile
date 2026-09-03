@@ -56,8 +56,6 @@ export default function TodayScreen() {
   const selectedHabitIds = useUIStore((state) => state.selectedHabitIds)
   const showCreateModal = useUIStore((state) => state.showCreateModal)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
-  const showCreateGoalModal = useUIStore((state) => state.showCreateGoalModal)
-  const setShowCreateGoalModal = useUIStore((state) => state.setShowCreateGoalModal)
   const setTodayFabHidden = useUIStore((state) => state.setTodayFabHidden)
 
   useEffect(() => {
@@ -227,8 +225,6 @@ export default function TodayScreen() {
         onBulkDeleteOpenChange={selection.setShowBulkDeleteConfirm}
         onConfirmBulkDelete={() => void selection.confirmBulkDelete()}
         selectedCount={selection.selectedCount}
-        showCreateGoalModal={showCreateGoalModal}
-        onCloseCreateGoal={() => setShowCreateGoalModal(false)}
         showReferral={false}
         onCloseReferral={() => {}}
       />

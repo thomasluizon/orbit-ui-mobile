@@ -10,6 +10,7 @@ import { AstraImportPrompt } from '@/components/onboarding/astra-import-prompt'
 import { AchievementToast } from '@/components/gamification/achievement-toast'
 import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
 import { GoalCompletedCelebration } from '@/components/gamification/goal-completed-celebration'
+import { CreateGoalModal } from '@/components/goals/create-goal-modal'
 import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
@@ -26,6 +27,7 @@ import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { VersionUpdateDrawer } from '@/components/version-update-drawer'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
+import { useUIStore } from '@/stores/ui-store'
 
 const isExpoGo = Constants.expoGoConfig !== null
 const PushPrompt = isExpoGo
@@ -69,6 +71,9 @@ export function OverlayLayer({
   onClearLevelUp,
   streakFreezeRef,
 }: Readonly<OverlayLayerProps>) {
+  const showCreateGoalModal = useUIStore((state) => state.showCreateGoalModal)
+  const setShowCreateGoalModal = useUIStore((state) => state.setShowCreateGoalModal)
+
   return (
     <>
       <ExpiryWarning />
@@ -113,6 +118,10 @@ export function OverlayLayer({
         </>
       ) : null}
       <VersionUpdateDrawer />
+      <CreateGoalModal
+        open={showCreateGoalModal}
+        onClose={() => setShowCreateGoalModal(false)}
+      />
       <TourProvider>
         <TourOverlay />
       </TourProvider>

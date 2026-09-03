@@ -87,6 +87,10 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
   const activeGoals = useMemo(() => goals?.filter((goal) => goal.status === 'Active') ?? [], [goals])
   const selectedSet = useMemo(() => new Set(selectedGoalIds), [selectedGoalIds])
   const selectedGoals = activeGoals.filter((goal) => selectedSet.has(goal.id))
+  const openCreateGoal = () => closeSheet(() => {
+    setOpen(false)
+    setShowCreateGoalModal(true)
+  })
 
   return (
     <>
@@ -102,7 +106,7 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
           {activeGoals.length === 0 ? (
             <div className="flex flex-col items-center px-6 py-8 text-center" style={{ gap: 12 }}>
               <p className="text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noGoals')}</p>
-              <button type="button" className="chip mt-2" onClick={() => closeSheet(() => setShowCreateGoalModal(true))}>{t('habits.form.createGoal')}</button>
+              <button type="button" className="chip mt-2" onClick={openCreateGoal}>{t('habits.form.createGoal')}</button>
             </div>
           ) : (
             <GoalPickerList goals={activeGoals} selectedIds={selectedSet} atLimit={atGoalLimit} onToggle={onToggleGoal} />
