@@ -42,7 +42,7 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
     weekdays: [
       { day: 'Sunday', pattern: /\bdom(?:ingo)?s?\b/gu },
       { day: 'Monday', pattern: /\bseg(?:unda)?s?(?:-feira)?\b/gu },
-      { day: 'Tuesday', pattern: /\bter(?:ca)?s?(?:-feira)?\b/gu },
+      { day: 'Tuesday', pattern: /\btercas?(?:-feiras?)?\b/gu },
       { day: 'Wednesday', pattern: /\bqua(?:rta)?s?(?:-feira)?\b/gu },
       { day: 'Thursday', pattern: /\bqui(?:nta)?s?(?:-feira)?\b/gu },
       { day: 'Friday', pattern: /\bsex(?:ta)?s?(?:-feira)?\b/gu },

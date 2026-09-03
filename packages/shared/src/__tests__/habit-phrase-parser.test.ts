@@ -56,6 +56,14 @@ describe('readHabitPhrase', () => {
     expect(segmentHabitPhrase(input, read.consumed).filter((segment) => !segment.consumed).map((segment) => segment.text).join('')).toContain('3 vezes na semana')
   })
 
+  it('does not mistake the Portuguese verb ter for Tuesday', () => {
+    expect(readHabitPhrase('Ter foco 3 vezes por semana', 'pt-BR')).toMatchObject({
+      cadence: 'flexible',
+      days: [],
+      frequencyQuantity: 3,
+    })
+  })
+
   it('keeps original indices after accent removal and whitespace collapse', () => {
     const input = '  TERÇA,   QUINTA às 8h30  '
     const segments = segmentHabitPhrase(input, readHabitPhrase(input, 'pt-BR').consumed)
