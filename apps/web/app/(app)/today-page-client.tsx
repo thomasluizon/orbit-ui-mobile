@@ -28,14 +28,15 @@ function TodayDayTransition({
 
   useEffect(() => {
     const previousDate = previousDateRef.current
-    if (previousDate === date) return
-    previousDateRef.current = date
-
     if (prefersReducedMotion) {
+      previousDateRef.current = date
       opacity.set(1)
       translateY.set(0)
       return
     }
+
+    if (previousDate === date) return
+    previousDateRef.current = date
 
     const isInFlight = Math.abs(translateY.get()) > 0.01 || opacity.get() < 0.999
     if (!isInFlight) {

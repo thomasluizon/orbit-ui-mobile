@@ -12,14 +12,15 @@ export function useTodayDayMotion(date: string) {
 
   useEffect(() => {
     const previousDate = previousDateRef.current
-    if (previousDate === date) return
-    previousDateRef.current = date
-
     if (motion.reducedMotionEnabled) {
+      previousDateRef.current = date
       opacity.setValue(1)
       translateY.setValue(0)
       return
     }
+
+    if (previousDate === date) return
+    previousDateRef.current = date
 
     translateY.stopAnimation((liveTranslateY) => {
       opacity.stopAnimation((liveOpacity) => {

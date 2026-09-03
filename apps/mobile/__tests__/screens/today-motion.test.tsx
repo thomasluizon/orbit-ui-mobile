@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useTodayDayMotion } from '@/app/(tabs)/use-today-motion'
 
 const mocks = vi.hoisted(() => ({
+  completeAnimations: true,
   parallel: vi.fn(),
   reducedMotion: false,
   timing: vi.fn(),
@@ -58,6 +59,7 @@ function MotionHarness({ date }: Readonly<{ date: string }>) {
 
 describe('Today day motion', () => {
   beforeEach(() => {
+    mocks.completeAnimations = true
     mocks.reducedMotion = false
     mocks.timing.mockClear()
     mocks.timingCalls.length = 0
@@ -66,7 +68,7 @@ describe('Today day motion', () => {
       mocks.timingCalls.push({ from: value.current, to: config.toValue, duration: config.duration })
       return {
         start: () => {
-          value.current = config.toValue
+          if (mocks.completeAnimations) value.current = config.toValue
         },
       }
     })
@@ -99,13 +101,20 @@ describe('Today day motion', () => {
     ])
   })
 
-  it('settles without timing when reduced motion is active', async () => {
+  it('settles an active transition when reduced motion is enabled without changing the date', async () => {
     let tree!: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<MotionHarness date="2026-09-03" />)
     })
-    mocks.reducedMotion = true
+    mocks.completeAnimations = false
 
+    await TestRenderer.act(() => {
+      tree.update(<MotionHarness date="2026-09-04" />)
+    })
+    expect(mocks.values.map((value) => value.current)).toEqual([0.9, 8])
+
+    mocks.reducedMotion = true
+    mocks.timing.mockClear()
     await TestRenderer.act(() => {
       tree.update(<MotionHarness date="2026-09-04" />)
     })

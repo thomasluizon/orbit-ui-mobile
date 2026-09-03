@@ -92,11 +92,16 @@ describe('web Today Astra owned surfaces', () => {
     expect(mocks.animate).toHaveBeenCalledTimes(4)
   })
 
-  it('settles immediately when reduced motion is active', () => {
+  it('settles an active transition when reduced motion is enabled without changing the date', () => {
     const page = render(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
-    mocks.reducedMotion = true
     mocks.view.nav.dateStr = '2026-08-28'
 
+    page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
+    expect(mocks.motionSets).toEqual([-8, 0.9])
+
+    mocks.reducedMotion = true
+    mocks.motionSets.length = 0
+    mocks.animate.mockClear()
     page.rerender(<TodayPageClient initialToday="2026-08-29" initialHabits={null} />)
 
     expect(mocks.motionSets).toEqual([1, 0])
