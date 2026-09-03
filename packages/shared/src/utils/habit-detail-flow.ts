@@ -458,19 +458,20 @@ export function formatHabitDetailReminderValue(
 
 export function mergeHabitDetailWithScopedHabit(
   detail: HabitDetail,
-  scopedHabit: NormalizedHabit | undefined,
+  authoritativeHabit: NormalizedHabit | undefined,
   date: string,
+  scopedHabit = authoritativeHabit,
 ): NormalizedHabit {
   const normalized = normalizeHabitDetailForDrill(detail, date).parent
-  if (!scopedHabit) return normalized
+  if (!authoritativeHabit) return normalized
   return {
-    ...scopedHabit,
+    ...authoritativeHabit,
     ...normalized,
-    tags: scopedHabit.tags,
-    linkedGoals: scopedHabit.linkedGoals,
-    slipAlertEnabled: scopedHabit.slipAlertEnabled,
-    flexibleTarget: scopedHabit.flexibleTarget,
-    flexibleCompleted: scopedHabit.flexibleCompleted,
-    instances: scopedHabit.instances,
+    tags: authoritativeHabit.tags,
+    linkedGoals: authoritativeHabit.linkedGoals,
+    slipAlertEnabled: authoritativeHabit.slipAlertEnabled,
+    flexibleTarget: scopedHabit?.flexibleTarget ?? authoritativeHabit.flexibleTarget,
+    flexibleCompleted: scopedHabit?.flexibleCompleted ?? authoritativeHabit.flexibleCompleted,
+    instances: scopedHabit?.instances ?? authoritativeHabit.instances,
   }
 }

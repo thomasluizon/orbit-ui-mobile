@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   detailLoading: false,
   detailError: false,
   refetch: vi.fn(),
+  allHabits: new Map<string, NormalizedHabit>(),
   scopedHabits: new Map<string, NormalizedHabit>(),
   log: vi.fn(),
   update: vi.fn(),
@@ -68,7 +69,7 @@ vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
   useHabitLogs: () => ({ data: mocks.logs }),
   useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false }),
-  useHabits: () => ({ data: { habitsById: mocks.scopedHabits, topLevelHabits: [] } }),
+  useHabits: (filters: { dateFrom?: string }) => ({ data: { habitsById: filters.dateFrom ? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: false, isError: false }),
 }))
 vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: mocks.log, mutateAsync: mocks.log }),
@@ -249,7 +250,7 @@ vi.mock('@/components/dates/month-grid', () => ({
 }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
 vi.mock('@/components/habits/goal-linking-field', () => ({
-  GoalLinkingField: ({ onToggleGoal }: { onToggleGoal: (goalId: string) => void }) => React.createElement('GoalLinkingField', { testID: 'goal-linking-field', onToggleGoal }),
+  GoalLinkingField: ({ selectedGoalIds, atGoalLimit, onToggleGoal }: { selectedGoalIds: string[]; atGoalLimit: boolean; onToggleGoal: (goalId: string) => void }) => React.createElement('GoalLinkingField', { testID: 'goal-linking-field', atGoalLimit, onToggleGoal: () => onToggleGoal(atGoalLimit ? selectedGoalIds[0]! : 'goal-2') }),
 }))
 vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({
   ReminderSection: ({ onReminderTimesChange, onToggleReminder }: { onReminderTimesChange: (offsets: number[]) => void; onToggleReminder: () => void }) => React.createElement('ReminderSection', { testID: 'offset-reminders', onReminderTimesChange, onToggleReminder }),
@@ -298,6 +299,7 @@ describe('HabitDetailScreen', () => {
       totalCompletions: 2,
       lastCompletedDate: '2026-08-27',
     }
+    mocks.allHabits = new Map([['habit-1', { ...makeScopedParent(), tags: [], linkedGoals: [], instances: [] }]])
     mocks.scopedHabits = new Map()
     mocks.log.mockReset()
     mocks.update.mockReset()
@@ -347,6 +349,7 @@ describe('HabitDetailScreen', () => {
   })
 
   it('shows authoritative tags and linked goals and opens the selected goal', () => {
+    mocks.allHabits.set('habit-1', makeScopedParent())
     mocks.scopedHabits.set('habit-1', makeScopedParent())
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
@@ -939,6 +942,37 @@ describe('HabitDetailScreen', () => {
     })
     expect(tree!.root.findAllByProps({ title: 'habits.detail.askAstra' })).toHaveLength(0)
     expect(mocks.routerPush).not.toHaveBeenCalled()
+  })
+
+  it('preserves authoritative relationship state for an off-schedule habit', () => {
+    const linkedGoals = Array.from({ length: 10 }, (_, index) => ({ id: `goal-${index + 1}`, title: `Goal ${index + 1}` }))
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
+    mocks.allHabits.set('habit-1', {
+      ...makeScopedParent(),
+      isBadHabit: true,
+      linkedGoals,
+      slipAlertEnabled: true,
+    })
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-29" />)
+    })
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    TestRenderer.act(() => disclosure!.props.onPress())
+
+    expect(tree!.root.findByProps({ title: 'habits.detail.linkedGoals' }).props.value).toBe('10')
+    TestRenderer.act(() => tree!.root.findByProps({ title: 'habits.detail.linkedGoals' }).props.onClick())
+    const goalField = tree!.root.findByProps({ testID: 'goal-linking-field' })
+    expect(goalField.props.atGoalLimit).toBe(true)
+    TestRenderer.act(() => goalField.props.onToggleGoal())
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({
+      goalIds: linkedGoals.slice(1).map((goal) => goal.id),
+    })
+
+    const slipAlert = tree!.root.findByProps({ testID: 'slip-alert-switch' })
+    expect(slipAlert.props.checked).toBe(true)
+    TestRenderer.act(() => slipAlert.props.onChange(false))
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ slipAlertEnabled: false })
   })
 
   it('restores the parent Astra suggestion after leaving a child detail', () => {

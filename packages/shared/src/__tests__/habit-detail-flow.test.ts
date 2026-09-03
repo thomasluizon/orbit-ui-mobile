@@ -194,6 +194,23 @@ describe('habit detail flow model', () => {
       .toBe(detail.title)
   })
 
+  it('keeps authoritative relationships when the selected date has no schedule item', () => {
+    const detail = { ...makeHabitDetail(), isBadHabit: true }
+    const authoritative = {
+      ...makeHabitDetailScopedParent(),
+      isBadHabit: true,
+      linkedGoals: [{ id: 'goal-1', title: 'Read more' }],
+      slipAlertEnabled: true,
+      instances: [],
+    }
+
+    expect(mergeHabitDetailWithScopedHabit(detail, authoritative, '2026-08-29', undefined)).toMatchObject({
+      linkedGoals: authoritative.linkedGoals,
+      slipAlertEnabled: true,
+      instances: [],
+    })
+  })
+
   it('builds a 30 day habit strip without a frozen state', () => {
     const model = buildHabitStripModel(recurring, [log('2026-08-28')], today, 'en')
     expect(model.days).toHaveLength(30)

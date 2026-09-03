@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   detailLoading: false,
   detailError: false,
   refetch: vi.fn(),
+  allHabits: new Map<string, NormalizedHabit>(),
   scopedHabits: new Map<string, NormalizedHabit>(),
   log: vi.fn(),
   update: vi.fn(),
@@ -58,7 +59,7 @@ vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
   useHabitLogs: () => ({ data: mocks.logs }),
   useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false }),
-  useHabits: () => ({ data: { habitsById: mocks.scopedHabits, topLevelHabits: [] } }),
+  useHabits: (filters: { dateFrom?: string }) => ({ data: { habitsById: filters.dateFrom ? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: false, isError: false }),
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
@@ -131,7 +132,7 @@ vi.mock('@/components/dates/month-grid', () => ({
 }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
 vi.mock('@/components/habits/goal-linking-field', () => ({
-  GoalLinkingField: ({ onToggleGoal }: { onToggleGoal: (goalId: string) => void }) => <button type="button" data-testid="goal-linking-field" onClick={() => onToggleGoal('goal-2')} />,
+  GoalLinkingField: ({ selectedGoalIds, atGoalLimit, onToggleGoal }: { selectedGoalIds: string[]; atGoalLimit: boolean; onToggleGoal: (goalId: string) => void }) => <button type="button" data-testid="goal-linking-field" data-goal-limit={atGoalLimit} onClick={() => onToggleGoal(atGoalLimit ? selectedGoalIds[0]! : 'goal-2')} />,
 }))
 vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({
   ReminderSection: ({ onReminderTimesChange, onToggleReminder }: { onReminderTimesChange: (offsets: number[]) => void; onToggleReminder: () => void }) => <div data-testid="offset-reminders"><button type="button" onClick={() => onReminderTimesChange([30])}>set-offset</button><button type="button" onClick={onToggleReminder}>toggle-offsets</button></div>,
@@ -190,6 +191,7 @@ describe('HabitDetailScreen', () => {
       totalCompletions: 2,
       lastCompletedDate: '2026-08-27',
     }
+    mocks.allHabits = new Map([['habit-1', { ...makeScopedParent(), tags: [], linkedGoals: [], instances: [] }]])
     mocks.scopedHabits = new Map()
     mocks.log.mockReset()
     mocks.update.mockReset()
@@ -227,6 +229,7 @@ describe('HabitDetailScreen', () => {
   })
 
   it('shows authoritative tags and moves linked goals into the inline details', () => {
+    mocks.allHabits.set('habit-1', makeScopedParent())
     mocks.scopedHabits.set('habit-1', makeScopedParent())
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
@@ -236,6 +239,33 @@ describe('HabitDetailScreen', () => {
     fireEvent.click(screen.getByTestId('list-row-habits.detail.linkedGoals'))
     expect(screen.getByTestId('goal-linking-field')).toBeInTheDocument()
     expect(mocks.routerPush).not.toHaveBeenCalled()
+  })
+
+  it('preserves authoritative relationship state for an off-schedule habit', () => {
+    const linkedGoals = Array.from({ length: 10 }, (_, index) => ({ id: `goal-${index + 1}`, title: `Goal ${index + 1}` }))
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
+    mocks.allHabits.set('habit-1', {
+      ...makeScopedParent(),
+      isBadHabit: true,
+      linkedGoals,
+      slipAlertEnabled: true,
+    })
+
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-29" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+
+    expect(screen.getByTestId('list-row-habits.detail.linkedGoals')).toHaveAttribute('data-value', '10')
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.linkedGoals'))
+    expect(screen.getByTestId('goal-linking-field')).toHaveAttribute('data-goal-limit', 'true')
+    fireEvent.click(screen.getByTestId('goal-linking-field'))
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({
+      goalIds: linkedGoals.slice(1).map((goal) => goal.id),
+    })
+
+    const slipAlert = screen.getByRole('switch', { name: 'habits.detail.slipAlert' })
+    expect(slipAlert).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(slipAlert)
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ slipAlertEnabled: false })
   })
 
   it('restores an empty rename and returns to the selected day', async () => {
