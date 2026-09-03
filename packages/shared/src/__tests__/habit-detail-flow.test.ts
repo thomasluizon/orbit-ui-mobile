@@ -121,6 +121,15 @@ describe('habit detail flow model', () => {
     })
   })
 
+  it('uses the explicit API signal when an inline edit clears the end date', () => {
+    const habit = createMockHabit({ endDate: '2026-12-31' })
+
+    expect(buildHabitDetailUpdateRequest(habit, { endDate: null })).toMatchObject({
+      endDate: null,
+      clearEndDate: true,
+    })
+  })
+
   it('builds valid inline schedule patches and clears non-daily weekdays', () => {
     expect(buildHabitDetailSchedulePatch('Day', 0, ['Monday'])).toEqual({
       frequencyUnit: 'Day',

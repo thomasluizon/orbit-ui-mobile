@@ -407,6 +407,7 @@ export function buildHabitDetailUpdateRequest(
     checklistItems: patch.checklistItems ?? habit.checklistItems,
     endDate: patch.endDate === undefined ? habit.endDate || null : patch.endDate,
   }
+  if (patch.endDate === null && habit.endDate) request.clearEndDate = true
   if (patch.slipAlertEnabled !== undefined) request.slipAlertEnabled = patch.slipAlertEnabled
   if (patch.goalIds !== undefined) request.goalIds = patch.goalIds
   return request
