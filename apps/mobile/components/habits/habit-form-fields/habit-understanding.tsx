@@ -130,9 +130,8 @@ export function HabitUnderstanding({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={labels.repeatMore}
-                disabled={intervalWeeks >= 52}
                 style={({ pressed }) => [styles.stepButton, pressed ? styles.pressed : null]}
-                onPress={() => onIntervalWeeksChange(Math.min(52, intervalWeeks + 1))}
+                onPress={() => onIntervalWeeksChange(intervalWeeks + 1)}
               >
                 <Plus size={20} strokeWidth={2} color={tokens.fg2} />
               </Pressable>

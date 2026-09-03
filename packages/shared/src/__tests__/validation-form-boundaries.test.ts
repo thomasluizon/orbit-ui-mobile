@@ -112,15 +112,16 @@ describe('habitFormSchema frequencyQuantity int().min(1) boundary', () => {
   })
 })
 
-describe('habitFormSchema intervalWeeks int().min(1).max(52) boundary', () => {
-  it.each([0, 53])('rejects %i outside the supported range', (intervalWeeks) => {
+describe('habitFormSchema intervalWeeks positive integer boundary', () => {
+  it('rejects zero', () => {
+    const intervalWeeks = 0
     const result = habitFormSchema.safeParse({ title: 'Run', intervalWeeks })
     expect(result.success).toBe(false)
     if (result.success) return
     expect(result.error.issues[0]?.path).toEqual(['intervalWeeks'])
   })
 
-  it.each([1, 52])('accepts %i at the supported boundary', (intervalWeeks) => {
+  it.each([1, 52, 999])('accepts any positive integer including %i', (intervalWeeks) => {
     const result = habitFormSchema.safeParse({ title: 'Run', intervalWeeks })
     expect(result.success).toBe(true)
     if (!result.success) return

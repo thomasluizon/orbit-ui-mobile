@@ -30,7 +30,7 @@ export const habitFormSchema = z.object({
     .default(''),
   frequencyUnit: frequencyUnitSchema.nullable().optional(),
   frequencyQuantity: z.number().int().min(1).nullable().optional(),
-  intervalWeeks: z.number().int().min(1).max(52).optional(),
+  intervalWeeks: z.number().int().min(1).optional(),
   days: z.array(z.string()).default([]),
   isBadHabit: z.boolean().default(false),
   isGeneral: z.boolean().default(false),

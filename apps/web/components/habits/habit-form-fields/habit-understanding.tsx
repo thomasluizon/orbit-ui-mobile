@@ -134,9 +134,8 @@ export function HabitUnderstanding({
               <button
                 type="button"
                 aria-label={labels.repeatMore}
-                disabled={intervalWeeks >= 52}
                 className="grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-colors duration-[240ms] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
-                onClick={() => onIntervalWeeksChange(Math.min(52, intervalWeeks + 1))}
+                onClick={() => onIntervalWeeksChange(intervalWeeks + 1)}
               >
                 <Plus size={20} strokeWidth={2} aria-hidden="true" />
               </button>
