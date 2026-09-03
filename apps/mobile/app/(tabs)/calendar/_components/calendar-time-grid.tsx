@@ -375,7 +375,7 @@ function ColumnHeader({
             styles.colHeaderDate,
             {
               color: column.isToday ? tokens.fgOnPrimary : tokens.fg1,
-              fontFamily: column.isToday ? "GeistMono_500Medium" : "GeistMono_500Medium",
+              fontFamily: "GeistMono_500Medium",
             },
           ]}
         >
