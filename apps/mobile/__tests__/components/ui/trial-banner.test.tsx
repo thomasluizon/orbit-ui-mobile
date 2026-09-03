@@ -72,7 +72,9 @@ describe('TrialBanner (mobile)', () => {
     const tree = await renderBanner()
     const banner = tree.root.findAll((node) => node.props.testID === 'trial-banner')[0]!
     const subscribe = tree.root.findAll((node) => node.props.accessibilityRole === 'button')[0]!
-    const subscribeStyle = StyleSheet.flatten(subscribe.props.style({ pressed: false }))
+    const subscribeStyleProp = subscribe.props.style
+    if (typeof subscribeStyleProp !== 'function') throw new Error('Subscribe style is not resolved')
+    const subscribeStyle = StyleSheet.flatten(subscribeStyleProp({ pressed: false }))
     expect(banner.props.style).toEqual(expect.objectContaining({ minHeight: 24 }))
     expect(subscribeStyle).toEqual(expect.objectContaining({ minHeight: 44, minWidth: 44 }))
     expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'common.dismiss')).toHaveLength(0)
