@@ -177,6 +177,16 @@ describe('habit detail flow model', () => {
     expect(buildHabitDetailTimePatch('', habit)).toEqual({ dueTime: null, dueEndTime: null })
     expect(buildHabitDetailTimePatch('10:00', habit)).toEqual({ dueTime: '10:00', dueEndTime: null })
     expect(buildHabitDetailTimePatch('08:00', habit)).toEqual({ dueTime: '08:00', dueEndTime: '09:00' })
+
+    const source = createMockHabit(habit)
+    expect(buildHabitDetailUpdateRequest(source, buildHabitDetailTimePatch('', habit)!)).toMatchObject({
+      dueTime: null,
+      dueEndTime: null,
+    })
+    expect(buildHabitDetailUpdateRequest(source, buildHabitDetailTimePatch('10:00', habit)!)).toMatchObject({
+      dueTime: '10:00',
+      dueEndTime: null,
+    })
   })
 
   it('merges scoped relationship and selected-date state into detail data', () => {

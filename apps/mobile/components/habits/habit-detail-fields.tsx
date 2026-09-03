@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useHabitDetailFieldsState, type HabitDetailPatch } from '@orbit/shared/hooks'
+import type { Time24 } from '@orbit/shared/contracts/forms'
 import { buildHabitDetailSchedulePatch, buildHabitDetailTimePatch, canInlineEditHabitSchedule, formatHabitDetailReminderValue, formatHabitReminderLabel, formatLocaleDate, HABIT_DETAIL_FREQUENCY_UNITS, HABIT_DETAIL_WEEKDAYS } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { MAX_GOALS_PER_HABIT } from '@orbit/shared/validation'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { Switch } from '@/components/ui/switch'
+import { TimeField } from '@/components/ui/time-field'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { createTokensV2 } from '@/lib/theme'
 import { GoalLinkingField } from './goal-linking-field'
@@ -38,6 +40,12 @@ function FieldActions({ onCancel, onSave }: Readonly<{ onCancel: () => void; onS
 function TextEditor({ initialValue, multiline = false, tokens, onCancel, onSave }: Readonly<{ initialValue: string; multiline?: boolean; tokens: Tokens; onCancel: () => void; onSave: (value: string) => void }>) {
   const [value, setValue] = useState(initialValue)
   return <FieldWell tokens={tokens}><TextInput autoFocus value={value} multiline={multiline} numberOfLines={multiline ? 4 : 1} style={[styles.input, multiline ? styles.multiline : null, { backgroundColor: tokens.bg, borderColor: tokens.borderControl, color: tokens.fg1 }]} onChangeText={setValue} /><FieldActions onCancel={onCancel} onSave={() => onSave(value.trim())} /></FieldWell>
+}
+
+function TimeEditor({ habit, tokens, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; tokens: Tokens; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
+  const { t } = useTranslation()
+  const [dueTime, setDueTime] = useState<Time24 | ''>((habit.dueTime ?? '') as Time24 | '')
+  return <FieldWell tokens={tokens}><TimeField label={t('habits.detail.time')} value={dueTime} onChange={setDueTime} onClear={() => setDueTime('')} /><FieldActions onCancel={onCancel} onSave={() => { const patch = buildHabitDetailTimePatch(dueTime, habit); if (patch) onSave(patch) }} /></FieldWell>
 }
 
 function FrequencyUnitChips({ unit, tokens, onChange }: Readonly<{ unit: (typeof HABIT_DETAIL_FREQUENCY_UNITS)[number]; tokens: Tokens; onChange: (unit: (typeof HABIT_DETAIL_FREQUENCY_UNITS)[number]) => void }>) {
@@ -96,7 +104,7 @@ export function HabitDetailFields({ habit, hasProAccess, locale, summary, tokens
       {openField === 'reminders' ? <FieldWell tokens={tokens}>{habit.dueTime ? <ReminderSection tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => updateReminders({ offsets })} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, t)} /> : null}{!habit.dueTime || reminderHabit.scheduledReminders.length > 0 ? <ScheduledReminderSection tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => updateReminders({ scheduled })} onValidationError={showError} nested={Boolean(habit.dueTime)} /> : null}<FieldActions onCancel={cancelReminders} onSave={saveReminderDraft} /></FieldWell> : null}
       <ScheduleField habit={habit} summary={summary} open={openField === 'schedule'} tokens={tokens} onToggle={() => toggleField('schedule')} onCancel={close} onSave={save} />
       <ListRow title={t('habits.detail.time')} value={habit.dueTime ?? t('habits.detail.noValue')} onClick={() => toggleField('time')} />
-      {openField === 'time' ? <TextEditor initialValue={habit.dueTime ?? ''} tokens={tokens} onCancel={close} onSave={(dueTime) => { const patch = buildHabitDetailTimePatch(dueTime, habit); if (patch) save(patch); else showError(t('habits.form.invalidTime')) }} /> : null}
+      {openField === 'time' ? <TimeEditor habit={habit} tokens={tokens} onCancel={close} onSave={save} /> : null}
       <ListRow title={t('habits.detail.description')} value={habit.description ?? t('habits.detail.noValue')} onClick={() => toggleField('description')} />
       {openField === 'description' ? <TextEditor initialValue={habit.description ?? ''} multiline tokens={tokens} onCancel={close} onSave={(description) => save({ description })} /> : null}
       <ListRow title={t('habits.detail.endDate')} value={habit.endDate ? formatLocaleDate(habit.endDate, locale, { dateStyle: 'medium' }) : t('habits.detail.noValue')} onClick={() => toggleField('endDate')} />

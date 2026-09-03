@@ -1,6 +1,7 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatAPIDate } from '@orbit/shared/utils'
+import type { Time24 } from '@orbit/shared/contracts/forms'
 import {
   makeHabitDetail as makeDetail,
   makeHabitDetailScopedChild as makeScopedChild,
@@ -228,9 +229,19 @@ vi.mock('@/components/ui/icons', () => ({
   ChevronDown: () => null,
   ChevronLeft: () => null,
   ChevronRight: () => null,
+  Clock3: () => null,
   ListTree: () => null,
   Plus: () => null,
   Trash2: () => null,
+  X: () => null,
+}))
+vi.mock('@/components/ui/time-field', () => ({
+  TimeField: ({ label, value, onChange, onClear }: { label: string; value: Time24 | ''; onChange: (value: Time24) => void; onClear: () => void }) => React.createElement('TextInput', {
+    accessibilityLabel: label,
+    value,
+    onChangeText: (next: string) => { if (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(next)) onChange(next as Time24) },
+    onClear,
+  }),
 }))
 vi.mock('@/components/ui/list-row', () => ({
   ListRow: ({ title, description, value, trailing, onClick }: { title: string; description?: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }) => React.createElement('ListRow', { title, description, value, onClick }, trailing),
@@ -756,7 +767,7 @@ describe('HabitDetailScreen', () => {
     expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ frequencyUnit: 'Day', frequencyQuantity: 3 })
 
     for (const [title, value, expected] of [
-      ['habits.detail.time', ' 10:15 ', { dueTime: '10:15' }],
+      ['habits.detail.time', '10:15', { dueTime: '10:15', dueEndTime: null }],
       ['habits.detail.description', ' Better note ', { description: 'Better note' }],
       ['habits.detail.endDate', ' ', { endDate: null }],
     ] as const) {

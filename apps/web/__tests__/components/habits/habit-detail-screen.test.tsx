@@ -1,6 +1,7 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
+import type { Time24 } from '@orbit/shared/contracts/forms'
 import { formatAPIDate } from '@orbit/shared/utils'
 import {
   makeHabitDetail as makeDetail,
@@ -133,6 +134,14 @@ vi.mock('@/components/dates/month-grid', () => ({
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
 vi.mock('@/components/habits/goal-linking-field', () => ({
   GoalLinkingField: ({ selectedGoalIds, atGoalLimit, onToggleGoal }: { selectedGoalIds: string[]; atGoalLimit: boolean; onToggleGoal: (goalId: string) => void }) => <button type="button" data-testid="goal-linking-field" data-goal-limit={atGoalLimit} onClick={() => onToggleGoal(atGoalLimit ? selectedGoalIds[0]! : 'goal-2')} />,
+}))
+vi.mock('@/components/ui/time-field', () => ({
+  TimeField: ({ label, value, onChange, onClear }: { label: string; value: Time24 | ''; onChange: (value: Time24) => void; onClear: () => void }) => (
+    <div>
+      <input aria-label={label} value={value} onChange={(event) => { if (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(event.target.value)) onChange(event.target.value as Time24) }} />
+      <button type="button" onClick={onClear}>clear-time</button>
+    </div>
+  ),
 }))
 vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({
   ReminderSection: ({ onReminderTimesChange, onToggleReminder }: { onReminderTimesChange: (offsets: number[]) => void; onToggleReminder: () => void }) => <div data-testid="offset-reminders"><button type="button" onClick={() => onReminderTimesChange([30])}>set-offset</button><button type="button" onClick={onToggleReminder}>toggle-offsets</button></div>,
@@ -528,10 +537,10 @@ describe('HabitDetailScreen', () => {
     expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 3, days: [] })
 
     fireEvent.click(screen.getByTestId('list-row-habits.detail.time'))
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: ' 10:15 ' } })
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '10:15' } })
     fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
     await act(async () => Promise.resolve())
-    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ dueTime: '10:15' })
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ dueTime: '10:15', dueEndTime: null })
 
     fireEvent.click(screen.getByTestId('list-row-habits.detail.description'))
     fireEvent.change(screen.getByRole('textbox'), { target: { value: ' Better note ' } })
