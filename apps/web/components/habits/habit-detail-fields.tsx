@@ -82,13 +82,17 @@ export function HabitDetailFields({ habit, hasProAccess, locale, summary, onPatc
   const t = useTranslations()
   const { showError } = useAppToast()
   const fields = useHabitDetailFieldsState(habit, onPatch)
-  const { close, goalIds, openField, reminderHabit, save, toggleField, toggleGoal, updateReminders } = fields
+  const { cancelReminders, close, goalIds, openField, reminderHabit, save, saveReminders, toggleField, toggleGoal, updateReminders } = fields
+  const saveReminderDraft = () => {
+    const validationError = saveReminders()
+    if (validationError) showError(t(validationError))
+  }
   return (
     <div className="flex flex-col gap-1">
       <ListRow title={t('habits.detail.linkedGoals')} value={goalIds.length ? String(goalIds.length) : t('habits.detail.noValue')} onClick={() => toggleField('goals')} />
       {openField === 'goals' ? <FieldWell><GoalLinkingField selectedGoalIds={goalIds} atGoalLimit={goalIds.length >= MAX_GOALS_PER_HABIT} onToggleGoal={toggleGoal} /></FieldWell> : null}
       <ListRow title={t('habits.detail.reminders')} value={formatHabitDetailReminderValue(reminderHabit, (key) => t(key))} onClick={() => toggleField('reminders')} />
-      {openField === 'reminders' ? <FieldWell>{habit.dueTime ? <ReminderSection reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => updateReminders({ offsets })} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} t={t} /> : <ScheduledReminderSection reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => updateReminders({ scheduled })} onValidationError={showError} t={t} />}</FieldWell> : null}
+      {openField === 'reminders' ? <FieldWell>{habit.dueTime ? <ReminderSection reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => updateReminders({ offsets })} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} t={t} /> : null}{!habit.dueTime || reminderHabit.scheduledReminders.length > 0 ? <ScheduledReminderSection reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => updateReminders({ scheduled })} onValidationError={showError} nested={Boolean(habit.dueTime)} t={t} /> : null}<FieldActions onCancel={cancelReminders} onSave={saveReminderDraft} /></FieldWell> : null}
       <ScheduleField habit={habit} summary={summary} open={openField === 'schedule'} onToggle={() => toggleField('schedule')} onCancel={close} onSave={save} />
       <ListRow title={t('habits.detail.time')} value={habit.dueTime ?? t('habits.detail.noValue')} onClick={() => toggleField('time')} />
       {openField === 'time' ? <TextEditor initialValue={habit.dueTime ?? ''} onCancel={close} onSave={(dueTime) => { const patch = buildHabitDetailTimePatch(dueTime, habit); if (patch) save(patch); else showError(t('habits.form.invalidTime')) }} /> : null}

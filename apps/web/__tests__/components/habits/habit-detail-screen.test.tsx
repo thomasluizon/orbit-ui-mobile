@@ -138,7 +138,7 @@ vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({
   ReminderSection: ({ onReminderTimesChange, onToggleReminder }: { onReminderTimesChange: (offsets: number[]) => void; onToggleReminder: () => void }) => <div data-testid="offset-reminders"><button type="button" onClick={() => onReminderTimesChange([30])}>set-offset</button><button type="button" onClick={onToggleReminder}>toggle-offsets</button></div>,
 }))
 vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({
-  ScheduledReminderSection: ({ onSetScheduledReminders, onToggleReminder }: { onSetScheduledReminders: (scheduled: { when: 'same_day'; time: string }[]) => void; onToggleReminder: () => void }) => <div data-testid="scheduled-reminders"><button type="button" onClick={() => onSetScheduledReminders([{ when: 'same_day', time: '08:00' }])}>set-scheduled</button><button type="button" onClick={onToggleReminder}>toggle-scheduled</button></div>,
+  ScheduledReminderSection: ({ onSetScheduledReminders, onToggleReminder }: { onSetScheduledReminders: (scheduled: { when: 'same_day'; time: string }[]) => void; onToggleReminder: () => void }) => <div data-testid="scheduled-reminders"><button type="button" onClick={() => onSetScheduledReminders([{ when: 'same_day', time: '08:00' }])}>set-scheduled</button><button type="button" onClick={() => onSetScheduledReminders([])}>remove-scheduled</button><button type="button" onClick={onToggleReminder}>toggle-scheduled</button></div>,
 }))
 vi.mock('@/components/habits/habit-checklist', () => ({
   HabitChecklist: ({ interactive, editable, onToggle, onClear }: { interactive: boolean; editable: boolean; onToggle: (index: number) => void; onClear: () => void }) => (
@@ -434,7 +434,7 @@ describe('HabitDetailScreen', () => {
     expect(screen.queryByTestId('edit-habit-modal')).not.toBeInTheDocument()
   })
 
-  it('shows reminder offsets before schedule and edits them inline', () => {
+  it('shows reminder offsets before schedule and edits them inline', async () => {
     const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
@@ -448,9 +448,11 @@ describe('HabitDetailScreen', () => {
     fireEvent.click(reminderRow)
     expect(screen.getByTestId('scheduled-reminders')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'set-scheduled' }))
-    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ scheduledReminders: [{ when: 'same_day', time: '08:00' }] })
     fireEvent.click(screen.getByRole('button', { name: 'toggle-scheduled' }))
-    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ reminderEnabled: true })
+    expect(mocks.update).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ reminderEnabled: true, scheduledReminders: [{ when: 'same_day', time: '08:00' }] })
 
     mocks.detail = {
       ...makeDetail(),
@@ -508,11 +510,14 @@ describe('HabitDetailScreen', () => {
     fireEvent.click(screen.getByTestId('list-row-habits.detail.linkedGoals'))
     fireEvent.click(screen.getByTestId('goal-linking-field'))
     expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ goalIds: ['goal-2'] })
+    mocks.update.mockClear()
 
     fireEvent.click(screen.getByTestId('list-row-habits.detail.reminders'))
     fireEvent.click(screen.getByRole('button', { name: 'set-offset' }))
-    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ reminderEnabled: false, reminderTimes: [30] })
     fireEvent.click(screen.getByRole('button', { name: 'toggle-offsets' }))
+    expect(mocks.update).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
     expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ reminderEnabled: true, reminderTimes: [30] })
 
     fireEvent.click(screen.getByTestId('list-row-habits.detail.schedule'))
@@ -539,6 +544,49 @@ describe('HabitDetailScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
     await act(async () => Promise.resolve())
     expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ endDate: null })
+  })
+
+  it('validates reminder drafts before mutation', async () => {
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.reminders'))
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-scheduled' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+
+    expect(mocks.update).not.toHaveBeenCalled()
+    expect(mocks.showError).toHaveBeenCalledWith('habits.form.reminderMinimumOne')
+
+    fireEvent.click(screen.getByRole('button', { name: 'set-scheduled' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({
+      reminderEnabled: true,
+      scheduledReminders: [{ when: 'same_day', time: '08:00' }],
+    })
+  })
+
+  it('edits stored scheduled reminders beside due-time offsets', async () => {
+    mocks.detail = {
+      ...makeDetail(),
+      dueTime: '09:00',
+      reminderEnabled: true,
+      reminderTimes: [15],
+      scheduledReminders: [{ when: 'same_day', time: '08:00' }],
+    }
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.reminders'))
+
+    expect(screen.getByTestId('offset-reminders')).toBeInTheDocument()
+    expect(screen.getByTestId('scheduled-reminders')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'remove-scheduled' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({
+      reminderEnabled: true,
+      reminderTimes: [15],
+      scheduledReminders: [],
+    })
   })
 
   it('sends slip alert state only from the explicit switch action', () => {
