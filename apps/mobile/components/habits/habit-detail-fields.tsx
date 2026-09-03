@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useHabitDetailFieldsState, type HabitDetailPatch } from '@orbit/shared/hooks'
-import { buildHabitDetailSchedulePatch, canInlineEditHabitSchedule, formatHabitDetailReminderValue, formatHabitReminderLabel, formatLocaleDate, HABIT_DETAIL_FREQUENCY_UNITS, HABIT_DETAIL_WEEKDAYS } from '@orbit/shared/utils'
+import { buildHabitDetailSchedulePatch, buildHabitDetailTimePatch, canInlineEditHabitSchedule, formatHabitDetailReminderValue, formatHabitReminderLabel, formatLocaleDate, HABIT_DETAIL_FREQUENCY_UNITS, HABIT_DETAIL_WEEKDAYS } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
@@ -91,7 +91,7 @@ export function HabitDetailFields({ habit, hasProAccess, locale, summary, tokens
       {openField === 'reminders' ? <FieldWell tokens={tokens}>{habit.dueTime ? <ReminderSection tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => updateReminders({ offsets })} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, t)} /> : <ScheduledReminderSection tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => updateReminders({ scheduled })} onValidationError={showError} />}</FieldWell> : null}
       <ScheduleField habit={habit} summary={summary} open={openField === 'schedule'} tokens={tokens} onToggle={() => toggleField('schedule')} onCancel={close} onSave={save} />
       <ListRow title={t('habits.detail.time')} value={habit.dueTime ?? t('habits.detail.noValue')} onClick={() => toggleField('time')} />
-      {openField === 'time' ? <TextEditor initialValue={habit.dueTime ?? ''} tokens={tokens} onCancel={close} onSave={(dueTime) => save({ dueTime })} /> : null}
+      {openField === 'time' ? <TextEditor initialValue={habit.dueTime ?? ''} tokens={tokens} onCancel={close} onSave={(dueTime) => { const patch = buildHabitDetailTimePatch(dueTime, habit); if (patch) save(patch); else showError(t('habits.form.invalidTime')) }} /> : null}
       <ListRow title={t('habits.detail.description')} value={habit.description ?? t('habits.detail.noValue')} onClick={() => toggleField('description')} />
       {openField === 'description' ? <TextEditor initialValue={habit.description ?? ''} multiline tokens={tokens} onCancel={close} onSave={(description) => save({ description })} /> : null}
       <ListRow title={t('habits.detail.endDate')} value={habit.endDate ? formatLocaleDate(habit.endDate, locale, { dateStyle: 'medium' }) : t('habits.detail.noValue')} onClick={() => toggleField('endDate')} />

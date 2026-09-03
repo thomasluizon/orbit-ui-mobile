@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { useHabitDetailFieldsState, type HabitDetailPatch } from '@orbit/shared/hooks'
 import {
   buildHabitDetailSchedulePatch,
+  buildHabitDetailTimePatch,
   canInlineEditHabitSchedule,
   formatHabitDetailReminderValue,
   formatHabitReminderLabel,
@@ -89,7 +90,7 @@ export function HabitDetailFields({ habit, hasProAccess, locale, summary, onPatc
       {openField === 'reminders' ? <FieldWell>{habit.dueTime ? <ReminderSection reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => updateReminders({ offsets })} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} t={t} /> : <ScheduledReminderSection reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => updateReminders({ scheduled })} onValidationError={showError} t={t} />}</FieldWell> : null}
       <ScheduleField habit={habit} summary={summary} open={openField === 'schedule'} onToggle={() => toggleField('schedule')} onCancel={close} onSave={save} />
       <ListRow title={t('habits.detail.time')} value={habit.dueTime ?? t('habits.detail.noValue')} onClick={() => toggleField('time')} />
-      {openField === 'time' ? <TextEditor initialValue={habit.dueTime ?? ''} onCancel={close} onSave={(dueTime) => save({ dueTime })} /> : null}
+      {openField === 'time' ? <TextEditor initialValue={habit.dueTime ?? ''} onCancel={close} onSave={(dueTime) => { const patch = buildHabitDetailTimePatch(dueTime, habit); if (patch) save(patch); else showError(t('habits.form.invalidTime')) }} /> : null}
       <ListRow title={t('habits.detail.description')} value={habit.description ?? t('habits.detail.noValue')} onClick={() => toggleField('description')} />
       {openField === 'description' ? <TextEditor initialValue={habit.description ?? ''} multiline onCancel={close} onSave={(description) => save({ description })} /> : null}
       <ListRow title={t('habits.detail.endDate')} value={habit.endDate ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(`${habit.endDate}T00:00:00`)) : t('habits.detail.noValue')} onClick={() => toggleField('endDate')} />

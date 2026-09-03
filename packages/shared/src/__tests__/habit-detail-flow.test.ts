@@ -4,6 +4,7 @@ import type { HabitMetrics } from '../types/habit'
 import {
   appendHabitDetailChild,
   buildHabitDetailSchedulePatch,
+  buildHabitDetailTimePatch,
   canInlineEditHabitSchedule,
   buildHabitDetailUpdateRequest,
   buildHabitDetailChildDateModel,
@@ -168,6 +169,14 @@ describe('habit detail flow model', () => {
       reminderTimes: [],
       scheduledReminders: [],
     }, translate)).toBe('habits.detail.noValue')
+  })
+
+  it('validates inline times and clears a stale end when the start changes', () => {
+    const habit = { dueTime: '08:00', dueEndTime: '09:00' }
+    expect(buildHabitDetailTimePatch('later', habit)).toBeNull()
+    expect(buildHabitDetailTimePatch('', habit)).toEqual({ dueTime: null, dueEndTime: null })
+    expect(buildHabitDetailTimePatch('10:00', habit)).toEqual({ dueTime: '10:00', dueEndTime: null })
+    expect(buildHabitDetailTimePatch('08:00', habit)).toEqual({ dueTime: '08:00', dueEndTime: '09:00' })
   })
 
   it('merges scoped relationship and selected-date state into detail data', () => {

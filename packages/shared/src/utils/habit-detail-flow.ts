@@ -379,6 +379,7 @@ export function buildHabitDetailUpdateRequest(
     | 'frequencyQuantity'
     | 'days'
     | 'dueTime'
+    | 'dueEndTime'
     | 'reminderEnabled'
     | 'reminderTimes'
     | 'scheduledReminders'
@@ -400,7 +401,7 @@ export function buildHabitDetailUpdateRequest(
     isFlexible: habit.isFlexible,
     dueDate: habit.dueDate,
     dueTime: (patch.dueTime ?? habit.dueTime) || undefined,
-    dueEndTime: habit.dueEndTime || undefined,
+    dueEndTime: patch.dueEndTime === undefined ? habit.dueEndTime || undefined : patch.dueEndTime || undefined,
     reminderEnabled: patch.reminderEnabled ?? habit.reminderEnabled,
     reminderTimes: patch.reminderTimes ?? habit.reminderTimes,
     scheduledReminders: patch.scheduledReminders ?? habit.scheduledReminders,
@@ -411,6 +412,17 @@ export function buildHabitDetailUpdateRequest(
   if (patch.slipAlertEnabled !== undefined) request.slipAlertEnabled = patch.slipAlertEnabled
   if (patch.goalIds !== undefined) request.goalIds = patch.goalIds
   return request
+}
+
+export function buildHabitDetailTimePatch(
+  value: string,
+  habit: Pick<NormalizedHabit, 'dueEndTime' | 'dueTime'>,
+): Partial<UpdateHabitRequest> | null {
+  if (value && !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return null
+  return {
+    dueTime: value || null,
+    dueEndTime: value === habit.dueTime ? habit.dueEndTime : null,
+  }
 }
 
 export function buildHabitDetailSchedulePatch(

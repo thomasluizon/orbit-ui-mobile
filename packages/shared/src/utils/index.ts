@@ -7,6 +7,7 @@ export {
   buildHabitDetailChildDateModel,
   buildHabitDetailUpdateRequest,
   buildHabitDetailSchedulePatch,
+  buildHabitDetailTimePatch,
   canInlineEditHabitSchedule,
   buildHabitStripModel,
   canNavigateHabitHistoryBack,
