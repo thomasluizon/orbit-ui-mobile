@@ -49,6 +49,7 @@ describe('GoalLinkingField', () => {
       />,
       { wrapper: createWrapper() },
     )
+    fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
     await waitFor(() => {
       expect(screen.getByText('habits.form.noGoals')).toBeInTheDocument()
     })
@@ -74,6 +75,7 @@ describe('GoalLinkingField', () => {
       { wrapper: createWrapper() },
     )
 
+    fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
     await waitFor(() => {
       expect(screen.getByText(/Run 100km/)).toBeInTheDocument()
     })

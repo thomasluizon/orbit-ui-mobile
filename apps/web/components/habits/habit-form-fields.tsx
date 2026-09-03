@@ -30,7 +30,7 @@ import { validateTagForm } from '@orbit/shared/validation'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useConfig } from '@/hooks/use-config'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
-import { useCreateTag, useTags } from '@/hooks/use-tags'
+import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { DateField } from '@/components/ui/date-field'
 import { Input } from '@/components/ui/input'
 import { ListRow } from '@/components/ui/list-row'
@@ -275,7 +275,9 @@ export function HabitFormFields({
 
   const { tags: availableTags = [] } = useTags()
   const createTag = useCreateTag()
-  const tagMutationPending = createTag.isPending
+  const updateTag = useUpdateTag()
+  const deleteTag = useDeleteTag()
+  const tagMutationPending = createTag.isPending || updateTag.isPending || deleteTag.isPending
   const localRead = useMemo(() => readHabitPhrase(title, locale), [locale, title])
 
   useEffect(() => {
@@ -342,6 +344,17 @@ export function HabitFormFields({
     await tags.createAndSelectTag(async (name, color) => {
       try {
         return (await createTag.mutateAsync({ name, color })).id
+      } catch (error: unknown) {
+        showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
+        throw error
+      }
+    })
+  }
+
+  async function saveEditedTag() {
+    await tags.saveEditTag(async (id, name, color) => {
+      try {
+        await updateTag.mutateAsync({ tagId: id, name, color })
       } catch (error: unknown) {
         showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
         throw error
@@ -451,7 +464,7 @@ export function HabitFormFields({
             <SlipAlertEditor visible={isBadHabit} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={() => controller.setSlipAlertEnabled(!slipAlertEnabled)} t={t} />
 
             <section>
-              <TagPickerField tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} editor={tags.showNewTag ? (
+              <TagPickerField tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void tags.deleteTag(id, (tagId) => deleteTag.mutateAsync(tagId))} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? (
                 <TagEditorRow
                   value={tags.newTagName}
                   placeholder={t('habits.form.tagName')}
@@ -462,6 +475,17 @@ export function HabitFormFields({
                   onChange={tags.setNewTagName}
                   onCommit={() => void createNewTag()}
                   onCancel={() => tags.setShowNewTag(false)}
+                />
+              ) : tags.editingTagId ? (
+                <TagEditorRow
+                  value={tags.editTagName}
+                  disabled={updateTag.isPending}
+                  inputAriaLabel={t('habits.form.tagName')}
+                  cancelAriaLabel={t('common.cancel')}
+                  actionLabel={t('common.save')}
+                  onChange={tags.setEditTagName}
+                  onCommit={() => void saveEditedTag()}
+                  onCancel={tags.cancelEditTag}
                 />
               ) : undefined} />
               {tags.atTagLimit ? <p className="text-sm text-[var(--fg-3)]">{t('habits.form.tagLimit')}</p> : null}

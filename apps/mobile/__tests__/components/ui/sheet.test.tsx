@@ -320,7 +320,7 @@ describe('Sheet close path (mobile)', () => {
     })
 
     const nativeSheet = tree.root.findByType(TrueSheet)
-    const closeControl = nativeSheet.props.header.props.children[1]
+    const closeControl = nativeSheet.props.header.props.children.at(-1)
 
     await TestRenderer.act(async () => {
       closeControl.props.onPress()

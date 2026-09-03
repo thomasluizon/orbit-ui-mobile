@@ -246,7 +246,7 @@ describe('CreateHabitModal (mobile)', () => {
 
   it('shows the ungated sub-habit editor in habit mode', () => {
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
-    expect(hasText(tree.root, 'habits.form.subHabits')).toBe(true)
+    expect(tree.root.findAll((node: any) => node.type === SubHabitEditor)).toHaveLength(1)
     expect(
       tree.root.findAll((node: any) => node.props?.testID === 'pro-badge'),
     ).toHaveLength(0)

@@ -111,3 +111,33 @@ describe('habitFormSchema frequencyQuantity int().min(1) boundary', () => {
     expect(result.data.frequencyQuantity).toBeUndefined()
   })
 })
+
+describe('habitFormSchema intervalWeeks int().min(1).max(52) boundary', () => {
+  it.each([0, 53])('rejects %i outside the supported range', (intervalWeeks) => {
+    const result = habitFormSchema.safeParse({ title: 'Run', intervalWeeks })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error.issues[0]?.path).toEqual(['intervalWeeks'])
+  })
+
+  it.each([1, 52])('accepts %i at the supported boundary', (intervalWeeks) => {
+    const result = habitFormSchema.safeParse({ title: 'Run', intervalWeeks })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.data.intervalWeeks).toBe(intervalWeeks)
+  })
+
+  it('rejects a fractional interval', () => {
+    const result = habitFormSchema.safeParse({ title: 'Run', intervalWeeks: 1.5 })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error.issues[0]?.path).toEqual(['intervalWeeks'])
+  })
+
+  it('keeps an omitted interval optional', () => {
+    const result = habitFormSchema.safeParse({ title: 'Run' })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.data.intervalWeeks).toBeUndefined()
+  })
+})
