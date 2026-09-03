@@ -23334,6 +23334,7 @@
         "apps/mobile/__tests__/components/calendar-time-grid.test.tsx",
         "apps/mobile/__tests__/components/chat/breakdown-suggestion.test.tsx",
         "apps/mobile/__tests__/components/chat/list-cards.test.tsx",
+        "apps/mobile/__tests__/components/dates/date-surfaces.test.tsx",
         "apps/mobile/__tests__/components/gamification/next-reward-carrot.test.tsx",
         "apps/mobile/__tests__/components/gamification/streak-badge.test.tsx",
         "apps/mobile/__tests__/components/goals/goal-detail-drawer.test.tsx",
@@ -23870,6 +23871,7 @@
         "packages/shared/src/__tests__/chat-composer-core.test.ts",
         "packages/shared/src/__tests__/date-format-core.test.ts",
         "packages/shared/src/__tests__/dismiss-guard-core.test.ts",
+        "packages/shared/src/__tests__/habit-detail-fields-state.test.ts",
         "packages/shared/src/__tests__/pending-operation-card-state.test.ts",
         "packages/shared/src/__tests__/tag-selection-core.test.ts"
       ],
@@ -23946,12 +23948,16 @@
         "apps/mobile/__tests__/components/chat/list-cards.test.tsx",
         "apps/mobile/__tests__/components/chat/operation-outcomes.test.tsx",
         "apps/mobile/__tests__/components/chat/pending-operation-card.test.tsx",
+        "apps/mobile/__tests__/components/habits/habit-detail-screen.test.tsx",
         "apps/web/__tests__/components/chat/action-chips.test.tsx",
         "apps/web/__tests__/components/chat/breakdown-suggestion.test.tsx",
         "apps/web/__tests__/components/chat/list-cards.test.tsx",
         "apps/web/__tests__/components/chat/operation-outcomes.test.tsx",
         "apps/web/__tests__/components/chat/pending-operation-card.test.tsx",
+        "apps/web/__tests__/components/habits/habit-detail-screen.test.tsx",
         "packages/shared/src/__tests__/action-chips.test.ts",
+        "packages/shared/src/__tests__/habit-detail-fields-state.test.ts",
+        "packages/shared/src/__tests__/habit-detail-flow.test.ts",
         "packages/shared/src/__tests__/pending-operation-card.test.ts"
       ],
       "packages/shared/src/theme": [

@@ -3,20 +3,27 @@ import type { HabitLog } from '../types/calendar'
 import type { HabitMetrics } from '../types/habit'
 import {
   appendHabitDetailChild,
+  buildHabitDetailSchedulePatch,
   buildHabitDetailUpdateRequest,
   buildHabitDetailChildDateModel,
   buildHabitHistoryMonth,
   buildHabitStripModel,
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
+  formatHabitDetailReminderValue,
   isHabitCompletedOnDate,
   isHabitHistoryMonthLoaded,
   isHabitSlipping,
+  mergeHabitDetailWithScopedHabit,
   removeHabitDetailChild,
   shouldResetHabitChecklist,
   shouldShowHabitMetrics,
 } from '../utils/habit-detail-flow'
 import { createMockHabit } from './factories'
+import {
+  makeHabitDetail,
+  makeHabitDetailScopedParent,
+} from '../test-support/habit-detail-fixtures'
 
 const recurring = {
   createdAtUtc: '2026-01-01T12:00:00Z',
@@ -112,6 +119,53 @@ describe('habit detail flow model', () => {
       reminderTimes: [30],
       scheduledReminders,
     })
+  })
+
+  it('builds valid inline schedule patches and clears non-daily weekdays', () => {
+    expect(buildHabitDetailSchedulePatch('Day', 0, ['Monday'])).toEqual({
+      frequencyUnit: 'Day',
+      frequencyQuantity: 1,
+      days: ['Monday'],
+    })
+    expect(buildHabitDetailSchedulePatch('Week', 3, ['Monday'])).toEqual({
+      frequencyUnit: 'Week',
+      frequencyQuantity: 3,
+      days: [],
+    })
+  })
+
+  it('lists the actual reminder offsets and scheduled times', () => {
+    const translate = (key: string) => key
+    expect(formatHabitDetailReminderValue({
+      reminderEnabled: false,
+      reminderTimes: [10],
+      scheduledReminders: [],
+    }, translate)).toBe('habits.detail.noValue')
+    expect(formatHabitDetailReminderValue({
+      reminderEnabled: true,
+      reminderTimes: [10, 30],
+      scheduledReminders: [{ when: 'same_day', time: '08:00' }],
+    }, translate)).toBe('habits.form.reminder10min, habits.form.reminder30min, 08:00')
+    expect(formatHabitDetailReminderValue({
+      reminderEnabled: true,
+      reminderTimes: [],
+      scheduledReminders: [],
+    }, translate)).toBe('habits.detail.noValue')
+  })
+
+  it('merges scoped relationship and selected-date state into detail data', () => {
+    const detail = makeHabitDetail()
+    const scoped = makeHabitDetailScopedParent()
+    const merged = mergeHabitDetailWithScopedHabit(detail, scoped, '2026-08-28')
+
+    expect(merged).toMatchObject({
+      title: detail.title,
+      tags: scoped.tags,
+      linkedGoals: scoped.linkedGoals,
+      instances: scoped.instances,
+    })
+    expect(mergeHabitDetailWithScopedHabit(detail, undefined, '2026-08-28').title)
+      .toBe(detail.title)
   })
 
   it('builds a 30 day habit strip without a frozen state', () => {

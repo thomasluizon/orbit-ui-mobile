@@ -14,9 +14,12 @@ import type { HabitLog } from '../types/calendar'
 import type { CreateSubHabitRequest, HabitDetail, HabitDetailChild, HabitMetrics, NormalizedHabit, UpdateHabitRequest } from '../types/habit'
 import { canLogHabitOnDate } from './habit-card-helpers'
 import { formatAPIDate, parseAPIDate } from './dates'
+import { normalizeHabitDetailForDrill } from './drill-navigation'
+import { formatHabitReminderLabel } from './habit-form-helpers'
 import { getTodayBoundary } from './today-date'
 
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+export const HABIT_DETAIL_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
+export const HABIT_DETAIL_FREQUENCY_UNITS = ['Day', 'Week', 'Month', 'Year'] as const
 const HISTORY_LOOKBACK_DAYS = 365
 
 interface HabitScheduleSource {
@@ -63,7 +66,7 @@ function monthDifference(date: Date, anchor: Date): number {
 }
 
 function matchesFrequency(source: HabitScheduleSource, date: Date, anchor: Date): boolean {
-  if (source.days.length > 0 && !source.days.includes(WEEKDAYS[date.getDay()] ?? '')) {
+  if (source.days.length > 0 && !source.days.includes(HABIT_DETAIL_WEEKDAYS[date.getDay()] ?? '')) {
     return false
   }
 
@@ -407,4 +410,47 @@ export function buildHabitDetailUpdateRequest(
   if (patch.slipAlertEnabled !== undefined) request.slipAlertEnabled = patch.slipAlertEnabled
   if (patch.goalIds !== undefined) request.goalIds = patch.goalIds
   return request
+}
+
+export function buildHabitDetailSchedulePatch(
+  unit: (typeof HABIT_DETAIL_FREQUENCY_UNITS)[number],
+  quantity: number,
+  days: string[],
+): Partial<UpdateHabitRequest> {
+  return {
+    frequencyUnit: unit,
+    frequencyQuantity: Math.max(1, quantity),
+    days: unit === 'Day' ? days : [],
+  }
+}
+
+export function formatHabitDetailReminderValue(
+  habit: Pick<NormalizedHabit, 'reminderEnabled' | 'reminderTimes' | 'scheduledReminders'>,
+  translate: (key: string) => string,
+): string {
+  if (!habit.reminderEnabled) return translate('habits.detail.noValue')
+  const values = [
+    ...habit.reminderTimes.map((minutes) => formatHabitReminderLabel(minutes, translate)),
+    ...habit.scheduledReminders.map((reminder) => reminder.time),
+  ]
+  return values.length ? values.join(', ') : translate('habits.detail.noValue')
+}
+
+export function mergeHabitDetailWithScopedHabit(
+  detail: HabitDetail,
+  scopedHabit: NormalizedHabit | undefined,
+  date: string,
+): NormalizedHabit {
+  const normalized = normalizeHabitDetailForDrill(detail, date).parent
+  if (!scopedHabit) return normalized
+  return {
+    ...scopedHabit,
+    ...normalized,
+    tags: scopedHabit.tags,
+    linkedGoals: scopedHabit.linkedGoals,
+    slipAlertEnabled: scopedHabit.slipAlertEnabled,
+    flexibleTarget: scopedHabit.flexibleTarget,
+    flexibleCompleted: scopedHabit.flexibleCompleted,
+    instances: scopedHabit.instances,
+  }
 }
