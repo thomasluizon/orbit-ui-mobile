@@ -193,7 +193,7 @@ export function HabitRow({
   }
 
   function handleToggleStatus() {
-    if (readOnly) return
+    if (readOnly || (!canLog && !isDone)) return
     if (isDone) onUnlog?.()
     else onLog?.()
   }
@@ -237,7 +237,7 @@ export function HabitRow({
         onClick={handleRowClick}
         disabled={readOnly}
         data-habit-row-body=""
-        className="flex min-w-0 flex-1 items-center self-stretch appearance-none border-0 bg-transparent text-left transition-transform duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
+        className="flex min-w-0 flex-1 items-center self-stretch appearance-none border-0 bg-transparent text-left transition-transform duration-[150ms] ease-[var(--ease-standard)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--primary)]"
         style={{ gap: 12, paddingBlock: isChild ? 4 : 8 }}
       >
         <HabitRowLeading

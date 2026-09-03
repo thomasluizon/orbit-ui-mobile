@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import {
   useRef,
   useSyncExternalStore,
@@ -70,7 +71,7 @@ function SidebarItem({
     'flex h-11 w-full items-center gap-3 rounded-[12px] px-3 text-left text-[14px] font-medium',
     'transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] active:scale-[0.96]',
     active
-      ? 'text-[var(--primary-soft)]'
+      ? 'text-[var(--primary-soft)] hover:bg-[var(--bg-hover)]'
       : 'text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)]',
   ].join(' ')
 
@@ -135,9 +136,15 @@ function ShellSidebar(props: Readonly<Extract<ShellWideProps, { nav?: true }>>) 
           <Button onClick={props.onCreate}>{props.createLabel}</Button>
         ) : null}
         {props.account ? (
-          <div className="flex h-11 min-w-0 items-center text-[14px] text-[var(--fg-2)]">
-            <span className="truncate">{props.account}</span>
-          </div>
+          <Link
+            href="/profile"
+            className="flex h-11 min-w-0 items-center gap-3 rounded-[12px] px-2 text-[14px] font-medium text-[var(--fg-1)] transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
+          >
+            <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-[8px] bg-[var(--bg-well)] text-[var(--fg-2)]">
+              {Array.from(props.account)[0]?.toLocaleUpperCase()}
+            </span>
+            <span className="min-w-0 truncate">{props.account}</span>
+          </Link>
         ) : null}
       </div>
     </aside>

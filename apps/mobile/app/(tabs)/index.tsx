@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { Animated, StyleSheet, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -22,6 +22,8 @@ import { useTodayDate } from './use-today-date'
 import { useTodaySelection } from './use-today-selection'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 import { TodayAstra } from '@/components/today/today-astra'
+import { TrialBanner } from '@/components/ui/trial-banner'
+import { useTodayDayMotion } from './use-today-motion'
 
 function getBoundaryMessageKey(
   boundary: ReturnType<typeof getTodayBoundary>,
@@ -85,6 +87,7 @@ export default function TodayScreen() {
   })
   const clearSelection = selection.clearSelection
   const boundaryKey = getBoundaryMessageKey(getTodayBoundary(date.dateStr, date.today))
+  const dayMotionStyle = useTodayDayMotion(date.dateStr)
 
   useFocusEffect(
     useCallback(() => {
@@ -140,7 +143,13 @@ export default function TodayScreen() {
   )
 
   const listHeader = (
-    <>
+    <View style={styles.header}>
+      {todayFocused ? (
+        <TodayAstra
+          isTodaySelected={date.dateStr === date.today}
+          suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || habitsQuery.isFetching || (habitsQuery.isError && !habitsQuery.data) || habitsById.size === 0}
+        />
+      ) : null}
       <TodayDateControl
         dayName={date.dayName}
         numericDate={date.numericDate}
@@ -166,45 +175,42 @@ export default function TodayScreen() {
         onGoToToday={date.goToToday}
         onGoToNextDay={date.goToNextDay}
       />
+      <TrialBanner />
       {boundaryKey ? (
         <View style={styles.notice}>
           <CapacityNotice message={t(boundaryKey)} />
         </View>
       ) : null}
-      {todayFocused ? (
-        <TodayAstra
-          isTodaySelected={date.dateStr === date.today}
-          suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || habitsQuery.isFetching || (habitsQuery.isError && !habitsQuery.data) || habitsById.size === 0}
-        />
-      ) : null}
-    </>
+    </View>
   )
 
   return (
     <View style={[styles.screen, { backgroundColor: tokens.bg }]}>
-      <HabitList
-        ref={habitListRef}
-        view="today"
-        filters={filters}
-        selectedDate={date.selectedDate}
-        showCompleted={showCompleted}
-        isSelectMode={isSelectMode}
-        selectedHabitIds={selectedHabitIds}
-        listHeader={listHeader}
-        onCreatePress={() => setShowCreateModal(true)}
-        onSeeUpcoming={date.nextDisabled ? undefined : date.goToNextDay}
-        onDetailHabit={(habit) => router.push({
-          pathname: '/habits/[id]',
-          params: { id: habit.id, date: date.dateStr, from: 'today' },
-        })}
-        onEditHabit={(habit, onSaved) => {
-          setEditHabit(habit)
-          setEditHabitOnSaved(() => onSaved ?? null)
-        }}
-        onAllLoadedIdsChange={setAllLoadedIds}
-        onAllCollapsedChange={setHabitListAllCollapsed}
-        onSurfaceOpenChange={setListSurfaceOpen}
-      />
+      <Animated.View style={[styles.dayTransition, dayMotionStyle]}>
+        <HabitList
+          ref={habitListRef}
+          view="today"
+          filters={filters}
+          selectedDate={date.selectedDate}
+          showCompleted={showCompleted}
+          isSelectMode={isSelectMode}
+          selectedHabitIds={selectedHabitIds}
+          listHeader={listHeader}
+          onCreatePress={() => setShowCreateModal(true)}
+          onSeeUpcoming={date.nextDisabled ? undefined : date.goToNextDay}
+          onDetailHabit={(habit) => router.push({
+            pathname: '/habits/[id]',
+            params: { id: habit.id, date: date.dateStr, from: 'today' },
+          })}
+          onEditHabit={(habit, onSaved) => {
+            setEditHabit(habit)
+            setEditHabitOnSaved(() => onSaved ?? null)
+          }}
+          onAllLoadedIdsChange={setAllLoadedIds}
+          onAllCollapsedChange={setHabitListAllCollapsed}
+          onSurfaceOpenChange={setListSurfaceOpen}
+        />
+      </Animated.View>
 
       <TodayModals
         showCreateModal={showCreateModal}
@@ -232,6 +238,8 @@ export default function TodayScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  notice: { paddingBottom: 16, paddingHorizontal: 16 },
+  dayTransition: { flex: 1 },
+  header: { gap: 24, paddingBottom: 24 },
+  notice: { paddingHorizontal: 0 },
   selectionTray: { paddingHorizontal: 20, paddingVertical: 12 },
 })

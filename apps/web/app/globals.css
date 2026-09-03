@@ -647,8 +647,7 @@ button {
   transition: background-color var(--dur-hover) var(--ease-standard), box-shadow var(--dur-hover) var(--ease-standard);
 }
 
-.list-row-button:active,
-.list-row-button[data-interaction='pressed'] {
+.list-row-button:active {
   transform: scale(0.96);
 }
 
@@ -658,8 +657,7 @@ button {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .list-row-button:hover,
-  .list-row-button[data-interaction='hover'] {
+  .list-row-button:hover {
     background-color: var(--bg-hover);
     box-shadow: inset 0 0 0 1px var(--hairline-strong);
   }
@@ -971,7 +969,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .icon-btn-well { background: var(--bg-elev); }
 
 .habit-panel {
-  margin-inline: 16px;
   overflow: hidden;
   border-radius: 20px;
   background: var(--bg-card);

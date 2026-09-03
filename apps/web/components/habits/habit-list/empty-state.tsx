@@ -122,8 +122,8 @@ export function HabitListSkeleton() {
   const t = useTranslations()
 
   return (
-    <div className="flex flex-col gap-3 px-4">
-      {[1, 2, 3].map((i) => (
+    <div className="flex flex-col gap-3 px-4 pb-24" aria-busy="true">
+      {[1, 2, 3, 4, 5].map((i) => (
         <Skeleton key={i} variant="habit-row" label={t('common.loading')} />
       ))}
     </div>

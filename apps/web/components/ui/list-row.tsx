@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import type { ListRowProps } from '@orbit/shared/contracts/lists'
 import { ChevronRight } from '@/components/ui/icons'
 import { Icon } from '@/components/ui/icon'
@@ -26,7 +26,6 @@ function RowBody({ title, description, icon, value, danger, trailing }: Readonly
 
 export function ListRow(props: Readonly<ListRowProps>) {
   const { action, chevron = true, onClick, readOnly = false } = props
-  const [interaction, setInteraction] = useState<'rest' | 'hover' | 'pressed'>('rest')
   const body: ReactNode = <RowBody {...props} />
   const content = <>{body}{!readOnly && chevron ? <span className="flex h-11 w-11 shrink-0 items-center justify-center"><ChevronRight size={24} color="var(--fg-4)" strokeWidth={1.8} /></span> : null}</>
   const bodyStyle = { minHeight: 52, padding: '8px 12px', gap: 12 } as const
@@ -38,14 +37,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
       ) : (
         <button
           type="button"
-          data-interaction={interaction}
-          onBlur={() => setInteraction('rest')}
           onClick={onClick}
-          onPointerCancel={() => setInteraction('rest')}
-          onPointerDown={() => setInteraction('pressed')}
-          onPointerEnter={() => setInteraction('hover')}
-          onPointerLeave={() => setInteraction('rest')}
-          onPointerUp={() => setInteraction('hover')}
           className="list-row-button flex min-w-0 flex-1 cursor-pointer items-center border-0 bg-transparent text-left"
           style={bodyStyle}
         >{content}</button>
