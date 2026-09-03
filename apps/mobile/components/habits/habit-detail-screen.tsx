@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { addMonths, startOfMonth } from 'date-fns'
 import {
   buildHabitDetailUpdateRequest,
@@ -219,7 +219,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
       Animated.timing(detailOpacity, { toValue: 1, duration: 160, useNativeDriver: true }).start()
     }
   }, [detailChevron, detailOpacity, detailsOpen])
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (!habit) return
     const contextualSuggestion = {
       id: `habit-${habit.id}`,
@@ -230,7 +230,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
     return () => {
       if (useChatStore.getState().contextualSuggestion?.id === contextualSuggestion.id) useChatStore.getState().setContextualSuggestion(null)
     }
-  }, [habit, t])
+  }, [habit, t]))
   const back = useCallback(() => {
     if (parentId) router.back()
     else if (fromToday) router.back()

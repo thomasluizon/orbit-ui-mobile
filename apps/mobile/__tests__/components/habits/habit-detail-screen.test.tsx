@@ -36,6 +36,7 @@ const mocks = vi.hoisted(() => ({
   setStorage: vi.fn(),
   history: [] as { path: string; selectedDate: string }[],
   hasProAccess: true,
+  focusEffect: null as null | (() => void | (() => void)),
   suggestion: null as null | {
     frequencyUnit: 'Day'
     frequencyQuantity: number
@@ -58,6 +59,10 @@ vi.mock('react-i18next', () => ({
 }))
 vi.mock('expo-router', () => ({
   useRouter: () => ({ back: mocks.routerBack, push: mocks.routerPush, replace: mocks.routerReplace }),
+  useFocusEffect: (callback: () => void | (() => void)) => {
+    mocks.focusEffect = callback
+    React.useEffect(callback, [callback])
+  },
 }))
 vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
@@ -934,6 +939,28 @@ describe('HabitDetailScreen', () => {
     })
     expect(tree!.root.findAllByProps({ title: 'habits.detail.askAstra' })).toHaveLength(0)
     expect(mocks.routerPush).not.toHaveBeenCalled()
+  })
+
+  it('restores the parent Astra suggestion after leaving a child detail', () => {
+    let parentTree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      parentTree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+    const parentFocus = mocks.focusEffect
+    if (!parentFocus) throw new Error('Expected parent focus effect')
+
+    mocks.detail = { ...makeDetail(), id: 'child-1', title: 'Child' }
+    let childTree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      childTree = TestRenderer.create(<HabitDetailScreen habitId="child-1" date="2026-08-28" parentId="habit-1" />)
+    })
+    expect(useChatStore.getState().contextualSuggestion?.id).toBe('habit-child-1')
+
+    TestRenderer.act(() => childTree!.unmount())
+    expect(useChatStore.getState().contextualSuggestion).toBeNull()
+    TestRenderer.act(() => { parentFocus() })
+    expect(useChatStore.getState().contextualSuggestion?.id).toBe('habit-habit-1')
+    parentTree!.unmount()
   })
 
   it('sends free users from the slipping block to upgrade', () => {
