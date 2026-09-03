@@ -41,7 +41,7 @@ export function HabitRowLeading({
               fontSize: emojiSize - 4,
               lineHeight: emojiSize + 2,
               color: tokens.fg3,
-              fontFamily: 'Rubik_500Medium',
+              fontFamily: 'Geist_500Medium',
             }}
           >
             {[...habitTitle.trim().toUpperCase()][0]}

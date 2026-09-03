@@ -109,7 +109,7 @@ function createStyles(tokens: AppTokens) {
       gap: 10,
     },
     label: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 14,
       color: tokens.fg2,
     },
@@ -136,7 +136,7 @@ function createStyles(tokens: AppTokens) {
       opacity: 0.35,
     },
     chipText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 13,
     },
     chipTextDefault: {
@@ -146,7 +146,7 @@ function createStyles(tokens: AppTokens) {
       color: tokens.fg1,
     },
     chipPercentage: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 11,
       fontVariant: ['tabular-nums'],
     },
@@ -157,7 +157,7 @@ function createStyles(tokens: AppTokens) {
       color: tokens.fg1,
     },
     emptyText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.fg3,
     },

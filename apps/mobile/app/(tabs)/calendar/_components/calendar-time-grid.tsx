@@ -208,7 +208,7 @@ function TimedBlock({
       <Text
         numberOfLines={1}
         style={{
-          fontFamily: "Rubik_500Medium",
+          fontFamily: "Geist_500Medium",
           // react-doctor-disable-next-line no-tiny-text -- Deliberate density: entry title inside a packed day/week time-grid cell (like standard calendar apps); 12px would overflow the fixed-height slots. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
           fontSize: 11,
           lineHeight: 13,
@@ -222,7 +222,7 @@ function TimedBlock({
         <Text
           numberOfLines={1}
           style={{
-            fontFamily: "Roboto_400Regular",
+            fontFamily: "GeistMono_400Regular",
             // react-doctor-disable-next-line no-tiny-text -- Deliberate density: due-time caption inside a packed day/week time-grid cell (like standard calendar apps); 12px would overflow the fixed-height slots. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
             fontSize: 10,
             color: tokens.fg3,
@@ -270,7 +270,7 @@ function AllDayChip({
         numberOfLines={1}
         style={{
           flexShrink: 1,
-          fontFamily: "Rubik_500Medium",
+          fontFamily: "Geist_500Medium",
           fontSize: 11,
           color: completed ? tokens.fg3 : tokens.fg1,
           textDecorationLine: completed ? "line-through" : "none",
@@ -314,7 +314,7 @@ function AllDayMoreChip({
     >
       <Text
         style={{
-          fontFamily: "Roboto_500Medium",
+          fontFamily: "GeistMono_500Medium",
           fontSize: 11,
           color: tokens.fg3,
           fontVariant: ["tabular-nums"],
@@ -375,7 +375,7 @@ function ColumnHeader({
             styles.colHeaderDate,
             {
               color: column.isToday ? tokens.fgOnPrimary : tokens.fg1,
-              fontFamily: column.isToday ? "Roboto_700Bold" : "Roboto_500Medium",
+              fontFamily: "GeistMono_500Medium",
             },
           ]}
         >
@@ -649,7 +649,7 @@ function createStyles(tokens: Tokens) {
       borderBottomColor: tokens.hairline,
     },
     allDayLabel: {
-      fontFamily: "Roboto_500Medium",
+      fontFamily: "GeistMono_500Medium",
       fontSize: 10,
       letterSpacing: 0.4,
       textTransform: "uppercase",
@@ -658,7 +658,7 @@ function createStyles(tokens: Tokens) {
     hourLabel: {
       position: "absolute",
       right: 8,
-      fontFamily: "Roboto_400Regular",
+      fontFamily: "GeistMono_400Regular",
       fontSize: 10,
       color: tokens.fg4,
       fontVariant: ["tabular-nums"],
@@ -683,7 +683,7 @@ function createStyles(tokens: Tokens) {
       borderBottomColor: tokens.hairline,
     },
     colHeaderWeekday: {
-      fontFamily: "Roboto_500Medium",
+      fontFamily: "GeistMono_500Medium",
       fontSize: 10,
       letterSpacing: 0.4,
       textTransform: "uppercase",
@@ -750,7 +750,7 @@ function createStyles(tokens: Tokens) {
       padding: 24,
     },
     emptyText: {
-      fontFamily: "Rubik_400Regular",
+      fontFamily: "Geist_400Regular",
       fontSize: 14,
       color: tokens.fg3,
     },

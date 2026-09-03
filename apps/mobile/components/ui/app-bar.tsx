@@ -246,14 +246,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   title: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 13,
     letterSpacing: 1.17,
     textTransform: 'uppercase',
     textAlign: 'center',
   },
   subtitle: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
     letterSpacing: 0.24,
     textAlign: 'center',

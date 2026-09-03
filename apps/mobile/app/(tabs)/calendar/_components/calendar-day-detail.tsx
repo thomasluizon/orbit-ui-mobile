@@ -152,7 +152,7 @@ function createStyles(tokens: Tokens) {
       justifyContent: "flex-end",
     },
     summaryText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
     },
     emptyDayCard: {
@@ -166,7 +166,7 @@ function createStyles(tokens: Tokens) {
       borderColor: tokens.hairline,
     },
     emptyDayText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       textAlign: "center",
     },

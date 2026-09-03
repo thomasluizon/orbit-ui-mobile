@@ -103,12 +103,12 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   appName: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 22,
     letterSpacing: -0.22,
   },
   appVersion: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 13,
     fontVariant: ['tabular-nums'],
   },

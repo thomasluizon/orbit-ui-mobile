@@ -15,7 +15,7 @@ interface SectionLabelProps {
   inset?: boolean
 }
 
-/** Kit SectionTitle: Rubik 20/500 fg-1 with 24/20/14 padding and an optional trailing slot. */
+/** Kit SectionTitle: Geist Sans 20/500 fg-1 with 24/20/14 padding and an optional trailing slot. */
 export function SectionLabel({
   children,
   top = 24,
@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
   label: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 20,
     letterSpacing: -0.2,
   },

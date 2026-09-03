@@ -16,7 +16,7 @@ export function createStyles(tokens: EditGoalTokens, bottomInset: number) {
       gap: 18,
     },
     eyebrow: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
       letterSpacing: 0.96,
       color: tokens.fg3,
@@ -33,17 +33,17 @@ export function createStyles(tokens: EditGoalTokens, bottomInset: number) {
       flex: 1,
     },
     fieldLabel: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 14,
       color: tokens.fg2,
       marginBottom: 8,
     },
     labelOptional: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       color: tokens.fg3,
     },
     fieldError: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 12,
       color: tokens.statusOverdueText,
       marginTop: 6,
@@ -64,7 +64,7 @@ export function createStyles(tokens: EditGoalTokens, bottomInset: number) {
       justifyContent: 'center',
     },
     warningText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.statusOverdueText,
       marginTop: 8,
@@ -77,7 +77,7 @@ export function createStyles(tokens: EditGoalTokens, bottomInset: number) {
       alignSelf: 'flex-start',
     },
     addDeadlineText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 13,
       color: tokens.fg1,
     },

@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   bodyText: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
     lineHeight: 22,
   },

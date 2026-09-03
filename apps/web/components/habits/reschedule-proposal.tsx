@@ -26,7 +26,7 @@ export function RescheduleProposal({
           <CalendarClock size={20} strokeWidth={1.9} className="shrink-0 text-[var(--fg-3)]" aria-hidden="true" />
           <div className="min-w-0 flex-1">
             <div className="text-xs font-medium uppercase tracking-[0.04em]">{proposedLabel}</div>
-            <div data-testid="reschedule-proposed-schedule" className="mt-1 text-base font-medium text-[var(--fg-1)]">
+            <div data-testid="reschedule-proposed-schedule" className="mt-1 font-[var(--font-display)] text-base font-medium tabular-nums text-[var(--fg-1)]">
               {dateLabel}{timeLabel ? ` · ${timeLabel}` : ''}
             </div>
             <div className="mt-1 text-sm">{scheduleLabel}</div>

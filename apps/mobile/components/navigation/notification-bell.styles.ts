@@ -82,12 +82,12 @@ export function createStyles(tokens: AppTokens) {
     notifTitle: {
       flex: 1,
       minWidth: 0,
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 15,
       color: tokens.fg1,
     },
     notifTime: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       color: tokens.fg3,
       letterSpacing: 0.24,
@@ -95,7 +95,7 @@ export function createStyles(tokens: AppTokens) {
       flexShrink: 0,
     },
     notifBody: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 19.6,
       color: tokens.fg3,
@@ -120,7 +120,7 @@ export function createStyles(tokens: AppTokens) {
       gap: 10,
     },
     emptyText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       color: tokens.fg3,
     },
@@ -142,7 +142,7 @@ export function createStyles(tokens: AppTokens) {
       backgroundColor: tokens.bgElev2,
     },
     retryChipLabel: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 13,
       color: tokens.fg2,
     },

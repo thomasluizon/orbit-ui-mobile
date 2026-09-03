@@ -97,11 +97,11 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.96 }],
   },
   yearText: {
-    fontFamily: 'Roboto_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 14,
     fontVariant: ['tabular-nums'],
   },
   yearTextSelected: {
-    fontFamily: 'Roboto_700Bold',
+    fontFamily: 'GeistMono_500Medium',
   },
 })

@@ -137,7 +137,7 @@ function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: { gap: 24 },
     fieldGroup: { gap: 8 },
-    label: { color: tokens.fg2, fontFamily: 'Rubik_500Medium', fontSize: 14 },
+    label: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 },
     inputLayer: {
       minHeight: 92,
       borderRadius: radius.md,
@@ -148,7 +148,7 @@ function createStyles(tokens: AppTokens) {
     inputMirror: {
       minHeight: 90,
       color: tokens.fg1,
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 16,
       lineHeight: 23,
       padding: 16,
@@ -161,7 +161,7 @@ function createStyles(tokens: AppTokens) {
       left: 0,
       minHeight: 90,
       color: 'transparent',
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 16,
       lineHeight: 23,
       padding: 16,
@@ -173,7 +173,7 @@ function createStyles(tokens: AppTokens) {
       textDecorationColor: tokens.hairlineStrong,
     },
     placeholder: { color: tokens.fg4 },
-    error: { color: tokens.statusBad, fontFamily: 'Rubik_400Regular', fontSize: 14 },
+    error: { color: tokens.statusBad, fontFamily: 'Geist_400Regular', fontSize: 14 },
     preview: {
       gap: 16,
       padding: 24,
@@ -183,10 +183,10 @@ function createStyles(tokens: AppTokens) {
       backgroundColor: tokens.bgCard,
     },
     previewHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
-    meta: { color: tokens.fg3, fontFamily: 'Rubik_400Regular', fontSize: 12 },
+    meta: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 },
     sentence: {
       color: tokens.fg1,
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 17,
       lineHeight: 24,
     },
@@ -194,8 +194,8 @@ function createStyles(tokens: AppTokens) {
     day: { alignItems: 'center', borderRadius: radius.full, height: 44, justifyContent: 'center', width: 44 },
     dayIdle: { backgroundColor: tokens.bgWell, borderColor: tokens.hairline, borderWidth: 1 },
     daySelected: { backgroundColor: tokens.primaryDim, borderColor: tokens.primary, borderWidth: 1.5 },
-    dayText: { color: tokens.fg2, fontFamily: 'Rubik_500Medium', fontSize: 14 },
-    dayTextSelected: { color: tokens.fg1, fontFamily: 'Rubik_500Medium', fontSize: 14 },
+    dayText: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 },
+    dayTextSelected: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
     stepper: { alignItems: 'center', flexDirection: 'row', gap: 8 },
     stepButton: {
       alignItems: 'center',
@@ -209,7 +209,7 @@ function createStyles(tokens: AppTokens) {
     },
     quantity: {
       color: tokens.fg1,
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 20,
       minWidth: 28,
       textAlign: 'center',

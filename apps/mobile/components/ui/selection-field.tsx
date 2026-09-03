@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   },
   triggerText: {
     flex: 1,
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 16,
     marginRight: 8,
   },

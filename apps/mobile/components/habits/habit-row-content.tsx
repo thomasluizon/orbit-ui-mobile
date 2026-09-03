@@ -60,7 +60,7 @@ export function HabitRowContent({
               partContent = (
                 <Text
                   style={{
-                    fontFamily: 'Rubik_500Medium',
+                    fontFamily: 'Geist_500Medium',
                     color: tokens.statusOverdueText,
                   }}
                 >
@@ -71,7 +71,7 @@ export function HabitRowContent({
               partContent = (
                 <Text
                   style={{
-                    fontFamily: 'Rubik_500Medium',
+                    fontFamily: 'Geist_500Medium',
                     color: tokens.statusBadText,
                   }}
                 >
