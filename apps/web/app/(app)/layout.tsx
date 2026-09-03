@@ -6,8 +6,8 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Providers } from '@/lib/providers'
 import { DestinationShell } from '@/components/shell/destination-shell'
-import { TrialBanner } from '@/components/ui/trial-banner'
-import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
+import { Toast } from '@/components/ui/toast'
+import { WifiOff } from '@/components/ui/icons'
 import { BackToTop } from '@/components/ui/back-to-top'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
@@ -27,6 +27,7 @@ import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
 import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
 import { useProfile } from '@/hooks/use-profile'
+import { useOffline } from '@/hooks/use-offline'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { useAuthStore } from '@/stores/auth-store'
 import { useTotalHabitCount } from '@/hooks/use-habits'
@@ -101,6 +102,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const searchParams = useSearchParams()
   const t = useTranslations()
   const { profile, patchProfile } = useProfile()
+  const { isOnline } = useOffline()
   useTimezoneAutoSync(profile)
   useOnboardingFlush()
   const draftHydrated = useOnboardingDraftHydrated()
@@ -238,12 +240,13 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         conversation={<AstraConversation chat={chat} />}
         conversationOpen={astraConversationOpen}
         conversationLabel={t('todayAstra.openConversation')}
-        notice={
-          <>
-            <TrialBanner />
-            <UpdateAvailableBanner />
-          </>
-        }
+        notice={isOnline ? undefined : (
+          <Toast
+            kind="neutral"
+            icon={<WifiOff size={20} strokeWidth={2} />}
+            message={t('offline.title')}
+          />
+        )}
       >
         <RouteTransitionShell>
           <div>{children}</div>

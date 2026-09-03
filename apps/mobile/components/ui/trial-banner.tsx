@@ -1,16 +1,12 @@
-import { useMemo, useState } from 'react'
-import { Animated, Pressable, StyleSheet, Text } from 'react-native'
+import { useMemo } from 'react'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { ChevronRight, X } from '@/components/ui/icons'
-import { motionEasings } from '@orbit/shared/theme'
 import { useProfile, useTrialDaysLeft } from '@/hooks/use-profile'
 import { plural } from '@/lib/plural'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
-import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { resolveTrialBannerColors } from '@/components/ui/trial-banner-colors'
 
 export function TrialBanner() {
   const { t } = useTranslation()
@@ -24,28 +20,10 @@ export function TrialBanner() {
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const prefersReducedMotion = usePrefersReducedMotion()
-  const [dismissed, setDismissed] = useState(false)
-  const opacity = useMemo(() => new Animated.Value(1), [])
-  const translateY = opacity.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-12, 0],
-  })
-
-  function handleDismiss() {
-    Animated.timing(opacity, {
-      toValue: 0,
-      duration: 160,
-      easing: toAnimatedEasing(motionEasings.enter),
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished) setDismissed(true)
-    })
-  }
 
   const isTrialActive = profile?.isTrialActive === true
   const isFree = profile?.hasProAccess === false
-  const visible = (isTrialActive || isFree) && !dismissed
+  const visible = isTrialActive || isFree
   if (!visible) return null
 
   const label = isTrialActive
@@ -56,49 +34,22 @@ export function TrialBanner() {
           trialDaysLeft ?? 0,
         )
     : t('trial.banner.freeLine')
-  const bannerColors = resolveTrialBannerColors(tokens)
-
   return (
-    <Animated.View
+    <View
       testID="trial-banner"
-      style={[
-        styles.container,
-        bannerColors.container,
-        {
-          opacity,
-          transform: [{ translateY: prefersReducedMotion ? 0 : translateY }],
-        },
-      ]}
-      accessibilityRole="summary"
-      accessibilityLiveRegion="polite"
+      style={styles.container}
     >
       <Text style={styles.label}>{label}</Text>
       <Pressable
         onPress={() => router.push(buildUpgradeHref(pathname || '/'))}
         accessibilityRole="button"
-        accessibilityLabel={t('trial.banner.upgrade')}
-        style={({ pressed }) => [
-          styles.upgradePress,
-          pressed ? styles.pressed : null,
-        ]}
+        style={({ pressed }) => [styles.upgradePress, pressed ? styles.pressed : null]}
       >
-        <Text style={[styles.upgradeText, { color: bannerColors.actionColor }]}>
+        <Text style={[styles.upgradeText, { color: tokens.fg2 }]}>
           {t('trial.banner.upgrade')}
         </Text>
-        <ChevronRight size={16} strokeWidth={2} color={bannerColors.actionColor} />
       </Pressable>
-      <Pressable
-        onPress={handleDismiss}
-        accessibilityRole="button"
-        accessibilityLabel={t('common.dismiss')}
-        style={({ pressed }) => [
-          styles.dismissButton,
-          pressed ? styles.pressed : null,
-        ]}
-      >
-        <X size={20} strokeWidth={2} color={bannerColors.dismissColor} />
-      </Pressable>
-    </Animated.View>
+    </View>
   )
 }
 
@@ -106,41 +57,30 @@ function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     container: {
       alignItems: 'center',
-      borderWidth: StyleSheet.hairlineWidth,
       flexDirection: 'row',
-      gap: 12,
-      minHeight: 52,
-      paddingHorizontal: 12,
-      paddingVertical: 4,
+      gap: 8,
+      minHeight: 24,
+      paddingHorizontal: 0,
     },
     label: {
-      color: tokens.fg2,
-      flex: 1,
+      color: tokens.fg3,
       fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       fontVariant: ['tabular-nums'],
-      lineHeight: 16,
+      lineHeight: 17,
     },
     upgradePress: {
       alignItems: 'center',
       flexDirection: 'row',
-      gap: 4,
-      minHeight: 44,
-      paddingHorizontal: 4,
     },
     upgradeText: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 14,
-    },
-    dismissButton: {
-      alignItems: 'center',
-      height: 44,
-      justifyContent: 'center',
-      width: 44,
+      fontFamily: 'GeistMono_500Medium',
+      fontSize: 12,
+      lineHeight: 17,
+      textDecorationLine: 'underline',
     },
     pressed: {
-      opacity: 0.72,
-      transform: [{ scale: 0.96 }],
+      opacity: 0.7,
     },
   })
 }

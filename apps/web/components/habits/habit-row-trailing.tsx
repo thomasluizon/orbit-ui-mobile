@@ -103,6 +103,7 @@ export function HabitRowTrailing({
   const menuItems = buildMenuItems(t, actions, canSelect, canDrillInto, hasProAccess)
   const statusLabel = t(statusDotLabelKey)
   const toggleLabel = isDone ? t('habits.actions.unlog') : t('habits.logHabit')
+  const completionDisabled = readOnly || (!canLog && !isDone)
 
   return (
     <div className="flex items-center shrink-0" style={{ gap: 8 }}>
@@ -119,12 +120,12 @@ export function HabitRowTrailing({
               }
               onClick={(event) => {
                 event.stopPropagation()
-                if (readOnly) return
+                if (completionDisabled) return
                 const parentAction = isDone ? actions.onUnlog : actions.onLog
                 parentAction?.()
               }}
-              disabled={readOnly}
-              className={`appearance-none border-0 bg-transparent flex h-11 w-11 items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${readOnly ? 'cursor-default' : 'cursor-pointer active:scale-[0.96]'}`}
+              disabled={completionDisabled}
+              className={`appearance-none border-0 bg-transparent flex h-11 w-11 items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] ${completionDisabled ? 'cursor-default opacity-40' : 'cursor-pointer hover:bg-[var(--bg-hover)] active:scale-[0.96]'}`}
             >
               <ParentRing
                 done={childProgress?.done ?? 0}
@@ -139,7 +140,7 @@ export function HabitRowTrailing({
           <CheckCircle
             state={state}
             onToggle={onToggleStatus}
-            disabled={readOnly || (!canLog && !isDone)}
+            disabled={completionDisabled}
             size={depth === 1 ? 24 : 30}
             ariaLabel={`${statusLabel}, ${toggleLabel}: ${habit.title}`}
           />

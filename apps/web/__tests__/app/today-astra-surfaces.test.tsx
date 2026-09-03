@@ -28,6 +28,18 @@ vi.mock('@/components/today/today-astra', () => ({
     <div data-testid="today-astra" data-suppressed={suppressed ? 'true' : 'false'} />
   ),
 }))
+vi.mock('motion/react', async () => {
+  const React = await import('react')
+  return {
+    animate: () => ({ stop: vi.fn() }),
+    m: { div: ({ children, ...props }: { children?: React.ReactNode }) => <div {...props}>{children}</div> },
+    useMotionValue: (initial: number) => {
+      let value = initial
+      return { get: () => value, set: (next: number) => { value = next } }
+    },
+    useReducedMotion: () => false,
+  }
+})
 
 describe('web Today Astra owned surfaces', () => {
   beforeEach(() => {

@@ -22,6 +22,8 @@ interface RouteTransitionShellProps {
   className?: string
 }
 
+const PRIMARY_DESTINATIONS = new Set(['/', '/calendar', '/progress', '/profile'])
+
 export function RouteTransitionShell({
   children,
   className,
@@ -30,6 +32,8 @@ export function RouteTransitionShell({
   const prefersReducedMotion = useReducedMotion()
   const routeIntent = useRouteTransitionIntent()
   const previousPathnameRef = useRef(pathname)
+  const isPrimaryTabSwitch =
+    routeIntent.intent === 'neutral' && PRIMARY_DESTINATIONS.has(pathname)
 
   useEffect(() => {
     if (previousPathnameRef.current === pathname) {
@@ -44,13 +48,16 @@ export function RouteTransitionShell({
     return () => {
       globalThis.clearTimeout(timer)
     }
-  }, [pathname, routeIntent.intent])
+  }, [pathname])
 
   const motionPreset = useMemo(
-    () => resolveMotionPreset(getRouteScenarioForIntent(routeIntent.intent), Boolean(prefersReducedMotion)),
-    [prefersReducedMotion, routeIntent.intent],
+    () => resolveMotionPreset(
+      getRouteScenarioForIntent(isPrimaryTabSwitch ? 'tab' : routeIntent.intent),
+      Boolean(prefersReducedMotion),
+    ),
+    [isPrimaryTabSwitch, prefersReducedMotion, routeIntent.intent],
   )
-  const direction = getRouteDirectionForIntent(routeIntent.intent)
+  const direction = getRouteDirectionForIntent(isPrimaryTabSwitch ? 'tab' : routeIntent.intent)
   let enterX = 0
   if (direction > 0) {
     enterX = motionPreset.shift
@@ -59,9 +66,9 @@ export function RouteTransitionShell({
   }
   let exitX = 0
   if (direction > 0) {
-    exitX = -Math.round(motionPreset.shift * 0.55)
+    exitX = -motionPreset.shift
   } else if (direction < 0) {
-    exitX = Math.round(motionPreset.shift * 0.55)
+    exitX = motionPreset.shift
   }
 
   return (
@@ -70,25 +77,21 @@ export function RouteTransitionShell({
         <m.div
           key={pathname}
           className={className}
-          style={{ transformOrigin: 'center bottom' }}
           initial={{
-            opacity: 0,
+            opacity: isPrimaryTabSwitch ? 1 : 0,
             x: enterX,
-            scale: motionPreset.scaleFrom,
           }}
           animate={{
             opacity: 1,
             x: 0,
-            scale: motionPreset.scaleTo,
             transition: {
               duration: motionPreset.enterDuration / 1000,
               ease: motionPreset.enterEasing,
             },
           }}
           exit={{
-            opacity: 0,
+            opacity: isPrimaryTabSwitch ? 1 : 0,
             x: exitX,
-            scale: direction === 0 ? 1 : 0.998,
             transition: {
               duration: motionPreset.exitDuration / 1000,
               ease: motionPreset.exitEasing,

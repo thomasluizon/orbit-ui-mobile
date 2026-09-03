@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -29,33 +29,6 @@ vi.mock('next/link', () => ({
   ),
 }))
 
-vi.mock('motion/react', async () => {
-  const React = await import('react')
-  const cache = new Map<string, unknown>()
-  return {
-    AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
-    useReducedMotion: () => false,
-    motion: new Proxy({} as Record<string, unknown>, {
-      get(_target, tag) {
-        if (typeof tag !== 'string') return undefined
-        if (!cache.has(tag)) {
-          cache.set(
-            tag,
-            React.forwardRef(function MotionMock(
-              props: Record<string, unknown> & { children?: React.ReactNode },
-              ref: React.Ref<HTMLElement>,
-            ) {
-              const { children, initial, animate, exit, transition, ...rest } = props
-              return React.createElement(tag, { ...rest, ref }, children)
-            }),
-          )
-        }
-        return cache.get(tag)
-      },
-    }),
-  }
-})
-
 import { TrialBanner } from '@/components/ui/trial-banner'
 
 describe('TrialBanner', () => {
@@ -75,7 +48,7 @@ describe('TrialBanner', () => {
     mockProfile = { isTrialActive: true, hasProAccess: true }
     mockTrialDaysLeft = 5
     render(<TrialBanner />)
-    expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(document.querySelector('[data-trial-line]')).toBeInTheDocument()
   })
 
   it('shows upgrade link', () => {
@@ -108,11 +81,11 @@ describe('TrialBanner', () => {
     expect(document.body.textContent).toContain('trial.banner.daysLeft')
   })
 
-  it('dismisses when dismiss button clicked', () => {
+  it('renders as a quiet, non-dismissible line', () => {
     mockProfile = { isTrialActive: true, hasProAccess: true }
     render(<TrialBanner />)
-    const dismissBtn = screen.getByLabelText('common.dismiss')
-    fireEvent.click(dismissBtn)
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    const line = document.querySelector('[data-trial-line]')
+    expect(line).toHaveClass('font-mono', 'text-xs', 'text-[var(--fg-3)]')
+    expect(screen.queryByLabelText('common.dismiss')).not.toBeInTheDocument()
   })
 })

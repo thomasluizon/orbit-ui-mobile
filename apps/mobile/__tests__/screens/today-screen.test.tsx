@@ -153,6 +153,14 @@ vi.mock('@/components/today/today-astra', () => ({
   },
 }))
 
+vi.mock('@/components/ui/trial-banner', () => ({
+  TrialBanner: () => React.createElement('TrialBanner'),
+}))
+
+vi.mock('@/app/(tabs)/use-today-motion', () => ({
+  useTodayDayMotion: () => ({}),
+}))
+
 vi.mock('@/components/today/today-modals', () => ({
   TodayModals: () => null,
 }))

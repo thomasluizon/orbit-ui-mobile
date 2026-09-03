@@ -40,10 +40,10 @@ export function createStyles(tokens: AppTokens) {
     skeletonContainer: {
       paddingTop: 8,
       paddingBottom: 96,
+      paddingHorizontal: 16,
       gap: 12,
     },
     skeletonCard: {
-      marginHorizontal: 16,
       backgroundColor: tokens.bgCard,
       borderRadius: 20,
       borderWidth: 1,
@@ -86,18 +86,20 @@ export function createStyles(tokens: AppTokens) {
     sectionInset: {},
     listContent: {
       paddingBottom: 96,
+      paddingHorizontal: 16,
     },
     listContentWithBulkBar: {
       paddingBottom: 96 + 96 + 24,
     },
     groupedList: {
       paddingBottom: 96,
+      paddingHorizontal: 16,
     },
     drillHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingHorizontal: 16,
+      paddingHorizontal: 0,
       paddingVertical: 8,
       paddingBottom: 16,
     },

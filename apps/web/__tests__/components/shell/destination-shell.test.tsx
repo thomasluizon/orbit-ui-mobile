@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   setPaletteOpen: vi.fn(),
   setShowCreateModal: vi.fn(),
   keyboardEnabled: vi.fn(),
+  profileName: undefined as string | undefined,
 }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -20,7 +21,9 @@ vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide })
 vi.mock('@/hooks/use-keyboard-shortcuts', () => ({
   useKeyboardShortcuts: (enabled: boolean) => mocks.keyboardEnabled(enabled),
 }))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { email: 'person@example.com' } }) }))
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { name: mocks.profileName, email: 'person@example.com' } }),
+}))
 vi.mock('@/stores/shell-store', () => ({
   useShellStore: (selector: (state: { setPaletteOpen: typeof mocks.setPaletteOpen }) => unknown) =>
     selector({ setPaletteOpen: mocks.setPaletteOpen }),
@@ -58,16 +61,18 @@ vi.mock('@/components/shell/shell-412', () => ({
   ),
 }))
 vi.mock('@/components/shell/shell-wide', () => ({
-  ShellWide: ({ children, items, onSelect, onCreate, notice, composer }: {
+  ShellWide: ({ children, items, onSelect, onCreate, notice, composer, account }: {
     children: ReactNode
     items?: ReadonlyArray<{ id: string; label: string }>
     onSelect?: (id: string) => void
     onCreate?: () => void
     notice?: ReactNode
     composer?: ReactNode
+    account?: string
   }) => (
     <div data-testid="wide-shell">
       {children}{notice}
+      {account ? <span data-testid="wide-account">{account}</span> : null}
       {composer ? <div data-shell-pinned-slot="">{composer}</div> : null}
       {items?.map((item) => (
         <button type="button" key={item.id} onClick={() => onSelect?.(item.id)}>{item.label}</button>
@@ -95,6 +100,7 @@ describe('DestinationShell', () => {
   beforeEach(() => {
     mocks.pathname = '/'
     mocks.wide = false
+    mocks.profileName = undefined
     resetRouteTransitionIntent()
     vi.clearAllMocks()
   })
@@ -257,6 +263,20 @@ describe('DestinationShell', () => {
     ])
     fireEvent.click(screen.getByRole('button', { name: 'wide-create' }))
     expect(onCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes the profile name and falls back to the email local part', () => {
+    mocks.wide = true
+    mocks.profileName = 'Ada Lovelace'
+    const page = render(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+
+    expect(screen.getByTestId('wide-account')).toHaveTextContent('Ada Lovelace')
+    expect(screen.getByTestId('wide-account')).not.toHaveTextContent('@')
+
+    mocks.profileName = undefined
+    page.rerender(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
+    expect(screen.getByTestId('wide-account')).toHaveTextContent('person')
+    expect(screen.getByTestId('wide-account')).not.toHaveTextContent('example.com')
   })
 
   it('uses the flow shell without primary navigation on upgrade', () => {

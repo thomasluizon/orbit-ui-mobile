@@ -57,13 +57,13 @@ import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guar
 import { BottomTabBar, type BottomTabId } from '@/components/navigation/bottom-tab-bar'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Fab } from '@/components/ui/fab'
-import { Plus } from '@/components/ui/icons'
+import { Plus, WifiOff } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
 import { OverlayLayer } from '@/components/global-overlays'
 import * as Sentry from '@sentry/react-native'
-import { AppToast } from '@/components/ui/app-toast'
+import { AppToast, Toast } from '@/components/ui/app-toast'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
 import { AstraConversation } from '@/components/chat/conversation'
 import { Composer } from '@/components/shell/composer'
@@ -71,7 +71,6 @@ import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useOffline } from '@/hooks/use-offline'
 import { captureError } from '@/lib/sentry'
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
-import { TrialBanner } from '@/components/ui/trial-banner'
 import {
   captureBuildEnabled,
   captureRequestProbeIdFromUrl,
@@ -193,6 +192,10 @@ function RootLayoutNav() {
   const hasProAccess = useHasProAccess()
   const totalHabitCount = useTotalHabitCount()
   const { currentTheme, currentScheme, surfaces } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const todayFabHidden = useUIStore((s) => s.todayFabHidden)
   const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
@@ -255,8 +258,8 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (!isAuthenticated) return
-    syncWidgetTheme(createTokensV2(currentScheme, currentTheme)).catch(() => {})
-  }, [currentScheme, currentTheme, isAuthenticated])
+    syncWidgetTheme(tokens).catch(() => {})
+  }, [isAuthenticated, tokens])
 
   useEffect(() => {
     void initializeAdMob()
@@ -301,7 +304,13 @@ function RootLayoutNav() {
                 conversationLabel={t('todayAstra.openConversation')}
               />
             }
-            notice={<TrialBanner />}
+            notice={offline.isOnline ? undefined : (
+              <Toast
+                kind="neutral"
+                icon={<WifiOff size={20} strokeWidth={2} color={tokens.fg2} />}
+                message={t('offline.title')}
+              />
+            )}
             tabBar={<AppBottomTabBar pathname={pathname} />}
             fab={pathname === '/' && !todayFabHidden
               ? <AppCreateFab onCreate={handleCreate} />

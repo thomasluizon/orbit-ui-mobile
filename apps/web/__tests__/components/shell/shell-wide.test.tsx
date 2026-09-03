@@ -67,6 +67,21 @@ describe('ShellWide', () => {
     expect(onSelect).toHaveBeenCalledWith('calendario')
   })
 
+  it('renders the account name as a profile chip with an initial well', () => {
+    render(
+      <ShellWide
+        items={items}
+        activeId="hoje"
+        navLabel="Main navigation"
+        account="Ada Lovelace"
+      />,
+    )
+
+    const account = screen.getByRole('link', { name: 'Ada Lovelace' })
+    expect(account).toHaveAttribute('href', '/profile')
+    expect(account).not.toHaveTextContent('@')
+  })
+
   it('uses a modal conversation overlay below the side-panel breakpoint', () => {
     const { container } = render(
       <ShellWide

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, create } from 'react-test-renderer'
+import { TrialBanner } from '@/components/ui/trial-banner'
 
 let profile = { isTrialActive: true, hasProAccess: true }
 let daysLeft = 5
-let prefersReducedMotion = false
 
 vi.mock('expo-router', () => ({
   usePathname: () => '/',
@@ -18,13 +18,6 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/lib/plural', () => ({
   plural: (text: string) => text,
 }))
-
-vi.mock('@/lib/motion', () => ({
-  toAnimatedEasing: () => (value: number) => value,
-  usePrefersReducedMotion: () => prefersReducedMotion,
-}))
-
-import { TrialBanner } from '@/components/ui/trial-banner'
 
 function renderedText(tree: import('react-test-renderer').ReactTestRenderer) {
   return tree.root
@@ -47,7 +40,6 @@ describe('TrialBanner (mobile)', () => {
   beforeEach(() => {
     profile = { isTrialActive: true, hasProAccess: true }
     daysLeft = 5
-    prefersReducedMotion = false
   })
 
   it('renders the plural day-count variant', async () => {
@@ -75,15 +67,10 @@ describe('TrialBanner (mobile)', () => {
     expect(renderedText(tree)).toContain('trial.banner.freeLine')
   })
 
-  it('removes dismissal translation when reduced motion is enabled', async () => {
-    prefersReducedMotion = true
+  it('renders a quiet, non-dismissible line', async () => {
     const tree = await renderBanner()
     const banner = tree.root.findAll((node) => node.props.testID === 'trial-banner')[0]!
-
-    expect(banner.props.style).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ transform: [{ translateY: 0 }] }),
-      ]),
-    )
+    expect(banner.props.style).toEqual(expect.objectContaining({ minHeight: 24 }))
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'common.dismiss')).toHaveLength(0)
   })
 })
