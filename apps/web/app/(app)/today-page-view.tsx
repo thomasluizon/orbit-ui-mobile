@@ -24,80 +24,33 @@ function boundaryKey(boundary: ReturnType<typeof getTodayBoundary>): string | nu
   return null
 }
 
-function useTodayPanelMotion(filterMotionKey: string, isRefetching: boolean) {
+function useTodayRefetchMotion(isRefetching: boolean) {
   const prefersReducedMotion = useReducedMotion()
   const preset = useMemo(
     () => resolveMotionPreset('list-enter', Boolean(prefersReducedMotion)),
     [prefersReducedMotion],
   )
-  const dayOpacity = useMotionValue(1)
-  const dayTranslate = useMotionValue(0)
-  const refetchOpacity = useMotionValue(1)
-  const refetchTranslate = useMotionValue(0)
-  const previousFilterMotionKeyRef = useRef(filterMotionKey)
-  const dayTransitionRunningRef = useRef(false)
-  const dayTransitionSequenceRef = useRef(0)
-  const dayAnimationsRef = useRef<ReturnType<typeof animate>[]>([])
-  const refetchAnimationsRef = useRef<ReturnType<typeof animate>[]>([])
+  const opacity = useMotionValue(1)
+  const translate = useMotionValue(0)
+  const animationsRef = useRef<ReturnType<typeof animate>[]>([])
 
   useEffect(() => {
-    if (filterMotionKey === previousFilterMotionKeyRef.current) return
-
-    const direction = filterMotionKey > previousFilterMotionKeyRef.current ? 1 : -1
-    previousFilterMotionKeyRef.current = filterMotionKey
-    const shouldStartAtEdge = !dayTransitionRunningRef.current
-    const sequence = dayTransitionSequenceRef.current + 1
-    dayTransitionSequenceRef.current = sequence
-    for (const animation of dayAnimationsRef.current) animation.stop()
-
-    if (shouldStartAtEdge) {
-      dayOpacity.set(0.9)
-      dayTranslate.set(preset.reducedMotionEnabled ? 0 : direction * 8)
-    } else if (preset.reducedMotionEnabled) {
-      dayTranslate.set(0)
-    }
-    dayTransitionRunningRef.current = true
-    const transition = {
-      duration: preset.enterDuration / 1000,
-      ease: preset.enterEasing,
-    }
-    dayAnimationsRef.current = [
-      animate(dayOpacity, 1, {
-        ...transition,
-        onComplete: () => {
-          if (dayTransitionSequenceRef.current === sequence) {
-            dayTransitionRunningRef.current = false
-          }
-        },
-      }),
-      animate(dayTranslate, 0, transition),
-    ]
-  }, [
-    dayOpacity,
-    dayTranslate,
-    filterMotionKey,
-    preset.enterDuration,
-    preset.enterEasing,
-    preset.reducedMotionEnabled,
-  ])
-
-  useEffect(() => {
-    for (const animation of refetchAnimationsRef.current) animation.stop()
+    for (const animation of animationsRef.current) animation.stop()
     const entering = isRefetching
     const transition = {
       duration: (entering ? preset.enterDuration : preset.exitDuration) / 1000,
       ease: entering ? preset.enterEasing : preset.exitEasing,
     }
-    refetchAnimationsRef.current = [
-      animate(refetchOpacity, entering ? 0.8 : 1, transition),
+    animationsRef.current = [
+      animate(opacity, entering ? 0.8 : 1, transition),
       animate(
-        refetchTranslate,
+        translate,
         entering && !preset.reducedMotionEnabled ? 4 : 0,
         transition,
       ),
     ]
     return () => {
-      for (const animation of refetchAnimationsRef.current) animation.stop()
+      for (const animation of animationsRef.current) animation.stop()
     }
   }, [
     isRefetching,
@@ -106,11 +59,11 @@ function useTodayPanelMotion(filterMotionKey: string, isRefetching: boolean) {
     preset.exitDuration,
     preset.exitEasing,
     preset.reducedMotionEnabled,
-    refetchOpacity,
-    refetchTranslate,
+    opacity,
+    translate,
   ])
 
-  return { dayOpacity, dayTranslate, refetchOpacity, refetchTranslate }
+  return { opacity, translate }
 }
 
 export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
@@ -158,36 +111,31 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
     showCompleted,
     toggleSelectMode,
   } = view
-  const panelMotion = useTodayPanelMotion(nav.dateStr, data.isRefetching)
+  const refetchMotion = useTodayRefetchMotion(data.isRefetching)
 
   return (
     <motion.div
       data-testid="today-refetch-motion"
-      style={{ opacity: panelMotion.refetchOpacity, y: panelMotion.refetchTranslate }}
+      style={{ opacity: refetchMotion.opacity, y: refetchMotion.translate }}
     >
-      <motion.div
-        data-testid="today-day-motion"
-        style={{ opacity: panelMotion.dayOpacity, y: panelMotion.dayTranslate }}
-      >
-        <HabitList
-          ref={habitListRef}
-          view="today"
-          selectedDate={nav.selectedDate}
-          showCompleted={showCompleted}
-          isSelectMode={isSelectMode}
-          selectedHabitIds={selectedHabitIds}
-          filters={data.filters}
-          onToggleSelection={selection.handleToggleSelection}
-          onEnterSelectMode={(habitId) => {
-            if (!isSelectMode) toggleSelectMode()
-            selection.handleToggleSelection(habitId)
-          }}
-          onCreate={() => setShowCreateModal(true)}
-          onSeeUpcoming={nav.dateNav.nextDisabled ? undefined : nav.goToNextDay}
-          onAllCollapsedChange={setHabitListAllCollapsed}
-          onSurfaceOpenChange={view.setListSurfaceOpen}
-        />
-      </motion.div>
+      <HabitList
+        ref={habitListRef}
+        view="today"
+        selectedDate={nav.selectedDate}
+        showCompleted={showCompleted}
+        isSelectMode={isSelectMode}
+        selectedHabitIds={selectedHabitIds}
+        filters={data.filters}
+        onToggleSelection={selection.handleToggleSelection}
+        onEnterSelectMode={(habitId) => {
+          if (!isSelectMode) toggleSelectMode()
+          selection.handleToggleSelection(habitId)
+        }}
+        onCreate={() => setShowCreateModal(true)}
+        onSeeUpcoming={nav.dateNav.nextDisabled ? undefined : nav.goToNextDay}
+        onAllCollapsedChange={setHabitListAllCollapsed}
+        onSurfaceOpenChange={view.setListSurfaceOpen}
+      />
     </motion.div>
   )
 }

@@ -339,46 +339,34 @@ describe('Hoje date control', () => {
     expect(goToNextDay).toHaveBeenCalledOnce()
   })
 
-  it('applies interruptible day and refetch motion at the HabitList boundary', () => {
+  it('applies refetch motion at the HabitList boundary', () => {
     motionTestState.completeAnimations = false
     const { rerender } = render(<TodayHabitsPanel view={createMotionView('2026-04-08')} />)
     const refetchWrapper = screen.getByTestId('today-refetch-motion')
-    const dayWrapper = screen.getByTestId('today-day-motion')
     const refetchStyle = getRenderedMotionStyle('today-refetch-motion')
-    const dayStyle = getRenderedMotionStyle('today-day-motion')
 
-    expect(refetchWrapper).toContainElement(dayWrapper)
-    expect(dayWrapper).toContainElement(screen.getByTestId('today-habit-list'))
-    expect(dayStyle.opacity).not.toBe(refetchStyle.opacity)
-    expect(dayStyle.y).not.toBe(refetchStyle.y)
+    expect(refetchWrapper).toContainElement(screen.getByTestId('today-habit-list'))
     motionTestState.animations.length = 0
 
-    rerender(<TodayHabitsPanel view={createMotionView('2026-04-09')} />)
-    const firstDayOpacity = getAnimationForStyleValue(dayStyle.opacity)
-    const firstDayShift = getAnimationForStyleValue(dayStyle.y)
-    expect(firstDayOpacity).toMatchObject({ from: 0.9, target: 1 })
-    expect(firstDayShift).toMatchObject({
-      from: 8,
-      target: 0,
+    rerender(<TodayHabitsPanel view={createMotionView('2026-04-08', true)} />)
+    const refetchOpacity = getAnimationForStyleValue(refetchStyle.opacity)
+    const refetchShift = getAnimationForStyleValue(refetchStyle.y)
+    expect(refetchOpacity).toMatchObject({
+      from: 1,
+      target: 0.8,
       options: {
         duration: 0.22,
         ease: [0.16, 1, 0.3, 1],
       },
     })
-    firstDayShift.value.set(3)
-    motionTestState.animations.length = 0
-
-    rerender(<TodayHabitsPanel view={createMotionView('2026-04-10')} />)
-    expect(motionTestState.animations).toEqual(expect.arrayContaining([
-      expect.objectContaining({ from: 3, target: 0 }),
-    ]))
-    motionTestState.animations.length = 0
-
-    rerender(<TodayHabitsPanel view={createMotionView('2026-04-10', true)} />)
-    const refetchOpacity = getAnimationForStyleValue(refetchStyle.opacity)
-    const refetchShift = getAnimationForStyleValue(refetchStyle.y)
-    expect(refetchOpacity).toMatchObject({ from: 1, target: 0.8 })
-    expect(refetchShift).toMatchObject({ from: 0, target: 4 })
+    expect(refetchShift).toMatchObject({
+      from: 0,
+      target: 4,
+      options: {
+        duration: 0.22,
+        ease: [0.16, 1, 0.3, 1],
+      },
+    })
   })
 
   it('does not apply refetch motion during a cold client fetch', () => {
@@ -392,25 +380,19 @@ describe('Hoje date control', () => {
     ]))
   })
 
-  it('keeps reduced Today motion directional-static with reduced timings', () => {
+  it('keeps reduced refetch motion directional-static with reduced timings', () => {
     motionTestState.completeAnimations = false
     motionTestState.reducedMotion = true
     const { rerender } = render(<TodayHabitsPanel view={createMotionView('2026-04-08')} />)
     motionTestState.animations.length = 0
 
-    rerender(<TodayHabitsPanel view={createMotionView('2026-04-09')} />)
+    rerender(<TodayHabitsPanel view={createMotionView('2026-04-08', true)} />)
     expect(motionTestState.animations).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        from: 0,
-        target: 0,
+        from: 1,
+        target: 0.8,
         options: expect.objectContaining({ duration: 0.09, ease: [0, 0, 1, 1] }),
       }),
-    ]))
-    motionTestState.animations.length = 0
-
-    rerender(<TodayHabitsPanel view={createMotionView('2026-04-09', true)} />)
-    expect(motionTestState.animations).toEqual(expect.arrayContaining([
-      expect.objectContaining({ from: 1, target: 0.8 }),
       expect.objectContaining({
         from: 0,
         target: 0,
