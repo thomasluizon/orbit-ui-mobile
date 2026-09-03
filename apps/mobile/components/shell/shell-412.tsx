@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   fabBand: {
-    height: 76,
+    height: 82,
   },
   fab: {
     bottom: '100%',

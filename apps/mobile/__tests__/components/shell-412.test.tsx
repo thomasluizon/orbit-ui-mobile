@@ -141,7 +141,7 @@ describe('Shell412 mobile', () => {
     const notice = findByTestId(tree, 'shell-notice')[0]
     expect(composerBand?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-pinned-slot')).toHaveLength(1)
     expect(composerBand?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab')).toHaveLength(1)
-    expect(StyleSheet.flatten(fabBand?.props.style)).toMatchObject({ height: 76 })
+    expect(StyleSheet.flatten(fabBand?.props.style)).toMatchObject({ height: 82 })
     expect(bottom?.findAll((node) => typeof node.type === 'string' && node.props.testID === notice?.props.testID)).toHaveLength(1)
     expect(bottom?.findAll((node) => typeof node.type === 'string' && node.props.testID === tabBar?.props.testID)).toHaveLength(1)
     expect(StyleSheet.flatten(fab?.props.style)).toMatchObject({
