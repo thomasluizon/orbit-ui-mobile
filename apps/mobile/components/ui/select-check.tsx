@@ -79,7 +79,7 @@ export function SelectCheck({
   )
 }
 
-/** Kit RadioRow: radio · Rubik 17 label · optional 12px color dot, hairline divider. */
+/** Kit RadioRow: radio · Geist Sans 17 label · optional 12px color dot, hairline divider. */
 interface RadioRowProps {
   label: string
   selected: boolean
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   radioLabel: {
     flex: 1,
     minWidth: 0,
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 17,
   },
   colorDot: {

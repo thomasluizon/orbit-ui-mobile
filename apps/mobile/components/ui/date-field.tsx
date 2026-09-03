@@ -384,7 +384,7 @@ function createStyles(tokens: AppTokens) {
     triggerText: {
       flex: 1,
       color: tokens.fg1,
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 16,
       marginRight: 8,
     },
@@ -405,7 +405,7 @@ function createStyles(tokens: AppTokens) {
     },
     monthLabel: {
       color: tokens.fg1,
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 13,
     },
     yearLabel: {
@@ -454,7 +454,7 @@ function createStyles(tokens: AppTokens) {
     },
     dayText: {
       color: tokens.fg1,
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
     },
     dayTextOutside: {
@@ -462,7 +462,7 @@ function createStyles(tokens: AppTokens) {
     },
     dayTextSelected: {
       color: tokens.fgOnPrimary,
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'GeistMono_500Medium',
     },
   })
 }

@@ -21,7 +21,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   messageText: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 13,
     lineHeight: 19,
   },
@@ -41,7 +41,7 @@ export const styles = StyleSheet.create({
     gap: 12,
   },
   keyName: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 15,
     flexShrink: 1,
   },
@@ -64,7 +64,7 @@ export const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   revokeLink: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 13,
   },
   actionPad: {
@@ -96,7 +96,7 @@ export const styles = StyleSheet.create({
     transform: [{ scale: 0.96 }],
   },
   actionLink: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 13,
   },
   apiKeysHeader: {
@@ -109,12 +109,12 @@ export const styles = StyleSheet.create({
     gap: 12,
   },
   subsectionTitle: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 16,
     letterSpacing: -0.16,
   },
   apiKeysDescription: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 13,
     lineHeight: 19,
     paddingHorizontal: 20,
@@ -136,11 +136,11 @@ export const styles = StyleSheet.create({
     gap: 10,
   },
   lockedTitle: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 14,
   },
   lockedDesc: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 13,
     lineHeight: 19,
   },
@@ -183,7 +183,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   hintText: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
     lineHeight: 21,
   },
@@ -196,7 +196,7 @@ export const styles = StyleSheet.create({
     gap: 16,
   },
   widgetHeading: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 15,
   },
   widgetList: {
@@ -218,7 +218,7 @@ export const styles = StyleSheet.create({
   },
   widgetItemText: {
     flex: 1,
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
     lineHeight: 21,
   },

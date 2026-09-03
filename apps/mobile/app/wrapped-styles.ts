@@ -26,7 +26,7 @@ export const styles = StyleSheet.create({
     gap: 18,
   },
   eyebrow: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 12,
     letterSpacing: 0.96,
     textTransform: 'uppercase',
@@ -40,8 +40,8 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
     fontVariant: ['tabular-nums'],
   },
-  label: { fontFamily: 'Rubik_500Medium', fontSize: 16, textAlign: 'center' },
-  caption: { fontFamily: 'Rubik_400Regular', fontSize: 14, textAlign: 'center', maxWidth: 280 },
+  label: { fontFamily: 'Geist_500Medium', fontSize: 16, textAlign: 'center' },
+  caption: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center', maxWidth: 280 },
   title: {
     fontFamily: 'Inter_700Bold',
     fontSize: 34,
@@ -78,7 +78,7 @@ export const styles = StyleSheet.create({
     paddingBottom: 28,
     gap: 16,
   },
-  shareError: { fontFamily: 'Rubik_400Regular', fontSize: 13, textAlign: 'center' },
+  shareError: { fontFamily: 'Geist_400Regular', fontSize: 13, textAlign: 'center' },
   shareCtaWrap: { width: '100%', maxWidth: 360 },
   cover: {
     flex: 1,
@@ -96,9 +96,9 @@ export const styles = StyleSheet.create({
     letterSpacing: -0.88,
     textAlign: 'center',
   },
-  coverSubtitle: { fontFamily: 'Rubik_400Regular', fontSize: 14, textAlign: 'center', maxWidth: 300 },
+  coverSubtitle: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center', maxWidth: 300 },
   periodRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 8 },
   ctaWrap: { alignItems: 'center', gap: 12, minHeight: 84 },
-  stateText: { fontFamily: 'Rubik_400Regular', fontSize: 14, textAlign: 'center', maxWidth: 300 },
+  stateText: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center', maxWidth: 300 },
   emptyState: { alignItems: 'center', gap: 12 },
 })

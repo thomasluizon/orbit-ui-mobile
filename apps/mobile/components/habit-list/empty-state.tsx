@@ -113,12 +113,12 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   title: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 22,
     textAlign: 'center',
   },
   description: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 15,
     lineHeight: 22.5,
     textAlign: 'center',
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   linkActionText: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 13,
     textDecorationLine: 'underline',
   },

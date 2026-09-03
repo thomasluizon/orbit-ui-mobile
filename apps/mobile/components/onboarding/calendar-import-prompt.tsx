@@ -113,7 +113,7 @@ function createStyles(tokens: AppTokensV2) {
       paddingBottom: 8,
     },
     description: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 21,
       color: tokens.fg2,
@@ -128,7 +128,7 @@ function createStyles(tokens: AppTokensV2) {
       paddingBottom: 10,
     },
     quietText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       color: tokens.fg2,
     },

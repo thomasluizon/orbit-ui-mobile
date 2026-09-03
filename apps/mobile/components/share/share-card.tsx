@@ -200,7 +200,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 8,
     },
     habitHeader: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
       letterSpacing: 0.96,
       color: tokens.fg3,

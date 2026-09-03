@@ -86,7 +86,7 @@ export function Input({
               backgroundColor: tokens.bgField,
               borderColor,
               borderWidth: error || focused ? 2 : 1,
-              fontFamily: mono ? 'Roboto_400Regular' : 'Rubik_400Regular',
+              fontFamily: mono ? 'Roboto_400Regular' : 'Geist_400Regular',
             },
             disabled ? styles.disabled : null,
           ]}
@@ -104,7 +104,7 @@ export function Input({
 
 const styles = StyleSheet.create({
   root: { width: '100%', gap: 8 },
-  label: { fontFamily: 'Rubik_500Medium', fontSize: 14 },
+  label: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   controlRow: { position: 'relative' },
   input: {
     width: '100%',
@@ -118,5 +118,5 @@ const styles = StyleSheet.create({
   multiline: { minHeight: 96 },
   trailing: { position: 'absolute', right: 16, top: 16 },
   disabled: { opacity: 0.6 },
-  caption: { fontFamily: 'Rubik_400Regular', fontSize: 12 },
+  caption: { fontFamily: 'Geist_400Regular', fontSize: 12 },
 })

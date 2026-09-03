@@ -61,9 +61,9 @@ export function CheckRow({
 const styles = StyleSheet.create({
   row: { width: '100%', minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 8 },
   copy: { minWidth: 0, flex: 1, gap: 4 },
-  label: { fontFamily: 'Rubik_500Medium', fontSize: 16 },
+  label: { fontFamily: 'Geist_500Medium', fontSize: 16 },
   checkedLabel: { textDecorationLine: 'line-through' },
-  description: { fontFamily: 'Rubik_400Regular', fontSize: 14 },
+  description: { fontFamily: 'Geist_400Regular', fontSize: 14 },
   value: { fontFamily: 'Roboto_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
   disabled: { opacity: 0.6 },
 })

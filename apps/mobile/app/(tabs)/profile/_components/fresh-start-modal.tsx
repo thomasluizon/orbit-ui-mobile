@@ -79,7 +79,7 @@ const dangerPillStyles = StyleSheet.create({
     opacity: 0.85,
   },
   label: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 16,
   },
 })
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   modalDescription: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 15,
     lineHeight: 23,
   },
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   boxLabel: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 12,
     letterSpacing: 0.96,
     textTransform: 'uppercase',
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   boxItemText: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 13,
     lineHeight: 18,
     flex: 1,
@@ -386,11 +386,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   confirmLabel: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 14,
   },
   errorTextSmall: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 12,
     textAlign: 'center',
   },

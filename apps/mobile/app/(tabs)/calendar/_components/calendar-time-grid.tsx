@@ -208,7 +208,7 @@ function TimedBlock({
       <Text
         numberOfLines={1}
         style={{
-          fontFamily: "Rubik_500Medium",
+          fontFamily: "Geist_500Medium",
           // react-doctor-disable-next-line no-tiny-text -- Deliberate density: entry title inside a packed day/week time-grid cell (like standard calendar apps); 12px would overflow the fixed-height slots. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
           fontSize: 11,
           lineHeight: 13,
@@ -270,7 +270,7 @@ function AllDayChip({
         numberOfLines={1}
         style={{
           flexShrink: 1,
-          fontFamily: "Rubik_500Medium",
+          fontFamily: "Geist_500Medium",
           fontSize: 11,
           color: completed ? tokens.fg3 : tokens.fg1,
           textDecorationLine: completed ? "line-through" : "none",
@@ -750,7 +750,7 @@ function createStyles(tokens: Tokens) {
       padding: 24,
     },
     emptyText: {
-      fontFamily: "Rubik_400Regular",
+      fontFamily: "Geist_400Regular",
       fontSize: 14,
       color: tokens.fg3,
     },

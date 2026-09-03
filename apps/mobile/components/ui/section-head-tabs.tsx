@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.96 }],
   },
   label: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 13,
   },
 })

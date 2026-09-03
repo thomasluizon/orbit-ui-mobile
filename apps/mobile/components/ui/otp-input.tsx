@@ -92,5 +92,5 @@ const styles = StyleSheet.create({
   realInput: { ...StyleSheet.absoluteFill, zIndex: 1, opacity: 0.01 },
   cell: { width: 48, height: 58, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   digit: { fontFamily: 'Roboto_500Medium', fontSize: 26, fontVariant: ['tabular-nums'] },
-  caption: { fontFamily: 'Rubik_400Regular', fontSize: 12 },
+  caption: { fontFamily: 'Geist_400Regular', fontSize: 12 },
 })

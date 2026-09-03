@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   eyebrow: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 12,
     letterSpacing: 0.96,
     textTransform: 'uppercase',
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   subtitle: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 16,
     lineHeight: 24,
     textAlign: 'center',

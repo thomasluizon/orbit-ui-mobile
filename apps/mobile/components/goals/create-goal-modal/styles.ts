@@ -26,17 +26,17 @@ export function createStyles(tokens: CreateGoalTokens, bottomInset: number) {
       flex: 1,
     },
     fieldLabel: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 14,
       color: tokens.fg2,
       marginBottom: 8,
     },
     labelOptional: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       color: tokens.fg3,
     },
     fieldError: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 12,
       color: tokens.statusOverdueText,
       marginTop: 6,
@@ -72,20 +72,20 @@ export function createStyles(tokens: CreateGoalTokens, bottomInset: number) {
       backgroundColor: tokens.bgElev2,
     },
     typeOptionText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 15,
     },
     typeCaption: {
       marginTop: 10,
     },
     typeDesc: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 12,
       color: tokens.fg3,
       lineHeight: 18,
     },
     typeHint: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 11,
       color: tokens.fg3,
       lineHeight: 16,
@@ -107,7 +107,7 @@ export function createStyles(tokens: CreateGoalTokens, bottomInset: number) {
       justifyContent: 'center',
     },
     warningText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.statusOverdueText,
       marginTop: 8,
@@ -120,7 +120,7 @@ export function createStyles(tokens: CreateGoalTokens, bottomInset: number) {
       alignSelf: 'flex-start',
     },
     addDeadlineText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 13,
       color: tokens.fg1,
     },

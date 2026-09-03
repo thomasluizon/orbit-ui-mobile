@@ -15,7 +15,7 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       paddingHorizontal: 20,
       paddingTop: 4,
       paddingBottom: 14,
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
       color: tokens.fg3,
       letterSpacing: 0.96,
@@ -50,7 +50,7 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
     },
     ringMeta: {
       marginTop: 2,
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 14,
       color: tokens.fg3,
       textAlign: 'center',
@@ -64,7 +64,7 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       gap: 14,
     },
     formLabel: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 14,
       color: tokens.fg2,
       marginBottom: 8,
@@ -79,7 +79,7 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
     },
     warningText: {
       paddingHorizontal: 20,
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.statusOverdueText,
     },
@@ -93,7 +93,7 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       opacity: 0.7,
     },
     retryText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 13,
       color: tokens.fg1,
     },
@@ -133,7 +133,7 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       marginBottom: 4,
     },
     askAstraBody: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 20,
       color: tokens.fg2,
@@ -153,12 +153,12 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       backgroundColor: tokens.bgHover,
     },
     actionRowText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 15,
       color: tokens.fg1,
     },
     actionRowTextDestructive: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 15,
       color: tokens.statusBad,
     },

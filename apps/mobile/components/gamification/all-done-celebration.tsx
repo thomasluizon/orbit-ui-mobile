@@ -141,13 +141,13 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 12,
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 28,
     letterSpacing: -0.28,
     textAlign: 'center',
   },
   subtitle: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 16,
     lineHeight: 24,
     textAlign: 'center',

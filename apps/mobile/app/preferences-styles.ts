@@ -13,7 +13,7 @@ export const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   statusText: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 13,
   },
   linkChip: {
@@ -31,7 +31,7 @@ export const styles = StyleSheet.create({
     transform: [{ scale: 0.96 }],
   },
   linkText: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 13,
   },
   sheetScroll: {
@@ -42,7 +42,7 @@ export const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   sheetDescription: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
     lineHeight: 19.6,
     marginBottom: 12,

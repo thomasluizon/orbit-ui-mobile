@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   selectAllText: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 12,
     textDecorationLine: 'underline',
   },

@@ -227,7 +227,7 @@ function createStyles(tokens: AppTokensV2) {
       marginTop: 6,
     },
     subtitle: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 16,
       lineHeight: 24,
       color: tokens.fg2,
@@ -246,7 +246,7 @@ function createStyles(tokens: AppTokensV2) {
       borderBottomColor: tokens.hairline,
     },
     recapText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 16,
       color: tokens.fg2,
     },

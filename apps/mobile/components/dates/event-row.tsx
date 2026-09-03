@@ -31,6 +31,6 @@ const styles = StyleSheet.create({
   row: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
   time: { flexShrink: 0, fontFamily: 'GeistMono_400Regular', fontSize: 12, fontVariant: ['tabular-nums'] },
   content: { flex: 1, minWidth: 0 },
-  title: { fontFamily: 'Rubik_400Regular', fontSize: 16 },
-  source: { fontFamily: 'Rubik_400Regular', fontSize: 12 },
+  title: { fontFamily: 'Geist_400Regular', fontSize: 16 },
+  source: { fontFamily: 'GeistMono_400Regular', fontSize: 12 },
 })

@@ -119,7 +119,7 @@ function createStyles(tokens: AppTokensV2) {
       paddingBottom: 8,
     },
     title: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 28,
       letterSpacing: -0.28,
       lineHeight: 32,
@@ -144,7 +144,7 @@ function createStyles(tokens: AppTokensV2) {
       paddingHorizontal: 15,
     },
     bubbleText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 15,
       lineHeight: 22,
       color: tokens.fg1,

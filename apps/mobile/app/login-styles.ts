@@ -62,7 +62,7 @@ export function createLoginStyles(tokens: AppTokensV2) {
       gap: 6,
     },
     stepTitle: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 28,
       lineHeight: 36,
       letterSpacing: -0.28,
@@ -70,7 +70,7 @@ export function createLoginStyles(tokens: AppTokensV2) {
       textAlign: 'center',
     },
     stepSubtitle: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 15,
       lineHeight: 23,
       color: tokens.fg2,
@@ -78,7 +78,7 @@ export function createLoginStyles(tokens: AppTokensV2) {
     },
 
     successText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       lineHeight: 20,
       color: tokens.fg2,
@@ -97,13 +97,13 @@ export function createLoginStyles(tokens: AppTokensV2) {
       backgroundColor: tokens.hairline,
     },
     dividerText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.fg3,
     },
 
     legal: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 12,
       lineHeight: 18,
       color: tokens.fg3,
@@ -116,7 +116,7 @@ export function createLoginStyles(tokens: AppTokensV2) {
     },
 
     codeSentText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 15,
       lineHeight: 23,
       color: tokens.fg2,
@@ -148,7 +148,7 @@ export function createLoginStyles(tokens: AppTokensV2) {
       opacity: 0.5,
     },
     resendActiveText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 14,
       color: tokens.fg2,
     },
@@ -156,13 +156,13 @@ export function createLoginStyles(tokens: AppTokensV2) {
       color: tokens.fg1,
     },
     resendCountdownText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 14,
       color: tokens.fg3,
       fontVariant: ['tabular-nums'],
     },
     quietLink: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.fg3,
     },

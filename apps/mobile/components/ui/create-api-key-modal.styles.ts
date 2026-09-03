@@ -15,7 +15,7 @@ export function createStyles(tokens: AppTokensV2, bottomInset: number) {
       gap: 18,
     },
     fieldLabel: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 14,
       color: tokens.fg2,
       marginBottom: 8,
@@ -32,13 +32,13 @@ export function createStyles(tokens: AppTokensV2, bottomInset: number) {
       paddingTop: 10,
     },
     quietLink: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.fg3,
       paddingVertical: 8,
     },
     quietLinkStrong: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 13,
       color: tokens.fg1,
       paddingVertical: 8,
@@ -57,7 +57,7 @@ export function createStyles(tokens: AppTokensV2, bottomInset: number) {
       paddingVertical: 8,
     },
     switchRowLabel: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 16,
       color: tokens.fg1,
       flexShrink: 1,
@@ -68,7 +68,7 @@ export function createStyles(tokens: AppTokensV2, bottomInset: number) {
       fontVariant: ['tabular-nums'],
     },
     warningText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 14,
       lineHeight: 20,
       color: tokens.statusOverdueText,
@@ -91,7 +91,7 @@ export function createStyles(tokens: AppTokensV2, bottomInset: number) {
       zIndex: 1,
     },
     copyButtonText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 13,
     },
     keyText: {
@@ -109,7 +109,7 @@ export function createStyles(tokens: AppTokensV2, bottomInset: number) {
       fontVariant: ['tabular-nums'],
     },
     errorText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.statusBad,
     },

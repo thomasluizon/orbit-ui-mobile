@@ -125,7 +125,7 @@ export function createStyles(tokens: AppTokens) {
       paddingVertical: 32,
     },
     drillTitle: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 20,
       color: tokens.fg1,
       letterSpacing: -0.2,
@@ -139,14 +139,14 @@ export function createStyles(tokens: AppTokens) {
       marginTop: 0,
     },
     drillErrorText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 21,
       color: tokens.fg2,
       textAlign: 'center',
     },
     drillEmptyText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 21,
       color: tokens.fg2,

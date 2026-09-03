@@ -291,7 +291,7 @@ function createStyles(tokens: AppTokensV2) {
       paddingTop: 4,
     },
     title: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 24,
       letterSpacing: -0.24,
       lineHeight: 31,
@@ -299,7 +299,7 @@ function createStyles(tokens: AppTokensV2) {
       textAlign: 'center',
     },
     subtitle: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 15,
       lineHeight: 23,
       color: tokens.fg2,
@@ -313,7 +313,7 @@ function createStyles(tokens: AppTokensV2) {
       flex: 1,
     },
     sectionLabel: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
       letterSpacing: 0.96,
       textTransform: 'uppercase',
@@ -338,7 +338,7 @@ function createStyles(tokens: AppTokensV2) {
       opacity: 0.7,
     },
     skipBtnText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.fg3,
     },
@@ -363,12 +363,12 @@ function createStyles(tokens: AppTokensV2) {
       fontVariant: ['tabular-nums'],
     },
     successDesc: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.fg3,
     },
     successMessage: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       color: tokens.primarySoft,
       marginTop: 8,

@@ -479,12 +479,12 @@ function createStyles(tokens: AppTokens) {
     justifyContent: 'center',
   },
   clearText: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 12,
     color: tokens.statusBadText,
   },
   limitText: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 12,
     color: tokens.fg3,
   },
@@ -528,7 +528,7 @@ function createStyles(tokens: AppTokens) {
   },
   itemTextInput: {
     flex: 1,
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
     color: tokens.fg1,
     paddingVertical: 4,
@@ -573,7 +573,7 @@ function createStyles(tokens: AppTokens) {
   },
   itemText: {
     flex: 1,
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 16,
     color: tokens.fg1,
   },
@@ -591,7 +591,7 @@ function createStyles(tokens: AppTokens) {
     color: tokens.fg1,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
     borderWidth: 1,
     borderColor: tokens.hairline,

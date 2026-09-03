@@ -128,7 +128,7 @@ function createStyles(tokens: AppTokensV2) {
       paddingBottom: 12,
     },
     title: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 24,
       letterSpacing: -0.24,
       lineHeight: 31,
@@ -136,7 +136,7 @@ function createStyles(tokens: AppTokensV2) {
       textAlign: 'center',
     },
     subtitle: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 15,
       lineHeight: 23,
       color: tokens.fg2,
@@ -158,12 +158,12 @@ function createStyles(tokens: AppTokensV2) {
       flex: 1,
     },
     habitTitle: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 16,
       color: tokens.fg1,
     },
     habitHint: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.fg3,
       marginTop: 3,
@@ -173,7 +173,7 @@ function createStyles(tokens: AppTokensV2) {
       paddingTop: 8,
     },
     streakText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       color: tokens.primarySoft,
     },

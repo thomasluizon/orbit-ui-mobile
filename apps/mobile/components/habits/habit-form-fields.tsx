@@ -488,8 +488,8 @@ function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: { gap: 24 }, disclosure: { gap: 12 }, details: { gap: 24, paddingHorizontal: 16 },
     compactGroup: { gap: 8 }, startDate: { gap: 4 },
-    meta: { color: tokens.fg3, fontFamily: 'Rubik_400Regular', fontSize: 12 },
-    hint: { color: tokens.fg3, fontFamily: 'Rubik_400Regular', fontSize: 14, lineHeight: 21 },
+    meta: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 },
+    hint: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
     startDateValue: { color: tokens.fg1, fontFamily: 'Geist_400Regular', fontSize: 17 },
   })
 }

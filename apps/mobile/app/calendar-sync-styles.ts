@@ -28,12 +28,12 @@ export function createStyles() {
       minWidth: 0,
     },
     connectionTitle: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 18,
       lineHeight: 22.5,
     },
     connectionMeta: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 13,
       lineHeight: 18,
       marginTop: 3,
@@ -57,18 +57,18 @@ export function createStyles() {
       gap: 8,
     },
     reconnectTitle: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 14,
       lineHeight: 19.6,
     },
     stateText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 19.6,
       textAlign: 'center',
     },
     stateTitle: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 18,
       lineHeight: 22.5,
       textAlign: 'center',
@@ -99,7 +99,7 @@ export function createStyles() {
       gap: 3,
     },
     eventTitle: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 15,
     },
     eventMeta: {
@@ -119,7 +119,7 @@ export function createStyles() {
       gap: 3,
     },
     eventDescription: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
     },
     dismissButton: {
@@ -145,7 +145,7 @@ export function createStyles() {
       transform: [{ scale: 0.96 }],
     },
     quietActionText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 13,
     },
     quietActionIcon: {
@@ -168,7 +168,7 @@ export function createStyles() {
       paddingTop: 6,
     },
     pickerStateText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 19.6,
     },
@@ -184,7 +184,7 @@ export function createStyles() {
       fontVariant: ['tabular-nums'],
     },
     eventTagText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 12,
     },
     errorActions: {

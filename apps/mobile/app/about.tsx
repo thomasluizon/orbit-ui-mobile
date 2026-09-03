@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   appName: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 22,
     letterSpacing: -0.22,
   },

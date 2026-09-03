@@ -256,7 +256,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 8,
     },
     title: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 16,
       color: tokens.fg1,
       flex: 1,
@@ -274,7 +274,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderColor: tokens.hairlineStrong,
     },
     badgeText: {
-      fontFamily: 'Rubik_600SemiBold',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 10.5,
       letterSpacing: 0.63,
       textTransform: 'uppercase',

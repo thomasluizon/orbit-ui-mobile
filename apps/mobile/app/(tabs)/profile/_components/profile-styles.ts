@@ -14,7 +14,7 @@ export function createProfileStyles(_tokens: Tokens) {
     },
 
     errorText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       textAlign: 'center',
       marginVertical: 12,
@@ -40,14 +40,14 @@ export function createProfileStyles(_tokens: Tokens) {
       opacity: 0.7,
     },
     identityName: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 32,
       letterSpacing: -0.32,
       lineHeight: 38,
       flexShrink: 1,
     },
     identityLine: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 16,
       maxWidth: '100%',
     },

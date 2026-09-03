@@ -227,7 +227,7 @@ function createStyles(tokens: AppTokens) {
       borderColor: tokens.hairline,
     },
     errorTitle: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 22,
       lineHeight: 29,
       color: tokens.fg1,

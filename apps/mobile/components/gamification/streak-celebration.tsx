@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   subtitle: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 16,
     lineHeight: 24,
     textAlign: 'center',

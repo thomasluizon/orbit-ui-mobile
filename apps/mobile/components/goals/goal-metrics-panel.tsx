@@ -174,7 +174,7 @@ function createStyles(tokens: AppTokens) {
     },
     adherenceTitle: {
       flex: 1,
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       color: tokens.fg1,
     },

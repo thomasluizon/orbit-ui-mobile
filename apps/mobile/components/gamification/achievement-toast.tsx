@@ -245,11 +245,11 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   name: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 15,
   },
   description: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 13,
   },
 })

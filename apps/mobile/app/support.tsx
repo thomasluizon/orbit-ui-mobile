@@ -299,11 +299,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   fieldLabel: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 14,
   },
   formDescription: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
     lineHeight: 21,
   },
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     minHeight: 132,
   },
   formErrorText: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 13,
     lineHeight: 19,
   },
@@ -332,13 +332,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   successTitle: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 22,
     letterSpacing: -0.22,
     textAlign: 'center',
   },
   successHint: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 15,
     lineHeight: 22.5,
     textAlign: 'center',

@@ -10,13 +10,7 @@ import {
 import * as SplashScreen from 'expo-splash-screen'
 import { reconcileSessionOnForeground } from './session-resume'
 import { QueryClientProvider } from '@tanstack/react-query'
-import {
-  useFonts,
-  Rubik_400Regular,
-  Rubik_500Medium,
-  Rubik_600SemiBold,
-  Rubik_700Bold,
-} from '@expo-google-fonts/rubik'
+import { useFonts } from 'expo-font'
 import {
   Inter_500Medium,
   Inter_600SemiBold,
@@ -145,10 +139,6 @@ function AuthInitializer({
   /** Expo Router's warm-link transition must retain its navigator while the next tuple applies. */
   const [hasRenderedApp, setHasRenderedApp] = useState(false)
   const [fontsLoaded] = useFonts({
-    Rubik_400Regular,
-    Rubik_500Medium,
-    Rubik_600SemiBold,
-    Rubik_700Bold,
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,

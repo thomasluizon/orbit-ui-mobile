@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 18,
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 22,
     lineHeight: 29,
     textAlign: 'center',
@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
   description: {
     marginTop: 8,
     maxWidth: 300,
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
     lineHeight: 22,
     textAlign: 'center',

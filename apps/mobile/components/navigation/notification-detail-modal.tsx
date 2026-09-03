@@ -148,7 +148,7 @@ const quietActionStyles = StyleSheet.create({
     transform: [{ scale: 0.96 }],
   },
   label: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 13,
   },
 })
@@ -175,7 +175,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingHorizontal: 20,
       paddingTop: 14,
       paddingBottom: 16,
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 15,
       color: tokens.fg2,
       lineHeight: 23,

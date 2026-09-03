@@ -122,9 +122,9 @@ describe('mobile Markdown wrapper', () => {
 
     expect(styles.text.flexShrink).toBe(1)
     expect(styles.link.flexShrink).toBe(1)
-    expect(styles.h1).toMatchObject({ fontSize: 28, fontFamily: 'Rubik_500Medium' })
+    expect(styles.h1).toMatchObject({ fontSize: 28, fontFamily: 'Geist_500Medium' })
     expect(styles.h2.fontSize).toBe(22)
-    expect(styles.h3).toMatchObject({ fontSize: 18, fontFamily: 'Rubik_400Regular' })
+    expect(styles.h3).toMatchObject({ fontSize: 18, fontFamily: 'Geist_400Regular' })
     expect(flatListProps.style?.minWidth).toBe(0)
   })
 })
