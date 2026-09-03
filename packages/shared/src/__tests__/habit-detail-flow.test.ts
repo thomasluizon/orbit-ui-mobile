@@ -4,6 +4,7 @@ import type { HabitMetrics } from '../types/habit'
 import {
   appendHabitDetailChild,
   buildHabitDetailSchedulePatch,
+  canInlineEditHabitSchedule,
   buildHabitDetailUpdateRequest,
   buildHabitDetailChildDateModel,
   buildHabitHistoryMonth,
@@ -131,7 +132,7 @@ describe('habit detail flow model', () => {
   })
 
   it('builds valid inline schedule patches and clears non-daily weekdays', () => {
-    expect(buildHabitDetailSchedulePatch('Day', 0, ['Monday'])).toEqual({
+    expect(buildHabitDetailSchedulePatch('Day', 1, ['Monday'])).toEqual({
       frequencyUnit: 'Day',
       frequencyQuantity: 1,
       days: ['Monday'],
@@ -141,6 +142,13 @@ describe('habit detail flow model', () => {
       frequencyQuantity: 3,
       days: [],
     })
+    expect(buildHabitDetailSchedulePatch('Day', 2, ['Monday'])).toMatchObject({ days: [] })
+    expect(buildHabitDetailSchedulePatch('Day', 0, [])).toBeNull()
+    expect(buildHabitDetailSchedulePatch('Day', 1.5, [])).toBeNull()
+    expect(canInlineEditHabitSchedule(makeHabitDetailScopedParent())).toBe(true)
+    expect(canInlineEditHabitSchedule({ ...makeHabitDetailScopedParent(), frequencyUnit: null })).toBe(false)
+    expect(canInlineEditHabitSchedule({ ...makeHabitDetailScopedParent(), isGeneral: true })).toBe(false)
+    expect(canInlineEditHabitSchedule({ ...makeHabitDetailScopedParent(), isFlexible: true })).toBe(false)
   })
 
   it('lists the actual reminder offsets and scheduled times', () => {

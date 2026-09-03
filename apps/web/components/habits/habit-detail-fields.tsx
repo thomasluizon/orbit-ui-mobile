@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { useHabitDetailFieldsState, type HabitDetailPatch } from '@orbit/shared/hooks'
 import {
   buildHabitDetailSchedulePatch,
+  canInlineEditHabitSchedule,
   formatHabitDetailReminderValue,
   formatHabitReminderLabel,
   HABIT_DETAIL_FREQUENCY_UNITS,
@@ -45,6 +46,7 @@ function TextEditor({ initialValue, multiline = false, onCancel, onSave }: Reado
 
 function ScheduleEditor({ habit, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
   const t = useTranslations()
+  const { showError } = useAppToast()
   const [unit, setUnit] = useState<(typeof HABIT_DETAIL_FREQUENCY_UNITS)[number]>(habit.frequencyUnit ?? 'Day')
   const [quantity, setQuantity] = useState(habit.frequencyQuantity ?? 1)
   const [days, setDays] = useState(habit.days)
@@ -56,10 +58,16 @@ function ScheduleEditor({ habit, onCancel, onSave }: Readonly<{ habit: Normalize
           {HABIT_DETAIL_FREQUENCY_UNITS.map((value) => <option key={value} value={value}>{t(`habits.form.unit${value}`)}</option>)}
         </select>
       </div>
-      {unit === 'Day' ? <div className="flex flex-wrap gap-2">{HABIT_DETAIL_WEEKDAYS.map((day) => { const selected = days.includes(day); return <button key={day} type="button" aria-pressed={selected} className={selected ? 'chip chip-active' : 'chip'} onClick={() => setDays((current) => selected ? current.filter((value) => value !== day) : [...current, day])}>{t(`dates.daysShort.${day.toLowerCase()}`).charAt(0)}</button> })}</div> : null}
-      <FieldActions onCancel={onCancel} onSave={() => onSave(buildHabitDetailSchedulePatch(unit, quantity, days))} />
+      {unit === 'Day' && quantity === 1 ? <div className="flex flex-wrap gap-2">{HABIT_DETAIL_WEEKDAYS.map((day) => { const selected = days.includes(day); return <button key={day} type="button" aria-pressed={selected} className={selected ? 'chip chip-active' : 'chip'} onClick={() => setDays((current) => selected ? current.filter((value) => value !== day) : [...current, day])}>{t(`dates.daysShort.${day.toLowerCase()}`).charAt(0)}</button> })}</div> : null}
+      <FieldActions onCancel={onCancel} onSave={() => { const patch = buildHabitDetailSchedulePatch(unit, quantity, days); if (patch) onSave(patch); else showError(t('habits.form.frequencyRequired')) }} />
     </FieldWell>
   )
+}
+
+function ScheduleField({ habit, summary, open, onToggle, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; summary: string; open: boolean; onToggle: () => void; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
+  const t = useTranslations()
+  const editable = canInlineEditHabitSchedule(habit)
+  return <><ListRow title={t('habits.detail.schedule')} value={summary} readOnly={!editable} onClick={editable ? onToggle : undefined} />{open ? <ScheduleEditor habit={habit} onCancel={onCancel} onSave={onSave} /> : null}</>
 }
 
 function SlipAlertRow({ habit, hasProAccess, onPatch, onUpgrade }: Readonly<{ habit: NormalizedHabit; hasProAccess: boolean; onPatch: HabitDetailFieldsProps['onPatch']; onUpgrade: () => void }>) {
@@ -79,8 +87,7 @@ export function HabitDetailFields({ habit, hasProAccess, locale, summary, onPatc
       {openField === 'goals' ? <FieldWell><GoalLinkingField selectedGoalIds={goalIds} atGoalLimit={false} onToggleGoal={toggleGoal} /></FieldWell> : null}
       <ListRow title={t('habits.detail.reminders')} value={formatHabitDetailReminderValue(reminderHabit, (key) => t(key))} onClick={() => toggleField('reminders')} />
       {openField === 'reminders' ? <FieldWell>{habit.dueTime ? <ReminderSection reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => updateReminders({ offsets })} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} t={t} /> : <ScheduledReminderSection reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => updateReminders({ scheduled })} onValidationError={showError} t={t} />}</FieldWell> : null}
-      <ListRow title={t('habits.detail.schedule')} value={summary} onClick={() => toggleField('schedule')} />
-      {openField === 'schedule' ? <ScheduleEditor habit={habit} onCancel={close} onSave={save} /> : null}
+      <ScheduleField habit={habit} summary={summary} open={openField === 'schedule'} onToggle={() => toggleField('schedule')} onCancel={close} onSave={save} />
       <ListRow title={t('habits.detail.time')} value={habit.dueTime ?? t('habits.detail.noValue')} onClick={() => toggleField('time')} />
       {openField === 'time' ? <TextEditor initialValue={habit.dueTime ?? ''} onCancel={close} onSave={(dueTime) => save({ dueTime })} /> : null}
       <ListRow title={t('habits.detail.description')} value={habit.description ?? t('habits.detail.noValue')} onClick={() => toggleField('description')} />

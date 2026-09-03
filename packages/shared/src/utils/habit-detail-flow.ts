@@ -417,12 +417,19 @@ export function buildHabitDetailSchedulePatch(
   unit: (typeof HABIT_DETAIL_FREQUENCY_UNITS)[number],
   quantity: number,
   days: string[],
-): Partial<UpdateHabitRequest> {
+): Partial<UpdateHabitRequest> | null {
+  if (!Number.isInteger(quantity) || quantity < 1) return null
   return {
     frequencyUnit: unit,
-    frequencyQuantity: Math.max(1, quantity),
-    days: unit === 'Day' ? days : [],
+    frequencyQuantity: quantity,
+    days: unit === 'Day' && quantity === 1 ? days : [],
   }
+}
+
+export function canInlineEditHabitSchedule(
+  habit: Pick<NormalizedHabit, 'frequencyUnit' | 'isFlexible' | 'isGeneral'>,
+): boolean {
+  return habit.frequencyUnit !== null && !habit.isFlexible && !habit.isGeneral
 }
 
 export function formatHabitDetailReminderValue(

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useHabitDetailFieldsState, type HabitDetailPatch } from '@orbit/shared/hooks'
-import { buildHabitDetailSchedulePatch, formatHabitDetailReminderValue, formatHabitReminderLabel, formatLocaleDate, HABIT_DETAIL_FREQUENCY_UNITS, HABIT_DETAIL_WEEKDAYS } from '@orbit/shared/utils'
+import { buildHabitDetailSchedulePatch, canInlineEditHabitSchedule, formatHabitDetailReminderValue, formatHabitReminderLabel, formatLocaleDate, HABIT_DETAIL_FREQUENCY_UNITS, HABIT_DETAIL_WEEKDAYS } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
@@ -52,6 +52,7 @@ function WeekdayChips({ days, tokens, onChange }: Readonly<{ days: string[]; tok
 
 function ScheduleEditor({ habit, tokens, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; tokens: Tokens; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
   const { t } = useTranslation()
+  const { showError } = useAppToast()
   const [unit, setUnit] = useState<(typeof HABIT_DETAIL_FREQUENCY_UNITS)[number]>(habit.frequencyUnit ?? 'Day')
   const [quantity, setQuantity] = useState(String(habit.frequencyQuantity ?? 1))
   const [days, setDays] = useState(habit.days)
@@ -59,10 +60,16 @@ function ScheduleEditor({ habit, tokens, onCancel, onSave }: Readonly<{ habit: N
     <FieldWell tokens={tokens}>
       <TextInput value={quantity} keyboardType="number-pad" accessibilityLabel={t('habits.form.frequencyRequired')} style={[styles.quantity, { backgroundColor: tokens.bg, borderColor: tokens.borderControl, color: tokens.fg1 }]} onChangeText={setQuantity} />
       <FrequencyUnitChips unit={unit} tokens={tokens} onChange={setUnit} />
-      {unit === 'Day' ? <WeekdayChips days={days} tokens={tokens} onChange={setDays} /> : null}
-      <FieldActions onCancel={onCancel} onSave={() => onSave(buildHabitDetailSchedulePatch(unit, Number(quantity), days))} />
+      {unit === 'Day' && Number(quantity) === 1 ? <WeekdayChips days={days} tokens={tokens} onChange={setDays} /> : null}
+      <FieldActions onCancel={onCancel} onSave={() => { const patch = buildHabitDetailSchedulePatch(unit, Number(quantity), days); if (patch) onSave(patch); else showError(t('habits.form.frequencyRequired')) }} />
     </FieldWell>
   )
+}
+
+function ScheduleField({ habit, summary, open, tokens, onToggle, onCancel, onSave }: Readonly<{ habit: NormalizedHabit; summary: string; open: boolean; tokens: Tokens; onToggle: () => void; onCancel: () => void; onSave: (patch: HabitDetailPatch) => void }>) {
+  const { t } = useTranslation()
+  const editable = canInlineEditHabitSchedule(habit)
+  return <><ListRow title={t('habits.detail.schedule')} value={summary} readOnly={!editable} onClick={editable ? onToggle : undefined} />{open ? <ScheduleEditor habit={habit} tokens={tokens} onCancel={onCancel} onSave={onSave} /> : null}</>
 }
 
 function SlipAlertRow({ habit, hasProAccess, onPatch, onUpgrade }: Readonly<{ habit: NormalizedHabit; hasProAccess: boolean; onPatch: HabitDetailFieldsProps['onPatch']; onUpgrade: () => void }>) {
@@ -82,8 +89,7 @@ export function HabitDetailFields({ habit, hasProAccess, locale, summary, tokens
       {openField === 'goals' ? <FieldWell tokens={tokens}><GoalLinkingField selectedGoalIds={goalIds} atGoalLimit={false} onToggleGoal={toggleGoal} /></FieldWell> : null}
       <ListRow title={t('habits.detail.reminders')} value={formatHabitDetailReminderValue(reminderHabit, t)} onClick={() => toggleField('reminders')} />
       {openField === 'reminders' ? <FieldWell tokens={tokens}>{habit.dueTime ? <ReminderSection tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => updateReminders({ offsets })} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, t)} /> : <ScheduledReminderSection tokens={tokens} reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => updateReminders({ scheduled })} onValidationError={showError} />}</FieldWell> : null}
-      <ListRow title={t('habits.detail.schedule')} value={summary} onClick={() => toggleField('schedule')} />
-      {openField === 'schedule' ? <ScheduleEditor habit={habit} tokens={tokens} onCancel={close} onSave={save} /> : null}
+      <ScheduleField habit={habit} summary={summary} open={openField === 'schedule'} tokens={tokens} onToggle={() => toggleField('schedule')} onCancel={close} onSave={save} />
       <ListRow title={t('habits.detail.time')} value={habit.dueTime ?? t('habits.detail.noValue')} onClick={() => toggleField('time')} />
       {openField === 'time' ? <TextEditor initialValue={habit.dueTime ?? ''} tokens={tokens} onCancel={close} onSave={(dueTime) => save({ dueTime })} /> : null}
       <ListRow title={t('habits.detail.description')} value={habit.description ?? t('habits.detail.noValue')} onClick={() => toggleField('description')} />
