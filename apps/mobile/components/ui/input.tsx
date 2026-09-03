@@ -86,7 +86,7 @@ export function Input({
               backgroundColor: tokens.bgField,
               borderColor,
               borderWidth: error || focused ? 2 : 1,
-              fontFamily: mono ? 'Roboto_400Regular' : 'Geist_400Regular',
+              fontFamily: mono ? 'GeistMono_400Regular' : 'Geist_400Regular',
             },
             disabled ? styles.disabled : null,
           ]}

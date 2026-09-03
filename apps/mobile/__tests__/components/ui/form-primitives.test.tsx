@@ -101,7 +101,7 @@ describe('form primitives on mobile', () => {
     const input = tree.root.findAllByType('TextInput')[0]!
 
     expect(StyleSheet.flatten(prop(input, 'style'))).toMatchObject({
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
     })
   })
 
