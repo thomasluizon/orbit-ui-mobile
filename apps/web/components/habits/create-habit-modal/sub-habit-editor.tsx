@@ -29,9 +29,6 @@ export function SubHabitEditor({
 
   return (
     <div className="space-y-2.5 pt-1">
-      <span className="form-label">
-        {t('habits.form.subHabits')}
-      </span>
       {subHabits.length > 0 && (
         <div className="space-y-2">
           {subHabits.map((entry, index) => (

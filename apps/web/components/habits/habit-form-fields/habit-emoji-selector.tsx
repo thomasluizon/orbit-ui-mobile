@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react'
-import { X, Plus } from '@/components/ui/icons'
+import { X, Plus, Trash2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { HABIT_EMOJI_CATEGORIES, filterHabitEmojiCategories } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
@@ -49,7 +49,7 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect, wellSize = 56 }: R
         style={{
           width: wellSize,
           height: wellSize,
-          borderRadius: 'var(--r-well)',
+          borderRadius: '999px',
           fontSize: wellSize === 76 ? 34 : 26,
           background: 'var(--bg-well)',
         }}
@@ -58,38 +58,17 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect, wellSize = 56 }: R
         aria-expanded={pickerOpen}
         aria-label={t('habits.form.emojiOpenPicker')}
       >
-        {selectedEmoji || <Plus size={22} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
+        {selectedEmoji || <Plus size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
       </button>
 
-      {pickerOpen ? <Sheet ref={sheetRef} open title={t('habits.form.emojiPickerTitle')} onClose={hidePicker}>
-        <div className="flex items-center justify-between border-b border-[var(--hairline)] px-4 py-3">
-          <div className="flex items-center gap-3">
-            <span
-              className="grid place-items-center rounded-[12px] bg-[var(--bg-elev)] text-xl"
-              style={{ width: 40, height: 40 }}
-            >
-              {selectedEmoji || <Plus size={16} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
-            </span>
-            <div>
-              <h3
-                className="text-[var(--fg-1)]"
-                style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 500 }}
-              >
-                {t('habits.form.emojiPickerTitle')}
-              </h3>
-              <p className="text-xs text-[var(--fg-3)]">{t('habits.form.emojiDescription')}</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="touch-target grid size-10 place-items-center rounded-full text-[var(--fg-2)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-colors duration-[var(--dur-fast)]"
-            onClick={() => closeSheet()}
-            aria-label={t('common.close')}
-          >
-            <X size={20} strokeWidth={1.8} aria-hidden="true" />
+      {pickerOpen ? <Sheet ref={sheetRef} open title={t('habits.form.emojiPickerTitle')} onClose={hidePicker} headerAccessory={selectedEmoji ? (
+        <div className="flex items-center gap-2">
+          <span className="grid size-10 place-items-center rounded-full bg-[var(--bg-well)] text-xl">{selectedEmoji}</span>
+          <button type="button" className="grid size-10 place-items-center rounded-full text-[var(--fg-2)] transition-colors duration-[240ms] hover:bg-[var(--bg-hover)] hover:text-[var(--status-bad)] active:scale-[0.96]" aria-label={t('habits.form.emojiRemove')} onClick={() => onSelect('')}>
+            <Trash2 size={18} strokeWidth={1.8} aria-hidden="true" />
           </button>
         </div>
-
+      ) : undefined}>
         <div className="space-y-3 p-4">
           <div className="flex items-center gap-2">
             <input
@@ -111,16 +90,6 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect, wellSize = 56 }: R
               </button>
             ) : null}
           </div>
-          {selectedEmoji && (
-            <button
-              type="button"
-              className="chip"
-              onClick={() => handleSelectEmoji('')}
-            >
-              <X size={14} strokeWidth={1.8} aria-hidden="true" />
-              {t('habits.form.emojiRemove')}
-            </button>
-          )}
           <div className="flex gap-2 overflow-x-auto pb-1" aria-label={t('habits.form.emojiCategories')}>
             {HABIT_EMOJI_CATEGORIES.map((category) => {
               const selected = selectedCategoryId === category.id

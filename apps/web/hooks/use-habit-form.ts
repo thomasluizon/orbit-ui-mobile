@@ -66,6 +66,7 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
       emoji: '',
       frequencyUnit: null,
       frequencyQuantity: null,
+      intervalWeeks: 1,
       days: [],
       isBadHabit: false,
       isGeneral: false,

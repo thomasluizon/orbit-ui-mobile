@@ -507,9 +507,6 @@
   "components/habits/checklist-templates.tsx": {
     "local/require-focus-replacement": {
       "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 4
     }
   },
   "components/habits/create-habit-modal/sub-habit-editor.tsx": {
@@ -532,11 +529,6 @@
     },
     "local/spacing-scale": {
       "count": 3
-    }
-  },
-  "components/habits/goal-linking-field.tsx": {
-    "local/no-space-x-y": {
-      "count": 1
     }
   },
   "components/habits/habit-calendar.tsx": {
@@ -562,7 +554,7 @@
   },
   "components/habits/habit-form-fields/habit-emoji-selector.tsx": {
     "local/icon-size-grid": {
-      "count": 2
+      "count": 1
     },
     "local/no-space-x-y": {
       "count": 1
@@ -601,7 +593,7 @@
       "count": 3
     },
     "local/spacing-scale": {
-      "count": 7
+      "count": 6
     }
   },
   "components/habits/habit-form-fields/slip-alert-section.tsx": {

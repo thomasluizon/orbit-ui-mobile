@@ -51,6 +51,7 @@ interface MobileSheetProps extends SheetProps {
 /** The native overlay surface. Callers mount it only while it is open. */
 export function Sheet({
   title,
+  headerAccessory,
   actions,
   onClose,
   onAttemptDismiss,
@@ -107,9 +108,10 @@ export function Sheet({
     return true
   }, [onAttemptDismiss])
 
-  const header = title || onClose ? (
+  const header = title || headerAccessory || onClose ? (
     <View style={styles.header}>
       {title ? <Text style={styles.title}>{title}</Text> : <View style={styles.titleSpacer} />}
+      {headerAccessory}
       {onClose ? (
         <Pressable
           accessibilityLabel={t('common.close')}

@@ -334,7 +334,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    const subHabitRow = tree.root.findAll((node: any) => node.type === 'Pressable' && node.findAll((child: any) => child.type === 'Text' && child.props.children === 'habits.form.subHabits').length > 0)[0]
+    const subHabitRow = tree.root.findAll((node: any) => node.type === 'Pressable' && node.findAll((child: any) => child.type === 'Text' && child.props.children === 'common.upgrade').length > 0)[0]
     TestRenderer.act(() => subHabitRow.props.onPress())
     expect(onUpgrade).toHaveBeenCalledOnce()
   })

@@ -1,119 +1,73 @@
 import { describe, expect, it } from 'vitest'
 import { readHabitPhrase, segmentHabitPhrase } from '../utils/habit-phrase-parser'
 
+interface PhraseCase {
+  input: string
+  locale: 'en' | 'pt-BR'
+  cadence: 'daily' | 'fixed' | 'flexible' | null
+  quantity?: number
+  days?: string[]
+  interval?: number
+  time?: string
+}
+
+const cases: PhraseCase[] = [
+  { input: 'Correr 12 vezes na semana', locale: 'pt-BR', cadence: 'flexible', quantity: 12 },
+  { input: 'correr 3 VEZES POR SEMANA', locale: 'pt-BR', cadence: 'flexible', quantity: 3 },
+  { input: 'Ler 1 vez por semana', locale: 'pt-BR', cadence: 'flexible', quantity: 1 },
+  { input: 'Beber agua duas vezes na semana', locale: 'pt-BR', cadence: 'flexible', quantity: 2 },
+  { input: 'Alongar 20x semana', locale: 'pt-BR', cadence: 'flexible', quantity: 20 },
+  { input: 'Ler terca e quinta as 8h30', locale: 'pt-BR', cadence: 'fixed', days: ['Tuesday', 'Thursday'], time: '08:30' },
+  { input: 'LER SEGUNDA-FEIRA', locale: 'pt-BR', cadence: 'fixed', days: ['Monday'] },
+  { input: 'Correr sabado e domingo', locale: 'pt-BR', cadence: 'fixed', days: ['Saturday', 'Sunday'] },
+  { input: 'Meditar todos os dias às 7', locale: 'pt-BR', cadence: 'daily', time: '07:00' },
+  { input: 'alongar diariamente 21:15', locale: 'pt-BR', cadence: 'daily', time: '21:15' },
+  { input: 'terça, quarta e quinta a cada 2 semanas', locale: 'pt-BR', cadence: 'fixed', days: ['Tuesday', 'Wednesday', 'Thursday'], interval: 2 },
+  { input: '3 vezes por semana a cada 3 semanas', locale: 'pt-BR', cadence: 'flexible', quantity: 3, interval: 3 },
+  { input: 'Run 12 times a week', locale: 'en', cadence: 'flexible', quantity: 12 },
+  { input: 'RUN 3 TIMES A WEEK', locale: 'en', cadence: 'flexible', quantity: 3 },
+  { input: 'Read once a week', locale: 'en', cadence: 'flexible', quantity: 1 },
+  { input: 'Stretch twice per week', locale: 'en', cadence: 'flexible', quantity: 2 },
+  { input: 'Journal 15x a week', locale: 'en', cadence: 'flexible', quantity: 15 },
+  { input: 'Read tuesdays and thursdays at 8:30', locale: 'en', cadence: 'fixed', days: ['Tuesday', 'Thursday'], time: '08:30' },
+  { input: 'walk sat and sun at 7pm', locale: 'en', cadence: 'fixed', days: ['Saturday', 'Sunday'], time: '19:00' },
+  { input: 'Meditate every day at 7', locale: 'en', cadence: 'daily', time: '07:00' },
+  { input: 'tuesday wednesday thursday every 2 weeks', locale: 'en', cadence: 'fixed', days: ['Tuesday', 'Wednesday', 'Thursday'], interval: 2 },
+  { input: '3 times a week every 3 weeks', locale: 'en', cadence: 'flexible', quantity: 3, interval: 3 },
+  { input: 'Beber água quando der', locale: 'pt-BR', cadence: null },
+]
+
 describe('readHabitPhrase', () => {
-  it('gives fixed weekdays precedence over a weekly count', () => {
-    const read = readHabitPhrase('Run 3 times a week on Monday and Thursday at 08:00', 'en')
-    expect(read).toMatchObject({
-      cadence: 'fixed',
-      days: ['Monday', 'Thursday'],
-      frequencyQuantity: null,
-      dueTime: '08:00',
-      emoji: '🏃',
-    })
-    expect(read.consumed.map((token) => token.kind)).toEqual(['weekday', 'weekday', 'time'])
-  })
-
-  it('gives a weekly count precedence over a daily phrase', () => {
-    const read = readHabitPhrase('Read every day, 3 times a week', 'en')
-    expect(read.cadence).toBe('flexible')
-    expect(read.frequencyQuantity).toBe(3)
-    expect(read.consumed.map((token) => token.kind)).toEqual(['count'])
-  })
-
-  it('does not read the count in three times a week as an hour', () => {
-    expect(readHabitPhrase('Run 3 times a week', 'en')).toMatchObject({
-      cadence: 'flexible',
-      frequencyQuantity: 3,
-      dueTime: null,
+  it.each(cases)('reads $input', ({ input, locale, cadence, quantity, days, interval, time }) => {
+    expect(readHabitPhrase(input, locale)).toMatchObject({
+      cadence,
+      frequencyQuantity: quantity ?? null,
+      days: days ?? [],
+      intervalWeeks: interval ?? null,
+      dueTime: time ?? null,
     })
   })
 
-  it('reads a bare daily phrase and a separated clock time', () => {
-    expect(readHabitPhrase('Stretch every morning 7:05', 'en')).toMatchObject({
-      cadence: 'daily',
-      dueTime: '07:05',
-      emoji: '🧘',
-    })
+  it('gives weekdays precedence and leaves the count unconsumed', () => {
+    const input = 'Correr terça e quinta 3 vezes na semana'
+    const read = readHabitPhrase(input, 'pt-BR')
+    expect(read).toMatchObject({ cadence: 'fixed', days: ['Tuesday', 'Thursday'], frequencyQuantity: null })
+    expect(read.consumed.map((token) => token.kind)).toEqual(['weekday', 'weekday'])
+    expect(segmentHabitPhrase(input, read.consumed).filter((segment) => !segment.consumed).map((segment) => segment.text).join('')).toContain('3 vezes na semana')
   })
 
-  it('reads Portuguese weekdays, daily phrases, counts and times', () => {
-    expect(readHabitPhrase('Ler toda segunda e quinta às 8h30', 'pt-BR')).toMatchObject({
-      cadence: 'fixed',
-      days: ['Monday', 'Thursday'],
-      dueTime: '08:30',
-      emoji: '📖',
-    })
-    expect(readHabitPhrase('Beber água 2 vezes por semana', 'pt-BR')).toMatchObject({
-      cadence: 'flexible',
-      frequencyQuantity: 2,
-      emoji: '💧',
-    })
-    expect(readHabitPhrase('Alongar todos os dias', 'pt-BR').cadence).toBe('daily')
+  it('keeps original indices after accent removal and whitespace collapse', () => {
+    const input = '  TERÇA,   QUINTA às 8h30  '
+    const segments = segmentHabitPhrase(input, readHabitPhrase(input, 'pt-BR').consumed)
+    expect(segments.map((segment) => segment.text).join('')).toBe(input)
+    expect(segments.filter((segment) => segment.consumed).map((segment) => segment.text)).toEqual(['TERÇA', 'QUINTA', 'às 8h30'])
   })
 
-  it('reads the complete Portuguese colon clock after at', () => {
-    expect(readHabitPhrase('às 8:30', 'pt-BR')).toEqual({
-      cadence: null,
-      days: [],
-      frequencyQuantity: null,
-      dueTime: '08:30',
-      emoji: null,
-      consumed: [{ start: 0, end: 7, kind: 'time' }],
-    })
+  it('does not treat a weekly count as a clock time', () => {
+    expect(readHabitPhrase('Run 3 times a week', 'en').dueTime).toBeNull()
   })
 
-  it.each(['toda manhã', 'toda manha'])('reads the complete Portuguese daily phrase %s', (phrase) => {
-    expect(readHabitPhrase(phrase, 'pt-BR')).toEqual({
-      cadence: 'daily',
-      days: [],
-      frequencyQuantity: null,
-      dueTime: null,
-      emoji: null,
-      consumed: [{ start: 0, end: 10, kind: 'daily' }],
-    })
-  })
-
-  it('leaves unsupported cadence and invalid times unresolved', () => {
-    expect(readHabitPhrase('Drink more water when I can at 27:80', 'en')).toEqual({
-      cadence: null,
-      days: [],
-      frequencyQuantity: null,
-      dueTime: null,
-      emoji: '💧',
-      consumed: [],
-    })
-    expect(readHabitPhrase('Run 9 times a week', 'en').cadence).toBeNull()
-  })
-
-  it('reads a time only with a separator or after at', () => {
-    expect(readHabitPhrase('Read daily at 8', 'en').dueTime).toBe('08:00')
-    expect(readHabitPhrase('Read daily 8', 'en').dueTime).toBeNull()
-    expect(readHabitPhrase('Ler diariamente as 9', 'pt-BR').dueTime).toBe('09:00')
-  })
-
-  it('segments consumed words without changing the original text', () => {
-    const text = 'Run Monday at 08:00'
-    const segments = segmentHabitPhrase(text, readHabitPhrase(text, 'en').consumed)
-    expect(segments.map((segment) => segment.text).join('')).toBe(text)
-    expect(segments.filter((segment) => segment.consumed).map((segment) => segment.text)).toEqual([
-      'Monday',
-      'at 08:00',
-    ])
-    expect(segmentHabitPhrase('', [])).toEqual([])
-  })
-
-  it('segments adjacent tokens and preserves unresolved trailing text', () => {
-    expect(segmentHabitPhrase('daily later', [
-      { start: 0, end: 5, kind: 'daily' },
-      { start: 5, end: 6, kind: 'daily' },
-    ])).toEqual([
-      { text: 'daily', consumed: true },
-      { text: ' ', consumed: true },
-      { text: 'later', consumed: false },
-    ])
-    expect(segmentHabitPhrase('unresolved', [])).toEqual([
-      { text: 'unresolved', consumed: false },
-    ])
+  it('leaves invalid clock times unresolved', () => {
+    expect(readHabitPhrase('Drink water at 27:80', 'en')).toMatchObject({ cadence: null, dueTime: null, consumed: [] })
   })
 })

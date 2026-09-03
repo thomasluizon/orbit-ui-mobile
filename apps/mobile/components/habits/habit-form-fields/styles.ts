@@ -190,10 +190,9 @@ export function createSectionStyles(tokens: AppTokens) {
       color: tokens.fg1,
     },
     timeRow: {
-      flexDirection: "row",
-      alignItems: "center",
       gap: 8,
     },
+    timeControls: { alignItems: "center", flexDirection: "row", gap: 8, justifyContent: "flex-end" },
     timeAddButton: {
       paddingHorizontal: 14,
       paddingVertical: 10,

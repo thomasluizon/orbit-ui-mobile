@@ -140,35 +140,19 @@ export function ScheduledReminderSection({
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-2">
                   <TimeField
                     label={t('habits.form.scheduledReminderTimePlaceholder')}
                     value={time}
                     onChange={setTime}
                     onClear={() => setTime('')}
                   />
-                  <button
-                    type="button"
-                    className="shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] transition-[background-color,opacity,transform] duration-[var(--dur-fast)] active:scale-[0.96] disabled:opacity-40"
-                    style={{
-                      padding: '9px 14px',
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 13,
-                      fontWeight: 500,
-                    }}
-                    disabled={!time}
-                    onClick={addScheduledReminder}
-                  >
-                    {t('common.add')}
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={t('common.cancel')}
-                    className="touch-target shrink-0 grid size-10 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors duration-[var(--dur-fast)]"
-                    onClick={() => { setShowForm(false); setTime('') }}
-                  >
-                    <X size={16} strokeWidth={1.8} aria-hidden="true" />
-                  </button>
+                  <div className="flex justify-end gap-2">
+                    <button type="button" className="shrink-0 rounded-full bg-[var(--primary)] px-4 py-2.5 text-[13px] font-medium text-[var(--fg-on-primary)] transition-colors duration-[240ms] hover:bg-[var(--primary-hover)] active:scale-[0.96] disabled:opacity-40" disabled={!time} onClick={addScheduledReminder}>{t('common.add')}</button>
+                    <button type="button" aria-label={t('common.cancel')} className="touch-target grid size-10 shrink-0 place-items-center rounded-full text-[var(--fg-3)] transition-colors duration-[240ms] hover:text-[var(--fg-1)] active:scale-[0.96]" onClick={() => { setShowForm(false); setTime('') }}>
+                      <X size={16} strokeWidth={1.8} aria-hidden="true" />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
