@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import { Providers } from '@/lib/providers'
 import { DestinationShell } from '@/components/shell/destination-shell'
 import { Toast } from '@/components/ui/toast'
+import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { WifiOff } from '@/components/ui/icons'
 import { BackToTop } from '@/components/ui/back-to-top'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
@@ -240,12 +241,17 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         conversation={<AstraConversation chat={chat} />}
         conversationOpen={astraConversationOpen}
         conversationLabel={t('todayAstra.openConversation')}
-        notice={isOnline ? undefined : (
-          <Toast
-            kind="neutral"
-            icon={<WifiOff size={20} strokeWidth={2} />}
-            message={t('offline.title')}
-          />
+        notice={(
+          <>
+            {isOnline ? null : (
+              <Toast
+                kind="neutral"
+                icon={<WifiOff size={20} strokeWidth={2} />}
+                message={t('offline.title')}
+              />
+            )}
+            <UpdateAvailableBanner />
+          </>
         )}
       >
         <RouteTransitionShell>
