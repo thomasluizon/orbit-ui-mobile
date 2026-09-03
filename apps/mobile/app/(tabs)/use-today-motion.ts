@@ -35,6 +35,14 @@ export function useTodayMotion({
   const dayTransitionRunningRef = useRef(false);
   const dayTransitionSequenceRef = useRef(0);
   const [renderBulkActionBar, setRenderBulkActionBar] = useState(isSelectMode);
+  const [previousSelectMode, setPreviousSelectMode] = useState(isSelectMode);
+
+  if (isSelectMode !== previousSelectMode) {
+    setPreviousSelectMode(isSelectMode);
+    if (isSelectMode) {
+      setRenderBulkActionBar(true);
+    }
+  }
 
   useEffect(() => {
     if (filterMotionKey === previousFilterMotionKeyRef.current) {
@@ -101,7 +109,6 @@ export function useTodayMotion({
   useEffect(() => {
     if (isSelectMode) {
       bulkBarAnim.stopAnimation(() => {
-        setRenderBulkActionBar(true);
         bulkBarAnim.setValue(selectionMotion.reducedMotionEnabled ? 1 : 0);
         Animated.timing(
           bulkBarAnim,
@@ -115,6 +122,9 @@ export function useTodayMotion({
     }
 
     bulkBarAnim.stopAnimation();
+    if (!renderBulkActionBar) {
+      return;
+    }
     Animated.timing(bulkBarAnim, {
       toValue: 0,
       duration: selectionMotion.exitDuration,
@@ -128,6 +138,7 @@ export function useTodayMotion({
   }, [
     bulkBarAnim,
     isSelectMode,
+    renderBulkActionBar,
     selectionMotion.enterDuration,
     selectionMotion.enterEasing,
     selectionMotion.exitDuration,
