@@ -219,6 +219,7 @@ export interface HabitUnderstandingProps {
   sentence: string | null
   consumed: readonly HabitPhraseToken[]
   proposed?: boolean
+  scheduleLocked?: boolean
   onValueChange: (value: string) => void
   onEmojiSelect: (emoji: string) => void
   onToggleDay: (day: string) => void
@@ -310,6 +311,7 @@ interface HabitFormControllerTarget {
   getOwnership: () => HabitPhraseFormOwnership
   setOwnership: (ownership: HabitPhraseFormOwnership) => void
   updateProposal: (update: (proposal: HabitFormProposal) => HabitFormProposal) => void
+  hasSchedule?: () => boolean
   setField: <Field extends HabitControllerField>(field: Field, value: HabitFormData[Field], validate?: boolean) => void
   toggleDay: (day: string) => void
 }
@@ -436,6 +438,12 @@ export function createHabitFormController({
     },
     setIntervalWeeks: (intervalWeeks): void => {
       resolveSection('setup')
+      releaseOwnership('cadence')
+      if (lockedGeneral === true) {
+        target.setGeneral()
+        return
+      }
+      if (target.hasSchedule?.() === false) applyHabitDayCorrection(false, target)
       target.setField('intervalWeeks', Math.max(1, Math.min(MAX_HABIT_INTERVAL_WEEKS, intervalWeeks)))
     },
   }

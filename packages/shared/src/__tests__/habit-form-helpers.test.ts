@@ -582,6 +582,11 @@ describe('habit form helpers', () => {
     expect(fields.get('frequencyQuantity')?.value).toBe(4)
     expect(proposal.setup).toBe(false)
 
+    ownership = { cadence: true, dueTime: true }
+    controller.setIntervalWeeks(2)
+    expect(ownership).toEqual({ cadence: false, dueTime: true })
+    expect(fields.get('intervalWeeks')?.value).toBe(2)
+
     proposal = proposed
     controller.setEmoji('🌱')
     expect(fields.get('emoji')?.value).toBe('🌱')
@@ -650,13 +655,45 @@ describe('habit form helpers', () => {
     expect(proposal).toBe(EMPTY_HABIT_FORM_PROPOSAL)
     controller.toggleDay('Friday')
     controller.setQuantity(2)
-    expect(setGeneral).toHaveBeenCalledTimes(2)
+    controller.setIntervalWeeks(2)
+    expect(setGeneral).toHaveBeenCalledTimes(3)
     expect(toggleDay).not.toHaveBeenCalled()
     controller.setReminderEnabled(true)
     controller.setSlipAlertEnabled(false)
     expect(onReminderEnabledChange).toHaveBeenCalledWith(true)
     expect(onSlipAlertEnabledChange).toHaveBeenCalledWith(false)
     expect(setField).not.toHaveBeenCalled()
+  })
+
+  it('turns a one-time form into a valid recurring schedule before setting repeat', () => {
+    let ownership = { cadence: true, dueTime: false }
+    const setRecurring = vi.fn()
+    const setField = vi.fn()
+    const controller = createHabitFormController({
+      action: undefined,
+      atLimit: false,
+      lockedGeneral: null,
+      target: {
+        hasSchedule: () => false,
+        getOwnership: () => ownership,
+        setOwnership: (next) => { ownership = next },
+        updateProposal: vi.fn(),
+        setOneTime: vi.fn(),
+        setRecurring,
+        setFlexible: vi.fn(),
+        setGeneral: vi.fn(),
+        setField,
+        toggleDay: vi.fn(),
+      },
+    })
+
+    controller.setIntervalWeeks(2)
+
+    expect(ownership.cadence).toBe(false)
+    expect(setRecurring).toHaveBeenCalledOnce()
+    expect(setField).toHaveBeenNthCalledWith(1, 'frequencyUnit', 'Day')
+    expect(setField).toHaveBeenNthCalledWith(2, 'frequencyQuantity', 1)
+    expect(setField).toHaveBeenNthCalledWith(3, 'intervalWeeks', 2)
   })
 
   it('validates reminder selection with due-time reminders', () => {

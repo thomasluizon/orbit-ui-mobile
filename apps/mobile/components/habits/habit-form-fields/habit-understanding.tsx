@@ -28,6 +28,7 @@ export function HabitUnderstanding({
   sentence,
   consumed,
   proposed = false,
+  scheduleLocked = false,
   onValueChange,
   onEmojiSelect,
   onToggleDay,
@@ -103,6 +104,7 @@ export function HabitUnderstanding({
               label={labels.scheduleMode}
               value={mode}
               options={[{ id: 'fixed', label: labels.setDays }, { id: 'flexible', label: labels.timesAWeek }]}
+              disabled={scheduleLocked}
               onChange={(value) => onModeChange(value === 'flexible' ? 'flexible' : 'fixed')}
             />
 
@@ -111,7 +113,7 @@ export function HabitUnderstanding({
                 {dayOptions.map((day) => {
                   const selected = days.includes(day.value)
                   return (
-                    <Pressable key={day.value} accessibilityRole="button" accessibilityLabel={day.accessibleLabel} accessibilityState={{ selected }} style={({ pressed }) => [styles.day, selected ? styles.daySelected : styles.dayIdle, pressed ? styles.pressed : null]} onPress={() => onToggleDay(day.value)}>
+                    <Pressable key={day.value} accessibilityRole="button" accessibilityLabel={day.accessibleLabel} accessibilityState={{ selected, ...(scheduleLocked ? { disabled: true } : {}) }} disabled={scheduleLocked} style={({ pressed }) => [styles.day, selected ? styles.daySelected : styles.dayIdle, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onToggleDay(day.value)}>
                       <Text style={selected ? styles.dayTextSelected : styles.dayText}>{day.label.charAt(0)}</Text>
                     </Pressable>
                   )
@@ -119,11 +121,11 @@ export function HabitUnderstanding({
               </View>
             ) : (
               <View style={styles.stepper}>
-                <Pressable accessibilityRole="button" accessibilityLabel={labels.less} style={({ pressed }) => [styles.stepButton, pressed ? styles.pressed : null]} onPress={() => onQuantityChange(Math.max(1, quantity - 1))}>
+                <Pressable accessibilityRole="button" accessibilityLabel={labels.less} disabled={scheduleLocked} style={({ pressed }) => [styles.stepButton, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onQuantityChange(Math.max(1, quantity - 1))}>
                   <Minus size={20} strokeWidth={2} color={tokens.fg2} />
                 </Pressable>
                 <Text style={styles.quantity}>{quantity}</Text>
-                <Pressable accessibilityRole="button" accessibilityLabel={labels.more} style={({ pressed }) => [styles.stepButton, pressed ? styles.pressed : null]} onPress={() => onQuantityChange(quantity + 1)}>
+                <Pressable accessibilityRole="button" accessibilityLabel={labels.more} disabled={scheduleLocked} style={({ pressed }) => [styles.stepButton, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onQuantityChange(quantity + 1)}>
                   <Plus size={20} strokeWidth={2} color={tokens.fg2} />
                 </Pressable>
                 <Text numberOfLines={1} style={styles.meta}>{labels.count(quantity)}</Text>
@@ -134,8 +136,8 @@ export function HabitUnderstanding({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={labels.repeatLess}
-                disabled={intervalWeeks <= 1}
-                style={({ pressed }) => [styles.stepButton, pressed ? styles.pressed : null]}
+                disabled={scheduleLocked || intervalWeeks <= 1}
+                style={({ pressed }) => [styles.stepButton, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]}
                 onPress={() => onIntervalWeeksChange(Math.max(1, intervalWeeks - 1))}
               >
                 <Minus size={20} strokeWidth={2} color={tokens.fg2} />
@@ -144,8 +146,8 @@ export function HabitUnderstanding({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={labels.repeatMore}
-                disabled={intervalWeeks >= MAX_HABIT_INTERVAL_WEEKS}
-                style={({ pressed }) => [styles.stepButton, pressed ? styles.pressed : null]}
+                disabled={scheduleLocked || intervalWeeks >= MAX_HABIT_INTERVAL_WEEKS}
+                style={({ pressed }) => [styles.stepButton, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]}
                 onPress={() => onIntervalWeeksChange(Math.min(MAX_HABIT_INTERVAL_WEEKS, intervalWeeks + 1))}
               >
                 <Plus size={20} strokeWidth={2} color={tokens.fg2} />
@@ -247,5 +249,6 @@ function createStyles(tokens: AppTokens) {
       fontVariant: ['tabular-nums'],
     },
     pressed: { opacity: 0.72 },
+    disabled: { opacity: 0.4 },
   })
 }

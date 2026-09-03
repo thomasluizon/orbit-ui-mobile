@@ -342,6 +342,7 @@ export function HabitFormFields({
       atLimit: atMessageLimit,
       action: onSuggestSetup,
       target: {
+        hasSchedule: () => isFlexible || Boolean(frequencyUnit),
         setOneTime,
         setRecurring,
         setFlexible,
@@ -356,7 +357,7 @@ export function HabitFormFields({
         },
       },
     }),
-    [atMessageLimit, lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestSetup, onSuggestionContextChange, phraseOwnership, setFlexible, setGeneral, setOneTime, setRecurring, setValue, toggleDay],
+    [atMessageLimit, frequencyUnit, isFlexible, lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestSetup, onSuggestionContextChange, phraseOwnership, setFlexible, setGeneral, setOneTime, setRecurring, setValue, toggleDay],
   )
 
   useEffect(() => {
@@ -410,6 +411,7 @@ export function HabitFormFields({
         onEmojiSelect={controller.setEmoji}
         onValueChange={controller.setTitle}
         proposed={proposal.setup}
+        scheduleLocked={lockedGeneral === true}
         consumed={localRead.consumed}
         sentence={sentence}
         quantity={frequencyQuantity}

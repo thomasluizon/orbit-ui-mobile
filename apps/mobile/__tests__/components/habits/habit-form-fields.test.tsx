@@ -83,6 +83,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
     const understanding = tree.root.findByType('HabitUnderstanding')
+    expect(understanding.props.scheduleLocked).toBe(false)
     expect(understanding.props.value).toBe('Run')
     expect(understanding.props.labels.field).toBe('habits.form.describe')
     understanding.props.onToggleDay('Monday')
@@ -198,6 +199,7 @@ describe('HabitFormFields mobile', () => {
 
     expect(formHelpers.setGeneral).toHaveBeenCalledOnce()
     const understanding = tree.root.findByType('HabitUnderstanding')
+    expect(understanding.props.scheduleLocked).toBe(true)
     TestRenderer.act(() => {
       understanding.props.onToggleDay('Monday')
       understanding.props.onQuantityChange(4)

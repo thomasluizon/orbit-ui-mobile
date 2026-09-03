@@ -310,6 +310,7 @@ export function HabitFormFields({
     onSlipAlertEnabledChange,
     onSuggestionContextChange,
     target: {
+      hasSchedule: () => isFlexible || Boolean(frequencyUnit),
       getOwnership: () => phraseOwnership,
       setOwnership: setPhraseOwnership,
       updateProposal: (update) => setProposal(update),
@@ -324,7 +325,7 @@ export function HabitFormFields({
       ),
       toggleDay,
     },
-  }), [atMessageLimit, lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestSetup, onSuggestionContextChange, phraseOwnership, setFlexible, setGeneral, setOneTime, setRecurring, setValue, toggleDay])
+  }), [atMessageLimit, frequencyUnit, isFlexible, lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestSetup, onSuggestionContextChange, phraseOwnership, setFlexible, setGeneral, setOneTime, setRecurring, setValue, toggleDay])
 
   useEffect(() => {
     if (lastLocallyReadTitleRef.current === title) return
@@ -380,6 +381,7 @@ export function HabitFormFields({
         sentence={sentence}
         consumed={localRead.consumed}
         proposed={proposal.setup}
+        scheduleLocked={lockedGeneral === true}
         onValueChange={(value) => {
           controller.setTitle(value)
         }}

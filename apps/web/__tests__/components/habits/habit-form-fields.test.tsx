@@ -255,10 +255,11 @@ describe('HabitFormFields', () => {
     renderForm(formHelpers, undefined, false, true, true)
 
     await waitFor(() => expect(formHelpers.setGeneral).toHaveBeenCalledOnce())
-    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
-    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesAWeek' }))
+    expect(screen.getByRole('button', { name: 'Monday' })).toBeDisabled()
+    expect(screen.getByRole('radio', { name: 'habits.form.timesAWeek' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'habits.form.repeatMore' })).toBeDisabled()
 
-    expect(formHelpers.setGeneral).toHaveBeenCalledTimes(3)
+    expect(formHelpers.setGeneral).toHaveBeenCalledOnce()
     expect(formHelpers.setRecurring).not.toHaveBeenCalled()
     expect(formHelpers.setFlexible).not.toHaveBeenCalled()
     expect(formHelpers.toggleDay).not.toHaveBeenCalled()
