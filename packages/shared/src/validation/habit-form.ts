@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { frequencyUnitSchema, scheduledReminderTimeSchema, checklistItemSchema } from '../types/habit'
+import { frequencyUnitSchema, MAX_HABIT_INTERVAL_WEEKS, scheduledReminderTimeSchema, checklistItemSchema } from '../types/habit'
 import {
   MAX_CHECKLIST_ITEM_LENGTH,
   MAX_CHECKLIST_ITEMS,
@@ -30,7 +30,7 @@ export const habitFormSchema = z.object({
     .default(''),
   frequencyUnit: frequencyUnitSchema.nullable().optional(),
   frequencyQuantity: z.number().int().min(1).nullable().optional(),
-  intervalWeeks: z.number().int().min(1).optional(),
+  intervalWeeks: z.number().int().min(1).max(MAX_HABIT_INTERVAL_WEEKS).optional(),
   days: z.array(z.string()).default([]),
   isBadHabit: z.boolean().default(false),
   isGeneral: z.boolean().default(false),

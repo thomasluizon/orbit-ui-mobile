@@ -112,7 +112,7 @@ describe('habitFormSchema frequencyQuantity int().min(1) boundary', () => {
   })
 })
 
-describe('habitFormSchema intervalWeeks positive integer boundary', () => {
+describe('habitFormSchema intervalWeeks 1 through 52 boundary', () => {
   it('rejects zero', () => {
     const intervalWeeks = 0
     const result = habitFormSchema.safeParse({ title: 'Run', intervalWeeks })
@@ -121,11 +121,19 @@ describe('habitFormSchema intervalWeeks positive integer boundary', () => {
     expect(result.error.issues[0]?.path).toEqual(['intervalWeeks'])
   })
 
-  it.each([1, 52, 999])('accepts any positive integer including %i', (intervalWeeks) => {
+  it.each([1, 52])('accepts in-range integer %i', (intervalWeeks) => {
     const result = habitFormSchema.safeParse({ title: 'Run', intervalWeeks })
     expect(result.success).toBe(true)
     if (!result.success) return
     expect(result.data.intervalWeeks).toBe(intervalWeeks)
+  })
+
+  it('rejects an interval above the API maximum', () => {
+    const result = habitFormSchema.safeParse({ title: 'Run', intervalWeeks: 53 })
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error.issues[0]?.path).toEqual(['intervalWeeks'])
+    expect(result.error.issues[0]?.code).toBe('too_big')
   })
 
   it('rejects a fractional interval', () => {

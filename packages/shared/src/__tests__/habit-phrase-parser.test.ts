@@ -70,4 +70,11 @@ describe('readHabitPhrase', () => {
   it('leaves invalid clock times unresolved', () => {
     expect(readHabitPhrase('Drink water at 27:80', 'en')).toMatchObject({ cadence: null, dueTime: null, consumed: [] })
   })
+
+  it('leaves a repeat interval above the API maximum unconsumed', () => {
+    const input = 'Run Tuesday every 53 weeks'
+    const read = readHabitPhrase(input, 'en')
+    expect(read).toMatchObject({ cadence: 'fixed', intervalWeeks: null })
+    expect(segmentHabitPhrase(input, read.consumed).filter((segment) => !segment.consumed).map((segment) => segment.text).join('')).toContain('every 53 weeks')
+  })
 })

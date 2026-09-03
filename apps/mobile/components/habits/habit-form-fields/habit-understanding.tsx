@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import Animated, { Easing, FadeIn, FadeOut } from 'react-native-reanimated'
 import type { HabitUnderstandingProps } from '@orbit/shared/utils'
+import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
 import { Minus, Plus } from '@/components/ui/icons'
 import { Proposed } from '@/components/ui/proposed'
@@ -143,8 +144,9 @@ export function HabitUnderstanding({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={labels.repeatMore}
+                disabled={intervalWeeks >= MAX_HABIT_INTERVAL_WEEKS}
                 style={({ pressed }) => [styles.stepButton, pressed ? styles.pressed : null]}
-                onPress={() => onIntervalWeeksChange(intervalWeeks + 1)}
+                onPress={() => onIntervalWeeksChange(Math.min(MAX_HABIT_INTERVAL_WEEKS, intervalWeeks + 1))}
               >
                 <Plus size={20} strokeWidth={2} color={tokens.fg2} />
               </Pressable>

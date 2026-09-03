@@ -1,4 +1,5 @@
 import type { SupportedLocale } from '../types/profile'
+import { MAX_HABIT_INTERVAL_WEEKS } from '../types/habit'
 
 export type HabitPhraseCadence = 'daily' | 'fixed' | 'flexible'
 export type HabitPhraseTokenKind = 'daily' | 'weekday' | 'count' | 'time' | 'interval'
@@ -153,6 +154,27 @@ function parseTime(match: RegExpExecArray, locale: SupportedLocale): string {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
+function extractInterval(
+  remaining: string,
+  phrase: NormalizedPhrase,
+  patterns: LocalePatterns,
+): { intervalWeeks: number | null; token: HabitPhraseToken | null; remaining: string } {
+  patterns.interval.lastIndex = 0
+  const match = patterns.interval.exec(remaining)
+  if (!match) return { intervalWeeks: null, token: null, remaining }
+
+  const intervalWeeks = parseNumber(match[1]!, patterns.numberWords)
+  if (intervalWeeks < 1 || intervalWeeks > MAX_HABIT_INTERVAL_WEEKS) {
+    return { intervalWeeks: null, token: null, remaining }
+  }
+
+  return {
+    intervalWeeks,
+    token: toToken(phrase, match, 'interval'),
+    remaining: maskRange(remaining, match.index, match.index + match[0].length),
+  }
+}
+
 export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhraseRead {
   const phrase = normalizePhrase(text)
   const patterns = LOCALE_PATTERNS[locale]
@@ -166,14 +188,10 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
     remaining = maskRange(remaining, timeMatch.index, timeMatch.index + timeMatch[0].length)
   }
 
-  patterns.interval.lastIndex = 0
-  const intervalMatch = patterns.interval.exec(remaining)
-  let intervalWeeks: number | null = null
-  if (intervalMatch) {
-    intervalWeeks = parseNumber(intervalMatch[1]!, patterns.numberWords)
-    consumed.push(toToken(phrase, intervalMatch, 'interval'))
-    remaining = maskRange(remaining, intervalMatch.index, intervalMatch.index + intervalMatch[0].length)
-  }
+  const interval = extractInterval(remaining, phrase, patterns)
+  const intervalWeeks = interval.intervalWeeks
+  if (interval.token) consumed.push(interval.token)
+  remaining = interval.remaining
 
   const weekdayMatches = patterns.weekdays.flatMap(({ day, pattern }) => {
     pattern.lastIndex = 0

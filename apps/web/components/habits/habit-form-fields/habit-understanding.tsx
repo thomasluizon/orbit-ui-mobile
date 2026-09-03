@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { AnimatePresence, domAnimation, LazyMotion, m } from 'motion/react'
 import type { HabitUnderstandingProps } from '@orbit/shared/utils'
+import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
 import { Minus, Plus } from '@/components/ui/icons'
 import { HabitEmojiSelector } from './habit-emoji-selector'
@@ -148,8 +149,9 @@ export function HabitUnderstanding({
               <button
                 type="button"
                 aria-label={labels.repeatMore}
+                disabled={intervalWeeks >= MAX_HABIT_INTERVAL_WEEKS}
                 className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
-                onClick={() => onIntervalWeeksChange(intervalWeeks + 1)}
+                onClick={() => onIntervalWeeksChange(Math.min(MAX_HABIT_INTERVAL_WEEKS, intervalWeeks + 1))}
               >
                 <Plus size={20} strokeWidth={2} aria-hidden="true" />
               </button>

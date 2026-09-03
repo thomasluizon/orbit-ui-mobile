@@ -1,4 +1,4 @@
-import type { ChecklistItem, FrequencyUnit, HabitSetupSuggestion } from '../types/habit'
+import { MAX_HABIT_INTERVAL_WEEKS, type ChecklistItem, type FrequencyUnit, type HabitSetupSuggestion } from '../types/habit'
 import type { HabitPhraseRead, HabitPhraseToken } from './habit-phrase-parser'
 import type { HabitFormData } from '../validation/habit-form'
 import {
@@ -436,7 +436,7 @@ export function createHabitFormController({
     },
     setIntervalWeeks: (intervalWeeks): void => {
       resolveSection('setup')
-      target.setField('intervalWeeks', intervalWeeks)
+      target.setField('intervalWeeks', Math.max(1, Math.min(MAX_HABIT_INTERVAL_WEEKS, intervalWeeks)))
     },
   }
 }
@@ -492,7 +492,7 @@ export function applyHabitPhraseRead(
     target.setField('dueTime', '')
   }
   if (read.emoji && !emoji) target.setField('emoji', read.emoji)
-  if (read.cadence) target.setField('intervalWeeks', read.intervalWeeks ?? 1)
+  if (read.cadence) target.setField('intervalWeeks', Math.min(MAX_HABIT_INTERVAL_WEEKS, read.intervalWeeks ?? 1))
   if (!read.cadence) {
     if (ownership.cadence) target.setOneTime()
     return nextOwnership
