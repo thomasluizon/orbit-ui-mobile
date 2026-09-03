@@ -18,6 +18,7 @@ import {
   isHabitHistoryMonthLoaded,
   isHabitCompletedOnDate,
   isHabitSlipping,
+  mergeHabitDetailWithScopedHabit,
   normalizeHabitDetailForDrill,
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
@@ -58,26 +59,11 @@ interface HabitDetailScreenProps {
 }
 
 function SectionTitle({ children }: Readonly<{ children: string }>) {
-  return <h2 className="text-lg font-medium text-[var(--fg-1)]">{children}</h2>
+  return <h2 className="truncate text-lg font-medium text-[var(--fg-1)]">{children}</h2>
 }
 
 function Surface({ children }: Readonly<{ children: React.ReactNode }>) {
   return <section className="rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]">{children}</section>
-}
-
-function buildNormalizedHabit(detail: NonNullable<ReturnType<typeof useHabitDetail>['data']>, fallback: NormalizedHabit | undefined, today: string): NormalizedHabit {
-  const drilled = normalizeHabitDetailForDrill(detail, today).parent
-  if (!fallback) return drilled
-  return {
-    ...fallback,
-    ...drilled,
-    tags: fallback.tags,
-    linkedGoals: fallback.linkedGoals,
-    slipAlertEnabled: fallback.slipAlertEnabled,
-    flexibleTarget: fallback.flexibleTarget,
-    flexibleCompleted: fallback.flexibleCompleted,
-    instances: fallback.instances,
-  }
 }
 
 function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onLog }: Readonly<{
@@ -112,7 +98,7 @@ function HabitHeader({ habit, completed, logged, summary, onRename, onEmoji, onL
             <h1 className="truncate font-[var(--font-display)] text-2xl font-semibold text-[var(--fg-1)]">{habit.title}</h1>
           </button>
         )}
-        <p className="mt-1 text-sm text-[var(--fg-3)]">{summary}</p>
+        <p className="mt-1 truncate text-sm text-[var(--fg-3)]">{summary}</p>
         {habit.tags.length > 0 ? <div className="mt-3 flex flex-wrap gap-2">{habit.tags.map((tag) => <Badge key={tag.id} variant="outline">{tag.name}</Badge>)}</div> : null}
       </div>
       <HabitLogButton label={logged ? t('unlog', { title: habit.title }) : t('log', { title: habit.title })} completed={completed} logged={logged} progress={completed ? 1 : 0} onPress={onLog} />
@@ -235,7 +221,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const [childToDelete, setChildToDelete] = useState<string | null>(null)
   const pendingToggleKeysRef = useRef(new Set<string>())
 
-  const habit = useMemo(() => detailQuery.data ? buildNormalizedHabit(detailQuery.data, habitsQuery.data?.habitsById.get(habitId), dateStr) : null, [detailQuery.data, habitsQuery.data, habitId, dateStr])
+  const habit = useMemo(() => detailQuery.data ? mergeHabitDetailWithScopedHabit(detailQuery.data, habitsQuery.data?.habitsById.get(habitId), dateStr) : null, [detailQuery.data, habitsQuery.data, habitId, dateStr])
   const logs = logsQuery.data ?? []
   const logged = logs.some((entry) => entry.date === dateStr && entry.value > 0)
   const completed = habit ? isHabitCompletedOnDate(habit, logs, dateStr) : false

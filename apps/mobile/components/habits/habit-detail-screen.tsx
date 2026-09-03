@@ -17,11 +17,12 @@ import {
   isHabitHistoryMonthLoaded,
   isHabitCompletedOnDate,
   isHabitSlipping,
+  mergeHabitDetailWithScopedHabit,
   normalizeHabitDetailForDrill,
   parseAPIDate,
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
-import type { ChecklistItem, HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
+import type { ChecklistItem, NormalizedHabit } from '@orbit/shared/types/habit'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { AppBar } from '@/components/ui/app-bar'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
@@ -61,14 +62,8 @@ interface HabitDetailScreenProps {
   parentId?: string | null
 }
 
-function normalizeHabit(detail: HabitDetail, fallback: NormalizedHabit | undefined, today: string): NormalizedHabit {
-  const drilled = normalizeHabitDetailForDrill(detail, today).parent
-  if (!fallback) return drilled
-  return { ...fallback, ...drilled, tags: fallback.tags, linkedGoals: fallback.linkedGoals, slipAlertEnabled: fallback.slipAlertEnabled, flexibleTarget: fallback.flexibleTarget, flexibleCompleted: fallback.flexibleCompleted, instances: fallback.instances }
-}
-
 function SectionTitle({ children, color }: Readonly<{ children: string; color: string }>) {
-  return <Text style={[styles.sectionTitle, { color }]}>{children}</Text>
+  return <Text numberOfLines={1} style={[styles.sectionTitle, { color }]}>{children}</Text>
 }
 
 function Surface({ children, backgroundColor, borderColor }: Readonly<{ children: React.ReactNode; backgroundColor: string; borderColor: string }>) {
@@ -206,7 +201,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const [confirm, setConfirm] = useState<ConfirmAction>(null)
   const [childToDelete, setChildToDelete] = useState<string | null>(null)
   const pendingToggleKeysRef = useRef(new Set<string>())
-  const habit = useMemo(() => detailQuery.data ? normalizeHabit(detailQuery.data, habitsQuery.data?.habitsById.get(habitId), dateStr) : null, [dateStr, detailQuery.data, habitId, habitsQuery.data])
+  const habit = useMemo(() => detailQuery.data ? mergeHabitDetailWithScopedHabit(detailQuery.data, habitsQuery.data?.habitsById.get(habitId), dateStr) : null, [dateStr, detailQuery.data, habitId, habitsQuery.data])
   const logs = logsQuery.data ?? []
   const logged = logs.some((entry) => entry.date === dateStr && entry.value > 0)
   const completed = habit ? isHabitCompletedOnDate(habit, logs, dateStr) : false
@@ -358,5 +353,4 @@ const styles = StyleSheet.create({
   proposedBlock: { gap: 16, padding: 16 },
   proposedTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 },
   proposedAction: { alignItems: 'flex-start' },
-  column: { flex: 1, minWidth: 0, gap: 24 },
 })

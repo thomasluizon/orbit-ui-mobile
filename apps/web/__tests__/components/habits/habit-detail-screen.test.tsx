@@ -2,6 +2,12 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { formatAPIDate } from '@orbit/shared/utils'
+import {
+  makeHabitDetail as makeDetail,
+  makeHabitDetailScopedChild as makeScopedChild,
+  makeHabitDetailScopedParent as makeScopedParent,
+  makeLoggedGeneralHabitDetailChild as makeLoggedGeneralChild,
+} from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { HabitDetail, HabitMetrics, NormalizedHabit } from '@orbit/shared/types/habit'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
@@ -124,12 +130,18 @@ vi.mock('@/components/dates/month-grid', () => ({
   MonthGrid: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
-vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => <div data-testid="goal-linking-field" /> }))
-vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: () => <div data-testid="offset-reminders" /> }))
-vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: () => <div data-testid="scheduled-reminders" /> }))
+vi.mock('@/components/habits/goal-linking-field', () => ({
+  GoalLinkingField: ({ onToggleGoal }: { onToggleGoal: (goalId: string) => void }) => <button type="button" data-testid="goal-linking-field" onClick={() => onToggleGoal('goal-2')} />,
+}))
+vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({
+  ReminderSection: ({ onReminderTimesChange, onToggleReminder }: { onReminderTimesChange: (offsets: number[]) => void; onToggleReminder: () => void }) => <div data-testid="offset-reminders"><button type="button" onClick={() => onReminderTimesChange([30])}>set-offset</button><button type="button" onClick={onToggleReminder}>toggle-offsets</button></div>,
+}))
+vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({
+  ScheduledReminderSection: ({ onSetScheduledReminders, onToggleReminder }: { onSetScheduledReminders: (scheduled: { when: 'same_day'; time: string }[]) => void; onToggleReminder: () => void }) => <div data-testid="scheduled-reminders"><button type="button" onClick={() => onSetScheduledReminders([{ when: 'same_day', time: '08:00' }])}>set-scheduled</button><button type="button" onClick={onToggleReminder}>toggle-scheduled</button></div>,
+}))
 vi.mock('@/components/habits/habit-checklist', () => ({
-  HabitChecklist: ({ onToggle, onClear }: { onToggle: (index: number) => void; onClear: () => void }) => (
-    <div>
+  HabitChecklist: ({ interactive, editable, onToggle, onClear }: { interactive: boolean; editable: boolean; onToggle: (index: number) => void; onClear: () => void }) => (
+    <div data-testid="habit-checklist" data-interactive={interactive} data-editable={editable}>
       <button type="button" onClick={() => onToggle(0)}>toggle-checklist</button>
       <button type="button" onClick={onClear}>clear-checklist</button>
     </div>
@@ -158,89 +170,6 @@ vi.mock('@/components/habits/habit-row', () => ({
     </div>
   ),
 }))
-
-function makeChild(): HabitDetail['children'][number] {
-  return {
-    id: 'child-1',
-    title: 'Recurring child',
-    description: null,
-    emoji: null,
-    frequencyUnit: 'Day',
-    frequencyQuantity: 1,
-    isBadHabit: false,
-    isCompleted: false,
-    isGeneral: false,
-    isFlexible: false,
-    days: [],
-    dueDate: '2026-08-01',
-    dueTime: null,
-    dueEndTime: null,
-    endDate: null,
-    position: 0,
-    checklistItems: [],
-    children: [],
-  }
-}
-
-function makeDetail(): HabitDetail {
-  return {
-    ...makeChild(),
-    id: 'habit-1',
-    title: 'Read',
-    createdAtUtc: '2026-08-01T12:00:00Z',
-    reminderEnabled: false,
-    reminderTimes: [],
-    scheduledReminders: [],
-    children: [makeChild()],
-  }
-}
-
-function makeScopedChild(date: string): NormalizedHabit {
-  return {
-    ...makeChild(),
-    createdAtUtc: '2026-08-01T12:00:00Z',
-    parentId: 'habit-1',
-    scheduledDates: [date],
-    isOverdue: false,
-    reminderEnabled: false,
-    reminderTimes: [],
-    scheduledReminders: [],
-    slipAlertEnabled: false,
-    tags: [],
-    hasSubHabits: false,
-    flexibleTarget: null,
-    flexibleCompleted: null,
-    isLoggedInRange: true,
-    linkedGoals: [],
-    instances: [{ date, status: 'Completed', logId: 'child-log' }],
-    searchMatches: null,
-  }
-}
-
-function makeLoggedGeneralChild(): NormalizedHabit {
-  return {
-    ...makeScopedChild('2026-08-29'),
-    title: 'General child',
-    frequencyUnit: null,
-    frequencyQuantity: null,
-    isCompleted: true,
-    isGeneral: true,
-    scheduledDates: [],
-    isLoggedInRange: false,
-    instances: [],
-  }
-}
-
-function makeScopedParent(): NormalizedHabit {
-  return {
-    ...makeScopedChild('2026-08-28'),
-    id: 'habit-1',
-    title: 'Read',
-    parentId: null,
-    tags: [{ id: 'tag-1', name: 'Focus', color: '#123456' }],
-    linkedGoals: [{ id: 'goal-1', title: 'Read more books' }],
-  }
-}
 
 describe('HabitDetailScreen', () => {
   beforeEach(() => {
@@ -488,6 +417,10 @@ describe('HabitDetailScreen', () => {
 
     fireEvent.click(reminderRow)
     expect(screen.getByTestId('scheduled-reminders')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'set-scheduled' }))
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ scheduledReminders: [{ when: 'same_day', time: '08:00' }] })
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-scheduled' }))
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ reminderEnabled: true })
 
     mocks.detail = {
       ...makeDetail(),
@@ -497,6 +430,85 @@ describe('HabitDetailScreen', () => {
     }
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     expect(screen.getByTestId('list-row-habits.detail.reminders')).toHaveAttribute('data-value', 'habits.form.reminder10min, habits.form.reminder30min, 08:00')
+  })
+
+  it('keeps the five content blocks in one column and discloses avoid-only fields', () => {
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const main = document.querySelector('main')
+    if (!main) throw new Error('Expected the habit detail main surface')
+    const blocks = Array.from(main.children).filter((element) => (
+      element.tagName === 'HEADER' || element.tagName === 'SECTION'
+    ))
+
+    expect(blocks.map((element) => element.tagName)).toEqual([
+      'HEADER',
+      'SECTION',
+      'SECTION',
+      'SECTION',
+      'SECTION',
+    ])
+    expect(blocks.slice(1).map((element) => element.textContent)).toEqual([
+      expect.stringContaining('habits.detail.lastThirtyDays'),
+      expect.stringContaining('history'),
+      expect.stringContaining('habits.detail.checklist'),
+      expect.stringContaining('habits.detail.moreDetails'),
+    ])
+    expect(screen.queryByTestId('list-row-habits.detail.slipAlert')).toBeNull()
+
+    const disclosure = screen.getByRole('button', { name: 'habits.detail.moreDetails' })
+    expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByTestId('habit-checklist')).toHaveAttribute('data-interactive', 'true')
+    fireEvent.click(disclosure)
+    expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByTestId('habit-checklist')).toHaveAttribute('data-editable', 'true')
+    fireEvent.click(disclosure)
+    expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    expect(screen.getByTestId('list-row-habits.detail.slipAlert')).toBeInTheDocument()
+  })
+
+  it('persists each inline detail editor through its dedicated patch', async () => {
+    mocks.detail = { ...makeDetail(), dueTime: '09:00', description: 'Old note', endDate: '2026-09-30' }
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.linkedGoals'))
+    fireEvent.click(screen.getByTestId('goal-linking-field'))
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ goalIds: ['goal-2'] })
+
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.reminders'))
+    fireEvent.click(screen.getByRole('button', { name: 'set-offset' }))
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ reminderEnabled: false, reminderTimes: [30] })
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-offsets' }))
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ reminderEnabled: true, reminderTimes: [30] })
+
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.schedule'))
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequencyRequired' }), { target: { value: '3' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'habits.detail.schedule' }), { target: { value: 'Week' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 3, days: [] })
+
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.time'))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: ' 10:15 ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ dueTime: '10:15' })
+
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.description'))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: ' Better note ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ description: 'Better note' })
+
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.endDate'))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: ' ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ endDate: null })
   })
 
   it('sends slip alert state only from the explicit switch action', () => {
