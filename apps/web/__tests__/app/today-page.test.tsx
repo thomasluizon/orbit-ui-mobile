@@ -24,6 +24,7 @@ const motionTestState = vi.hoisted(() => ({
   }>,
   completeAnimations: true,
   reducedMotion: false,
+  renderedStyles: new Map<string, { opacity?: unknown; y?: unknown }>(),
 }))
 
 vi.mock('@/components/ui/icons', async (importOriginal) => ({
@@ -83,11 +84,17 @@ vi.mock('motion/react', async (importOriginal) => {
         children?: React.ReactNode
         style?: { opacity?: unknown; y?: unknown }
         [key: string]: unknown
-      }) => ReactModule.createElement('div', {
-        ...props,
-        'data-motion-y': resolveStyleValue(style?.y),
-        style: { opacity: resolveStyleValue(style?.opacity) },
-      }, children),
+      }) => {
+        const testId = props['data-testid']
+        if (typeof testId === 'string') {
+          motionTestState.renderedStyles.set(testId, style ?? {})
+        }
+        return ReactModule.createElement('div', {
+          ...props,
+          'data-motion-y': resolveStyleValue(style?.y),
+          style: { opacity: resolveStyleValue(style?.opacity) },
+        }, children)
+      },
     },
     useReducedMotion: () => motionTestState.reducedMotion,
   }
@@ -167,6 +174,7 @@ describe('Hoje date control', () => {
     motionTestState.animations.length = 0
     motionTestState.completeAnimations = true
     motionTestState.reducedMotion = false
+    motionTestState.renderedStyles.clear()
   })
 
   it('shows the day name over the numeric date', () => {
@@ -323,9 +331,15 @@ describe('Hoje date control', () => {
     motionTestState.animations.length = 0
 
     rerender(<TodayHabitsPanel view={createMotionView('2026-04-09')} />)
+    const firstDayOpacity = motionTestState.animations.find((entry) => (
+      entry.from === 0.9 && entry.target === 1
+    ))
     const firstDayShift = motionTestState.animations.find((entry) => (
       entry.from === 8 && entry.target === 0
     ))
+    const dayStyle = motionTestState.renderedStyles.get('today-day-motion')
+    expect(dayStyle?.opacity).toBe(firstDayOpacity?.value)
+    expect(dayStyle?.y).toBe(firstDayShift?.value)
     expect(firstDayShift?.options).toMatchObject({
       duration: 0.22,
       ease: [0.16, 1, 0.3, 1],
@@ -340,10 +354,15 @@ describe('Hoje date control', () => {
     motionTestState.animations.length = 0
 
     rerender(<TodayHabitsPanel view={createMotionView('2026-04-10', true)} />)
-    expect(motionTestState.animations).toEqual(expect.arrayContaining([
-      expect.objectContaining({ from: 1, target: 0.8 }),
-      expect.objectContaining({ from: 0, target: 4 }),
-    ]))
+    const refetchOpacity = motionTestState.animations.find((entry) => (
+      entry.from === 1 && entry.target === 0.8
+    ))
+    const refetchShift = motionTestState.animations.find((entry) => (
+      entry.from === 0 && entry.target === 4
+    ))
+    const refetchStyle = motionTestState.renderedStyles.get('today-refetch-motion')
+    expect(refetchStyle?.opacity).toBe(refetchOpacity?.value)
+    expect(refetchStyle?.y).toBe(refetchShift?.value)
   })
 
   it('does not apply refetch motion during a cold client fetch', () => {
