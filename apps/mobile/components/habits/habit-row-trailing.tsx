@@ -27,6 +27,7 @@ interface HabitRowTrailingProps {
   onToggleStatus: () => void
   onOpenMenu: () => void
   readOnly: boolean
+  completionReadOnly: boolean
 }
 
 function resolveParentRingTrackColor(
@@ -64,6 +65,7 @@ export function HabitRowTrailing({
   onToggleStatus,
   onOpenMenu,
   readOnly,
+  completionReadOnly,
 }: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
   const statusLabel = t(`habits.statusDot.${dotState}` as const)
@@ -77,19 +79,20 @@ export function HabitRowTrailing({
           <>
             <Pressable
               onPress={() => {
-                if (readOnly) return
+                if (completionReadOnly) return
                 const parentAction = isDoneForRange
                   ? actions.onUnlog
                   : actions.onLog
                 parentAction?.()
               }}
               accessibilityRole="button"
-              disabled={readOnly}
-              accessibilityState={{ disabled: readOnly }}
+              disabled={completionReadOnly}
+              accessibilityState={{ disabled: completionReadOnly }}
               accessibilityLabel={`${statusLabel}, ${toggleLabel}: ${habit.title}, ${childrenDone}/${childrenTotal}`}
               style={({ pressed }) => [
                 styles.parentRingButton,
-                pressed && !readOnly
+                completionReadOnly ? { opacity: 0.4 } : null,
+                pressed && !completionReadOnly
                   ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] }
                   : null,
               ]}

@@ -35,6 +35,11 @@ vi.mock('motion/react', () => ({
   AnimatePresence: ({ children }: { children?: React.ReactNode }) => children,
 }))
 
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { hasProAccess: true, isTrialActive: false } }),
+  useTrialDaysLeft: () => null,
+}))
+
 vi.mock('@/components/habits/habit-list', () => ({
   HabitList: function MockHabitList(props: {
     showCompleted?: boolean

@@ -988,7 +988,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .icon-btn-well { background: var(--bg-elev); }
 
 .habit-panel {
-  margin-inline: 16px;
   overflow: hidden;
   border-radius: 20px;
   background: var(--bg-card);

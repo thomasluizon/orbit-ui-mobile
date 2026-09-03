@@ -301,11 +301,6 @@
       "count": 5
     }
   },
-  "components/habit-list/date-group-section.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "components/habit-list/move-parent-dialog.tsx": {
     "local/icon-size-grid": {
       "count": 2

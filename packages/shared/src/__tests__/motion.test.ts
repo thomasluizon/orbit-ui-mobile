@@ -42,6 +42,15 @@ describe('motion theme contract', () => {
     expect(tabSwitch.scaleFrom).toBe(1)
   })
 
+  it('uses the exact hierarchical route timing and distance', () => {
+    const routePush = resolveMotionPreset('route-push')
+
+    expect(routePush.enterDuration).toBe(220)
+    expect(routePush.exitDuration).toBe(165)
+    expect(routePush.shift).toBe(12)
+    expect(routePush.scaleFrom).toBe(1)
+  })
+
   it('exports stable spring presets for motion consumers', () => {
     expect(motionSprings.sheet.stiffness).toBeGreaterThan(motionSprings.soft.stiffness)
     expect(motionSprings.completion.damping).toBeLessThan(motionSprings.sheet.damping)

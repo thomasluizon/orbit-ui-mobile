@@ -1610,10 +1610,10 @@
   "trial": {
     "proBadge": "Período de teste",
     "banner": {
-      "freeLine": "Plano grátis",
+      "freeLine": "Plano gratuito",
       "daysLeft": "{days} dia restante | {days} dias restantes",
       "lastDay": "O teste acaba hoje",
-      "upgrade": "Ver Pro"
+      "upgrade": "Assinar"
     },
     "expired": {
       "eyebrow": "Teste encerrado",

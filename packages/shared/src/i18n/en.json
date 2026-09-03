@@ -1613,7 +1613,7 @@
       "freeLine": "Free plan",
       "daysLeft": "{days} day left | {days} days left",
       "lastDay": "Trial ends today",
-      "upgrade": "View Pro"
+      "upgrade": "Subscribe"
     },
     "expired": {
       "eyebrow": "Trial ended",
