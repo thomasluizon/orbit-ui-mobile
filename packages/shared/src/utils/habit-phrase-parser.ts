@@ -106,8 +106,8 @@ function normalizePhrase(original: string): NormalizedPhrase {
         originalEnds.push(index)
       }
       pendingSpaceStart = null
-      for (const normalizedCharacter of normalized) {
-        text += normalizedCharacter
+      for (let offset = 0; offset < normalized.length; offset += 1) {
+        text += normalized[offset]
         originalStarts.push(index)
         originalEnds.push(end)
       }

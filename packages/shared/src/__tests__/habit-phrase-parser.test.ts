@@ -71,6 +71,19 @@ describe('readHabitPhrase', () => {
     expect(segments.filter((segment) => segment.consumed).map((segment) => segment.text)).toEqual(['TERÇA', 'QUINTA', 'às 8h30'])
   })
 
+  it('keeps UTF-16 token offsets exact after a supplementary character', () => {
+    const input = '🏃 Run Monday at 8'
+    const read = readHabitPhrase(input, 'en')
+    expect(read.consumed).toEqual([
+      { start: 7, end: 13, kind: 'weekday' },
+      { start: 14, end: 18, kind: 'time' },
+    ])
+    expect(read.consumed.every((token) => Number.isFinite(token.start) && Number.isFinite(token.end))).toBe(true)
+    const segments = segmentHabitPhrase(input, read.consumed)
+    expect(segments.map((segment) => segment.text).join('')).toBe(input)
+    expect(segments.filter((segment) => segment.consumed).map((segment) => segment.text)).toEqual(['Monday', 'at 8'])
+  })
+
   it('does not treat a weekly count as a clock time', () => {
     expect(readHabitPhrase('Run 3 times a week', 'en').dueTime).toBeNull()
   })
