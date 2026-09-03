@@ -60,6 +60,28 @@ function DayCellContents({ props, outcome, size }: Readonly<{ props: DayCellProp
   )
 }
 
+function HabitHistoryContents({ props, outcome, size }: Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number }>) {
+  const missed = outcome === 'none' || outcome === 'partial'
+  const dimmed = outcome === 'not-scheduled' || outcome === 'unavailable'
+  const textColor = outcome === 'full'
+    ? 'var(--bg)'
+    : outcome === 'future'
+      ? 'var(--fg-4)'
+      : missed
+        ? 'var(--fg-3)'
+        : 'var(--fg-2)'
+  return (
+    <span
+      aria-hidden="true"
+      className="relative inline-flex items-center justify-center rounded-full"
+      style={{ width: size, height: size, background: outcome === 'full' ? 'var(--fg-1)' : 'transparent', opacity: dimmed ? 0.4 : 1 }}
+    >
+      <span style={{ color: textColor, fontFamily: 'var(--font-mono)', fontSize: 14, fontVariantNumeric: 'tabular-nums', fontWeight: props.today ? 500 : 400 }}>{props.day}</span>
+      {missed ? <span className="absolute rounded-full bg-[var(--fg-4)]" style={{ width: 3, height: 3, bottom: 4 }} /> : null}
+    </span>
+  )
+}
+
 export function DayCell(props: Readonly<DayCellProps>) {
   const outcome = resolveDayCellOutcome(props)
   const size = props.size ?? 44
@@ -87,7 +109,7 @@ export function DayCell(props: Readonly<DayCellProps>) {
         onClick={props.onPress}
         className="inline-flex shrink-0 items-center justify-center rounded-full border-0 p-0 cursor-pointer transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
       >
-        <DayCellContents props={props} outcome={outcome} size={size} />
+        {props.habitHistory ? <HabitHistoryContents props={props} outcome={outcome} size={size} /> : <DayCellContents props={props} outcome={outcome} size={size} />}
       </button>
     )
   }
@@ -99,7 +121,7 @@ export function DayCell(props: Readonly<DayCellProps>) {
       aria-hidden={props.outsideMonth ? true : undefined}
       className="inline-flex shrink-0 items-center justify-center rounded-full"
     >
-      <DayCellContents props={props} outcome={outcome} size={size} />
+      {props.habitHistory ? <HabitHistoryContents props={props} outcome={outcome} size={size} /> : <DayCellContents props={props} outcome={outcome} size={size} />}
     </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { addMonths, startOfMonth } from 'date-fns'
@@ -19,13 +19,11 @@ import {
   isHabitCompletedOnDate,
   isHabitSlipping,
   normalizeHabitDetailForDrill,
-  shouldResetHabitChecklist,
   shouldShowHabitMetrics,
 } from '@orbit/shared/utils'
 import type { ChecklistItem, HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { AppBar } from '@/components/ui/app-bar'
-import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { DayCell } from '@/components/dates/day-cell'
@@ -36,11 +34,9 @@ import { MonthGrid } from '@/components/dates/month-grid'
 import { PillButton } from '@/components/ui/pill-button'
 import { Proposed } from '@/components/ui/proposed'
 import { Skeleton } from '@/components/ui/skeleton'
-import { StatTile } from '@/components/ui/stat-tile'
-import { Switch } from '@/components/ui/switch'
-import { Calendar, ChevronDown, ChevronLeft, ChevronRight, ListTree, Plus, Trash2 } from '@/components/ui/icons'
+import { ChevronDown, ChevronLeft, ChevronRight, Plus, Trash2 } from '@/components/ui/icons'
 import { CreateHabitModal } from './create-habit-modal'
-import { EditHabitModal } from './edit-habit-modal'
+import { HabitDetailFields } from './habit-detail-fields'
 import { HabitChecklist } from './habit-checklist'
 import { HabitEmojiSelector } from './habit-form-fields/habit-emoji-selector'
 import { HabitLogButton } from './habit-log-button'
@@ -51,7 +47,6 @@ import { useProfile } from '@/hooks/use-profile'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useRescheduleSuggestion } from '@/hooks/use-reschedule-suggestion'
 import { useChatStore } from '@/stores/chat-store'
-import { useUIStore } from '@/stores/ui-store'
 
 type ConfirmAction = 'clear' | 'delete' | 'log' | 'delete-child' | null
 
@@ -134,6 +129,7 @@ function HistorySection({ habit, logs, today, locale, weekStartsOn }: Readonly<{
 }>) {
   const t = useTranslations('habits.detail')
   const [month, setMonth] = useState(startOfMonth(today))
+  const [monthRevision, setMonthRevision] = useState(0)
   const monthLoaded = isHabitHistoryMonthLoaded(month, today)
   const days = buildHabitHistoryMonth(habit, monthLoaded ? logs ?? [] : [], month, today, weekStartsOn)
   const monthLabel = formatLocaleDate(month, locale, { month: 'long', year: 'numeric' })
@@ -143,16 +139,20 @@ function HistorySection({ habit, logs, today, locale, weekStartsOn }: Readonly<{
     return base.toLocaleDateString(locale, { weekday: 'narrow' })
   })
   const words = { none: t('missedWord'), partial: t('missedWord'), full: t('doneWord'), notScheduled: t('notScheduledWord'), unavailable: t('unavailableWord'), future: t('futureWord'), of: t('ofWord'), today: t('todayWord'), selected: t('selectedWord'), readOnly: t('readOnlyWord') }
+  const changeMonth = (offset: number) => {
+    setMonth((value) => addMonths(value, offset))
+    setMonthRevision((value) => value + 1)
+  }
   return (
     <Surface>
       <div className="mb-4 flex items-center justify-between gap-4">
         <div><SectionTitle>{t('history')}</SectionTitle><p className="mt-1 text-sm capitalize text-[var(--fg-3)]">{monthLabel}</p></div>
         <div className="flex items-center gap-2">
-          <PillButton variant="ghost" size="sm" iconOnly label={t('previousMonth')} disabled={!canNavigateHabitHistoryBack(month, habit.createdAtUtc)} onClick={() => setMonth((value) => addMonths(value, -1))}><ChevronLeft size={20} /></PillButton>
-          <PillButton variant="ghost" size="sm" iconOnly label={t('nextMonth')} disabled={!canNavigateHabitHistoryForward(month, today)} onClick={() => setMonth((value) => addMonths(value, 1))}><ChevronRight size={20} /></PillButton>
+          <PillButton variant="ghost" size="sm" iconOnly label={t('previousMonth')} disabled={!canNavigateHabitHistoryBack(month, habit.createdAtUtc)} onClick={() => changeMonth(-1)}><ChevronLeft size={20} /></PillButton>
+          <PillButton variant="ghost" size="sm" iconOnly label={t('nextMonth')} disabled={!canNavigateHabitHistoryForward(month, today)} onClick={() => changeMonth(1)}><ChevronRight size={20} /></PillButton>
         </div>
       </div>
-      <MonthGrid weekdayLabels={weekdayLabels} label={t('calendarLabel', { month: monthLabel })} gap={4}>
+      <div key={monthRevision} style={monthRevision ? { animation: 'habit-month-fade 160ms var(--ease-standard)' } : undefined}><MonthGrid weekdayLabels={weekdayLabels} label={t('calendarLabel', { month: monthLabel })} gap={4}>
         {days.map((day) => {
           const dateLabel = formatLocaleDate(day.date, locale, { dateStyle: 'full' })
           const label = day.loggedAt
@@ -161,20 +161,24 @@ function HistorySection({ habit, logs, today, locale, weekStartsOn }: Readonly<{
                 time: new Date(day.loggedAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' }),
               })
             : dateLabel
-          return <DayCell key={day.dateStr} day={day.day} outsideMonth={day.outsideMonth} today={day.today} outcome={day.outcome} label={label} words={words} />
+          return <DayCell key={day.dateStr} day={day.day} outsideMonth={day.outsideMonth} today={day.today} outcome={day.outcome} label={label} words={words} habitHistory />
         })}
-      </MonthGrid>
-      {!monthLoaded ? <p className="mt-4 text-sm text-[var(--fg-3)]">{t('olderHistoryUnavailable')}</p> : null}
+      </MonthGrid></div>
     </Surface>
   )
 }
 
-function MetricsSection({ visible, loading, metrics }: Readonly<{ visible: boolean; loading: boolean; metrics: ReturnType<typeof useHabitMetrics>['data'] }>) {
+function MetricsSection({ visible, loading, metrics, isBadHabit }: Readonly<{ visible: boolean; loading: boolean; metrics: ReturnType<typeof useHabitMetrics>['data']; isBadHabit: boolean }>) {
   const t = useTranslations('habits.detail')
   if (!visible) return <p className="text-sm text-[var(--fg-3)]">{t('noDataYet')}</p>
-  if (loading) return <div className="grid grid-cols-2 gap-4"><Skeleton variant="stat-tile" label={t('loading')} /><Skeleton variant="stat-tile" label={t('loading')} /><Skeleton variant="stat-tile" label={t('loading')} /><Skeleton variant="stat-tile" label={t('loading')} /></div>
+  if (loading) return <div className="grid grid-cols-3 gap-4"><Skeleton variant="stat-tile" label={t('loading')} /><Skeleton variant="stat-tile" label={t('loading')} /><Skeleton variant="stat-tile" label={t('loading')} /></div>
   if (!metrics || metrics.totalCompletions === 0) return <p className="text-sm text-[var(--fg-3)]">{t('noDataYet')}</p>
-  return <div className="grid grid-cols-2 gap-4"><StatTile label={t('currentStreak')} value={String(metrics.currentStreak)} /><StatTile label={t('longestStreak')} value={String(metrics.longestStreak)} /><StatTile label={t('monthlyRate')} value={`${Math.round(metrics.monthlyCompletionRate)}%`} /><StatTile label={t('totalCompletions')} value={String(metrics.totalCompletions)} /></div>
+  const values = [
+    { label: t(isBadHabit ? 'daysFree' : 'currentStreak'), value: String(metrics.currentStreak) },
+    { label: t('longestStreak'), value: String(metrics.longestStreak) },
+    { label: t('monthlyRate'), value: `${Math.round(metrics.monthlyCompletionRate)}%` },
+  ]
+  return <div className="grid grid-cols-3 gap-4">{values.map((item) => <div key={item.label} className="min-w-0 text-center"><p className="font-[var(--font-display)] text-2xl font-semibold tabular-nums text-[var(--fg-1)]">{item.value}</p><p className="truncate text-sm text-[var(--fg-2)]">{item.label}</p></div>)}</div>
 }
 
 function RescheduleBlock({ habit, slipping, hasProAccess, locale }: Readonly<{ habit: NormalizedHabit; slipping: boolean; hasProAccess: boolean; locale: string }>) {
@@ -184,7 +188,7 @@ function RescheduleBlock({ habit, slipping, hasProAccess, locale }: Readonly<{ h
   const updateHabit = useUpdateHabit()
   const query = useRescheduleSuggestion({ habitId: habit.id, locale, enabled: slipping && hasProAccess })
   if (!slipping) return null
-  if (!hasProAccess) return <ListRow title={t('slipping')} description={t('rescheduleFree')} value={t('proGate')} onClick={() => router.push('/upgrade')} />
+  if (!hasProAccess) return <Surface><ListRow title={t('slipping')} value={t('proGate')} onClick={() => router.push('/upgrade')} /></Surface>
   const accept = async () => {
     if (!query.suggestion) return
     try {
@@ -203,7 +207,6 @@ function RescheduleBlock({ habit, slipping, hasProAccess, locale }: Readonly<{ h
   )
 }
 
-// eslint-disable-next-line sonarjs/cognitive-complexity -- this route coordinator keeps mutually dependent query, mutation, confirmation, and navigation state together; each visual section is already extracted above (#352)
 export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }: Readonly<HabitDetailScreenProps>) {
   const t = useTranslations()
   const locale = useLocale()
@@ -227,14 +230,12 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const deleteHabit = useDeleteHabit()
   const { showError } = useAppToast()
   const [detailsOpen, setDetailsOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [confirm, setConfirm] = useState<ConfirmAction>(null)
   const [childToDelete, setChildToDelete] = useState<string | null>(null)
   const pendingToggleKeysRef = useRef(new Set<string>())
 
   const habit = useMemo(() => detailQuery.data ? buildNormalizedHabit(detailQuery.data, habitsQuery.data?.habitsById.get(habitId), dateStr) : null, [detailQuery.data, habitsQuery.data, habitId, dateStr])
-  const relationshipFieldsLoaded = habitsQuery.data?.topLevelHabits.some((item) => item.id === habitId) ?? false
   const logs = logsQuery.data ?? []
   const logged = logs.some((entry) => entry.date === dateStr && entry.value > 0)
   const completed = habit ? isHabitCompletedOnDate(habit, logs, dateStr) : false
@@ -242,7 +243,20 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
   const strip = habit ? buildHabitStripModel(habit, logs, today, locale, profile?.weekStartDay ?? 0) : null
   const slipping = habit ? isHabitSlipping(habit, metricsQuery.data ?? null, logs, today) : false
   const hasProAccess = profile?.hasProAccess ?? false
-  const atAstraLimit = !!profile && profile.aiMessagesUsed >= profile.aiMessagesLimit
+  const headerSummary = habit?.dueTime && !summary.includes(habit.dueTime) ? `${summary} · ${habit.dueTime}` : summary
+
+  useEffect(() => {
+    if (!habit) return
+    const contextualSuggestion = {
+      id: `habit-${habit.id}`,
+      label: t('habits.detail.askAstra'),
+      prompt: t(habit.checklistItems.length ? 'habits.detail.askAstraSeedSubHabits' : 'habits.detail.askAstraSeedDefault', { title: habit.title }),
+    }
+    useChatStore.getState().setContextualSuggestion(contextualSuggestion)
+    return () => {
+      if (useChatStore.getState().contextualSuggestion?.id === contextualSuggestion.id) useChatStore.getState().setContextualSuggestion(null)
+    }
+  }, [habit, t])
 
   const goBack = useCallback(() => {
     if (parentId) router.back()
@@ -302,11 +316,6 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
     setConfirm(null)
     setChildToDelete(null)
   }
-  const askAstra = () => {
-    const seedKey = habit?.checklistItems.length ? 'habits.detail.askAstraSeedSubHabits' : 'habits.detail.askAstraSeedDefault'
-    useChatStore.getState().setDraft(t(seedKey, { title: habit?.title ?? '' }))
-    useUIStore.getState().setAstraConversationOpen(true)
-  }
   const openChild = (childId: string) => router.push(`/habits/${childId}?date=${dateStr}&parent=${habitId}${fromToday ? '&from=today' : ''}`)
 
   if (detailQuery.isLoading) return <FlowShell nav={false} mode="detail" header={<AppBar back title={t('habits.detail.screenTitle')} onBack={goBack} />}><div className="flex flex-col gap-4 p-4"><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} label={t('habits.detail.loading')} /></div></FlowShell>
@@ -323,27 +332,13 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
 
   return (
     <FlowShell nav={false} mode="detail" header={<AppBar back title={t('habits.detail.screenTitle')} onBack={goBack} />}>
-      <HabitHeader habit={habit} completed={completed} logged={logged} summary={summary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId) }} />
-      <div className="grid gap-6 min-[900px]:grid-cols-2">
-        <div className="flex flex-col gap-6">
-          {strip ? <Surface><div className="mb-4 flex items-center justify-between"><SectionTitle>{t('habits.detail.lastThirtyDays')}</SectionTitle><span className="text-sm text-[var(--fg-3)]">{strip.days.filter((value) => value === 'done').length}/30</span></div><div className="overflow-x-auto pb-1"><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /></div></Surface> : null}
-          <RescheduleBlock habit={habit} slipping={slipping} hasProAccess={hasProAccess} locale={profile?.language ?? locale} />
-          <Surface><div className="mb-4"><SectionTitle>{t('habits.detail.metrics')}</SectionTitle></div><MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} /></Surface>
-          <HistorySection habit={habit} logs={logsQuery.data} today={today} locale={profile?.language ?? locale} weekStartsOn={profile?.weekStartDay ?? 0} />
-        </div>
-        <div className="flex flex-col gap-6">
-          <Surface><div className="mb-4 flex items-center justify-between"><div><SectionTitle>{t('habits.detail.checklist')}</SectionTitle>{shouldResetHabitChecklist(habit) ? <p className="mt-1 text-sm text-[var(--fg-3)]">{t('habits.detail.resetRule')}</p> : null}</div></div><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleChecklist(index)} onItemsChange={(items) => { void updateItems(items) }} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /></Surface>
-          <Surface><div className="mb-3"><SectionTitle>{t('habits.detail.inside')}</SectionTitle></div><div className="flex flex-col gap-2">{children.map(({ habit: child, completed, canLog, readOnly }) => <HabitRow key={child.id} habit={child} child depth={1} state={completed ? 'done' : 'empty'} canLog={canLog} readOnly={readOnly} actions={{ onLog: () => { void writeLog(child.id) }, onUnlog: () => { void writeLog(child.id) }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} />)}<ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} description={hasProAccess ? undefined : t('habits.detail.addSubHabitFree')} value={hasProAccess ? undefined : t('habits.detail.proGate')} onClick={() => hasProAccess ? setCreateOpen(true) : router.push('/upgrade')} /></div></Surface>
-          <Surface><div className="mb-3"><SectionTitle>{t('habits.detail.linkedGoals')}</SectionTitle></div>{habit.linkedGoals?.length ? habit.linkedGoals.map((goal) => <ListRow key={goal.id} icon={<Calendar size={24} />} title={goal.title} onClick={() => router.push(`/goals/${goal.id}`)} />) : <p className="text-sm text-[var(--fg-3)]">{t('habits.detail.noLinkedGoals')}</p>}</Surface>
-          <Surface><ListRow icon={<AstraGlyph size={24} />} title={t('habits.detail.askAstra')} description={atAstraLimit ? t('habits.detail.askAstraLimit') : t(habit.checklistItems.length ? 'habits.detail.askAstraSubHabits' : 'habits.detail.askAstraDefault')} onClick={askAstra} /></Surface>
-        </div>
-      </div>
-      <div className="mt-6 flex flex-col gap-4">
-        <Surface><button type="button" onClick={() => setDetailsOpen((value) => !value)} className="flex min-h-11 w-full items-center justify-between border-0 bg-transparent text-left"><span className="flex items-center gap-3 text-lg font-medium text-[var(--fg-1)]"><ListTree size={24} />{t('habits.detail.moreDetails')}</span><ChevronDown size={24} className={detailsOpen ? 'rotate-180' : ''} /></button>{detailsOpen ? <div className="mt-4 flex flex-col gap-1"><ListRow title={t('habits.detail.schedule')} value={summary} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.time')} value={habit.dueTime ?? t('habits.detail.noValue')} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.description')} description={habit.description ?? t('habits.detail.noValue')} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.reminders')} value={habit.reminderEnabled ? String(habit.reminderTimes.length + habit.scheduledReminders.length) : t('habits.detail.noValue')} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.endDate')} value={habit.endDate ?? t('habits.detail.noValue')} onClick={() => setEditOpen(true)} /><ListRow title={t('habits.detail.slipAlert')} description={!hasProAccess ? t('habits.detail.slipAlertFree') : undefined} value={!hasProAccess ? t('habits.detail.proGate') : undefined} trailing={hasProAccess ? <Switch label={t('habits.detail.slipAlert')} checked={habit.slipAlertEnabled} onChange={(slipAlertEnabled) => { void patchHabit({ slipAlertEnabled }) }} /> : undefined} onClick={!hasProAccess ? () => router.push('/upgrade') : undefined} /></div> : null}</Surface>
-        <ListRow icon={<Calendar size={24} />} title={t('habits.detail.startedOn')} description={t('habits.detail.startDateNote')} value={formatLocaleDate(new Date(habit.createdAtUtc), profile?.language ?? locale, { dateStyle: 'medium' })} readOnly />
-        <ListRow icon={<Trash2 size={24} />} title={t('habits.detail.delete')} danger onClick={() => setConfirm('delete')} />
-      </div>
-      <EditHabitModal open={editOpen} onOpenChange={setEditOpen} habit={habit} relationshipFieldsLoaded={relationshipFieldsLoaded} />
+      <HabitHeader habit={habit} completed={completed} logged={logged} summary={headerSummary} onRename={(title) => patchHabit({ title })} onEmoji={(emoji) => { void patchHabit({ emoji }) }} onLog={() => { void writeLog(habitId) }} />
+      <RescheduleBlock habit={habit} slipping={slipping} hasProAccess={hasProAccess} locale={profile?.language ?? locale} />
+      {strip ? <Surface><div className="mb-4 flex items-center justify-between"><SectionTitle>{t('habits.detail.lastThirtyDays')}</SectionTitle><span className="text-sm text-[var(--fg-3)]">{strip.days.filter((value) => value === 'done').length}/30</span></div><div className="overflow-x-auto pb-1"><DayStrip scope="habit" days={strip.days} labels={strip.labels} label={t('habits.detail.lastThirtyDays')} size={16} words={{ done: t('habits.detail.doneWord'), missed: t('habits.detail.missedWord'), notScheduled: t('habits.detail.notScheduledWord') }} /></div><div className="mt-4"><MetricsSection visible={shouldShowHabitMetrics(habit)} loading={metricsQuery.isLoading} metrics={metricsQuery.data} isBadHabit={habit.isBadHabit} /></div></Surface> : null}
+      <HistorySection habit={habit} logs={logsQuery.data} today={today} locale={profile?.language ?? locale} weekStartsOn={profile?.weekStartDay ?? 0} />
+      <Surface><div className="mb-4"><SectionTitle>{t('habits.detail.checklist')}</SectionTitle></div><HabitChecklist items={habit.checklistItems} interactive={!detailsOpen} editable={detailsOpen} onToggle={(index) => void toggleChecklist(index)} onItemsChange={(items) => { void updateItems(items) }} onReset={() => { void updateItems(habit.checklistItems.map((item) => ({ ...item, isChecked: false }))) }} onClear={() => setConfirm('clear')} /><div className="mt-3 flex flex-col gap-2">{children.map(({ habit: child, completed: childCompleted, canLog, readOnly }) => <HabitRow key={child.id} habit={child} child depth={1} state={childCompleted ? 'done' : 'empty'} canLog={canLog} readOnly={readOnly} actions={{ onLog: () => { void writeLog(child.id) }, onUnlog: () => { void writeLog(child.id) }, onDetail: () => openChild(child.id), onDelete: () => { setChildToDelete(child.id); setConfirm('delete-child') } }} />)}<ListRow icon={<Plus size={24} />} title={t('habits.detail.addSubHabit')} value={hasProAccess ? undefined : t('habits.detail.proGate')} onClick={() => hasProAccess ? setCreateOpen(true) : router.push('/upgrade')} /></div></Surface>
+      <Surface><button type="button" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((value) => !value)} className="flex min-h-11 w-full items-center justify-between border-0 bg-transparent text-left"><span className="truncate text-lg font-medium text-[var(--fg-1)]">{t('habits.detail.moreDetails')}</span><ChevronDown size={24} className="shrink-0 transition-transform duration-[220ms] ease-[var(--ease-standard)]" style={{ transform: detailsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} /></button>{detailsOpen ? <div className="mt-4" style={{ animation: 'habit-detail-fade 160ms var(--ease-standard)' }}><HabitDetailFields key={`${habit.id}:${habit.reminderEnabled}:${habit.reminderTimes.join(',')}:${habit.scheduledReminders.map((reminder) => reminder.time).join(',')}:${habit.linkedGoals?.map((goal) => goal.id).join(',') ?? ''}`} habit={habit} hasProAccess={hasProAccess} locale={profile?.language ?? locale} summary={summary} onPatch={patchHabit} onUpgrade={() => router.push('/upgrade')} /></div> : null}</Surface>
+      <ListRow icon={<Trash2 size={24} />} title={t('habits.detail.delete')} danger onClick={() => setConfirm('delete')} />
       <CreateHabitModal open={createOpen} onOpenChange={setCreateOpen} initialDate={dateStr} parentHabit={habit} />
       <ConfirmSheet open={confirm === 'clear'} title={t('habits.checklistClearTitle')} message={t('habits.checklistClearMessage')} confirmLabel={t('habits.form.clearChecklist')} destructive onCancel={() => setConfirm(null)} onConfirm={() => { void updateItems([]).then((saved) => { if (saved) setConfirm(null) }) }} />
       <ConfirmSheet open={confirm === 'log'} title={t('habits.checklistCompleteTitle')} message={t('habits.checklistCompleteMessage', { name: habit.title })} confirmLabel={t('habits.checklistCompleteConfirm')} onCancel={() => setConfirm(null)} onConfirm={() => { void confirmLog() }} />

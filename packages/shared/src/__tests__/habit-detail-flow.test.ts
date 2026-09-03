@@ -80,6 +80,40 @@ describe('habit detail flow model', () => {
       .toMatchObject({ goalIds: [] })
   })
 
+  it('builds schedule, reminder, and text field updates without dropping habit data', () => {
+    const habit = createMockHabit({
+      description: 'Old description',
+      dueTime: '08:00',
+      reminderEnabled: true,
+      reminderTimes: [15],
+    })
+    const scheduledReminders = [{ time: '20:30', when: 'same_day' as const }]
+    const request = buildHabitDetailUpdateRequest(habit, {
+      description: 'New description',
+      dueTime: '09:15',
+      endDate: '2026-12-31',
+      frequencyUnit: 'Day',
+      frequencyQuantity: 2,
+      days: ['Tuesday', 'Thursday'],
+      reminderEnabled: true,
+      reminderTimes: [30],
+      scheduledReminders,
+    })
+
+    expect(request).toMatchObject({
+      title: habit.title,
+      description: 'New description',
+      dueTime: '09:15',
+      endDate: '2026-12-31',
+      frequencyUnit: 'Day',
+      frequencyQuantity: 2,
+      days: ['Tuesday', 'Thursday'],
+      reminderEnabled: true,
+      reminderTimes: [30],
+      scheduledReminders,
+    })
+  })
+
   it('builds a 30 day habit strip without a frozen state', () => {
     const model = buildHabitStripModel(recurring, [log('2026-08-28')], today, 'en')
     expect(model.days).toHaveLength(30)

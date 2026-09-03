@@ -368,26 +368,41 @@ export function removeHabitDetailChild(detail: HabitDetail, habitId: string): Ha
 
 export function buildHabitDetailUpdateRequest(
   habit: NormalizedHabit,
-  patch: Partial<Pick<UpdateHabitRequest, 'title' | 'emoji' | 'checklistItems' | 'slipAlertEnabled' | 'goalIds'>>,
+  patch: Partial<Pick<UpdateHabitRequest,
+    | 'title'
+    | 'description'
+    | 'emoji'
+    | 'frequencyUnit'
+    | 'frequencyQuantity'
+    | 'days'
+    | 'dueTime'
+    | 'reminderEnabled'
+    | 'reminderTimes'
+    | 'scheduledReminders'
+    | 'checklistItems'
+    | 'endDate'
+    | 'slipAlertEnabled'
+    | 'goalIds'
+  >>,
 ): UpdateHabitRequest {
   const request: UpdateHabitRequest = {
     title: patch.title ?? habit.title,
-    description: habit.description ?? undefined,
+    description: patch.description ?? habit.description ?? undefined,
     emoji: patch.emoji === undefined ? habit.emoji : patch.emoji,
-    frequencyUnit: habit.frequencyUnit ?? undefined,
-    frequencyQuantity: habit.frequencyQuantity ?? undefined,
-    days: habit.days,
+    frequencyUnit: patch.frequencyUnit ?? habit.frequencyUnit ?? undefined,
+    frequencyQuantity: patch.frequencyQuantity ?? habit.frequencyQuantity ?? undefined,
+    days: patch.days ?? habit.days,
     isBadHabit: habit.isBadHabit,
     isGeneral: habit.isGeneral,
     isFlexible: habit.isFlexible,
     dueDate: habit.dueDate,
-    dueTime: habit.dueTime || undefined,
+    dueTime: (patch.dueTime ?? habit.dueTime) || undefined,
     dueEndTime: habit.dueEndTime || undefined,
-    reminderEnabled: habit.reminderEnabled,
-    reminderTimes: habit.reminderTimes,
-    scheduledReminders: habit.scheduledReminders,
+    reminderEnabled: patch.reminderEnabled ?? habit.reminderEnabled,
+    reminderTimes: patch.reminderTimes ?? habit.reminderTimes,
+    scheduledReminders: patch.scheduledReminders ?? habit.scheduledReminders,
     checklistItems: patch.checklistItems ?? habit.checklistItems,
-    endDate: habit.endDate || null,
+    endDate: patch.endDate === undefined ? habit.endDate || null : patch.endDate,
   }
   if (patch.slipAlertEnabled !== undefined) request.slipAlertEnabled = patch.slipAlertEnabled
   if (patch.goalIds !== undefined) request.goalIds = patch.goalIds

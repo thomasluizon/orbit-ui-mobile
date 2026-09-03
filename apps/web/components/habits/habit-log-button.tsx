@@ -17,7 +17,7 @@ export function HabitLogButton({ label, logged, completed = logged, onPress, pro
       type="button"
       aria-label={label}
       onClick={onPress}
-      className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
+      className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
     >
       <span aria-hidden="true" className="grid place-items-center">
         {progress === undefined || completed ? (

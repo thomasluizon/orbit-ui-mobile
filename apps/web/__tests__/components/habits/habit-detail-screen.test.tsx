@@ -6,7 +6,6 @@ import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { HabitDetail, HabitMetrics, NormalizedHabit } from '@orbit/shared/types/habit'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { useChatStore } from '@/stores/chat-store'
-import { useUIStore } from '@/stores/ui-store'
 
 const mocks = vi.hoisted(() => ({
   logs: [] as HabitLog[],
@@ -107,9 +106,9 @@ vi.mock('@/components/ui/switch', () => ({
   ),
 }))
 vi.mock('@/components/ui/list-row', () => ({
-  ListRow: ({ title, value, trailing, onClick }: { title: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }) => onClick
-    ? <button type="button" data-testid={`list-row-${title}`} data-value={value} onClick={onClick}>{title}{trailing}</button>
-    : <div data-testid={`list-row-${title}`} data-value={value}>{title}{trailing}</div>,
+  ListRow: ({ title, description, value, trailing, onClick }: { title: string; description?: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }) => onClick
+    ? <button type="button" data-testid={`list-row-${title}`} data-description={description} data-value={value} onClick={onClick}>{title}{trailing}</button>
+    : <div data-testid={`list-row-${title}`} data-description={description} data-value={value}>{title}{trailing}</div>,
 }))
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, disabled, label, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void }) => <button type="button" disabled={disabled} aria-label={label} onClick={onClick}>{children}</button>,
@@ -125,11 +124,9 @@ vi.mock('@/components/dates/month-grid', () => ({
   MonthGrid: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
-vi.mock('@/components/habits/edit-habit-modal', () => ({
-  EditHabitModal: ({ open, relationshipFieldsLoaded }: { open: boolean; relationshipFieldsLoaded: boolean }) => (
-    <div data-testid="edit-habit-modal" data-open={open} data-relationship-fields-loaded={relationshipFieldsLoaded} />
-  ),
-}))
+vi.mock('@/components/habits/goal-linking-field', () => ({ GoalLinkingField: () => <div data-testid="goal-linking-field" /> }))
+vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({ ReminderSection: () => <div data-testid="offset-reminders" /> }))
+vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({ ScheduledReminderSection: () => <div data-testid="scheduled-reminders" /> }))
 vi.mock('@/components/habits/habit-checklist', () => ({
   HabitChecklist: ({ onToggle, onClear }: { onToggle: (index: number) => void; onClear: () => void }) => (
     <div>
@@ -276,8 +273,7 @@ describe('HabitDetailScreen', () => {
     mocks.routerReplace.mockReset()
     mocks.history = []
     mocks.hasProAccess = true
-    useChatStore.setState({ draft: '', draftHydrated: true })
-    useUIStore.setState({ astraConversationOpen: false })
+    useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
     mocks.suggestion = null
     localStorage.clear()
   })
@@ -301,14 +297,16 @@ describe('HabitDetailScreen', () => {
     expect(mocks.refetch).toHaveBeenCalledOnce()
   })
 
-  it('shows authoritative tags and linked goals and opens the selected goal', () => {
+  it('shows authoritative tags and moves linked goals into the inline details', () => {
     mocks.scopedHabits.set('habit-1', makeScopedParent())
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
     expect(screen.getByText('Focus')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Read more books' }))
-
-    expect(mocks.routerPush).toHaveBeenCalledWith('/goals/goal-1')
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    expect(screen.getByTestId('list-row-habits.detail.linkedGoals')).toHaveAttribute('data-value', '1')
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.linkedGoals'))
+    expect(screen.getByTestId('goal-linking-field')).toBeInTheDocument()
+    expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
   it('restores an empty rename and returns to the selected day', async () => {
@@ -328,7 +326,7 @@ describe('HabitDetailScreen', () => {
     expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
   })
 
-  it('moves to an older history month and explains unavailable history', () => {
+  it('moves to an older history month without rendering the removed history note', () => {
     mocks.detail = { ...makeDetail(), createdAtUtc: '2025-01-01T12:00:00Z' }
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
@@ -336,7 +334,7 @@ describe('HabitDetailScreen', () => {
     for (let index = 0; index < 13; index += 1) fireEvent.click(previousMonth)
 
     expect(screen.getByText('July 2025')).toBeInTheDocument()
-    expect(screen.getByText('olderHistoryUnavailable')).toBeInTheDocument()
+    expect(screen.queryByText('olderHistoryUnavailable')).not.toBeInTheDocument()
   })
 
   it('pops child then parent history back to Today without duplicating the parent', () => {
@@ -377,21 +375,19 @@ describe('HabitDetailScreen', () => {
 
     expect(screen.getByRole('button', { name: 'log' })).toHaveAttribute('data-logged', 'false')
     expect(screen.getByTestId('history-day-28-inside')).toHaveTextContent('none')
-    expect(screen.getByTestId('stat-totalCompletions')).toHaveTextContent('2')
+    expect(screen.queryByTestId('stat-totalCompletions')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'log' }))
     await act(async () => Promise.resolve())
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     expect(screen.getByRole('button', { name: 'unlog' })).toHaveAttribute('data-logged', 'true')
     expect(screen.getByTestId('history-day-28-inside')).toHaveTextContent('full')
-    expect(screen.getByTestId('stat-totalCompletions')).toHaveTextContent('3')
 
     fireEvent.click(screen.getByRole('button', { name: 'unlog' }))
     await act(async () => Promise.resolve())
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     expect(screen.getByRole('button', { name: 'log' })).toHaveAttribute('data-logged', 'false')
     expect(screen.getByTestId('history-day-28-inside')).toHaveTextContent('none')
-    expect(screen.getByTestId('stat-totalCompletions')).toHaveTextContent('2')
   })
 
   it('guards a repeated detail toggle while the accepted write is unfinalized', async () => {
@@ -469,35 +465,29 @@ describe('HabitDetailScreen', () => {
     expect(request).not.toHaveProperty('goalIds')
   })
 
-  it('opens the full editor without treating an off-schedule relationship snapshot as loaded', () => {
+  it('opens the schedule editor inline without opening the full editor', () => {
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.schedule' }))
 
-    expect(screen.getByTestId('edit-habit-modal')).toHaveAttribute('data-open', 'true')
-    expect(screen.getByTestId('edit-habit-modal')).toHaveAttribute(
-      'data-relationship-fields-loaded',
-      'false',
-    )
+    expect(screen.getByRole('spinbutton', { name: 'habits.form.frequencyRequired' })).toBeInTheDocument()
+    expect(screen.queryByTestId('edit-habit-modal')).not.toBeInTheDocument()
   })
 
-  it('shows reminder copy and count between description and end date and opens the editor', () => {
+  it('shows reminder offsets before schedule and edits them inline', () => {
     const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
     const reminderRow = screen.getByTestId('list-row-habits.detail.reminders')
     expect(reminderRow).toHaveAttribute('data-value', 'habits.detail.noValue')
     const detailRows = Array.from(reminderRow.parentElement!.children)
-    expect(detailRows.indexOf(screen.getByTestId('list-row-habits.detail.description'))).toBeLessThan(
-      detailRows.indexOf(reminderRow),
-    )
     expect(detailRows.indexOf(reminderRow)).toBeLessThan(
-      detailRows.indexOf(screen.getByTestId('list-row-habits.detail.endDate')),
+      detailRows.indexOf(screen.getByTestId('list-row-habits.detail.schedule')),
     )
 
     fireEvent.click(reminderRow)
-    expect(screen.getByTestId('edit-habit-modal')).toHaveAttribute('data-open', 'true')
+    expect(screen.getByTestId('scheduled-reminders')).toBeInTheDocument()
 
     mocks.detail = {
       ...makeDetail(),
@@ -506,13 +496,15 @@ describe('HabitDetailScreen', () => {
       scheduledReminders: [{ when: 'same_day', time: '08:00' }],
     }
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
-    expect(screen.getByTestId('list-row-habits.detail.reminders')).toHaveAttribute('data-value', '3')
+    expect(screen.getByTestId('list-row-habits.detail.reminders')).toHaveAttribute('data-value', 'habits.form.reminder10min, habits.form.reminder30min, 08:00')
   })
 
   it('sends slip alert state only from the explicit switch action', () => {
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    expect(screen.getByTestId('list-row-habits.detail.slipAlert')).toHaveAttribute('data-description', 'habits.detail.slipAlertDescription')
     fireEvent.click(screen.getByRole('switch', { name: 'habits.detail.slipAlert' }))
 
     expect(mocks.update).toHaveBeenCalledOnce()
@@ -617,13 +609,15 @@ describe('HabitDetailScreen', () => {
     expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
   })
 
-  it('opens Astra with a draft grounded in the current habit', () => {
+  it('puts the grounded Astra seed in the persistent composer', () => {
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.askAstra' }))
-
-    expect(useChatStore.getState().draft).toBe('habits.detail.askAstraSeedDefault:{"title":"Read"}')
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useChatStore.getState().contextualSuggestion).toEqual({
+      id: 'habit-habit-1',
+      label: 'habits.detail.askAstra',
+      prompt: 'habits.detail.askAstraSeedDefault:{"title":"Read"}',
+    })
+    expect(screen.queryByRole('button', { name: 'habits.detail.askAstra' })).not.toBeInTheDocument()
     expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 
