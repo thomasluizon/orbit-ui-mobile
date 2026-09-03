@@ -149,7 +149,7 @@ export function ReminderSection({
                     <button
                       type="button"
                       aria-label={t('common.add')}
-                      className="touch-target shrink-0 grid size-9 place-items-center rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] transition-[background-color,transform] duration-[var(--dur-fast)] active:scale-[0.96]"
+                      className="habit-control-motion touch-target shrink-0 grid size-9 place-items-center rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-hover)] active:scale-[0.96]"
                       onClick={addCustomReminder}
                     >
                       <Plus size={16} strokeWidth={2.2} aria-hidden="true" />

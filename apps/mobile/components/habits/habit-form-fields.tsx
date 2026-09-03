@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
+import Animated, { Easing, Keyframe } from 'react-native-reanimated'
 import { useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import type { Time24 } from '@orbit/shared/contracts/forms'
@@ -52,6 +53,16 @@ import { TagPickerField } from './habit-form-fields/tag-picker-field'
 import { createStyles as createFormStyles } from './habit-form-fields/styles'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+const DISCLOSURE_ENTER = new Keyframe({
+  0: { opacity: 0, transform: [{ scale: 0.95 }] },
+  100: { opacity: 1, transform: [{ scale: 1 }], easing: Easing.bezier(0.16, 1, 0.3, 1) },
+}).duration(220)
+
+const DISCLOSURE_EXIT = new Keyframe({
+  0: { opacity: 1, transform: [{ scale: 1 }] },
+  100: { opacity: 0, transform: [{ scale: 0.95 }], easing: Easing.bezier(0.4, 0, 1, 1) },
+}).duration(165)
 
 interface HabitFormFieldsProps extends HabitFormCommonProps<HabitFormHelpers, TagSelectionState, ReactNode> {
   onFlushBufferedInputsReady?: (flush: () => void) => void
@@ -423,7 +434,7 @@ export function HabitFormFields({
       <View style={styles.disclosure}>
         <ListRow icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.form.moreDetails')} chevron={false} onClick={() => setDetailsOpen((open) => !open)} />
         {detailsOpen ? (
-          <View style={styles.details}>
+          <Animated.View entering={DISCLOSURE_ENTER} exiting={DISCLOSURE_EXIT} style={styles.details}>
             <View>
               <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.exactTime')}</SectionLabel>
               <TimeField
@@ -469,7 +480,7 @@ export function HabitFormFields({
             <View><GoalLinkingField selectedGoalIds={selectedGoalIds} atGoalLimit={atGoalLimit} onToggleGoal={onToggleGoal} /></View>
             <EndDateEditor visible={showEndDate} value={endDate} onChange={(value) => setValue('endDate', value, { shouldDirty: true })} t={t} />
             <View><SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.description')}</SectionLabel><Input label={t('habits.form.description')} value={description} onChange={(value) => setValue('description', value, { shouldDirty: true })} placeholder={t('habits.form.descriptionPlaceholder')} multiline rows={3} maxLength={MAX_HABIT_DESCRIPTION_LENGTH} /></View>
-          </View>
+          </Animated.View>
         ) : null}
       </View>
 

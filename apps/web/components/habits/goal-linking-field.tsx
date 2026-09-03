@@ -37,7 +37,7 @@ function GoalPickerRow({ goal, selected, disabled, onToggle }: Readonly<{
   onToggle: (goalId: string) => void
 }>) {
   return (
-    <button type="button" aria-pressed={selected} disabled={disabled} className="flex h-12 w-full items-center justify-between rounded-[12px] px-3 text-left transition-colors duration-[240ms] hover:bg-[var(--bg-hover)] disabled:opacity-40" onClick={() => onToggle(goal.id)}>
+    <button type="button" aria-pressed={selected} disabled={disabled} className="orbit-list-row flex h-12 w-full items-center justify-between rounded-[12px] px-3 text-left active:scale-[0.96] disabled:opacity-40" onClick={() => onToggle(goal.id)}>
       <span className="truncate">{goal.title}</span>
       <span className="shrink-0 font-mono text-xs text-[var(--fg-3)]">{selected ? '✓' : `${Math.round(goal.progressPercentage)}%`}</span>
     </button>

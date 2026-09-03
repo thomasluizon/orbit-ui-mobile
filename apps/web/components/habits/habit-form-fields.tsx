@@ -266,12 +266,16 @@ export function HabitFormFields({
   const canUseSubHabits = isFeatureEnabled(config, 'habits.subHabits', habitFeaturePlan(hasProAccess))
   const displayedStartDate = resolveHabitStartDate(startDate, dueDate)
   const [detailsOpen, setDetailsOpen] = useState(defaultExpanded)
+  const [detailsPresented, setDetailsPresented] = useState(defaultExpanded)
   const [proposal, setProposal] = useState(EMPTY_HABIT_FORM_PROPOSAL)
   const rendersGranularSubHabits = typeof children === 'function'
   const subHabitChildren = renderSubHabitChildren(children, proposal.subHabitItems)
   const [phraseOwnership, setPhraseOwnership] = useState({ cadence: false, dueTime: false })
   const lastLocallyReadTitleRef = useRef<string | null>(null)
-  useExpandAdvancedSignal(expandAdvancedSignal, () => setDetailsOpen(true))
+  useExpandAdvancedSignal(expandAdvancedSignal, () => {
+    setDetailsPresented(true)
+    setDetailsOpen(true)
+  })
 
   const { tags: availableTags = [] } = useTags()
   const createTag = useCreateTag()
@@ -400,11 +404,25 @@ export function HabitFormFields({
           icon={detailsOpen ? 'chevron-down' : 'chevron-right'}
           title={t('habits.form.moreDetails')}
           chevron={false}
-          onClick={() => setDetailsOpen((open) => !open)}
+          onClick={() => {
+            if (detailsOpen) {
+              setDetailsOpen(false)
+            } else {
+              setDetailsPresented(true)
+              setDetailsOpen(true)
+            }
+          }}
         />
 
-        {detailsOpen ? (
-          <div className="flex flex-col px-4" style={{ gap: 24 }}>
+        {detailsPresented ? (
+          <div
+            className="habit-form-disclosure flex flex-col px-4"
+            data-open={detailsOpen}
+            style={{ gap: 24 }}
+            onTransitionEnd={(event) => {
+              if (!detailsOpen && event.propertyName === 'opacity') setDetailsPresented(false)
+            }}
+          >
             <section>
               <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.exactTime')}</SectionLabel>
               <TimeField

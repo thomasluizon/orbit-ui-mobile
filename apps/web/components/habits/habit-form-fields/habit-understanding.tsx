@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { AnimatePresence, domAnimation, LazyMotion, m } from 'motion/react'
 import type { HabitUnderstandingProps } from '@orbit/shared/utils'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
 import { Minus, Plus } from '@/components/ui/icons'
@@ -85,9 +86,22 @@ export function HabitUnderstanding({
               <span className="text-xs text-[var(--fg-3)]">{proposed ? labels.understoodAstra : labels.understood}</span>
             </div>
 
-            <p key={sentence} className="animate-[fade-in_160ms_var(--ease-standard)] text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">
-              {sentence ?? labels.unresolved}
-            </p>
+            <LazyMotion features={domAnimation}>
+              <div className="grid">
+                <AnimatePresence initial={false}>
+                  <m.p
+                    key={sentence ?? labels.unresolved}
+                    className="[grid-area:1/1] text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
+                  >
+                    {sentence ?? labels.unresolved}
+                  </m.p>
+                </AnimatePresence>
+              </div>
+            </LazyMotion>
 
             <SegmentedControl
               label={labels.scheduleMode}
@@ -102,18 +116,18 @@ export function HabitUnderstanding({
                   const selected = days.includes(day.value)
                   return (
                     <button key={day.value} type="button" aria-pressed={selected} aria-label={day.accessibleLabel}
-                      className={`grid size-11 shrink-0 place-items-center rounded-full border-0 text-sm font-medium transition-colors duration-[240ms] active:scale-[0.96] ${selected ? 'bg-[var(--primary-dim)] text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--primary)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)]'}`}
+                      className={`habit-control-motion grid size-11 shrink-0 place-items-center rounded-full border-0 text-sm font-medium active:scale-[0.96] ${selected ? 'bg-[var(--primary-dim)] text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--primary)]' : 'bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)]'}`}
                       onClick={() => onToggleDay(day.value)}>{day.label.charAt(0)}</button>
                   )
                 })}
               </fieldset>
             ) : (
               <div className="flex items-center" style={{ gap: 8 }}>
-                <button type="button" aria-label={labels.less} className="grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-colors duration-[240ms] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]" onClick={() => onQuantityChange(Math.max(1, quantity - 1))}>
+                <button type="button" aria-label={labels.less} className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]" onClick={() => onQuantityChange(Math.max(1, quantity - 1))}>
                   <Minus size={20} strokeWidth={2} aria-hidden="true" />
                 </button>
                 <span className="min-w-7 text-center font-mono text-xl tabular-nums">{quantity}</span>
-                <button type="button" aria-label={labels.more} className="grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-colors duration-[240ms] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]" onClick={() => onQuantityChange(quantity + 1)}>
+                <button type="button" aria-label={labels.more} className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]" onClick={() => onQuantityChange(quantity + 1)}>
                   <Plus size={20} strokeWidth={2} aria-hidden="true" />
                 </button>
                 <span className="truncate text-sm text-[var(--fg-3)]">{labels.count(quantity)}</span>
@@ -125,7 +139,7 @@ export function HabitUnderstanding({
                 type="button"
                 aria-label={labels.repeatLess}
                 disabled={intervalWeeks <= 1}
-                className="grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-colors duration-[240ms] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
+                className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
                 onClick={() => onIntervalWeeksChange(Math.max(1, intervalWeeks - 1))}
               >
                 <Minus size={20} strokeWidth={2} aria-hidden="true" />
@@ -134,7 +148,7 @@ export function HabitUnderstanding({
               <button
                 type="button"
                 aria-label={labels.repeatMore}
-                className="grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-colors duration-[240ms] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
+                className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40"
                 onClick={() => onIntervalWeeksChange(intervalWeeks + 1)}
               >
                 <Plus size={20} strokeWidth={2} aria-hidden="true" />

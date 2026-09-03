@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import Animated, { Easing, FadeIn, FadeOut } from 'react-native-reanimated'
 import type { HabitUnderstandingProps } from '@orbit/shared/utils'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
 import { Minus, Plus } from '@/components/ui/icons'
@@ -9,6 +10,10 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { HabitEmojiSelector } from './habit-emoji-selector'
 import { createStyles as createFormStyles } from './styles'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+
+const SENTENCE_EASING = Easing.bezier(0.2, 0, 0, 1)
+const SENTENCE_ENTER = FadeIn.duration(160).easing(SENTENCE_EASING)
+const SENTENCE_EXIT = FadeOut.duration(160).easing(SENTENCE_EASING)
 
 export function HabitUnderstanding({
   value,
@@ -83,7 +88,15 @@ export function HabitUnderstanding({
               <Text style={styles.meta}>{proposed ? labels.understoodAstra : labels.understood}</Text>
             </View>
 
-            <Text style={styles.sentence}>{sentence ?? labels.unresolved}</Text>
+            <View style={styles.sentenceLayer}>
+              <Animated.View
+                key={sentence ?? labels.unresolved}
+                entering={SENTENCE_ENTER}
+                exiting={SENTENCE_EXIT}
+              >
+                <Text style={styles.sentence}>{sentence ?? labels.unresolved}</Text>
+              </Animated.View>
+            </View>
 
             <SegmentedControl
               label={labels.scheduleMode}
@@ -202,6 +215,9 @@ function createStyles(tokens: AppTokens) {
       fontFamily: 'Geist_500Medium',
       fontSize: 17,
       lineHeight: 24,
+    },
+    sentenceLayer: {
+      position: 'relative',
     },
     days: { flexDirection: 'row', gap: 4 },
     day: { alignItems: 'center', borderRadius: radius.full, height: 44, justifyContent: 'center', width: 44 },

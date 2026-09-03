@@ -37,7 +37,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
         <button type="button" onClick={onClick} className="orbit-list-row flex min-w-0 flex-1 cursor-pointer items-center border-0 bg-transparent text-left active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]" style={bodyStyle}>{body}</button>
       )}
       {action ? (
-        <button type="button" aria-label={action.label} onClick={action.onPress} className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent transition-colors duration-[240ms] hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]" style={{ color: action.danger ? 'var(--status-bad)' : 'var(--fg-2)' }}>
+        <button type="button" aria-label={action.label} onClick={action.onPress} className="habit-control-motion flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]" style={{ color: action.danger ? 'var(--status-bad)' : 'var(--fg-2)' }}>
           <Icon name={action.icon} size={20} color="currentColor" />
         </button>
       ) : null}

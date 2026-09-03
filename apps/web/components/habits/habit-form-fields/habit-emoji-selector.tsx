@@ -45,7 +45,7 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect, wellSize = 56 }: R
     <>
       <button
         type="button"
-        className="grid shrink-0 cursor-pointer place-items-center border-0 transition-[box-shadow,background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)] active:scale-[0.96] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+        className="habit-control-motion grid shrink-0 cursor-pointer place-items-center border-0 hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
         style={{
           width: wellSize,
           height: wellSize,
@@ -64,7 +64,7 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect, wellSize = 56 }: R
       {pickerOpen ? <Sheet ref={sheetRef} open title={t('habits.form.emojiPickerTitle')} onClose={hidePicker} headerAccessory={selectedEmoji ? (
         <div className="flex items-center gap-2">
           <span className="grid size-10 place-items-center rounded-full bg-[var(--bg-well)] text-xl">{selectedEmoji}</span>
-          <button type="button" className="grid size-10 place-items-center rounded-full text-[var(--fg-2)] transition-colors duration-[240ms] hover:bg-[var(--bg-hover)] hover:text-[var(--status-bad)] active:scale-[0.96]" aria-label={t('habits.form.emojiRemove')} onClick={() => onSelect('')}>
+          <button type="button" className="habit-control-motion grid size-10 place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--status-bad)] active:scale-[0.96]" aria-label={t('habits.form.emojiRemove')} onClick={() => onSelect('')}>
             <Trash2 size={18} strokeWidth={1.8} aria-hidden="true" />
           </button>
         </div>
@@ -82,7 +82,7 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect, wellSize = 56 }: R
             {query ? (
               <button
                 type="button"
-                className="grid size-11 shrink-0 place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)]"
+                className="habit-control-motion grid size-11 shrink-0 place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
                 aria-label={t('habits.form.emojiClearSearch')}
                 onClick={() => setQuery('')}
               >
@@ -128,7 +128,7 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect, wellSize = 56 }: R
                         role="option"
                         aria-selected={isSelected}
                         aria-label={`${t('habits.form.emoji')}: ${emoji}`}
-                        className={`grid place-items-center rounded-[12px] text-xl transition-[background-color,box-shadow] duration-[var(--dur-fast)] ${
+                        className={`habit-control-motion grid place-items-center rounded-[12px] text-xl active:scale-[0.96] ${
                           isSelected
                             ? 'bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_2px_var(--primary)]'
                             : 'hover:bg-[var(--bg-elev)]'
