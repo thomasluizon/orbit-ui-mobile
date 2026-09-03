@@ -140,4 +140,51 @@ describe('useTodayMotion', () => {
     await motion.unmount()
     timing.mockRestore()
   })
+
+  it('ignores a deferred enter callback after selection has started exiting', async () => {
+    const enterCompletions: ((value: number) => void)[] = []
+    const exitCompletions: ((result: { finished: boolean }) => void)[] = []
+    const stopAnimation = vi.spyOn(Animated.Value.prototype, 'stopAnimation')
+      .mockImplementation((completion?: (value: number) => void) => {
+        if (completion) enterCompletions.push(completion)
+      })
+    const timing = vi.spyOn(Animated, 'timing').mockImplementation(() => ({
+      start: (completion?: (result: { finished: boolean }) => void) => {
+        if (completion) exitCompletions.push(completion)
+      },
+      stop: vi.fn(),
+      reset: vi.fn(),
+    }))
+    const motion = await renderMotion('2026-04-08')
+
+    await TestRenderer.act(async () => {
+      useUIStore.setState({ isSelectMode: true })
+      await Promise.resolve()
+    })
+    expect(enterCompletions).toHaveLength(1)
+
+    await TestRenderer.act(async () => {
+      useUIStore.setState({ isSelectMode: false })
+      await Promise.resolve()
+    })
+    expect(motion.latest.renderBulkActionBar).toBe(true)
+    const timingCallsBeforeStaleEnter = timing.mock.calls.length
+
+    await TestRenderer.act(async () => {
+      enterCompletions[0]?.(0)
+      await Promise.resolve()
+    })
+    expect(timing).toHaveBeenCalledTimes(timingCallsBeforeStaleEnter)
+    expect(motion.latest.renderBulkActionBar).toBe(true)
+
+    await TestRenderer.act(async () => {
+      exitCompletions.at(-1)?.({ finished: true })
+      await Promise.resolve()
+    })
+    expect(motion.latest.renderBulkActionBar).toBe(false)
+
+    await motion.unmount()
+    timing.mockRestore()
+    stopAnimation.mockRestore()
+  })
 })

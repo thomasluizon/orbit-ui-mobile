@@ -34,6 +34,7 @@ export function useTodayMotion({
   const previousFilterMotionKeyRef = useRef(filterMotionKey);
   const dayTransitionRunningRef = useRef(false);
   const dayTransitionSequenceRef = useRef(0);
+  const selectionTransitionSequenceRef = useRef(0);
   const [renderBulkActionBar, setRenderBulkActionBar] = useState(isSelectMode);
   const [previousSelectMode, setPreviousSelectMode] = useState(isSelectMode);
 
@@ -107,8 +108,13 @@ export function useTodayMotion({
   ]);
 
   useEffect(() => {
+    const sequence = selectionTransitionSequenceRef.current + 1;
+    selectionTransitionSequenceRef.current = sequence;
     if (isSelectMode) {
       bulkBarAnim.stopAnimation(() => {
+        if (selectionTransitionSequenceRef.current !== sequence) {
+          return;
+        }
         bulkBarAnim.setValue(selectionMotion.reducedMotionEnabled ? 1 : 0);
         Animated.timing(
           bulkBarAnim,
@@ -131,7 +137,7 @@ export function useTodayMotion({
       easing: toAnimatedEasing(selectionMotion.exitEasing),
       useNativeDriver: true,
     }).start(({ finished }) => {
-      if (finished) {
+      if (finished && selectionTransitionSequenceRef.current === sequence) {
         setRenderBulkActionBar(false);
       }
     });
