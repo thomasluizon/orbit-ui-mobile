@@ -71,7 +71,7 @@ describe('TrialBanner (mobile)', () => {
   it('renders a quiet, non-dismissible line', async () => {
     const tree = await renderBanner()
     const banner = tree.root.findAll((node) => node.props.testID === 'trial-banner')[0]!
-    const subscribe = tree.root.findByProps({ accessibilityRole: 'button' })
+    const subscribe = tree.root.findAll((node) => node.props.accessibilityRole === 'button')[0]!
     const subscribeStyle = StyleSheet.flatten(subscribe.props.style({ pressed: false }))
     expect(banner.props.style).toEqual(expect.objectContaining({ minHeight: 24 }))
     expect(subscribeStyle).toEqual(expect.objectContaining({ minHeight: 44, minWidth: 44 }))
