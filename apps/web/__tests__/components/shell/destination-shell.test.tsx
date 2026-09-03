@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   setPaletteOpen: vi.fn(),
   setShowCreateModal: vi.fn(),
   keyboardEnabled: vi.fn(),
-  profileName: undefined as string | undefined,
+  profileName: '',
 }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -100,7 +100,7 @@ describe('DestinationShell', () => {
   beforeEach(() => {
     mocks.pathname = '/'
     mocks.wide = false
-    mocks.profileName = undefined
+    mocks.profileName = ''
     resetRouteTransitionIntent()
     vi.clearAllMocks()
   })
@@ -273,7 +273,7 @@ describe('DestinationShell', () => {
     expect(screen.getByTestId('wide-account')).toHaveTextContent('Ada Lovelace')
     expect(screen.getByTestId('wide-account')).not.toHaveTextContent('@')
 
-    mocks.profileName = undefined
+    mocks.profileName = ''
     page.rerender(<DestinationShell onCreate={() => {}}><h1>Today</h1></DestinationShell>)
     expect(screen.getByTestId('wide-account')).toHaveTextContent('person')
     expect(screen.getByTestId('wide-account')).not.toHaveTextContent('example.com')
