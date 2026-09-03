@@ -1013,6 +1013,30 @@ describe('mobile habit hooks', () => {
     expect(fullAfter.habit.checklistItems).toEqual(originalItems)
   })
 
+  it('keeps queued inline schedule and text updates in the detail cache', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1', title: 'Old title' })], 1)
+    mocks.queryClient.setQueryData(habitKeys.detail('habit-1'), {
+      ...makeHabit({ id: 'habit-1', title: 'Old title' }),
+      children: [],
+    })
+    const mutation = useUpdateHabit() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string },
+      { habitId: string; data: UpdateHabitRequest },
+      unknown
+    >
+
+    await mutation.onMutate?.({
+      habitId: 'habit-1',
+      data: { title: 'New title', frequencyUnit: 'Week', frequencyQuantity: 2 },
+    })
+
+    expect(mocks.queryClient.getQueryData(habitKeys.detail('habit-1'))).toMatchObject({
+      title: 'New title',
+      frequencyUnit: 'Week',
+      frequencyQuantity: 2,
+    })
+  })
+
   it('optimistically moves a habit under a new parent and restores the tree on failure', async () => {
     seedHabitState([
       makeHabit({ id: 'offline-parent-1', title: 'Parent', children: [], hasSubHabits: false, position: 0 }),
