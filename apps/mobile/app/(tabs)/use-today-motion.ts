@@ -175,12 +175,12 @@ export function useTodayMotion({
         {
           translateY: refetchTransitionAnim.interpolate({
             inputRange: [0, 1],
-            outputRange: [0, 4],
+            outputRange: [0, listMotion.reducedMotionEnabled ? 0 : 4],
           }),
         },
       ],
     }),
-    [refetchTransitionAnim],
+    [listMotion.reducedMotionEnabled, refetchTransitionAnim],
   );
 
   const bulkBarAnimatedStyle = useMemo(

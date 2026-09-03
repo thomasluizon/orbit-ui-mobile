@@ -1,7 +1,11 @@
 'use client'
 
+import { useEffect, useMemo, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { usePathname } from 'next/navigation'
+// react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided motion components. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+import { animate, motion, useMotionValue, useReducedMotion } from 'motion/react'
+import { resolveMotionPreset } from '@orbit/shared/theme'
 import { getTodayBoundary } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { HabitList } from '@/components/habits/habit-list'
@@ -17,6 +21,95 @@ function boundaryKey(boundary: ReturnType<typeof getTodayBoundary>): string | nu
   if (boundary === 'read-only') return 'habits.todayBoundary.readOnly'
   if (boundary === 'future') return 'habits.todayBoundary.future'
   return null
+}
+
+function useTodayPanelMotion(filterMotionKey: string, isRefetching: boolean) {
+  const prefersReducedMotion = useReducedMotion()
+  const preset = useMemo(
+    () => resolveMotionPreset('list-enter', Boolean(prefersReducedMotion)),
+    [prefersReducedMotion],
+  )
+  const dayOpacity = useMotionValue(1)
+  const dayTranslate = useMotionValue(0)
+  const refetchOpacity = useMotionValue(1)
+  const refetchTranslate = useMotionValue(0)
+  const previousFilterMotionKeyRef = useRef(filterMotionKey)
+  const dayTransitionRunningRef = useRef(false)
+  const dayTransitionSequenceRef = useRef(0)
+  const dayAnimationsRef = useRef<ReturnType<typeof animate>[]>([])
+  const refetchAnimationsRef = useRef<ReturnType<typeof animate>[]>([])
+
+  useEffect(() => {
+    if (filterMotionKey === previousFilterMotionKeyRef.current) return
+
+    const direction = filterMotionKey > previousFilterMotionKeyRef.current ? 1 : -1
+    previousFilterMotionKeyRef.current = filterMotionKey
+    const shouldStartAtEdge = !dayTransitionRunningRef.current
+    const sequence = dayTransitionSequenceRef.current + 1
+    dayTransitionSequenceRef.current = sequence
+    for (const animation of dayAnimationsRef.current) animation.stop()
+
+    if (shouldStartAtEdge) {
+      dayOpacity.set(0.9)
+      dayTranslate.set(preset.reducedMotionEnabled ? 0 : direction * 8)
+    } else if (preset.reducedMotionEnabled) {
+      dayTranslate.set(0)
+    }
+    dayTransitionRunningRef.current = true
+    const transition = {
+      duration: preset.enterDuration / 1000,
+      ease: preset.enterEasing,
+    }
+    dayAnimationsRef.current = [
+      animate(dayOpacity, 1, {
+        ...transition,
+        onComplete: () => {
+          if (dayTransitionSequenceRef.current === sequence) {
+            dayTransitionRunningRef.current = false
+          }
+        },
+      }),
+      animate(dayTranslate, 0, transition),
+    ]
+  }, [
+    dayOpacity,
+    dayTranslate,
+    filterMotionKey,
+    preset.enterDuration,
+    preset.enterEasing,
+    preset.reducedMotionEnabled,
+  ])
+
+  useEffect(() => {
+    for (const animation of refetchAnimationsRef.current) animation.stop()
+    const entering = isRefetching
+    const transition = {
+      duration: (entering ? preset.enterDuration : preset.exitDuration) / 1000,
+      ease: entering ? preset.enterEasing : preset.exitEasing,
+    }
+    refetchAnimationsRef.current = [
+      animate(refetchOpacity, entering ? 0.8 : 1, transition),
+      animate(
+        refetchTranslate,
+        entering && !preset.reducedMotionEnabled ? 4 : 0,
+        transition,
+      ),
+    ]
+    return () => {
+      for (const animation of refetchAnimationsRef.current) animation.stop()
+    }
+  }, [
+    isRefetching,
+    preset.enterDuration,
+    preset.enterEasing,
+    preset.exitDuration,
+    preset.exitEasing,
+    preset.reducedMotionEnabled,
+    refetchOpacity,
+    refetchTranslate,
+  ])
+
+  return { dayOpacity, dayTranslate, refetchOpacity, refetchTranslate }
 }
 
 export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
@@ -63,26 +156,37 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
     showCompleted,
     toggleSelectMode,
   } = view
+  const panelMotion = useTodayPanelMotion(nav.dateStr, data.isFetching)
 
   return (
-    <HabitList
-      ref={habitListRef}
-      view="today"
-      selectedDate={nav.selectedDate}
-      showCompleted={showCompleted}
-      isSelectMode={isSelectMode}
-      selectedHabitIds={selectedHabitIds}
-      filters={data.filters}
-      onToggleSelection={selection.handleToggleSelection}
-      onEnterSelectMode={(habitId) => {
-        if (!isSelectMode) toggleSelectMode()
-        selection.handleToggleSelection(habitId)
-      }}
-      onCreate={() => setShowCreateModal(true)}
-      onSeeUpcoming={nav.dateNav.nextDisabled ? undefined : nav.goToNextDay}
-      onAllCollapsedChange={setHabitListAllCollapsed}
-      onSurfaceOpenChange={view.setListSurfaceOpen}
-    />
+    <motion.div
+      data-testid="today-refetch-motion"
+      style={{ opacity: panelMotion.refetchOpacity, y: panelMotion.refetchTranslate }}
+    >
+      <motion.div
+        data-testid="today-day-motion"
+        style={{ opacity: panelMotion.dayOpacity, y: panelMotion.dayTranslate }}
+      >
+        <HabitList
+          ref={habitListRef}
+          view="today"
+          selectedDate={nav.selectedDate}
+          showCompleted={showCompleted}
+          isSelectMode={isSelectMode}
+          selectedHabitIds={selectedHabitIds}
+          filters={data.filters}
+          onToggleSelection={selection.handleToggleSelection}
+          onEnterSelectMode={(habitId) => {
+            if (!isSelectMode) toggleSelectMode()
+            selection.handleToggleSelection(habitId)
+          }}
+          onCreate={() => setShowCreateModal(true)}
+          onSeeUpcoming={nav.dateNav.nextDisabled ? undefined : nav.goToNextDay}
+          onAllCollapsedChange={setHabitListAllCollapsed}
+          onSurfaceOpenChange={view.setListSurfaceOpen}
+        />
+      </motion.div>
+    </motion.div>
   )
 }
 

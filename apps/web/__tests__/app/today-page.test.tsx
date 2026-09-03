@@ -1,7 +1,7 @@
 import React from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import { TodayHabitsPanel, TodayHeaderRegion } from '@/app/(app)/today-page-view'
 import { TodayDateControl } from '@/app/(app)/today-shell'
@@ -13,6 +13,18 @@ const TestIntlProvider = NextIntlClientProvider as React.ComponentType<{
   messages: typeof en
   children?: React.ReactNode
 }>
+
+const motionTestState = vi.hoisted(() => ({
+  animations: [] as Array<{
+    from: number
+    target: number
+    options: { duration?: number; ease?: readonly number[]; onComplete?: () => void }
+    stop: ReturnType<typeof vi.fn>
+    value: { get: () => number; set: (value: number) => void }
+  }>,
+  completeAnimations: true,
+  reducedMotion: false,
+}))
 
 vi.mock('@/components/ui/icons', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/icons')>()),
@@ -31,9 +43,55 @@ vi.mock('@/components/ui/menu', () => ({
   ) : null,
 }))
 
-vi.mock('motion/react', () => ({
-  AnimatePresence: ({ children }: { children?: React.ReactNode }) => children,
-}))
+vi.mock('motion/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('motion/react')>()
+  const ReactModule = await import('react')
+  const resolveStyleValue = (value: unknown) => (
+    typeof value === 'object' && value !== null && 'get' in value
+      ? (value as { get: () => number }).get()
+      : value
+  )
+
+  return {
+    ...actual,
+    AnimatePresence: ({ children }: { children?: React.ReactNode }) => children,
+    animate: (
+      value: { get: () => number; set: (nextValue: number) => void },
+      target: number,
+      options: { duration?: number; ease?: readonly number[]; onComplete?: () => void } = {},
+    ) => {
+      const stop = vi.fn()
+      motionTestState.animations.push({
+        from: value.get(),
+        target,
+        options,
+        stop,
+        value,
+      })
+      if (motionTestState.completeAnimations) {
+        value.set(target)
+        options.onComplete?.()
+      }
+      return { stop }
+    },
+    motion: {
+      div: ({
+        children,
+        style,
+        ...props
+      }: {
+        children?: React.ReactNode
+        style?: { opacity?: unknown; y?: unknown }
+        [key: string]: unknown
+      }) => ReactModule.createElement('div', {
+        ...props,
+        'data-motion-y': resolveStyleValue(style?.y),
+        style: { opacity: resolveStyleValue(style?.opacity) },
+      }, children),
+    },
+    useReducedMotion: () => motionTestState.reducedMotion,
+  }
+})
 
 vi.mock('@/components/habits/habit-list', () => ({
   HabitList: function MockHabitList(props: {
@@ -78,7 +136,35 @@ const baseProps = {
   onToggleCompleted: vi.fn(),
 }
 
+function createMotionView(dateStr: string, isFetching = false): TodayView {
+  return {
+    data: { filters: {}, isFetching },
+    habitListRef: { current: null },
+    isSelectMode: false,
+    nav: {
+      dateStr,
+      selectedDate: new Date(`${dateStr}T00:00:00`),
+      goToNextDay: vi.fn(),
+      dateNav: { nextDisabled: false },
+    },
+    selectedHabitIds: new Set<string>(),
+    selection: { handleToggleSelection: vi.fn() },
+    setHabitListAllCollapsed: vi.fn(),
+    setListSurfaceOpen: vi.fn(),
+    setShowCreateModal: vi.fn(),
+    setShowCompleted: vi.fn(),
+    showCompleted: false,
+    toggleSelectMode: vi.fn(),
+  } as unknown as TodayView
+}
+
 describe('Hoje date control', () => {
+  beforeEach(() => {
+    motionTestState.animations.length = 0
+    motionTestState.completeAnimations = true
+    motionTestState.reducedMotion = false
+  })
+
   it('shows the day name over the numeric date', () => {
     render(<TodayDateControl {...baseProps} />)
     expect(screen.getByText('Wednesday')).toBeInTheDocument()
@@ -220,6 +306,67 @@ describe('Hoje date control', () => {
     fireEvent.click(screen.getByRole('button', { name: 'See upcoming' }))
 
     expect(goToNextDay).toHaveBeenCalledOnce()
+  })
+
+  it('applies interruptible day and refetch motion at the HabitList boundary', () => {
+    motionTestState.completeAnimations = false
+    const { rerender } = render(<TodayHabitsPanel view={createMotionView('2026-04-08')} />)
+    const refetchWrapper = screen.getByTestId('today-refetch-motion')
+    const dayWrapper = screen.getByTestId('today-day-motion')
+
+    expect(refetchWrapper).toContainElement(dayWrapper)
+    expect(dayWrapper).toContainElement(screen.getByTestId('today-habit-list'))
+    motionTestState.animations.length = 0
+
+    rerender(<TodayHabitsPanel view={createMotionView('2026-04-09')} />)
+    const firstDayShift = motionTestState.animations.find((entry) => (
+      entry.from === 8 && entry.target === 0
+    ))
+    expect(firstDayShift?.options).toMatchObject({
+      duration: 0.22,
+      ease: [0.16, 1, 0.3, 1],
+    })
+    firstDayShift?.value.set(3)
+    motionTestState.animations.length = 0
+
+    rerender(<TodayHabitsPanel view={createMotionView('2026-04-10')} />)
+    expect(motionTestState.animations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ from: 3, target: 0 }),
+    ]))
+    motionTestState.animations.length = 0
+
+    rerender(<TodayHabitsPanel view={createMotionView('2026-04-10', true)} />)
+    expect(motionTestState.animations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ from: 1, target: 0.8 }),
+      expect.objectContaining({ from: 0, target: 4 }),
+    ]))
+  })
+
+  it('keeps reduced Today motion directional-static with reduced timings', () => {
+    motionTestState.completeAnimations = false
+    motionTestState.reducedMotion = true
+    const { rerender } = render(<TodayHabitsPanel view={createMotionView('2026-04-08')} />)
+    motionTestState.animations.length = 0
+
+    rerender(<TodayHabitsPanel view={createMotionView('2026-04-09')} />)
+    expect(motionTestState.animations).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        from: 0,
+        target: 0,
+        options: expect.objectContaining({ duration: 0.09, ease: [0, 0, 1, 1] }),
+      }),
+    ]))
+    motionTestState.animations.length = 0
+
+    rerender(<TodayHabitsPanel view={createMotionView('2026-04-09', true)} />)
+    expect(motionTestState.animations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ from: 1, target: 0.8 }),
+      expect.objectContaining({
+        from: 0,
+        target: 0,
+        options: expect.objectContaining({ duration: 0.09 }),
+      }),
+    ]))
   })
 
   it('opens the four list actions from the date row', () => {
