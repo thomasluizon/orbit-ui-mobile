@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { StyleSheet } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { TrialBanner } from '@/components/ui/trial-banner'
 
@@ -70,7 +71,10 @@ describe('TrialBanner (mobile)', () => {
   it('renders a quiet, non-dismissible line', async () => {
     const tree = await renderBanner()
     const banner = tree.root.findAll((node) => node.props.testID === 'trial-banner')[0]!
+    const subscribe = tree.root.findByProps({ accessibilityRole: 'button' })
+    const subscribeStyle = StyleSheet.flatten(subscribe.props.style({ pressed: false }))
     expect(banner.props.style).toEqual(expect.objectContaining({ minHeight: 24 }))
+    expect(subscribeStyle).toEqual(expect.objectContaining({ minHeight: 44, minWidth: 44 }))
     expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'common.dismiss')).toHaveLength(0)
   })
 })

@@ -57,6 +57,7 @@ describe('TrialBanner', () => {
     const link = screen.getByText('trial.banner.upgrade')
     expect(link).toBeInTheDocument()
     expect(link.closest('a')).toHaveAttribute('href', '/upgrade')
+    expect(link.closest('a')).toHaveStyle({ minHeight: '44px', minWidth: '44px' })
   })
 
   it('shows last day message when 0 days left', () => {

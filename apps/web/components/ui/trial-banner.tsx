@@ -32,7 +32,8 @@ export function TrialBanner() {
       <span>{label}</span>
       <Link
         href="/upgrade"
-        className="font-medium text-[var(--fg-2)] underline decoration-[var(--hairline-strong)] underline-offset-4 transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
+        className="inline-flex items-center whitespace-nowrap font-medium text-[var(--fg-2)] underline decoration-[var(--hairline-strong)] underline-offset-4 transition-colors duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
+        style={{ minHeight: 44, minWidth: 44 }}
       >
         {t('trial.banner.upgrade')}
       </Link>

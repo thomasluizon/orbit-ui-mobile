@@ -45,7 +45,10 @@ export function TrialBanner() {
         accessibilityRole="button"
         style={({ pressed }) => [styles.upgradePress, pressed ? styles.pressed : null]}
       >
-        <Text style={[styles.upgradeText, { color: tokens.fg2 }]}>
+        <Text
+          numberOfLines={1}
+          style={[styles.upgradeText, { color: tokens.fg2 }]}
+        >
           {t('trial.banner.upgrade')}
         </Text>
       </Pressable>
@@ -72,6 +75,9 @@ function createStyles(tokens: AppTokensV2) {
     upgradePress: {
       alignItems: 'center',
       flexDirection: 'row',
+      justifyContent: 'center',
+      minHeight: 44,
+      minWidth: 44,
     },
     upgradeText: {
       fontFamily: 'GeistMono_500Medium',
