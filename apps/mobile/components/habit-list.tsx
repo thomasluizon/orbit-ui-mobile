@@ -1759,6 +1759,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             ]}
             refreshControl={refreshControl}
             onScrollBeginDrag={onScrollBeginDrag}
+            accessibilityState={{ busy: true }}
             showsVerticalScrollIndicator={false}
           />
           {commonOverlays}

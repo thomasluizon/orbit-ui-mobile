@@ -47,7 +47,8 @@ export const motionDurations = {
   fast: 160,
   base: 220,
   slow: 280,
-  route: 280,
+  route: 220,
+  routeExit: 165,
   overlay: 220,
   toast: 220,
   theme: 220,
@@ -62,7 +63,7 @@ export const motionLayerTiming = {
   panelEnterDelay: 32,
   panelExitLead: 0,
   contentStagger: motionDurations.listStagger,
-  routeShift: 18,
+  routeShift: 12,
   toastLift: 14,
   tabShift: 10,
 } as const
@@ -174,11 +175,11 @@ export const motionPresets: Record<MotionScenario, MotionPreset> = {
   'route-push': {
     scenario: 'route-push',
     enterDuration: motionDurations.route,
-    exitDuration: motionDurations.fast,
+    exitDuration: motionDurations.routeExit,
     enterEasing: motionEasings.enter,
     exitEasing: motionEasings.exit,
     shift: motionLayerTiming.routeShift,
-    scaleFrom: 0.992,
+    scaleFrom: 1,
     scaleTo: 1,
     spring: 'soft',
     reducedMotion: {

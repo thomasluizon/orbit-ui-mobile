@@ -379,4 +379,42 @@ describe('HabitRow menu (mobile)', () => {
 
     expect(collectStrings(renderer.toJSON())).toContain('common.edit')
   })
+
+  it('keeps a future row and its menu live while withholding completion actions', () => {
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    const onDetail = vi.fn()
+    const onLog = vi.fn()
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Future habit', frequencyUnit: 'Day' })}
+          selectedDate={tomorrow}
+          actions={{ onDetail, onLog, onSkip: vi.fn(), onEdit: vi.fn() }}
+        />,
+      )
+    })
+
+    const body = renderer!.root.findAll(
+      (node: { props: Record<string, unknown> }) => node.props.delayLongPress === 500,
+    )[0]!
+    const ring = renderer!.root.findByProps({
+      accessibilityLabel: 'habits.statusDot.empty, habits.logHabit: Future habit',
+    })
+    const rowStyle = StyleSheet.flatten(
+      renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
+    )
+
+    expect(body.props.disabled).toBe(false)
+    expect(ring.props.disabled).toBe(true)
+    expect(rowStyle.opacity).not.toBe(0.5)
+    TestRenderer.act(() => body.props.onPress())
+    expect(onDetail).toHaveBeenCalledOnce()
+
+    pressMoreButton(renderer)
+    const text = collectStrings(renderer.toJSON())
+    expect(text).toContain('common.edit')
+    expect(text).not.toContain('habits.actions.skip')
+    expect(onLog).not.toHaveBeenCalled()
+  })
 })

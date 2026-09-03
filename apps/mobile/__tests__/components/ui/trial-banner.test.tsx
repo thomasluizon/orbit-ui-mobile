@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { StyleSheet } from 'react-native'
 import { act, create } from 'react-test-renderer'
+import { TrialBanner } from '@/components/ui/trial-banner'
 
 let profile = { isTrialActive: true, hasProAccess: true }
 let daysLeft = 5
-let prefersReducedMotion = false
 
 vi.mock('expo-router', () => ({
   usePathname: () => '/',
@@ -18,13 +19,6 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/lib/plural', () => ({
   plural: (text: string) => text,
 }))
-
-vi.mock('@/lib/motion', () => ({
-  toAnimatedEasing: () => (value: number) => value,
-  usePrefersReducedMotion: () => prefersReducedMotion,
-}))
-
-import { TrialBanner } from '@/components/ui/trial-banner'
 
 function renderedText(tree: import('react-test-renderer').ReactTestRenderer) {
   return tree.root
@@ -47,7 +41,6 @@ describe('TrialBanner (mobile)', () => {
   beforeEach(() => {
     profile = { isTrialActive: true, hasProAccess: true }
     daysLeft = 5
-    prefersReducedMotion = false
   })
 
   it('renders the plural day-count variant', async () => {
@@ -75,15 +68,15 @@ describe('TrialBanner (mobile)', () => {
     expect(renderedText(tree)).toContain('trial.banner.freeLine')
   })
 
-  it('removes dismissal translation when reduced motion is enabled', async () => {
-    prefersReducedMotion = true
+  it('renders a quiet, non-dismissible line', async () => {
     const tree = await renderBanner()
     const banner = tree.root.findAll((node) => node.props.testID === 'trial-banner')[0]!
-
-    expect(banner.props.style).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ transform: [{ translateY: 0 }] }),
-      ]),
-    )
+    const subscribe = tree.root.findAll((node) => node.props.accessibilityRole === 'button')[0]!
+    const subscribeStyleProp = subscribe.props.style
+    if (typeof subscribeStyleProp !== 'function') throw new Error('Subscribe style is not resolved')
+    const subscribeStyle = StyleSheet.flatten(subscribeStyleProp({ pressed: false }))
+    expect(banner.props.style).toEqual(expect.objectContaining({ minHeight: 24 }))
+    expect(subscribeStyle).toEqual(expect.objectContaining({ minHeight: 44, minWidth: 44 }))
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'common.dismiss')).toHaveLength(0)
   })
 })

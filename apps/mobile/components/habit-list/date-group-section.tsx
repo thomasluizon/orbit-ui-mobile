@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingTop: 16,
     paddingBottom: 8,
-    paddingHorizontal: 20,
+    paddingHorizontal: 4,
   },
   label: {
     fontFamily: 'Geist_600SemiBold',

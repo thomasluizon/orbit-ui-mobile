@@ -1,15 +1,19 @@
 'use client'
 
-import { useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import {
   AnimatePresence,
   domMax,
   LazyMotion,
   m,
+  type Variants,
   useReducedMotion,
 } from 'motion/react'
-import { resolveMotionPreset } from '@orbit/shared/theme'
+import {
+  resolveMotionPreset,
+  type MotionNavigationIntent,
+} from '@orbit/shared/theme'
 import {
   getRouteDirectionForIntent,
   getRouteScenarioForIntent,
@@ -22,6 +26,43 @@ interface RouteTransitionShellProps {
   className?: string
 }
 
+const PRIMARY_DESTINATIONS = new Set(['/', '/calendar', '/progress', '/profile'])
+
+type RouteTransitionMotion = Readonly<{
+  direction: -1 | 0 | 1
+  isPrimaryTabSwitch: boolean
+  motionPreset: ReturnType<typeof resolveMotionPreset>
+}>
+
+interface RoutePathState {
+  current: string
+  intent: MotionNavigationIntent
+  previous: string
+}
+
+const routeVariants: Variants = {
+  initial: ({ direction, isPrimaryTabSwitch, motionPreset }: RouteTransitionMotion) => ({
+    opacity: isPrimaryTabSwitch ? 1 : 0,
+    x: direction * motionPreset.shift,
+  }),
+  animate: ({ motionPreset }: RouteTransitionMotion) => ({
+    opacity: 1,
+    x: 0,
+    transition: {
+      duration: motionPreset.enterDuration / 1000,
+      ease: motionPreset.enterEasing,
+    },
+  }),
+  exit: ({ direction, isPrimaryTabSwitch, motionPreset }: RouteTransitionMotion) => ({
+    opacity: isPrimaryTabSwitch ? 1 : 0,
+    x: direction === 0 ? 0 : -direction * motionPreset.shift,
+    transition: {
+      duration: motionPreset.exitDuration / 1000,
+      ease: motionPreset.exitEasing,
+    },
+  }),
+}
+
 export function RouteTransitionShell({
   children,
   className,
@@ -29,14 +70,30 @@ export function RouteTransitionShell({
   const pathname = usePathname()
   const prefersReducedMotion = useReducedMotion()
   const routeIntent = useRouteTransitionIntent()
-  const previousPathnameRef = useRef(pathname)
+  const committedPathnameRef = useRef(pathname)
+  const [routePaths, setRoutePaths] = useState<RoutePathState>(() => ({
+    current: pathname,
+    intent: routeIntent.intent,
+    previous: pathname,
+  }))
+  if (routePaths.current !== pathname) {
+    setRoutePaths({
+      current: pathname,
+      intent: routeIntent.intent,
+      previous: routePaths.current,
+    })
+  }
+  const isPrimaryTabSwitch =
+    routePaths.previous !== pathname &&
+    PRIMARY_DESTINATIONS.has(routePaths.previous) &&
+    PRIMARY_DESTINATIONS.has(pathname)
 
   useEffect(() => {
-    if (previousPathnameRef.current === pathname) {
+    if (committedPathnameRef.current === pathname) {
       return
     }
 
-    previousPathnameRef.current = pathname
+    committedPathnameRef.current = pathname
     const timer = globalThis.setTimeout(() => {
       resetRouteTransitionIntent()
     }, 0)
@@ -44,56 +101,38 @@ export function RouteTransitionShell({
     return () => {
       globalThis.clearTimeout(timer)
     }
-  }, [pathname, routeIntent.intent])
+  }, [pathname])
 
-  const motionPreset = useMemo(
-    () => resolveMotionPreset(getRouteScenarioForIntent(routeIntent.intent), Boolean(prefersReducedMotion)),
-    [prefersReducedMotion, routeIntent.intent],
+  const transitionMotion = useMemo<RouteTransitionMotion>(
+    () => {
+      const transitionIntent = isPrimaryTabSwitch ? 'tab' : routePaths.intent
+      return {
+        direction: getRouteDirectionForIntent(transitionIntent),
+        isPrimaryTabSwitch,
+        motionPreset: resolveMotionPreset(
+          getRouteScenarioForIntent(transitionIntent),
+          Boolean(prefersReducedMotion),
+        ),
+      }
+    },
+    [isPrimaryTabSwitch, prefersReducedMotion, routePaths.intent],
   )
-  const direction = getRouteDirectionForIntent(routeIntent.intent)
-  let enterX = 0
-  if (direction > 0) {
-    enterX = motionPreset.shift
-  } else if (direction < 0) {
-    enterX = -motionPreset.shift
-  }
-  let exitX = 0
-  if (direction > 0) {
-    exitX = -Math.round(motionPreset.shift * 0.55)
-  } else if (direction < 0) {
-    exitX = Math.round(motionPreset.shift * 0.55)
-  }
 
   return (
     <LazyMotion features={domMax}>
-      <AnimatePresence mode="popLayout" initial={false}>
+      <AnimatePresence
+        mode="popLayout"
+        initial={false}
+        custom={transitionMotion}
+      >
         <m.div
           key={pathname}
           className={className}
-          style={{ transformOrigin: 'center bottom' }}
-          initial={{
-            opacity: 0,
-            x: enterX,
-            scale: motionPreset.scaleFrom,
-          }}
-          animate={{
-            opacity: 1,
-            x: 0,
-            scale: motionPreset.scaleTo,
-            transition: {
-              duration: motionPreset.enterDuration / 1000,
-              ease: motionPreset.enterEasing,
-            },
-          }}
-          exit={{
-            opacity: 0,
-            x: exitX,
-            scale: direction === 0 ? 1 : 0.998,
-            transition: {
-              duration: motionPreset.exitDuration / 1000,
-              ease: motionPreset.exitEasing,
-            },
-          }}
+          custom={transitionMotion}
+          variants={routeVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
         >
           {children}
         </m.div>
