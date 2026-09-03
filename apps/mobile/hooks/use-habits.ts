@@ -313,7 +313,7 @@ export function useSkipHabit() {
     void | QueuedMarker,
     Error,
     { habitId: string; date?: string },
-    { previousLists: HabitListSnapshots; previousDetail: HabitDetail | undefined }
+    { previousLists: HabitListSnapshots }
   >({
     mutationFn: ({ habitId, date }) =>
       performQueuedApiMutation<void>({
@@ -424,7 +424,7 @@ export function useUpdateHabit() {
     void | QueuedMarker,
     Error,
     { habitId: string; data: UpdateHabitRequest },
-    { previousLists: HabitListSnapshots }
+    { previousLists: HabitListSnapshots; previousDetail: HabitDetail | undefined }
   >({
     mutationFn: ({ habitId, data }) =>
       performQueuedApiMutation<void>({
