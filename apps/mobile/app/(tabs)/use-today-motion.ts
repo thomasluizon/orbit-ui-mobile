@@ -49,16 +49,11 @@ export function useTodayMotion({
     dayOpacityAnim.stopAnimation();
     dayTranslateAnim.stopAnimation();
 
-    if (listMotion.reducedMotionEnabled) {
-      dayOpacityAnim.setValue(1);
-      dayTranslateAnim.setValue(0);
-      dayTransitionRunningRef.current = false;
-      return;
-    }
-
     if (shouldStartAtEdge) {
       dayOpacityAnim.setValue(0.9);
-      dayTranslateAnim.setValue(direction * 8);
+      dayTranslateAnim.setValue(listMotion.reducedMotionEnabled ? 0 : direction * 8);
+    } else if (listMotion.reducedMotionEnabled) {
+      dayTranslateAnim.setValue(0);
     }
     dayTransitionRunningRef.current = true;
     const timingConfig = {

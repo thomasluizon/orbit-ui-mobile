@@ -26,7 +26,10 @@ function ShellBottomChrome({
   borderTopColor: string
   safeAreaBottom: number
 }>) {
-  const visible = navigationEnabled || notice !== undefined || pinnedSlot !== undefined
+  const visible = navigationEnabled
+    || notice !== undefined
+    || pinnedSlot !== undefined
+    || fab !== undefined
   if (!visible) return null
 
   return (
