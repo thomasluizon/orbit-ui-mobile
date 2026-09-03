@@ -363,7 +363,7 @@ export function TimeField({
 
 const styles = StyleSheet.create({
   root: { width: '100%', gap: 8 },
-  label: { fontFamily: 'Rubik_500Medium', fontSize: 14 },
+  label: { fontFamily: 'Geist_500Medium', fontSize: 14 },
   inputRow: {
     alignItems: 'center',
     borderRadius: 12,
@@ -375,12 +375,12 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 52,
     paddingHorizontal: 16,
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 16,
     fontVariant: ['tabular-nums'],
   },
   icon: { alignItems: 'center', justifyContent: 'center', minHeight: 52, width: 48 },
-  caption: { fontFamily: 'Rubik_400Regular', fontSize: 12 },
+  caption: { fontFamily: 'Geist_400Regular', fontSize: 12 },
   disabled: { opacity: 0.6 },
   columns: { flexDirection: 'row', gap: 8, height: COLUMN_HEIGHT },
   column: { flex: 1 },
@@ -391,5 +391,5 @@ const styles = StyleSheet.create({
     height: ROW_HEIGHT,
     justifyContent: 'center',
   },
-  optionLabel: { fontFamily: 'Rubik_400Regular', fontSize: 16 },
+  optionLabel: { fontFamily: 'GeistMono_400Regular', fontSize: 16 },
 })

@@ -67,7 +67,7 @@ export function ProfileAccountActions({
 
 const styles = StyleSheet.create({
   errorText: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 13,
     textAlign: 'center',
     marginVertical: 12,

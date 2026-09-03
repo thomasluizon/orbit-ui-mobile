@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   container: { alignItems: 'center', justifyContent: 'center' },
   disc: { alignItems: 'center', justifyContent: 'center' },
   arc: { position: 'absolute', top: 0, left: 0 },
-  numeral: { fontFamily: 'Roboto_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
+  numeral: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
   outsideMonth: { opacity: 0 },
   missedDot: { position: 'absolute', width: 3, height: 3, borderRadius: 2, bottom: 4 },
 })

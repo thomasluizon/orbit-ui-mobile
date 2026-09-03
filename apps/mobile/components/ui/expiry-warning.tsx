@@ -148,7 +148,7 @@ function createStyles(tokens: AppTokensV2) {
     },
     text: {
       flex: 1,
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.fg2,
     },
@@ -156,7 +156,7 @@ function createStyles(tokens: AppTokensV2) {
       color: tokens.statusOverdueText,
     },
     monoCount: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontVariant: ['tabular-nums'],
       color: tokens.statusOverdueText,
     },
@@ -165,7 +165,7 @@ function createStyles(tokens: AppTokensV2) {
       paddingHorizontal: 4,
     },
     actionText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 13,
       color: tokens.fg1,
       textDecorationLine: 'underline',

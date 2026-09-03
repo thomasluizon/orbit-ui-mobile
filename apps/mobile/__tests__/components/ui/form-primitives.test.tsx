@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react'
+import { StyleSheet } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -93,6 +94,15 @@ describe('form primitives on mobile', () => {
       )
     })
     expect(prop(tree.root.findAllByType('TextInput')[0]!, 'keyboardType')).toBe('decimal-pad')
+  })
+
+  it('uses the mono face for monospaced input values', () => {
+    const tree = render(<Input label="Time" value="07:45" onChange={vi.fn()} mono />)
+    const input = tree.root.findAllByType('TextInput')[0]!
+
+    expect(StyleSheet.flatten(prop(input, 'style'))).toMatchObject({
+      fontFamily: 'GeistMono_400Regular',
+    })
   })
 
   it('uses one real OTP input with platform autofill and six painted cells', () => {

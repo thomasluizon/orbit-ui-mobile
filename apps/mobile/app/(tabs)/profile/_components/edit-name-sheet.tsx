@@ -136,11 +136,11 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   label: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 14,
   },
   error: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 13,
     lineHeight: 18,
   },

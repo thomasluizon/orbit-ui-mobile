@@ -116,7 +116,7 @@ function createStyles(tokens: AppTokensV2) {
       marginBottom: 6,
     },
     title: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 28,
       letterSpacing: -0.28,
       lineHeight: 32,
@@ -124,7 +124,7 @@ function createStyles(tokens: AppTokensV2) {
       textAlign: 'center',
     },
     subtitle: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 16,
       lineHeight: 25,
       color: tokens.fg2,
@@ -133,7 +133,7 @@ function createStyles(tokens: AppTokensV2) {
       maxWidth: 300,
     },
     sectionLabel: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
       letterSpacing: 0.96,
       textTransform: 'uppercase',

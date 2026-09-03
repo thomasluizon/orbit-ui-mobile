@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 18,
     lineHeight: 22.5,
     flexShrink: 1,
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   hint: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
     lineHeight: 18.9,
   },

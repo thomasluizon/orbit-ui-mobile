@@ -50,23 +50,7 @@ vi.mock('expo-splash-screen', () => ({
   ),
 }))
 
-vi.mock('@expo-google-fonts/rubik', () => ({
-  useFonts: () => [true],
-  Rubik_400Regular: 'Rubik_400Regular',
-  Rubik_500Medium: 'Rubik_500Medium',
-  Rubik_600SemiBold: 'Rubik_600SemiBold',
-  Rubik_700Bold: 'Rubik_700Bold',
-}))
-vi.mock('@expo-google-fonts/inter', () => ({
-  Inter_500Medium: 'Inter_500Medium',
-  Inter_600SemiBold: 'Inter_600SemiBold',
-  Inter_700Bold: 'Inter_700Bold',
-}))
-vi.mock('@expo-google-fonts/roboto', () => ({
-  Roboto_400Regular: 'Roboto_400Regular',
-  Roboto_500Medium: 'Roboto_500Medium',
-  Roboto_700Bold: 'Roboto_700Bold',
-}))
+vi.mock('expo-font', () => ({ useFonts: () => [true] }))
 vi.mock('@expo-google-fonts/geist', () => ({
   Geist_400Regular: 'Geist_400Regular',
   Geist_500Medium: 'Geist_500Medium',

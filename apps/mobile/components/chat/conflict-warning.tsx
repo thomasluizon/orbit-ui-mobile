@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
-    fontFamily: 'Rubik_600SemiBold',
+    fontFamily: 'Geist_600SemiBold',
     fontSize: 12,
   },
   habitsList: {
@@ -121,15 +121,15 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   habitText: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 12,
     lineHeight: 16,
   },
   habitName: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
   },
   recommendation: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 11,
     opacity: 0.8,
   },

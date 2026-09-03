@@ -33,5 +33,5 @@ const styles = StyleSheet.create({
   panel: { borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   row: { minHeight: 52, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
   label: { flex: 1, minWidth: 0, fontFamily: 'Geist_400Regular', fontSize: 16 },
-  value: { fontFamily: 'Roboto_400Regular', fontSize: 13, fontVariant: ['tabular-nums'] },
+  value: { fontFamily: 'GeistMono_400Regular', fontSize: 13, fontVariant: ['tabular-nums'] },
 })

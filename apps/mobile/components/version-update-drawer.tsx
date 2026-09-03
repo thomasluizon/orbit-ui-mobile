@@ -64,7 +64,7 @@ function VersionUpdateSheet({
 
 /**
  * Version-update sheet (iOS path) per the m-version artboard: sheet title,
- * Rubik version highlight, Roboto tabular delta, fg-2 body, then a primary
+ * Geist Sans version highlight, Geist Mono tabular delta, fg-2 body, then a primary
  * update pill with download glyph and a ghost Later pill.
  * Android path defers to native Play Core flow.
  */
@@ -208,18 +208,18 @@ function createStyles(tokens: AppTokensV2) {
       gap: 12,
     },
     title: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 20,
       color: tokens.fg1,
     },
     delta: {
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
       color: tokens.fg3,
       fontVariant: ['tabular-nums'],
     },
     description: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 16,
       lineHeight: 22,
       color: tokens.fg2,

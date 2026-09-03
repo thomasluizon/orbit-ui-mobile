@@ -19,7 +19,7 @@ export function createStyles(tokens: AppTokensV2) {
       minHeight: 56,
     },
     progressLabel: {
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 11,
       color: tokens.fg3,
       letterSpacing: 0.44,
@@ -31,7 +31,7 @@ export function createStyles(tokens: AppTokensV2) {
       paddingHorizontal: 4,
     },
     skipText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.fg3,
     },
@@ -81,7 +81,7 @@ export function createStyles(tokens: AppTokensV2) {
       opacity: 0.7,
     },
     backText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.fg3,
     },
@@ -92,7 +92,7 @@ export function createStyles(tokens: AppTokensV2) {
       paddingHorizontal: 12,
     },
     haveAccountText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 13,
       color: tokens.primarySoft,
     },

@@ -183,7 +183,7 @@ function createStyles(tokens: AppTokens) {
       backgroundColor: tokens.bgField,
       paddingHorizontal: 12,
       color: tokens.fg1,
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
     },
     saveButton: {
@@ -198,7 +198,7 @@ function createStyles(tokens: AppTokens) {
       opacity: 0.4,
     },
     saveButtonText: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 13,
       color: tokens.fgOnPrimary,
     },

@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   label: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 18,
     lineHeight: 22.5,
   },

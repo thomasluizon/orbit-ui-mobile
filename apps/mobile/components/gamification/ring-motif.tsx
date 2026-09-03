@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   eyebrow: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 12,
     letterSpacing: 0.96,
     textTransform: 'uppercase',
