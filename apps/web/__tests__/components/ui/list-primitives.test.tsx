@@ -21,7 +21,16 @@ describe('list primitives on web', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /Account/ }))
+    const bodyControl = screen.getByRole('button', { name: /Account/ })
+    fireEvent.pointerEnter(bodyControl)
+    expect(bodyControl).toHaveAttribute('data-interaction', 'hover')
+    fireEvent.pointerDown(bodyControl)
+    expect(bodyControl).toHaveAttribute('data-interaction', 'pressed')
+    fireEvent.pointerUp(bodyControl)
+    expect(bodyControl).toHaveAttribute('data-interaction', 'hover')
+    fireEvent.pointerLeave(bodyControl)
+    expect(bodyControl).toHaveAttribute('data-interaction', 'rest')
+    fireEvent.click(bodyControl)
     fireEvent.click(screen.getByRole('button', { name: 'Remove account' }))
     expect(onClick).toHaveBeenCalledOnce()
     expect(onAction).toHaveBeenCalledOnce()
@@ -29,7 +38,7 @@ describe('list primitives on web', () => {
     expect(screen.getByText('Ready')).toBeInTheDocument()
     expect(screen.getByText('Synced')).toBeInTheDocument()
     expect(screen.getByText('Synced').closest('button')).toBe(
-      screen.getByRole('button', { name: /Account/ }),
+      bodyControl,
     )
     expect(container.querySelector('[data-icon="home"]')).toBeInTheDocument()
 

@@ -63,13 +63,10 @@ function DayCellContents({ props, outcome, size }: Readonly<{ props: DayCellProp
 function HabitHistoryContents({ props, outcome, size }: Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number }>) {
   const missed = outcome === 'none' || outcome === 'partial'
   const dimmed = outcome === 'not-scheduled' || outcome === 'unavailable'
-  const textColor = outcome === 'full'
-    ? 'var(--bg)'
-    : outcome === 'future'
-      ? 'var(--fg-4)'
-      : missed
-        ? 'var(--fg-3)'
-        : 'var(--fg-2)'
+  let textColor = 'var(--fg-2)'
+  if (outcome === 'full') textColor = 'var(--bg)'
+  else if (outcome === 'future') textColor = 'var(--fg-4)'
+  else if (missed) textColor = 'var(--fg-3)'
   return (
     <span
       aria-hidden="true"

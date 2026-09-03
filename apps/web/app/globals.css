@@ -647,7 +647,8 @@ button {
   transition: background-color var(--dur-hover) var(--ease-standard), box-shadow var(--dur-hover) var(--ease-standard);
 }
 
-.list-row-button:active {
+.list-row-button:active,
+.list-row-button[data-interaction='pressed'] {
   transform: scale(0.96);
 }
 
@@ -657,7 +658,8 @@ button {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .list-row-button:hover {
+  .list-row-button:hover,
+  .list-row-button[data-interaction='hover'] {
     background-color: var(--bg-hover);
     box-shadow: inset 0 0 0 1px var(--hairline-strong);
   }

@@ -66,8 +66,16 @@ describe('list primitives on mobile', () => {
     expect(bodyControl.findAllByType(Text).map((node) => node.props.children)).toContain('Synced')
     press(bodyControl)
     press(actionControl)
-    resolvePressedStyle(bodyControl)
-    resolvePressedStyle(actionControl)
+    const bodyPressedStyle = StyleSheet.flatten(resolvePressedStyle(bodyControl))
+    const actionPressedStyle = StyleSheet.flatten(resolvePressedStyle(actionControl))
+    expect(bodyPressedStyle).toMatchObject({
+      backgroundColor: createTokensV2('purple', 'dark').bgHover,
+      transform: [{ scale: 0.96 }],
+    })
+    expect(actionPressedStyle).toMatchObject({
+      backgroundColor: createTokensV2('purple', 'dark').bgHover,
+      transform: [{ scale: 0.96 }],
+    })
     expect(onClick).toHaveBeenCalledOnce()
     expect(onAction).toHaveBeenCalledOnce()
 

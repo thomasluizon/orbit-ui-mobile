@@ -47,7 +47,10 @@ function DayCellContents({ props, outcome, size, tokens }: Readonly<{ props: Day
 function HabitHistoryContents({ props, outcome, size, tokens }: Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number; tokens: Tokens }>) {
   const missed = outcome === 'none' || outcome === 'partial'
   const dimmed = outcome === 'not-scheduled' || outcome === 'unavailable'
-  const textColor = outcome === 'full' ? tokens.bg : outcome === 'future' ? tokens.fg4 : missed ? tokens.fg3 : tokens.fg2
+  let textColor = tokens.fg2
+  if (outcome === 'full') textColor = tokens.bg
+  else if (outcome === 'future') textColor = tokens.fg4
+  else if (missed) textColor = tokens.fg3
   return (
     <View style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: outcome === 'full' ? tokens.fg1 : 'transparent', opacity: dimmed ? 0.4 : 1 }]}>
       <Text style={[styles.numeral, { color: textColor, fontWeight: props.today ? '500' : '400' }]}>{props.day}</Text>
