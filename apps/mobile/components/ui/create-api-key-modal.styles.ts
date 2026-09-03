@@ -63,7 +63,7 @@ export function createStyles(tokens: AppTokensV2, bottomInset: number) {
       flexShrink: 1,
     },
     monoInput: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 15,
       fontVariant: ['tabular-nums'],
     },
@@ -95,14 +95,14 @@ export function createStyles(tokens: AppTokensV2, bottomInset: number) {
       fontSize: 13,
     },
     keyText: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 13,
       color: tokens.fg1,
       lineHeight: 21,
       fontVariant: ['tabular-nums'],
     },
     metaLine: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 11,
       letterSpacing: 0.22,
       color: tokens.fg3,

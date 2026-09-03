@@ -133,7 +133,7 @@ export const styles = StyleSheet.create({
     fontSize: 17,
   },
   cardMeta: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 13,
     fontVariant: ['tabular-nums'],
     marginTop: 8,
@@ -151,7 +151,7 @@ export const styles = StyleSheet.create({
     fontSize: 15,
   },
   usageValue: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 13,
     fontVariant: ['tabular-nums'],
   },

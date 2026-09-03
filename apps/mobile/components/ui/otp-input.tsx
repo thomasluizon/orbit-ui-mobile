@@ -91,6 +91,6 @@ const styles = StyleSheet.create({
   cellRow: { position: 'relative', flexDirection: 'row', justifyContent: 'center', gap: 8 },
   realInput: { ...StyleSheet.absoluteFill, zIndex: 1, opacity: 0.01 },
   cell: { width: 48, height: 58, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  digit: { fontFamily: 'Roboto_500Medium', fontSize: 26, fontVariant: ['tabular-nums'] },
+  digit: { fontFamily: 'GeistMono_500Medium', fontSize: 26, fontVariant: ['tabular-nums'] },
   caption: { fontFamily: 'Geist_400Regular', fontSize: 12 },
 })

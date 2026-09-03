@@ -103,7 +103,7 @@ export function createStyles() {
       fontSize: 15,
     },
     eventMeta: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       fontVariant: ['tabular-nums'],
     },
@@ -179,7 +179,7 @@ export function createStyles() {
       paddingTop: 14,
     },
     showingCountText: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       fontVariant: ['tabular-nums'],
     },

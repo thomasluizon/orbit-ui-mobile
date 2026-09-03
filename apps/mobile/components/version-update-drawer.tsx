@@ -64,7 +64,7 @@ function VersionUpdateSheet({
 
 /**
  * Version-update sheet (iOS path) per the m-version artboard: sheet title,
- * Geist Sans version highlight, Roboto tabular delta, fg-2 body, then a primary
+ * Geist Sans version highlight, Geist Mono tabular delta, fg-2 body, then a primary
  * update pill with download glyph and a ghost Later pill.
  * Android path defers to native Play Core flow.
  */
@@ -213,7 +213,7 @@ function createStyles(tokens: AppTokensV2) {
       color: tokens.fg1,
     },
     delta: {
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
       color: tokens.fg3,
       fontVariant: ['tabular-nums'],

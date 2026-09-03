@@ -87,7 +87,7 @@ export function createStyles(tokens: AppTokens) {
       color: tokens.fg1,
     },
     notifTime: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       color: tokens.fg3,
       letterSpacing: 0.24,

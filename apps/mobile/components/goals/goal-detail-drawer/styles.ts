@@ -41,7 +41,7 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       paddingHorizontal: 24,
     },
     ringValue: {
-      fontFamily: 'Inter_700Bold',
+      fontFamily: 'SpaceGrotesk_600SemiBold',
       fontSize: 40,
       letterSpacing: -0.8,
       lineHeight: 44,
@@ -126,7 +126,7 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       flex: 1,
     },
     askAstraEyebrowText: {
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 10.5,
       letterSpacing: 0.63,
       color: tokens.fg3,

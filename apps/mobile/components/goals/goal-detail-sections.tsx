@@ -132,13 +132,13 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 12,
     },
     historyDate: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 11,
       color: tokens.fg3,
       fontVariant: ['tabular-nums'],
     },
     historyValue: {
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
       color: tokens.fg1,
       fontVariant: ['tabular-nums'],

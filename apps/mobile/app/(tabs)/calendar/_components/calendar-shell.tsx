@@ -108,7 +108,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingHorizontal: 8,
     },
     yearTitle: {
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 17,
       color: tokens.fg1,
       fontVariant: ['tabular-nums'],

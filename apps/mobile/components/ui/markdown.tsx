@@ -113,7 +113,7 @@ function createMarkedStyles(tokens: AppTokens, colors: ProseColors): MarkedStyle
       color: body,
       backgroundColor: tokens.bgElev,
       borderRadius: radius.sm,
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
     },
     code: {
       backgroundColor: tokens.bgElev,

@@ -163,7 +163,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingHorizontal: 20,
       paddingTop: 4,
       paddingBottom: 10,
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       color: tokens.fg3,
       letterSpacing: 0.24,

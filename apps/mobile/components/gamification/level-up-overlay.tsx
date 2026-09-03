@@ -25,7 +25,7 @@ interface LevelUpOverlayProps {
 
 /**
  * Level-up overlay: star hero disc and a rotating orbit ellipse around the big
- * Inter level numeral. Dismissed by tap, back press, or the auto-dismiss timer.
+ * Space Grotesk level numeral. Dismissed by tap, back press, or the auto-dismiss timer.
  * Preserves queue contract (enqueueCelebration / completeActiveCelebration).
  */
 export function LevelUpOverlay({
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     height: 150,
   },
   levelNumber: {
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 56,
     letterSpacing: -1.12,
     fontVariant: ['tabular-nums'],

@@ -20,7 +20,7 @@ const MILESTONE_VALUES = [7, 14, 30, 100, 365] as const
 
 /**
  * Streak celebration: emoji hero disc inside the Saturn-ring motif with the
- * streak count as a big Inter numeral. Preserves dismiss + milestone branch.
+ * streak count as a large Space Grotesk numeral. Preserves dismiss + milestone branch.
  */
 export function StreakCelebration() {
   const { t } = useTranslation()
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   },
   streakNumber: {
     marginTop: 12,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 60,
     letterSpacing: -1.2,
     lineHeight: 60,

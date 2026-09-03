@@ -131,7 +131,7 @@ export function createStyles(tokens: AppTokens) {
       letterSpacing: -0.2,
     },
     drillProgress: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       letterSpacing: 0.24,
       fontVariant: ['tabular-nums'],

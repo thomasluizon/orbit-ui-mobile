@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   eyebrow: {
-    fontFamily: 'Roboto_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 11,
     letterSpacing: 0.66,
     textTransform: 'uppercase',

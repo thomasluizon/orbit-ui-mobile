@@ -64,6 +64,6 @@ const styles = StyleSheet.create({
   label: { fontFamily: 'Geist_500Medium', fontSize: 16 },
   checkedLabel: { textDecorationLine: 'line-through' },
   description: { fontFamily: 'Geist_400Regular', fontSize: 14 },
-  value: { fontFamily: 'Roboto_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
+  value: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
   disabled: { opacity: 0.6 },
 })

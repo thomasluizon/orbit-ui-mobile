@@ -314,7 +314,7 @@ function createStyles(tokens: AppTokensV2) {
       color: tokens.fg1,
     },
     successFreq: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       color: tokens.fg3,
       letterSpacing: 0.24,

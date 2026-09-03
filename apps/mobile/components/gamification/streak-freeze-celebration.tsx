@@ -38,7 +38,7 @@ export interface StreakFreezeCelebrationHandle {
 
 /**
  * Streak-freeze celebration: dashed frozen rings around an emoji hero disc
- * with the held streak as a big Inter numeral.
+ * with the held streak as a large Space Grotesk numeral.
  * Preserves the imperative `show()` API used by callers.
  */
 export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>(
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   },
   streakNumber: {
     marginTop: 12,
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 56,
     letterSpacing: -1.12,
     lineHeight: 56,

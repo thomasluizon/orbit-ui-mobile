@@ -211,7 +211,7 @@ function createStyles(tokens: AppTokens) {
       gap: 20,
     },
     text: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       letterSpacing: 0.24,
       color: tokens.fg3,

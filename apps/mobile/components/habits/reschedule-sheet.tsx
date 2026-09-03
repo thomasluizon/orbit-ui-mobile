@@ -224,7 +224,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg2,
     },
     aiBadge: {
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 10,
       letterSpacing: 0.6,
       color: tokens.fg3,

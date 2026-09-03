@@ -287,7 +287,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       marginTop: 2,
     },
     progressLabel: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 13,
       color: tokens.fg3,
       fontVariant: ['tabular-nums'],
@@ -302,7 +302,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flex: 1,
     },
     percentText: {
-      fontFamily: 'Inter_700Bold',
+      fontFamily: 'SpaceGrotesk_600SemiBold',
       fontSize: 18,
       letterSpacing: -0.18,
       fontVariant: ['tabular-nums'],

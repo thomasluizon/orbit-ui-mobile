@@ -327,7 +327,7 @@ function createTooltipStyles(tokens: AppTokens) {
       color: tokens.fg4,
     },
     stepCount: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontVariant: ['tabular-nums'],
       fontSize: 12,
       letterSpacing: 0.48,

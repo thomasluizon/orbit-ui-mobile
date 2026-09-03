@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.22,
   },
   appVersion: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 13,
     fontVariant: ['tabular-nums'],
   },

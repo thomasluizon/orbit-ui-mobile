@@ -209,7 +209,7 @@ function createStyles(tokens: AppTokens) {
     },
     quantity: {
       color: tokens.fg1,
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 20,
       minWidth: 28,
       textAlign: 'center',

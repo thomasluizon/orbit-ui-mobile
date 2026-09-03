@@ -33,7 +33,7 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
   },
   heroNumeral: {
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 44,
     lineHeight: 44,
     letterSpacing: -0.88,
@@ -43,7 +43,7 @@ export const styles = StyleSheet.create({
   label: { fontFamily: 'Geist_500Medium', fontSize: 16, textAlign: 'center' },
   caption: { fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center', maxWidth: 280 },
   title: {
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 34,
     lineHeight: 39,
     letterSpacing: -0.68,
@@ -61,7 +61,7 @@ export const styles = StyleSheet.create({
   barTrack: { height: 132, width: '100%', justifyContent: 'flex-end' },
   bar: { width: '100%', borderRadius: 7 },
   dayLabel: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
     textAlign: 'center',
     fontVariant: ['tabular-nums'],
@@ -90,7 +90,7 @@ export const styles = StyleSheet.create({
   },
   coverHeader: { alignItems: 'center', gap: 10 },
   coverTitle: {
-    fontFamily: 'Inter_700Bold',
+    fontFamily: 'SpaceGrotesk_600SemiBold',
     fontSize: 44,
     lineHeight: 48,
     letterSpacing: -0.88,

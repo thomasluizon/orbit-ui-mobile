@@ -357,7 +357,7 @@ function createStyles(tokens: AppTokensV2) {
       marginBottom: 8,
     },
     successTitle: {
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 20,
       color: tokens.fg1,
       fontVariant: ['tabular-nums'],

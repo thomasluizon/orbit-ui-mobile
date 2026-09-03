@@ -146,7 +146,7 @@ function createStyles(tokens: AppTokens) {
       color: tokens.fg1,
     },
     chipPercentage: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 11,
       fontVariant: ['tabular-nums'],
     },

@@ -466,7 +466,7 @@ function createStyles(tokens: AppTokens) {
     flex: 1,
   },
   progressText: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
     color: tokens.fg3,
     fontVariant: ['tabular-nums'],

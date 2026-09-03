@@ -46,18 +46,18 @@ export const styles = StyleSheet.create({
     flexShrink: 1,
   },
   keyPrefix: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 13,
     fontVariant: ['tabular-nums'],
   },
   keyScopes: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 11,
     lineHeight: 16,
     letterSpacing: 0.22,
   },
   keyMeta: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 11,
     lineHeight: 17,
     letterSpacing: 0.22,
@@ -161,7 +161,7 @@ export const styles = StyleSheet.create({
     gap: 6,
   },
   codeText: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
     lineHeight: 19,
     fontVariant: ['tabular-nums'],
@@ -207,7 +207,7 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   widgetStepNumber: {
-    fontFamily: 'Roboto_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 14,
     fontVariant: ['tabular-nums'],
   },

@@ -19,7 +19,7 @@ export function createStyles(tokens: AppTokensV2) {
       minHeight: 56,
     },
     progressLabel: {
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 11,
       color: tokens.fg3,
       letterSpacing: 0.44,

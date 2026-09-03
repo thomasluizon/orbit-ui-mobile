@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
   textBlock: { flex: 1, minWidth: 0, gap: 4 },
   title: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 21.25 },
   description: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },
-  value: { fontFamily: 'Roboto_400Regular', fontSize: 13, fontVariant: ['tabular-nums'], flexShrink: 0 },
+  value: { fontFamily: 'GeistMono_400Regular', fontSize: 13, fontVariant: ['tabular-nums'], flexShrink: 0 },
   trailing: { flexShrink: 0, paddingHorizontal: 8 },
   control: { width: 44, height: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   endGap: { width: 12 },

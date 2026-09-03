@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
   },
 
   confirmInput: {
-    fontFamily: 'Roboto_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 16,
   },
   confirmLabel: {

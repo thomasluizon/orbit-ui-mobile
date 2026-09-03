@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     maxWidth: 220,
   },
   valueMono: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 13,
     fontVariant: ['tabular-nums'],
     maxWidth: 220,

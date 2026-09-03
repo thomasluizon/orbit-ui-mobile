@@ -313,7 +313,7 @@ function createStyles(tokens: AppTokens) {
       gap: 2,
     },
     logMeta: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       letterSpacing: 0.24,
       fontVariant: ["tabular-nums"],
@@ -338,7 +338,7 @@ function createStyles(tokens: AppTokens) {
     footerValue: {
       flex: 1,
       textAlign: "right",
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 13,
       fontVariant: ["tabular-nums"],
       color: tokens.statusDone,

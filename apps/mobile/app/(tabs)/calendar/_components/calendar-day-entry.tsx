@@ -73,7 +73,7 @@ function createStyles(tokens: Tokens) {
       textDecorationColor: tokens.hairlineStrong,
     },
     time: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       color: tokens.fg3,
       fontVariant: ["tabular-nums"],

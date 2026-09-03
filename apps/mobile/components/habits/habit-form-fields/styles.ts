@@ -662,7 +662,7 @@ export function createStyles(tokens: AppTokens) {
       flex: 1,
     },
     moreOptionsBadge: {
-      fontFamily: "Roboto_400Regular",
+      fontFamily: "GeistMono_400Regular",
       fontSize: 12,
       fontVariant: ["tabular-nums"],
       letterSpacing: 0.24,

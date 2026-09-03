@@ -176,12 +176,12 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   countLine: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
     letterSpacing: 0.24,
   },
   countValue: {
-    fontFamily: 'Roboto_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontVariant: ['tabular-nums'],
   },
   selectAllBtn: {

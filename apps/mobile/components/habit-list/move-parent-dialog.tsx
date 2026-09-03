@@ -314,7 +314,7 @@ function createStyles(tokens: AppTokensV2) {
       color: tokens.fg1,
     },
     moveOptionCount: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       fontVariant: ['tabular-nums'],
       color: tokens.fg3,

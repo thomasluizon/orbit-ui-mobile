@@ -218,7 +218,7 @@ function createStyles(tokens: AppTokensV2) {
       paddingTop: 14,
     },
     title: {
-      fontFamily: 'Inter_700Bold',
+      fontFamily: 'SpaceGrotesk_600SemiBold',
       fontSize: 34,
       letterSpacing: -0.34,
       lineHeight: 39,

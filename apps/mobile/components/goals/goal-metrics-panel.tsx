@@ -183,7 +183,7 @@ function createStyles(tokens: AppTokens) {
       flexShrink: 0,
     },
     adherencePercent: {
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
       color: tokens.fg1,
       fontVariant: ['tabular-nums'],

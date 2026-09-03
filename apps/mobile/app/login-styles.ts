@@ -40,7 +40,7 @@ export function createLoginStyles(tokens: AppTokensV2) {
       marginBottom: 20,
     },
     referralBannerText: {
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 11,
       color: tokens.fg1,
       letterSpacing: 0.66,

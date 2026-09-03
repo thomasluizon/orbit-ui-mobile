@@ -574,7 +574,7 @@ function createStyles(
     subHabitIndex: {
       width: 16,
       textAlign: 'right',
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       fontVariant: ['tabular-nums'],
       letterSpacing: 0.24,

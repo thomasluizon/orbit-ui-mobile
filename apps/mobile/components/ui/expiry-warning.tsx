@@ -156,7 +156,7 @@ function createStyles(tokens: AppTokensV2) {
       color: tokens.statusOverdueText,
     },
     monoCount: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontVariant: ['tabular-nums'],
       color: tokens.statusOverdueText,
     },
