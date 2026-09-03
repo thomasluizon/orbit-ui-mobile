@@ -192,10 +192,10 @@ export function Menu({
       closeMenu()
     }
     document.addEventListener('pointerdown', dismiss)
-    document.addEventListener('keydown', onKeyDown)
+    document.addEventListener('keydown', onKeyDown, true)
     return () => {
       document.removeEventListener('pointerdown', dismiss)
-      document.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('keydown', onKeyDown, true)
       if (restoreFocusOnCleanupRef.current) focusReturnTarget?.focus()
       focusReturnTargetRef.current = null
     }
