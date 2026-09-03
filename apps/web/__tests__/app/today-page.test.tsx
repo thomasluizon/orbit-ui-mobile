@@ -136,9 +136,13 @@ const baseProps = {
   onToggleCompleted: vi.fn(),
 }
 
-function createMotionView(dateStr: string, isFetching = false): TodayView {
+function createMotionView(
+  dateStr: string,
+  isFetching = false,
+  isRefetching = isFetching,
+): TodayView {
   return {
-    data: { filters: {}, isFetching },
+    data: { filters: {}, isFetching, isRefetching },
     habitListRef: { current: null },
     isSelectMode: false,
     nav: {
@@ -339,6 +343,17 @@ describe('Hoje date control', () => {
     expect(motionTestState.animations).toEqual(expect.arrayContaining([
       expect.objectContaining({ from: 1, target: 0.8 }),
       expect.objectContaining({ from: 0, target: 4 }),
+    ]))
+  })
+
+  it('does not apply refetch motion during a cold client fetch', () => {
+    motionTestState.completeAnimations = false
+
+    render(<TodayHabitsPanel view={createMotionView('2026-04-08', true, false)} />)
+
+    expect(motionTestState.animations).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ target: 0.8 }),
+      expect.objectContaining({ target: 4 }),
     ]))
   })
 

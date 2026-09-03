@@ -156,7 +156,7 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
     showCompleted,
     toggleSelectMode,
   } = view
-  const panelMotion = useTodayPanelMotion(nav.dateStr, data.isFetching)
+  const panelMotion = useTodayPanelMotion(nav.dateStr, data.isRefetching)
 
   return (
     <motion.div
