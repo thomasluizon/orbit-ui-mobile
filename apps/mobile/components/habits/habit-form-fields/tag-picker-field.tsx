@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Pencil, Trash2 } from '@/components/ui/icons'
 import type { HabitTag } from '@orbit/shared/types/habit'
@@ -8,6 +8,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ListRow } from '@/components/ui/list-row'
 import { Sheet } from '@/components/ui/sheet'
+import { KeyboardAwareFlatList } from '@/components/ui/keyboard-aware-scroll-view'
 
 interface TagPickerFieldProps {
   tags: HabitTag[]
@@ -45,6 +46,10 @@ export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, o
     const selected = selectedSet.has(tag.id)
     return <View style={styles.row}><Pressable accessibilityRole="button" accessibilityState={{ selected, disabled: disabled || (!selected && atLimit) }} disabled={disabled || (!selected && atLimit)} style={({ pressed }) => [styles.rowMain, disabled || (!selected && atLimit) ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onToggle(tag.id)}><Text numberOfLines={1} style={styles.rowTitle}>{tag.name}</Text><Text style={styles.rowValue}>{selected ? '✓' : ''}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`${editLabel}: ${tag.name}`} disabled={disabled} style={({ pressed }) => [styles.iconButton, disabled ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onEdit(tag)}><Pencil size={16} color={tokens.fg3} strokeWidth={1.8} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`${deleteLabel}: ${tag.name}`} disabled={disabled} style={({ pressed }) => [styles.iconButton, disabled ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onDelete(tag.id)}><Trash2 size={16} color={tokens.fg3} strokeWidth={1.8} /></Pressable></View>
   }
+  const trailingControls = <>
+    {tags.length > 0 && !editor ? <Pressable accessibilityRole="button" style={styles.action} onPress={onCreate}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.newTag')}</Text></Pressable> : null}
+    {editor}
+  </>
   return <>
     <ListRow inset={false} title={t('habits.form.tags')} value={t('habits.form.selectedCount', { count: selectedIds.length })} onClick={() => setOpen(true)} />
     <TagPreview tags={selectedTags} moreLabel={t('habits.form.moreSelected', { count: Math.max(0, selectedTags.length - 3) })} styles={styles} />
@@ -52,9 +57,7 @@ export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, o
       {tags.length >= 8 ? <Text style={styles.count}>{t('habits.form.availableCount', { count: tags.length })}</Text> : null}
       {tags.length >= 21 ? <BottomSheetAppTextInput value={query} onChangeText={setQuery} placeholder={t('habits.form.searchTags')} style={styles.search} /> : null}
       {tags.length === 0 && !editor ? <View style={styles.empty}><Text numberOfLines={1} style={styles.emptyTitle}>{t('habits.form.noTags')}</Text><Pressable accessibilityRole="button" style={styles.action} onPress={onCreate}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.newTag')}</Text></Pressable></View> : null}
-      {tags.length >= 21 ? <FlatList data={filtered} renderItem={renderTag} keyExtractor={(tag) => tag.id} style={styles.virtualList} initialNumToRender={8} windowSize={5} nestedScrollEnabled keyboardShouldPersistTaps="handled" /> : filtered.map((tag) => <View key={tag.id}>{renderTag({ item: tag })}</View>)}
-      {tags.length > 0 && !editor ? <Pressable accessibilityRole="button" style={styles.action} onPress={onCreate}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.newTag')}</Text></Pressable> : null}
-      {editor}
+      {tags.length >= 21 ? <KeyboardAwareFlatList data={filtered} renderItem={renderTag} keyExtractor={(tag) => tag.id} style={styles.virtualList} initialNumToRender={8} windowSize={5} nestedScrollEnabled keyboardShouldPersistTaps="handled" ListFooterComponent={trailingControls} /> : <>{filtered.map((tag) => <View key={tag.id}>{renderTag({ item: tag })}</View>)}{trailingControls}</>}
     </View></Sheet> : null}
   </>
 }
