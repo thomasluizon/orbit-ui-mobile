@@ -65,7 +65,7 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
         {activeGoals.length === 0 ? <View style={styles.empty}><Text numberOfLines={1} style={styles.emptyTitle}>{t('habits.form.noGoals')}</Text><Pressable accessibilityRole="button" style={styles.action} onPress={openCreateGoal}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.createGoal')}</Text></Pressable></View> : <View style={styles.list}>
           {activeGoals.length >= 8 ? <Text style={styles.count}>{t('habits.form.availableCount', { count: activeGoals.length })}</Text> : null}
           {activeGoals.length >= 21 ? <BottomSheetAppTextInput value={query} onChangeText={setQuery} placeholder={t('habits.form.searchGoals')} style={styles.search} /> : null}
-          {activeGoals.length >= 21 ? <FlatList data={filteredGoals} renderItem={renderGoal} keyExtractor={(goal) => goal.id} style={styles.virtualList} initialNumToRender={8} windowSize={5} /> : filteredGoals.map((goal) => <View key={goal.id}>{renderGoal({ item: goal })}</View>)}
+          {activeGoals.length >= 21 ? <FlatList data={filteredGoals} renderItem={renderGoal} keyExtractor={(goal) => goal.id} style={styles.virtualList} initialNumToRender={8} windowSize={5} nestedScrollEnabled keyboardShouldPersistTaps="handled" /> : filteredGoals.map((goal) => <View key={goal.id}>{renderGoal({ item: goal })}</View>)}
         </View>}
       </Sheet> : null}
     </>

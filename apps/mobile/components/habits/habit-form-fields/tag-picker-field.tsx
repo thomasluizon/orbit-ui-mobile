@@ -52,7 +52,7 @@ export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, o
       {tags.length >= 8 ? <Text style={styles.count}>{t('habits.form.availableCount', { count: tags.length })}</Text> : null}
       {tags.length >= 21 ? <BottomSheetAppTextInput value={query} onChangeText={setQuery} placeholder={t('habits.form.searchTags')} style={styles.search} /> : null}
       {tags.length === 0 && !editor ? <View style={styles.empty}><Text numberOfLines={1} style={styles.emptyTitle}>{t('habits.form.noTags')}</Text><Pressable accessibilityRole="button" style={styles.action} onPress={onCreate}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.newTag')}</Text></Pressable></View> : null}
-      {tags.length >= 21 ? <FlatList data={filtered} renderItem={renderTag} keyExtractor={(tag) => tag.id} style={styles.virtualList} initialNumToRender={8} windowSize={5} /> : filtered.map((tag) => <View key={tag.id}>{renderTag({ item: tag })}</View>)}
+      {tags.length >= 21 ? <FlatList data={filtered} renderItem={renderTag} keyExtractor={(tag) => tag.id} style={styles.virtualList} initialNumToRender={8} windowSize={5} nestedScrollEnabled keyboardShouldPersistTaps="handled" /> : filtered.map((tag) => <View key={tag.id}>{renderTag({ item: tag })}</View>)}
       {tags.length > 0 && !editor ? <Pressable accessibilityRole="button" style={styles.action} onPress={onCreate}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.newTag')}</Text></Pressable> : null}
       {editor}
     </View></Sheet> : null}
