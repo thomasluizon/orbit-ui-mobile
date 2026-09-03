@@ -274,7 +274,7 @@ function createStyles(tokens: AppTokens) {
       paddingHorizontal: 8,
     },
     monthLabel: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 16,
       color: tokens.fg1,
       textTransform: "capitalize",
@@ -295,7 +295,7 @@ function createStyles(tokens: AppTokens) {
     },
     selectedLogsDate: {
       flex: 1,
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 13,
       color: tokens.fg1,
     },
@@ -313,7 +313,7 @@ function createStyles(tokens: AppTokens) {
       gap: 2,
     },
     logMeta: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       letterSpacing: 0.24,
       fontVariant: ["tabular-nums"],
@@ -329,7 +329,7 @@ function createStyles(tokens: AppTokens) {
       borderTopColor: tokens.hairline,
     },
     footerLabel: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 12,
       textTransform: "uppercase",
       letterSpacing: 0.96,
@@ -338,7 +338,7 @@ function createStyles(tokens: AppTokens) {
     footerValue: {
       flex: 1,
       textAlign: "right",
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'GeistMono_500Medium',
       fontSize: 13,
       fontVariant: ["tabular-nums"],
       color: tokens.statusDone,

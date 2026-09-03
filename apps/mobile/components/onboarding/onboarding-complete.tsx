@@ -218,7 +218,7 @@ function createStyles(tokens: AppTokensV2) {
       paddingTop: 14,
     },
     title: {
-      fontFamily: 'Inter_700Bold',
+      fontFamily: 'SpaceGrotesk_600SemiBold',
       fontSize: 34,
       letterSpacing: -0.34,
       lineHeight: 39,
@@ -227,7 +227,7 @@ function createStyles(tokens: AppTokensV2) {
       marginTop: 6,
     },
     subtitle: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 16,
       lineHeight: 24,
       color: tokens.fg2,
@@ -246,7 +246,7 @@ function createStyles(tokens: AppTokensV2) {
       borderBottomColor: tokens.hairline,
     },
     recapText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 16,
       color: tokens.fg2,
     },

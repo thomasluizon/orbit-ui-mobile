@@ -28,6 +28,7 @@ const duplicateHabitMutateAsync = vi.fn()
 const toggleSelectionSpy = vi.fn()
 const drillRefreshCurrent = vi.fn()
 const drillInto = vi.fn()
+const routerPush = vi.fn()
 const getDrillChildrenMock = vi.fn(() => [])
 let mockHabitsDataUpdatedAt = 1
 let useActualHabitVisibility = false
@@ -59,7 +60,7 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push: routerPush, refresh: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
   usePathname: () => '/',
 }))
@@ -147,6 +148,8 @@ vi.mock('@/components/habits/habit-row', () => ({
     state,
     selectMode,
     selected,
+    canLog,
+    readOnly,
     actions,
   }: {
     habit: NormalizedHabit
@@ -155,6 +158,8 @@ vi.mock('@/components/habits/habit-row', () => ({
     state?: string
     selectMode?: boolean
     selected?: boolean
+    canLog?: boolean
+    readOnly?: boolean
     actions?: {
       onLog?: () => void
       onUnlog?: () => void
@@ -162,6 +167,7 @@ vi.mock('@/components/habits/habit-row', () => ({
       onDelete?: () => void
       onEdit?: () => void
       onDuplicate?: () => void
+      onDetail?: () => void
       onToggleSelection?: () => void
     }
   }) => (
@@ -171,6 +177,9 @@ vi.mock('@/components/habits/habit-row', () => ({
       data-select-mode={selectMode ? 'yes' : 'no'}
       data-selected={selected ? 'yes' : 'no'}
       data-state={state}
+      data-can-log={canLog ? 'yes' : 'no'}
+      data-read-only={readOnly ? 'yes' : 'no'}
+      data-has-skip={actions?.onSkip ? 'yes' : 'no'}
     >
       <span>{habit.title}</span>
       <span data-testid={`habit-progress-${habit.id}`}>
@@ -196,6 +205,9 @@ vi.mock('@/components/habits/habit-row', () => ({
       </button>
       <button data-testid={`duplicate-${habit.id}`} onClick={actions?.onDuplicate}>
         duplicate
+      </button>
+      <button data-testid={`detail-${habit.id}`} onClick={actions?.onDetail}>
+        detail
       </button>
       {selectMode && (
         <button
@@ -2640,5 +2652,32 @@ describe('HabitList', () => {
     fireEvent.click(screen.getByTestId('select-overdue-1'))
 
     expect(toggleSelectionSpy).toHaveBeenCalledWith('overdue-1')
+  })
+
+  it('opens a repeating future habit with its selected date and withholds log actions', () => {
+    const habit = createMockHabit({
+      id: 'future-1',
+      title: 'Future habit',
+      frequencyUnit: 'Day',
+      scheduledDates: [TOMORROW],
+    })
+    mockHabitsData.habitsById.set(habit.id, habit)
+    mockHabitsData.topLevelHabits = [habit]
+
+    renderWithProviders(
+      <HabitList
+        view="today"
+        filters={{ dateFrom: TOMORROW, dateTo: TOMORROW }}
+        selectedDate={new Date(`${TOMORROW}T00:00:00`)}
+      />,
+    )
+
+    const row = screen.getByTestId('habit-card-future-1')
+    expect(row).toHaveAttribute('data-read-only', 'no')
+    expect(row).toHaveAttribute('data-can-log', 'no')
+    expect(row).toHaveAttribute('data-has-skip', 'no')
+
+    fireEvent.click(screen.getByTestId('detail-future-1'))
+    expect(routerPush).toHaveBeenCalledWith(`/habits/future-1?date=${TOMORROW}&from=today`)
   })
 })

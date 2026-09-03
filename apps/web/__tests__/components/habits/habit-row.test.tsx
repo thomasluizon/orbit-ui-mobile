@@ -204,6 +204,27 @@ describe('HabitRow check circle accessible name', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 
+  it('keeps future row navigation live while disabling only its completion ring', () => {
+    const onDetail = vi.fn()
+    const onLog = vi.fn()
+    const onEdit = vi.fn()
+    render(
+      <HabitRow
+        habit={createMockHabit({ title: 'Meditate' })}
+        canLog={false}
+        actions={{ onDetail, onLog, onEdit }}
+      />,
+    )
+
+    const row = screen.getByTestId('habit-row')
+    expect(row).not.toHaveAttribute('aria-disabled')
+    expect(row).toHaveStyle({ opacity: '1' })
+    fireEvent.click(screen.getByRole('button', { name: 'Meditate' }))
+    expect(onDetail).toHaveBeenCalledOnce()
+    expect(screen.getByTestId('habit-status-toggle')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'habits.actions.more' })).toBeEnabled()
+  })
+
   it('keeps normal row descendants enabled and operable', () => {
     const onDetail = vi.fn()
     const onLog = vi.fn()

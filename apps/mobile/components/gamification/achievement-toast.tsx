@@ -238,18 +238,18 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   eyebrow: {
-    fontFamily: 'Roboto_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 11,
     letterSpacing: 0.66,
     textTransform: 'uppercase',
     fontVariant: ['tabular-nums'],
   },
   name: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 15,
   },
   description: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 13,
   },
 })

@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   },
   message: {
     marginTop: 18,
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 22,
     lineHeight: 29,
     textAlign: 'center',
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pillLabel: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 16,
   },
 })

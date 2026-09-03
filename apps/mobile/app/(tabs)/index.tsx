@@ -22,6 +22,7 @@ import { useTodayDate } from './use-today-date'
 import { useTodaySelection } from './use-today-selection'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 import { TodayAstra } from '@/components/today/today-astra'
+import { TrialBanner } from '@/components/ui/trial-banner'
 import { useTodayMotion } from './use-today-motion'
 
 function getBoundaryMessageKey(
@@ -147,7 +148,13 @@ export default function TodayScreen() {
   )
 
   const listHeader = (
-    <>
+    <View style={styles.header}>
+      {todayFocused ? (
+        <TodayAstra
+          isTodaySelected={date.dateStr === date.today}
+          suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || habitsQuery.isFetching || (habitsQuery.isError && !habitsQuery.data) || habitsById.size === 0}
+        />
+      ) : null}
       <TodayDateControl
         dayName={date.dayName}
         numericDate={date.numericDate}
@@ -173,18 +180,13 @@ export default function TodayScreen() {
         onGoToToday={date.goToToday}
         onGoToNextDay={date.goToNextDay}
       />
+      <TrialBanner />
       {boundaryKey ? (
         <View style={styles.notice}>
           <CapacityNotice message={t(boundaryKey)} />
         </View>
       ) : null}
-      {todayFocused ? (
-        <TodayAstra
-          isTodaySelected={date.dateStr === date.today}
-          suppressed={isSelectMode || showCreateModal || editHabit !== null || listSurfaceOpen || habitsQuery.isFetching || (habitsQuery.isError && !habitsQuery.data) || habitsById.size === 0}
-        />
-      ) : null}
-    </>
+    </View>
   )
 
   return (
@@ -244,6 +246,7 @@ export default function TodayScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   listBand: { flex: 1 },
-  notice: { paddingBottom: 16, paddingHorizontal: 16 },
+  header: { gap: 24, paddingBottom: 24 },
+  notice: { paddingHorizontal: 0 },
   selectionTray: { paddingHorizontal: 20, paddingVertical: 12 },
 })

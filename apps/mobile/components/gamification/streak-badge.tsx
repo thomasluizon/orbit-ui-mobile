@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     opacity: 0.45,
   },
   count: {
-    fontFamily: 'Roboto_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 12,
     fontVariant: ['tabular-nums'],
   },

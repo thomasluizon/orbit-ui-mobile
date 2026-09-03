@@ -40,10 +40,10 @@ export function createStyles(tokens: AppTokens) {
     skeletonContainer: {
       paddingTop: 8,
       paddingBottom: 96,
+      paddingHorizontal: 16,
       gap: 12,
     },
     skeletonCard: {
-      marginHorizontal: 16,
       backgroundColor: tokens.bgCard,
       borderRadius: 20,
       borderWidth: 1,
@@ -86,18 +86,20 @@ export function createStyles(tokens: AppTokens) {
     sectionInset: {},
     listContent: {
       paddingBottom: 96,
+      paddingHorizontal: 16,
     },
     listContentWithBulkBar: {
       paddingBottom: 96 + 96 + 24,
     },
     groupedList: {
       paddingBottom: 96,
+      paddingHorizontal: 16,
     },
     drillHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingHorizontal: 16,
+      paddingHorizontal: 0,
       paddingVertical: 8,
       paddingBottom: 16,
     },
@@ -125,13 +127,13 @@ export function createStyles(tokens: AppTokens) {
       paddingVertical: 32,
     },
     drillTitle: {
-      fontFamily: 'Rubik_500Medium',
+      fontFamily: 'Geist_500Medium',
       fontSize: 20,
       color: tokens.fg1,
       letterSpacing: -0.2,
     },
     drillProgress: {
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
       letterSpacing: 0.24,
       fontVariant: ['tabular-nums'],
@@ -139,14 +141,14 @@ export function createStyles(tokens: AppTokens) {
       marginTop: 0,
     },
     drillErrorText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 21,
       color: tokens.fg2,
       textAlign: 'center',
     },
     drillEmptyText: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 21,
       color: tokens.fg2,

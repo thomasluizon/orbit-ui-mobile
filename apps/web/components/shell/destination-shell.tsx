@@ -25,7 +25,6 @@ import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
 import {
   resetRouteTransitionIntent,
-  setRouteTransitionIntent,
 } from '@/lib/motion/route-intent'
 import { Shell412 } from './shell-412'
 import { ShellWide } from './shell-wide'
@@ -81,6 +80,11 @@ const ROUTES: Record<BottomTab, string> = {
 
 function hasPrimaryNavigation(pathname: string): boolean {
   return pathname !== '/upgrade'
+}
+
+function getAccountLabel(profile: { name: string; email: string } | null | undefined) {
+  if (!profile) return undefined
+  return profile.name.trim() || profile.email.split('@').at(0)?.trim() || undefined
 }
 
 export function DestinationShell({
@@ -152,7 +156,6 @@ function DestinationShellContent({
         resetRouteTransitionIntent()
         return
       }
-      setRouteTransitionIntent('tab')
       router.push(route)
     },
     [pathname, router],
@@ -225,7 +228,7 @@ function DestinationShellContent({
           onSelect={(id) => navigate(id as BottomTab)}
           onCreate={onCreate}
           createLabel={t('nav.create')}
-          account={profile?.email}
+          account={getAccountLabel(profile)}
           onPalette={() => setPaletteOpen(true)}
           paletteLabel={t('command.title')}
           paletteHint="Ctrl K"

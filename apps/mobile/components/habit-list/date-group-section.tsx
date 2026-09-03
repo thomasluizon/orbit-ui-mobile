@@ -85,10 +85,10 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingTop: 16,
     paddingBottom: 8,
-    paddingHorizontal: 20,
+    paddingHorizontal: 4,
   },
   label: {
-    fontFamily: 'Rubik_600SemiBold',
+    fontFamily: 'Geist_600SemiBold',
     fontSize: 13,
   },
   rule: {

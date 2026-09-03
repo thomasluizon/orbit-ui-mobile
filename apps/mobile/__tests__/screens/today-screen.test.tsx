@@ -154,6 +154,19 @@ vi.mock('@/components/today/today-astra', () => ({
   },
 }))
 
+vi.mock('@/components/ui/trial-banner', () => ({
+  TrialBanner: () => React.createElement('TrialBanner'),
+}))
+
+vi.mock('@/app/(tabs)/use-today-motion', () => ({
+  useTodayMotion: () => ({
+    dayAnimatedStyle: { transform: [{ translateY: 0 }] },
+    refetchAnimatedStyle: { transform: [{ translateY: 0 }] },
+    bulkBarAnimatedStyle: {},
+    renderBulkActionBar: true,
+  }),
+}))
+
 vi.mock('@/components/today/today-modals', () => ({
   TodayModals: () => null,
 }))

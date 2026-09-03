@@ -100,6 +100,11 @@ vi.mock('motion/react', async (importOriginal) => {
   }
 })
 
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: { hasProAccess: true, isTrialActive: false } }),
+  useTrialDaysLeft: () => null,
+}))
+
 vi.mock('@/components/habits/habit-list', () => ({
   HabitList: function MockHabitList(props: {
     showCompleted?: boolean

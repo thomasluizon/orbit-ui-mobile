@@ -67,14 +67,14 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 18,
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Geist_500Medium',
     fontSize: 22,
     lineHeight: 29,
     textAlign: 'center',
   },
   description: {
     marginTop: 10,
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 16,
     lineHeight: 25,
     textAlign: 'center',

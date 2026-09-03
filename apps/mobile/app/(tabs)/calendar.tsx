@@ -592,7 +592,7 @@ function createStyles() {
       borderWidth: 1,
     },
     errorText: {
-      fontFamily: "Rubik_400Regular",
+      fontFamily: "Geist_400Regular",
       fontSize: 14,
       textAlign: "center",
     },

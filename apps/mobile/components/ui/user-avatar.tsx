@@ -34,5 +34,5 @@ export function UserAvatar({ name, size = 44 }: Readonly<UserAvatarProps>) {
 
 const styles = StyleSheet.create({
   disc: { alignItems: 'center', justifyContent: 'center' },
-  initials: { fontFamily: 'Rubik_600SemiBold' },
+  initials: { fontFamily: 'Geist_600SemiBold' },
 })

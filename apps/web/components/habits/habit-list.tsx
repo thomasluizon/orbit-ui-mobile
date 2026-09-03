@@ -1206,7 +1206,8 @@ export function HabitList({
     const meta = buildMetaTokens(habit)
     const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
     const boundary = getTodayBoundary(selectedDateStr, todayStr)
-    const readOnly = boundary === 'read-only' || (boundary === 'future' && !canLog)
+    const readOnly = boundary === 'read-only'
+    const completionReadOnly = readOnly || (boundary === 'future' && !canLog)
     const hasLinkedGoal = (habit.linkedGoals?.length ?? 0) > 0
     const tourTargetId =
       habit.id === tourCardHabitId ? 'tour-habit-card' : undefined
@@ -1234,7 +1235,7 @@ export function HabitList({
         actions={{
           onLog: () => { void handleDirectToggle(habit.id, 'log') },
           onUnlog: () => { void handleDirectToggle(habit.id, 'unlog') },
-          onSkip: readOnly ? undefined : () => { void skipFromRow(habit) },
+          onSkip: completionReadOnly ? undefined : () => { void skipFromRow(habit) },
           onDuplicate: () => setHabitToDuplicate(habit),
           onEdit: () => {
             setHabitToEdit(habit)
@@ -1243,7 +1244,7 @@ export function HabitList({
             setShowEditModal(true)
           },
           onMoveParent: () => openMoveParentPicker(habit.id),
-          onReschedule: !readOnly && habit.isOverdue
+          onReschedule: !completionReadOnly && habit.isOverdue
             ? () => {
                 setHabitToReschedule(habit)
                 setShowRescheduleSheet(true)
@@ -1411,7 +1412,11 @@ export function HabitList({
   }
 
   return (
-    <div data-tour="tour-habit-list" ref={listContainerRef}>
+    <div
+      data-tour="tour-habit-list"
+      ref={listContainerRef}
+      className="px-4 pb-24"
+    >
       {renderMainContent()}
 
       <DeferredEditHabitModal

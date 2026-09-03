@@ -429,13 +429,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   eyebrow: {
-    fontFamily: 'Roboto_500Medium',
+    fontFamily: 'GeistMono_500Medium',
     fontSize: 12,
     letterSpacing: 0.72,
     textTransform: 'uppercase',
   },
   title: {
-    fontFamily: 'Inter_500Medium',
+    fontFamily: 'SpaceGrotesk_500Medium',
     fontSize: 22,
     letterSpacing: -0.44,
     lineHeight: 27,
@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   mono: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 12,
     fontVariant: ['tabular-nums'],
     lineHeight: 18,

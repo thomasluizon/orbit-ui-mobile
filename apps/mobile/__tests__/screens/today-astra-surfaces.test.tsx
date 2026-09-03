@@ -63,6 +63,15 @@ vi.mock('@/components/today/today-astra', () => ({
   TodayAstra: (props: { suppressed: boolean }) =>
     React.createElement('TodayAstraMock', { suppressed: props.suppressed }),
 }))
+vi.mock('@/components/ui/trial-banner', () => ({ TrialBanner: () => null }))
+vi.mock('@/app/(tabs)/use-today-motion', () => ({
+  useTodayMotion: () => ({
+    dayAnimatedStyle: {},
+    refetchAnimatedStyle: {},
+    bulkBarAnimatedStyle: {},
+    renderBulkActionBar: false,
+  }),
+}))
 vi.mock('@/components/shell/shell-composer-slot', () => ({ useShellComposerSlot: () => {} }))
 vi.mock('@/lib/theme', () => ({ createTokensV2: () => ({ bg: '#111111' }) }))
 vi.mock('@/lib/use-app-theme', () => ({

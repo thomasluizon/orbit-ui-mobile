@@ -6,6 +6,7 @@ name: Guards
 #   root-allowlist - root entries are deliberate and npm overrides exist only at the root
 #   mobile-styles - mobile styling stays on React Native StyleSheet
 #   dashes  - the cross-repo dash ban: changed files, the shrink-only baseline, and the PR title/body
+#   mobile-fonts - Rubik cannot re-enter the mobile source tree
 #   copy    - AI-cliche / placeholder / typed-uppercase locale values + hardcoded brand colors
 #   ratchet - the eslint-suppressions.json baselines may only shrink
 #   parity  - a web-scope code change with zero mobile-scope change (or inverse) fails without the parity:exempt label
@@ -85,6 +86,21 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
         run: node tools/check-dashes.mjs --text "$PR_TITLE $PR_BODY"
+
+  mobile-fonts:
+    name: Mobile Font Guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Ban Rubik under apps/mobile
+        run: |
+          hits=$(grep -rni 'rubik' apps/mobile || true)
+          if [ -n "$hits" ]; then
+            echo "::error::DESIGN.md font ban: apps/mobile may use only Geist Sans, Space Grotesk, and Geist Mono."
+            echo "$hits"
+            exit 1
+          fi
+          echo "Mobile font guard passed."
 
   copy:
     name: Copy Register

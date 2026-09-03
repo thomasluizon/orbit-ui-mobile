@@ -119,7 +119,7 @@ function createStyles(tokens: AppTokens) {
       borderColor: tokens.borderControl,
       paddingHorizontal: 16,
       paddingVertical: 14,
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Geist_400Regular',
       fontSize: 16,
       color: tokens.fg1,
     },

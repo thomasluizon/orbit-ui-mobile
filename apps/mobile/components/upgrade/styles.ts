@@ -118,7 +118,7 @@ export const styles = StyleSheet.create({
     padding: 24,
   },
   cardLabel: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
   },
   cardValueRow: {
@@ -129,11 +129,11 @@ export const styles = StyleSheet.create({
     marginTop: 4,
   },
   cardValue: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 17,
   },
   cardMeta: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 13,
     fontVariant: ['tabular-nums'],
     marginTop: 8,
@@ -147,11 +147,11 @@ export const styles = StyleSheet.create({
     marginBottom: 12,
   },
   usageLabel: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 15,
   },
   usageValue: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 13,
     fontVariant: ['tabular-nums'],
   },
@@ -260,18 +260,18 @@ export const styles = StyleSheet.create({
     transform: [{ scale: 0.96 }],
   },
   noticeText: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
     textAlign: 'center',
   },
   centerMuted: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 12,
     lineHeight: 18,
     textAlign: 'center',
   },
   errorText: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 12,
     textAlign: 'center',
   },

@@ -11,6 +11,7 @@ import { plural } from '@/lib/plural'
 import { HabitList } from '@/components/habits/habit-list'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { TrialBanner } from '@/components/ui/trial-banner'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { TodayDateControl } from './today-shell'
 import { useShellComposerSlot } from '@/components/shell/destination-shell'
@@ -117,7 +118,7 @@ export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
   const key = boundaryKey(getTodayBoundary(view.nav.dateStr, view.nav.today))
 
   return (
-    <>
+    <div className="flex flex-col gap-6 pb-6">
       <TodayDateControl
         {...view.nav.dateNav}
         moreLabel={t('habits.actions.more')}
@@ -134,12 +135,13 @@ export function TodayHeaderRegion({ view }: Readonly<{ view: TodayView }>) {
         onRefresh={() => void view.data.refetch()}
         onToggleCompleted={() => view.setShowCompleted(!view.showCompleted)}
       />
+      <TrialBanner />
       {key ? (
-        <div className="px-4 pb-4">
+        <div className="px-4">
           <CapacityNotice message={t(key)} />
         </div>
       ) : null}
-    </>
+    </div>
   )
 }
 

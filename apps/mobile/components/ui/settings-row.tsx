@@ -8,7 +8,7 @@ type IconComponent = ComponentType<IconProps>
 
 interface SettingsRowProps {
   label: string
-  /** Secondary line under the label (Rubik 14 fg-3). */
+  /** Secondary line under the label (Geist Sans 14 fg-3). */
   desc?: string
   /** Optional right-side value text. */
   value?: string
@@ -134,12 +134,12 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   title: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 18,
     lineHeight: 22.5,
   },
   desc: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
     lineHeight: 18.9,
   },
@@ -150,12 +150,12 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   value: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Geist_400Regular',
     fontSize: 14,
     maxWidth: 220,
   },
   valueMono: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'GeistMono_400Regular',
     fontSize: 13,
     fontVariant: ['tabular-nums'],
     maxWidth: 220,

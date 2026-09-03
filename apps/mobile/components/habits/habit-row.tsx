@@ -53,15 +53,15 @@ const EMPTY_HABIT_ROW_ACTIONS: HabitRowActions = {}
 function buildMenuItems(
   actions: HabitRowActions,
   isSelectMode: boolean,
-  readOnly: boolean,
+  completionReadOnly: boolean,
   hasProAccess: boolean,
   t: (key: string) => string,
 ): MenuItem[] {
   const items: MenuItem[] = []
   if (actions.onAddSubHabit) items.push({ id: 'add', label: t('habits.form.addSubHabit'), badge: hasProAccess ? undefined : 'Pro' })
   if (actions.onMoveParent) items.push({ id: 'move', label: t('habits.moveParent.button') })
-  if (actions.onSkip && !readOnly) items.push({ id: 'skip', label: t('habits.actions.skip') })
-  if (actions.onReschedule && !readOnly) items.push({ id: 'reschedule', label: t('habits.actions.reschedule') })
+  if (actions.onSkip && !completionReadOnly) items.push({ id: 'skip', label: t('habits.actions.skip') })
+  if (actions.onReschedule && !completionReadOnly) items.push({ id: 'reschedule', label: t('habits.actions.reschedule') })
   if (actions.onEdit) items.push({ id: 'edit', label: t('common.edit') })
   if (actions.onDuplicate) items.push({ id: 'duplicate', label: t('habits.actions.duplicate') })
   if (actions.onEnterSelectMode && !isSelectMode) {
@@ -214,7 +214,6 @@ function buildRowStyle({
 }>): ViewStyle {
   return {
     minHeight: child ? 52 : 68,
-    marginHorizontal: 16,
     marginBottom: panelEnd ? 12 : 0,
     paddingLeft: child ? 24 : 0,
     backgroundColor: selected ? tokens.selectionBg : tokens.bgCard,
@@ -275,7 +274,8 @@ export function HabitRow({
   const isOverdue = status === 'overdue'
   const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
   const boundary = getTodayBoundary(selectedDateStr, todayStr)
-  const readOnly = readOnlyOverride ?? (boundary === 'read-only' || (boundary === 'future' && !canLog))
+  const readOnly = readOnlyOverride ?? boundary === 'read-only'
+  const completionReadOnly = readOnly || (boundary === 'future' && !canLog)
 
   const metaParts = buildHabitRowMetaParts({
     habit,
@@ -300,8 +300,8 @@ export function HabitRow({
   } = useAnchoredMenu()
   const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode)
   const menuItems = useMemo(
-    () => buildMenuItems(actions, isSelectMode, readOnly, hasProAccess, t),
-    [actions, hasProAccess, isSelectMode, readOnly, t],
+    () => buildMenuItems(actions, isSelectMode, completionReadOnly, hasProAccess, t),
+    [actions, completionReadOnly, hasProAccess, isSelectMode, t],
   )
 
   const openMenu = useCallback(() => {
@@ -317,7 +317,7 @@ export function HabitRow({
   const bodyPressFeedback = useBodyPressFeedback(readOnly, tokens)
   const toggleStatusAction = isDoneForRange ? actions.onUnlog : actions.onLog
   const handleToggleStatus = () => {
-    if (!readOnly) toggleStatusAction?.()
+    if (!completionReadOnly) toggleStatusAction?.()
   }
 
   const titleSize = isChild ? 14 : 16
@@ -425,6 +425,7 @@ export function HabitRow({
           onToggleStatus={handleToggleStatus}
           onOpenMenu={openMenu}
           readOnly={readOnly}
+          completionReadOnly={completionReadOnly}
         />
       </View>
 
