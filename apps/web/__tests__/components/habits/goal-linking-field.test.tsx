@@ -84,4 +84,30 @@ describe('GoalLinkingField', () => {
     fireEvent.click(screen.getByText(/Run 100km/))
     expect(onToggleGoal).toHaveBeenCalledWith('g1')
   })
+
+  it('windows a large goal collection and keeps search above the scrolling list', async () => {
+    const goals = Array.from({ length: 50 }, (_, index) => ({
+      id: `g${index}`,
+      title: `Goal ${index}`,
+      status: 'Active',
+      progressPercentage: index,
+      targetValue: 100,
+      unit: 'times',
+      currentValue: index,
+    }))
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(goals) })
+
+    render(
+      <GoalLinkingField selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} />,
+      { wrapper: createWrapper() },
+    )
+    fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
+
+    const search = await screen.findByPlaceholderText('habits.form.searchGoals')
+    expect(screen.getByText('habits.form.availableCount')).toBeInTheDocument()
+    expect(screen.queryByText('Goal 20')).not.toBeInTheDocument()
+
+    fireEvent.scroll(search.nextElementSibling!, { target: { scrollTop: 20 * 48 } })
+    expect(await screen.findByText('Goal 20')).toBeInTheDocument()
+  })
 })

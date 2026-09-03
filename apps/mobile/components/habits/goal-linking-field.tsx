@@ -56,7 +56,7 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
     <>
       <ListRow inset={false} title={t('habits.form.goals')} value={t('habits.form.selectedCount', { count: selectedGoalIds.length })} onClick={() => setOpen(true)} />
       {selectedGoals.length > 0 ? <View style={styles.chips}>{selectedGoals.slice(0, 3).map((goal) => <View key={goal.id} style={styles.chip}><Text numberOfLines={1} style={styles.chipText}>{goal.title}</Text></View>)}{selectedGoals.length > 3 ? <View style={styles.chip}><Text style={styles.chipText}>{t('habits.form.moreSelected', { count: selectedGoals.length - 3 })}</Text></View> : null}</View> : null}
-      {open ? <Sheet ref={sheetRef} open title={t('habits.form.goals')} onClose={() => { setOpen(false); setQuery('') }}>
+      {open ? <Sheet ref={sheetRef} open title={t('habits.form.goals')} virtualizedBody={activeGoals.length >= 21} onClose={() => { setOpen(false); setQuery('') }}>
         {activeGoals.length === 0 ? <View style={styles.empty}><Text numberOfLines={1} style={styles.emptyTitle}>{t('habits.form.noGoals')}</Text><Pressable accessibilityRole="button" style={styles.action} onPress={() => closeSheet(() => setShowCreateGoalModal(true))}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.createGoal')}</Text></Pressable></View> : <View style={styles.list}>
           {activeGoals.length >= 8 ? <Text style={styles.count}>{t('habits.form.availableCount', { count: activeGoals.length })}</Text> : null}
           {activeGoals.length >= 21 ? <BottomSheetAppTextInput value={query} onChangeText={setQuery} placeholder={t('habits.form.searchGoals')} style={styles.search} /> : null}

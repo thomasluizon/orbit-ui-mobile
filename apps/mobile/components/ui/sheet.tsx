@@ -46,6 +46,8 @@ interface MobileSheetProps extends SheetProps {
   ref?: Ref<SheetHandle>
   /** Handles a blocked native dismissal attempt without letting navigation receive Android Back. */
   onAttemptDismiss?: () => void
+  /** Lets a child FlatList own scrolling, so large picker collections stay virtualized. */
+  virtualizedBody?: boolean
 }
 
 /** The native overlay surface. Callers mount it only while it is open. */
@@ -55,6 +57,7 @@ export function Sheet({
   actions,
   onClose,
   onAttemptDismiss,
+  virtualizedBody = false,
   children,
   ref,
 }: Readonly<MobileSheetProps>) {
@@ -151,14 +154,18 @@ export function Sheet({
       onDidDismiss={handleDidDismiss}
       scrollable
     >
-      <KeyboardAwareSheetScrollView
-        testID="sheet-body-scroll"
-        contentContainerStyle={styles.body}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {children}
-      </KeyboardAwareSheetScrollView>
+      {virtualizedBody ? (
+        <View testID="sheet-virtualized-body" style={styles.body}>{children}</View>
+      ) : (
+        <KeyboardAwareSheetScrollView
+          testID="sheet-body-scroll"
+          contentContainerStyle={styles.body}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {children}
+        </KeyboardAwareSheetScrollView>
+      )}
     </TrueSheet>
   )
 }
