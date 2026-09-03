@@ -1,4 +1,5 @@
 import React from 'react'
+import { Animated, StyleSheet } from 'react-native'
 import type { ComposerProps, ComposerSuggestions } from '@orbit/shared/contracts/composer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Composer } from '@/components/shell/composer'
@@ -17,10 +18,12 @@ vi.mock('react-native', async (importOriginal) => {
   type PressableMockProps = Record<string, unknown> & {
     children?: React.ReactNode
     style?: React.ComponentProps<typeof original.Pressable>['style']
+    onPressIn?: unknown
+    onPressOut?: unknown
   }
 
   const Pressable = ReactModule.forwardRef<unknown, PressableMockProps>(
-    function PressableMock({ children, style, ...rest }, ref) {
+    function PressableMock({ children, style, onPressIn, onPressOut, ...rest }, ref) {
       const [pressed, setPressed] = ReactModule.useState(false)
       const renderedStyle = typeof style === 'function' ? style({ pressed }) : style
       return ReactModule.createElement(
@@ -29,8 +32,14 @@ vi.mock('react-native', async (importOriginal) => {
           ...rest,
           ref,
           style: renderedStyle,
-          onPressIn: () => setPressed(true),
-          onPressOut: () => setPressed(false),
+          onPressIn: () => {
+            setPressed(true)
+            if (typeof onPressIn === 'function') onPressIn()
+          },
+          onPressOut: () => {
+            setPressed(false)
+            if (typeof onPressOut === 'function') onPressOut()
+          },
         },
         children as React.ReactNode,
       )
@@ -115,6 +124,37 @@ describe('Composer (mobile)', () => {
     const group = byLabel(tree.root, words.suggestionsLabel)[0]
     expect(group).toBeDefined()
     expect(textValues(tree.root).filter((value: unknown) => String(value).startsWith('chip sentinel'))).toHaveLength(3)
+  })
+
+  it('lays out the composer root with native styles', async () => {
+    const tree = await renderComposer(props())
+    const root = tree.root.findByProps({ testID: 'composer-idle' })
+    expect(StyleSheet.flatten(root.props.style)).toMatchObject({
+      flexDirection: 'column',
+      gap: 12,
+      padding: 16,
+    })
+  })
+
+  it('animates the Astra conversation control on press', async () => {
+    const timing = vi.spyOn(Animated, 'timing')
+    const onOpenConversation = vi.fn()
+    const conversationLabel = 'open conversation sentinel'
+    const tree = await renderComposer(props({ onOpenConversation, conversationLabel }))
+    const control = byLabel(tree.root, conversationLabel)[0]
+
+    TestRenderer.act(() => control.props.onPressIn())
+    expect(timing).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ duration: 150, toValue: 0.96, useNativeDriver: true }),
+    )
+
+    TestRenderer.act(() => control.props.onPressOut())
+    expect(timing).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ duration: 150, toValue: 1, useNativeDriver: true }),
+    )
+    timing.mockRestore()
   })
 
   it('renders six suggestions', async () => {

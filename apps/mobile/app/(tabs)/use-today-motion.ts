@@ -27,41 +27,60 @@ export function useTodayMotion({
   const selectionMotion = useResolvedMotionPreset("selection");
   const isSelectMode = useUIStore((s) => s.isSelectMode);
 
-  const filtersTransitionAnim = useMemo(() => new Animated.Value(1), []);
-  const listTransitionAnim = useMemo(() => new Animated.Value(1), []);
+  const dayOpacityAnim = useMemo(() => new Animated.Value(1), []);
+  const dayTranslateAnim = useMemo(() => new Animated.Value(0), []);
   const refetchTransitionAnim = useMemo(() => new Animated.Value(0), []);
   const [bulkBarAnim] = useState(() => new Animated.Value(isSelectMode ? 1 : 0));
-  const hasAnimatedFiltersRef = useRef(false);
+  const previousFilterMotionKeyRef = useRef(filterMotionKey);
+  const dayTransitionRunningRef = useRef(false);
+  const dayTransitionSequenceRef = useRef(0);
   const [renderBulkActionBar, setRenderBulkActionBar] = useState(isSelectMode);
 
   useEffect(() => {
-    if (!hasAnimatedFiltersRef.current) {
-      hasAnimatedFiltersRef.current = true;
+    if (filterMotionKey === previousFilterMotionKeyRef.current) {
       return;
     }
 
-    const startValue = listMotion.reducedMotionEnabled ? 1 : 0;
-    const timingConfig = createAnimatedTimingConfig(
-      listMotion.enterDuration,
-      listMotion.enterEasing,
-    );
+    const direction = filterMotionKey > previousFilterMotionKeyRef.current ? 1 : -1;
+    previousFilterMotionKeyRef.current = filterMotionKey;
+    const shouldStartAtEdge = !dayTransitionRunningRef.current;
+    const sequence = dayTransitionSequenceRef.current + 1;
+    dayTransitionSequenceRef.current = sequence;
+    dayOpacityAnim.stopAnimation();
+    dayTranslateAnim.stopAnimation();
 
-    filtersTransitionAnim.stopAnimation();
-    listTransitionAnim.stopAnimation();
-    filtersTransitionAnim.setValue(startValue);
-    listTransitionAnim.setValue(startValue);
+    if (listMotion.reducedMotionEnabled) {
+      dayOpacityAnim.setValue(1);
+      dayTranslateAnim.setValue(0);
+      dayTransitionRunningRef.current = false;
+      return;
+    }
 
+    if (shouldStartAtEdge) {
+      dayOpacityAnim.setValue(0.9);
+      dayTranslateAnim.setValue(direction * 8);
+    }
+    dayTransitionRunningRef.current = true;
+    const timingConfig = {
+      duration: listMotion.enterDuration,
+      easing: toAnimatedEasing(listMotion.enterEasing),
+      useNativeDriver: true,
+    } as const;
     Animated.parallel([
-      Animated.timing(filtersTransitionAnim, timingConfig),
-      Animated.timing(listTransitionAnim, timingConfig),
-    ]).start();
+      Animated.timing(dayOpacityAnim, { ...timingConfig, toValue: 1 }),
+      Animated.timing(dayTranslateAnim, { ...timingConfig, toValue: 0 }),
+    ]).start(() => {
+      if (dayTransitionSequenceRef.current === sequence) {
+        dayTransitionRunningRef.current = false;
+      }
+    });
   }, [
     filterMotionKey,
-    filtersTransitionAnim,
+    dayOpacityAnim,
+    dayTranslateAnim,
     listMotion.enterDuration,
     listMotion.enterEasing,
     listMotion.reducedMotionEnabled,
-    listTransitionAnim,
   ]);
 
   useEffect(() => {
@@ -119,40 +138,16 @@ export function useTodayMotion({
     selectionMotion.reducedMotionEnabled,
   ]);
 
-  const filtersAnimatedStyle = useMemo(
+  const dayAnimatedStyle = useMemo(
     () => ({
-      opacity: filtersTransitionAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0.86, 1],
-      }),
+      opacity: dayOpacityAnim,
       transform: [
         {
-          translateY: filtersTransitionAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [Math.max(4, Math.round(listMotion.shift / 2)), 0],
-          }),
+          translateY: dayTranslateAnim,
         },
       ],
     }),
-    [filtersTransitionAnim, listMotion.shift],
-  );
-
-  const listAnimatedStyle = useMemo(
-    () => ({
-      opacity: listTransitionAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0.9, 1],
-      }),
-      transform: [
-        {
-          translateY: listTransitionAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [Math.max(4, Math.round(listMotion.shift / 2)), 0],
-          }),
-        },
-      ],
-    }),
-    [listMotion.shift, listTransitionAnim],
+    [dayOpacityAnim, dayTranslateAnim],
   );
 
   const refetchAnimatedStyle = useMemo(
@@ -196,11 +191,10 @@ export function useTodayMotion({
   );
 
   return {
-    filtersAnimatedStyle,
-    listAnimatedStyle,
+    dayAnimatedStyle,
     refetchAnimatedStyle,
     bulkBarAnimatedStyle,
-    renderBulkActionBar,
+    renderBulkActionBar: isSelectMode || renderBulkActionBar,
     setRenderBulkActionBar,
   };
 }
