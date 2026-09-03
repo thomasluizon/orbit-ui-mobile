@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
   card: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16 },
   copy: { flex: 1 },
   label: { fontFamily: 'GeistMono_500Medium', fontSize: 12, letterSpacing: 0.5, textTransform: 'uppercase' },
-  value: { fontFamily: 'GeistMono_500Medium', fontSize: 16, marginTop: 4 },
+  value: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 16, fontVariant: ['tabular-nums'], marginTop: 4 },
   schedule: { fontFamily: 'Geist_400Regular', fontSize: 14, marginTop: 4 },
   rationale: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
   disclosure: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 18 },
