@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Easing, ReduceMotion } from 'react-native-reanimated'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
@@ -22,24 +24,36 @@ vi.mock('@/lib/motion', async (importOriginal) => {
 
 vi.mock('react-native-reanimated', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-native-reanimated')>()
-  const fadeIn = {
-    duration: (duration: number) => {
-      motionMocks.fadeInDuration(duration)
-      return fadeIn
-    },
-    reduceMotion: () => fadeIn,
-  }
-  const fadeOut = {
-    duration: (duration: number) => {
-      motionMocks.fadeOutDuration(duration)
-      return fadeOut
-    },
-    reduceMotion: () => fadeOut,
+  function builder(durationV: number) {
+    return {
+      durationV,
+      easingV: undefined as unknown,
+      reduceMotionV: actual.ReduceMotion.System,
+      easing(easing: unknown) {
+        this.easingV = easing
+        return this
+      },
+      reduceMotion(mode: ReduceMotion) {
+        this.reduceMotionV = mode
+        return this
+      },
+    }
   }
   return {
     ...actual,
-    FadeIn: fadeIn,
-    FadeOut: fadeOut,
+    Easing: { ...actual.Easing, bezier: vi.fn(actual.Easing.bezier) },
+    FadeIn: {
+      duration: (duration: number) => {
+        motionMocks.fadeInDuration(duration)
+        return builder(duration)
+      },
+    },
+    FadeOut: {
+      duration: (duration: number) => {
+        motionMocks.fadeOutDuration(duration)
+        return builder(duration)
+      },
+    },
   }
 })
 
@@ -113,6 +127,7 @@ describe('PlanSelection (mobile)', () => {
     motionMocks.reduced = false
     motionMocks.fadeInDuration.mockClear()
     motionMocks.fadeOutDuration.mockClear()
+    vi.mocked(Easing.bezier).mockClear()
   })
 
   it('leads with annual and gives it the only filled action', () => {
@@ -167,6 +182,49 @@ describe('PlanSelection (mobile)', () => {
 
     expect(motionMocks.fadeInDuration).not.toHaveBeenCalled()
     expect(motionMocks.fadeOutDuration).not.toHaveBeenCalled()
+  })
+
+  it('animates error-to-loaded with the shared entrance and exit curves', () => {
+    const tree = renderSelection('yearly', { plans: null, isError: true })
+    const failedMotion = tree.root.findByType('AnimatedView')
+    expect(failedMotion.props.entering).toBeUndefined()
+    const exiting = failedMotion.props.exiting
+    expect(Easing.bezier).toHaveBeenLastCalledWith(...motionEasings.exit)
+    expect(exiting).toEqual(expect.objectContaining({
+      durationV: motionDurations.routeExit,
+      easingV: vi.mocked(Easing.bezier).mock.results.at(-1)!.value,
+      reduceMotionV: ReduceMotion.System,
+    }))
+
+    vi.mocked(Easing.bezier).mockClear()
+    tree.rerender({ plans, isError: false })
+    const loadedMotion = tree.root.findByType('AnimatedView')
+
+    expect(loadedMotion).not.toBe(failedMotion)
+    expect(Easing.bezier).toHaveBeenCalledWith(...motionEasings.enter)
+    const entranceCall = vi.mocked(Easing.bezier).mock.calls.findIndex((points) =>
+      points.every((point, index) => point === motionEasings.enter[index]))
+    expect(loadedMotion.props.entering).toEqual(expect.objectContaining({
+      durationV: motionDurations.base,
+      easingV: vi.mocked(Easing.bezier).mock.results[entranceCall]!.value,
+      reduceMotionV: ReduceMotion.System,
+    }))
+    expect(loadedMotion.props.exiting).toBeDefined()
+    tree.rerender({ plans, isError: false, selectedInterval: 'monthly' })
+    expect(tree.root.findByType('AnimatedView')).toBe(loadedMotion)
+  })
+
+  it('hard-cuts error-to-loaded with reduced motion', () => {
+    motionMocks.reduced = true
+    const tree = renderSelection('yearly', { plans: null, isError: true })
+    expect(tree.root.findByType('AnimatedView').props.exiting).toBeUndefined()
+
+    tree.rerender({ plans, isError: false })
+
+    const motion = tree.root.findByType('AnimatedView')
+    expect(motion.props.entering).toBeUndefined()
+    expect(motion.props.exiting).toBeUndefined()
+    expect(Easing.bezier).not.toHaveBeenCalled()
   })
 
   it.each(['yearly', 'monthly'] as const)(

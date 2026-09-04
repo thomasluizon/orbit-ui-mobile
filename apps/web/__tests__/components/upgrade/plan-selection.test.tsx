@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { useTranslations } from 'next-intl'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
 import { formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
 
 const motionMocks = vi.hoisted(() => ({
   reduced: false,
   renderedProps: [] as Record<string, unknown>[],
+  presenceProps: [] as Record<string, unknown>[],
 }))
 
 vi.mock('motion/react', async (importOriginal) => {
@@ -23,7 +25,10 @@ vi.mock('motion/react', async (importOriginal) => {
   }
   return {
     ...actual,
-    AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
+    AnimatePresence: ({ children, ...props }: { children: React.ReactElement }) => {
+      motionMocks.presenceProps.push({ ...props, stateKey: children.key })
+      return children
+    },
     LazyMotion: ({ children }: { children: React.ReactNode }) => children,
     m: { div: MotionDiv },
     useReducedMotion: () => motionMocks.reduced,
@@ -72,6 +77,7 @@ describe('PlanSelection', () => {
   beforeEach(() => {
     motionMocks.reduced = false
     motionMocks.renderedProps.length = 0
+    motionMocks.presenceProps.length = 0
   })
 
   it('leads with annual and gives the recommended tier the only filled action', () => {
@@ -148,6 +154,47 @@ describe('PlanSelection', () => {
     const loadedMotion = motionMocks.renderedProps.at(-1)!
 
     expect(loadedMotion.initial).toBe(false)
+    expect(loadedMotion.transition).toEqual({ duration: 0 })
+  })
+
+  it('animates error-to-loaded with the shared entrance and exit curves', () => {
+    const view = renderSelection({ plans: null, isError: true })
+    const errorMotion = motionMocks.renderedProps.at(-1)!
+    expect(motionMocks.presenceProps.at(-1)).toEqual({
+      initial: false, mode: 'popLayout', stateKey: 'error',
+    })
+    expect(errorMotion.exit).toEqual({
+      opacity: 0,
+      transition: {
+        duration: motionDurations.routeExit / 1000,
+        ease: motionEasings.exit,
+      },
+    })
+
+    view.rerender(<PlanSelection {...view} plans={plans} isError={false} />)
+    const loadedMotion = motionMocks.renderedProps.at(-1)!
+
+    expect(motionMocks.presenceProps.at(-1)).toEqual({
+      initial: false, mode: 'popLayout', stateKey: 'loaded',
+    })
+    expect(loadedMotion.initial).toEqual({ opacity: 0 })
+    expect(loadedMotion.animate).toEqual({ opacity: 1 })
+    expect(loadedMotion.transition).toEqual({
+      duration: motionDurations.base / 1000,
+      ease: motionEasings.enter,
+    })
+  })
+
+  it('hard-cuts error-to-loaded with reduced motion', () => {
+    motionMocks.reduced = true
+    const view = renderSelection({ plans: null, isError: true })
+    expect(motionMocks.renderedProps.at(-1)!.exit).toEqual({ opacity: 1 })
+
+    view.rerender(<PlanSelection {...view} plans={plans} isError={false} />)
+    const loadedMotion = motionMocks.renderedProps.at(-1)!
+
+    expect(loadedMotion.initial).toBe(false)
+    expect(loadedMotion.animate).toEqual({ opacity: 1 })
     expect(loadedMotion.transition).toEqual({ duration: 0 })
   })
 

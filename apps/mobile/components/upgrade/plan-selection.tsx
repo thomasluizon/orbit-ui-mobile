@@ -1,11 +1,12 @@
 import { useState, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 import Animated, {
+  Easing,
   FadeIn,
   FadeOut,
   ReduceMotion,
 } from 'react-native-reanimated'
-import { motionDurations } from '@orbit/shared/theme'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { applySubscriptionDiscount } from '@orbit/shared/utils'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { Badge } from '@/components/ui/badge'
@@ -51,7 +52,7 @@ function PlanLoadMotion({
   if (transition.stateKey !== stateKey) {
     setTransition({
       stateKey,
-      shouldEnter: transition.stateKey === 'loading' && stateKey !== 'loading',
+      shouldEnter: true,
     })
   }
 
@@ -59,10 +60,14 @@ function PlanLoadMotion({
     <Animated.View
       key={stateKey}
       entering={transition.shouldEnter && !reduced
-        ? FadeIn.duration(motionDurations.base).reduceMotion(ReduceMotion.System)
+        ? FadeIn.duration(motionDurations.base)
+            .easing(Easing.bezier(...motionEasings.enter))
+            .reduceMotion(ReduceMotion.System)
         : undefined}
-      exiting={stateKey === 'loading' && !reduced
-        ? FadeOut.duration(motionDurations.routeExit).reduceMotion(ReduceMotion.System)
+      exiting={!reduced
+        ? FadeOut.duration(motionDurations.routeExit)
+            .easing(Easing.bezier(...motionEasings.exit))
+            .reduceMotion(ReduceMotion.System)
         : undefined}
       testID={motionTestId(motionPurpose.load)}
     >
