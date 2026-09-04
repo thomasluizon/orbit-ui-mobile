@@ -3,20 +3,33 @@ import type { HabitLog } from '../types/calendar'
 import type { HabitMetrics } from '../types/habit'
 import {
   appendHabitDetailChild,
+  buildHabitDetailSchedulePatch,
+  buildHabitDetailTimePatch,
+  canInlineEditHabitSchedule,
   buildHabitDetailUpdateRequest,
   buildHabitDetailChildDateModel,
   buildHabitHistoryMonth,
   buildHabitStripModel,
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
+  formatHabitDetailReminderValue,
+  hasAuthoritativeHabitRelationshipState,
   isHabitCompletedOnDate,
   isHabitHistoryMonthLoaded,
   isHabitSlipping,
+  mergeHabitDetailWithScopedHabit,
   removeHabitDetailChild,
   shouldResetHabitChecklist,
   shouldShowHabitMetrics,
 } from '../utils/habit-detail-flow'
 import { createMockHabit } from './factories'
+import {
+  makeHabitDetail,
+  makeHabitScheduleItem,
+  makeTaggedNestedHabitScheduleItem,
+  makeHabitDetailScopedParent,
+} from '../test-support/habit-detail-fixtures'
+import { normalizeHabitQueryData } from '../utils/habit-normalization'
 
 const recurring = {
   createdAtUtc: '2026-01-01T12:00:00Z',
@@ -78,6 +91,204 @@ describe('habit detail flow model', () => {
       .toMatchObject({ slipAlertEnabled: false })
     expect(buildHabitDetailUpdateRequest(habit, { goalIds: [] }))
       .toMatchObject({ goalIds: [] })
+  })
+
+  it('builds schedule, reminder, and text field updates without dropping habit data', () => {
+    const habit = createMockHabit({
+      description: 'Old description',
+      dueTime: '08:00',
+      reminderEnabled: true,
+      reminderTimes: [15],
+    })
+    const scheduledReminders = [{ time: '20:30', when: 'same_day' as const }]
+    const request = buildHabitDetailUpdateRequest(habit, {
+      description: 'New description',
+      dueTime: '09:15',
+      endDate: '2026-12-31',
+      frequencyUnit: 'Day',
+      frequencyQuantity: 2,
+      days: ['Tuesday', 'Thursday'],
+      reminderEnabled: true,
+      reminderTimes: [30],
+      scheduledReminders,
+    })
+
+    expect(request).toMatchObject({
+      title: habit.title,
+      description: 'New description',
+      dueTime: '09:15',
+      endDate: '2026-12-31',
+      frequencyUnit: 'Day',
+      frequencyQuantity: 2,
+      days: ['Tuesday', 'Thursday'],
+      reminderEnabled: true,
+      reminderTimes: [30],
+      scheduledReminders,
+    })
+  })
+
+  it('uses the explicit API signal when an inline edit clears the end date', () => {
+    const habit = createMockHabit({ endDate: '2026-12-31' })
+
+    expect(buildHabitDetailUpdateRequest(habit, { endDate: null })).toMatchObject({
+      endDate: null,
+      clearEndDate: true,
+    })
+  })
+
+  it('builds valid inline schedule patches and clears non-daily weekdays', () => {
+    expect(buildHabitDetailSchedulePatch('Day', 1, ['Monday'])).toEqual({
+      frequencyUnit: 'Day',
+      frequencyQuantity: 1,
+      days: ['Monday'],
+    })
+    expect(buildHabitDetailSchedulePatch('Week', 3, ['Monday'])).toEqual({
+      frequencyUnit: 'Week',
+      frequencyQuantity: 3,
+      days: [],
+    })
+    expect(buildHabitDetailSchedulePatch('Day', 2, ['Monday'])).toMatchObject({ days: [] })
+    expect(buildHabitDetailSchedulePatch('Day', 0, [])).toBeNull()
+    expect(buildHabitDetailSchedulePatch('Day', 1.5, [])).toBeNull()
+    expect(canInlineEditHabitSchedule(makeHabitDetailScopedParent())).toBe(true)
+    expect(canInlineEditHabitSchedule({ ...makeHabitDetailScopedParent(), frequencyUnit: null })).toBe(false)
+    expect(canInlineEditHabitSchedule({ ...makeHabitDetailScopedParent(), isGeneral: true })).toBe(false)
+    expect(canInlineEditHabitSchedule({ ...makeHabitDetailScopedParent(), isFlexible: true })).toBe(false)
+  })
+
+  it('lists the actual reminder offsets and scheduled times', () => {
+    const translate = (key: string) => key
+    expect(formatHabitDetailReminderValue({
+      reminderEnabled: false,
+      reminderTimes: [10],
+      scheduledReminders: [],
+    }, translate)).toBe('habits.detail.noValue')
+    expect(formatHabitDetailReminderValue({
+      reminderEnabled: true,
+      reminderTimes: [10, 30],
+      scheduledReminders: [{ when: 'same_day', time: '08:00' }],
+    }, translate)).toBe('habits.form.reminder10min, habits.form.reminder30min, 08:00')
+    expect(formatHabitDetailReminderValue({
+      reminderEnabled: true,
+      reminderTimes: [],
+      scheduledReminders: [],
+    }, translate)).toBe('habits.detail.noValue')
+  })
+
+  it('validates inline times and clears a stale end when the start changes', () => {
+    const habit = { dueTime: '08:00', dueEndTime: '09:00' }
+    expect(buildHabitDetailTimePatch('later', habit)).toBeNull()
+    expect(buildHabitDetailTimePatch('', habit)).toEqual({
+      dueTime: null,
+      dueEndTime: null,
+      reminderEnabled: false,
+      reminderTimes: [],
+      scheduledReminders: [],
+    })
+    expect(buildHabitDetailTimePatch('10:00', habit)).toEqual({ dueTime: '10:00', dueEndTime: null })
+    expect(buildHabitDetailTimePatch('08:00', habit)).toEqual({ dueTime: '08:00', dueEndTime: '09:00' })
+
+    const source = createMockHabit(habit)
+    expect(buildHabitDetailUpdateRequest(source, buildHabitDetailTimePatch('', habit)!)).toMatchObject({
+      dueTime: null,
+      dueEndTime: null,
+    })
+    expect(buildHabitDetailUpdateRequest(source, buildHabitDetailTimePatch('10:00', habit)!)).toMatchObject({
+      dueTime: '10:00',
+      dueEndTime: null,
+    })
+  })
+
+  it('disables and clears reminders when due time is cleared', () => {
+    const habit = createMockHabit({
+      dueTime: '09:00',
+      dueEndTime: '10:00',
+      reminderEnabled: true,
+      reminderTimes: [15, 30],
+      scheduledReminders: [{ when: 'same_day', time: '08:00' }],
+    })
+    const patch = buildHabitDetailTimePatch('', habit)
+
+    expect(patch).toEqual({
+      dueTime: null,
+      dueEndTime: null,
+      reminderEnabled: false,
+      reminderTimes: [],
+      scheduledReminders: [],
+    })
+    expect(buildHabitDetailUpdateRequest(habit, patch!)).toMatchObject(patch!)
+  })
+
+  it('merges scoped relationship and selected-date state into detail data', () => {
+    const detail = makeHabitDetail()
+    const scoped = makeHabitDetailScopedParent()
+    const merged = mergeHabitDetailWithScopedHabit(detail, scoped, '2026-08-28')
+
+    expect(merged).toMatchObject({
+      title: detail.title,
+      tags: scoped.tags,
+      linkedGoals: scoped.linkedGoals,
+      instances: scoped.instances,
+    })
+    expect(mergeHabitDetailWithScopedHabit(detail, undefined, '2026-08-28').title)
+      .toBe(detail.title)
+  })
+
+  it('keeps authoritative relationships when the selected date has no schedule item', () => {
+    const detail = { ...makeHabitDetail(), isBadHabit: true }
+    const authoritative = {
+      ...makeHabitDetailScopedParent(),
+      isBadHabit: true,
+      linkedGoals: [{ id: 'goal-1', title: 'Read more' }],
+      slipAlertEnabled: true,
+      instances: [],
+    }
+
+    expect(mergeHabitDetailWithScopedHabit(detail, authoritative, '2026-08-29', undefined)).toMatchObject({
+      linkedGoals: authoritative.linkedGoals,
+      slipAlertEnabled: true,
+      instances: [],
+    })
+  })
+
+  it('uses the selected-date relationship state for a general habit', () => {
+    const detail = { ...makeHabitDetail(), isGeneral: true }
+    const scoped = {
+      ...makeHabitDetailScopedParent(),
+      isGeneral: true,
+      linkedGoals: [{ id: 'goal-general', title: 'Stay balanced' }],
+      slipAlertEnabled: true,
+    }
+
+    expect(mergeHabitDetailWithScopedHabit(detail, undefined, '2026-08-28', scoped)).toMatchObject({
+      linkedGoals: scoped.linkedGoals,
+      slipAlertEnabled: true,
+    })
+  })
+
+  it('gates relationship controls by authority in real normalized schedule rows', () => {
+    const detail = makeHabitDetail()
+    const normalized = normalizeHabitQueryData([makeHabitScheduleItem()])
+    const authoritative = normalized.habitsById.get('habit-1')
+    const nestedChild = normalized.habitsById.get('child-1')
+    const general = normalizeHabitQueryData([makeHabitScheduleItem({ isGeneral: true })])
+      .habitsById.get('habit-1')
+
+    expect(hasAuthoritativeHabitRelationshipState(detail, authoritative, undefined)).toBe(true)
+    expect(hasAuthoritativeHabitRelationshipState({ ...detail, isGeneral: true }, undefined, general)).toBe(true)
+    expect(hasAuthoritativeHabitRelationshipState(detail, nestedChild, nestedChild)).toBe(false)
+  })
+
+  it('merges nested list enrichment without granting relationship authority', () => {
+    const detail = { ...makeHabitDetail(), id: 'child-1', isBadHabit: true, children: [] }
+    const nestedChild = normalizeHabitQueryData([makeTaggedNestedHabitScheduleItem()])
+      .habitsById.get('child-1')
+    const merged = mergeHabitDetailWithScopedHabit(detail, nestedChild, '2026-08-28', nestedChild)
+
+    expect(merged.tags).toEqual([{ id: 'tag-child', name: 'Nested focus', color: '#123456' }])
+    expect(merged.linkedGoals).toEqual([])
+    expect(merged.slipAlertEnabled).toBe(false)
+    expect(hasAuthoritativeHabitRelationshipState(detail, nestedChild, nestedChild)).toBe(false)
   })
 
   it('builds a 30 day habit strip without a frozen state', () => {

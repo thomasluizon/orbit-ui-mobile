@@ -15,8 +15,10 @@ function renderBadge(variant: 'solid' | 'outline' = 'solid') {
 describe('Badge (mobile)', () => {
   it('renders its children', () => {
     const tree = renderBadge()
-    const texts = tree.root.findAllByType('Text').map((node: any) => node.props.children)
+    const textNodes = tree.root.findAllByType('Text')
+    const texts = textNodes.map((node: any) => node.props.children)
     expect(texts).toContain('premium')
+    expect(textNodes[0].props.numberOfLines).toBe(1)
   })
 
   it.each(['solid', 'outline'] as const)('renders the %s variant at chip radius', (variant) => {

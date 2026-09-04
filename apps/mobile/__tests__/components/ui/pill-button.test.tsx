@@ -34,6 +34,7 @@ describe('PillButton (mobile)', () => {
   it('renders its label', () => {
     const tree = renderPill(<PillButton onClick={() => {}}>Continue</PillButton>)
     expect(textContents(tree)).toContain('Continue')
+    expect(tree.root.findByType('Text').props.numberOfLines).toBe(1)
   })
 
   it('fires onPress when pressed', () => {

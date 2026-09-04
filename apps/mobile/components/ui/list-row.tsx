@@ -24,6 +24,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
       </View>
       {value ? <Text style={[styles.value, { color: tokens.fg3 }]} numberOfLines={1}>{value}</Text> : null}
       {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
+      {!readOnly && chevron ? <View style={styles.control}><ChevronRight size={24} color={tokens.fg4} strokeWidth={1.8} /></View> : null}
     </>
   )
 
@@ -39,7 +40,6 @@ export function ListRow(props: Readonly<ListRowProps>) {
           <Icon name={action.icon} size={20} color={action.danger ? tokens.statusBad : tokens.fg2} />
         </Pressable>
       ) : null}
-      {!readOnly && chevron ? <View style={styles.control}><ChevronRight size={24} color={tokens.fg4} strokeWidth={1.8} /></View> : <View style={styles.endGap} />}
     </View>
   )
 }
@@ -52,8 +52,7 @@ const styles = StyleSheet.create({
   textBlock: { flex: 1, minWidth: 0, gap: 4 },
   title: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 21.25 },
   description: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 19.6 },
-  value: { fontFamily: 'GeistMono_400Regular', fontSize: 13, fontVariant: ['tabular-nums'], flexShrink: 0 },
+  value: { fontFamily: 'GeistMono_400Regular', fontSize: 13, fontVariant: ['tabular-nums'], flexShrink: 1, maxWidth: '50%' },
   trailing: { flexShrink: 0, paddingHorizontal: 8 },
   control: { width: 44, height: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  endGap: { width: 12 },
 })

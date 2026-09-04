@@ -736,19 +736,31 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   }, [isOnline, lastFailedSend, offlineTitle, performSend, setInput]);
 
   const canRetryLastSend = lastFailedSend !== null && !isSending;
+  const contextualSuggestion = useChatStore((state) => state.contextualSuggestion);
 
   const composerSuggestions = useMemo<ComposerSuggestions>(() => {
     const makeSuggestion = (key: (typeof CHAT_STARTER_CHIP_KEYS)[number]) => {
       const label = t(key);
       return { id: key, label, onSelect: () => void sendMessage(label) };
     };
-    return [
+    const starters = [
       makeSuggestion(CHAT_STARTER_CHIP_KEYS[0]),
       makeSuggestion(CHAT_STARTER_CHIP_KEYS[1]),
       makeSuggestion(CHAT_STARTER_CHIP_KEYS[2]),
       makeSuggestion(CHAT_STARTER_CHIP_KEYS[3]),
+    ] as const;
+    if (!contextualSuggestion) return starters;
+    return [
+      {
+        id: contextualSuggestion.id,
+        label: contextualSuggestion.label,
+        onSelect: () => void sendMessage(contextualSuggestion.prompt),
+      },
+      starters[0],
+      starters[1],
+      starters[2],
     ];
-  }, [sendMessage, t]);
+  }, [contextualSuggestion, sendMessage, t]);
 
   const composerProps = useMemo(() => {
     const words = {

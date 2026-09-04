@@ -5,7 +5,7 @@ import { PillButton } from '@/components/ui/pill-button'
 describe('PillButton', () => {
   it('renders its label', () => {
     render(<PillButton onClick={() => {}}>Continue</PillButton>)
-    expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continue' })).toHaveClass('whitespace-nowrap')
   })
 
   it('fires onClick when clicked', () => {
