@@ -1,5 +1,6 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import { StyleSheet, Text } from 'react-native'
 import type { Goal } from '@orbit/shared/types/goal'
 import { GoalCard } from '@/components/goal-card'
 
@@ -68,6 +69,27 @@ function renderCard(goal: Goal, onLongPress?: () => void) {
 }
 
 describe('GoalCard', () => {
+  it('uses canonical badge typography for goal status chips', () => {
+    const tree = renderCard(makeGoal({ status: 'Completed' }))
+    const badgeText = tree.root.find(
+      (node: { type: unknown; props: { children?: unknown } }) =>
+        node.type === Text && collectText(node.props.children) === 'goals.status.completed',
+    )
+
+    expect(StyleSheet.flatten(badgeText.props.style)).toMatchObject({
+      fontFamily: 'GeistMono_500Medium',
+      fontSize: 10.5,
+      includeFontPadding: false,
+      letterSpacing: 0.63,
+      textTransform: 'uppercase',
+    })
+    expect(StyleSheet.flatten(badgeText.parent?.props.style)).toMatchObject({
+      borderRadius: 8,
+      paddingHorizontal: 9,
+      paddingVertical: 2,
+    })
+  })
+
   it('shows the due-today badge when the deadline is today', () => {
     const withinToday = new Date(Date.now() + 60_000).toISOString()
     const tree = renderCard(makeGoal({ deadline: withinToday }))
