@@ -2,7 +2,7 @@ import type { PaginatedResponse, HabitScheduleItem, HabitTag } from '@orbit/shar
 import type { PaginatedGoalResponse } from '@orbit/shared/types/goal'
 import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
 
-/** Empty single page — Today/all-habits render their deterministic empty state. */
+/** Empty single page: Today/all-habits render their deterministic empty state. */
 export const emptyHabitsPageFixture = {
   items: [],
   page: 1,
@@ -11,7 +11,7 @@ export const emptyHabitsPageFixture = {
   totalPages: 1,
 } satisfies PaginatedResponse<HabitScheduleItem>
 
-/** Empty single page — the goals panel renders its empty state. */
+/** Empty single page: the goals panel renders its empty state. */
 export const emptyGoalsPageFixture = {
   items: [],
   page: 1,
@@ -20,11 +20,11 @@ export const emptyGoalsPageFixture = {
   totalPages: 1,
 } satisfies PaginatedGoalResponse
 
-/** No tags — the tag filter row stays collapsed. */
+/** No tags, so the tag filter row stays collapsed. */
 export const emptyTagsFixture: HabitTag[] = []
 
 /** No saved checklist templates. */
 export const emptyChecklistTemplatesFixture: ChecklistTemplate[] = []
 
-/** Zero habits — free-tier create gate stays open (< 10). */
+/** Zero habits, so the free-tier create gate stays open (< 10). */
 export const habitCountFixture = { count: 0 }

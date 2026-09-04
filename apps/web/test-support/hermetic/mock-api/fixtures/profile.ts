@@ -1,11 +1,11 @@
 import type { Profile } from '@orbit/shared/types/profile'
 
 /**
- * Deterministic free-tier profile for the hermetic visual capture. Every overlay
+ * Deterministic free-tier profile for the hermetic performance run. Every overlay
  * gate is set to its "already seen / not applicable" value so the shell renders
  * clean: free plan (no trial banner), onboarding+tour+import all completed,
  * marketing consent resolved (non-null), gamification off. timeZone is UTC to
- * match the visual project's `timezoneId: 'UTC'` so no timezone-sync PATCH fires.
+ * use UTC so no timezone-sync PATCH fires.
  */
 export const profileFixture = {
   name: 'Orbit Preview',

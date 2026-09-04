@@ -2935,6 +2935,10 @@
       {
         "from": "apps/web/stores",
         "to": "packages/shared/src/types"
+      },
+      {
+        "from": "apps/web/test-support",
+        "to": "packages/shared/src/types"
       }
     ],
     "apps/mobile": [
@@ -24040,6 +24044,7 @@
         "apps/web/__tests__/stores/tour-store.test.ts",
         "apps/web/__tests__/stores/ui-store.test.ts"
       ],
+      "apps/web/test-support": [],
       "packages/shared/(root)": [],
       "packages/shared/src": [
         "apps/mobile/__tests__/hooks/use-calendar-events.test.ts",
@@ -24580,6 +24585,7 @@
       "apps/mobile/(root)",
       "apps/mobile/modules",
       "apps/mobile/plugins",
+      "apps/web/test-support",
       "packages/shared/(root)"
     ]
   }
