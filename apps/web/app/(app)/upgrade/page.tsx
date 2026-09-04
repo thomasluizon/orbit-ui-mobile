@@ -16,7 +16,6 @@ import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
-import { PitchSubscriptionCard } from '@/components/upgrade/pitch-subscription-card'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import { openCustomerPortal } from '@/app/actions/subscription'
@@ -164,9 +163,7 @@ export default function UpgradePage() {
     )
   } else if (model.content === 'pitch') {
     content = (
-      <>
-        {status ? <PitchSubscriptionCard status={status} locale={locale} t={t} /> : null}
-        <PricingSection
+      <PricingSection
           profile={status}
           plans={plans}
           isLoadingPlans={isLoadingPlans}
@@ -180,8 +177,7 @@ export default function UpgradePage() {
           onStayFree={() => goBackOrFallback('/profile')}
           onRetryPlans={() => void refetchPlans()}
           t={t}
-        />
-      </>
+      />
     )
   } else if (model.content === 'play') {
     content = (

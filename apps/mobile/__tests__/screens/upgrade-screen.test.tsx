@@ -141,6 +141,10 @@ vi.mock('@/components/upgrade/billing-dashboard', () => ({
   BillingDashboard: (props: Record<string, unknown>) =>
     React.createElement('BillingDashboard', props),
 }))
+vi.mock('@/components/upgrade/pitch-subscription-card', () => ({
+  PitchSubscriptionCard: (props: Record<string, unknown>) =>
+    React.createElement('PitchSubscriptionCard', props),
+}))
 vi.mock('@/components/upgrade/play-billing-dashboard', () => ({
   PlayBillingDashboard: (props: Record<string, unknown>) =>
     React.createElement('PlayBillingDashboard', props),
@@ -189,6 +193,27 @@ describe('UpgradeScreen', () => {
     const tree = await renderScreen()
     expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
   })
+
+  it.each(['trialling', 'lapsed'] as const)(
+    'does not put subscription status in the %s pitch',
+    async (statusState) => {
+      if (statusState === 'trialling') {
+        mocks.hasProAccess = true
+        mocks.profile = createMockProfile({
+          isTrialActive: true,
+          trialEndsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+        })
+      } else {
+        mocks.lapseReason = 'expired'
+        mocks.subscriptionEndedAtUtc = '2026-08-01T00:00:00Z'
+      }
+
+      const tree = await renderScreen()
+
+      expect(tree.root.findAll((node) => node.type === 'PitchSubscriptionCard')).toHaveLength(0)
+      expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
+    },
+  )
 
   it.each([
     ['loading', true, false, 'common.loading'],
@@ -244,14 +269,14 @@ describe('UpgradeScreen', () => {
   })
 
   it.each(['canceled', 'payment_failed', 'expired'] as const)(
-    'renders the %s lapse outcome with cached content',
+    'keeps the %s lapse status out of the pitch',
     async (lapseReason) => {
       mocks.lapseReason = lapseReason
       mocks.subscriptionEndedAtUtc = '2026-08-01T00:00:00Z'
       const tree = await renderScreen()
-      expect(
-        tree.root.findAll((node) => node.props.children === `upgrade.billing.lapsed.${lapseReason}`).length,
-      ).toBeGreaterThan(0)
+      expect(tree.root.findAll((node) =>
+        node.props.children === `upgrade.billing.lapsed.${lapseReason}`)).toHaveLength(0)
+      expect(tree.root.findAll((node) => node.type === 'PitchSubscriptionCard')).toHaveLength(0)
       expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
     },
   )

@@ -251,6 +251,7 @@ describe('UpgradePage', () => {
     expect(document.body.textContent).not.toContain('upgrade.convert.freeHeading')
     expect(document.body.textContent).not.toContain('upgrade.convert.trustLine')
     expect(document.body.textContent).toContain('upgrade.convert.promise')
+    expect(screen.queryByText('upgrade.billing.plan.pro')).not.toBeInTheDocument()
   })
 
   it('uses the last day eyebrow instead of a count of one', () => {
@@ -282,7 +283,7 @@ describe('UpgradePage', () => {
     )
   })
 
-  it('uses a neutral Pro label when a trial has no provider interval', () => {
+  it('does not put subscription status in the trial pitch', () => {
     mockHasProAccess = true
     mockProfile = {
       ...mockProfile,
@@ -291,7 +292,7 @@ describe('UpgradePage', () => {
       subscriptionInterval: null,
     }
     render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.plan.pro')).toBeInTheDocument()
+    expect(screen.queryByText('upgrade.billing.plan.pro')).not.toBeInTheDocument()
     expect(screen.queryByText('upgrade.billing.plan.monthly')).not.toBeInTheDocument()
   })
 
@@ -702,11 +703,9 @@ describe('UpgradePage', () => {
       subscriptionEndedAt: '2026-08-01T00:00:00Z',
     }
     render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.lapsed.title')).toBeInTheDocument()
-    expect(document.body.textContent).toContain(`upgrade.billing.lapsed.${lapseReason}`)
-    if (interval === 'yearly') {
-      expect(document.body.textContent).toContain('upgrade.billing.lapsed.yearlyFeature')
-    }
+    expect(screen.queryByText('upgrade.billing.lapsed.title')).not.toBeInTheDocument()
+    expect(document.body.textContent).not.toContain(`upgrade.billing.lapsed.${lapseReason}`)
+    expect(document.body.textContent).toContain('upgrade.convert.freeHeading')
   })
 
   it.each([false, true])('keeps cached pitch content with paid actions disabled offline, trial=%s', (trialActive) => {

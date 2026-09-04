@@ -29,7 +29,6 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { getUpgradeFallbackRoute } from '@/lib/upgrade-route'
 import { AppBar } from '@/components/ui/app-bar'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
-import { PitchSubscriptionCard } from '@/components/upgrade/pitch-subscription-card'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
@@ -228,9 +227,7 @@ export default function UpgradeScreen() {
   )
 
   const pitchContent = (
-    <>
-      {status ? <PitchSubscriptionCard status={status} locale={locale} t={t} tokens={tokens} /> : null}
-      <PricingSection
+    <PricingSection
         profile={status}
         plans={plans}
         isLoadingPlans={isLoadingPlans}
@@ -253,8 +250,7 @@ export default function UpgradeScreen() {
         onRetryPlans={() => { if (isOnline) refetchPlans().catch(() => {}) }}
         t={t}
         tokens={tokens}
-      />
-    </>
+    />
   )
 
   return (

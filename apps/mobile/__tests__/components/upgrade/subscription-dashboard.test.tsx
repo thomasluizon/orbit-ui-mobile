@@ -5,7 +5,6 @@ import type { BillingDetails } from '@orbit/shared/types/subscription'
 import en from '@orbit/shared/i18n/en.json'
 import { createTokensV2 } from '@/lib/theme'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
-import { PitchSubscriptionCard } from '@/components/upgrade/pitch-subscription-card'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import type { UpgradeTextFn } from '@/components/upgrade/types'
@@ -435,22 +434,6 @@ describe('subscription dashboards (mobile)', () => {
       'upgrade.convert.trialDaysLeft:{\\"days\\":5}',
     )
 
-    const trialCard = render(
-      <PitchSubscriptionCard
-        status={{
-          ...status,
-          isTrialActive: true,
-          trialEndsAt: '2026-09-02T00:00:00Z',
-          subscriptionInterval: null,
-        }}
-        locale="en"
-        t={t}
-        tokens={tokens}
-      />,
-    )
-    const cardText = JSON.stringify(trialCard.toJSON())
-    expect(cardText).toContain('upgrade.billing.plan.pro')
-    expect(cardText).not.toContain('upgrade.billing.plan.monthly')
   })
 
   it('renders the arithmetic pitch and exactly three outcome rows', () => {
@@ -561,47 +544,4 @@ describe('subscription dashboards (mobile)', () => {
     ).toHaveLength(0)
   })
 
-  it.each([
-    ['canceled', 'yearly'],
-    ['payment_failed', 'monthly'],
-    ['expired', null],
-  ] as const)('renders the %s lapse outcome for the cached %s plan', (lapseReason, interval) => {
-    const tree = render(
-      <PitchSubscriptionCard
-        status={{
-          ...status,
-          plan: 'free',
-          hasProAccess: false,
-          subscriptionInterval: interval,
-          lapseReason,
-          subscriptionEndedAtUtc: '2026-08-01T00:00:00Z',
-        }}
-        locale="en"
-        t={t}
-        tokens={tokens}
-      />,
-    )
-    expect(renderedText(tree)).toContain(`upgrade.billing.lapsed.${lapseReason}`)
-    if (interval === 'yearly') {
-      expect(renderedText(tree)).toContain('upgrade.billing.lapsed.yearlyFeature')
-    }
-  })
-
-  it('uses the lapse fallback when the end date is unavailable', () => {
-    const tree = render(
-      <PitchSubscriptionCard
-        status={{
-          ...status,
-          plan: 'free',
-          hasProAccess: false,
-          lapseReason: 'expired',
-          subscriptionEndedAtUtc: null,
-        }}
-        locale="en"
-        t={t}
-        tokens={tokens}
-      />,
-    )
-    expect(renderedText(tree)).toContain('upgrade.billing.lapsed.fallback')
-  })
 })
