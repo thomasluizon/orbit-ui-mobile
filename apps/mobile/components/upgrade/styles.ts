@@ -84,7 +84,7 @@ export const styles = StyleSheet.create({
     lineHeight: 20,
   },
   planState: {
-    gap: 12,
+    gap: 16,
     paddingHorizontal: 16,
   },
   planChoices: {
