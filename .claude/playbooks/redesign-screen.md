@@ -40,10 +40,17 @@ registry are fetched with:
     npx --yes ui-skills get <owner>/<name>          # prints the skill to stdout, so redirect it
 
 The `jakubkrehel/make-interfaces-feel-better` namespace is in that registry; it is not a path in
-the `jakubkrehel/skills` repository. The `better-*` suite is in that separate repository and must
-be fetched by raw URL, noting the `skills/` path segment:
+the `jakubkrehel/skills` repository. The `better-*` suite is in that separate repository. A
+`SKILL.md` there is not the whole skill. `interface-review` puts its scope rules and its
+removed-signal rules in two sibling files. `better-interface` puts its required output format in
+one. `better-ui` splits six domains out the same way. List the whole skill directory, never the
+single file:
 
-    https://raw.githubusercontent.com/jakubkrehel/skills/main/skills/<name>/SKILL.md
+    gh api "repos/jakubkrehel/skills/git/trees/main?recursive=1" \
+      --jq '.tree[]|select(.type=="blob" and (.path|startswith("skills/<name>/")))|.path'
+
+Read every path that command prints, under
+`https://raw.githubusercontent.com/jakubkrehel/skills/main/<path>`.
 
 `vercel-labs/web-design-guidelines` is a pointer, not a rule set. Fetch what it points at, or the
 lane sweeps nothing:
@@ -56,7 +63,7 @@ source:
 | source | skills |
 |---|---|
 | `npx --yes ui-skills get <owner>/<name>` | `anthropics/frontend-design`, `jakubkrehel/make-interfaces-feel-better`, `emilkowalski/animation-vocabulary`, `raphaelsalaja/mastering-animate-presence`, `iart-ai/accessible-animation`, `ibelick/fixing-accessibility`, `wshobson/wcag-audit-patterns` |
-| `https://raw.githubusercontent.com/jakubkrehel/skills/main/skills/<name>/SKILL.md` | `jakubkrehel/better-ui`, `jakubkrehel/better-accessibility`, `jakubkrehel/better-layout`, `jakubkrehel/better-writing`, `jakubkrehel/better-typography`, `jakubkrehel/better-colors`, `jakubkrehel/interface-review`, `jakubkrehel/better-interface` |
+| every blob under `skills/<name>/` in `jakubkrehel/skills`, listed by the `gh api` command above | `jakubkrehel/better-ui`, `jakubkrehel/better-accessibility`, `jakubkrehel/better-layout`, `jakubkrehel/better-writing`, `jakubkrehel/better-typography`, `jakubkrehel/better-colors`, `jakubkrehel/interface-review`, `jakubkrehel/better-interface` |
 | `https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md` | the Vercel guideline text |
 
 Four read-only lanes, then the two repository agents as the close gate.
