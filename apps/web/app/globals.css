@@ -21,7 +21,7 @@
 
 .orbit-sheet-backdrop[data-ending-style] {
   transition-duration: 165ms;
-  transition-timing-function: var(--ease-in);
+  transition-timing-function: ease-in;
 }
 
 .orbit-sheet-viewport {
@@ -57,7 +57,7 @@
   opacity: 0;
   transform: scale(0.95);
   transition-duration: 165ms;
-  transition-timing-function: var(--ease-in);
+  transition-timing-function: ease-in;
 }
 
 .orbit-list-row {
@@ -88,7 +88,7 @@
   opacity: 0;
   transform: scale(0.95);
   transition-duration: 165ms;
-  transition-timing-function: var(--ease-in);
+  transition-timing-function: ease-in;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -426,7 +426,12 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-smooth: cubic-bezier(0.2, 0, 0, 1);
 
-  /* Radius tokens — cards 16-18, wells 12-14, fields 14, sheets 26, CTAs pill */
+  /* Shape and elevation tokens */
+  --r-card: 20px;
+  --sh-2: 0 4px 16px rgba(0, 0, 0, 0.28);
+  --sh-3: 0 12px 40px rgba(0, 0, 0, 0.45);
+
+  /* Tailwind radius scale */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
@@ -434,7 +439,7 @@
   --radius-2xl: 20px;
   --radius-sheet: 26px;
   --radius-full: 999px;
-  --r-well: var(--radius-md);
+  --r-well: 12px;
 
   /* Spacing rhythm (8px base grid) */
   --space-1: 0.25rem;

@@ -105,6 +105,17 @@ describe('CalendarTimeGrid', () => {
     expect(block).toHaveTextContent('Standup')
   })
 
+  it('publishes each timed habit accent to its local CSS property', () => {
+    const col = column(2025, 5, 16)
+    const dayMap = new Map<string, CalendarDayEntry[]>([
+      [col.dateStr, [makeEntry({ habitId: 'a', dueTime: '08:00' })]],
+    ])
+    renderGrid([col], dayMap)
+
+    const block = screen.getByTestId('time-grid-event')
+    expect(getComputedStyle(block).getPropertyValue('--tg-accent')).toBe('var(--fg-4)')
+  })
+
   it('places an untimed habit in the all-day row, not the time body', () => {
     const col = column(2025, 5, 16)
     const dayMap = new Map<string, CalendarDayEntry[]>([
