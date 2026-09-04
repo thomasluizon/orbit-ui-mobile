@@ -69,7 +69,7 @@ export function PricingSection({
           {t('upgrade.convert.promise')}
         </p>
         {!trialActive ? (
-          <p className="t-meta max-w-[46ch] text-pretty">
+          <p className="text-sm leading-[1.55] text-[var(--fg-3)]">
             {t('upgrade.convert.trustLine')}
           </p>
         ) : null}
