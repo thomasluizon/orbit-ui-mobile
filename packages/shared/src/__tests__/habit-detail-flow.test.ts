@@ -26,6 +26,7 @@ import { createMockHabit } from './factories'
 import {
   makeHabitDetail,
   makeHabitScheduleItem,
+  makeTaggedNestedHabitScheduleItem,
   makeHabitDetailScopedParent,
 } from '../test-support/habit-detail-fixtures'
 import { normalizeHabitQueryData } from '../utils/habit-normalization'
@@ -275,6 +276,18 @@ describe('habit detail flow model', () => {
 
     expect(hasAuthoritativeHabitRelationshipState(detail, authoritative, undefined)).toBe(true)
     expect(hasAuthoritativeHabitRelationshipState({ ...detail, isGeneral: true }, undefined, general)).toBe(true)
+    expect(hasAuthoritativeHabitRelationshipState(detail, nestedChild, nestedChild)).toBe(false)
+  })
+
+  it('merges nested list enrichment without granting relationship authority', () => {
+    const detail = { ...makeHabitDetail(), id: 'child-1', isBadHabit: true, children: [] }
+    const nestedChild = normalizeHabitQueryData([makeTaggedNestedHabitScheduleItem()])
+      .habitsById.get('child-1')
+    const merged = mergeHabitDetailWithScopedHabit(detail, nestedChild, '2026-08-28', nestedChild)
+
+    expect(merged.tags).toEqual([{ id: 'tag-child', name: 'Nested focus', color: '#123456' }])
+    expect(merged.linkedGoals).toEqual([])
+    expect(merged.slipAlertEnabled).toBe(false)
     expect(hasAuthoritativeHabitRelationshipState(detail, nestedChild, nestedChild)).toBe(false)
   })
 

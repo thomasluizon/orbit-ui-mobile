@@ -468,38 +468,46 @@ export function formatHabitDetailReminderValue(
 
 function getHabitRelationshipAuthority(
   detail: Pick<HabitDetail, 'isGeneral'>,
-  authoritativeHabit: NormalizedHabit | undefined,
+  listHabit: NormalizedHabit | undefined,
   scopedHabit: NormalizedHabit | undefined,
 ): NormalizedHabit | undefined {
-  if (authoritativeHabit?.parentId === null) return authoritativeHabit
+  if (listHabit?.parentId === null) return listHabit
   return detail.isGeneral && scopedHabit?.parentId === null ? scopedHabit : undefined
+}
+
+function getHabitListEnrichmentSource(
+  listHabit: NormalizedHabit | undefined,
+  scopedHabit: NormalizedHabit | undefined,
+): NormalizedHabit | undefined {
+  return listHabit ?? scopedHabit
 }
 
 export function hasAuthoritativeHabitRelationshipState(
   detail: Pick<HabitDetail, 'isGeneral'>,
-  authoritativeHabit: NormalizedHabit | undefined,
+  listHabit: NormalizedHabit | undefined,
   scopedHabit: NormalizedHabit | undefined,
 ): boolean {
-  return getHabitRelationshipAuthority(detail, authoritativeHabit, scopedHabit) !== undefined
+  return getHabitRelationshipAuthority(detail, listHabit, scopedHabit) !== undefined
 }
 
 export function mergeHabitDetailWithScopedHabit(
   detail: HabitDetail,
-  authoritativeHabit: NormalizedHabit | undefined,
+  listHabit: NormalizedHabit | undefined,
   date: string,
-  scopedHabit = authoritativeHabit,
+  scopedHabit = listHabit,
 ): NormalizedHabit {
   const normalized = normalizeHabitDetailForDrill(detail, date).parent
-  const relationshipAuthority = getHabitRelationshipAuthority(detail, authoritativeHabit, scopedHabit)
-  if (!relationshipAuthority) return normalized
+  const listEnrichmentSource = getHabitListEnrichmentSource(listHabit, scopedHabit)
+  const relationshipAuthority = getHabitRelationshipAuthority(detail, listHabit, scopedHabit)
+  if (!listEnrichmentSource) return normalized
   return {
-    ...relationshipAuthority,
+    ...listEnrichmentSource,
     ...normalized,
-    tags: relationshipAuthority.tags,
-    linkedGoals: relationshipAuthority.linkedGoals,
-    slipAlertEnabled: relationshipAuthority.slipAlertEnabled,
-    flexibleTarget: scopedHabit?.flexibleTarget ?? relationshipAuthority.flexibleTarget,
-    flexibleCompleted: scopedHabit?.flexibleCompleted ?? relationshipAuthority.flexibleCompleted,
-    instances: scopedHabit?.instances ?? relationshipAuthority.instances,
+    tags: listEnrichmentSource.tags,
+    linkedGoals: relationshipAuthority?.linkedGoals ?? normalized.linkedGoals,
+    slipAlertEnabled: relationshipAuthority?.slipAlertEnabled ?? normalized.slipAlertEnabled,
+    flexibleTarget: scopedHabit?.flexibleTarget ?? listEnrichmentSource.flexibleTarget,
+    flexibleCompleted: scopedHabit?.flexibleCompleted ?? listEnrichmentSource.flexibleCompleted,
+    instances: scopedHabit?.instances ?? listEnrichmentSource.instances,
   }
 }

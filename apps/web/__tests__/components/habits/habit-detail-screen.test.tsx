@@ -6,6 +6,7 @@ import { formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
 import {
   makeHabitDetail as makeDetail,
   makeHabitScheduleItem,
+  makeTaggedNestedHabitScheduleItem,
   makeHabitDetailScopedChild as makeScopedChild,
   makeHabitDetailScopedParent as makeScopedParent,
   makeLoggedGeneralHabitDetailChild as makeLoggedGeneralChild,
@@ -318,6 +319,19 @@ describe('HabitDetailScreen', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
 
+    expect(screen.queryByTestId('list-row-habits.detail.linkedGoals')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('list-row-habits.detail.slipAlert')).not.toBeInTheDocument()
+  })
+
+  it('keeps normalized nested tags visible without relationship controls', () => {
+    mocks.detail = { ...makeDetail(), id: 'child-1', isBadHabit: true, children: [] }
+    const normalized = normalizeHabitQueryData([makeTaggedNestedHabitScheduleItem()])
+    mocks.allHabits = normalized.habitsById
+    mocks.scopedHabits = normalized.habitsById
+    render(<HabitDetailScreen habitId="child-1" date="2026-08-28" parentId="habit-1" />)
+
+    expect(screen.getByText('Nested focus')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
     expect(screen.queryByTestId('list-row-habits.detail.linkedGoals')).not.toBeInTheDocument()
     expect(screen.queryByTestId('list-row-habits.detail.slipAlert')).not.toBeInTheDocument()
   })

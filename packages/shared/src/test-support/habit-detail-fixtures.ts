@@ -68,6 +68,16 @@ export function makeHabitScheduleItem(overrides: Partial<HabitScheduleItem> = {}
   }
 }
 
+export function makeTaggedNestedHabitScheduleItem(): HabitScheduleItem {
+  const item = makeHabitScheduleItem()
+  return {
+    ...item,
+    children: item.children.map((child) => child.id === 'child-1'
+      ? { ...child, tags: [{ id: 'tag-child', name: 'Nested focus', color: '#123456' }] }
+      : child),
+  }
+}
+
 export function makeHabitDetailScopedChild(date: string): NormalizedHabit {
   return {
     ...makeHabitDetailChild(),

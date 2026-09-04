@@ -5,6 +5,7 @@ import type { Time24 } from '@orbit/shared/contracts/forms'
 import {
   makeHabitDetail as makeDetail,
   makeHabitScheduleItem,
+  makeTaggedNestedHabitScheduleItem,
   makeHabitDetailScopedChild as makeScopedChild,
   makeHabitDetailScopedParent as makeScopedParent,
   makeLoggedGeneralHabitDetailChild as makeLoggedGeneralChild,
@@ -1138,6 +1139,23 @@ describe('HabitDetailScreen', () => {
     const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
     TestRenderer.act(() => disclosure!.props.onPress())
 
+    expect(tree!.root.findAllByProps({ title: 'habits.detail.linkedGoals' })).toHaveLength(0)
+    expect(tree!.root.findAllByProps({ title: 'habits.detail.slipAlert' })).toHaveLength(0)
+  })
+
+  it('keeps normalized nested tags visible without relationship controls', () => {
+    mocks.detail = { ...makeDetail(), id: 'child-1', isBadHabit: true, children: [] }
+    const normalized = normalizeHabitQueryData([makeTaggedNestedHabitScheduleItem()])
+    mocks.allHabits = normalized.habitsById
+    mocks.scopedHabits = normalized.habitsById
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="child-1" date="2026-08-28" parentId="habit-1" />)
+    })
+
+    expect(tree!.root.findAll((node: { props: { children?: unknown } }) => node.props.children === 'Nested focus').length).toBeGreaterThan(0)
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    TestRenderer.act(() => disclosure!.props.onPress())
     expect(tree!.root.findAllByProps({ title: 'habits.detail.linkedGoals' })).toHaveLength(0)
     expect(tree!.root.findAllByProps({ title: 'habits.detail.slipAlert' })).toHaveLength(0)
   })
