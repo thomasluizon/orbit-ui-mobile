@@ -99,6 +99,22 @@ describe('PlanSelection (mobile)', () => {
     expect(onCheckout).not.toHaveBeenCalled()
   })
 
+  it.each(['yearly', 'monthly'] as const)(
+    'keeps annual recommended while %s is selected',
+    (selectedInterval) => {
+      const tree = renderSelection(selectedInterval)
+      const annualTier = tree.root.findByProps({ testID: 'upgrade-tier-yearly' })
+      const monthlyTier = tree.root.findByProps({ testID: 'upgrade-tier-monthly' })
+
+      expect(annualTier.findAll((node: { props: { children?: unknown } }) =>
+        node.props.children === 'upgrade.plans.recommended').length).toBeGreaterThan(0)
+      expect(monthlyTier.findAll((node: { props: { children?: unknown } }) =>
+        node.props.children === 'upgrade.plans.recommended')).toHaveLength(0)
+      expect(annualTier.findByProps({ testID: 'button-primary-md' })).toBeTruthy()
+      expect(monthlyTier.findByProps({ testID: 'button-ghost-md' })).toBeTruthy()
+    },
+  )
+
   it('renders annual arithmetic from the payload', () => {
     const tree = renderSelection()
     const rendered = JSON.stringify(tree.toJSON())

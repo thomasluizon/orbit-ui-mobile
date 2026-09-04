@@ -80,9 +80,19 @@ describe('PlanSelection', () => {
       'upgrade.plans.monthly.name',
       'upgrade.plans.yearly.name',
     ])
-    expect(within(tierNamed('upgrade.plans.monthly.name')).getByRole('button')).toHaveAttribute(
+    expect(within(tierNamed('upgrade.plans.yearly.name')).getByText(
+      'upgrade.plans.recommended',
+    )).toBeInTheDocument()
+    expect(within(tierNamed('upgrade.plans.monthly.name')).queryByText(
+      'upgrade.plans.recommended',
+    )).not.toBeInTheDocument()
+    expect(within(tierNamed('upgrade.plans.yearly.name')).getByRole('button')).toHaveAttribute(
       'data-variant',
       'primary',
+    )
+    expect(within(tierNamed('upgrade.plans.monthly.name')).getByRole('button')).toHaveAttribute(
+      'data-variant',
+      'ghost',
     )
     expect(onCheckout).not.toHaveBeenCalled()
   })

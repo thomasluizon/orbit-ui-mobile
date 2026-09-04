@@ -145,7 +145,7 @@ export function PlanSelection({
           <TierCard
             key={tier.interval}
             tier={tier}
-            recommended={tier.interval === selectedInterval}
+            recommended={tier.interval === 'yearly'}
             loading={checkoutLoading === tier.interval}
             disabled={checkoutPending || checkoutDisabled}
             onCheckout={onCheckout}
