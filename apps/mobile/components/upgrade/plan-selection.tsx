@@ -1,12 +1,11 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import { Text, View } from 'react-native'
 import Animated, {
   LinearTransition,
   ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
-  type AnimatedStyle,
 } from 'react-native-reanimated'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { applySubscriptionDiscount } from '@orbit/shared/utils'
@@ -38,14 +37,12 @@ interface Tier {
 }
 
 const motionPurpose = {
-  interval: 'state indication',
-  recommendation: 'state indication',
   tier: 'spatial consistency',
   load: 'preventing a jarring change',
 } as const
 
-function motionTestId(purpose: string, suffix?: string) {
-  return `upgrade-motion-${purpose.replaceAll(' ', '-')}${suffix ? `-${suffix}` : ''}`
+function motionTestId(purpose: string) {
+  return `upgrade-motion-${purpose.replaceAll(' ', '-')}`
 }
 
 function PlanLoadMotion({
@@ -121,17 +118,7 @@ export function PlanSelection({
   tokens: Tokens
 }>) {
   const prefersReducedMotion = usePrefersReducedMotion()
-  const intervalPulse = useSharedValue(1)
-  const recommendationPulse = useSharedValue(1)
   const checkoutPending = checkoutLoading !== null
-  const intervalMotionStyle = useAnimatedStyle(() => ({
-    opacity: 0.72 + (intervalPulse.value * 0.28),
-    transform: [{ scale: 0.98 + (intervalPulse.value * 0.02) }],
-  }))
-  const recommendationMotionStyle = useAnimatedStyle(() => ({
-    opacity: 0.58 + (recommendationPulse.value * 0.42),
-    transform: [{ scale: 0.97 + (recommendationPulse.value * 0.03) }],
-  }))
   const tierLayoutTransition = prefersReducedMotion
     ? undefined
     : LinearTransition.duration(motionDurations.base)
@@ -141,27 +128,10 @@ export function PlanSelection({
   const selectInterval = (interval: string) => {
     if (interval !== 'monthly' && interval !== 'yearly') return
     onSelectInterval(interval)
-    if (prefersReducedMotion) return
-
-    intervalPulse.value = 0
-    intervalPulse.value = withTiming(1, {
-      duration: motionDurations.fast,
-      easing: toAnimatedEasing(motionEasings.standard),
-      reduceMotion: ReduceMotion.System,
-    })
-    recommendationPulse.value = 0
-    recommendationPulse.value = withTiming(1, {
-      duration: motionDurations.fast,
-      easing: toAnimatedEasing(motionEasings.standard),
-      reduceMotion: ReduceMotion.System,
-    })
   }
 
   const intervalControl = (
-    <Animated.View
-      style={intervalMotionStyle}
-      testID={motionTestId(motionPurpose.interval)}
-    >
+    <View>
       <SegmentedControl
         label={t('upgrade.plans.intervalLabel')}
         options={[
@@ -172,7 +142,7 @@ export function PlanSelection({
         onChange={selectInterval}
         disabled={checkoutPending}
       />
-    </Animated.View>
+    </View>
   )
 
   if (isLoading) {
@@ -253,7 +223,6 @@ export function PlanSelection({
                 recommended={tier.interval === 'yearly'}
                 loading={checkoutLoading === tier.interval}
                 disabled={checkoutPending || checkoutDisabled}
-                recommendationMotionStyle={recommendationMotionStyle}
                 onCheckout={onCheckout}
                 t={t}
                 tokens={tokens}
@@ -280,7 +249,6 @@ function TierCard({
   recommended,
   loading,
   disabled,
-  recommendationMotionStyle,
   onCheckout,
   t,
   tokens,
@@ -289,7 +257,6 @@ function TierCard({
   recommended: boolean
   loading: boolean
   disabled: boolean
-  recommendationMotionStyle: StyleProp<AnimatedStyle<ViewStyle>>
   onCheckout: (interval: SubscriptionInterval) => void
   t: UpgradeTextFn
   tokens: Tokens
@@ -309,12 +276,7 @@ function TierCard({
       <View style={styles.tierHeader}>
         <Text accessibilityRole="header" style={[styles.tierName, { color: tokens.fg1 }]}>{tier.name}</Text>
         {recommended ? (
-          <Animated.View
-            style={recommendationMotionStyle}
-            testID={motionTestId(motionPurpose.recommendation)}
-          >
-            <Badge>{t('upgrade.plans.recommended')}</Badge>
-          </Animated.View>
+          <Badge>{t('upgrade.plans.recommended')}</Badge>
         ) : null}
       </View>
       <Text style={[styles.tierPrice, { color: tokens.fg1 }]}>

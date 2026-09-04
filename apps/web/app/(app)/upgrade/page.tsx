@@ -1,10 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { useAnimate, useReducedMotion } from 'motion/react'
 import { API } from '@orbit/shared/api'
-import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import {
   createApiClientError,
   getClientTimeZone,
@@ -31,35 +29,6 @@ import { useSubscriptionStatus } from '@/hooks/use-subscription-status'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
 const PORTAL_RETURN_KEY = 'orbit.subscription.portal-return'
-
-function UpgradeLoadMotion({
-  state,
-  children,
-}: Readonly<{ state: string; children: ReactNode }>) {
-  const prefersReducedMotion = Boolean(useReducedMotion())
-  const [scope, animate] = useAnimate<HTMLDivElement>()
-  const previousState = useRef(state)
-
-  useEffect(() => {
-    const shouldEnter = previousState.current === 'loading' && state !== 'loading'
-    previousState.current = state
-    if (prefersReducedMotion || !shouldEnter) return
-
-    void animate(scope.current, { opacity: [0, 1] }, {
-      duration: motionDurations.base / 1000,
-      ease: motionEasings.enter,
-    })
-  }, [animate, prefersReducedMotion, scope, state])
-
-  return (
-    <div
-      ref={scope}
-      data-motion-purpose="preventing a jarring change"
-    >
-      {children}
-    </div>
-  )
-}
 
 export default function UpgradePage() {
   const t = useTranslations()
@@ -257,9 +226,7 @@ export default function UpgradePage() {
       />
       <main className="mx-auto w-full max-w-[620px] flex-1 px-4 py-6">
         {model.state === 'offline' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
-        <UpgradeLoadMotion state={model.state}>
-          {content}
-        </UpgradeLoadMotion>
+        {content}
       </main>
     </div>
   )

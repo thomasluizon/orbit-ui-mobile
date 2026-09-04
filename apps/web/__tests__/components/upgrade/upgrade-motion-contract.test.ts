@@ -11,13 +11,11 @@ const motionSources = [
 
 describe('upgrade motion contract', () => {
   it('names every required purpose on both platforms', () => {
-    expect(motionSources.match(/state indication/g)?.length ?? 0).toBeGreaterThanOrEqual(4)
     expect(motionSources.match(/spatial consistency/g)?.length ?? 0).toBeGreaterThanOrEqual(2)
     expect(motionSources.match(/preventing a jarring change/g)?.length ?? 0).toBeGreaterThanOrEqual(2)
   })
 
-  it('uses only transform and opacity without forbidden easing', () => {
-    expect(motionSources).toContain('transform')
+  it('keeps the remaining transition to opacity without forbidden easing', () => {
     expect(motionSources).toContain('opacity')
     expect(motionSources).not.toMatch(/transition-all|springify|withSpring|Bounce|bounce|elastic/)
   })

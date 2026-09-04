@@ -132,26 +132,6 @@ describe('PlanSelection (mobile)', () => {
     expect(onCheckout).not.toHaveBeenCalled()
   })
 
-  it('animates interval feedback and the annual recommendation settling', () => {
-    const tree = renderSelection('yearly')
-
-    TestRenderer.act(() => tree.root.findByProps({ testID: 'segment-monthly' }).props.onPress())
-
-    expect(motionMocks.withTiming).toHaveBeenCalledTimes(2)
-    expect(tree.root.findByProps({
-      testID: 'upgrade-motion-tier-spatial-consistency-yearly',
-    })).toBeTruthy()
-  })
-
-  it('does not run interval transitions with reduced motion', () => {
-    motionMocks.reduced = true
-    const tree = renderSelection('yearly')
-
-    TestRenderer.act(() => tree.root.findByProps({ testID: 'segment-monthly' }).props.onPress())
-
-    expect(motionMocks.withTiming).not.toHaveBeenCalled()
-  })
-
   it('softens the loading-to-content swap', () => {
     const tree = renderSelection('yearly', { plans: null, isLoading: true })
     motionMocks.withTiming.mockClear()

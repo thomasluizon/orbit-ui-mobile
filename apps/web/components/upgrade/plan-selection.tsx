@@ -38,11 +38,6 @@ interface Tier {
   couponLine?: string
 }
 
-const selectionTransition = {
-  duration: motionDurations.fast / 1000,
-  ease: motionEasings.standard,
-} as const
-
 function PlanLoadMotion({
   stateKey,
   children,
@@ -87,28 +82,16 @@ export function PlanSelection({
   t,
 }: Readonly<PlanSelectionProps>) {
   const [selectedInterval, setSelectedInterval] = useState<SubscriptionInterval>('yearly')
-  const [motionScope, animate] = useAnimate<HTMLDivElement>()
   const prefersReducedMotion = Boolean(useReducedMotion())
   const checkoutPending = checkoutLoading !== null
 
   const selectInterval = (interval: string) => {
     if (interval !== 'monthly' && interval !== 'yearly') return
     setSelectedInterval(interval)
-    if (prefersReducedMotion) return
-    void animate(
-      '[data-upgrade-interval-motion]',
-      { opacity: [0.72, 1], transform: ['scale(0.98)', 'scale(1)'] },
-      selectionTransition,
-    )
-    void animate(
-      '[data-upgrade-recommended-motion]',
-      { opacity: [0.58, 1], transform: ['scale(0.97)', 'scale(1)'] },
-      selectionTransition,
-    )
   }
 
   const intervalControl = (
-    <div data-upgrade-interval-motion="" data-motion-purpose="state indication">
+    <div>
       <SegmentedControl
         label={t('upgrade.plans.intervalLabel')}
         options={[
@@ -125,7 +108,7 @@ export function PlanSelection({
   if (isLoading) {
     return (
       <PlanLoadMotion stateKey="loading" reduced={prefersReducedMotion}>
-        <div ref={motionScope} className="mt-8 flex flex-col gap-4" aria-label={t('upgrade.plans.loading')}>
+        <div className="mt-8 flex flex-col gap-4" aria-label={t('upgrade.plans.loading')}>
           {intervalControl}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Skeleton variant="stat-tile" label={t('upgrade.plans.loading')} />
@@ -139,7 +122,7 @@ export function PlanSelection({
   if (isError && !plans && isOnline) {
     return (
       <PlanLoadMotion stateKey="error" reduced={prefersReducedMotion}>
-        <div ref={motionScope} className="mt-8 flex flex-col gap-4">
+        <div className="mt-8 flex flex-col gap-4">
           {intervalControl}
           <ErrorState
             message={t('upgrade.plans.error')}
@@ -182,7 +165,7 @@ export function PlanSelection({
 
   return (
     <PlanLoadMotion stateKey="loaded" reduced={prefersReducedMotion}>
-      <div ref={motionScope} className="mt-8 flex flex-col items-stretch gap-4">
+      <div className="mt-8 flex flex-col items-stretch gap-4">
         {intervalControl}
         <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2">
           {tiers.map((tier) => (
@@ -240,9 +223,7 @@ function TierCard({
       <div className="flex min-w-0 items-center gap-2">
         <h2 className="min-w-0 flex-1 text-[17px] font-medium leading-[1.3]">{tier.name}</h2>
         {recommended ? (
-          <span data-upgrade-recommended-motion="" data-motion-purpose="state indication">
-            <Badge>{t('upgrade.plans.recommended')}</Badge>
-          </span>
+          <Badge>{t('upgrade.plans.recommended')}</Badge>
         ) : null}
       </div>
       <p className="font-display text-[28px] font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums">

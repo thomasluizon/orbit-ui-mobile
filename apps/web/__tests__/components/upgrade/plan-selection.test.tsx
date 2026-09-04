@@ -117,31 +117,6 @@ describe('PlanSelection', () => {
     expect(onCheckout).not.toHaveBeenCalled()
   })
 
-  it('animates interval feedback and the annual recommendation settling', () => {
-    renderSelection()
-
-    fireEvent.click(screen.getByRole('radio', { name: 'upgrade.plans.interval.monthly' }))
-
-    expect(motionMocks.animate).toHaveBeenCalledTimes(2)
-    expect(motionMocks.animate.mock.calls.map(([selector]) => selector)).toEqual([
-      '[data-upgrade-interval-motion]',
-      '[data-upgrade-recommended-motion]',
-    ])
-    expect(screen.getAllByRole('heading', { level: 2 })[0]?.closest('section')).toHaveAttribute(
-      'data-motion-purpose',
-      'spatial consistency',
-    )
-  })
-
-  it('does not run interval transitions with reduced motion', () => {
-    motionMocks.reduced = true
-    renderSelection()
-
-    fireEvent.click(screen.getByRole('radio', { name: 'upgrade.plans.interval.monthly' }))
-
-    expect(motionMocks.animate).not.toHaveBeenCalled()
-  })
-
   it('softens the loading-to-content swap', () => {
     const view = renderSelection({ plans: null, isLoading: true })
     motionMocks.animate.mockClear()
