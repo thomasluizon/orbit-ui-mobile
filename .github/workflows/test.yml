@@ -128,7 +128,7 @@ jobs:
 
       - run: npm ci --no-audit
 
-      - name: Test critical production CVE gate failure paths
+      - name: Test critical production CVE gate
         run: node --test .github/scripts/check-critical-production-cves.test.mjs
 
       - name: Fail on critical production CVEs
