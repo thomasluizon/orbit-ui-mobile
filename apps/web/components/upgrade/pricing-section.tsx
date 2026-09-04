@@ -62,7 +62,7 @@ export function PricingSection({
         <p className="t-eyebrow text-[var(--fg-3)]">
           {eyebrow}
         </p>
-        <h1 className="t-display text-pretty">
+        <h1 className="font-sans text-[28px] font-medium leading-[1.18] tracking-[-0.01em] text-pretty text-[var(--fg-1)] sm:text-[34px] sm:leading-[1.15]">
           {heading}
         </h1>
         <p className="t-secondary max-w-[46ch] text-pretty">
