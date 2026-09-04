@@ -3060,10 +3060,6 @@
       },
       {
         "from": "apps/mobile/app",
-        "to": "packages/shared/src/theme"
-      },
-      {
-        "from": "apps/mobile/app",
         "to": "packages/shared/src/types"
       },
       {
@@ -23917,7 +23913,6 @@
         "apps/web/__tests__/components/ui/update-prompt.test.tsx",
         "apps/web/__tests__/components/ui/verified-badge.test.tsx",
         "apps/web/__tests__/components/upgrade/plan-selection.test.tsx",
-        "apps/web/__tests__/components/upgrade/pricing-section.test.tsx",
         "apps/web/__tests__/hooks/use-bulk-actions.test.ts",
         "apps/web/__tests__/hooks/use-chat-composer.test.tsx",
         "apps/web/__tests__/pages/error.test.tsx",
@@ -24227,9 +24222,11 @@
         "packages/shared/src/__tests__/pending-operation-card.test.ts"
       ],
       "packages/shared/src/theme": [
+        "apps/mobile/__tests__/components/upgrade/plan-selection.test.tsx",
         "apps/mobile/__tests__/lib/motion.test.ts",
         "apps/mobile/__tests__/lib/orbit-widget.test.ts",
         "apps/web/__tests__/components/calendar/calendar-time-grid.test.tsx",
+        "apps/web/__tests__/components/upgrade/plan-selection.test.tsx",
         "apps/web/__tests__/pages/login.test.tsx",
         "packages/shared/src/__tests__/motion.test.ts",
         "packages/shared/src/__tests__/theme-button.test.ts",
@@ -24351,7 +24348,6 @@
         "apps/web/__tests__/components/today/today-astra.test.tsx",
         "apps/web/__tests__/components/tour/tour-provider.test.tsx",
         "apps/web/__tests__/components/tour/tour-tooltip.test.tsx",
-        "apps/web/__tests__/components/upgrade/pricing-section.test.tsx",
         "apps/web/__tests__/hooks/use-billing.test.ts",
         "apps/web/__tests__/hooks/use-bulk-actions.test.ts",
         "apps/web/__tests__/hooks/use-calendar-auto-sync.test.ts",
