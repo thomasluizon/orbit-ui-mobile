@@ -1,42 +1,53 @@
 import type { ActionResult, ConflictWarning } from '../types/chat'
 
-const ACTION_LABEL_KEYS: Readonly<Record<string, string>> = {
-  log_habit: 'chat.action.logged',
-  create_habit: 'chat.action.created',
-  update_habit: 'chat.action.updated',
-  delete_habit: 'chat.action.deleted',
-  skip_habit: 'chat.action.skipped',
-  create_sub_habit: 'chat.action.createdSubHabit',
-  suggest_breakdown: 'chat.action.breakdown',
-  assign_tags: 'chat.action.tagsUpdated',
-  duplicate_habit: 'chat.action.duplicated',
-  move_habit: 'chat.action.moved',
-  LogHabit: 'chat.action.logged',
-  CreateHabit: 'chat.action.created',
-  UpdateHabit: 'chat.action.updated',
-  DeleteHabit: 'chat.action.deleted',
-  SkipHabit: 'chat.action.skipped',
-  CreateSubHabit: 'chat.action.createdSubHabit',
-  SuggestBreakdown: 'chat.action.breakdown',
-  AssignTags: 'chat.action.tagsUpdated',
-  BulkLogHabits: 'chat.action.logged',
-  BulkSkipHabits: 'chat.action.skipped',
-  CreateGoal: 'chat.action.createdGoal',
-  UpdateGoal: 'chat.action.updatedGoal',
-  DeleteGoal: 'chat.action.deletedGoal',
-  UpdateGoalProgress: 'chat.action.updatedGoalProgress',
-  UpdateGoalStatus: 'chat.action.updatedGoalStatus',
-  LinkHabitsToGoal: 'chat.action.linkedGoalHabits',
-  create_tag: 'chat.action.createdTag',
-  update_tag: 'chat.action.updatedTag',
-  delete_tag: 'chat.action.deletedTag',
-  reorder_goals: 'chat.action.reorderedGoals',
-  reorder_habits: 'chat.action.reorderedHabits',
-  CreateTag: 'chat.action.createdTag',
-  UpdateTag: 'chat.action.updatedTag',
-  DeleteTag: 'chat.action.deletedTag',
-  ReorderGoals: 'chat.action.reorderedGoals',
-  ReorderHabits: 'chat.action.reorderedHabits',
+interface ActionLabelKeys {
+  success: string
+  failed: string
+}
+
+function labelKeys(success: string, failed: string): Readonly<ActionLabelKeys> {
+  return { success, failed }
+}
+
+const ACTION_LABEL_KEYS: Readonly<Record<string, Readonly<ActionLabelKeys>>> = {
+  log_habit: labelKeys('chat.action.logged', 'chat.action.logFailed'),
+  create_habit: labelKeys('chat.action.created', 'chat.action.createFailed'),
+  update_habit: labelKeys('chat.action.updated', 'chat.action.updateFailed'),
+  delete_habit: labelKeys('chat.action.deleted', 'chat.action.deleteFailed'),
+  skip_habit: labelKeys('chat.action.skipped', 'chat.action.skipFailed'),
+  create_sub_habit: labelKeys('chat.action.createdSubHabit', 'chat.action.createSubHabitFailed'),
+  suggest_breakdown: labelKeys('chat.action.breakdown', 'chat.action.breakdownFailed'),
+  assign_tags: labelKeys('chat.action.tagsUpdated', 'chat.action.tagsUpdateFailed'),
+  duplicate_habit: labelKeys('chat.action.duplicated', 'chat.action.duplicateFailed'),
+  move_habit: labelKeys('chat.action.moved', 'chat.action.moveFailed'),
+  LogHabit: labelKeys('chat.action.logged', 'chat.action.logFailed'),
+  CreateHabit: labelKeys('chat.action.created', 'chat.action.createFailed'),
+  UpdateHabit: labelKeys('chat.action.updated', 'chat.action.updateFailed'),
+  DeleteHabit: labelKeys('chat.action.deleted', 'chat.action.deleteFailed'),
+  SkipHabit: labelKeys('chat.action.skipped', 'chat.action.skipFailed'),
+  CreateSubHabit: labelKeys('chat.action.createdSubHabit', 'chat.action.createSubHabitFailed'),
+  SuggestBreakdown: labelKeys('chat.action.breakdown', 'chat.action.breakdownFailed'),
+  AssignTags: labelKeys('chat.action.tagsUpdated', 'chat.action.tagsUpdateFailed'),
+  DuplicateHabit: labelKeys('chat.action.duplicated', 'chat.action.duplicateFailed'),
+  MoveHabit: labelKeys('chat.action.moved', 'chat.action.moveFailed'),
+  BulkLogHabits: labelKeys('chat.action.logged', 'chat.action.logFailed'),
+  BulkSkipHabits: labelKeys('chat.action.skipped', 'chat.action.skipFailed'),
+  CreateGoal: labelKeys('chat.action.createdGoal', 'chat.action.createGoalFailed'),
+  UpdateGoal: labelKeys('chat.action.updatedGoal', 'chat.action.updateGoalFailed'),
+  DeleteGoal: labelKeys('chat.action.deletedGoal', 'chat.action.deleteGoalFailed'),
+  UpdateGoalProgress: labelKeys('chat.action.updatedGoalProgress', 'chat.action.updateGoalProgressFailed'),
+  UpdateGoalStatus: labelKeys('chat.action.updatedGoalStatus', 'chat.action.updateGoalStatusFailed'),
+  LinkHabitsToGoal: labelKeys('chat.action.linkedGoalHabits', 'chat.action.linkGoalHabitsFailed'),
+  create_tag: labelKeys('chat.action.createdTag', 'chat.action.createTagFailed'),
+  update_tag: labelKeys('chat.action.updatedTag', 'chat.action.updateTagFailed'),
+  delete_tag: labelKeys('chat.action.deletedTag', 'chat.action.deleteTagFailed'),
+  reorder_goals: labelKeys('chat.action.reorderedGoals', 'chat.action.reorderGoalsFailed'),
+  reorder_habits: labelKeys('chat.action.reorderedHabits', 'chat.action.reorderHabitsFailed'),
+  CreateTag: labelKeys('chat.action.createdTag', 'chat.action.createTagFailed'),
+  UpdateTag: labelKeys('chat.action.updatedTag', 'chat.action.updateTagFailed'),
+  DeleteTag: labelKeys('chat.action.deletedTag', 'chat.action.deleteTagFailed'),
+  ReorderGoals: labelKeys('chat.action.reorderedGoals', 'chat.action.reorderGoalsFailed'),
+  ReorderHabits: labelKeys('chat.action.reorderedHabits', 'chat.action.reorderHabitsFailed'),
 }
 
 const NON_NAVIGABLE_ACTION_TYPES = new Set([
@@ -90,6 +101,13 @@ function getNavigation(action: ActionResult, hasHandler: boolean): ActionChipNav
   return { navigable: false }
 }
 
+function getLabelKey(action: ActionResult): string | undefined {
+  const keys = ACTION_LABEL_KEYS[action.type]
+  if (action.status !== 'Failed') return keys?.success
+  if (!action.entityName) return 'chat.action.failed'
+  return keys?.failed ?? 'chat.action.failedNamed'
+}
+
 export function buildActionChipsModel(
   actions: readonly ActionResult[],
   hasHandler: boolean,
@@ -101,7 +119,7 @@ export function buildActionChipsModel(
       : 'resting',
     rows: visibleActions.map((action, index) => ({
       id: `action-${action.entityId ?? 'none'}-${index}`,
-      labelKey: ACTION_LABEL_KEYS[action.type],
+      labelKey: getLabelKey(action),
       entityName: action.entityName,
       status: action.status === 'Success'
         ? 'done'
