@@ -52,6 +52,12 @@ single file:
 Read every path that command prints, under
 `https://raw.githubusercontent.com/jakubkrehel/skills/main/<path>`.
 
+The response also carries a `truncated` boolean. It reads `false` for this repository, at 89 tree
+entries. A `true` there means the listing is incomplete and the command silently under-fetches, so
+check it before you trust the paths:
+
+    gh api "repos/jakubkrehel/skills/git/trees/main?recursive=1" --jq .truncated
+
 `vercel-labs/web-design-guidelines` is a pointer, not a rule set. Fetch what it points at, or the
 lane sweeps nothing:
 
