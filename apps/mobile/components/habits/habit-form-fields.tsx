@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
+import Animated, { Easing, Keyframe } from 'react-native-reanimated'
 import { useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import type { Time24 } from '@orbit/shared/contracts/forms'
@@ -34,7 +35,6 @@ import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { DateField } from '@/components/ui/date-field'
-import { ProBadge } from '@/components/ui/pro-badge'
 import { ListRow } from '@/components/ui/list-row'
 import { Proposed } from '@/components/ui/proposed'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -45,14 +45,24 @@ import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
 import { HabitChecklist } from './habit-checklist'
 import { HabitUnderstanding } from './habit-form-fields/habit-understanding'
-import { HabitTagChip } from './habit-form-fields/habit-tag-chip'
 import { ReminderSection } from './habit-form-fields/reminder-section'
 import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder-section'
 import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
 import { TagEditorRow } from './habit-form-fields/tag-editor-row'
+import { TagPickerField } from './habit-form-fields/tag-picker-field'
 import { createStyles as createFormStyles } from './habit-form-fields/styles'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+const DISCLOSURE_ENTER = new Keyframe({
+  0: { opacity: 0, transform: [{ scale: 0.95 }] },
+  100: { opacity: 1, transform: [{ scale: 1 }], easing: Easing.bezier(0.16, 1, 0.3, 1) },
+}).duration(220)
+
+const DISCLOSURE_EXIT = new Keyframe({
+  0: { opacity: 1, transform: [{ scale: 1 }] },
+  100: { opacity: 0, transform: [{ scale: 0.95 }], easing: Easing.bezier(0.4, 0, 1, 1) },
+}).duration(165)
 
 interface HabitFormFieldsProps extends HabitFormCommonProps<HabitFormHelpers, TagSelectionState, ReactNode> {
   onFlushBufferedInputsReady?: (flush: () => void) => void
@@ -194,7 +204,7 @@ function SubHabitSection({
           {children}
         </Proposed>
       ) : (
-        <ListRow title={t('habits.form.subHabits')} trailing={<ProBadge alwaysVisible />} onClick={onUpgrade} />
+        <ListRow title={t('common.upgrade')} value={t('common.proBadge')} onClick={onUpgrade} />
       )}
     </View>
   )
@@ -264,6 +274,7 @@ export function HabitFormFields({
   const watchedDays = useWatch({ control: form.control, name: 'days' })
   const days = useMemo(() => watchedDays ?? [], [watchedDays])
   const frequencyQuantity = useWatch({ control: form.control, name: 'frequencyQuantity' }) ?? 3
+  const intervalWeeks = useWatch({ control: form.control, name: 'intervalWeeks' }) ?? 1
   const frequencyUnit = useWatch({ control: form.control, name: 'frequencyUnit' })
   const isFlexible = useWatch({ control: form.control, name: 'isFlexible' }) ?? false
   const dueDate = useWatch({ control: form.control, name: 'dueDate' }) ?? ''
@@ -293,7 +304,6 @@ export function HabitFormFields({
   const createTag = useCreateTag()
   const updateTag = useUpdateTag()
   const deleteTag = useDeleteTag()
-  const selectedTagIdSet = useMemo(() => new Set(tags.selectedTagIds), [tags.selectedTagIds])
   const tagMutationPending = createTag.isPending || updateTag.isPending || deleteTag.isPending
   const localRead = useMemo(
     () => readHabitPhrase(title, locale),
@@ -312,8 +322,8 @@ export function HabitFormFields({
   }, [dueTime, form, setValue])
 
   const sentence = useMemo(
-    () => buildHabitUnderstandingSentence(days, daysList, isFlexible, frequencyUnit, frequencyQuantity, dueTime, locale, translate),
-    [days, daysList, dueTime, frequencyQuantity, frequencyUnit, isFlexible, locale, translate],
+    () => buildHabitUnderstandingSentence(days, daysList, isFlexible, frequencyUnit, frequencyQuantity, dueTime, locale, translate, intervalWeeks),
+    [days, daysList, dueTime, frequencyQuantity, frequencyUnit, intervalWeeks, isFlexible, locale, translate],
   )
   const allowance = profile?.aiMessagesLimit ?? 5
   const atMessageLimit = isHabitAstraLimitReached(profile?.aiMessagesUsed ?? 0, allowance)
@@ -332,6 +342,7 @@ export function HabitFormFields({
       atLimit: atMessageLimit,
       action: onSuggestSetup,
       target: {
+        hasSchedule: () => isFlexible || Boolean(frequencyUnit),
         setOneTime,
         setRecurring,
         setFlexible,
@@ -346,7 +357,7 @@ export function HabitFormFields({
         },
       },
     }),
-    [atMessageLimit, lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestSetup, onSuggestionContextChange, phraseOwnership, setFlexible, setGeneral, setOneTime, setRecurring, setValue, toggleDay],
+    [atMessageLimit, frequencyUnit, isFlexible, lockedGeneral, onReminderEnabledChange, onSlipAlertEnabledChange, onSuggestSetup, onSuggestionContextChange, phraseOwnership, setFlexible, setGeneral, setOneTime, setRecurring, setValue, toggleDay],
   )
 
   useEffect(() => {
@@ -361,17 +372,6 @@ export function HabitFormFields({
     onResolveSubHabitProposalReady(controller.resolveSubHabitProposal)
     return () => onResolveSubHabitProposalReady(() => {})
   }, [controller, onResolveSubHabitProposalReady])
-
-  async function saveEditedTag() {
-    await tags.saveEditTag(async (id, name, color) => {
-      try {
-        await updateTag.mutateAsync({ tagId: id, name, color })
-      } catch (error: unknown) {
-        showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
-        throw error
-      }
-    })
-  }
 
   async function createNewTag() {
     const validationError = validateTagForm(tags.newTagName, tags.newTagColor)
@@ -389,18 +389,34 @@ export function HabitFormFields({
     })
   }
 
+  async function saveEditedTag() {
+    await tags.saveEditTag(async (id, name, color) => {
+      try {
+        await updateTag.mutateAsync({ tagId: id, name, color })
+      } catch (error: unknown) {
+        showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
+        throw error
+      }
+    })
+  }
+
   return (
     <View style={styles.container}>
       <HabitUnderstanding
         labels={understandingLabels}
         onQuantityChange={controller.setQuantity}
+        onModeChange={controller.setScheduleMode}
+        onIntervalWeeksChange={controller.setIntervalWeeks}
         onToggleDay={controller.toggleDay}
         onEmojiSelect={controller.setEmoji}
         onValueChange={controller.setTitle}
         proposed={proposal.setup}
+        scheduleLocked={lockedGeneral === true}
         consumed={localRead.consumed}
         sentence={sentence}
         quantity={frequencyQuantity}
+        mode={isFlexible ? 'flexible' : 'fixed'}
+        intervalWeeks={intervalWeeks}
         dayOptions={daysList}
         days={days}
         emoji={emoji}
@@ -420,7 +436,7 @@ export function HabitFormFields({
       <View style={styles.disclosure}>
         <ListRow icon={detailsOpen ? 'chevron-down' : 'chevron-right'} title={t('habits.form.moreDetails')} chevron={false} onClick={() => setDetailsOpen((open) => !open)} />
         {detailsOpen ? (
-          <View style={styles.details}>
+          <Animated.View entering={DISCLOSURE_ENTER} exiting={DISCLOSURE_EXIT} style={styles.details}>
             <View>
               <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.exactTime')}</SectionLabel>
               <TimeField
@@ -454,26 +470,19 @@ export function HabitFormFields({
             <SubHabitSection canUseSubHabits={canUseSubHabits} proposed={proposal.subHabits && !rendersGranularSubHabits} onUpgrade={onUpgrade} t={t}>
               {subHabitChildren}
             </SubHabitSection>
-            <View style={styles.compactGroup}>
-              <SectionLabel inset={false} top={0} bottom={0}>{t('habits.form.habitTypeAvoid')}</SectionLabel>
+            <View style={styles.avoidRow}>
+              <View style={styles.avoidCopy}>
+                <Text numberOfLines={1} style={styles.avoidTitle}>{t('habits.form.habitTypeAvoid')}</Text>
+                <Text numberOfLines={1} style={styles.hint}>{t('habits.form.habitTypeAvoidHint')}</Text>
+              </View>
               <Switch label={t('habits.form.habitTypeAvoid')} checked={isBadHabit} onChange={(checked) => setValue('isBadHabit', checked, { shouldDirty: true })} />
-              <Text style={styles.hint}>{t('habits.form.habitTypeAvoidHint')}</Text>
             </View>
             <SlipAlertEditor visible={isBadHabit} tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={() => controller.setSlipAlertEnabled(!slipAlertEnabled)} onUpgrade={onUpgrade} t={t} />
-            <View>
-              <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.tags')}</SectionLabel>
-              <View style={formStyles.tagsRow}>
-                {availableTags.map((tag) => <HabitTagChip key={tag.id} tag={tag} selected={selectedTagIdSet.has(tag.id)} atLimit={!selectedTagIdSet.has(tag.id) && tags.atTagLimit} disabled={tagMutationPending} onToggle={() => tags.toggleTag(tag.id)} onEdit={() => tags.startEditTag(tag)} onDelete={() => void tags.deleteTag(tag.id, async (id) => { await deleteTag.mutateAsync(id) })} editAriaLabel={t('habits.form.editTag')} deleteAriaLabel={t('habits.form.deleteTag')} styles={formStyles} tokens={tokens} />)}
-                {!tags.showNewTag && !tags.atTagLimit ? <Pressable accessibilityRole="button" style={formStyles.newTagButton} onPress={() => tags.setShowNewTag(true)}><Text style={formStyles.newTagButtonText}>{t('habits.form.newTag')}</Text></Pressable> : null}
-              </View>
-              {tags.atTagLimit ? <Text style={styles.hint}>{t('habits.form.tagLimit')}</Text> : null}
-              {tags.showNewTag ? <TagEditorRow value={tags.newTagName} placeholder={t('habits.form.tagName')} disabled={createTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.add')} onChange={tags.setNewTagName} onCommit={() => void createNewTag()} onCancel={() => tags.setShowNewTag(false)} styles={formStyles} tokens={tokens} /> : null}
-              {tags.editingTagId ? <TagEditorRow value={tags.editTagName} disabled={updateTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={tags.setEditTagName} onCommit={() => void saveEditedTag()} onCancel={tags.cancelEditTag} styles={formStyles} tokens={tokens} /> : null}
-            </View>
-            <View><SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.goals')}</SectionLabel><GoalLinkingField selectedGoalIds={selectedGoalIds} atGoalLimit={atGoalLimit} onToggleGoal={onToggleGoal} /></View>
+            <View><TagPickerField tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void tags.deleteTag(id, async (tagId) => { await deleteTag.mutateAsync(tagId) })} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? <TagEditorRow value={tags.newTagName} placeholder={t('habits.form.tagName')} disabled={createTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.add')} onChange={tags.setNewTagName} onCommit={() => void createNewTag()} onCancel={() => tags.setShowNewTag(false)} styles={formStyles} tokens={tokens} /> : tags.editingTagId ? <TagEditorRow value={tags.editTagName} disabled={updateTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={tags.setEditTagName} onCommit={() => void saveEditedTag()} onCancel={tags.cancelEditTag} styles={formStyles} tokens={tokens} /> : undefined} />{tags.atTagLimit ? <Text style={styles.hint}>{t('habits.form.tagLimit')}</Text> : null}</View>
+            <View><GoalLinkingField selectedGoalIds={selectedGoalIds} atGoalLimit={atGoalLimit} onToggleGoal={onToggleGoal} /></View>
             <EndDateEditor visible={showEndDate} value={endDate} onChange={(value) => setValue('endDate', value, { shouldDirty: true })} t={t} />
             <View><SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.description')}</SectionLabel><Input label={t('habits.form.description')} value={description} onChange={(value) => setValue('description', value, { shouldDirty: true })} placeholder={t('habits.form.descriptionPlaceholder')} multiline rows={3} maxLength={MAX_HABIT_DESCRIPTION_LENGTH} /></View>
-          </View>
+          </Animated.View>
         ) : null}
       </View>
 
@@ -488,6 +497,9 @@ function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: { gap: 24 }, disclosure: { gap: 12 }, details: { gap: 24, paddingHorizontal: 16 },
     compactGroup: { gap: 8 }, startDate: { gap: 4 },
+    avoidRow: { alignItems: 'center', flexDirection: 'row', gap: 16 },
+    avoidCopy: { flex: 1, minWidth: 0, gap: 4 },
+    avoidTitle: { color: tokens.fg1, fontFamily: 'Geist_400Regular', fontSize: 17 },
     meta: { color: tokens.fg3, fontFamily: 'GeistMono_400Regular', fontSize: 12 },
     hint: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
     startDateValue: { color: tokens.fg1, fontFamily: 'Geist_400Regular', fontSize: 17 },

@@ -51,6 +51,9 @@ vi.mock('@/components/gamification/all-done-celebration', () => ({
 vi.mock('@/components/gamification/goal-completed-celebration', () => ({
   GoalCompletedCelebration: 'GoalCompletedCelebration',
 }))
+vi.mock('@/components/goals/create-goal-modal', () => ({
+  CreateGoalModal: 'CreateGoalModal',
+}))
 vi.mock('@/components/gamification/level-up-overlay', () => ({
   LevelUpOverlay: 'LevelUpOverlay',
 }))
@@ -84,6 +87,12 @@ vi.mock('@/components/version-update-drawer', () => ({
 }))
 vi.mock('@/components/tour/tour-provider', () => ({ TourProvider: 'TourProvider' }))
 vi.mock('@/components/tour/tour-overlay', () => ({ TourOverlay: 'TourOverlay' }))
+vi.mock('@/stores/ui-store', () => ({
+  useUIStore: (selector: (state: Record<string, unknown>) => unknown) => selector({
+    showCreateGoalModal: false,
+    setShowCreateGoalModal: vi.fn(),
+  }),
+}))
 
 const onboardingActionsStub: OverlayLayerProps['onboardingActions'] = {
   createHabit: () => Promise.resolve({ id: '', title: '' }),
@@ -132,7 +141,10 @@ const ALWAYS_MOUNTED = [
   'VersionUpdateDrawer',
   'TourProvider',
   'TourOverlay',
+  'CreateGoalModal',
 ]
+
+const ROUTES_WITH_GOAL_LINKING = ['Today', 'habit detail'] as const
 
 const GAMIFICATION_OVERLAYS = [
   'StreakCelebration',
@@ -156,6 +168,12 @@ describe('OverlayLayer mount matrix', () => {
       expect(isMounted(preOnboarding, overlay)).toBe(true)
       expect(isMounted(postOnboarding, overlay)).toBe(true)
     }
+  })
+
+  it.each(ROUTES_WITH_GOAL_LINKING)('keeps the create-goal host available from %s', async () => {
+    const instance = await renderLayer({ hasCompletedOnboarding: true })
+
+    expect(isMounted(instance, 'CreateGoalModal')).toBe(true)
   })
 
   it('does not mount post-onboarding prompts before onboarding completes', async () => {

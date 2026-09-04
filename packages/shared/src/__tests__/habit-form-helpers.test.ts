@@ -218,6 +218,7 @@ describe('habit form helpers', () => {
       cadence: null,
       days: [],
       frequencyQuantity: null,
+      intervalWeeks: null,
       dueTime: '15:00',
       emoji: null,
       consumed: [],
@@ -242,6 +243,7 @@ describe('habit form helpers', () => {
       cadence: 'fixed',
       days: ['Monday'],
       frequencyQuantity: null,
+      intervalWeeks: null,
       dueTime: '08:00',
       emoji: '🏃',
       consumed: [],
@@ -449,10 +451,18 @@ describe('habit form helpers', () => {
     expect(action).toHaveBeenCalledOnce()
     expect(habitFeaturePlan(true)).toBe('pro')
     expect(habitFeaturePlan(false)).toBe('free')
-    expect(buildHabitUnderstandingLabels(translate)).toMatchObject({
+    const labels = buildHabitUnderstandingLabels(translate)
+    expect(labels).toMatchObject({
       field: 'habits.form.describe',
+      scheduleMode: 'habits.form.scheduleMode',
+      setDays: 'habits.form.setDays',
+      timesAWeek: 'habits.form.timesAWeek',
+      repeatLess: 'habits.form.repeatLess',
+      repeatMore: 'habits.form.repeatMore',
       proposed: 'habits.form.proposedByAstra',
     })
+    expect(labels.count(3)).toBe('habits.form.timesAWeekCount:{"count":3}')
+    expect(labels.repeat(2)).toBe('habits.form.repeatWeeks:{"count":2}')
     expect(buildHabitAstraFallbackCopy(translate, 5)).toEqual({
       unresolved: 'habits.form.unresolved',
       limitMessage: 'habits.form.localReadLimit:{"allowance":5}',
@@ -556,6 +566,7 @@ describe('habit form helpers', () => {
       cadence: null,
       days: [],
       frequencyQuantity: null,
+      intervalWeeks: null,
       dueTime: '15:00',
       emoji: null,
       consumed: [],
@@ -578,6 +589,11 @@ describe('habit form helpers', () => {
     expect(fields.get('frequencyUnit')?.value).toBe('Week')
     expect(fields.get('frequencyQuantity')?.value).toBe(4)
     expect(proposal.setup).toBe(false)
+
+    ownership = { cadence: true, dueTime: true }
+    controller.setIntervalWeeks(2)
+    expect(ownership).toEqual({ cadence: false, dueTime: true })
+    expect(fields.get('intervalWeeks')?.value).toBe(2)
 
     proposal = proposed
     controller.setEmoji('🌱')
@@ -614,6 +630,150 @@ describe('habit form helpers', () => {
     expect(setGeneral).not.toHaveBeenCalled()
   })
 
+  it('keeps fixed weekdays distinct from a flexible weekly count', () => {
+    const state = {
+      days: [] as string[],
+      frequencyUnit: null as 'Day' | 'Week' | null,
+      frequencyQuantity: null as number | null,
+      isFlexible: false,
+    }
+    const controller = createHabitFormController({
+      action: undefined,
+      atLimit: false,
+      lockedGeneral: false,
+      target: {
+        getOwnership: () => ({ cadence: false, dueTime: false }),
+        setOwnership: vi.fn(),
+        updateProposal: vi.fn(),
+        setOneTime: vi.fn(),
+        setRecurring: () => { state.isFlexible = false },
+        setFlexible: () => { state.isFlexible = true },
+        setGeneral: vi.fn(),
+        setField: (field, value) => {
+          if (field === 'days') state.days = value as string[]
+          if (field === 'frequencyUnit') state.frequencyUnit = value as 'Day' | 'Week'
+          if (field === 'frequencyQuantity') state.frequencyQuantity = value as number
+        },
+        toggleDay: (day) => {
+          state.days = state.days.includes(day)
+            ? state.days.filter((candidate) => candidate !== day)
+            : [...state.days, day]
+        },
+      },
+    })
+
+    controller.setScheduleMode('flexible')
+    expect(state).toMatchObject({
+      days: [],
+      frequencyUnit: 'Week',
+      frequencyQuantity: 3,
+      isFlexible: true,
+    })
+
+    controller.setScheduleMode('fixed')
+    controller.toggleDay('Wednesday')
+    controller.toggleDay('Thursday')
+    expect(state).toEqual({
+      days: ['Wednesday', 'Thursday'],
+      frequencyUnit: 'Day',
+      frequencyQuantity: 1,
+      isFlexible: false,
+    })
+  })
+
+  it.each([
+    {
+      cadence: 'daily' as const,
+      days: [],
+      frequencyQuantity: null,
+      intervalWeeks: null,
+      expectedMode: 'recurring',
+      expectedFields: {
+        intervalWeeks: 1,
+        frequencyUnit: 'Day',
+        frequencyQuantity: 1,
+        days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+      },
+    },
+    {
+      cadence: 'fixed' as const,
+      days: ['Wednesday', 'Thursday'],
+      frequencyQuantity: null,
+      intervalWeeks: 2,
+      expectedMode: 'recurring',
+      expectedFields: {
+        intervalWeeks: 2,
+        frequencyUnit: 'Day',
+        frequencyQuantity: 1,
+        days: ['Wednesday', 'Thursday'],
+      },
+    },
+    {
+      cadence: 'flexible' as const,
+      days: [],
+      frequencyQuantity: 12,
+      intervalWeeks: 3,
+      expectedMode: 'flexible',
+      expectedFields: {
+        intervalWeeks: 3,
+        frequencyUnit: 'Week',
+        frequencyQuantity: 12,
+        days: [],
+      },
+    },
+  ])('applies $cadence phrase cadence without conflating its schedule intent', ({
+    cadence,
+    days,
+    frequencyQuantity,
+    intervalWeeks,
+    expectedMode,
+    expectedFields,
+  }) => {
+    const calls: string[] = []
+    const fields: Record<string, string | number | string[]> = {}
+    const ownership = applyHabitPhraseRead(true, {
+      cadence,
+      days,
+      frequencyQuantity,
+      intervalWeeks,
+      dueTime: null,
+      emoji: null,
+      consumed: [],
+    }, '', false, { cadence: false, dueTime: true }, {
+      setOneTime: () => calls.push('oneTime'),
+      setRecurring: () => calls.push('recurring'),
+      setFlexible: () => calls.push('flexible'),
+      setGeneral: () => calls.push('general'),
+      setField: (field, value) => { fields[field] = value },
+    })
+
+    expect(calls).toEqual([expectedMode])
+    expect(fields).toEqual({ dueTime: '', ...expectedFields })
+    expect(ownership).toEqual({ cadence: true, dueTime: true })
+  })
+
+  it('appends a localized repeat interval to the schedule summary', () => {
+    const translate = (key: string, values?: Record<string, string | number>) =>
+      key === 'habits.form.repeatWeeks'
+        ? `Every ${values?.count} weeks`
+        : 'Run Wednesday and Thursday'
+
+    expect(buildHabitUnderstandingSentence(
+      ['Wednesday', 'Thursday'],
+      [
+        { value: 'Wednesday', label: 'Wednesday' },
+        { value: 'Thursday', label: 'Thursday' },
+      ],
+      false,
+      'Day',
+      1,
+      '',
+      'en',
+      translate,
+      2,
+    )).toBe('Run Wednesday and Thursday, every 2 weeks')
+  })
+
   it('honors locked cadence and toggle overrides', async () => {
     let proposal = { setup: true, checklist: true, subHabits: true, checklistItems: 2, subHabitItems: 1 }
     const ownership = { cadence: false, dueTime: false }
@@ -647,13 +807,47 @@ describe('habit form helpers', () => {
     expect(proposal).toBe(EMPTY_HABIT_FORM_PROPOSAL)
     controller.toggleDay('Friday')
     controller.setQuantity(2)
-    expect(setGeneral).toHaveBeenCalledTimes(2)
+    controller.setScheduleMode('flexible')
+    controller.setScheduleMode('fixed')
+    controller.setIntervalWeeks(2)
+    expect(setGeneral).toHaveBeenCalledTimes(5)
     expect(toggleDay).not.toHaveBeenCalled()
     controller.setReminderEnabled(true)
     controller.setSlipAlertEnabled(false)
     expect(onReminderEnabledChange).toHaveBeenCalledWith(true)
     expect(onSlipAlertEnabledChange).toHaveBeenCalledWith(false)
     expect(setField).not.toHaveBeenCalled()
+  })
+
+  it('turns a one-time form into a valid recurring schedule before setting repeat', () => {
+    let ownership = { cadence: true, dueTime: false }
+    const setRecurring = vi.fn()
+    const setField = vi.fn()
+    const controller = createHabitFormController({
+      action: undefined,
+      atLimit: false,
+      lockedGeneral: null,
+      target: {
+        hasSchedule: () => false,
+        getOwnership: () => ownership,
+        setOwnership: (next) => { ownership = next },
+        updateProposal: vi.fn(),
+        setOneTime: vi.fn(),
+        setRecurring,
+        setFlexible: vi.fn(),
+        setGeneral: vi.fn(),
+        setField,
+        toggleDay: vi.fn(),
+      },
+    })
+
+    controller.setIntervalWeeks(2)
+
+    expect(ownership.cadence).toBe(false)
+    expect(setRecurring).toHaveBeenCalledOnce()
+    expect(setField).toHaveBeenNthCalledWith(1, 'frequencyUnit', 'Day')
+    expect(setField).toHaveBeenNthCalledWith(2, 'frequencyQuantity', 1)
+    expect(setField).toHaveBeenNthCalledWith(3, 'intervalWeeks', 2)
   })
 
   it('validates reminder selection with due-time reminders', () => {

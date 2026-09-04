@@ -28,6 +28,26 @@ interface ChecklistTemplatesProps {
   onLoad: (items: ChecklistItem[]) => void
 }
 
+interface ChecklistTemplatesEmptyStateProps {
+  canSave: boolean
+  onSave: () => void
+  styles: ReturnType<typeof createStyles>
+  translate: (key: string) => string
+}
+
+function ChecklistTemplatesEmptyState({ canSave, onSave, styles, translate }: Readonly<ChecklistTemplatesEmptyStateProps>) {
+  return (
+    <View style={styles.emptyState}>
+      <Text numberOfLines={1} style={styles.emptyTitle}>{translate('habits.form.noTemplates')}</Text>
+      <Text style={styles.emptyDescription}>{translate('habits.form.noTemplatesDescription')}</Text>
+      <Pressable accessibilityRole="button" accessibilityState={{ disabled: !canSave }} disabled={!canSave} style={[styles.emptyAction, !canSave ? styles.saveButtonDisabled : null]} onPress={onSave}>
+        <Text numberOfLines={1} style={styles.emptyActionText}>{translate('habits.form.saveCurrentList')}</Text>
+      </Pressable>
+      {!canSave ? <Text style={styles.emptyReason}>{translate('habits.form.saveCurrentListDisabled')}</Text> : null}
+    </View>
+  )
+}
+
 export function ChecklistTemplates({
   items,
   onLoad,
@@ -83,6 +103,7 @@ export function ChecklistTemplates({
   return (
     <>
       <ListRow
+        inset={false}
         icon="template"
         title={t('habits.form.templates')}
         value={templates.length > 0 ? String(templates.length) : undefined}
@@ -91,7 +112,7 @@ export function ChecklistTemplates({
       {open ? (
         <Sheet open title={t('habits.form.templates')} onClose={() => setOpen(false)}>
           <View style={styles.container}>
-            {items.length > 0 && !showSave ? (
+            {templates.length > 0 && items.length > 0 && !showSave ? (
               <ListRow
                 icon="device-floppy"
                 title={t('habits.form.saveAsTemplate')}
@@ -157,6 +178,7 @@ export function ChecklistTemplates({
                 onClick={() => handleLoad(template.id)}
               />
             ))}
+            {templates.length === 0 && !showSave ? <ChecklistTemplatesEmptyState canSave={items.length > 0} onSave={() => setShowSave(true)} styles={styles} translate={t} /> : null}
           </View>
         </Sheet>
       ) : null}
@@ -190,7 +212,7 @@ function createStyles(tokens: AppTokens) {
       minHeight: 44,
       borderRadius: 999,
       backgroundColor: tokens.primary,
-      paddingHorizontal: 14,
+      paddingHorizontal: 12,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -208,5 +230,11 @@ function createStyles(tokens: AppTokens) {
       alignItems: 'center',
       justifyContent: 'center',
     },
+    emptyState: { alignItems: 'center', gap: 12, paddingHorizontal: 24, paddingVertical: 32 },
+    emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' },
+    emptyDescription: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' },
+    emptyAction: { backgroundColor: tokens.bgWell, borderRadius: 999, minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 },
+    emptyActionText: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
+    emptyReason: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 12, textAlign: 'center' },
   })
 }

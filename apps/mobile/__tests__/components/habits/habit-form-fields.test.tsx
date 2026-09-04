@@ -83,6 +83,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
     const understanding = tree.root.findByType('HabitUnderstanding')
+    expect(understanding.props.scheduleLocked).toBe(false)
     expect(understanding.props.value).toBe('Run')
     expect(understanding.props.labels.field).toBe('habits.form.describe')
     understanding.props.onToggleDay('Monday')
@@ -198,6 +199,7 @@ describe('HabitFormFields mobile', () => {
 
     expect(formHelpers.setGeneral).toHaveBeenCalledOnce()
     const understanding = tree.root.findByType('HabitUnderstanding')
+    expect(understanding.props.scheduleLocked).toBe(true)
     TestRenderer.act(() => {
       understanding.props.onToggleDay('Monday')
       understanding.props.onQuantityChange(4)
@@ -334,7 +336,7 @@ describe('HabitFormFields mobile', () => {
       await Promise.resolve()
     })
 
-    const subHabitRow = tree.root.findAll((node: any) => node.type === 'Pressable' && node.findAll((child: any) => child.type === 'Text' && child.props.children === 'habits.form.subHabits').length > 0)[0]
+    const subHabitRow = tree.root.findAll((node: any) => node.type === 'Pressable' && node.findAll((child: any) => child.type === 'Text' && child.props.children === 'common.upgrade').length > 0)[0]
     TestRenderer.act(() => subHabitRow.props.onPress())
     expect(onUpgrade).toHaveBeenCalledOnce()
   })

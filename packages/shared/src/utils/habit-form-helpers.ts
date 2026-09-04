@@ -1,4 +1,4 @@
-import type { ChecklistItem, FrequencyUnit, HabitSetupSuggestion } from '../types/habit'
+import { MAX_HABIT_INTERVAL_WEEKS, type ChecklistItem, type FrequencyUnit, type HabitSetupSuggestion } from '../types/habit'
 import type { HabitPhraseRead, HabitPhraseToken } from './habit-phrase-parser'
 import type { HabitFormData } from '../validation/habit-form'
 import {
@@ -57,6 +57,7 @@ export function normalizeHabitFormData(values: Partial<HabitFormData>): HabitFor
     emoji: values.emoji ?? '',
     frequencyUnit: values.frequencyUnit ?? null,
     frequencyQuantity: values.frequencyQuantity ?? null,
+    intervalWeeks: values.intervalWeeks ?? 1,
     days: values.days ?? [],
     isBadHabit: values.isBadHabit ?? false,
     isGeneral: values.isGeneral ?? false,
@@ -196,7 +197,13 @@ export interface HabitUnderstandingLabels {
   days: string
   less: string
   more: string
-  count: string
+  count: (count: number) => string
+  scheduleMode: string
+  setDays: string
+  timesAWeek: string
+  repeat: (count: number) => string
+  repeatLess: string
+  repeatMore: string
   proposed: string
 }
 
@@ -207,13 +214,18 @@ export interface HabitUnderstandingProps {
   days: string[]
   dayOptions: HabitDayOption[]
   quantity: number
+  mode: 'fixed' | 'flexible'
+  intervalWeeks: number
   sentence: string | null
   consumed: readonly HabitPhraseToken[]
   proposed?: boolean
+  scheduleLocked?: boolean
   onValueChange: (value: string) => void
   onEmojiSelect: (emoji: string) => void
   onToggleDay: (day: string) => void
   onQuantityChange: (quantity: number) => void
+  onModeChange: (mode: 'fixed' | 'flexible') => void
+  onIntervalWeeksChange: (intervalWeeks: number) => void
   labels: HabitUnderstandingLabels
 }
 
@@ -251,7 +263,7 @@ export async function requestHabitFormProposal(
   return action()
 }
 
-type PhraseField = 'days' | 'dueTime' | 'emoji' | 'frequencyQuantity' | 'frequencyUnit'
+type PhraseField = 'days' | 'dueTime' | 'emoji' | 'frequencyQuantity' | 'frequencyUnit' | 'intervalWeeks'
 
 export interface HabitPhraseFormTarget {
   setOneTime: () => void
@@ -299,6 +311,7 @@ interface HabitFormControllerTarget {
   getOwnership: () => HabitPhraseFormOwnership
   setOwnership: (ownership: HabitPhraseFormOwnership) => void
   updateProposal: (update: (proposal: HabitFormProposal) => HabitFormProposal) => void
+  hasSchedule?: () => boolean
   setField: <Field extends HabitControllerField>(field: Field, value: HabitFormData[Field], validate?: boolean) => void
   toggleDay: (day: string) => void
 }
@@ -328,6 +341,8 @@ export interface HabitFormController {
   setSlipAlertEnabled: (enabled: boolean) => void
   setTitle: (title: string) => void
   setEmoji: (emoji: string) => void
+  setScheduleMode: (mode: 'fixed' | 'flexible') => void
+  setIntervalWeeks: (intervalWeeks: number) => void
   toggleDay: (day: string) => void
   setQuantity: (quantity: number) => void
 }
@@ -411,6 +426,25 @@ export function createHabitFormController({
       releaseOwnership('cadence')
       applyHabitQuantityCorrection(quantity, lockedGeneral, target)
     },
+    setScheduleMode: (mode): void => {
+      resolveSection('setup')
+      releaseOwnership('cadence')
+      if (mode === 'flexible') {
+        applyHabitQuantityCorrection(3, lockedGeneral, target)
+        return
+      }
+      if (applyHabitDayCorrection(lockedGeneral, target)) target.setField('days', [])
+    },
+    setIntervalWeeks: (intervalWeeks): void => {
+      resolveSection('setup')
+      releaseOwnership('cadence')
+      if (lockedGeneral === true) {
+        target.setGeneral()
+        return
+      }
+      if (target.hasSchedule?.() === false) applyHabitDayCorrection(false, target)
+      target.setField('intervalWeeks', Math.max(1, Math.min(MAX_HABIT_INTERVAL_WEEKS, intervalWeeks)))
+    },
   }
 }
 
@@ -465,6 +499,7 @@ export function applyHabitPhraseRead(
     target.setField('dueTime', '')
   }
   if (read.emoji && !emoji) target.setField('emoji', read.emoji)
+  if (read.cadence) target.setField('intervalWeeks', Math.min(MAX_HABIT_INTERVAL_WEEKS, read.intervalWeeks ?? 1))
   if (!read.cadence) {
     if (ownership.cadence) target.setOneTime()
     return nextOwnership
@@ -481,7 +516,9 @@ export function applyHabitPhraseRead(
   target.setRecurring()
   target.setField('frequencyUnit', 'Day')
   target.setField('frequencyQuantity', 1)
-  target.setField('days', read.days)
+  target.setField('days', read.cadence === 'daily'
+    ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    : read.days)
   return nextOwnership
 }
 
@@ -502,7 +539,13 @@ export function buildHabitUnderstandingLabels(
     days: translate('habits.form.activeDays'),
     less: translate('habits.form.lessOften'),
     more: translate('habits.form.moreOften'),
-    count: translate('habits.form.timesAWeek'),
+    count: (count) => translate('habits.form.timesAWeekCount', { count }),
+    scheduleMode: translate('habits.form.scheduleMode'),
+    setDays: translate('habits.form.setDays'),
+    timesAWeek: translate('habits.form.timesAWeek'),
+    repeat: (count) => translate('habits.form.repeatWeeks', { count }),
+    repeatLess: translate('habits.form.repeatLess'),
+    repeatMore: translate('habits.form.repeatMore'),
     proposed: translate('habits.form.proposedByAstra'),
   }
 }
@@ -561,6 +604,7 @@ export function buildHabitUnderstandingSentence(
   dueTime: string,
   locale: string,
   translate: UnderstandingTranslator,
+  intervalWeeks = 1,
 ): string | null {
   let key: string
   let values: Record<string, string | number> = {}
@@ -593,7 +637,10 @@ export function buildHabitUnderstandingSentence(
     values = { ...values, time: dueTime }
     key = `${key}At`
   }
-  return translate(key, values)
+  const sentence = translate(key, values)
+  return intervalWeeks > 1
+    ? `${sentence}, ${translate('habits.form.repeatWeeks', { count: intervalWeeks }).toLocaleLowerCase(locale)}`
+    : sentence
 }
 
 export function shouldShowHabitAstraFallback(

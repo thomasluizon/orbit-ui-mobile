@@ -15,7 +15,12 @@ vi.mock("react-i18next", () => ({
 
 vi.mock("@/components/ui/sheet", () => ({
   Sheet: (props: Record<string, unknown>) =>
-    React.createElement("Sheet", props, props.children as React.ReactNode),
+    React.createElement(
+      "Sheet",
+      props,
+      props.headerAccessory as React.ReactNode,
+      props.children as React.ReactNode,
+    ),
   useSheetHost: () => ({
     sheetRef: { current: null },
     closeSheet: mockCloseSheet,
@@ -158,6 +163,6 @@ describe("HabitEmojiSelector mobile", () => {
     expect(resolvedStyle(remove, false).at(-1)).toBeNull();
     press(remove);
     expect(removal.onSelect).toHaveBeenCalledWith("");
-    expect(mockCloseSheet).toHaveBeenCalledTimes(2);
+    expect(mockCloseSheet).toHaveBeenCalledTimes(1);
   });
 });

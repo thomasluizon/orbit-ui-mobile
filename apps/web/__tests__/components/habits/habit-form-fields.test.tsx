@@ -152,14 +152,20 @@ describe('HabitFormFields', () => {
 
   it('shows the understanding preview and applies correction controls', () => {
     const formHelpers = createFormHelpers({ title: 'Run', frequencyQuantity: 3 })
-    renderForm(formHelpers)
+    const view = renderForm(formHelpers)
     expect(screen.getByLabelText('habits.form.understood')).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
     expect(formHelpers.setRecurring).toHaveBeenCalledOnce()
     expect(formHelpers.toggleDay).toHaveBeenCalledWith('Monday')
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreOften' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesAWeek' }))
     expect(formHelpers.setFlexible).toHaveBeenCalledOnce()
-    expect(formHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 4, { shouldDirty: true })
+    view.unmount()
+
+    const flexibleHelpers = createFormHelpers({ title: 'Run', frequencyQuantity: 3, isFlexible: true })
+    renderForm(flexibleHelpers)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreOften' }))
+    expect(flexibleHelpers.setFlexible).toHaveBeenCalledOnce()
+    expect(flexibleHelpers.form.setValue).toHaveBeenCalledWith('frequencyQuantity', 4, { shouldDirty: true })
   })
 
   it('uses the localized full weekday name for the correction control', () => {
@@ -230,7 +236,7 @@ describe('HabitFormFields', () => {
     await waitFor(() => expect(formHelpers.setRecurring).toHaveBeenCalledOnce())
     expect(formHelpers.form.setValue).toHaveBeenCalledWith('dueTime', '08:00', { shouldDirty: true })
 
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreOften' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesAWeek' }))
     formHelpers.testValues.title = 'Run'
     view.rerenderForm()
 
@@ -249,10 +255,11 @@ describe('HabitFormFields', () => {
     renderForm(formHelpers, undefined, false, true, true)
 
     await waitFor(() => expect(formHelpers.setGeneral).toHaveBeenCalledOnce())
-    fireEvent.click(screen.getByRole('button', { name: 'Monday' }))
-    fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreOften' }))
+    expect(screen.getByRole('button', { name: 'Monday' })).toBeDisabled()
+    expect(screen.getByRole('radio', { name: 'habits.form.timesAWeek' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'habits.form.repeatMore' })).toBeDisabled()
 
-    expect(formHelpers.setGeneral).toHaveBeenCalledTimes(3)
+    expect(formHelpers.setGeneral).toHaveBeenCalledOnce()
     expect(formHelpers.setRecurring).not.toHaveBeenCalled()
     expect(formHelpers.setFlexible).not.toHaveBeenCalled()
     expect(formHelpers.toggleDay).not.toHaveBeenCalled()
@@ -331,7 +338,7 @@ describe('HabitFormFields', () => {
   it('routes the free sub-habit row to upgrade while keeping goals available', () => {
     renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
 
-    fireEvent.click(screen.getByRole('button', { name: /habits\.form\.subHabits/ }))
+    fireEvent.click(screen.getByRole('button', { name: /common\.upgrade/ }))
     expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
     expect(screen.getByText('goal-linking')).toBeDefined()
   })
@@ -380,7 +387,7 @@ describe('HabitFormFields', () => {
 
   it.each([
     ['day', () => fireEvent.click(screen.getByRole('button', { name: 'Monday' }))],
-    ['stepper', () => fireEvent.click(screen.getByRole('button', { name: 'habits.form.moreOften' }))],
+    ['schedule mode', () => fireEvent.click(screen.getByRole('radio', { name: 'habits.form.timesAWeek' }))],
     ['emoji', () => fireEvent.click(screen.getByRole('button', { name: 'emoji' }))],
   ])('resolves a proposed setup on the first %s correction', async (_kind, correct) => {
     renderForm(createFormHelpers({ title: 'Run', frequencyQuantity: 3 }), async () => SETUP_PROPOSAL)

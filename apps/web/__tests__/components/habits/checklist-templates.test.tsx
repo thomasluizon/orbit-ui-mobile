@@ -45,20 +45,21 @@ describe('ChecklistTemplates', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
     openTemplates()
-    expect(screen.getByText('habits.form.saveAsTemplate')).toBeInTheDocument()
+    expect(screen.getByText('habits.form.saveCurrentList')).toBeInTheDocument()
   })
 
-  it('does not show save button when no items', () => {
+  it('disables save and explains why when no items are present', () => {
     render(<ChecklistTemplates items={[]} onLoad={vi.fn()} />)
     openTemplates()
-    expect(screen.queryByText('habits.form.saveAsTemplate')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'habits.form.saveCurrentList' })).toBeDisabled()
+    expect(screen.getByText('habits.form.saveCurrentListDisabled')).toBeInTheDocument()
   })
 
   it('shows save form when save button clicked', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
     openTemplates()
-    fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
+    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
     expect(screen.getByPlaceholderText('habits.form.templateNamePlaceholder')).toBeInTheDocument()
   })
 
@@ -67,7 +68,7 @@ describe('ChecklistTemplates', () => {
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
     openTemplates()
 
-    fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
+    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
     const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
     fireEvent.change(input, { target: { value: 'Morning Routine' } })
     fireEvent.click(screen.getByText('common.save'))
@@ -87,7 +88,7 @@ describe('ChecklistTemplates', () => {
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
     openTemplates()
 
-    fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
+    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
     const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
     fireEvent.change(input, { target: { value: 'Morning Routine' } })
 
@@ -99,7 +100,7 @@ describe('ChecklistTemplates', () => {
     const items: ChecklistItem[] = [{ text: 'Step 1', isChecked: false }]
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
     openTemplates()
-    fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
+    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
     const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
     fireEvent.change(input, { target: { value: 'Morning' } })
     fireEvent.keyDown(input, { key: 'Enter' })
@@ -114,7 +115,7 @@ describe('ChecklistTemplates', () => {
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
     openTemplates()
 
-    fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
+    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
     fireEvent.change(
       screen.getByPlaceholderText('habits.form.templateNamePlaceholder'),
       { target: { value: 'Bad' } },
@@ -131,7 +132,7 @@ describe('ChecklistTemplates', () => {
     render(<ChecklistTemplates items={items} onLoad={vi.fn()} />)
     openTemplates()
 
-    fireEvent.click(screen.getByText('habits.form.saveAsTemplate'))
+    fireEvent.click(screen.getByText('habits.form.saveCurrentList'))
     const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
     fireEvent.change(input, { target: { value: 'Saved' } })
     fireEvent.click(screen.getByText('common.save'))
