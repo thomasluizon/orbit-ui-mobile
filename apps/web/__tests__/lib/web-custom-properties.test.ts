@@ -11,7 +11,6 @@ const CUSTOM_PROPERTY_REFERENCE = /var\(\s*(--[a-z0-9-]+)/g
 const CSS_DECLARATION = /(--[a-z0-9-]+)\s*:/g
 const LOCAL_RUNTIME_DECLARATION = /['"](--[a-z0-9-]+)['"]\s*:/g
 const NEXT_FONT_DECLARATION = /\bvariable\s*:\s*['"](--[a-z0-9-]+)['"]/g
-let cachedProductionSources: ScannedSource[] | undefined
 
 type ScannedSource = {
   path: string
@@ -122,12 +121,10 @@ function webReachableSharedSources(webFiles: ScannedSource[]): ScannedSource[] {
 }
 
 function productionSources(): ScannedSource[] {
-  if (cachedProductionSources) return cachedProductionSources
   const webFiles = WEB_SOURCE_DIRECTORIES.flatMap((directory) =>
     sourceFiles(resolve(process.cwd(), directory)),
   )
-  cachedProductionSources = [...webFiles, ...webReachableSharedSources(webFiles)]
-  return cachedProductionSources
+  return [...webFiles, ...webReachableSharedSources(webFiles)]
 }
 
 function globalsStylesheet(files: ScannedSource[]): string {
@@ -171,6 +168,8 @@ function unresolvedReferences(files: ScannedSource[]): string[] {
     .sort()
 }
 
+const productionSourceFiles = productionSources()
+
 describe('web custom properties', () => {
   afterEach(() => {
     document.documentElement.className = ''
@@ -180,8 +179,7 @@ describe('web custom properties', () => {
 
   for (const mode of ['dark', 'light'] as const) {
     it(`resolves shape and shadow tokens in ${mode} mode`, () => {
-      const files = productionSources()
-      const rootBlock = globalsStylesheet(files).match(/:root\s*{([^}]+)}/)?.[1]
+      const rootBlock = globalsStylesheet(productionSourceFiles).match(/:root\s*{([^}]+)}/)?.[1]
       if (!rootBlock) throw new Error('The :root token block was not found')
       document.head.innerHTML = `<style>:root {${rootBlock}}</style>`
       applyThemeTokensToDOM('purple', mode)
@@ -199,6 +197,6 @@ describe('web custom properties', () => {
   }
 
   it('declares every custom property referenced by production source', () => {
-    expect(unresolvedReferences(productionSources())).toEqual([])
+    expect(unresolvedReferences(productionSourceFiles)).toEqual([])
   })
 })
