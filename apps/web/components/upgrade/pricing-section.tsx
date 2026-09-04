@@ -119,25 +119,27 @@ export function PricingSection({
         />
 
         {plans ? (
-          <div className="flex flex-col items-start gap-2">
-            {checkoutError ? (
-              <p
-                role="alert"
-                aria-live="polite"
-                className="text-center text-xs text-[var(--status-bad)]"
-              >
-                {checkoutError}
+          <div className="flex flex-col items-start gap-4">
+            <div className="flex flex-col items-start gap-2">
+              {checkoutError ? (
+                <p
+                  role="alert"
+                  aria-live="polite"
+                  className="text-center text-xs text-[var(--status-bad)]"
+                >
+                  {checkoutError}
+                </p>
+              ) : null}
+              <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">
+                {t('upgrade.convert.cancelAnytime')}
               </p>
-            ) : null}
-            <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">
-              {t('upgrade.convert.cancelAnytime')}
-            </p>
-            <p className="max-w-[52ch] text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
-              {t('upgrade.plans.renewalNote')}
-            </p>
-            <p className="max-w-[52ch] text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
-              {t('upgrade.convert.handOff')}
-            </p>
+              <p className="max-w-[52ch] text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
+                {t('upgrade.plans.renewalNote')}
+              </p>
+              <p className="max-w-[52ch] text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
+                {t('upgrade.convert.handOff')}
+              </p>
+            </div>
             <a
               href="/profile"
               aria-disabled={checkoutLoading !== null}

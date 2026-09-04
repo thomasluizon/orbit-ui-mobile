@@ -242,8 +242,12 @@ export const styles = StyleSheet.create({
   },
   reassurance: {
     alignItems: 'flex-start',
-    gap: 8,
+    gap: 16,
     paddingHorizontal: 16,
+  },
+  reassuranceCopy: {
+    alignItems: 'flex-start',
+    gap: 8,
   },
   reassurancePrimary: {
     fontFamily: 'Geist_400Regular',
