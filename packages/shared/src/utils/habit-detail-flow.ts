@@ -470,7 +470,8 @@ function getHabitRelationshipAuthority(
   authoritativeHabit: NormalizedHabit | undefined,
   scopedHabit: NormalizedHabit | undefined,
 ): NormalizedHabit | undefined {
-  return authoritativeHabit ?? (detail.isGeneral ? scopedHabit : undefined)
+  if (authoritativeHabit?.parentId === null) return authoritativeHabit
+  return detail.isGeneral && scopedHabit?.parentId === null ? scopedHabit : undefined
 }
 
 export function hasAuthoritativeHabitRelationshipState(

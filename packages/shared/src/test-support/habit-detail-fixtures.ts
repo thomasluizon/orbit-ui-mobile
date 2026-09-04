@@ -1,4 +1,4 @@
-import type { HabitDetail, NormalizedHabit } from '../types/habit'
+import type { HabitDetail, HabitScheduleItem, NormalizedHabit } from '../types/habit'
 
 export function makeHabitDetailChild(): HabitDetail['children'][number] {
   return {
@@ -33,6 +33,38 @@ export function makeHabitDetail(): HabitDetail {
     reminderTimes: [],
     scheduledReminders: [],
     children: [makeHabitDetailChild()],
+  }
+}
+
+export function makeHabitScheduleItem(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleItem {
+  const detail = makeHabitDetail()
+  return {
+    ...detail,
+    scheduledDates: ['2026-08-28'],
+    isOverdue: false,
+    slipAlertEnabled: false,
+    tags: [{ id: 'tag-1', name: 'Focus', color: '#123456' }],
+    children: [{
+      ...makeHabitDetailChild(),
+      scheduledDates: ['2026-08-28'],
+      isOverdue: false,
+      tags: [],
+      children: [],
+      hasSubHabits: false,
+      flexibleTarget: null,
+      flexibleCompleted: null,
+      isLoggedInRange: false,
+      instances: [],
+      searchMatches: null,
+    }],
+    hasSubHabits: true,
+    flexibleTarget: null,
+    flexibleCompleted: null,
+    isLoggedInRange: false,
+    linkedGoals: [],
+    instances: [],
+    searchMatches: null,
+    ...overrides,
   }
 }
 

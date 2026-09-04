@@ -1,9 +1,10 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
 import type { Time24 } from '@orbit/shared/contracts/forms'
 import {
   makeHabitDetail as makeDetail,
+  makeHabitScheduleItem,
   makeHabitDetailScopedChild as makeScopedChild,
   makeHabitDetailScopedParent as makeScopedParent,
   makeLoggedGeneralHabitDetailChild as makeLoggedGeneralChild,
@@ -1108,11 +1109,10 @@ describe('HabitDetailScreen', () => {
   it('keeps a general habit existing goal links after the first toggle', () => {
     mocks.detail = { ...makeDetail(), isGeneral: true }
     mocks.allHabits.clear()
-    mocks.scopedHabits.set('habit-1', {
-      ...makeScopedParent(),
+    mocks.scopedHabits = normalizeHabitQueryData([makeHabitScheduleItem({
       isGeneral: true,
       linkedGoals: [{ id: 'goal-1', title: 'Read more books' }],
-    })
+    })]).habitsById
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
@@ -1127,10 +1127,10 @@ describe('HabitDetailScreen', () => {
     })
   })
 
-  it('hides relationship controls for a nested child without authoritative state', () => {
+  it('hides relationship controls for a nested child from real normalized schedule data', () => {
     mocks.detail = { ...makeDetail(), id: 'child-1', isBadHabit: true, children: [] }
-    mocks.allHabits.clear()
-    mocks.scopedHabits.clear()
+    mocks.allHabits = normalizeHabitQueryData([makeHabitScheduleItem()]).habitsById
+    mocks.scopedHabits = normalizeHabitQueryData([makeHabitScheduleItem()]).habitsById
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       tree = TestRenderer.create(<HabitDetailScreen habitId="child-1" date="2026-08-28" parentId="habit-1" />)
@@ -1140,6 +1140,24 @@ describe('HabitDetailScreen', () => {
 
     expect(tree!.root.findAllByProps({ title: 'habits.detail.linkedGoals' })).toHaveLength(0)
     expect(tree!.root.findAllByProps({ title: 'habits.detail.slipAlert' })).toHaveLength(0)
+  })
+
+  it('keeps relationship controls interactive for a top-level habit with zero linked goals', () => {
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
+    mocks.allHabits = normalizeHabitQueryData([makeHabitScheduleItem({ isBadHabit: true })]).habitsById
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    TestRenderer.act(() => disclosure!.props.onPress())
+    TestRenderer.act(() => tree!.root.findByProps({ title: 'habits.detail.linkedGoals' }).props.onClick())
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'goal-linking-field' }).props.onToggleGoal())
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'slip-alert-switch' }).props.onChange(true))
+
+    expect(mocks.update.mock.calls.at(-2)?.[0].data).toMatchObject({ goalIds: ['goal-2'] })
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ slipAlertEnabled: true })
   })
 
   it('restores the parent Astra suggestion after leaving a child detail', () => {

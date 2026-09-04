@@ -25,8 +25,10 @@ import {
 import { createMockHabit } from './factories'
 import {
   makeHabitDetail,
+  makeHabitScheduleItem,
   makeHabitDetailScopedParent,
 } from '../test-support/habit-detail-fixtures'
+import { normalizeHabitQueryData } from '../utils/habit-normalization'
 
 const recurring = {
   createdAtUtc: '2026-01-01T12:00:00Z',
@@ -263,13 +265,17 @@ describe('habit detail flow model', () => {
     })
   })
 
-  it('gates relationship controls by authoritative schedule state', () => {
+  it('gates relationship controls by authority in real normalized schedule rows', () => {
     const detail = makeHabitDetail()
-    const authoritative = makeHabitDetailScopedParent()
+    const normalized = normalizeHabitQueryData([makeHabitScheduleItem()])
+    const authoritative = normalized.habitsById.get('habit-1')
+    const nestedChild = normalized.habitsById.get('child-1')
+    const general = normalizeHabitQueryData([makeHabitScheduleItem({ isGeneral: true })])
+      .habitsById.get('habit-1')
 
     expect(hasAuthoritativeHabitRelationshipState(detail, authoritative, undefined)).toBe(true)
-    expect(hasAuthoritativeHabitRelationshipState({ ...detail, isGeneral: true }, undefined, authoritative)).toBe(true)
-    expect(hasAuthoritativeHabitRelationshipState(detail, undefined, makeHabitDetailScopedParent())).toBe(false)
+    expect(hasAuthoritativeHabitRelationshipState({ ...detail, isGeneral: true }, undefined, general)).toBe(true)
+    expect(hasAuthoritativeHabitRelationshipState(detail, nestedChild, nestedChild)).toBe(false)
   })
 
   it('builds a 30 day habit strip without a frozen state', () => {

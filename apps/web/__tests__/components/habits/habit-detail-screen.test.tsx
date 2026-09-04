@@ -2,9 +2,10 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import type { Time24 } from '@orbit/shared/contracts/forms'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
 import {
   makeHabitDetail as makeDetail,
+  makeHabitScheduleItem,
   makeHabitDetailScopedChild as makeScopedChild,
   makeHabitDetailScopedParent as makeScopedParent,
   makeLoggedGeneralHabitDetailChild as makeLoggedGeneralChild,
@@ -294,11 +295,10 @@ describe('HabitDetailScreen', () => {
   it('keeps a general habit existing goal links after the first toggle', () => {
     mocks.detail = { ...makeDetail(), isGeneral: true }
     mocks.allHabits.clear()
-    mocks.scopedHabits.set('habit-1', {
-      ...makeScopedParent(),
+    mocks.scopedHabits = normalizeHabitQueryData([makeHabitScheduleItem({
       isGeneral: true,
       linkedGoals: [{ id: 'goal-1', title: 'Read more books' }],
-    })
+    })]).habitsById
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
@@ -310,16 +310,30 @@ describe('HabitDetailScreen', () => {
     })
   })
 
-  it('hides relationship controls for a nested child without authoritative state', () => {
+  it('hides relationship controls for a nested child from real normalized schedule data', () => {
     mocks.detail = { ...makeDetail(), id: 'child-1', isBadHabit: true, children: [] }
-    mocks.allHabits.clear()
-    mocks.scopedHabits.clear()
+    mocks.allHabits = normalizeHabitQueryData([makeHabitScheduleItem()]).habitsById
+    mocks.scopedHabits = normalizeHabitQueryData([makeHabitScheduleItem()]).habitsById
     render(<HabitDetailScreen habitId="child-1" date="2026-08-28" parentId="habit-1" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
 
     expect(screen.queryByTestId('list-row-habits.detail.linkedGoals')).not.toBeInTheDocument()
     expect(screen.queryByTestId('list-row-habits.detail.slipAlert')).not.toBeInTheDocument()
+  })
+
+  it('keeps relationship controls interactive for a top-level habit with zero linked goals', () => {
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
+    mocks.allHabits = normalizeHabitQueryData([makeHabitScheduleItem({ isBadHabit: true })]).habitsById
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.linkedGoals'))
+    fireEvent.click(screen.getByTestId('goal-linking-field'))
+    fireEvent.click(screen.getByRole('switch', { name: 'habits.detail.slipAlert' }))
+
+    expect(mocks.update.mock.calls.at(-2)?.[0].data).toMatchObject({ goalIds: ['goal-2'] })
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ slipAlertEnabled: true })
   })
 
   it('restores an empty rename and returns to the selected day', async () => {
