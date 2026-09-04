@@ -3,6 +3,43 @@ import { makeActionResult } from '../test-support/chat-fixtures'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
 import { ACTION_LABEL_KEYS, buildActionChipsModel } from '../chat/action-chips'
+import { aiActionTypeSchema, type AiActionType } from '../types/chat'
+
+const EXPECTED_ACTION_LABEL_KEYS = {
+  CreateHabit: { success: 'chat.action.created', failed: 'chat.action.createFailed' },
+  LogHabit: { success: 'chat.action.logged', failed: 'chat.action.logFailed' },
+  UpdateHabit: { success: 'chat.action.updated', failed: 'chat.action.updateFailed' },
+  DeleteHabit: { success: 'chat.action.deleted', failed: 'chat.action.deleteFailed' },
+  SkipHabit: { success: 'chat.action.skipped', failed: 'chat.action.skipFailed' },
+  BulkLogHabits: { success: 'chat.action.logged', failed: 'chat.action.logFailed' },
+  BulkSkipHabits: { success: 'chat.action.skipped', failed: 'chat.action.skipFailed' },
+  CreateSubHabit: {
+    success: 'chat.action.createdSubHabit',
+    failed: 'chat.action.createSubHabitFailed',
+  },
+  SuggestBreakdown: { success: 'chat.action.breakdown', failed: 'chat.action.breakdownFailed' },
+  AssignTags: { success: 'chat.action.tagsUpdated', failed: 'chat.action.tagsUpdateFailed' },
+  DuplicateHabit: { success: 'chat.action.duplicated', failed: 'chat.action.duplicateFailed' },
+  MoveHabit: { success: 'chat.action.moved', failed: 'chat.action.moveFailed' },
+  CreateGoal: { success: 'chat.action.createdGoal', failed: 'chat.action.createGoalFailed' },
+  UpdateGoal: { success: 'chat.action.updatedGoal', failed: 'chat.action.updateGoalFailed' },
+  DeleteGoal: { success: 'chat.action.deletedGoal', failed: 'chat.action.deleteGoalFailed' },
+  UpdateGoalProgress: {
+    success: 'chat.action.updatedGoalProgress',
+    failed: 'chat.action.updateGoalProgressFailed',
+  },
+  UpdateGoalStatus: {
+    success: 'chat.action.updatedGoalStatus',
+    failed: 'chat.action.updateGoalStatusFailed',
+  },
+  LinkHabitsToGoal: {
+    success: 'chat.action.linkedGoalHabits',
+    failed: 'chat.action.linkGoalHabitsFailed',
+  },
+} as const satisfies Readonly<Record<AiActionType, Readonly<{
+  success: string
+  failed: string
+}>>>
 
 describe('buildActionChipsModel', () => {
   it('omits suggestions and describes visible result state', () => {
@@ -28,13 +65,17 @@ describe('buildActionChipsModel', () => {
   })
 
   it('uses a non-success label for every failed action type', () => {
-    for (const [type, keys] of Object.entries(ACTION_LABEL_KEYS)) {
-      const model = buildActionChipsModel([
+    for (const type of aiActionTypeSchema.options) {
+      const expectedKeys = EXPECTED_ACTION_LABEL_KEYS[type]
+      const [successfulRow, failedRow] = buildActionChipsModel([
+        makeActionResult({ type, status: 'Success', entityName: 'Named attempt' }),
         makeActionResult({ type, status: 'Failed', entityName: 'Named attempt' }),
       ], false)
+        .rows
 
-      expect(model.rows[0]?.labelKey).toBe(keys.failed)
-      expect(model.rows[0]?.labelKey).not.toBe(keys.success)
+      expect(successfulRow?.labelKey, `${type} success label`).toBe(expectedKeys.success)
+      expect(failedRow?.labelKey, `${type} failure label`).toBe(expectedKeys.failed)
+      expect(failedRow?.labelKey).not.toBe(expectedKeys.success)
     }
   })
 

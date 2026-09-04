@@ -28,6 +28,8 @@ export const ACTION_LABEL_KEYS: Readonly<Record<string, Readonly<ActionLabelKeys
   CreateSubHabit: labelKeys('chat.action.createdSubHabit', 'chat.action.createSubHabitFailed'),
   SuggestBreakdown: labelKeys('chat.action.breakdown', 'chat.action.breakdownFailed'),
   AssignTags: labelKeys('chat.action.tagsUpdated', 'chat.action.tagsUpdateFailed'),
+  DuplicateHabit: labelKeys('chat.action.duplicated', 'chat.action.duplicateFailed'),
+  MoveHabit: labelKeys('chat.action.moved', 'chat.action.moveFailed'),
   BulkLogHabits: labelKeys('chat.action.logged', 'chat.action.logFailed'),
   BulkSkipHabits: labelKeys('chat.action.skipped', 'chat.action.skipFailed'),
   CreateGoal: labelKeys('chat.action.createdGoal', 'chat.action.createGoalFailed'),
