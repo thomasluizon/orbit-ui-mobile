@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { makeActionResult } from '../test-support/chat-fixtures'
 import en from '../i18n/en.json'
 import ptBR from '../i18n/pt-BR.json'
-import { ACTION_LABEL_KEYS, buildActionChipsModel } from '../chat/action-chips'
+import { buildActionChipsModel } from '../chat/action-chips'
 import { aiActionTypeSchema, type AiActionType } from '../types/chat'
 
 const EXPECTED_ACTION_LABEL_KEYS = {
@@ -35,6 +35,17 @@ const EXPECTED_ACTION_LABEL_KEYS = {
   LinkHabitsToGoal: {
     success: 'chat.action.linkedGoalHabits',
     failed: 'chat.action.linkGoalHabitsFailed',
+  },
+  CreateTag: { success: 'chat.action.createdTag', failed: 'chat.action.createTagFailed' },
+  UpdateTag: { success: 'chat.action.updatedTag', failed: 'chat.action.updateTagFailed' },
+  DeleteTag: { success: 'chat.action.deletedTag', failed: 'chat.action.deleteTagFailed' },
+  ReorderGoals: {
+    success: 'chat.action.reorderedGoals',
+    failed: 'chat.action.reorderGoalsFailed',
+  },
+  ReorderHabits: {
+    success: 'chat.action.reorderedHabits',
+    failed: 'chat.action.reorderHabitsFailed',
   },
 } as const satisfies Readonly<Record<AiActionType, Readonly<{
   success: string

@@ -24373,6 +24373,7 @@
         "apps/web/__tests__/stores/auth-store.test.ts",
         "apps/web/__tests__/stores/chat-store.test.ts",
         "apps/web/__tests__/stores/onboarding-draft-store.test.ts",
+        "packages/shared/src/__tests__/action-chips.test.ts",
         "packages/shared/src/__tests__/agent-operation-outcomes.test.ts",
         "packages/shared/src/__tests__/calendar-entries.test.ts",
         "packages/shared/src/__tests__/calendar-month.test.ts",

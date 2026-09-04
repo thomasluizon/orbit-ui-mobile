@@ -9,7 +9,7 @@ function labelKeys(success: string, failed: string): Readonly<ActionLabelKeys> {
   return { success, failed }
 }
 
-export const ACTION_LABEL_KEYS: Readonly<Record<string, Readonly<ActionLabelKeys>>> = {
+const ACTION_LABEL_KEYS: Readonly<Record<string, Readonly<ActionLabelKeys>>> = {
   log_habit: labelKeys('chat.action.logged', 'chat.action.logFailed'),
   create_habit: labelKeys('chat.action.created', 'chat.action.createFailed'),
   update_habit: labelKeys('chat.action.updated', 'chat.action.updateFailed'),
