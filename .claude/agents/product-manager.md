@@ -38,7 +38,8 @@ Return, as structured text:
    migration split from its feature.
 5. **Per ticket, the 6.2 material**: problem, scope, out-of-scope, expected behaviour,
    technical details with file paths you VERIFIED exist, acceptance criteria (each one
-   checkable by a machine or a screenshot), test scenarios, rollout/kill-switch where
+   checkable by a machine or by a measurement on the running surface, never by a
+   screenshot), test scenarios, rollout/kill-switch where
    risk exists, events/metrics where success needs measuring.
 6. **Open questions**: ONLY genuine forks a codebase read cannot answer, each with your
    recommended answer first. An empty list is a good list.

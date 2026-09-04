@@ -1,0 +1,84 @@
+# Rebuilding a redesign screen
+
+**At a glance:** the D76 eight-step loop for one of the thirteen screens, and the ui-skills sweep
+that closes it. Read it before you write a work order for a screen ticket. Groundwork tickets do not
+use this; they run autonomously through `/orchestrate`.
+
+The loop exists because an agent cannot tell that its own output is mediocre. Every step that feels
+skippable is one that was skipped before and produced a screen Thomas rejected on sight.
+
+## The eight steps
+
+Steps 1 to 4 happen with Thomas, in conversation, before any code exists.
+
+1. **Look at the screen running**, together.
+2. **A subagent judges it** against `design/canvas/<screen>.dc.html` and `DESIGN.md`, with the audit
+   skills: `ibelick/improve-ui`, `Leonxlnx/redesign-skill`, `MengTo/redesign-existing-projects`, plus
+   `emilkowalski/improve-animations` when it moves. The question is "is this the best it can be, and
+   where is it not", never "what is this".
+3. **Grill Thomas** with the questions that judgement raises. Product questions only; settle the
+   engineering calls yourself (D82).
+4. **Settle the design.** Write the decisions and the audit's verified findings into the ticket body,
+   including any finding you threw out, so nobody re-files it.
+5. **Build**, from the ticket, with a worker.
+6. **Sweep what was built** with the ui-skills, below.
+7. **Thomas looks at it running**, `/dev-server` for web, `/android-generate` for mobile. His eyes
+   are the evidence.
+8. **He approves and the next screen starts**, or it goes back into the loop.
+
+**A screen being built with no conversation behind it is out of contract.** Stop and open the
+conversation instead.
+
+When step 4 moves a screen off the canvas, Thomas's approval in that conversation is the grant.
+Record the deviation on the ticket, then push it back with `DesignSync`.
+
+## Step 6, the sweep
+
+Skills are fetched per ticket and never installed (D16). Registry skills:
+
+    npx ui-skills get <owner>/<name>          # prints the skill to stdout, so redirect it
+
+The jakubkrehel suite is a separate repo and `ui-skills get` does not reach it. Fetch by raw URL,
+noting the `skills/` path segment:
+
+    https://raw.githubusercontent.com/jakubkrehel/skills/main/skills/<name>/SKILL.md
+
+`vercel-labs/web-design-guidelines` is a pointer, not a rule set. Fetch what it points at, or the
+lane sweeps nothing:
+
+    https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md
+
+Four read-only lanes, then the two repository agents as the close gate.
+
+| lane | skills | owns |
+|---|---|---|
+| execution | `anthropics/frontend-design`, `jakubkrehel/better-ui`, `jakubkrehel/make-interfaces-feel-better` | polish mechanics, concentric radii, optical alignment |
+| motion, when it animates | `emilkowalski/animation-vocabulary`, `raphaelsalaja/mastering-animate-presence`, `iart-ai/accessible-animation` | every animation names a purpose from the `DESIGN.md` closed list, and reduced motion |
+| gates | the Vercel guideline text, `ibelick/fixing-accessibility`, `wshobson/wcag-audit-patterns`, `jakubkrehel/better-accessibility` | WCAG 2.2 AA, focus, targets |
+| the change | `jakubkrehel/interface-review`, then `jakubkrehel/better-interface` in full mode | classifies each finding Introduced, Regression or Pre-existing |
+
+`interface-review` is the lane that decides what belongs in this pull request and what becomes a
+ticket, because it reviews a change rather than a screen. Run it before `better-interface`.
+
+Close with the repository's own `design-reviewer` on the diff and `completeness-critic` against the
+surface inventory. `completeness-critic` is what catches a feature the rebuild dropped.
+
+## What Thomas checks, so a work order carries it
+
+- **A string that wraps to a second line is a defect.** Every label, at every supported width.
+- **A rebuild never drops a feature.** Removal is authorized only where he decided it.
+- **Everything that changes, moves.** A screen composing no motion of its own fails his 2026-09-02
+  point 5, whatever else is right about it.
+- **A whole screen ships, with nothing old left on it** (D86). No mid-stack partial.
+
+## Traps this screen family sets
+
+- **The local API cannot reach Stripe**, so a plans response comes back empty and monetization
+  surfaces render no tiers. That is the environment. Test those with fixtures, not with localhost.
+- **A granted drawing outranks `DESIGN.md` prose, and `## Information architecture` and `## Bans`
+  outrank the drawing** (D42). A granted export never authorises a banned value.
+- **Faithfulness to the drawing is not quality.** The `#351` worker applied the granted Button
+  contract faithfully and deleted 31 `accessibilityLabel` props (`#375`). A lane is allowed to argue
+  with the canvas; that is why step 2 exists.
+- **A sweep lane that reports "the structure is sound" on a screen Thomas called horrible has not
+  done the work.** Send it back with the specific thing it failed to see.
