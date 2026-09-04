@@ -29,7 +29,7 @@ A visual verification against an empty or one-row DB is **structurally invalid**
 ### 4. Done = Thomas looking at the running surface, seeded
 For each surface on the inventory, "done" means **Thomas looking at it running**, on seeded data: `/dev-server` for a web surface, `/android-generate` for a mobile one. That is D76 step 7, and his eyes are the evidence. A machine judge cannot grant completion (D13: deterministic signals may withhold, never grant; the deleted vision judge scored 0/12 recall against the known human-found defects).
 
-**There is no screenshot requirement.** Thomas deleted it around 2026-07. Never produce screenshot evidence, never attach it to a ticket or pull request, never gate on it, and never ask about it. `capture-surfaces.mjs` and the D7 "evidence gate" in older vault notes and ticket bodies are residue, not live policy; a session once installed a 192 MB Playwright browser chasing this phantom. Ignore that line wherever it appears and carry on.
+**There is no screenshot requirement.** Thomas deleted it around 2026-07. Never produce screenshot evidence, never attach it to a ticket or pull request, never gate on it, and never ask about it. The capture tooling is deleted and the D7 "evidence gate" in older vault notes and ticket bodies is residue, not live policy; a session once installed a 192 MB Playwright browser chasing this phantom. Ignore that line wherever it appears and carry on.
 
 ## Before you claim done
 
