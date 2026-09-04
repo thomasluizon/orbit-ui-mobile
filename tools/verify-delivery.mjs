@@ -155,7 +155,7 @@ const emit = (verdict) => {
  * Residue a run may safely discard, against work it may not. Generated files and evidence a worker
  * should never have produced are one situation; a tracked source file left mid-edit is another, and
  * only the second is somebody's unfinished thinking. Measured on ORB-39: `M apps/web/next-env.d.ts`
- * plus `?? apps/web/e2e/visual/orb-39-evidence.visual.ts`, both discardable, so the finished commit
+ * plus `?? apps/web/e2e/orb-39-evidence.spec.ts`, both discardable, so the finished commit
  * underneath was recoverable without a human opening the worktree.
  */
 const GENERATED_RESIDUE = [/(^|\/)next-env\.d\.ts$/, /(^|\/)\.next\//, /(^|\/)dist\//, /(^|\/)build\//, /(^|\/)coverage\//, /(^|\/)node_modules\//, /\.tsbuildinfo$/, /(^|\/)test-results\//, /(^|\/)playwright-report\//]
