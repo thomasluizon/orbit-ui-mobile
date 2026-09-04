@@ -1019,7 +1019,7 @@ runs for merged tickets only, which after an overnight run is usually none of th
 | Role | Model |
 |---|---|
 | Orchestrator | Opus 5 @ high, or Sol @ high |
-| Implementer | `codex exec` Sol @ high, resolved from `.claude/orchestrator.json` |
+| Implementer | `codex exec` Astra @ high, resolved from `.claude/orchestrator.json` |
 
 The reviewer is absent from this table because this harness launches none. Pullfrog reviews in
 GitHub Actions, and its model and effort are set in the Pullfrog console rather than in any file
