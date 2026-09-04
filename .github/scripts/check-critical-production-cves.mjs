@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 
 const AUDIT_ATTEMPT_TIMEOUT_MS = 70_000
 const SEVERITIES = new Set(['info', 'low', 'moderate', 'high', 'critical'])
@@ -42,10 +43,55 @@ function parseAuditReport(stdout) {
       typeof vulnerability === 'object' &&
       typeof vulnerability.name === 'string' &&
       SEVERITIES.has(vulnerability.severity) &&
-      Array.isArray(vulnerability.via),
+      Array.isArray(vulnerability.via) &&
+      Array.isArray(vulnerability.nodes) &&
+      vulnerability.nodes.length > 0 &&
+      vulnerability.nodes.every((node) => typeof node === 'string'),
   )
 
   return valid ? vulnerabilities : null
+}
+
+function readPackageRecords() {
+  try {
+    const packageLock = JSON.parse(
+      readFileSync(new URL('../../package-lock.json', import.meta.url), 'utf8'),
+    )
+
+    if (
+      !packageLock.packages ||
+      typeof packageLock.packages !== 'object' ||
+      Array.isArray(packageLock.packages)
+    ) {
+      return null
+    }
+
+    return packageLock.packages
+  } catch {
+    return null
+  }
+}
+
+function productionVulnerabilities(vulnerabilities, packageRecords) {
+  const classified = vulnerabilities.map((vulnerability) => {
+    const records = vulnerability.nodes.map((node) => packageRecords[node])
+    if (records.some((record) => !record || typeof record !== 'object')) {
+      return null
+    }
+
+    return {
+      production: records.some((record) => record.dev !== true),
+      vulnerability,
+    }
+  })
+
+  if (classified.some((entry) => entry === null)) {
+    return null
+  }
+
+  return classified
+    .filter((entry) => entry.production)
+    .map((entry) => entry.vulnerability)
 }
 
 function advisoryLabel(vulnerability) {
@@ -62,7 +108,6 @@ function advisoryLabel(vulnerability) {
 
 const auditArguments = [
   'audit',
-  '--omit=dev',
   '--audit-level=critical',
   '--json',
   '--fetch-retries=0',
@@ -105,17 +150,26 @@ if (!vulnerabilities) {
 if (!vulnerabilities) {
   infrastructureFailure(failureDetail(auditResult), auditResult)
 } else {
-  const criticalAdvisories = vulnerabilities.filter(
-    (vulnerability) => vulnerability.severity === 'critical',
-  )
+  const packageRecords = readPackageRecords()
+  const production = packageRecords
+    ? productionVulnerabilities(vulnerabilities, packageRecords)
+    : null
 
-  if (criticalAdvisories.length > 0) {
-    console.error('Critical production advisory found:')
-    for (const vulnerability of criticalAdvisories) {
-      console.error(`- ${advisoryLabel(vulnerability)}`)
-    }
-    process.exitCode = 1
+  if (!production) {
+    infrastructureFailure('audit nodes could not be classified from package-lock.json', auditResult)
   } else {
-    console.log('Production audit passed: no critical vulnerabilities found.')
+    const criticalAdvisories = production.filter(
+      (vulnerability) => vulnerability.severity === 'critical',
+    )
+
+    if (criticalAdvisories.length > 0) {
+      console.error('Critical production advisory found:')
+      for (const vulnerability of criticalAdvisories) {
+        console.error(`- ${advisoryLabel(vulnerability)}`)
+      }
+      process.exitCode = 1
+    } else {
+      console.log('Production audit passed: no critical vulnerabilities found.')
+    }
   }
 }
