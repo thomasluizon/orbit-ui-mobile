@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
@@ -124,6 +125,51 @@ describe('Shell412 mobile', () => {
     expect(findByTestId(tree, 'shell-bottom')[0]?.props.style).toEqual(
       expect.arrayContaining([expect.objectContaining({ paddingBottom: 24 })]),
     )
+
+    const shell = findByTestId(tree, 'shell-412')[0]
+    const background = findByTestId(tree, 'shell-background')[0]
+    const scroller = findByTestId(tree, 'shell-scroller')[0]
+    expect(StyleSheet.flatten(shell?.props.style)).toMatchObject({ flex: 1, overflow: 'hidden' })
+    expect(StyleSheet.flatten(background?.props.style)).toMatchObject({ flex: 1 })
+    expect(StyleSheet.flatten(scroller?.props.style)).toMatchObject({ flex: 1 })
+
+    const bottom = findByTestId(tree, 'shell-bottom')[0]
+    const composerBand = findByTestId(tree, 'shell-composer-band')[0]
+    const fabBand = findByTestId(tree, 'shell-fab-band')[0]
+    const tabBar = findByTestId(tree, 'shell-tab-bar')[0]
+    const fab = findByTestId(tree, 'shell-fab')[0]
+    const notice = findByTestId(tree, 'shell-notice')[0]
+    expect(composerBand?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-pinned-slot')).toHaveLength(1)
+    expect(composerBand?.findAll((node) => typeof node.type === 'string' && node.props.testID === 'shell-fab')).toHaveLength(1)
+    expect(StyleSheet.flatten(fabBand?.props.style)).toMatchObject({ height: 82 })
+    expect(bottom?.findAll((node) => typeof node.type === 'string' && node.props.testID === notice?.props.testID)).toHaveLength(1)
+    expect(bottom?.findAll((node) => typeof node.type === 'string' && node.props.testID === tabBar?.props.testID)).toHaveLength(1)
+    expect(StyleSheet.flatten(fab?.props.style)).toMatchObject({
+      bottom: '100%',
+      marginBottom: 16,
+      position: 'absolute',
+      right: 16,
+    })
+  })
+
+  it('keeps Profile identity content in the bounded destination band', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <Shell412
+          composer={React.createElement('Composer')}
+          tabBar={React.createElement('TabBar')}
+        >
+          {React.createElement('View', { testID: 'profile-identity-container' })}
+        </Shell412>,
+      )
+    })
+
+    const scroller = findByTestId(tree, 'shell-scroller')[0]
+    const profileIdentity = findByTestId(tree, 'profile-identity-container')[0]
+    const bottom = findByTestId(tree, 'shell-bottom')[0]
+    expect(scroller?.findAll((node) => typeof node.type === 'string' && node.props.testID === profileIdentity?.props.testID)).toHaveLength(1)
+    expect(bottom?.findAll((node) => typeof node.type === 'string' && node.props.testID === profileIdentity?.props.testID)).toHaveLength(0)
   })
 
   it('uses an action slot without primary navigation in flow mode', async () => {

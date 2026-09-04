@@ -8,6 +8,23 @@ const TestRenderer: typeof import('react-test-renderer') = require('react-test-r
 type RenderedTree = { unmount: () => void }
 type ComponentProps = Record<string, unknown>
 
+function findBulkActionProps(node: React.ReactNode): ComponentProps | null {
+  if (!React.isValidElement<ComponentProps & { children?: React.ReactNode }>(node)) return null
+  if (
+    typeof node.props.onLog === 'function'
+    && typeof node.props.onSkip === 'function'
+    && typeof node.props.onDelete === 'function'
+  ) {
+    return node.props
+  }
+
+  for (const child of React.Children.toArray(node.props.children)) {
+    const props = findBulkActionProps(child)
+    if (props) return props
+  }
+  return null
+}
+
 const mocks = vi.hoisted(() => ({
   bulkBarProps: null as ComponentProps | null,
   modalProps: null as ComponentProps | null,
@@ -171,8 +188,7 @@ vi.mock('@/components/habits/selection-tray', () => ({
 vi.mock('@/components/shell/shell-composer-slot', () => ({
   useShellComposerSlot: (enabled: boolean, content: React.ReactElement<ComponentProps>) => {
     if (!enabled) return
-    const tray = content.props.children as React.ReactElement<ComponentProps>
-    mocks.bulkBarProps = tray.props
+    mocks.bulkBarProps = findBulkActionProps(content)
   },
 }))
 
