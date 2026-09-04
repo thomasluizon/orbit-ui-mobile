@@ -345,11 +345,6 @@
       "count": 4
     }
   },
-  "components/habits/habit-detail-sections.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/habits/habit-form-fields/habit-emoji-selector.tsx": {
     "local/icon-size-grid": {
       "count": 1

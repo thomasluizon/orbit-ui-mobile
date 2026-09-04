@@ -4,7 +4,7 @@ import type { BadgeProps } from '@orbit/shared/contracts/display'
 export function Badge({ variant = 'solid', children }: Readonly<BadgeProps>) {
   return (
     <span
-      className="inline-flex items-center rounded-[8px] uppercase"
+      className="inline-flex items-center whitespace-nowrap rounded-[8px] uppercase"
       data-variant={variant}
       style={{
         background: variant === 'solid' ? 'var(--fg-1)' : 'transparent',

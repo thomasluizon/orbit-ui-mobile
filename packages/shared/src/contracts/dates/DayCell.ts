@@ -22,6 +22,7 @@ interface DayCellBase {
   selected?: boolean
   outsideMonth?: boolean
   label?: string
+  habitHistory?: boolean
   words: DayCellWords
 }
 

@@ -95,4 +95,19 @@ describe('shared chat store', () => {
       correlationId: 'trace-9',
     })
   })
+
+  it('publishes and clears a contextual suggestion', () => {
+    const store = createStoreHarness()
+    const suggestion = {
+      id: 'habit-detail-help',
+      label: 'Ask Astra about this habit',
+      prompt: 'Help me improve Read',
+    }
+
+    store.getState().setContextualSuggestion(suggestion)
+    expect(store.getState().contextualSuggestion).toEqual(suggestion)
+
+    store.getState().setContextualSuggestion(null)
+    expect(store.getState().contextualSuggestion).toBeNull()
+  })
 })

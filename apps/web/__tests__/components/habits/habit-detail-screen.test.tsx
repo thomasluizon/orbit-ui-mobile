@@ -1,12 +1,20 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { formatAPIDate } from '@orbit/shared/utils'
+import type { Time24 } from '@orbit/shared/contracts/forms'
+import { formatAPIDate, normalizeHabitQueryData } from '@orbit/shared/utils'
+import {
+  makeHabitDetail as makeDetail,
+  makeHabitScheduleItem,
+  makeTaggedNestedHabitScheduleItem,
+  makeHabitDetailScopedChild as makeScopedChild,
+  makeHabitDetailScopedParent as makeScopedParent,
+  makeLoggedGeneralHabitDetailChild as makeLoggedGeneralChild,
+} from '@orbit/shared/test-support/habit-detail-fixtures'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { HabitDetail, HabitMetrics, NormalizedHabit } from '@orbit/shared/types/habit'
 import { HabitDetailScreen } from '@/components/habits/habit-detail-screen'
 import { useChatStore } from '@/stores/chat-store'
-import { useUIStore } from '@/stores/ui-store'
 
 const mocks = vi.hoisted(() => ({
   logs: [] as HabitLog[],
@@ -15,6 +23,9 @@ const mocks = vi.hoisted(() => ({
   detailLoading: false,
   detailError: false,
   refetch: vi.fn(),
+  allHabitsError: false,
+  allHabitsRefetch: vi.fn(),
+  allHabits: new Map<string, NormalizedHabit>(),
   scopedHabits: new Map<string, NormalizedHabit>(),
   log: vi.fn(),
   update: vi.fn(),
@@ -53,7 +64,7 @@ vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
   useHabitLogs: () => ({ data: mocks.logs }),
   useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false }),
-  useHabits: () => ({ data: { habitsById: mocks.scopedHabits, topLevelHabits: [] } }),
+  useHabits: (filters: { dateFrom?: string }) => ({ data: { habitsById: filters.dateFrom ? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: false, isError: !filters.dateFrom && mocks.allHabitsError, refetch: mocks.allHabitsRefetch }),
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
@@ -107,9 +118,9 @@ vi.mock('@/components/ui/switch', () => ({
   ),
 }))
 vi.mock('@/components/ui/list-row', () => ({
-  ListRow: ({ title, value, trailing, onClick }: { title: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }) => onClick
-    ? <button type="button" data-testid={`list-row-${title}`} data-value={value} onClick={onClick}>{title}{trailing}</button>
-    : <div data-testid={`list-row-${title}`} data-value={value}>{title}{trailing}</div>,
+  ListRow: ({ title, description, value, trailing, onClick }: { title: string; description?: string; value?: string; trailing?: React.ReactNode; onClick?: () => void }) => onClick
+    ? <button type="button" data-testid={`list-row-${title}`} data-description={description} data-value={value} onClick={onClick}>{title}{trailing}</button>
+    : <div data-testid={`list-row-${title}`} data-description={description} data-value={value}>{title}{trailing}</div>,
 }))
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, disabled, label, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void }) => <button type="button" disabled={disabled} aria-label={label} onClick={onClick}>{children}</button>,
@@ -125,14 +136,26 @@ vi.mock('@/components/dates/month-grid', () => ({
   MonthGrid: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: () => null }))
-vi.mock('@/components/habits/edit-habit-modal', () => ({
-  EditHabitModal: ({ open, relationshipFieldsLoaded }: { open: boolean; relationshipFieldsLoaded: boolean }) => (
-    <div data-testid="edit-habit-modal" data-open={open} data-relationship-fields-loaded={relationshipFieldsLoaded} />
+vi.mock('@/components/habits/goal-linking-field', () => ({
+  GoalLinkingField: ({ selectedGoalIds, atGoalLimit, onToggleGoal }: { selectedGoalIds: string[]; atGoalLimit: boolean; onToggleGoal: (goalId: string) => void }) => <button type="button" data-testid="goal-linking-field" data-goal-limit={atGoalLimit} onClick={() => onToggleGoal(atGoalLimit ? selectedGoalIds[0]! : 'goal-2')} />,
+}))
+vi.mock('@/components/ui/time-field', () => ({
+  TimeField: ({ label, value, onChange, onClear }: { label: string; value: Time24 | ''; onChange: (value: Time24) => void; onClear: () => void }) => (
+    <div>
+      <input aria-label={label} value={value} onChange={(event) => { if (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(event.target.value)) onChange(event.target.value as Time24) }} />
+      <button type="button" onClick={onClear}>clear-time</button>
+    </div>
   ),
 }))
+vi.mock('@/components/habits/habit-form-fields/reminder-section', () => ({
+  ReminderSection: ({ onReminderTimesChange, onToggleReminder }: { onReminderTimesChange: (offsets: number[]) => void; onToggleReminder: () => void }) => <div data-testid="offset-reminders"><button type="button" onClick={() => onReminderTimesChange([30])}>set-offset</button><button type="button" onClick={onToggleReminder}>toggle-offsets</button></div>,
+}))
+vi.mock('@/components/habits/habit-form-fields/scheduled-reminder-section', () => ({
+  ScheduledReminderSection: ({ onSetScheduledReminders, onToggleReminder }: { onSetScheduledReminders: (scheduled: { when: 'same_day'; time: string }[]) => void; onToggleReminder: () => void }) => <div data-testid="scheduled-reminders"><button type="button" onClick={() => onSetScheduledReminders([{ when: 'same_day', time: '08:00' }])}>set-scheduled</button><button type="button" onClick={() => onSetScheduledReminders([])}>remove-scheduled</button><button type="button" onClick={onToggleReminder}>toggle-scheduled</button></div>,
+}))
 vi.mock('@/components/habits/habit-checklist', () => ({
-  HabitChecklist: ({ onToggle, onClear }: { onToggle: (index: number) => void; onClear: () => void }) => (
-    <div>
+  HabitChecklist: ({ interactive, editable, onToggle, onClear }: { interactive: boolean; editable: boolean; onToggle: (index: number) => void; onClear: () => void }) => (
+    <div data-testid="habit-checklist" data-interactive={interactive} data-editable={editable}>
       <button type="button" onClick={() => onToggle(0)}>toggle-checklist</button>
       <button type="button" onClick={onClear}>clear-checklist</button>
     </div>
@@ -162,89 +185,6 @@ vi.mock('@/components/habits/habit-row', () => ({
   ),
 }))
 
-function makeChild(): HabitDetail['children'][number] {
-  return {
-    id: 'child-1',
-    title: 'Recurring child',
-    description: null,
-    emoji: null,
-    frequencyUnit: 'Day',
-    frequencyQuantity: 1,
-    isBadHabit: false,
-    isCompleted: false,
-    isGeneral: false,
-    isFlexible: false,
-    days: [],
-    dueDate: '2026-08-01',
-    dueTime: null,
-    dueEndTime: null,
-    endDate: null,
-    position: 0,
-    checklistItems: [],
-    children: [],
-  }
-}
-
-function makeDetail(): HabitDetail {
-  return {
-    ...makeChild(),
-    id: 'habit-1',
-    title: 'Read',
-    createdAtUtc: '2026-08-01T12:00:00Z',
-    reminderEnabled: false,
-    reminderTimes: [],
-    scheduledReminders: [],
-    children: [makeChild()],
-  }
-}
-
-function makeScopedChild(date: string): NormalizedHabit {
-  return {
-    ...makeChild(),
-    createdAtUtc: '2026-08-01T12:00:00Z',
-    parentId: 'habit-1',
-    scheduledDates: [date],
-    isOverdue: false,
-    reminderEnabled: false,
-    reminderTimes: [],
-    scheduledReminders: [],
-    slipAlertEnabled: false,
-    tags: [],
-    hasSubHabits: false,
-    flexibleTarget: null,
-    flexibleCompleted: null,
-    isLoggedInRange: true,
-    linkedGoals: [],
-    instances: [{ date, status: 'Completed', logId: 'child-log' }],
-    searchMatches: null,
-  }
-}
-
-function makeLoggedGeneralChild(): NormalizedHabit {
-  return {
-    ...makeScopedChild('2026-08-29'),
-    title: 'General child',
-    frequencyUnit: null,
-    frequencyQuantity: null,
-    isCompleted: true,
-    isGeneral: true,
-    scheduledDates: [],
-    isLoggedInRange: false,
-    instances: [],
-  }
-}
-
-function makeScopedParent(): NormalizedHabit {
-  return {
-    ...makeScopedChild('2026-08-28'),
-    id: 'habit-1',
-    title: 'Read',
-    parentId: null,
-    tags: [{ id: 'tag-1', name: 'Focus', color: '#123456' }],
-    linkedGoals: [{ id: 'goal-1', title: 'Read more books' }],
-  }
-}
-
 describe('HabitDetailScreen', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -252,6 +192,7 @@ describe('HabitDetailScreen', () => {
     mocks.detail = makeDetail()
     mocks.detailLoading = false
     mocks.detailError = false
+    mocks.allHabitsError = false
     mocks.logs = [
       { id: 'older-1', date: '2026-08-26', value: 1, createdAtUtc: '2026-08-26T12:00:00Z' },
       { id: 'older-2', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' },
@@ -264,6 +205,7 @@ describe('HabitDetailScreen', () => {
       totalCompletions: 2,
       lastCompletedDate: '2026-08-27',
     }
+    mocks.allHabits = new Map([['habit-1', { ...makeScopedParent(), tags: [], linkedGoals: [], instances: [] }]])
     mocks.scopedHabits = new Map()
     mocks.log.mockReset()
     mocks.update.mockReset()
@@ -271,13 +213,13 @@ describe('HabitDetailScreen', () => {
     mocks.deleteHabit.mockReset()
     mocks.showError.mockReset()
     mocks.refetch.mockReset()
+    mocks.allHabitsRefetch.mockReset()
     mocks.routerBack.mockReset()
     mocks.routerPush.mockReset()
     mocks.routerReplace.mockReset()
     mocks.history = []
     mocks.hasProAccess = true
-    useChatStore.setState({ draft: '', draftHydrated: true })
-    useUIStore.setState({ astraConversationOpen: false })
+    useChatStore.setState({ draft: '', draftHydrated: true, contextualSuggestion: null })
     mocks.suggestion = null
     localStorage.clear()
   })
@@ -301,14 +243,111 @@ describe('HabitDetailScreen', () => {
     expect(mocks.refetch).toHaveBeenCalledOnce()
   })
 
-  it('shows authoritative tags and linked goals and opens the selected goal', () => {
+  it('retries a list-only load failure', () => {
+    mocks.allHabitsError = true
+    render(<HabitDetailScreen habitId="habit-1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.retry' }))
+
+    expect(mocks.allHabitsRefetch).toHaveBeenCalledOnce()
+    expect(mocks.refetch).not.toHaveBeenCalled()
+  })
+
+  it('shows authoritative tags and moves linked goals into the inline details', () => {
+    mocks.allHabits.set('habit-1', makeScopedParent())
     mocks.scopedHabits.set('habit-1', makeScopedParent())
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
     expect(screen.getByText('Focus')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Read more books' }))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    expect(screen.getByTestId('list-row-habits.detail.linkedGoals')).toHaveAttribute('data-value', '1')
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.linkedGoals'))
+    expect(screen.getByTestId('goal-linking-field')).toBeInTheDocument()
+    expect(mocks.routerPush).not.toHaveBeenCalled()
+  })
 
-    expect(mocks.routerPush).toHaveBeenCalledWith('/goals/goal-1')
+  it('preserves authoritative relationship state for an off-schedule habit', () => {
+    const linkedGoals = Array.from({ length: 10 }, (_, index) => ({ id: `goal-${index + 1}`, title: `Goal ${index + 1}` }))
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
+    mocks.allHabits.set('habit-1', {
+      ...makeScopedParent(),
+      isBadHabit: true,
+      linkedGoals,
+      slipAlertEnabled: true,
+    })
+
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-29" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+
+    expect(screen.getByTestId('list-row-habits.detail.linkedGoals')).toHaveAttribute('data-value', '10')
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.linkedGoals'))
+    expect(screen.getByTestId('goal-linking-field')).toHaveAttribute('data-goal-limit', 'true')
+    fireEvent.click(screen.getByTestId('goal-linking-field'))
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({
+      goalIds: linkedGoals.slice(1).map((goal) => goal.id),
+    })
+
+    const slipAlert = screen.getByRole('switch', { name: 'habits.detail.slipAlert' })
+    expect(slipAlert).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(slipAlert)
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ slipAlertEnabled: false })
+  })
+
+  it('keeps a general habit existing goal links after the first toggle', () => {
+    mocks.detail = { ...makeDetail(), isGeneral: true }
+    mocks.allHabits.clear()
+    mocks.scopedHabits = normalizeHabitQueryData([makeHabitScheduleItem({
+      isGeneral: true,
+      linkedGoals: [{ id: 'goal-1', title: 'Read more books' }],
+    })]).habitsById
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.linkedGoals'))
+    fireEvent.click(screen.getByTestId('goal-linking-field'))
+
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({
+      goalIds: ['goal-1', 'goal-2'],
+    })
+  })
+
+  it('hides relationship controls for a nested child from real normalized schedule data', () => {
+    mocks.detail = { ...makeDetail(), id: 'child-1', isBadHabit: true, children: [] }
+    mocks.allHabits = normalizeHabitQueryData([makeHabitScheduleItem()]).habitsById
+    mocks.scopedHabits = normalizeHabitQueryData([makeHabitScheduleItem()]).habitsById
+    render(<HabitDetailScreen habitId="child-1" date="2026-08-28" parentId="habit-1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+
+    expect(screen.queryByTestId('list-row-habits.detail.linkedGoals')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('list-row-habits.detail.slipAlert')).not.toBeInTheDocument()
+  })
+
+  it('keeps normalized nested tags visible without relationship controls', () => {
+    mocks.detail = { ...makeDetail(), id: 'child-1', isBadHabit: true, children: [] }
+    const normalized = normalizeHabitQueryData([makeTaggedNestedHabitScheduleItem()])
+    mocks.allHabits = normalized.habitsById
+    mocks.scopedHabits = normalized.habitsById
+    render(<HabitDetailScreen habitId="child-1" date="2026-08-28" parentId="habit-1" />)
+
+    expect(screen.getByText('Nested focus')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    expect(screen.queryByTestId('list-row-habits.detail.linkedGoals')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('list-row-habits.detail.slipAlert')).not.toBeInTheDocument()
+  })
+
+  it('keeps relationship controls interactive for a top-level habit with zero linked goals', () => {
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
+    mocks.allHabits = normalizeHabitQueryData([makeHabitScheduleItem({ isBadHabit: true })]).habitsById
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.linkedGoals'))
+    fireEvent.click(screen.getByTestId('goal-linking-field'))
+    fireEvent.click(screen.getByRole('switch', { name: 'habits.detail.slipAlert' }))
+
+    expect(mocks.update.mock.calls.at(-2)?.[0].data).toMatchObject({ goalIds: ['goal-2'] })
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ slipAlertEnabled: true })
   })
 
   it('restores an empty rename and returns to the selected day', async () => {
@@ -328,7 +367,7 @@ describe('HabitDetailScreen', () => {
     expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
   })
 
-  it('moves to an older history month and explains unavailable history', () => {
+  it('moves to an older history month without rendering the removed history note', () => {
     mocks.detail = { ...makeDetail(), createdAtUtc: '2025-01-01T12:00:00Z' }
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
@@ -336,7 +375,7 @@ describe('HabitDetailScreen', () => {
     for (let index = 0; index < 13; index += 1) fireEvent.click(previousMonth)
 
     expect(screen.getByText('July 2025')).toBeInTheDocument()
-    expect(screen.getByText('olderHistoryUnavailable')).toBeInTheDocument()
+    expect(screen.queryByText('olderHistoryUnavailable')).not.toBeInTheDocument()
   })
 
   it('pops child then parent history back to Today without duplicating the parent', () => {
@@ -377,21 +416,19 @@ describe('HabitDetailScreen', () => {
 
     expect(screen.getByRole('button', { name: 'log' })).toHaveAttribute('data-logged', 'false')
     expect(screen.getByTestId('history-day-28-inside')).toHaveTextContent('none')
-    expect(screen.getByTestId('stat-totalCompletions')).toHaveTextContent('2')
+    expect(screen.queryByTestId('stat-totalCompletions')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'log' }))
     await act(async () => Promise.resolve())
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     expect(screen.getByRole('button', { name: 'unlog' })).toHaveAttribute('data-logged', 'true')
     expect(screen.getByTestId('history-day-28-inside')).toHaveTextContent('full')
-    expect(screen.getByTestId('stat-totalCompletions')).toHaveTextContent('3')
 
     fireEvent.click(screen.getByRole('button', { name: 'unlog' }))
     await act(async () => Promise.resolve())
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     expect(screen.getByRole('button', { name: 'log' })).toHaveAttribute('data-logged', 'false')
     expect(screen.getByTestId('history-day-28-inside')).toHaveTextContent('none')
-    expect(screen.getByTestId('stat-totalCompletions')).toHaveTextContent('2')
   })
 
   it('guards a repeated detail toggle while the accepted write is unfinalized', async () => {
@@ -469,35 +506,35 @@ describe('HabitDetailScreen', () => {
     expect(request).not.toHaveProperty('goalIds')
   })
 
-  it('opens the full editor without treating an off-schedule relationship snapshot as loaded', () => {
+  it('opens the schedule editor inline without opening the full editor', () => {
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.schedule' }))
 
-    expect(screen.getByTestId('edit-habit-modal')).toHaveAttribute('data-open', 'true')
-    expect(screen.getByTestId('edit-habit-modal')).toHaveAttribute(
-      'data-relationship-fields-loaded',
-      'false',
-    )
+    expect(screen.getByRole('spinbutton', { name: 'habits.form.frequencyRequired' })).toBeInTheDocument()
+    expect(screen.queryByTestId('edit-habit-modal')).not.toBeInTheDocument()
   })
 
-  it('shows reminder copy and count between description and end date and opens the editor', () => {
+  it('shows reminder offsets before schedule and edits them inline', async () => {
     const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
     const reminderRow = screen.getByTestId('list-row-habits.detail.reminders')
     expect(reminderRow).toHaveAttribute('data-value', 'habits.detail.noValue')
     const detailRows = Array.from(reminderRow.parentElement!.children)
-    expect(detailRows.indexOf(screen.getByTestId('list-row-habits.detail.description'))).toBeLessThan(
-      detailRows.indexOf(reminderRow),
-    )
     expect(detailRows.indexOf(reminderRow)).toBeLessThan(
-      detailRows.indexOf(screen.getByTestId('list-row-habits.detail.endDate')),
+      detailRows.indexOf(screen.getByTestId('list-row-habits.detail.schedule')),
     )
 
     fireEvent.click(reminderRow)
-    expect(screen.getByTestId('edit-habit-modal')).toHaveAttribute('data-open', 'true')
+    expect(screen.getByTestId('scheduled-reminders')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'set-scheduled' }))
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-scheduled' }))
+    expect(mocks.update).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ reminderEnabled: true, scheduledReminders: [{ when: 'same_day', time: '08:00' }] })
 
     mocks.detail = {
       ...makeDetail(),
@@ -506,13 +543,172 @@ describe('HabitDetailScreen', () => {
       scheduledReminders: [{ when: 'same_day', time: '08:00' }],
     }
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
-    expect(screen.getByTestId('list-row-habits.detail.reminders')).toHaveAttribute('data-value', '3')
+    expect(screen.getByTestId('list-row-habits.detail.reminders')).toHaveAttribute('data-value', 'habits.form.reminder10min, habits.form.reminder30min, 08:00')
+  })
+
+  it('keeps the five content blocks in one column and discloses avoid-only fields', () => {
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    const main = document.querySelector('main')
+    if (!main) throw new Error('Expected the habit detail main surface')
+    const blocks = Array.from(main.children).filter((element) => (
+      element.tagName === 'HEADER' || element.tagName === 'SECTION'
+    ))
+
+    expect(blocks.map((element) => element.tagName)).toEqual([
+      'HEADER',
+      'SECTION',
+      'SECTION',
+      'SECTION',
+      'SECTION',
+    ])
+    expect(blocks.slice(1).map((element) => element.textContent)).toEqual([
+      expect.stringContaining('habits.detail.lastThirtyDays'),
+      expect.stringContaining('history'),
+      expect.stringContaining('habits.detail.checklist'),
+      expect.stringContaining('habits.detail.moreDetails'),
+    ])
+    expect(screen.queryByTestId('list-row-habits.detail.slipAlert')).toBeNull()
+
+    const disclosure = screen.getByRole('button', { name: 'habits.detail.moreDetails' })
+    expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByTestId('habit-checklist')).toHaveAttribute('data-interactive', 'true')
+    fireEvent.click(disclosure)
+    expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByTestId('habit-checklist')).toHaveAttribute('data-editable', 'true')
+    fireEvent.click(disclosure)
+    expect(disclosure).toHaveAttribute('aria-expanded', 'false')
+
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    expect(screen.getByTestId('list-row-habits.detail.slipAlert')).toBeInTheDocument()
+  })
+
+  it('persists each inline detail editor through its dedicated patch', async () => {
+    mocks.detail = { ...makeDetail(), dueTime: '09:00', description: 'Old note', endDate: '2026-09-30' }
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.linkedGoals'))
+    fireEvent.click(screen.getByTestId('goal-linking-field'))
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ goalIds: ['goal-2'] })
+    mocks.update.mockClear()
+
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.reminders'))
+    fireEvent.click(screen.getByRole('button', { name: 'set-offset' }))
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-offsets' }))
+    expect(mocks.update).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ reminderEnabled: true, reminderTimes: [30] })
+
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.schedule'))
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'habits.form.frequencyRequired' }), { target: { value: '3' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'habits.detail.schedule' }), { target: { value: 'Week' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ frequencyUnit: 'Week', frequencyQuantity: 3, days: [] })
+
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.time'))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '10:15' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ dueTime: '10:15', dueEndTime: null })
+
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.description'))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: ' Better note ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ description: 'Better note' })
+
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.endDate'))
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: ' ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ endDate: null })
+  })
+
+  it('clears reminder configuration when the time editor clears due time', async () => {
+    mocks.detail = {
+      ...makeDetail(),
+      dueTime: '09:00',
+      dueEndTime: '10:00',
+      reminderEnabled: true,
+      reminderTimes: [15],
+      scheduledReminders: [{ when: 'same_day', time: '08:00' }],
+    }
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.time'))
+    fireEvent.click(screen.getByRole('button', { name: 'clear-time' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+
+    const request = mocks.update.mock.calls.at(-1)?.[0].data
+    expect({
+      dueTime: request.dueTime,
+      dueEndTime: request.dueEndTime,
+      reminderEnabled: request.reminderEnabled,
+      reminderTimes: request.reminderTimes,
+      scheduledReminders: request.scheduledReminders,
+    }).toEqual({
+      dueTime: null,
+      dueEndTime: null,
+      reminderEnabled: false,
+      reminderTimes: [],
+      scheduledReminders: [],
+    })
+  })
+
+  it('validates reminder drafts before mutation', async () => {
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.reminders'))
+    fireEvent.click(screen.getByRole('button', { name: 'toggle-scheduled' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+
+    expect(mocks.update).not.toHaveBeenCalled()
+    expect(mocks.showError).toHaveBeenCalledWith('habits.form.reminderMinimumOne')
+
+    fireEvent.click(screen.getByRole('button', { name: 'set-scheduled' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({
+      reminderEnabled: true,
+      scheduledReminders: [{ when: 'same_day', time: '08:00' }],
+    })
+  })
+
+  it('edits stored scheduled reminders beside due-time offsets', async () => {
+    mocks.detail = {
+      ...makeDetail(),
+      dueTime: '09:00',
+      reminderEnabled: true,
+      reminderTimes: [15],
+      scheduledReminders: [{ when: 'same_day', time: '08:00' }],
+    }
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.reminders'))
+
+    expect(screen.getByTestId('offset-reminders')).toBeInTheDocument()
+    expect(screen.getByTestId('scheduled-reminders')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'remove-scheduled' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({
+      reminderEnabled: true,
+      reminderTimes: [15],
+      scheduledReminders: [],
+    })
   })
 
   it('sends slip alert state only from the explicit switch action', () => {
+    mocks.detail = { ...makeDetail(), isBadHabit: true }
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    expect(screen.getByTestId('list-row-habits.detail.slipAlert')).toHaveAttribute('data-description', 'habits.detail.slipAlertDescription')
     fireEvent.click(screen.getByRole('switch', { name: 'habits.detail.slipAlert' }))
 
     expect(mocks.update).toHaveBeenCalledOnce()
@@ -617,13 +813,15 @@ describe('HabitDetailScreen', () => {
     expect(mocks.routerPush).toHaveBeenCalledWith('/?date=2026-08-28')
   })
 
-  it('opens Astra with a draft grounded in the current habit', () => {
+  it('puts the grounded Astra seed in the persistent composer', () => {
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.askAstra' }))
-
-    expect(useChatStore.getState().draft).toBe('habits.detail.askAstraSeedDefault:{"title":"Read"}')
-    expect(useUIStore.getState().astraConversationOpen).toBe(true)
+    expect(useChatStore.getState().contextualSuggestion).toEqual({
+      id: 'habit-habit-1',
+      label: 'habits.detail.askAstra',
+      prompt: 'habits.detail.askAstraSeedDefault:{"title":"Read"}',
+    })
+    expect(screen.queryByRole('button', { name: 'habits.detail.askAstra' })).not.toBeInTheDocument()
     expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 

@@ -86,6 +86,7 @@ export function Button({
       ) : iconOnly ? children : null}
       {iconOnly ? null : (
         <Text
+          numberOfLines={1}
           style={[
             styles.label,
             { color: textColorByVariant[variant], fontSize: sizeSpec.fontSize },
