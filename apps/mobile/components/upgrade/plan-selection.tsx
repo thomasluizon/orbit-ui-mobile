@@ -1,7 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 import Animated, {
-  LinearTransition,
   ReduceMotion,
   useAnimatedStyle,
   useSharedValue,
@@ -37,7 +36,6 @@ interface Tier {
 }
 
 const motionPurpose = {
-  tier: 'spatial consistency',
   load: 'preventing a jarring change',
 } as const
 
@@ -119,12 +117,6 @@ export function PlanSelection({
 }>) {
   const prefersReducedMotion = usePrefersReducedMotion()
   const checkoutPending = checkoutLoading !== null
-  const tierLayoutTransition = prefersReducedMotion
-    ? undefined
-    : LinearTransition.duration(motionDurations.base)
-        .easing(toAnimatedEasing(motionEasings.standard))
-        .reduceMotion(ReduceMotion.System)
-
   const selectInterval = (interval: string) => {
     if (interval !== 'monthly' && interval !== 'yearly') return
     onSelectInterval(interval)
@@ -213,21 +205,16 @@ export function PlanSelection({
         {intervalControl}
         <View style={styles.planChoices}>
           {tiers.map((tier) => (
-            <Animated.View
+            <TierCard
               key={tier.interval}
-              layout={tierLayoutTransition}
-              testID={`upgrade-motion-tier-${motionPurpose.tier.replaceAll(' ', '-')}-${tier.interval}`}
-            >
-              <TierCard
-                tier={tier}
-                recommended={tier.interval === 'yearly'}
-                loading={checkoutLoading === tier.interval}
-                disabled={checkoutPending || checkoutDisabled}
-                onCheckout={onCheckout}
-                t={t}
-                tokens={tokens}
-              />
-            </Animated.View>
+              tier={tier}
+              recommended={tier.interval === 'yearly'}
+              loading={checkoutLoading === tier.interval}
+              disabled={checkoutPending || checkoutDisabled}
+              onCheckout={onCheckout}
+              t={t}
+              tokens={tokens}
+            />
           ))}
         </View>
         {checkoutError ? (

@@ -175,7 +175,6 @@ export function PlanSelection({
               recommended={tier.interval === 'yearly'}
               loading={checkoutLoading === tier.interval}
               disabled={checkoutPending || checkoutDisabled}
-              reducedMotion={prefersReducedMotion}
               onCheckout={onCheckout}
               t={t}
             />
@@ -191,7 +190,6 @@ function TierCard({
   recommended,
   loading,
   disabled,
-  reducedMotion,
   onCheckout,
   t,
 }: Readonly<{
@@ -199,18 +197,11 @@ function TierCard({
   recommended: boolean
   loading: boolean
   disabled: boolean
-  reducedMotion: boolean
   onCheckout: (interval: SubscriptionInterval) => void
   t: ReturnType<typeof useTranslations>
 }>) {
   return (
-    <m.section
-      layout={reducedMotion ? false : 'position'}
-      transition={reducedMotion ? { duration: 0 } : {
-        duration: motionDurations.base / 1000,
-        ease: motionEasings.standard,
-      }}
-      data-motion-purpose="spatial consistency"
+    <section
       data-selected={recommended || undefined}
       className="flex min-w-0 flex-col gap-2 rounded-[var(--r-card)] p-6"
       style={{
@@ -244,6 +235,6 @@ function TierCard({
           {t('upgrade.plans.cta')}
         </PillButton>
       </div>
-    </m.section>
+    </section>
   )
 }
