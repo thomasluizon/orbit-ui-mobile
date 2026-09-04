@@ -35,11 +35,18 @@ function buildTags(count: number) {
   }))
 }
 
-function findButtonWithText(root: { findAll: (predicate: (node: { props: Record<string, unknown>; findAll: (childPredicate: (child: { type: unknown; props: Record<string, unknown> }) => boolean) => unknown[] }) => boolean) => { props: Record<string, unknown> }[] }, text: string) {
+interface TestButtonNode {
+  props: {
+    accessibilityState?: { selected?: boolean; disabled?: boolean }
+    onPress: () => void
+  }
+}
+
+function findButtonWithText(root: { findAll: (predicate: (node: { props: Record<string, unknown>; findAll: (childPredicate: (child: { type: unknown; props: Record<string, unknown> }) => boolean) => unknown[] }) => boolean) => unknown[] }, text: string): TestButtonNode {
   return root.findAll((node) =>
     node.props.accessibilityRole === 'button' &&
     node.findAll((child) => child.type === 'Text' && child.props.children === text).length > 0,
-  )[0]!
+  )[0]! as TestButtonNode
 }
 
 it('shows an actionable empty state instead of an empty picker body', async () => {
