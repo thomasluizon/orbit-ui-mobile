@@ -1,8 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useReducedMotion } from 'motion/react'
-import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useUIStore } from '@/stores/ui-store'
 import type { HabitListHandle } from '@/components/habits/habit-list'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
@@ -15,8 +13,6 @@ export interface TodayView {
   nav: TodayNavigation
   data: TodayHabitsData
   selection: ReturnType<typeof useTodaySelection>
-  listTransition: { duration: number; ease: readonly [number, number, number, number] }
-  refetchShift: number
   habitListRef: React.RefObject<HabitListHandle | null>
   habitListAllCollapsed: boolean
   setHabitListAllCollapsed: (value: boolean) => void
@@ -35,7 +31,6 @@ export function useTodayPage(
   initialToday: string,
   initialHabits: TodayInitialHabits | null,
 ): TodayView {
-  const prefersReducedMotion = useReducedMotion()
   const nav = useTodayNavigation(initialToday)
   const data = useTodayHabitsData({
     dateStr: nav.dateStr,
@@ -79,17 +74,10 @@ export function useTodayPage(
     habitsCount: data.habitsCount,
     habitListRef,
   })
-  const preset = resolveMotionPreset('list-enter', Boolean(prefersReducedMotion))
-
   return {
     nav,
     data,
     selection,
-    listTransition: {
-      duration: preset.enterDuration / 1000,
-      ease: preset.enterEasing,
-    },
-    refetchShift: Math.round(preset.shift / 2),
     habitListRef,
     habitListAllCollapsed,
     setHabitListAllCollapsed,

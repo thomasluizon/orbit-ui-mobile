@@ -5,13 +5,24 @@ import {
   type ComposerProps,
   type ComposerVoiceWords,
 } from '@orbit/shared/contracts/composer'
-import { useRef } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { useRef, useState } from 'react'
+import { Animated, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { ArrowUp, FileText, Image, Mic, RefreshCw, Square, X } from '@/components/ui/icons'
 import { AstraGlyph } from '@/components/ui/astra-glyph'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { mobileMotion, toAnimatedEasing } from '@/lib/motion'
+
+function animatePressScale(scale: Animated.Value, toValue: number) {
+  scale.stopAnimation()
+  Animated.timing(scale, {
+    toValue,
+    duration: mobileMotion.orbital.press.duration,
+    easing: toAnimatedEasing(mobileMotion.easings.enter),
+    useNativeDriver: true,
+  }).start()
+}
 
 function AttachmentIcon({ kind, color }: Readonly<Pick<ComposerAttachment, 'kind'> & { color: string }>) {
   return kind === 'image' ? (
@@ -138,6 +149,7 @@ function ComposerStatus({ props, tokens }: Readonly<{ props: ComposerProps; toke
 
 function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; tokens: AppTokensV2 }>) {
   const voiceRef = useRef<View>(null)
+  const [openConversationScale] = useState(() => new Animated.Value(1))
   useTourTarget('tour-chat-voice', voiceRef)
   const inputDisabled = props.state !== 'idle'
   const canSend = props.state === 'idle' && hasComposerContent(props.value, props.attachments)
@@ -149,14 +161,18 @@ function ComposerInputRow({ props, tokens }: Readonly<{ props: ComposerProps; to
   return (
     <View style={styles.inputRow}>
       {props.onOpenConversation && props.conversationLabel ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={props.conversationLabel}
-          onPress={props.onOpenConversation}
-          style={styles.openConversation}
-        >
-          <AstraGlyph size={20} color={tokens.fg3} />
-        </Pressable>
+        <Animated.View style={{ transform: [{ scale: openConversationScale }] }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={props.conversationLabel}
+            onPress={props.onOpenConversation}
+            onPressIn={() => animatePressScale(openConversationScale, mobileMotion.orbital.press.scale)}
+            onPressOut={() => animatePressScale(openConversationScale, 1)}
+            style={styles.openConversation}
+          >
+            <AstraGlyph size={20} color={tokens.fg3} />
+          </Pressable>
+        </Animated.View>
       ) : null}
       <View
         style={[styles.field, { backgroundColor: tokens.bgField, borderColor: tokens.borderControl }]}
@@ -294,7 +310,6 @@ export function Composer(props: Readonly<ComposerProps>) {
     <View
       testID={testID}
       accessibilityState={{ disabled: inputDisabled, busy: props.state === 'sending' }}
-      className="flex-col gap-3 p-4"
       style={[styles.root, { backgroundColor: tokens.bg, borderTopColor: tokens.hairline }]}
     >
       {hasAttachments && props.attachWords && props.onAttachRemove ? (
@@ -316,6 +331,9 @@ export function Composer(props: Readonly<ComposerProps>) {
 const styles = StyleSheet.create({
   root: {
     borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'column',
+    gap: 12,
+    padding: 16,
   },
   tray: {
     gap: 8,
