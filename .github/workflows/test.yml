@@ -123,10 +123,17 @@ jobs:
           node-version: 22
           cache: npm
 
-      - run: npm ci
+      - name: Use the repository npm version
+        run: npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund
+
+      - run: npm ci --no-audit
+
+      - name: Test critical production CVE gate failure paths
+        run: node --test .github/scripts/check-critical-production-cves.test.mjs
 
       - name: Fail on critical production CVEs
-        run: npm audit --omit=dev --audit-level=critical
+        timeout-minutes: 3
+        run: node .github/scripts/check-critical-production-cves.mjs
 
       - name: Report high and moderate advisories (non-blocking)
         if: always()
