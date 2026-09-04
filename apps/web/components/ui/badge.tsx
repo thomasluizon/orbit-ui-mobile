@@ -9,12 +9,13 @@ export function Badge({ variant = 'solid', children }: Readonly<BadgeProps>) {
       style={{
         background: variant === 'solid' ? 'var(--fg-1)' : 'transparent',
         boxShadow: variant === 'outline' ? 'inset 0 0 0 1px var(--hairline-strong)' : undefined,
-        color: variant === 'solid' ? 'var(--bg-ground)' : 'var(--fg-2)',
+        color: variant === 'solid' ? 'var(--bg)' : 'var(--fg-2)',
         fontFamily: 'var(--font-mono)',
-        fontSize: 12,
-        fontWeight: 600,
+        fontSize: 10.5,
+        fontWeight: 500,
         letterSpacing: '0.06em',
         padding: '4px 8px',
+        textBox: 'trim-both cap alphabetic',
       }}
     >
       {children}

@@ -34,8 +34,9 @@ const styles = StyleSheet.create({
   },
   text: {
     fontFamily: 'GeistMono_500Medium',
-    fontSize: 12,
-    letterSpacing: 0.72,
+    fontSize: 10.5,
+    includeFontPadding: false,
+    letterSpacing: 0.63,
     textTransform: 'uppercase',
   },
 })

@@ -23986,6 +23986,7 @@
         "apps/web/__tests__/components/motion/route-transition-shell.test.tsx",
         "apps/web/__tests__/components/navigation/notification-bell.test.tsx",
         "apps/web/__tests__/components/shell/destination-shell.test.tsx",
+        "apps/web/__tests__/components/ui/badge.test.tsx",
         "apps/web/__tests__/components/ui/toast.test.tsx",
         "apps/web/__tests__/components/ui/update-available-banner.test.tsx",
         "apps/web/__tests__/hooks/use-drill-navigation.test.ts",
