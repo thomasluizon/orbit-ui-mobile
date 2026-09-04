@@ -7,11 +7,11 @@ paths:
 
 # Visual delivery & anti-fabrication of "done"
 
-**At a glance:** 8 standing rules that make completeness STRUCTURAL for any visual/redesign/transformation task (a page, a screen, a "de-slop", a "make it beautiful", a whole-app pass). Read this the moment a task's success is judged by how a rendered surface LOOKS rather than by a passing test. Judgement-bound but artifact-enforced. See `README.md` for the tier's contract.
+**At a glance:** 8 standing rules that make completeness STRUCTURAL for any visual/redesign/transformation task (a page, a screen, a "de-slop", a "make it beautiful", a whole-app pass). Read this the moment a task's success is judged by how a rendered surface LOOKS rather than by a passing test. Judgement-bound and granted only by Thomas looking at every inventoried surface running on seeded data. See `README.md` for the tier's contract.
 
 ## Why this tier exists (the #539 post-mortem, 2026-07-18)
 
-Every gate here is *subtractive*: it proves bad things are absent and is blind to the absence of good ones. #539's b5 passed 100% of them by redoing one view and deleting decorations, then reported "the design applied" while the calendar, every modal, search, and the profile pages were untouched. **A claim of visual completion is worthless without a per-surface artifact, and green gates are never that artifact.**
+Every gate here is *subtractive*: it proves bad things are absent and is blind to the absence of good ones. #539's b5 passed 100% of them by redoing one view and deleting decorations, then reported "the design applied" while the calendar, every modal, search, and the profile pages were untouched. **A claim of visual completion is worthless until Thomas has looked at every inventoried surface running on seeded data, and green gates can never grant it.**
 
 ## Before you start
 

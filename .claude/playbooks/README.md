@@ -39,7 +39,7 @@ which is strictly better than hoping an agent chooses to read them:
 
 | file | rules | auto-loads on |
 |---|---|---|
-| `../rules/visual-delivery.md` | 8 | `apps/web/**`, `apps/mobile/**`, `packages/shared/src/theme/**`. Makes completeness structural: surface inventory, per-surface artifacts, the adversarial `completeness-critic` close gate, the seed fixture. Written after #539 b5 shipped at 5% and was reported "done". |
+| `../rules/visual-delivery.md` | 8 | `apps/web/**`, `apps/mobile/**`, `packages/shared/src/theme/**`. Makes completeness structural: surface inventory, Thomas looking at each running surface on seeded data, and the adversarial `completeness-critic` close gate. Written after #539 b5 shipped at 5% and was reported "done". |
 | `../rules/product-and-content.md` | 9 | the i18n JSON, `apps/web/app/globals.css`, the theme, the landing page |
 
 **Activity-scoped, here** - no path predicts "I am now reviewing" or "I am now debugging", so these
