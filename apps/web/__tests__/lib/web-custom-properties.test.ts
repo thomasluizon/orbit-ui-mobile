@@ -1,16 +1,19 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { extname, relative, resolve } from 'node:path'
+import ts from 'typescript'
 import { afterEach, describe, expect, it } from 'vitest'
 import { applyThemeTokensToDOM, resolveWebThemeVariables } from '@/lib/theme-dom'
 
 const WEB_SOURCE_DIRECTORIES = ['app', 'components', 'hooks', 'lib', 'stores']
+const SHARED_SOURCE_DIRECTORY = resolve(process.cwd(), '../../packages/shared/src')
 const SOURCE_EXTENSIONS = new Set(['.css', '.ts', '.tsx'])
 const CUSTOM_PROPERTY_REFERENCE = /var\(\s*(--[a-z0-9-]+)/g
 const CSS_DECLARATION = /(--[a-z0-9-]+)\s*:/g
 const LOCAL_RUNTIME_DECLARATION = /['"](--[a-z0-9-]+)['"]\s*:/g
 const NEXT_FONT_DECLARATION = /\bvariable\s*:\s*['"](--[a-z0-9-]+)['"]/g
+let cachedProductionSources: ScannedSource[] | undefined
 
-type SourceFile = {
+type ScannedSource = {
   path: string
   contents: string
 }
@@ -19,7 +22,7 @@ function matchingValues(source: string, pattern: RegExp): string[] {
   return [...source.matchAll(pattern)].flatMap((match) => match[1] ? [match[1]] : [])
 }
 
-function sourceFiles(directory: string): SourceFile[] {
+function sourceFiles(directory: string): ScannedSource[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const entryPath = resolve(directory, entry.name)
     if (entry.isDirectory()) return sourceFiles(entryPath)
@@ -31,19 +34,104 @@ function sourceFiles(directory: string): SourceFile[] {
   })
 }
 
-function productionSources(): SourceFile[] {
-  return WEB_SOURCE_DIRECTORIES.flatMap((directory) =>
-    sourceFiles(resolve(process.cwd(), directory)),
-  )
+function isSharedSource(sourceFile: ts.SourceFile): boolean {
+  const pathFromSharedRoot = relative(SHARED_SOURCE_DIRECTORY, sourceFile.fileName)
+  return pathFromSharedRoot !== '' && !pathFromSharedRoot.startsWith('..')
 }
 
-function globalsStylesheet(files: SourceFile[]): string {
+function runtimeImportBindings(importDeclaration: ts.ImportDeclaration): ts.Identifier[] {
+  const clause = importDeclaration.importClause
+  if (!clause || clause.isTypeOnly) return []
+
+  const bindings = clause.name ? [clause.name] : []
+  if (!clause.namedBindings) return bindings
+  if (ts.isNamespaceImport(clause.namedBindings)) return [...bindings, clause.namedBindings.name]
+
+  return [
+    ...bindings,
+    ...clause.namedBindings.elements
+      .filter((specifier) => !specifier.isTypeOnly)
+      .map((specifier) => specifier.name),
+  ]
+}
+
+function sharedImports(
+  sourceFile: ts.SourceFile,
+  checker: ts.TypeChecker,
+): ts.SourceFile[] {
+  return sourceFile.statements.flatMap((statement) => {
+    if (!ts.isImportDeclaration(statement)) return []
+
+    const sharedModules = runtimeImportBindings(statement).flatMap((binding) => {
+      const symbol = checker.getSymbolAtLocation(binding)
+      if (!symbol) return []
+      const target = checker.getAliasedSymbol(symbol)
+      return (target.declarations ?? [])
+        .map((declaration) => declaration.getSourceFile())
+        .filter(isSharedSource)
+    })
+
+    if (
+      statement.importClause?.namedBindings &&
+      ts.isNamespaceImport(statement.importClause.namedBindings) &&
+      sharedModules.length > 0
+    ) {
+      throw new Error(
+        `Namespace imports cannot define the web/shared scan boundary: ${sourceFile.fileName}`,
+      )
+    }
+
+    if (statement.importClause) return sharedModules
+    const moduleSymbol = checker.getSymbolAtLocation(statement.moduleSpecifier)
+    return (moduleSymbol?.declarations ?? [])
+      .map((declaration) => declaration.getSourceFile())
+      .filter(isSharedSource)
+  })
+}
+
+function webReachableSharedSources(webFiles: ScannedSource[]): ScannedSource[] {
+  const configPath = resolve(process.cwd(), 'tsconfig.json')
+  const config = ts.getParsedCommandLineOfConfigFile(configPath, {}, ts.sys)
+  if (!config) throw new Error(`Could not parse ${configPath}`)
+
+  const program = ts.createProgram(config.fileNames, config.options)
+  const checker = program.getTypeChecker()
+  const pending = webFiles.flatMap(({ path }) => {
+    const sourceFile = program.getSourceFile(resolve(process.cwd(), path))
+    return sourceFile ? [sourceFile] : []
+  })
+  const sharedFiles = new Map<string, ts.SourceFile>()
+
+  for (const sourceFile of pending) {
+    for (const importedSource of sharedImports(sourceFile, checker)) {
+      if (sharedFiles.has(importedSource.fileName)) continue
+      sharedFiles.set(importedSource.fileName, importedSource)
+      pending.push(importedSource)
+    }
+  }
+
+  return [...sharedFiles.values()].map((sourceFile) => ({
+    path: relative(process.cwd(), sourceFile.fileName).replaceAll('\\', '/'),
+    contents: sourceFile.text,
+  }))
+}
+
+function productionSources(): ScannedSource[] {
+  if (cachedProductionSources) return cachedProductionSources
+  const webFiles = WEB_SOURCE_DIRECTORIES.flatMap((directory) =>
+    sourceFiles(resolve(process.cwd(), directory)),
+  )
+  cachedProductionSources = [...webFiles, ...webReachableSharedSources(webFiles)]
+  return cachedProductionSources
+}
+
+function globalsStylesheet(files: ScannedSource[]): string {
   const globals = files.find(({ path }) => path === 'app/globals.css')
   if (!globals) throw new Error('app/globals.css was not scanned')
   return globals.contents
 }
 
-function declaredCustomProperties(files: SourceFile[]): Set<string> {
+function declaredCustomProperties(files: ScannedSource[]): Set<string> {
   const declarations = new Set(matchingValues(globalsStylesheet(files), CSS_DECLARATION))
   for (const mode of ['dark', 'light'] as const) {
     for (const property of Object.keys(resolveWebThemeVariables('purple', mode))) {
@@ -61,7 +149,7 @@ function declaredCustomProperties(files: SourceFile[]): Set<string> {
   return declarations
 }
 
-function unresolvedReferences(files: SourceFile[]): string[] {
+function unresolvedReferences(files: ScannedSource[]): string[] {
   const declarations = declaredCustomProperties(files)
   const references = new Map<string, string[]>()
   for (const { path, contents } of files) {
