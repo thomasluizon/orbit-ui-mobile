@@ -47,7 +47,9 @@ test('reports a registry failure as infrastructure, not a CVE', async (context) 
   assert.equal(exitCode, 2)
   assert.deepEqual(requests, [
     { method: 'POST', url: '/-/npm/v1/security/advisories/bulk' },
+    { method: 'POST', url: '/-/npm/v1/security/advisories/bulk' },
   ])
+  assert.match(stderr(), /retrying once/)
   assert.match(stderr(), /Infrastructure error: npm registry or network failure/)
   assert.match(stderr(), /No CVE verdict was produced\./)
   assert.doesNotMatch(`${stdout()}${stderr()}`, /Critical production advisory found:/)

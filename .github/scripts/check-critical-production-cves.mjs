@@ -2,7 +2,7 @@
 
 import { spawnSync } from 'node:child_process'
 
-const AUDIT_TIMEOUT_MS = 120_000
+const AUDIT_ATTEMPT_TIMEOUT_MS = 70_000
 const SEVERITIES = new Set(['info', 'low', 'moderate', 'high', 'critical'])
 
 function infrastructureFailure(detail, auditResult) {
@@ -73,34 +73,49 @@ const npmArguments =
   process.platform === 'win32'
     ? ['/d', '/s', '/c', `npm ${auditArguments.join(' ')}`]
     : auditArguments
-const auditResult = spawnSync(npmCommand, npmArguments, {
-  encoding: 'utf8',
-  maxBuffer: 10 * 1024 * 1024,
-  timeout: AUDIT_TIMEOUT_MS,
-})
+function runAudit() {
+  return spawnSync(npmCommand, npmArguments, {
+    encoding: 'utf8',
+    maxBuffer: 10 * 1024 * 1024,
+    timeout: AUDIT_ATTEMPT_TIMEOUT_MS,
+  })
+}
 
-if (auditResult.error?.code === 'ETIMEDOUT') {
-  infrastructureFailure('audit exceeded 120 seconds', auditResult)
-} else if (auditResult.error) {
-  infrastructureFailure(`npm could not run: ${auditResult.error.message}`, auditResult)
+function failureDetail(auditResult) {
+  if (auditResult.error?.code === 'ETIMEDOUT') {
+    return 'final audit attempt exceeded 70 seconds'
+  }
+
+  if (auditResult.error) {
+    return `npm could not run: ${auditResult.error.message}`
+  }
+
+  return `npm exited ${auditResult.status ?? 'without a status'} after 2 attempts`
+}
+
+let auditResult = runAudit()
+let vulnerabilities = auditResult.error ? null : parseAuditReport(auditResult.stdout)
+
+if (!vulnerabilities) {
+  console.error('npm audit did not return a valid advisory report; retrying once.')
+  auditResult = runAudit()
+  vulnerabilities = auditResult.error ? null : parseAuditReport(auditResult.stdout)
+}
+
+if (!vulnerabilities) {
+  infrastructureFailure(failureDetail(auditResult), auditResult)
 } else {
-  const vulnerabilities = parseAuditReport(auditResult.stdout)
+  const criticalAdvisories = vulnerabilities.filter(
+    (vulnerability) => vulnerability.severity === 'critical',
+  )
 
-  if (!vulnerabilities) {
-    infrastructureFailure(`npm exited ${auditResult.status ?? 'without a status'}`, auditResult)
-  } else {
-    const criticalAdvisories = vulnerabilities.filter(
-      (vulnerability) => vulnerability.severity === 'critical',
-    )
-
-    if (criticalAdvisories.length > 0) {
-      console.error('Critical production advisory found:')
-      for (const vulnerability of criticalAdvisories) {
-        console.error(`- ${advisoryLabel(vulnerability)}`)
-      }
-      process.exitCode = 1
-    } else {
-      console.log('Production audit passed: no critical vulnerabilities found.')
+  if (criticalAdvisories.length > 0) {
+    console.error('Critical production advisory found:')
+    for (const vulnerability of criticalAdvisories) {
+      console.error(`- ${advisoryLabel(vulnerability)}`)
     }
+    process.exitCode = 1
+  } else {
+    console.log('Production audit passed: no critical vulnerabilities found.')
   }
 }
