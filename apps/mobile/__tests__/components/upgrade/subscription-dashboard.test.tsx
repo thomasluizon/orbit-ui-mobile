@@ -81,6 +81,42 @@ function renderedText(tree: RenderedTree) {
   return JSON.stringify(tree.toJSON())
 }
 
+function renderStatusDashboard(
+  provider: 'stripe' | 'play',
+  dashboardStatus: SubscriptionStatus,
+) {
+  if (provider === 'play') {
+    return render(
+      <PlayBillingDashboard
+        status={dashboardStatus}
+        locale="en"
+        usagePercent={16}
+        usageProfile={{ aiMessagesUsed: 8, aiMessagesLimit: 50 }}
+        portalState="idle"
+        isOnline
+        onManagePlay={() => {}}
+        t={t}
+        tokens={tokens}
+      />,
+    )
+  }
+  return render(
+    <BillingDashboard
+      state="stripe"
+      data={billing}
+      isOnline
+      locale="en"
+      usagePercent={16}
+      usageProfile={{ aiMessagesUsed: 8, aiMessagesLimit: 50 }}
+      status={dashboardStatus}
+      onPortal={() => {}}
+      onRetryPortal={() => {}}
+      t={t}
+      tokens={tokens}
+    />,
+  )
+}
+
 const plans = {
   monthly: { unitAmount: 999, currency: 'brl' },
   yearly: { unitAmount: 9990, currency: 'brl' },
@@ -153,6 +189,36 @@ describe('subscription dashboards (mobile)', () => {
     )
     expect(en.upgrade.billing.plan.monthlyPrice).toBe('Monthly plan price: {price}')
   })
+
+  it.each(['stripe', 'play'] as const)(
+    'renders trial and lapsed status before the %s billing controls, but hides active status',
+    (provider) => {
+      const trial = renderStatusDashboard(provider, {
+        ...status,
+        isTrialActive: true,
+        trialEndsAt: '2026-09-28T00:00:00Z',
+        source: provider,
+      })
+      expect(renderedText(trial)).toContain('upgrade.billing.plan.trialBadge')
+      expect(renderedText(trial)).toContain('upgrade.billing.plan.title')
+
+      const lapsed = renderStatusDashboard(provider, {
+        ...status,
+        plan: 'free',
+        hasProAccess: false,
+        source: provider,
+        lapseReason: 'expired',
+        subscriptionEndedAtUtc: '2026-08-01T00:00:00Z',
+      })
+      expect(renderedText(lapsed)).toContain('upgrade.billing.lapsed.title')
+      expect(renderedText(lapsed)).toContain('upgrade.billing.plan.title')
+
+      const active = renderStatusDashboard(provider, { ...status, source: provider })
+      expect(renderedText(active)).not.toContain('upgrade.billing.plan.trialBadge')
+      expect(renderedText(active)).not.toContain('upgrade.billing.lapsed.title')
+      expect(renderedText(active)).not.toContain('upgrade.billing.plan.title')
+    },
+  )
 
   it.each([
     [

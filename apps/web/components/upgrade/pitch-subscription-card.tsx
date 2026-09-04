@@ -28,7 +28,7 @@ export function PitchSubscriptionCard({
     : null
 
   return (
-    <section className="mb-6 rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]">
+    <section className="rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]">
       <p className="t-eyebrow m-0 text-[var(--fg-3)]">{t('upgrade.billing.plan.title')}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <h2 className="m-0 text-xl font-medium text-[var(--fg-1)]">{intervalLabel}</h2>
