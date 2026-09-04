@@ -160,7 +160,7 @@ function Allowance({ amount, label, perDay }: Readonly<{ amount: string; label: 
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <p className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)]">{label}</p>
-      <p className="font-display text-[44px] font-semibold leading-[1.02] tracking-[-0.02em] tabular-nums text-[var(--fg-1)]">
+      <p className="font-display text-[34px] font-semibold leading-[1.02] tracking-[-0.02em] tabular-nums text-[var(--fg-1)] sm:text-[44px]">
         {amount}
       </p>
       <p className="text-sm leading-[1.4] text-[var(--fg-3)]">{perDay}</p>
