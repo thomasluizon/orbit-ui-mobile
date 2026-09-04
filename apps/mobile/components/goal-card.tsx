@@ -268,14 +268,15 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
 
     badge: {
       paddingHorizontal: 9,
-      paddingVertical: 3,
-      borderRadius: 9999,
+      paddingVertical: 2,
+      borderRadius: 8,
       borderWidth: 1,
       borderColor: tokens.hairlineStrong,
     },
     badgeText: {
       fontFamily: 'GeistMono_500Medium',
       fontSize: 10.5,
+      includeFontPadding: false,
       letterSpacing: 0.63,
       textTransform: 'uppercase',
     },

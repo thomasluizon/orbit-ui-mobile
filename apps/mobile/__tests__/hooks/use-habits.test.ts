@@ -3,7 +3,7 @@ import { API } from '@orbit/shared/api'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { gamificationKeys, habitKeys, goalKeys, profileKeys, tagKeys } from '@orbit/shared/query'
 import { buildHabitHistoryMonth, isHabitCompletedOnDate } from '@orbit/shared/utils'
-import type { ChecklistItem, CreateHabitRequest, HabitDetail, HabitScheduleChild, HabitScheduleItem, LogHabitResponse } from '@orbit/shared/types/habit'
+import type { ChecklistItem, CreateHabitRequest, HabitDetail, HabitScheduleChild, HabitScheduleItem, LogHabitResponse, UpdateHabitRequest } from '@orbit/shared/types/habit'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { Goal } from '@orbit/shared/types/goal'
 
@@ -1011,6 +1011,34 @@ describe('mobile habit hooks', () => {
     }
     expect(detailAfter.checklistItems).toEqual(originalItems)
     expect(fullAfter.habit.checklistItems).toEqual(originalItems)
+  })
+
+  it('keeps queued inline schedule and text updates in the detail cache', async () => {
+    seedHabitState([makeHabit({ id: 'habit-1', title: 'Old title' })], 1)
+    mocks.queryClient.setQueryData(habitKeys.detail('habit-1'), {
+      ...makeHabit({ id: 'habit-1', title: 'Old title' }),
+      children: [],
+    })
+    const mutation = useUpdateHabit() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string },
+      { habitId: string; data: UpdateHabitRequest },
+      { previousLists: HabitSnapshotContext['previousLists']; previousDetail: HabitDetail | undefined }
+    >
+    const variables = {
+      habitId: 'habit-1',
+      data: { title: 'New title', isBadHabit: false, frequencyUnit: 'Week' as const, frequencyQuantity: 2 },
+    }
+
+    const context = await mutation.onMutate?.(variables)
+    const result = await mutation.mutationFn(variables)
+    mutation.onSettled?.(result, null, variables, context)
+
+    expect(result).toMatchObject({ queued: true })
+    expect(mocks.queryClient.getQueryData(habitKeys.detail('habit-1'))).toMatchObject({
+      title: 'New title',
+      frequencyUnit: 'Week',
+      frequencyQuantity: 2,
+    })
   })
 
   it('optimistically moves a habit under a new parent and restores the tree on failure', async () => {

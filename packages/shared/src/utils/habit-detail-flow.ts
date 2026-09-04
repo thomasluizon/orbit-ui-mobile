@@ -14,9 +14,12 @@ import type { HabitLog } from '../types/calendar'
 import type { CreateSubHabitRequest, HabitDetail, HabitDetailChild, HabitMetrics, NormalizedHabit, UpdateHabitRequest } from '../types/habit'
 import { canLogHabitOnDate } from './habit-card-helpers'
 import { formatAPIDate, parseAPIDate } from './dates'
+import { normalizeHabitDetailForDrill } from './drill-navigation'
+import { formatHabitReminderLabel } from './habit-form-helpers'
 import { getTodayBoundary } from './today-date'
 
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+export const HABIT_DETAIL_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
+export const HABIT_DETAIL_FREQUENCY_UNITS = ['Day', 'Week', 'Month', 'Year'] as const
 const HISTORY_LOOKBACK_DAYS = 365
 
 interface HabitScheduleSource {
@@ -63,7 +66,7 @@ function monthDifference(date: Date, anchor: Date): number {
 }
 
 function matchesFrequency(source: HabitScheduleSource, date: Date, anchor: Date): boolean {
-  if (source.days.length > 0 && !source.days.includes(WEEKDAYS[date.getDay()] ?? '')) {
+  if (source.days.length > 0 && !source.days.includes(HABIT_DETAIL_WEEKDAYS[date.getDay()] ?? '')) {
     return false
   }
 
@@ -369,28 +372,142 @@ export function removeHabitDetailChild(detail: HabitDetail, habitId: string): Ha
 
 export function buildHabitDetailUpdateRequest(
   habit: NormalizedHabit,
-  patch: Partial<Pick<UpdateHabitRequest, 'title' | 'emoji' | 'checklistItems' | 'slipAlertEnabled' | 'goalIds'>>,
+  patch: Partial<Pick<UpdateHabitRequest,
+    | 'title'
+    | 'description'
+    | 'emoji'
+    | 'frequencyUnit'
+    | 'frequencyQuantity'
+    | 'days'
+    | 'dueTime'
+    | 'dueEndTime'
+    | 'reminderEnabled'
+    | 'reminderTimes'
+    | 'scheduledReminders'
+    | 'checklistItems'
+    | 'endDate'
+    | 'slipAlertEnabled'
+    | 'goalIds'
+  >>,
 ): UpdateHabitRequest {
   const request: UpdateHabitRequest = {
     title: patch.title ?? habit.title,
-    description: habit.description ?? undefined,
+    description: patch.description ?? habit.description ?? undefined,
     emoji: patch.emoji === undefined ? habit.emoji : patch.emoji,
-    frequencyUnit: habit.frequencyUnit ?? undefined,
-    frequencyQuantity: habit.frequencyQuantity ?? undefined,
-    days: habit.days,
+    frequencyUnit: patch.frequencyUnit ?? habit.frequencyUnit ?? undefined,
+    frequencyQuantity: patch.frequencyQuantity ?? habit.frequencyQuantity ?? undefined,
+    days: patch.days ?? habit.days,
     isBadHabit: habit.isBadHabit,
     isGeneral: habit.isGeneral,
     isFlexible: habit.isFlexible,
     dueDate: habit.dueDate,
-    dueTime: habit.dueTime || undefined,
-    dueEndTime: habit.dueEndTime || undefined,
-    reminderEnabled: habit.reminderEnabled,
-    reminderTimes: habit.reminderTimes,
-    scheduledReminders: habit.scheduledReminders,
+    dueTime: patch.dueTime === undefined ? habit.dueTime : patch.dueTime,
+    dueEndTime: patch.dueEndTime === undefined ? habit.dueEndTime : patch.dueEndTime,
+    reminderEnabled: patch.reminderEnabled ?? habit.reminderEnabled,
+    reminderTimes: patch.reminderTimes ?? habit.reminderTimes,
+    scheduledReminders: patch.scheduledReminders ?? habit.scheduledReminders,
     checklistItems: patch.checklistItems ?? habit.checklistItems,
-    endDate: habit.endDate || null,
+    endDate: patch.endDate === undefined ? habit.endDate || null : patch.endDate,
   }
+  if (patch.endDate === null && habit.endDate) request.clearEndDate = true
   if (patch.slipAlertEnabled !== undefined) request.slipAlertEnabled = patch.slipAlertEnabled
   if (patch.goalIds !== undefined) request.goalIds = patch.goalIds
   return request
+}
+
+export function buildHabitDetailTimePatch(
+  value: string,
+  habit: Pick<NormalizedHabit, 'dueEndTime' | 'dueTime'>,
+): Partial<UpdateHabitRequest> | null {
+  if (value && !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return null
+  if (!value) {
+    return {
+      dueTime: null,
+      dueEndTime: null,
+      reminderEnabled: false,
+      reminderTimes: [],
+      scheduledReminders: [],
+    }
+  }
+  return {
+    dueTime: value,
+    dueEndTime: value === habit.dueTime ? habit.dueEndTime : null,
+  }
+}
+
+export function buildHabitDetailSchedulePatch(
+  unit: (typeof HABIT_DETAIL_FREQUENCY_UNITS)[number],
+  quantity: number,
+  days: string[],
+): Partial<UpdateHabitRequest> | null {
+  if (!Number.isInteger(quantity) || quantity < 1) return null
+  return {
+    frequencyUnit: unit,
+    frequencyQuantity: quantity,
+    days: unit === 'Day' && quantity === 1 ? days : [],
+  }
+}
+
+export function canInlineEditHabitSchedule(
+  habit: Pick<NormalizedHabit, 'frequencyUnit' | 'isFlexible' | 'isGeneral'>,
+): boolean {
+  return habit.frequencyUnit !== null && !habit.isFlexible && !habit.isGeneral
+}
+
+export function formatHabitDetailReminderValue(
+  habit: Pick<NormalizedHabit, 'reminderEnabled' | 'reminderTimes' | 'scheduledReminders'>,
+  translate: (key: string) => string,
+): string {
+  if (!habit.reminderEnabled) return translate('habits.detail.noValue')
+  const values = [
+    ...habit.reminderTimes.map((minutes) => formatHabitReminderLabel(minutes, translate)),
+    ...habit.scheduledReminders.map((reminder) => reminder.time),
+  ]
+  return values.length ? values.join(', ') : translate('habits.detail.noValue')
+}
+
+function getHabitRelationshipAuthority(
+  detail: Pick<HabitDetail, 'isGeneral'>,
+  listHabit: NormalizedHabit | undefined,
+  scopedHabit: NormalizedHabit | undefined,
+): NormalizedHabit | undefined {
+  if (listHabit?.parentId === null) return listHabit
+  return detail.isGeneral && scopedHabit?.parentId === null ? scopedHabit : undefined
+}
+
+function getHabitListEnrichmentSource(
+  listHabit: NormalizedHabit | undefined,
+  scopedHabit: NormalizedHabit | undefined,
+): NormalizedHabit | undefined {
+  return listHabit ?? scopedHabit
+}
+
+export function hasAuthoritativeHabitRelationshipState(
+  detail: Pick<HabitDetail, 'isGeneral'>,
+  listHabit: NormalizedHabit | undefined,
+  scopedHabit: NormalizedHabit | undefined,
+): boolean {
+  return getHabitRelationshipAuthority(detail, listHabit, scopedHabit) !== undefined
+}
+
+export function mergeHabitDetailWithScopedHabit(
+  detail: HabitDetail,
+  listHabit: NormalizedHabit | undefined,
+  date: string,
+  scopedHabit = listHabit,
+): NormalizedHabit {
+  const normalized = normalizeHabitDetailForDrill(detail, date).parent
+  const listEnrichmentSource = getHabitListEnrichmentSource(listHabit, scopedHabit)
+  const relationshipAuthority = getHabitRelationshipAuthority(detail, listHabit, scopedHabit)
+  if (!listEnrichmentSource) return normalized
+  return {
+    ...listEnrichmentSource,
+    ...normalized,
+    tags: listEnrichmentSource.tags,
+    linkedGoals: relationshipAuthority?.linkedGoals ?? normalized.linkedGoals,
+    slipAlertEnabled: relationshipAuthority?.slipAlertEnabled ?? normalized.slipAlertEnabled,
+    flexibleTarget: scopedHabit?.flexibleTarget ?? listEnrichmentSource.flexibleTarget,
+    flexibleCompleted: scopedHabit?.flexibleCompleted ?? listEnrichmentSource.flexibleCompleted,
+    instances: scopedHabit?.instances ?? listEnrichmentSource.instances,
+  }
 }

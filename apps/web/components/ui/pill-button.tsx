@@ -44,7 +44,7 @@ export function Button({
       data-size={size}
       data-loading={loading || undefined}
       className={[
-        'inline-flex cursor-pointer items-center justify-center rounded-full border-0 font-medium transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40',
+        'inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40',
         variantClasses[variant],
       ]
         .filter(Boolean)

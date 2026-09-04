@@ -4,17 +4,18 @@ import type { BadgeProps } from '@orbit/shared/contracts/display'
 export function Badge({ variant = 'solid', children }: Readonly<BadgeProps>) {
   return (
     <span
-      className="inline-flex items-center rounded-[8px] uppercase"
+      className="inline-flex items-center whitespace-nowrap rounded-[8px] uppercase"
       data-variant={variant}
       style={{
         background: variant === 'solid' ? 'var(--fg-1)' : 'transparent',
         boxShadow: variant === 'outline' ? 'inset 0 0 0 1px var(--hairline-strong)' : undefined,
-        color: variant === 'solid' ? 'var(--bg-ground)' : 'var(--fg-2)',
+        color: variant === 'solid' ? 'var(--bg)' : 'var(--fg-2)',
         fontFamily: 'var(--font-mono)',
-        fontSize: 12,
-        fontWeight: 600,
+        fontSize: 10.5,
+        fontWeight: 500,
         letterSpacing: '0.06em',
         padding: '4px 8px',
+        textBox: 'trim-both cap alphabetic',
       }}
     >
       {children}

@@ -18,7 +18,7 @@ export function Badge({ variant = 'solid', children }: Readonly<BadgeProps>) {
       ]}
       testID={`badge-${variant}`}
     >
-      <Text style={[styles.text, { color: variant === 'solid' ? tokens.bg : tokens.fg2 }]}>
+      <Text numberOfLines={1} style={[styles.text, { color: variant === 'solid' ? tokens.bg : tokens.fg2 }]}>
         {children}
       </Text>
     </View>
@@ -34,8 +34,9 @@ const styles = StyleSheet.create({
   },
   text: {
     fontFamily: 'GeistMono_500Medium',
-    fontSize: 12,
-    letterSpacing: 0.72,
+    fontSize: 10.5,
+    includeFontPadding: false,
+    letterSpacing: 0.63,
     textTransform: 'uppercase',
   },
 })

@@ -424,7 +424,7 @@ export function useUpdateHabit() {
     void | QueuedMarker,
     Error,
     { habitId: string; data: UpdateHabitRequest },
-    { previousLists: HabitListSnapshots }
+    { previousLists: HabitListSnapshots; previousDetail: HabitDetail | undefined }
   >({
     mutationFn: ({ habitId, data }) =>
       performQueuedApiMutation<void>({
@@ -441,17 +441,24 @@ export function useUpdateHabit() {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = snapshotHabitLists(queryClient)
+      const previousDetail = queryClient.getQueryData<HabitDetail>(habitKeys.detail(habitId))
       const patch = buildOptimisticHabitPatch(queryClient, data)
       updateHabitLists(queryClient, (items) =>
         optimisticPatchHabit(items, habitId, patch),
       )
+      queryClient.setQueryData<HabitDetail>(habitKeys.detail(habitId), (detail) =>
+        detail ? { ...detail, ...patch } : detail,
+      )
 
-      return { previousLists }
+      return { previousLists, previousDetail }
     },
 
     onError: (_err, _variables, context) => {
       if (context?.previousLists) {
         restoreHabitLists(queryClient, context.previousLists)
+      }
+      if (context?.previousDetail) {
+        queryClient.setQueryData(habitKeys.detail(_variables.habitId), context.previousDetail)
       }
     },
 

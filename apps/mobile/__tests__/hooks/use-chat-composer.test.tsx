@@ -234,7 +234,7 @@ describe('mobile useChatComposer', () => {
     mocks.queryClient.invalidateQueries.mockReset()
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.setQueryData.mockClear()
-    useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null, draft: '', draftHydrated: true })
+    useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null, draft: '', draftHydrated: true, contextualSuggestion: null })
   })
 
   afterEach(() => {
@@ -1194,6 +1194,24 @@ describe('mobile useChatComposer', () => {
     await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
 
     expect(appendFormPart).toHaveBeenCalledWith('message', suggestion.label)
+    appendFormPart.mockRestore()
+  })
+
+  it('puts a contextual suggestion first and sends its dedicated prompt', async () => {
+    mocks.openChatStream.mockResolvedValue(sseStreamResponse(finalFrame(makeChatResponse())))
+    const appendFormPart = vi.spyOn(FormData.prototype, 'append')
+    useChatStore.getState().setContextualSuggestion({
+      id: 'habit-detail-help',
+      label: 'Ask about Read',
+      prompt: 'Help me improve my habit named Read',
+    })
+    const composer = await renderComposer()
+
+    expect(composer.current.composerProps.suggestions[0].label).toBe('Ask about Read')
+    TestRenderer.act(() => composer.current.composerProps.suggestions[0].onSelect())
+
+    await vi.waitFor(() => expect(mocks.openChatStream).toHaveBeenCalledOnce())
+    expect(appendFormPart).toHaveBeenCalledWith('message', 'Help me improve my habit named Read')
     appendFormPart.mockRestore()
   })
 
