@@ -35,6 +35,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+
       - name: Cache turbo
         uses: actions/cache@v6
         with:
