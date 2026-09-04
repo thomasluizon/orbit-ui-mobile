@@ -228,17 +228,17 @@ a:hover{color:var(--fg-1)}
       <p><span style="color:var(--fg-3)">outcomes&nbsp;&nbsp;</span>three, and no more: the calendar, the periodic retrospective, and Astra noticing without being asked. Each is one line of what happens, not a feature name. Goals are not Pro any more, so no copy sells them, and nothing on the screen mentions them. Calendar sync is the one integration named, because it is the one that is gated.</p>
       <p><span style="color:var(--fg-3)">prices&nbsp;&nbsp;</span>no price is typed anywhere in this document. The server asks the billing provider at request time and returns two amounts, a currency, a savings percent and an optional coupon percent, and every figure on the screen is fed from that response: the amounts, the currency symbol, the per interval word, the derived saving and the coupon. The saving is not computed here and not hardcoded, because it arrives already derived from the two amounts. A missing response is a state, not a blank: the tiers carry their own loading shape and their own error with a retry.</p>
       <p><span style="color:var(--fg-3)">interval&nbsp;&nbsp;</span>a segmented control chooses monthly or annual, so choosing an interval is not the same gesture as choosing a plan. Annual is the visual default and carries the one recommended badge. The monthly to annual arithmetic is visible on the annual tier: the annual amount, what it works out to per month, and the saving, all from the response.</p>
-      <p><span style="color:var(--fg-3)">tiers&nbsp;&nbsp;</span>at most three, and this draws two, because two is what the product sells: the interval the person has chosen, and the other one. Exactly one is marked recommended. The CTA verb is identical on every tier, so the tiers differ by price and not by how hard they ask.</p>
+      <p><span style="color:var(--fg-3)">tiers&nbsp;&nbsp;</span>at most three, and this draws two, because two is what the product sells: the interval the person has chosen, and the other one. Annual alone is marked recommended; selection independently follows the segmented control. The CTA verb is identical on every tier, so the tiers differ by price and not by how hard they ask.</p>
       <p><span style="color:var(--fg-3)">decline&nbsp;&nbsp;</span>as reachable as accept: a plain inline link at the end of the flow, 16px, underlined, not a caption and not a corner dismiss. Free is that link rather than a third card, since a card would make staying free look like a purchase.</p>
       <p><span style="color:var(--fg-3)">trial&nbsp;&nbsp;</span>the paywall never says something the next line contradicts, which is the 2026-08-20 ruling this document lives by, and the trial state used to break it: the notice said the 50 a day were already on while the headline offered ten times more. The heading now swaps inside a trial, as the app’s does (pricing-section.tsx:49, trialHeading against freeHeading): the trial headline is the arithmetic from the other direction, the 50 a day stay or go back to 5, so the headline and the eyebrow above it agree. The eyebrow has the three shipping variants (:40-47): the free line outside a trial, the day count pluralised inside one, and the LAST DAY as its own string, never a count of one; the last day is on the axis because it is the state where the sentence matters most. Nothing offers to start anything, and no countdown names a moment no endpoint returns.</p>
       <p><span style="color:var(--fg-3)">reassurance&nbsp;&nbsp;</span>the five lines the shipping pitch says before anyone pays, all real strings in pricing-section.tsx: the promise under the heading (:61); the trust line (:63-65), shown ONLY when the person is not in a trial, and the condition is drawn, not just the line; cancel anytime (:122) and the renewal note (:128), the two things a person looks for before paying, above the hand off note; and the annual hero line (plan-selection.tsx:55), one line on the annual tier saying why annual. Their exact copy is the app’s vocabulary; the lines here carry its shape in both locales.</p>
       <p><span style="color:var(--fg-3)">hand off&nbsp;&nbsp;</span>buying is a hand off and not a step up: the Stripe portal authenticates the person itself, so a code before it would buy no security, and the product's two step up operations stay account deletion and API keys. The note above the decline link says the payment happens with the provider, and no card field, no address field and no credential appears anywhere in this document. There is no rewarded ad and no bonus message affordance: that path is deleted.</p>
       <p><span style="color:var(--fg-3)">spacing&nbsp;&nbsp;</span>4 8 12 16 24 32, gap only. Group gap 32 against in-group 12. The segmented control and the CTAs keep the 44 and 50 touch tokens.</p>
       <p><span style="color:var(--fg-3)">radius&nbsp;&nbsp;</span>12 on wells, 20 on the arithmetic card and the tiers, 28 on the shell, 999 on the segmented control and the buttons.</p>
-      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>one filled action per view: the recommended tier's CTA. The other tier's CTA is the same verb in ghost, so the accent marks which one is recommended without changing what is offered. Current position is the selected segment, which takes the tint and ring rather than a fill. The accent never lands on the arithmetic, the outcomes or the badge.</p>
-      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. The recommended tier sits on primary-dim with fg-1 text; the badge is the neutral well rather than an accent chip, since accent text is canvas only and a badge sits on a card.</p>
+      <p><span style="color:var(--fg-3)">accent&nbsp;&nbsp;</span>one filled action per view: the selected tier's CTA. The other tier's CTA is the same verb in ghost, while the annual badge independently marks the recommendation. Current position is also carried by the selected segment plus the selected tier's tint and ring. The accent never lands on the arithmetic, the outcomes or the badge.</p>
+      <p><span style="color:var(--fg-3)">contrast&nbsp;&nbsp;</span>white on primary 4.57:1 rest, 5.11:1 hover, 6.09:1 pressed. The selected tier sits on primary-dim with fg-1 text; the annual badge is the neutral well rather than an accent chip, since accent text is canvas only and a badge sits on a card.</p>
       <p><span style="color:var(--fg-3)">mock&nbsp;&nbsp;</span>every number carries data-mock on the element that renders it: both allowance figures, both amounts, the per month equivalent, the saving, the coupon percent and the trial day count. The fixture amounts stand in for the provider response and are labelled as such in the logic.</p>
-      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 no price, saving or currency is typed in this document. 2 one filled action, one recommended tier, one CTA verb. 3 nothing sells goals, and nothing offers to start a trial.</p>
+      <p><span style="color:var(--fg-3)">tests&nbsp;&nbsp;</span>1 no price, saving or currency is typed in this document. 2 one selected tier, one filled action, one independently recommended annual tier, one CTA verb. 3 nothing sells goals, and nothing offers to start a trial.</p>
       <p><span style="color:var(--fg-3)">gaps&nbsp;&nbsp;</span>the mirrored bundle was checked before use, as every round since it first went stale: nothing this document leans on was missing, so nothing was re-synced. 1 PlanCard is a selectable card with a name and a price, so it cannot carry a per tier CTA, a hero line, a second line and a coupon; the tiers are composed. 2 the interval control is the system’s SegmentedControl at both widths; what is still composed is the arithmetic card and the outcome rows, since no two-number comparison or icon-line component exists. 3 Badge is uppercase mono at 10.5px, below the 12 minimum, which is the system’s own exception for badges and is used as shipped.</p>
       <p><span style="color:var(--fg-3)">open&nbsp;&nbsp;</span>whether the coupon should also restate the pre discount amount, which the response carries but which doubles the numbers on the card. Whether a person inside a trial should see the trial notice on every visit or only the first.</p>
     </div>
@@ -392,11 +392,11 @@ class Component extends DCLogic {
     const loading = st === 'price loading';
     const error = st === 'price error';
     /* Free is a link, not a tier, so a person staying free is not making a purchase. */
-    const filled = s.width === '412' ? 'primary' : 'secondary';
+    const filled = 'primary';
 
     const money = (amount) => p.symbol + ' ' + amount;
     const annualTier = {
-      key: 'annual', name: t.annual, recommended: interval === 'annual',
+      key: 'annual', name: t.annual, recommended: true,
       amount: money(p.annualAmount), per: t.perYear,
       /* plan-selection.tsx:55: one line on the annual tier saying why annual. */
       hasHero: true, heroLine: t.heroAnnual,
@@ -409,7 +409,7 @@ class Component extends DCLogic {
       buy: () => {},
     };
     const monthlyTier = {
-      key: 'monthly', name: t.monthly, recommended: interval === 'monthly',
+      key: 'monthly', name: t.monthly, recommended: false,
       amount: money(p.monthlyAmount), per: t.perMonth,
       hasHero: false, heroLine: null,
       hasSecond: false, secondLine: null,
@@ -453,7 +453,7 @@ class Component extends DCLogic {
       priceLoading: loading, priceError: error, hasPrices: !loading && !error,
       priceRetry: H(D.Button, { size: 'sm', variant: filled,
         onClick: () => this.setState({ st: 'annual' }) }, t.retry),
-      /* The recommended interval leads, so the order follows the choice rather than fighting it. */
+      /* The selected interval leads; the annual recommendation badge does not move. */
       tiers: interval === 'annual' ? [annualTier, monthlyTier] : [monthlyTier, annualTier],
 
       onDecline: (e) => { e.preventDefault(); },
