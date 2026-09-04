@@ -303,10 +303,14 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
     setChildToDelete(null)
   }
   const openChild = (id: string) => router.push({ pathname: '/habits/[id]', params: { id, date: dateStr, parent: habitId, ...(fromToday ? { from: 'today' } : {}) } })
+  const retryFailedQueries = () => {
+    if (detailQuery.isError || !detailQuery.data) void detailQuery.refetch()
+    if (allHabitsQuery.isError) void allHabitsQuery.refetch()
+  }
 
   const appBar = <AppBar back title={t('habits.detail.screenTitle')} onBack={back} />
   if (detailQuery.isLoading || allHabitsQuery.isLoading) return <FlowShell nav={false} header={appBar}><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} label={t('habits.detail.loading')} /></FlowShell>
-  if (detailQuery.isError || allHabitsQuery.isError || !habit || !detailQuery.data) return <FlowShell nav={false} header={appBar}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={() => void detailQuery.refetch()}>{t('habits.detail.retry')}</PillButton>} /></FlowShell>
+  if (detailQuery.isError || allHabitsQuery.isError || !habit || !detailQuery.data) return <FlowShell nav={false} header={appBar}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></FlowShell>
 
   const children = (normalizeHabitDetailForDrill(detailQuery.data, dateStr)
     .childrenByParent.get(habit.id) ?? [])

@@ -25,6 +25,8 @@ const mocks = vi.hoisted(() => ({
   detailLoading: false,
   detailError: false,
   refetch: vi.fn(),
+  allHabitsError: false,
+  allHabitsRefetch: vi.fn(),
   allHabits: new Map<string, NormalizedHabit>(),
   scopedHabits: new Map<string, NormalizedHabit>(),
   log: vi.fn(),
@@ -70,7 +72,7 @@ vi.mock('@/hooks/use-habit-queries', () => ({
   useHabitDetail: () => ({ data: mocks.detail, isLoading: mocks.detailLoading, isError: mocks.detailError, refetch: mocks.refetch }),
   useHabitLogs: () => ({ data: mocks.logs }),
   useHabitMetrics: () => ({ data: mocks.metrics, isLoading: false }),
-  useHabits: (filters: { dateFrom?: string }) => ({ data: { habitsById: filters.dateFrom ? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: false, isError: false }),
+  useHabits: (filters: { dateFrom?: string }) => ({ data: { habitsById: filters.dateFrom ? mocks.scopedHabits : mocks.allHabits, topLevelHabits: [] }, isLoading: false, isError: !filters.dateFrom && mocks.allHabitsError, refetch: mocks.allHabitsRefetch }),
 }))
 vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutate: mocks.log, mutateAsync: mocks.log }),
@@ -298,6 +300,7 @@ describe('HabitDetailScreen', () => {
     mocks.detail = makeDetail()
     mocks.detailLoading = false
     mocks.detailError = false
+    mocks.allHabitsError = false
     mocks.logs = [
       { id: 'older-1', date: '2026-08-26', value: 1, createdAtUtc: '2026-08-26T12:00:00Z' },
       { id: 'older-2', date: '2026-08-27', value: 1, createdAtUtc: '2026-08-27T12:00:00Z' },
@@ -318,6 +321,7 @@ describe('HabitDetailScreen', () => {
     mocks.deleteHabit.mockReset()
     mocks.showError.mockReset()
     mocks.refetch.mockReset()
+    mocks.allHabitsRefetch.mockReset()
     mocks.routerBack.mockReset()
     mocks.routerPush.mockReset()
     mocks.routerReplace.mockReset()
@@ -357,6 +361,19 @@ describe('HabitDetailScreen', () => {
       tree!.root.findByType('PillButton').props.onClick()
     })
     expect(mocks.refetch).toHaveBeenCalledOnce()
+  })
+
+  it('retries a list-only load failure', () => {
+    mocks.allHabitsError = true
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />)
+    })
+
+    TestRenderer.act(() => tree!.root.findByType('PillButton').props.onClick())
+
+    expect(mocks.allHabitsRefetch).toHaveBeenCalledOnce()
+    expect(mocks.refetch).not.toHaveBeenCalled()
   })
 
   it('shows authoritative tags and linked goals and opens the selected goal', () => {
