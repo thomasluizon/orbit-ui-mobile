@@ -8,7 +8,8 @@ import { createTokensV2 } from '@/lib/theme'
 
 const motionMocks = vi.hoisted(() => ({
   reduced: false,
-  withTiming: vi.fn((value: number) => value),
+  fadeInDuration: vi.fn(),
+  fadeOutDuration: vi.fn(),
 }))
 
 vi.mock('@/lib/motion', async (importOriginal) => {
@@ -21,12 +22,24 @@ vi.mock('@/lib/motion', async (importOriginal) => {
 
 vi.mock('react-native-reanimated', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-native-reanimated')>()
+  const fadeIn = {
+    duration: (duration: number) => {
+      motionMocks.fadeInDuration(duration)
+      return fadeIn
+    },
+    reduceMotion: () => fadeIn,
+  }
+  const fadeOut = {
+    duration: (duration: number) => {
+      motionMocks.fadeOutDuration(duration)
+      return fadeOut
+    },
+    reduceMotion: () => fadeOut,
+  }
   return {
     ...actual,
-    withTiming: (...args: Parameters<typeof actual.withTiming>) => {
-      motionMocks.withTiming(args[0] as number)
-      return actual.withTiming(...args)
-    },
+    FadeIn: fadeIn,
+    FadeOut: fadeOut,
   }
 })
 
@@ -98,7 +111,8 @@ function renderSelection(
 describe('PlanSelection (mobile)', () => {
   beforeEach(() => {
     motionMocks.reduced = false
-    motionMocks.withTiming.mockClear()
+    motionMocks.fadeInDuration.mockClear()
+    motionMocks.fadeOutDuration.mockClear()
   })
 
   it('leads with annual and gives it the only filled action', () => {
@@ -134,21 +148,25 @@ describe('PlanSelection (mobile)', () => {
 
   it('softens the loading-to-content swap', () => {
     const tree = renderSelection('yearly', { plans: null, isLoading: true })
-    motionMocks.withTiming.mockClear()
+    expect(motionMocks.fadeOutDuration).toHaveBeenCalledWith(165)
 
     tree.rerender({ plans, isLoading: false })
 
-    expect(motionMocks.withTiming).toHaveBeenCalledTimes(1)
+    expect(motionMocks.fadeInDuration).toHaveBeenCalledWith(220)
+    const motion = tree.root.findByProps({
+      testID: 'upgrade-motion-preventing-a-jarring-change',
+    })
+    expect(motion.props.entering).toBeDefined()
   })
 
   it('hard-cuts loading-to-content with reduced motion', () => {
     motionMocks.reduced = true
     const tree = renderSelection('yearly', { plans: null, isLoading: true })
-    motionMocks.withTiming.mockClear()
 
     tree.rerender({ plans, isLoading: false })
 
-    expect(motionMocks.withTiming).not.toHaveBeenCalled()
+    expect(motionMocks.fadeInDuration).not.toHaveBeenCalled()
+    expect(motionMocks.fadeOutDuration).not.toHaveBeenCalled()
   })
 
   it.each(['yearly', 'monthly'] as const)(
@@ -197,7 +215,10 @@ describe('PlanSelection (mobile)', () => {
   it('owns loading and retry states for the price tiers', () => {
     const onRetry = vi.fn()
     const loading = renderSelection('yearly', { plans: null, isLoading: true })
-    expect(JSON.stringify(loading.toJSON()).match(/upgrade\.plans\.loading/g)!.length).toBeGreaterThan(1)
+    expect(loading.root.findAll(
+      (node: { type: unknown; props: Record<string, unknown> }) =>
+        node.type === 'View' && node.props.testID === 'skeleton-unit-settings',
+    )).toHaveLength(6)
 
     const failed = renderSelection('yearly', {
       plans: null,

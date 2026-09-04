@@ -5,16 +5,27 @@ import { PlanSelection } from '@/components/upgrade/plan-selection'
 import { formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
 
 const motionMocks = vi.hoisted(() => ({
-  animate: vi.fn(),
   reduced: false,
+  renderedProps: [] as Record<string, unknown>[],
 }))
 
 vi.mock('motion/react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('motion/react')>()
   const React = await import('react')
+  function MotionDiv(props: Record<string, unknown>) {
+    motionMocks.renderedProps.push(props)
+    const { animate, children, exit, initial, ref, transition, ...domProps } = props
+    void animate
+    void exit
+    void initial
+    void transition
+    return React.createElement('div', { ...domProps, ref }, children as React.ReactNode)
+  }
   return {
     ...actual,
-    useAnimate: () => [React.useRef<HTMLElement | null>(null), motionMocks.animate],
+    AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
+    LazyMotion: ({ children }: { children: React.ReactNode }) => children,
+    m: { div: MotionDiv },
     useReducedMotion: () => motionMocks.reduced,
   }
 })
@@ -59,8 +70,8 @@ function tierNamed(name: string) {
 
 describe('PlanSelection', () => {
   beforeEach(() => {
-    motionMocks.animate.mockReset()
     motionMocks.reduced = false
+    motionMocks.renderedProps.length = 0
   })
 
   it('leads with annual and gives the recommended tier the only filled action', () => {
@@ -119,26 +130,33 @@ describe('PlanSelection', () => {
 
   it('softens the loading-to-content swap', () => {
     const view = renderSelection({ plans: null, isLoading: true })
-    motionMocks.animate.mockClear()
+    const loadingMotion = motionMocks.renderedProps.at(-1)!
 
     view.rerender(<PlanSelection {...view} plans={plans} isLoading={false} />)
+    const loadedMotion = motionMocks.renderedProps.at(-1)!
 
-    expect(motionMocks.animate).toHaveBeenCalledTimes(1)
-    expect(motionMocks.animate).toHaveBeenCalledWith(
-      expect.any(HTMLElement),
-      { opacity: [0, 1] },
-      expect.objectContaining({ duration: 0.22 }),
-    )
+    expect(loadedMotion.initial).toEqual({ opacity: 0 })
+    expect(loadedMotion.animate).toEqual({ opacity: 1 })
+    expect(loadedMotion.transition).toEqual(expect.objectContaining({ duration: 0.22 }))
+    expect(loadingMotion.exit).toEqual(expect.objectContaining({
+      opacity: 0,
+      transition: expect.objectContaining({ duration: 0.165 }),
+    }))
+    expect(Object.keys(loadedMotion.animate as object).sort()).toEqual(['opacity'])
+    expect(Object.keys(loadingMotion.exit as object).filter((key) => key !== 'transition')).toEqual([
+      'opacity',
+    ])
   })
 
   it('hard-cuts loading-to-content with reduced motion', () => {
     motionMocks.reduced = true
     const view = renderSelection({ plans: null, isLoading: true })
-    motionMocks.animate.mockClear()
 
     view.rerender(<PlanSelection {...view} plans={plans} isLoading={false} />)
+    const loadedMotion = motionMocks.renderedProps.at(-1)!
 
-    expect(motionMocks.animate).not.toHaveBeenCalled()
+    expect(loadedMotion.initial).toBe(false)
+    expect(loadedMotion.transition).toEqual({ duration: 0 })
   })
 
   it('renders annual arithmetic from the payload', () => {
@@ -169,7 +187,7 @@ describe('PlanSelection', () => {
 
   it('owns loading and retry states for the price tiers', () => {
     const loading = renderSelection({ plans: null, isLoading: true })
-    expect(screen.getAllByRole('progressbar')).toHaveLength(2)
+    expect(screen.getAllByRole('progressbar')).toHaveLength(6)
 
     const onRetry = vi.fn()
     loading.unmount()

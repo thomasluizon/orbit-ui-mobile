@@ -1,12 +1,11 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
 import Animated, {
+  FadeIn,
+  FadeOut,
   ReduceMotion,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
 } from 'react-native-reanimated'
-import { motionDurations, motionEasings } from '@orbit/shared/theme'
+import { motionDurations } from '@orbit/shared/theme'
 import { applySubscriptionDiscount } from '@orbit/shared/utils'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { Badge } from '@/components/ui/badge'
@@ -16,7 +15,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 import { formatPrice } from '@/hooks/use-subscription-plans'
-import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { styles } from './styles'
 import {
   monthlyEquivalentPriceLabel,
@@ -48,29 +47,23 @@ function PlanLoadMotion({
   reduced,
   children,
 }: Readonly<{ stateKey: string; reduced: boolean; children: ReactNode }>) {
-  const previousStateKey = useRef(stateKey)
-  const opacity = useSharedValue(1)
-  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }))
-
-  useEffect(() => {
-    const shouldEnter = previousStateKey.current === 'loading' && stateKey !== 'loading'
-    previousStateKey.current = stateKey
-    if (reduced || !shouldEnter) {
-      opacity.value = 1
-      return
-    }
-
-    opacity.value = 0
-    opacity.value = withTiming(1, {
-      duration: motionDurations.base,
-      easing: toAnimatedEasing(motionEasings.enter),
-      reduceMotion: ReduceMotion.System,
+  const [transition, setTransition] = useState({ stateKey, shouldEnter: false })
+  if (transition.stateKey !== stateKey) {
+    setTransition({
+      stateKey,
+      shouldEnter: transition.stateKey === 'loading' && stateKey !== 'loading',
     })
-  }, [opacity, reduced, stateKey])
+  }
 
   return (
     <Animated.View
-      style={animatedStyle}
+      key={stateKey}
+      entering={transition.shouldEnter && !reduced
+        ? FadeIn.duration(motionDurations.base).reduceMotion(ReduceMotion.System)
+        : undefined}
+      exiting={stateKey === 'loading' && !reduced
+        ? FadeOut.duration(motionDurations.routeExit).reduceMotion(ReduceMotion.System)
+        : undefined}
       testID={motionTestId(motionPurpose.load)}
     >
       {children}
@@ -142,8 +135,17 @@ export function PlanSelection({
       <PlanLoadMotion stateKey="loading" reduced={prefersReducedMotion}>
         <View accessibilityLabel={t('upgrade.plans.loading')} style={styles.planState}>
           {intervalControl}
-          <Skeleton variant="stat-tile" label={t('upgrade.plans.loading')} />
-          <Skeleton variant="stat-tile" label={t('upgrade.plans.loading')} />
+          {[0, 1].map((tierIndex) => (
+            <View key={tierIndex} style={styles.planChoices}>
+              {[0, 1, 2].map((rowIndex) => (
+                <Skeleton
+                  key={rowIndex}
+                  variant="settings"
+                  label={t('upgrade.plans.loading')}
+                />
+              ))}
+            </View>
+          ))}
         </View>
       </PlanLoadMotion>
     )

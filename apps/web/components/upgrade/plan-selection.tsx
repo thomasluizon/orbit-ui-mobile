@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
-import { domMax, LazyMotion, m, useAnimate, useReducedMotion } from 'motion/react'
+import { AnimatePresence, domMax, LazyMotion, m, useReducedMotion } from 'motion/react'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { Badge } from '@/components/ui/badge'
 import { ErrorState } from '@/components/ui/error-state'
@@ -43,28 +43,33 @@ function PlanLoadMotion({
   children,
   reduced,
 }: Readonly<{ stateKey: string; children: ReactNode; reduced: boolean }>) {
-  const [scope, animate] = useAnimate<HTMLDivElement>()
-  const previousStateKey = useRef(stateKey)
-
-  useEffect(() => {
-    const shouldEnter = previousStateKey.current === 'loading' && stateKey !== 'loading'
-    previousStateKey.current = stateKey
-    if (reduced || !shouldEnter) return
-
-    void animate(scope.current, { opacity: [0, 1] }, {
-      duration: motionDurations.base / 1000,
-      ease: motionEasings.enter,
-    })
-  }, [animate, reduced, scope, stateKey])
-
   return (
     <LazyMotion features={domMax}>
-      <m.div
-        ref={scope}
-        data-motion-purpose="preventing a jarring change"
-      >
-        {children}
-      </m.div>
+      <AnimatePresence initial={false} mode="popLayout">
+        <m.div
+          key={stateKey}
+          initial={reduced ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={reduced
+            ? { opacity: 1 }
+            : {
+                opacity: 0,
+                transition: {
+                  duration: motionDurations.routeExit / 1000,
+                  ease: motionEasings.exit,
+                },
+              }}
+          transition={reduced
+            ? { duration: 0 }
+            : {
+                duration: motionDurations.base / 1000,
+                ease: motionEasings.enter,
+              }}
+          data-motion-purpose="preventing a jarring change"
+        >
+          {children}
+        </m.div>
+      </AnimatePresence>
     </LazyMotion>
   )
 }
@@ -111,8 +116,17 @@ export function PlanSelection({
         <div className="mt-8 flex flex-col gap-4" aria-label={t('upgrade.plans.loading')}>
           {intervalControl}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Skeleton variant="stat-tile" label={t('upgrade.plans.loading')} />
-            <Skeleton variant="stat-tile" label={t('upgrade.plans.loading')} />
+            {[0, 1].map((tierIndex) => (
+              <div key={tierIndex} className="flex flex-col gap-3">
+                {[0, 1, 2].map((rowIndex) => (
+                  <Skeleton
+                    key={rowIndex}
+                    variant="settings"
+                    label={t('upgrade.plans.loading')}
+                  />
+                ))}
+              </div>
+            ))}
           </div>
         </div>
       </PlanLoadMotion>
