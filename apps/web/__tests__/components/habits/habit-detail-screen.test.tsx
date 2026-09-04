@@ -296,6 +296,18 @@ describe('HabitDetailScreen', () => {
     })
   })
 
+  it('hides relationship controls for a nested child without authoritative state', () => {
+    mocks.detail = { ...makeDetail(), id: 'child-1', isBadHabit: true, children: [] }
+    mocks.allHabits.clear()
+    mocks.scopedHabits.clear()
+    render(<HabitDetailScreen habitId="child-1" date="2026-08-28" parentId="habit-1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+
+    expect(screen.queryByTestId('list-row-habits.detail.linkedGoals')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('list-row-habits.detail.slipAlert')).not.toBeInTheDocument()
+  })
+
   it('restores an empty rename and returns to the selected day', async () => {
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 

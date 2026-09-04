@@ -19,6 +19,7 @@ export {
   isHabitCompletedOnDate,
   isHabitSlipping,
   formatHabitDetailReminderValue,
+  hasAuthoritativeHabitRelationshipState,
   HABIT_DETAIL_FREQUENCY_UNITS,
   HABIT_DETAIL_WEEKDAYS,
   mergeHabitDetailWithScopedHabit,

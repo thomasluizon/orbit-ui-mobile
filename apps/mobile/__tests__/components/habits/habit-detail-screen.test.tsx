@@ -1072,6 +1072,21 @@ describe('HabitDetailScreen', () => {
     })
   })
 
+  it('hides relationship controls for a nested child without authoritative state', () => {
+    mocks.detail = { ...makeDetail(), id: 'child-1', isBadHabit: true, children: [] }
+    mocks.allHabits.clear()
+    mocks.scopedHabits.clear()
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="child-1" date="2026-08-28" parentId="habit-1" />)
+    })
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    TestRenderer.act(() => disclosure!.props.onPress())
+
+    expect(tree!.root.findAllByProps({ title: 'habits.detail.linkedGoals' })).toHaveLength(0)
+    expect(tree!.root.findAllByProps({ title: 'habits.detail.slipAlert' })).toHaveLength(0)
+  })
+
   it('restores the parent Astra suggestion after leaving a child detail', () => {
     let parentTree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {

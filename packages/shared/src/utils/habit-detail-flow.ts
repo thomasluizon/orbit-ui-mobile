@@ -456,6 +456,22 @@ export function formatHabitDetailReminderValue(
   return values.length ? values.join(', ') : translate('habits.detail.noValue')
 }
 
+function getHabitRelationshipAuthority(
+  detail: Pick<HabitDetail, 'isGeneral'>,
+  authoritativeHabit: NormalizedHabit | undefined,
+  scopedHabit: NormalizedHabit | undefined,
+): NormalizedHabit | undefined {
+  return authoritativeHabit ?? (detail.isGeneral ? scopedHabit : undefined)
+}
+
+export function hasAuthoritativeHabitRelationshipState(
+  detail: Pick<HabitDetail, 'isGeneral'>,
+  authoritativeHabit: NormalizedHabit | undefined,
+  scopedHabit: NormalizedHabit | undefined,
+): boolean {
+  return getHabitRelationshipAuthority(detail, authoritativeHabit, scopedHabit) !== undefined
+}
+
 export function mergeHabitDetailWithScopedHabit(
   detail: HabitDetail,
   authoritativeHabit: NormalizedHabit | undefined,
@@ -463,7 +479,7 @@ export function mergeHabitDetailWithScopedHabit(
   scopedHabit = authoritativeHabit,
 ): NormalizedHabit {
   const normalized = normalizeHabitDetailForDrill(detail, date).parent
-  const relationshipAuthority = authoritativeHabit ?? (detail.isGeneral ? scopedHabit : undefined)
+  const relationshipAuthority = getHabitRelationshipAuthority(detail, authoritativeHabit, scopedHabit)
   if (!relationshipAuthority) return normalized
   return {
     ...relationshipAuthority,

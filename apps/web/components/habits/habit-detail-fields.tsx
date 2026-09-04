@@ -28,6 +28,7 @@ interface HabitDetailFieldsProps {
   habit: NormalizedHabit
   hasProAccess: boolean
   locale: string
+  relationshipControlsAvailable: boolean
   summary: string
   onPatch: (patch: HabitDetailPatch) => Promise<boolean>
   onUpgrade: () => void
@@ -86,7 +87,7 @@ function SlipAlertRow({ habit, hasProAccess, onPatch, onUpgrade }: Readonly<{ ha
   return <ListRow title={t('habits.detail.slipAlert')} description={t('habits.detail.slipAlertDescription')} value={!hasProAccess ? t('habits.detail.proGate') : undefined} trailing={hasProAccess ? <Switch label={t('habits.detail.slipAlert')} checked={habit.slipAlertEnabled} onChange={(slipAlertEnabled) => { void onPatch({ slipAlertEnabled }) }} /> : undefined} chevron={!hasProAccess} onClick={!hasProAccess ? onUpgrade : undefined} />
 }
 
-export function HabitDetailFields({ habit, hasProAccess, locale, summary, onPatch, onUpgrade }: Readonly<HabitDetailFieldsProps>) {
+export function HabitDetailFields({ habit, hasProAccess, locale, relationshipControlsAvailable, summary, onPatch, onUpgrade }: Readonly<HabitDetailFieldsProps>) {
   const t = useTranslations()
   const { showError } = useAppToast()
   const fields = useHabitDetailFieldsState(habit, onPatch)
@@ -97,8 +98,7 @@ export function HabitDetailFields({ habit, hasProAccess, locale, summary, onPatc
   }
   return (
     <div className="flex flex-col gap-1">
-      <ListRow title={t('habits.detail.linkedGoals')} value={goalIds.length ? String(goalIds.length) : t('habits.detail.noValue')} onClick={() => toggleField('goals')} />
-      {openField === 'goals' ? <FieldWell><GoalLinkingField selectedGoalIds={goalIds} atGoalLimit={goalIds.length >= MAX_GOALS_PER_HABIT} onToggleGoal={toggleGoal} /></FieldWell> : null}
+      {relationshipControlsAvailable ? <><ListRow title={t('habits.detail.linkedGoals')} value={goalIds.length ? String(goalIds.length) : t('habits.detail.noValue')} onClick={() => toggleField('goals')} />{openField === 'goals' ? <FieldWell><GoalLinkingField selectedGoalIds={goalIds} atGoalLimit={goalIds.length >= MAX_GOALS_PER_HABIT} onToggleGoal={toggleGoal} /></FieldWell> : null}</> : null}
       <ListRow title={t('habits.detail.reminders')} value={formatHabitDetailReminderValue(reminderHabit, (key) => t(key))} onClick={() => toggleField('reminders')} />
       {openField === 'reminders' ? <FieldWell>{habit.dueTime ? <ReminderSection reminderEnabled={reminderHabit.reminderEnabled} reminderTimes={reminderHabit.reminderTimes} onReminderTimesChange={(offsets) => updateReminders({ offsets })} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} reminderLabel={(minutes) => formatHabitReminderLabel(minutes, (key) => t(key))} t={t} /> : null}{!habit.dueTime || reminderHabit.scheduledReminders.length > 0 ? <ScheduledReminderSection reminderEnabled={reminderHabit.reminderEnabled} scheduledReminders={reminderHabit.scheduledReminders} onToggleReminder={() => updateReminders({ enabled: !reminderHabit.reminderEnabled })} onSetScheduledReminders={(scheduled) => updateReminders({ scheduled })} onValidationError={showError} nested={Boolean(habit.dueTime)} t={t} /> : null}<FieldActions onCancel={cancelReminders} onSave={saveReminderDraft} /></FieldWell> : null}
       <ScheduleField habit={habit} summary={summary} open={openField === 'schedule'} onToggle={() => toggleField('schedule')} onCancel={close} onSave={save} />
@@ -108,7 +108,7 @@ export function HabitDetailFields({ habit, hasProAccess, locale, summary, onPatc
       {openField === 'description' ? <TextEditor initialValue={habit.description ?? ''} multiline onCancel={close} onSave={(description) => save({ description })} /> : null}
       <ListRow title={t('habits.detail.endDate')} value={habit.endDate ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(`${habit.endDate}T00:00:00`)) : t('habits.detail.noValue')} onClick={() => toggleField('endDate')} />
       {openField === 'endDate' ? <TextEditor initialValue={habit.endDate ?? ''} onCancel={close} onSave={(endDate) => save({ endDate: endDate || null })} /> : null}
-      <SlipAlertRow habit={habit} hasProAccess={hasProAccess} onPatch={onPatch} onUpgrade={onUpgrade} />
+      {relationshipControlsAvailable ? <SlipAlertRow habit={habit} hasProAccess={hasProAccess} onPatch={onPatch} onUpgrade={onUpgrade} /> : null}
       <ListRow title={t('habits.detail.startedOn')} value={new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(habit.createdAtUtc))} readOnly />
     </div>
   )

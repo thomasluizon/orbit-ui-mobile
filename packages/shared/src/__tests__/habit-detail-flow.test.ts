@@ -13,6 +13,7 @@ import {
   canNavigateHabitHistoryBack,
   canNavigateHabitHistoryForward,
   formatHabitDetailReminderValue,
+  hasAuthoritativeHabitRelationshipState,
   isHabitCompletedOnDate,
   isHabitHistoryMonthLoaded,
   isHabitSlipping,
@@ -234,6 +235,15 @@ describe('habit detail flow model', () => {
       linkedGoals: scoped.linkedGoals,
       slipAlertEnabled: true,
     })
+  })
+
+  it('gates relationship controls by authoritative schedule state', () => {
+    const detail = makeHabitDetail()
+    const authoritative = makeHabitDetailScopedParent()
+
+    expect(hasAuthoritativeHabitRelationshipState(detail, authoritative, undefined)).toBe(true)
+    expect(hasAuthoritativeHabitRelationshipState({ ...detail, isGeneral: true }, undefined, authoritative)).toBe(true)
+    expect(hasAuthoritativeHabitRelationshipState(detail, undefined, makeHabitDetailScopedParent())).toBe(false)
   })
 
   it('builds a 30 day habit strip without a frozen state', () => {
