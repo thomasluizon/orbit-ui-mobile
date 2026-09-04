@@ -3060,6 +3060,10 @@
       },
       {
         "from": "apps/mobile/app",
+        "to": "packages/shared/src/theme"
+      },
+      {
+        "from": "apps/mobile/app",
         "to": "packages/shared/src/types"
       },
       {
@@ -23911,6 +23915,7 @@
         "apps/web/__tests__/components/ui/update-prompt.test.tsx",
         "apps/web/__tests__/components/ui/verified-badge.test.tsx",
         "apps/web/__tests__/components/upgrade/plan-selection.test.tsx",
+        "apps/web/__tests__/components/upgrade/pricing-section.test.tsx",
         "apps/web/__tests__/hooks/use-bulk-actions.test.ts",
         "apps/web/__tests__/hooks/use-chat-composer.test.tsx",
         "apps/web/__tests__/pages/error.test.tsx",
@@ -24344,6 +24349,7 @@
         "apps/web/__tests__/components/today/today-astra.test.tsx",
         "apps/web/__tests__/components/tour/tour-provider.test.tsx",
         "apps/web/__tests__/components/tour/tour-tooltip.test.tsx",
+        "apps/web/__tests__/components/upgrade/pricing-section.test.tsx",
         "apps/web/__tests__/hooks/use-billing.test.ts",
         "apps/web/__tests__/hooks/use-bulk-actions.test.ts",
         "apps/web/__tests__/hooks/use-calendar-auto-sync.test.ts",
@@ -24371,6 +24377,7 @@
         "apps/web/__tests__/hooks/use-timezone-auto-sync.test.tsx",
         "apps/web/__tests__/lib/habit-mutation-helpers.test.ts",
         "apps/web/__tests__/lib/habit-optimistic-helpers.test.ts",
+        "apps/web/__tests__/pages/upgrade.test.tsx",
         "apps/web/__tests__/stores/auth-store.test.ts",
         "apps/web/__tests__/stores/chat-store.test.ts",
         "apps/web/__tests__/stores/onboarding-draft-store.test.ts",
