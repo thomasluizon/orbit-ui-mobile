@@ -45,9 +45,6 @@ export function SubHabitEditor({
 
   return (
     <View style={styles.subHabitsSection}>
-      <View style={styles.subHabitsHeader}>
-        <Text style={styles.fieldLabel}>{t('habits.form.subHabits')}</Text>
-      </View>
       {subHabits.length > 0 ? (
         <View style={styles.subHabitsList}>
           {subHabits.map((entry, index) => (

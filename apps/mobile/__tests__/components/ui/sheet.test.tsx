@@ -82,6 +82,18 @@ describe('Sheet (mobile)', () => {
     expect(nativeSheet.props.maxContentHeight).toBe(892 * 0.85 - 24)
   })
 
+  it('lets a virtualized child own the body scroll container', async () => {
+    let tree: any
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<Sheet open virtualizedBody><Text>Virtual list</Text></Sheet>)
+      await Promise.resolve()
+    })
+
+    expect(tree.root.findAllByType('ScrollView')).toHaveLength(0)
+    expect(tree.root.findByProps({ testID: 'sheet-virtualized-body' })).toBeDefined()
+    expect(tree.root.findByType(TrueSheet).props.scrollable).toBe(true)
+  })
+
   it('reveals a focused lower input through the sheet body scroller', async () => {
     vi.useFakeTimers()
     const scrollTo = vi.fn()
@@ -320,7 +332,7 @@ describe('Sheet close path (mobile)', () => {
     })
 
     const nativeSheet = tree.root.findByType(TrueSheet)
-    const closeControl = nativeSheet.props.header.props.children[1]
+    const closeControl = nativeSheet.props.header.props.children.at(-1)
 
     await TestRenderer.act(async () => {
       closeControl.props.onPress()

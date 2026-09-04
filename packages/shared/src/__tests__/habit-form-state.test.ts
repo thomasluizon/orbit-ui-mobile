@@ -20,6 +20,7 @@ function makeHabit(overrides: Partial<NormalizedHabit> = {}): NormalizedHabit {
     emoji: overrides.emoji ?? null,
     frequencyUnit: 'frequencyUnit' in overrides ? (overrides.frequencyUnit ?? null) : 'Day',
     frequencyQuantity: overrides.frequencyQuantity ?? 1,
+    intervalWeeks: overrides.intervalWeeks,
     isBadHabit: overrides.isBadHabit ?? false,
     isCompleted: overrides.isCompleted ?? false,
     isGeneral: overrides.isGeneral ?? false,
@@ -61,6 +62,7 @@ function makeDetail(overrides: Partial<HabitDetail> = {}): HabitDetail {
     emoji: overrides.emoji ?? null,
     frequencyUnit: overrides.frequencyUnit ?? 'Day',
     frequencyQuantity: overrides.frequencyQuantity ?? 1,
+    intervalWeeks: 'intervalWeeks' in overrides ? overrides.intervalWeeks : null,
     isBadHabit: overrides.isBadHabit ?? false,
     isCompleted: overrides.isCompleted ?? false,
     isGeneral: overrides.isGeneral ?? false,
@@ -88,6 +90,7 @@ describe('habit-form-state', () => {
       emoji: '',
       frequencyUnit: null,
       frequencyQuantity: null,
+      intervalWeeks: 1,
       days: [],
       isBadHabit: false,
       isGeneral: false,
@@ -157,21 +160,37 @@ describe('habit-form-state', () => {
     expect(state.originalEndDate).toBe('2025-02-10')
   })
 
-  it('resolves and applies modes', () => {
+  it('prefers a biweekly detail interval when the schedule-list fallback omitted it', () => {
+    const state = buildEditHabitFormState(
+      makeHabit({ intervalWeeks: undefined }),
+      makeDetail({ intervalWeeks: 2 }),
+    )
+
+    expect(state.formValues.intervalWeeks).toBe(2)
+  })
+
+  it('resolves modes from mutually exclusive schedule fields', () => {
     expect(resolveHabitFormMode(makeHabit({ isGeneral: true, frequencyUnit: null }))).toBe('general')
     expect(resolveHabitFormMode(makeHabit({ isFlexible: true }))).toBe('flexible')
     expect(resolveHabitFormMode(makeHabit({ frequencyUnit: 'Week' }))).toBe('recurring')
     expect(resolveHabitFormMode(makeHabit({ frequencyUnit: null, isGeneral: false, isFlexible: false }))).toBe('oneTime')
+  })
 
+  it.each([
+    ['general', 'general'],
+    ['flexible', 'flexible'],
+    ['recurring', 'recurring'],
+    ['oneTime', 'oneTime'],
+  ] as const)('dispatches %s mode to only its matching form action', (mode, expected) => {
     const calls: string[] = []
-    applyHabitFormMode('general', {
+    applyHabitFormMode(mode, {
       setOneTime: () => calls.push('oneTime'),
       setRecurring: () => calls.push('recurring'),
       setFlexible: () => calls.push('flexible'),
       setGeneral: () => calls.push('general'),
     })
 
-    expect(calls).toEqual(['general'])
+    expect(calls).toEqual([expected])
   })
 
   it('toggles selected ids', () => {
@@ -201,6 +220,17 @@ describe('habit-form-state', () => {
     ).toBeNull()
   })
 
+  it('leaves an already-enabled timed reminder unchanged', () => {
+    expect(
+      resolveAutoManagedReminderEnabled({
+        dueTime: '09:00',
+        scheduledReminderCount: 0,
+        reminderEnabled: true,
+        reminderWasManuallyToggled: false,
+      }),
+    ).toBeNull()
+  })
+
   it('auto-disables reminders when due time is cleared and no scheduled reminders exist', () => {
     expect(
       resolveAutoManagedReminderEnabled({
@@ -221,5 +251,21 @@ describe('habit-form-state', () => {
         reminderWasManuallyToggled: false,
       }),
     ).toBeNull()
+  })
+
+  it('leaves an already-disabled untimed reminder unchanged', () => {
+    expect(
+      resolveAutoManagedReminderEnabled({
+        dueTime: '',
+        scheduledReminderCount: 0,
+        reminderEnabled: false,
+        reminderWasManuallyToggled: false,
+      }),
+    ).toBeNull()
+  })
+
+  it('preserves custom reminder offsets when building edit state', () => {
+    expect(buildEditHabitFormState(makeHabit({ reminderTimes: [5, 30] })).reminderTimes)
+      .toEqual([5, 30])
   })
 })

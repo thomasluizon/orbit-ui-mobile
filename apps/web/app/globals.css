@@ -19,6 +19,11 @@
   opacity: 0;
 }
 
+.orbit-sheet-backdrop[data-ending-style] {
+  transition-duration: 165ms;
+  transition-timing-function: var(--ease-in);
+}
+
 .orbit-sheet-viewport {
   position: fixed;
   inset: 0;
@@ -39,19 +44,63 @@
   background: var(--bg-sheet);
   color: var(--fg-1);
   opacity: 1;
-  transform: translateY(0) scale(1);
+  transform: scale(1);
   transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
 }
 
 .orbit-sheet-panel[data-starting-style] {
   opacity: 0;
-  transform: translateY(16px) scale(0.95);
+  transform: scale(0.95);
 }
 
 .orbit-sheet-panel[data-ending-style] {
   opacity: 0;
-  transform: translateY(12px) scale(0.985);
-  transition-duration: var(--dur-1);
+  transform: scale(0.95);
+  transition-duration: 165ms;
+  transition-timing-function: var(--ease-in);
+}
+
+.orbit-list-row {
+  box-shadow: inset 0 0 0 1px transparent;
+  transition: background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), transform 150ms var(--ease-out);
+}
+
+.habit-control-motion {
+  transition: background-color 240ms var(--ease-standard), color 240ms var(--ease-standard), transform 150ms var(--ease-out);
+}
+
+.habit-form-disclosure {
+  transform-origin: center top;
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 220ms var(--ease-out), transform 220ms var(--ease-out);
+}
+
+@starting-style {
+  .habit-form-disclosure {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+.habit-form-disclosure[data-open='false'] {
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.95);
+  transition-duration: 165ms;
+  transition-timing-function: var(--ease-in);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .orbit-list-row:hover {
+    background: var(--bg-hover);
+    box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .orbit-sheet-grabber {
@@ -79,7 +128,9 @@
   font-weight: 500;
   line-height: 1.2;
   letter-spacing: -0.02em;
-  text-wrap: balance;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .orbit-sheet-close {
@@ -94,7 +145,7 @@
   border-radius: 999px;
   background: transparent;
   color: var(--fg-2);
-  transition: background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), transform var(--dur-1) var(--ease-standard);
+  transition: background-color var(--dur-hover-control) var(--ease-standard), color var(--dur-hover-control) var(--ease-standard), transform 150ms var(--ease-out);
 }
 
 .orbit-sheet-close:focus-visible,
@@ -642,27 +693,6 @@ button {
    All use transform/opacity only for GPU compositing
    ═══════════════════════════════════════════════════════ */
 
-.list-row-button {
-  border-radius: var(--r-well);
-  transition: background-color var(--dur-hover) var(--ease-standard), box-shadow var(--dur-hover) var(--ease-standard);
-}
-
-.list-row-button:active {
-  transform: scale(0.96);
-}
-
-.list-row-button:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: 2px;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .list-row-button:hover {
-    background-color: var(--bg-hover);
-    box-shadow: inset 0 0 0 1px var(--hairline-strong);
-  }
-}
-
 @keyframes habit-month-fade {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -1060,10 +1090,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   align-items: center;
   gap: 7px;
   transition:
-    background-color var(--dur-fast) var(--ease-standard),
-    color var(--dur-fast) var(--ease-standard),
-    box-shadow var(--dur-fast) var(--ease-standard),
-    transform var(--dur-fast) var(--ease-standard);
+    background-color 240ms var(--ease-standard),
+    color 240ms var(--ease-standard),
+    transform 150ms var(--ease-out);
 }
 .chip::after {
   content: '';

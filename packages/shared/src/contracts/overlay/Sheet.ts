@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 export interface SheetProps {
   open?: true
   title?: string
+  headerAccessory?: ReactNode
   actions?: ReactNode
   onClose?: () => void
   children?: ReactNode

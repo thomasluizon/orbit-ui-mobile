@@ -50,6 +50,7 @@ export function normalizeDrillDetailChild(
     emoji: child.emoji ?? null,
     frequencyUnit: child.frequencyUnit,
     frequencyQuantity: child.frequencyQuantity,
+    intervalWeeks: child.intervalWeeks,
     isBadHabit: child.isBadHabit,
     isCompleted: child.isCompleted,
     isGeneral: child.isGeneral,

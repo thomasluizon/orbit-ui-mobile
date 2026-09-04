@@ -309,11 +309,6 @@
       "count": 5
     }
   },
-  "components/habits/checklist-templates.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "components/habits/create-habit-modal.tsx": {
     "local/spacing-scale": {
       "count": 10
@@ -337,11 +332,6 @@
       "count": 4
     }
   },
-  "components/habits/goal-linking-field.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "components/habits/habit-calendar.tsx": {
     "local/spacing-scale": {
       "count": 4
@@ -357,7 +347,7 @@
   },
   "components/habits/habit-form-fields/habit-emoji-selector.tsx": {
     "local/icon-size-grid": {
-      "count": 2
+      "count": 1
     }
   },
   "components/habits/habit-form-fields/habit-tag-chip.tsx": {

@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { View, Text, Pressable } from "react-native";
-import { Plus, X } from "@/components/ui/icons";
+import { Plus, Trash2, X } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import {
   HABIT_EMOJI_CATEGORIES,
@@ -60,7 +60,7 @@ export function HabitEmojiSelector({
       <Pressable
         style={({ pressed }) => [
           styles.emojiWell,
-          { width: wellSize, height: wellSize, borderRadius: 12 },
+          { width: wellSize, height: wellSize, borderRadius: 999 },
           pressed
             ? {
                 backgroundColor: tokens.bgHover,
@@ -75,7 +75,7 @@ export function HabitEmojiSelector({
         {selectedEmoji ? (
           <Text style={[styles.emojiWellText, wellSize === 76 ? { fontSize: 34 } : null]}>{selectedEmoji}</Text>
         ) : (
-          <Plus size={22} color={tokens.fg3} strokeWidth={1.8} />
+          <Plus size={20} color={tokens.fg3} strokeWidth={1.8} />
         )}
       </Pressable>
 
@@ -84,6 +84,14 @@ export function HabitEmojiSelector({
         open
         onClose={hidePicker}
         title={t("habits.form.emojiPickerTitle")}
+        headerAccessory={selectedEmoji ? (
+          <View style={{ alignItems: 'center', flexDirection: 'row', gap: 8 }}>
+            <View style={{ alignItems: 'center', backgroundColor: tokens.bgWell, borderRadius: 999, height: 40, justifyContent: 'center', width: 40 }}><Text style={{ fontSize: 20 }}>{selectedEmoji}</Text></View>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("habits.form.emojiRemove")} style={({ pressed }) => [{ alignItems: 'center', borderRadius: 999, height: 40, justifyContent: 'center', width: 40 }, pressed ? { transform: [{ scale: 0.96 }] } : null]} onPress={() => onSelect("")}>
+              <Trash2 size={18} color={tokens.fg2} strokeWidth={1.8} />
+            </Pressable>
+          </View>
+        ) : undefined}
       >
         <View style={styles.emojiSheetContent}>
             <Text style={styles.hintText}>{t("habits.form.emojiDescription")}</Text>
@@ -109,22 +117,6 @@ export function HabitEmojiSelector({
               ) : null}
             </View>
 
-            {selectedEmoji ? (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.emojiRemoveButton,
-                  pressed ? { transform: [{ scale: 0.96 }] } : null,
-                ]}
-                hitSlop={{ top: 6, bottom: 6 }}
-                onPress={() => handleSelectEmoji("")}
-                accessibilityRole="button"
-                accessibilityLabel={t("habits.form.emojiRemove")}
-              >
-                <X size={14} color={tokens.fg2} strokeWidth={1.8} />
-                <Text style={styles.emojiRemoveButtonText}>{t("habits.form.emojiRemove")}</Text>
-              </Pressable>
-            ) : null}
-
             <View
               style={styles.emojiCategoryTabs}
               accessibilityLabel={t("habits.form.emojiCategories")}
@@ -145,7 +137,7 @@ export function HabitEmojiSelector({
                     accessibilityLabel={t(category.labelKey)}
                     accessibilityState={{ selected }}
                   >
-                    <Text style={[styles.emojiCategoryTabText, selected ? styles.emojiCategoryTabTextActive : null]}>
+                    <Text numberOfLines={1} style={[styles.emojiCategoryTabText, selected ? styles.emojiCategoryTabTextActive : null]}>
                       {t(category.labelKey)}
                     </Text>
                   </Pressable>

@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   normalizedHabitSchema,
   createPaginatedSchema,
+  createHabitRequestSchema,
+  habitDetailSchema,
   habitScheduleItemSchema,
 } from '../types/habit'
 import { goalSchema, paginatedGoalResponseSchema } from '../types/goal'
@@ -163,6 +165,18 @@ describe('habit schemas', () => {
       const result = normalizedHabitSchema.safeParse(habit)
       expect(result.success).toBe(false)
     })
+  })
+
+  it('accepts nullable response intervals while requests remain non-null and bounded', () => {
+    const detail = habitDetailSchema.safeParse({
+      ...createMockHabit({ intervalWeeks: null }),
+      children: [],
+    })
+
+    expect(detail.success).toBe(true)
+    expect(createHabitRequestSchema.safeParse({ title: 'Run', intervalWeeks: null }).success).toBe(false)
+    expect(createHabitRequestSchema.safeParse({ title: 'Run', intervalWeeks: 53 }).success).toBe(false)
+    expect(createHabitRequestSchema.safeParse({ title: 'Run', intervalWeeks: 2 }).success).toBe(true)
   })
 
   describe('createPaginatedSchema', () => {

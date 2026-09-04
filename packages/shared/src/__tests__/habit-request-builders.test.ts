@@ -39,6 +39,7 @@ describe('habit-request-builders', () => {
         isFlexible: true,
         frequencyUnit: 'Week',
         frequencyQuantity: 3,
+        intervalWeeks: 3,
         dueTime: '08:30',
         dueEndTime: '09:00',
         reminderEnabled: true,
@@ -58,6 +59,7 @@ describe('habit-request-builders', () => {
       isFlexible: true,
       frequencyUnit: 'Week',
       frequencyQuantity: 3,
+      intervalWeeks: 3,
       dueTime: '08:30',
       dueEndTime: '09:00',
       reminderEnabled: true,
@@ -108,6 +110,7 @@ describe('habit-request-builders', () => {
       dueDate: '2026-04-08',
       frequencyUnit: 'Week',
       frequencyQuantity: 2,
+      intervalWeeks: 1,
       days: ['Monday', 'Wednesday'],
       endDate: '2026-12-31',
       reminderEnabled: true,
@@ -187,6 +190,7 @@ describe('habit-request-builders', () => {
       dueDate: '2026-04-08',
       frequencyUnit: 'Day',
       frequencyQuantity: 1,
+      intervalWeeks: 1,
       dueTime: '06:30',
       dueEndTime: '06:45',
       reminderEnabled: true,
@@ -225,6 +229,7 @@ describe('habit-request-builders', () => {
       dueDate: '2026-04-08',
       frequencyUnit: 'Day',
       frequencyQuantity: 1,
+      intervalWeeks: 1,
       reminderEnabled: true,
       reminderTimes: [],
       scheduledReminders: [{ when: 'same_day', time: '21:00' }],
@@ -233,6 +238,18 @@ describe('habit-request-builders', () => {
       goalIds: ['goal-1', 'goal-2'],
       clearEndDate: true,
     })
+  })
+
+  it('sends a preserved biweekly detail interval on save', () => {
+    const request = buildUpdateHabitRequest(
+      makeFormData({ frequencyUnit: 'Day', frequencyQuantity: 1, intervalWeeks: 2 }),
+      false,
+      '',
+      [],
+      [],
+    )
+
+    expect(request.intervalWeeks).toBe(2)
   })
 
   it('builds update requests with due-time reminders and leaves the scheduled store untouched', () => {

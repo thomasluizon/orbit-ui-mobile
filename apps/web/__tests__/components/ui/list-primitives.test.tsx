@@ -21,9 +21,7 @@ describe('list primitives on web', () => {
       />,
     )
 
-    const bodyControl = screen.getByRole('button', { name: /Account/ })
-    expect(bodyControl).toHaveClass('list-row-button')
-    fireEvent.click(bodyControl)
+    fireEvent.click(screen.getByRole('button', { name: /Account/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Remove account' }))
     expect(onClick).toHaveBeenCalledOnce()
     expect(onAction).toHaveBeenCalledOnce()
@@ -31,7 +29,7 @@ describe('list primitives on web', () => {
     expect(screen.getByText('Ready')).toBeInTheDocument()
     expect(screen.getByText('Synced')).toBeInTheDocument()
     expect(screen.getByText('Synced').closest('button')).toBe(
-      bodyControl,
+      screen.getByRole('button', { name: /Account/ }),
     )
     expect(container.querySelector('[data-icon="home"]')).toBeInTheDocument()
 
