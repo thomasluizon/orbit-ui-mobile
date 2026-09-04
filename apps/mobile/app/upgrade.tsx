@@ -3,7 +3,14 @@ import { AppState, Linking, ScrollView, StyleSheet, View } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import Animated, {
+  ReduceMotion,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated'
 import { API } from '@orbit/shared/api'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import {
   getTrialDaysLeft,
   playManageSubscriptionUrl,
@@ -33,6 +40,9 @@ import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboar
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
+
+const UPGRADE_LOAD_MOTION_PURPOSE = 'preventing a jarring change'
 
 function UpgradeContent({
   state,
@@ -49,6 +59,27 @@ function UpgradeContent({
   onRetry: () => void
   t: UpgradeTextFn
 }>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const previousState = useRef(state)
+  const opacity = useSharedValue(1)
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }))
+
+  useEffect(() => {
+    const shouldEnter = previousState.current === 'loading' && state !== 'loading'
+    previousState.current = state
+    if (prefersReducedMotion || !shouldEnter) {
+      opacity.value = 1
+      return
+    }
+
+    opacity.value = 0
+    opacity.value = withTiming(1, {
+      duration: motionDurations.base,
+      easing: toAnimatedEasing(motionEasings.enter),
+      reduceMotion: ReduceMotion.System,
+    })
+  }, [opacity, prefersReducedMotion, state])
+
   let body = pitchContent
   if (state === 'loading') {
     body = (
@@ -69,7 +100,12 @@ function UpgradeContent({
   return (
     <>
       {state === 'offline' ? <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.offline')} /></View> : null}
-      {body}
+      <Animated.View
+        style={animatedStyle}
+        testID={`upgrade-motion-${UPGRADE_LOAD_MOTION_PURPOSE.replaceAll(' ', '-')}`}
+      >
+        {body}
+      </Animated.View>
     </>
   )
 }

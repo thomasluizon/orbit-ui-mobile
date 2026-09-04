@@ -1,8 +1,23 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { useTranslations } from 'next-intl'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
 import { formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
+
+const motionMocks = vi.hoisted(() => ({
+  animate: vi.fn(),
+  reduced: false,
+}))
+
+vi.mock('motion/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('motion/react')>()
+  const React = await import('react')
+  return {
+    ...actual,
+    useAnimate: () => [React.useRef<HTMLElement | null>(null), motionMocks.animate],
+    useReducedMotion: () => motionMocks.reduced,
+  }
+})
 
 vi.mock('@/hooks/use-subscription-plans', () => ({
   useSubscriptionPlans: () => ({}),
@@ -35,7 +50,7 @@ function renderSelection(overrides: Partial<Parameters<typeof PlanSelection>[0]>
     ...overrides,
   }
   const view = render(<PlanSelection {...props} />)
-  return { ...props, unmount: view.unmount }
+  return { ...props, ...view }
 }
 
 function tierNamed(name: string) {
@@ -43,6 +58,11 @@ function tierNamed(name: string) {
 }
 
 describe('PlanSelection', () => {
+  beforeEach(() => {
+    motionMocks.animate.mockReset()
+    motionMocks.reduced = false
+  })
+
   it('leads with annual and gives the recommended tier the only filled action', () => {
     renderSelection()
 
@@ -95,6 +115,55 @@ describe('PlanSelection', () => {
       'ghost',
     )
     expect(onCheckout).not.toHaveBeenCalled()
+  })
+
+  it('animates interval feedback and the annual recommendation settling', () => {
+    renderSelection()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'upgrade.plans.interval.monthly' }))
+
+    expect(motionMocks.animate).toHaveBeenCalledTimes(2)
+    expect(motionMocks.animate.mock.calls.map(([selector]) => selector)).toEqual([
+      '[data-upgrade-interval-motion]',
+      '[data-upgrade-recommended-motion]',
+    ])
+    expect(screen.getAllByRole('heading', { level: 2 })[0]?.closest('section')).toHaveAttribute(
+      'data-motion-purpose',
+      'spatial consistency',
+    )
+  })
+
+  it('does not run interval transitions with reduced motion', () => {
+    motionMocks.reduced = true
+    renderSelection()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'upgrade.plans.interval.monthly' }))
+
+    expect(motionMocks.animate).not.toHaveBeenCalled()
+  })
+
+  it('softens the loading-to-content swap', () => {
+    const view = renderSelection({ plans: null, isLoading: true })
+    motionMocks.animate.mockClear()
+
+    view.rerender(<PlanSelection {...view} plans={plans} isLoading={false} />)
+
+    expect(motionMocks.animate).toHaveBeenCalledTimes(1)
+    expect(motionMocks.animate).toHaveBeenCalledWith(
+      expect.any(HTMLElement),
+      { opacity: [0, 1] },
+      expect.objectContaining({ duration: 0.22 }),
+    )
+  })
+
+  it('hard-cuts loading-to-content with reduced motion', () => {
+    motionMocks.reduced = true
+    const view = renderSelection({ plans: null, isLoading: true })
+    motionMocks.animate.mockClear()
+
+    view.rerender(<PlanSelection {...view} plans={plans} isLoading={false} />)
+
+    expect(motionMocks.animate).not.toHaveBeenCalled()
   })
 
   it('renders annual arithmetic from the payload', () => {

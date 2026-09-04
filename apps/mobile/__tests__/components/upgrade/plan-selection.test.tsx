@@ -1,10 +1,34 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 import { formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
 import { createTokensV2 } from '@/lib/theme'
+
+const motionMocks = vi.hoisted(() => ({
+  reduced: false,
+  withTiming: vi.fn((value: number) => value),
+}))
+
+vi.mock('@/lib/motion', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/motion')>()
+  return {
+    ...actual,
+    usePrefersReducedMotion: () => motionMocks.reduced,
+  }
+})
+
+vi.mock('react-native-reanimated', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-native-reanimated')>()
+  return {
+    ...actual,
+    withTiming: (...args: Parameters<typeof actual.withTiming>) => {
+      motionMocks.withTiming(args[0] as number)
+      return actual.withTiming(...args)
+    },
+  }
+})
 
 vi.mock('@/hooks/use-subscription-plans', () => ({
   useSubscriptionPlans: () => ({}),
@@ -41,33 +65,42 @@ function renderSelection(
   selectedInterval: SubscriptionInterval = 'yearly',
   overrides: Partial<React.ComponentProps<typeof PlanSelection>> = {},
 ) {
+  const props: React.ComponentProps<typeof PlanSelection> = {
+    plans,
+    isLoading: false,
+    isError: false,
+    isOnline: true,
+    monthlyOffer: null,
+    yearlyOffer: null,
+    selectedInterval,
+    checkoutLoading: null,
+    checkoutError: '',
+    checkoutDisabled: false,
+    onSelectInterval: () => {},
+    onCheckout: () => {},
+    onRetry: () => {},
+    t,
+    tokens,
+    ...overrides,
+  }
   let tree: any
   TestRenderer.act(() => {
-    tree = TestRenderer.create(
-      <PlanSelection
-        plans={plans}
-        isLoading={false}
-        isError={false}
-        isOnline
-        monthlyOffer={null}
-        yearlyOffer={null}
-        selectedInterval={selectedInterval}
-        checkoutLoading={null}
-        checkoutError=""
-        checkoutDisabled={false}
-        onSelectInterval={() => {}}
-        onCheckout={() => {}}
-        onRetry={() => {}}
-        t={t}
-        tokens={tokens}
-        {...overrides}
-      />,
-    )
+    tree = TestRenderer.create(<PlanSelection {...props} />)
   })
+  tree.rerender = (nextOverrides: Partial<React.ComponentProps<typeof PlanSelection>>) => {
+    TestRenderer.act(() => {
+      tree.update(<PlanSelection {...props} {...nextOverrides} />)
+    })
+  }
   return tree
 }
 
 describe('PlanSelection (mobile)', () => {
+  beforeEach(() => {
+    motionMocks.reduced = false
+    motionMocks.withTiming.mockClear()
+  })
+
   it('leads with annual and gives it the only filled action', () => {
     const tree = renderSelection()
     const tiers = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
@@ -97,6 +130,45 @@ describe('PlanSelection (mobile)', () => {
     TestRenderer.act(() => monthlySegment.props.onPress())
     expect(onSelectInterval).toHaveBeenCalledWith('monthly')
     expect(onCheckout).not.toHaveBeenCalled()
+  })
+
+  it('animates interval feedback and the annual recommendation settling', () => {
+    const tree = renderSelection('yearly')
+
+    TestRenderer.act(() => tree.root.findByProps({ testID: 'segment-monthly' }).props.onPress())
+
+    expect(motionMocks.withTiming).toHaveBeenCalledTimes(2)
+    expect(tree.root.findByProps({
+      testID: 'upgrade-motion-tier-spatial-consistency-yearly',
+    })).toBeTruthy()
+  })
+
+  it('does not run interval transitions with reduced motion', () => {
+    motionMocks.reduced = true
+    const tree = renderSelection('yearly')
+
+    TestRenderer.act(() => tree.root.findByProps({ testID: 'segment-monthly' }).props.onPress())
+
+    expect(motionMocks.withTiming).not.toHaveBeenCalled()
+  })
+
+  it('softens the loading-to-content swap', () => {
+    const tree = renderSelection('yearly', { plans: null, isLoading: true })
+    motionMocks.withTiming.mockClear()
+
+    tree.rerender({ plans, isLoading: false })
+
+    expect(motionMocks.withTiming).toHaveBeenCalledTimes(1)
+  })
+
+  it('hard-cuts loading-to-content with reduced motion', () => {
+    motionMocks.reduced = true
+    const tree = renderSelection('yearly', { plans: null, isLoading: true })
+    motionMocks.withTiming.mockClear()
+
+    tree.rerender({ plans, isLoading: false })
+
+    expect(motionMocks.withTiming).not.toHaveBeenCalled()
   })
 
   it.each(['yearly', 'monthly'] as const)(
