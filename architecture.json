@@ -24014,6 +24014,7 @@
         "apps/web/__tests__/lib/supabase.test.ts",
         "apps/web/__tests__/lib/theme-dom.test.ts",
         "apps/web/__tests__/lib/upload-file.test.ts",
+        "apps/web/__tests__/lib/web-custom-properties.test.ts",
         "apps/web/__tests__/proxy.test.ts",
         "apps/web/__tests__/sentry-before-send.test.ts"
       ],
