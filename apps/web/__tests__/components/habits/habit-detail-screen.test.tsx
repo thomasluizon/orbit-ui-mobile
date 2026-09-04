@@ -277,6 +277,25 @@ describe('HabitDetailScreen', () => {
     expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ slipAlertEnabled: false })
   })
 
+  it('keeps a general habit existing goal links after the first toggle', () => {
+    mocks.detail = { ...makeDetail(), isGeneral: true }
+    mocks.allHabits.clear()
+    mocks.scopedHabits.set('habit-1', {
+      ...makeScopedParent(),
+      isGeneral: true,
+      linkedGoals: [{ id: 'goal-1', title: 'Read more books' }],
+    })
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.linkedGoals'))
+    fireEvent.click(screen.getByTestId('goal-linking-field'))
+
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({
+      goalIds: ['goal-1', 'goal-2'],
+    })
+  })
+
   it('restores an empty rename and returns to the selected day', async () => {
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
 

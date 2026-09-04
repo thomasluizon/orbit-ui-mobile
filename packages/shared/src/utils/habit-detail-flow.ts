@@ -463,15 +463,16 @@ export function mergeHabitDetailWithScopedHabit(
   scopedHabit = authoritativeHabit,
 ): NormalizedHabit {
   const normalized = normalizeHabitDetailForDrill(detail, date).parent
-  if (!authoritativeHabit) return normalized
+  const relationshipAuthority = authoritativeHabit ?? (detail.isGeneral ? scopedHabit : undefined)
+  if (!relationshipAuthority) return normalized
   return {
-    ...authoritativeHabit,
+    ...relationshipAuthority,
     ...normalized,
-    tags: authoritativeHabit.tags,
-    linkedGoals: authoritativeHabit.linkedGoals,
-    slipAlertEnabled: authoritativeHabit.slipAlertEnabled,
-    flexibleTarget: scopedHabit?.flexibleTarget ?? authoritativeHabit.flexibleTarget,
-    flexibleCompleted: scopedHabit?.flexibleCompleted ?? authoritativeHabit.flexibleCompleted,
-    instances: scopedHabit?.instances ?? authoritativeHabit.instances,
+    tags: relationshipAuthority.tags,
+    linkedGoals: relationshipAuthority.linkedGoals,
+    slipAlertEnabled: relationshipAuthority.slipAlertEnabled,
+    flexibleTarget: scopedHabit?.flexibleTarget ?? relationshipAuthority.flexibleTarget,
+    flexibleCompleted: scopedHabit?.flexibleCompleted ?? relationshipAuthority.flexibleCompleted,
+    instances: scopedHabit?.instances ?? relationshipAuthority.instances,
   }
 }

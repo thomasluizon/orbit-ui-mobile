@@ -221,6 +221,21 @@ describe('habit detail flow model', () => {
     })
   })
 
+  it('uses the selected-date relationship state for a general habit', () => {
+    const detail = { ...makeHabitDetail(), isGeneral: true }
+    const scoped = {
+      ...makeHabitDetailScopedParent(),
+      isGeneral: true,
+      linkedGoals: [{ id: 'goal-general', title: 'Stay balanced' }],
+      slipAlertEnabled: true,
+    }
+
+    expect(mergeHabitDetailWithScopedHabit(detail, undefined, '2026-08-28', scoped)).toMatchObject({
+      linkedGoals: scoped.linkedGoals,
+      slipAlertEnabled: true,
+    })
+  })
+
   it('builds a 30 day habit strip without a frozen state', () => {
     const model = buildHabitStripModel(recurring, [log('2026-08-28')], today, 'en')
     expect(model.days).toHaveLength(30)

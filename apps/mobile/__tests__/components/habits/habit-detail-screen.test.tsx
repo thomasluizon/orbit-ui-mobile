@@ -1050,6 +1050,28 @@ describe('HabitDetailScreen', () => {
     expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ slipAlertEnabled: false })
   })
 
+  it('keeps a general habit existing goal links after the first toggle', () => {
+    mocks.detail = { ...makeDetail(), isGeneral: true }
+    mocks.allHabits.clear()
+    mocks.scopedHabits.set('habit-1', {
+      ...makeScopedParent(),
+      isGeneral: true,
+      linkedGoals: [{ id: 'goal-1', title: 'Read more books' }],
+    })
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    TestRenderer.act(() => disclosure!.props.onPress())
+    TestRenderer.act(() => tree!.root.findByProps({ title: 'habits.detail.linkedGoals' }).props.onClick())
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'goal-linking-field' }).props.onToggleGoal())
+
+    expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({
+      goalIds: ['goal-1', 'goal-2'],
+    })
+  })
+
   it('restores the parent Astra suggestion after leaving a child detail', () => {
     let parentTree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
