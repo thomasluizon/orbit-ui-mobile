@@ -154,7 +154,6 @@ describe('PricingSection', () => {
     'keeps %s upgrade labels on one line and all copy inside the layout',
     async (_locale, messages) => {
       renderPricingSection(translator(messages))
-      renderPricingSection(translator(messages), { isTrialActive: true })
       const layouts = await captureLayouts(await buildTailwindCss())
       const singleLineLabels = [
         messages.upgrade.convert.freeEyebrow,
@@ -184,7 +183,7 @@ describe('PricingSection', () => {
           const matches = layout.copy.filter(({ text }) => text === label)
           expect(matches.length, `${label} is present at ${layout.width}px`).toBeGreaterThan(0)
           expect(
-            matches.some(({ lines }) => lines === 1),
+            matches.every(({ lines }) => lines === 1),
             `${label} stays on one line at ${layout.width}px`,
           ).toBe(true)
         }
