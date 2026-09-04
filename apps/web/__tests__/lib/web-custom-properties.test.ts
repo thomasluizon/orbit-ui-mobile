@@ -91,7 +91,12 @@ function sharedImports(
 
 function webReachableSharedSources(webFiles: ScannedSource[]): ScannedSource[] {
   const configPath = resolve(process.cwd(), 'tsconfig.json')
-  const config = ts.getParsedCommandLineOfConfigFile(configPath, {}, ts.sys)
+  const config = ts.getParsedCommandLineOfConfigFile(configPath, {}, {
+    ...ts.sys,
+    onUnRecoverableConfigFileDiagnostic(diagnostic) {
+      throw new Error(ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))
+    },
+  })
   if (!config) throw new Error(`Could not parse ${configPath}`)
 
   const program = ts.createProgram(config.fileNames, config.options)
