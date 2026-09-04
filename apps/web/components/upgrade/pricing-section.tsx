@@ -59,7 +59,7 @@ export function PricingSection({
   return (
     <>
       <header className="flex flex-col gap-2">
-        <p className="t-eyebrow text-[var(--fg-3)]">
+        <p className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)]">
           {eyebrow}
         </p>
         <h1 className="font-display text-[28px] font-medium leading-[1.18] tracking-[-0.02em] text-pretty text-[var(--fg-1)] sm:text-[34px] sm:leading-[1.15]">
