@@ -1,9 +1,17 @@
 import { StyleSheet } from 'react-native'
 
 export const styles = StyleSheet.create({
+  pricingSections: {
+    gap: 32,
+  },
+  purchaseGroup: {
+    gap: 16,
+  },
+  purchaseActions: {
+    gap: 24,
+  },
   allowanceSection: {
     gap: 12,
-    marginTop: 32,
     paddingHorizontal: 16,
   },
   allowanceCard: {
@@ -46,7 +54,6 @@ export const styles = StyleSheet.create({
   },
   outcomes: {
     gap: 12,
-    marginTop: 32,
     paddingHorizontal: 16,
   },
   outcomeRow: {
@@ -78,7 +85,6 @@ export const styles = StyleSheet.create({
   },
   planState: {
     gap: 12,
-    marginTop: 32,
     paddingHorizontal: 16,
   },
   planChoices: {
@@ -169,7 +175,6 @@ export const styles = StyleSheet.create({
   planGroup: {
     paddingHorizontal: 16,
     gap: 16,
-    marginTop: 32,
   },
   tierCard: {
     borderRadius: 20,
@@ -238,7 +243,6 @@ export const styles = StyleSheet.create({
   reassurance: {
     alignItems: 'flex-start',
     gap: 8,
-    marginTop: 16,
     paddingHorizontal: 16,
   },
   reassurancePrimary: {
@@ -253,7 +257,6 @@ export const styles = StyleSheet.create({
   restoreAction: {
     alignSelf: 'center',
     justifyContent: 'center',
-    marginTop: 24,
     minHeight: 44,
   },
   pressedScale: {

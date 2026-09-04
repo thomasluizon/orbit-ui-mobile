@@ -57,7 +57,7 @@ export function PricingSection({
   const heading = trialActive ? t('upgrade.convert.trialHeading') : t('upgrade.convert.freeHeading')
 
   return (
-    <>
+    <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-2">
         <p className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)]">
           {eyebrow}
@@ -75,7 +75,7 @@ export function PricingSection({
         ) : null}
       </header>
 
-      <section className="mt-8 flex flex-col gap-3" aria-label={t('upgrade.convert.allowanceLabel')}>
+      <section className="flex flex-col gap-3" aria-label={t('upgrade.convert.allowanceLabel')}>
         <div className="grid grid-cols-[1fr_1px_1fr] gap-4 rounded-[var(--r-card)] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)] sm:p-6">
           <Allowance amount={t('upgrade.convert.freeAllowance')} label={t('upgrade.free')} perDay={t('upgrade.convert.perDay')} />
           <span aria-hidden="true" className="h-full w-px bg-[var(--hairline)]" />
@@ -86,7 +86,7 @@ export function PricingSection({
         </p>
       </section>
 
-      <section className="mt-8 flex flex-col gap-3" aria-label={t('upgrade.outcomes.label')}>
+      <section className="flex flex-col gap-3" aria-label={t('upgrade.outcomes.label')}>
         {OUTCOMES.map(({ key, Icon }) => (
           <div key={key} className="flex items-start gap-3">
             <span aria-hidden="true" className="mt-1 grid size-6 shrink-0 place-items-center text-[var(--fg-3)]">
@@ -104,22 +104,22 @@ export function PricingSection({
         ))}
       </section>
 
-      <PlanSelection
-        plans={plans}
-        isLoading={isLoadingPlans}
-        isError={isPlansError}
-        isOnline={isOnline}
-        discountedAmount={discountedAmount}
-        checkoutLoading={checkoutLoading}
-        checkoutDisabled={!isOnline}
-        onCheckout={onCheckout}
-        onRetry={onRetryPlans}
-        t={t}
-      />
+      <div className="flex flex-col gap-4">
+        <PlanSelection
+          plans={plans}
+          isLoading={isLoadingPlans}
+          isError={isPlansError}
+          isOnline={isOnline}
+          discountedAmount={discountedAmount}
+          checkoutLoading={checkoutLoading}
+          checkoutDisabled={!isOnline}
+          onCheckout={onCheckout}
+          onRetry={onRetryPlans}
+          t={t}
+        />
 
-      {plans ? (
-        <>
-          <div className="mt-6 flex flex-col items-start gap-2">
+        {plans ? (
+          <div className="flex flex-col items-start gap-2">
             {checkoutError ? (
               <p
                 role="alert"
@@ -150,9 +150,9 @@ export function PricingSection({
               {t('upgrade.convert.stayFree')}
             </a>
           </div>
-        </>
-      ) : null}
-    </>
+        ) : null}
+      </div>
+    </div>
   )
 }
 

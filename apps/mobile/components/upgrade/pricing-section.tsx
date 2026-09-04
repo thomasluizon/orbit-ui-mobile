@@ -72,7 +72,7 @@ export function PricingSection({
   const heading = trialActive ? t('upgrade.convert.trialHeading') : t('upgrade.convert.freeHeading')
 
   return (
-    <>
+    <View style={styles.pricingSections}>
       <View style={styles.convertHeader}>
         <Text style={[styles.convertEyebrow, { color: tokens.fg3 }]}>{eyebrow}</Text>
         <Text accessibilityRole="header" style={[styles.convertHeading, { color: tokens.fg1 }]}>{heading}</Text>
@@ -118,47 +118,49 @@ export function PricingSection({
         ))}
       </View>
 
-      <View>
-        <PlanSelection
-          plans={plans}
-          isLoading={isLoadingPlans}
-          isError={isPlansError}
-          isOnline={isOnline}
-          monthlyOffer={monthlyOffer}
-          yearlyOffer={yearlyOffer}
-          monthlyPrice={monthlyDisplayPrice}
-          yearlyPrice={yearlyDisplayPrice}
-          selectedInterval={selectedInterval}
-          checkoutLoading={checkoutLoading}
-          checkoutError={checkoutError}
-          checkoutDisabled={checkoutDisabled}
-          onSelectInterval={onSelectInterval}
-          onCheckout={onCheckout}
-          onRetry={onRetryPlans}
-          t={t}
-          tokens={tokens}
-        />
-      </View>
+      <View style={styles.purchaseGroup}>
+        <View style={styles.purchaseActions}>
+          <PlanSelection
+            plans={plans}
+            isLoading={isLoadingPlans}
+            isError={isPlansError}
+            isOnline={isOnline}
+            monthlyOffer={monthlyOffer}
+            yearlyOffer={yearlyOffer}
+            monthlyPrice={monthlyDisplayPrice}
+            yearlyPrice={yearlyDisplayPrice}
+            selectedInterval={selectedInterval}
+            checkoutLoading={checkoutLoading}
+            checkoutError={checkoutError}
+            checkoutDisabled={checkoutDisabled}
+            onSelectInterval={onSelectInterval}
+            onCheckout={onCheckout}
+            onRetry={onRetryPlans}
+            t={t}
+            tokens={tokens}
+          />
+          {plans ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={onRestore}
+              disabled={isRestoring || !isOnline}
+              accessibilityState={{ disabled: isRestoring || !isOnline }}
+              hitSlop={{ top: 6, bottom: 6 }}
+              style={({ pressed }) => [
+                styles.restoreAction,
+                pressed ? styles.pressedScale : null,
+              ]}
+            >
+              {isRestoring ? (
+                <ActivityIndicator size="small" color={tokens.fg3} />
+              ) : (
+                <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>{t('upgrade.restorePurchase')}</Text>
+              )}
+            </Pressable>
+          ) : null}
+        </View>
 
-      {plans ? (
-        <>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onRestore}
-            disabled={isRestoring || !isOnline}
-            accessibilityState={{ disabled: isRestoring || !isOnline }}
-            hitSlop={{ top: 6, bottom: 6 }}
-            style={({ pressed }) => [
-              styles.restoreAction,
-              pressed ? styles.pressedScale : null,
-            ]}
-          >
-            {isRestoring ? (
-              <ActivityIndicator size="small" color={tokens.fg3} />
-            ) : (
-              <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>{t('upgrade.restorePurchase')}</Text>
-            )}
-          </Pressable>
+        {plans ? (
           <View style={styles.reassurance}>
             <Text style={[styles.reassurancePrimary, { color: tokens.fg2 }]}>
               {t('upgrade.convert.cancelAnytime')}
@@ -181,9 +183,9 @@ export function PricingSection({
               </Text>
             </Pressable>
           </View>
-        </>
-      ) : null}
-    </>
+        ) : null}
+      </View>
+    </View>
   )
 }
 

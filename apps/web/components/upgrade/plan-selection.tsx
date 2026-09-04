@@ -113,7 +113,7 @@ export function PlanSelection({
   if (isLoading) {
     return (
       <PlanLoadMotion stateKey="loading" reduced={prefersReducedMotion}>
-        <div className="mt-8 flex flex-col gap-4" aria-label={t('upgrade.plans.loading')}>
+        <div className="flex flex-col gap-4" aria-label={t('upgrade.plans.loading')}>
           {intervalControl}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {[0, 1].map((tierIndex) => (
@@ -136,7 +136,7 @@ export function PlanSelection({
   if (isError && !plans && isOnline) {
     return (
       <PlanLoadMotion stateKey="error" reduced={prefersReducedMotion}>
-        <div className="mt-8 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           {intervalControl}
           <ErrorState
             message={t('upgrade.plans.error')}
@@ -179,7 +179,7 @@ export function PlanSelection({
 
   return (
     <PlanLoadMotion stateKey="loaded" reduced={prefersReducedMotion}>
-      <div className="mt-8 flex flex-col items-stretch gap-4">
+      <div className="flex flex-col items-stretch gap-4">
         {intervalControl}
         <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2">
           {tiers.map((tier) => (
@@ -228,19 +228,21 @@ function TierCard({
           : 'inset 0 0 0 1px var(--hairline)',
       }}
     >
-      <div className="flex min-w-0 items-center gap-2">
-        <h2 className="min-w-0 flex-1 text-[17px] font-medium leading-[1.3]">{tier.name}</h2>
-        {recommended ? (
-          <Badge>{t('upgrade.plans.recommended')}</Badge>
-        ) : null}
+      <div className="flex flex-1 flex-col gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <h2 className="min-w-0 flex-1 text-[17px] font-medium leading-[1.3]">{tier.name}</h2>
+          {recommended ? (
+            <Badge>{t('upgrade.plans.recommended')}</Badge>
+          ) : null}
+        </div>
+        <p className="font-display text-[28px] font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums">
+          {tier.price}<span className="font-sans text-base font-normal text-[var(--fg-3)]">{tier.period}</span>
+        </p>
+        {tier.heroLine ? <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-2)]">{tier.heroLine}</p> : null}
+        {tier.secondLine ? <p className="font-mono text-xs leading-[1.5] tabular-nums text-[var(--fg-3)]">{tier.secondLine}</p> : null}
+        {tier.couponLine ? <p className="text-sm leading-[1.5] text-[var(--fg-2)]">{tier.couponLine}</p> : null}
       </div>
-      <p className="font-display text-[28px] font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums">
-        {tier.price}<span className="font-sans text-base font-normal text-[var(--fg-3)]">{tier.period}</span>
-      </p>
-      {tier.heroLine ? <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-2)]">{tier.heroLine}</p> : null}
-      {tier.secondLine ? <p className="font-mono text-xs leading-[1.5] tabular-nums text-[var(--fg-3)]">{tier.secondLine}</p> : null}
-      {tier.couponLine ? <p className="text-sm leading-[1.5] text-[var(--fg-2)]">{tier.couponLine}</p> : null}
-      <div className="mt-auto pt-2">
+      <div className="pt-2">
         <PillButton
           fullWidth
           variant={selected ? 'primary' : 'ghost'}
