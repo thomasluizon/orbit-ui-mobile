@@ -744,6 +744,7 @@ describe('chat schemas', () => {
         'BulkLogHabits', 'BulkSkipHabits', 'CreateSubHabit', 'SuggestBreakdown',
         'AssignTags', 'DuplicateHabit', 'MoveHabit', 'CreateGoal', 'UpdateGoal',
         'DeleteGoal', 'UpdateGoalProgress', 'UpdateGoalStatus', 'LinkHabitsToGoal',
+        'CreateTag', 'UpdateTag', 'DeleteTag', 'ReorderGoals', 'ReorderHabits',
       ]
       for (const t of types) {
         expect(aiActionTypeSchema.safeParse(t).success).toBe(true)

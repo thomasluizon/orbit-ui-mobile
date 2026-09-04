@@ -4,8 +4,23 @@ import { makeActionResult } from '@orbit/shared/test-support/chat-fixtures'
 import { ActionChips } from '@/components/chat/action-chips'
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
-    params ? `${key}:${JSON.stringify(params)}` : key,
+  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+    const translations: Record<string, string> = {
+      'chat.action.created': 'Criou {name}',
+      'chat.action.failed': 'Não foi possível concluir a ação',
+      'chat.action.createFailed': 'Não foi possível criar {name}',
+      'chat.action.updateFailed': 'Não foi possível atualizar {name}',
+      'chat.action.deleteFailed': 'Não foi possível excluir {name}',
+      'chat.unknownEntity': 'Desconhecido',
+    }
+    const template = translations[key]
+    const name = typeof params?.name === 'string' ? params.name : ''
+    return template
+      ? template.replace('{name}', name)
+      : params
+        ? `${key}:${JSON.stringify(params)}`
+        : key
+  },
 }))
 
 describe('ActionChips', () => {
@@ -22,6 +37,49 @@ describe('ActionChips', () => {
     expect(container.querySelector('[data-state="partiallyFailed"]')).toBeInTheDocument()
     expect(screen.getByText('chat.operation.status.Failed')).toBeInTheDocument()
     expect(screen.queryByText('database unavailable')).not.toBeInTheDocument()
+  })
+
+  it('does not describe a nameless failed create as created or unknown', () => {
+    const { container } = render(<ActionChips actions={[makeActionResult({
+      type: 'create_habit',
+      status: 'Failed',
+      entityId: null,
+      entityName: null,
+    })]} />)
+
+    expect(container).not.toHaveTextContent('Criou')
+    expect(container).not.toHaveTextContent('Desconhecido')
+  })
+
+  it('names the attempted entity in a failed create', () => {
+    render(<ActionChips actions={[makeActionResult({
+      type: 'create_habit',
+      status: 'Failed',
+      entityId: null,
+      entityName: 'Perspirex Strong - Semana 2 (Manutenção)',
+    })]} />)
+
+    expect(screen.getByText(
+      'Não foi possível criar Perspirex Strong - Semana 2 (Manutenção)',
+    )).toBeInTheDocument()
+  })
+
+  it('renders three failed attempts as distinguishable rows', () => {
+    render(<ActionChips actions={[
+      makeActionResult({ type: 'create_habit', status: 'Failed', entityName: 'Morning walk' }),
+      makeActionResult({ type: 'update_habit', status: 'Failed', entityName: 'Read ten pages' }),
+      makeActionResult({ type: 'delete_habit', status: 'Failed', entityName: 'Drink water' }),
+    ]} />)
+
+    expect(screen.getByText('Não foi possível criar Morning walk')).toBeInTheDocument()
+    expect(screen.getByText('Não foi possível atualizar Read ten pages')).toBeInTheDocument()
+    expect(screen.getByText('Não foi possível excluir Drink water')).toBeInTheDocument()
+  })
+
+  it('keeps the successful create label unchanged', () => {
+    render(<ActionChips actions={[makeActionResult({ type: 'create_habit' })]} />)
+
+    expect(screen.getByText('Criou Meditate')).toBeInTheDocument()
   })
 
   it('opens a successful navigable result', () => {
