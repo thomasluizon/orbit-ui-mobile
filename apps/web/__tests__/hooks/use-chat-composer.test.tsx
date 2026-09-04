@@ -145,7 +145,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.queryClient.invalidateQueries.mockReset()
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.setQueryData.mockClear()
-    useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null, draft: '', draftHydrated: false })
+    useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null, draft: '', draftHydrated: false, contextualSuggestion: null })
     globalThis.localStorage.clear()
     vi.stubGlobal('fetch', mocks.fetch)
   })
@@ -915,6 +915,24 @@ describe('web useChatComposer streaming send', () => {
     expect(requestBody).toBeInstanceOf(FormData)
     if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
     expect(requestBody.get('message')).toBe(suggestion.label)
+  })
+
+  it('puts a contextual suggestion first and sends its dedicated prompt', async () => {
+    mocks.fetch.mockResolvedValue(sseResponse(finalFrame(makeChatResponse())))
+    useChatStore.getState().setContextualSuggestion({
+      id: 'habit-detail-help',
+      label: 'Ask about Read',
+      prompt: 'Help me improve my habit named Read',
+    })
+    const { result } = renderHook(() => useChatComposer())
+
+    expect(result.current.composerProps.suggestions[0].label).toBe('Ask about Read')
+    act(() => result.current.composerProps.suggestions[0].onSelect())
+
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledOnce())
+    const requestBody: unknown = mocks.fetch.mock.calls[0]?.[1]?.body
+    if (!(requestBody instanceof FormData)) throw new Error('Expected chat request FormData')
+    expect(requestBody.get('message')).toBe('Help me improve my habit named Read')
   })
 
   it('refreshes every affected list after successful live actions', async () => {

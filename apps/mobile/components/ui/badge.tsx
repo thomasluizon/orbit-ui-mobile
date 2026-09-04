@@ -18,7 +18,7 @@ export function Badge({ variant = 'solid', children }: Readonly<BadgeProps>) {
       ]}
       testID={`badge-${variant}`}
     >
-      <Text style={[styles.text, { color: variant === 'solid' ? tokens.bg : tokens.fg2 }]}>
+      <Text numberOfLines={1} style={[styles.text, { color: variant === 'solid' ? tokens.bg : tokens.fg2 }]}>
         {children}
       </Text>
     </View>

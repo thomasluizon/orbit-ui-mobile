@@ -105,6 +105,20 @@ describe('DayCell', () => {
     rerender(<DayCell day={15} label="March 15" words={cellWords} scheduled={4} done={3} />)
     expect(container.querySelectorAll('circle')[1]).toHaveAttribute('stroke-dasharray', '75 100')
   })
+
+  it('uses the quiet habit-history treatment for completed, missed, and future days', () => {
+    const { container, rerender } = render(
+      <DayCell day={15} label="March 15" words={cellWords} outcome="full" habitHistory />,
+    )
+    expect(container.querySelector('[data-outcome="full"] span span')).toHaveStyle({ color: 'var(--bg)' })
+    expect(container.querySelector('span[style*="width: 3px"]')).toBeNull()
+
+    rerender(<DayCell day={16} label="March 16" words={cellWords} outcome="none" habitHistory />)
+    expect(container.querySelector('span[style*="width: 3px"]')).toBeInTheDocument()
+
+    rerender(<DayCell day={17} label="March 17" words={cellWords} outcome="future" habitHistory />)
+    expect(container.querySelector('[data-outcome="future"] span span')).toHaveStyle({ color: 'var(--fg-4)' })
+  })
 })
 
 describe('MonthGrid', () => {

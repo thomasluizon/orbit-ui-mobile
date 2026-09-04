@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 describe('Badge', () => {
   it('renders its children', () => {
     render(<Badge>Premium</Badge>)
-    expect(screen.getByText('Premium')).toBeInTheDocument()
+    expect(screen.getByText('Premium')).toHaveClass('whitespace-nowrap')
   })
 
   it.each(['solid', 'outline'] as const)(

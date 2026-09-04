@@ -12,7 +12,7 @@ export function MonthGrid({
   return (
     <div role="group" aria-label={label} data-columns={columns}>
       {columns > 0 ? (
-        <div className="grid" style={{ ...gridStyle, gap, marginBottom: 8 }} data-testid="month-grid-header">
+        <div className="grid justify-items-center" style={{ ...gridStyle, gap, marginBottom: 8 }} data-testid="month-grid-header">
           {weekdayLabels.map((weekday, index) => (
             <span
               key={`${weekday}-${index}`}
@@ -30,7 +30,7 @@ export function MonthGrid({
           ))}
         </div>
       ) : null}
-      <div className="grid" style={{ ...gridStyle, gap }} data-testid="month-grid-days">
+      <div className="grid justify-items-center" style={{ ...gridStyle, gap }} data-testid="month-grid-days">
         {children}
       </div>
     </div>

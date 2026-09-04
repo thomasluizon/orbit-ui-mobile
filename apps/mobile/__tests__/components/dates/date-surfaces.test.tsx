@@ -1,11 +1,12 @@
 import React from 'react'
-import { StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native'
+import { StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import type { DayCellWords } from '@orbit/shared/contracts/dates'
 import { DayCell } from '@/components/dates/day-cell'
 import { DayStrip } from '@/components/dates/day-strip'
 import { EventRow } from '@/components/dates/event-row'
 import { MonthGrid } from '@/components/dates/month-grid'
+import { createTokensV2 } from '@/lib/theme'
 
 interface TestNode {
   type: unknown
@@ -135,6 +136,20 @@ describe('DayCell', () => {
       (node) => node.type === 'Circle' && Array.isArray(node.props.strokeDasharray),
     )[0]
     expect(threeQuarterArc?.props.strokeDasharray).toEqual([Math.PI * 42 * 0.75, Math.PI * 42])
+  })
+
+  it('uses the quiet habit-history treatment for completed, missed, and future days', () => {
+    const tokens = createTokensV2('purple', 'dark')
+    const completed = render(<DayCell day={15} label="March 15" words={cellWords} outcome="full" habitHistory />)
+    const completedText = completed.root.findAll((node) => node.type === 'Text' && node.props.children === 15)[0]
+    expect(StyleSheet.flatten(completedText?.props.style as StyleProp<TextStyle>).color).toBe(tokens.bg)
+
+    const missed = render(<DayCell day={16} label="March 16" words={cellWords} outcome="none" habitHistory />)
+    expect(missed.root.findAll((node) => node.type === 'View' && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 3)).toHaveLength(1)
+
+    const future = render(<DayCell day={17} label="March 17" words={cellWords} outcome="future" habitHistory />)
+    const futureText = future.root.findAll((node) => node.type === 'Text' && node.props.children === 17)[0]
+    expect(StyleSheet.flatten(futureText?.props.style as StyleProp<TextStyle>).color).toBe(tokens.fg4)
   })
 })
 

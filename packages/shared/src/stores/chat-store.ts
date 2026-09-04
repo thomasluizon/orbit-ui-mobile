@@ -12,6 +12,7 @@ export interface ChatStoreState {
   draft: string
   draftRevision: number
   draftHydrated: boolean
+  contextualSuggestion: { id: string; label: string; prompt: string } | null
   addMessage: (message: ChatMessage) => void
   updateMessage: (id: string, patch: Partial<Omit<ChatMessage, 'id'>>) => void
   appendToMessageContent: (id: string, text: string) => void
@@ -19,6 +20,7 @@ export interface ChatStoreState {
   setStreamingMessageId: (value: string | null) => void
   setDraft: (value: string | ((current: string) => string)) => void
   hydrateDraft: (storedDraft: string | null) => void
+  setContextualSuggestion: (suggestion: ChatStoreState['contextualSuggestion']) => void
 }
 
 export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
@@ -29,6 +31,7 @@ export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
     draft: '',
     draftRevision: 0,
     draftHydrated: false,
+    contextualSuggestion: null,
 
     addMessage: (message) =>
       set((state) => ({
@@ -59,5 +62,6 @@ export function createChatStoreState(set: ChatStoreSet): ChatStoreState {
       draft: state.draft || storedDraft || '',
       draftHydrated: true,
     })),
+    setContextualSuggestion: (contextualSuggestion) => set({ contextualSuggestion }),
   }
 }

@@ -53,7 +53,7 @@ describe('list primitives on mobile', () => {
         icon="home"
         title="Account"
         description="Profile and security"
-        value="Ready"
+        value="Ready for a deliberately long reminder summary"
         trailing={<Text>Synced</Text>}
         onClick={onClick}
         action={{ icon: 'trash', label: 'Remove account', onPress: onAction, danger: true }}
@@ -63,11 +63,24 @@ describe('list primitives on mobile', () => {
     expect(controls).toHaveLength(2)
     const [bodyControl, actionControl] = controls
     if (!bodyControl || !actionControl) throw new Error('ListRow controls did not render')
-    expect(bodyControl.findAllByType(Text).map((node) => node.props.children)).toContain('Synced')
+    const bodyTexts = bodyControl.findAllByType(Text)
+    expect(bodyTexts.map((node) => node.props.children)).toContain('Synced')
+    expect(bodyControl.find((node) => node.props.strokeWidth === 1.8)).toBeDefined()
+    const valueText = bodyTexts.find((node) => node.props.children === 'Ready for a deliberately long reminder summary')
+    expect(valueText?.props.numberOfLines).toBe(1)
+    expect(StyleSheet.flatten(valueText?.props.style)).toMatchObject({ flexShrink: 1, maxWidth: '50%' })
     press(bodyControl)
     press(actionControl)
-    resolvePressedStyle(bodyControl)
-    resolvePressedStyle(actionControl)
+    const bodyPressedStyle = StyleSheet.flatten(resolvePressedStyle(bodyControl))
+    const actionPressedStyle = StyleSheet.flatten(resolvePressedStyle(actionControl))
+    expect(bodyPressedStyle).toMatchObject({
+      backgroundColor: createTokensV2('purple', 'dark').bgHover,
+      transform: [{ scale: 0.96 }],
+    })
+    expect(actionPressedStyle).toMatchObject({
+      backgroundColor: createTokensV2('purple', 'dark').bgHover,
+      transform: [{ scale: 0.96 }],
+    })
     expect(onClick).toHaveBeenCalledOnce()
     expect(onAction).toHaveBeenCalledOnce()
 

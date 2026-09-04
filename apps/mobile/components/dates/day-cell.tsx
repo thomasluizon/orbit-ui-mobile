@@ -44,6 +44,21 @@ function DayCellContents({ props, outcome, size, tokens }: Readonly<{ props: Day
   )
 }
 
+function HabitHistoryContents({ props, outcome, size, tokens }: Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number; tokens: Tokens }>) {
+  const missed = outcome === 'none' || outcome === 'partial'
+  const dimmed = outcome === 'not-scheduled' || outcome === 'unavailable'
+  let textColor = tokens.fg2
+  if (outcome === 'full') textColor = tokens.bg
+  else if (outcome === 'future') textColor = tokens.fg4
+  else if (missed) textColor = tokens.fg3
+  return (
+    <View style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: outcome === 'full' ? tokens.fg1 : 'transparent', opacity: dimmed ? 0.4 : 1 }]}>
+      <Text style={[styles.numeral, { color: textColor, fontWeight: props.today ? '500' : '400' }]}>{props.day}</Text>
+      {missed ? <View style={[styles.missedDot, { backgroundColor: tokens.fg4 }]} /> : null}
+    </View>
+  )
+}
+
 export function DayCell(props: Readonly<DayCellProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -69,7 +84,7 @@ export function DayCell(props: Readonly<DayCellProps>) {
         testID={testID}
         style={({ pressed }) => [containerStyle, pressed ? { backgroundColor: tokens.bgElev } : null]}
       >
-        <DayCellContents props={props} outcome={outcome} size={size} tokens={tokens} />
+        {props.habitHistory ? <HabitHistoryContents props={props} outcome={outcome} size={size} tokens={tokens} /> : <DayCellContents props={props} outcome={outcome} size={size} tokens={tokens} />}
       </Pressable>
     )
   }
@@ -84,7 +99,7 @@ export function DayCell(props: Readonly<DayCellProps>) {
       testID={testID}
       style={containerStyle}
     >
-      <DayCellContents props={props} outcome={outcome} size={size} tokens={tokens} />
+      {props.habitHistory ? <HabitHistoryContents props={props} outcome={outcome} size={size} tokens={tokens} /> : <DayCellContents props={props} outcome={outcome} size={size} tokens={tokens} />}
     </View>
   )
 }
@@ -95,4 +110,5 @@ const styles = StyleSheet.create({
   arc: { position: 'absolute', top: 0, left: 0 },
   numeral: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
   outsideMonth: { opacity: 0 },
+  missedDot: { position: 'absolute', width: 3, height: 3, borderRadius: 2, bottom: 4 },
 })
