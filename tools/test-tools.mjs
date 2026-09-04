@@ -12,7 +12,8 @@
  *      row pointing at nothing.
  *   2. Universal contract (tools/CONVENTIONS.md): --help exits 0 with usage on stdout, and
  *      invalid input exits non-zero instead of doing the work.
- *   3. Decision paths: one case module per covered unit under tools/__tests__/, hermetic.
+ *   3. Decision paths: one case module per covered unit under tools/__tests__/, hermetic, plus
+ *      explicitly registered proofs for retained repository assets that otherwise have no runner.
  *      External calls (orca, gh, git) are stubbed or dry-run - this gate creates no worktree,
  *      opens no network connection and touches no ticket.
  *
@@ -120,6 +121,10 @@ const CASE_MODULES = [
   ["verify-delivery.mjs", "verify-delivery"],
 ]
 
+const REPOSITORY_CASE_MODULES = [
+  [".maestro/protected-route-redirect.yaml", "protected-route-redirect"],
+]
+
 const gateCases = {}
 for (const [file, module] of CASE_MODULES) {
   const loaded = await import(`./__tests__/${module}.mjs`)
@@ -128,6 +133,16 @@ for (const [file, module] of CASE_MODULES) {
     process.exit(1)
   }
   gateCases[file] = loaded.cases
+}
+
+const repositoryCases = {}
+for (const [file, module] of REPOSITORY_CASE_MODULES) {
+  const loaded = await import(`./__tests__/${module}.mjs`)
+  if (typeof loaded.cases !== "function") {
+    console.error(`test-tools: tools/__tests__/${module}.mjs exports no cases() for ${file}`)
+    process.exit(1)
+  }
+  repositoryCases[file] = loaded.cases
 }
 
 /** argv that must be refused before the tool does any work. One row per tools/ script. */
@@ -239,6 +254,19 @@ for (const [file, cases] of Object.entries(gateCases)) {
   await cases()
   endToolScope()
 }
+const missingRepositoryCaseFiles = Object.keys(repositoryCases).filter(
+  (file) => !existsSync(join(TOOLS_DIR, "..", file)),
+)
+T(
+  "every registered repository case key names a file that exists",
+  missingRepositoryCaseFiles.length === 0,
+  `repository case rows with no file: ${missingRepositoryCaseFiles.join(", ")}`,
+)
+for (const [file, cases] of Object.entries(repositoryCases)) {
+  beginToolScope(file)
+  await cases()
+  endToolScope()
+}
 
 /**
  * Silent coverage loss is the defect this layer exists to remove: on an earlier revision a bare
@@ -252,7 +280,9 @@ const tally = assertionTally()
 for (const [tool, count] of Object.entries(tally).sort(([left], [right]) => left.localeCompare(right))) {
   console.log(`${String(count).padStart(4)}  ${tool}`)
 }
-const silent = Object.keys(gateCases).filter((file) => !orphanedCaseKeys.includes(file) && !(tally[file] > 0))
+const silent = [...Object.keys(gateCases), ...Object.keys(repositoryCases)].filter(
+  (file) => !orphanedCaseKeys.includes(file) && !(tally[file] > 0),
+)
 T(
   "every registered case module ran at least one assertion",
   silent.length === 0,
