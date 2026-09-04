@@ -10,7 +10,7 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ children }: { children: React.ReactNode }) => <div role="dialog">{children}</div>,
+  Sheet: ({ children, headerAccessory }: { children: React.ReactNode; headerAccessory?: React.ReactNode }) => <div role="dialog">{headerAccessory}{children}</div>,
   useSheetHost: () => ({ sheetRef: { current: null }, closeSheet: mockCloseSheet }),
 }))
 
@@ -50,11 +50,13 @@ describe('HabitEmojiSelector', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('removes the selected emoji through the same close flow', () => {
+  it('removes the selected emoji without closing the sheet', () => {
     const onSelect = vi.fn()
     render(<HabitEmojiSelector selectedEmoji={firstEmoji} onSelect={onSelect} wellSize={76} />)
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiOpenPicker' }))
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiRemove' }))
     expect(onSelect).toHaveBeenCalledWith('')
+    expect(mockCloseSheet).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 })

@@ -59,7 +59,7 @@ export function SegmentedControl(props: Readonly<SegmentedControlProps>) {
               if (!selected) props.onChange(option.id)
             }}
             onKeyDown={(event) => moveSelection(event, index)}
-            className="min-h-11 min-w-0 rounded-[8px] px-3 text-[14px] font-medium text-[var(--fg-2)] transition-[background-color,color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] data-[selected]:bg-[var(--bg-hover)] data-[selected]:text-[var(--fg-1)] data-[selected]:shadow-[inset_0_0_0_2px_var(--primary)] disabled:opacity-40"
+            className="habit-control-motion min-h-11 min-w-0 rounded-[8px] px-3 text-[14px] font-medium text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] data-[selected]:bg-[var(--bg-hover)] data-[selected]:text-[var(--fg-1)] data-[selected]:shadow-[inset_0_0_0_2px_var(--primary)] disabled:opacity-40"
           >
             <span className="block truncate">{option.label}</span>
           </button>

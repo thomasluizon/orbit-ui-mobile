@@ -16,6 +16,7 @@ export interface ListRowBase {
   danger?: boolean
   chevron?: boolean
   onClick?: () => void
+  inset?: boolean
 }
 
 export type ListRowMode =

@@ -72,6 +72,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
   return (
     <>
       <ListRow
+        inset={false}
         icon="template"
         title={t('habits.form.templates')}
         value={templates.length > 0 ? String(templates.length) : undefined}
@@ -80,7 +81,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
       {open ? (
         <Sheet open title={t('habits.form.templates')} onClose={() => setOpen(false)}>
           <div className="flex flex-col" style={{ gap: 4 }}>
-            {items.length > 0 && !showSave ? (
+            {templates.length > 0 && items.length > 0 && !showSave ? (
               <ListRow
                 icon="device-floppy"
                 title={t('habits.form.saveAsTemplate')}
@@ -94,7 +95,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
             value={templateName}
             type="text"
             placeholder={t('habits.form.templateNamePlaceholder')}
-            className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2.5 px-3.5 text-[13px] border-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
+            className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-[13px] border-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
             onChange={(e) => setTemplateName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -107,7 +108,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
             type="button"
             className="shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 hover:bg-[var(--primary-hover)] transition-[background-color,opacity] duration-150"
             style={{
-              padding: '9px 14px',
+              padding: '8px 12px',
               fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontWeight: 500,
@@ -144,6 +145,14 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
                 onClick={() => handleLoad(template.id)}
               />
             ))}
+            {templates.length === 0 && !showSave ? (
+              <div className="flex flex-col items-center px-6 py-8 text-center" style={{ gap: 12 }}>
+                <p className="text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noTemplates')}</p>
+                <p className="text-sm text-[var(--fg-3)]">{t('habits.form.noTemplatesDescription')}</p>
+                <button type="button" className="chip mt-2" disabled={items.length === 0} onClick={() => setShowSave(true)}>{t('habits.form.saveCurrentList')}</button>
+                {items.length === 0 ? <p className="text-xs text-[var(--fg-3)]">{t('habits.form.saveCurrentListDisabled')}</p> : null}
+              </div>
+            ) : null}
           </div>
         </Sheet>
       ) : null}

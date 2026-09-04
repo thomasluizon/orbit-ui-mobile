@@ -50,7 +50,13 @@ const labels = {
   days: "Active days",
   less: "Less often",
   more: "More often",
-  count: "times a week",
+  count: (count: number) => `${count === 1 ? "time" : "times"} a week`,
+  scheduleMode: "Schedule",
+  setDays: "Set days",
+  timesAWeek: "Times a week",
+  repeat: (count: number) => count === 1 ? "Every week" : `Every ${count} weeks`,
+  repeatLess: "Repeat less often",
+  repeatMore: "Repeat more often",
   proposed: "Proposed by Astra",
 };
 
@@ -66,12 +72,16 @@ function renderUnderstanding(
       { value: "Tuesday", label: "T", accessibleLabel: "Terça-feira" },
     ],
     quantity: 1,
+    mode: "fixed",
+    intervalWeeks: 1,
     sentence: null,
     consumed: [],
     onValueChange: vi.fn(),
     onEmojiSelect: vi.fn(),
     onToggleDay: vi.fn(),
     onQuantityChange: vi.fn(),
+    onModeChange: vi.fn(),
+    onIntervalWeeksChange: vi.fn(),
     labels,
     ...overrides,
   };
@@ -170,33 +180,15 @@ describe("HabitUnderstanding mobile", () => {
     (tuesday.props.style as (state: { pressed: boolean }) => unknown)({
       pressed: false,
     });
-    (
-      button(tree, labels.less).props.style as (state: {
-        pressed: boolean;
-      }) => unknown
-    )({
-      pressed: true,
-    });
-    (
-      button(tree, labels.more).props.style as (state: {
-        pressed: boolean;
-      }) => unknown
-    )({
-      pressed: false,
-    });
-
     TestRenderer.act(() => {
       (monday.props.onPress as () => void)();
-      (button(tree, labels.less).props.onPress as () => void)();
-      (button(tree, labels.more).props.onPress as () => void)();
     });
     expect(props.onToggleDay).toHaveBeenCalledWith("Monday");
-    expect(props.onQuantityChange).toHaveBeenNthCalledWith(1, 2);
-    expect(props.onQuantityChange).toHaveBeenNthCalledWith(2, 4);
+    expect(props.onQuantityChange).not.toHaveBeenCalled();
   });
 
-  it("clamps both ends of the weekly quantity correction", () => {
-    const lower = renderUnderstanding({ value: "Run", quantity: 1 });
+  it("keeps the weekly quantity positive without imposing a ceiling", () => {
+    const lower = renderUnderstanding({ value: "Run", quantity: 1, mode: "flexible" });
     TestRenderer.act(() => {
       (button(lower.tree, labels.less).props.onPress as () => void)();
     });
@@ -205,12 +197,13 @@ describe("HabitUnderstanding mobile", () => {
     const upper = renderUnderstanding({
       value: "Run",
       quantity: 7,
+      mode: "flexible",
       sentence: "Seven times a week",
     });
     TestRenderer.act(() => {
       (button(upper.tree, labels.more).props.onPress as () => void)();
     });
-    expect(upper.props.onQuantityChange).toHaveBeenCalledWith(7);
+    expect(upper.props.onQuantityChange).toHaveBeenCalledWith(8);
     expect(
       upper.tree.root.findAll(
         (node) =>

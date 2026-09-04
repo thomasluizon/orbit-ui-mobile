@@ -34,7 +34,7 @@ export function SectionLabel({
         { paddingTop: top, paddingBottom: bottom },
       ]}
     >
-      <Text style={[styles.label, { color: tokens.fg1 }]}>{children}</Text>
+      <Text numberOfLines={1} style={[styles.label, { color: tokens.fg1 }]}>{children}</Text>
       {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
     </View>
   )
@@ -52,6 +52,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
   label: {
+    flex: 1,
     fontFamily: 'Geist_500Medium',
     fontSize: 20,
     letterSpacing: -0.2,

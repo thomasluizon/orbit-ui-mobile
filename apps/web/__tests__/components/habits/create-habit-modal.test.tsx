@@ -388,12 +388,12 @@ describe('CreateHabitModal', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
-  it('shows sub-habits section when not in sub-habit mode', () => {
+  it('shows the sub-habit editor without repeating its section name', () => {
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
-    expect(screen.getByText('habits.form.subHabits')).toBeDefined()
     expect(screen.getByText('habits.form.addSubHabit')).toBeDefined()
+    expect(screen.queryByText('habits.form.subHabits')).toBeNull()
   })
 
   it('hides sub-habits section when in sub-habit mode', () => {
@@ -406,6 +406,7 @@ describe('CreateHabitModal', () => {
       />,
     )
     expect(screen.queryByText('habits.form.subHabits')).toBeNull()
+    expect(screen.queryByText('habits.form.addSubHabit')).toBeNull()
   })
 
   it('shows validation error when form validation fails', () => {

@@ -4,7 +4,6 @@ import { plural } from "@/lib/plural";
 import { CreateHabitModal } from "@/components/habits/create-habit-modal";
 import { EditHabitModal } from "@/components/habits/edit-habit-modal";
 
-import { CreateGoalModal } from "@/components/goals/create-goal-modal";
 import { ReferralDrawer } from "@/components/referral/referral-drawer";
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 
@@ -20,8 +19,6 @@ interface TodayModalsProps {
   onBulkDeleteOpenChange: (open: boolean) => void;
   onConfirmBulkDelete: () => void;
   selectedCount: number;
-  showCreateGoalModal: boolean;
-  onCloseCreateGoal: () => void;
   showReferral: boolean;
   onCloseReferral: () => void;
 }
@@ -44,8 +41,6 @@ export function TodayModals({
   onBulkDeleteOpenChange,
   onConfirmBulkDelete,
   selectedCount,
-  showCreateGoalModal,
-  onCloseCreateGoal,
   showReferral,
   onCloseReferral,
 }: Readonly<TodayModalsProps>) {
@@ -79,8 +74,6 @@ export function TodayModals({
           onConfirmBulkDelete()
         }}
       />
-
-      <CreateGoalModal open={showCreateGoalModal} onClose={onCloseCreateGoal} />
 
       <ReferralDrawer open={showReferral} onClose={onCloseReferral} />
     </>

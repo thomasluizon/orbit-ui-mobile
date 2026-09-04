@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-/** Kit SectionTitle: Rubik 20/500 fg-1 with 24/20/14 padding and an optional trailing slot.
+/** Kit SectionTitle: Geist Sans 20/500 fg-1 with 24/20/14 padding and an optional trailing slot.
  *  `inset={false}` drops the horizontal gutter so the title left-aligns with content inside
  *  an already-padded container. */
 interface SectionLabelProps {
@@ -24,6 +24,7 @@ export function SectionLabel({
       style={{ paddingTop: top, paddingBottom: bottom }}
     >
       <span
+        className="min-w-0 flex-1 truncate"
         style={{
           fontFamily: 'var(--font-sans)',
           fontSize: 20,

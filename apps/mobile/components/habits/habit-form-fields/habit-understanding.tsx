@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import Animated, { Easing, FadeIn, FadeOut } from 'react-native-reanimated'
 import type { HabitUnderstandingProps } from '@orbit/shared/utils'
+import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { segmentHabitPhrase } from '@orbit/shared/utils'
 import { Minus, Plus } from '@/components/ui/icons'
 import { Proposed } from '@/components/ui/proposed'
@@ -8,6 +10,11 @@ import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { HabitEmojiSelector } from './habit-emoji-selector'
 import { createStyles as createFormStyles } from './styles'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+
+const SENTENCE_EASING = Easing.bezier(0.2, 0, 0, 1)
+const SENTENCE_ENTER = FadeIn.duration(160).easing(SENTENCE_EASING)
+const SENTENCE_EXIT = FadeOut.duration(160).easing(SENTENCE_EASING)
 
 export function HabitUnderstanding({
   value,
@@ -16,13 +23,18 @@ export function HabitUnderstanding({
   days,
   dayOptions,
   quantity,
+  mode,
+  intervalWeeks,
   sentence,
   consumed,
   proposed = false,
+  scheduleLocked = false,
   onValueChange,
   onEmojiSelect,
   onToggleDay,
   onQuantityChange,
+  onModeChange,
+  onIntervalWeeksChange,
   labels,
 }: Readonly<HabitUnderstandingProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
@@ -78,51 +90,69 @@ export function HabitUnderstanding({
               <Text style={styles.meta}>{proposed ? labels.understoodAstra : labels.understood}</Text>
             </View>
 
-            <Text style={styles.sentence}>{sentence ?? labels.unresolved}</Text>
-
-            <View accessibilityLabel={labels.days} style={styles.days}>
-              {dayOptions.map((day) => {
-                const selected = days.includes(day.value)
-                return (
-                  <Pressable
-                    key={day.value}
-                    accessibilityRole="button"
-                    accessibilityLabel={day.accessibleLabel}
-                    accessibilityState={{ selected }}
-                    style={({ pressed }) => [
-                      styles.day,
-                      selected ? styles.daySelected : styles.dayIdle,
-                      pressed ? styles.pressed : null,
-                    ]}
-                    onPress={() => onToggleDay(day.value)}
-                  >
-                    <Text style={selected ? styles.dayTextSelected : styles.dayText}>
-                      {day.label.charAt(0)}
-                    </Text>
-                  </Pressable>
-                )
-              })}
+            <View style={styles.sentenceLayer}>
+              <Animated.View
+                key={sentence ?? labels.unresolved}
+                entering={SENTENCE_ENTER}
+                exiting={SENTENCE_EXIT}
+              >
+                <Text style={styles.sentence}>{sentence ?? labels.unresolved}</Text>
+              </Animated.View>
             </View>
+
+            <SegmentedControl
+              label={labels.scheduleMode}
+              value={mode}
+              options={[{ id: 'fixed', label: labels.setDays }, { id: 'flexible', label: labels.timesAWeek }]}
+              disabled={scheduleLocked}
+              onChange={(value) => onModeChange(value === 'flexible' ? 'flexible' : 'fixed')}
+            />
+
+            {mode === 'fixed' ? (
+              <View accessibilityLabel={labels.days} style={styles.days}>
+                {dayOptions.map((day) => {
+                  const selected = days.includes(day.value)
+                  return (
+                    <Pressable key={day.value} accessibilityRole="button" accessibilityLabel={day.accessibleLabel} accessibilityState={{ selected, ...(scheduleLocked ? { disabled: true } : {}) }} disabled={scheduleLocked} style={({ pressed }) => [styles.day, selected ? styles.daySelected : styles.dayIdle, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onToggleDay(day.value)}>
+                      <Text style={selected ? styles.dayTextSelected : styles.dayText}>{day.label.charAt(0)}</Text>
+                    </Pressable>
+                  )
+                })}
+              </View>
+            ) : (
+              <View style={styles.stepper}>
+                <Pressable accessibilityRole="button" accessibilityLabel={labels.less} disabled={scheduleLocked} style={({ pressed }) => [styles.stepButton, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onQuantityChange(Math.max(1, quantity - 1))}>
+                  <Minus size={20} strokeWidth={2} color={tokens.fg2} />
+                </Pressable>
+                <Text style={styles.quantity}>{quantity}</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel={labels.more} disabled={scheduleLocked} style={({ pressed }) => [styles.stepButton, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]} onPress={() => onQuantityChange(quantity + 1)}>
+                  <Plus size={20} strokeWidth={2} color={tokens.fg2} />
+                </Pressable>
+                <Text numberOfLines={1} style={styles.meta}>{labels.count(quantity)}</Text>
+              </View>
+            )}
 
             <View style={styles.stepper}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={labels.less}
-                style={({ pressed }) => [styles.stepButton, pressed ? styles.pressed : null]}
-                onPress={() => onQuantityChange(Math.max(1, quantity - 1))}
+                accessibilityLabel={labels.repeatLess}
+                disabled={scheduleLocked || intervalWeeks <= 1}
+                style={({ pressed }) => [styles.stepButton, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]}
+                onPress={() => onIntervalWeeksChange(Math.max(1, intervalWeeks - 1))}
               >
                 <Minus size={20} strokeWidth={2} color={tokens.fg2} />
               </Pressable>
-              <Text style={styles.quantity}>{quantity}</Text>
+              <Text style={styles.quantity}>{intervalWeeks}</Text>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={labels.more}
-                style={({ pressed }) => [styles.stepButton, pressed ? styles.pressed : null]}
-                onPress={() => onQuantityChange(Math.min(7, quantity + 1))}
+                accessibilityLabel={labels.repeatMore}
+                disabled={scheduleLocked || intervalWeeks >= MAX_HABIT_INTERVAL_WEEKS}
+                style={({ pressed }) => [styles.stepButton, scheduleLocked ? styles.disabled : null, pressed ? styles.pressed : null]}
+                onPress={() => onIntervalWeeksChange(Math.min(MAX_HABIT_INTERVAL_WEEKS, intervalWeeks + 1))}
               >
                 <Plus size={20} strokeWidth={2} color={tokens.fg2} />
               </Pressable>
-              <Text style={styles.meta}>{labels.count}</Text>
+              <Text numberOfLines={1} style={styles.meta}>{labels.repeat(intervalWeeks)}</Text>
             </View>
           </View>
         </Proposed>
@@ -190,6 +220,9 @@ function createStyles(tokens: AppTokens) {
       fontSize: 17,
       lineHeight: 24,
     },
+    sentenceLayer: {
+      position: 'relative',
+    },
     days: { flexDirection: 'row', gap: 4 },
     day: { alignItems: 'center', borderRadius: radius.full, height: 44, justifyContent: 'center', width: 44 },
     dayIdle: { backgroundColor: tokens.bgWell, borderColor: tokens.hairline, borderWidth: 1 },
@@ -216,5 +249,6 @@ function createStyles(tokens: AppTokens) {
       fontVariant: ['tabular-nums'],
     },
     pressed: { opacity: 0.72 },
+    disabled: { opacity: 0.4 },
   })
 }

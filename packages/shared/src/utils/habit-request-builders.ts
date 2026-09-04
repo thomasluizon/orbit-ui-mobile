@@ -21,6 +21,7 @@ function applyScheduleFields(
   data: HabitFormData,
 ): void {
   if (data.dueDate) req.dueDate = data.dueDate
+  if (data.isFlexible || data.frequencyUnit) req.intervalWeeks = data.intervalWeeks ?? 1
   if (data.isFlexible) {
     req.isFlexible = true
     if (data.frequencyUnit) req.frequencyUnit = data.frequencyUnit
@@ -113,6 +114,7 @@ function applyUpdateScheduleFields(
   if (isOneTime) return
   request.frequencyUnit = data.frequencyUnit ?? undefined
   request.frequencyQuantity = data.frequencyQuantity ?? undefined
+  if (data.isFlexible || data.frequencyUnit) request.intervalWeeks = data.intervalWeeks ?? 1
   if (data.days.length) request.days = data.days
   if (data.endDate) {
     request.endDate = data.endDate

@@ -205,36 +205,14 @@ export function ScheduledReminderSection({
                   onChange={setTime}
                   onClear={() => setTime("")}
                 />
-                <Pressable
-                  style={({ pressed }) => [
-                    sectionStyles.timeAddButton,
-                    !time && { opacity: 0.45 },
-                    pressed && { transform: [{ scale: 0.96 }] },
-                  ]}
-                  hitSlop={{ top: 3, bottom: 3 }}
-                  disabled={!time}
-                  accessibilityRole="button"
-                  onPress={addScheduledReminder}
-                >
-                  <Text style={sectionStyles.timeAddButtonText}>
-                    {t("common.add")}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    sectionStyles.timeCancelButton,
-                    pressed && { transform: [{ scale: 0.96 }] },
-                  ]}
-                  hitSlop={2}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("common.cancel")}
-                  onPress={() => {
-                    setShowForm(false);
-                    setTime("");
-                  }}
-                >
-                  <X size={16} color={tokens.fg3} strokeWidth={1.8} />
-                </Pressable>
+                <View style={sectionStyles.timeControls}>
+                  <Pressable style={({ pressed }) => [sectionStyles.timeAddButton, !time && { opacity: 0.45 }, pressed && { transform: [{ scale: 0.96 }] }]} disabled={!time} accessibilityRole="button" onPress={addScheduledReminder}>
+                    <Text style={sectionStyles.timeAddButtonText}>{t("common.add")}</Text>
+                  </Pressable>
+                  <Pressable style={({ pressed }) => [sectionStyles.timeCancelButton, pressed && { transform: [{ scale: 0.96 }] }]} accessibilityRole="button" accessibilityLabel={t("common.cancel")} onPress={() => { setShowForm(false); setTime(""); }}>
+                    <X size={16} color={tokens.fg3} strokeWidth={1.8} />
+                  </Pressable>
+                </View>
               </View>
             </View>
           )}

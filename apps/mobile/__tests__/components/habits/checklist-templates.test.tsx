@@ -97,7 +97,8 @@ describe('ChecklistTemplates mobile', () => {
   it('saves the current checklist under a trimmed template name', () => {
     const { tree } = renderTemplates()
     press(listRow(tree, 'habits.form.templates'))
-    press(listRow(tree, 'habits.form.saveAsTemplate'))
+    const saveCurrent = tree.root.findAll((node) => node.props.accessibilityRole === 'button' && node.findAll((child) => child.type === 'Text' && child.props.children === 'habits.form.saveCurrentList').length > 0)[0]!
+    press(saveCurrent, 'onPress')
 
     const input = tree.root.findAll((node) => node.type === 'TextInput')[0]!
     TestRenderer.act(() => {

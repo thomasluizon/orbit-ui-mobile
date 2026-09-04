@@ -16,6 +16,7 @@ function makeDetailChild(overrides: Partial<HabitDetailChild> = {}): HabitDetail
     emoji: overrides.emoji ?? null,
     frequencyUnit: overrides.frequencyUnit ?? null,
     frequencyQuantity: overrides.frequencyQuantity ?? null,
+    intervalWeeks: 'intervalWeeks' in overrides ? overrides.intervalWeeks : null,
     isBadHabit: overrides.isBadHabit ?? false,
     isCompleted: overrides.isCompleted ?? false,
     isGeneral: overrides.isGeneral ?? false,
@@ -39,6 +40,7 @@ function makeDetail(overrides: Partial<HabitDetail> = {}): HabitDetail {
     description: overrides.description ?? null,
     frequencyUnit: overrides.frequencyUnit ?? null,
     frequencyQuantity: overrides.frequencyQuantity ?? null,
+    intervalWeeks: 'intervalWeeks' in overrides ? overrides.intervalWeeks : null,
     isBadHabit: overrides.isBadHabit ?? false,
     isCompleted: overrides.isCompleted ?? false,
     isGeneral: overrides.isGeneral ?? false,
@@ -105,6 +107,18 @@ describe('drill navigation utils', () => {
     const normalized = normalizeHabitDetailForDrill(detail, '2025-01-02')
 
     expect(normalized.childrenByParent.get('parent-1')?.[0]?.emoji).toBe('📚')
+  })
+
+  it.each([null, 2] as const)('preserves detail intervalWeeks %s without a schedule fallback', (intervalWeeks) => {
+    const detail = makeDetail({
+      intervalWeeks,
+      children: [makeDetailChild({ intervalWeeks })],
+    })
+
+    const normalized = normalizeHabitDetailForDrill(detail, '2025-01-02')
+
+    expect(normalized.parent.intervalWeeks).toBe(intervalWeeks)
+    expect(normalized.childrenByParent.get('parent-1')?.[0]?.intervalWeeks).toBe(intervalWeeks)
   })
 
   it('prefers API child overdue state when present', () => {
