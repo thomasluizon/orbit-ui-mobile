@@ -781,6 +781,44 @@ describe('HabitDetailScreen', () => {
     }
   })
 
+  it('clears reminder configuration when the time editor clears due time', async () => {
+    mocks.detail = {
+      ...makeDetail(),
+      dueTime: '09:00',
+      dueEndTime: '10:00',
+      reminderEnabled: true,
+      reminderTimes: [15],
+      scheduledReminders: [{ when: 'same_day', time: '08:00' }],
+    }
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    })
+    const disclosure = tree!.root.findAll((node: { props: { accessibilityState?: { expanded?: boolean } } }) => node.props.accessibilityState?.expanded === false)[0]
+    TestRenderer.act(() => disclosure!.props.onPress())
+    TestRenderer.act(() => tree!.root.findByProps({ title: 'habits.detail.time' }).props.onClick())
+    TestRenderer.act(() => tree!.root.findByProps({ accessibilityLabel: 'habits.detail.time' }).props.onClear())
+    await TestRenderer.act(async () => {
+      tree!.root.findAllByType('PillButton').find((node: { props: { children?: React.ReactNode } }) => node.props.children === 'common.save')!.props.onClick()
+      await Promise.resolve()
+    })
+
+    const request = mocks.update.mock.calls.at(-1)?.[0].data
+    expect({
+      dueTime: request.dueTime,
+      dueEndTime: request.dueEndTime,
+      reminderEnabled: request.reminderEnabled,
+      reminderTimes: request.reminderTimes,
+      scheduledReminders: request.scheduledReminders,
+    }).toEqual({
+      dueTime: null,
+      dueEndTime: null,
+      reminderEnabled: false,
+      reminderTimes: [],
+      scheduledReminders: [],
+    })
+  })
+
   it('validates reminder drafts before mutation', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {

@@ -586,6 +586,38 @@ describe('HabitDetailScreen', () => {
     expect(mocks.update.mock.calls.at(-1)?.[0].data).toMatchObject({ endDate: null })
   })
 
+  it('clears reminder configuration when the time editor clears due time', async () => {
+    mocks.detail = {
+      ...makeDetail(),
+      dueTime: '09:00',
+      dueEndTime: '10:00',
+      reminderEnabled: true,
+      reminderTimes: [15],
+      scheduledReminders: [{ when: 'same_day', time: '08:00' }],
+    }
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))
+    fireEvent.click(screen.getByTestId('list-row-habits.detail.time'))
+    fireEvent.click(screen.getByRole('button', { name: 'clear-time' }))
+    fireEvent.click(screen.getByRole('button', { name: 'common.save' }))
+    await act(async () => Promise.resolve())
+
+    const request = mocks.update.mock.calls.at(-1)?.[0].data
+    expect({
+      dueTime: request.dueTime,
+      dueEndTime: request.dueEndTime,
+      reminderEnabled: request.reminderEnabled,
+      reminderTimes: request.reminderTimes,
+      scheduledReminders: request.scheduledReminders,
+    }).toEqual({
+      dueTime: null,
+      dueEndTime: null,
+      reminderEnabled: false,
+      reminderTimes: [],
+      scheduledReminders: [],
+    })
+  })
+
   it('validates reminder drafts before mutation', async () => {
     render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     fireEvent.click(screen.getByRole('button', { name: 'habits.detail.moreDetails' }))

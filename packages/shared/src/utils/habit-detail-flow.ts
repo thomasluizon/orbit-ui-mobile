@@ -419,8 +419,17 @@ export function buildHabitDetailTimePatch(
   habit: Pick<NormalizedHabit, 'dueEndTime' | 'dueTime'>,
 ): Partial<UpdateHabitRequest> | null {
   if (value && !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return null
+  if (!value) {
+    return {
+      dueTime: null,
+      dueEndTime: null,
+      reminderEnabled: false,
+      reminderTimes: [],
+      scheduledReminders: [],
+    }
+  }
   return {
-    dueTime: value || null,
+    dueTime: value,
     dueEndTime: value === habit.dueTime ? habit.dueEndTime : null,
   }
 }

@@ -175,7 +175,13 @@ describe('habit detail flow model', () => {
   it('validates inline times and clears a stale end when the start changes', () => {
     const habit = { dueTime: '08:00', dueEndTime: '09:00' }
     expect(buildHabitDetailTimePatch('later', habit)).toBeNull()
-    expect(buildHabitDetailTimePatch('', habit)).toEqual({ dueTime: null, dueEndTime: null })
+    expect(buildHabitDetailTimePatch('', habit)).toEqual({
+      dueTime: null,
+      dueEndTime: null,
+      reminderEnabled: false,
+      reminderTimes: [],
+      scheduledReminders: [],
+    })
     expect(buildHabitDetailTimePatch('10:00', habit)).toEqual({ dueTime: '10:00', dueEndTime: null })
     expect(buildHabitDetailTimePatch('08:00', habit)).toEqual({ dueTime: '08:00', dueEndTime: '09:00' })
 
@@ -188,6 +194,26 @@ describe('habit detail flow model', () => {
       dueTime: '10:00',
       dueEndTime: null,
     })
+  })
+
+  it('disables and clears reminders when due time is cleared', () => {
+    const habit = createMockHabit({
+      dueTime: '09:00',
+      dueEndTime: '10:00',
+      reminderEnabled: true,
+      reminderTimes: [15, 30],
+      scheduledReminders: [{ when: 'same_day', time: '08:00' }],
+    })
+    const patch = buildHabitDetailTimePatch('', habit)
+
+    expect(patch).toEqual({
+      dueTime: null,
+      dueEndTime: null,
+      reminderEnabled: false,
+      reminderTimes: [],
+      scheduledReminders: [],
+    })
+    expect(buildHabitDetailUpdateRequest(habit, patch!)).toMatchObject(patch!)
   })
 
   it('merges scoped relationship and selected-date state into detail data', () => {
