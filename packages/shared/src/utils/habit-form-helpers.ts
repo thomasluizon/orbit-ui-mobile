@@ -433,8 +433,7 @@ export function createHabitFormController({
         applyHabitQuantityCorrection(3, lockedGeneral, target)
         return
       }
-      applyHabitDayCorrection(lockedGeneral, target)
-      target.setField('days', [])
+      if (applyHabitDayCorrection(lockedGeneral, target)) target.setField('days', [])
     },
     setIntervalWeeks: (intervalWeeks): void => {
       resolveSection('setup')

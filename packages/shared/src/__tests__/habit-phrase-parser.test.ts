@@ -13,11 +13,14 @@ interface PhraseCase {
 
 const cases: PhraseCase[] = [
   { input: 'Correr 12 vezes na semana', locale: 'pt-BR', cadence: 'flexible', quantity: 12 },
+  { input: 'Correr 3 vezes na semana', locale: 'pt-BR', cadence: 'flexible', quantity: 3 },
   { input: 'correr 3 VEZES POR SEMANA', locale: 'pt-BR', cadence: 'flexible', quantity: 3 },
   { input: 'Ler 1 vez por semana', locale: 'pt-BR', cadence: 'flexible', quantity: 1 },
+  { input: 'Caminhar uma vez por semana', locale: 'pt-BR', cadence: 'flexible', quantity: 1 },
   { input: 'Beber agua duas vezes na semana', locale: 'pt-BR', cadence: 'flexible', quantity: 2 },
   { input: 'Alongar 20x semana', locale: 'pt-BR', cadence: 'flexible', quantity: 20 },
   { input: 'Ler terca e quinta as 8h30', locale: 'pt-BR', cadence: 'fixed', days: ['Tuesday', 'Thursday'], time: '08:30' },
+  { input: 'Correr térça e quínta', locale: 'pt-BR', cadence: 'fixed', days: ['Tuesday', 'Thursday'] },
   { input: 'LER SEGUNDA-FEIRA', locale: 'pt-BR', cadence: 'fixed', days: ['Monday'] },
   { input: 'Correr sabado e domingo', locale: 'pt-BR', cadence: 'fixed', days: ['Saturday', 'Sunday'] },
   { input: 'Meditar todos os dias às 7', locale: 'pt-BR', cadence: 'daily', time: '07:00' },
@@ -86,6 +89,17 @@ describe('readHabitPhrase', () => {
 
   it('does not treat a weekly count as a clock time', () => {
     expect(readHabitPhrase('Run 3 times a week', 'en').dueTime).toBeNull()
+  })
+
+  it('does not claim a cadence from an activity name alone', () => {
+    expect(readHabitPhrase('Correr', 'pt-BR')).toMatchObject({
+      cadence: null,
+      days: [],
+      frequencyQuantity: null,
+      intervalWeeks: null,
+      dueTime: null,
+      consumed: [],
+    })
   })
 
   it('leaves invalid clock times unresolved', () => {
