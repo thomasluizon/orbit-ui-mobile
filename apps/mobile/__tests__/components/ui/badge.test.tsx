@@ -24,6 +24,14 @@ describe('Badge (mobile)', () => {
   it.each(['solid', 'outline'] as const)('renders the %s variant at chip radius', (variant) => {
     const tree = renderBadge(variant)
     const view = tree.root.findByType('View')
+    const text = tree.root.findByType('Text')
     expect(view.props.style[0].borderRadius).toBe(8)
+    expect(text.props.style[0]).toMatchObject({
+      fontFamily: 'GeistMono_500Medium',
+      fontSize: 10.5,
+      includeFontPadding: false,
+      letterSpacing: 0.63,
+      textTransform: 'uppercase',
+    })
   })
 })

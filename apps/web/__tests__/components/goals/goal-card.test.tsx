@@ -72,7 +72,17 @@ describe('GoalCard', () => {
 
   it('shows completed badge for completed goals', () => {
     renderCard(makeGoal({ status: 'Completed' }))
-    expect(document.body.textContent).toContain('goals.status.completed')
+    const badge = screen.getByText('goals.status.completed')
+
+    expect(badge).toHaveClass('rounded-[8px]')
+    expect(badge).toHaveStyle({
+      fontFamily: 'var(--font-mono)',
+      fontSize: '10.5px',
+      fontWeight: '500',
+      letterSpacing: '0.06em',
+      padding: '2px 9px',
+      textBox: 'trim-both cap alphabetic',
+    })
   })
 
   it('shows abandoned badge for abandoned goals', () => {
