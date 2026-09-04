@@ -3,6 +3,16 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { PillButton } from '@/components/ui/pill-button'
 
 describe('PillButton', () => {
+  it('caps a full-width phone action at the desktop breakpoint', () => {
+    render(<PillButton fullWidth>Continue</PillButton>)
+
+    expect(screen.getByRole('button', { name: 'Continue' })).toHaveClass(
+      'w-full',
+      'sm:w-auto',
+      'sm:max-w-[360px]',
+    )
+  })
+
   it('renders its label', () => {
     render(<PillButton onClick={() => {}}>Continue</PillButton>)
     expect(screen.getByRole('button', { name: 'Continue' })).toHaveClass('whitespace-nowrap')

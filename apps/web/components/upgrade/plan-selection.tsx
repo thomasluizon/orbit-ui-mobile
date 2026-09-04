@@ -251,8 +251,9 @@ function TierCard({
       {tier.heroLine ? <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-2)]">{tier.heroLine}</p> : null}
       {tier.secondLine ? <p className="font-mono text-xs leading-[1.5] tabular-nums text-[var(--fg-3)]">{tier.secondLine}</p> : null}
       {tier.couponLine ? <p className="text-sm leading-[1.5] text-[var(--fg-2)]">{tier.couponLine}</p> : null}
-      <div className="mt-auto pt-2 [&>button]:w-full">
+      <div className="mt-auto pt-2">
         <PillButton
+          fullWidth
           variant={recommended ? 'primary' : 'ghost'}
           loading={loading}
           disabled={disabled}

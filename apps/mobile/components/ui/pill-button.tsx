@@ -17,6 +17,7 @@ export function Button({
   onClick,
   disabled = false,
   loading = false,
+  fullWidth = false,
   children,
   accessibleName,
   iconOnly,
@@ -76,6 +77,7 @@ export function Button({
           ? { height: sizeSpec.height, width: sizeSpec.height, paddingHorizontal: 0, gap: 0 }
           : { height: sizeSpec.height, paddingHorizontal: sizeSpec.paddingX, gap: sizeSpec.gap },
         variantStyle(pressed),
+        fullWidth ? styles.fullWidth : null,
         disabled ? styles.disabled : null,
         pressed && quietsOnPress ? styles.pressedQuiet : null,
         pressed ? styles.pressedScale : null,
@@ -109,6 +111,10 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.4,
+  },
+  fullWidth: {
+    alignSelf: 'stretch',
+    width: '100%',
   },
   pressedQuiet: {
     opacity: 0.85,

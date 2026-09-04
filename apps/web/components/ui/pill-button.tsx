@@ -24,6 +24,7 @@ export function Button({
   onClick,
   disabled = false,
   loading = false,
+  fullWidth = false,
   children,
   accessibleName,
   iconOnly,
@@ -46,6 +47,7 @@ export function Button({
       className={[
         'inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40',
         variantClasses[variant],
+        fullWidth ? 'w-full sm:mx-auto sm:w-auto sm:min-w-[220px] sm:max-w-[360px]' : '',
       ]
         .filter(Boolean)
         .join(' ')}
