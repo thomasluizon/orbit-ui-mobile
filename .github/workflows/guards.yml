@@ -4,6 +4,7 @@ name: Guards
 # (D6): these hold for Codex, Claude, a human, or a bot, because CI
 # is the one layer nothing bypasses. Jobs:
 #   root-allowlist - root entries are deliberate and npm overrides exist only at the root
+#   mobile-styles - mobile styling stays on React Native StyleSheet
 #   dashes  - the cross-repo dash ban: changed files, the shrink-only baseline, and the PR title/body
 #   mobile-fonts - Rubik cannot re-enter the mobile source tree
 #   copy    - AI-cliche / placeholder / typed-uppercase locale values + hardcoded brand colors
@@ -30,6 +31,18 @@ permissions:
   pull-requests: read
 
 jobs:
+  mobile-styles:
+    name: Mobile StyleSheet Guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Mobile source carries no inert class names
+        run: |
+          if git grep -n 'className=' -- apps/mobile; then
+            echo "::error::Use React Native StyleSheet under apps/mobile."
+            exit 1
+          fi
+
   root-allowlist:
     name: Root Allowlist
     runs-on: ubuntu-latest

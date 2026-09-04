@@ -1,6 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { useTodayDayMotion } from '@/app/(tabs)/use-today-motion'
+import { useTodayMotion } from '@/app/(tabs)/use-today-motion'
 
 const mocks = vi.hoisted(() => ({
   completeAnimations: true,
@@ -26,6 +26,10 @@ vi.mock('react-native', async (importOriginal) => {
       this.current = next
     }
 
+    interpolate() {
+      return this
+    }
+
     stopAnimation(callback?: (value: number) => void) {
       callback?.(this.current)
     }
@@ -42,18 +46,31 @@ vi.mock('react-native', async (importOriginal) => {
 })
 
 vi.mock('@/lib/motion', () => ({
+  createAnimatedTimingConfig: (duration: number) => ({ duration, toValue: 1, useNativeDriver: true }),
   toAnimatedEasing: () => 'ease-out',
   useResolvedMotionPreset: () => ({
     enterDuration: 220,
-    enterEasing: [0.16, 1, 0.3, 1],
+    enterEasing: 'enter',
+    exitDuration: 160,
+    exitEasing: 'exit',
     reducedMotionEnabled: mocks.reducedMotion,
+    scaleFrom: 0.95,
   }),
 }))
 
+vi.mock('@/stores/ui-store', () => ({
+  useUIStore: (selector: (state: { isSelectMode: boolean }) => unknown) => selector({ isSelectMode: false }),
+}))
+
+vi.mock('@/app/(tabs)/today-model', () => ({
+  resolveBulkActionBarEnterShift: () => 16,
+}))
+
 const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
+;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 function MotionHarness({ date }: Readonly<{ date: string }>) {
-  useTodayDayMotion(date)
+  useTodayMotion({ filterMotionKey: date, isRefetching: false })
   return null
 }
 
@@ -82,6 +99,7 @@ describe('Today day motion', () => {
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<MotionHarness date="2026-09-03" />)
     })
+    mocks.timingCalls.length = 0
 
     await TestRenderer.act(() => {
       tree.update(<MotionHarness date="2026-09-04" />)
@@ -111,7 +129,7 @@ describe('Today day motion', () => {
     await TestRenderer.act(() => {
       tree.update(<MotionHarness date="2026-09-04" />)
     })
-    expect(mocks.values.map((value) => value.current)).toEqual([0.9, 8])
+    expect(mocks.values.slice(0, 2).map((value) => value.current)).toEqual([0.9, 8])
 
     mocks.reducedMotion = true
     mocks.timing.mockClear()
@@ -120,6 +138,6 @@ describe('Today day motion', () => {
     })
 
     expect(mocks.timing).not.toHaveBeenCalled()
-    expect(mocks.values.map((value) => value.current)).toEqual([1, 0])
+    expect(mocks.values.slice(0, 2).map((value) => value.current)).toEqual([1, 0])
   })
 })

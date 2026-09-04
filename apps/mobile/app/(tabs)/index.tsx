@@ -23,7 +23,7 @@ import { useTodaySelection } from './use-today-selection'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
 import { TodayAstra } from '@/components/today/today-astra'
 import { TrialBanner } from '@/components/ui/trial-banner'
-import { useTodayDayMotion } from './use-today-motion'
+import { useTodayMotion } from './use-today-motion'
 
 function getBoundaryMessageKey(
   boundary: ReturnType<typeof getTodayBoundary>,
@@ -74,6 +74,10 @@ export default function TodayScreen() {
   }), [date.dateStr, date.today, showGeneralOnToday])
   const habitsQuery = useHabits(filters)
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
+  const motion = useTodayMotion({
+    filterMotionKey: date.dateStr,
+    isRefetching: Boolean(habitsQuery.data && habitsQuery.isFetching),
+  })
   const visibleHabitIds = useMemo(() => new Set(habitsById.keys()), [habitsById])
   const closeControlsMenu = useCallback(() => {}, [])
   const selection = useTodaySelection({
@@ -87,7 +91,6 @@ export default function TodayScreen() {
   })
   const clearSelection = selection.clearSelection
   const boundaryKey = getBoundaryMessageKey(getTodayBoundary(date.dateStr, date.today))
-  const dayMotionStyle = useTodayDayMotion(date.dateStr)
 
   useFocusEffect(
     useCallback(() => {
@@ -118,27 +121,29 @@ export default function TodayScreen() {
   ])
 
   useShellComposerSlot(
-    isSelectMode && todayFocused,
+    motion.renderBulkActionBar && todayFocused,
     (
-      <View style={styles.selectionTray}>
-        <SelectionTray
-          count={selection.selectedCount}
-          allSelected={selection.allSelected}
-          onSelectAll={selection.handleSelectAll}
-          onDeselectAll={selection.handleDeselectAll}
-          onLog={selection.handleOpenBulkLog}
-          onSkip={selection.handleOpenBulkSkip}
-          onDelete={selection.handleOpenBulkDelete}
-          onClose={clearSelection}
-          countSuffixLabel={plural(t('common.selectedSuffix'), selection.selectedCount)}
-          selectAllLabel={t('common.selectAll')}
-          deselectAllLabel={t('common.deselectAll')}
-          logLabel={t('habits.bulkBar.log')}
-          skipLabel={t('habits.bulkBar.skip')}
-          deleteLabel={t('habits.bulkBar.delete')}
-          closeLabel={t('common.cancel')}
-        />
-      </View>
+      <Animated.View style={motion.bulkBarAnimatedStyle}>
+        <View style={styles.selectionTray}>
+          <SelectionTray
+            count={selection.selectedCount}
+            allSelected={selection.allSelected}
+            onSelectAll={selection.handleSelectAll}
+            onDeselectAll={selection.handleDeselectAll}
+            onLog={selection.handleOpenBulkLog}
+            onSkip={selection.handleOpenBulkSkip}
+            onDelete={selection.handleOpenBulkDelete}
+            onClose={clearSelection}
+            countSuffixLabel={plural(t('common.selectedSuffix'), selection.selectedCount)}
+            selectAllLabel={t('common.selectAll')}
+            deselectAllLabel={t('common.deselectAll')}
+            logLabel={t('habits.bulkBar.log')}
+            skipLabel={t('habits.bulkBar.skip')}
+            deleteLabel={t('habits.bulkBar.delete')}
+            closeLabel={t('common.cancel')}
+          />
+        </View>
+      </Animated.View>
     ),
   )
 
@@ -186,30 +191,32 @@ export default function TodayScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: tokens.bg }]}>
-      <Animated.View style={[styles.dayTransition, dayMotionStyle]}>
-        <HabitList
-          ref={habitListRef}
-          view="today"
-          filters={filters}
-          selectedDate={date.selectedDate}
-          showCompleted={showCompleted}
-          isSelectMode={isSelectMode}
-          selectedHabitIds={selectedHabitIds}
-          listHeader={listHeader}
-          onCreatePress={() => setShowCreateModal(true)}
-          onSeeUpcoming={date.nextDisabled ? undefined : date.goToNextDay}
-          onDetailHabit={(habit) => router.push({
-            pathname: '/habits/[id]',
-            params: { id: habit.id, date: date.dateStr, from: 'today' },
-          })}
-          onEditHabit={(habit, onSaved) => {
-            setEditHabit(habit)
-            setEditHabitOnSaved(() => onSaved ?? null)
-          }}
-          onAllLoadedIdsChange={setAllLoadedIds}
-          onAllCollapsedChange={setHabitListAllCollapsed}
-          onSurfaceOpenChange={setListSurfaceOpen}
-        />
+      <Animated.View style={[styles.listBand, motion.refetchAnimatedStyle]}>
+        <Animated.View style={[styles.listBand, motion.dayAnimatedStyle]}>
+          <HabitList
+            ref={habitListRef}
+            view="today"
+            filters={filters}
+            selectedDate={date.selectedDate}
+            showCompleted={showCompleted}
+            isSelectMode={isSelectMode}
+            selectedHabitIds={selectedHabitIds}
+            listHeader={listHeader}
+            onCreatePress={() => setShowCreateModal(true)}
+            onSeeUpcoming={date.nextDisabled ? undefined : date.goToNextDay}
+            onDetailHabit={(habit) => router.push({
+              pathname: '/habits/[id]',
+              params: { id: habit.id, date: date.dateStr, from: 'today' },
+            })}
+            onEditHabit={(habit, onSaved) => {
+              setEditHabit(habit)
+              setEditHabitOnSaved(() => onSaved ?? null)
+            }}
+            onAllLoadedIdsChange={setAllLoadedIds}
+            onAllCollapsedChange={setHabitListAllCollapsed}
+            onSurfaceOpenChange={setListSurfaceOpen}
+          />
+        </Animated.View>
       </Animated.View>
 
       <TodayModals
@@ -238,7 +245,7 @@ export default function TodayScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  dayTransition: { flex: 1 },
+  listBand: { flex: 1 },
   header: { gap: 24, paddingBottom: 24 },
   notice: { paddingHorizontal: 0 },
   selectionTray: { paddingHorizontal: 20, paddingVertical: 12 },
