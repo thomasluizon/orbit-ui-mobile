@@ -285,6 +285,34 @@ describe('Menu', () => {
   })
 
   /**
+   * The popup library stops Escape before it bubbles back to the document, so a bubble-phase
+   * listener never runs: the menu stayed open and its click catcher covered the whole page.
+   * Dispatching on `document` hides this, because that skips whatever calls stopPropagation, so
+   * assert the phase itself and drive the key from inside the panel.
+   */
+  it('hears Escape before the popup can stop it', async () => {
+    setWide(true)
+    const addEventListener = vi.spyOn(document, 'addEventListener')
+    const anchorRef = createRef<HTMLButtonElement>()
+    const onClose = vi.fn()
+    render(
+      <>
+        <button ref={anchorRef} type="button">More</button>
+        <Menu open title="Habit actions" items={items} anchorRef={anchorRef} onClose={onClose} />
+      </>,
+    )
+
+    const menu = await screen.findByRole('menu')
+    const keyDownRegistrations = addEventListener.mock.calls.filter(([type]) => type === 'keydown')
+    expect(keyDownRegistrations).not.toHaveLength(0)
+    expect(keyDownRegistrations.some(([, , options]) => options === true)).toBe(true)
+
+    fireEvent.keyDown(menu, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalled()
+    addEventListener.mockRestore()
+  })
+
+  /**
    * The trigger toggles on click, which lands after the document pointerdown.
    * Closing on that pointerdown let the toggle read the closed state and reopen,
    * so an anchored overflow menu could never be dismissed by its own button.
