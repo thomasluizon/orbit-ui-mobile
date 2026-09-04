@@ -180,8 +180,10 @@ describe('PlanSelection (mobile)', () => {
         node.props.children === 'upgrade.plans.recommended').length).toBeGreaterThan(0)
       expect(monthlyTier.findAll((node: { props: { children?: unknown } }) =>
         node.props.children === 'upgrade.plans.recommended')).toHaveLength(0)
-      expect(annualTier.findByProps({ testID: 'button-primary-md' })).toBeTruthy()
-      expect(monthlyTier.findByProps({ testID: 'button-ghost-md' })).toBeTruthy()
+      const selectedTier = selectedInterval === 'yearly' ? annualTier : monthlyTier
+      const unselectedTier = selectedInterval === 'yearly' ? monthlyTier : annualTier
+      expect(selectedTier.findByProps({ testID: 'button-primary-md' })).toBeTruthy()
+      expect(unselectedTier.findByProps({ testID: 'button-ghost-md' })).toBeTruthy()
     },
   )
 

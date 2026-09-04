@@ -187,6 +187,7 @@ export function PlanSelection({
               key={tier.interval}
               tier={tier}
               recommended={tier.interval === 'yearly'}
+              selected={tier.interval === selectedInterval}
               loading={checkoutLoading === tier.interval}
               disabled={checkoutPending || checkoutDisabled}
               onCheckout={onCheckout}
@@ -202,6 +203,7 @@ export function PlanSelection({
 function TierCard({
   tier,
   recommended,
+  selected,
   loading,
   disabled,
   onCheckout,
@@ -209,6 +211,7 @@ function TierCard({
 }: Readonly<{
   tier: Tier
   recommended: boolean
+  selected: boolean
   loading: boolean
   disabled: boolean
   onCheckout: (interval: SubscriptionInterval) => void
@@ -216,11 +219,11 @@ function TierCard({
 }>) {
   return (
     <section
-      data-selected={recommended || undefined}
+      data-selected={selected || undefined}
       className="flex min-w-0 flex-col gap-2 rounded-[var(--r-card)] p-6"
       style={{
-        background: recommended ? 'var(--primary-dim)' : 'var(--bg-card)',
-        boxShadow: recommended
+        background: selected ? 'var(--primary-dim)' : 'var(--bg-card)',
+        boxShadow: selected
           ? 'inset 0 0 0 1.5px var(--primary)'
           : 'inset 0 0 0 1px var(--hairline)',
       }}
@@ -240,7 +243,7 @@ function TierCard({
       <div className="mt-auto pt-2">
         <PillButton
           fullWidth
-          variant={recommended ? 'primary' : 'ghost'}
+          variant={selected ? 'primary' : 'ghost'}
           loading={loading}
           disabled={disabled}
           accessibleName={t('upgrade.plans.checkoutLabel', { interval: tier.name })}

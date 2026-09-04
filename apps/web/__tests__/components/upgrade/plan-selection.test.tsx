@@ -87,14 +87,10 @@ describe('PlanSelection', () => {
       'upgrade.plans.monthly.name',
     ])
     expect(screen.getAllByText('upgrade.plans.recommended')).toHaveLength(1)
-    expect(within(tierNamed('upgrade.plans.yearly.name')).getByRole('button')).toHaveAttribute(
-      'data-variant',
-      'primary',
-    )
-    expect(within(tierNamed('upgrade.plans.monthly.name')).getByRole('button')).toHaveAttribute(
-      'data-variant',
-      'ghost',
-    )
+    expect(tierNamed('upgrade.plans.yearly.name')).toHaveAttribute('data-selected', 'true')
+    expect(within(tierNamed('upgrade.plans.yearly.name')).getByRole('button')).toHaveAttribute('data-variant', 'primary')
+    expect(tierNamed('upgrade.plans.monthly.name')).not.toHaveAttribute('data-selected')
+    expect(within(tierNamed('upgrade.plans.monthly.name')).getByRole('button')).toHaveAttribute('data-variant', 'ghost')
   })
 
   it('switches the rendered order without starting checkout', () => {
@@ -117,14 +113,10 @@ describe('PlanSelection', () => {
     expect(within(tierNamed('upgrade.plans.monthly.name')).queryByText(
       'upgrade.plans.recommended',
     )).not.toBeInTheDocument()
-    expect(within(tierNamed('upgrade.plans.yearly.name')).getByRole('button')).toHaveAttribute(
-      'data-variant',
-      'primary',
-    )
-    expect(within(tierNamed('upgrade.plans.monthly.name')).getByRole('button')).toHaveAttribute(
-      'data-variant',
-      'ghost',
-    )
+    expect(tierNamed('upgrade.plans.yearly.name')).not.toHaveAttribute('data-selected')
+    expect(within(tierNamed('upgrade.plans.yearly.name')).getByRole('button')).toHaveAttribute('data-variant', 'ghost')
+    expect(tierNamed('upgrade.plans.monthly.name')).toHaveAttribute('data-selected', 'true')
+    expect(within(tierNamed('upgrade.plans.monthly.name')).getByRole('button')).toHaveAttribute('data-variant', 'primary')
     expect(onCheckout).not.toHaveBeenCalled()
   })
 
