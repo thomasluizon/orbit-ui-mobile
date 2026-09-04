@@ -2188,6 +2188,10 @@
         "features": "O limite diário maior da Astra e a sincronização do calendário não estão mais ativos.",
         "yearlyFeature": "A retrospectiva anual não está mais ativa.",
         "action": "Assinar de novo"
+      },
+      "paymentIssue": {
+        "title": "Não conseguimos processar seu pagamento",
+        "body": "Seu acesso Pro continua ativo. Abra a cobrança abaixo e atualize a forma de pagamento para mantê-lo."
       }
     },
     "playError": {

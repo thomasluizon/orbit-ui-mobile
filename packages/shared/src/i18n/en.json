@@ -2188,6 +2188,10 @@
         "features": "Astra's higher daily limit and calendar sync are no longer active.",
         "yearlyFeature": "Yearly retrospective access is no longer active.",
         "action": "Subscribe again"
+      },
+      "paymentIssue": {
+        "title": "We couldn't process your payment",
+        "body": "Your Pro access is still active. Open billing below and update your payment method to keep it."
       }
     },
     "playError": {

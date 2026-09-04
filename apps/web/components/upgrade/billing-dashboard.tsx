@@ -10,7 +10,6 @@ import { Badge } from '@/components/ui/badge'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
 import { formatPrice } from '@/hooks/use-subscription-plans'
-import { PitchSubscriptionCard } from './pitch-subscription-card'
 import { UsageStats } from './usage-stats'
 import { cardLabelStyle, cardSurface, formatBillingDate } from './styles'
 
@@ -213,7 +212,6 @@ export function BillingDashboard({
   if (!status) return null
   return (
     <div className="flex flex-col gap-6">
-      <PitchSubscriptionCard status={status} locale={locale} t={t} />
       <PlanSummary state={state} status={status} billing={billing} locale={locale} t={t} />
       <PaymentMethodSection method={billing?.paymentMethod} state={state} onOpenPortal={onOpenPortal} t={t} />
       <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={status} t={t} />

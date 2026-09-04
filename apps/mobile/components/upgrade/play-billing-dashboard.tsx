@@ -3,7 +3,6 @@ import type { SubscriptionPortalState } from '@orbit/shared/utils'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import { PillButton } from '@/components/ui/pill-button'
 import { PlanSummaryCard } from './plan-summary-card'
-import { PitchSubscriptionCard } from './pitch-subscription-card'
 import { UsageCard } from './usage-card'
 import { formatBillingDate } from './types'
 import { styles } from './styles'
@@ -44,7 +43,6 @@ export function PlayBillingDashboard({
 
   return (
     <>
-      <PitchSubscriptionCard status={status} locale={locale} t={t} tokens={tokens} />
       <PlanSummaryCard
         planLabel={
           interval === 'yearly'

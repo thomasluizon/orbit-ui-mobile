@@ -12,7 +12,6 @@ import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { formatPrice } from '@/hooks/use-subscription-plans'
 import { PlanSummaryCard } from './plan-summary-card'
-import { PitchSubscriptionCard } from './pitch-subscription-card'
 import { UsageCard } from './usage-card'
 import { formatBillingDate } from './types'
 import { styles } from './styles'
@@ -235,7 +234,6 @@ export function BillingDashboard({
   if (!status) return null
   return (
     <>
-      <PitchSubscriptionCard status={status} locale={locale} t={t} tokens={tokens} />
       <PlanDetails state={state} status={status} data={data} locale={locale} t={t} tokens={tokens} />
       <PaymentMethodSection method={data?.paymentMethod} state={state} onPortal={onPortal} t={t} tokens={tokens} />
       <UsageCard

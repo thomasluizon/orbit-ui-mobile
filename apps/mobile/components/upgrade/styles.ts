@@ -259,10 +259,16 @@ export const styles = StyleSheet.create({
   pressedScale: {
     transform: [{ scale: 0.96 }],
   },
-  noticeText: {
+  noticeTitle: {
+    fontFamily: 'Geist_500Medium',
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  noticeBody: {
     fontFamily: 'Geist_400Regular',
     fontSize: 14,
-    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: 8,
   },
   centerMuted: {
     fontFamily: 'Geist_400Regular',

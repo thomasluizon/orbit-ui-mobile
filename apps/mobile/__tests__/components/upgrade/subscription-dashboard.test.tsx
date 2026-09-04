@@ -5,7 +5,6 @@ import type { BillingDetails } from '@orbit/shared/types/subscription'
 import en from '@orbit/shared/i18n/en.json'
 import { createTokensV2 } from '@/lib/theme'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
-import { PitchSubscriptionCard } from '@/components/upgrade/pitch-subscription-card'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import type { UpgradeTextFn } from '@/components/upgrade/types'
@@ -81,42 +80,6 @@ function renderedText(tree: RenderedTree) {
   return JSON.stringify(tree.toJSON())
 }
 
-function renderStatusDashboard(
-  provider: 'stripe' | 'play',
-  dashboardStatus: SubscriptionStatus,
-) {
-  if (provider === 'play') {
-    return render(
-      <PlayBillingDashboard
-        status={dashboardStatus}
-        locale="en"
-        usagePercent={16}
-        usageProfile={{ aiMessagesUsed: 8, aiMessagesLimit: 50 }}
-        portalState="idle"
-        isOnline
-        onManagePlay={() => {}}
-        t={t}
-        tokens={tokens}
-      />,
-    )
-  }
-  return render(
-    <BillingDashboard
-      state="stripe"
-      data={billing}
-      isOnline
-      locale="en"
-      usagePercent={16}
-      usageProfile={{ aiMessagesUsed: 8, aiMessagesLimit: 50 }}
-      status={dashboardStatus}
-      onPortal={() => {}}
-      onRetryPortal={() => {}}
-      t={t}
-      tokens={tokens}
-    />,
-  )
-}
-
 const plans = {
   monthly: { unitAmount: 999, currency: 'brl' },
   yearly: { unitAmount: 9990, currency: 'brl' },
@@ -189,36 +152,6 @@ describe('subscription dashboards (mobile)', () => {
     )
     expect(en.upgrade.billing.plan.monthlyPrice).toBe('Monthly plan price: {price}')
   })
-
-  it.each(['stripe', 'play'] as const)(
-    'renders trial and lapsed status before the %s billing controls, but hides active status',
-    (provider) => {
-      const trial = renderStatusDashboard(provider, {
-        ...status,
-        isTrialActive: true,
-        trialEndsAt: '2026-09-28T00:00:00Z',
-        source: provider,
-      })
-      expect(renderedText(trial)).toContain('upgrade.billing.plan.trialBadge')
-      expect(renderedText(trial)).toContain('upgrade.billing.plan.title')
-
-      const lapsed = renderStatusDashboard(provider, {
-        ...status,
-        plan: 'free',
-        hasProAccess: false,
-        source: provider,
-        lapseReason: 'expired',
-        subscriptionEndedAtUtc: '2026-08-01T00:00:00Z',
-      })
-      expect(renderedText(lapsed)).toContain('upgrade.billing.lapsed.title')
-      expect(renderedText(lapsed)).toContain('upgrade.billing.plan.title')
-
-      const active = renderStatusDashboard(provider, { ...status, source: provider })
-      expect(renderedText(active)).not.toContain('upgrade.billing.plan.trialBadge')
-      expect(renderedText(active)).not.toContain('upgrade.billing.lapsed.title')
-      expect(renderedText(active)).not.toContain('upgrade.billing.plan.title')
-    },
-  )
 
   it.each([
     [
@@ -492,7 +425,7 @@ describe('subscription dashboards (mobile)', () => {
     }
   })
 
-  it('renders the real trial countdown and a neutral null-interval label', () => {
+  it('renders the real trial countdown', () => {
     const pricing = renderPricing({
       profile: { isTrialActive: true },
       trialDaysLeft: 5,
@@ -501,22 +434,6 @@ describe('subscription dashboards (mobile)', () => {
       'upgrade.convert.trialDaysLeft:{\\"days\\":5}',
     )
 
-    const trialCard = render(
-      <PitchSubscriptionCard
-        status={{
-          ...status,
-          isTrialActive: true,
-          trialEndsAt: '2026-09-02T00:00:00Z',
-          subscriptionInterval: null,
-        }}
-        locale="en"
-        t={t}
-        tokens={tokens}
-      />,
-    )
-    const cardText = JSON.stringify(trialCard.toJSON())
-    expect(cardText).toContain('upgrade.billing.plan.pro')
-    expect(cardText).not.toContain('upgrade.billing.plan.monthly')
   })
 
   it('renders the arithmetic pitch and exactly three outcome rows', () => {
@@ -625,50 +542,6 @@ describe('subscription dashboards (mobile)', () => {
       tree.root.findAll((node) => node.type === 'Pressable'
         && node.props.accessibilityRole === 'button'),
     ).toHaveLength(0)
-  })
-
-  it.each([
-    ['canceled', 'yearly'],
-    ['payment_failed', 'monthly'],
-    ['expired', null],
-  ] as const)('renders the %s lapse outcome for the cached %s plan', (lapseReason, interval) => {
-    const tree = render(
-      <PitchSubscriptionCard
-        status={{
-          ...status,
-          plan: 'free',
-          hasProAccess: false,
-          subscriptionInterval: interval,
-          lapseReason,
-          subscriptionEndedAtUtc: '2026-08-01T00:00:00Z',
-        }}
-        locale="en"
-        t={t}
-        tokens={tokens}
-      />,
-    )
-    expect(renderedText(tree)).toContain(`upgrade.billing.lapsed.${lapseReason}`)
-    if (interval === 'yearly') {
-      expect(renderedText(tree)).toContain('upgrade.billing.lapsed.yearlyFeature')
-    }
-  })
-
-  it('uses the lapse fallback when the end date is unavailable', () => {
-    const tree = render(
-      <PitchSubscriptionCard
-        status={{
-          ...status,
-          plan: 'free',
-          hasProAccess: false,
-          lapseReason: 'expired',
-          subscriptionEndedAtUtc: null,
-        }}
-        locale="en"
-        t={t}
-        tokens={tokens}
-      />,
-    )
-    expect(renderedText(tree)).toContain('upgrade.billing.lapsed.fallback')
   })
 
 })

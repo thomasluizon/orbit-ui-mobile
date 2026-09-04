@@ -38,6 +38,7 @@ import { AppBar } from '@/components/ui/app-bar'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
+import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
@@ -230,40 +231,48 @@ export default function UpgradeScreen() {
   }
 
   const billingDashboard = model.content === 'play' ? (
-    <PlayBillingDashboard
-      status={status}
-      displayPrice={
-        status?.subscriptionInterval === 'yearly'
-          ? playBilling.yearlyOffer?.displayPrice
-          : playBilling.monthlyOffer?.displayPrice
-      }
-      locale={locale}
-      usagePercent={usagePercent}
-      usageProfile={usageProfile}
-      portalState={portalState}
-      isOnline={isOnline}
-      onManagePlay={handleManagePlay}
-      t={t}
-      tokens={tokens}
-    />
+    <>
+      <SubscriptionNotice status={status} locale={locale} t={t} tokens={tokens} />
+      <PlayBillingDashboard
+        status={status}
+        displayPrice={
+          status?.subscriptionInterval === 'yearly'
+            ? playBilling.yearlyOffer?.displayPrice
+            : playBilling.monthlyOffer?.displayPrice
+        }
+        locale={locale}
+        usagePercent={usagePercent}
+        usageProfile={usageProfile}
+        portalState={portalState}
+        isOnline={isOnline}
+        onManagePlay={handleManagePlay}
+        t={t}
+        tokens={tokens}
+      />
+    </>
   ) : (
-    <BillingDashboard
-      state={model.state}
-      data={billing}
-      isOnline={isOnline}
-      locale={locale}
-      usagePercent={usagePercent}
-      usageProfile={usageProfile}
-      status={status}
-      onPortal={() => void handlePortal()}
-      onRetryPortal={() => void handlePortal()}
-      t={t}
-      tokens={tokens}
-    />
+    <>
+      <SubscriptionNotice status={status} locale={locale} t={t} tokens={tokens} />
+      <BillingDashboard
+        state={model.state}
+        data={billing}
+        isOnline={isOnline}
+        locale={locale}
+        usagePercent={usagePercent}
+        usageProfile={usageProfile}
+        status={status}
+        onPortal={() => void handlePortal()}
+        onRetryPortal={() => void handlePortal()}
+        t={t}
+        tokens={tokens}
+      />
+    </>
   )
 
   const pitchContent = (
-    <PricingSection
+    <>
+      <SubscriptionNotice status={status} locale={locale} t={t} tokens={tokens} />
+      <PricingSection
         profile={status}
         plans={plans}
         isLoadingPlans={isLoadingPlans}
@@ -286,7 +295,8 @@ export default function UpgradeScreen() {
         onRetryPlans={() => { if (isOnline) refetchPlans().catch(() => {}) }}
         t={t}
         tokens={tokens}
-    />
+      />
+    </>
   )
 
   return (

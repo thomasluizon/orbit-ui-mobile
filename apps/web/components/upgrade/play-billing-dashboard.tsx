@@ -3,7 +3,6 @@ import type { SubscriptionScreenState } from '@orbit/shared/utils'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import { playManageSubscriptionUrl } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'
-import { PitchSubscriptionCard } from './pitch-subscription-card'
 import { UsageStats } from './usage-stats'
 import { cardLabelStyle, cardSurface, formatBillingDate } from './styles'
 
@@ -34,7 +33,6 @@ export function PlayBillingDashboard({
 
   return (
     <div className="flex flex-col gap-6">
-      <PitchSubscriptionCard status={status} locale={locale} t={t} />
       <section className="rounded-[var(--r-card)] p-6" style={cardSurface}>
         <p style={cardLabelStyle}>{t('upgrade.billing.plan.title')}</p>
         <h2 className="mt-2 text-xl font-medium text-[var(--fg-1)]">

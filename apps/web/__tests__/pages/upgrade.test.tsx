@@ -2,9 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useTranslations } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
-import type { SubscriptionStatus } from '@orbit/shared/types/profile'
-import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
-import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { UsageStats } from '@/components/upgrade/usage-stats'
 
 const mockOpenCustomerPortal = vi.hoisted(() => vi.fn())
@@ -149,56 +146,6 @@ import UpgradePage from '@/app/(app)/upgrade/page'
 function UsageStatsWithoutProfile() {
   const t = useTranslations()
   return <UsageStats usagePercent={0} usageUrgent={false} profile={null} t={t} />
-}
-
-const dashboardStatus: SubscriptionStatus = {
-  plan: 'pro',
-  hasProAccess: true,
-  isTrialActive: false,
-  trialEndsAt: null,
-  planExpiresAt: '2026-09-28T00:00:00Z',
-  aiMessagesUsed: 8,
-  aiMessagesLimit: 50,
-  isLifetimePro: false,
-  subscriptionInterval: 'yearly',
-  source: 'stripe',
-  lapseReason: null,
-  subscriptionEndedAtUtc: null,
-}
-
-function StatusDashboard({
-  provider,
-  status,
-}: Readonly<{
-  provider: 'stripe' | 'play'
-  status: SubscriptionStatus
-}>) {
-  const t = useTranslations()
-  if (provider === 'play') {
-    return (
-      <PlayBillingDashboard
-        state="play"
-        status={status}
-        locale="en"
-        usagePercent={16}
-        usageUrgent={false}
-        t={t}
-      />
-    )
-  }
-  return (
-    <BillingDashboard
-      state="stripe"
-      billing={null}
-      status={status}
-      locale="en"
-      usagePercent={16}
-      usageUrgent={false}
-      onOpenPortal={() => {}}
-      onRetryPortal={() => {}}
-      t={t}
-    />
-  )
 }
 
 describe('UpgradePage', () => {
@@ -348,51 +295,6 @@ describe('UpgradePage', () => {
     expect(screen.queryByText('upgrade.billing.plan.pro')).not.toBeInTheDocument()
     expect(screen.queryByText('upgrade.billing.plan.monthly')).not.toBeInTheDocument()
   })
-
-  it.each(['stripe', 'play'] as const)(
-    'renders trial and lapsed status before the %s billing controls, but hides active status',
-    (provider) => {
-      const { rerender } = render(
-        <StatusDashboard
-          provider={provider}
-          status={{
-            ...dashboardStatus,
-            isTrialActive: true,
-            trialEndsAt: '2026-09-28T00:00:00Z',
-            source: provider,
-          }}
-        />,
-      )
-      expect(screen.getByText('upgrade.billing.plan.trialBadge')).toBeInTheDocument()
-      expect(screen.getAllByText('upgrade.billing.plan.title')).toHaveLength(2)
-
-      rerender(
-        <StatusDashboard
-          provider={provider}
-          status={{
-            ...dashboardStatus,
-            plan: 'free',
-            hasProAccess: false,
-            source: provider,
-            lapseReason: 'expired',
-            subscriptionEndedAtUtc: '2026-08-01T00:00:00Z',
-          }}
-        />,
-      )
-      expect(screen.getByText('upgrade.billing.lapsed.title')).toBeInTheDocument()
-      expect(screen.getAllByText('upgrade.billing.plan.title')).toHaveLength(2)
-
-      rerender(
-        <StatusDashboard
-          provider={provider}
-          status={{ ...dashboardStatus, source: provider }}
-        />,
-      )
-      expect(screen.queryByText('upgrade.billing.plan.trialBadge')).not.toBeInTheDocument()
-      expect(screen.queryByText('upgrade.billing.lapsed.title')).not.toBeInTheDocument()
-      expect(screen.getAllByText('upgrade.billing.plan.title')).toHaveLength(1)
-    },
-  )
 
   it('shows billing loading state for Pro users', () => {
     mockHasProAccess = true
@@ -801,9 +703,29 @@ describe('UpgradePage', () => {
       subscriptionEndedAt: '2026-08-01T00:00:00Z',
     }
     render(<UpgradePage />)
-    expect(screen.queryByText('upgrade.billing.lapsed.title')).not.toBeInTheDocument()
-    expect(document.body.textContent).not.toContain(`upgrade.billing.lapsed.${lapseReason}`)
+    expect(screen.getByText('upgrade.billing.lapsed.title')).toBeInTheDocument()
+    expect(document.body.textContent).toContain(`upgrade.billing.lapsed.${lapseReason}`)
     expect(document.body.textContent).toContain('upgrade.convert.freeHeading')
+  })
+
+  it('keeps Pro access truthful after a failed payment', () => {
+    mockHasProAccess = true
+    mockProfile = {
+      ...mockProfile,
+      hasProAccess: true,
+      isTrialActive: false,
+      subscriptionSource: 'stripe',
+      lapseReason: 'payment_failed',
+      subscriptionEndedAt: '2026-08-01T00:00:00Z',
+    }
+    mockBilling = { status: 'past_due', cancelAtPeriodEnd: false }
+
+    render(<UpgradePage />)
+
+    expect(screen.getByText('upgrade.billing.paymentIssue.title')).toBeInTheDocument()
+    expect(screen.getByText('upgrade.billing.paymentIssue.body')).toBeInTheDocument()
+    expect(screen.queryByText('upgrade.billing.lapsed.title')).not.toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('upgrade.convert.freeHeading')
   })
 
   it.each([false, true])('keeps cached pitch content with paid actions disabled offline, trial=%s', (trialActive) => {
