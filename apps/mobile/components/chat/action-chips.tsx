@@ -21,9 +21,12 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
       title={t('chat.action.changes')}
       items={model.rows.map((row) => {
         const navigation = row.navigation
+        const entityName = row.entityName || (row.status === 'failed' ? undefined : t('chat.unknownEntity'))
         return {
           id: row.id,
-          label: row.labelKey ? t(row.labelKey, { name: row.entityName || t('chat.unknownEntity') }) : t('chat.action.completed'),
+          label: row.labelKey
+            ? entityName ? t(row.labelKey, { name: entityName }) : t(row.labelKey)
+            : t('chat.action.completed'),
           meta: row.status === 'failed' ? t('chat.operation.status.Failed') : undefined,
           status: row.status,
           control: navigation.navigable ? (
