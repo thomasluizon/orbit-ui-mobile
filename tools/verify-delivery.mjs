@@ -34,7 +34,7 @@ import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { PASSING_CONCLUSIONS, findRegisteredCheck, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, requiredChecksFromResponse } from "./lib/readiness-receipt.mjs"
+import { PASSING_CONCLUSIONS, findRegisteredCheck, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, registrationFingerprint, requiredChecksFromResponse } from "./lib/readiness-receipt.mjs"
 
 const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path> --branch <name> [options]
 
@@ -391,15 +391,11 @@ let registrationObservation = null
  * Workflow-derived counts would duplicate trigger/matrix logic and miss external checks; typical
  * base counts vary with paths and workflow changes. A local observation window avoids both guesses,
  * though it cannot prove that a producer will never register after the window has elapsed. */
-const registrationPending = (newestByCheck) => {
+const registrationPending = (newestByCheck, fingerprint) => {
   if (requiredChecks.length > 0 || newestByCheck.size === 0) {
     registrationObservation = null
     return null
   }
-  const fingerprint = JSON.stringify([
-    pullRequestState.headRefOid, pullRequestState.baseRefOid, pullRequestState.baseRefName,
-    [...newestByCheck].sort(([left], [right]) => left.localeCompare(right)),
-  ])
   const now = Date.now()
   if (registrationObservation?.fingerprint !== fingerprint) registrationObservation = { fingerprint, since: now }
   const observedSeconds = Math.floor((now - registrationObservation.since) / 1000)
@@ -419,9 +415,10 @@ const readRollup = () => {
    */
   // Never null here: readPullRequestState rejects any rollup entry that carries no check name.
   const newestByCheck = newestChecks(pullRequestState.statusCheckRollup)
+  const fingerprint = registrationFingerprint(pullRequestState, newestByCheck)
   const failing = []
   const pending = []
-  const registering = registrationPending(newestByCheck)
+  const registering = registrationPending(newestByCheck, fingerprint)
   if (registering) pending.push(registering)
   /** An empty rollup cannot become delivery evidence just by remaining empty (#429). */
   if (requiredChecks.length === 0 && newestByCheck.size === 0) {
@@ -453,7 +450,7 @@ const readRollup = () => {
     }
     if (!PASSING_CONCLUSIONS.has(node.conclusion)) failing.push(checkMetadata(name, node))
   }
-  return { total: newestByCheck.size, failing, pending }
+  return { total: newestByCheck.size, failing, pending, registrationFingerprint: fingerprint }
 }
 
 // The same synchronous wait list-bot-threads.mjs uses, so the two tools poll the same way.
@@ -478,6 +475,7 @@ checks.ci = {
   failing: rollup.failing,
   pending: rollup.pending,
   requiredChecks,
+  registrationFingerprint: rollup.registrationFingerprint,
   waitedSeconds: waitCiSeconds,
 }
 if (rollup.failing.length > 0) emit("CI_FAILING")

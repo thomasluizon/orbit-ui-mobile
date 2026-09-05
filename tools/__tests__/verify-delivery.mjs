@@ -423,8 +423,21 @@ if (process.argv[1]?.endsWith("verify-delivery.mjs")) {
     return { path: testedToolPath, env }
   }
   const observedCiArgv = [...ciArgv, "--wait-ci", "60"]
-  check(TOOL, "an unprotected base delivers after observing unchanged successful CI", observedCiArgv,
+  const observedDelivery = check(TOOL, "an unprotected base delivers after observing unchanged successful CI", observedCiArgv,
     { status: 0, stdout: /"verdict": "DELIVERED"[\s\S]*"requiredChecks": \[\]/ }, onUnprotectedBase([checkRun("Lint"), statusContext("Vercel", "SUCCESS")]))
+  const expectedFingerprint = JSON.stringify([pushed.head, "base-sha", "redesign/main", [
+    [JSON.stringify(["Lint", GITHUB_ACTIONS_APP]), {
+      __typename: "CheckRun", name: "Lint", status: "COMPLETED", conclusion: "SUCCESS",
+      startedAt: "2026-08-06T10:00:00Z", completedAt: "2026-08-06T10:00:00Z",
+      detailsUrl: null, workflowName: null, appId: GITHUB_ACTIONS_APP,
+    }],
+    [JSON.stringify(["Vercel", null]), {
+      __typename: "StatusContext", context: "Vercel", state: "SUCCESS",
+      createdAt: "2026-08-06T10:00:00Z", targetUrl: null, appId: null,
+    }],
+  ]])
+  T(`${TOOL}: delivery persists the exact normalized observation fingerprint for both check types`,
+    JSON.parse(observedDelivery.stdout).checks.ci.registrationFingerprint === expectedFingerprint, observedDelivery.stdout)
   check(TOOL, "an unprotected base with no checks is pending with an explicit reason", ciArgv,
     { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"pass": false[\s\S]*No checks reported; an empty required set is not evidence[\s\S]*"requiredChecks": \[\]/ }, onUnprotectedBase([]))
   check(TOOL, "an empty successful protection response also needs observed CI", ciArgv,
@@ -456,9 +469,12 @@ if (process.argv[1]?.endsWith("verify-delivery.mjs")) {
     { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*25 checks: 0 failing, 1 pending[\s\S]*unchanged for 30s; requires 60s/ },
     onUnprotectedBase(registrationRace[0], undefined, shortRace))
   T(`${TOOL}: the partial rollup forced two additional GitHub observations`, readFileSync(shortRace.sequenceFile, "utf8") === "3")
-  check(TOOL, "one-to-25 registration eventually delivers once the complete rollup stabilizes", [...ciArgv, "--wait-ci", "90"],
+  const settledDelivery = check(TOOL, "one-to-25 registration eventually delivers once the complete rollup stabilizes", [...ciArgv, "--wait-ci", "90"],
     { status: 0, stdout: /"verdict": "DELIVERED"[\s\S]*25 checks: 0 failing, 0 pending/ },
     onUnprotectedBase(registrationRace[0], undefined, sequenceOptions("settled-registration", registrationRace)))
+  const settledFingerprint = JSON.parse(JSON.parse(settledDelivery.stdout).checks.ci.registrationFingerprint)
+  T(`${TOOL}: the persisted fingerprint names the final observed rollup rather than its early subset`,
+    settledFingerprint[3].length === 25 && settledFingerprint[3].some(([key]) => key === JSON.stringify(["Vercel", null])), settledDelivery.stdout)
   check(TOOL, "rollup ordering alone does not restart observation", observedCiArgv,
     { status: 0, stdout: /"verdict": "DELIVERED"/ },
     onUnprotectedBase(completeRollup, undefined, sequenceOptions("reordered", [completeRollup, [...completeRollup].reverse(), completeRollup])))

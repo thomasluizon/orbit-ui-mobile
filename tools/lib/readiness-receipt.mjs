@@ -208,6 +208,13 @@ export const newestChecks = (rollup) => {
   return newest
 }
 
+/** Delivery observation and final aggregation bind the same normalized latest-check evidence
+ * (#429). Sorting ignores API ordering while retaining rerun, producer, and PR identity changes. */
+export const registrationFingerprint = (state, newestByCheck) => JSON.stringify([
+  state.headRefOid, state.baseRefOid, state.baseRefName,
+  [...newestByCheck].sort(([left], [right]) => left.localeCompare(right)),
+])
+
 /**
  * A required check is registered only when an observed entry carries BOTH its context and its
  * pinned producer, because that is the pairing GitHub itself enforces at the merge. A protection

@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
+import { newestChecks, pullRequestStateFromGraphQl, registrationFingerprint } from "../lib/readiness-receipt.mjs"
 import { T, check, orcaEnv, realOrchestratorConfig, stage, stageRepo, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "record-readiness.mjs"
@@ -82,6 +83,17 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
    * exists to pass here.
    */
   const approval = checkRun("pullfrog-approval", PULLFROG_APP, { startedAt: "2026-08-07T10:30:00Z", workflow: null })
+  const writeDelivery = (baseRefName = "main", nodes = [greenCheck, approval]) => {
+    const evidence = JSON.parse(readFileSync(delivery, "utf8"))
+    const observed = pullRequestStateFromGraphQl({ data: { repository: { pullRequest: {
+      number: 700, baseRefName, baseRefOid: BASE, headRefOid: HEAD, isDraft: false,
+      statusCheckRollup: { contexts: { nodes } },
+    } } } })
+    evidence.checks.pullRequestState.baseBranch = baseRefName
+    evidence.checks.ci.registrationFingerprint = registrationFingerprint(observed, newestChecks(observed.statusCheckRollup))
+    writeFileSync(delivery, JSON.stringify(evidence))
+  }
+  writeDelivery()
   const live = (headRefOid = HEAD, baseRefOid = BASE, behindBy = 0, ticketStatus = "In Review", options = {}) => ({
     ...orcaEnv([
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
@@ -131,8 +143,10 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
       status: "404",
     }),
   }
-  const unprotectedCase = (name, options, expected = { status: 1, stdout: /CI_STALE/ }, head = HEAD) =>
-    check(TOOL, name, argv, expected, { path: staged.path, env: live(head, BASE, 0, "In Review", { ...unprotected, ...options }) })
+  const unprotectedCase = (name, options, expected = { status: 1, stdout: /CI_STALE/ }, head = HEAD, observedRollup = options.statusCheckRollup ?? [greenCheck, approval]) => {
+    writeDelivery("redesign/main", observedRollup)
+    return check(TOOL, name, argv, expected, { path: staged.path, env: live(head, BASE, 0, "In Review", { ...unprotected, ...options }) })
+  }
   unprotectedCase("confirmed 404 completes and persists READY with passing CI and independent review", {}, { status: 0, stdout: /"verdict": "READY"/ })
   const unprotectedReceipt = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-pr-readiness", "ui-700.json"), "utf8"))
   T(`${TOOL}: confirmed 404 persists the unprotected base and current passing evidence`,
@@ -148,6 +162,26 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   unprotectedCase("unprotected pending CI cannot reach READY despite passing review", { statusCheckRollup: [{ ...greenCheck, status: "IN_PROGRESS", conclusion: null }, approval] })
   unprotectedCase("unprotected newest failed review rerun cannot reach READY", { statusCheckRollup: [greenCheck, approval, { ...approval, conclusion: "FAILURE", startedAt: "2026-08-07T11:00:00Z" }] })
   unprotectedCase("unprotected live head advance invalidates delivery evidence", {}, { status: 1, stdout: /CI_STALE/ }, "cccccccccccccccccccccccccccccccccccccccc")
+  for (const [name, nodes] of [
+    ["new green check", [greenCheck, approval, checkRun("Build", GITHUB_ACTIONS_APP)]],
+    ["green rerun", [greenCheck, approval, { ...greenCheck, startedAt: "2026-08-07T11:00:00Z" }]],
+    ["removed green check", [approval]],
+  ]) {
+    unprotectedCase(`same-head ${name} invalidates delivery observation`, { statusCheckRollup: nodes },
+      { status: 1, stdout: /"verdict": "CI_STALE"/ }, HEAD, [greenCheck, approval])
+    const staleReceipt = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-pr-readiness", "ui-700.json"), "utf8"))
+    T(`${TOOL}: ${name} persists blocking CI evidence`, staleReceipt.ci.green === false && staleReceipt.ci.settled === false, JSON.stringify(staleReceipt))
+  }
+  unprotectedCase("reordered matching evidence remains READY", { statusCheckRollup: [approval, greenCheck] },
+    { status: 0, stdout: /"verdict": "READY"/ }, HEAD, [greenCheck, approval])
+  unprotectedCase("superseded old runs do not invalidate matching latest evidence", {
+    statusCheckRollup: [{ ...greenCheck, conclusion: "FAILURE", startedAt: "2026-08-07T09:00:00Z" }, greenCheck, approval],
+  }, { status: 0, stdout: /"verdict": "READY"/ }, HEAD, [greenCheck, approval])
+  const legacyDelivery = JSON.parse(readFileSync(delivery, "utf8"))
+  delete legacyDelivery.checks.ci.registrationFingerprint
+  writeFileSync(delivery, JSON.stringify(legacyDelivery))
+  check(TOOL, "delivery without a registration fingerprint needs re-verification", argv,
+    { status: 1, stdout: /"verdict": "CI_STALE"/ }, { path: staged.path, env: live(HEAD, BASE, 0, "In Review", unprotected) })
   for (const [name, protectionResponse] of [
     ["malformed JSON", "not JSON"],
     ["unconfirmed error prose", JSON.stringify({ message: "Branch not protected" })],
@@ -157,6 +191,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     unprotectedCase(`${name} remains an environment error`, { protectionResponse }, { status: 2 })
   }
   unprotectedCase("successful malformed protection cannot masquerade as confirmed 404", { protectionExit: 0 }, { status: 2, stderr: /returned no \{ context, app_id \} checks array/ })
+  writeDelivery()
 
   /**
    * The review gate, end to end. Branch protection requires `pullfrog-approval`, and a pull request
@@ -184,6 +219,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     { path: staged.path, env: live(HEAD, BASE, 0, "In Review", { statusCheckRollup: [greenCheck, checkRun("pullfrog-approval", GITHUB_ACTIONS_APP, { startedAt: "2026-08-07T10:30:00Z" })] }) },
   )
   /** The same rollup clears once protection accepts any producer for that context. */
+  writeDelivery("main", [greenCheck, checkRun("pullfrog-approval", GITHUB_ACTIONS_APP, { startedAt: "2026-08-07T10:30:00Z" })])
   check(
     TOOL,
     "a required check with a null app id is satisfied by any producer",
@@ -195,6 +231,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     }) },
   )
   /** `contexts` alone cannot decide, so a protection payload without `checks` fails closed. */
+  writeDelivery()
   check(
     TOOL,
     "a protection payload carrying no checks array fails closed rather than ignoring the producer",

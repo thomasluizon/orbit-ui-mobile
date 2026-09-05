@@ -29,7 +29,7 @@ import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-a
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { pullRequestStateArgv, pullRequestStateFromGraphQl, readinessCiIsGreen, readinessReport, requiredChecksFromResponse, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
+import { newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, readinessCiIsGreen, readinessReport, registrationFingerprint, requiredChecksFromResponse, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
 
 const USAGE = `usage: record-readiness.mjs --repo <ui|api|landing> --pr <number> --delivery <file> --ticket <file>
 
@@ -37,7 +37,8 @@ Reads harness-produced artifacts, persists one SHA-bound receipt under the repos
 and prints READY or every stale/blocking verdict. It never trusts a caller-authored status flag.
 
 An unprotected base has no required checks. READY still needs current-head delivery evidence,
-a nonempty passing live rollup, and pullfrog-approval from the Pullfrog app.
+a nonempty passing live rollup matching delivery's registration fingerprint,
+and pullfrog-approval from the Pullfrog app. Changed or missing fingerprints are CI_STALE.
 
 exit codes: 0 READY, 1 not ready, 2 usage or artifact error`
 
@@ -140,7 +141,8 @@ try {
    * (#429). The Pullfrog context/app pair was reconfirmed against main protection on 2026-09-05.
    * Delivery owns registration observation; this single live snapshot revalidates its evidence. */
   const reviewChecks = requiredChecks.length === 0 ? [{ context: "pullfrog-approval", appId: 1768019 }] : requiredChecks
-  liveCiGreen = live.statusCheckRollup.length > 0 && readinessCiIsGreen(live.statusCheckRollup, reviewChecks)
+  const matchesDelivery = ci.registrationFingerprint === registrationFingerprint(live, newestChecks(live.statusCheckRollup))
+  liveCiGreen = matchesDelivery && live.statusCheckRollup.length > 0 && readinessCiIsGreen(live.statusCheckRollup, reviewChecks)
 
   const comparison = await runBounded(
     process.env.GH_BIN || "gh",
