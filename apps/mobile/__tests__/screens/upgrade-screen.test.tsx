@@ -266,6 +266,7 @@ describe('UpgradeScreen', () => {
       const tree = await renderScreen()
       expect(tree.root.findAll((node) =>
         node.type === 'Text'
+          && node.props.accessibilityRole === 'header'
           && node.props.children === 'upgrade.billing.lapsed.title')).toHaveLength(1)
       expect(tree.root.findAll((node) =>
         node.type === 'Text'
@@ -284,6 +285,7 @@ describe('UpgradeScreen', () => {
 
     expect(tree.root.findAll((node) =>
       node.type === 'Text'
+        && node.props.accessibilityRole === 'header'
         && node.props.children === 'upgrade.billing.paymentIssue.title')).toHaveLength(1)
     expect(tree.root.findAll((node) =>
       node.type === 'Text'

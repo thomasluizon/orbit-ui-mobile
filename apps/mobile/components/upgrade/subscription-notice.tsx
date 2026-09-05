@@ -21,7 +21,7 @@ export function SubscriptionNotice({
     if (status.lapseReason !== 'payment_failed') return null
     return (
       <View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
-        <Text style={[styles.noticeTitle, { color: tokens.fg1 }]}>
+        <Text accessibilityRole="header" style={[styles.noticeTitle, { color: tokens.fg1 }]}>
           {t('upgrade.billing.paymentIssue.title')}
         </Text>
         <Text style={[styles.noticeBody, { color: tokens.fg3 }]}>
@@ -37,7 +37,7 @@ export function SubscriptionNotice({
 
   return (
     <View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
-      <Text style={[styles.noticeTitle, { color: tokens.fg1 }]}>
+      <Text accessibilityRole="header" style={[styles.noticeTitle, { color: tokens.fg1 }]}>
         {t('upgrade.billing.lapsed.title')}
       </Text>
       <Text style={[styles.noticeBody, { color: tokens.fg3 }]}>
