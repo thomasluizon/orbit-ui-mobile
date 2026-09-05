@@ -25,7 +25,6 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t, tokens }:
         <Text style={[styles.billingBody, { color: tokens.fg2 }]}>{t('upgrade.billing.lapsed.body')}</Text>
         <View style={{ gap: 4 }}>
           <Text style={[styles.billingSecondary, { color: tokens.fg3 }]}>{t('upgrade.billing.lapsed.features')}</Text>
-          {status.subscriptionInterval === 'yearly' ? <Text style={[styles.billingSecondary, { color: tokens.fg3 }]}>{t('upgrade.billing.lapsed.yearlyFeature')}</Text> : null}
         </View>
         {onResubscribe ? <View style={{ alignItems: 'flex-start', paddingTop: 8 }}><PillButton variant="primary" onClick={onResubscribe}>{t('upgrade.billing.lapsed.action')}</PillButton></View> : null}
       </View>

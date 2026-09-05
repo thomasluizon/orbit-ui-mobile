@@ -24,7 +24,6 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t }: Readonl
         <p className="t-body text-[var(--fg-2)]">{t('upgrade.billing.lapsed.body')}</p>
         <div className="flex flex-col gap-1 text-sm leading-[1.55] text-[var(--fg-3)]">
           <p>{t('upgrade.billing.lapsed.features')}</p>
-          {status.subscriptionInterval === 'yearly' ? <p>{t('upgrade.billing.lapsed.yearlyFeature')}</p> : null}
         </div>
         {onResubscribe ? <div className="flex pt-2"><PillButton variant="primary" onClick={onResubscribe}>{t('upgrade.billing.lapsed.action')}</PillButton></div> : null}
       </section>

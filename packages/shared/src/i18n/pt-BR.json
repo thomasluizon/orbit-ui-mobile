@@ -2192,7 +2192,6 @@
         "expired": "Sua assinatura expirou em {date}.",
         "fallback": "Sua assinatura terminou.",
         "features": "O limite diário maior da Astra e a sincronização do calendário não estão mais ativos.",
-        "yearlyFeature": "A retrospectiva anual não está mais ativa.",
         "action": "Assinar de novo",
         "ended": "A sua assinatura terminou em {date}.",
         "body": "A conta voltou para o plano grátis. Os seus hábitos, registros e metas continuam aqui, sem mudança."

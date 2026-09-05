@@ -2,6 +2,7 @@ import type { useTranslations } from 'next-intl'
 import type { SubscriptionScreenState } from '@orbit/shared/utils'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import { subscriptionSummary } from '@orbit/shared/utils'
+import { Badge } from '@/components/ui/badge'
 import { ProviderHandoff } from './provider-handoff'
 import { UsageStats } from './usage-stats'
 import { cardSurface, formatBillingDate } from './styles'
@@ -31,7 +32,10 @@ export function PlayBillingDashboard({
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3 rounded-[var(--r-card)] p-6" style={cardSurface}>
-        <h1 className="font-display text-[22px] font-medium leading-[1.4] tracking-[-0.02em] text-[var(--fg-1)]">{t(summary.nameKey)}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="min-w-max flex-1 font-display text-[22px] font-medium leading-[1.4] tracking-[-0.02em] text-[var(--fg-1)]">{t(summary.nameKey)}</h1>
+          {summary.badgeKey ? <Badge>{t(summary.badgeKey)}</Badge> : null}
+        </div>
         <p className="t-body text-pretty text-[var(--fg-2)]">{t(summary.bodyKey, { limit: status.aiMessagesLimit })}</p>
         {summary.renewal ? <p className="font-mono text-xs text-[var(--fg-2)]">{t(summary.renewalKey, { date: formatBillingDate(summary.renewal, locale) })}</p> : null}
       </section>

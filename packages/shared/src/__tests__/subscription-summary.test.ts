@@ -46,6 +46,20 @@ describe('subscriptionSummary', () => {
     })
   })
 
+  it('describes when entitled Play access ends without Stripe billing details', () => {
+    expect(subscriptionSummary({ ...status, source: 'play', lapseReason: 'canceled' }, null)).toMatchObject({
+      bodyKey: 'upgrade.billing.plan.canceledBody', badgeKey: 'upgrade.billing.plan.canceledBadge',
+      renewal: status.planExpiresAt, renewalKey: 'upgrade.billing.plan.canceledHint',
+    })
+  })
+
+  it('keeps a Play payment retry on the renewal path', () => {
+    expect(subscriptionSummary({ ...status, source: 'play', lapseReason: 'payment_failed' }, null)).toMatchObject({
+      bodyKey: 'upgrade.billing.plan.proBody', badgeKey: null,
+      renewal: status.planExpiresAt, renewalKey: 'upgrade.billing.plan.renewsOn',
+    })
+  })
+
   it('keeps lifetime access permanent despite retained cancellation and payment details', () => {
     expect(subscriptionSummary({ ...status, isLifetimePro: true }, { ...billing, cancelAtPeriodEnd: true, status: 'past_due' })).toEqual({
       nameKey: 'upgrade.billing.plan.lifetime', bodyKey: 'upgrade.billing.plan.lifetimeHint',

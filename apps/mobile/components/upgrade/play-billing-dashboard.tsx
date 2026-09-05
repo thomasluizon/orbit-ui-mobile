@@ -1,6 +1,8 @@
 import { Text, View } from 'react-native'
+import { subscriptionSummary } from '@orbit/shared/utils'
 import type { SubscriptionPortalState } from '@orbit/shared/utils'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
+import { Badge } from '@/components/ui/badge'
 import { ProviderHandoff } from './provider-handoff'
 import { PlanSummaryCard } from './plan-summary-card'
 import { UsageCard } from './usage-card'
@@ -39,6 +41,7 @@ export function PlayBillingDashboard({
   tokens: Tokens
 }>) {
   if (!status) return null
+  const summary = subscriptionSummary(status, null)
   const interval = status.subscriptionInterval
   const priceLine = displayPrice
     ? interval === 'yearly'
@@ -51,19 +54,14 @@ export function PlayBillingDashboard({
   return (
     <View style={styles.billingStack}>
       <PlanSummaryCard
-        planLabel={
-          interval === 'yearly'
-            ? t('upgrade.billing.plan.yearly')
-            : interval === 'monthly'
-              ? t('upgrade.billing.plan.monthly')
-              : t('upgrade.billing.plan.pro')
-        }
-        body={t('upgrade.billing.plan.proBody', { limit: status.aiMessagesLimit })}
+        planLabel={t(summary.nameKey)}
+        body={t(summary.bodyKey, { limit: status.aiMessagesLimit })}
+        badges={summary.badgeKey ? <Badge>{t(summary.badgeKey)}</Badge> : null}
         facts={[
           priceLine,
-          status.planExpiresAt
-            ? t('upgrade.billing.plan.renewsOn', {
-                date: formatBillingDate(status.planExpiresAt, locale),
+          summary.renewal
+            ? t(summary.renewalKey, {
+                date: formatBillingDate(summary.renewal, locale),
               })
             : null,
         ]}

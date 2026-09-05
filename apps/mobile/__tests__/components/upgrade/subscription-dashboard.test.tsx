@@ -398,6 +398,23 @@ describe('subscription dashboards (mobile)', () => {
     )
   })
 
+  it('labels entitled Play cancellation as access ending and keeps its price and handoff', () => {
+    const tree = render(<PlayBillingDashboard
+      status={{ ...status, source: 'play', lapseReason: 'canceled' }} displayPrice="R$ 99,90"
+      locale="en" usagePercent={16} usageProfile={status} portalState="idle" isOnline
+      onManagePlay={() => {}} t={t} tokens={tokens} />)
+    const summary = tree.root.findByType('PlanSummaryCard')
+    expect(summary.props.body).toBe('upgrade.billing.plan.canceledBody:{"limit":50}')
+    expect(summary.props.facts).toContain('upgrade.billing.plan.yearlyPrice:{"price":"R$ 99,90"}')
+    expect((summary.props.facts as string[]).join(' ')).toContain('upgrade.billing.plan.canceledHint:')
+    const accessEnd = new Date(status.planExpiresAt!).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })
+    expect(summary.props.facts).toContain(`upgrade.billing.plan.canceledHint:${JSON.stringify({ date: accessEnd })}`)
+    expect((summary.props.facts as string[]).join(' ')).not.toContain('upgrade.billing.plan.renewsOn')
+    expect(renderedText(tree)).toContain('upgrade.billing.plan.canceledBadge')
+    expect(renderedText(tree)).toContain('upgrade.billing.actions.managePlay')
+    expect(tree.root.findByType('UsageCard').props.profile).toEqual(status)
+  })
+
   it.each([
     ['monthly', 'R$ 12,90', 'upgrade.billing.plan.monthly', 'upgrade.billing.plan.monthlyPrice'],
     [null, 'R$ 12,90', 'upgrade.billing.plan.pro', ''],

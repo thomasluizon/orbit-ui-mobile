@@ -18,7 +18,7 @@ function planName(interval: string | null, lifetime: boolean): string {
 
 export function subscriptionSummary(status: SubscriptionStatus, billing: BillingDetails | null): SubscriptionSummary {
   const lifetime = status.isLifetimePro
-  const canceled = !lifetime && Boolean(billing?.cancelAtPeriodEnd)
+  const canceled = !lifetime && (status.lapseReason === 'canceled' || Boolean(billing?.cancelAtPeriodEnd))
   const pastDue = !lifetime && billing?.status === 'past_due'
   let bodyKey = 'upgrade.billing.plan.proBody'
   let badgeKey: string | null = null

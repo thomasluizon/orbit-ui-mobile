@@ -261,6 +261,9 @@ describe('UpgradeScreen', () => {
   it.each(['canceled', 'payment_failed', 'expired'] as const)(
     'renders the %s lapse status in the routed pitch',
     async (lapseReason) => {
+      mocks.profile = createMockProfile({
+        isTrialActive: false, subscriptionInterval: null, subscriptionSource: null, planExpiresAt: null,
+      })
       mocks.lapseReason = lapseReason
       mocks.subscriptionEndedAtUtc = '2026-08-01T00:00:00Z'
       const tree = await renderScreen()
@@ -272,6 +275,7 @@ describe('UpgradeScreen', () => {
         node.type === 'Text'
           && node.props.children === `upgrade.billing.lapsed.${lapseReason}`)).toHaveLength(0)
       expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'upgrade.billing.lapsed.ended')).toHaveLength(1)
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'upgrade.billing.lapsed.features')).toHaveLength(1)
       expect(tree.root.findAll((node) => node.type === 'PricingSection')).toHaveLength(0)
       const action = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'button-primary-md')[0]!
       TestRenderer.act(() => { (action.props.onPress as () => void)() })

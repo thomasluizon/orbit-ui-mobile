@@ -2192,7 +2192,6 @@
         "expired": "Your subscription expired on {date}.",
         "fallback": "Your subscription has ended.",
         "features": "Astra's higher daily limit and calendar sync are no longer active.",
-        "yearlyFeature": "Yearly retrospective access is no longer active.",
         "action": "Subscribe again",
         "ended": "Your subscription ended on {date}.",
         "body": "The account went back to the free plan. Your habits, logs and goals are all still here, unchanged."

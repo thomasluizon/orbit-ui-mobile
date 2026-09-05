@@ -62,6 +62,16 @@ async function renderedLineCounts(page: Page, label: string): Promise<number[]> 
   )
 }
 
+async function assertSubscriptionOutcome(main: Locator, state: string, messages: typeof en): Promise<void> {
+  if (state === 'playCanceled') {
+    await expect(main.getByText(messages.upgrade.billing.plan.canceledBadge, { exact: true })).toBeVisible()
+    await expect(main.getByText(messages.upgrade.billing.plan.canceledBody, { exact: true })).toBeVisible()
+  }
+  if (state === 'lapsed') {
+    await expect(main.getByText(messages.upgrade.billing.lapsed.features, { exact: true })).toBeVisible()
+  }
+}
+
 for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
   for (const subscriptionState of ['free', 'trial'] as const) {
     for (const width of [412, 640] as const) {
@@ -103,7 +113,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
     }
   }
 
-  for (const subscriptionState of ['stripe', 'play', 'lifetime', 'canceled', 'pastDue', 'lapsed', 'loading', 'loadFailed', 'offline', 'portalOpening', 'portalFailed'] as const) {
+  for (const subscriptionState of ['stripe', 'play', 'playCanceled', 'lifetime', 'canceled', 'pastDue', 'lapsed', 'loading', 'loadFailed', 'offline', 'portalOpening', 'portalFailed'] as const) {
     for (const width of [320, 412, 640] as const) {
       test.describe(`${locale} ${subscriptionState} at ${width}px`, () => {
         test.use({ appLocale: locale, subscriptionState, viewport: { width, height: 1400 } })
@@ -117,6 +127,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
             await expect(main.getByText(messages.upgrade.billing.error, { exact: true })).toBeVisible({ timeout: 15000 })
           } else {
             await expect(main.getByText(messages.upgrade.billing.usage.title, { exact: true })).toBeVisible()
+            await assertSubscriptionOutcome(main, subscriptionState, messages)
             await page.evaluate(() => document.fonts.ready)
             if (subscriptionState === 'offline') {
               await page.context().setOffline(true)
