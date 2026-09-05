@@ -44,7 +44,7 @@ const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path>
   --repo <key>        repository key from .claude/orchestrator.json (required); GitHub is
                       queried with that repository's owner-scoped token
   --base <ref>        base the commit count is taken against (default: main)
-  --wait-ci <s>       seconds to wait for still-running checks to settle before
+  --wait-ci <s>       seconds to observe registering or still-running checks before
                       reporting CI_PENDING (default: 0, report immediately)
   --command-timeout-seconds <s>
                       hard bound for each Git/GitHub child (default: 45)
@@ -55,8 +55,9 @@ report. Checks run in order and the first failure decides the verdict:
 NO_COMMIT, DIRTY_TREE, UNPUSHED, NO_PR, STALE_PR, DRAFT, OUT_OF_DATE,
 CI_FAILING, CI_PENDING, or DELIVERED.
 
-An unprotected base has no required checks. Delivery still needs at least one
-reported check, and every latest check must pass the shared readiness rule
+An unprotected base has no required checks. Delivery needs a nonempty rollup
+observed unchanged for at least 60 seconds in this invocation (use --wait-ci),
+and every latest check must pass the shared readiness rule
 (SUCCESS, NEUTRAL, or SKIPPED for completed CheckRuns; SUCCESS for statuses).
 No reported checks means CI_PENDING, never delivery evidence.
 
@@ -364,9 +365,9 @@ let requiredChecks = await readRequiredChecks(pullRequestState)
  * `state` alone and no status. Reading only one shape silently ignores every check of the other
  * kind. lib/readiness-receipt.mjs normalises both into one node shape carrying the producing app.
  *
- * The three buckets below are the exact complement of the pass rule readinessCiIsGreen applies,
- * and the matching of a required check is the library's own, so this reading of CI and the
- * receipt's reading cannot disagree. They were burned once by disagreeing.
+ * Per-check classification uses the exact complement of readinessCiIsGreen's pass rule, and
+ * required-check matching is the library's own. Delivery additionally observes registration when
+ * there is no required inventory; it does not change the shared rule for any reported check.
  */
 const FAILING_STATES = new Set(["FAILURE", "ERROR"])
 const PENDING_STATES = new Set(["PENDING", "EXPECTED"])
@@ -387,6 +388,34 @@ const checkMetadata = (name, node) => {
   }
 }
 
+const REGISTRATION_WINDOW_MS = 60_000
+let registrationObservation = null
+
+/** Without an expected inventory, a fast green check cannot prove registration finished (#429).
+ * Require unchanged evidence across two 30-second poll intervals, even when nothing is running.
+ * Reset on any latest-check or base/head change; old completion timestamps are not observations.
+ * Workflow-derived counts would duplicate trigger/matrix logic and miss external checks; typical
+ * base counts vary with paths and workflow changes. A local observation window avoids both guesses,
+ * though it cannot prove that a producer will never register after the window has elapsed. */
+const registrationPending = (newestByCheck) => {
+  if (requiredChecks.length > 0 || newestByCheck.size === 0) {
+    registrationObservation = null
+    return null
+  }
+  const fingerprint = JSON.stringify([
+    pullRequestState.headRefOid, pullRequestState.baseRefOid, pullRequestState.baseRefName,
+    [...newestByCheck].sort(([left], [right]) => left.localeCompare(right)),
+  ])
+  const now = Date.now()
+  if (registrationObservation?.fingerprint !== fingerprint) registrationObservation = { fingerprint, since: now }
+  const observedSeconds = Math.floor((now - registrationObservation.since) / 1000)
+  if (now - registrationObservation.since >= REGISTRATION_WINDOW_MS) return null
+  return {
+    ...checkMetadata("Check registration", { status: "OBSERVING", conclusion: null }),
+    reason: `Unprotected check rollup has been unchanged for ${observedSeconds}s; requires 60s of observation because successful checks may precede later registrations`,
+  }
+}
+
 const readRollup = () => {
   /**
    * A re-run does NOT replace the old entry: the rollup carries BOTH, so a re-run of a red check
@@ -398,9 +427,9 @@ const readRollup = () => {
   const newestByCheck = newestChecks(pullRequestState.statusCheckRollup)
   const failing = []
   const pending = []
-  /** With no protection, only observed CI can establish delivery (#429). An empty set of
-   * required checks supplies no evidence by itself, so wait for at least one reported check.
-   * Keep the shared readiness library's newest-rerun and passing-conclusion rules below. */
+  const registering = registrationPending(newestByCheck)
+  if (registering) pending.push(registering)
+  /** An empty rollup cannot become delivery evidence just by remaining empty (#429). */
   if (requiredChecks.length === 0 && newestByCheck.size === 0) {
     pending.push({
       ...checkMetadata("Reported checks", { status: "NOT_REGISTERED", conclusion: null }),

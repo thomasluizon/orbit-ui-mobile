@@ -88,7 +88,7 @@ const prState = (nodes, headRefOid, isDraft = false) => ({
 
 const boardReadMarker = stage("verify-delivery/board-read", "must remain")
 
-const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null, { baseRefName = "main", protectionResponse, protectionExit = 0 } = {}) => {
+const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null, { baseRefName = "main", protectionResponse, protectionExit = 0, states, sequenceFile } = {}) => {
   let headRefOid = "fixture-head"
   try {
     headRefOid = JSON.parse(stdout)?.[0]?.headRefOid ?? headRefOid
@@ -107,7 +107,7 @@ const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { beh
     { match: "project item-list 2 --owner thomasluizon", stdout: JSON.stringify({ items: [], totalCount: 0 }), removePath: boardReadMarker },
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: `pr list --head ${BRANCH}`, stdout, exit },
-    { match: "api graphql", stdout: JSON.stringify(state) },
+    { match: "api graphql", stdout: JSON.stringify(state), stdoutSequence: states?.map((entry) => JSON.stringify(entry)), sequenceFile },
     { match: `branches/${encodeURIComponent(baseRefName)}/protection/required_status_checks`, stdout: protectionResponse ?? JSON.stringify({ contexts: required.map((entry) => entry.context), checks: required }), exit: protectionExit },
     { match: "api repos/", stdout: JSON.stringify(comparison) },
   ])
@@ -406,29 +406,89 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     documentation_url: "https://docs.github.com/rest/branches/branch-protection#get-status-checks-protection",
     status: "404",
   }
-  const onUnprotectedBase = (nodes, protectionResponse = JSON.stringify(unprotectedResponse)) => ({
-    path: testedToolPath,
-    env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, nodes, { behind_by: 0 }, [], {
-      baseRefName: "redesign/main", protectionResponse, protectionExit: 1,
-    }),
-  })
-  check(TOOL, "an unprotected base delivers with an empty required set and successful reported CI", ciArgv,
+  /** Advance only the verifier's clock at its real polling sleep; no production timing bypass.
+   * Git/GitHub fixtures and the complete CLI verdict/receipt path still execute on every poll. */
+  const observationClock = stage("verify-delivery/observation-clock.cjs", `
+if (process.argv[1]?.endsWith("verify-delivery.mjs")) {
+  let now = 0
+  Date.now = () => now
+  Atomics.wait = (_buffer, _index, _value, milliseconds) => { now += milliseconds; return "timed-out" }
+}
+`)
+  const onUnprotectedBase = (nodes, protectionResponse = JSON.stringify(unprotectedResponse), sequence = {}) => {
+    const env = ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, nodes, { behind_by: 0 }, [], {
+      baseRefName: "redesign/main", protectionResponse, protectionExit: 1, ...sequence,
+    })
+    env.NODE_OPTIONS += ` --require "${observationClock.replaceAll("\\", "/")}"`
+    return { path: testedToolPath, env }
+  }
+  const observedCiArgv = [...ciArgv, "--wait-ci", "60"]
+  check(TOOL, "an unprotected base delivers after observing unchanged successful CI", observedCiArgv,
     { status: 0, stdout: /"verdict": "DELIVERED"[\s\S]*"requiredChecks": \[\]/ }, onUnprotectedBase([checkRun("Lint"), statusContext("Vercel", "SUCCESS")]))
   check(TOOL, "an unprotected base with no checks is pending with an explicit reason", ciArgv,
     { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"pass": false[\s\S]*No checks reported; an empty required set is not evidence[\s\S]*"requiredChecks": \[\]/ }, onUnprotectedBase([]))
   check(TOOL, "an empty successful protection response also needs observed CI", ciArgv,
     { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*No checks reported/ }, withChecks([]))
+  check(TOOL, "one fast successful check is pending with its registration reason in the receipt", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*1 checks: 0 failing, 1 pending[\s\S]*"status": "OBSERVING"[\s\S]*unchanged for 0s; requires 60s/ }, onUnprotectedBase([checkRun("Lint")]))
+  check(TOOL, "a fast successful check enters the wait loop despite having no running checks", [...ciArgv, "--wait-ci", "30"],
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*unchanged for 30s; requires 60s/ }, onUnprotectedBase([checkRun("Lint")]))
+  check(TOOL, "an empty rollup remains pending even after the observation window", observedCiArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*No checks reported/ }, onUnprotectedBase([]))
+
+  /** Same 25-check cardinality and mixed CheckRun/StatusContext shape as the live #821 proof in
+   * PR #822; synthetic names and timings exercise registration without depending on live CI. */
+  const completeRollup = [...Array.from({ length: 24 }, (_, index) => checkRun(`Gate ${index + 1}`)), statusContext("Vercel", "SUCCESS")]
+  check(TOOL, "a complete 25-check unprotected rollup delivers after the observation window", observedCiArgv,
+    { status: 0, stdout: /"verdict": "DELIVERED"[\s\S]*25 checks: 0 failing, 0 pending[\s\S]*"requiredChecks": \[\]/ }, onUnprotectedBase(completeRollup))
+  const sequenceOptions = (label, rollups) => {
+    const sequenceFile = stage(`verify-delivery/${label}-sequence.txt`, "0")
+    const states = rollups.map((nodes) => {
+      const state = prState(nodes, pushed.head)
+      state.data.repository.pullRequest.baseRefName = "redesign/main"
+      return state
+    })
+    return { sequenceFile, states }
+  }
+  const registrationRace = [[completeRollup[0]], completeRollup]
+  const shortRace = sequenceOptions("short-registration", registrationRace)
+  check(TOOL, "one-to-25 registration resets the window and cannot deliver at the original deadline", observedCiArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*25 checks: 0 failing, 1 pending[\s\S]*unchanged for 30s; requires 60s/ },
+    onUnprotectedBase(registrationRace[0], undefined, shortRace))
+  T(`${TOOL}: the partial rollup forced two additional GitHub observations`, readFileSync(shortRace.sequenceFile, "utf8") === "3")
+  check(TOOL, "one-to-25 registration eventually delivers once the complete rollup stabilizes", [...ciArgv, "--wait-ci", "90"],
+    { status: 0, stdout: /"verdict": "DELIVERED"[\s\S]*25 checks: 0 failing, 0 pending/ },
+    onUnprotectedBase(registrationRace[0], undefined, sequenceOptions("settled-registration", registrationRace)))
+  check(TOOL, "rollup ordering alone does not restart observation", observedCiArgv,
+    { status: 0, stdout: /"verdict": "DELIVERED"/ },
+    onUnprotectedBase(completeRollup, undefined, sequenceOptions("reordered", [completeRollup, [...completeRollup].reverse(), completeRollup])))
+  for (const [label, changed] of [
+    ["same-count replacement", [checkRun("Replacement")]],
+    ["new rerun", [checkRun("Lint", { startedAt: "2026-08-06T11:00:00Z" })]],
+    ["new producer", [checkRun("Lint", { appId: PULLFROG_APP })]],
+    ["status completion", [checkRun("Lint")]],
+  ]) {
+    const first = [checkRun("Lint", label === "status completion" ? { status: "IN_PROGRESS", conclusion: null } : {})]
+    check(TOOL, `${label} restarts the observation window`, observedCiArgv,
+      { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*unchanged for 30s; requires 60s/ },
+      onUnprotectedBase(first, undefined, sequenceOptions(label, [first, changed])))
+  }
+  const movedBase = sequenceOptions("moved-base", [completeRollup, completeRollup])
+  movedBase.states[1].data.repository.pullRequest.baseRefOid = "new-base-sha"
+  check(TOOL, "a base change restarts the observation window even if the rollup is unchanged", observedCiArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*unchanged for 30s; requires 60s/ },
+    onUnprotectedBase(completeRollup, undefined, movedBase))
   check(TOOL, "a non-required failure on an unprotected base still blocks delivery", ciArgv,
     { status: 1, stdout: /"verdict": "CI_FAILING"/ }, onUnprotectedBase([checkRun("Lint"), checkRun("Build", { conclusion: "FAILURE" })]))
   check(TOOL, "a non-required pending check on an unprotected base still blocks delivery", ciArgv,
     { status: 1, stdout: /"verdict": "CI_PENDING"/ }, onUnprotectedBase([checkRun("Lint"), checkRun("Build", { status: "IN_PROGRESS", conclusion: null })]))
   check(TOOL, "a failed status context on an unprotected base still blocks delivery", ciArgv,
     { status: 1, stdout: /"verdict": "CI_FAILING"/ }, onUnprotectedBase([statusContext("Vercel", "FAILURE")]))
-  check(TOOL, "an unprotected base retains the shared skipped and neutral conclusions", ciArgv,
+  check(TOOL, "an unprotected base retains the shared skipped and neutral conclusions", observedCiArgv,
     { status: 0, stdout: /"verdict": "DELIVERED"/ }, onUnprotectedBase([checkRun("Optional", { conclusion: "SKIPPED" }), checkRun("Advisory", { conclusion: "NEUTRAL" })]))
-  check(TOOL, "an unprotected base retains newest-rerun-wins", ciArgv,
+  check(TOOL, "an unprotected base retains newest-rerun-wins", observedCiArgv,
     { status: 0, stdout: /"verdict": "DELIVERED"/ }, onUnprotectedBase([checkRun("Lint", { conclusion: "FAILURE" }), checkRun("Lint", { startedAt: "2026-08-06T11:00:00Z" })]))
-  check(TOOL, "the unprotected response is recognized by status rather than message prose", ciArgv,
+  check(TOOL, "the unprotected response is recognized by status rather than message prose", observedCiArgv,
     { status: 0, stdout: /"verdict": "DELIVERED"/ }, onUnprotectedBase([checkRun("Lint")], JSON.stringify({ ...unprotectedResponse, message: "Changed wording" })))
   for (const [label, response] of [
     ["another error status", JSON.stringify({ ...unprotectedResponse, status: "503" })],
