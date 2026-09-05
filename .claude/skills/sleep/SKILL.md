@@ -141,14 +141,22 @@ If you cannot tell which kind a pull request is, it is a screen. Leave it.
 he wakes. A night that opens seven and lands two hands him a bigger queue than it clears, which looks
 productive and is not. Prefer driving what is open to mergeable.
 
-## 8b. Tell every worker to push and stop
+## 8b. Tell a LOCAL worker to push and stop
 
-Put this in every work order:
+Put this in every work order you write for a local worker:
 
 > Push after every commit. Do not wait on CI or poll GitHub Actions; push and stop.
 
 Watching CI is the orchestrator's job. A worker that waits on it burns its ceiling doing something
 the orchestrator can do for free, and its ceiling is the only budget it has.
+
+**Do not put the push half in a Cloud order.** A `--cloud` worker is told the opposite, and correctly:
+`orchestrate/SKILL.md:512` says "Never push, never create a branch, never open a pull request.
+Delivery happens outside the container", because its diff lands through
+`materialize-cloud-result.mjs`. Telling a Cloud worker to push contradicts its own contract.
+
+The half that applies everywhere is the second sentence. No worker of either kind should sit watching
+GitHub Actions.
 
 Measured 2026-09-05: the single `KILLED_HARD_CEILING` of that night was a four file, 54 line change
 that had already committed and pushed everything, then spent the remainder polling a CI log. The work
