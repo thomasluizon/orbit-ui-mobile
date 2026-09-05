@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { AnimatePresence, domMax, LazyMotion, m, useReducedMotion } from 'motion/react'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
@@ -209,23 +209,26 @@ function TierReservation({ interval, t, children }: Readonly<{
   t: ReturnType<typeof useTranslations>
   children: ReactNode
 }>) {
-  const [height, setHeight] = useState(0)
-  const measureReservation = useCallback((element: HTMLDivElement | null) => {
-    if (!element) return
-    const measure = () => setHeight(element.offsetHeight)
+  const measurementRef = useRef<HTMLDivElement>(null)
+  const reservationRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const element = measurementRef.current
+    const reservation = reservationRef.current
+    if (!element || !reservation) return
+    const measure = () => { reservation.style.minHeight = `${element.offsetHeight}px` }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
   return (
-    <div data-tier-reservation={interval} style={{ display: 'grid', minHeight: height }}>
+    <div ref={reservationRef} data-tier-reservation={interval} style={{ display: 'grid' }}>
       <div
         aria-hidden="true"
         inert
         style={{ gridArea: '1 / 1', visibility: 'hidden', minWidth: 0, alignSelf: 'start' }}
         data-tier-measurement={interval}
-        ref={measureReservation}
+        ref={measurementRef}
       >
         <TierCard
           tier={getUpgradeTierReservation(interval, t)}
