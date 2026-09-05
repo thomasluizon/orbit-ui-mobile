@@ -30,6 +30,8 @@ pre-commit:
     copy-register:
       glob: "packages/shared/src/i18n/*.json"
       run: node tools/check-copy.mjs --check
+    i18n-usage:
+      run: node tools/check-i18n-usage.mjs --staged
 pre-push:
   commands:
     protect-main:
