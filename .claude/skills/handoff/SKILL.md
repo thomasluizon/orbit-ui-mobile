@@ -34,7 +34,8 @@ source and let the next session read it. In this repo the homes are:
 | a decision and its reasoning | the ADR in the brain vault, `2 Areas/20-29 Orbit Engineering/Decisions/` |
 | what is live right now | `hot.md`, auto-loaded, so name the section rather than quoting it |
 | the work itself | GitHub tickets in `thomasluizon/orbit-tickets`, board 2 |
-| what a surface should look like | `DESIGN.md`, and the canvas document in the Claude Design project |
+| what a surface should look like | `DESIGN.md` and `design/canvas/`, under the D42 precedence ladder |
+| the standing operating contract | `.claude/rules/core.md`, with the screen loop and sweep in `.claude/playbooks/redesign-screen.md` |
 | audience, positioning, copy | `BRAND.md` |
 | the shape of the code | `architecture.json`, read instead of exploring |
 | how a run went | the run log the activity keeps, such as `design/prompts/screens.md` |
@@ -53,7 +54,18 @@ an ADR, a defect belongs in a ticket, a state change belongs in `hot.md`. Say so
 file it first, so the next prompt can point at it instead of restating it. A fact that lives only in a
 handoff prompt is one paste away from being lost.
 
-**3. The task, stated as work rather than as history.** What to do next, in the order it has to happen.
+**3. The standing contract, required in every prompt before the task.** Include the pointer block
+below even when the task is groundwork or the next session already knows the rules. Keep the detail
+in the linked files.
+
+> Standing operating contract: read `.claude/rules/core.md` before starting.
+> - Enter through `/orchestrate`; Codex writes every code change and Claude never edits code.
+> - Run UI cloud-first with `--cloud --parallel`, with a small local pool for `api` and `landing` (D89).
+> - Follow `DESIGN.md` for UI under the D42 precedence ladder with `design/canvas/`.
+> - Every screen runs the D76 loop and ui-skills sweep in `.claude/playbooks/redesign-screen.md`.
+> - Read `hot.md` and the brain ADRs as the decision record.
+
+**4. The task, stated as work rather than as history.** What to do next, in the order it has to happen.
 Then `$ARGUMENTS`, if the user gave any, as its own clearly separated section.
 
 ## Steps
@@ -73,8 +85,9 @@ reopened. Open questions travel as questions, each with the reason it is still o
 answer it. A question the next session cannot tell from a decision will get decided by accident.
 
 **D. Write the prompt.** Address the next session directly, in the second person, as a work order.
-Lead with the job in one or two sentences, then Read first, then state, then the delta, then what to
-do, then the extra instructions. Match the house voice: plain words, short sentences, no em dash and
+Lead with the standing-contract block above, then the job in one or two sentences, then Read first,
+then state, then the delta, then what to do, then the extra instructions. Match the house voice:
+plain words, short sentences, no em dash and
 no en dash anywhere.
 
 Put this near the top of every prompt you write, in your own words:
@@ -83,6 +96,8 @@ Put this near the top of every prompt you write, in your own words:
 
 **E. Hand it over.** Save it under the session scratchpad so it survives the turn, print it in one
 fenced block so it can be copied whole, and say in one line what you deliberately left out and why.
+Before handing it over, verify that the saved prompt contains all five standing-contract points and
+both file pointers before any task instructions.
 
 ## What this skill does not do
 

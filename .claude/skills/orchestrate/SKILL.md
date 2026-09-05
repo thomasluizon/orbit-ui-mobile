@@ -30,7 +30,7 @@ Flags, all combinable:
 | Flag | Effect |
 |---|---|
 | `--sleep` | do not stop after each pull request; work the whole queue and report at the end |
-| `--parallel` | run up to `caps.parallelTickets` tickets at once, one worktree each |
+| `--parallel` | run up to `caps.parallelTickets` local tickets at once, one worktree each; with `--cloud`, use `caps.cloudParallelTasks` |
 | `--cloud` | run UI implementations in Codex Cloud, then materialize and deliver them locally |
 | `--auto` | take the scope from the board rather than from an argument |
 
@@ -1102,21 +1102,22 @@ What the gate can prove is that a registered pid is still alive, which is real e
 claim, because only the launcher registers one. What it cannot prove is that the task will re-invoke
 THIS session. That part is still yours, which is why the invariant says to name it.
 
-**`--parallel` runs up to `caps.parallelTickets` tickets at once**, currently **2**, one worktree
-each. Each worktree is a full install, build and test run plus its own model session, so the cap is a
-resource decision, not a preference.
+**D89: run UI cloud-first with `--cloud --parallel`**, up to `caps.cloudParallelTasks`, currently
+**8**. `--cloud` is bound to one repository through `cloud.repositoryKey`, currently `ui`, so `api`
+and `landing` tickets use the small local pool: **`--parallel` runs up to `caps.parallelTickets`
+local tickets at once**, currently **3**, one worktree each.
 
-Two is the attended cap set by D81. Eight is permitted only for an unattended `--sleep` run, when
-nobody needs the machine. Raise `caps.parallelTickets` for that run and restore it to 2 afterward.
-The measured machine has 8 cores, 34 GB RAM with 16 GB free, and 745 GB free disk. Disk and memory
-carry eight local workers, but the cores do not, so the throughput trade only makes sense while the
-machine is unattended.
+Size that pool against the serial materialization lane. `materialize-cloud-result.mjs` is serial
+across the whole fleet: local test, build, signed commit, push and pull request run one ticket at a
+time, with GitHub-calling readiness work capped at 3. Filling all eight cores with local implementers
+starves that lane. This cap applies during both attended and `--sleep` runs (D89 supersedes D81).
+
+Measured 2026-09-05: Intel Core Ultra 7 258V, 8 physical and 8 logical cores, 31.5 GB RAM; two live
+Codex workers held about 290 MB and about 20 percent of the CPU each.
 
 Drop below the active cap if workers return `KILLED_HARD_CEILING`, or if elapsed delivery time rises
 well beyond a smaller fan-out. Those are the signals CPU starvation produces here.
 
-`--cloud` has separate caps. Cloud implementations run 4 to 8 at a time according to
-`caps.cloudParallelTasks`, local materialization is serial, and the GitHub readiness cap stays at 3.
 Cloud removes local CPU pressure, not the shared GitHub GraphQL budget.
 
 **It will NOT show up as `KILLED_NO_PROGRESS`.** `launch-worker.mjs` counts process-tree CPU above

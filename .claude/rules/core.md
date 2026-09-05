@@ -53,3 +53,12 @@ would annotate "Recommend: X"; decide X and move on.
 
 Retry once with different wording, then say the answer came from built-in defaults, not a match.
 Never invent ratings, prices, reviews, or org details, or a `file:line` no tool gave you.
+
+### 9. Carry the standing operating contract (D89)
+
+Enter through `/orchestrate`: Codex writes every code change; Claude never edits code.
+Run UI cloud-first with `--cloud --parallel`; keep a small local pool for `api` and `landing` (D89).
+`DESIGN.md` is authoritative for UI under the D42 precedence ladder with `design/canvas/`.
+Every screen runs the D76 loop and ui-skills sweep in `.claude/playbooks/redesign-screen.md`.
+`hot.md` and the brain ADRs are the decision record; read their pointers before acting.
+Every `/handoff` carries this contract before its task, pointing here and to the screen playbook.
