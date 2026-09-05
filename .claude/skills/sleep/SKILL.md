@@ -1,18 +1,19 @@
 ---
 name: sleep
-description: Thomas goes to sleep and the session keeps working alone. Take every decision yourself, always the best approach and never the easiest, write each decision to a log, and keep shipping until he says stop. On stop, report every decision and everything that shipped. Use when he says /sleep, I am going to sleep, keep working while I sleep, or good night.
+description: Enter /orchestrate --sleep with a decision log; unattended continuation exists only through that orchestrator lifecycle. Take every decision yourself, always the best approach and never the easiest, write each decision to a log, and keep shipping until he says stop. On stop, report every decision and everything that shipped. Use when he says /sleep, I am going to sleep, keep working while I sleep, or good night.
 argument-hint: [optional focus, for example "finish 814 then groundwork tickets"]
 ---
 
 # Sleep mode
 
 **At a glance:** Thomas is asleep. Nobody answers a question tonight. You decide, you record, you
-keep working, and you account for all of it when he wakes.
+enter `/orchestrate --sleep`, keep working through its lifecycle, and account for it when he wakes.
+This skill is an entry policy for that path, not a standalone continuation mechanism.
 
 Sleep mode does not lower the bar. It raises it, because the reviewer who normally catches a bad
 call is unconscious.
 
-## 1. Open the log before you do anything else
+## 1. Open the log and enter the canonical orchestrator
 
 Write the decision log to `sleep-decisions.md` in this session's scratchpad directory, the one named
 in your system prompt. Keep it outside every repository, so no gate and no commit ever sees it.
@@ -32,6 +33,14 @@ One entry per decision, in this shape:
     Because:  <the evidence, with file:line, a command output, or a named authority>
     Cost:     <what this gives up, or "nothing found">
     Reversible: yes | no, and how to undo it
+
+**Invoking `/sleep` must enter `/orchestrate <scope> --sleep` in this session.** Read and execute
+`.claude/skills/orchestrate/SKILL.md`, including preflight and step 2b, before starting work or
+ending a turn. Use the supplied focus to select its scope; without a focus, use its `--auto` queue
+selection. Apply `--cloud --parallel` only for the repository bound by `cloud.repositoryKey`.
+Do not run a separate loop from this document. If the runtime cannot execute that lifecycle with
+a background task that re-invokes this session, report that unattended continuation is unavailable.
+A decision log or a run record alone never establishes a working sleep run.
 
 ## 2. What counts as a decision
 
@@ -66,29 +75,39 @@ except a background task finishing and re-invoking it. A turn that ends with no 
 night, and what it leaves behind looks exactly like a run that finished, so nobody goes looking.
 That is how 2026-08-06 ended.
 
-`.claude/hooks/require-wake-source.mjs` refuses a stop that would do this, but it arms only when the
-run record says so. Write the record when you enter sleep mode, in the checkout you orchestrate from:
+Follow `/orchestrate`'s "Every turn under `--sleep` ends with a live wake source, named" protocol:
 
-    node -e "import('./tools/lib/run-state.mjs').then(m=>m.writeRunState({sessionId:process.argv[1],sleep:true,remaining:process.argv.slice(2)}))" <sessionId> <ticket> <ticket>
+- At step 2b, write canonical state through `writeRunState` in `tools/lib/run-state.mjs`, from the
+  orchestrating checkout. Use this session's exact `sessionId`, `sleep: true`, and the admitted
+  `remaining` queue. Read it back with `readRunState` to confirm it before the first wait. An old
+  session's record is ignored by `rules-sleep.mjs`; that made the 2026-09-04 guard inert all night.
+- Preserve repository-qualified `pullRequests` and the append-only `readinessLedger`, with actual
+  receipt paths. Update state at step 9 as work lands. Never clear the ledger to claim completion.
+- While actionable work or readiness debt remains, always leave a live background wake source
+  that will re-invoke this session and name it on the turn's last line. `launch-worker.mjs`
+  registers local workers; `submit-cloud-worker.mjs --watch <receiptPath>` registers Cloud watchers.
+  A remote Cloud task or a GitHub check by itself cannot wake this session.
+- If all slots are free and work remains, launch the next worker or readiness task before yielding.
+  Verify the wake source is live; a stale pid file or an unscheduled promise to watch CI is not one.
+- When Thomas says stop, clear `sleep` for this session and report. On queue exhaustion write
+  `remaining: []` and retain the ledger. Finish only with READY receipts or recorded named blockers,
+  following the canonical protocol; report blocked work as blocked.
 
-Keep `remaining` honest as work lands, and clear `sleep` when Thomas says stop. `launch-worker.mjs`
-registers itself as a wake source, so a running worker is real evidence rather than a claim.
+The Stop hook is a guard against missing continuation, not a scheduler. Standalone `/sleep` has no
+separate scheduler: its continuation promise applies only after the `/orchestrate --sleep` entry
+above is complete.
 
-**When nothing is left to wait on and work remains, start the next item.** Free slots plus a
-non-empty queue is not a reason to end the turn. It is the definition of the next action.
+## 5. Worker capacity follows D89
 
-## 5. What sleep mode changes
+D89 (2026-09-05) sizes the local pool at about **3**, through `caps.parallelTickets`, against the
+serial lane. `materialize-cloud-result.mjs` is serial across the fleet: local test, build, signed
+commit, push and pull request delivery happen on one laptop, one ticket at a time. Core count does
+not set the local pool, and sleep mode does not raise it.
 
-**Worker parallelism rises, and this session holds it at 5.**
-
-D81 sets the attended cap at 2 and permits 8 for an unattended run. 8 is D81's number, not this
-file's. Hold at 5 anyway: the machine has 8 cores, the orchestrator needs one, and subprocess
-exhaustion was observed at 6 and above on 2026-09-02.
-
-Treat 5 as an operating choice for the night, not as an amendment to D81. Amending a decision record
-is Thomas's, so raise it with him rather than editing `orchestrate/SKILL.md` overnight.
-
-**Nothing else gets looser.** Every rule below still binds.
+Cloud implementations use `caps.cloudParallelTasks`, currently **8**. `--cloud` is bound to one
+repository by `cloud.repositoryKey`, currently `ui`; `orbit-api` and `orbit-landing-page` tickets
+stay local. These are the same caps used by `/orchestrate` and `.claude/orchestrator.json`, as in
+#829's D89 operating contract. No daytime-versus-unattended split applies.
 
 ## 6. Hard stops, which sleep mode never relaxes
 
@@ -112,17 +131,22 @@ new guard would pass. The guard was wrong, the copy was right, and no gate caugh
 
 ## 7. What may merge overnight, and what may not
 
-The standing authority Thomas gave is narrow, and it is not a licence to merge anything green.
+**D88 authorizes groundwork merges without asking. D90 (2026-09-05) extends those same terms to
+screens for the remainder of the redesign.** The per-screen merge hold is suspended during that
+period. The D76 conversation and implementation requirements still apply; D90 changes the merge
+hold, not product or design authority.
 
-**A groundwork pull request may merge.** Harness, tooling, gates, configuration and documentation.
-The bar is all three of: green at the current head, a fresh Pullfrog approval at that same head, and
-zero unresolved threads. Bookkeeping never blocks it. Never `--admin`, never to `main`.
+Before each merge, require all three on the exact current head: green checks, fresh Pullfrog
+approval at that head, and zero unresolved threads. Log the head and evidence. The orchestrator may
+then use ordinary `gh pr merge --squash` against `redesign/main`, with `--match-head-commit <sha>`
+to refuse a moved head. Implementation workers never merge.
 
-**A screen pull request may NOT merge overnight, however green it is.** D76 step 7 makes Thomas's
-eyes the evidence and step 8 makes his approval the gate. A screen that CI likes is not a screen he
-has seen. Leave it READY, say so in the wake report, and let him look.
-
-If you cannot tell which kind a pull request is, it is a screen. Leave it.
+**Never use `--admin` or a direct merge API in `/sleep`.** Admin merge remains confined to the
+canonical `/merge-prs` skill after Thomas explicitly invokes it for an already-approved frozen PR
+set, per `CLAUDE.md`. Neither `/sleep` nor standing authority invokes that exception. Direct APIs
+stay forbidden without exception, including `PUT /repos/{owner}/{repo}/pulls/{number}/merge` and
+GraphQL `mergePullRequest`. Never merge to `main` from this run. Outside D88/D90 authority, leave
+the PR ready for Thomas; do not invent authorization from green checks.
 
 ## 8. Choose the next work in this order
 
@@ -141,26 +165,34 @@ If you cannot tell which kind a pull request is, it is a screen. Leave it.
 he wakes. A night that opens seven and lands two hands him a bigger queue than it clears, which looks
 productive and is not. Prefer driving what is open to mergeable.
 
-## 8b. Tell a LOCAL worker to push and stop
+## 8b. Generate one completion contract for the worker's mode
 
-Put this in every work order you write for a local worker:
+Use `tools/compose-prompt.mjs` for local orders and pass `--cloud` for Cloud orders. Do not append
+push-and-stop text to every order: the canonical generator selects one consistent contract.
 
-> Push after every commit. Do not wait on CI or poll GitHub Actions; push and stop.
+**Local order:** compile and run focused tests, commit, run broader verification, push and open or
+update exactly one non-draft pull request against the supplied base. Report its URL and tests, then
+stop. Do not wait on CI or poll GitHub Actions; the orchestrator owns CI waiting and readiness.
+Opening the pull request remains part of the worker's job.
 
-Watching CI is the orchestrator's job. A worker that waits on it burns its ceiling doing something
-the orchestrator can do for free, and its ceiling is the only budget it has.
+**Cloud order:** the required finishing text must lead with this standalone instruction, before
+any edit/test bullet, as encoded by `CLOUD_FINISHING_CONTRACT` in `tools/lib/cloud-worker.mjs`:
 
-**Do not put the push half in a Cloud order.** A `--cloud` worker is told the opposite, and correctly:
-`orchestrate/SKILL.md:512` says "Never push, never create a branch, never open a pull request.
-Delivery happens outside the container", because its diff lands through
-`materialize-cloud-result.mjs`. Telling a Cloud worker to push contradicts its own contract.
+> Commit the implementation. Without a commit there is no diff and the work is lost.
 
-The half that applies everywhere is the second sentence. No worker of either kind should sit watching
-GitHub Actions.
+Then edit, compile and run focused tests in the container, stage named paths and commit before
+broader verification. Never bypass a rejecting hook; report its exact output. Never push, create
+a branch or open a pull request. Report the commit and test results, then stop without waiting on
+CI. The orchestrator owns materialization, local delivery and CI waiting. The submitter reuses the
+same contract without duplicating it. Never send a locally composed order to the Cloud submitter.
 
-Measured 2026-09-05: the single `KILLED_HARD_CEILING` of that night was a four file, 54 line change
-that had already committed and pushed everything, then spent the remainder polling a CI log. The work
-survived only because it had pushed first. That kill was the order's fault, not the model's.
+Measured 2026-09-05: four Cloud tasks returned `ready` with an empty diff because no commit existed.
+Putting the commit step first, alone and with its consequence recovered two on resubmission.
+Ticket #433 owns the harness handling of empty results; this instruction does not treat an empty
+result as successful delivery.
+
+Also measured that night: a local worker committed and pushed, then burned its ceiling polling CI.
+That is why both modes hand CI waiting back to the orchestrator.
 
 ## 9. When something blocks
 

@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Tickets in, reviewed pull requests out. Plans a queue from one ticket, several, or a milestone, then per ticket opens a worktree, launches a headless worker, verifies delivery from artifacts, and clears the Pullfrog review. --sleep works the whole queue unattended. A machine never merges unasked.
+description: Tickets in, reviewed pull requests out. Plans a queue from one ticket, several, or a milestone, then per ticket opens a worktree, launches a headless worker, verifies delivery from artifacts, and clears the Pullfrog review. --sleep works the whole queue unattended. The orchestrator may merge under D88/D90 standing authority at the exact approved head; workers never merge.
 argument-hint: <ORB-N | #N | ticket references | milestone> [--sleep] [--parallel] [--cloud] [--auto]
 effort: high
 ---
@@ -30,7 +30,7 @@ Flags, all combinable:
 | Flag | Effect |
 |---|---|
 | `--sleep` | do not stop after each pull request; work the whole queue and report at the end |
-| `--parallel` | run up to `caps.parallelTickets` tickets at once, one worktree each |
+| `--parallel` | run up to `caps.parallelTickets` local tickets at once, one worktree each; with `--cloud`, use `caps.cloudParallelTasks` |
 | `--cloud` | run UI implementations in Codex Cloud, then materialize and deliver them locally |
 | `--auto` | take the scope from the board rather than from an argument |
 
@@ -106,7 +106,7 @@ run it always was.
                      --sleep: a turn ends ONLY with a live background task, NAMED  [Stop hook]
                                         ---- end per ticket ----
 11  Report           every PR opened, the stack order, every ticket skipped and why,
-                     and the one command that merges the lot. Thomas merges.
+                     and merge evidence for D88/D90; hand off anything outside that authority.
 12  Teardown         per worktree, only after gh pr view reads MERGED
 ```
 
@@ -118,7 +118,7 @@ These interfaces are fixed. Do not invent flags or variants.
 node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format markdown] [--sleep]
 node tools/comment-ticket.mjs    --issue "<ticket-ref>" --body-file <path|->
 node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
-node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>]
+node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>] [--cloud]
 node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>]
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
 node tools/submit-cloud-worker.mjs --watch <receiptPath>
@@ -305,7 +305,7 @@ The ticket is the prompt (D2): quoted verbatim into the worker prompt, never par
 | Reason | Meaning |
 |---|---|
 | `BLOCKED_OUTSIDE_QUEUE` | its blocker is open and not in this queue, so its branch cannot carry it |
-| `UNSTACKABLE_BLOCKERS_IN_QUEUE` | two or more same-repo blockers that do not chain. A branch has ONE parent and none of them can merge mid-queue, so no branch can carry their work. Run it after they merge |
+| `UNSTACKABLE_BLOCKERS_IN_QUEUE` | two or more same-repo blockers that do not chain. A branch has ONE parent and the planned base does not yet carry all of them, so no branch can carry their work. Run it after they merge |
 | `NO_REPO_LABEL` | no `repo:*` label, so the target repository is unknown. Never guess it |
 | `AMBIGUOUS_REPO` | two `repo:*` labels. `repo:both` does not exist (D4) |
 | `CLOSED` | already Done, Canceled or Duplicate |
@@ -450,21 +450,15 @@ git switch -c feature/<ticket-slug>-<slug> feature/<parent-ticket-slug>-<slug>
 Pass the parent branch to `verify-delivery.mjs` as `--base` too, or `git rev-list --count
 main..HEAD` counts the parent's commits as this ticket's and the size caps read the wrong diff.
 
-**Why stack at all.** Nothing merges overnight, so a second ticket that depends on the first cannot
-branch from main: main will not contain the first ticket's work until Thomas merges it in the
-morning. Stacking is the only way a blocked ticket runs the same night as its blocker.
+**Why stack at all.** A dependent ticket needs its parent's code before implementation starts.
+When the parent's work has not merged into the base, branch from its contract branch. A later wave
+alone supplies no code. `plan-queue.mjs` defers same-repo blockers that do not form one chain as
+`UNSTACKABLE_BLOCKERS_IN_QUEUE`; the rest of the board still plans.
 
-**And why a ticket that cannot stack cannot run either.** A branch has ONE parent, so a ticket whose
-same-repo blockers do not form a chain has no branch that carries all of them. It does not get to
-open against main instead: the same sentence above says main lacks that work until morning. A wave
-orders tickets in TIME, and time confers no code, so a later wave is not a substitute for a
-dependency. `plan-queue.mjs` defers it as `UNSTACKABLE_BLOCKERS_IN_QUEUE` and the rest of the board
-still plans, which is the whole difference from the exit-2 refusal this replaced.
-
-There is no live "have the blockers merged yet" check to write, because the answer is fixed by
-construction: a blocker whose work already merged is closed with board Status Done and was deferred as `CLOSED`
-before it could count. Every blocker still counted is open, in this queue, and cannot merge before
-the ticket waiting on it.
+The queue describes dependencies at planning time. D88/D90 may allow a parent to merge during a run.
+If a planned parent merges before its child starts, refresh the base and re-plan the remaining
+queue before creating that child's worktree. Do not reuse a squash-merged branch or assume that an
+old stack plan still describes the current base.
 
 After the last pull request in a stack is open, link them on GitHub:
 
@@ -495,21 +489,27 @@ The file carries, in order:
 1. The ticket body VERBATIM plus every chronological comment.
 2. **The orchestrator's brief:** target repo and its absolute path, the branch already checked out,
    the base branch, the affected-file list from step 2, and the scope boundary as a hard limit.
-3. **The finishing contract:** run lint, type-check and tests for the touched workspace; commit;
-   push; open a PR to `main` whose body links the ticket URL and names its actual reference. The ticket-state
-   synchronizer posts the PR URL back to the issue. Cross-platform parity and i18n key parity land
-   in the same commit.
+3. **The mode-specific finishing contract:** compile and run focused tests; commit before broader
+   verification. Local workers then push and open or update exactly one non-draft PR against the
+   supplied base branch, linking the ticket. They report the URL and tests and stop without polling
+   CI. The orchestrator owns CI waiting, review fixes and final readiness verification.
+   Cross-platform parity and i18n key parity land in the same commit.
    **The worker never merges and never opens a second PR.**
 
 Write it to the scratchpad. A prompt file inside the worktree gets committed by the worker.
 
-With `--cloud`, the order must end with this finishing contract. The submitter appends it when it is
-absent, and hashes both the order file and the submitted form in the receipt:
+For Cloud execution, pass `--cloud` to `compose-prompt.mjs`. That selects the container brief and
+`CLOUD_FINISHING_CONTRACT` from `tools/lib/cloud-worker.mjs` instead of local push/PR instructions.
+The submitter appends that same contract only when absent and hashes both forms in the receipt.
+Never submit a locally composed prompt to Cloud or append a second completion contract by hand.
+The Cloud contract leads with the commit requirement and its consequence, before every other step:
 
-- Edit and test the change in the container.
-- Then `git add` the named paths and `git commit`. Without a commit there is no diff and the work is lost.
-- Never `--no-verify`. If a pre-commit hook rejects the commit, report the exact hook output and stop, leaving the changes in place. Never edit a hook or a gate baseline to get past it.
-- Never push, never create a branch, never open a pull request. Delivery happens outside the container.
+> Commit the implementation. Without a commit there is no diff and the work is lost.
+
+Then edit, compile, run focused tests and commit named paths before broader verification. A hook
+failure is reported with its exact output; never bypass hooks or change baselines to force a commit.
+Never push, create a branch or open a PR from Cloud. Report the commit and tests and stop without
+polling CI. The orchestrator materializes and delivers the change locally and owns CI waiting.
 
 ## Steps 5 and 6. Spawn the worker
 
@@ -928,7 +928,8 @@ For each existing PR, repeat within the configured `caps.reviewFixAttempts` fixe
    before merge. Size never affects ticket status.
 5. Re-record and evaluate. READY ends the loop. A genuine permission, external, or human-only
    blocker, or exhaustion of the bounded fixer budget, produces a precise handoff and keeps
-   the PR in the run record. Never merge.
+   the PR in the run record. A READY result permits a merge only under the D88/D90 conditions
+   in Hard prohibitions; a blocked result never does.
 
 ## Step 10. Hand over
 
@@ -997,7 +998,7 @@ Once the queue is exhausted, print one summary and stop:
 - **Every open decision, in one list**: each `NEEDS_DECISION` question a worker raised and each
   unadjudicated PR-body assumption, beside the `NEEDS_CONVERSATION` questions, so the night ends in
   a decision list rather than a guess list.
-- **The single command that merges the lot**, ready for Thomas to approve.
+- **Merge evidence for work merged under D88/D90**, plus the remaining PRs needing Thomas.
 
 Append one JSON line per ticket outcome to `<scratchpad>/queue-run.jsonl` as the queue runs, not at
 the end. A summary assembled only at the end does not survive a context reset in the middle of the
@@ -1012,7 +1013,7 @@ node tools/teardown-worktree.mjs --issue "<ticket-ref>" --repo <key>
 ```
 
 Never tear down an unmerged worktree. The branch and its work are the only copy. In a queue this
-runs for merged tickets only, which after an overnight run is usually none of them.
+runs for merged tickets only, including those merged under D88/D90 standing authority.
 
 ## §5.4 Model routing
 
@@ -1027,11 +1028,9 @@ here. `launch-worker.mjs` resolves one model tier, so a run cannot route a revie
 
 ## §5.7 The queue
 
-**`--sleep` opens pull requests. It never merges one.** Every piece of signing, provenance, ledger
-and merge-sweep machinery the OLD `--sleep` needed stays deleted, because nothing here acts on a
-receipt. What makes an unattended run trustworthy now is `verify-delivery.mjs`: it is the sole
-authority for the word "delivered" and reads only git and GitHub artifacts, never a worker's
-self-report. That is what was missing the first time, when a worker claimed work it had not done.
+**`--sleep` opens pull requests and may merge under D88/D90 standing authority.** The exact-head
+approval, green checks and zero unresolved threads in Hard prohibitions remain mandatory. Use
+ordinary squash merge only, never `--admin` or direct merge APIs. Outside that authority, hand off.
 
 **`--sleep` asks everything it can BEFORE it starts.** Step 2b is the whole of it, and it runs in
 both modes: plan the queue, read every admitted ticket and its comments, review scope for all
@@ -1102,21 +1101,22 @@ What the gate can prove is that a registered pid is still alive, which is real e
 claim, because only the launcher registers one. What it cannot prove is that the task will re-invoke
 THIS session. That part is still yours, which is why the invariant says to name it.
 
-**`--parallel` runs up to `caps.parallelTickets` tickets at once**, currently **2**, one worktree
-each. Each worktree is a full install, build and test run plus its own model session, so the cap is a
-resource decision, not a preference.
+**D89: run UI cloud-first with `--cloud --parallel`**, up to `caps.cloudParallelTasks`, currently
+**8**. `--cloud` is bound to one repository through `cloud.repositoryKey`, currently `ui`, so `api`
+and `landing` tickets use the small local pool: **`--parallel` runs up to `caps.parallelTickets`
+local tickets at once**, currently **3**, one worktree each.
 
-Two is the attended cap set by D81. Eight is permitted only for an unattended `--sleep` run, when
-nobody needs the machine. Raise `caps.parallelTickets` for that run and restore it to 2 afterward.
-The measured machine has 8 cores, 34 GB RAM with 16 GB free, and 745 GB free disk. Disk and memory
-carry eight local workers, but the cores do not, so the throughput trade only makes sense while the
-machine is unattended.
+Size that pool against the serial materialization lane. `materialize-cloud-result.mjs` is serial
+across the whole fleet: local test, build, signed commit, push and pull request run one ticket at a
+time, with GitHub-calling readiness work capped at 3. Filling all eight cores with local implementers
+starves that lane. This cap applies during both attended and `--sleep` runs.
+
+Measured 2026-09-05: Intel Core Ultra 7 258V, 8 physical and 8 logical cores, 31.5 GB RAM; two live
+Codex workers held about 290 MB and about 20 percent of the CPU each.
 
 Drop below the active cap if workers return `KILLED_HARD_CEILING`, or if elapsed delivery time rises
 well beyond a smaller fan-out. Those are the signals CPU starvation produces here.
 
-`--cloud` has separate caps. Cloud implementations run 4 to 8 at a time according to
-`caps.cloudParallelTasks`, local materialization is serial, and the GitHub readiness cap stays at 3.
 Cloud removes local CPU pressure, not the shared GitHub GraphQL budget.
 
 **It will NOT show up as `KILLED_NO_PROGRESS`.** `launch-worker.mjs` counts process-tree CPU above
@@ -1148,18 +1148,18 @@ the wrong branch loses the entire night. Discover it at the start, not at 03:00.
 
 ## Hard prohibitions
 
-- **A machine never merges unasked.** No `gh pr merge`, no
-  `PUT /repos/{owner}/{repo}/pulls/{number}/merge`, no GraphQL merge mutation, no `--admin` in any
-  shape, **from inside a run**. Naming the raw API paths is deliberate: banning only the flag leaves
-  them open. **The human merge gate is what makes this whole simplification possible.**
-
-  The rule is about consent, not about who types the command. Thomas reads the pull requests and then
-  asks for the merge; running `gh stack merge --squash` or `gh pr merge --squash` **in a later turn,
-  on his explicit instruction**, is the intended path and is not a violation. What is forbidden is a
-  machine merging work he has not looked at and approved.
-
-  `--admin`, the raw REST and GraphQL merge paths, force pushes and pushes to `main` stay blocked in
-  every case, run or no run. Those remain Thomas's alone.
+- **Standing merge authority belongs to the orchestrator, never an implementation worker.** D88
+  authorizes groundwork merges without asking when checks are green, Pullfrog approved the exact
+  current head, and zero unresolved threads remain. D90 applies the same terms to screens for the
+  remainder of the redesign, suspending the per-screen merge hold. During that period, use only
+  ordinary `gh pr merge --squash` against `redesign/main`, with `--match-head-commit <sha>` for the
+  head just verified. Log the evidence. Outside that authority, leave the PR ready for Thomas.
+  A green check alone is not an exact-head approval.
+- **Never `--admin` inside `/orchestrate` or `/sleep`.** Per `CLAUDE.md`, that exception belongs only
+  to the canonical `/merge-prs` skill after Thomas explicitly invokes it for an already-approved
+  frozen PR set. Standing ordinary merge authority does not invoke that skill. Direct merge APIs
+  remain forbidden without exception: no `PUT /repos/{owner}/{repo}/pulls/{number}/merge` and no
+  GraphQL `mergePullRequest` mutation.
 - Never push to `main`. Never force-push. Never `--no-verify`, never `--no-gpg-sign`.
 - The composed prompt is written to the scratchpad, never inside a repo.
 - No auto-relaunch on a failed verdict. Stop and report.

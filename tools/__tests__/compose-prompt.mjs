@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
+import { cloudOrder } from "../lib/cloud-worker.mjs"
 
 import { check, githubIssueReadPlan, orcaEnv, realOrchestratorConfig, root, stage, stageWithConfig, T } from "./_harness.mjs"
 
@@ -88,7 +89,7 @@ export const cases = () => {
   )
   T(
     `${TOOL}: the brief keeps delivery and browser boundaries`,
-    /your own exit code counts for nothing[\s\S]*tools\/verify-delivery\.mjs/.test(prompt) && /NEVER open a browser and never start a server/.test(prompt) && /Playwright, Maestro or Cypress/.test(prompt),
+    /your own exit code counts for nothing/.test(prompt) && /tools\/verify-delivery\.mjs/.test(prompt) && /NEVER open a browser and never start a server/.test(prompt) && /Playwright, Maestro or Cypress/.test(prompt),
     prompt,
   )
   /**
@@ -108,6 +109,49 @@ export const cases = () => {
   )
 
   T(`${TOOL}: a ticket with no comments grows no comment section`, !prompt.includes("Comments on"), prompt.slice(0, 200))
+
+  T(
+    `${TOOL}: local delivery opens a PR before stopping and assigns CI waiting to orchestration`,
+    /push, and open or update exactly one pull request/.test(prompt) &&
+      /Do not wait on CI or poll GitHub Actions/.test(prompt) &&
+      !/gh pr checks|must be GREEN before you report|## Cloud finishing contract/.test(prompt),
+    prompt,
+  )
+  const cloudOut = join(root, "compose-prompt", "cloud.md")
+  check(
+    TOOL,
+    "composes the Cloud mode without local delivery instructions",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", cloudOut, "--cloud", "--base", "redesign/main"],
+    { status: 0 },
+    options(ticketPlan()),
+  )
+  const cloudPrompt = composed(cloudOut)
+  T(
+    `${TOOL}: Cloud retains the ticket and decision escalation without instructions to push or open a PR`,
+    cloudPrompt.startsWith("# Ticket body\n\nKeep this verbatim.") &&
+      /NEEDS_DECISION/.test(cloudPrompt) && /## Manual steps/.test(cloudPrompt) &&
+      /Never push, never create a branch, never open a pull request/.test(cloudPrompt) &&
+      !/commit and push|open your pull request against|One commit series on your branch, pushed|## Finishing contract|gh pr (create|ready|view|checks)/.test(cloudPrompt),
+    cloudPrompt,
+  )
+  T(
+    `${TOOL}: submitting a composed Cloud order keeps one commit-first contract`,
+    cloudOrder(cloudPrompt) === cloudPrompt &&
+      cloudPrompt.includes("## Cloud finishing contract\n\n**Commit the implementation. Without a commit there is no diff and the work is lost.**\n\n-") &&
+      /Do not wait on CI or poll GitHub Actions/.test(cloudPrompt),
+    cloudOrder(cloudPrompt),
+  )
+  const otherCloud = stageWithConfig("compose-prompt-other-cloud", TOOL, {
+    ...real, repos: { ui: REPO_PATH, api: join(root, "compose-prompt", "repo-api") },
+    cloud: { ...real.cloud, repositoryKey: "api" },
+  })
+  check(
+    TOOL,
+    "refuses Cloud orders outside the configured repository before reading a ticket",
+    ["--issue", "ORB-215", "--repo", "ui", "--out", cloudOut, "--cloud"],
+    { status: 2, stderr: /--cloud is bound to repository api; ui must run locally/ },
+    { path: otherCloud.path, env: orcaEnv([]) },
+  )
 
   /**
    * The regression this file exists to hold. Three documents claimed comments already reached the

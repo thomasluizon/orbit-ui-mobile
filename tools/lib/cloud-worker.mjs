@@ -43,10 +43,12 @@ export const receiptBlocksTicketAdmission = (receipt) => !receiptIsResolved(rece
 
 export const CLOUD_FINISHING_CONTRACT = `## Cloud finishing contract
 
-- Edit and test the change in the container.
-- Then \`git add\` the named paths and \`git commit\`. Without a commit there is no diff and the work is lost.
+**Commit the implementation. Without a commit there is no diff and the work is lost.**
+
+- Edit the change, compile it and run focused tests in the container; then stage only named paths with \`git --literal-pathspecs add\` and \`git commit\` before broader verification.
 - Never \`--no-verify\`. If a pre-commit hook rejects the commit, report the exact hook output and stop, leaving the changes in place. Never edit a hook or a gate baseline to get past it.
-- Never push, never create a branch, never open a pull request. Delivery happens outside the container.`
+- Never push, never create a branch, never open a pull request. Delivery happens outside the container.
+- Report the commit and test results, then stop. Do not wait on CI or poll GitHub Actions; the orchestrator owns CI waiting.`
 
 export const cloudOrder = (order) => {
   const trimmed = order.trimEnd()
