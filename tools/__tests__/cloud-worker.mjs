@@ -25,7 +25,7 @@ export const fakeCodex = (label) => {
   writeFileSync(
     script,
     `#!/usr/bin/env node
-import { appendFileSync, chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 const args = process.argv.slice(2)
 if (process.env.ORBIT_FAKE_CODEX_LOG) appendFileSync(process.env.ORBIT_FAKE_CODEX_LOG, JSON.stringify(args) + "\\n")
@@ -43,6 +43,13 @@ if (args[0] === "cloud" && args[1] === "exec") {
   process.stdout.write(process.env.ORBIT_FAKE_EXEC_URL || "")
 }
 else if (args[0] === "cloud" && args[1] === "list") {
+  if (process.env.ORBIT_FAKE_LIST_RELEASE_PATH) {
+    const deadline = Date.now() + 10000
+    while (!existsSync(process.env.ORBIT_FAKE_LIST_RELEASE_PATH) && Date.now() < deadline) {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10)
+    }
+    if (!existsSync(process.env.ORBIT_FAKE_LIST_RELEASE_PATH)) throw new Error("fixture list release timed out")
+  }
   const delayMs = Number(process.env.ORBIT_FAKE_LIST_DELAY_MS || 0)
   if (delayMs > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs)
   if (process.env.ORBIT_FAKE_LIST_PUBLICATION_PATH) {

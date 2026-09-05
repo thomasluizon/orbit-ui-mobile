@@ -702,7 +702,8 @@ export const cases = async () => {
   )
 
   const execTimeout = fixture("exec-timeout")
-  execTimeout.config.timeouts.cloudCommandMinutes = 0.005
+  // Allow the fake CLI to start before testing its deliberate post-acceptance hang (#433).
+  execTimeout.config.timeouts.cloudCommandMinutes = 0.05
   writeFileSync(execTimeout.configPath, `${JSON.stringify(execTimeout.config, null, 2)}\n`)
   const acceptanceLog = stage("submit-cloud/exec-timeout-acceptance.txt", "")
   const execTimeoutResult = run(TOOL, argvOf(execTimeout), {
@@ -747,7 +748,8 @@ export const cases = async () => {
   )
 
   const liveOrphan = fixture("live-orphan")
-  liveOrphan.config.timeouts.cloudCommandMinutes = 0.005
+  // The preliminary list must finish before the deliberate submission timeout (#433).
+  liveOrphan.config.timeouts.cloudCommandMinutes = 0.05
   writeFileSync(liveOrphan.configPath, `${JSON.stringify(liveOrphan.config, null, 2)}\n`)
   const liveOrphanTaskId = "task_e_a401"
   const liveOrphanDirectory = join(liveOrphan.repo.path, ".git", "orbit-cloud", "receipts")
@@ -967,20 +969,22 @@ export const cases = async () => {
     deadline: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     mirrorPath: recoveryRacePath,
   }))
+  const racingListRelease = join(recoveryRaceDirectory, "release-list")
   const racingAbandon = spawnTool(
     recoveryRace,
     ["--abandon-known", recoveryRacePath, "--task-id", recoveryRaceTaskId],
     {
       ORBIT_FAKE_CODEX_LOG: recoveryRace.log,
       ORBIT_FAKE_LIST: taskPage([task(recoveryRaceTaskId, "pending", 0)]),
-      ORBIT_FAKE_LIST_DELAY_MS: "300",
+      ORBIT_FAKE_LIST_RELEASE_PATH: racingListRelease,
     },
   )
-  const racingListDeadline = Date.now() + 2000
+  const racingListDeadline = Date.now() + 10000
   while (!readFileSync(recoveryRace.log, "utf8").includes('"list"') && Date.now() < racingListDeadline) await wait(10)
   const racingClear = run(TOOL, ["--clear-unknown", recoveryRacePath, "--assert-no-task-exists"], {
     path: recoveryRace.path,
   })
+  writeFileSync(racingListRelease, "release\n")
   const racingAbandonResult = await racingAbandon.result
   const racingReservation = JSON.parse(readFileSync(recoveryRacePath, "utf8"))
   T(
