@@ -484,6 +484,12 @@ const acquireCloudLock = (stateRoot, lockName, operation, options = {}) => {
     } catch (error) {
       rmSync(candidate, { recursive: true, force: true })
       if (existsSync(lockDirectory)) return false
+      // Windows can release the contended destination before this check; retry within the receipt lock bound (#433).
+      const remainingMs = waitDeadline === null ? 0 : waitDeadline - performance.now()
+      if (process.platform === "win32" && error.code === "EPERM" && remainingMs > 0) {
+        Atomics.wait(LOCK_RETRY_SIGNAL, 0, 0, Math.min(10, remainingMs))
+        return false
+      }
       throw error
     }
   }
