@@ -156,8 +156,8 @@ export const cases = () => {
     JSON.stringify(plan),
   )
   T(
-    `${TOOL}: the resolved implementer is gpt-5.6-sol at high reasoning effort (D21)`,
-    plan !== null && plan.model === "gpt-5.6-sol" && plan.args.includes('model_reasoning_effort="high"'),
+    `${TOOL}: the resolved implementer is gpt-6-astra at high reasoning effort (D21)`,
+    plan !== null && plan.model === "gpt-6-astra" && plan.args.includes('model_reasoning_effort="high"'),
     JSON.stringify(plan?.args),
   )
   T(

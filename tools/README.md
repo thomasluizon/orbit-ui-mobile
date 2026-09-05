@@ -55,6 +55,7 @@ These back required CI checks. They fail a merge.
 | `check-gradients.mjs` | Fails on decorative gradients in web or mobile source while allowing the named functional masks, calendar lines, loading indicator, and SVG mock. Backs `Design Token Guard`. | `node tools/check-gradients.mjs` |
 | `check-lockup-crop.mjs` | Asserts `design/brand/orbit-lockup.svg`'s viewBox equals its ink within 1e-6, solving each path's real bounds from the curve extrema and applying the serialized transforms. It reads the committed bytes, because a generator asserting its own pre-rounded floats passed while the written file clipped. It FAILS CLOSED on a CLOSED SET: only `svg`, `title`, `desc`, `g` and `path` are known, each with an enumerated attribute whitelist, and only `M L H V C Q Z` path commands and a translate plus optional uniform scale. Every other element, attribute, command or transform is an error, never a skip, so an unmodelled paint attribute cannot make it report an exact crop over geometry it never measured. | `node tools/check-lockup-crop.mjs [--file <path>]` |
 | `check-copy.mjs` | Enforces the copy register. Backs `Copy Register`. | `node tools/check-copy.mjs --check` |
+| `check-i18n-usage.mjs` | Checks web, mobile and shared translation literals against both catalogs and enforces key parity, with no baseline; staged mode reads the index and scans all indexed sources when a catalog changes. Resolves translators within their own module, including local helpers and JSX props whose callers agree on a namespace. Carrier objects must be confined to known reads: aliases, arguments, returns, writes, exports and other unsupported uses make their translators unresolved; translators crossing a module boundary are reported unresolved rather than checked, with that work tracked in thomasluizon/orbit-tickets#430. Current measurement: 2,750 of 3,519 calls checked (about 78 percent) across 1,918 files, with 769 unresolved calls in 165 files: 561 unproven bindings (527 literal keys) and 208 nonliteral keys with resolved translators; unresolved calls never fail the gate. | `node tools/check-i18n-usage.mjs [--staged] [--root <directory>]` |
 | `check-suppressions-ratchet.mjs` | Fails when the lint-suppression count grows. Backs `Suppressions Ratchet` (escape hatch: the `ratchet:reseed` label). | `node tools/check-suppressions-ratchet.mjs` |
 | `check-push-target.mjs` | Refuses a push whose target is a protected branch. | `node tools/check-push-target.mjs` |
 | `check-root-allowlist.mjs` | Fails when an undeclared file OR directory exists at the repository root, including ignored and untracked ones. Backs `Root Allowlist`; declarations live in `root-allowlist.json`. | `node tools/check-root-allowlist.mjs` |
@@ -67,44 +68,39 @@ These back required CI checks. They fail a merge.
 | `arch-map.mjs` | Generates `architecture.json` and `architecture.html`, what an agent reads INSTEAD of exploring the codebase. Kept current by `arch-map.yml` in both repos; without that workflow it rots silently. | `node tools/arch-map.mjs` |
 | `surface-manifest.mjs` | Derives the visual-surface inventory into `.claude/manifests/surfaces.json`, one cell per surface x theme x locale. Emits no status field on purpose. | `npm run surfaces:manifest` |
 | `redesign-coverage.mjs` | Validates the committed one-to-one mapping from every manifest surface to its redesign group or written exclusion, then prints the exact R-group lists cited by the redesign tickets. | `node tools/redesign-coverage.mjs` (`--json`) |
-| `capture-surfaces.mjs` | Playwright capture of one screenshot per manifest cell into `.artifacts/surfaces/`, against a running local stack. Reports every surface it cannot reach rather than skipping it. The D7 evidence mechanism. | `ORBIT_AUTH_TOKEN=... npm run surfaces:capture` |
-| `capture-surfaces-mobile.mjs` | Maestro capture of an exact named subset of Android manifest cells into one screenshots directory. Each deep link carries the theme and locale, each flow waits for animation completion and asserts the route probe, and every unsupported or unreachable cell is written to `report.json`. The `adb` driver keeps a framework-free `am start` plus `exec-out screencap` fallback. | `npm run surfaces:capture:mobile -- --surface m-route-login` (`--driver adb` for fallback) |
 | `orca-web-port.mjs` | Assigns a deterministic web port in the 3100-4099 window per Orca worktree and records it in the ignored `.orca/web-port`. Root stays on 3000; the database and API stay shared on 5432 and 5000. | `node tools/orca-web-port.mjs` (`--setup`) |
 | `android-emulator.mjs` | Brings the Orbit Android emulator to a ready state. Creates `Orbit_Pixel_9_API_35` when absent, using only hardware values measured to boot. Every serial is resolved to its own AVD before it counts as ready, so an unrelated emulator is never reported or installed to, and a serial it cannot identify is never used. A running AVD is reused only while it still resolves `--verify-host`; otherwise it is restarted with `--dns`, because an emulator someone else started inherits the host resolver that failed to resolve `api.useorbit.org`. Readiness comes from `sys.boot_completed`, never from the launch succeeding. | `node tools/android-emulator.mjs` (`--status`, `--avd`, `--dns`, `--verify-host`, `--timeout`, `--json`) |
 
-### Mobile surface capture
+### The protected-route redirect proof
 
-The Android capture build is independent of the development server. From PowerShell, build and install it on an already-running emulator, then name the exact manifest surfaces to capture:
+`.maestro/protected-route-redirect.yaml` proves positively that a protected route sends a signed-out
+person to login. It opens the protected route's deep link, asserts the LOGIN probe is visible and the
+protected one is not, and requires the capture-only request probe derived from Expo Linking's raw
+received URL for the exact protected surface, so a dropped link cannot look like a redirect.
+
+The capture build is independent of the development server. From PowerShell, build and install it on
+an already-running emulator, then run the flow. Supply `CAPTURE_LINK`; the assertions decide the
+outcome without writing a screenshot:
 
 ```powershell
 $env:EXPO_PUBLIC_CAPTURE_MODE='true'
 npm run android:apk:emulator -w @orbit/mobile
 adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
-npm run surfaces:capture:mobile -- --surface m-route-login --surface m-route-privacy
-```
-
-Maestro 2.8.0 is the default driver. On Windows the tool checks `MAESTRO_BIN`, then the standard `%USERPROFILE%\.maestro\bin` installation, then `PATH`. The checked-in flow opens the route with capture-only theme and locale query parameters, waits for motion to finish, asserts the route probe, and writes its screenshot into a new run directory.
-
-Use `--driver adb` when Maestro is unavailable. That fallback opens the same deep link with `am start`, waits a fixed interval, and writes `exec-out screencap` bytes. It cannot assert the route probe, so it is useful for framework-independent diagnosis rather than route evidence. Every run writes `report.json`. Unreachable is a **plan-level** verdict decided before anything runs, covering unsupported stateful cells, blocks, overlays, widgets and dynamic routes, and it exits 3. A Maestro run that starts and then fails, including a failed route assertion, is a **runtime failure** and exits 1: the tool cannot tell a failed assertion from a driver timeout or a crashed app, so it does not pretend to.
-
-A protected route therefore cannot be proven by this tool's exit code. `.maestro/protected-route-redirect.yaml` proves it positively instead: it opens the protected route's deep link, asserts the LOGIN probe is visible and the protected one is not, and requires the capture-only request probe derived from Expo Linking's raw received URL for the exact protected surface so a dropped link cannot look like a redirect. Run it directly, building the deep link from this tool's exported `buildCaptureDeepLink` so the two cannot drift. The flow reads `CAPTURE_LINK` and `CAPTURE_PATH`, so both have to be supplied:
-
-```powershell
-$about = node --input-type=module -e "
-  import { readFileSync } from 'node:fs'
-  import { buildCaptureDeepLink } from './tools/capture-surfaces-mobile.mjs'
-  const manifest = JSON.parse(readFileSync('.claude/manifests/surfaces.json', 'utf8'))
-  const cell = manifest.cells.find((entry) => entry.platform === 'mobile' && entry.surfaceId === 'm-route-about')
-  if (!cell) { console.error('m-route-about is not in the manifest'); process.exit(1) }
-  console.log(buildCaptureDeepLink(cell, 'dark', 'en'))
-"
 adb shell am force-stop org.useorbit.app
-maestro test -e "CAPTURE_LINK=$about" -e CAPTURE_PATH=protected-route-redirect `
+maestro test -e "CAPTURE_LINK=orbit://about?captureTheme=dark&captureLocale=en&captureSurface=m-route-about" `
   --debug-output .artifacts/mobile-capture/protected --flatten-debug-output `
   .maestro/protected-route-redirect.yaml
 ```
 
-Install the capture APK on the emulator first, exactly as the capture prerequisites above describe. The `force-stop` is load-bearing, not tidiness: the flow opens with `openLink`, so a warm app exercises the warm-link path instead. Expo Router's guard rejects a protected warm link by retaining the current public route, which leaves no prior public route to retain only on a cold start, and that is what makes landing on login a positive claim.
+The deep link is `orbit://<path>?captureTheme=<light|dark>&captureLocale=<en|pt-BR>&captureSurface=<surfaceId>`,
+where `<path>` is the route's href without its leading slash and `<surfaceId>` is the id in
+`.claude/manifests/surfaces.json`. `apps/mobile/lib/capture-mode.ts` reads those parameters, and they
+apply only in a build carrying `EXPO_PUBLIC_CAPTURE_MODE`.
+
+The `force-stop` is load-bearing, not tidiness: the flow opens with `openLink`, so a warm app
+exercises the warm-link path instead. Expo Router's guard rejects a protected warm link by retaining
+the current public route, which leaves no prior public route to retain only on a cold start, and that
+is what makes landing on login a positive claim.
 
 ## Brand assets
 

@@ -48,7 +48,7 @@ export function SubHabitEditor({
       {subHabits.length > 0 ? (
         <View style={styles.subHabitsList}>
           {subHabits.map((entry, index) => (
-            <Proposed key={entry.id} proposed={index >= subHabits.length - proposedItemCount} scope="row" label={t('habits.form.proposed')}>
+            <Proposed key={entry.id} proposed={index >= subHabits.length - proposedItemCount} scope="row" label={t('habits.detail.proposed')}>
             <View style={styles.subHabitRow}>
               <Text style={styles.subHabitIndex}>{index + 1}</Text>
               <BottomSheetAppTextInput

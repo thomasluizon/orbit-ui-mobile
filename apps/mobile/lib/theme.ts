@@ -83,7 +83,6 @@ export const radius: AppRadius = {
 
 /** Raw bezier control points for use with Easing.bezier(...) */
 export const easings = {
-  spring: motionEasings.emphasize,
   out: motionEasings.enter,
   smooth: motionEasings.standard,
 }

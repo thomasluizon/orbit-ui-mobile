@@ -12,7 +12,8 @@
  *      row pointing at nothing.
  *   2. Universal contract (tools/CONVENTIONS.md): --help exits 0 with usage on stdout, and
  *      invalid input exits non-zero instead of doing the work.
- *   3. Decision paths: one case module per covered unit under tools/__tests__/, hermetic.
+ *   3. Decision paths: one case module per covered unit under tools/__tests__/, hermetic, plus
+ *      explicitly registered proofs for retained repository assets that otherwise have no runner.
  *      External calls (orca, gh, git) are stubbed or dry-run - this gate creates no worktree,
  *      opens no network connection and touches no ticket.
  *
@@ -73,10 +74,9 @@ const CASE_MODULES = [
   ["android-emulator.mjs", "android-emulator"],
   ["arch-map.mjs", "arch-map"],
   ["board-view.mjs", "board-view"],
-  ["capture-surfaces.mjs", "capture-surfaces"],
-  ["capture-surfaces-mobile.mjs", "capture-surfaces-mobile"],
   ["check-dashes.mjs", "check-dashes"],
   ["check-gradients.mjs", "check-gradients"],
+  ["check-i18n-usage.mjs", "check-i18n-usage"],
   ["check-lockup-crop.mjs", "check-lockup-crop"],
   ["check-push-target.mjs", "check-push-target"],
   ["check-root-allowlist.mjs", "check-root-allowlist"],
@@ -115,11 +115,15 @@ const CASE_MODULES = [
   ["redesign-coverage.mjs", "redesign-coverage"],
   ["resolve-bot-thread.mjs", "resolve-bot-thread"],
   ["salvage-worker.mjs", "salvage-worker"],
-  ["sync-issue-state.mjs", "sync-issue-state"],
   ["surface-manifest.mjs", "surface-manifest"],
+  ["sync-issue-state.mjs", "sync-issue-state"],
   ["teardown-worktree.mjs", "teardown-worktree"],
   ["update-ticket.mjs", "update-ticket"],
   ["verify-delivery.mjs", "verify-delivery"],
+]
+
+const REPOSITORY_CASE_MODULES = [
+  [".maestro/protected-route-redirect.yaml", "protected-route-redirect"],
 ]
 
 const gateCases = {}
@@ -132,16 +136,25 @@ for (const [file, module] of CASE_MODULES) {
   gateCases[file] = loaded.cases
 }
 
+const repositoryCases = {}
+for (const [file, module] of REPOSITORY_CASE_MODULES) {
+  const loaded = await import(`./__tests__/${module}.mjs`)
+  if (typeof loaded.cases !== "function") {
+    console.error(`test-tools: tools/__tests__/${module}.mjs exports no cases() for ${file}`)
+    process.exit(1)
+  }
+  repositoryCases[file] = loaded.cases
+}
+
 /** argv that must be refused before the tool does any work. One row per tools/ script. */
 const INVALID_INPUT = {
   "android-emulator.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "arch-map.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "capture-surfaces.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "capture-surfaces-mobile.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "board-view.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-copy.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-dashes.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-gradients.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "check-i18n-usage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-push-target.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-lockup-crop.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "check-root-allowlist.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
@@ -166,8 +179,8 @@ const INVALID_INPUT = {
   "redesign-coverage.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "resolve-bot-thread.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "salvage-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
-  "sync-issue-state.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "surface-manifest.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
+  "sync-issue-state.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "submit-cloud-worker.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "teardown-worktree.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "update-ticket.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
@@ -243,6 +256,19 @@ for (const [file, cases] of Object.entries(gateCases)) {
   await cases()
   endToolScope()
 }
+const missingRepositoryCaseFiles = Object.keys(repositoryCases).filter(
+  (file) => !existsSync(join(TOOLS_DIR, "..", file)),
+)
+T(
+  "every registered repository case key names a file that exists",
+  missingRepositoryCaseFiles.length === 0,
+  `repository case rows with no file: ${missingRepositoryCaseFiles.join(", ")}`,
+)
+for (const [file, cases] of Object.entries(repositoryCases)) {
+  beginToolScope(file)
+  await cases()
+  endToolScope()
+}
 
 /**
  * Silent coverage loss is the defect this layer exists to remove: on an earlier revision a bare
@@ -256,7 +282,9 @@ const tally = assertionTally()
 for (const [tool, count] of Object.entries(tally).sort(([left], [right]) => left.localeCompare(right))) {
   console.log(`${String(count).padStart(4)}  ${tool}`)
 }
-const silent = Object.keys(gateCases).filter((file) => !orphanedCaseKeys.includes(file) && !(tally[file] > 0))
+const silent = [...Object.keys(gateCases), ...Object.keys(repositoryCases)].filter(
+  (file) => !orphanedCaseKeys.includes(file) && !(tally[file] > 0),
+)
 T(
   "every registered case module ran at least one assertion",
   silent.length === 0,
