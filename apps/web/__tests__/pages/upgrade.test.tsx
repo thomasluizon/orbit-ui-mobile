@@ -241,6 +241,35 @@ describe('UpgradePage', () => {
     expect(decline).toHaveAttribute('href', '/profile')
   })
 
+  it.each([
+    {},
+    { metaKey: true },
+    { ctrlKey: true },
+    { shiftKey: true },
+    { altKey: true },
+    { button: 1 },
+  ])('cancels decline activation during checkout: %j', (modifiers) => {
+    mockPlans = {
+      monthly: { unitAmount: 999 },
+      yearly: { unitAmount: 4999 },
+      currency: 'usd',
+      savingsPercent: 58,
+      couponPercentOff: null,
+    }
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByRole('button', {
+      name: /^upgrade\.plans\.checkoutLabelRecommended:/,
+    }))
+
+    const decline = screen.getByRole('link', { name: 'upgrade.convert.stayFree' })
+    expect(decline).toHaveAttribute('aria-disabled', 'true')
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, ...modifiers })
+    fireEvent(decline, event)
+    expect(event.defaultPrevented).toBe(true)
+    expect(mockGoBackOrFallback).not.toHaveBeenCalled()
+  })
+
   it('shows plan loading skeletons when plans are loading', () => {
     mockIsLoadingPlans = true
     const { container } = render(<UpgradePage />)

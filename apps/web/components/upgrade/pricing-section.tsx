@@ -141,9 +141,13 @@ export function PricingSection({
               href="/profile"
               aria-disabled={checkoutLoading !== null}
               onClick={(event) => {
+                if (checkoutLoading !== null) {
+                  event.preventDefault()
+                  return
+                }
                 if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
                 event.preventDefault()
-                if (checkoutLoading === null) onStayFree()
+                onStayFree()
               }}
               className="inline-flex min-h-11 items-center text-base leading-6 text-[var(--fg-1)] underline underline-offset-4 transition-colors duration-[var(--dur-hover)] ease-[var(--ease-standard)] [@media(pointer:fine)]:hover:text-[var(--fg-2)] active:scale-[0.96] aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
