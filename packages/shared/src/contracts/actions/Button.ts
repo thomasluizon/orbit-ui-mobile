@@ -14,8 +14,6 @@ interface ButtonBase {
   size?: 'md' | 'sm'
   loading?: boolean
   disabled?: boolean
-  /** Spans a phone column; web returns to a capped intrinsic width at the desktop breakpoint. */
-  fullWidth?: boolean
   onClick?: () => void
   /** Associates a web submit button with a form outside its DOM subtree. Native ignores this adapter hint. */
   formId?: string

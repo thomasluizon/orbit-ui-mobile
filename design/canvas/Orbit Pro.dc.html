@@ -102,7 +102,7 @@ a:hover{color:var(--fg-1)}
                       <p style="font-size:14px;line-height:1.5;color:var(--fg-2)">{{ p.couponLine }}</p>
                     </sc-if>
                     <div style="padding-top:8px">
-                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ p.variant }}" on-click="{{ p.buy }}" dc-props="{{ fullWidth }}" hint-size="100%,50px">{{ ctaVerb }}</x-import>
+                      <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ p.variant }}" on-click="{{ p.buy }}" hint-size="auto,50px">{{ ctaVerb }}</x-import>
                     </div>
                   </div>
                 </sc-for>
@@ -198,7 +198,7 @@ a:hover{color:var(--fg-1)}
                         <p style="font-size:14px;line-height:1.5;color:var(--fg-2)">{{ p.couponLine }}</p>
                       </sc-if>
                       <div style="padding-top:8px">
-                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ p.variant }}" on-click="{{ p.buy }}" dc-props="{{ fullWidth }}" hint-size="100%,50px">{{ ctaVerb }}</x-import>
+                        <x-import component-from-global-scope="OrbitDesignSystem_918bd5.Button" variant="{{ p.variant }}" on-click="{{ p.buy }}" hint-size="auto,50px">{{ ctaVerb }}</x-import>
                       </div>
                     </div>
                   </sc-for>
@@ -382,7 +382,6 @@ class Component extends DCLogic {
       recommendedWord: t.recommended, ctaVerb: t.cta, handOffNote: t.handOff,
       declineLabel: t.decline, priceLoadingLabel: t.priceLoading, priceErrorLine: t.priceError,
       account: t.account, navLabelWord: t.navLabel, paletteWord: t.palette,
-      fullWidth: { style: { width: '100%' } },
     };
     if (!D) return base;
 

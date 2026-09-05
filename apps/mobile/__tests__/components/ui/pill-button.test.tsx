@@ -31,15 +31,6 @@ function pressableHeight(tree: any): number | undefined {
 }
 
 describe('PillButton (mobile)', () => {
-  it('stretches only when full width is requested', () => {
-    const tree = renderPill(<PillButton fullWidth>Continue</PillButton>)
-
-    expect(tree.root.findByType('Pressable').props.style({ pressed: false })).toContainEqual({
-      alignSelf: 'stretch',
-      width: '100%',
-    })
-  })
-
   it('renders its label', () => {
     const tree = renderPill(<PillButton onClick={() => {}}>Continue</PillButton>)
     expect(textContents(tree)).toContain('Continue')

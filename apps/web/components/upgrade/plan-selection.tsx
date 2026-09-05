@@ -244,7 +244,6 @@ function TierCard({
       </div>
       <div className="pt-2">
         <PillButton
-          fullWidth
           variant={selected ? 'primary' : 'ghost'}
           loading={loading}
           disabled={disabled}

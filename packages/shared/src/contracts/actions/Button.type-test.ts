@@ -12,7 +12,6 @@ export type ButtonTypeContract = [
   Assert<IsExact<{ children: 'Continue'; variant: 'caution' }, ButtonProps>>,
   Assert<IsExact<{ children: 'icon'; iconOnly: true; label: 'Back' }, ButtonProps>>,
   Assert<IsExact<{ children: 'Create'; formId: 'create-habit-form' }, ButtonProps>>,
-  Assert<IsExact<{ children: 'Continue'; fullWidth: true }, ButtonProps>>,
   // @ts-expect-error a sixth variant is not representable
   Assert<IsExact<{ children: 'Continue'; variant: 'accent' }, ButtonProps>>,
   // @ts-expect-error large is outside the button scale
