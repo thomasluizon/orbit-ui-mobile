@@ -119,10 +119,10 @@ export function checkWorkerBrowser(command, { env = {}, cwd = "", repoRoots = []
       block: true,
       message:
         `A worker may not start ${action}. Refused: ${segment.trim().slice(0, 160)}\n\n` +
-        "Do the code and the tests, commit, push, open the pull request, and stop. Visual evidence is\n" +
-        "owed by a HUMAN after the pull request exists (D7): only a human grants visual completion, the\n" +
-        "run merges nothing unattended, and a fresh worktree cannot authenticate, so the attempt can\n" +
-        "only ever fail. Two workers finished their tickets and then lost the delivery to exactly this.\n" +
+        "Do the code and the tests, commit, push, open the pull request, and stop. Workers never merge.\n" +
+        "Visual inspection is owed by a HUMAN, once for the whole redesign during D90, with no\n" +
+        "per-screen human wait. See .claude/playbooks/redesign-screen.md. A fresh worktree cannot authenticate.\n" +
+        "Two workers finished their tickets and then lost the delivery to exactly this.\n" +
         "Tests are Vitest unit and behaviour tests; no Playwright, no e2e/, no dev server, no emulator.",
     }
   }

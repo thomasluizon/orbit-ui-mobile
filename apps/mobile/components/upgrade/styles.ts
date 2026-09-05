@@ -42,13 +42,6 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 0.48,
   },
-  allowanceAmount: {
-    fontFamily: 'SpaceGrotesk_600SemiBold',
-    fontSize: 34,
-    fontVariant: ['tabular-nums'],
-    letterSpacing: -0.68,
-    lineHeight: 36,
-  },
   allowancePerDay: {
     fontFamily: 'Geist_400Regular',
     fontSize: 14,
@@ -106,12 +99,6 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 0.48,
     lineHeight: 17,
-  },
-  convertHeading: {
-    fontFamily: 'SpaceGrotesk_500Medium',
-    fontSize: 28,
-    lineHeight: 33,
-    letterSpacing: -0.56,
   },
   convertPromise: {
     fontFamily: 'Geist_400Regular',

@@ -62,7 +62,7 @@ export function PricingSection({
         <p className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)]">
           {eyebrow}
         </p>
-        <h1 className="font-display text-[28px] font-medium leading-[1.18] tracking-[-0.02em] text-pretty text-[var(--fg-1)] sm:text-[34px] sm:leading-[1.15]">
+        <h1 className="t-display-heading text-pretty">
           {heading}
         </h1>
         <p className="t-secondary max-w-[46ch] text-pretty">
@@ -164,7 +164,7 @@ function Allowance({ amount, label, perDay }: Readonly<{ amount: string; label: 
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <p className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)]">{label}</p>
-      <p className="font-display text-[34px] font-semibold leading-[1.02] tracking-[-0.02em] tabular-nums text-[var(--fg-1)] sm:text-[44px]">
+      <p className="t-allowance">
         {amount}
       </p>
       <p className="text-sm leading-[1.4] text-[var(--fg-3)]">{perDay}</p>

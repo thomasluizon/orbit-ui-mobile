@@ -153,6 +153,10 @@ function UsageStatsWithoutProfile() {
 
 describe('UpgradePage', () => {
   beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', class {
+      observe() {}
+      disconnect() {}
+    })
     mockProfile = {
       id: 'u1',
       hasProAccess: false,
