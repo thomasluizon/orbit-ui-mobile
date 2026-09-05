@@ -1,8 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 
@@ -37,6 +39,39 @@ describe('Sheet', () => {
   it('does not expose a dismiss control when no close handler exists', () => {
     render(<Sheet open title="Required action" />)
     expect(screen.queryByRole('button', { name: 'common.close' })).toBeNull()
+  })
+
+  it('closes on Escape from its focused content', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<Sheet open title="Options" onClose={onClose}><button type="button">Action</button></Sheet>)
+    await user.click(screen.getByRole('button', { name: 'Action' }))
+    await user.keyboard('{Escape}')
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('cancels a confirmation on Escape without confirming the action', async () => {
+    const user = userEvent.setup()
+    const onCancel = vi.fn()
+    const onConfirm = vi.fn()
+    render(
+      <ConfirmSheet
+        open
+        title="Delete habit"
+        message="Permanent action"
+        confirmLabel="Delete"
+        onCancel={onCancel}
+        onConfirm={onConfirm}
+      />,
+    )
+    screen.getByRole('button', { name: 'Delete' }).focus()
+    await user.keyboard('{Escape}')
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(onCancel).toHaveBeenCalledTimes(1)
+    expect(onConfirm).not.toHaveBeenCalled()
   })
 })
 
