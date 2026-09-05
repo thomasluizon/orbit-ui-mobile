@@ -40,6 +40,55 @@ i18n.t('common.save')`,
   check("check-i18n-usage.mjs", "parses both libraries, lexical scopes, aliases, constants and server namespaces",
     ["--root", clean], { status: 0, stdout: /9 resolved calls/ }, { cwd: root })
 
+  for (const [platform, hook, key] of [
+    ["web", "const t = useTranslations('common')", "save"],
+    ["mobile", "const { t } = useTranslation()", "common.save"],
+  ]) {
+    const forwarded = repository(`forwarded-${platform}`, {
+      [`apps/${platform}/screen.tsx`]: `function Screen() {
+  ${hook}; const shared = { t }; return <Child {...shared} />
+}
+function Child(props) { const { t: words } = props; return label(words) + <Grandchild t={words} /> }
+function Grandchild({t}) { return t('${key}') }
+function label(t) { return t('${key}') }`,
+    })
+    check("check-i18n-usage.mjs", `traces ${platform} translators through helpers, prop aliases and JSX spreads`,
+      ["--root", forwarded], { status: 0, stdout: /Unresolved translation calls: 0 in 0 files[\s\S]*2 resolved calls/ })
+    const missingForwarded = repository(`missing-forwarded-${platform}`, {
+      [`apps/${platform}/screen.tsx`]: `function Screen() { ${hook}; return <Child t={t} /> }
+function Child({t}) { return label(t) }
+function label(t) { return t('missing') }`,
+    })
+    check("check-i18n-usage.mjs", `rejects missing ${platform} keys behind forwarded translators`,
+      ["--root", missingForwarded], { status: 1, stderr: /screen.tsx:3: missing (common\.)?missing/ })
+  }
+
+  for (const [label, source] of [
+    ["different-namespaces", "function Screen(){ const a = useTranslations('common'); const b = useTranslations('habits'); return label(a) + label(b) }"],
+    ["unknown-caller", "function Screen(){ const t = useTranslations('common'); return label(t) + label(unknown) }"],
+    ["escaped-helper", "function Screen(){ const t = useTranslations('common'); consume(label); return label(t) }"],
+    ["escaped-object", "function Screen(){ const t = useTranslations('common'); consume({label}); return label(t) }"],
+    ["exported-helper", "export {label}; function Screen(){ const t = useTranslations('common'); return label(t) }"],
+  ]) {
+    const directory = repository(label, { "apps/web/page.tsx": `${source}\nfunction label(t){ return t('save') }` })
+    check("check-i18n-usage.mjs", `keeps ${label} visible instead of guessing a namespace`, ["--root", directory],
+      { status: 0, stdout: /Unresolved translator bindings: 1; 1 with literal keys/ })
+  }
+  const overridden = repository("overridden-prop", { "apps/web/page.tsx": `function Screen(){
+const t = useTranslations('common'); const shared = { t }; return <Child {...shared} t={useTranslations('habits')} />
+}
+function Child({t}) { return t('save') }` })
+  check("check-i18n-usage.mjs", "uses the last JSX prop assignment when it overrides a spread", ["--root", overridden],
+    { status: 1, stderr: /missing habits.save/ })
+  const cyclic = repository("cyclic-props", { "apps/web/page.tsx": `function Screen(){ const props = props; return <Child {...props} /> }
+function Child({t}) { return t('save') }` })
+  check("check-i18n-usage.mjs", "reports cyclic prop bindings without recursing forever", ["--root", cyclic],
+    { status: 0, stdout: /Unresolved translator bindings: 1; 1 with literal keys/ })
+  const reassigned = repository("reassigned-parameter", { "apps/web/page.tsx": `function Screen(){ const t = useTranslations('common'); return label(t) }
+function label(t) { t = useTranslations('habits'); return t('save') }` })
+  check("check-i18n-usage.mjs", "does not infer a reassigned parameter from its incoming argument", ["--root", reassigned],
+    { status: 0, stdout: /Unresolved translator bindings: 1; 1 with literal keys/ })
+
   for (const [label, source, key] of [
     ["root", "const t = useTranslations();\nt('missing.key')", "missing.key"],
     ["namespace", "const t = useTranslations('habits');\nt('missing')", "habits.missing"],
@@ -68,10 +117,10 @@ i18n.t('common.save')`,
     "apps/mobile/screen.tsx": "const {t} = useTranslation(); t(key)",
   })
   check("check-i18n-usage.mjs", "prints unresolved counts and every affected file without failing", ["--root", dynamic],
-    { status: 0, stdout: /Unresolved dynamic keys: 5 in 2 files\s+apps\/mobile\/screen.tsx: 1\s+apps\/web\/page.tsx: 4/ })
+    { status: 0, stdout: /Unresolved translation calls: 5 in 2 files\s+apps\/mobile\/screen.tsx: 1\s+apps\/web\/page.tsx: 4/ })
   const passed = repository("passed", { "apps/web/page.tsx": "function label(t: (key: string) => string) { return t('save') }" })
   check("check-i18n-usage.mjs", "reports an unproven parameter namespace instead of guessing root", ["--root", passed],
-    { status: 0, stdout: /Unresolved dynamic keys: 1 in 1 files/ })
+    { status: 0, stdout: /Unresolved translation calls: 1 in 1 files[\s\S]*Unresolved translator bindings: 1; 1 with literal keys/ })
   const malformed = repository("malformed", { "apps/web/page.tsx": "const t = useTranslations(;" })
   check("check-i18n-usage.mjs", "refuses malformed source", ["--root", malformed], { status: 2 })
   check("check-i18n-usage.mjs", "refuses a missing root value", ["--root"], { status: 2 })

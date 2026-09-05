@@ -9,7 +9,7 @@ const USAGE = `usage: check-i18n-usage.mjs [--root <directory>] [--staged]
 
 Checks translation literals in apps/web, apps/mobile and packages/shared against
 en.json AND pt-BR.json, and checks catalog key parity. No baseline.
-Reports unresolved dynamic calls with counts and file names without failing.
+Reports unresolved calls by binding or key expression, without failing.
 
   --root <directory>  repository root (defaults to this script's repository)
   --staged            read source and catalogs from the git index; check staged
@@ -80,8 +80,101 @@ function unwrap(expression) {
   return expression
 }
 
+function localReferences(source, checker) {
+  const references = new Map()
+  function visit(node) {
+    if (ts.isIdentifier(node)) {
+      const symbol = ts.isShorthandPropertyAssignment(node.parent)
+        ? checker.getShorthandAssignmentValueSymbol(node.parent)
+        : ts.isExportSpecifier(node.parent) ? checker.getExportSpecifierLocalTargetSymbol(node.parent)
+          : checker.getSymbolAtLocation(node)
+      if (symbol) {
+        if (!references.has(symbol)) references.set(symbol, [])
+        references.get(symbol).push(node)
+      }
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(source)
+  return references
+}
+
+function parameterArguments(parameter, references, checker) {
+  const owner = parameter.parent
+  if (!ts.isFunctionDeclaration(owner) || !owner.name ||
+    owner.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) return undefined
+  const callers = references.get(checker.getSymbolAtLocation(owner.name)) ?? []
+  const position = owner.parameters.indexOf(parameter)
+  const argumentsFound = []
+  for (const reference of callers) {
+    if (reference === owner.name) continue
+    const parent = reference.parent
+    if (ts.isCallExpression(parent) && parent.expression === reference) {
+      if (parent.arguments.some(ts.isSpreadElement) || !parent.arguments[position]) return undefined
+      argumentsFound.push(parent.arguments[position])
+    } else if ((ts.isJsxOpeningElement(parent) || ts.isJsxSelfClosingElement(parent)) &&
+      parent.tagName === reference && position === 0) argumentsFound.push(parent.attributes)
+    else if (!ts.isJsxClosingElement(parent)) return undefined
+  }
+  return argumentsFound.length ? argumentsFound : undefined
+}
+
+function bindingSources(source, checker) {
+  const references = localReferences(source, checker)
+  function written(binding) {
+    const usages = references.get(checker.getSymbolAtLocation(binding.name)) ?? []
+    return usages.some((reference) => {
+      let target = reference
+      while (ts.isPropertyAccessExpression(target.parent) || ts.isElementAccessExpression(target.parent)) target = target.parent
+      return ts.isBinaryExpression(target.parent) && target.parent.left === target &&
+        target.parent.operatorToken.kind === ts.SyntaxKind.EqualsToken
+    })
+  }
+  function members(expressions, name, seen) {
+    if (!expressions?.length) return undefined
+    const groups = expressions.map((expression) => member(expression, name, seen))
+    return groups.every((group) => group?.length) ? groups.flat() : undefined
+  }
+  function member(expression, name, seen) {
+    expression = unwrap(expression)
+    if (!expression || seen.has(expression)) return undefined
+    seen = new Set([...seen, expression])
+    if (ts.isIdentifier(expression)) return members(inputs(checker.getSymbolAtLocation(expression)?.valueDeclaration, seen), name, seen)
+    if (!ts.isObjectLiteralExpression(expression) && !ts.isJsxAttributes(expression)) return undefined
+    for (const item of [...expression.properties].reverse()) {
+      if (ts.isSpreadAssignment(item) || ts.isJsxSpreadAttribute(item)) {
+        const found = member(item.expression, name, seen)
+        if (found === undefined || found.length) return found
+      } else if (item.name?.getText(source) === name) {
+        if (ts.isShorthandPropertyAssignment(item)) {
+          const binding = checker.getShorthandAssignmentValueSymbol(item)?.valueDeclaration
+          return binding?.name && ts.isIdentifier(binding.name) ? [binding.name] : undefined
+        }
+        const initializer = item.initializer
+        return initializer ? [ts.isJsxExpression(initializer) ? initializer.expression : initializer] : undefined
+      } else if (item.name && ts.isComputedPropertyName(item.name)) return undefined
+    }
+    return []
+  }
+  function inputs(binding, seen = new Set()) {
+    if (!binding || seen.has(binding) || written(binding)) return undefined
+    const visited = new Set([...seen, binding])
+    if (ts.isVariableDeclaration(binding)) return binding.initializer ? [binding.initializer] : undefined
+    if (ts.isParameter(binding)) return parameterArguments(binding, references, checker)
+    if (ts.isBindingElement(binding) && ts.isObjectBindingPattern(binding.parent) && !binding.dotDotDotToken) {
+      const container = binding.parent.parent
+      const values = ts.isParameter(container) ? parameterArguments(container, references, checker)
+        : container.initializer ? [container.initializer] : undefined
+      return members(values, (binding.propertyName ?? binding.name).getText(source), visited)
+    }
+    return undefined
+  }
+  return inputs
+}
+
 function extractor(source, checker) {
   const declaration = (identifier) => checker.getSymbolAtLocation(identifier)?.valueDeclaration
+  const inputs = bindingSources(source, checker)
   function literal(expression, seen = new Set()) {
     expression = unwrap(expression)
     if (!expression) return undefined
@@ -132,6 +225,12 @@ function extractor(source, checker) {
         return factory(initializer, true)
       }
     }
+    const incoming = inputs(binding)
+    if (incoming) {
+      const translations = incoming.map((value) => translator(value, visited))
+      const prefix = translations[0]?.prefix
+      if (prefix !== undefined && translations.every((value) => value?.prefix === prefix)) return { prefix }
+    }
     return undefined
   }
   function callTranslator(expression) {
@@ -157,6 +256,8 @@ function extractor(source, checker) {
           line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
           key: key !== undefined && translation.prefix !== undefined
             ? [translation.prefix, key].filter(Boolean).join(".") : undefined,
+          unresolvedBinding: translation.prefix === undefined,
+          literalKey: key !== undefined,
         })
       }
     }
@@ -195,9 +296,9 @@ function run(settings) {
     })
   }
   const usages = analyze(paths, read, settings.root)
-  const dynamic = new Map()
+  const unresolved = new Map()
   for (const { file, line, key } of usages) {
-    if (key === undefined) dynamic.set(file, (dynamic.get(file) ?? 0) + 1)
+    if (key === undefined) unresolved.set(file, (unresolved.get(file) ?? 0) + 1)
     else {
       const missing = CATALOGS.filter((_, index) => !catalogs[index].has(key))
       if (missing.length) {
@@ -206,9 +307,12 @@ function run(settings) {
       }
     }
   }
-  const count = [...dynamic.values()].reduce((sum, value) => sum + value, 0)
-  console.log(`Unresolved dynamic keys: ${count} in ${dynamic.size} files`)
-  for (const [file, total] of [...dynamic].sort()) console.log(`  ${file}: ${total}`)
+  const count = [...unresolved.values()].reduce((sum, value) => sum + value, 0)
+  const bindings = usages.filter((usage) => usage.unresolvedBinding)
+  console.log(`Unresolved translation calls: ${count} in ${unresolved.size} files`)
+  for (const [file, total] of [...unresolved].sort()) console.log(`  ${file}: ${total}`)
+  console.log(`Unresolved translator bindings: ${bindings.length}; ${bindings.filter((usage) => usage.literalKey).length} with literal keys`)
+  console.log(`Nonliteral keys with resolved translators: ${count - bindings.length}`)
   console.log(`i18n usage: ${usages.length - count} resolved calls in ${paths.length} files; ${misses} misses`)
   return misses ? 1 : 0
 }
