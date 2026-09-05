@@ -151,9 +151,11 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
-        <AppBar onBack={closeConversation}
-backLabel={t("common.closeConversation")}
-title={t("chat.title")} />
+        <AppBar
+          onBack={closeConversation}
+          backLabel={t("common.closeConversation")}
+          title={t("chat.title")}
+        />
 
         {showSuggestions ? (
           <ChatEmptyState

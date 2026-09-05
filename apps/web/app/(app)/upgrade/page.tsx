@@ -218,9 +218,11 @@ export default function UpgradePage() {
 
   return (
     <div className="flex min-h-[100dvh] flex-col">
-      <AppBar backLabel={t('common.backToProfile')}
-onBack={() => goBackOrFallback('/profile')}
-title={t('upgrade.title')} />
+      <AppBar
+        backLabel={t('common.backToProfile')}
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('upgrade.title')}
+      />
       <main className="mx-auto w-full max-w-[620px] flex-1 px-4 py-6">
         {model.state === 'offline' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
         {content}

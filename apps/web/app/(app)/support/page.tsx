@@ -85,9 +85,11 @@ export default function SupportPage() {
   return (
     <div className="md:mx-auto md:max-w-[900px]">
       <div className="flex flex-col min-h-[100dvh]">
-        <AppBar backLabel={t('common.backToProfile')}
-onBack={() => goBackOrFallback('/profile')}
-title={t('profile.support.title')} />
+        <AppBar
+          backLabel={t('common.backToProfile')}
+          onBack={() => goBackOrFallback('/profile')}
+          title={t('profile.support.title')}
+        />
         <div className="flex-1 min-h-0 overflow-y-auto" style={{ padding: '16px 20px' }}>
           {!isOnline && (
             <div className="mb-4">

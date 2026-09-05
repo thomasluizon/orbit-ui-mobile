@@ -55,9 +55,11 @@ export default function AiSettingsPage() {
   return (
     <div className="md:mx-auto md:max-w-[760px]">
       <div className="flex flex-col min-h-[100dvh]">
-        <AppBar backLabel={t('common.backToProfile')}
-onBack={() => goBackOrFallback('/profile')}
-title={t('aiSettings.title')} />
+        <AppBar
+          backLabel={t('common.backToProfile')}
+          onBack={() => goBackOrFallback('/profile')}
+          title={t('aiSettings.title')}
+        />
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="stagger-enter">
             <AiFeatureToggles

@@ -112,9 +112,11 @@ export default function PreferencesScreen() {
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
       edges={['top']}
     >
-      <AppBar onBack={() => goBackOrFallback('/profile')}
-title={t('preferences.title')}
-backLabel={t('common.backToProfile')} />
+      <AppBar
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('preferences.title')}
+        backLabel={t('common.backToProfile')}
+      />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}

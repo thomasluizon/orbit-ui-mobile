@@ -150,9 +150,11 @@ export default function AdvancedScreen() {
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
       edges={['top']}
     >
-      <AppBar onBack={() => goBackOrFallback('/profile')}
-title={t('advancedSettings.title')}
-backLabel={t('common.backToProfile')} />
+      <AppBar
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('advancedSettings.title')}
+        backLabel={t('common.backToProfile')}
+      />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}

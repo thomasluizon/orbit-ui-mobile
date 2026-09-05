@@ -27,9 +27,11 @@ export default function WrappedPage() {
 
   return (
     <div className="flex flex-col min-h-[100dvh] md:min-h-0">
-      <AppBar backLabel={t('wrapped.back')}
-onBack={() => goBackOrFallback('/profile')}
-title={t('wrapped.title')} />
+      <AppBar
+        backLabel={t('wrapped.back')}
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('wrapped.title')}
+      />
 
       <WrappedCover
         period={period}

@@ -89,9 +89,11 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   return (
     <div className="relative flex flex-col h-full">
       <div className="relative z-10 shrink-0">
-        <AppBar backLabel={t('common.closeConversation')}
-onBack={close}
-title={t('chat.title')} />
+        <AppBar
+          backLabel={t('common.closeConversation')}
+          onBack={close}
+          title={t('chat.title')}
+        />
       </div>
 
       <div

@@ -281,9 +281,11 @@ export default function UpgradeScreen() {
       style={[styles.safe, { backgroundColor: tokens.bg }]}
       edges={['top', 'bottom']}
     >
-      <AppBar onBack={() => goBackOrFallback(fallbackRoute)}
-title={t('upgrade.title')}
-backLabel={t('common.backToDestination', { destination: t(upgradeBackLabelKey) })} />
+      <AppBar
+        onBack={() => goBackOrFallback(fallbackRoute)}
+        title={t('upgrade.title')}
+        backLabel={t('common.backToDestination', { destination: t(upgradeBackLabelKey) })}
+      />
 
       <ScrollView
         style={styles.container}

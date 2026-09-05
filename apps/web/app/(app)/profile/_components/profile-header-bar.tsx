@@ -20,7 +20,8 @@ export function ProfileHeaderBar({ streak, error }: Readonly<ProfileHeaderBarPro
 
   return (
     <>
-      <AppBar action={
+      <AppBar
+        action={
           <>
             <ThemeToggle />
             <span data-tour="tour-streak-badge">
@@ -29,7 +30,8 @@ export function ProfileHeaderBar({ streak, error }: Readonly<ProfileHeaderBarPro
             <NotificationBell />
           </>
         }
-title={t('nav.profile')} />
+        title={t('nav.profile')}
+      />
 
       {error && (
         <p

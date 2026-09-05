@@ -416,9 +416,11 @@ export default function CalendarSyncScreen() {
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
       edges={['top']}
     >
-      <AppBar onBack={handleBack}
-title={isReviewMode ? t('calendar.autoSync.reviewModeTitle') : t('calendar.title')}
-backLabel={t('common.backToProfile')} />
+      <AppBar
+        onBack={handleBack}
+        title={isReviewMode ? t('calendar.autoSync.reviewModeTitle') : t('calendar.title')}
+        backLabel={t('common.backToProfile')}
+      />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}

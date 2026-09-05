@@ -133,14 +133,16 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
-      <AppBar action={
+      <AppBar
+        action={
           <>
             <ThemeToggle />
             <StreakBadge streak={profile?.currentStreak ?? 0} isFrozen={streakInfo?.isFrozenToday ?? false} />
             <NotificationBell />
           </>
         }
-title={t('nav.profile')} />
+        title={t('nav.profile')}
+      />
       <ScrollView
         ref={profileScrollRef}
         style={styles.container}

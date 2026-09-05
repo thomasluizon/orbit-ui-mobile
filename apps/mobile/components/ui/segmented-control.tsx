@@ -12,11 +12,10 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
       accessibilityRole="radiogroup"
       accessibilityLabel={props.label}
       accessibilityState={{ disabled: props.disabled }}
-      testID="segmented-control"
+      testID={`segmented-control-${props.disabled ? 'disabled' : 'enabled'}`}
       style={[
         styles.group,
         { backgroundColor: tokens.bgField, borderColor: tokens.borderControl },
-        props.disabled ? styles.disabled : null,
       ]}
     >
       {props.options.map((option) => {
@@ -28,7 +27,7 @@ export function SegmentedControl<TValue extends string>(props: Readonly<Segmente
             accessibilityRole="radio"
             accessibilityState={{ checked: selected, disabled }}
             disabled={disabled}
-            testID={`segment-${option.value}`}
+            testID={`segment-${option.value}-${selected ? 'selected' : 'unselected'}-${disabled ? 'disabled' : 'enabled'}`}
             onPress={() => {
               if (!disabled && !selected) props.onChange(option.value)
             }}

@@ -249,9 +249,11 @@ export default function SupportScreen() {
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
       edges={['top']}
     >
-      <AppBar onBack={() => goBackOrFallback('/profile')}
-title={t('profile.support.title')}
-backLabel={t('common.backToProfile')} />
+      <AppBar
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('profile.support.title')}
+        backLabel={t('common.backToProfile')}
+      />
       <KeyboardAwareScrollView
         style={styles.container}
         containerStyle={styles.container}
