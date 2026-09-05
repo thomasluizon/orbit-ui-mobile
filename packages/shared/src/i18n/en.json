@@ -2118,7 +2118,6 @@
       "cta": "Subscribe",
       "checkoutLabel": "Subscribe {interval}",
       "checkoutLabelRecommended": "Subscribe {interval}, recommended",
-      "checkoutLabelRecommended": "Subscribe {interval}, recommended",
       "coupon": {
         "line": "With your coupon, {percent}% off the first charge."
       },
