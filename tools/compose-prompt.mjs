@@ -109,6 +109,9 @@ const ticket = `${liveTicket.body.replace(/\s*$/, "")}${commentSection}`
  */
 const worktreeLine = worktree ? `\nWorking tree \`${worktree}\`.` : ""
 const branchLine = branch ? `\nBranch \`${branch}\` is ALREADY checked out for you.` : ""
+const locationInstruction = cloud
+  ? `Use the current container checkout for repository \`${repoKey}\`. Local materialization paths belong to the orchestrator.`
+  : `Repository \`${repoKey}\` at \`${repoPath}\`.${worktreeLine}${branchLine}`
 const decisionDelivery = cloud ? "commit" : "commit and push"
 const baseInstruction = cloud
   ? `Base branch \`${baseBranch}\`: the orchestrator owns pull request delivery outside the container.`
@@ -161,7 +164,7 @@ coherent, and make the LAST line of your output exactly
 \`NEEDS_DECISION: <one question, with your recommended answer>\`. The orchestrator carries that
 question to Thomas. The question costs a minute; a confidently wrong pull request costs the night.
 
-**Where you are.** Repository \`${repoKey}\` at \`${repoPath}\`.${worktreeLine}${branchLine}
+**Where you are.** ${locationInstruction}
 ${baseInstruction}
 
 **Scope.** Only files this ticket names or provably requires. File and line counts are advisory

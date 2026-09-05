@@ -121,7 +121,7 @@ export const cases = () => {
   check(
     TOOL,
     "composes the Cloud mode without local delivery instructions",
-    ["--issue", "ORB-215", "--repo", "ui", "--out", cloudOut, "--cloud", "--base", "redesign/main"],
+    ["--issue", "ORB-215", "--repo", "ui", "--out", cloudOut, "--cloud", "--base", "redesign/main", "--worktree", REPO_PATH, "--branch", "feature/local-materialization"],
     { status: 0 },
     options(ticketPlan()),
   )
@@ -130,6 +130,7 @@ export const cases = () => {
     `${TOOL}: Cloud retains the ticket and decision escalation without instructions to push or open a PR`,
     cloudPrompt.startsWith("# Ticket body\n\nKeep this verbatim.") &&
       /NEEDS_DECISION/.test(cloudPrompt) && /## Manual steps/.test(cloudPrompt) &&
+      /Use the current container checkout/.test(cloudPrompt) && !cloudPrompt.includes(REPO_PATH) &&
       /Never push, never create a branch, never open a pull request/.test(cloudPrompt) &&
       !/commit and push|open your pull request against|One commit series on your branch, pushed|## Finishing contract|gh pr (create|ready|view|checks)/.test(cloudPrompt),
     cloudPrompt,
