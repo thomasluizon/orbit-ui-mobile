@@ -13,7 +13,8 @@
  * Matches any `cubic-bezier(...)` with numeric literal arguments, wherever it
  * appears in a string: a Tailwind `ease-[cubic-bezier(...)]` arbitrary value, a
  * style object's `transitionTimingFunction`, or a shared motion-token value.
- * Also checks four-number arrays and numeric arguments to `.bezier(...)`.
+ * Also checks four-number arrays with x controls in [0,1], arrays asserted as
+ * MotionBezier regardless of x controls, and numeric arguments to `.bezier(...)`.
  */
 
 const CUBIC_BEZIER_RE = /cubic-bezier\s*\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/g
@@ -29,6 +30,14 @@ function numericLiteral(node) {
 
 function hasOvershoot(y1, y2) {
   return y1 < 0 || y1 > 1 || y2 < 0 || y2 > 1
+}
+
+function isMotionBezier(node) {
+  const assertion = node.parent
+  if (assertion.type !== 'TSAsExpression') return false
+  const annotation = assertion.typeAnnotation
+  return annotation.type === 'TSTypeReference' &&
+    annotation.typeName.type === 'Identifier' && annotation.typeName.name === 'MotionBezier'
 }
 
 function findOvershoot(text) {
@@ -57,6 +66,8 @@ module.exports = {
       if (controls.length !== 4) return
       const values = controls.map(numericLiteral)
       if (values.some((value) => value === null)) return
+      if (node.type === 'ArrayExpression' && !isMotionBezier(node) &&
+          (values[0] < 0 || values[0] > 1 || values[2] < 0 || values[2] > 1)) return
       if (hasOvershoot(values[1], values[3])) {
         context.report({ node, messageId: 'noOvershoot', data: { curve: context.sourceCode.getText(node) } })
       }
