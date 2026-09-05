@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
+import type { StyleProp, ViewStyle } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { ListRow } from '@/components/ui/list-row'
@@ -39,12 +40,86 @@ function press(node: TestNode) {
 }
 
 function resolvePressedStyle(node: TestNode) {
-  const style = node.props.style as (state: { pressed: boolean }) => unknown
+  const style = node.props.style
+  if (typeof style !== 'function') return style
   style({ pressed: false })
   return style({ pressed: true })
 }
 
+function actionContent(node: TestNode, pressed: boolean) {
+  const children = node.props.children as (state: { pressed: boolean }) => ReactElement
+  return render(children({ pressed })).root.findByType(View)
+}
+
 describe('list primitives on mobile', () => {
+  it('insets invoice actions and navigation controls without shrinking their touch targets', () => {
+    const onDownload = vi.fn()
+    const tree = render(
+      <ListRow title="Invoice" description="September subscription" chevron={false}
+        action={{ icon: 'download', label: 'Download invoice', onPress: onDownload }} />,
+    )
+    const row = tree.root.findByType(View)
+    const action = tree.root.findByType(Pressable)
+    expect(action.props.accessibilityLabel).toBe('Download invoice')
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ alignItems: 'stretch' })
+    expect(StyleSheet.flatten(row.props.style)).not.toHaveProperty('padding')
+    for (const pressed of [false, true]) {
+      expect(StyleSheet.flatten(action.props.style)).toMatchObject({ padding: 16, paddingStart: 0, flexShrink: 0 })
+      expect(StyleSheet.flatten(actionContent(action, pressed).props.style)).toMatchObject({ width: 44, height: 44, flexShrink: 0 })
+    }
+    press(action)
+    expect(onDownload).toHaveBeenCalledOnce()
+
+    void act(() => { tree.update(<ListRow title="Account" onClick={vi.fn()} />) })
+    const navigation = tree.root.findByType(Pressable)
+    expect(StyleSheet.flatten(tree.root.findByType(View).props.style)).not.toHaveProperty('padding')
+    expect(StyleSheet.flatten(resolvePressedStyle(navigation))).toMatchObject({ minHeight: 76, padding: 16 })
+    const chevron = navigation.findAllByType(View).find((node) =>
+      StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 44,
+    )
+    expect(StyleSheet.flatten(chevron?.props.style)).toMatchObject({ width: 44, height: 44, flexShrink: 0 })
+
+    void act(() => { tree.update(<ListRow title="Read only" readOnly />) })
+    expect(tree.root.findAllByType(View).some((node) =>
+      StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).padding === 16,
+    )).toBe(true)
+    expect(tree.root.findAllByType(Pressable)).toHaveLength(0)
+  })
+
+  it('keeps required padding when a caller passes the legacy inset option', () => {
+    const tree = render(<ListRow title="Tags" inset={false} onClick={vi.fn()} />)
+    const bodyStyle = StyleSheet.flatten(resolvePressedStyle(tree.root.findByType(Pressable)))
+    expect(bodyStyle).toMatchObject({ padding: 16 })
+    expect(bodyStyle).not.toHaveProperty('paddingEnd')
+  })
+
+  it('owns the entire padded perimeter in adjacent body and action targets', () => {
+    const onOpen = vi.fn()
+    const onRemove = vi.fn()
+    const tree = render(
+      <ListRow title="Template" onClick={onOpen} chevron={false}
+        action={{ icon: 'trash', label: 'Remove template', onPress: onRemove }} />,
+    )
+    const rowStyle = StyleSheet.flatten(tree.root.findByType(View).props.style)
+    expect(rowStyle).toMatchObject({ minHeight: 52, alignItems: 'stretch' })
+    expect(rowStyle).not.toHaveProperty('padding')
+    const [body, action] = tree.root.findAllByType(Pressable)
+    if (!body || !action) throw new Error('ListRow controls did not render')
+    expect(StyleSheet.flatten(resolvePressedStyle(body))).toMatchObject({ minHeight: 76, padding: 16, paddingEnd: 0 })
+    expect(StyleSheet.flatten(action.props.style)).toMatchObject({ padding: 16, paddingStart: 0 })
+    void act(() => { (body.props.onPressIn as () => void)() })
+    expect(StyleSheet.flatten(body.props.style)).not.toHaveProperty('transform')
+    expect(StyleSheet.flatten(body.findByType(View).props.style)).toMatchObject({ transform: [{ scale: 0.96 }] })
+    press(body)
+    void act(() => { (body.props.onPressOut as () => void)() })
+    expect(StyleSheet.flatten(body.findByType(View).props.style)).not.toHaveProperty('transform')
+    expect(onOpen).toHaveBeenCalledOnce()
+    expect(onRemove).not.toHaveBeenCalled()
+    press(action)
+    expect(onOpen).toHaveBeenCalledOnce()
+    expect(onRemove).toHaveBeenCalledOnce()
+  })
+
   it('keeps ListRow body and trailing actions independent', () => {
     const onClick = vi.fn()
     const onAction = vi.fn()
@@ -71,8 +146,9 @@ describe('list primitives on mobile', () => {
     expect(StyleSheet.flatten(valueText?.props.style)).toMatchObject({ flexShrink: 1, maxWidth: '50%' })
     press(bodyControl)
     press(actionControl)
-    const bodyPressedStyle = StyleSheet.flatten(resolvePressedStyle(bodyControl))
-    const actionPressedStyle = StyleSheet.flatten(resolvePressedStyle(actionControl))
+    void act(() => { (bodyControl.props.onPressIn as () => void)() })
+    const bodyPressedStyle = StyleSheet.flatten(bodyControl.findByType(View).props.style)
+    const actionPressedStyle = StyleSheet.flatten(actionContent(actionControl, true).props.style)
     expect(bodyPressedStyle).toMatchObject({
       backgroundColor: createTokensV2('purple', 'dark').bgHover,
       transform: [{ scale: 0.96 }],
@@ -94,7 +170,7 @@ describe('list primitives on mobile', () => {
         />,
       )
     })
-    resolvePressedStyle(tree.root.findByType(Pressable))
+    actionContent(tree.root.findByType(Pressable), true)
 
     void act(() => {
       tree.update(<ListRow title="Read only" readOnly />)
