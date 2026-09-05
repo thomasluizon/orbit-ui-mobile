@@ -616,10 +616,12 @@ The existing `t-display` role is unchanged; migrating its other consumers is a s
 
 **thomasluizon/orbit-tickets#421 gap 3: retain the drawn settings-row loading composition on both platforms.**
 The Pro drawing at lines 79 and 175 specifies `Skeleton` with `variant="settings"` and
-three rows. It specifies no tier skeleton, internal placeholder dimensions, or reserved
-tier height. The approximately 260px loaded tier is an observation, not a granted skeleton
-dimension. The missing tier geometry is recorded in `questions.md`; no tier variant is
-invented. Upgrade continues to compose three settings placeholders per tier.
+three rows. Thomas's 2026-09-05 decision retains those rows and requires the composition to
+reserve the loaded tier cards' measured height, including annual, monthly and coupon content,
+so the price response does not shift the layout. The approximate 260px is not a measurement
+to hardcode. This reservation adds no skeleton variant or design token. Record any required
+off-scale spacing value with its measured number in `questions.md`; the skeleton shape itself
+is answered there. Height reservation is still outstanding on this branch.
 
 | Role | Family | Size/Weight | Line-height | Tracking | Colour |
 |---|---|---|---|---|---|
