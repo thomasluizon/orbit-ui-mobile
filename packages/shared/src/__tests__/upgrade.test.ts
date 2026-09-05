@@ -6,6 +6,7 @@ import {
   canAccessEntitlement,
   resolveAccessibleColorScheme,
   resolveUpgradeEntitlementDenial,
+  getUpgradeTierReservation,
 } from '../utils/upgrade'
 
 function getMessageValue(
@@ -21,6 +22,24 @@ function getMessageValue(
 }
 
 describe('upgrade utils', () => {
+  it.each([en, ptBR])('reserves complete annual and monthly content in each locale before a price response', (messages) => {
+    const t = (key: string, params?: Record<string, unknown>) => {
+      const message = getMessageValue(messages, key)
+      if (typeof message !== 'string') throw new Error(`Missing message: ${key}`)
+      return message.replace(/\{(\w+)\}/g, (_match, name: string) => String(params?.[name]))
+    }
+    const annual = getUpgradeTierReservation('yearly', t)
+    const monthly = getUpgradeTierReservation('monthly', t)
+    expect(annual.heroLine).toBe(messages.upgrade.plans.yearly.heroLine)
+    expect(annual.secondLine).toContain(messages.upgrade.plans.loading)
+    expect(annual.couponLine).toBe(monthly.couponLine)
+    expect(annual.couponLine).toContain(messages.upgrade.plans.loading)
+    expect(monthly.heroLine).toBeUndefined()
+    expect(monthly.secondLine).toBeUndefined()
+    expect(annual.price).toBe(messages.upgrade.plans.loading)
+    expect(monthly.price).toBe(messages.upgrade.plans.loading)
+  })
+
   it('omits color schemes from upgrade surfaces and selectable preference copy', () => {
     const removedKeys = [
       'trial.expired.allColors',

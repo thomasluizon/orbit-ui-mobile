@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { AnimatePresence, domMax, LazyMotion, m, useReducedMotion } from 'motion/react'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
+import { getUpgradeTierReservation } from '@orbit/shared/utils/upgrade'
 import { Badge } from '@/components/ui/badge'
 import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
@@ -116,16 +117,18 @@ export function PlanSelection({
         <div className="flex flex-col gap-4">
           {intervalControl}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {[0, 1].map((tierIndex) => (
-              <div key={tierIndex} className="flex flex-col gap-3">
-                {[0, 1, 2].map((rowIndex) => (
-                  <Skeleton
-                    key={rowIndex}
-                    variant="settings"
-                    label={t('upgrade.plans.loading')}
-                  />
-                ))}
-              </div>
+            {(['yearly', 'monthly'] as const).map((interval) => (
+              <TierReservation key={interval} interval={interval} t={t}>
+                <div className="flex flex-col gap-3">
+                  {[0, 1, 2].map((rowIndex) => (
+                    <Skeleton
+                      key={rowIndex}
+                      variant="settings"
+                      label={t('upgrade.plans.loading')}
+                    />
+                  ))}
+                </div>
+              </TierReservation>
             ))}
           </div>
         </div>
@@ -183,20 +186,59 @@ export function PlanSelection({
         {intervalControl}
         <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2">
           {tiers.map((tier) => (
-            <TierCard
-              key={tier.interval}
-              tier={tier}
-              recommended={tier.interval === 'yearly'}
-              selected={tier.interval === selectedInterval}
-              loading={checkoutLoading === tier.interval}
-              disabled={checkoutPending || checkoutDisabled}
-              onCheckout={onCheckout}
-              t={t}
-            />
+            <TierReservation key={tier.interval} interval={tier.interval} t={t}>
+              <TierCard
+                tier={tier}
+                recommended={tier.interval === 'yearly'}
+                selected={tier.interval === selectedInterval}
+                loading={checkoutLoading === tier.interval}
+                disabled={checkoutPending || checkoutDisabled}
+                onCheckout={onCheckout}
+                t={t}
+              />
+            </TierReservation>
           ))}
         </div>
       </div>
     </PlanLoadMotion>
+  )
+}
+
+function TierReservation({ interval, t, children }: Readonly<{
+  interval: SubscriptionInterval
+  t: ReturnType<typeof useTranslations>
+  children: ReactNode
+}>) {
+  const [height, setHeight] = useState(0)
+  const measureReservation = useCallback((element: HTMLDivElement | null) => {
+    if (!element) return
+    const measure = () => setHeight(element.offsetHeight)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+  return (
+    <div data-tier-reservation={interval} style={{ display: 'grid', minHeight: height }}>
+      <div
+        aria-hidden="true"
+        inert
+        style={{ gridArea: '1 / 1', visibility: 'hidden', minWidth: 0 }}
+        data-tier-measurement={interval}
+        ref={measureReservation}
+      >
+        <TierCard
+          tier={getUpgradeTierReservation(interval, t)}
+          recommended={interval === 'yearly'}
+          selected={false}
+          loading={false}
+          disabled
+          onCheckout={() => {}}
+          t={t}
+        />
+      </div>
+      <div data-tier-content={interval} style={{ gridArea: '1 / 1', minWidth: 0, display: 'grid' }}>{children}</div>
+    </div>
   )
 }
 

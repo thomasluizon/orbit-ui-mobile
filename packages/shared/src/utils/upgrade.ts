@@ -30,6 +30,24 @@ export interface UpgradeDenialInput {
 
 export const DEFAULT_FREE_COLOR_SCHEME: ColorScheme = 'purple'
 
+export function getUpgradeTierReservation(
+  interval: 'monthly' | 'yearly',
+  t: (key: string, params?: Record<string, string>) => string,
+) {
+  const pendingValue = t('upgrade.plans.loading')
+  return {
+    interval,
+    name: t(`upgrade.plans.${interval}.name`),
+    price: pendingValue,
+    period: t(`upgrade.plans.${interval}.period`),
+    heroLine: interval === 'yearly' ? t('upgrade.plans.yearly.heroLine') : undefined,
+    secondLine: interval === 'yearly'
+      ? t('upgrade.plans.yearly.equivalent', { price: pendingValue, percent: pendingValue })
+      : undefined,
+    couponLine: t('upgrade.plans.coupon.line', { percent: pendingValue }),
+  }
+}
+
 function normalizeRequirement(
   requirement: string | null | undefined,
 ): UpgradeEntitlementRequirement | null {
