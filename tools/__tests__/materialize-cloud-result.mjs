@@ -75,6 +75,8 @@ export const cases = () => {
     ["decision", { ...handoff, needsDecision: "Enable the feature? Recommend keeping it disabled." }],
     ["missing", null],
     ["invalid", { ...handoff, manualSteps: "not an array" }],
+    ["malformed", "{invalid JSON"],
+    ["recovered-invalid", { ...handoff, manualSteps: "not an array" }],
   ]) {
     const entry = fixture(`handoff-${label}`)
     const submitPath = join(entry.base, "tools", "submit-cloud-worker.mjs")
@@ -101,16 +103,43 @@ export const cases = () => {
     source.git(["add", "implementation.txt"])
     if (report) {
       mkdirSync(join(source.path, ".claude"), { recursive: true })
-      writeFileSync(join(source.path, ".claude", "cloud-handoff.json"), JSON.stringify(report))
+      writeFileSync(join(source.path, ".claude", "cloud-handoff.json"), typeof report === "string" ? report : JSON.stringify(report))
       source.git(["add", ".claude/cloud-handoff.json"])
     }
     const patch = source.git(["diff", "--cached", "--binary", "--full-index"]).stdout
-    const result = invoke(entry, [task(entry.receipt.taskId, "ready", 1)], [], { ORBIT_FAKE_APPLY_PATCH: patch })
+    if (label === "recovered-invalid") {
+      const patchPath = stage(`handoff-${label}/cloud.patch`, patch)
+      const applied = entry.repo.git(["apply", "--index", patchPath])
+      T(`${TOOL}: recovery fixture stages the real immutable patch`, applied.status === 0, applied.stderr)
+      writeFileSync(recoveryPathOf(entry), JSON.stringify({
+        taskId: entry.receipt.taskId, baseSha: entry.receipt.baseSha,
+        worktree: entry.receipt.worktree, attemptedAt: new Date().toISOString(),
+      }))
+    }
+    const result = invoke(entry, [task(entry.receipt.taskId, "ready", 1)], [], {
+      ORBIT_FAKE_APPLY_PATCH: patch, ORBIT_FAKE_DIFF: patch,
+    })
     const stored = JSON.parse(readFileSync(entry.receiptPath, "utf8"))
-    if (label === "missing" || label === "invalid") {
-      T(`${TOOL}: ${label} committed handoff blocks even when implementation applies`,
-        result.status === 10 && /CLOUD_HANDOFF_INVALID/.test(result.stdout) && !stored.materialized &&
-          existsSync(recoveryPathOf(entry)), result.stdout || result.stderr)
+    if (["missing", "invalid", "malformed", "recovered-invalid"].includes(label)) {
+      const mirrored = JSON.parse(readFileSync(stored.mirrorPath, "utf8"))
+      T(`${TOOL}: ${label} handoff resolves both receipts and preserves the complete staged patch`,
+        result.status === 10 && JSON.parse(result.stdout).outcome === "CLOUD_HANDOFF_INVALID" &&
+          !stored.materialized && stored.unusable?.outcome === "CLOUD_HANDOFF_INVALID" &&
+          stored.unusable?.reason.includes("staged patch is preserved") &&
+          JSON.stringify(stored.unusable) === JSON.stringify(mirrored.unusable) &&
+          !receiptBlocksTicketAdmission(stored) && !receiptBlocksTicketAdmission(mirrored) &&
+          !existsSync(recoveryPathOf(entry)) &&
+          entry.repo.git(["diff", "--cached", "--binary", "--full-index"]).stdout === patch &&
+          entry.repo.git(["diff"]).stdout === "" && entry.repo.git(["rev-parse", "HEAD"]).stdout.trim() === entry.head,
+        `${result.stdout || result.stderr}\n${JSON.stringify(stored)}`)
+      const callsBeforeRetry = readFileSync(entry.log, "utf8")
+      const retry = invoke(entry, [], [], { ORBIT_FAKE_DIFF: patch })
+      T(`${TOOL}: ${label} retry returns its terminal reason without Cloud calls or patch changes`,
+        retry.status === 10 && JSON.parse(retry.stdout).outcome === "CLOUD_HANDOFF_INVALID" &&
+          JSON.parse(retry.stdout).message.includes(stored.unusable?.reason) &&
+          readFileSync(entry.log, "utf8") === callsBeforeRetry &&
+          entry.repo.git(["diff", "--cached", "--binary", "--full-index"]).stdout === patch,
+        retry.stdout || retry.stderr)
       continue
     }
     const expectedExit = report.needsDecision ? 10 : 0

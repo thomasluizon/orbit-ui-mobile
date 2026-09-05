@@ -588,8 +588,10 @@ signed commit, push, pull request, and readiness flow. The cloud tool never perf
 commits `.claude/cloud-handoff.json`; materialization reads the staged artifact, validates its
 required fields and preserves the complete object in `materialized.handoff` in both receipt copies.
 Read that object on every materialization, including retries. Exit 10 with `CLOUD_HANDOFF_INVALID`
-means no usable handoff exists: keep the staged diff and recovery marker, and obtain a corrected
-Cloud result through the bounded fixer path. Exit 10 with `NEEDS_DECISION` preserves the handoff
+means the receipt is terminally unusable and ticket admission is released. The reason is durable in
+both receipt copies; retries return the same outcome without applying again. Preserve the staged
+patch in its worktree for manual delivery and record the blocker. The recovery marker is cleared
+only after receipt resolution is durable. Exit 10 with `NEEDS_DECISION` preserves the handoff
 and refuses delivery. Route its question through step 7 (under `--sleep`, log it as blocked), and
 do not run readiness or merge until Thomas answers and the resulting work is verified.
 

@@ -37,6 +37,8 @@ It never commits, pushes, opens a pull request, or merges.
 If exit 9 reports APPLIED_RECEIPT_WRITE_FAILED, the diff is already applied and staged. Leave the
 worktree unchanged and rerun this same command with the same receipt. The retry fetches the task diff,
 verifies it byte-for-byte against the staged patch, and records materialization without applying again.
+Missing or invalid handoffs resolve as CLOUD_HANDOFF_INVALID and release ticket admission. The staged
+patch stays in the worktree for manual delivery; retries return the recorded terminal reason.
 
 exit codes: 0 applied, 1 cloud or Git command failed, 2 usage/receipt/worktree precondition failed,
             3 task cannot be materialized, 5 task is abandoned,
@@ -150,6 +152,14 @@ const clearResolvedRecoveryMarker = () => {
     console.error(`receipt resolution is durable but its stale recovery marker remains at ${recoveryPath}: ${error.message}`)
   }
 }
+const emitUnusable = () => {
+  clearResolvedRecoveryMarker()
+  fail(
+    receipt.unusable.outcome === "CLOUD_HANDOFF_INVALID" ? 10 : 3,
+    `task ${receipt.taskId} was resolved as unusable at ${receipt.unusable.at}: ${receipt.unusable.reason}`,
+    receipt.unusable.outcome ?? "CLOUD_TASK_UNUSABLE",
+  )
+}
 const emitMaterialized = ({ recovered = false, alreadyMaterialized = false } = {}) => {
   clearResolvedRecoveryMarker()
   const handoff = receipt.materialized?.handoff
@@ -192,12 +202,7 @@ if (receipt.materialized) {
   emitMaterialized({ alreadyMaterialized: true })
 }
 if (receipt.unusable) {
-  clearResolvedRecoveryMarker()
-  fail(
-    3,
-    `task ${receipt.taskId} was already resolved as unusable at ${receipt.unusable.at}: ${receipt.unusable.reason}`,
-    "CLOUD_TASK_UNUSABLE",
-  )
+  emitUnusable()
 }
 
 const git = (args) => spawnSync("git", ["-C", worktree, ...args], {
@@ -229,7 +234,14 @@ const readCloudHandoff = () => {
     }
     return handoff
   } catch (error) {
-    fail(10, `Cloud handoff unavailable; preserve the staged diff and recovery marker: ${error.message}`, "CLOUD_HANDOFF_INVALID")
+    receipt.unusable = {
+      at: new Date().toISOString(),
+      status: receipt.lastObserved.status,
+      outcome: "CLOUD_HANDOFF_INVALID",
+      reason: `Cloud handoff unavailable: ${error.message}. The staged patch is preserved in ${worktree} for manual delivery; leave the worktree unchanged.`,
+    }
+    receipt = persistConfiguredReceipt(receipt, true)
+    emitUnusable()
   }
 }
 const readLocalLanding = () => {
