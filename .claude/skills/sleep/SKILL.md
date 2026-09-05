@@ -107,7 +107,7 @@ not set the local pool, and sleep mode does not raise it.
 Cloud implementations use `caps.cloudParallelTasks`, currently **8**. `--cloud` is bound to one
 repository by `cloud.repositoryKey`, currently `ui`; `orbit-api` and `orbit-landing-page` tickets
 stay local. These are the same caps used by `/orchestrate` and `.claude/orchestrator.json`, as in
-#829's D89 operating contract. No daytime-versus-unattended split applies.
+#829's D89 operating contract. Both attended and sleep runs use these caps.
 
 ## 6. Hard stops, which sleep mode never relaxes
 
@@ -119,9 +119,10 @@ Stop and log instead of acting, every time:
 4. **Never touch anything a real person sees tonight.** No Play Console release, no production
    deploy, no production database write, no email, no public post, no external message.
 5. **Never delete a worktree or branch that holds work nobody merged.**
-6. **Never run the D76 screen loop.** Steps 1 to 4 need Thomas in conversation. A screen built with
-   no conversation behind it is out of contract, and that exact violation caused the rebuild wave of
-   2026-09-02. Groundwork tickets are fine. Screens are not.
+6. **Apply D90 for the remainder of the redesign.** D76 steps 3 and 7 and D88's per-screen hold
+   are suspended, so screens may proceed without a conversation or eyes wait. The granted canvas,
+   `DESIGN.md` under D42, the step 6 ui-skills sweep, Pullfrog and all gates still apply. D76 and
+   D88's hold return when the redesign ships. Any unresolved product or design choice still blocks.
 7. **Never decide a product or taste question.** Copy, pricing, positioning, brand, and design
    direction are his. Take the reversible path, which is usually leaving the current behaviour alone,
    log it as blocked, and move on to other work.
@@ -133,8 +134,8 @@ new guard would pass. The guard was wrong, the copy was right, and no gate caugh
 
 **D88 authorizes groundwork merges without asking. D90 (2026-09-05) extends those same terms to
 screens for the remainder of the redesign.** The per-screen merge hold is suspended during that
-period. The D76 conversation and implementation requirements still apply; D90 changes the merge
-hold, not product or design authority.
+period, along with D76's conversation and eyes waits as specified in #829. D90 leaves product and
+design authority with Thomas and preserves the implementation requirements and gates.
 
 Before each merge, require all three on the exact current head: green checks, fresh Pullfrog
 approval at that head, and zero unresolved threads. Log the head and evidence. The orchestrator may
@@ -185,6 +186,13 @@ broader verification. Never bypass a rejecting hook; report its exact output. Ne
 a branch or open a pull request. Report the commit and test results, then stop without waiting on
 CI. The orchestrator owns materialization, local delivery and CI waiting. The submitter reuses the
 same contract without duplicating it. Never send a locally composed order to the Cloud submitter.
+
+The Cloud order also requires a committed `.claude/cloud-handoff.json` carrying `needsDecision`,
+`assumptions`, `manualSteps` and `testResults`, even when the lists are empty. Materialization
+preserves it in `materialized.handoff` in the receipt. Read it before local delivery: a missing or
+invalid artifact, or a non-null `needsDecision`, blocks delivery and readiness. Carry assumptions
+and manual steps into the PR body. Follow `/orchestrate`'s Cloud handoff procedure; a final report
+in the container is supplementary and cannot replace the artifact.
 
 Measured 2026-09-05: four Cloud tasks returned `ready` with an empty diff because no commit existed.
 Putting the commit step first, alone and with its consequence recovered two on resubmission.

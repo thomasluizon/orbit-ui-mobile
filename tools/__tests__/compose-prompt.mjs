@@ -129,7 +129,10 @@ export const cases = () => {
   T(
     `${TOOL}: Cloud retains the ticket and decision escalation without instructions to push or open a PR`,
     cloudPrompt.startsWith("# Ticket body\n\nKeep this verbatim.") &&
-      /NEEDS_DECISION/.test(cloudPrompt) && /## Manual steps/.test(cloudPrompt) &&
+      /NEEDS_DECISION/.test(cloudPrompt) && /manualSteps/.test(cloudPrompt) &&
+      /committed handoff's `assumptions` array/.test(cloudPrompt) &&
+      /record the question in the handoff's `needsDecision` field/.test(cloudPrompt) &&
+      /\.claude\/cloud-handoff.json/.test(cloudPrompt) &&
       /Use the current container checkout/.test(cloudPrompt) && !cloudPrompt.includes(REPO_PATH) &&
       /Never push, never create a branch, never open a pull request/.test(cloudPrompt) &&
       !/commit and push|open your pull request against|One commit series on your branch, pushed|## Finishing contract|gh pr (create|ready|view|checks)/.test(cloudPrompt),

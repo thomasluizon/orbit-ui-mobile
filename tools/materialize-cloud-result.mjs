@@ -42,7 +42,8 @@ exit codes: 0 applied, 1 cloud or Git command failed, 2 usage/receipt/worktree p
             3 task cannot be materialized, 5 task is abandoned,
             6 a Codex cloud command timed out, 7 cloud apply produced an invalid or unauthenticated Git landing,
             8 receipt lock acquisition timed out before apply,
-            9 diff applied and staged but the receipt write lock timed out
+            9 diff applied and staged but the receipt write lock timed out,
+            10 Cloud handoff is missing/invalid or carries a decision blocking delivery
 
   --help, -h          print this usage and exit 0
   --allow-abandoned   permit a late terminal result to proceed, while keeping the base SHA check`
@@ -151,16 +152,19 @@ const clearResolvedRecoveryMarker = () => {
 }
 const emitMaterialized = ({ recovered = false, alreadyMaterialized = false } = {}) => {
   clearResolvedRecoveryMarker()
+  const handoff = receipt.materialized?.handoff
+  if (receipt.handoffRequired && !handoff) fail(10, "materialized receipt has no durable Cloud handoff", "CLOUD_HANDOFF_INVALID")
   console.log(JSON.stringify({
-    outcome: "MATERIALIZED",
+    outcome: handoff?.needsDecision ? "NEEDS_DECISION" : "MATERIALIZED",
     recovered,
     alreadyMaterialized,
     taskId: receipt.taskId,
     worktree,
     status: receipt.materialized?.status ?? "",
     stagedStat: receipt.materialized?.stagedStat ?? "",
+    handoff,
   }))
-  process.exit(0)
+  process.exit(handoff?.needsDecision ? 10 : 0)
 }
 let releaseLock
 try {
@@ -206,6 +210,28 @@ const gitRaw = (args) => spawnSync("git", ["-C", worktree, ...args], {
   maxBuffer: MAX_GIT_REPORT_BYTES,
   windowsHide: true,
 })
+const readCloudHandoff = () => {
+  if (!receipt.handoffRequired) return undefined
+  const path = ".claude/cloud-handoff.json"
+  const changed = git(["diff", "--cached", "--name-only", "--", path])
+  const staged = git(["show", `:${path}`])
+  try {
+    if (changed.status !== 0 || changed.stdout.trim() !== path || staged.status !== 0) {
+      throw new Error("the committed diff must include .claude/cloud-handoff.json")
+    }
+    const handoff = JSON.parse(staged.stdout)
+    if (!handoff || typeof handoff !== "object" || Array.isArray(handoff) ||
+      !(handoff.needsDecision === null || (typeof handoff.needsDecision === "string" && handoff.needsDecision.trim())) ||
+      ![handoff.assumptions, handoff.manualSteps].every((entries) => Array.isArray(entries) &&
+        entries.every((entry) => typeof entry === "string" && entry.trim())) ||
+      typeof handoff.testResults !== "string" || !handoff.testResults.trim()) {
+      throw new Error("handoff requires needsDecision, assumptions, manualSteps and testResults with the contracted types")
+    }
+    return handoff
+  } catch (error) {
+    fail(10, `Cloud handoff unavailable; preserve the staged diff and recovery marker: ${error.message}`, "CLOUD_HANDOFF_INVALID")
+  }
+}
 const readLocalLanding = () => {
   const status = git(["status", "--porcelain"])
   if (status.error || status.status !== 0) fail(2, `could not read worktree status: ${(status.stderr || status.error?.message || "unknown error").trim()}`)
@@ -341,6 +367,7 @@ try {
       at: recoveredAt,
       status: recoveredLanding.status.stdout,
       stagedStat: recoveredLanding.stagedStat.stdout,
+      handoff: readCloudHandoff(),
     }
     receipt = persistConfiguredReceipt(receipt, true)
     emitMaterialized({ recovered: true })
@@ -404,7 +431,7 @@ try {
     fail(7, "cloud apply exited successfully but produced no staged diff", "APPLY_NO_CHANGES")
   }
   const materializedAt = new Date().toISOString()
-  receipt.materialized = { at: materializedAt, status: landing.status.stdout, stagedStat: landing.stagedStat.stdout }
+  receipt.materialized = { at: materializedAt, status: landing.status.stdout, stagedStat: landing.stagedStat.stdout, handoff: readCloudHandoff() }
   receipt = persistConfiguredReceipt(receipt, true)
   emitMaterialized()
 } finally {

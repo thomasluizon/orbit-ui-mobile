@@ -510,6 +510,8 @@ Then edit, compile, run focused tests and commit named paths before broader veri
 failure is reported with its exact output; never bypass hooks or change baselines to force a commit.
 Never push, create a branch or open a PR from Cloud. Report the commit and tests and stop without
 polling CI. The orchestrator materializes and delivers the change locally and owns CI waiting.
+The order also requires `.claude/cloud-handoff.json` in the committed diff, with the schema in
+`CLOUD_FINISHING_CONTRACT`. Container terminal output is supplementary, never the handoff channel.
 
 ## Steps 5 and 6. Spawn the worker
 
@@ -577,8 +579,26 @@ control plane. For `error` and `applied`, it records the distinct unusable resul
 receipt without applying. For `ready`, it requires a clean worktree whose HEAD is byte-for-byte the
 receipt base SHA. List summary statistics are advisory and never decide whether a diff exists, so a
 ready task is applied even when `summary.files_changed` is zero. A successful apply leaves staged
-changes and never moves HEAD. Continue through the existing local test, signed commit, push, pull
-request, and readiness flow. The cloud tool never performs any of those delivery actions.
+changes and never moves HEAD. Consume the Cloud handoff below before the existing local test,
+signed commit, push, pull request, and readiness flow. The cloud tool never performs those actions.
+
+**Cloud handoff, before local delivery.** New submissions set `handoffRequired: true`. The worker
+commits `.claude/cloud-handoff.json`; materialization reads the staged artifact, validates its
+required fields and preserves the complete object in `materialized.handoff` in both receipt copies.
+Read that object on every materialization, including retries. Exit 10 with `CLOUD_HANDOFF_INVALID`
+means no usable handoff exists: keep the staged diff and recovery marker, and obtain a corrected
+Cloud result through the bounded fixer path. Exit 10 with `NEEDS_DECISION` preserves the handoff
+and refuses delivery. Route its question through step 7 (under `--sleep`, log it as blocked), and
+do not run readiness or merge until Thomas answers and the resulting work is verified.
+
+On success, read `assumptions` using step 7's adjudication rule, and carry them verbatim into the PR
+body's `## Assumptions`. Carry `manualSteps` into `## Manual steps`, including each exact key,
+location and proof, and carry `testResults` into validation. Save the resulting PR body in the
+scratchpad before delivery. Only after reading the durable receipt, restore
+`.claude/cloud-handoff.json` to HEAD in the index and worktree, removing a newly added artifact if
+needed; it is transport, not product source. Receipt retries return the preserved handoff without
+reapplying the diff. A legacy receipt without `handoffRequired` has no such proof: recover the full
+handoff explicitly or record a blocker before delivery; an absent report never means no decisions.
 
 If materialization exits 9 with `APPLIED_RECEIPT_WRITE_FAILED`, cloud apply already succeeded and
 the diff is staged. Only the bounded receipt write lock timed out. Leave the worktree unchanged and
@@ -694,6 +714,10 @@ Never fix a diff to satisfy a check that never ran.
 checks settle; without it the state is reported immediately and the run does not sit on it.
 
 ### `NEEDS_DECISION` and `## Assumptions`, read at EVERY worker exit
+
+For Cloud workers, read `materialized.handoff` through the Cloud handoff procedure above before
+delivery. Its `needsDecision`, `assumptions` and `manualSteps` replace the local worker log and
+not-yet-created PR body as inputs to this step. Missing metadata blocks, even if the diff applied.
 
 The composed prompt forbids a worker from guessing a decision that belongs to Thomas: it commits
 what is already safe and ends its output with `NEEDS_DECISION: <question>`. Read the tail of the

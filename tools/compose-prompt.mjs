@@ -117,7 +117,7 @@ const baseInstruction = cloud
   ? `Base branch \`${baseBranch}\`: the orchestrator owns pull request delivery outside the container.`
   : `Base branch \`${baseBranch}\`: open your pull request against it, and do not create another branch.`
 const outputInstruction = cloud
-  ? `Committed implementation in the container, with the commit and test results in your final report. Include ${ticketReference}, \`## Assumptions\` and \`## Manual steps\` when applicable so the orchestrator can carry them into the pull request. Never push or open a pull request.`
+  ? `Committed implementation in the container, including \`.claude/cloud-handoff.json\` as specified by the Cloud finishing contract. The orchestrator preserves that artifact in the receipt and reads it before delivery, carrying its assumptions and manual steps into the PR for ${ticketReference}. Also report the commit and tests in your final output. Never push or open a pull request.`
   : `One commit series on your branch, pushed, with exactly one open pull request that links
 ${ticketReference}. The orchestrator verifies delivery from git and GitHub artifacts with
 tools/verify-delivery.mjs; your own exit code counts for nothing. It owns CI waiting after handoff.`
@@ -155,11 +155,11 @@ const brief = `## Orchestrator's brief
 ticket above is the specification.
 
 **Ambiguity has two tiers, and only one of them is yours.** A mechanical ambiguity (a file name, an
-import shape, where a test lives) you resolve yourself and record in ${cloud ? "your final report" : "the PR body"} under
-\`## Assumptions\`, one line per assumption naming the alternative you rejected. A decision that is
+import shape, where a test lives) you resolve yourself and record in ${cloud ? "the committed handoff's `assumptions` array" : "the PR body's `## Assumptions` section"},
+one line per assumption naming the alternative you rejected. A decision that is
 Thomas's is NEVER yours to guess: a product, brand, copy, price or design call; a tool or process
 the ticket names two contradictory ways; a dependency or capability the ticket presumes that turns
-out not to exist. Hitting one of those, stop: ${decisionDelivery} whatever is already safe and
+out not to exist. Hitting one of those, stop: ${cloud ? "record the question in the handoff's `needsDecision` field, then " : ""}${decisionDelivery} whatever is already safe and
 coherent, and make the LAST line of your output exactly
 \`NEEDS_DECISION: <one question, with your recommended answer>\`. The orchestrator carries that
 question to Thomas. The question costs a minute; a confidently wrong pull request costs the night.
