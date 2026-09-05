@@ -240,7 +240,7 @@ function AllDayMoreChip({
       data-testid="time-grid-all-day-more"
       onClick={onSelect}
       aria-label={accessibilityLabel}
-      className="touch-target-y flex items-center justify-center bg-transparent transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+      className="touch-target flex items-center justify-center bg-transparent transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
       style={{
         appearance: 'none',
         cursor: 'pointer',

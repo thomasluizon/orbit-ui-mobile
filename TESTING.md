@@ -3,6 +3,7 @@
 > **At a glance** - how to write a test in orbit-ui-mobile and the catalog of every suite.
 > - Unit-only policy (Vitest); the only sanctioned E2E against prod is the post-deploy web smoke suite.
 > - Assert behavior and data-attributes, never class names or implementation details.
+> - PillButton target unit cases require installed Chrome; other web component tests use jsdom.
 > - Nine suites: web / mobile / shared unit, web Playwright e2e (which IS the post-deploy smoke), the hermetic layout guard, the authed-Today Lighthouse budget gate, Stryker mutation, and the two harness suites (hook parity and the tools execution gate) that test the agent harness rather than the product.
 > - The two harness suites are run BY HAND after any change to `tools/**` or `.claude/**`: `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`. The `Harness Execution` CI job was removed from branch protection on 2026-08-04, because a broken harness self-check froze every product merge.
 > - The authed-Today Lighthouse budget gate (`perf.yml`) uses a hermetic mock-api + fake-JWT harness to enforce LCP / TBT / script-bundle-size budgets on the signed-in Today surface at PR time (web-only, no prod, no secrets). Its interactive twin is the `/profile` skill.
@@ -12,6 +13,8 @@
 Every feature ships behavior tests. A test that cannot fail when the behavior breaks is worse than no test. This doc is the canonical suite catalog; `/audit-tests` judges tests against the rubric it points to.
 
 ## How to write a test here
+
+PillButton's three target cases run inside Vitest with Playwright's `chrome` channel, compiling the actual Tailwind stylesheet and loading the installed Geist font. Install Google Chrome before running the web suite. These isolated component cases measure visible bounds, pseudo-element bounds and hit testing without an app server, network fixtures or production access; jsdom cannot resolve this layout.
 
 - **Behavior, not implementation.** Assert what the user or caller observes: rendered text, a `data-*` attribute, a returned value, a thrown error. Never assert class names, call order, or private state. Those pass while the behavior is broken and block honest refactors.
 - **Three axes.** A real test covers the happy path **and** an edge case **and** a failure case. Invalid input must be *rejected*, not just valid input accepted.
