@@ -8,10 +8,8 @@ function singleLineLabels(messages: typeof en, trial: boolean): string[] {
   return [
     ...(trial ? [
       plural(messages.upgrade.convert.trialDaysLeft.replaceAll('{days}', '14'), 14),
-      messages.upgrade.convert.trialHeading,
     ] : [
       messages.upgrade.convert.freeEyebrow,
-      messages.upgrade.convert.freeHeading,
       messages.upgrade.convert.trustLine,
     ]),
     messages.upgrade.convert.promise,
