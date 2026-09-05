@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 import en from '@orbit/shared/i18n/en.json'
 import ptBr from '@orbit/shared/i18n/pt-BR.json'
 import { plural } from '@orbit/shared/utils/plural'
@@ -29,6 +29,25 @@ function singleLineLabels(messages: typeof en, trial: boolean): string[] {
     messages.upgrade.convert.cancelAnytime,
     messages.upgrade.convert.stayFree,
   ]
+}
+
+async function assertHeadingLeading(heading: Locator, context: string): Promise<void> {
+  const metrics = await heading.evaluate((element) => {
+    const range = document.createRange()
+    range.selectNodeContents(element)
+    const style = getComputedStyle(element)
+    return {
+      lines: new Set(Array.from(range.getClientRects()).map((rect) => Math.round(rect.top * 10) / 10)).size,
+      fontSize: Number.parseFloat(style.fontSize),
+      lineHeight: Number.parseFloat(style.lineHeight),
+    }
+  })
+  expect(metrics.lines, `${context} heading has rendered lines`).toBeGreaterThan(0)
+  const leading = metrics.lineHeight / metrics.fontSize
+  process.stdout.write(`${context} heading: lines=${metrics.lines}, font-size=${metrics.fontSize}px, line-height=${metrics.lineHeight}px, leading=${leading}\n`)
+  if (metrics.lines >= 3) {
+    expect(leading, `${context} heading wraps to ${metrics.lines} lines and needs leading >= 1.4`).toBeGreaterThanOrEqual(1.4)
+  }
 }
 
 async function renderedLineCounts(page: Page, label: string): Promise<number[]> {
@@ -66,6 +85,9 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
               .map((element) => element.textContent.trim()),
           )
           expect(overflows, `copy stays inside the layout at ${width}px`).toEqual([])
+
+          await assertHeadingLeading(main.getByRole('heading', { level: 1, name: heading, exact: true }),
+            `${locale} ${subscriptionState} at ${width}px`)
 
           for (const label of singleLineLabels(messages, subscriptionState === 'trial')) {
             const lines = await renderedLineCounts(page, label)
