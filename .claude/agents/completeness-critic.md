@@ -16,13 +16,13 @@ You are the gate that stops a visual task from being reported as done when most 
 
 1. **The surface inventory** — the complete list of routes/pages + modals/dialogs/sheets/drawers the task was supposed to transform (visual-delivery rule 1). If you are NOT given one, that is itself a CONFIRMED finding: the task has no enumerated scope and cannot be judged done.
 2. **The changed-file list** (the diff's files) or the branch to compare.
-3. Optionally, per-surface screenshots. If none are attached, flag it under rule 4 (done = artifact per surface; no artifact = unverified).
+3. Optionally, observations of the surface running on seeded data. **Never ask for a screenshot and never flag its absence**: Orbit has no screenshot requirement, and completion is granted by Thomas looking at the running surface (visual-delivery rule 4).
 
 ## What to find (report each as a finding, most damning first)
 
 1. **Untouched inventoried surfaces.** For each surface on the inventory, locate its file(s) and check whether the diff meaningfully changed them. A surface with **zero or trivial** (import-only, whitespace) changes is the headline finding: name the surface, its file, and "not transformed." These are what "delivered 5%" looks like — hunt them first.
 2. **Changed-but-still-default surfaces.** A surface that was edited but still carries untasteful patterns: a `<PillButton fullWidth>` / full-bleed CTA at the desktop breakpoint (DESIGN.md line 258 + Bans; the `no-fullbleed-button` gate runs `flagFullWidthProp:false` on web, so it will NOT catch this — it is yours), a default shadcn primitive used in default state, raw multi-line label wrap on a stat tile / chip / button (DESIGN.md measure + short-label rules), off-rhythm spacing, a bare `zIndex`/z-class that dodged the scale, an old-icon-set glyph where the migration was supposed to land.
-3. **Surfaces missing a seeded-state proof.** Per visual-delivery rules 3-4, a surface verified against an empty/one-row DB, or with no light+dark screenshot, is unverified. Flag any surface whose only evidence is prose.
+3. **Surfaces verified against a trivial database.** Per visual-delivery rule 3, a surface checked against an empty or one-row database is unverified, because an empty screen hides every spacing, wrap and hierarchy defect. Flag any surface whose only evidence is prose written over unseeded data.
 4. **Split-deliverable leakage.** If the task claimed a taste pass but the diff is dominated by *removal* (deleting glow/gradient/warns) with little *additive* structure (spacing, hierarchy, alignment, restraint), say so: the checkable half is standing in for the whole (rule 2).
 5. **Parity gaps.** An inventoried surface transformed on web but not its mobile mirror (or vice versa).
 

@@ -204,7 +204,6 @@ export default [
       "**/*-celebration.tsx",
       "**/*-picker.tsx",
       "**/*-gate.tsx",
-      "**/upgrade/**",
       "**/goal-detail-drawer/**",
       "**/calendar-sync/**",
       "**/onboarding/**",

@@ -34,7 +34,7 @@ import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { PASSING_CONCLUSIONS, findRegisteredCheck, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, requiredChecksOf } from "./lib/readiness-receipt.mjs"
+import { PASSING_CONCLUSIONS, findRegisteredCheck, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, registrationFingerprint, requiredChecksFromResponse } from "./lib/readiness-receipt.mjs"
 
 const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path> --branch <name> [options]
 
@@ -44,7 +44,7 @@ const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path>
   --repo <key>        repository key from .claude/orchestrator.json (required); GitHub is
                       queried with that repository's owner-scoped token
   --base <ref>        base the commit count is taken against (default: main)
-  --wait-ci <s>       seconds to wait for still-running checks to settle before
+  --wait-ci <s>       seconds to observe registering or still-running checks before
                       reporting CI_PENDING (default: 0, report immediately)
   --command-timeout-seconds <s>
                       hard bound for each Git/GitHub child (default: 45)
@@ -54,6 +54,12 @@ Derives delivery from git and GitHub artifacts only, never from a worker's own
 report. Checks run in order and the first failure decides the verdict:
 NO_COMMIT, DIRTY_TREE, UNPUSHED, NO_PR, STALE_PR, DRAFT, OUT_OF_DATE,
 CI_FAILING, CI_PENDING, or DELIVERED.
+
+An unprotected base has no required checks. Delivery needs a nonempty rollup
+observed unchanged for at least 60 seconds in this invocation (use --wait-ci),
+and every latest check must pass the shared readiness rule
+(SUCCESS, NEUTRAL, or SKIPPED for completed CheckRuns; SUCCESS for statuses).
+No reported checks means CI_PENDING, never delivery evidence.
 
 stdout carries ONE JSON object and nothing else. Errors go to stderr.
 
@@ -328,14 +334,15 @@ const readRequiredChecks = async (state) => {
     ["api", `repos/${repositoryFromUrl}/branches/${encodeURIComponent(state.baseRefName)}/protection/required_status_checks`],
     githubCwd,
   )
-  if (!protection.ok) fail(2, `gh api required status checks failed for ${state.baseRefName}: ${protection.error}`)
   let parsed
   try {
     parsed = JSON.parse(protection.stdout)
   } catch {
+    if (!protection.ok) fail(2, `gh api required status checks failed for ${state.baseRefName}: ${protection.error}`)
     fail(2, `gh api required status checks returned unparseable JSON: ${protection.stdout.trim().slice(0, 240) || "empty output"}`)
   }
-  const parsedChecks = requiredChecksOf(parsed)
+  const parsedChecks = requiredChecksFromResponse(parsed, protection.ok)
+  if (parsedChecks === null && !protection.ok) fail(2, `gh api required status checks failed for ${state.baseRefName}: ${protection.error}`)
   if (parsedChecks === null) fail(2, `gh api required status checks returned no { context, app_id } checks array for ${state.baseRefName}`)
   return parsedChecks
 }
@@ -352,9 +359,9 @@ let requiredChecks = await readRequiredChecks(pullRequestState)
  * `state` alone and no status. Reading only one shape silently ignores every check of the other
  * kind. lib/readiness-receipt.mjs normalises both into one node shape carrying the producing app.
  *
- * The three buckets below are the exact complement of the pass rule readinessCiIsGreen applies,
- * and the matching of a required check is the library's own, so this reading of CI and the
- * receipt's reading cannot disagree. They were burned once by disagreeing.
+ * Per-check classification uses the exact complement of readinessCiIsGreen's pass rule, and
+ * required-check matching is the library's own. Delivery additionally observes registration when
+ * there is no required inventory; it does not change the shared rule for any reported check.
  */
 const FAILING_STATES = new Set(["FAILURE", "ERROR"])
 const PENDING_STATES = new Set(["PENDING", "EXPECTED"])
@@ -375,6 +382,30 @@ const checkMetadata = (name, node) => {
   }
 }
 
+const REGISTRATION_WINDOW_MS = 60_000
+let registrationObservation = null
+
+/** Without an expected inventory, a fast green check cannot prove registration finished (#429).
+ * Require unchanged evidence across two 30-second poll intervals, even when nothing is running.
+ * Reset on any latest-check or base/head change; old completion timestamps are not observations.
+ * Workflow-derived counts would duplicate trigger/matrix logic and miss external checks; typical
+ * base counts vary with paths and workflow changes. A local observation window avoids both guesses,
+ * though it cannot prove that a producer will never register after the window has elapsed. */
+const registrationPending = (newestByCheck, fingerprint) => {
+  if (requiredChecks.length > 0 || newestByCheck.size === 0) {
+    registrationObservation = null
+    return null
+  }
+  const now = Date.now()
+  if (registrationObservation?.fingerprint !== fingerprint) registrationObservation = { fingerprint, since: now }
+  const observedSeconds = Math.floor((now - registrationObservation.since) / 1000)
+  if (now - registrationObservation.since >= REGISTRATION_WINDOW_MS) return null
+  return {
+    ...checkMetadata("Check registration", { status: "OBSERVING", conclusion: null }),
+    reason: `Unprotected check rollup has been unchanged for ${observedSeconds}s; requires 60s of observation because successful checks may precede later registrations`,
+  }
+}
+
 const readRollup = () => {
   /**
    * A re-run does NOT replace the old entry: the rollup carries BOTH, so a re-run of a red check
@@ -384,8 +415,18 @@ const readRollup = () => {
    */
   // Never null here: readPullRequestState rejects any rollup entry that carries no check name.
   const newestByCheck = newestChecks(pullRequestState.statusCheckRollup)
+  const fingerprint = registrationFingerprint(pullRequestState, newestByCheck)
   const failing = []
   const pending = []
+  const registering = registrationPending(newestByCheck, fingerprint)
+  if (registering) pending.push(registering)
+  /** An empty rollup cannot become delivery evidence just by remaining empty (#429). */
+  if (requiredChecks.length === 0 && newestByCheck.size === 0) {
+    pending.push({
+      ...checkMetadata("Reported checks", { status: "NOT_REGISTERED", conclusion: null }),
+      reason: "No checks reported; an empty required set is not evidence of successful CI",
+    })
+  }
   /**
    * A required check the rollup does not carry UNDER ITS PINNED PRODUCER is pending, never green.
    * That absence is the mechanism by which a missing `pullfrog-approval` blocks, and it is now also
@@ -409,7 +450,7 @@ const readRollup = () => {
     }
     if (!PASSING_CONCLUSIONS.has(node.conclusion)) failing.push(checkMetadata(name, node))
   }
-  return { total: newestByCheck.size, failing, pending }
+  return { total: newestByCheck.size, failing, pending, registrationFingerprint: fingerprint }
 }
 
 // The same synchronous wait list-bot-threads.mjs uses, so the two tools poll the same way.
@@ -434,6 +475,7 @@ checks.ci = {
   failing: rollup.failing,
   pending: rollup.pending,
   requiredChecks,
+  registrationFingerprint: rollup.registrationFingerprint,
   waitedSeconds: waitCiSeconds,
 }
 if (rollup.failing.length > 0) emit("CI_FAILING")

@@ -24,7 +24,7 @@ on:
     # applied before the first run.
     types: [opened, synchronize, reopened, edited, labeled, unlabeled]
   push:
-    branches: [main]
+    branches: [main, redesign/main]
 
 permissions:
   contents: read
@@ -111,6 +111,18 @@ jobs:
         with:
           node-version: 22
       - run: node tools/check-copy.mjs --check
+
+  i18n-usage:
+    name: i18n key usage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node tools/check-i18n-usage.mjs
 
   ratchet:
     name: Suppressions Ratchet

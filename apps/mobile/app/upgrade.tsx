@@ -29,9 +29,9 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { getUpgradeFallbackRoute } from '@/lib/upgrade-route'
 import { AppBar } from '@/components/ui/app-bar'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
-import { PitchSubscriptionCard } from '@/components/upgrade/pitch-subscription-card'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
+import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
 import { useAppToast } from '@/hooks/use-app-toast'
 
@@ -195,41 +195,47 @@ export default function UpgradeScreen() {
   }
 
   const billingDashboard = model.content === 'play' ? (
-    <PlayBillingDashboard
-      status={status}
-      displayPrice={
-        status?.subscriptionInterval === 'yearly'
-          ? playBilling.yearlyOffer?.displayPrice
-          : playBilling.monthlyOffer?.displayPrice
-      }
-      locale={locale}
-      usagePercent={usagePercent}
-      usageProfile={usageProfile}
-      portalState={portalState}
-      isOnline={isOnline}
-      onManagePlay={handleManagePlay}
-      t={t}
-      tokens={tokens}
-    />
+    <>
+      <SubscriptionNotice status={status} locale={locale} t={t} tokens={tokens} />
+      <PlayBillingDashboard
+        status={status}
+        displayPrice={
+          status?.subscriptionInterval === 'yearly'
+            ? playBilling.yearlyOffer?.displayPrice
+            : playBilling.monthlyOffer?.displayPrice
+        }
+        locale={locale}
+        usagePercent={usagePercent}
+        usageProfile={usageProfile}
+        portalState={portalState}
+        isOnline={isOnline}
+        onManagePlay={handleManagePlay}
+        t={t}
+        tokens={tokens}
+      />
+    </>
   ) : (
-    <BillingDashboard
-      state={model.state}
-      data={billing}
-      isOnline={isOnline}
-      locale={locale}
-      usagePercent={usagePercent}
-      usageProfile={usageProfile}
-      status={status}
-      onPortal={() => void handlePortal()}
-      onRetryPortal={() => void handlePortal()}
-      t={t}
-      tokens={tokens}
-    />
+    <>
+      <SubscriptionNotice status={status} locale={locale} t={t} tokens={tokens} />
+      <BillingDashboard
+        state={model.state}
+        data={billing}
+        isOnline={isOnline}
+        locale={locale}
+        usagePercent={usagePercent}
+        usageProfile={usageProfile}
+        status={status}
+        onPortal={() => void handlePortal()}
+        onRetryPortal={() => void handlePortal()}
+        t={t}
+        tokens={tokens}
+      />
+    </>
   )
 
   const pitchContent = (
     <>
-      {status ? <PitchSubscriptionCard status={status} locale={locale} t={t} tokens={tokens} /> : null}
+      <SubscriptionNotice status={status} locale={locale} t={t} tokens={tokens} />
       <PricingSection
         profile={status}
         plans={plans}

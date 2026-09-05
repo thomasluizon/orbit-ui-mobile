@@ -1,11 +1,11 @@
 import React from 'react'
+import { StyleSheet, type PressableStateCallbackType, type StyleProp, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
 import en from '@orbit/shared/i18n/en.json'
 import { createTokensV2 } from '@/lib/theme'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
-import { PitchSubscriptionCard } from '@/components/upgrade/pitch-subscription-card'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import type { UpgradeTextFn } from '@/components/upgrade/types'
@@ -426,7 +426,7 @@ describe('subscription dashboards (mobile)', () => {
     }
   })
 
-  it('renders the real trial countdown and a neutral null-interval label', () => {
+  it('renders the real trial countdown', () => {
     const pricing = renderPricing({
       profile: { isTrialActive: true },
       trialDaysLeft: 5,
@@ -435,22 +435,6 @@ describe('subscription dashboards (mobile)', () => {
       'upgrade.convert.trialDaysLeft:{\\"days\\":5}',
     )
 
-    const trialCard = render(
-      <PitchSubscriptionCard
-        status={{
-          ...status,
-          isTrialActive: true,
-          trialEndsAt: '2026-09-02T00:00:00Z',
-          subscriptionInterval: null,
-        }}
-        locale="en"
-        t={t}
-        tokens={tokens}
-      />,
-    )
-    const cardText = JSON.stringify(trialCard.toJSON())
-    expect(cardText).toContain('upgrade.billing.plan.pro')
-    expect(cardText).not.toContain('upgrade.billing.plan.monthly')
   })
 
   it('renders the arithmetic pitch and exactly three outcome rows', () => {
@@ -466,6 +450,10 @@ describe('subscription dashboards (mobile)', () => {
       (node) => node.type === 'View'
         && node.props.accessibilityLabel === 'upgrade.convert.allowanceLabel',
     )).toHaveLength(0)
+    const outcomes = tree.root.findAll((node) => node.type === 'View'
+      && node.props.accessibilityLabel === 'upgrade.outcomes.label')
+    expect(outcomes).toHaveLength(1)
+    expect(outcomes[0]?.props.accessible).toBe(true)
     expect(text).toContain('upgrade.convert.promise')
     expect(text).toContain('upgrade.convert.trustLine')
     expect(text).toContain('upgrade.convert.cancelAnytime')
@@ -552,6 +540,30 @@ describe('subscription dashboards (mobile)', () => {
     expect(offlineRestore?.props.accessibilityState).toEqual({ disabled: true })
   })
 
+  it.each([
+    [true, false, null, false, false],
+    [false, false, null, true, false],
+    [true, true, null, true, false],
+    [true, false, 'yearly', false, true],
+  ] as const)(
+    'dims unavailable links with online=%s restoring=%s checkout=%s',
+    (isOnline, isRestoring, checkoutLoading, restoreDisabled, declineDisabled) => {
+      const onRestore = vi.fn()
+      const onStayFree = vi.fn()
+      const tree = renderPricing({ plans, isOnline, isRestoring, checkoutLoading, onRestore, onStayFree })
+      for (const [onPress, disabled] of [[onRestore, restoreDisabled], [onStayFree, declineDisabled]] as const) {
+        const action = tree.root.findAll((node) => node.type === 'Pressable' && node.props.onPress === onPress)[0]!
+        expect(action.props.disabled).toBe(disabled)
+        expect(action.props.accessibilityState).toEqual({ disabled })
+        const resolveStyle = action.props.style as (state: PressableStateCallbackType) => StyleProp<ViewStyle>
+        for (const pressed of [false, true]) {
+          const style = StyleSheet.flatten(resolveStyle({ pressed }))
+          expect(style.opacity ?? 1).toBe(disabled ? 0.4 : 1)
+        }
+      }
+    },
+  )
+
   it('keeps the live retry action hidden while offline', () => {
     const tree = renderPricing({ isPlansError: true, isOnline: false })
     expect(renderedText(tree)).not.toContain('upgrade.plans.error')
@@ -559,49 +571,5 @@ describe('subscription dashboards (mobile)', () => {
       tree.root.findAll((node) => node.type === 'Pressable'
         && node.props.accessibilityRole === 'button'),
     ).toHaveLength(0)
-  })
-
-  it.each([
-    ['canceled', 'yearly'],
-    ['payment_failed', 'monthly'],
-    ['expired', null],
-  ] as const)('renders the %s lapse outcome for the cached %s plan', (lapseReason, interval) => {
-    const tree = render(
-      <PitchSubscriptionCard
-        status={{
-          ...status,
-          plan: 'free',
-          hasProAccess: false,
-          subscriptionInterval: interval,
-          lapseReason,
-          subscriptionEndedAtUtc: '2026-08-01T00:00:00Z',
-        }}
-        locale="en"
-        t={t}
-        tokens={tokens}
-      />,
-    )
-    expect(renderedText(tree)).toContain(`upgrade.billing.lapsed.${lapseReason}`)
-    if (interval === 'yearly') {
-      expect(renderedText(tree)).toContain('upgrade.billing.lapsed.yearlyFeature')
-    }
-  })
-
-  it('uses the lapse fallback when the end date is unavailable', () => {
-    const tree = render(
-      <PitchSubscriptionCard
-        status={{
-          ...status,
-          plan: 'free',
-          hasProAccess: false,
-          lapseReason: 'expired',
-          subscriptionEndedAtUtc: null,
-        }}
-        locale="en"
-        t={t}
-        tokens={tokens}
-      />,
-    )
-    expect(renderedText(tree)).toContain('upgrade.billing.lapsed.fallback')
   })
 })

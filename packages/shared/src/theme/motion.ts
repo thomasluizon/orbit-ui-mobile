@@ -37,7 +37,6 @@ export const motionEasings = {
   standard: [0.2, 0, 0, 1] as MotionBezier,
   enter: [0.16, 1, 0.3, 1] as MotionBezier,
   exit: [0.4, 0, 1, 1] as MotionBezier,
-  emphasize: [0.34, 1.56, 0.64, 1] as MotionBezier,
   linear: [0, 0, 1, 1] as MotionBezier,
 } as const
 
@@ -356,7 +355,7 @@ export const motionPresets: Record<MotionScenario, MotionPreset> = {
     scenario: 'success-feedback',
     enterDuration: motionDurations.completePop,
     exitDuration: motionDurations.fast,
-    enterEasing: motionEasings.emphasize,
+    enterEasing: motionEasings.enter,
     exitEasing: motionEasings.exit,
     shift: 0,
     scaleFrom: 0.92,

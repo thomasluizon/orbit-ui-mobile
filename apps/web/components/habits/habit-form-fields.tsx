@@ -180,7 +180,7 @@ function SubHabitSection({
     <section>
       <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.subHabits')}</SectionLabel>
       {canUseSubHabits ? (
-        <Proposed proposed={proposed && !!children} scope="field" label={t('habits.form.proposed')}>
+        <Proposed proposed={proposed && !!children} scope="field" label={t('habits.detail.proposed')}>
           {children}
         </Proposed>
       ) : (

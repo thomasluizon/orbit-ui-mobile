@@ -845,11 +845,6 @@
       "count": 2
     }
   },
-  "components/upgrade/usage-stats.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/wrapped/wrapped-entry-button.tsx": {
     "local/icon-size-grid": {
       "count": 1

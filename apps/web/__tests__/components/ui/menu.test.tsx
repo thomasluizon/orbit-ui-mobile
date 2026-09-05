@@ -284,32 +284,56 @@ describe('Menu', () => {
     expect(onClose).toHaveBeenCalledTimes(2)
   })
 
-  /**
-   * The popup library stops Escape before it bubbles back to the document, so a bubble-phase
-   * listener never runs: the menu stayed open and its click catcher covered the whole page.
-   * Dispatching on `document` hides this, because that skips whatever calls stopPropagation, so
-   * assert the phase itself and drive the key from inside the panel.
-   */
-  it('hears Escape before the popup can stop it', async () => {
+  it.each(['Escape', 'outside pointer'] as const)(
+    'removes the anchored menu and catcher on %s and allows reopening', async (dismissal) => {
     setWide(true)
-    const addEventListener = vi.spyOn(document, 'addEventListener')
-    const anchorRef = createRef<HTMLButtonElement>()
+    const user = userEvent.setup()
     const onClose = vi.fn()
-    render(
-      <>
-        <button ref={anchorRef} type="button">More</button>
-        <Menu open title="Habit actions" items={items} anchorRef={anchorRef} onClose={onClose} />
-      </>,
-    )
+    function Harness() {
+      const anchorRef = useRef<HTMLButtonElement>(null)
+      const [open, setOpen] = useState(false)
+      return (
+        <>
+          <button ref={anchorRef} type="button" onClick={() => setOpen(true)}>More</button>
+          <Menu
+            open={open}
+            title="Habit actions"
+            items={items}
+            anchorRef={anchorRef}
+            onClose={() => {
+              onClose()
+              setOpen(false)
+            }}
+          />
+        </>
+      )
+    }
+    render(<Harness />)
+    const trigger = screen.getByRole('button', { name: 'More' })
 
-    const menu = await screen.findByRole('menu')
-    const keyDownRegistrations = addEventListener.mock.calls.filter(([type]) => type === 'keydown')
-    expect(keyDownRegistrations).not.toHaveLength(0)
-    expect(keyDownRegistrations.some(([, , options]) => options === true)).toBe(true)
+    for (let cycle = 1; cycle <= 2; cycle += 1) {
+      await user.click(trigger)
+      await screen.findByRole('menu')
+      const edit = screen.getByRole('menuitem', { name: 'Edit' })
+      await waitFor(() => expect(edit).toHaveFocus())
+      const catcher = document.querySelector('.orbit-menu-catcher')
+      expect(catcher).toBeInTheDocument()
 
-    fireEvent.keyDown(menu, { key: 'Escape' })
-    expect(onClose).toHaveBeenCalled()
-    addEventListener.mockRestore()
+      if (dismissal === 'Escape') await user.keyboard('{Escape}')
+      else {
+        if (!catcher) throw new Error('Open menu has no pointer catcher')
+        await user.pointer({ target: catcher, keys: '[MouseLeft>]' })
+      }
+
+      await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+      expect(catcher).not.toBeInTheDocument()
+      expect(document.querySelector('.orbit-menu-catcher')).not.toBeInTheDocument()
+      if (dismissal === 'Escape') expect(trigger).toHaveFocus()
+      expect(onClose).toHaveBeenCalledTimes(cycle)
+      if (dismissal === 'outside pointer') await user.pointer({ keys: '[/MouseLeft]' })
+      await user.keyboard('{Escape}')
+      expect(onClose).toHaveBeenCalledTimes(cycle)
+    }
   })
 
   /**

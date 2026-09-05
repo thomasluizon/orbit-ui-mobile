@@ -180,6 +180,12 @@ export const requiredChecksOf = (payload) => {
   return required
 }
 
+/** Both readers must classify the same protection response (#429). Confirmed live on 2026-09-05:
+ * an unprotected branch returns a nonzero gh exit and JSON string status "404". Human-readable
+ * error prose is not a contract; every other failed response remains an environment error. */
+export const requiredChecksFromResponse = (payload, succeeded) =>
+  succeeded ? requiredChecksOf(payload) : payload?.status === "404" ? [] : null
+
 const requiredChecksAreValid = (required) =>
   Array.isArray(required) && required.every((entry) => typeof entry?.context === "string" && entry.context !== "" && (entry.appId === null || Number.isInteger(entry.appId)))
 
@@ -201,6 +207,13 @@ export const newestChecks = (rollup) => {
   }
   return newest
 }
+
+/** Delivery observation and final aggregation bind the same normalized latest-check evidence
+ * (#429). Sorting ignores API ordering while retaining rerun, producer, and PR identity changes. */
+export const registrationFingerprint = (state, newestByCheck) => JSON.stringify([
+  state.headRefOid, state.baseRefOid, state.baseRefName,
+  [...newestByCheck].sort(([left], [right]) => left.localeCompare(right)),
+])
 
 /**
  * A required check is registered only when an observed entry carries BOTH its context and its
