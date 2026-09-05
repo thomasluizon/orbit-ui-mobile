@@ -32,7 +32,8 @@ describe('list primitives on web', () => {
     const navigation = screen.getByRole('button', { name: 'Account' })
     expect(navigation.parentElement?.style.padding).toBe('')
     expect(navigation).toHaveStyle({ minHeight: '76px', padding: '16px' })
-    expect(navigation.lastElementChild).toHaveStyle({ width: '44px', height: '44px' })
+    expect(navigation.firstElementChild).toHaveStyle({ minHeight: '44px', gap: '12px' })
+    expect(navigation.firstElementChild?.lastElementChild).toHaveStyle({ width: '44px', height: '44px' })
 
     rerender(<ListRow title="Read only" readOnly />)
     expect(container.firstElementChild?.firstElementChild).toHaveStyle({ minHeight: '76px', padding: '16px' })

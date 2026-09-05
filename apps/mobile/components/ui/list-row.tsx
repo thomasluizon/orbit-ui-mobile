@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { ListRowProps } from '@orbit/shared/contracts/lists'
 import { ChevronRight } from '@/components/ui/icons'
@@ -7,12 +8,14 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export function ListRow(props: Readonly<ListRowProps>) {
+  const [bodyPressed, setBodyPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { icon, title, description, value, trailing, danger = false, action, chevron = true, onClick, readOnly = false } = props
   const titleColor = danger ? tokens.statusBad : tokens.fg1
+  const bodyStyle = [styles.body, action ? styles.bodyWithAction : null]
   const body: ReactNode = (
-    <>
+    <View style={[styles.bodyContent, bodyPressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
       {icon ? (
         <View style={styles.iconSlot}>
           {typeof icon === 'string' ? <Icon name={icon} size={24} color={titleColor} /> : icon}
@@ -25,15 +28,15 @@ export function ListRow(props: Readonly<ListRowProps>) {
       {value ? <Text style={[styles.value, { color: tokens.fg3 }]} numberOfLines={1}>{value}</Text> : null}
       {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
       {!readOnly && chevron ? <View style={styles.control}><ChevronRight size={24} color={tokens.fg4} strokeWidth={1.8} /></View> : null}
-    </>
+    </View>
   )
 
   return (
     <View style={styles.row}>
       {readOnly || !onClick ? (
-        <View style={[styles.body, action ? styles.bodyWithAction : null]}>{body}</View>
+        <View style={bodyStyle}>{body}</View>
       ) : (
-        <Pressable accessibilityRole="button" onPress={onClick} style={({ pressed }) => [styles.body, action ? styles.bodyWithAction : null, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>{body}</Pressable>
+        <Pressable accessibilityRole="button" onPress={onClick} onPressIn={() => setBodyPressed(true)} onPressOut={() => setBodyPressed(false)} style={bodyStyle}>{body}</Pressable>
       )}
       {action ? (
         <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={styles.action}>
@@ -50,7 +53,8 @@ export function ListRow(props: Readonly<ListRowProps>) {
 
 const styles = StyleSheet.create({
   row: { minHeight: 52, flexDirection: 'row', alignItems: 'stretch' },
-  body: { minHeight: 76, padding: 16, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
+  body: { minHeight: 76, padding: 16, flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center' },
+  bodyContent: { minHeight: 44, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
   bodyWithAction: { paddingEnd: 0 },
   action: { padding: 16, paddingStart: 0, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
   iconSlot: { width: 28, flexShrink: 0, alignItems: 'center' },

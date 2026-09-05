@@ -69,7 +69,8 @@
   transition: background-color 240ms var(--ease-standard), color 240ms var(--ease-standard), transform 150ms var(--ease-out);
 }
 
-.orbit-list-row-action:focus-visible {
+.orbit-list-row-action:focus-visible,
+.orbit-list-row-body:focus-visible {
   outline: none;
 
   > span {
@@ -100,7 +101,8 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .orbit-list-row:hover {
+  .orbit-list-row:hover,
+  .orbit-list-row-body:hover > .orbit-list-row {
     background: var(--bg-hover);
     box-shadow: inset 0 0 0 1px var(--hairline-strong);
   }

@@ -40,7 +40,8 @@ function press(node: TestNode) {
 }
 
 function resolvePressedStyle(node: TestNode) {
-  const style = node.props.style as (state: { pressed: boolean }) => unknown
+  const style = node.props.style
+  if (typeof style !== 'function') return style
   style({ pressed: false })
   return style({ pressed: true })
 }
@@ -106,7 +107,12 @@ describe('list primitives on mobile', () => {
     if (!body || !action) throw new Error('ListRow controls did not render')
     expect(StyleSheet.flatten(resolvePressedStyle(body))).toMatchObject({ minHeight: 76, padding: 16, paddingEnd: 0 })
     expect(StyleSheet.flatten(action.props.style)).toMatchObject({ padding: 16, paddingStart: 0 })
+    void act(() => { (body.props.onPressIn as () => void)() })
+    expect(StyleSheet.flatten(body.props.style)).not.toHaveProperty('transform')
+    expect(StyleSheet.flatten(body.findByType(View).props.style)).toMatchObject({ transform: [{ scale: 0.96 }] })
     press(body)
+    void act(() => { (body.props.onPressOut as () => void)() })
+    expect(StyleSheet.flatten(body.findByType(View).props.style)).not.toHaveProperty('transform')
     expect(onOpen).toHaveBeenCalledOnce()
     expect(onRemove).not.toHaveBeenCalled()
     press(action)
@@ -140,7 +146,8 @@ describe('list primitives on mobile', () => {
     expect(StyleSheet.flatten(valueText?.props.style)).toMatchObject({ flexShrink: 1, maxWidth: '50%' })
     press(bodyControl)
     press(actionControl)
-    const bodyPressedStyle = StyleSheet.flatten(resolvePressedStyle(bodyControl))
+    void act(() => { (bodyControl.props.onPressIn as () => void)() })
+    const bodyPressedStyle = StyleSheet.flatten(bodyControl.findByType(View).props.style)
     const actionPressedStyle = StyleSheet.flatten(actionContent(actionControl, true).props.style)
     expect(bodyPressedStyle).toMatchObject({
       backgroundColor: createTokensV2('purple', 'dark').bgHover,
