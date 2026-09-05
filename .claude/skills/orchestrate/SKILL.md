@@ -1178,6 +1178,7 @@ the wrong branch loses the entire night. Discover it at the start, not at 03:00.
   every case, run or no run. Those remain Thomas's alone.
 - Never push to `main`. Never force-push. Never `--no-verify`, never `--no-gpg-sign`.
 - The composed prompt is written to the scratchpad, never inside a repo.
-- No auto-relaunch on a failed verdict. Stop and report.
+- No auto-relaunch on a failed verdict except the single reserved `CLOUD_TASK_EMPTY` retry above.
+  After that retry, stop the ticket and report its outcome.
 - Never edit this skill, a tool under `tools/`, or a CI gate from inside a run. A run that edits the
   contract it is executing describes no consistent system afterwards. Record it, repair it after.
