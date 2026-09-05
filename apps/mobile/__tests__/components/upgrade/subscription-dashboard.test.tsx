@@ -1,5 +1,5 @@
 import React from 'react'
-import { StyleSheet, type PressableStateCallbackType, type StyleProp, type ViewStyle } from 'react-native'
+import { Linking, StyleSheet, type PressableStateCallbackType, type StyleProp, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
@@ -10,6 +10,11 @@ import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboar
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import type { UpgradeTextFn } from '@/components/upgrade/types'
 import type { PlayOffer } from '@/hooks/use-play-billing'
+
+vi.mock('react-native', async (importOriginal) => {
+  const native = await importOriginal<typeof import('react-native')>()
+  return { ...native, Linking: { openURL: vi.fn() } }
+})
 
 vi.mock('@/components/upgrade/plan-summary-card', () => ({
   PlanSummaryCard: ({ badges, ...props }: Record<string, unknown>) =>
@@ -130,6 +135,28 @@ function renderPricing(
 }
 
 describe('subscription dashboards (mobile)', () => {
+  it('reports an invoice handoff failure and clears it when the hosted invoice retry succeeds', async () => {
+    const openURL = vi.spyOn(Linking, 'openURL').mockRejectedValueOnce(new Error('unavailable')).mockResolvedValueOnce(undefined)
+    const url = 'https://billing.test/hosted-invoice'
+    const tree = render(<BillingDashboard state="stripe" data={{ ...billing, recentInvoices: [{
+      id: 'invoice-hosted', date: '2026-08-01T00:00:00Z', amountPaid: 777, currency: 'usd',
+      status: 'paid', invoicePdf: null, hostedInvoiceUrl: url, billingReason: 'subscription_cycle',
+    }] }} isOnline locale="en" usagePercent={16} usageProfile={status} status={status}
+    onPortal={() => {}} onRetryPortal={() => {}} t={t} tokens={tokens} />)
+    const download = () => tree.root.findAll((node) => node.type === 'Pressable'
+      && String(node.props.accessibilityLabel).startsWith('upgrade.billing.invoices.downloadDated:'))[0]!
+    try {
+      await TestRenderer.act(async () => { (download().props.onPress as () => void)(); await Promise.resolve() })
+      expect(openURL).toHaveBeenLastCalledWith(url)
+      expect(renderedText(tree)).toContain('auth.genericError')
+      await TestRenderer.act(async () => { (download().props.onPress as () => void)(); await Promise.resolve() })
+      expect(openURL).toHaveBeenCalledTimes(2)
+      expect(renderedText(tree)).not.toContain('auth.genericError')
+    } finally {
+      openURL.mockRestore()
+    }
+  })
+
   it('labels the Stripe amount as the monthly plan price instead of the catalog price', () => {
     const tree = render(
       <BillingDashboard
@@ -148,7 +175,7 @@ describe('subscription dashboards (mobile)', () => {
     )
     const summary = tree.root.findByType('PlanSummaryCard')
     expect(summary.props.planLabel).toBe('upgrade.billing.plan.monthly')
-    expect(summary.props.meta).toContain(
+    expect((summary.props.facts as (string | null)[]).filter(Boolean).join(' ')).toContain(
       'upgrade.billing.plan.monthlyPrice:{"price":"usd 7.77"}',
     )
     expect(en.upgrade.billing.plan.monthlyPrice).toBe('Monthly plan price: {price}')
@@ -207,7 +234,7 @@ describe('subscription dashboards (mobile)', () => {
       )
       const summary = tree.root.findByType('PlanSummaryCard')
       expect(summary.props.planLabel).toBe(expectedLabel)
-      expect(summary.props.meta).toContain(expectedMeta)
+      expect(state === 'lifetime' ? summary.props.body : (summary.props.facts as (string | null)[]).filter(Boolean).join(' ')).toContain(expectedMeta)
       if (state === 'canceled') {
         expect(renderedText(tree)).toContain('upgrade.billing.plan.canceledBadge')
       }
@@ -268,13 +295,18 @@ describe('subscription dashboards (mobile)', () => {
     expect(renderedText(online)).toContain('upgrade.billing.payment.card')
     expect(renderedText(online)).toContain('upgrade.billing.invoices.reasonCycle')
     expect(renderedText(online)).toContain('upgrade.billing.invoices.statusOpen')
+    const invoiceText = online.root.findAll((node) => node.type === 'Text')
+      .map((node) => node.props.children).filter((text) => typeof text === 'string').join(' ')
+    expect(invoiceText.match(/upgrade\.billing\.invoices\.statusPaid/g)).toHaveLength(1)
+    expect(invoiceText.match(/upgrade\.billing\.invoices\.statusOpen/g)).toHaveLength(1)
+    expect(online.root.findAll((node) => node.type === 'Text' && node.props.children === 'usd 7.77')).toHaveLength(2)
     expect(
       online.root.findAll((node) => node.type === 'Pressable'
         && node.props.accessibilityLabel === 'upgrade.billing.payment.change'),
     ).toHaveLength(1)
     expect(
       online.root.findAll((node) => node.type === 'Pressable'
-        && node.props.accessibilityLabel === 'upgrade.billing.invoices.download'),
+        && String(node.props.accessibilityLabel).startsWith('upgrade.billing.invoices.downloadDated:')),
     ).toHaveLength(1)
 
     const offline = render(
@@ -296,11 +328,11 @@ describe('subscription dashboards (mobile)', () => {
     expect(renderedText(offline)).toContain('upgrade.billing.invoices.reasonCycle')
     expect(
       offline.root.findAll((node) => node.type === 'Pressable'
-        && node.props.accessibilityLabel === 'upgrade.billing.payment.change'),
-    ).toHaveLength(0)
+        && node.props.accessibilityLabel === 'upgrade.billing.payment.change' && node.props.disabled === true),
+    ).toHaveLength(1)
     expect(
       offline.root.findAll((node) => node.type === 'Pressable'
-        && node.props.accessibilityLabel === 'upgrade.billing.invoices.download'),
+        && String(node.props.accessibilityLabel).startsWith('upgrade.billing.invoices.downloadDated:')),
     ).toHaveLength(0)
     const manageButton = offline.root.findAll(
       (node) => Boolean(node.type === 'Pressable'
@@ -308,11 +340,11 @@ describe('subscription dashboards (mobile)', () => {
         && node.props.accessibilityState
         && (node.props.accessibilityState as { disabled?: boolean }).disabled === true),
     )
-    expect(manageButton).toHaveLength(1)
+    expect(manageButton).toHaveLength(2)
   })
 
   it.each([
-    ['portal-opening', 'upgrade.billing.actions.opening'],
+    ['portal-opening', 'upgrade.billing.actions.manage'],
     ['portal-failed', 'upgrade.billing.portalFailed'],
   ] as const)('renders the %s Stripe portal outcome', (state, expectedText) => {
     const tree = render(
@@ -348,7 +380,7 @@ describe('subscription dashboards (mobile)', () => {
         tokens={tokens}
       />,
     )
-    expect(withoutPrice.root.findByType('PlanSummaryCard').props.meta).not.toContain(
+    expect((withoutPrice.root.findByType('PlanSummaryCard').props.facts as (string | null)[]).filter(Boolean).join(' ')).not.toContain(
       'upgrade.billing.plan.yearlyPrice',
     )
 
@@ -366,9 +398,26 @@ describe('subscription dashboards (mobile)', () => {
         tokens={tokens}
       />,
     )
-    expect(withPrice.root.findByType('PlanSummaryCard').props.meta).toContain(
+    expect((withPrice.root.findByType('PlanSummaryCard').props.facts as (string | null)[]).filter(Boolean).join(' ')).toContain(
       'upgrade.billing.plan.yearlyPrice:{"price":"R$ 99,90"}',
     )
+  })
+
+  it('labels entitled Play cancellation as access ending and keeps its price and handoff', () => {
+    const tree = render(<PlayBillingDashboard
+      status={{ ...status, source: 'play', lapseReason: 'canceled' }} displayPrice="R$ 99,90"
+      locale="en" usagePercent={16} usageProfile={status} portalState="idle" isOnline
+      onManagePlay={() => {}} t={t} tokens={tokens} />)
+    const summary = tree.root.findByType('PlanSummaryCard')
+    expect(summary.props.body).toBe('upgrade.billing.plan.canceledBody:{"limit":50}')
+    expect(summary.props.facts).toContain('upgrade.billing.plan.yearlyPrice:{"price":"R$ 99,90"}')
+    expect((summary.props.facts as string[]).join(' ')).toContain('upgrade.billing.plan.canceledHint:')
+    const accessEnd = new Date(status.planExpiresAt!).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })
+    expect(summary.props.facts).toContain(`upgrade.billing.plan.canceledHint:${JSON.stringify({ date: accessEnd })}`)
+    expect((summary.props.facts as string[]).join(' ')).not.toContain('upgrade.billing.plan.renewsOn')
+    expect(renderedText(tree)).toContain('upgrade.billing.plan.canceledBadge')
+    expect(renderedText(tree)).toContain('upgrade.billing.actions.managePlay')
+    expect(tree.root.findByType('UsageCard').props.profile).toEqual(status)
   })
 
   it.each([
@@ -393,13 +442,13 @@ describe('subscription dashboards (mobile)', () => {
       )
       const summary = tree.root.findByType('PlanSummaryCard')
       expect(summary.props.planLabel).toBe(expectedLabel)
-      if (expectedPriceKey) expect(summary.props.meta).toContain(expectedPriceKey)
-      else expect(summary.props.meta).toBe('')
+      if (expectedPriceKey) expect((summary.props.facts as (string | null)[]).filter(Boolean).join(' ')).toContain(expectedPriceKey)
+      else expect((summary.props.facts as (string | null)[]).filter(Boolean).join(' ')).toBe('')
     },
   )
 
   it.each([
-    ['opening', true, 'upgrade.billing.actions.opening'],
+    ['opening', true, 'upgrade.billing.actions.managePlay'],
     ['failed', true, 'upgrade.billing.portalFailed'],
     ['idle', false, 'upgrade.billing.actions.managePlay'],
   ] as const)('renders the %s Play portal outcome online=%s', (portalState, isOnline, expectedText) => {

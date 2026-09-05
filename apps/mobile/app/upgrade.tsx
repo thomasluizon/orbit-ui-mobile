@@ -31,6 +31,7 @@ import { AppBar } from '@/components/ui/app-bar'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
+import { UsageCard } from '@/components/upgrade/usage-card'
 import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -69,7 +70,7 @@ function UpgradeContent({
 
   return (
     <>
-      {state === 'offline' ? <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.offline')} /></View> : null}
+      {state === 'offline' && content === 'pitch' ? <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.offline')} /></View> : null}
       {body}
     </>
   )
@@ -113,6 +114,7 @@ export default function UpgradeScreen() {
   } = useBilling(showBilling && !isPlaySource && !status?.isLifetimePro)
   const [selectedInterval, setSelectedInterval] = useState<SubscriptionInterval>('yearly')
   const [checkoutLoading, setCheckoutLoading] = useState<SubscriptionInterval | null>(null)
+  const [showPitch, setShowPitch] = useState(false)
   const [portalState, setPortalState] = useState<SubscriptionPortalState>('idle')
   const returningFromBillingRef = useRef(false)
   const [prevProcessing, setPrevProcessing] = useState(false)
@@ -153,8 +155,8 @@ export default function UpgradeScreen() {
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (nextState !== 'active' || !returningFromBillingRef.current) return
       returningFromBillingRef.current = false
+      setPortalState('idle')
       void Promise.all([refetchStatus(), refetchBilling()]).then(() => {
-        setPortalState('idle')
         showSuccess(t('upgrade.billing.portalReturned'))
       })
     })
@@ -170,11 +172,12 @@ export default function UpgradeScreen() {
   function handleManagePlay() {
     if (!isOnline) return
     setPortalState('opening')
+    returningFromBillingRef.current = true
     Linking.openURL(playManageSubscriptionUrl())
-      .then(() => {
-        returningFromBillingRef.current = true
+      .catch(() => {
+        returningFromBillingRef.current = false
+        setPortalState('failed')
       })
-      .catch(() => setPortalState('failed'))
   }
 
   async function handlePortal() {
@@ -187,55 +190,51 @@ export default function UpgradeScreen() {
       const res = await apiClient<{ url: string }>(API.subscription.portal, {
         method: 'POST',
       })
-      await Linking.openURL(res.url)
       returningFromBillingRef.current = true
+      await Linking.openURL(res.url)
     } catch {
+      returningFromBillingRef.current = false
       setPortalState('failed')
     }
   }
 
   const billingDashboard = model.content === 'play' ? (
-    <>
-      <SubscriptionNotice status={status} locale={locale} t={t} tokens={tokens} />
-      <PlayBillingDashboard
-        status={status}
-        displayPrice={
-          status?.subscriptionInterval === 'yearly'
-            ? playBilling.yearlyOffer?.displayPrice
-            : playBilling.monthlyOffer?.displayPrice
-        }
-        locale={locale}
-        usagePercent={usagePercent}
-        usageProfile={usageProfile}
-        portalState={portalState}
-        isOnline={isOnline}
-        onManagePlay={handleManagePlay}
-        t={t}
-        tokens={tokens}
-      />
-    </>
+    <PlayBillingDashboard
+      status={status}
+      displayPrice={
+        status?.subscriptionInterval === 'yearly'
+          ? playBilling.yearlyOffer?.displayPrice
+          : playBilling.monthlyOffer?.displayPrice
+      }
+      locale={locale}
+      usagePercent={usagePercent}
+      usageProfile={usageProfile}
+      portalState={portalState}
+      isOnline={isOnline}
+      onManagePlay={handleManagePlay}
+      t={t}
+      tokens={tokens}
+    />
   ) : (
-    <>
-      <SubscriptionNotice status={status} locale={locale} t={t} tokens={tokens} />
-      <BillingDashboard
-        state={model.state}
-        data={billing}
-        isOnline={isOnline}
-        locale={locale}
-        usagePercent={usagePercent}
-        usageProfile={usageProfile}
-        status={status}
-        onPortal={() => void handlePortal()}
-        onRetryPortal={() => void handlePortal()}
-        t={t}
-        tokens={tokens}
-      />
-    </>
+    <BillingDashboard
+      state={model.state}
+      data={billing}
+      isOnline={isOnline}
+      locale={locale}
+      usagePercent={usagePercent}
+      usageProfile={usageProfile}
+      status={status}
+      onPortal={() => void handlePortal()}
+      onRetryPortal={() => void handlePortal()}
+      t={t}
+      tokens={tokens}
+    />
   )
 
-  const pitchContent = (
+  const pitchContent = !status?.hasProAccess && (status?.lapseReason || status?.subscriptionEndedAtUtc) && !showPitch ? (
+    <SubscriptionNotice status={status} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} tokens={tokens} />
+  ) : (
     <>
-      <SubscriptionNotice status={status} locale={locale} t={t} tokens={tokens} />
       <PricingSection
         profile={status}
         plans={plans}
@@ -260,6 +259,7 @@ export default function UpgradeScreen() {
         t={t}
         tokens={tokens}
       />
+      {status ? <View style={styles.usagePad}><UsageCard usagePercent={usagePercent} usageUrgent={usagePercent >= 80} profile={status} t={t} tokens={tokens} /></View> : null}
     </>
   )
 
@@ -297,9 +297,10 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   container: { flex: 1 },
   scrollContent: {
-    paddingTop: 8,
+    paddingTop: 16,
     paddingBottom: 32,
   },
+  usagePad: { paddingHorizontal: 16, paddingTop: 24 },
   padBlock: {
     paddingHorizontal: 16,
     paddingVertical: 16,

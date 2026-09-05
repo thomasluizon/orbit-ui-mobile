@@ -586,8 +586,8 @@
       "emojiDescription": "Escolha um emoji para esse hábito",
       "emojiOpenPicker": "Escolher emoji do hábito",
       "emojiPickerTitle": "Escolha um emoji",
-    "emojiSearchPlaceholder": "Buscar emojis...",
-    "emojiClearSearch": "Limpar busca de emoji",
+      "emojiSearchPlaceholder": "Buscar emojis...",
+      "emojiClearSearch": "Limpar busca de emoji",
       "emojiCategories": "Categorias de emoji",
       "emojiPickerEmpty": "Nenhum emoji encontrado",
       "emojiRemove": "Remover emoji",
@@ -2133,7 +2133,7 @@
         "monthly": "Pro Mensal",
         "yearly": "Pro Anual",
         "lifetime": "Pro Vitalício",
-        "lifetimeHint": "Seu acesso Pro nunca expira. Não há renovação.",
+        "lifetimeHint": "Você tem o Pro para sempre. Não há nada para renovar, e não há nada para cancelar.",
         "renewsOn": "Renova em {date}",
         "canceledBadge": "Cancela no fim do período",
         "canceledHint": "Acesso até {date}",
@@ -2141,7 +2141,11 @@
         "trialBadge": "Teste",
         "trialHint": "Seu teste termina em {date}",
         "monthlyPrice": "Preço mensal do plano: {price}",
-        "yearlyPrice": "Preço anual do plano: {price}"
+        "yearlyPrice": "Preço anual do plano: {price}",
+        "proBody": "As {limit} mensagens por dia estão liberadas, com a agenda, a retrospectiva e os avisos do Astra.",
+        "canceledBody": "A assinatura foi cancelada e não renova. Tudo do Pro continua ligado até o fim do período.",
+        "pastDueBody": "A última cobrança não passou. Tudo do Pro continua ligado enquanto o provedor tenta de novo; atualizar o cartão no portal resolve.",
+        "lifetimeBadge": "Vitalício"
       },
       "payment": {
         "title": "Método de pagamento",
@@ -2165,19 +2169,20 @@
         "reasonCreate": "Primeiro pagamento",
         "reasonCycle": "Renovação",
         "reasonUpdate": "Mudança de plano",
-        "reasonManual": "Manual"
+        "reasonManual": "Manual",
+        "downloadDated": "Baixar a fatura de {date}"
       },
       "actions": {
-        "manage": "Gerenciar assinatura",
-        "manageHint": "Trocar de plano, atualizar o pagamento ou cancelar",
-        "providerNote": "A Stripe cuida das alterações de cobrança. O Orbit não armazena os dados do cartão e nunca pede sua senha aqui.",
-        "managePlay": "Gerenciar no Google Play",
-        "managePlayHint": "O Google Play cuida desta assinatura. Você pode alterá-la ou cancelá-la por lá.",
+        "manage": "Abrir o portal do Stripe",
+        "manageHint": "A sua assinatura é cobrada pelo Stripe. Trocar de plano, mudar o cartão ou cancelar acontece no portal deles.",
+        "providerNote": "Qualquer mudança de cobrança acontece com o provedor. O Orbit não guarda os dados do seu cartão e nunca pede a sua senha aqui.",
+        "managePlay": "Abrir o Google Play",
+        "managePlayHint": "Você assinou pelo Google Play, então a cobrança é gerida por lá. Trocar de plano ou cancelar acontece no painel de assinaturas do Play.",
         "opening": "Abrindo configurações de cobrança"
       },
       "error": "Não foi possível carregar os detalhes de cobrança",
       "retry": "Tentar de novo",
-      "portalFailed": "As configurações de cobrança não abriram. Confira sua conexão e tente de novo.",
+      "portalFailed": "O portal não abriu.",
       "portalReturned": "Detalhes da assinatura atualizados",
       "offline": "Você está sem conexão. Reconecte para gerenciar a cobrança.",
       "lapsed": {
@@ -2187,13 +2192,15 @@
         "expired": "Sua assinatura expirou em {date}.",
         "fallback": "Sua assinatura terminou.",
         "features": "O limite diário maior da Astra e a sincronização do calendário não estão mais ativos.",
-        "yearlyFeature": "A retrospectiva anual não está mais ativa.",
-        "action": "Assinar de novo"
+        "action": "Assinar de novo",
+        "ended": "A sua assinatura terminou em {date}.",
+        "body": "A conta voltou para o plano grátis. Os seus hábitos, registros e metas continuam aqui, sem mudança."
       },
       "paymentIssue": {
         "title": "Não conseguimos processar seu pagamento",
         "body": "Seu acesso Pro continua ativo. Abra a cobrança abaixo e atualize a forma de pagamento para mantê-lo."
-      }
+      },
+      "portalFix": "Verifique a conexão e tente de novo. A sua assinatura continua como está."
     },
     "playError": {
       "unavailable": "A cobrança do Google Play não está disponível neste aparelho.",

@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { Linking, Text, View } from 'react-native'
+import { subscriptionSummary } from '@orbit/shared/utils'
 import type { SubscriptionScreenState } from '@orbit/shared/utils'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import type {
@@ -9,7 +11,8 @@ import type {
 import { Badge } from '@/components/ui/badge'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
-import { SectionLabel } from '@/components/ui/section-label'
+import { Icon } from '@/components/ui/icon'
+import { ProviderHandoff } from './provider-handoff'
 import { formatPrice } from '@/hooks/use-subscription-plans'
 import { PlanSummaryCard } from './plan-summary-card'
 import { UsageCard } from './usage-card'
@@ -48,18 +51,7 @@ function planPrice(data: BillingDetails | null, t: UpgradeTextFn) {
   return null
 }
 
-function planLabel(
-  interval: string | null | undefined,
-  lifetime: boolean,
-  t: UpgradeTextFn,
-) {
-  if (lifetime) return t('upgrade.billing.plan.lifetime')
-  if (interval === 'yearly') return t('upgrade.billing.plan.yearly')
-  if (interval === 'monthly') return t('upgrade.billing.plan.monthly')
-  return t('upgrade.billing.plan.pro')
-}
-
-function PlanDetails({ state, status, data, locale, t, tokens }: Readonly<{
+function PlanDetails({ status, data, locale, t, tokens }: Readonly<{
   state: SubscriptionScreenState
   status: SubscriptionStatus
   data: BillingDetails | null
@@ -67,28 +59,14 @@ function PlanDetails({ state, status, data, locale, t, tokens }: Readonly<{
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
-  const lifetime = status.isLifetimePro
-  const canceled = state === 'canceled' || Boolean(data?.cancelAtPeriodEnd)
-  const pastDue = state === 'past-due' || data?.status === 'past_due'
-  const interval = data?.interval
-  const price = planPrice(data, t)
-  const renewalDate = data?.currentPeriodEnd ?? status.planExpiresAt
-  const renewalKey = canceled ? 'upgrade.billing.plan.canceledHint' : 'upgrade.billing.plan.renewsOn'
-  const renewal = renewalDate ? t(renewalKey, { date: formatBillingDate(renewalDate, locale) }) : null
-  const label = planLabel(interval, lifetime, t)
-
-  return (
-    <PlanSummaryCard
-      planLabel={label}
-      meta={lifetime ? t('upgrade.billing.plan.lifetimeHint') : [price, renewal].filter(Boolean).join(' · ')}
-      badges={<>
-        {canceled ? <Badge>{t('upgrade.billing.plan.canceledBadge')}</Badge> : null}
-        {pastDue ? <Badge>{t('upgrade.billing.plan.pastDue')}</Badge> : null}
-      </>}
-      t={t}
-      tokens={tokens}
-    />
-  )
+  const summary = subscriptionSummary(status, data)
+  const price = status.isLifetimePro ? null : planPrice(data, t)
+  const renewal = summary.renewal ? t(summary.renewalKey, { date: formatBillingDate(summary.renewal, locale) }) : null
+  return <PlanSummaryCard planLabel={t(summary.nameKey)}
+    body={t(summary.bodyKey, { limit: status.aiMessagesLimit })}
+    facts={[price, renewal]}
+    badges={summary.badgeKey ? <Badge>{t(summary.badgeKey)}</Badge> : null}
+    tokens={tokens} />
 }
 
 function PaymentMethodSection({ method, state, onPortal, t, tokens }: Readonly<{
@@ -101,28 +79,23 @@ function PaymentMethodSection({ method, state, onPortal, t, tokens }: Readonly<{
   if (!method) return null
   const handoffUnavailable = ['portal-failed', 'portal-opening', 'offline'].includes(state)
   return (
-    <>
-      <SectionLabel>{t('upgrade.billing.payment.title')}</SectionLabel>
-      <View style={[styles.card, { paddingHorizontal: 0, paddingVertical: 0, backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
-        <ListRow
-          icon="credit-card"
-          title={t('upgrade.billing.payment.card', {
-            brand: method.brand.charAt(0).toUpperCase() + method.brand.slice(1),
-            last4: method.last4,
-          })}
-          value={t('upgrade.billing.payment.expires', {
-            month: String(method.expMonth).padStart(2, '0'),
-            year: method.expYear,
-          })}
-          chevron={false}
-          action={handoffUnavailable ? undefined : {
-            icon: 'external-link',
-            label: t('upgrade.billing.payment.change'),
-            onPress: onPortal,
-          }}
-        />
+    <View style={{ gap: 8 }}>
+      <Text accessibilityRole="header" style={[styles.billingSecondary, { color: tokens.fg2 }]}>{t('upgrade.billing.payment.title')}</Text>
+      <View style={[styles.billingWell, { backgroundColor: tokens.bgWell }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Icon name="credit-card" size={20} color={tokens.fg3} />
+          <Text style={[styles.billingSecondary, { color: tokens.fg1, flexShrink: 1 }]}>{t('upgrade.billing.payment.card', {
+            brand: method.brand.charAt(0).toUpperCase() + method.brand.slice(1), last4: method.last4,
+          })}</Text>
+        </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <Text style={[styles.billingMeta, { color: tokens.fg3 }]}>{t('upgrade.billing.payment.expires', {
+            month: String(method.expMonth).padStart(2, '0'), year: method.expYear,
+          })}</Text>
+          <PillButton variant="ghost" size="sm" accessibleName={t('upgrade.billing.payment.change')} disabled={handoffUnavailable} onClick={onPortal}>{t('upgrade.billing.payment.change')}</PillButton>
+        </View>
       </View>
-    </>
+    </View>
   )
 }
 
@@ -133,19 +106,20 @@ function InvoiceRow({ invoice, locale, state, t, tokens }: Readonly<{
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
+  const [downloadFailed, setDownloadFailed] = useState(false)
   const url = invoice.invoicePdf ?? invoice.hostedInvoiceUrl
   const title = formatPrice(invoice.amountPaid, invoice.currency)
-  const description = `${formatBillingDate(invoice.date, locale)} · ${invoiceReason(invoice.billingReason, t)}`
-  const value = invoiceStatus(invoice.status, t)
+  const description = `${formatBillingDate(invoice.date, locale)} · ${invoiceReason(invoice.billingReason, t)} · ${invoiceStatus(invoice.status, t)}`
   return (
-    <View style={invoice.status === 'paid' ? undefined : { backgroundColor: tokens.bgWell }}>
+    <View>
       {url && state !== 'offline' ? (
-        <ListRow title={title} description={description} value={value} chevron={false} action={{
+        <ListRow title={title} description={description} chevron={false} action={{
           icon: 'download',
-          label: t('upgrade.billing.invoices.download'),
-          onPress: () => { Linking.openURL(url).catch(() => {}) },
+          label: t('upgrade.billing.invoices.downloadDated', { date: formatBillingDate(invoice.date, locale) }),
+          onPress: () => { setDownloadFailed(false); Linking.openURL(url).catch(() => setDownloadFailed(true)) },
         }} />
-      ) : <ListRow title={title} description={description} value={value} readOnly />}
+      ) : <ListRow title={title} description={description} readOnly />}
+      {downloadFailed ? <Text accessibilityRole="alert" style={[styles.billingSecondary, { color: tokens.fg2 }]}>{t('auth.genericError')}</Text> : null}
     </View>
   )
 }
@@ -159,9 +133,9 @@ function InvoiceHistory({ invoices, locale, state, t, tokens }: Readonly<{
 }>) {
   if (!invoices?.length) return null
   return (
-    <>
-      <SectionLabel>{t('upgrade.billing.invoices.title')}</SectionLabel>
-      <View style={[styles.card, { paddingHorizontal: 0, paddingVertical: 0, backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
+    <View style={[styles.billingCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
+      <Text accessibilityRole="header" style={[styles.billingSecondary, { color: tokens.fg2 }]}>{t('upgrade.billing.invoices.title')}</Text>
+      <View style={{ gap: 4 }}>
         {invoices.map((invoice) => (
           <InvoiceRow
             key={invoice.id}
@@ -173,35 +147,6 @@ function InvoiceHistory({ invoices, locale, state, t, tokens }: Readonly<{
           />
         ))}
       </View>
-    </>
-  )
-}
-
-function PortalActions({ state, isLifetime, isOnline, onPortal, onRetryPortal, t, tokens }: Readonly<{
-  state: SubscriptionScreenState
-  isLifetime: boolean
-  isOnline: boolean
-  onPortal: () => void
-  onRetryPortal: () => void
-  t: UpgradeTextFn
-  tokens: Tokens
-}>) {
-  if (isLifetime) return null
-  const failed = state === 'portal-failed'
-  return (
-    <View style={styles.actionPad}>
-      {failed ? (
-        <>
-          <Text accessibilityRole="alert" style={[styles.centerMuted, { color: tokens.fg2 }]}>{t('upgrade.billing.portalFailed')}</Text>
-          <PillButton variant="ghost" onClick={onRetryPortal}>{t('upgrade.billing.retry')}</PillButton>
-        </>
-      ) : (
-        <PillButton variant="primary" loading={state === 'portal-opening'} disabled={!isOnline} onClick={onPortal}>
-          {state === 'portal-opening' ? t('upgrade.billing.actions.opening') : t('upgrade.billing.actions.manage')}
-        </PillButton>
-      )}
-      <Text style={[styles.centerMuted, { color: tokens.fg3 }]}>{t('upgrade.billing.actions.manageHint')}</Text>
-      <Text style={[styles.centerMuted, { color: tokens.fg3 }]}>{t('upgrade.billing.actions.providerNote')}</Text>
     </View>
   )
 }
@@ -209,7 +154,6 @@ function PortalActions({ state, isLifetime, isOnline, onPortal, onRetryPortal, t
 export function BillingDashboard({
   state,
   data,
-  isOnline,
   locale,
   usagePercent,
   usageProfile,
@@ -233,9 +177,10 @@ export function BillingDashboard({
 }>) {
   if (!status) return null
   return (
-    <>
+    <View style={styles.billingStack}>
       <PlanDetails state={state} status={status} data={data} locale={locale} t={t} tokens={tokens} />
-      <PaymentMethodSection method={data?.paymentMethod} state={state} onPortal={onPortal} t={t} tokens={tokens} />
+      {!status.isLifetimePro ? <ProviderHandoff provider="stripe" state={state} onManage={state === 'portal-failed' ? onRetryPortal : onPortal} t={t} tokens={tokens} /> : null}
+      <PaymentMethodSection method={status.isLifetimePro ? null : data?.paymentMethod} state={state} onPortal={onPortal} t={t} tokens={tokens} />
       <UsageCard
         usagePercent={usagePercent}
         usageUrgent={usagePercent >= 80}
@@ -244,21 +189,13 @@ export function BillingDashboard({
         tokens={tokens}
       />
       <InvoiceHistory
-        invoices={data?.recentInvoices}
+        invoices={status.isLifetimePro ? undefined : data?.recentInvoices}
         locale={locale}
         state={state}
         t={t}
         tokens={tokens}
       />
-      <PortalActions
-        state={state}
-        isLifetime={status.isLifetimePro}
-        isOnline={isOnline}
-        onPortal={onPortal}
-        onRetryPortal={onRetryPortal}
-        t={t}
-        tokens={tokens}
-      />
-    </>
+      <Text style={[styles.billingSecondary, { color: tokens.fg3 }]}>{t('upgrade.billing.actions.providerNote')}</Text>
+    </View>
   )
 }

@@ -235,7 +235,7 @@ export function PlanSelection({
         <Text
           accessibilityRole="alert"
           accessibilityLiveRegion="assertive"
-          style={[styles.errorText, { color: tokens.statusBad }]}
+          style={[styles.errorText, { color: tokens.fg2 }]}
         >
           {checkoutError}
         </Text>

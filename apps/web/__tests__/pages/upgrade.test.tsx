@@ -6,6 +6,9 @@ import { UsageStats } from '@/components/upgrade/usage-stats'
 
 const mockOpenCustomerPortal = vi.hoisted(() => vi.fn())
 const mockGoBackOrFallback = vi.hoisted(() => vi.fn())
+const mockRefetchStatus = vi.hoisted(() => vi.fn())
+const mockRefetchBilling = vi.hoisted(() => vi.fn())
+const mockShowSuccess = vi.hoisted(() => vi.fn())
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -80,7 +83,7 @@ vi.mock('@/hooks/use-subscription-status', () => ({
       : null,
     isLoading: false,
     isError: false,
-    refetch: vi.fn(),
+    refetch: mockRefetchStatus,
   }),
 }))
 
@@ -88,7 +91,7 @@ vi.mock('@/hooks/use-offline', () => ({
   useOffline: () => ({ isOnline: mockIsOnline }),
 }))
 vi.mock('@/hooks/use-app-toast', () => ({
-  useAppToast: () => ({ showSuccess: vi.fn() }),
+  useAppToast: () => ({ showSuccess: mockShowSuccess }),
 }))
 
 let mockPlans: Record<string, unknown> | null = null
@@ -115,7 +118,7 @@ const mockUseBilling = vi.fn((_enabled?: boolean) => ({
   billing: mockBilling,
   isLoading: mockIsBillingLoading,
   isError: mockIsBillingError,
-  refetch: vi.fn(),
+  refetch: mockRefetchBilling,
 }))
 
 vi.mock('@/hooks/use-billing', () => ({
@@ -175,10 +178,14 @@ describe('UpgradePage', () => {
     mockUseBilling.mockClear()
     mockOpenCustomerPortal.mockReset()
     mockGoBackOrFallback.mockReset()
+    mockRefetchStatus.mockReset().mockResolvedValue(undefined)
+    mockRefetchBilling.mockReset().mockResolvedValue(undefined)
+    mockShowSuccess.mockReset()
     globalThis.sessionStorage.clear()
   })
 
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.unstubAllGlobals()
   })
 
@@ -555,18 +562,19 @@ describe('UpgradePage', () => {
       ],
     }
     const online = render(<UpgradePage />)
-    expect(document.body.textContent).toContain('upgrade.billing.invoices.statusPaid')
-    expect(document.body.textContent).toContain('upgrade.billing.invoices.statusOpen')
+    expect(document.body.textContent.match(/upgrade\.billing\.invoices\.statusPaid/g)).toHaveLength(1)
+    expect(document.body.textContent.match(/upgrade\.billing\.invoices\.statusOpen/g)).toHaveLength(1)
+    expect(screen.getAllByText('usd 9.99', { exact: true })).toHaveLength(2)
     expect(document.body.textContent).toContain('upgrade.billing.invoices.reasonCycle')
     expect(document.body.textContent).toContain('upgrade.billing.invoices.reasonManual')
-    expect(screen.getAllByRole('button', { name: 'upgrade.billing.invoices.download' })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: /^upgrade\.billing\.invoices\.downloadDated:/ })).toHaveLength(1)
 
     online.unmount()
     mockIsOnline = false
     render(<UpgradePage />)
     expect(document.body.textContent).toContain('upgrade.billing.invoices.statusPaid')
     expect(document.body.textContent).toContain('upgrade.billing.invoices.reasonCycle')
-    expect(screen.queryByRole('button', { name: 'upgrade.billing.invoices.download' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^upgrade\.billing\.invoices\.downloadDated:/ })).not.toBeInTheDocument()
   })
 
   it('shows usage stats for Pro users with billing', () => {
@@ -625,7 +633,7 @@ describe('UpgradePage', () => {
     expect(screen.getByText('upgrade.billing.usage.nearLimitBody')).toBeInTheDocument()
   })
 
-  it('keeps payment details read only and uses one provider handoff action', () => {
+  it('keeps card details visible with a change action and one filled provider action', () => {
     mockHasProAccess = true
     mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
     mockBilling = {
@@ -644,7 +652,7 @@ describe('UpgradePage', () => {
       recentInvoices: [],
     }
     render(<UpgradePage />)
-    expect(screen.queryByText('upgrade.billing.payment.change')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'upgrade.billing.payment.change' })).toBeEnabled()
     expect(screen.getByText('upgrade.billing.actions.manage')).toBeInTheDocument()
   })
 
@@ -690,7 +698,7 @@ describe('UpgradePage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('upgrade.billing.portalFailed')
     expect(screen.getByRole('button', { name: 'upgrade.billing.retry' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'upgrade.billing.payment.change' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'upgrade.billing.payment.change' })).toBeDisabled()
   })
 
   it('shows the Google Play management panel for Play-sourced Pro users', () => {
@@ -706,6 +714,131 @@ describe('UpgradePage', () => {
     render(<UpgradePage />)
     expect(screen.getByText('upgrade.billing.actions.managePlay')).toBeInTheDocument()
     expect(screen.queryByText('upgrade.billing.actions.manage')).not.toBeInTheDocument()
+  })
+
+  it('hands a web Play subscriber to Play without opening a Stripe portal', async () => {
+    mockHasProAccess = true
+    mockProfile = { ...mockProfile, isTrialActive: false, subscriptionSource: 'play' }
+    const location = { href: '' }
+    vi.stubGlobal('location', location)
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.actions.managePlay' }))
+    await waitFor(() => expect(location.href).toBe('https://play.google.com/store/account/subscriptions?sku=orbit_pro&package=org.useorbit.app'))
+    expect(mockOpenCustomerPortal).not.toHaveBeenCalled()
+    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('1')
+  })
+
+  it.each(['stripe', 'play'])('recovers the %s handoff after Back restores the page from bfcache', async (source) => {
+    mockHasProAccess = true
+    mockProfile = { ...mockProfile, isTrialActive: false, subscriptionSource: source }
+    mockOpenCustomerPortal.mockResolvedValue({ url: 'https://billing.test/portal' })
+    vi.stubGlobal('location', { href: '' })
+    render(<UpgradePage />)
+    const action = screen.getByRole('button', {
+      name: source === 'play' ? 'upgrade.billing.actions.managePlay' : 'upgrade.billing.actions.manage',
+    })
+    fireEvent.click(action)
+    await waitFor(() => expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('1'))
+    expect(action).toBeDisabled()
+
+    fireEvent(window, new PageTransitionEvent('pageshow', { persisted: false }))
+    expect(action).toBeDisabled()
+    expect(mockRefetchStatus).not.toHaveBeenCalled()
+    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('1')
+
+    fireEvent(window, new PageTransitionEvent('pageshow', { persisted: true }))
+    await waitFor(() => expect(action).toBeEnabled())
+    expect(action).not.toHaveAttribute('aria-busy', 'true')
+    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBeNull()
+    expect(mockRefetchStatus).toHaveBeenCalledTimes(1)
+    expect(mockRefetchBilling).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(mockShowSuccess).toHaveBeenCalledWith('upgrade.billing.portalReturned'))
+
+    fireEvent(window, new PageTransitionEvent('pageshow', { persisted: true }))
+    expect(mockRefetchStatus).toHaveBeenCalledTimes(1)
+    expect(mockRefetchBilling).toHaveBeenCalledTimes(1)
+  })
+
+  it('refreshes once when a new page mounts after a portal return', async () => {
+    globalThis.sessionStorage.setItem('orbit.subscription.portal-return', '1')
+    render(<UpgradePage />)
+    await waitFor(() => expect(mockShowSuccess).toHaveBeenCalledWith('upgrade.billing.portalReturned'))
+    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBeNull()
+    expect(mockRefetchStatus).toHaveBeenCalledTimes(1)
+    expect(mockRefetchBilling).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['stripe', 'play'])('recovers the %s visibility return once even when pageshow also fires', async (source) => {
+    mockHasProAccess = true
+    mockProfile = { ...mockProfile, isTrialActive: false, subscriptionSource: source }
+    mockOpenCustomerPortal.mockResolvedValue({ url: 'https://billing.test/portal' })
+    vi.stubGlobal('location', { href: '' })
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    render(<UpgradePage />)
+    const action = screen.getByRole('button', {
+      name: source === 'play' ? 'upgrade.billing.actions.managePlay' : 'upgrade.billing.actions.manage',
+    })
+    fireEvent(document, new Event('visibilitychange'))
+    expect(mockRefetchStatus).not.toHaveBeenCalled()
+    fireEvent.click(action)
+    await waitFor(() => expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('1'))
+    visibility.mockReturnValue('hidden')
+    fireEvent(document, new Event('visibilitychange'))
+    expect(action).toBeDisabled()
+    expect(mockRefetchStatus).not.toHaveBeenCalled()
+    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('1')
+
+    visibility.mockReturnValue('visible')
+    fireEvent(document, new Event('visibilitychange'))
+    fireEvent(window, new PageTransitionEvent('pageshow', { persisted: true }))
+    fireEvent(document, new Event('visibilitychange'))
+    expect(action).toBeEnabled()
+    expect(action).not.toHaveAttribute('aria-busy', 'true')
+    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBeNull()
+    expect(mockRefetchStatus).toHaveBeenCalledTimes(1)
+    expect(mockRefetchBilling).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(mockShowSuccess).toHaveBeenCalledTimes(1))
+  })
+
+  it('stops listening for portal returns when the screen unmounts', () => {
+    const page = render(<UpgradePage />)
+    page.unmount()
+    globalThis.sessionStorage.setItem('orbit.subscription.portal-return', '1')
+    fireEvent(window, new PageTransitionEvent('pageshow', { persisted: true }))
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    fireEvent(document, new Event('visibilitychange'))
+    expect(mockRefetchStatus).not.toHaveBeenCalled()
+    expect(mockRefetchBilling).not.toHaveBeenCalled()
+    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('1')
+  })
+
+  it('labels entitled Play cancellation as access ending and keeps the provider action', () => {
+    mockHasProAccess = true
+    mockProfile = {
+      ...mockProfile, isTrialActive: false, subscriptionSource: 'play', subscriptionInterval: 'yearly',
+      lapseReason: 'canceled', planExpiresAt: '2026-10-04T12:00:00Z',
+    }
+    render(<UpgradePage />)
+    expect(mockUseBilling).toHaveBeenCalledWith(false)
+    expect(screen.getByText('upgrade.billing.plan.canceledBadge')).toBeInTheDocument()
+    expect(screen.getByText('upgrade.billing.plan.canceledBody:{"limit":20}')).toBeInTheDocument()
+    expect(screen.getByText(/^upgrade\.billing\.plan\.canceledHint:/)).toHaveTextContent('2026-10-04')
+    expect(document.body.textContent).not.toContain('upgrade.billing.plan.renewsOn')
+    expect(screen.getByRole('button', { name: 'upgrade.billing.actions.managePlay' })).toBeEnabled()
+    expect(screen.getByText('upgrade.billing.usage.title')).toBeInTheDocument()
+  })
+
+  it('keeps the action name and usage while the Stripe portal is opening', () => {
+    mockHasProAccess = true
+    mockProfile = { ...mockProfile, isTrialActive: false, subscriptionSource: 'stripe' }
+    mockOpenCustomerPortal.mockReturnValue(new Promise(() => {}))
+    render(<UpgradePage />)
+    const action = screen.getByRole('button', { name: 'upgrade.billing.actions.manage' })
+    fireEvent.click(action)
+    expect(action).toBeDisabled()
+    expect(action).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByText('upgrade.billing.usage.title')).toBeInTheDocument()
+    expect(document.querySelector('main')).toHaveAttribute('data-state', 'portal-opening')
   })
 
   it('does not substitute Stripe catalog pricing on the Play management panel', () => {
@@ -748,23 +881,28 @@ describe('UpgradePage', () => {
     expect(document.body.textContent).not.toContain('upgrade.billing.plan.renewsOn')
   })
 
-  it.each([
-    ['canceled', 'yearly'],
-    ['payment_failed', 'monthly'],
-    ['expired', null],
-  ] as const)('shows the %s lapse outcome for the cached %s plan', (lapseReason, interval) => {
+  it.each(['canceled', 'payment_failed', 'expired'] as const)('shows the %s lapse outcome after entitlement is cleared', (lapseReason) => {
     mockProfile = {
       ...mockProfile,
       hasProAccess: false,
       isTrialActive: false,
-      subscriptionInterval: interval,
+      subscriptionInterval: null,
+      subscriptionSource: null,
+      planExpiresAt: null,
       lapseReason,
       subscriptionEndedAt: '2026-08-01T00:00:00Z',
     }
     render(<UpgradePage />)
     expect(screen.getByText('upgrade.billing.lapsed.title')).toBeInTheDocument()
-    expect(document.body.textContent).toContain(`upgrade.billing.lapsed.${lapseReason}`)
+    expect(document.body.textContent).not.toContain(`upgrade.billing.lapsed.${lapseReason}`)
+    expect(document.body.textContent).toContain('upgrade.billing.lapsed.ended')
+    expect(document.body.textContent).toContain('2026-08-01')
+    expect(document.body.textContent).toContain('upgrade.billing.usage.title')
+    expect(screen.getByText('upgrade.billing.lapsed.features')).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('upgrade.convert.freeHeading')
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.lapsed.action' }))
     expect(document.body.textContent).toContain('upgrade.convert.freeHeading')
+    expect(screen.queryByText('upgrade.billing.lapsed.title')).not.toBeInTheDocument()
   })
 
   it('keeps Pro access truthful after a failed payment', () => {
@@ -781,8 +919,8 @@ describe('UpgradePage', () => {
 
     render(<UpgradePage />)
 
-    expect(screen.getByText('upgrade.billing.paymentIssue.title')).toBeInTheDocument()
-    expect(screen.getByText('upgrade.billing.paymentIssue.body')).toBeInTheDocument()
+    expect(screen.getByText('upgrade.billing.plan.pastDue')).toBeInTheDocument()
+    expect(document.body.textContent).toContain('upgrade.billing.plan.pastDueBody')
     expect(screen.queryByText('upgrade.billing.lapsed.title')).not.toBeInTheDocument()
     expect(document.body.textContent).not.toContain('upgrade.convert.freeHeading')
   })

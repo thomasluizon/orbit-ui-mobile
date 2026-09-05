@@ -9,6 +9,7 @@ import {
   getFriendlyErrorMessage,
   getTrialDaysLeft,
   resolveSubscriptionScreen,
+  playManageSubscriptionUrl,
 } from '@orbit/shared/utils'
 import type { SubscriptionPortalState } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
@@ -18,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
+import { UsageStats } from '@/components/upgrade/usage-stats'
 import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
 import { openCustomerPortal } from '@/app/actions/subscription'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -63,6 +65,7 @@ export default function UpgradePage() {
   const [checkoutLoading, setCheckoutLoading] = useState<SubscriptionInterval | null>(null)
   const checkoutPendingRef = useRef(false)
   const [checkoutError, setCheckoutError] = useState('')
+  const [showPitch, setShowPitch] = useState(false)
   const [portalState, setPortalState] = useState<SubscriptionPortalState>('idle')
 
   const model = resolveSubscriptionScreen({
@@ -83,12 +86,28 @@ export default function UpgradePage() {
   }, [status])
 
   useEffect(() => {
-    if (globalThis.sessionStorage.getItem(PORTAL_RETURN_KEY) !== '1') return
-    globalThis.sessionStorage.removeItem(PORTAL_RETURN_KEY)
-    void Promise.all([refetchStatus(), refetchBilling()]).then(() => {
-      showSuccess(t('upgrade.billing.portalReturned'))
-    })
-  }, [refetchBilling, refetchStatus, showSuccess, t])
+    const refreshAfterPortal = () => {
+      if (globalThis.sessionStorage.getItem(PORTAL_RETURN_KEY) !== '1') return
+      globalThis.sessionStorage.removeItem(PORTAL_RETURN_KEY)
+      setPortalState('idle')
+      void Promise.all([refetchStatus(), refetchBilling()]).then(() => {
+        showSuccess(t('upgrade.billing.portalReturned'))
+      })
+    }
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) refreshAfterPortal()
+    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshAfterPortal()
+    }
+    globalThis.addEventListener('pageshow', handlePageShow)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    if (portalState !== 'opening') refreshAfterPortal()
+    return () => {
+      globalThis.removeEventListener('pageshow', handlePageShow)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [portalState, refetchBilling, refetchStatus, showSuccess, t])
 
   const handleCheckout = useCallback(
     async (interval: SubscriptionInterval) => {
@@ -130,13 +149,18 @@ export default function UpgradePage() {
     if (!isOnline) return
     setPortalState('opening')
     try {
+      if (status?.source === 'play') {
+        globalThis.sessionStorage.setItem(PORTAL_RETURN_KEY, '1')
+        globalThis.location.href = playManageSubscriptionUrl()
+        return
+      }
       const data = await openCustomerPortal()
       globalThis.sessionStorage.setItem(PORTAL_RETURN_KEY, '1')
       globalThis.location.href = data.url
     } catch {
       setPortalState('failed')
     }
-  }, [isOnline])
+  }, [isOnline, status])
 
   const retryLoad = () => {
     void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()])
@@ -162,10 +186,11 @@ export default function UpgradePage() {
         }
       />
     )
+  } else if (!status?.hasProAccess && (status?.lapseReason || status?.subscriptionEndedAtUtc) && !showPitch) {
+    content = <SubscriptionNotice status={status} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} />
   } else if (model.content === 'pitch') {
     content = (
       <div className="flex flex-col gap-6">
-        <SubscriptionNotice status={status} locale={locale} t={t} />
         <PricingSection
           profile={status}
           plans={plans}
@@ -181,14 +206,15 @@ export default function UpgradePage() {
           onRetryPlans={() => void refetchPlans()}
           t={t}
         />
+        {status ? <UsageStats usagePercent={usagePercent} usageUrgent={usagePercent >= 80} profile={status} t={t} /> : null}
       </div>
     )
   } else if (model.content === 'play') {
     content = (
       <div className="flex flex-col gap-6">
-        <SubscriptionNotice status={status} locale={locale} t={t} />
         <PlayBillingDashboard
           state={model.state}
+          onManagePlay={() => void handleOpenPortal()}
           status={status}
           locale={locale}
           usagePercent={usagePercent}
@@ -200,7 +226,6 @@ export default function UpgradePage() {
   } else {
     content = (
       <div className="flex flex-col gap-6">
-        <SubscriptionNotice status={status} locale={locale} t={t} />
         <BillingDashboard
           state={model.state}
           billing={billing}
@@ -224,8 +249,8 @@ export default function UpgradePage() {
         onBack={() => goBackOrFallback('/profile')}
         title={t('upgrade.title')}
       />
-      <main className="mx-auto w-full max-w-[620px] flex-1 px-4 py-6">
-        {model.state === 'offline' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
+      <main className="mx-auto w-full max-w-[620px] flex-1 px-4 py-4" data-state={model.state}>
+        {model.state === 'offline' && model.content === 'pitch' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
         {content}
       </main>
     </div>
