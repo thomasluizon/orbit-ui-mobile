@@ -341,12 +341,12 @@ describe('PlanSelection (mobile)', () => {
     const tree = renderSelection()
     const alert = tree.root.findByProps({ accessibilityRole: 'alert' })
     expect(alert.props.children).toBe('')
-    expect(alert.props.accessibilityLiveRegion).toBeUndefined()
+    expect(alert.props.accessibilityLiveRegion).toBe('assertive')
 
     tree.rerender({ checkoutError: 'purchase failed' })
     expect(tree.root.findByProps({ accessibilityRole: 'alert' })).toBe(alert)
     expect(alert.props.children).toBe('purchase failed')
-    expect(alert.props.accessibilityLiveRegion).toBeUndefined()
+    expect(alert.props.accessibilityLiveRegion).toBe('assertive')
 
     tree.rerender({ checkoutError: '' })
     expect(tree.root.findByProps({ accessibilityRole: 'alert' })).toBe(alert)

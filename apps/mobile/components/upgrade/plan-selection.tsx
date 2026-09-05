@@ -227,6 +227,7 @@ export function PlanSelection({
         </View>
         <Text
           accessibilityRole="alert"
+          accessibilityLiveRegion="assertive"
           style={[styles.errorText, { color: tokens.statusBad }]}
         >
           {checkoutError}
