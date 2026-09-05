@@ -1134,8 +1134,8 @@ if (args[1] === "list") {
 
   const staleOwner = fixture("stale-owner")
   const staleLock = join(staleOwner.repo.path, ".git", "orbit-cloud", "submit.lock")
-  mkdirSync(staleLock, { recursive: true })
-  writeFileSync(join(staleLock, "owner.json"), JSON.stringify({ pid: 2147483647 }))
+  acquireSubmissionLock(join(staleOwner.repo.path, ".git", "orbit-cloud"))
+  writeFileSync(join(staleLock, readdirSync(staleLock)[0]), JSON.stringify({ pid: 2147483647 }))
   const staleOwnerResult = run(TOOL, argvOf(staleOwner), {
     path: staleOwner.path,
     env: {
