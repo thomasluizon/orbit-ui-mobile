@@ -125,6 +125,46 @@ const replacementOwnerSurvives = (interleave, duringRelease = false) => {
 }
 
 export const cases = async () => {
+  const legacyRoot = join(stage("submit-cloud/legacy-replacement/fixture", ""), "..")
+  const legacyDirectory = join(legacyRoot, "submit.lock")
+  const legacyOwner = join(legacyDirectory, "owner.json")
+  mkdirSync(legacyDirectory)
+  writeFileSync(legacyOwner, JSON.stringify({ pid: 2147483647 }))
+  const originalLegacyRead = filesystem.readFileSync
+  let legacyPublished = false
+  let legacyRelease
+  let legacyError
+  const replacementContents = JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() })
+  try {
+    filesystem.readFileSync = (path, ...args) => {
+      const contents = originalLegacyRead(path, ...args)
+      if (path === legacyOwner && !legacyPublished) {
+        legacyPublished = true
+        // The old writer's reclaim/publication sequence from a5fd34d0 runs after the stale read.
+        const stale = join(legacyRoot, "old-waiter.stale")
+        const candidate = join(legacyRoot, "old-waiter.candidate")
+        filesystem.renameSync(legacyDirectory, stale)
+        filesystem.rmSync(stale, { recursive: true })
+        mkdirSync(candidate)
+        writeFileSync(join(candidate, "owner.json"), replacementContents)
+        filesystem.renameSync(candidate, legacyDirectory)
+      }
+      return contents
+    }
+    syncBuiltinESMExports()
+    try { legacyRelease = acquireSubmissionLock(legacyRoot) } catch (error) { legacyError = error.message }
+    T(
+      `${TOOL}: a delayed reclaimer preserves a live legacy replacement after reading its dead predecessor`,
+      legacyPublished && !legacyRelease && Boolean(legacyError) && existsSync(legacyOwner) &&
+        readFileSync(legacyOwner, "utf8") === replacementContents,
+      JSON.stringify({ legacyPublished, concurrentAcquisition: Boolean(legacyRelease), legacyError }),
+    )
+  } finally {
+    filesystem.readFileSync = originalLegacyRead
+    syncBuiltinESMExports()
+    legacyRelease?.()
+    filesystem.rmSync(legacyDirectory, { recursive: true, force: true })
+  }
   const renameRaceMirror = stage("submit-cloud/rename-race/receipts/task_e_a419.json", '{"taskId":"task_e_a419"}')
   const renameRaceLock = join(renameRaceMirror, "..", "..", "receipt-task_e_a419.json.lock")
   mkdirSync(renameRaceLock)

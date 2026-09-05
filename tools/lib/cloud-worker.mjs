@@ -108,7 +108,8 @@ export class CodexTimeoutError extends Error {
 
 export class ReceiptLockTimeoutError extends Error {
   constructor(operation, timeoutMs, ownerPid) {
-    super(`${operation} lock timed out after ${timeoutMs}ms waiting for live process ${ownerPid}`)
+    super(`${operation} lock timed out after ${timeoutMs}ms` +
+      (ownerPid === undefined ? " waiting for ownership" : ` waiting for process ${ownerPid}`))
     this.name = "ReceiptLockTimeoutError"
     this.code = "RECEIPT_LOCK_TIMEOUT"
     this.timeoutMs = timeoutMs
@@ -491,6 +492,11 @@ const acquireCloudLock = (stateRoot, lockName, operation, options = {}) => {
     throw new Error(`${operation} requires a positive lock timeout`)
   }
   const waitDeadline = options.waitForOwner ? performance.now() + options.timeoutMs : null
+  const waitForRetry = (ownerPid) => {
+    const remainingMs = waitDeadline - performance.now()
+    if (remainingMs <= 0) throw new ReceiptLockTimeoutError(operation, options.timeoutMs, ownerPid)
+    Atomics.wait(LOCK_RETRY_SIGNAL, 0, 0, Math.min(10, remainingMs))
+  }
   mkdirSync(stateRoot, { recursive: true })
   const publishOwner = () => {
     const candidate = join(stateRoot, `${lockName}.${process.pid}.${randomUUID()}.candidate`)
@@ -504,17 +510,18 @@ const acquireCloudLock = (stateRoot, lockName, operation, options = {}) => {
       if (existsSync(lockDirectory)) return "occupied"
       // Windows can report contention after the owner has removed its directory (thomasluizon/orbit-tickets#419).
       if (options.waitForOwner) {
-        const remainingMs = waitDeadline - performance.now()
-        if (remainingMs > 0) {
-          Atomics.wait(LOCK_RETRY_SIGNAL, 0, 0, Math.min(10, remainingMs))
-          return "retry"
-        }
+        waitForRetry()
+        return "retry"
       }
       throw error
     }
   }
 
+  let observedOwnerPid
   while (true) {
+    if (options.waitForOwner && performance.now() >= waitDeadline) {
+      throw new ReceiptLockTimeoutError(operation, options.timeoutMs, observedOwnerPid)
+    }
     const publication = publishOwner()
     if (publication === "acquired") break
     if (publication === "retry") continue
@@ -524,15 +531,23 @@ const acquireCloudLock = (stateRoot, lockName, operation, options = {}) => {
     } catch (error) {
       // A failed read proves no stale identity. Retry publication, never reclaim by pathname
       // (thomasluizon/orbit-tickets#419); token deletion also closes the later reclaim race.
-      if (error.code !== "ENOENT" || (options.waitForOwner && performance.now() >= waitDeadline)) throw error
+      if (error.code !== "ENOENT") throw error
+      if (options.waitForOwner) waitForRetry()
       continue
     }
-    if (processIsAlive(owner?.pid)) {
+    observedOwnerPid = owner?.pid
+    const liveOwner = processIsAlive(owner?.pid)
+    // Legacy writers reuse owner.json, so no observed PID authorizes a later unlink. Keep it
+    // occupied until its writer releases it; stale cleanup requires quiescing all versions
+    // (thomasluizon/orbit-tickets#419). A second pathname read would leave the same race.
+    const legacyOwner = owner && basename(owner.path) === "owner.json"
+    if (liveOwner || legacyOwner) {
       if (options.waitForOwner) {
-        const remainingMs = waitDeadline - performance.now()
-        if (remainingMs <= 0) throw new ReceiptLockTimeoutError(operation, options.timeoutMs, owner.pid)
-        Atomics.wait(LOCK_RETRY_SIGNAL, 0, 0, Math.min(10, remainingMs))
+        waitForRetry(owner.pid)
         continue
+      }
+      if (!liveOwner) {
+        throw new Error(`${operation} has a legacy lock at ${lockDirectory}; stop all cloud workers before removing it`)
       }
       throw new Error(`${operation} is already running in process ${owner.pid}`)
     }
