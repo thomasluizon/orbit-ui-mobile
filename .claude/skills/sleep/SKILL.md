@@ -137,6 +137,23 @@ If you cannot tell which kind a pull request is, it is a screen. Leave it.
 
 **Never invent work to look busy, and never widen a pull request to fill time.**
 
+**Stop opening new fronts once the open set is large.** Every pull request costs Thomas a review when
+he wakes. A night that opens seven and lands two hands him a bigger queue than it clears, which looks
+productive and is not. Prefer driving what is open to mergeable.
+
+## 8b. Tell every worker to push and stop
+
+Put this in every work order:
+
+> Push after every commit. Do not wait on CI or poll GitHub Actions; push and stop.
+
+Watching CI is the orchestrator's job. A worker that waits on it burns its ceiling doing something
+the orchestrator can do for free, and its ceiling is the only budget it has.
+
+Measured 2026-09-05: the single `KILLED_HARD_CEILING` of that night was a four file, 54 line change
+that had already committed and pushed everything, then spent the remainder polling a CI log. The work
+survived only because it had pushed first. That kill was the order's fault, not the model's.
+
 ## 9. When something blocks
 
 A blocked item is not a reason to stop the session. Log it, leave the tree in a state Thomas can read,
