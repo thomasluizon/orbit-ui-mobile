@@ -3,19 +3,25 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { usePathname } from 'next/navigation'
+import dynamic from 'next/dynamic'
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided motion components. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { animate, motion, useMotionValue, useReducedMotion } from 'motion/react'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { getTodayBoundary } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import { HabitList } from '@/components/habits/habit-list'
-import { SelectionTray } from '@/components/habits/selection-tray'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { TrialBanner } from '@/components/ui/trial-banner'
-import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { TodayDateControl } from './today-shell'
 import { useShellComposerSlot } from '@/components/shell/destination-shell'
 import type { TodayView } from './use-today-page'
+
+const SelectionTray = dynamic(() =>
+  import('@/components/habits/selection-tray').then((module) => module.SelectionTray),
+)
+const ConfirmSheet = dynamic(() =>
+  import('@/components/ui/confirm-sheet').then((module) => module.ConfirmSheet),
+)
 
 function boundaryKey(boundary: ReturnType<typeof getTodayBoundary>): string | null {
   if (boundary === 'last-loggable') return 'habits.todayBoundary.lastLoggable'
@@ -164,18 +170,20 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
 
   return (
     <>
-      <ConfirmSheet
-        open={view.selection.showBulkDeleteConfirm}
-        title={t('habits.bulkDeleteTitle')}
-        message={plural(t('habits.bulkDeleteMessage', { count }), count)}
-        confirmLabel={t('habits.bulkDeleteConfirm')}
-        destructive
-        onCancel={() => view.selection.setShowBulkDeleteConfirm(false)}
-        onConfirm={() => {
-          view.selection.setShowBulkDeleteConfirm(false)
-          void view.selection.confirmBulkDelete()
-        }}
-      />
+      {view.selection.showBulkDeleteConfirm ? (
+        <ConfirmSheet
+          open
+          title={t('habits.bulkDeleteTitle')}
+          message={plural(t('habits.bulkDeleteMessage', { count }), count)}
+          confirmLabel={t('habits.bulkDeleteConfirm')}
+          destructive
+          onCancel={() => view.selection.setShowBulkDeleteConfirm(false)}
+          onConfirm={() => {
+            view.selection.setShowBulkDeleteConfirm(false)
+            void view.selection.confirmBulkDelete()
+          }}
+        />
+      ) : null}
     </>
   )
 }
