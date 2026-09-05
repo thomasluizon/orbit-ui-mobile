@@ -11,9 +11,9 @@ export function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
 }>) {
   return (
     <div className="flex flex-col gap-3">
-    <div className="rounded-[18px]" style={{ padding: '16px 18px', ...cardSurface }}>
+    <div className="flex flex-col gap-2 rounded-[var(--r-card)] p-6" style={cardSurface}>
       <div style={cardLabelStyle}>{t('upgrade.billing.usage.title')}</div>
-      <div className="flex items-baseline justify-between" style={{ marginTop: 8, marginBottom: 10 }}>
+      <div className="flex items-baseline justify-between">
         <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-1)' }}>
           {t('upgrade.billing.usage.aiMessages')}
         </span>

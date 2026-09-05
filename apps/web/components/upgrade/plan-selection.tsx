@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
+import { AnimatePresence, domMax, LazyMotion, m, useReducedMotion } from 'motion/react'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { Badge } from '@/components/ui/badge'
 import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
@@ -36,6 +38,42 @@ interface Tier {
   couponLine?: string
 }
 
+function PlanLoadMotion({
+  stateKey,
+  children,
+  reduced,
+}: Readonly<{ stateKey: string; children: ReactNode; reduced: boolean }>) {
+  return (
+    <LazyMotion features={domMax}>
+      <AnimatePresence initial={false} mode="popLayout">
+        <m.div
+          key={stateKey}
+          initial={reduced ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={reduced
+            ? { opacity: 1 }
+            : {
+                opacity: 0,
+                transition: {
+                  duration: motionDurations.routeExit / 1000,
+                  ease: motionEasings.exit,
+                },
+              }}
+          transition={reduced
+            ? { duration: 0 }
+            : {
+                duration: motionDurations.base / 1000,
+                ease: motionEasings.enter,
+              }}
+          data-motion-purpose="preventing a jarring change"
+        >
+          {children}
+        </m.div>
+      </AnimatePresence>
+    </LazyMotion>
+  )
+}
+
 export function PlanSelection({
   plans,
   isLoading,
@@ -49,44 +87,63 @@ export function PlanSelection({
   t,
 }: Readonly<PlanSelectionProps>) {
   const [selectedInterval, setSelectedInterval] = useState<SubscriptionInterval>('yearly')
+  const prefersReducedMotion = Boolean(useReducedMotion())
   const checkoutPending = checkoutLoading !== null
 
+  const selectInterval = (interval: string) => {
+    if (interval !== 'monthly' && interval !== 'yearly') return
+    setSelectedInterval(interval)
+  }
+
   const intervalControl = (
-    <SegmentedControl
-      label={t('upgrade.plans.intervalLabel')}
-      options={[
-        { id: 'monthly', label: t('upgrade.plans.interval.monthly') },
-        { id: 'yearly', label: t('upgrade.plans.interval.annual') },
-      ]}
-      value={selectedInterval}
-      onChange={(interval) => {
-        if (interval === 'monthly' || interval === 'yearly') setSelectedInterval(interval)
-      }}
-      disabled={checkoutPending}
-    />
+    <div>
+      <SegmentedControl
+        label={t('upgrade.plans.intervalLabel')}
+        options={[
+          { id: 'monthly', label: t('upgrade.plans.interval.monthly') },
+          { id: 'yearly', label: t('upgrade.plans.interval.annual') },
+        ]}
+        value={selectedInterval}
+        onChange={selectInterval}
+        disabled={checkoutPending}
+      />
+    </div>
   )
 
   if (isLoading) {
     return (
-      <div className="mt-8 flex flex-col gap-4" aria-label={t('upgrade.plans.loading')}>
-        {intervalControl}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Skeleton variant="stat-tile" label={t('upgrade.plans.loading')} />
-          <Skeleton variant="stat-tile" label={t('upgrade.plans.loading')} />
+      <PlanLoadMotion stateKey="loading" reduced={prefersReducedMotion}>
+        <div className="flex flex-col gap-4">
+          {intervalControl}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {[0, 1].map((tierIndex) => (
+              <div key={tierIndex} className="flex flex-col gap-3">
+                {[0, 1, 2].map((rowIndex) => (
+                  <Skeleton
+                    key={rowIndex}
+                    variant="settings"
+                    label={t('upgrade.plans.loading')}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      </PlanLoadMotion>
     )
   }
 
   if (isError && !plans && isOnline) {
     return (
-      <div className="mt-8 flex flex-col gap-4">
-        {intervalControl}
-        <ErrorState
-          message={t('upgrade.plans.error')}
-          action={<PillButton variant="ghost" onClick={onRetry}>{t('upgrade.plans.retry')}</PillButton>}
-        />
-      </div>
+      <PlanLoadMotion stateKey="error" reduced={prefersReducedMotion}>
+        <div className="flex flex-col gap-4">
+          {intervalControl}
+          <ErrorState
+            message={t('upgrade.plans.error')}
+            action={<PillButton variant="ghost" onClick={onRetry}>{t('upgrade.plans.retry')}</PillButton>}
+          />
+        </div>
+      </PlanLoadMotion>
     )
   }
 
@@ -121,28 +178,32 @@ export function PlanSelection({
     : [monthlyTier, annualTier]
 
   return (
-    <div className="mt-8 flex flex-col items-stretch gap-4">
-      {intervalControl}
-      <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2">
-        {tiers.map((tier) => (
-          <TierCard
-            key={tier.interval}
-            tier={tier}
-            recommended={tier.interval === selectedInterval}
-            loading={checkoutLoading === tier.interval}
-            disabled={checkoutPending || checkoutDisabled}
-            onCheckout={onCheckout}
-            t={t}
-          />
-        ))}
+    <PlanLoadMotion stateKey="loaded" reduced={prefersReducedMotion}>
+      <div className="flex flex-col items-stretch gap-4">
+        {intervalControl}
+        <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2">
+          {tiers.map((tier) => (
+            <TierCard
+              key={tier.interval}
+              tier={tier}
+              recommended={tier.interval === 'yearly'}
+              selected={tier.interval === selectedInterval}
+              loading={checkoutLoading === tier.interval}
+              disabled={checkoutPending || checkoutDisabled}
+              onCheckout={onCheckout}
+              t={t}
+            />
+          ))}
+        </div>
       </div>
-    </div>
+    </PlanLoadMotion>
   )
 }
 
 function TierCard({
   tier,
   recommended,
+  selected,
   loading,
   disabled,
   onCheckout,
@@ -150,6 +211,7 @@ function TierCard({
 }: Readonly<{
   tier: Tier
   recommended: boolean
+  selected: boolean
   loading: boolean
   disabled: boolean
   onCheckout: (interval: SubscriptionInterval) => void
@@ -157,31 +219,35 @@ function TierCard({
 }>) {
   return (
     <section
-      data-selected={recommended || undefined}
+      data-selected={selected || undefined}
       className="flex min-w-0 flex-col gap-2 rounded-[var(--r-card)] p-6"
       style={{
-        background: recommended ? 'var(--primary-dim)' : 'var(--bg-card)',
-        boxShadow: recommended
+        background: selected ? 'var(--primary-dim)' : 'var(--bg-card)',
+        boxShadow: selected
           ? 'inset 0 0 0 1.5px var(--primary)'
           : 'inset 0 0 0 1px var(--hairline)',
       }}
     >
-      <div className="flex min-w-0 items-center gap-2">
-        <h2 className="min-w-0 flex-1 text-[17px] font-medium leading-[1.3]">{tier.name}</h2>
-        {recommended ? <Badge>{t('upgrade.plans.recommended')}</Badge> : null}
+      <div className="flex flex-1 flex-col gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <h2 className="min-w-0 flex-1 text-[17px] font-medium leading-[1.3]">{tier.name}</h2>
+          {recommended ? (
+            <Badge>{t('upgrade.plans.recommended')}</Badge>
+          ) : null}
+        </div>
+        <p className="font-display text-[28px] font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums">
+          {tier.price}<span className="font-sans text-base font-normal text-[var(--fg-3)]">{tier.period}</span>
+        </p>
+        {tier.heroLine ? <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-2)]">{tier.heroLine}</p> : null}
+        {tier.secondLine ? <p className="font-mono text-xs leading-[1.5] tabular-nums text-[var(--fg-3)]">{tier.secondLine}</p> : null}
+        {tier.couponLine ? <p className="text-sm leading-[1.5] text-[var(--fg-2)]">{tier.couponLine}</p> : null}
       </div>
-      <p className="font-display text-[28px] font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums">
-        {tier.price}<span className="font-sans text-base font-normal text-[var(--fg-3)]">{tier.period}</span>
-      </p>
-      {tier.heroLine ? <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-2)]">{tier.heroLine}</p> : null}
-      {tier.secondLine ? <p className="font-mono text-xs leading-[1.5] tabular-nums text-[var(--fg-3)]">{tier.secondLine}</p> : null}
-      {tier.couponLine ? <p className="text-sm leading-[1.5] text-[var(--fg-2)]">{tier.couponLine}</p> : null}
-      <div className="mt-auto pt-2 [&>button]:w-full">
+      <div className="pt-2">
         <PillButton
-          variant={recommended ? 'primary' : 'ghost'}
+          variant={selected ? 'primary' : 'ghost'}
           loading={loading}
           disabled={disabled}
-          accessibleName={t('upgrade.plans.checkoutLabel', { interval: tier.name })}
+          accessibleName={t(recommended ? 'upgrade.plans.checkoutLabelRecommended' : 'upgrade.plans.checkoutLabel', { interval: tier.name })}
           onClick={() => onCheckout(tier.interval)}
         >
           {t('upgrade.plans.cta')}

@@ -57,26 +57,26 @@ export function PricingSection({
   const heading = trialActive ? t('upgrade.convert.trialHeading') : t('upgrade.convert.freeHeading')
 
   return (
-    <>
+    <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-2">
-        <p className="t-eyebrow text-[var(--fg-3)]">
+        <p className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)]">
           {eyebrow}
         </p>
-        <h1 className="t-display text-pretty">
+        <h1 className="font-display text-[28px] font-medium leading-[1.18] tracking-[-0.02em] text-pretty text-[var(--fg-1)] sm:text-[34px] sm:leading-[1.15]">
           {heading}
         </h1>
         <p className="t-secondary max-w-[46ch] text-pretty">
           {t('upgrade.convert.promise')}
         </p>
         {!trialActive ? (
-          <p className="t-meta max-w-[46ch] text-pretty">
+          <p className="text-sm leading-[1.55] text-[var(--fg-3)]">
             {t('upgrade.convert.trustLine')}
           </p>
         ) : null}
       </header>
 
-      <section className="mt-8 flex flex-col gap-3" aria-label={t('upgrade.convert.allowanceLabel')}>
-        <div className="grid grid-cols-[1fr_1px_1fr] gap-6 rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]">
+      <section className="flex flex-col gap-3" aria-label={t('upgrade.convert.allowanceLabel')}>
+        <div className="grid grid-cols-[1fr_1px_1fr] gap-4 rounded-[var(--r-card)] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)] sm:p-6">
           <Allowance amount={t('upgrade.convert.freeAllowance')} label={t('upgrade.free')} perDay={t('upgrade.convert.perDay')} />
           <span aria-hidden="true" className="h-full w-px bg-[var(--hairline)]" />
           <Allowance amount={t('upgrade.convert.proAllowance')} label="Pro" perDay={t('upgrade.convert.perDay')} />
@@ -86,7 +86,7 @@ export function PricingSection({
         </p>
       </section>
 
-      <section className="mt-8 flex flex-col gap-3" aria-label={t('upgrade.outcomes.label')}>
+      <section className="flex flex-col gap-3" aria-label={t('upgrade.outcomes.label')}>
         {OUTCOMES.map(({ key, Icon }) => (
           <div key={key} className="flex items-start gap-3">
             <span aria-hidden="true" className="mt-1 grid size-6 shrink-0 place-items-center text-[var(--fg-3)]">
@@ -104,55 +104,59 @@ export function PricingSection({
         ))}
       </section>
 
-      <PlanSelection
-        plans={plans}
-        isLoading={isLoadingPlans}
-        isError={isPlansError}
-        isOnline={isOnline}
-        discountedAmount={discountedAmount}
-        checkoutLoading={checkoutLoading}
-        checkoutDisabled={!isOnline}
-        onCheckout={onCheckout}
-        onRetry={onRetryPlans}
-        t={t}
-      />
+      <div className="flex flex-col gap-4">
+        <PlanSelection
+          plans={plans}
+          isLoading={isLoadingPlans}
+          isError={isPlansError}
+          isOnline={isOnline}
+          discountedAmount={discountedAmount}
+          checkoutLoading={checkoutLoading}
+          checkoutDisabled={!isOnline}
+          onCheckout={onCheckout}
+          onRetry={onRetryPlans}
+          t={t}
+        />
 
-      {plans ? (
-        <>
-          <div className="mt-6 flex flex-col items-start gap-2">
-            {checkoutError ? (
+        {plans ? (
+          <div className="flex flex-col items-start gap-4">
+            <div className="flex flex-col items-start gap-2">
               <p
                 role="alert"
-                aria-live="polite"
-                className="text-center text-xs text-[var(--status-bad)]"
+                className="text-left text-sm leading-[1.55] text-[var(--status-bad)]"
               >
                 {checkoutError}
               </p>
-            ) : null}
-            <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">
-              {t('upgrade.convert.cancelAnytime')}
-            </p>
-            <p className="max-w-[52ch] text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
-              {t('upgrade.plans.renewalNote')}
-            </p>
-            <p className="max-w-[52ch] text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
-              {t('upgrade.convert.handOff')}
-            </p>
+              <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">
+                {t('upgrade.convert.cancelAnytime')}
+              </p>
+              <p className="max-w-[52ch] text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
+                {t('upgrade.plans.renewalNote')}
+              </p>
+              <p className="max-w-[52ch] text-pretty text-sm leading-[1.55] text-[var(--fg-3)]">
+                {t('upgrade.convert.handOff')}
+              </p>
+            </div>
             <a
               href="/profile"
               aria-disabled={checkoutLoading !== null}
               onClick={(event) => {
+                if (checkoutLoading !== null) {
+                  event.preventDefault()
+                  return
+                }
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
                 event.preventDefault()
-                if (checkoutLoading === null) onStayFree()
+                onStayFree()
               }}
-              className="text-base leading-6 text-[var(--fg-1)] underline underline-offset-4 aria-disabled:pointer-events-none aria-disabled:opacity-40"
+              className="inline-flex min-h-11 items-center text-base leading-6 text-[var(--fg-1)] underline underline-offset-4 transition-colors duration-[var(--dur-hover)] ease-[var(--ease-standard)] [@media(pointer:fine)]:hover:text-[var(--fg-2)] active:scale-[0.96] aria-disabled:pointer-events-none aria-disabled:opacity-40"
             >
               {t('upgrade.convert.stayFree')}
             </a>
           </div>
-        </>
-      ) : null}
-    </>
+        ) : null}
+      </div>
+    </div>
   )
 }
 
@@ -160,7 +164,7 @@ function Allowance({ amount, label, perDay }: Readonly<{ amount: string; label: 
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <p className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)]">{label}</p>
-      <p className="font-display text-[44px] font-semibold leading-[1.02] tracking-[-0.02em] tabular-nums text-[var(--fg-1)]">
+      <p className="font-display text-[34px] font-semibold leading-[1.02] tracking-[-0.02em] tabular-nums text-[var(--fg-1)] sm:text-[44px]">
         {amount}
       </p>
       <p className="text-sm leading-[1.4] text-[var(--fg-3)]">{perDay}</p>

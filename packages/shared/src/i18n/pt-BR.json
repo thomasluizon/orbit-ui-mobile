@@ -2117,6 +2117,7 @@
       "recommended": "Recomendado",
       "cta": "Assinar",
       "checkoutLabel": "Assinar {interval}",
+      "checkoutLabelRecommended": "Assinar {interval}, recomendado",
       "coupon": {
         "line": "Com o seu cupom, {percent}% de desconto na primeira cobrança."
       },
@@ -2188,6 +2189,10 @@
         "features": "O limite diário maior da Astra e a sincronização do calendário não estão mais ativos.",
         "yearlyFeature": "A retrospectiva anual não está mais ativa.",
         "action": "Assinar de novo"
+      },
+      "paymentIssue": {
+        "title": "Não conseguimos processar seu pagamento",
+        "body": "Seu acesso Pro continua ativo. Abra a cobrança abaixo e atualize a forma de pagamento para mantê-lo."
       }
     },
     "playError": {

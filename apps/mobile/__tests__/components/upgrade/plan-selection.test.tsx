@@ -1,10 +1,61 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Easing, ReduceMotion } from 'react-native-reanimated'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
 import type { SubscriptionInterval, UpgradeTextFn } from '@/components/upgrade/types'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 import { formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
 import { createTokensV2 } from '@/lib/theme'
+
+const motionMocks = vi.hoisted(() => ({
+  reduced: false,
+  fadeInDuration: vi.fn(),
+  fadeOutDuration: vi.fn(),
+}))
+
+vi.mock('@/lib/motion', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/motion')>()
+  return {
+    ...actual,
+    usePrefersReducedMotion: () => motionMocks.reduced,
+  }
+})
+
+vi.mock('react-native-reanimated', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-native-reanimated')>()
+  function builder(durationV: number) {
+    return {
+      durationV,
+      easingV: undefined as unknown,
+      reduceMotionV: actual.ReduceMotion.System,
+      easing(easing: unknown) {
+        this.easingV = easing
+        return this
+      },
+      reduceMotion(mode: ReduceMotion) {
+        this.reduceMotionV = mode
+        return this
+      },
+    }
+  }
+  return {
+    ...actual,
+    Easing: { ...actual.Easing, bezier: vi.fn(actual.Easing.bezier) },
+    FadeIn: {
+      duration: (duration: number) => {
+        motionMocks.fadeInDuration(duration)
+        return builder(duration)
+      },
+    },
+    FadeOut: {
+      duration: (duration: number) => {
+        motionMocks.fadeOutDuration(duration)
+        return builder(duration)
+      },
+    },
+  }
+})
 
 vi.mock('@/hooks/use-subscription-plans', () => ({
   useSubscriptionPlans: () => ({}),
@@ -41,33 +92,44 @@ function renderSelection(
   selectedInterval: SubscriptionInterval = 'yearly',
   overrides: Partial<React.ComponentProps<typeof PlanSelection>> = {},
 ) {
+  const props: React.ComponentProps<typeof PlanSelection> = {
+    plans,
+    isLoading: false,
+    isError: false,
+    isOnline: true,
+    monthlyOffer: null,
+    yearlyOffer: null,
+    selectedInterval,
+    checkoutLoading: null,
+    checkoutError: '',
+    checkoutDisabled: false,
+    onSelectInterval: () => {},
+    onCheckout: () => {},
+    onRetry: () => {},
+    t,
+    tokens,
+    ...overrides,
+  }
   let tree: any
   TestRenderer.act(() => {
-    tree = TestRenderer.create(
-      <PlanSelection
-        plans={plans}
-        isLoading={false}
-        isError={false}
-        isOnline
-        monthlyOffer={null}
-        yearlyOffer={null}
-        selectedInterval={selectedInterval}
-        checkoutLoading={null}
-        checkoutError=""
-        checkoutDisabled={false}
-        onSelectInterval={() => {}}
-        onCheckout={() => {}}
-        onRetry={() => {}}
-        t={t}
-        tokens={tokens}
-        {...overrides}
-      />,
-    )
+    tree = TestRenderer.create(<PlanSelection {...props} />)
   })
+  tree.rerender = (nextOverrides: Partial<React.ComponentProps<typeof PlanSelection>>) => {
+    TestRenderer.act(() => {
+      tree.update(<PlanSelection {...props} {...nextOverrides} />)
+    })
+  }
   return tree
 }
 
 describe('PlanSelection (mobile)', () => {
+  beforeEach(() => {
+    motionMocks.reduced = false
+    motionMocks.fadeInDuration.mockClear()
+    motionMocks.fadeOutDuration.mockClear()
+    vi.mocked(Easing.bezier).mockClear()
+  })
+
   it('leads with annual and gives it the only filled action', () => {
     const tree = renderSelection()
     const tiers = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
@@ -99,6 +161,96 @@ describe('PlanSelection (mobile)', () => {
     expect(onCheckout).not.toHaveBeenCalled()
   })
 
+  it('softens the loading-to-content swap', () => {
+    const tree = renderSelection('yearly', { plans: null, isLoading: true })
+    expect(motionMocks.fadeOutDuration).toHaveBeenCalledWith(165)
+
+    tree.rerender({ plans, isLoading: false })
+
+    expect(motionMocks.fadeInDuration).toHaveBeenCalledWith(220)
+    const motion = tree.root.findByProps({
+      testID: 'upgrade-motion-preventing-a-jarring-change',
+    })
+    expect(motion.props.entering).toBeDefined()
+  })
+
+  it('hard-cuts loading-to-content with reduced motion', () => {
+    motionMocks.reduced = true
+    const tree = renderSelection('yearly', { plans: null, isLoading: true })
+
+    tree.rerender({ plans, isLoading: false })
+
+    expect(motionMocks.fadeInDuration).not.toHaveBeenCalled()
+    expect(motionMocks.fadeOutDuration).not.toHaveBeenCalled()
+  })
+
+  it('animates error-to-loaded with the shared entrance and exit curves', () => {
+    const tree = renderSelection('yearly', { plans: null, isError: true })
+    const failedMotion = tree.root.findByType('AnimatedView')
+    expect(failedMotion.props.entering).toBeUndefined()
+    const exiting = failedMotion.props.exiting
+    expect(Easing.bezier).toHaveBeenLastCalledWith(...motionEasings.exit)
+    expect(exiting).toEqual(expect.objectContaining({
+      durationV: motionDurations.routeExit,
+      easingV: vi.mocked(Easing.bezier).mock.results.at(-1)!.value,
+      reduceMotionV: ReduceMotion.System,
+    }))
+
+    vi.mocked(Easing.bezier).mockClear()
+    tree.rerender({ plans, isError: false })
+    const loadedMotion = tree.root.findByType('AnimatedView')
+
+    expect(loadedMotion).not.toBe(failedMotion)
+    expect(Easing.bezier).toHaveBeenCalledWith(...motionEasings.enter)
+    const entranceCall = vi.mocked(Easing.bezier).mock.calls.findIndex((points) =>
+      points.every((point, index) => point === motionEasings.enter[index]))
+    expect(loadedMotion.props.entering).toEqual(expect.objectContaining({
+      durationV: motionDurations.base,
+      easingV: vi.mocked(Easing.bezier).mock.results[entranceCall]!.value,
+      reduceMotionV: ReduceMotion.System,
+    }))
+    expect(loadedMotion.props.exiting).toBeDefined()
+    tree.rerender({ plans, isError: false, selectedInterval: 'monthly' })
+    expect(tree.root.findByType('AnimatedView')).toBe(loadedMotion)
+  })
+
+  it('hard-cuts error-to-loaded with reduced motion', () => {
+    motionMocks.reduced = true
+    const tree = renderSelection('yearly', { plans: null, isError: true })
+    expect(tree.root.findByType('AnimatedView').props.exiting).toBeUndefined()
+
+    tree.rerender({ plans, isError: false })
+
+    const motion = tree.root.findByType('AnimatedView')
+    expect(motion.props.entering).toBeUndefined()
+    expect(motion.props.exiting).toBeUndefined()
+    expect(Easing.bezier).not.toHaveBeenCalled()
+  })
+
+  it.each(['yearly', 'monthly'] as const)(
+    'keeps annual recommended while %s is selected',
+    (selectedInterval) => {
+      const tree = renderSelection(selectedInterval)
+      const annualTier = tree.root.findByProps({ testID: 'upgrade-tier-yearly' })
+      const monthlyTier = tree.root.findByProps({ testID: 'upgrade-tier-monthly' })
+
+      expect(annualTier.findAll((node: { props: { children?: unknown } }) =>
+        node.props.children === 'upgrade.plans.recommended').length).toBeGreaterThan(0)
+      expect(monthlyTier.findAll((node: { props: { children?: unknown } }) =>
+        node.props.children === 'upgrade.plans.recommended')).toHaveLength(0)
+      expect(annualTier.findByType('Pressable').props.accessibilityLabel).toBe(
+        t('upgrade.plans.checkoutLabelRecommended', { interval: 'upgrade.plans.yearly.name' }),
+      )
+      expect(monthlyTier.findByType('Pressable').props.accessibilityLabel).toBe(
+        t('upgrade.plans.checkoutLabel', { interval: 'upgrade.plans.monthly.name' }),
+      )
+      const selectedTier = selectedInterval === 'yearly' ? annualTier : monthlyTier
+      const unselectedTier = selectedInterval === 'yearly' ? monthlyTier : annualTier
+      expect(selectedTier.findByProps({ testID: 'button-primary-md' })).toBeTruthy()
+      expect(unselectedTier.findByProps({ testID: 'button-ghost-md' })).toBeTruthy()
+    },
+  )
+
   it('renders annual arithmetic from the payload', () => {
     const tree = renderSelection()
     const rendered = JSON.stringify(tree.toJSON())
@@ -129,7 +281,23 @@ describe('PlanSelection (mobile)', () => {
   it('owns loading and retry states for the price tiers', () => {
     const onRetry = vi.fn()
     const loading = renderSelection('yearly', { plans: null, isLoading: true })
-    expect(JSON.stringify(loading.toJSON()).match(/upgrade\.plans\.loading/g)!.length).toBeGreaterThan(1)
+    expect(loading.root.findAll(
+      (node: { type: unknown; props: Record<string, unknown> }) =>
+        node.type === 'View' && node.props.testID === 'skeleton-unit-settings',
+    )).toHaveLength(6)
+
+    const loadingWrapper = loading.root.findAll(
+      (node: { type: unknown; props: Record<string, unknown> }) =>
+        node.type === 'View' && node.props.accessibilityLabel === 'upgrade.plans.loading'
+          && node.props.accessibilityRole !== 'progressbar',
+    )
+    expect(loadingWrapper).toHaveLength(0)
+    expect(loading.root.findAll(
+      (node: { type: unknown; props: Record<string, unknown> }) =>
+        node.type === 'View' && node.props.accessibilityRole === 'progressbar'
+          && node.props.accessibilityLabel === 'upgrade.plans.loading'
+          && node.props.accessible === true,
+    )).toHaveLength(6)
 
     const failed = renderSelection('yearly', {
       plans: null,
@@ -155,7 +323,7 @@ describe('PlanSelection (mobile)', () => {
 
     expect(actions.map((action: { props: { accessibilityLabel?: string } }) =>
       action.props.accessibilityLabel)).toEqual([
-      `upgrade.plans.checkoutLabel:${JSON.stringify({ interval: 'upgrade.plans.yearly.name' })}`,
+      `upgrade.plans.checkoutLabelRecommended:${JSON.stringify({ interval: 'upgrade.plans.yearly.name' })}`,
       `upgrade.plans.checkoutLabel:${JSON.stringify({ interval: 'upgrade.plans.monthly.name' })}`,
     ])
     TestRenderer.act(() => actions[0].props.onPress())
@@ -175,10 +343,18 @@ describe('PlanSelection (mobile)', () => {
   })
 
   it('announces checkout failures', () => {
-    const tree = renderSelection('yearly', { checkoutError: 'purchase failed' })
-    const error = tree.root.findByProps({ children: 'purchase failed' })
+    const tree = renderSelection()
+    const alert = tree.root.findByProps({ accessibilityRole: 'alert' })
+    expect(alert.props.children).toBe('')
+    expect(alert.props.accessibilityLiveRegion).toBe('assertive')
 
-    expect(error.props.accessibilityRole).toBe('alert')
-    expect(error.props.accessibilityLiveRegion).toBe('polite')
+    tree.rerender({ checkoutError: 'purchase failed' })
+    expect(tree.root.findByProps({ accessibilityRole: 'alert' })).toBe(alert)
+    expect(alert.props.children).toBe('purchase failed')
+    expect(alert.props.accessibilityLiveRegion).toBe('assertive')
+
+    tree.rerender({ checkoutError: '' })
+    expect(tree.root.findByProps({ accessibilityRole: 'alert' })).toBe(alert)
+    expect(alert.props.children).toBe('')
   })
 })
