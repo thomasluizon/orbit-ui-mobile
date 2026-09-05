@@ -602,7 +602,7 @@ Consequences that hold either way:
 
 Use the semantic roles, not raw sizes.
 
-**#421, 2026-09-05: the Pro drawing's type pairs are named roles.**
+**thomasluizon/orbit-tickets#421, 2026-09-05: the Pro drawing's type pairs are named roles.**
 `display-heading` is Space Grotesk 500, -0.02em, fg-1: 28px/1.18 in the compact
 shell and 34px/1.15 wide. `allowance` is Space Grotesk 600, -0.02em, fg-1, tabular:
 34px/1.05 compact and 44px/1.02 wide. These values come from
@@ -614,7 +614,7 @@ Shared `responsiveTypeRoles` owns the pairs; web exposes `t-display-heading` and
 `t-allowance`, and mobile resolves them through `responsiveTypeStyle` as window width changes.
 The existing `t-display` role is unchanged; migrating its other consumers is a separate decision.
 
-**#421 gap 3: retain the drawn settings-row loading composition on both platforms.**
+**thomasluizon/orbit-tickets#421 gap 3: retain the drawn settings-row loading composition on both platforms.**
 The Pro drawing at lines 79 and 175 specifies `Skeleton` with `variant="settings"` and
 three rows. It specifies no tier skeleton, internal placeholder dimensions, or reserved
 tier height. The approximately 260px loaded tier is an observation, not a granted skeleton
