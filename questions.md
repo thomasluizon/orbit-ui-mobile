@@ -32,7 +32,7 @@ comes back here.
 
 ### Price-loading skeleton composition (thomasluizon/orbit-tickets#421)
 
-Answered by Thomas on 2026-09-05. The drawing specifies three settings skeleton rows per tier.
+Settled by the orchestrator against the drawing under D90. The drawing specifies three settings skeleton rows per tier.
 Asking for tier-shaped skeleton geometry was asking to invent a new shape; it fails the
 "follow the best approach" test. Keep the drawn rows and reserve the height occupied by the loaded
 tier cards so the price response does not shift the layout. Height reservation is composition,
@@ -40,8 +40,7 @@ not a new token, radius, colour or spacing value, so core rule 6 does not block 
 
 Measure the loaded cards, including annual, monthly and coupon content, rather than copying the
 ticket's approximate 260px. If the reservation requires an off-scale spacing value, record that
-specific measured value here. The composition decision is answered; its implementation remains
-outstanding on this branch.
+specific measured value here.
 
 ### Whether a screen still waits for review before merging
 

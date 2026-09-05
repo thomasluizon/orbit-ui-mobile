@@ -614,14 +614,9 @@ Shared `responsiveTypeRoles` owns the pairs; web exposes `t-display-heading` and
 `t-allowance`, and mobile resolves them through `responsiveTypeStyle` as window width changes.
 The existing `t-display` role is unchanged; migrating its other consumers is a separate decision.
 
-**thomasluizon/orbit-tickets#421 gap 3: retain the drawn settings-row loading composition on both platforms.**
-The Pro drawing at lines 79 and 175 specifies `Skeleton` with `variant="settings"` and
-three rows. Thomas's 2026-09-05 decision retains those rows and requires the composition to
-reserve the loaded tier cards' measured height, including annual, monthly and coupon content,
-so the price response does not shift the layout. The approximate 260px is not a measurement
-to hardcode. This reservation adds no skeleton variant or design token. Record any required
-off-scale spacing value with its measured number in `questions.md`; the skeleton shape itself
-is answered there. Height reservation is still outstanding on this branch.
+The price-loading composition keeps the drawn settings placeholder rows and reserves the
+height the loaded tier cards occupy, including annual, monthly and coupon content, so the
+price response does not shift the layout.
 
 | Role | Family | Size/Weight | Line-height | Tracking | Colour |
 |---|---|---|---|---|---|
