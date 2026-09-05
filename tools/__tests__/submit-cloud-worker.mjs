@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process"
+import filesystem from "node:fs"
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
 import { join } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
 
@@ -15,6 +17,7 @@ import {
   toolPath,
 } from "./_harness.mjs"
 import { cloudConfig, fakeCodex, task, taskPage } from "./cloud-worker.mjs"
+import { acquireSubmissionLock, persistReconciledReceipt } from "../lib/cloud-worker.mjs"
 
 const TOOL = "submit-cloud-worker.mjs"
 
@@ -57,7 +60,160 @@ const spawnTool = (entry, args, env) => {
 
 const runConcurrent = (entry, env) => spawnTool(entry, argvOf(entry), env).result
 
+const replacementOwnerSurvives = (interleave, duringRelease = false) => {
+  const stateRoot = join(stage(`submit-cloud/replacement-${interleave}-${duringRelease}/fixture`, ""), "..")
+  const lockDirectory = join(stateRoot, "submit.lock")
+  const releaseFirst = acquireSubmissionLock(stateRoot)
+  const firstOwnerPath = join(lockDirectory, readdirSync(lockDirectory)[0])
+  if (interleave !== "readFileSync" && !duringRelease) writeFileSync(firstOwnerPath, JSON.stringify({ pid: 2147483647 }))
+  const original = filesystem[interleave]
+  let injected = false
+  let missingRead = false
+  let releaseSecond
+  let releaseWaiter
+  let secondOwnerPath
+  let secondOwnerContents
+  let failure
+  let survived = false
+  const publishSecond = () => {
+    releaseSecond = acquireSubmissionLock(stateRoot)
+    secondOwnerPath = join(lockDirectory, readdirSync(lockDirectory)[0])
+    secondOwnerContents = readFileSync(secondOwnerPath, "utf8")
+  }
+  try {
+    filesystem[interleave] = (path, ...args) => {
+      if (injected || path !== (interleave === "rmdirSync" ? lockDirectory : firstOwnerPath)) {
+        return original(path, ...args)
+      }
+      injected = true
+      releaseFirst()
+      if (interleave === "readFileSync") {
+        try {
+          return original(path, ...args)
+        } catch (error) {
+          // Preserve the real failed read, but let a third writer publish before the waiter sees it.
+          missingRead = error.code === "ENOENT"
+          publishSecond()
+          throw error
+        }
+      }
+      publishSecond()
+      return original(path, ...args)
+    }
+    syncBuiltinESMExports()
+    try {
+      if (duringRelease) releaseFirst()
+      else releaseWaiter = acquireSubmissionLock(stateRoot)
+    } catch (error) {
+      failure = error.message
+    }
+    survived = Boolean(secondOwnerPath && existsSync(secondOwnerPath) &&
+      readFileSync(secondOwnerPath, "utf8") === secondOwnerContents)
+  } finally {
+    filesystem[interleave] = original
+    syncBuiltinESMExports()
+    releaseWaiter?.()
+    releaseSecond?.()
+    releaseFirst()
+  }
+  T(
+    `${TOOL}: a replacement owner survives contention at ${interleave}${duringRelease ? " during release" : ""}`,
+    injected && (interleave !== "readFileSync" || missingRead) && !releaseWaiter &&
+      survived && failure === (duringRelease ? undefined : `cloud submission is already running in process ${process.pid}`),
+    JSON.stringify({ injected, missingRead, secondOwnerLockStolen: Boolean(releaseWaiter) || !survived, failure }),
+  )
+}
+
 export const cases = async () => {
+  const legacyRoot = join(stage("submit-cloud/legacy-replacement/fixture", ""), "..")
+  const legacyDirectory = join(legacyRoot, "submit.lock")
+  const legacyOwner = join(legacyDirectory, "owner.json")
+  mkdirSync(legacyDirectory)
+  writeFileSync(legacyOwner, JSON.stringify({ pid: 2147483647 }))
+  const originalLegacyRead = filesystem.readFileSync
+  let legacyPublished = false
+  let legacyRelease
+  let legacyError
+  const replacementContents = JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() })
+  try {
+    filesystem.readFileSync = (path, ...args) => {
+      const contents = originalLegacyRead(path, ...args)
+      if (path === legacyOwner && !legacyPublished) {
+        legacyPublished = true
+        // The old writer's reclaim/publication sequence from a5fd34d0 runs after the stale read.
+        const stale = join(legacyRoot, "old-waiter.stale")
+        const candidate = join(legacyRoot, "old-waiter.candidate")
+        filesystem.renameSync(legacyDirectory, stale)
+        filesystem.rmSync(stale, { recursive: true })
+        mkdirSync(candidate)
+        writeFileSync(join(candidate, "owner.json"), replacementContents)
+        filesystem.renameSync(candidate, legacyDirectory)
+      }
+      return contents
+    }
+    syncBuiltinESMExports()
+    try { legacyRelease = acquireSubmissionLock(legacyRoot) } catch (error) { legacyError = error.message }
+    T(
+      `${TOOL}: a delayed reclaimer preserves a live legacy replacement after reading its dead predecessor`,
+      legacyPublished && !legacyRelease && Boolean(legacyError) && existsSync(legacyOwner) &&
+        readFileSync(legacyOwner, "utf8") === replacementContents,
+      JSON.stringify({ legacyPublished, concurrentAcquisition: Boolean(legacyRelease), legacyError }),
+    )
+  } finally {
+    filesystem.readFileSync = originalLegacyRead
+    syncBuiltinESMExports()
+    legacyRelease?.()
+    filesystem.rmSync(legacyDirectory, { recursive: true, force: true })
+  }
+  const renameRaceMirror = stage("submit-cloud/rename-race/receipts/task_e_a419.json", '{"taskId":"task_e_a419"}')
+  const renameRaceLock = join(renameRaceMirror, "..", "..", "receipt-task_e_a419.json.lock")
+  mkdirSync(renameRaceLock)
+  writeFileSync(join(renameRaceLock, "owner.json"), JSON.stringify({ pid: process.pid }))
+  const originalRename = filesystem.renameSync
+  let contentionObserved = false
+  let renameRaceError = null
+  try {
+    filesystem.renameSync = (source, destination) => {
+      try {
+        return originalRename(source, destination)
+      } catch (error) {
+        if (destination === renameRaceLock && !contentionObserved) {
+          contentionObserved = true
+          filesystem.rmSync(renameRaceLock, { recursive: true })
+        }
+        throw error
+      }
+    }
+    syncBuiltinESMExports()
+    persistReconciledReceipt({ taskId: "task_e_a419", firstReadyObservedAt: "2026-09-05T00:00:00.000Z" }, renameRaceMirror, [], { lockTimeoutMs: 1000 })
+  } catch (error) {
+    renameRaceError = error
+  } finally {
+    filesystem.renameSync = originalRename
+    syncBuiltinESMExports()
+  }
+  T(
+    `${TOOL}: a receipt claim survives its owner releasing after a native rename failure`,
+    contentionObserved && renameRaceError === null && !existsSync(renameRaceLock) &&
+      JSON.parse(readFileSync(renameRaceMirror, "utf8")).firstReadyObservedAt === "2026-09-05T00:00:00.000Z",
+    String(renameRaceError),
+  )
+  for (const interleave of ["readFileSync", "unlinkSync", "rmdirSync"]) replacementOwnerSurvives(interleave)
+  replacementOwnerSurvives("rmdirSync", true)
+  for (const staleKind of ["unique owner", "empty directory"]) {
+    const stateRoot = join(stage(`submit-cloud/reclaim-${staleKind}/fixture`, ""), "..")
+    const lockDirectory = join(stateRoot, "submit.lock")
+    if (staleKind === "unique owner") {
+      acquireSubmissionLock(stateRoot)
+      writeFileSync(join(lockDirectory, readdirSync(lockDirectory)[0]), JSON.stringify({ pid: 2147483647 }))
+    } else {
+      mkdirSync(lockDirectory)
+    }
+    const release = acquireSubmissionLock(stateRoot)
+    T(`${TOOL}: stale reclamation recovers ${staleKind}`, existsSync(lockDirectory))
+    release()
+    T(`${TOOL}: release removes a reclaimed ${staleKind}`, !existsSync(lockDirectory))
+  }
   const schedulerContract = readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")
   const normalizedSchedulerContract = schedulerContract.replace(/\s+/g, " ")
   T(
@@ -856,6 +1012,17 @@ export const cases = async () => {
   )
 
   const recoveryRace = fixture("recovery-race")
+  const releaseRacingList = stage("submit-cloud/release-racing-list", "waiting")
+  writeFileSync(recoveryRace.codex.script, readFileSync(recoveryRace.codex.script, "utf8").replace(
+    'const args = process.argv.slice(2)',
+    `const args = process.argv.slice(2)
+if (args[1] === "list") {
+  writeFileSync(${JSON.stringify(releaseRacingList)}, "entered")
+  while (readFileSync(${JSON.stringify(releaseRacingList)}, "utf8") !== "released") {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10)
+  }
+}`,
+  ))
   const recoveryRaceDirectory = join(recoveryRace.repo.path, ".git", "orbit-cloud", "receipts")
   mkdirSync(recoveryRaceDirectory, { recursive: true })
   const recoveryRaceReservationId = "00000000-0000-0000-0000-000000000402"
@@ -878,14 +1045,21 @@ export const cases = async () => {
     {
       ORBIT_FAKE_CODEX_LOG: recoveryRace.log,
       ORBIT_FAKE_LIST: taskPage([task(recoveryRaceTaskId, "pending", 0)]),
-      ORBIT_FAKE_LIST_DELAY_MS: "300",
     },
   )
-  const racingListDeadline = Date.now() + 2000
-  while (!readFileSync(recoveryRace.log, "utf8").includes('"list"') && Date.now() < racingListDeadline) await wait(10)
-  const racingClear = run(TOOL, ["--clear-unknown", recoveryRacePath, "--assert-no-task-exists"], {
-    path: recoveryRace.path,
-  })
+  let racingClear
+  try {
+    const racingListDeadline = Date.now() + 30_000
+    while (readFileSync(releaseRacingList, "utf8") !== "entered") {
+      if (Date.now() >= racingListDeadline) throw new Error("abandon did not enter the coordinated list call")
+      await wait(10)
+    }
+    racingClear = run(TOOL, ["--clear-unknown", recoveryRacePath, "--assert-no-task-exists"], {
+      path: recoveryRace.path,
+    })
+  } finally {
+    writeFileSync(releaseRacingList, "released")
+  }
   const racingAbandonResult = await racingAbandon.result
   const racingReservation = JSON.parse(readFileSync(recoveryRacePath, "utf8"))
   T(
@@ -960,8 +1134,8 @@ export const cases = async () => {
 
   const staleOwner = fixture("stale-owner")
   const staleLock = join(staleOwner.repo.path, ".git", "orbit-cloud", "submit.lock")
-  mkdirSync(staleLock, { recursive: true })
-  writeFileSync(join(staleLock, "owner.json"), JSON.stringify({ pid: 2147483647 }))
+  acquireSubmissionLock(join(staleOwner.repo.path, ".git", "orbit-cloud"))
+  writeFileSync(join(staleLock, readdirSync(staleLock)[0]), JSON.stringify({ pid: 2147483647 }))
   const staleOwnerResult = run(TOOL, argvOf(staleOwner), {
     path: staleOwner.path,
     env: {

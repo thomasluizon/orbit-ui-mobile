@@ -4,10 +4,13 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   renameSync,
   rmSync,
+  rmdirSync,
   statSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs"
 import { basename, delimiter, dirname, extname, join, resolve } from "node:path"
@@ -105,7 +108,8 @@ export class CodexTimeoutError extends Error {
 
 export class ReceiptLockTimeoutError extends Error {
   constructor(operation, timeoutMs, ownerPid) {
-    super(`${operation} lock timed out after ${timeoutMs}ms waiting for live process ${ownerPid}`)
+    super(`${operation} lock timed out after ${timeoutMs}ms` +
+      (ownerPid === undefined ? " waiting for ownership" : ` waiting for process ${ownerPid}`))
     this.name = "ReceiptLockTimeoutError"
     this.code = "RECEIPT_LOCK_TIMEOUT"
     this.timeoutMs = timeoutMs
@@ -459,58 +463,102 @@ const processIsAlive = (pid) => {
   }
 }
 
+const readCloudLockOwner = (lockDirectory) => {
+  const entries = readdirSync(lockDirectory)
+  if (entries.length === 0) return null
+  if (entries.length !== 1 || !/^(?:[\da-f-]+\.)?owner\.json$/.test(entries[0])) {
+    throw new Error(`Unrecognised cloud lock contents at ${lockDirectory}`)
+  }
+  const path = join(lockDirectory, entries[0])
+  return { path, pid: JSON.parse(readFileSync(path, "utf8")).pid }
+}
+
+const reclaimCloudLock = (lockDirectory, owner) => {
+  // Each publication has a unique owner filename. A pathname recheck followed by rename still
+  // has a TOCTOU gap; deleting only this token cannot unlink a successor's owner. Nonrecursive
+  // rmdir atomically refuses a populated successor, even if it arrived after our unlink.
+  try {
+    if (owner) unlinkSync(owner.path)
+    rmdirSync(lockDirectory)
+  } catch (error) {
+    if (error.code !== "ENOENT" && error.code !== "ENOTEMPTY") throw error
+  }
+}
+
 const acquireCloudLock = (stateRoot, lockName, operation, options = {}) => {
   const lockDirectory = join(stateRoot, lockName)
-  const ownerPath = join(lockDirectory, "owner.json")
+  const ownerFilename = `${randomUUID()}.owner.json`
   if (options.waitForOwner && (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0)) {
     throw new Error(`${operation} requires a positive lock timeout`)
   }
   const waitDeadline = options.waitForOwner ? performance.now() + options.timeoutMs : null
+  const waitForRetry = (ownerPid) => {
+    const remainingMs = waitDeadline - performance.now()
+    if (remainingMs <= 0) throw new ReceiptLockTimeoutError(operation, options.timeoutMs, ownerPid)
+    Atomics.wait(LOCK_RETRY_SIGNAL, 0, 0, Math.min(10, remainingMs))
+  }
   mkdirSync(stateRoot, { recursive: true })
   const publishOwner = () => {
     const candidate = join(stateRoot, `${lockName}.${process.pid}.${randomUUID()}.candidate`)
     mkdirSync(candidate, { recursive: false })
-    writeJsonAtomic(join(candidate, "owner.json"), { pid: process.pid, acquiredAt: new Date().toISOString() })
+    writeJsonAtomic(join(candidate, ownerFilename), { pid: process.pid, acquiredAt: new Date().toISOString() })
     try {
       renameSync(candidate, lockDirectory)
-      return true
+      return "acquired"
     } catch (error) {
       rmSync(candidate, { recursive: true, force: true })
-      if (existsSync(lockDirectory)) return false
+      if (existsSync(lockDirectory)) return "occupied"
+      // Windows can report contention after the owner has removed its directory (thomasluizon/orbit-tickets#419).
+      if (options.waitForOwner) {
+        waitForRetry()
+        return "retry"
+      }
       throw error
     }
   }
 
-  while (!publishOwner()) {
-    let owner = null
-    try {
-      owner = readJsonFile(ownerPath, `${operation} lock`)
-    } catch {
-      owner = null
+  let observedOwnerPid
+  while (true) {
+    if (options.waitForOwner && performance.now() >= waitDeadline) {
+      throw new ReceiptLockTimeoutError(operation, options.timeoutMs, observedOwnerPid)
     }
-    if (processIsAlive(owner?.pid)) {
+    const publication = publishOwner()
+    if (publication === "acquired") break
+    if (publication === "retry") continue
+    let owner
+    try {
+      owner = readCloudLockOwner(lockDirectory)
+    } catch (error) {
+      // A failed read proves no stale identity. Retry publication, never reclaim by pathname
+      // (thomasluizon/orbit-tickets#419); token deletion also closes the later reclaim race.
+      if (error.code !== "ENOENT") throw error
+      if (options.waitForOwner) waitForRetry()
+      continue
+    }
+    observedOwnerPid = owner?.pid
+    const liveOwner = processIsAlive(owner?.pid)
+    // Legacy writers reuse owner.json, so no observed PID authorizes a later unlink. Keep it
+    // occupied until its writer releases it; stale cleanup requires quiescing all versions
+    // (thomasluizon/orbit-tickets#419). A second pathname read would leave the same race.
+    const legacyOwner = owner && basename(owner.path) === "owner.json"
+    if (liveOwner || legacyOwner) {
       if (options.waitForOwner) {
-        const remainingMs = waitDeadline - performance.now()
-        if (remainingMs <= 0) throw new ReceiptLockTimeoutError(operation, options.timeoutMs, owner.pid)
-        Atomics.wait(LOCK_RETRY_SIGNAL, 0, 0, Math.min(10, remainingMs))
+        waitForRetry(owner.pid)
         continue
+      }
+      if (!liveOwner) {
+        throw new Error(`${operation} has a legacy lock at ${lockDirectory}; stop all cloud workers before removing it`)
       }
       throw new Error(`${operation} is already running in process ${owner.pid}`)
     }
-    const staleDirectory = join(stateRoot, `${lockName}.${process.pid}.${randomUUID()}.stale`)
-    try {
-      renameSync(lockDirectory, staleDirectory)
-    } catch (error) {
-      if (!existsSync(lockDirectory)) continue
-      throw error
-    }
-    rmSync(staleDirectory, { recursive: true, force: true })
+    reclaimCloudLock(lockDirectory, owner)
   }
   let released = false
   return () => {
     if (released) return
     released = true
-    rmSync(lockDirectory, { recursive: true, force: true })
+    // Another waiter can reclaim the empty directory between our unlink and rmdir.
+    reclaimCloudLock(lockDirectory, { path: join(lockDirectory, ownerFilename) })
   }
 }
 
