@@ -1,8 +1,0 @@
-appId: org.useorbit.app
----
-- openLink: ${CAPTURE_LINK}
-- waitForAnimationToEnd:
-    timeout: 10000
-- assertVisible:
-    id: "capture-route-terms"
-- takeScreenshot: ${CAPTURE_PATH}

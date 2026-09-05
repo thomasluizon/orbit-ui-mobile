@@ -38,9 +38,9 @@ Cite the DESIGN.md section for every finding. If a rule is not in DESIGN.md and 
 
 **The colour system changed on 2026-08-15.** One scheme, not six. A deep space-blue accent, not violet. `--fg-on-primary` is the canvas ink and **not white**, because white on the accent measures 2.41:1. `--status-frozen` is a neutral plus the snowflake glyph and no longer a hue. Flag any surviving reference to six schemes, a violet accent, `Rubik`/`Inter`/`Roboto`, or a cyan frozen dot.
 
-## Screenshot critique
+## Rendered critique
 
-Visual verification needs the chrome-devtools MCP, which the calling session has and this read-only subagent does not. If the orchestrator supplies screenshots (or observations) of the changed surface at 1440 + 390 px, factor the visible token violations and slop tells into your findings; otherwise review from the diff and note that a screenshot pass is still owed.
+Visual verification needs a live browser, which the calling session has and this read-only subagent does not. If the orchestrator supplies measured observations of the changed surface at 1440 and 390 px, such as computed styles or a described render, factor the visible token violations and slop tells into your findings. Otherwise review from the diff and say that the rendered pass is still owed. **Never ask for a screenshot**: Orbit has no screenshot requirement, and the rendered evidence that settles a visual question is Thomas looking at the running app.
 
 ## Output
 

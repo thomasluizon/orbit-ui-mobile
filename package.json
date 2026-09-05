@@ -11,13 +11,11 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "web": "turbo run dev --filter=@orbit/web",
+    "surfaces:manifest": "node tools/surface-manifest.mjs",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
     "test": "turbo run test",
-    "clean": "turbo run clean",
-    "surfaces:manifest": "node tools/surface-manifest.mjs",
-    "surfaces:capture": "node tools/capture-surfaces.mjs",
-    "surfaces:capture:mobile": "node tools/capture-surfaces-mobile.mjs"
+    "clean": "turbo run clean"
   },
   "devDependencies": {
     "@swc/helpers": "^0.5.15",
@@ -27,6 +25,7 @@
     "fdir": "^6.5.0",
     "html-parse-stringify": "^3.0.1",
     "indent-string": "^4.0.0",
+    "js-yaml": "^4.3.1",
     "lefthook": "^2.1.10",
     "min-indent": "^1.0.1",
     "png-to-ico": "^3.0.2",

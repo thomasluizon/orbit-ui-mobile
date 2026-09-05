@@ -7,11 +7,11 @@ paths:
 
 # Visual delivery & anti-fabrication of "done"
 
-**At a glance:** 8 standing rules that make completeness STRUCTURAL for any visual/redesign/transformation task (a page, a screen, a "de-slop", a "make it beautiful", a whole-app pass). Read this the moment a task's success is judged by how a rendered surface LOOKS rather than by a passing test. Judgement-bound but artifact-enforced. See `README.md` for the tier's contract.
+**At a glance:** 8 standing rules that make completeness STRUCTURAL for any visual/redesign/transformation task (a page, a screen, a "de-slop", a "make it beautiful", a whole-app pass). Read this the moment a task's success is judged by how a rendered surface LOOKS rather than by a passing test. Judgement-bound and granted only by Thomas looking at every inventoried surface running on seeded data. See `README.md` for the tier's contract.
 
 ## Why this tier exists (the #539 post-mortem, 2026-07-18)
 
-Every gate here is *subtractive*: it proves bad things are absent and is blind to the absence of good ones. #539's b5 passed 100% of them by redoing one view and deleting decorations, then reported "the design applied" while the calendar, every modal, search, and the profile pages were untouched. **A claim of visual completion is worthless without a per-surface artifact, and green gates are never that artifact.**
+Every gate here is *subtractive*: it proves bad things are absent and is blind to the absence of good ones. #539's b5 passed 100% of them by redoing one view and deleting decorations, then reported "the design applied" while the calendar, every modal, search, and the profile pages were untouched. **A claim of visual completion is worthless until Thomas has looked at every inventoried surface running on seeded data, and green gates can never grant it.**
 
 ## Before you start
 
@@ -26,13 +26,15 @@ A visual task's first deliverable is a **complete, checked-in list of every surf
 ### 3. Never verify against a trivial database — seed the fixture first
 A visual verification against an empty or one-row DB is **structurally invalid** and must not be run or reported. Seed representative data FIRST. The session seeds it itself. A surface you cannot populate cannot be verified. Say so, and do not glance at an empty screen and call it PASS.
 
-### 4. Done = an artifact per surface PLUS a human grant, not a sentence
-For each surface on the inventory, "done" means a **screenshot of the rendered surface, seeded, in light AND dark** (`npm run surfaces:capture`, or a browser-tool capture), attached to the ticket or PR (the D7 evidence gate), and a HUMAN saying so. No screenshot means not done; a machine judge cannot grant completion (D13: deterministic signals may withhold, never grant; the deleted vision judge scored 0/12 recall against the known human-found defects). On a PR, attach or link the artifacts so 40 thumbnails can be scanned in a minute instead of a paragraph being trusted.
+### 4. Done = Thomas looking at the running surface, seeded
+For each surface on the inventory, "done" means **Thomas looking at it running**, on seeded data: `/dev-server` for a web surface, `/android-generate` for a mobile one. That is D76 step 7, and his eyes are the evidence. A machine judge cannot grant completion (D13: deterministic signals may withhold, never grant; the deleted vision judge scored 0/12 recall against the known human-found defects).
+
+**There is no screenshot requirement.** Thomas deleted it around 2026-07. Never produce screenshot evidence, never attach it to a ticket or pull request, never gate on it, and never ask about it. The capture tooling is deleted and the D7 "evidence gate" in older vault notes and ticket bodies is residue, not live policy; a session once installed a 192 MB Playwright browser chasing this phantom. Ignore that line wherever it appears and carry on.
 
 ## Before you claim done
 
 ### 5. A self-reported PASS is a RED flag, not a green one
-If the only evidence that a surface is finished is prose you wrote ("looks good", "matches the mockup", "vision-verify PASS"), it is **unverified by definition**. Evidence is an artifact (a screenshot, a diff, a reviewer verdict against a named `file:line`) or it does not exist. Treat your own "PASS" as a claim to be disproven, never as a result.
+If the only evidence that a surface is finished is prose you wrote ("looks good", "matches the mockup", "vision-verify PASS"), it is **unverified by definition**. Evidence is a measurement (a computed style read off the running page, a diff, a reviewer verdict against a named `file:line`) or it does not exist. Treat your own "PASS" as a claim to be disproven, never as a result.
 
 ### 6. Green gates are not completion
 Lint, type-check, and the `local/*` rules prove that banned things are absent and nothing is broken. They say **nothing** about whether a surface got better. "All gates green" closes a *removal* task; it never closes a *taste* task. Do not let a green CI line stand for a design that was never looked at.
