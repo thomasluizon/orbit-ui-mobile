@@ -53,7 +53,8 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | Doc | Purpose |
 |---|---|
 | `BRAND.md` | Audience, positioning and principles; read before brand, copy, positioning or design-direction work, and before ORB-30. |
-| `DESIGN.md` | UI spec; read before frontend work. |
+| `DESIGN.md` | UI spec, including the Pro responsive type pairs and loading decision; read before frontend work. |
+| `questions.md` | Unspecified tier-skeleton geometry recorded by #421. |
 | `design/canvas/` | The granted canvas export: 21 screens plus 166 tokens. Outranks DESIGN.md prose on how a surface looks; never over `## Information architecture` or `## Bans`. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
 | `.claude/skills/pr-review/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |

@@ -6,6 +6,7 @@ import {
   setRuntimeTheme,
   tintFromPrimary,
   tokens,
+  responsiveTypeStyle,
 } from '@/lib/theme'
 
 type Rgb = readonly [number, number, number]
@@ -54,6 +55,26 @@ function contrast(foreground: string, background: Rgb): number {
 }
 
 describe('mobile theme runtime', () => {
+  it.each([
+    [412, 28, 33.04, -0.56, 34, 35.7, -0.68],
+    [639.99, 28, 33.04, -0.56, 34, 35.7, -0.68],
+    [640, 34, 39.1, -0.68, 44, 44.88, -0.88],
+    [1416, 34, 39.1, -0.68, 44, 44.88, -0.88],
+  ])('maps the granted type pairs to native metrics at %s', (width, headingSize, headingHeight, headingTracking, allowanceSize, allowanceHeight, allowanceTracking) => {
+    const heading = responsiveTypeStyle('displayHeading', width)
+    expect(heading.fontFamily).toBe('SpaceGrotesk_500Medium')
+    expect(heading.fontSize).toBe(headingSize)
+    expect(heading.lineHeight).toBeCloseTo(headingHeight)
+    expect(heading.letterSpacing).toBeCloseTo(headingTracking)
+    expect(heading.fontVariant).toBeUndefined()
+    const allowance = responsiveTypeStyle('allowance', width)
+    expect(allowance.fontFamily).toBe('SpaceGrotesk_600SemiBold')
+    expect(allowance.fontSize).toBe(allowanceSize)
+    expect(allowance.lineHeight).toBeCloseTo(allowanceHeight)
+    expect(allowance.letterSpacing).toBeCloseTo(allowanceTracking)
+    expect(allowance.fontVariant).toEqual(['tabular-nums'])
+  })
+
   afterEach(() => {
     setRuntimeTheme({ scheme: 'purple', themeMode: 'dark' })
   })
