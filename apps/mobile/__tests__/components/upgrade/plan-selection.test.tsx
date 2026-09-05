@@ -67,6 +67,26 @@ const TestRenderer = require('react-test-renderer')
 
 const t: UpgradeTextFn = (key, params) => (params ? `${key}:${JSON.stringify(params)}` : key)
 const tokens = createTokensV2('purple', 'dark')
+
+function visibleJson(tree: { toJSON: () => unknown }) {
+  return JSON.stringify(tree.toJSON(), (_key, value: unknown) => {
+    if (value && typeof value === 'object' && 'props' in value) {
+      const props = value.props as Record<string, unknown>
+      if (props.importantForAccessibility === 'no-hide-descendants') return null
+    }
+    return value
+  })
+}
+
+interface NativeNode {
+  props: Record<string, unknown>
+  parent?: NativeNode | null
+}
+
+function isVisible(node: NativeNode): boolean {
+  return node.props.importantForAccessibility !== 'no-hide-descendants'
+    && (!node.parent || isVisible(node.parent))
+}
 const plans: SubscriptionPlans = {
   monthly: { unitAmount: 999, currency: 'usd' },
   yearly: { unitAmount: 4999, currency: 'usd' },
@@ -133,19 +153,19 @@ describe('PlanSelection (mobile)', () => {
   it('leads with annual and gives it the only filled action', () => {
     const tree = renderSelection()
     const tiers = tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
-      node.type === 'View' && typeof node.props.testID === 'string'
+      isVisible(node) && node.type === 'View' && typeof node.props.testID === 'string'
         && node.props.testID.startsWith('upgrade-tier-'))
 
     expect(tiers.map((tier: { props: { testID: string } }) => tier.props.testID)).toEqual([
       'upgrade-tier-yearly',
       'upgrade-tier-monthly',
     ])
-    expect(JSON.stringify(tree.toJSON()).match(/upgrade\.plans\.recommended/g)).toHaveLength(1)
+    expect(visibleJson(tree).match(/upgrade\.plans\.recommended/g)).toHaveLength(1)
     expect(tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
-      node.type === 'Pressable' && node.props.testID === 'button-primary-md')).toHaveLength(1)
+      isVisible(node) && node.type === 'Pressable' && node.props.testID === 'button-primary-md')).toHaveLength(1)
     expect(tree.root.findAll((node: { type: unknown; props: Record<string, unknown> }) =>
-      node.type === 'Pressable' && node.props.testID === 'button-ghost-md')).toHaveLength(1)
-    expect(JSON.stringify(tree.toJSON())).toContain(
+      isVisible(node) && node.type === 'Pressable' && node.props.testID === 'button-ghost-md')).toHaveLength(1)
+    expect(visibleJson(tree)).toContain(
       formatPrice(plans.yearly.unitAmount, plans.currency),
     )
   })
@@ -231,8 +251,8 @@ describe('PlanSelection (mobile)', () => {
     'keeps annual recommended while %s is selected',
     (selectedInterval) => {
       const tree = renderSelection(selectedInterval)
-      const annualTier = tree.root.findByProps({ testID: 'upgrade-tier-yearly' })
-      const monthlyTier = tree.root.findByProps({ testID: 'upgrade-tier-monthly' })
+      const annualTier = tree.root.findByProps({ testID: 'upgrade-content-yearly' }).findByProps({ testID: 'upgrade-tier-yearly' })
+      const monthlyTier = tree.root.findByProps({ testID: 'upgrade-content-monthly' }).findByProps({ testID: 'upgrade-tier-monthly' })
 
       expect(annualTier.findAll((node: { props: { children?: unknown } }) =>
         node.props.children === 'upgrade.plans.recommended').length).toBeGreaterThan(0)
@@ -253,7 +273,7 @@ describe('PlanSelection (mobile)', () => {
 
   it('renders annual arithmetic from the payload', () => {
     const tree = renderSelection()
-    const rendered = JSON.stringify(tree.toJSON())
+    const rendered = visibleJson(tree)
 
     expect(rendered).toContain(`upgrade.plans.yearly.equivalent`)
     expect(rendered).toContain(formatPrice(monthlyEquivalent(plans.yearly.unitAmount), plans.currency))
@@ -267,14 +287,14 @@ describe('PlanSelection (mobile)', () => {
       monthlyOffer: offer('monthly', true),
       yearlyOffer: offer('yearly', false),
     })
-    const withCoupon = JSON.stringify(oneReferralOffer.toJSON())
+    const withCoupon = visibleJson(oneReferralOffer)
     expect(withCoupon.match(/upgrade\.plans\.coupon\.line/g)).toHaveLength(1)
     expect(withCoupon).toContain(String(couponPercentOff))
-    const annualTier = oneReferralOffer.root.findByProps({ testID: 'upgrade-tier-yearly' })
+    const annualTier = oneReferralOffer.root.findByProps({ testID: 'upgrade-content-yearly' }).findByProps({ testID: 'upgrade-tier-yearly' })
     expect(annualTier.findAll((node: { props: { children?: unknown } }) =>
       String(node.props.children).includes('upgrade.plans.coupon.line'))).toHaveLength(0)
 
-    const withoutCoupon = JSON.stringify(renderSelection().toJSON())
+    const withoutCoupon = visibleJson(renderSelection())
     expect(withoutCoupon).not.toContain('upgrade.plans.coupon.line')
   })
 
@@ -318,7 +338,7 @@ describe('PlanSelection (mobile)', () => {
     const tree = renderSelection('yearly', { onCheckout })
     const actions = tree.root.findAll(
       (node: { type: unknown; props: Record<string, unknown> }) =>
-        node.type === 'Pressable' && String(node.props.testID).startsWith('button-'),
+        isVisible(node) && node.type === 'Pressable' && String(node.props.testID).startsWith('button-'),
     )
 
     expect(actions.map((action: { props: { accessibilityLabel?: string } }) =>
@@ -330,16 +350,43 @@ describe('PlanSelection (mobile)', () => {
     TestRenderer.act(() => actions[1].props.onPress())
     expect(onCheckout).toHaveBeenNthCalledWith(1, 'yearly')
     expect(onCheckout).toHaveBeenNthCalledWith(2, 'monthly')
-    expect(JSON.stringify(tree.toJSON()).match(/upgrade\.plans\.cta/g)).toHaveLength(2)
+    expect(visibleJson(tree).match(/upgrade\.plans\.cta/g)).toHaveLength(2)
   })
 
   it('locks paid actions during checkout', () => {
     const tree = renderSelection('yearly', {
       checkoutLoading: 'yearly',
     })
-    const buttons = tree.root.findAllByType('Pressable')
+    const buttons = tree.root.findAllByType('Pressable').filter(isVisible)
 
     expect(buttons.filter((button: { props: { disabled?: boolean } }) => button.props.disabled)).toHaveLength(4)
+  })
+
+  it.each(['yearly', 'monthly'] as const)('keeps %s loading and loaded reservations equal to the measured card', (interval) => {
+    const tree = renderSelection(interval, { plans: null, isLoading: true })
+    const measurement = () => tree.root.findByProps({ testID: `upgrade-measurement-${interval}` })
+    const reservation = () => tree.root.findByProps({ testID: `upgrade-reservation-${interval}` })
+    const measure = (height: number) => TestRenderer.act(() => {
+      measurement().props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 380, height } } })
+    })
+    measure(317)
+    expect(reservation().props.style.minHeight).toBe(317)
+    expect(measurement().props.importantForAccessibility).toBe('no-hide-descendants')
+    expect(measurement().props.pointerEvents).toBe('none')
+    expect(tree.root.findAllByType('Pressable').filter(isVisible)).toHaveLength(2)
+
+    tree.rerender({ plans: { ...plans, couponPercentOff: 23 }, isLoading: false,
+      monthlyOffer: offer('monthly', true), yearlyOffer: offer('yearly', true) })
+    measure(317)
+    expect(reservation().props.style.minHeight).toBe(317)
+    const content = tree.root.findByProps({ testID: `upgrade-content-${interval}` })
+    expect(content.props.style.minHeight).toBe(317)
+    measure(389)
+    expect(reservation().props.style.minHeight).toBe(389)
+    TestRenderer.act(() => content.props.onLayout({
+      nativeEvent: { layout: { x: 0, y: 0, width: 380, height: 421 } },
+    }))
+    expect(reservation().props.style.minHeight).toBe(421)
   })
 
   it('announces checkout failures', () => {

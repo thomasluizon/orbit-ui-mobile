@@ -564,6 +564,33 @@
   line-height: var(--lh-tight);
   color: var(--fg-1);
 }
+.t-display-heading {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.18;
+  color: var(--fg-1);
+}
+.t-allowance {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-1);
+}
+@media (min-width: 40rem) {
+  .t-display-heading {
+    font-size: 34px;
+    line-height: 1.15;
+  }
+  .t-allowance {
+    font-size: 44px;
+    line-height: 1.02;
+  }
+}
 .t-hero {
   font-family: var(--font-display);
   font-size: var(--fs-4xl);

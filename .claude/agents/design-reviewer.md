@@ -40,7 +40,7 @@ Cite the DESIGN.md section for every finding. If a rule is not in DESIGN.md and 
 
 ## Rendered critique
 
-Visual verification needs a live browser, which the calling session has and this read-only subagent does not. If the orchestrator supplies measured observations of the changed surface at 1440 and 390 px, such as computed styles or a described render, factor the visible token violations and slop tells into your findings. Otherwise review from the diff and say that the rendered pass is still owed. **Never ask for a screenshot**: Orbit has no screenshot requirement, and the rendered evidence that settles a visual question is Thomas looking at the running app.
+Visual verification needs a live browser, which the calling session has and this read-only subagent does not. If the orchestrator supplies measured observations of the changed surface at 1440 and 390 px, such as computed styles or a described render, factor the visible token violations and slop tells into your findings. Otherwise review from the diff and state the limits of that evidence. **Never ask for a screenshot**: Orbit has no screenshot requirement. Human inspection follows `.claude/rules/visual-delivery.md` rule 4: during D90, Thomas reviews the whole redesign once at the end, with no per-screen human wait; subagent judgement and the ui-skills sweep remain mandatory.
 
 ## Output
 

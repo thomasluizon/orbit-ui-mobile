@@ -37,8 +37,10 @@ Flags, all combinable:
 **Without `--sleep` the run stops after every pull request** and waits for Thomas to type
 `continue`. Nothing polls, nothing watches, and zero tokens burn while it waits.
 
-**One ticket with no flags behaves exactly as it did before.** The queue of length one is the same
-run it always was.
+**One ticket with no flags behaves exactly as it did before: it runs locally.** `--cloud` and
+`--parallel` remain opt-in. D89 governs how a redesign queue is invoked: use
+`/orchestrate --cloud --parallel` for UI, reserving the small local pool for `orbit-api` and
+`orbit-landing-page`. It does not redirect a bare invocation. Pool sizing is detailed below.
 
 ## §5.6 The algorithm
 
@@ -1125,15 +1127,17 @@ What the gate can prove is that a registered pid is still alive, which is real e
 claim, because only the launcher registers one. What it cannot prove is that the task will re-invoke
 THIS session. That part is still yours, which is why the invariant says to name it.
 
-**D89: run UI cloud-first with `--cloud --parallel`**, up to `caps.cloudParallelTasks`, currently
-**8**. `--cloud` is bound to one repository through `cloud.repositoryKey`, currently `ui`, so `api`
-and `landing` tickets use the small local pool: **`--parallel` runs up to `caps.parallelTickets`
+**D89: a redesign queue uses `/orchestrate --cloud --parallel` for UI**, up to
+`caps.cloudParallelTasks`, currently **8**. A no-flag single ticket still runs locally; neither flag's
+behavior changes. `--cloud` is bound to one repository through `cloud.repositoryKey`, currently `ui`,
+so `orbit-api` and `orbit-landing-page` tickets use the small local pool:
+**`--parallel` runs up to `caps.parallelTickets`
 local tickets at once**, currently **3**, one worktree each.
 
 Size that pool against the serial materialization lane. `materialize-cloud-result.mjs` is serial
-across the whole fleet: local test, build, signed commit, push and pull request run one ticket at a
-time, with GitHub-calling readiness work capped at 3. Filling all eight cores with local implementers
-starves that lane. This cap applies during both attended and `--sleep` runs.
+across the whole fleet: local test, build, signed commit, push and pull request run on this laptop,
+one ticket at a time, with GitHub-calling readiness work capped at 3. Filling all eight cores with local implementers
+starves that lane. This cap applies during both attended and `--sleep` runs (D89 supersedes D81).
 
 Measured 2026-09-05: Intel Core Ultra 7 258V, 8 physical and 8 logical cores, 31.5 GB RAM; two live
 Codex workers held about 290 MB and about 20 percent of the CPU each.

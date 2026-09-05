@@ -4,9 +4,23 @@ import {
   schemes,
   selectionAlpha,
   statusConstants,
+  resolveResponsiveTypeRole,
+  type ResponsiveTypeRoleName,
   type ColorScheme,
 } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
+import type { TextStyle } from 'react-native'
+
+export function responsiveTypeStyle(name: ResponsiveTypeRoleName, width: number): TextStyle {
+  const role = resolveResponsiveTypeRole(name, width)
+  return {
+    fontFamily: role.weight === 500 ? 'SpaceGrotesk_500Medium' : 'SpaceGrotesk_600SemiBold',
+    fontSize: role.size,
+    lineHeight: role.size * role.lineHeight,
+    letterSpacing: role.size * role.letterSpacingEm,
+    ...(role.tabularNums ? { fontVariant: ['tabular-nums'] as TextStyle['fontVariant'] } : {}),
+  }
+}
 
 type ThemeRuntime = {
   scheme: ColorScheme

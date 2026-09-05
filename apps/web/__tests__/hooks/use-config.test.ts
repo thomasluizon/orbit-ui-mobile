@@ -77,12 +77,12 @@ describe('isFeatureEnabled', () => {
     expect(isFeatureEnabled(DEFAULT_CONFIG, 'habits.create', 'pro')).toBe(true)
   })
 
-  it('returns true for Pro-gated feature when user is Pro', () => {
+  it('returns true for goals when user is Pro', () => {
     expect(isFeatureEnabled(DEFAULT_CONFIG, 'goals', 'pro')).toBe(true)
   })
 
-  it('returns false for Pro-gated feature when user is free', () => {
-    expect(isFeatureEnabled(DEFAULT_CONFIG, 'goals', 'free')).toBe(false)
+  it('returns true for goals when user is free', () => {
+    expect(isFeatureEnabled(DEFAULT_CONFIG, 'goals', 'free')).toBe(true)
   })
 
   it('returns false for non-existent feature key', () => {
