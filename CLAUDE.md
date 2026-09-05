@@ -64,7 +64,8 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `.claude/skills/ticket/SKILL.md` | GitHub ticket creation, labels, relations, and milestone rules. |
 | `.claude/skills/orchestrate/SKILL.md` | Ticket queue, worker, review and readiness contract; D89 redesign invocation and local/cloud caps. |
 | `.claude/skills/handoff/SKILL.md` | Handoff prompts with the required standing-contract block before the task. |
-| `.claude/playbooks/redesign-screen.md` | Thirteen-screen D76 loop, temporary D90 suspension and required ui-skills sweep. |
+| `.claude/playbooks/redesign-screen.md` | Thirteen-screen D76 loop; D90 suspends human steps 1/3/7/8, keeps 2/4/5/6 and the ui-skills sweep. |
+| `.claude/rules/visual-delivery.md` | Visual inventory and critic gates; D90 moves human inspection to the whole-redesign review. |
 | `.claude/skills/android-generate/SKILL.md` | Local APK build, and the emulator install path. Read before building or running the Android app. |
 | `.claude/skills/android-release/SKILL.md` | Dispatching `android-release.yml` to a Google Play track. |
 | **D1..D42 register** | Historical decision record in the brain vault: `2 Areas/20-29 Orbit Engineering/Decisions/`. Current ticket routing is defined here. |

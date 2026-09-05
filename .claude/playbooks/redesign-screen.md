@@ -9,12 +9,17 @@ skippable is one that was skipped before and produced a screen Thomas rejected o
 
 ## During the remainder of the redesign (D90)
 
-D90 suspends D76 steps 3 and 7 and D88's per-screen merge hold until the redesign ships. A screen
-does not stop for a conversation or wait for Thomas's eyes. Read the canvas, `DESIGN.md` under the
-D42 precedence ladder, and the brain decision record in place of the conversation. The canvas,
-`DESIGN.md` (including Information architecture and Bans), the step 6 ui-skills sweep, Pullfrog and
-the gates remain required. Every other step stands, with the approval in step 8 taken once at the
-end rather than holding each screen.
+D90 suspends every D76 step requiring Thomas until the redesign ships: **step 1** (look at the
+screen running, together), **step 3** (grill Thomas), **step 7** (Thomas looks at it running) and
+**step 8** (he approves and the next screen starts), together with D88's per-screen merge hold.
+A screen does not stop for a conversation, human inspection or approval.
+
+**Steps 2, 4, 5 and 6 stand and are not optional**: a subagent judges the screen against
+`design/canvas/` and `DESIGN.md` (step 2); the decisions and verified findings are written into the
+ticket before any code (step 4); the worker builds from that ticket (step 5); and the ui-skills
+sweep below closes the screen (step 6). Read the canvas, `DESIGN.md` under the D42 precedence ladder
+(including Information architecture and Bans), and the brain decision record in place of the
+conversation. These authorities, Pullfrog and every gate remain required.
 
 Screens may merge on the same terms as groundwork: green checks, approval at the current head and
 zero unresolved review threads, through the authorized merge workflow. Worker merge prohibitions

@@ -62,7 +62,7 @@ in the linked files.
 > - Enter through `/orchestrate`; Codex writes every code change and Claude never edits code. A single ticket with no flags still runs locally.
 > - Redesign queues use `/orchestrate --cloud --parallel` for UI, with a small local pool for `orbit-api` and `orbit-landing-page` (D89).
 > - Follow `DESIGN.md` for UI under the D42 precedence ladder with `design/canvas/`.
-> - The thirteen redesign screens use `.claude/playbooks/redesign-screen.md`; groundwork runs autonomously. Until the redesign ships, D90 suspends D76 steps 3/7 and D88's per-screen hold: no conversation or eyes wait; screens may merge on groundwork terms. Canvas, `DESIGN.md`, the step 6 ui-skills sweep, Pullfrog and gates remain required. D76/D88 return when it ships.
+> - The thirteen redesign screens use `.claude/playbooks/redesign-screen.md`; groundwork runs autonomously. Until the redesign ships, D90 suspends D76 steps 1/3/7/8 and D88's per-screen hold: no human wait; screens may merge on groundwork terms. Steps 2/4/5/6 remain mandatory, with canvas, `DESIGN.md`, the ui-skills sweep, Pullfrog and every gate. D76/D88 return when it ships.
 > - Read `hot.md` and the brain ADRs as the decision record.
 
 **4. The task, stated as work rather than as history.** What to do next, in the order it has to happen.
