@@ -25,6 +25,7 @@
     "fdir": "^6.5.0",
     "html-parse-stringify": "^3.0.1",
     "indent-string": "^4.0.0",
+    "js-yaml": "^4.3.1",
     "lefthook": "^2.1.10",
     "min-indent": "^1.0.1",
     "png-to-ico": "^3.0.2",

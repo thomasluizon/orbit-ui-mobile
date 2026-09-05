@@ -8,7 +8,7 @@ const protectedRouteRedirectCases = () => {
   const protectedFlowPath = join(REPO_ROOT, ".maestro", "protected-route-redirect.yaml")
   T("the protected-route flow exists outside the deleted capture surfaces directory", existsSync(protectedFlowPath))
 
-  const documents = yaml.safeLoadAll(existsSync(protectedFlowPath) ? readFileSync(protectedFlowPath, "utf8") : "")
+  const documents = yaml.loadAll(existsSync(protectedFlowPath) ? readFileSync(protectedFlowPath, "utf8") : "")
   const commands = documents[1]
   T("the protected-route flow has an active command list", Array.isArray(commands), JSON.stringify(documents))
   if (!Array.isArray(commands)) return
