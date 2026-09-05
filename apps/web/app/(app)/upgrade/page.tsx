@@ -89,18 +89,24 @@ export default function UpgradePage() {
     const refreshAfterPortal = () => {
       if (globalThis.sessionStorage.getItem(PORTAL_RETURN_KEY) !== '1') return
       globalThis.sessionStorage.removeItem(PORTAL_RETURN_KEY)
+      setPortalState('idle')
       void Promise.all([refetchStatus(), refetchBilling()]).then(() => {
         showSuccess(t('upgrade.billing.portalReturned'))
       })
     }
     const handlePageShow = (event: PageTransitionEvent) => {
-      if (!event.persisted || globalThis.sessionStorage.getItem(PORTAL_RETURN_KEY) !== '1') return
-      setPortalState('idle')
-      refreshAfterPortal()
+      if (event.persisted) refreshAfterPortal()
+    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshAfterPortal()
     }
     globalThis.addEventListener('pageshow', handlePageShow)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
     if (portalState !== 'opening') refreshAfterPortal()
-    return () => globalThis.removeEventListener('pageshow', handlePageShow)
+    return () => {
+      globalThis.removeEventListener('pageshow', handlePageShow)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
   }, [portalState, refetchBilling, refetchStatus, showSuccess, t])
 
   const handleCheckout = useCallback(

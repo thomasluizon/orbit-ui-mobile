@@ -1,4 +1,5 @@
 import React from 'react'
+import type { AppStateStatus } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
@@ -15,6 +16,8 @@ type TestNode = {
 const mocks = vi.hoisted(() => ({
   apiClient: vi.fn(),
   openURL: vi.fn(),
+  appStateListeners: new Set<(state: AppStateStatus) => void>(),
+  showSuccess: vi.fn(),
   isOnline: true,
   from: undefined as string | undefined,
   hasProAccess: false,
@@ -60,6 +63,12 @@ vi.mock('react-native', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-native')>()
   return {
     ...actual,
+    AppState: {
+      addEventListener: (_event: 'change', listener: (state: AppStateStatus) => void) => {
+        mocks.appStateListeners.add(listener)
+        return { remove: () => { mocks.appStateListeners.delete(listener) } }
+      },
+    },
     Linking: { openURL: (...args: unknown[]) => mocks.openURL(...args) },
   }
 })
@@ -121,7 +130,7 @@ vi.mock('@/hooks/use-profile', () => ({
   useTrialDaysLeft: () => mocks.trialDaysLeft,
 }))
 vi.mock('@/hooks/use-app-toast', () => ({
-  useAppToast: () => ({ showSuccess: vi.fn() }),
+  useAppToast: () => ({ showSuccess: mocks.showSuccess }),
 }))
 
 const tokensProxy = new Proxy({}, { get: () => '#111111' }) as Record<string, string>
@@ -150,7 +159,7 @@ vi.mock('@/components/upgrade/pricing-section', () => ({
 }))
 
 async function renderScreen() {
-  let tree: { root: TestNode } | undefined
+  let tree: { root: TestNode; unmount: () => void } | undefined
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(<UpgradeScreen />)
     await Promise.resolve()
@@ -165,6 +174,10 @@ function findByType(root: TestNode, type: string) {
 describe('UpgradeScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocks.appStateListeners.clear()
+    mocks.openURL.mockReset().mockResolvedValue(undefined)
+    mocks.refetchStatus.mockReset().mockResolvedValue(undefined)
+    mocks.refetchBilling.mockReset().mockResolvedValue(undefined)
     mocks.isOnline = true
     mocks.from = undefined
     mocks.hasProAccess = false
@@ -425,6 +438,67 @@ describe('UpgradeScreen', () => {
       await Promise.resolve()
     })
     expect(mocks.openURL).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['stripe', 'play'] as const)('recovers the %s foreground return before the link promise settles and refreshes once', async (source) => {
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({ isTrialActive: false, subscriptionSource: source })
+    mocks.apiClient.mockResolvedValue({ url: 'https://billing.test/portal' })
+    let resolveLink: () => void = () => {}
+    let resolveRefresh: () => void = () => {}
+    mocks.openURL.mockReturnValue(new Promise<void>((resolve) => { resolveLink = resolve }))
+    mocks.refetchStatus.mockReturnValue(new Promise<void>((resolve) => { resolveRefresh = resolve }))
+    const tree = await renderScreen()
+    const dashboardType = source === 'play' ? 'PlayBillingDashboard' : 'BillingDashboard'
+    const dashboard = () => findByType(tree.root, dashboardType)
+    const state = () => source === 'play' ? dashboard().props.portalState : dashboard().props.state
+    const emit = (nextState: AppStateStatus) => {
+      TestRenderer.act(() => { mocks.appStateListeners.forEach((listener) => listener(nextState)) })
+    }
+    emit('active')
+    expect(mocks.refetchStatus).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => {
+      ;(dashboard().props[source === 'play' ? 'onManagePlay' : 'onPortal'] as () => void)()
+      await Promise.resolve()
+    })
+    expect(mocks.openURL).toHaveBeenCalledTimes(1)
+    expect(state()).toBe(source === 'play' ? 'opening' : 'portal-opening')
+    emit('background')
+    expect(mocks.refetchStatus).not.toHaveBeenCalled()
+    emit('active')
+    expect(state()).toBe(source === 'play' ? 'idle' : 'stripe')
+    emit('active')
+    expect(mocks.refetchStatus).toHaveBeenCalledTimes(1)
+    expect(mocks.refetchBilling).toHaveBeenCalledTimes(1)
+    await TestRenderer.act(async () => { resolveLink(); resolveRefresh(); await Promise.resolve() })
+    emit('background')
+    emit('active')
+    expect(mocks.refetchStatus).toHaveBeenCalledTimes(1)
+    expect(mocks.showSuccess).toHaveBeenCalledTimes(1)
+    await TestRenderer.act(() => tree.unmount())
+    expect(mocks.appStateListeners.size).toBe(0)
+  })
+
+  it.each(['stripe', 'play'] as const)('keeps the %s handoff failure on foreground return and allows retry', async (source) => {
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({ isTrialActive: false, subscriptionSource: source })
+    mocks.apiClient.mockResolvedValue({ url: 'https://billing.test/portal' })
+    mocks.openURL.mockRejectedValueOnce(new Error('unavailable'))
+    const tree = await renderScreen()
+    const dashboard = () => findByType(tree.root, source === 'play' ? 'PlayBillingDashboard' : 'BillingDashboard')
+    const manage = () => (dashboard().props[source === 'play' ? 'onManagePlay' : 'onPortal'] as () => void)()
+    await TestRenderer.act(async () => { manage(); await Promise.resolve() })
+    await TestRenderer.act(() => { mocks.appStateListeners.forEach((listener) => listener('active')) })
+    expect(source === 'play' ? dashboard().props.portalState : dashboard().props.state)
+      .toBe(source === 'play' ? 'failed' : 'portal-failed')
+    expect(mocks.refetchStatus).not.toHaveBeenCalled()
+    expect(mocks.refetchBilling).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { manage(); await Promise.resolve() })
+    await TestRenderer.act(() => { mocks.appStateListeners.forEach((listener) => listener('active')) })
+    expect(source === 'play' ? dashboard().props.portalState : dashboard().props.state)
+      .toBe(source === 'play' ? 'idle' : 'stripe')
+    expect(mocks.refetchStatus).toHaveBeenCalledTimes(1)
+    await TestRenderer.act(() => tree.unmount())
   })
 
   it('clears the pending checkout once play billing stops processing', async () => {

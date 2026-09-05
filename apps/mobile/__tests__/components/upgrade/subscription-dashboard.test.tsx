@@ -295,6 +295,11 @@ describe('subscription dashboards (mobile)', () => {
     expect(renderedText(online)).toContain('upgrade.billing.payment.card')
     expect(renderedText(online)).toContain('upgrade.billing.invoices.reasonCycle')
     expect(renderedText(online)).toContain('upgrade.billing.invoices.statusOpen')
+    const invoiceText = online.root.findAll((node) => node.type === 'Text')
+      .map((node) => node.props.children).filter((text) => typeof text === 'string').join(' ')
+    expect(invoiceText.match(/upgrade\.billing\.invoices\.statusPaid/g)).toHaveLength(1)
+    expect(invoiceText.match(/upgrade\.billing\.invoices\.statusOpen/g)).toHaveLength(1)
+    expect(online.root.findAll((node) => node.type === 'Text' && node.props.children === 'usd 7.77')).toHaveLength(2)
     expect(
       online.root.findAll((node) => node.type === 'Pressable'
         && node.props.accessibilityLabel === 'upgrade.billing.payment.change'),

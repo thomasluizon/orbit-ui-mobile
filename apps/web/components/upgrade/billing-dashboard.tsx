@@ -111,7 +111,7 @@ function InvoiceRow({ invoice, locale, state, t }: Readonly<{
   t: UpgradeTranslations
 }>) {
   const url = invoice.invoicePdf ?? invoice.hostedInvoiceUrl
-  const title = `${formatPrice(invoice.amountPaid, invoice.currency)} · ${invoiceStatus(invoice.status, t)}`
+  const title = formatPrice(invoice.amountPaid, invoice.currency)
   const description = `${formatBillingDate(invoice.date, locale)} · ${invoiceReason(invoice.billingReason, t)} · ${invoiceStatus(invoice.status, t)}`
   return (
     <div>

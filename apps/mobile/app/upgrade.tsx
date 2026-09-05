@@ -155,8 +155,8 @@ export default function UpgradeScreen() {
     const subscription = AppState.addEventListener('change', (nextState) => {
       if (nextState !== 'active' || !returningFromBillingRef.current) return
       returningFromBillingRef.current = false
+      setPortalState('idle')
       void Promise.all([refetchStatus(), refetchBilling()]).then(() => {
-        setPortalState('idle')
         showSuccess(t('upgrade.billing.portalReturned'))
       })
     })
@@ -172,11 +172,12 @@ export default function UpgradeScreen() {
   function handleManagePlay() {
     if (!isOnline) return
     setPortalState('opening')
+    returningFromBillingRef.current = true
     Linking.openURL(playManageSubscriptionUrl())
-      .then(() => {
-        returningFromBillingRef.current = true
+      .catch(() => {
+        returningFromBillingRef.current = false
+        setPortalState('failed')
       })
-      .catch(() => setPortalState('failed'))
   }
 
   async function handlePortal() {
@@ -189,9 +190,10 @@ export default function UpgradeScreen() {
       const res = await apiClient<{ url: string }>(API.subscription.portal, {
         method: 'POST',
       })
-      await Linking.openURL(res.url)
       returningFromBillingRef.current = true
+      await Linking.openURL(res.url)
     } catch {
+      returningFromBillingRef.current = false
       setPortalState('failed')
     }
   }

@@ -181,6 +181,7 @@ describe('UpgradePage', () => {
   })
 
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.unstubAllGlobals()
   })
 
@@ -557,8 +558,9 @@ describe('UpgradePage', () => {
       ],
     }
     const online = render(<UpgradePage />)
-    expect(document.body.textContent).toContain('upgrade.billing.invoices.statusPaid')
-    expect(document.body.textContent).toContain('upgrade.billing.invoices.statusOpen')
+    expect(document.body.textContent.match(/upgrade\.billing\.invoices\.statusPaid/g)).toHaveLength(1)
+    expect(document.body.textContent.match(/upgrade\.billing\.invoices\.statusOpen/g)).toHaveLength(1)
+    expect(screen.getAllByText('usd 9.99', { exact: true })).toHaveLength(2)
     expect(document.body.textContent).toContain('upgrade.billing.invoices.reasonCycle')
     expect(document.body.textContent).toContain('upgrade.billing.invoices.reasonManual')
     expect(screen.getAllByRole('button', { name: /^upgrade\.billing\.invoices\.downloadDated:/ })).toHaveLength(1)
@@ -762,11 +764,45 @@ describe('UpgradePage', () => {
     expect(mockRefetchBilling).toHaveBeenCalledTimes(1)
   })
 
+  it.each(['stripe', 'play'])('recovers the %s visibility return once even when pageshow also fires', async (source) => {
+    mockHasProAccess = true
+    mockProfile = { ...mockProfile, isTrialActive: false, subscriptionSource: source }
+    mockOpenCustomerPortal.mockResolvedValue({ url: 'https://billing.test/portal' })
+    vi.stubGlobal('location', { href: '' })
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    render(<UpgradePage />)
+    const action = screen.getByRole('button', {
+      name: source === 'play' ? 'upgrade.billing.actions.managePlay' : 'upgrade.billing.actions.manage',
+    })
+    fireEvent(document, new Event('visibilitychange'))
+    expect(mockRefetchStatus).not.toHaveBeenCalled()
+    fireEvent.click(action)
+    await waitFor(() => expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('1'))
+    visibility.mockReturnValue('hidden')
+    fireEvent(document, new Event('visibilitychange'))
+    expect(action).toBeDisabled()
+    expect(mockRefetchStatus).not.toHaveBeenCalled()
+    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('1')
+
+    visibility.mockReturnValue('visible')
+    fireEvent(document, new Event('visibilitychange'))
+    fireEvent(window, new PageTransitionEvent('pageshow', { persisted: true }))
+    fireEvent(document, new Event('visibilitychange'))
+    expect(action).toBeEnabled()
+    expect(action).not.toHaveAttribute('aria-busy', 'true')
+    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBeNull()
+    expect(mockRefetchStatus).toHaveBeenCalledTimes(1)
+    expect(mockRefetchBilling).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(mockShowSuccess).toHaveBeenCalledTimes(1))
+  })
+
   it('stops listening for portal returns when the screen unmounts', () => {
     const page = render(<UpgradePage />)
     page.unmount()
     globalThis.sessionStorage.setItem('orbit.subscription.portal-return', '1')
     fireEvent(window, new PageTransitionEvent('pageshow', { persisted: true }))
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    fireEvent(document, new Event('visibilitychange'))
     expect(mockRefetchStatus).not.toHaveBeenCalled()
     expect(mockRefetchBilling).not.toHaveBeenCalled()
     expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('1')
