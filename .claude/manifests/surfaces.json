@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "79ad6ce0fe4f224932005ccf67f89886940c8a83",
+  "generatedFrom": "a7eac18e984deacc892646eebcefba002e50f49a",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -14,8 +14,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 204,
-  "cellCount": 872,
+  "surfaceCount": 206,
+  "cellCount": 880,
   "cells": [
     {
       "surfaceId": "route-about",
@@ -3134,6 +3134,66 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "block-chat-composer",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/shell/composer.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/shell/composer.tsx"
+      ],
+      "closureSize": 11,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-composer",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/shell/composer.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/shell/composer.tsx"
+      ],
+      "closureSize": 11,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "block-chat-composer",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/shell/composer.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/shell/composer.tsx"
+      ],
+      "closureSize": 11,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "block-chat-composer",
+      "platform": "web",
+      "kind": "block",
+      "sourceFile": "apps/web/components/shell/composer.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "route-chat",
+      "ownedFiles": [
+        "apps/web/components/shell/composer.tsx"
+      ],
+      "closureSize": 11,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-components-calendar-shell",
       "platform": "web",
       "kind": "overlay",
@@ -9258,7 +9318,6 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
-        "apps/mobile/components/shell/composer.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
@@ -9278,7 +9337,6 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
-        "apps/mobile/components/shell/composer.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
@@ -9298,7 +9356,6 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
-        "apps/mobile/components/shell/composer.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
@@ -9318,7 +9375,6 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
-        "apps/mobile/components/shell/composer.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
@@ -9338,7 +9394,6 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
-        "apps/mobile/components/shell/composer.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
@@ -9358,7 +9413,6 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
-        "apps/mobile/components/shell/composer.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
@@ -9378,7 +9432,6 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
-        "apps/mobile/components/shell/composer.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
@@ -9398,7 +9451,6 @@
       "parentSurfaceId": "m-route-chat",
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
-        "apps/mobile/components/shell/composer.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
@@ -9765,6 +9817,66 @@
         "apps/mobile/components/message-bubble.tsx"
       ],
       "closureSize": 272,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-composer",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/shell/composer.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/shell/composer.tsx"
+      ],
+      "closureSize": 176,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-composer",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/shell/composer.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/shell/composer.tsx"
+      ],
+      "closureSize": 176,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-block-chat-composer",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/shell/composer.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/shell/composer.tsx"
+      ],
+      "closureSize": 176,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-block-chat-composer",
+      "platform": "mobile",
+      "kind": "block",
+      "sourceFile": "apps/mobile/components/shell/composer.tsx",
+      "href": "/chat",
+      "parentSurfaceId": "m-route-chat",
+      "ownedFiles": [
+        "apps/mobile/components/shell/composer.tsx"
+      ],
+      "closureSize": 176,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"

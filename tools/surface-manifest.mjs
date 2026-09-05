@@ -292,12 +292,9 @@ function specialSurfaceLabel(sourceFile, filename) {
 
 function chatBlockEntries(platform, routeSurfaceId, hostSourceFile) {
   const hostClosure = closureOf(join(REPO_ROOT, hostSourceFile))
-  const candidateRoots =
-    platform === "web"
-      ? [join(REPO_ROOT, "apps", "web", "components", "chat")]
-      : [join(REPO_ROOT, "apps", "mobile", "components", "chat")]
-  const candidates = candidateRoots
-    .flatMap((root) => walk(root))
+  const componentsRoot = join(REPO_ROOT, "apps", platform, "components")
+  const candidates = walk(join(componentsRoot, "chat"))
+    .concat(join(componentsRoot, "shell", "composer.tsx"))
     .concat(platform === "mobile" ? [join(REPO_ROOT, "apps", "mobile", "components", "message-bubble.tsx")] : [])
     .filter((file) => file.endsWith(".tsx") && hostClosure.has(file) && file !== join(REPO_ROOT, hostSourceFile))
     .sort()
