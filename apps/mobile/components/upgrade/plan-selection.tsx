@@ -225,15 +225,12 @@ export function PlanSelection({
             />
           ))}
         </View>
-        {checkoutError ? (
-          <Text
-            accessibilityLiveRegion="polite"
-            accessibilityRole="alert"
-            style={[styles.errorText, { color: tokens.statusBad }]}
-          >
-            {checkoutError}
-          </Text>
-        ) : null}
+        <Text
+          accessibilityRole="alert"
+          style={[styles.errorText, { color: tokens.statusBad }]}
+        >
+          {checkoutError}
+        </Text>
       </View>
     </PlanLoadMotion>
   )

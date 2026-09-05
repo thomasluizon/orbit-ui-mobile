@@ -836,11 +836,23 @@ describe('UpgradePage', () => {
     }))
 
     render(<UpgradePage />)
+    const alert = screen.getByRole('alert')
+    expect(alert).toBeEmptyDOMElement()
+    expect(alert).not.toHaveAttribute('aria-live')
     fireEvent.click(screen.getAllByRole('button', {
       name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
     })[0]!)
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('toast.errors.server')
+    await waitFor(() => expect(alert).toHaveTextContent('toast.errors.server'))
+    expect(screen.getByRole('alert')).toBe(alert)
+    expect(alert).not.toHaveAttribute('aria-live')
+
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+    fireEvent.click(screen.getAllByRole('button', {
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
+    })[0]!)
+    expect(screen.getByRole('alert')).toBe(alert)
+    expect(alert).toBeEmptyDOMElement()
   })
 
   it('prevents a second paid checkout while the first request is pending', async () => {

@@ -121,15 +121,12 @@ export function PricingSection({
         {plans ? (
           <div className="flex flex-col items-start gap-4">
             <div className="flex flex-col items-start gap-2">
-              {checkoutError ? (
-                <p
-                  role="alert"
-                  aria-live="polite"
-                  className="text-left text-sm leading-[1.55] text-[var(--status-bad)]"
-                >
-                  {checkoutError}
-                </p>
-              ) : null}
+              <p
+                role="alert"
+                className="text-left text-sm leading-[1.55] text-[var(--status-bad)]"
+              >
+                {checkoutError}
+              </p>
               <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">
                 {t('upgrade.convert.cancelAnytime')}
               </p>

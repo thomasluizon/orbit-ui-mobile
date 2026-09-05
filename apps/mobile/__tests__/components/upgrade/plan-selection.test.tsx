@@ -338,10 +338,18 @@ describe('PlanSelection (mobile)', () => {
   })
 
   it('announces checkout failures', () => {
-    const tree = renderSelection('yearly', { checkoutError: 'purchase failed' })
-    const error = tree.root.findByProps({ children: 'purchase failed' })
+    const tree = renderSelection()
+    const alert = tree.root.findByProps({ accessibilityRole: 'alert' })
+    expect(alert.props.children).toBe('')
+    expect(alert.props.accessibilityLiveRegion).toBeUndefined()
 
-    expect(error.props.accessibilityRole).toBe('alert')
-    expect(error.props.accessibilityLiveRegion).toBe('polite')
+    tree.rerender({ checkoutError: 'purchase failed' })
+    expect(tree.root.findByProps({ accessibilityRole: 'alert' })).toBe(alert)
+    expect(alert.props.children).toBe('purchase failed')
+    expect(alert.props.accessibilityLiveRegion).toBeUndefined()
+
+    tree.rerender({ checkoutError: '' })
+    expect(tree.root.findByProps({ accessibilityRole: 'alert' })).toBe(alert)
+    expect(alert.props.children).toBe('')
   })
 })
