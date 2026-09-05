@@ -477,7 +477,7 @@ const acquireCloudLock = (stateRoot, lockName, operation, options = {}) => {
     } catch (error) {
       rmSync(candidate, { recursive: true, force: true })
       if (existsSync(lockDirectory)) return false
-      // Windows can report contention after the owner has removed its directory (#419).
+      // Windows can report contention after the owner has removed its directory (thomasluizon/orbit-tickets#419).
       if (options.waitForOwner) {
         const remainingMs = waitDeadline - performance.now()
         if (remainingMs > 0) {
