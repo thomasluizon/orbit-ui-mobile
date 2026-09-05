@@ -4,10 +4,13 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   renameSync,
   rmSync,
+  rmdirSync,
   statSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs"
 import { basename, delimiter, dirname, extname, join, resolve } from "node:path"
@@ -459,9 +462,31 @@ const processIsAlive = (pid) => {
   }
 }
 
+const readCloudLockOwner = (lockDirectory) => {
+  const entries = readdirSync(lockDirectory)
+  if (entries.length === 0) return null
+  if (entries.length !== 1 || !/^(?:[\da-f-]+\.)?owner\.json$/.test(entries[0])) {
+    throw new Error(`Unrecognised cloud lock contents at ${lockDirectory}`)
+  }
+  const path = join(lockDirectory, entries[0])
+  return { path, pid: JSON.parse(readFileSync(path, "utf8")).pid }
+}
+
+const reclaimCloudLock = (lockDirectory, owner) => {
+  // Each publication has a unique owner filename. A pathname recheck followed by rename still
+  // has a TOCTOU gap; deleting only this token cannot unlink a successor's owner. Nonrecursive
+  // rmdir atomically refuses a populated successor, even if it arrived after our unlink.
+  try {
+    if (owner) unlinkSync(owner.path)
+    rmdirSync(lockDirectory)
+  } catch (error) {
+    if (error.code !== "ENOENT" && error.code !== "ENOTEMPTY") throw error
+  }
+}
+
 const acquireCloudLock = (stateRoot, lockName, operation, options = {}) => {
   const lockDirectory = join(stateRoot, lockName)
-  const ownerPath = join(lockDirectory, "owner.json")
+  const ownerFilename = `${randomUUID()}.owner.json`
   if (options.waitForOwner && (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0)) {
     throw new Error(`${operation} requires a positive lock timeout`)
   }
@@ -470,31 +495,37 @@ const acquireCloudLock = (stateRoot, lockName, operation, options = {}) => {
   const publishOwner = () => {
     const candidate = join(stateRoot, `${lockName}.${process.pid}.${randomUUID()}.candidate`)
     mkdirSync(candidate, { recursive: false })
-    writeJsonAtomic(join(candidate, "owner.json"), { pid: process.pid, acquiredAt: new Date().toISOString() })
+    writeJsonAtomic(join(candidate, ownerFilename), { pid: process.pid, acquiredAt: new Date().toISOString() })
     try {
       renameSync(candidate, lockDirectory)
-      return true
+      return "acquired"
     } catch (error) {
       rmSync(candidate, { recursive: true, force: true })
-      if (existsSync(lockDirectory)) return false
+      if (existsSync(lockDirectory)) return "occupied"
       // Windows can report contention after the owner has removed its directory (thomasluizon/orbit-tickets#419).
       if (options.waitForOwner) {
         const remainingMs = waitDeadline - performance.now()
         if (remainingMs > 0) {
           Atomics.wait(LOCK_RETRY_SIGNAL, 0, 0, Math.min(10, remainingMs))
-          return false
+          return "retry"
         }
       }
       throw error
     }
   }
 
-  while (!publishOwner()) {
-    let owner = null
+  while (true) {
+    const publication = publishOwner()
+    if (publication === "acquired") break
+    if (publication === "retry") continue
+    let owner
     try {
-      owner = readJsonFile(ownerPath, `${operation} lock`)
-    } catch {
-      owner = null
+      owner = readCloudLockOwner(lockDirectory)
+    } catch (error) {
+      // A failed read proves no stale identity. Retry publication, never reclaim by pathname
+      // (thomasluizon/orbit-tickets#419); token deletion also closes the later reclaim race.
+      if (error.code !== "ENOENT" || (options.waitForOwner && performance.now() >= waitDeadline)) throw error
+      continue
     }
     if (processIsAlive(owner?.pid)) {
       if (options.waitForOwner) {
@@ -505,20 +536,14 @@ const acquireCloudLock = (stateRoot, lockName, operation, options = {}) => {
       }
       throw new Error(`${operation} is already running in process ${owner.pid}`)
     }
-    const staleDirectory = join(stateRoot, `${lockName}.${process.pid}.${randomUUID()}.stale`)
-    try {
-      renameSync(lockDirectory, staleDirectory)
-    } catch (error) {
-      if (!existsSync(lockDirectory)) continue
-      throw error
-    }
-    rmSync(staleDirectory, { recursive: true, force: true })
+    reclaimCloudLock(lockDirectory, owner)
   }
   let released = false
   return () => {
     if (released) return
     released = true
-    rmSync(lockDirectory, { recursive: true, force: true })
+    // Another waiter can reclaim the empty directory between our unlink and rmdir.
+    reclaimCloudLock(lockDirectory, { path: join(lockDirectory, ownerFilename) })
   }
 }
 

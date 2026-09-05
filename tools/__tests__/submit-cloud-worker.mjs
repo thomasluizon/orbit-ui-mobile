@@ -17,7 +17,7 @@ import {
   toolPath,
 } from "./_harness.mjs"
 import { cloudConfig, fakeCodex, task, taskPage } from "./cloud-worker.mjs"
-import { persistReconciledReceipt } from "../lib/cloud-worker.mjs"
+import { acquireSubmissionLock, persistReconciledReceipt } from "../lib/cloud-worker.mjs"
 
 const TOOL = "submit-cloud-worker.mjs"
 
@@ -60,6 +60,70 @@ const spawnTool = (entry, args, env) => {
 
 const runConcurrent = (entry, env) => spawnTool(entry, argvOf(entry), env).result
 
+const replacementOwnerSurvives = (interleave, duringRelease = false) => {
+  const stateRoot = join(stage(`submit-cloud/replacement-${interleave}-${duringRelease}/fixture`, ""), "..")
+  const lockDirectory = join(stateRoot, "submit.lock")
+  const releaseFirst = acquireSubmissionLock(stateRoot)
+  const firstOwnerPath = join(lockDirectory, readdirSync(lockDirectory)[0])
+  if (interleave !== "readFileSync" && !duringRelease) writeFileSync(firstOwnerPath, JSON.stringify({ pid: 2147483647 }))
+  const original = filesystem[interleave]
+  let injected = false
+  let missingRead = false
+  let releaseSecond
+  let releaseWaiter
+  let secondOwnerPath
+  let secondOwnerContents
+  let failure
+  let survived = false
+  const publishSecond = () => {
+    releaseSecond = acquireSubmissionLock(stateRoot)
+    secondOwnerPath = join(lockDirectory, readdirSync(lockDirectory)[0])
+    secondOwnerContents = readFileSync(secondOwnerPath, "utf8")
+  }
+  try {
+    filesystem[interleave] = (path, ...args) => {
+      if (injected || path !== (interleave === "rmdirSync" ? lockDirectory : firstOwnerPath)) {
+        return original(path, ...args)
+      }
+      injected = true
+      releaseFirst()
+      if (interleave === "readFileSync") {
+        try {
+          return original(path, ...args)
+        } catch (error) {
+          // Preserve the real failed read, but let a third writer publish before the waiter sees it.
+          missingRead = error.code === "ENOENT"
+          publishSecond()
+          throw error
+        }
+      }
+      publishSecond()
+      return original(path, ...args)
+    }
+    syncBuiltinESMExports()
+    try {
+      if (duringRelease) releaseFirst()
+      else releaseWaiter = acquireSubmissionLock(stateRoot)
+    } catch (error) {
+      failure = error.message
+    }
+    survived = Boolean(secondOwnerPath && existsSync(secondOwnerPath) &&
+      readFileSync(secondOwnerPath, "utf8") === secondOwnerContents)
+  } finally {
+    filesystem[interleave] = original
+    syncBuiltinESMExports()
+    releaseWaiter?.()
+    releaseSecond?.()
+    releaseFirst()
+  }
+  T(
+    `${TOOL}: a replacement owner survives contention at ${interleave}${duringRelease ? " during release" : ""}`,
+    injected && (interleave !== "readFileSync" || missingRead) && !releaseWaiter &&
+      survived && failure === (duringRelease ? undefined : `cloud submission is already running in process ${process.pid}`),
+    JSON.stringify({ injected, missingRead, secondOwnerLockStolen: Boolean(releaseWaiter) || !survived, failure }),
+  )
+}
+
 export const cases = async () => {
   const renameRaceMirror = stage("submit-cloud/rename-race/receipts/task_e_a419.json", '{"taskId":"task_e_a419"}')
   const renameRaceLock = join(renameRaceMirror, "..", "..", "receipt-task_e_a419.json.lock")
@@ -94,6 +158,22 @@ export const cases = async () => {
       JSON.parse(readFileSync(renameRaceMirror, "utf8")).firstReadyObservedAt === "2026-09-05T00:00:00.000Z",
     String(renameRaceError),
   )
+  for (const interleave of ["readFileSync", "unlinkSync", "rmdirSync"]) replacementOwnerSurvives(interleave)
+  replacementOwnerSurvives("rmdirSync", true)
+  for (const staleKind of ["unique owner", "empty directory"]) {
+    const stateRoot = join(stage(`submit-cloud/reclaim-${staleKind}/fixture`, ""), "..")
+    const lockDirectory = join(stateRoot, "submit.lock")
+    if (staleKind === "unique owner") {
+      acquireSubmissionLock(stateRoot)
+      writeFileSync(join(lockDirectory, readdirSync(lockDirectory)[0]), JSON.stringify({ pid: 2147483647 }))
+    } else {
+      mkdirSync(lockDirectory)
+    }
+    const release = acquireSubmissionLock(stateRoot)
+    T(`${TOOL}: stale reclamation recovers ${staleKind}`, existsSync(lockDirectory))
+    release()
+    T(`${TOOL}: release removes a reclaimed ${staleKind}`, !existsSync(lockDirectory))
+  }
   const schedulerContract = readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")
   const normalizedSchedulerContract = schedulerContract.replace(/\s+/g, " ")
   T(
