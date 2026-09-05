@@ -148,7 +148,7 @@ describe('subscription dashboards (mobile)', () => {
     )
     const summary = tree.root.findByType('PlanSummaryCard')
     expect(summary.props.planLabel).toBe('upgrade.billing.plan.monthly')
-    expect(summary.props.meta).toContain(
+    expect((summary.props.facts as (string | null)[]).filter(Boolean).join(' ')).toContain(
       'upgrade.billing.plan.monthlyPrice:{"price":"usd 7.77"}',
     )
     expect(en.upgrade.billing.plan.monthlyPrice).toBe('Monthly plan price: {price}')
@@ -207,7 +207,7 @@ describe('subscription dashboards (mobile)', () => {
       )
       const summary = tree.root.findByType('PlanSummaryCard')
       expect(summary.props.planLabel).toBe(expectedLabel)
-      expect(state === 'lifetime' ? summary.props.body : summary.props.meta).toContain(expectedMeta)
+      expect(state === 'lifetime' ? summary.props.body : (summary.props.facts as (string | null)[]).filter(Boolean).join(' ')).toContain(expectedMeta)
       if (state === 'canceled') {
         expect(renderedText(tree)).toContain('upgrade.billing.plan.canceledBadge')
       }
@@ -296,7 +296,7 @@ describe('subscription dashboards (mobile)', () => {
     expect(renderedText(offline)).toContain('upgrade.billing.invoices.reasonCycle')
     expect(
       offline.root.findAll((node) => node.type === 'Pressable'
-        && node.props.accessibilityLabel === 'upgrade.billing.payment.change' && node.props.disabled),
+        && node.props.accessibilityLabel === 'upgrade.billing.payment.change' && node.props.disabled === true),
     ).toHaveLength(1)
     expect(
       offline.root.findAll((node) => node.type === 'Pressable'
@@ -348,7 +348,7 @@ describe('subscription dashboards (mobile)', () => {
         tokens={tokens}
       />,
     )
-    expect(withoutPrice.root.findByType('PlanSummaryCard').props.meta).not.toContain(
+    expect((withoutPrice.root.findByType('PlanSummaryCard').props.facts as (string | null)[]).filter(Boolean).join(' ')).not.toContain(
       'upgrade.billing.plan.yearlyPrice',
     )
 
@@ -366,7 +366,7 @@ describe('subscription dashboards (mobile)', () => {
         tokens={tokens}
       />,
     )
-    expect(withPrice.root.findByType('PlanSummaryCard').props.meta).toContain(
+    expect((withPrice.root.findByType('PlanSummaryCard').props.facts as (string | null)[]).filter(Boolean).join(' ')).toContain(
       'upgrade.billing.plan.yearlyPrice:{"price":"R$ 99,90"}',
     )
   })
@@ -393,8 +393,8 @@ describe('subscription dashboards (mobile)', () => {
       )
       const summary = tree.root.findByType('PlanSummaryCard')
       expect(summary.props.planLabel).toBe(expectedLabel)
-      if (expectedPriceKey) expect(summary.props.meta).toContain(expectedPriceKey)
-      else expect(summary.props.meta).toBe('')
+      if (expectedPriceKey) expect((summary.props.facts as (string | null)[]).filter(Boolean).join(' ')).toContain(expectedPriceKey)
+      else expect((summary.props.facts as (string | null)[]).filter(Boolean).join(' ')).toBe('')
     },
   )
 

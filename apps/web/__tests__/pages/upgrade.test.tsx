@@ -704,6 +704,31 @@ describe('UpgradePage', () => {
     expect(screen.queryByText('upgrade.billing.actions.manage')).not.toBeInTheDocument()
   })
 
+  it('hands a web Play subscriber to Play without opening a Stripe portal', async () => {
+    mockHasProAccess = true
+    mockProfile = { ...mockProfile, isTrialActive: false, subscriptionSource: 'play' }
+    const location = { href: '' }
+    vi.stubGlobal('location', location)
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.actions.managePlay' }))
+    await waitFor(() => expect(location.href).toBe('https://play.google.com/store/account/subscriptions?sku=orbit_pro&package=org.useorbit.app'))
+    expect(mockOpenCustomerPortal).not.toHaveBeenCalled()
+    expect(globalThis.sessionStorage.getItem('orbit.subscription.portal-return')).toBe('1')
+  })
+
+  it('keeps the action name and usage while the Stripe portal is opening', () => {
+    mockHasProAccess = true
+    mockProfile = { ...mockProfile, isTrialActive: false, subscriptionSource: 'stripe' }
+    mockOpenCustomerPortal.mockReturnValue(new Promise(() => {}))
+    render(<UpgradePage />)
+    const action = screen.getByRole('button', { name: 'upgrade.billing.actions.manage' })
+    fireEvent.click(action)
+    expect(action).toBeDisabled()
+    expect(action).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByText('upgrade.billing.usage.title')).toBeInTheDocument()
+    expect(document.querySelector('main')).toHaveAttribute('data-state', 'portal-opening')
+  })
+
   it('does not substitute Stripe catalog pricing on the Play management panel', () => {
     mockHasProAccess = true
     mockProfile = {

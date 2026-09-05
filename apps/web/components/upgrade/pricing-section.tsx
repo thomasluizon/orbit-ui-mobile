@@ -123,7 +123,7 @@ export function PricingSection({
             <div className="flex flex-col items-start gap-2">
               <p
                 role="alert"
-                className="text-left text-sm leading-[1.55] text-[var(--status-bad)]"
+                className="text-left text-sm leading-[1.55] text-[var(--fg-2)]"
               >
                 {checkoutError}
               </p>

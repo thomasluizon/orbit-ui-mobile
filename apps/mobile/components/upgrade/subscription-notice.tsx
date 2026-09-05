@@ -13,7 +13,7 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t, tokens }:
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
-  if (!status?.lapseReason || status.hasProAccess) return null
+  if (!status || status.hasProAccess || (!status.lapseReason && !status.subscriptionEndedAtUtc)) return null
   const endedAt = status.subscriptionEndedAtUtc
     ? formatBillingDate(status.subscriptionEndedAtUtc, locale) : null
   const usagePercent = status.aiMessagesLimit > 0 ? Math.min(100, status.aiMessagesUsed / status.aiMessagesLimit * 100) : 0

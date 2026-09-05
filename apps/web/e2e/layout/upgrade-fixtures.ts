@@ -10,6 +10,7 @@ const subscriptions = {
   free: subscriptionStatusSchema.parse({ ...profileFixture, source: null }),
   trial: subscriptionStatusSchema.parse({
     ...profileFixture,
+    plan: 'pro',
     source: null,
     hasProAccess: true,
     isTrialActive: true,
@@ -67,6 +68,16 @@ const subscriptions = {
   }),
 }
 
+const subscriptionFixtures = {
+  ...subscriptions,
+  lapsed: subscriptionStatusSchema.parse({ ...subscriptions.free, lapseReason: 'expired', subscriptionEndedAtUtc: '2026-09-01T12:00:00Z', subscriptionInterval: 'yearly' }),
+  loading: subscriptions.stripe,
+  loadFailed: subscriptions.stripe,
+  offline: subscriptions.stripe,
+  portalOpening: subscriptions.stripe,
+  portalFailed: subscriptions.stripe,
+}
+
 const billingByState = {
   free: billingDetailsFixture,
   trial: billingDetailsFixture,
@@ -78,20 +89,37 @@ const billingByState = {
 } satisfies Record<keyof typeof subscriptions, typeof billingDetailsFixture>
 
 export const test = base.extend<{
-  subscriptionState: keyof typeof subscriptions
+  subscriptionState: keyof typeof subscriptionFixtures
   appLocale: SupportedLocale
 }>({
   subscriptionState: ['free', { option: true }],
   appLocale: ['en', { option: true }],
   page: async ({ page, context, subscriptionState, appLocale }, runTest) => {
-    const subscription = subscriptions[subscriptionState]
+    const subscription = subscriptionFixtures[subscriptionState]
     const profile = profileSchema.parse({ ...profileFixture, ...subscription, language: appLocale })
     await context.addCookies([{ name: 'i18n_locale', value: appLocale, url: LAYOUT_ORIGIN }])
     await context.route(`${LAYOUT_ORIGIN}${API.profile.get}`, (route) => route.fulfill({ json: profile }))
     await context.route(`${LAYOUT_ORIGIN}${API.subscription.status}`, (route) => route.fulfill({ json: subscription }))
-    await context.route(`${LAYOUT_ORIGIN}${API.subscription.billing}`, (route) =>
-      route.fulfill({ json: billingByState[subscriptionState] }))
+    const billing = subscriptionState in billingByState
+      ? billingByState[subscriptionState as keyof typeof billingByState] : billingDetailsFixture
+    let releaseRequest = () => {}
+    const pendingRequest = new Promise<void>((resolve) => { releaseRequest = resolve })
+    await context.route(`${LAYOUT_ORIGIN}${API.subscription.billing}`, async (route) => {
+      if (subscriptionState === 'loading') await pendingRequest
+      await route.fulfill(subscriptionState === 'loadFailed' ? { status: 503, json: {} } : { json: billing })
+    })
+    if (subscriptionState === 'portalOpening' || subscriptionState === 'portalFailed') {
+      await context.route(`${LAYOUT_ORIGIN}/upgrade`, async (route) => {
+        if (route.request().method() !== 'POST') return route.continue()
+        if (subscriptionState === 'portalOpening') await pendingRequest
+        await route.fulfill({ status: 503, body: '' })
+      })
+    }
     await page.clock.setFixedTime(new Date('2026-09-04T12:00:00Z'))
-    await runTest(page)
+    try {
+      await runTest(page)
+    } finally {
+      releaseRequest()
+    }
   },
 })

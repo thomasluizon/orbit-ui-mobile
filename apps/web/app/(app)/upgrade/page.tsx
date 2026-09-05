@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
+import { UsageStats } from '@/components/upgrade/usage-stats'
 import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
 import { openCustomerPortal } from '@/app/actions/subscription'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -85,12 +86,12 @@ export default function UpgradePage() {
   }, [status])
 
   useEffect(() => {
-    if (globalThis.sessionStorage.getItem(PORTAL_RETURN_KEY) !== '1') return
+    if (portalState === 'opening' || globalThis.sessionStorage.getItem(PORTAL_RETURN_KEY) !== '1') return
     globalThis.sessionStorage.removeItem(PORTAL_RETURN_KEY)
     void Promise.all([refetchStatus(), refetchBilling()]).then(() => {
       showSuccess(t('upgrade.billing.portalReturned'))
     })
-  }, [refetchBilling, refetchStatus, showSuccess, t])
+  }, [portalState, refetchBilling, refetchStatus, showSuccess, t])
 
   const handleCheckout = useCallback(
     async (interval: SubscriptionInterval) => {
@@ -189,6 +190,7 @@ export default function UpgradePage() {
           onRetryPlans={() => void refetchPlans()}
           t={t}
         />
+        {status ? <UsageStats usagePercent={usagePercent} usageUrgent={usagePercent >= 80} profile={status} t={t} /> : null}
       </div>
     )
   } else if (model.content === 'play') {

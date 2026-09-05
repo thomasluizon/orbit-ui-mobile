@@ -59,17 +59,14 @@ export function PlayBillingDashboard({
               : t('upgrade.billing.plan.pro')
         }
         body={t('upgrade.billing.plan.proBody', { limit: status.aiMessagesLimit })}
-        meta={[
+        facts={[
           priceLine,
           status.planExpiresAt
             ? t('upgrade.billing.plan.renewsOn', {
                 date: formatBillingDate(status.planExpiresAt, locale),
               })
             : null,
-        ]
-          .filter(Boolean)
-          .join(' · ')}
-        t={t}
+        ]}
         tokens={tokens}
       />
       <ProviderHandoff provider="play" state={handoffState(isOnline, portalState)} onManage={onManagePlay} t={t} tokens={tokens} />

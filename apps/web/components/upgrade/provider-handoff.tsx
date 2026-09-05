@@ -1,9 +1,7 @@
 'use client'
 
-import { motion, useReducedMotion } from 'motion/react'
 import type { useTranslations } from 'next-intl'
 import type { SubscriptionScreenState } from '@orbit/shared/utils'
-import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { Icon } from '@/components/ui/icon'
 import { PillButton } from '@/components/ui/pill-button'
 
@@ -13,18 +11,16 @@ export function ProviderHandoff({ provider, state, onManage, t }: Readonly<{
   onManage: () => void
   t: ReturnType<typeof useTranslations>
 }>) {
-  const reducedMotion = useReducedMotion()
   const opening = state === 'portal-opening'
   const failed = state === 'portal-failed'
   return (
     <section className="flex flex-col gap-3" data-provider={provider} data-state={state}>
       <div className="flex items-start gap-3 rounded-[var(--r-well)] bg-[var(--bg-well)] p-4">
-        <motion.span aria-hidden="true" data-motion-purpose="state indication" initial={false}
-          animate={{ opacity: opening ? 0.4 : 1 }}
-          transition={{ duration: reducedMotion ? 0 : motionDurations.fast / 1000, ease: [...motionEasings.standard] }}
-          className="shrink-0 text-[var(--fg-3)]">
+        <span aria-hidden="true" data-motion-purpose="state indication"
+          style={{ opacity: opening ? 0.4 : 1 }}
+          className="shrink-0 text-[var(--fg-3)] transition-opacity duration-[160ms] ease-[var(--ease-standard)] motion-reduce:transition-none">
           <Icon name={provider === 'play' ? 'brand-google-play' : 'credit-card'} size={20} />
-        </motion.span>
+        </span>
         <p className="t-secondary min-w-0 text-pretty">
           {provider === 'play' ? t('upgrade.billing.actions.managePlayHint') : t('upgrade.billing.actions.manageHint')}
         </p>

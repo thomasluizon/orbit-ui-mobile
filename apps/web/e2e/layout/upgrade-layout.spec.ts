@@ -103,15 +103,30 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
     }
   }
 
-  for (const subscriptionState of ['stripe', 'play', 'lifetime', 'canceled', 'pastDue'] as const) {
-    for (const width of [412, 640] as const) {
+  for (const subscriptionState of ['stripe', 'play', 'lifetime', 'canceled', 'pastDue', 'lapsed', 'loading', 'loadFailed', 'offline', 'portalOpening', 'portalFailed'] as const) {
+    for (const width of [320, 412, 640] as const) {
       test.describe(`${locale} ${subscriptionState} at ${width}px`, () => {
         test.use({ appLocale: locale, subscriptionState, viewport: { width, height: 1400 } })
 
         test('keeps subscription management copy inside its box', async ({ page }) => {
           await page.goto('/upgrade')
           const main = page.locator('main').last()
-          await expect(main.getByText(messages.upgrade.billing.usage.title, { exact: true })).toBeVisible()
+          if (subscriptionState === 'loading') {
+            await expect(main.locator('[aria-busy="true"]').first()).toBeVisible()
+          } else if (subscriptionState === 'loadFailed') {
+            await expect(main.getByText(messages.upgrade.billing.error, { exact: true })).toBeVisible({ timeout: 15000 })
+          } else {
+            await expect(main.getByText(messages.upgrade.billing.usage.title, { exact: true })).toBeVisible()
+            await page.evaluate(() => document.fonts.ready)
+            if (subscriptionState === 'offline') {
+              await page.context().setOffline(true)
+              await expect(main).toHaveAttribute('data-state', 'offline')
+            }
+            if (subscriptionState === 'portalOpening' || subscriptionState === 'portalFailed') {
+              await main.getByRole('button', { name: messages.upgrade.billing.actions.manage, exact: true }).click()
+              await expect(main).toHaveAttribute('data-state', subscriptionState === 'portalOpening' ? 'portal-opening' : 'portal-failed')
+            }
+          }
           await page.evaluate(() => document.fonts.ready)
 
           const overflows = await main.evaluate((root) =>
@@ -123,8 +138,10 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           expect(overflows, `subscription copy stays inside the layout at ${width}px`).toEqual([])
 
           const usageLines = await renderedLineCounts(page, messages.upgrade.billing.usage.aiMessages)
-          expect(usageLines.length).toBeGreaterThan(0)
-          expect(usageLines.every((count) => count === 1)).toBe(true)
+          if (subscriptionState !== 'loading' && subscriptionState !== 'loadFailed') {
+            expect(usageLines.length).toBeGreaterThan(0)
+            expect(usageLines.every((count) => count === 1)).toBe(true)
+          }
           if (subscriptionState === 'stripe') {
             const paymentMethod = messages.upgrade.billing.payment.card
               .replace('{brand}', 'Visa')
