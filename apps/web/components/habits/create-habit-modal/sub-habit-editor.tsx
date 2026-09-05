@@ -32,7 +32,7 @@ export function SubHabitEditor({
       {subHabits.length > 0 && (
         <div className="space-y-2">
           {subHabits.map((entry, index) => (
-            <Proposed key={entry.id} proposed={index >= subHabits.length - proposedItemCount} scope="row" label={t('habits.form.proposed')}>
+            <Proposed key={entry.id} proposed={index >= subHabits.length - proposedItemCount} scope="row" label={t('habits.detail.proposed')}>
               <div
                 className="flex items-center rounded-[14px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)] focus-within:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
                 style={{ minHeight: 54, gap: 10, padding: '0 8px 0 16px' }}

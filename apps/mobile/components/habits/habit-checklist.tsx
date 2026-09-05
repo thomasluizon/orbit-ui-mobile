@@ -382,7 +382,7 @@ export function HabitChecklist({
               key={editableItemKeys[index]}
               proposed={index >= items.length - proposedItemCount}
               scope="row"
-              label={t('habits.form.proposed')}
+              label={t('habits.detail.proposed')}
             >
               <EditableChecklistItem
                 text={item.text}
