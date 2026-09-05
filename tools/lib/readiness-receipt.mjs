@@ -180,6 +180,12 @@ export const requiredChecksOf = (payload) => {
   return required
 }
 
+/** Both readers must classify the same protection response (#429). Confirmed live on 2026-09-05:
+ * an unprotected branch returns a nonzero gh exit and JSON string status "404". Human-readable
+ * error prose is not a contract; every other failed response remains an environment error. */
+export const requiredChecksFromResponse = (payload, succeeded) =>
+  succeeded ? requiredChecksOf(payload) : payload?.status === "404" ? [] : null
+
 const requiredChecksAreValid = (required) =>
   Array.isArray(required) && required.every((entry) => typeof entry?.context === "string" && entry.context !== "" && (entry.appId === null || Number.isInteger(entry.appId)))
 

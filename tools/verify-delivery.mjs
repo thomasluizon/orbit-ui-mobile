@@ -34,7 +34,7 @@ import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { PASSING_CONCLUSIONS, findRegisteredCheck, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, requiredChecksOf } from "./lib/readiness-receipt.mjs"
+import { PASSING_CONCLUSIONS, findRegisteredCheck, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, requiredChecksFromResponse } from "./lib/readiness-receipt.mjs"
 
 const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path> --branch <name> [options]
 
@@ -341,14 +341,8 @@ const readRequiredChecks = async (state) => {
     if (!protection.ok) fail(2, `gh api required status checks failed for ${state.baseRefName}: ${protection.error}`)
     fail(2, `gh api required status checks returned unparseable JSON: ${protection.stdout.trim().slice(0, 240) || "empty output"}`)
   }
-  if (!protection.ok) {
-    /** Live on 2026-09-05: redesign/main returns HTTP 404 with a JSON status of "404".
-     * An absent required-check configuration is an empty set, not an API outage (#429).
-     * Match the structured status, never the human-readable "Branch not protected" prose. */
-    if (parsed?.status === "404") return []
-    fail(2, `gh api required status checks failed for ${state.baseRefName}: ${protection.error}`)
-  }
-  const parsedChecks = requiredChecksOf(parsed)
+  const parsedChecks = requiredChecksFromResponse(parsed, protection.ok)
+  if (parsedChecks === null && !protection.ok) fail(2, `gh api required status checks failed for ${state.baseRefName}: ${protection.error}`)
   if (parsedChecks === null) fail(2, `gh api required status checks returned no { context, app_id } checks array for ${state.baseRefName}`)
   return parsedChecks
 }

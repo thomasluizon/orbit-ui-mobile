@@ -87,7 +87,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
       { match: "auth token --user thomasluizon", stdout: "test-github-token" },
       { match: "api graphql", stdout: JSON.stringify({ data: { repository: { pullRequest: {
         number: 700,
-        baseRefName: "main",
+        baseRefName: options.baseRefName ?? "main",
         baseRefOid,
         headRefOid,
         isDraft: options.isDraft ?? false,
@@ -97,10 +97,10 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
        * The real payload carries BOTH lists, and only `checks` names the app that must provide each
        * check. Confirmed live on 2026-08-12 against the `main` protection of this repository.
        */
-      { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({
+      { match: `branches/${encodeURIComponent(options.baseRefName ?? "main")}/protection/required_status_checks`, stdout: options.protectionResponse ?? JSON.stringify({
         contexts: ["Lint", "pullfrog-approval"],
         ...(options.omitChecks === true ? {} : { checks: options.checks ?? [{ context: "Lint", app_id: GITHUB_ACTIONS_APP }, { context: "pullfrog-approval", app_id: PULLFROG_APP }] }),
-      }) },
+      }), exit: options.protectionExit ?? 0 },
       { match: "api repos/", stdout: JSON.stringify({ behind_by: behindBy }) },
     ]),
     ORBIT_TICKET_STATUS: ticketStatus,
@@ -120,6 +120,43 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
       readyReceipt.ticket.targetStatus === "In Review",
     JSON.stringify(readyReceipt),
   )
+
+  /** Complete body observed from gh api on redesign/main on 2026-09-05, exit 1. */
+  const unprotected = {
+    baseRefName: "redesign/main",
+    protectionExit: 1,
+    protectionResponse: JSON.stringify({
+      message: "Branch not protected",
+      documentation_url: "https://docs.github.com/rest/branches/branch-protection#get-status-checks-protection",
+      status: "404",
+    }),
+  }
+  const unprotectedCase = (name, options, expected = { status: 1, stdout: /CI_STALE/ }, head = HEAD) =>
+    check(TOOL, name, argv, expected, { path: staged.path, env: live(head, BASE, 0, "In Review", { ...unprotected, ...options }) })
+  unprotectedCase("confirmed 404 completes and persists READY with passing CI and independent review", {}, { status: 0, stdout: /"verdict": "READY"/ })
+  const unprotectedReceipt = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-pr-readiness", "ui-700.json"), "utf8"))
+  T(`${TOOL}: confirmed 404 persists the unprotected base and current passing evidence`,
+    unprotectedReceipt.baseBranch === "redesign/main" && unprotectedReceipt.currentHeadSha === HEAD && unprotectedReceipt.ci.green === true,
+    JSON.stringify(unprotectedReceipt))
+  unprotectedCase("confirmed 404 with no checks completes as not READY", { statusCheckRollup: [] })
+  const emptyReceipt = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-pr-readiness", "ui-700.json"), "utf8"))
+  T(`${TOOL}: no-check 404 writes a blocking receipt instead of leaving the previous READY receipt`,
+    emptyReceipt.ci.green === false && emptyReceipt.ci.settled === false, JSON.stringify(emptyReceipt))
+  unprotectedCase("unprotected passing CI without independent review cannot reach READY", { statusCheckRollup: [greenCheck] })
+  unprotectedCase("unprotected review from the wrong app cannot reach READY", { statusCheckRollup: [greenCheck, checkRun("pullfrog-approval", GITHUB_ACTIONS_APP)] })
+  unprotectedCase("unprotected failing CI cannot reach READY despite passing review", { statusCheckRollup: [{ ...greenCheck, conclusion: "FAILURE" }, approval] })
+  unprotectedCase("unprotected pending CI cannot reach READY despite passing review", { statusCheckRollup: [{ ...greenCheck, status: "IN_PROGRESS", conclusion: null }, approval] })
+  unprotectedCase("unprotected newest failed review rerun cannot reach READY", { statusCheckRollup: [greenCheck, approval, { ...approval, conclusion: "FAILURE", startedAt: "2026-08-07T11:00:00Z" }] })
+  unprotectedCase("unprotected live head advance invalidates delivery evidence", {}, { status: 1, stdout: /CI_STALE/ }, "cccccccccccccccccccccccccccccccccccccccc")
+  for (const [name, protectionResponse] of [
+    ["malformed JSON", "not JSON"],
+    ["unconfirmed error prose", JSON.stringify({ message: "Branch not protected" })],
+    ["numeric 404", JSON.stringify({ status: 404 })],
+    ["another failure status", JSON.stringify({ status: "403" })],
+  ]) {
+    unprotectedCase(`${name} remains an environment error`, { protectionResponse }, { status: 2 })
+  }
+  unprotectedCase("successful malformed protection cannot masquerade as confirmed 404", { protectionExit: 0 }, { status: 2, stderr: /returned no \{ context, app_id \} checks array/ })
 
   /**
    * The review gate, end to end. Branch protection requires `pullfrog-approval`, and a pull request
