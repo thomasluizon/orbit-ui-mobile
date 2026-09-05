@@ -1,4 +1,12 @@
+import { useState, type ReactNode } from 'react'
 import { Text, View } from 'react-native'
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  ReduceMotion,
+} from 'react-native-reanimated'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { applySubscriptionDiscount } from '@orbit/shared/utils'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { Badge } from '@/components/ui/badge'
@@ -8,6 +16,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 import { formatPrice } from '@/hooks/use-subscription-plans'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { styles } from './styles'
 import {
   monthlyEquivalentPriceLabel,
@@ -24,6 +33,47 @@ interface Tier {
   heroLine?: string
   secondLine?: string
   couponLine?: string
+}
+
+const motionPurpose = {
+  load: 'preventing a jarring change',
+} as const
+
+function motionTestId(purpose: string) {
+  return `upgrade-motion-${purpose.replaceAll(' ', '-')}`
+}
+
+function PlanLoadMotion({
+  stateKey,
+  reduced,
+  children,
+}: Readonly<{ stateKey: string; reduced: boolean; children: ReactNode }>) {
+  const [transition, setTransition] = useState({ stateKey, shouldEnter: false })
+  if (transition.stateKey !== stateKey) {
+    setTransition({
+      stateKey,
+      shouldEnter: true,
+    })
+  }
+
+  return (
+    <Animated.View
+      key={stateKey}
+      entering={transition.shouldEnter && !reduced
+        ? FadeIn.duration(motionDurations.base)
+            .easing(Easing.bezier(...motionEasings.enter))
+            .reduceMotion(ReduceMotion.System)
+        : undefined}
+      exiting={!reduced
+        ? FadeOut.duration(motionDurations.routeExit)
+            .easing(Easing.bezier(...motionEasings.exit))
+            .reduceMotion(ReduceMotion.System)
+        : undefined}
+      testID={motionTestId(motionPurpose.load)}
+    >
+      {children}
+    </Animated.View>
+  )
 }
 
 export function PlanSelection({
@@ -63,41 +113,60 @@ export function PlanSelection({
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
   const checkoutPending = checkoutLoading !== null
+  const selectInterval = (interval: string) => {
+    if (interval !== 'monthly' && interval !== 'yearly') return
+    onSelectInterval(interval)
+  }
+
   const intervalControl = (
-    <SegmentedControl
-      label={t('upgrade.plans.intervalLabel')}
-      options={[
-        { id: 'monthly', label: t('upgrade.plans.interval.monthly') },
-        { id: 'yearly', label: t('upgrade.plans.interval.annual') },
-      ]}
-      value={selectedInterval}
-      onChange={(interval) => {
-        if (interval === 'monthly' || interval === 'yearly') onSelectInterval(interval)
-      }}
-      disabled={checkoutPending}
-    />
+    <View>
+      <SegmentedControl
+        label={t('upgrade.plans.intervalLabel')}
+        options={[
+          { id: 'monthly', label: t('upgrade.plans.interval.monthly') },
+          { id: 'yearly', label: t('upgrade.plans.interval.annual') },
+        ]}
+        value={selectedInterval}
+        onChange={selectInterval}
+        disabled={checkoutPending}
+      />
+    </View>
   )
 
   if (isLoading) {
     return (
-      <View accessibilityLabel={t('upgrade.plans.loading')} style={styles.planState}>
-        {intervalControl}
-        <Skeleton variant="stat-tile" label={t('upgrade.plans.loading')} />
-        <Skeleton variant="stat-tile" label={t('upgrade.plans.loading')} />
-      </View>
+      <PlanLoadMotion stateKey="loading" reduced={prefersReducedMotion}>
+        <View style={styles.planState}>
+          {intervalControl}
+          {[0, 1].map((tierIndex) => (
+            <View key={tierIndex} style={styles.planChoices}>
+              {[0, 1, 2].map((rowIndex) => (
+                <Skeleton
+                  key={rowIndex}
+                  variant="settings"
+                  label={t('upgrade.plans.loading')}
+                />
+              ))}
+            </View>
+          ))}
+        </View>
+      </PlanLoadMotion>
     )
   }
 
   if (isError && !plans && isOnline) {
     return (
-      <View style={styles.planState}>
-        {intervalControl}
-        <ErrorState
-          message={t('upgrade.plans.error')}
-          action={<PillButton variant="ghost" onClick={onRetry}>{t('upgrade.plans.retry')}</PillButton>}
-        />
-      </View>
+      <PlanLoadMotion stateKey="error" reduced={prefersReducedMotion}>
+        <View style={styles.planState}>
+          {intervalControl}
+          <ErrorState
+            message={t('upgrade.plans.error')}
+            action={<PillButton variant="ghost" onClick={onRetry}>{t('upgrade.plans.retry')}</PillButton>}
+          />
+        </View>
+      </PlanLoadMotion>
     )
   }
 
@@ -138,38 +207,40 @@ export function PlanSelection({
     : [monthlyTier, annualTier]
 
   return (
-    <View style={styles.planGroup}>
-      {intervalControl}
-      <View style={styles.planChoices}>
-        {tiers.map((tier) => (
-          <TierCard
-            key={tier.interval}
-            tier={tier}
-            recommended={tier.interval === selectedInterval}
-            loading={checkoutLoading === tier.interval}
-            disabled={checkoutPending || checkoutDisabled}
-            onCheckout={onCheckout}
-            t={t}
-            tokens={tokens}
-          />
-        ))}
-      </View>
-      {checkoutError ? (
+    <PlanLoadMotion stateKey="loaded" reduced={prefersReducedMotion}>
+      <View style={styles.planGroup}>
+        {intervalControl}
+        <View style={styles.planChoices}>
+          {tiers.map((tier) => (
+            <TierCard
+              key={tier.interval}
+              tier={tier}
+              recommended={tier.interval === 'yearly'}
+              selected={tier.interval === selectedInterval}
+              loading={checkoutLoading === tier.interval}
+              disabled={checkoutPending || checkoutDisabled}
+              onCheckout={onCheckout}
+              t={t}
+              tokens={tokens}
+            />
+          ))}
+        </View>
         <Text
-          accessibilityLiveRegion="polite"
           accessibilityRole="alert"
+          accessibilityLiveRegion="assertive"
           style={[styles.errorText, { color: tokens.statusBad }]}
         >
           {checkoutError}
         </Text>
-      ) : null}
-    </View>
+      </View>
+    </PlanLoadMotion>
   )
 }
 
 function TierCard({
   tier,
   recommended,
+  selected,
   loading,
   disabled,
   onCheckout,
@@ -178,6 +249,7 @@ function TierCard({
 }: Readonly<{
   tier: Tier
   recommended: boolean
+  selected: boolean
   loading: boolean
   disabled: boolean
   onCheckout: (interval: SubscriptionInterval) => void
@@ -190,15 +262,17 @@ function TierCard({
       style={[
         styles.tierCard,
         {
-          backgroundColor: recommended ? tokens.primaryDim : tokens.bgCard,
-          borderColor: recommended ? tokens.primary : tokens.hairline,
-          borderWidth: recommended ? 1.5 : 1,
+          backgroundColor: selected ? tokens.primaryDim : tokens.bgCard,
+          borderColor: selected ? tokens.primary : tokens.hairline,
+          borderWidth: selected ? 1.5 : 1,
         },
       ]}
     >
       <View style={styles.tierHeader}>
         <Text accessibilityRole="header" style={[styles.tierName, { color: tokens.fg1 }]}>{tier.name}</Text>
-        {recommended ? <Badge>{t('upgrade.plans.recommended')}</Badge> : null}
+        {recommended ? (
+          <Badge>{t('upgrade.plans.recommended')}</Badge>
+        ) : null}
       </View>
       <Text style={[styles.tierPrice, { color: tokens.fg1 }]}>
         {tier.price}<Text style={[styles.tierPeriod, { color: tokens.fg3 }]}>{tier.period}</Text>
@@ -208,10 +282,10 @@ function TierCard({
       {tier.couponLine ? <Text style={[styles.tierCoupon, { color: tokens.fg2 }]}>{tier.couponLine}</Text> : null}
       <View style={styles.tierAction}>
         <PillButton
-          variant={recommended ? 'primary' : 'ghost'}
+          variant={selected ? 'primary' : 'ghost'}
           loading={loading}
           disabled={disabled}
-          accessibleName={t('upgrade.plans.checkoutLabel', { interval: tier.name })}
+          accessibleName={t(recommended ? 'upgrade.plans.checkoutLabelRecommended' : 'upgrade.plans.checkoutLabel', { interval: tier.name })}
           onClick={() => onCheckout(tier.interval)}
         >
           {t('upgrade.plans.cta')}

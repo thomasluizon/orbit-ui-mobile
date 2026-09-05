@@ -184,7 +184,7 @@ export function HabitChecklist({
                   key={sortableIds[index]}
                   proposed={index >= items.length - proposedItemCount}
                   scope="row"
-                  label={t('habits.form.proposed')}
+                  label={t('habits.detail.proposed')}
                 >
                   <SortableChecklistItem
                     id={sortableIds[index]!}

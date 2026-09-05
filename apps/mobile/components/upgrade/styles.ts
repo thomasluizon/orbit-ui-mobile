@@ -1,9 +1,17 @@
 import { StyleSheet } from 'react-native'
 
 export const styles = StyleSheet.create({
+  pricingSections: {
+    gap: 32,
+  },
+  purchaseGroup: {
+    gap: 16,
+  },
+  purchaseActions: {
+    gap: 24,
+  },
   allowanceSection: {
     gap: 12,
-    marginTop: 32,
     paddingHorizontal: 16,
   },
   allowanceCard: {
@@ -46,7 +54,6 @@ export const styles = StyleSheet.create({
   },
   outcomes: {
     gap: 12,
-    marginTop: 32,
     paddingHorizontal: 16,
   },
   outcomeRow: {
@@ -77,8 +84,7 @@ export const styles = StyleSheet.create({
     lineHeight: 20,
   },
   planState: {
-    gap: 12,
-    marginTop: 32,
+    gap: 16,
     paddingHorizontal: 16,
   },
   planChoices: {
@@ -169,7 +175,6 @@ export const styles = StyleSheet.create({
   planGroup: {
     paddingHorizontal: 16,
     gap: 16,
-    marginTop: 32,
   },
   tierCard: {
     borderRadius: 20,
@@ -237,9 +242,12 @@ export const styles = StyleSheet.create({
   },
   reassurance: {
     alignItems: 'flex-start',
-    gap: 8,
-    marginTop: 16,
+    gap: 16,
     paddingHorizontal: 16,
+  },
+  reassuranceCopy: {
+    alignItems: 'flex-start',
+    gap: 8,
   },
   reassurancePrimary: {
     fontFamily: 'Geist_400Regular',
@@ -253,16 +261,24 @@ export const styles = StyleSheet.create({
   restoreAction: {
     alignSelf: 'center',
     justifyContent: 'center',
-    marginTop: 24,
     minHeight: 44,
+  },
+  disabledAction: {
+    opacity: 0.4,
   },
   pressedScale: {
     transform: [{ scale: 0.96 }],
   },
-  noticeText: {
+  noticeTitle: {
+    fontFamily: 'Geist_500Medium',
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  noticeBody: {
     fontFamily: 'Geist_400Regular',
     fontSize: 14,
-    textAlign: 'center',
+    lineHeight: 20,
+    marginTop: 8,
   },
   centerMuted: {
     fontFamily: 'Geist_400Regular',
@@ -272,7 +288,8 @@ export const styles = StyleSheet.create({
   },
   errorText: {
     fontFamily: 'Geist_400Regular',
-    fontSize: 12,
-    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: 'left',
   },
 })

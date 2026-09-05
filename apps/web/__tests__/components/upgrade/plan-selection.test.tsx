@@ -1,8 +1,39 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import type { useTranslations } from 'next-intl'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
 import { formatPrice, monthlyEquivalent } from '@/hooks/use-subscription-plans'
+
+const motionMocks = vi.hoisted(() => ({
+  reduced: false,
+  renderedProps: [] as Record<string, unknown>[],
+  presenceProps: [] as Record<string, unknown>[],
+}))
+
+vi.mock('motion/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('motion/react')>()
+  const React = await import('react')
+  function MotionDiv(props: Record<string, unknown>) {
+    motionMocks.renderedProps.push(props)
+    const { animate, children, exit, initial, ref, transition, ...domProps } = props
+    void animate
+    void exit
+    void initial
+    void transition
+    return React.createElement('div', { ...domProps, ref }, children as React.ReactNode)
+  }
+  return {
+    ...actual,
+    AnimatePresence: ({ children, ...props }: { children: React.ReactElement }) => {
+      motionMocks.presenceProps.push({ ...props, stateKey: children.key })
+      return children
+    },
+    LazyMotion: ({ children }: { children: React.ReactNode }) => children,
+    m: { div: MotionDiv },
+    useReducedMotion: () => motionMocks.reduced,
+  }
+})
 
 vi.mock('@/hooks/use-subscription-plans', () => ({
   useSubscriptionPlans: () => ({}),
@@ -35,7 +66,7 @@ function renderSelection(overrides: Partial<Parameters<typeof PlanSelection>[0]>
     ...overrides,
   }
   const view = render(<PlanSelection {...props} />)
-  return { ...props, unmount: view.unmount }
+  return { ...props, ...view }
 }
 
 function tierNamed(name: string) {
@@ -43,6 +74,12 @@ function tierNamed(name: string) {
 }
 
 describe('PlanSelection', () => {
+  beforeEach(() => {
+    motionMocks.reduced = false
+    motionMocks.renderedProps.length = 0
+    motionMocks.presenceProps.length = 0
+  })
+
   it('leads with annual and gives the recommended tier the only filled action', () => {
     renderSelection()
 
@@ -56,14 +93,10 @@ describe('PlanSelection', () => {
       'upgrade.plans.monthly.name',
     ])
     expect(screen.getAllByText('upgrade.plans.recommended')).toHaveLength(1)
-    expect(within(tierNamed('upgrade.plans.yearly.name')).getByRole('button')).toHaveAttribute(
-      'data-variant',
-      'primary',
-    )
-    expect(within(tierNamed('upgrade.plans.monthly.name')).getByRole('button')).toHaveAttribute(
-      'data-variant',
-      'ghost',
-    )
+    expect(tierNamed('upgrade.plans.yearly.name')).toHaveAttribute('data-selected', 'true')
+    expect(within(tierNamed('upgrade.plans.yearly.name')).getByRole('button')).toHaveAttribute('data-variant', 'primary')
+    expect(tierNamed('upgrade.plans.monthly.name')).not.toHaveAttribute('data-selected')
+    expect(within(tierNamed('upgrade.plans.monthly.name')).getByRole('button')).toHaveAttribute('data-variant', 'ghost')
   })
 
   it('switches the rendered order without starting checkout', () => {
@@ -80,11 +113,95 @@ describe('PlanSelection', () => {
       'upgrade.plans.monthly.name',
       'upgrade.plans.yearly.name',
     ])
-    expect(within(tierNamed('upgrade.plans.monthly.name')).getByRole('button')).toHaveAttribute(
-      'data-variant',
-      'primary',
+    expect(within(tierNamed('upgrade.plans.yearly.name')).getByText(
+      'upgrade.plans.recommended',
+    )).toBeInTheDocument()
+    expect(within(tierNamed('upgrade.plans.monthly.name')).queryByText(
+      'upgrade.plans.recommended',
+    )).not.toBeInTheDocument()
+    expect(tierNamed('upgrade.plans.yearly.name')).not.toHaveAttribute('data-selected')
+    expect(within(tierNamed('upgrade.plans.yearly.name')).getByRole('button')).toHaveAttribute('data-variant', 'ghost')
+    expect(tierNamed('upgrade.plans.monthly.name')).toHaveAttribute('data-selected', 'true')
+    expect(within(tierNamed('upgrade.plans.monthly.name')).getByRole('button')).toHaveAttribute('data-variant', 'primary')
+    expect(within(tierNamed('upgrade.plans.yearly.name')).getByRole('button')).toHaveAccessibleName(
+      t('upgrade.plans.checkoutLabelRecommended', { interval: 'upgrade.plans.yearly.name' }),
+    )
+    expect(within(tierNamed('upgrade.plans.monthly.name')).getByRole('button')).toHaveAccessibleName(
+      t('upgrade.plans.checkoutLabel', { interval: 'upgrade.plans.monthly.name' }),
     )
     expect(onCheckout).not.toHaveBeenCalled()
+  })
+
+  it('softens the loading-to-content swap', () => {
+    const view = renderSelection({ plans: null, isLoading: true })
+    const loadingMotion = motionMocks.renderedProps.at(-1)!
+
+    view.rerender(<PlanSelection {...view} plans={plans} isLoading={false} />)
+    const loadedMotion = motionMocks.renderedProps.at(-1)!
+
+    expect(loadedMotion.initial).toEqual({ opacity: 0 })
+    expect(loadedMotion.animate).toEqual({ opacity: 1 })
+    expect(loadedMotion.transition).toEqual(expect.objectContaining({ duration: 0.22 }))
+    expect(loadingMotion.exit).toEqual(expect.objectContaining({
+      opacity: 0,
+      transition: expect.objectContaining({ duration: 0.165 }),
+    }))
+    expect(Object.keys(loadedMotion.animate as object).sort()).toEqual(['opacity'])
+    expect(Object.keys(loadingMotion.exit as object).filter((key) => key !== 'transition')).toEqual([
+      'opacity',
+    ])
+  })
+
+  it('hard-cuts loading-to-content with reduced motion', () => {
+    motionMocks.reduced = true
+    const view = renderSelection({ plans: null, isLoading: true })
+
+    view.rerender(<PlanSelection {...view} plans={plans} isLoading={false} />)
+    const loadedMotion = motionMocks.renderedProps.at(-1)!
+
+    expect(loadedMotion.initial).toBe(false)
+    expect(loadedMotion.transition).toEqual({ duration: 0 })
+  })
+
+  it('animates error-to-loaded with the shared entrance and exit curves', () => {
+    const view = renderSelection({ plans: null, isError: true })
+    const errorMotion = motionMocks.renderedProps.at(-1)!
+    expect(motionMocks.presenceProps.at(-1)).toEqual({
+      initial: false, mode: 'popLayout', stateKey: 'error',
+    })
+    expect(errorMotion.exit).toEqual({
+      opacity: 0,
+      transition: {
+        duration: motionDurations.routeExit / 1000,
+        ease: motionEasings.exit,
+      },
+    })
+
+    view.rerender(<PlanSelection {...view} plans={plans} isError={false} />)
+    const loadedMotion = motionMocks.renderedProps.at(-1)!
+
+    expect(motionMocks.presenceProps.at(-1)).toEqual({
+      initial: false, mode: 'popLayout', stateKey: 'loaded',
+    })
+    expect(loadedMotion.initial).toEqual({ opacity: 0 })
+    expect(loadedMotion.animate).toEqual({ opacity: 1 })
+    expect(loadedMotion.transition).toEqual({
+      duration: motionDurations.base / 1000,
+      ease: motionEasings.enter,
+    })
+  })
+
+  it('hard-cuts error-to-loaded with reduced motion', () => {
+    motionMocks.reduced = true
+    const view = renderSelection({ plans: null, isError: true })
+    expect(motionMocks.renderedProps.at(-1)!.exit).toEqual({ opacity: 1 })
+
+    view.rerender(<PlanSelection {...view} plans={plans} isError={false} />)
+    const loadedMotion = motionMocks.renderedProps.at(-1)!
+
+    expect(loadedMotion.initial).toBe(false)
+    expect(loadedMotion.animate).toEqual({ opacity: 1 })
+    expect(loadedMotion.transition).toEqual({ duration: 0 })
   })
 
   it('renders annual arithmetic from the payload', () => {
@@ -115,7 +232,12 @@ describe('PlanSelection', () => {
 
   it('owns loading and retry states for the price tiers', () => {
     const loading = renderSelection({ plans: null, isLoading: true })
-    expect(screen.getAllByRole('progressbar')).toHaveLength(2)
+    const announcements = screen.getAllByLabelText('upgrade.plans.loading')
+    expect(announcements).toHaveLength(6)
+    for (const announcement of announcements) {
+      expect(announcement).toHaveAttribute('role', 'progressbar')
+    }
+    expect(screen.getAllByRole('progressbar')).toHaveLength(6)
 
     const onRetry = vi.fn()
     loading.unmount()
@@ -130,7 +252,7 @@ describe('PlanSelection', () => {
 
     const actions = [
       screen.getByRole('button', {
-        name: `upgrade.plans.checkoutLabel:${JSON.stringify({ interval: 'upgrade.plans.yearly.name' })}`,
+        name: `upgrade.plans.checkoutLabelRecommended:${JSON.stringify({ interval: 'upgrade.plans.yearly.name' })}`,
       }),
       screen.getByRole('button', {
         name: `upgrade.plans.checkoutLabel:${JSON.stringify({ interval: 'upgrade.plans.monthly.name' })}`,

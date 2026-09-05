@@ -4,7 +4,7 @@
 > - Unit-only policy (Vitest); the only sanctioned E2E against prod is the post-deploy web smoke suite.
 > - Assert behavior and data-attributes, never class names or implementation details.
 > - PillButton target unit cases require installed Chrome; other web component tests use jsdom.
-> - Eight suites: web / mobile / shared unit, web Playwright e2e (which IS the post-deploy smoke), the authed-Today Lighthouse budget gate, Stryker mutation, and the two harness suites (hook parity and the tools execution gate) that test the agent harness rather than the product.
+> - Nine suites: web / mobile / shared unit, web Playwright e2e (which IS the post-deploy smoke), the hermetic layout guard, the authed-Today Lighthouse budget gate, Stryker mutation, and the two harness suites (hook parity and the tools execution gate) that test the agent harness rather than the product.
 > - The two harness suites are run BY HAND after any change to `tools/**` or `.claude/**`: `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`. The `Harness Execution` CI job was removed from branch protection on 2026-08-04, because a broken harness self-check froze every product merge.
 > - The authed-Today Lighthouse budget gate (`perf.yml`) uses a hermetic mock-api + fake-JWT harness to enforce LCP / TBT / script-bundle-size budgets on the signed-in Today surface at PR time (web-only, no prod, no secrets). Its interactive twin is the `/profile` skill.
 > - orbit-api has its own xUnit suite, documented in that repo.
@@ -36,6 +36,7 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 | Shared unit | `packages/shared` | `npm test -w @orbit/shared` (`vitest run`, + `@fast-check/vitest` property tests) | the Zod contract, utils, validation, query keys, and theme data |
 | All unit | root | `npm test` (`turbo run test`) | the three unit suites above; CI adds coverage thresholds |
 | Web Playwright e2e / post-deploy smoke | `apps/web/e2e` | `npm --workspace @orbit/web run test:smoke` (`playwright test`, needs `SMOKE_BASE_URL`) | the real core flows (auth, create habit, log habit, Astra create-habit, paywall) against the live deployment |
+| Web layout guard | `apps/web/e2e/layout` | `npm run build -w apps/web`, then `npm run test:layout -w apps/web` | real text geometry and overflow for isolated free/trial upgrade fixtures, in en and pt-BR at 412px and 640px; starts its own hermetic API and production web server, without screenshots |
 | Web perf budget (authed Today Lighthouse) | `apps/web` (`perf.yml`) | build web, boot the mock-api on `:5099`, then `API_BASE=http://127.0.0.1:5099 npm run perf -w @orbit/web` (`lhci autorun`) | that the signed-in Today surface (`/`) stays within its LCP / TBT / script-bundle-size budgets, measured over 5 median runs against the local mock orbit-api |
 | Stryker mutation | `packages/shared` | `npm run mutation -w @orbit/shared` (`stryker run`) | that the shared unit tests actually kill mutants (effectiveness, not coverage percent) |
 | Harness hook parity | `.claude/hooks` | `node .claude/hooks/test-hooks.mjs` (no deps) | that the three session hooks (git-guardrails, forbid-ef-migration-raw-index, forbid-raw-linear-mutation) block and allow exactly as their `_lib` rules specify, and that no agent's frontmatter carries a fails-open `Bash(...)` specifier |
@@ -57,6 +58,7 @@ Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" taut
 - **The two harness suites** - `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`. RUN BOTH BY HAND after touching `tools/**` or `.claude/**`. They no longer run in CI: the `Harness Execution` job was removed from branch protection on 2026-08-04, because a red harness self-check blocked every product merge while the harness itself was being rebuilt. A harness that gates the product is the failure this repo just spent a week undoing.
 - **`.github/workflows/mutation.yml`** - PR-incremental Stryker run on `packages/shared`, report-only.
 - **`.github/workflows/smoke-prod.yml`** - the Playwright smoke suite, post-deploy against the live production deployment.
+- **`.github/workflows/layout.yml`** - builds the production web app and runs the hermetic `layout` Playwright project on PRs to `main` and `redesign/main`. Chromium is pinned through `package-lock.json`; the project owns both local servers and its session setup. Measures text geometry without screenshots and uploads failure diagnostics.
 - **`.github/workflows/perf.yml`** - the authed-Today Lighthouse budget gate, on PRs touching `apps/web/**` or `packages/shared/**` (pinned `ubuntu-24.04`, no secrets). Builds the web app, boots the hermetic mock orbit-api, and runs `lhci autorun` with a `puppeteerScript` fake-JWT injection to assert LCP / TBT / script-bundle-size budgets on the signed-in `/` (Today) surface. Uploads the `.lighthouseci/` reports.
 
 ## orbit-api

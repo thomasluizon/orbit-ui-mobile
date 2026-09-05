@@ -1,7 +1,9 @@
 import { defineConfig, devices } from '@playwright/test'
-import { STORAGE_STATE_PATH } from './e2e/support/env'
+import { LAYOUT_ORIGIN, LAYOUT_STORAGE_STATE_PATH, STORAGE_STATE_PATH } from './e2e/support/env'
 
-const baseURL = process.env.SMOKE_BASE_URL
+if (process.argv.includes('--project=layout')) process.env.LAYOUT = '1'
+const isLayout = process.env.LAYOUT === '1'
+const baseURL = isLayout ? LAYOUT_ORIGIN : process.env.SMOKE_BASE_URL
 
 if (!baseURL) {
   throw new Error(
@@ -22,7 +24,7 @@ export default defineConfig({
   expect: {
     timeout: 15_000,
   },
-  reporter: isCI
+  reporter: isLayout ? (isCI ? [['github'], ['list']] : [['list']]) : isCI
     ? [['github'], ['list'], ['html', { open: 'never', outputFolder: 'e2e/.report' }]]
     : [['list'], ['html', { open: 'never', outputFolder: 'e2e/.report' }]],
   use: {
@@ -32,6 +34,21 @@ export default defineConfig({
     video: 'retain-on-failure',
     viewport: { width: 412, height: 915 },
   },
+  webServer: isLayout ? [
+    {
+      command: 'npx tsx test-support/hermetic/mock-api/server.ts',
+      url: 'http://127.0.0.1:5099/health',
+      reuseExistingServer: false,
+      timeout: 30_000,
+    },
+    {
+      command: 'npm run start',
+      url: LAYOUT_ORIGIN,
+      reuseExistingServer: false,
+      timeout: 120_000,
+      env: { API_BASE: 'http://127.0.0.1:5099' },
+    },
+  ] : undefined,
   projects: [
     {
       name: 'setup',
@@ -49,11 +66,34 @@ export default defineConfig({
     {
       name: 'smoke',
       testMatch: /.*\.spec\.ts/,
+      testIgnore: /layout[\\/]/,
       dependencies: ['setup'],
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 412, height: 915 },
         storageState: STORAGE_STATE_PATH,
+      },
+    },
+    {
+      name: 'layout-setup',
+      testMatch: /layout\.setup\.ts/,
+      use: { screenshot: 'off', video: 'off', trace: 'off' },
+    },
+    {
+      name: 'layout',
+      testDir: './e2e/layout',
+      testMatch: /.*\.spec\.ts/,
+      dependencies: ['layout-setup'],
+      use: {
+        ...devices['Desktop Chrome'],
+        baseURL: LAYOUT_ORIGIN,
+        contextOptions: { reducedMotion: 'reduce' },
+        colorScheme: 'dark',
+        timezoneId: 'UTC',
+        storageState: LAYOUT_STORAGE_STATE_PATH,
+        screenshot: 'off',
+        video: 'off',
+        trace: 'off',
       },
     },
   ],

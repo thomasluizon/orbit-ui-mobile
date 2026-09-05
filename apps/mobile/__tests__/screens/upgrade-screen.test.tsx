@@ -190,6 +190,21 @@ describe('UpgradeScreen', () => {
     expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
   })
 
+  it('does not put subscription status in the trial pitch', async () => {
+    mocks.hasProAccess = true
+    mocks.profile = createMockProfile({
+      isTrialActive: true,
+      trialEndsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    })
+
+    const tree = await renderScreen()
+
+    expect(tree.root.findAll((node) =>
+      node.type === 'Text'
+        && node.props.children === 'upgrade.billing.lapsed.title')).toHaveLength(0)
+    expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
+  })
+
   it.each([
     ['loading', true, false, 'common.loading'],
     ['load-failed', false, true, 'upgrade.billing.error'],
@@ -244,17 +259,42 @@ describe('UpgradeScreen', () => {
   })
 
   it.each(['canceled', 'payment_failed', 'expired'] as const)(
-    'renders the %s lapse outcome with cached content',
+    'renders the %s lapse status in the routed pitch',
     async (lapseReason) => {
       mocks.lapseReason = lapseReason
       mocks.subscriptionEndedAtUtc = '2026-08-01T00:00:00Z'
       const tree = await renderScreen()
-      expect(
-        tree.root.findAll((node) => node.props.children === `upgrade.billing.lapsed.${lapseReason}`).length,
-      ).toBeGreaterThan(0)
+      expect(tree.root.findAll((node) =>
+        node.type === 'Text'
+          && node.props.accessibilityRole === 'header'
+          && node.props.children === 'upgrade.billing.lapsed.title')).toHaveLength(1)
+      expect(tree.root.findAll((node) =>
+        node.type === 'Text'
+          && node.props.children === `upgrade.billing.lapsed.${lapseReason}`)).toHaveLength(1)
       expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
     },
   )
+
+  it('renders a truthful payment warning in the routed Pro dashboard', async () => {
+    mocks.hasProAccess = true
+    mocks.lapseReason = 'payment_failed'
+    mocks.subscriptionEndedAtUtc = '2026-08-01T00:00:00Z'
+    mocks.billing = { status: 'past_due', cancelAtPeriodEnd: false }
+
+    const tree = await renderScreen()
+
+    expect(tree.root.findAll((node) =>
+      node.type === 'Text'
+        && node.props.accessibilityRole === 'header'
+        && node.props.children === 'upgrade.billing.paymentIssue.title')).toHaveLength(1)
+    expect(tree.root.findAll((node) =>
+      node.type === 'Text'
+        && node.props.children === 'upgrade.billing.paymentIssue.body')).toHaveLength(1)
+    expect(tree.root.findAll((node) =>
+      node.type === 'Text'
+        && node.props.children === 'upgrade.billing.lapsed.title')).toHaveLength(0)
+    expect(findByType(tree.root, 'BillingDashboard')).toBeTruthy()
+  })
 
   it('starts a purchase through the pricing section', async () => {
     const tree = await renderScreen()

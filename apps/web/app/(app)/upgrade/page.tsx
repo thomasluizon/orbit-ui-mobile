@@ -16,9 +16,9 @@ import { ErrorState } from '@/components/ui/error-state'
 import { PillButton } from '@/components/ui/pill-button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
-import { PitchSubscriptionCard } from '@/components/upgrade/pitch-subscription-card'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
+import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
 import { openCustomerPortal } from '@/app/actions/subscription'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useBilling } from '@/hooks/use-billing'
@@ -164,8 +164,8 @@ export default function UpgradePage() {
     )
   } else if (model.content === 'pitch') {
     content = (
-      <>
-        {status ? <PitchSubscriptionCard status={status} locale={locale} t={t} /> : null}
+      <div className="flex flex-col gap-6">
+        <SubscriptionNotice status={status} locale={locale} t={t} />
         <PricingSection
           profile={status}
           plans={plans}
@@ -181,32 +181,38 @@ export default function UpgradePage() {
           onRetryPlans={() => void refetchPlans()}
           t={t}
         />
-      </>
+      </div>
     )
   } else if (model.content === 'play') {
     content = (
-      <PlayBillingDashboard
-        state={model.state}
-        status={status}
-        locale={locale}
-        usagePercent={usagePercent}
-        usageUrgent={usagePercent >= 80}
-        t={t}
-      />
+      <div className="flex flex-col gap-6">
+        <SubscriptionNotice status={status} locale={locale} t={t} />
+        <PlayBillingDashboard
+          state={model.state}
+          status={status}
+          locale={locale}
+          usagePercent={usagePercent}
+          usageUrgent={usagePercent >= 80}
+          t={t}
+        />
+      </div>
     )
   } else {
     content = (
-      <BillingDashboard
-        state={model.state}
-        billing={billing}
-        status={status}
-        locale={locale}
-        usagePercent={usagePercent}
-        usageUrgent={usagePercent >= 80}
-        onOpenPortal={() => void handleOpenPortal()}
-        onRetryPortal={() => void handleOpenPortal()}
-        t={t}
-      />
+      <div className="flex flex-col gap-6">
+        <SubscriptionNotice status={status} locale={locale} t={t} />
+        <BillingDashboard
+          state={model.state}
+          billing={billing}
+          status={status}
+          locale={locale}
+          usagePercent={usagePercent}
+          usageUrgent={usagePercent >= 80}
+          onOpenPortal={() => void handleOpenPortal()}
+          onRetryPortal={() => void handleOpenPortal()}
+          t={t}
+        />
+      </div>
     )
   }
 

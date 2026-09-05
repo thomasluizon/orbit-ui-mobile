@@ -209,10 +209,65 @@ describe('UpgradePage', () => {
     expect(document.body.textContent).toContain('upgrade.convert.handOff')
     const decline = screen.getByRole('link', { name: 'upgrade.convert.stayFree' })
     expect(decline).toHaveAttribute('href', '/profile')
-    fireEvent.click(decline)
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })
+    fireEvent(decline, click)
+    expect(click.defaultPrevented).toBe(true)
     expect(mockGoBackOrFallback).toHaveBeenCalledWith('/profile')
     expect(document.body.textContent).not.toContain('upgrade.features.')
     expect(document.body.textContent).not.toContain('upgrade.matrix.')
+  })
+
+  it.each([
+    { metaKey: true },
+    { ctrlKey: true },
+    { shiftKey: true },
+    { altKey: true },
+    { button: 1 },
+    { button: 2 },
+  ])('leaves modified decline clicks to the browser: %j', (modifiers) => {
+    mockPlans = {
+      monthly: { unitAmount: 999 },
+      yearly: { unitAmount: 4999 },
+      currency: 'usd',
+      savingsPercent: 58,
+      couponPercentOff: null,
+    }
+    render(<UpgradePage />)
+    const decline = screen.getByRole('link', { name: 'upgrade.convert.stayFree' })
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, ...modifiers })
+    fireEvent(decline, event)
+    expect(event.defaultPrevented).toBe(false)
+    expect(mockGoBackOrFallback).not.toHaveBeenCalled()
+    expect(decline).toHaveAttribute('href', '/profile')
+  })
+
+  it.each([
+    {},
+    { metaKey: true },
+    { ctrlKey: true },
+    { shiftKey: true },
+    { altKey: true },
+    { button: 1 },
+  ])('cancels decline activation during checkout: %j', (modifiers) => {
+    mockPlans = {
+      monthly: { unitAmount: 999 },
+      yearly: { unitAmount: 4999 },
+      currency: 'usd',
+      savingsPercent: 58,
+      couponPercentOff: null,
+    }
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByRole('button', {
+      name: /^upgrade\.plans\.checkoutLabelRecommended:/,
+    }))
+
+    const decline = screen.getByRole('link', { name: 'upgrade.convert.stayFree' })
+    expect(decline).toHaveAttribute('aria-disabled', 'true')
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, ...modifiers })
+    fireEvent(decline, event)
+    expect(event.defaultPrevented).toBe(true)
+    expect(mockGoBackOrFallback).not.toHaveBeenCalled()
   })
 
   it('shows plan loading skeletons when plans are loading', () => {
@@ -251,6 +306,7 @@ describe('UpgradePage', () => {
     expect(document.body.textContent).not.toContain('upgrade.convert.freeHeading')
     expect(document.body.textContent).not.toContain('upgrade.convert.trustLine')
     expect(document.body.textContent).toContain('upgrade.convert.promise')
+    expect(screen.queryByText('upgrade.billing.plan.pro')).not.toBeInTheDocument()
   })
 
   it('uses the last day eyebrow instead of a count of one', () => {
@@ -282,7 +338,7 @@ describe('UpgradePage', () => {
     )
   })
 
-  it('uses a neutral Pro label when a trial has no provider interval', () => {
+  it('does not put subscription status in the trial pitch', () => {
     mockHasProAccess = true
     mockProfile = {
       ...mockProfile,
@@ -291,7 +347,7 @@ describe('UpgradePage', () => {
       subscriptionInterval: null,
     }
     render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.plan.pro')).toBeInTheDocument()
+    expect(screen.queryByText('upgrade.billing.plan.pro')).not.toBeInTheDocument()
     expect(screen.queryByText('upgrade.billing.plan.monthly')).not.toBeInTheDocument()
   })
 
@@ -704,9 +760,27 @@ describe('UpgradePage', () => {
     render(<UpgradePage />)
     expect(screen.getByText('upgrade.billing.lapsed.title')).toBeInTheDocument()
     expect(document.body.textContent).toContain(`upgrade.billing.lapsed.${lapseReason}`)
-    if (interval === 'yearly') {
-      expect(document.body.textContent).toContain('upgrade.billing.lapsed.yearlyFeature')
+    expect(document.body.textContent).toContain('upgrade.convert.freeHeading')
+  })
+
+  it('keeps Pro access truthful after a failed payment', () => {
+    mockHasProAccess = true
+    mockProfile = {
+      ...mockProfile,
+      hasProAccess: true,
+      isTrialActive: false,
+      subscriptionSource: 'stripe',
+      lapseReason: 'payment_failed',
+      subscriptionEndedAt: '2026-08-01T00:00:00Z',
     }
+    mockBilling = { status: 'past_due', cancelAtPeriodEnd: false }
+
+    render(<UpgradePage />)
+
+    expect(screen.getByText('upgrade.billing.paymentIssue.title')).toBeInTheDocument()
+    expect(screen.getByText('upgrade.billing.paymentIssue.body')).toBeInTheDocument()
+    expect(screen.queryByText('upgrade.billing.lapsed.title')).not.toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('upgrade.convert.freeHeading')
   })
 
   it.each([false, true])('keeps cached pitch content with paid actions disabled offline, trial=%s', (trialActive) => {
@@ -733,7 +807,7 @@ describe('UpgradePage', () => {
       trialActive ? 'upgrade.convert.trialHeading' : 'upgrade.convert.freeHeading',
     )).toBeInTheDocument()
     const paidActions = screen.getAllByRole('button', {
-      name: /^upgrade\.plans\.checkoutLabel:/,
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
     })
     expect(paidActions).toHaveLength(2)
     expect(paidActions[0]).toBeDisabled()
@@ -788,7 +862,7 @@ describe('UpgradePage', () => {
 
     render(<UpgradePage />)
     fireEvent.click(screen.getAllByRole('button', {
-      name: /^upgrade\.plans\.checkoutLabel:/,
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
     })[0]!)
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
@@ -817,11 +891,23 @@ describe('UpgradePage', () => {
     }))
 
     render(<UpgradePage />)
+    const alert = screen.getByRole('alert')
+    expect(alert).toBeEmptyDOMElement()
+    expect(alert).not.toHaveAttribute('aria-live')
     fireEvent.click(screen.getAllByRole('button', {
-      name: /^upgrade\.plans\.checkoutLabel:/,
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
     })[0]!)
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('toast.errors.server')
+    await waitFor(() => expect(alert).toHaveTextContent('toast.errors.server'))
+    expect(screen.getByRole('alert')).toBe(alert)
+    expect(alert).not.toHaveAttribute('aria-live')
+
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+    fireEvent.click(screen.getAllByRole('button', {
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
+    })[0]!)
+    expect(screen.getByRole('alert')).toBe(alert)
+    expect(alert).toBeEmptyDOMElement()
   })
 
   it('prevents a second paid checkout while the first request is pending', async () => {
@@ -845,20 +931,20 @@ describe('UpgradePage', () => {
 
     render(<UpgradePage />)
     fireEvent.click(screen.getAllByRole('button', {
-      name: /^upgrade\.plans\.checkoutLabel:/,
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
     })[0]!)
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1)
       expect(screen.getAllByRole('button', {
-        name: /^upgrade\.plans\.checkoutLabel:/,
+        name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
       })[0]).toHaveAttribute(
         'aria-busy',
         'true',
       )
     })
     fireEvent.click(screen.getAllByRole('button', {
-      name: /^upgrade\.plans\.checkoutLabel:/,
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
     })[1]!)
     expect(fetchMock).toHaveBeenCalledTimes(1)
 
@@ -866,7 +952,7 @@ describe('UpgradePage', () => {
     await waitFor(() => {
       expect(
         screen.getAllByRole('button', {
-          name: /^upgrade\.plans\.checkoutLabel:/,
+          name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
         })[0],
       ).not.toBeDisabled()
     })
