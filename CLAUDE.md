@@ -60,6 +60,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `FEATURES.md` | The Free/Trial/Pro/Yearly gating the arch map lacks. |
 | `TESTING.md` | Test suite catalog, authoring rules, and local Lighthouse commands and report location. |
 | `architecture.json` | Generated map. Read it INSTEAD of exploring the codebase. |
+| `TESTING.md` | Unit, smoke, hermetic layout/performance, mutation, and harness suite catalog. |
 | `.claude/rules/core.md` | Judgement auto-loaded on EVERY turn. |
 | `.claude/skills/ticket/SKILL.md` | GitHub ticket creation, labels, relations, and milestone rules. |
 | `.claude/skills/orchestrate/SKILL.md` | Ticket queue, worker, review, readiness, and handoff contract. |

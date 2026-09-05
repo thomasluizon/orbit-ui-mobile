@@ -11,6 +11,7 @@
     "lint:prune": "eslint . --prune-suppressions",
     "test": "vitest run",
     "test:smoke": "playwright test --project=smoke",
+    "test:layout": "playwright test --project=layout",
     "perf": "cd ../.. && lhci autorun --config apps/web/lighthouserc.json",
     "clean": "rm -rf .next"
   },
