@@ -239,16 +239,15 @@ export const cases = async () => {
     "a cloud environment without a configured repository was accepted",
   )
   T(
-    `${NAME}: the shipped cloud configuration carries the measured environment and split caps`,
+    `${NAME}: the shipped cloud configuration carries the measured environment and D89 caps`,
     real.cloud.environmentId === "6a95b419b608819199eb78d9eabc9579" &&
       real.cloud.repositoryKey === "ui" &&
       real.timeouts.cloudCeilingMinutes === 45 &&
       real.timeouts.cloudCommandMinutes === 10 &&
       real.timeouts.gitRemoteSeconds === 30 &&
       real.timeouts.receiptLockSeconds === 1 &&
-      real.caps.cloudParallelTasks >= 4 &&
-      real.caps.cloudParallelTasks <= 8 &&
-      real.caps.parallelTickets === 2 &&
+      real.caps.cloudParallelTasks === 8 &&
+      real.caps.parallelTickets === 3 &&
       real.caps.workerLogMegabytes === 512,
     JSON.stringify({ cloud: real.cloud, timeouts: real.timeouts, caps: real.caps }),
   )
