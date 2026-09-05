@@ -39,6 +39,9 @@ registry are fetched with:
 
     npx --yes ui-skills get <owner>/<name>          # prints the skill to stdout, so redirect it
 
+Check the command's exit code and the redirected file before starting the sweep. A non-zero exit
+or an empty file is a failed fetch; fix the fetch before the lane runs, never treat it as an empty rule set.
+
 The `jakubkrehel/make-interfaces-feel-better` namespace is in that registry; it is not a path in
 the `jakubkrehel/skills` repository. The `better-*` suite is in that separate repository. A
 `SKILL.md` there is not the whole skill. `interface-review` puts its scope rules and its
