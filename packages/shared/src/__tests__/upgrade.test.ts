@@ -21,19 +21,7 @@ function getMessageValue(
 }
 
 describe('upgrade utils', () => {
-  it('omits color schemes from upgrade surfaces and selectable preference copy', () => {
-    const removedKeys = [
-      'trial.expired.allColors',
-      'upgrade.features.colors',
-      'upgrade.plans.proFeatures.themes',
-    ]
-
-    for (const locale of [en, ptBR]) {
-      for (const key of removedKeys) {
-        expect(getMessageValue(locale as Record<string, unknown>, key)).toBeUndefined()
-      }
-    }
-
+  it('keeps subscription and preference copy accurate in both locales', () => {
     expect(en.onboarding.featureGuide.settingsSection.subscriptionDesc).toBe(
       'The free tier includes goals, habits, and 5 AI messages a day. Orbit Pro raises the AI allowance to 50 a day and adds daily summaries, sub-habits, calendar sync, and the AI goal review.',
     )
@@ -45,6 +33,12 @@ describe('upgrade utils', () => {
     )
     expect(ptBR.tour.profile.preferences.description).toBe(
       'Deixe tudo do seu jeito: idioma, fuso horário, dia de início da semana, notificações push e mais.',
+    )
+    expect(en.tour.profile.subscription.description).toBe(
+      'Free includes 5 Astra messages a day. Pro includes 50, which is ten times more.',
+    )
+    expect(ptBR.tour.profile.subscription.description).toBe(
+      'O plano grátis inclui 5 mensagens da Astra por dia. O Pro inclui 50, dez vezes mais.',
     )
     expect(en.profile.freshStart.preservePreferences).toBe(
       'Theme, language, and timezone',
