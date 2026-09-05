@@ -107,6 +107,11 @@ ticket, because it reviews a change rather than a screen. Run it before `better-
 Close with the repository's own `design-reviewer` on the diff and `completeness-critic` against the
 surface inventory. `completeness-critic` is what catches a feature the rebuild dropped.
 
+Verify a lane's PASS, not only its findings: spot-check cited numbers against the authority the lane
+names, especially measurements, because a lane can be confidently wrong in the direction nobody
+re-reads. A lane that marks a routed domain skipped has not covered it; send it back or cover that
+domain another way.
+
 ## What Thomas checks, so a work order carries it
 
 - **Wrapping is a defect on buttons, chips, tabs and navigation labels**, at every supported width.

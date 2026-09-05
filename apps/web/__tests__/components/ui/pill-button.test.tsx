@@ -1,8 +1,78 @@
-import { describe, it, expect, vi } from 'vitest'
+import { afterAll, beforeAll, describe, it, expect, vi } from 'vitest'
+import { chromium, type Browser } from '@playwright/test'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { PillButton } from '@/components/ui/pill-button'
 
 describe('PillButton', () => {
+  describe('small touch targets in Chromium', () => {
+    let browser: Browser
+    let stylesheet: string
+
+    beforeAll(async () => {
+      const source = resolve(process.cwd(), 'app/globals.css')
+      const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
+      const font = readFileSync(require.resolve('@expo-google-fonts/geist/500Medium/Geist_500Medium.ttf')).toString('base64')
+      stylesheet = `${compiled.css}
+        @font-face { font-family: TestGeist; font-weight: 500; src: url(data:font/ttf;base64,${font}); }
+        :root { --font-sans: TestGeist; }
+        body { padding: 48px; }`
+      browser = await chromium.launch({ channel: 'chrome' })
+    })
+
+    afterAll(async () => { await browser.close() })
+
+    it.each([
+      { label: 'Continue', iconOnly: false, narrow: false },
+      { label: 'i', iconOnly: false, narrow: true },
+      { label: 'Open menu', iconOnly: true, narrow: true },
+    ])('preserves the visible box and expands the target: $label', async ({ label, iconOnly, narrow }) => {
+      const { container } = render(iconOnly
+        ? <PillButton size="sm" iconOnly label={label}><span /></PillButton>
+        : <PillButton size="sm">{label}</PillButton>)
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
+        await page.evaluate(() => document.fonts.ready)
+        const measured = await page.evaluate(() => {
+          const button = document.querySelector('button')!
+          const bounds = button.getBoundingClientRect()
+          const expansion = getComputedStyle(button, '::before')
+          const left = Number.parseFloat(expansion.left)
+          const right = Number.parseFloat(expansion.right)
+          const top = Number.parseFloat(expansion.top)
+          const bottom = Number.parseFloat(expansion.bottom)
+          const visible = { width: bounds.width, height: bounds.height }
+          const target = { width: Number.parseFloat(expansion.width), height: Number.parseFloat(expansion.height), left, right, top, bottom }
+          const hits = ([
+            [bounds.x + left + 0.25, bounds.y + top + 0.25],
+            [bounds.right - right - 0.25, bounds.bottom - bottom - 0.25],
+          ] as const).map(([x, y]) => button.contains(document.elementFromPoint(x, y)))
+          button.classList.remove('touch-target')
+          const original = button.getBoundingClientRect()
+          return { visible, target, hits, original: { width: original.width, height: original.height } }
+        })
+        expect(measured.visible).toEqual(measured.original)
+        expect(measured.visible.height).toBe(40)
+        if (iconOnly) expect(measured.visible.width).toBe(40)
+        if (narrow) expect(measured.visible.width).toBeLessThan(44)
+        else expect(measured.visible.width).toBeGreaterThan(44)
+        expect(measured.target.width).toBeCloseTo(Math.max(44, measured.visible.width), 1)
+        expect(measured.target.height).toBe(44)
+        expect(measured.target.left).toBeCloseTo(narrow ? (measured.visible.width - 44) / 2 : 0, 1)
+        expect(measured.target.right).toBeCloseTo(measured.target.left, 1)
+        expect(measured.target.top).toBe(-2)
+        expect(measured.target.bottom).toBe(-2)
+        expect(measured.hits).toEqual([true, true])
+      } finally {
+        await page.close()
+      }
+    })
+  })
+
   it('renders its label', () => {
     render(<PillButton onClick={() => {}}>Continue</PillButton>)
     expect(screen.getByRole('button', { name: 'Continue' })).toHaveClass('whitespace-nowrap')

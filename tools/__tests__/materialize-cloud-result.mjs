@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
+import { pathToFileURL } from "node:url"
 
 import {
   REPO_ROOT,
@@ -62,6 +63,75 @@ const recoveryPathOf = (entry) => join(
 )
 
 export const cases = () => {
+  for (const observation of ["readdirSync", "readFileSync", "renameSync"]) {
+    const edge = fixture(`deadline-edge-${observation}`, { taskId: "task_e_a419", receiptLockSeconds: 0.01 })
+    const lockDirectory = join(edge.repo.path, ".git", "orbit-cloud", `receipt-${edge.receipt.taskId}.json.lock`)
+    const preload = stage(`materialize-cloud/deadline-${observation}.mjs`, `
+import fs from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
+import { join } from "node:path"
+const lock = ${JSON.stringify(lockDirectory)}
+const observation = ${JSON.stringify(observation)}
+const original = fs[observation]
+let clock = 0
+performance.now = () => clock
+let injected = false
+fs[observation] = (path, ...args) => {
+  const target = observation === "readFileSync" ? join(lock, "owner.json") : lock
+  if (injected || (observation === "renameSync" ? args[0] : path) !== target || !fs.existsSync(lock)) {
+    return original(path, ...args)
+  }
+  injected = true
+  if (observation === "renameSync") {
+    try { return original(path, ...args) } catch (error) {
+      fs.rmSync(lock, { recursive: true })
+      clock = 10
+      throw error
+    }
+  }
+  fs.rmSync(lock, { recursive: true })
+  clock = 10
+  return original(path, ...args)
+}
+syncBuiltinESMExports()
+`)
+    const env = { NODE_OPTIONS: `--import=${pathToFileURL(preload).href}` }
+    mkdirSync(lockDirectory, { recursive: true })
+    writeFileSync(join(lockDirectory, "owner.json"), JSON.stringify({ pid: process.pid }))
+    const probe = stage(`materialize-cloud/deadline-probe-${observation}.mjs`, `
+import { persistReconciledReceipt, ReceiptLockTimeoutError } from ${JSON.stringify(pathToFileURL(join(edge.base, "tools", "lib", "cloud-worker.mjs")).href)}
+try {
+  persistReconciledReceipt({ taskId: "task_e_a419" }, ${JSON.stringify(join(dirname(lockDirectory), "receipts", "task_e_a419.json"))}, [], { lockTimeoutMs: 10 })
+  process.exitCode = 1
+} catch (error) {
+  console.log(JSON.stringify({ name: error.name, code: error.code, timeoutMs: error.timeoutMs }))
+  process.exitCode = error instanceof ReceiptLockTimeoutError && error.code === "RECEIPT_LOCK_TIMEOUT" && error.timeoutMs === 10 ? 0 : 1
+}
+`)
+    const classified = run(TOOL, [], { path: probe, env })
+    T(`${TOOL}: ${observation} at the receipt deadline preserves the timeout class`,
+      classified.status === 0, classified.stdout || classified.stderr)
+    const result = invoke(edge, [task(edge.receipt.taskId, "ready", 1)], [], {
+      ...env,
+      ORBIT_FAKE_APPLY_RECEIPT_LOCK_PATH: lockDirectory,
+      ORBIT_FAKE_RECEIPT_LOCK_OWNER_PID: String(process.pid),
+    })
+    const staged = edge.repo.git(["diff", "--cached", "--name-only"]).stdout.trim()
+    T(`${TOOL}: ${observation} at the receipt deadline preserves post-apply recovery`,
+      result.status === 9 && /"outcome":"APPLIED_RECEIPT_WRITE_FAILED"/.test(result.stdout) &&
+        result.stdout.includes("only the receipt write failed") && staged === "cloud-landed.txt" &&
+        existsSync(recoveryPathOf(edge)) && !JSON.parse(readFileSync(edge.receiptPath, "utf8")).materialized,
+      `exit ${result.status}: ${result.stdout || result.stderr}; staged ${staged}`)
+    const recovered = invoke(edge, [task(edge.receipt.taskId, "applied", 1)], [], {
+      ORBIT_FAKE_DIFF: edge.repo.git(["diff", "--cached", "--binary", "--full-index"]).stdout,
+    })
+    const calls = readFileSync(edge.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+    T(`${TOOL}: ${observation} deadline recovery records the staged diff without applying twice`,
+      recovered.status === 0 && /"recovered":true/.test(recovered.stdout) &&
+        Boolean(JSON.parse(readFileSync(edge.receiptPath, "utf8")).materialized) &&
+        !existsSync(recoveryPathOf(edge)) && calls.filter((args) => args[1] === "apply").length === 1,
+      `exit ${recovered.status}: ${recovered.stdout || recovered.stderr}`)
+  }
   const wrongRepository = fixture("wrong-repository", { taskId: "task_e_bad2" })
   const apiRepository = stageRepo("materialize-cloud-wrong-repository-api")
   const apiHead = apiRepository.git(["rev-parse", "HEAD"]).stdout.trim()

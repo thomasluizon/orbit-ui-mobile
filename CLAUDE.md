@@ -58,7 +58,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
 | `.claude/skills/pr-review/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |
 | `FEATURES.md` | The Free/Trial/Pro/Yearly gating the arch map lacks. |
-| `TESTING.md` | Unit, smoke, hermetic layout guard and performance, mutation, and harness suite catalog; authoring rules and local Lighthouse commands and report location. |
+| `TESTING.md` | Unit, smoke, hermetic layout guard and performance, mutation, and harness suite catalog; authoring rules, Chrome prerequisite for target geometry tests, and local Lighthouse commands and report location. |
 | `architecture.json` | Generated map. Read it INSTEAD of exploring the codebase. |
 | `.claude/rules/core.md` | Always-loaded judgement and D89/D90 operating-contract pointers. |
 | `.claude/skills/ticket/SKILL.md` | GitHub ticket creation, labels, relations, and milestone rules. |
