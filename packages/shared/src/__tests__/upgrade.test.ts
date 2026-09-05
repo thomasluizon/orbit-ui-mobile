@@ -22,6 +22,18 @@ function getMessageValue(
 
 describe('upgrade utils', () => {
   it('keeps subscription and preference copy accurate in both locales', () => {
+    const removedKeys = [
+      'trial.expired.allColors',
+      'upgrade.features.colors',
+      'upgrade.plans.proFeatures.themes',
+    ]
+
+    for (const locale of [en, ptBR]) {
+      for (const key of removedKeys) {
+        expect(getMessageValue(locale as Record<string, unknown>, key)).toBeUndefined()
+      }
+    }
+
     expect(en.onboarding.featureGuide.settingsSection.subscriptionDesc).toBe(
       'The free tier includes goals, habits, and 5 AI messages a day. Orbit Pro raises the AI allowance to 50 a day and adds daily summaries, sub-habits, calendar sync, and the AI goal review.',
     )
