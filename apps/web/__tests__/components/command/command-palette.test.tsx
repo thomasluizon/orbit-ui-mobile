@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
@@ -176,22 +177,28 @@ describe('CommandPalette', () => {
     expect(mockPush).toHaveBeenCalledWith('/')
   })
 
-  it('closes when Escape is pressed', () => {
+  it('closes when Escape is pressed in the focused search input', async () => {
+    const user = userEvent.setup()
     renderPalette()
-    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.getByRole('combobox')).toHaveFocus())
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(mockSetPaletteOpen).toHaveBeenCalledWith(false)
   })
 
-  it('backs out of a command page before Escape closes the overlay', () => {
+  it('backs out of a command page before Escape closes the overlay', async () => {
+    const user = userEvent.setup()
     renderPalette()
-    fireEvent.click(screen.getByText('command.logHabit'))
+    await user.click(screen.getByText('command.logHabit'))
+    await user.click(screen.getByRole('combobox'))
 
-    fireEvent.keyDown(screen.getByPlaceholderText('command.placeholder'), {
-      key: 'Escape',
-    })
+    await user.keyboard('{Escape}')
 
     expect(screen.getByText('command.createHabit')).toBeInTheDocument()
     expect(mockSetPaletteOpen).not.toHaveBeenCalled()
+    expect(screen.getByRole('combobox')).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('shows the key-hint footer with the back hint only on a sub-page', () => {
@@ -235,6 +242,7 @@ describe('CommandPalette', () => {
   })
 
   it('yields focus and Escape to a Sheet opened above the palette', async () => {
+    const user = userEvent.setup()
     function PaletteFirstHarness() {
       const [sheetOpen, setSheetOpen] = useState(false)
       return (
@@ -260,14 +268,15 @@ describe('CommandPalette', () => {
       expect(sheetDialog).toContainElement(document.activeElement as HTMLElement),
     )
 
-    fireEvent.keyDown(document, { key: 'Escape' })
+    await user.keyboard('{Escape}')
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Sheet owner' })).toBeNull())
     expect(screen.getByRole('dialog', { name: 'command.title' })).toBeInTheDocument()
     expect(mockSetPaletteOpen).not.toHaveBeenCalledWith(false)
     await waitFor(() => expect(paletteInput).toHaveFocus())
 
-    fireEvent.keyDown(document, { key: 'Escape' })
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(mockSetPaletteOpen).toHaveBeenCalledWith(false)
   })
 
