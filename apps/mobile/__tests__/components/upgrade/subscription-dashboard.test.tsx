@@ -543,5 +543,4 @@ describe('subscription dashboards (mobile)', () => {
         && node.props.accessibilityRole === 'button'),
     ).toHaveLength(0)
   })
-
 })
