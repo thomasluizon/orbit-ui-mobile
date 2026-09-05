@@ -33,7 +33,15 @@ export const DEFAULT_FREE_COLOR_SCHEME: ColorScheme = 'purple'
 export function getUpgradeTierReservation(
   interval: 'monthly' | 'yearly',
   t: (key: string, params?: Record<string, string>) => string,
-) {
+): {
+  interval: 'monthly' | 'yearly'
+  name: string
+  price: string
+  period: string
+  heroLine: string | undefined
+  secondLine: string | undefined
+  couponLine: string
+} {
   const pendingValue = t('upgrade.plans.loading')
   return {
     interval,

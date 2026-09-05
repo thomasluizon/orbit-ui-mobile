@@ -307,6 +307,7 @@ function TierCard({
       testID={`upgrade-tier-${tier.interval}`}
       style={[
         styles.tierCard,
+        { flexGrow: 1 },
         {
           backgroundColor: selected ? tokens.primaryDim : tokens.bgCard,
           borderColor: selected ? tokens.primary : tokens.hairline,

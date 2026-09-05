@@ -223,7 +223,7 @@ function TierReservation({ interval, t, children }: Readonly<{
       <div
         aria-hidden="true"
         inert
-        style={{ gridArea: '1 / 1', visibility: 'hidden', minWidth: 0 }}
+        style={{ gridArea: '1 / 1', visibility: 'hidden', minWidth: 0, alignSelf: 'start' }}
         data-tier-measurement={interval}
         ref={measureReservation}
       >
