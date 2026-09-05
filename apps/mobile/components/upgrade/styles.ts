@@ -263,6 +263,9 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 44,
   },
+  disabledAction: {
+    opacity: 0.4,
+  },
   pressedScale: {
     transform: [{ scale: 0.96 }],
   },

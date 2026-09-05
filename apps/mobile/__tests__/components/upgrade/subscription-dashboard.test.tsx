@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet, type PressableStateCallbackType, type StyleProp, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
@@ -538,6 +539,30 @@ describe('subscription dashboards (mobile)', () => {
     )[0]
     expect(offlineRestore?.props.accessibilityState).toEqual({ disabled: true })
   })
+
+  it.each([
+    [true, false, null, false, false],
+    [false, false, null, true, false],
+    [true, true, null, true, false],
+    [true, false, 'yearly', false, true],
+  ] as const)(
+    'dims unavailable links with online=%s restoring=%s checkout=%s',
+    (isOnline, isRestoring, checkoutLoading, restoreDisabled, declineDisabled) => {
+      const onRestore = vi.fn()
+      const onStayFree = vi.fn()
+      const tree = renderPricing({ plans, isOnline, isRestoring, checkoutLoading, onRestore, onStayFree })
+      for (const [onPress, disabled] of [[onRestore, restoreDisabled], [onStayFree, declineDisabled]] as const) {
+        const action = tree.root.findAll((node) => node.type === 'Pressable' && node.props.onPress === onPress)[0]!
+        expect(action.props.disabled).toBe(disabled)
+        expect(action.props.accessibilityState).toEqual({ disabled })
+        const resolveStyle = action.props.style as (state: PressableStateCallbackType) => StyleProp<ViewStyle>
+        for (const pressed of [false, true]) {
+          const style = StyleSheet.flatten(resolveStyle({ pressed }))
+          expect(style.opacity ?? 1).toBe(disabled ? 0.4 : 1)
+        }
+      }
+    },
+  )
 
   it('keeps the live retry action hidden while offline', () => {
     const tree = renderPricing({ isPlansError: true, isOnline: false })

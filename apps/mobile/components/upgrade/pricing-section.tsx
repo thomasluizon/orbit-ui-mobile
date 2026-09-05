@@ -148,6 +148,7 @@ export function PricingSection({
               hitSlop={{ top: 6, bottom: 6 }}
               style={({ pressed }) => [
                 styles.restoreAction,
+                isRestoring || !isOnline ? styles.disabledAction : null,
                 pressed ? styles.pressedScale : null,
               ]}
             >
@@ -178,7 +179,11 @@ export function PricingSection({
               onPress={onStayFree}
               disabled={checkoutLoading !== null}
               accessibilityState={{ disabled: checkoutLoading !== null }}
-              style={({ pressed }) => [styles.freeLink, pressed ? styles.pressedScale : null]}
+              style={({ pressed }) => [
+                styles.freeLink,
+                checkoutLoading !== null ? styles.disabledAction : null,
+                pressed ? styles.pressedScale : null,
+              ]}
             >
               <Text style={[styles.freeLinkText, { color: tokens.fg1 }]}>
                 {t('upgrade.convert.stayFree')}
