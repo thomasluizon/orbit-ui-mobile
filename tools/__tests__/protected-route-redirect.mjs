@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
+import yaml from "js-yaml"
 
 import { REPO_ROOT, T } from "./_harness.mjs"
 
@@ -7,19 +8,37 @@ const protectedRouteRedirectCases = () => {
   const protectedFlowPath = join(REPO_ROOT, ".maestro", "protected-route-redirect.yaml")
   T("the protected-route flow exists outside the deleted capture surfaces directory", existsSync(protectedFlowPath))
 
-  const protectedFlow = existsSync(protectedFlowPath) ? readFileSync(protectedFlowPath, "utf8") : ""
+  const documents = yaml.safeLoadAll(existsSync(protectedFlowPath) ? readFileSync(protectedFlowPath, "utf8") : "")
+  const commands = documents[1]
+  T("the protected-route flow has an active command list", Array.isArray(commands), JSON.stringify(documents))
+  if (!Array.isArray(commands)) return
+  const detail = JSON.stringify(commands)
   T(
-    "the protected-route flow asserts the LOGIN probe, never the protected one",
-    protectedFlow.includes('id: "capture-route-login"') &&
-      protectedFlow.includes('id: "capture-request-m-route-about"') &&
-      /assertNotVisible:[\s\S]*id: "capture-route-about"/.test(protectedFlow) &&
-      !/assertVisible:\s*\n\s*id: "capture-route-about"/.test(protectedFlow),
-    protectedFlow,
+    "the protected-route flow opens the app through its cold-start deep link",
+    typeof commands[0]?.openLink === "string",
+    detail,
+  )
+  T(
+    "the protected-route flow actively asserts the LOGIN probe visible",
+    commands.some((command) => command?.assertVisible?.id === "capture-route-login"),
+    detail,
+  )
+  T(
+    "the protected-route flow actively asserts the request probe visible",
+    commands.some((command) => command?.assertVisible?.id === "capture-request-m-route-about"),
+    detail,
+  )
+  T(
+    "the protected-route flow actively asserts the protected probe not visible",
+    commands.some((command) => command?.assertNotVisible?.id === "capture-route-about") &&
+      !commands.some((command) => command?.assertVisible?.id === "capture-route-about"),
+    detail,
   )
   T(
     "the protected-route flow takes its deep link from the environment, not a hard-coded URL",
-    protectedFlow.includes("${CAPTURE_LINK}") && !protectedFlow.includes("orbit://"),
-    protectedFlow,
+    commands[0]?.openLink === "${CAPTURE_LINK}" &&
+      commands.every((command) => !command?.openLink || command.openLink === "${CAPTURE_LINK}"),
+    detail,
   )
 
   const manifest = JSON.parse(readFileSync(join(REPO_ROOT, ".claude", "manifests", "surfaces.json"), "utf8"))
