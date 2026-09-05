@@ -96,8 +96,8 @@ export const cases = async () => {
     JSON.stringify(invocation),
   )
   T(
-    `${NAME}: the shipped implementer is gpt-5.6-sol at high reasoning effort (D21)`,
-    invocation.model === "gpt-5.6-sol" && invocation.args.includes('model_reasoning_effort="high"'),
+    `${NAME}: the shipped implementer is gpt-6-astra at high reasoning effort (D21)`,
+    invocation.model === "gpt-6-astra" && invocation.args.includes('model_reasoning_effort="high"'),
     `.claude/orchestrator.json resolved ${invocation.model} with ${JSON.stringify(invocation.args)}`,
   )
 
