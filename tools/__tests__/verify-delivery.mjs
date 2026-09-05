@@ -88,7 +88,7 @@ const prState = (nodes, headRefOid, isDraft = false) => ({
 
 const boardReadMarker = stage("verify-delivery/board-read", "must remain")
 
-const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null) => {
+const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null, { baseRefName = "main", protectionResponse, protectionExit = 0 } = {}) => {
   let headRefOid = "fixture-head"
   try {
     headRefOid = JSON.parse(stdout)?.[0]?.headRefOid ?? headRefOid
@@ -96,6 +96,8 @@ const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { beh
     /* the malformed-output tests fail before this state is read */
   }
   const required = requiredChecks ?? requiredFrom(nodes)
+  const state = prState(nodes, headRefOid)
+  state.data.repository.pullRequest.baseRefName = baseRefName
   return orcaEnv([
     /**
      * Only the repository label is asserted from the ticket, so a whole-board read here is pure
@@ -105,8 +107,8 @@ const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { beh
     { match: "project item-list 2 --owner thomasluizon", stdout: JSON.stringify({ items: [], totalCount: 0 }), removePath: boardReadMarker },
     { match: "auth token --user thomasluizon", stdout: "test-github-token" },
     { match: `pr list --head ${BRANCH}`, stdout, exit },
-    { match: "api graphql", stdout: JSON.stringify(prState(nodes, headRefOid)) },
-    { match: "branches/main/protection/required_status_checks", stdout: JSON.stringify({ contexts: required.map((entry) => entry.context), checks: required }) },
+    { match: "api graphql", stdout: JSON.stringify(state) },
+    { match: `branches/${encodeURIComponent(baseRefName)}/protection/required_status_checks`, stdout: protectionResponse ?? JSON.stringify({ contexts: required.map((entry) => entry.context), checks: required }), exit: protectionExit },
     { match: "api repos/", stdout: JSON.stringify(comparison) },
   ])
 }
@@ -395,6 +397,48 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
    */
   const withChecks = (nodes) => ({ path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, nodes) })
   const ciArgv = ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"]
+
+  /** Complete error body read live on 2026-09-05 from
+   * gh api repos/thomasluizon/orbit-ui-mobile/branches/redesign%2Fmain/protection/required_status_checks.
+   * HTTP 404, gh exits nonzero. The protected main response still uses the checks array above. */
+  const unprotectedResponse = {
+    message: "Branch not protected",
+    documentation_url: "https://docs.github.com/rest/branches/branch-protection#get-status-checks-protection",
+    status: "404",
+  }
+  const onUnprotectedBase = (nodes, protectionResponse = JSON.stringify(unprotectedResponse)) => ({
+    path: testedToolPath,
+    env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, nodes, { behind_by: 0 }, [], {
+      baseRefName: "redesign/main", protectionResponse, protectionExit: 1,
+    }),
+  })
+  check(TOOL, "an unprotected base delivers with an empty required set and successful reported CI", ciArgv,
+    { status: 0, stdout: /"verdict": "DELIVERED"[\s\S]*"requiredChecks": \[\]/ }, onUnprotectedBase([checkRun("Lint"), statusContext("Vercel", "SUCCESS")]))
+  check(TOOL, "an unprotected base with no checks is pending with an explicit reason", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"pass": false[\s\S]*No checks reported; an empty required set is not evidence[\s\S]*"requiredChecks": \[\]/ }, onUnprotectedBase([]))
+  check(TOOL, "an empty successful protection response also needs observed CI", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*No checks reported/ }, withChecks([]))
+  check(TOOL, "a non-required failure on an unprotected base still blocks delivery", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_FAILING"/ }, onUnprotectedBase([checkRun("Lint"), checkRun("Build", { conclusion: "FAILURE" })]))
+  check(TOOL, "a non-required pending check on an unprotected base still blocks delivery", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_PENDING"/ }, onUnprotectedBase([checkRun("Lint"), checkRun("Build", { status: "IN_PROGRESS", conclusion: null })]))
+  check(TOOL, "a failed status context on an unprotected base still blocks delivery", ciArgv,
+    { status: 1, stdout: /"verdict": "CI_FAILING"/ }, onUnprotectedBase([statusContext("Vercel", "FAILURE")]))
+  check(TOOL, "an unprotected base retains the shared skipped and neutral conclusions", ciArgv,
+    { status: 0, stdout: /"verdict": "DELIVERED"/ }, onUnprotectedBase([checkRun("Optional", { conclusion: "SKIPPED" }), checkRun("Advisory", { conclusion: "NEUTRAL" })]))
+  check(TOOL, "an unprotected base retains newest-rerun-wins", ciArgv,
+    { status: 0, stdout: /"verdict": "DELIVERED"/ }, onUnprotectedBase([checkRun("Lint", { conclusion: "FAILURE" }), checkRun("Lint", { startedAt: "2026-08-06T11:00:00Z" })]))
+  check(TOOL, "the unprotected response is recognized by status rather than message prose", ciArgv,
+    { status: 0, stdout: /"verdict": "DELIVERED"/ }, onUnprotectedBase([checkRun("Lint")], JSON.stringify({ ...unprotectedResponse, message: "Changed wording" })))
+  for (const [label, response] of [
+    ["another error status", JSON.stringify({ ...unprotectedResponse, status: "503" })],
+    ["an error without a status", JSON.stringify({ message: "Branch not protected" })],
+    ["a malformed error body", "not json"],
+    ["an empty error body", ""],
+  ]) {
+    check(TOOL, `${label} remains an environment error`, ciArgv,
+      { status: 2, stderr: /gh api required status checks failed/ }, onUnprotectedBase([checkRun("Lint")], response))
+  }
 
   const failedCi = check(TOOL, "a red required check is CI_FAILING, never DELIVERED", ciArgv, { status: 1, stdout: /"verdict": "CI_FAILING"/ }, withChecks([checkRun("React Doctor", { conclusion: "FAILURE", detailsUrl: "https://github.com/useorbitai/orbit-ui-mobile/actions/runs/12345/job/67890", workflow: "React Doctor" })]))
   T(`${TOOL}: failed CI retains exact inspectable run metadata`, /"runId": "12345"[\s\S]*"jobId": "67890"[\s\S]*"detailsUrl": "https:\/\/github\.com\/[^"\s]+"[\s\S]*"workflow": "React Doctor"[\s\S]*"name": "React Doctor"[\s\S]*"status": "COMPLETED"[\s\S]*"conclusion": "FAILURE"[\s\S]*"appId": 15368/.test(failedCi.stdout), failedCi.stdout)

@@ -55,6 +55,11 @@ report. Checks run in order and the first failure decides the verdict:
 NO_COMMIT, DIRTY_TREE, UNPUSHED, NO_PR, STALE_PR, DRAFT, OUT_OF_DATE,
 CI_FAILING, CI_PENDING, or DELIVERED.
 
+An unprotected base has no required checks. Delivery still needs at least one
+reported check, and every latest check must pass the shared readiness rule
+(SUCCESS, NEUTRAL, or SKIPPED for completed CheckRuns; SUCCESS for statuses).
+No reported checks means CI_PENDING, never delivery evidence.
+
 stdout carries ONE JSON object and nothing else. Errors go to stderr.
 
 exit codes: 0 DELIVERED, 1 every other verdict,
@@ -328,12 +333,19 @@ const readRequiredChecks = async (state) => {
     ["api", `repos/${repositoryFromUrl}/branches/${encodeURIComponent(state.baseRefName)}/protection/required_status_checks`],
     githubCwd,
   )
-  if (!protection.ok) fail(2, `gh api required status checks failed for ${state.baseRefName}: ${protection.error}`)
   let parsed
   try {
     parsed = JSON.parse(protection.stdout)
   } catch {
+    if (!protection.ok) fail(2, `gh api required status checks failed for ${state.baseRefName}: ${protection.error}`)
     fail(2, `gh api required status checks returned unparseable JSON: ${protection.stdout.trim().slice(0, 240) || "empty output"}`)
+  }
+  if (!protection.ok) {
+    /** Live on 2026-09-05: redesign/main returns HTTP 404 with a JSON status of "404".
+     * An absent required-check configuration is an empty set, not an API outage (#429).
+     * Match the structured status, never the human-readable "Branch not protected" prose. */
+    if (parsed?.status === "404") return []
+    fail(2, `gh api required status checks failed for ${state.baseRefName}: ${protection.error}`)
   }
   const parsedChecks = requiredChecksOf(parsed)
   if (parsedChecks === null) fail(2, `gh api required status checks returned no { context, app_id } checks array for ${state.baseRefName}`)
@@ -386,6 +398,15 @@ const readRollup = () => {
   const newestByCheck = newestChecks(pullRequestState.statusCheckRollup)
   const failing = []
   const pending = []
+  /** With no protection, only observed CI can establish delivery (#429). An empty set of
+   * required checks supplies no evidence by itself, so wait for at least one reported check.
+   * Keep the shared readiness library's newest-rerun and passing-conclusion rules below. */
+  if (requiredChecks.length === 0 && newestByCheck.size === 0) {
+    pending.push({
+      ...checkMetadata("Reported checks", { status: "NOT_REGISTERED", conclusion: null }),
+      reason: "No checks reported; an empty required set is not evidence of successful CI",
+    })
+  }
   /**
    * A required check the rollup does not carry UNDER ITS PINNED PRODUCER is pending, never green.
    * That absence is the mechanism by which a missing `pullfrog-approval` blocks, and it is now also
