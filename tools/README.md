@@ -78,8 +78,8 @@ protected one is not, and requires the capture-only request probe derived from E
 received URL for the exact protected surface, so a dropped link cannot look like a redirect.
 
 The capture build is independent of the development server. From PowerShell, build and install it on
-an already-running emulator, then run the flow. It reads `CAPTURE_LINK` and `CAPTURE_PATH`, so both
-have to be supplied:
+an already-running emulator, then run the flow. Supply `CAPTURE_LINK`; the assertions decide the
+outcome without writing a screenshot:
 
 ```powershell
 $env:EXPO_PUBLIC_CAPTURE_MODE='true'
@@ -87,7 +87,6 @@ npm run android:apk:emulator -w @orbit/mobile
 adb install -r apps/mobile/android/app/build/outputs/apk/release/app-release.apk
 adb shell am force-stop org.useorbit.app
 maestro test -e "CAPTURE_LINK=orbit://about?captureTheme=dark&captureLocale=en&captureSurface=m-route-about" `
-  -e CAPTURE_PATH=protected-route-redirect `
   --debug-output .artifacts/mobile-capture/protected --flatten-debug-output `
   .maestro/protected-route-redirect.yaml
 ```

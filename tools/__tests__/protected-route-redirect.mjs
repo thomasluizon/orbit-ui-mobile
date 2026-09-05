@@ -14,6 +14,11 @@ const protectedRouteRedirectCases = () => {
   if (!Array.isArray(commands)) return
   const detail = JSON.stringify(commands)
   T(
+    "the protected-route flow runs without taking a screenshot",
+    !commands.some((command) => command && Object.hasOwn(command, "takeScreenshot")),
+    detail,
+  )
+  T(
     "the protected-route flow opens the app through its cold-start deep link",
     typeof commands[0]?.openLink === "string",
     detail,
