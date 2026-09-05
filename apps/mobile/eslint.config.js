@@ -152,7 +152,7 @@ module.exports = defineConfig([
       // require-focus-replacement, no-calc-percentage-width, no-dynamic-tailwind-class,
       // no-gradient-text, will-change-discipline, no-user-scalable-no, no-dead-href,
       // require-dialog-title, no-placeholder-alt) have no RN surface — apps/mobile styles via
-      // StyleSheet objects and NativeWind is unused scaffolding. `local/react19-api` is held
+      // StyleSheet objects. `local/react19-api` is held
       // back per the #539 spec, though apps/mobile is in fact pinned to react 19.2.3 by the
       // root override, so it could be extended here in a follow-up.
       "local/animate-presence-exit": "error",

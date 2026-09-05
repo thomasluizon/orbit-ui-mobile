@@ -52,7 +52,7 @@ const habit = await apiClient<Habit>(API.habits.get(id))
 
 ## Styling
 
-- **`StyleSheet.create` / inline styles** consuming the token bag — NativeWind classes are unused in practice (`tailwind.config.js` is scaffolding).
+- **`StyleSheet.create` / inline styles** consuming the token bag. The Mobile StyleSheet Guard enforces this styling approach.
 - **Tokens via `useAppTheme()` from `lib/use-app-theme.ts`** — returns the navy+violet token bag resolved for the current scheme + theme mode.
 - **`createTokensV2(scheme, mode)`** in `lib/theme.ts` is the source of truth; consumes `@orbit/shared/theme` (color-schemes + neutral-ramp).
 
