@@ -29,6 +29,7 @@
     ".agents",
     ".claude",
     ".github",
+    ".lighthouseci",
     ".maestro",
     ".turbo",
     "apps",

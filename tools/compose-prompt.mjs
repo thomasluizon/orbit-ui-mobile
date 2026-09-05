@@ -174,7 +174,7 @@ are source and must never be discarded; only untracked \`.orca/\` runtime residu
 
 **Never create an end-to-end, visual-regression or Playwright file.** The testing rule in CLAUDE.md
 is Vitest unit and behaviour tests, and no new end-to-end suite. A worker on ORB-39 wrote
-apps/web/e2e/visual/orb-39-evidence.visual.ts on its own initiative to gather evidence nobody asked
+apps/web/e2e/orb-39-evidence.spec.ts on its own initiative to gather evidence nobody asked
 it for. If a behaviour genuinely cannot be covered by a Vitest test, say so in the PR body and leave
 it uncovered rather than starting a browser.
 

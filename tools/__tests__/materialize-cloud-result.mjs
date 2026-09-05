@@ -473,7 +473,8 @@ export const cases = () => {
     `exit ${movedHeadResult.status}: ${movedHeadResult.stdout || movedHeadResult.stderr}\n${JSON.stringify(movedHeadReceipt)}`,
   )
 
-  const listTimeout = fixture("list-timeout", { taskId: "task_e_a15", cloudCommandMinutes: 0.005 })
+  // Windows process startup can exceed 300ms under load before the deliberate hang is reached.
+  const listTimeout = fixture("list-timeout", { taskId: "task_e_a15", cloudCommandMinutes: 0.05 })
   const listTimeoutResult = invoke(
     listTimeout,
     [task(listTimeout.receipt.taskId, "ready", 1)],
@@ -486,7 +487,7 @@ export const cases = () => {
     `exit ${listTimeoutResult.status}: ${listTimeoutResult.stdout || listTimeoutResult.stderr}`,
   )
 
-  const applyTimeout = fixture("apply-timeout", { taskId: "task_e_a16", cloudCommandMinutes: 0.005 })
+  const applyTimeout = fixture("apply-timeout", { taskId: "task_e_a16", cloudCommandMinutes: 0.05 })
   const applyTimeoutResult = invoke(
     applyTimeout,
     [task(applyTimeout.receipt.taskId, "ready", 1)],
