@@ -95,7 +95,7 @@ function log(line: string): void {
   process.stdout.write(`[mock] ${line}\n`)
 }
 
-/** Validates every fixture against its Zod schema; a drift exits non-zero so the visual job reds. */
+/** Validates every fixture against its Zod schema; drift exits non-zero so the performance gate fails. */
 function validateFixturesOrExit(): void {
   for (const route of routes) {
     const result = route.schema.safeParse(route.body)

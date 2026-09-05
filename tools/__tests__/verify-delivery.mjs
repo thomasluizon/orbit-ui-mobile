@@ -183,7 +183,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const dirtyNoCommit = stageDelivery("dirty-no-commit", { commit: false, dirty: ["src/half-done.ts"] })
   verdictOf(dirtyNoCommit, JSON.stringify([pullRequest(dirtyNoCommit.head)]), "NO_COMMIT", 1, "no commits and a dirty tree is NO_COMMIT, which now means exactly that")
 
-  const residue = stageDelivery("dirty-residue", { dirty: ["apps/web/next-env.d.ts", "apps/web/e2e/visual/orb-39-evidence.visual.ts"] })
+  const residue = stageDelivery("dirty-residue", { dirty: ["apps/web/next-env.d.ts", "apps/web/e2e/orb-39-evidence.spec.ts"] })
   const residueResult = verdictOf(residue, JSON.stringify([pullRequest(residue.head)]), "DIRTY_TREE", 1, "commits plus a dirty tree is DIRTY_TREE, never NO_COMMIT")
   T(
     `${TOOL}: DIRTY_TREE still evaluates hasCommits, so the report says the work exists`,
