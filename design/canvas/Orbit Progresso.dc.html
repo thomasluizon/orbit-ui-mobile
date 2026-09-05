@@ -867,7 +867,7 @@ class Component extends DCLogic {
     const swatch = (kind) => kind === 'a'
       ? H('span', { 'aria-hidden': 'true', style: { width: 12, height: 12, borderRadius: 'var(--r-pill)', background: 'var(--fg-1)', flex: '0 0 auto' } })
       : kind === 'f'
-        ? H('span', { 'aria-hidden': 'true', style: { color: 'var(--status-frozen)', display: 'grid', placeItems: 'center', flex: '0 0 auto' } }, H(D.Icon, { name: 'snowflake', size: 14 }))
+        ? H('span', { 'aria-hidden': 'true', style: { color: 'var(--status-frozen)', display: 'grid', placeItems: 'center', flex: '0 0 auto' } }, H(D.Icon, { name: 'snowflake', size: 16 }))
         : H('span', { 'aria-hidden': 'true', style: { width: 12, height: 12, borderRadius: 'var(--r-pill)', boxShadow: 'inset 0 0 0 1.5px var(--fg-4)', flex: '0 0 auto' } });
     const legend = H('div', { style: { display: 'flex', gap: 16, flexWrap: 'wrap' } },
       ['a', 'f', 'm'].map((k) => H('span', { key: k, style: { display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -904,7 +904,7 @@ class Component extends DCLogic {
       const isToday = i === strip.length - 1;
       protectedRows.push(H('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: 8, minHeight: 28 } },
         H('span', { style: { color: 'var(--status-frozen)', display: 'grid', placeItems: 'center' }, 'aria-hidden': 'true' },
-          H(D.Icon, { name: 'snowflake', size: 14 })),
+          H(D.Icon, { name: 'snowflake', size: 16 })),
         H('p', { style: { flex: 1, fontFamily: 'var(--font-mono)', fontSize: 'var(--fs-xs)', color: 'var(--fg-2)',
           fontVariantNumeric: 'tabular-nums' } }, mock(labels[i])),
         H('p', { style: { fontSize: 'var(--fs-xs)', color: 'var(--fg-3)' } }, isToday && frozenToday ? t.protectedTodayWord : t.protectedWord)));
