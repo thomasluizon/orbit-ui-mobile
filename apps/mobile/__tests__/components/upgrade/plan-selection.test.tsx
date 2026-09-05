@@ -238,6 +238,12 @@ describe('PlanSelection (mobile)', () => {
         node.props.children === 'upgrade.plans.recommended').length).toBeGreaterThan(0)
       expect(monthlyTier.findAll((node: { props: { children?: unknown } }) =>
         node.props.children === 'upgrade.plans.recommended')).toHaveLength(0)
+      expect(annualTier.findByType('Pressable').props.accessibilityLabel).toBe(
+        t('upgrade.plans.checkoutLabelRecommended', { interval: 'upgrade.plans.yearly.name' }),
+      )
+      expect(monthlyTier.findByType('Pressable').props.accessibilityLabel).toBe(
+        t('upgrade.plans.checkoutLabel', { interval: 'upgrade.plans.monthly.name' }),
+      )
       const selectedTier = selectedInterval === 'yearly' ? annualTier : monthlyTier
       const unselectedTier = selectedInterval === 'yearly' ? monthlyTier : annualTier
       expect(selectedTier.findByProps({ testID: 'button-primary-md' })).toBeTruthy()
@@ -304,7 +310,7 @@ describe('PlanSelection (mobile)', () => {
 
     expect(actions.map((action: { props: { accessibilityLabel?: string } }) =>
       action.props.accessibilityLabel)).toEqual([
-      `upgrade.plans.checkoutLabel:${JSON.stringify({ interval: 'upgrade.plans.yearly.name' })}`,
+      `upgrade.plans.checkoutLabelRecommended:${JSON.stringify({ interval: 'upgrade.plans.yearly.name' })}`,
       `upgrade.plans.checkoutLabel:${JSON.stringify({ interval: 'upgrade.plans.monthly.name' })}`,
     ])
     TestRenderer.act(() => actions[0].props.onPress())

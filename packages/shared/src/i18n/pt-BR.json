@@ -2117,6 +2117,7 @@
       "recommended": "Recomendado",
       "cta": "Assinar",
       "checkoutLabel": "Assinar {interval}",
+      "checkoutLabelRecommended": "Assinar {interval}, recomendado",
       "coupon": {
         "line": "Com o seu cupom, {percent}% de desconto na primeira cobrança."
       },

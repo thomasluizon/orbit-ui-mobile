@@ -123,6 +123,12 @@ describe('PlanSelection', () => {
     expect(within(tierNamed('upgrade.plans.yearly.name')).getByRole('button')).toHaveAttribute('data-variant', 'ghost')
     expect(tierNamed('upgrade.plans.monthly.name')).toHaveAttribute('data-selected', 'true')
     expect(within(tierNamed('upgrade.plans.monthly.name')).getByRole('button')).toHaveAttribute('data-variant', 'primary')
+    expect(within(tierNamed('upgrade.plans.yearly.name')).getByRole('button')).toHaveAccessibleName(
+      t('upgrade.plans.checkoutLabelRecommended', { interval: 'upgrade.plans.yearly.name' }),
+    )
+    expect(within(tierNamed('upgrade.plans.monthly.name')).getByRole('button')).toHaveAccessibleName(
+      t('upgrade.plans.checkoutLabel', { interval: 'upgrade.plans.monthly.name' }),
+    )
     expect(onCheckout).not.toHaveBeenCalled()
   })
 
@@ -241,7 +247,7 @@ describe('PlanSelection', () => {
 
     const actions = [
       screen.getByRole('button', {
-        name: `upgrade.plans.checkoutLabel:${JSON.stringify({ interval: 'upgrade.plans.yearly.name' })}`,
+        name: `upgrade.plans.checkoutLabelRecommended:${JSON.stringify({ interval: 'upgrade.plans.yearly.name' })}`,
       }),
       screen.getByRole('button', {
         name: `upgrade.plans.checkoutLabel:${JSON.stringify({ interval: 'upgrade.plans.monthly.name' })}`,

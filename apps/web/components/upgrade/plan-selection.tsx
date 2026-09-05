@@ -248,7 +248,7 @@ function TierCard({
           variant={selected ? 'primary' : 'ghost'}
           loading={loading}
           disabled={disabled}
-          accessibleName={t('upgrade.plans.checkoutLabel', { interval: tier.name })}
+          accessibleName={t(recommended ? 'upgrade.plans.checkoutLabelRecommended' : 'upgrade.plans.checkoutLabel', { interval: tier.name })}
           onClick={() => onCheckout(tier.interval)}
         >
           {t('upgrade.plans.cta')}

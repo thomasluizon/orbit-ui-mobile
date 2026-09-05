@@ -752,7 +752,7 @@ describe('UpgradePage', () => {
       trialActive ? 'upgrade.convert.trialHeading' : 'upgrade.convert.freeHeading',
     )).toBeInTheDocument()
     const paidActions = screen.getAllByRole('button', {
-      name: /^upgrade\.plans\.checkoutLabel:/,
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
     })
     expect(paidActions).toHaveLength(2)
     expect(paidActions[0]).toBeDisabled()
@@ -807,7 +807,7 @@ describe('UpgradePage', () => {
 
     render(<UpgradePage />)
     fireEvent.click(screen.getAllByRole('button', {
-      name: /^upgrade\.plans\.checkoutLabel:/,
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
     })[0]!)
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
@@ -837,7 +837,7 @@ describe('UpgradePage', () => {
 
     render(<UpgradePage />)
     fireEvent.click(screen.getAllByRole('button', {
-      name: /^upgrade\.plans\.checkoutLabel:/,
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
     })[0]!)
 
     expect(await screen.findByRole('alert')).toHaveTextContent('toast.errors.server')
@@ -864,20 +864,20 @@ describe('UpgradePage', () => {
 
     render(<UpgradePage />)
     fireEvent.click(screen.getAllByRole('button', {
-      name: /^upgrade\.plans\.checkoutLabel:/,
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
     })[0]!)
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(1)
       expect(screen.getAllByRole('button', {
-        name: /^upgrade\.plans\.checkoutLabel:/,
+        name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
       })[0]).toHaveAttribute(
         'aria-busy',
         'true',
       )
     })
     fireEvent.click(screen.getAllByRole('button', {
-      name: /^upgrade\.plans\.checkoutLabel:/,
+      name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
     })[1]!)
     expect(fetchMock).toHaveBeenCalledTimes(1)
 
@@ -885,7 +885,7 @@ describe('UpgradePage', () => {
     await waitFor(() => {
       expect(
         screen.getAllByRole('button', {
-          name: /^upgrade\.plans\.checkoutLabel:/,
+          name: /^upgrade\.plans\.checkoutLabel(?:Recommended)?:/,
         })[0],
       ).not.toBeDisabled()
     })
