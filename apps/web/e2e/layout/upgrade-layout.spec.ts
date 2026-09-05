@@ -102,4 +102,37 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
       })
     }
   }
+
+  for (const subscriptionState of ['stripe', 'play', 'lifetime', 'canceled', 'pastDue'] as const) {
+    for (const width of [412, 640] as const) {
+      test.describe(`${locale} ${subscriptionState} at ${width}px`, () => {
+        test.use({ appLocale: locale, subscriptionState, viewport: { width, height: 1400 } })
+
+        test('keeps subscription management copy inside its box', async ({ page }) => {
+          await page.goto('/upgrade')
+          const main = page.locator('main').last()
+          await expect(main.getByText(messages.upgrade.billing.usage.title, { exact: true })).toBeVisible()
+          await page.evaluate(() => document.fonts.ready)
+
+          const overflows = await main.evaluate((root) =>
+            Array.from(root.querySelectorAll('p,h1,h2,a,button,span'))
+              .filter((element) => element.textContent.trim())
+              .filter((element) => element.scrollWidth > element.getBoundingClientRect().width + 0.5)
+              .map((element) => element.textContent.trim()),
+          )
+          expect(overflows, `subscription copy stays inside the layout at ${width}px`).toEqual([])
+
+          const usageLines = await renderedLineCounts(page, messages.upgrade.billing.usage.aiMessages)
+          expect(usageLines.length).toBeGreaterThan(0)
+          expect(usageLines.every((count) => count === 1)).toBe(true)
+          if (subscriptionState === 'stripe') {
+            const paymentMethod = messages.upgrade.billing.payment.card
+              .replace('{brand}', 'Visa')
+              .replace('{last4}', '4242')
+            expect(await renderedLineCounts(page, paymentMethod)).toEqual([1])
+          }
+        })
+      })
+    }
+  }
 }
