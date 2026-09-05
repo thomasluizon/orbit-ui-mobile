@@ -31,13 +31,17 @@ export function ListRow(props: Readonly<ListRowProps>) {
   return (
     <View style={styles.row}>
       {readOnly || !onClick ? (
-        <View style={styles.body}>{body}</View>
+        <View style={[styles.body, action ? styles.bodyWithAction : null]}>{body}</View>
       ) : (
-        <Pressable accessibilityRole="button" onPress={onClick} style={({ pressed }) => [styles.body, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>{body}</Pressable>
+        <Pressable accessibilityRole="button" onPress={onClick} style={({ pressed }) => [styles.body, action ? styles.bodyWithAction : null, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>{body}</Pressable>
       )}
       {action ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={({ pressed }) => [styles.control, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
-          <Icon name={action.icon} size={20} color={action.danger ? tokens.statusBad : tokens.fg2} />
+        <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={styles.action}>
+          {({ pressed }) => (
+            <View style={[styles.control, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
+              <Icon name={action.icon} size={20} color={action.danger ? tokens.statusBad : tokens.fg2} />
+            </View>
+          )}
         </Pressable>
       ) : null}
     </View>
@@ -45,8 +49,10 @@ export function ListRow(props: Readonly<ListRowProps>) {
 }
 
 const styles = StyleSheet.create({
-  row: { minHeight: 52, padding: 16, flexDirection: 'row', alignItems: 'center' },
-  body: { minHeight: 44, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
+  row: { minHeight: 52, flexDirection: 'row', alignItems: 'stretch' },
+  body: { minHeight: 76, padding: 16, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
+  bodyWithAction: { paddingEnd: 0 },
+  action: { padding: 16, paddingStart: 0, flexShrink: 0, alignItems: 'center', justifyContent: 'center' },
   iconSlot: { width: 28, flexShrink: 0, alignItems: 'center' },
   textBlock: { flex: 1, minWidth: 0, gap: 4 },
   title: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 21.25 },

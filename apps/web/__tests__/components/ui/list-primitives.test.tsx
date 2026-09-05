@@ -7,37 +7,64 @@ import { SettingsGroup } from '@/components/ui/settings-group-list'
 
 describe('list primitives on web', () => {
   it('insets invoice actions and navigation controls without shrinking their touch targets', () => {
+    const onDownload = vi.fn()
     const { container, rerender } = render(
       <ListRow title="Invoice" description="September subscription" chevron={false}
-        action={{ icon: 'download', label: 'Download invoice', onPress: vi.fn() }} />,
+        action={{ icon: 'download', label: 'Download invoice', onPress: onDownload }} />,
     )
     const action = screen.getByRole('button', { name: 'Download invoice' })
     const row = action.parentElement
     expect(row).toBe(container.firstElementChild)
-    expect(row).toHaveStyle({ padding: '16px' })
-    expect(action).toHaveStyle({ width: '44px', height: '44px' })
+    expect(row?.style.padding).toBe('')
+    expect(action).toHaveStyle({ padding: '16px', paddingInlineStart: '0px' })
+    expect(action.firstElementChild).toHaveStyle({ width: '44px', height: '44px' })
     action.focus()
     expect(action).toHaveFocus()
     fireEvent.pointerEnter(action)
     fireEvent.pointerDown(action)
-    expect(row).toHaveStyle({ padding: '16px' })
+    expect(action).toHaveStyle({ padding: '16px', paddingInlineStart: '0px' })
     fireEvent.pointerUp(action)
     fireEvent.pointerLeave(action)
+    fireEvent.click(action)
+    expect(onDownload).toHaveBeenCalledOnce()
 
     rerender(<ListRow title="Account" onClick={vi.fn()} />)
     const navigation = screen.getByRole('button', { name: 'Account' })
-    expect(navigation.parentElement).toHaveStyle({ padding: '16px' })
-    expect(navigation).toHaveStyle({ minHeight: '44px', padding: '0px' })
+    expect(navigation.parentElement?.style.padding).toBe('')
+    expect(navigation).toHaveStyle({ minHeight: '76px', padding: '16px' })
     expect(navigation.lastElementChild).toHaveStyle({ width: '44px', height: '44px' })
 
     rerender(<ListRow title="Read only" readOnly />)
-    expect(container.firstElementChild).toHaveStyle({ padding: '16px' })
+    expect(container.firstElementChild?.firstElementChild).toHaveStyle({ minHeight: '76px', padding: '16px' })
     expect(screen.queryByRole('button')).toBeNull()
   })
 
   it('keeps required padding when a caller passes the legacy inset option', () => {
-    const { container } = render(<ListRow title="Tags" inset={false} onClick={vi.fn()} />)
-    expect(container.firstElementChild).toHaveStyle({ paddingTop: '16px', paddingRight: '16px', paddingBottom: '16px', paddingLeft: '16px' })
+    render(<ListRow title="Tags" inset={false} onClick={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Tags' })).toHaveStyle({ padding: '16px', paddingInlineEnd: '16px' })
+  })
+
+  it('owns the entire padded perimeter in adjacent body and action targets', () => {
+    const onOpen = vi.fn()
+    const onRemove = vi.fn()
+    const { container } = render(
+      <ListRow title="Template" onClick={onOpen} chevron={false}
+        action={{ icon: 'trash', label: 'Remove template', onPress: onRemove }} />,
+    )
+    const body = screen.getByRole('button', { name: 'Template' })
+    const action = screen.getByRole('button', { name: 'Remove template' })
+    const row = container.firstElementChild
+    expect(Array.from(row?.children ?? [])).toEqual([body, action])
+    expect(row).toHaveStyle({ minHeight: '52px' })
+    expect(body.parentElement?.style.padding).toBe('')
+    expect(body).toHaveStyle({ minHeight: '76px', padding: '16px', paddingInlineEnd: '0px' })
+    expect(action).toHaveStyle({ padding: '16px', paddingInlineStart: '0px' })
+    fireEvent.click(body)
+    expect(onOpen).toHaveBeenCalledOnce()
+    expect(onRemove).not.toHaveBeenCalled()
+    fireEvent.click(action)
+    expect(onOpen).toHaveBeenCalledOnce()
+    expect(onRemove).toHaveBeenCalledOnce()
   })
 
   it('keeps ListRow body and trailing actions independent', () => {
