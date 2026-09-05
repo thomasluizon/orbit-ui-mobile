@@ -13,8 +13,9 @@
  *
  * The code review is NOT an axis here. Pullfrog reviews every pull request in GitHub Actions and
  * publishes `pullfrog-approval`, a required status check on both `main` branches, so the review
- * verdict arrives through the required checks this tool already reads. A separate review axis
- * would be a second, weaker copy of a fact branch protection enforces.
+ * verdict arrives through the checks this tool already reads. With no required inventory, this
+ * tool still requires that app-pinned review check. A separate review artifact would be a weaker
+ * copy of the same verdict.
  *
  * The pull request read is one `gh api graphql` call because branch protection pins a required
  * check to a producing app and `gh pr view --json statusCheckRollup` drops that identity. Both
@@ -28,12 +29,16 @@ import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-a
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { pullRequestStateArgv, pullRequestStateFromGraphQl, readinessCiIsGreen, readinessReport, requiredChecksOf, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
+import { newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, readinessCiIsGreen, readinessReport, registrationFingerprint, requiredChecksFromResponse, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
 
 const USAGE = `usage: record-readiness.mjs --repo <ui|api|landing> --pr <number> --delivery <file> --ticket <file>
 
 Reads harness-produced artifacts, persists one SHA-bound receipt under the repository git state,
 and prints READY or every stale/blocking verdict. It never trusts a caller-authored status flag.
+
+An unprotected base has no required checks. READY still needs current-head delivery evidence,
+a nonempty passing live rollup matching delivery's registration fingerprint,
+and pullfrog-approval from the Pullfrog app. Changed or missing fingerprints are CI_STALE.
 
 exit codes: 0 READY, 1 not ready, 2 usage or artifact error`
 
@@ -122,13 +127,22 @@ try {
     { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
   )
   if (requiredRead.timedOut) fail(`required checks for PR ${prNumber} timed out after 45s; the complete child process tree was terminated`)
-  if (requiredRead.error || requiredRead.status !== 0) {
+  if (requiredRead.error || requiredRead.overflowed) {
     const detail = requiredRead.stderr || requiredRead.stdout || requiredRead.error?.message || `exit ${requiredRead.status}`
     fail(`required checks for PR ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
   }
-  const requiredChecks = requiredChecksOf(JSON.parse(requiredRead.stdout))
+  const requiredChecks = requiredChecksFromResponse(JSON.parse(requiredRead.stdout), requiredRead.status === 0)
+  if (requiredChecks === null && requiredRead.status !== 0) {
+    const detail = requiredRead.stderr || requiredRead.stdout || `exit ${requiredRead.status}`
+    fail(`required checks for PR ${prNumber} failed: ${redactSecrets(detail.trim(), githubAuth.secrets)}`)
+  }
   if (requiredChecks === null) fail(`required checks for PR ${prNumber} returned no { context, app_id } checks array`)
-  liveCiGreen = readinessCiIsGreen(live.statusCheckRollup, requiredChecks)
+  /** Preserve the recorder's independent review contract when protection supplies no inventory
+   * (#429). The Pullfrog context/app pair was reconfirmed against main protection on 2026-09-05.
+   * Delivery owns registration observation; this single live snapshot revalidates its evidence. */
+  const reviewChecks = requiredChecks.length === 0 ? [{ context: "pullfrog-approval", appId: 1768019 }] : requiredChecks
+  const matchesDelivery = ci.registrationFingerprint === registrationFingerprint(live, newestChecks(live.statusCheckRollup))
+  liveCiGreen = matchesDelivery && live.statusCheckRollup.length > 0 && readinessCiIsGreen(live.statusCheckRollup, reviewChecks)
 
   const comparison = await runBounded(
     process.env.GH_BIN || "gh",
