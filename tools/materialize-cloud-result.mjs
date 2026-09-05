@@ -33,6 +33,9 @@ worktree. The receipt and worktree must still match the repository bound to the 
 The worktree must be clean and still at the receipt's exact base SHA. Abandoned tasks are quarantined
 unless --allow-abandoned is explicit. Materialization is serial across the repository.
 It never commits, pushes, opens a pull request, or merges.
+An authoritative empty diff exits 3 with CLOUD_TASK_EMPTY and a durable failure receipt. The ticket
+remains unfinished. Resubmit the original order once through submit-cloud-worker.mjs, which reserves
+the bounded retry and places the commit instruction first. Report the failure and retry outcome.
 
 If exit 9 reports APPLIED_RECEIPT_WRITE_FAILED, the diff is already applied and staged. Leave the
 worktree unchanged and rerun this same command with the same receipt. The retry fetches the task diff,
@@ -187,6 +190,21 @@ receipt = persistConfiguredReceipt(receipt)
 if (receipt.materialized) {
   emitMaterialized({ alreadyMaterialized: true })
 }
+const reportEmptyFailure = () => {
+  clearResolvedRecoveryMarker()
+  console.log(JSON.stringify({
+    outcome: "CLOUD_TASK_EMPTY",
+    ticket: receipt.ticket,
+    taskId: receipt.taskId,
+    failure: receipt.emptyFailure,
+    retry: receipt.emptyRetryOf ? "exhausted" : "required",
+    message: "Ticket remains unfinished. " + (receipt.emptyRetryOf
+      ? "The single empty-diff retry is exhausted; report the failure."
+      : "Resubmit the same ticket and unchanged order once; the submitter enforces the retry bound."),
+  }))
+  process.exit(3)
+}
+if (receipt.emptyFailure) reportEmptyFailure()
 if (receipt.unusable) {
   clearResolvedRecoveryMarker()
   fail(
@@ -284,7 +302,7 @@ const readTaskDiffRaw = () => runCodex(codexCommand, ["cloud", "diff", receipt.t
   timeoutMs: codexTimeoutMs,
   encoding: null,
 })
-const resolveEmptyTaskIfProven = async () => {
+const resolveEmptyTaskIfProven = async (task) => {
   const remoteDiff = await readTaskDiffRaw()
   const noDiffMessages = [
     Buffer.from(`Error: No diff available for task ${receipt.taskId}; it may still be running.\n`),
@@ -296,9 +314,16 @@ const resolveEmptyTaskIfProven = async () => {
     remoteDiff.stdout.length === 0 &&
     noDiffMessages.some((message) => remoteDiff.stderr.equals(message))
   if (!noDiffProven) return false
-  recordUnusableReceipt("ready", "task has no unified diff")
-  clearResolvedRecoveryMarker()
-  fail(3, `cloud task ${receipt.taskId} is ready but has no unified diff`, "CLOUD_TASK_EMPTY")
+  receipt.emptyFailure = {
+    at: new Date().toISOString(),
+    title: task.title,
+    summary: task.summary,
+    namedTargets: receipt.namedTargets ?? null,
+    classification: receipt.namedTargets?.length ? "lost-work suspect" : "cause unknown",
+    reason: "Ready task has no unified diff; container edits and commits cannot be observed.",
+  }
+  receipt = persistConfiguredReceipt(receipt)
+  reportEmptyFailure()
 }
 
 try {
@@ -387,7 +412,7 @@ try {
   }
   if (applied.error || applied.status !== 0) {
     const failedLanding = readLocalLanding()
-    if (failedLanding.status.stdout.length === 0) await resolveEmptyTaskIfProven()
+    if (failedLanding.status.stdout.length === 0) await resolveEmptyTaskIfProven(task)
     try {
       unlinkSync(recoveryPath)
     } catch (error) {
@@ -400,7 +425,7 @@ try {
   const landing = readLocalLanding()
   assertExpectedLanding(landing, { allowEmpty: true })
   if (!landingHasStagedDiff(landing)) {
-    await resolveEmptyTaskIfProven()
+    await resolveEmptyTaskIfProven(task)
     fail(7, "cloud apply exited successfully but produced no staged diff", "APPLY_NO_CHANGES")
   }
   const materializedAt = new Date().toISOString()

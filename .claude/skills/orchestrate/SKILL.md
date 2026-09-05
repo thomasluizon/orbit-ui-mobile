@@ -506,8 +506,8 @@ Write it to the scratchpad. A prompt file inside the worktree gets committed by 
 With `--cloud`, the order must end with this finishing contract. The submitter appends it when it is
 absent, and hashes both the order file and the submitted form in the receipt:
 
-- Edit and test the change in the container.
-- Then `git add` the named paths and `git commit`. Without a commit there is no diff and the work is lost.
+- `git add` the named paths and `git commit`. Without a commit there is no diff and the work is lost.
+- Edit and test the change in the container, then commit before finishing.
 - Never `--no-verify`. If a pre-commit hook rejects the commit, report the exact hook output and stop, leaving the changes in place. Never edit a hook or a gate baseline to get past it.
 - Never push, never create a branch, never open a pull request. Delivery happens outside the container.
 
@@ -591,8 +591,21 @@ A durably materialized receipt is an idempotent success. A retry returns `MATERI
 stale recovery marker when possible, and never calls Cloud apply again. If a `ready` task applies no
 changes or apply fails without touching the worktree, the tool reads the authoritative raw task diff.
 Only the measured no-diff response, exit 1 with zero stdout bytes and the exact task-bound no-diff
-stderr, records `CLOUD_TASK_EMPTY` as unusable and releases ticket admission. Any other failure or
-a non-empty diff keeps the task unresolved.
+stderr, records `CLOUD_TASK_EMPTY` as a named failure and retains ticket admission. The failure
+records the task title, summary counts, and tracked file paths mentioned in the original order.
+Named targets make it a lost-work suspect; missing targets leave the cause unknown. Neither proves
+what happened inside the container or establishes a clean no-op.
+
+On `CLOUD_TASK_EMPTY`, immediately append the tool's JSON output to `<scratchpad>/queue-run.jsonl`.
+Resubmit once with the original `submit-cloud-worker.mjs` arguments and unchanged order. The
+submitter checks the original base and worktree, prepends a standalone commit instruction, and
+reserves the single retry before the remote write. Capacity refusal does not spend that retry;
+resume submission when a slot opens. A reserved or uncertain submission does spend it. Under
+`--sleep --cloud`, launch `--watch <receiptPath>` for the retry and materialize its terminal result
+through the same path. Record the retry task and its result in `queue-run.jsonl`. An exhausted retry
+leaves the ticket unfinished and blocked from further Cloud submissions; report it and continue
+independent tickets. Never count an empty result as a completed ticket. Any other apply failure or
+a non-empty remote diff keeps the task unresolved.
 
 ### Local execution
 
@@ -991,6 +1004,9 @@ Once the queue is exhausted, print one summary and stop:
 - **The stack layout**, so the merge order is stated rather than worked out at 08:00.
 - Every ticket skipped, with its reason: a deferral from step 1 or a genuine delivery blocker. For a
   `NEEDS_CONVERSATION` deferral, print its open questions too, so the night ends in a decision list.
+- Every `CLOUD_TASK_EMPTY` failure by name, with ticket, task title, summary counts, named targets,
+  classification, and retry task/outcome from `queue-run.jsonl` and durable receipts. Include failures
+  even when the retry delivered. An exhausted or uncertain retry is unfinished, never completed.
 - **Every manual step across the whole queue, in one "still outstanding" list**, merged from all
   three step 10 sources. These are Thomas's clicks, not the harness's, and they are the only work
   the merge does not finish.

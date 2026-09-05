@@ -47,6 +47,9 @@ derive the current in-flight set and enforce caps.cloudParallelTasks. The worktr
 the repository bound to the cloud environment. The named remote branch is resolved first, and the
 remote SHA must match the worktree HEAD. The cloud checkout is pinned to that commit while the
 receipt keeps the branch as context. An unresolved receipt blocks the same ticket.
+An empty-diff failure permits exactly one resubmission of the unchanged order, worktree, and base.
+The retry begins with the commit instruction and is reserved before contacting Cloud. A failed or
+uncertain retry keeps the ticket unfinished, including after an unknown reservation is cleared.
 Submission mode never waits for completion, applies a diff, commits, pushes, or opens a pull request.
 
 --watch is the separate unattended wake source. It registers its own PID, refreshes the named
@@ -180,6 +183,7 @@ if (watchArgument) {
     }
   }
   const watchOutcome = (receipt) => {
+    if (receipt.emptyFailure) return "CLOUD_TASK_EMPTY"
     if (receipt.abandoned && isTerminalTaskStatus(receipt.terminal?.status)) {
       return `ABANDONED_TERMINAL_${receipt.terminal.status.toUpperCase()}`
     }
@@ -212,7 +216,7 @@ if (watchArgument) {
     const existingOutcome = watchOutcome(watched.receipt)
     if (existingOutcome) {
       console.log(JSON.stringify({ outcome: existingOutcome, taskId: watched.receipt.taskId, receiptPath: receiptFile }))
-      process.exit(0)
+      process.exit(existingOutcome === "CLOUD_TASK_EMPTY" ? 3 : 0)
     }
 
     let tasks = null
@@ -245,7 +249,7 @@ if (watchArgument) {
     const refreshedOutcome = persisted ? watchOutcome(refreshed) : null
     if (refreshedOutcome) {
       console.log(JSON.stringify({ outcome: refreshedOutcome, taskId: refreshed.taskId, receiptPath: receiptFile }))
-      process.exit(0)
+      process.exit(refreshedOutcome === "CLOUD_TASK_EMPTY" ? 3 : 0)
     }
     await wait(pollMs)
   }
@@ -497,6 +501,15 @@ if (!/^[0-9a-f]{40}$/.test(localSha)) fail(1, "git rev-parse returned an unexpec
 if (baseSha !== localSha) {
   fail(1, `origin/${branch} is at ${baseSha}, but the worktree HEAD is ${localSha}; publish the worktree HEAD before submission`)
 }
+const tracked = spawnSync("git", ["-C", worktree, "ls-files", "-z"], {
+  encoding: "utf8",
+  windowsHide: true,
+  maxBuffer: 16 * 1024 * 1024,
+})
+if (tracked.error || tracked.status !== 0) fail(1, "git ls-files could not read the order's named targets")
+const namedTargets = tracked.stdout.split("\0").filter((path) => path && orderText.includes(path))
+const orderSha256 = createHash("sha256").update(orderText).digest("hex")
+let emptyRetryOf = null
 
 let releaseLock
 try {
@@ -560,10 +573,19 @@ if (existingReceipts.length > 0) {
       persistReceipt(receipt, stablePath)
       return receipt
     })
-    const blockedTicket = reconciledReceipts.find((receipt) => (
-      receipt.ticket === ticket && receiptBlocksTicketAdmission(receipt)
+    const retryParents = new Set(reconciledReceipts.map((receipt) => receipt.emptyRetryOf).filter(Boolean))
+    const blockers = reconciledReceipts.filter((receipt) => (
+      receipt.ticket === ticket && receiptBlocksTicketAdmission(receipt) && !retryParents.has(receipt.taskId)
     ))
-    if (blockedTicket) {
+    const blockedTicket = blockers[0]
+    if (blockers.length === 1 && blockedTicket.emptyFailure && !blockedTicket.emptyRetryOf) {
+      const expected = { environmentId, repositoryKey, ticket, branch, baseSha, worktree, orderSha256 }
+      if (Object.entries(expected).some(([key, value]) => blockedTicket[key] !== value)) {
+        fail(2, "CLOUD_TASK_EMPTY retry requires the same ticket, environment, branch, base, worktree, and unchanged order")
+      }
+      emptyRetryOf = blockedTicket.taskId
+    }
+    if (blockedTicket && !emptyRetryOf) {
       const blockedState = blockedTicket.kind === "submission-reservation"
         ? blockedTicket.submissionState === "known-task-abandoned"
           ? `known abandoned task ${blockedTicket.taskId} is ${blockedTicket.lastObserved?.status ?? "unresolved"}`
@@ -578,7 +600,9 @@ if (existingReceipts.length > 0) {
           : "wait for it to finish"
       fail(
         3,
-        `ticket ${ticket} already has ${blockedState}; ${nextAction} before resubmitting`,
+        blockedTicket.emptyRetryOf
+          ? `CLOUD_TASK_EMPTY: ticket ${ticket} remains unfinished; its single retry is already reserved or exhausted`
+          : `ticket ${ticket} already has ${blockedState}; ${nextAction} before resubmitting`,
       )
     }
     const inFlight = reconciledReceipts.filter(receiptConsumesFleetCapacity)
@@ -595,7 +619,7 @@ if (existingReceipts.length > 0) {
   }
 }
 
-const submittedOrder = cloudOrder(orderText)
+const submittedOrder = cloudOrder(orderText, emptyRetryOf)
 const submittedAt = new Date()
 const orderName = basename(orderFile, extname(orderFile))
 const reservationId = randomUUID()
@@ -609,7 +633,9 @@ const reservation = {
   ticket,
   branch,
   baseSha,
-  orderSha256: createHash("sha256").update(orderText).digest("hex"),
+  orderSha256,
+  namedTargets,
+  ...(emptyRetryOf ? { emptyRetryOf } : {}),
   submittedOrderSha256: createHash("sha256").update(submittedOrder).digest("hex"),
   orderFile,
   worktree,

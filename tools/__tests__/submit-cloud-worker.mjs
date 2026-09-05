@@ -15,6 +15,7 @@ import {
   toolPath,
 } from "./_harness.mjs"
 import { cloudConfig, fakeCodex, task, taskPage } from "./cloud-worker.mjs"
+import { receiptBlocksTicketAdmission } from "../lib/cloud-worker.mjs"
 
 const TOOL = "submit-cloud-worker.mjs"
 
@@ -60,6 +61,100 @@ const runConcurrent = (entry, env) => spawnTool(entry, argvOf(entry), env).resul
 export const cases = async () => {
   const schedulerContract = readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")
   const normalizedSchedulerContract = schedulerContract.replace(/\s+/g, " ")
+  T(
+    `${TOOL}: the wake report names empty failures and the scheduler retries once`,
+    normalizedSchedulerContract.includes("Resubmit once with the original `submit-cloud-worker.mjs` arguments") &&
+      normalizedSchedulerContract.includes("Every `CLOUD_TASK_EMPTY` failure by name") &&
+      normalizedSchedulerContract.includes("Never count an empty result as a completed ticket"),
+  )
+  for (const ending of ["empty", "materialized", "uncertain"]) {
+    const retryEntry = fixture(`empty-retry-${ending}`)
+    const orderText = "Edit README.md to describe the measured cloud path.\n"
+    writeFileSync(retryEntry.order, orderText)
+    writeFileSync(join(retryEntry.repo.path, "README.md"), "Original description.\n")
+    retryEntry.repo.git(["add", "README.md"])
+    retryEntry.repo.git(["commit", "-q", "-m", "named target"])
+    retryEntry.repo.git(["push", "-q", "origin", "main"])
+    const firstId = "task_e_e433"
+    const retryId = "task_e_e434"
+    const retryStdin = stage(`submit-cloud/empty-retry-${ending}-stdin.txt`, "")
+    const retryEnv = {
+      ORBIT_FAKE_CODEX_LOG: retryEntry.log,
+      ORBIT_FAKE_EXEC_URL: `https://chatgpt.com/codex/tasks/${firstId}`,
+      ORBIT_FAKE_STDIN_LOG: retryStdin,
+      ORBIT_FAKE_LIST: taskPage([task(firstId, "ready", 0)]),
+    }
+    const first = run(TOOL, argvOf(retryEntry), { path: retryEntry.path, env: retryEnv })
+    const firstReceipt = JSON.parse(first.stdout)
+    const materializer = stageWithConfig(`empty-retry-${ending}-materialize`, "materialize-cloud-result.mjs", retryEntry.config)
+    const empty = run("materialize-cloud-result.mjs", ["--receipt", firstReceipt.receiptPath], {
+      path: materializer.path,
+      env: { ...retryEnv, ORBIT_FAKE_APPLY_MODE: "noop" },
+    })
+    const failedReceipt = JSON.parse(readFileSync(firstReceipt.receiptPath, "utf8"))
+    T(
+      `${TOOL}: ${ending} original empty task remains owned and reported`,
+      empty.status === 3 && JSON.parse(empty.stdout).outcome === "CLOUD_TASK_EMPTY" &&
+        receiptBlocksTicketAdmission(failedReceipt) && failedReceipt.emptyFailure.namedTargets[0] === "README.md",
+      empty.stdout || empty.stderr,
+    )
+    const failedWatch = run(TOOL, ["--watch", firstReceipt.receiptPath], { path: retryEntry.path, env: retryEnv })
+    T(
+      `${TOOL}: ${ending} watcher reports the named failure instead of resolved success`,
+      failedWatch.status === 3 && JSON.parse(failedWatch.stdout).outcome === "CLOUD_TASK_EMPTY",
+      failedWatch.stdout || failedWatch.stderr,
+    )
+    writeFileSync(retryEntry.order, "A different order.\n")
+    const changed = run(TOOL, argvOf(retryEntry), { path: retryEntry.path, env: retryEnv })
+    T(`${TOOL}: ${ending} retry refuses changed work orders`, changed.status === 2, changed.stderr)
+    writeFileSync(retryEntry.order, orderText)
+    const second = run(TOOL, argvOf(retryEntry), {
+      path: retryEntry.path,
+      env: { ...retryEnv, ORBIT_FAKE_EXEC_URL: ending === "uncertain" ? "unconfirmed" : `https://chatgpt.com/codex/tasks/${retryId}` },
+    })
+    const pointedOrder = readFileSync(retryStdin, "utf8")
+    T(
+      `${TOOL}: ${ending} retry begins with a standalone commit order and retains the original task`,
+      pointedOrder.startsWith("Commit the changes with `git add`") &&
+        pointedOrder.split("\n")[1] === "" && pointedOrder.includes("Retry 1 of 1") &&
+        pointedOrder.includes(orderText) && (ending === "uncertain" ? second.status === 1 : JSON.parse(second.stdout).emptyRetryOf === firstId),
+      second.stdout || second.stderr,
+    )
+    if (ending !== "uncertain") {
+      const secondReceipt = JSON.parse(second.stdout)
+      const result = run("materialize-cloud-result.mjs", ["--receipt", secondReceipt.receiptPath], {
+        path: materializer.path,
+        env: {
+          ...retryEnv,
+          ORBIT_FAKE_LIST: taskPage([task(firstId, "ready", 0), task(retryId, "ready", 0)]),
+          ...(ending === "empty" ? { ORBIT_FAKE_APPLY_MODE: "noop" } : {}),
+        },
+      })
+      const settled = JSON.parse(readFileSync(secondReceipt.receiptPath, "utf8"))
+      T(
+        `${TOOL}: ${ending} retry releases ownership only after materialization`,
+        ending === "empty"
+          ? result.status === 3 && JSON.parse(result.stdout).retry === "exhausted" && receiptBlocksTicketAdmission(settled)
+          : result.status === 0 && !receiptBlocksTicketAdmission(settled),
+        result.stdout || result.stderr,
+      )
+    }
+    if (ending !== "materialized") {
+      if (ending === "uncertain") {
+        const receiptsDirectory = join(retryEntry.repo.path, ".git", "orbit-cloud", "receipts")
+        const reservationPath = join(receiptsDirectory, readdirSync(receiptsDirectory).find((name) => name.startsWith("reservation-")))
+        const cleared = run(TOOL, ["--clear-unknown", reservationPath, "--assert-no-task-exists"], { path: retryEntry.path, env: retryEnv })
+        T(`${TOOL}: the uncertain retry can release capacity after explicit absence confirmation`, cleared.status === 0, cleared.stderr)
+      }
+      const third = run(TOOL, argvOf(retryEntry), { path: retryEntry.path, env: retryEnv })
+      const executions = readFileSync(retryEntry.log, "utf8").trim().split(/\r?\n/).map(JSON.parse).filter((args) => args[1] === "exec")
+      T(
+        `${TOOL}: ${ending} retry cannot loop or silently readmit the ticket`,
+        third.status === 3 && third.stderr.includes("CLOUD_TASK_EMPTY") && executions.length === 2,
+        third.stdout || third.stderr,
+      )
+    }
+  }
   T(
     `${TOOL}: the scheduler contract resolves every terminal task status`,
     schedulerContract.includes("When a task receipt reaches any terminal status") &&

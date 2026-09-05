@@ -120,6 +120,11 @@ export const cases = async () => {
   const order = "Implement the ticket.\n"
   const completed = cloud.cloudOrder(order)
   T(
+    "cloud-worker.mjs: the contract leads with commit and its consequence on the same line",
+    cloud.CLOUD_FINISHING_CONTRACT.split("\n")[2].startsWith("- `git add`") &&
+      cloud.CLOUD_FINISHING_CONTRACT.split("\n")[2].includes("Without a commit there is no diff"),
+  )
+  T(
     "cloud-worker.mjs: every submitted order ends with the cloud commit and delivery contract",
     completed.endsWith(`${cloud.CLOUD_FINISHING_CONTRACT}\n`) && completed.includes("Without a commit there is no diff"),
     completed,
