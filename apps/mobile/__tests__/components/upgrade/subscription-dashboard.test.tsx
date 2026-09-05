@@ -1,5 +1,5 @@
 import React from 'react'
-import { StyleSheet, type PressableStateCallbackType, type StyleProp, type ViewStyle } from 'react-native'
+import { Linking, StyleSheet, type PressableStateCallbackType, type StyleProp, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
@@ -10,6 +10,11 @@ import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboar
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import type { UpgradeTextFn } from '@/components/upgrade/types'
 import type { PlayOffer } from '@/hooks/use-play-billing'
+
+vi.mock('react-native', async (importOriginal) => {
+  const native = await importOriginal<typeof import('react-native')>()
+  return { ...native, Linking: { openURL: vi.fn() } }
+})
 
 vi.mock('@/components/upgrade/plan-summary-card', () => ({
   PlanSummaryCard: ({ badges, ...props }: Record<string, unknown>) =>
@@ -130,6 +135,28 @@ function renderPricing(
 }
 
 describe('subscription dashboards (mobile)', () => {
+  it('reports an invoice handoff failure and clears it when the hosted invoice retry succeeds', async () => {
+    const openURL = vi.spyOn(Linking, 'openURL').mockRejectedValueOnce(new Error('unavailable')).mockResolvedValueOnce(undefined)
+    const url = 'https://billing.test/hosted-invoice'
+    const tree = render(<BillingDashboard state="stripe" data={{ ...billing, recentInvoices: [{
+      id: 'invoice-hosted', date: '2026-08-01T00:00:00Z', amountPaid: 777, currency: 'usd',
+      status: 'paid', invoicePdf: null, hostedInvoiceUrl: url, billingReason: 'subscription_cycle',
+    }] }} isOnline locale="en" usagePercent={16} usageProfile={status} status={status}
+    onPortal={() => {}} onRetryPortal={() => {}} t={t} tokens={tokens} />)
+    const download = () => tree.root.findAll((node) => node.type === 'Pressable'
+      && String(node.props.accessibilityLabel).startsWith('upgrade.billing.invoices.downloadDated:'))[0]!
+    try {
+      await TestRenderer.act(async () => { (download().props.onPress as () => void)(); await Promise.resolve() })
+      expect(openURL).toHaveBeenLastCalledWith(url)
+      expect(renderedText(tree)).toContain('auth.genericError')
+      await TestRenderer.act(async () => { (download().props.onPress as () => void)(); await Promise.resolve() })
+      expect(openURL).toHaveBeenCalledTimes(2)
+      expect(renderedText(tree)).not.toContain('auth.genericError')
+    } finally {
+      openURL.mockRestore()
+    }
+  })
+
   it('labels the Stripe amount as the monthly plan price instead of the catalog price', () => {
     const tree = render(
       <BillingDashboard

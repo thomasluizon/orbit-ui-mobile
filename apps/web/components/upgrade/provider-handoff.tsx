@@ -13,6 +13,7 @@ export function ProviderHandoff({ provider, state, onManage, t }: Readonly<{
 }>) {
   const opening = state === 'portal-opening'
   const failed = state === 'portal-failed'
+  const manageLabel = provider === 'play' ? 'upgrade.billing.actions.managePlay' : 'upgrade.billing.actions.manage'
   return (
     <section className="flex flex-col gap-3" data-provider={provider} data-state={state}>
       <div className="flex items-start gap-3 rounded-[var(--r-well)] bg-[var(--bg-well)] p-4">
@@ -33,7 +34,7 @@ export function ProviderHandoff({ provider, state, onManage, t }: Readonly<{
       ) : null}
       <div className="flex">
         <PillButton variant="primary" loading={opening} disabled={state === 'offline'} onClick={onManage}>
-          {failed ? t('upgrade.billing.retry') : provider === 'play' ? t('upgrade.billing.actions.managePlay') : t('upgrade.billing.actions.manage')}
+          {t(failed ? 'upgrade.billing.retry' : manageLabel)}
         </PillButton>
       </div>
       {state === 'offline' ? <p className="t-secondary">{t('upgrade.billing.offline')}</p> : null}

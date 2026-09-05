@@ -197,40 +197,36 @@ export default function UpgradeScreen() {
   }
 
   const billingDashboard = model.content === 'play' ? (
-    <>
-      <PlayBillingDashboard
-        status={status}
-        displayPrice={
-          status?.subscriptionInterval === 'yearly'
-            ? playBilling.yearlyOffer?.displayPrice
-            : playBilling.monthlyOffer?.displayPrice
-        }
-        locale={locale}
-        usagePercent={usagePercent}
-        usageProfile={usageProfile}
-        portalState={portalState}
-        isOnline={isOnline}
-        onManagePlay={handleManagePlay}
-        t={t}
-        tokens={tokens}
-      />
-    </>
+    <PlayBillingDashboard
+      status={status}
+      displayPrice={
+        status?.subscriptionInterval === 'yearly'
+          ? playBilling.yearlyOffer?.displayPrice
+          : playBilling.monthlyOffer?.displayPrice
+      }
+      locale={locale}
+      usagePercent={usagePercent}
+      usageProfile={usageProfile}
+      portalState={portalState}
+      isOnline={isOnline}
+      onManagePlay={handleManagePlay}
+      t={t}
+      tokens={tokens}
+    />
   ) : (
-    <>
-      <BillingDashboard
-        state={model.state}
-        data={billing}
-        isOnline={isOnline}
-        locale={locale}
-        usagePercent={usagePercent}
-        usageProfile={usageProfile}
-        status={status}
-        onPortal={() => void handlePortal()}
-        onRetryPortal={() => void handlePortal()}
-        t={t}
-        tokens={tokens}
-      />
-    </>
+    <BillingDashboard
+      state={model.state}
+      data={billing}
+      isOnline={isOnline}
+      locale={locale}
+      usagePercent={usagePercent}
+      usageProfile={usageProfile}
+      status={status}
+      onPortal={() => void handlePortal()}
+      onRetryPortal={() => void handlePortal()}
+      t={t}
+      tokens={tokens}
+    />
   )
 
   const pitchContent = !status?.hasProAccess && (status?.lapseReason || status?.subscriptionEndedAtUtc) && !showPitch ? (

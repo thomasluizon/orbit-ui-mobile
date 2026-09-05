@@ -18,6 +18,7 @@ export function ProviderHandoff({ provider, state, onManage, t, tokens }: Readon
   const reducedMotion = usePrefersReducedMotion()
   const opening = state === 'portal-opening'
   const failed = state === 'portal-failed'
+  const manageLabel = provider === 'play' ? 'upgrade.billing.actions.managePlay' : 'upgrade.billing.actions.manage'
   const opacity = useMemo(() => new Animated.Value(1), [])
   useEffect(() => {
     const animation = Animated.timing(opacity, {
@@ -47,7 +48,7 @@ export function ProviderHandoff({ provider, state, onManage, t, tokens }: Readon
       ) : null}
       <View style={{ alignItems: 'flex-start' }}>
         <PillButton variant="primary" loading={opening} disabled={state === 'offline'} onClick={onManage}>
-          {failed ? t('upgrade.billing.retry') : provider === 'play' ? t('upgrade.billing.actions.managePlay') : t('upgrade.billing.actions.manage')}
+          {t(failed ? 'upgrade.billing.retry' : manageLabel)}
         </PillButton>
       </View>
       {state === 'offline' ? <Text style={[styles.billingSecondary, { color: tokens.fg2 }]}>{t('upgrade.billing.offline')}</Text> : null}
