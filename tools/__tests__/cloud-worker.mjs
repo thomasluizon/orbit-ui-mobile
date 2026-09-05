@@ -149,6 +149,16 @@ export const cases = async () => {
     JSON.stringify(parsed),
   )
 
+  for (const title of [undefined, null, 42, false, [], {}, "measured task"]) {
+    const candidate = { ...task("task_e_a2", "ready", 0), title }
+    const validated = cloud.parseTaskList(taskPage([candidate])).tasks[0]
+    T(
+      `cloud-worker.mjs: optional title ${JSON.stringify(title)} is validated at the list boundary`,
+      typeof title === "string" ? validated.title === title : !Object.hasOwn(validated, "title"),
+      JSON.stringify(validated),
+    )
+  }
+
   let unknownStatusMessage = ""
   try {
     cloud.parseTaskList(taskPage([task("task_e_a9", "unknown", 0)]))

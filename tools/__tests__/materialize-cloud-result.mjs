@@ -286,6 +286,23 @@ export const cases = () => {
     `exit ${emptyResult.status}: ${emptyResult.stdout || emptyResult.stderr}`,
   )
 
+  for (const [label, title] of [["missing", undefined], ["non-string", { text: "invalid title" }]]) {
+    const untitled = fixture(`empty-title-${label}`, { namedTargets: ["README.md"] })
+    const result = invoke(untitled, [{ ...task(untitled.receipt.taskId, "ready", 0), title }], [], {
+      ORBIT_FAKE_APPLY_MODE: "noop",
+    })
+    const report = JSON.parse(result.stdout)
+    const retained = JSON.parse(readFileSync(untitled.receiptPath, "utf8"))
+    T(
+      `${TOOL}: ${label} title still reports an empty failure and retains ticket admission`,
+      result.status === 3 && report.outcome === "CLOUD_TASK_EMPTY" && report.retry === "required" &&
+        !Object.hasOwn(report.failure, "title") && !Object.hasOwn(retained.emptyFailure, "title") &&
+        report.failure.classification === "lost-work suspect" && receiptBlocksTicketAdmission(retained) &&
+        retained.materialized === undefined && retained.released === undefined && retained.unusable === undefined,
+      result.stdout || result.stderr,
+    )
+  }
+
   for (const [status, outcome, message] of [
     ["error", "CLOUD_TASK_ERROR", "failed; no diff will exist"],
     ["applied", "CLOUD_TASK_APPLIED", "already applied elsewhere; it will not be applied again"],

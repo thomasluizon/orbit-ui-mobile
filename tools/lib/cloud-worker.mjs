@@ -185,7 +185,8 @@ const validateTask = (task) => {
   ) {
     throw new Error(`codex cloud list task ${task.id} carries no non-negative summary.files_changed`)
   }
-  return task
+  const { title, ...validatedTask } = task
+  return typeof title === "string" ? { ...validatedTask, title } : validatedTask
 }
 
 export const parseTaskList = (stdout) => {

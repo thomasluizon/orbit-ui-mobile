@@ -86,6 +86,11 @@ export const cases = async () => {
     }
     const first = run(TOOL, argvOf(retryEntry), { path: retryEntry.path, env: retryEnv })
     const firstReceipt = JSON.parse(first.stdout)
+    T(
+      `${TOOL}: ${ending} named targets exclude the trailing NUL separator from real git ls-files`,
+      JSON.stringify(firstReceipt.namedTargets) === JSON.stringify(["README.md"]),
+      JSON.stringify(firstReceipt.namedTargets),
+    )
     const materializer = stageWithConfig(`empty-retry-${ending}-materialize`, "materialize-cloud-result.mjs", retryEntry.config)
     const empty = run("materialize-cloud-result.mjs", ["--receipt", firstReceipt.receiptPath], {
       path: materializer.path,
