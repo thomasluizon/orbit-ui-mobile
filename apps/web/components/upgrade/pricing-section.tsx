@@ -141,6 +141,7 @@ export function PricingSection({
               href="/profile"
               aria-disabled={checkoutLoading !== null}
               onClick={(event) => {
+                if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
                 event.preventDefault()
                 if (checkoutLoading === null) onStayFree()
               }}

@@ -209,10 +209,35 @@ describe('UpgradePage', () => {
     expect(document.body.textContent).toContain('upgrade.convert.handOff')
     const decline = screen.getByRole('link', { name: 'upgrade.convert.stayFree' })
     expect(decline).toHaveAttribute('href', '/profile')
-    fireEvent.click(decline)
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 })
+    fireEvent(decline, click)
+    expect(click.defaultPrevented).toBe(true)
     expect(mockGoBackOrFallback).toHaveBeenCalledWith('/profile')
     expect(document.body.textContent).not.toContain('upgrade.features.')
     expect(document.body.textContent).not.toContain('upgrade.matrix.')
+  })
+
+  it.each([
+    { metaKey: true },
+    { ctrlKey: true },
+    { shiftKey: true },
+    { button: 1 },
+    { button: 2 },
+  ])('leaves modified decline clicks to the browser: %j', (modifiers) => {
+    mockPlans = {
+      monthly: { unitAmount: 999 },
+      yearly: { unitAmount: 4999 },
+      currency: 'usd',
+      savingsPercent: 58,
+      couponPercentOff: null,
+    }
+    render(<UpgradePage />)
+    const decline = screen.getByRole('link', { name: 'upgrade.convert.stayFree' })
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, ...modifiers })
+    fireEvent(decline, event)
+    expect(event.defaultPrevented).toBe(false)
+    expect(mockGoBackOrFallback).not.toHaveBeenCalled()
+    expect(decline).toHaveAttribute('href', '/profile')
   })
 
   it('shows plan loading skeletons when plans are loading', () => {
