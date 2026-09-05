@@ -7,10 +7,9 @@ function required(name: string): string {
 }
 
 /** Resolved smoke-run configuration sourced from CI secrets. Values are read
- *  lazily (getters) so that merely importing this module — as the shared
- *  `playwright.config.ts` does for every project, including the hermetic visual
- *  suite that has no smoke secrets — never throws; only the smoke setup that
- *  actually reads a value fails fast when its secret is missing. */
+ *  lazily (getters) so merely importing this module from `playwright.config.ts`
+ *  never throws. Only the smoke setup that reads a value fails fast when its
+ *  secret is missing. */
 export const smokeEnv = {
   get testEmail(): string {
     return required('SMOKE_TEST_EMAIL')
@@ -21,6 +20,3 @@ export const smokeEnv = {
 } as const
 
 export const STORAGE_STATE_PATH = 'e2e/.auth/smoke-user.json'
-
-/** Saved storage state for the hermetic visual suite (fake-JWT session, no prod). */
-export const VISUAL_STORAGE_STATE_PATH = 'e2e/.auth/visual-user.json'

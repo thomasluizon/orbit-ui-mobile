@@ -48,9 +48,8 @@ Exit codes:
 // Overlays open from a bespoke trigger, so each needs its own opener. Only
 // openers whose selectors are verified against a real spec live here
 // (.claude/specs/issue-539-overlay-openers.md); every other overlay is reported
-// as unreachable rather than silently skipped. The create-habit opener mirrors
-// apps/web/e2e/visual/habit-create.visual.ts. Locale-independent data-testids
-// on the triggers are added in apps/web in the same PR.
+// as unreachable rather than silently skipped. Locale-independent data-testids
+// on the create-habit triggers are added in apps/web in the same PR.
 const OPENERS = {
   "overlay-create-habit-modal": async (page) => {
     await page.locator('[data-bottom-nav] [data-tour="tour-fab-button"]').click()
@@ -342,7 +341,7 @@ export function unreachableReason(cell, resolvedHrefs = new Map()) {
   // here and is reported as such rather than being silently filled with a
   // populated screenshot - which would be worse than having no artifact,
   // because it would look like evidence. Empty/loading/error states need the
-  // hermetic mock-api harness (apps/web/e2e/visual/), which is not wired to
+  // hermetic mock-api harness (apps/web/test-support/hermetic/), which is not wired to
   // this manifest yet.
   if (cell.state && cell.state !== "default") {
     return { reason: "state-not-capturable", detail: `state "${cell.state}" needs the hermetic mock-api harness; the live stack can only render the seeded state` }

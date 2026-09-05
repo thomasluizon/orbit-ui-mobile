@@ -20,7 +20,7 @@ export const referralDashboardFixture = {
   },
 } satisfies ReferralDashboard
 
-/** No notifications — the bell renders its empty state with no unread badge. */
+/** No notifications, so the bell renders its empty state with no unread badge. */
 export const notificationsFixture = {
   items: [],
   unreadCount: 0,

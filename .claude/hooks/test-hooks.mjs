@@ -308,7 +308,7 @@ for (const command of ["npm test", "npm run build", "npm run lint", "dotnet test
 // The rule judges the INVOKED PROGRAM, never stray argument text. Scanning the whole segment refused
 // `rg -n playwright .`, so a worker could not inspect or delete the very code this bans, which
 // aborts executable work for no safety. Same defect rules-orchestrator fixed for grep-over-engines.
-for (const command of ["rg -n playwright .", 'grep -rn "npm run dev" tools/', "cat apps/web/e2e/visual/orb-39.ts", "rm -rf apps/web/e2e", 'sed -i "s/expo start//" README.md']) {
+for (const command of ["rg -n playwright .", 'grep -rn "npm run dev" tools/', "cat apps/web/e2e/orb-39.ts", "rm -rf apps/web/e2e", 'sed -i "s/expo start//" README.md']) {
   T(`worker-browser: read-only work whose ARGUMENTS name a browser tool allows: ${command}`, worker(command), null)
 }
 // ...and the package runners that front the real program are still resolved through.

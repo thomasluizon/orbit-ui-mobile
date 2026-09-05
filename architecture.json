@@ -2935,6 +2935,10 @@
       {
         "from": "apps/web/stores",
         "to": "packages/shared/src/types"
+      },
+      {
+        "from": "apps/web/test-support",
+        "to": "packages/shared/src/types"
       }
     ],
     "apps/mobile": [
@@ -11220,7 +11224,6 @@
           "upgrade.convert.trustLine",
           "upgrade.free",
           "upgrade.outcomes.label",
-          "upgrade.plans.checkoutLabel",
           "upgrade.plans.coupon.line",
           "upgrade.plans.cta",
           "upgrade.plans.error",
@@ -21777,7 +21780,6 @@
           "upgrade.convert.trustLine",
           "upgrade.free",
           "upgrade.outcomes.label",
-          "upgrade.plans.checkoutLabel",
           "upgrade.plans.coupon.line",
           "upgrade.plans.cta",
           "upgrade.plans.error",
@@ -23337,6 +23339,8 @@
       "upgrade.outcomes.retrospective.body",
       "upgrade.outcomes.retrospective.title",
       "upgrade.plan",
+      "upgrade.plans.checkoutLabel",
+      "upgrade.plans.checkoutLabelRecommended",
       "upgrade.playError.alreadyOwned",
       "upgrade.playError.deviceNotSupported",
       "upgrade.playError.notSignedIn",
@@ -24042,6 +24046,7 @@
         "apps/web/__tests__/stores/tour-store.test.ts",
         "apps/web/__tests__/stores/ui-store.test.ts"
       ],
+      "apps/web/test-support": [],
       "packages/shared/(root)": [],
       "packages/shared/src": [
         "apps/mobile/__tests__/hooks/use-calendar-events.test.ts",
@@ -24584,6 +24589,7 @@
       "apps/mobile/(root)",
       "apps/mobile/modules",
       "apps/mobile/plugins",
+      "apps/web/test-support",
       "packages/shared/(root)"
     ]
   }
