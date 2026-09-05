@@ -108,7 +108,7 @@ export function HabitUnderstanding({
             <SegmentedControl
               label={labels.scheduleMode}
               value={mode}
-              options={[{ id: 'fixed', label: labels.setDays }, { id: 'flexible', label: labels.timesAWeek }]}
+              options={[{ value: 'fixed', label: labels.setDays }, { value: 'flexible', label: labels.timesAWeek }]}
               disabled={scheduleLocked}
               onChange={(value) => onModeChange(value === 'flexible' ? 'flexible' : 'fixed')}
             />

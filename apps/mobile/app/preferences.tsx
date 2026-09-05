@@ -113,7 +113,6 @@ export default function PreferencesScreen() {
       edges={['top']}
     >
       <AppBar
-        back
         onBack={() => goBackOrFallback('/profile')}
         title={t('preferences.title')}
         backLabel={t('common.backToProfile')}

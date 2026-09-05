@@ -417,7 +417,6 @@ export default function CalendarSyncScreen() {
       edges={['top']}
     >
       <AppBar
-        back
         onBack={handleBack}
         title={isReviewMode ? t('calendar.autoSync.reviewModeTitle') : t('calendar.title')}
         backLabel={t('common.backToProfile')}
@@ -529,8 +528,13 @@ export default function CalendarSyncScreen() {
               />
             ) : (
               <>
-                <SectionLabel
-                  trailing={
+                <><SectionLabel>
+                  {plural(
+                    t('calendar.eventsFound', { count: events.length }),
+                    events.length,
+                  )}
+                </SectionLabel>
+{
                     <SelectAllToggle
                       allSelected={allSelected}
                       onToggle={toggleAll}
@@ -539,13 +543,7 @@ export default function CalendarSyncScreen() {
                       tokens={tokens}
                       tintStyle={chipTint}
                     />
-                  }
-                >
-                  {plural(
-                    t('calendar.eventsFound', { count: events.length }),
-                    events.length,
-                  )}
-                </SectionLabel>
+                  }</>
                 {events.slice(0, visibleCount).map((event, index) => (
                   <CalendarSyncEventRow
                     key={event.id}

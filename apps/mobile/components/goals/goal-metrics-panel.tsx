@@ -57,7 +57,7 @@ export function GoalMetricsPanel({
   if (isLoading) {
     return (
       <View>
-        <SectionLabel top={8} bottom={0}>
+        <SectionLabel>
           {t('goals.metrics.title')}
         </SectionLabel>
         {[1, 2, 3].map((i) => (
@@ -90,7 +90,7 @@ export function GoalMetricsPanel({
 
   return (
     <View>
-      <SectionLabel top={8} bottom={0}>
+      <SectionLabel>
         {t('goals.metrics.title')}
       </SectionLabel>
 
@@ -121,7 +121,7 @@ export function GoalMetricsPanel({
 
       {metrics.habitAdherence.length > 0 ? (
         <>
-          <SectionLabel top={8} bottom={0}>
+          <SectionLabel>
             {t('goals.metrics.habitAdherence')}
           </SectionLabel>
           {metrics.habitAdherence.map((habit) => {

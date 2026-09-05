@@ -38,7 +38,6 @@ export default function AboutScreen() {
       edges={['top']}
     >
       <AppBar
-        back
         onBack={() => goBackOrFallback('/profile')}
         title={t('about.title')}
         backLabel={t('common.backToProfile')}

@@ -103,6 +103,10 @@
     "eyebrow": "Welcome back"
   },
   "common": {
+    "backToToday": "Back to today",
+    "backToParentHabit": "Back to parent habit",
+    "backToDestination": "Back to {destination}",
+    "closeConversation": "Close conversation",
     "appName": "Orbit",
     "save": "Save",
     "add": "Add",

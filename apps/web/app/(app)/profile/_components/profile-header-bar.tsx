@@ -1,6 +1,5 @@
 'use client'
 
-import { User } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
@@ -22,8 +21,7 @@ export function ProfileHeaderBar({ streak, error }: Readonly<ProfileHeaderBarPro
   return (
     <>
       <AppBar
-        leadingIcon={<User size={22} strokeWidth={1.8} color="var(--fg-1)" />}
-        trailing={
+        action={
           <>
             <ThemeToggle />
             <span data-tour="tour-streak-badge">
@@ -32,6 +30,7 @@ export function ProfileHeaderBar({ streak, error }: Readonly<ProfileHeaderBarPro
             <NotificationBell />
           </>
         }
+        title={t('nav.profile')}
       />
 
       {error && (

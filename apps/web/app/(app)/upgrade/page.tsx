@@ -219,7 +219,6 @@ export default function UpgradePage() {
   return (
     <div className="flex min-h-[100dvh] flex-col">
       <AppBar
-        back
         backLabel={t('common.backToProfile')}
         onBack={() => goBackOrFallback('/profile')}
         title={t('upgrade.title')}

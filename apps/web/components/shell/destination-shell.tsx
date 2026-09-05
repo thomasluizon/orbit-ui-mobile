@@ -16,7 +16,7 @@ import type { ShellWideItem } from '@orbit/shared/contracts/shell'
 import { resolveShellDestination } from '@orbit/shared/utils'
 import { CalendarDays, ChartLine, Home, Plus, User } from '@/components/ui/icons'
 import { CommandPalette, type CommandNavigationItem } from '@/components/command/command-palette'
-import { BottomTabBar, type BottomTab } from '@/components/navigation/bottom-tab-bar'
+import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { Fab } from '@/components/ui/fab'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
@@ -70,6 +70,8 @@ export function useShellComposerSlot(
     return registerRenderer()
   }, [enabled, host, refreshKey])
 }
+
+type BottomTab = 'hoje' | 'calendario' | 'progresso' | 'perfil'
 
 const ROUTES: Record<BottomTab, string> = {
   hoje: '/',
@@ -248,10 +250,15 @@ function DestinationShellContent({
         {...conversationSlot}
         tabBar={
           <BottomTabBar
-            active={destination}
-            labels={labels}
-            navLabel={t('nav.mainNavigation')}
-            onTab={navigate}
+            activeId={destination ?? ''}
+            items={[
+              { id: 'hoje', label: labels.hoje, icon: ({ active }) => <Home size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-4)'} aria-hidden="true" /> },
+              { id: 'calendario', label: labels.calendario, icon: ({ active }) => <CalendarDays size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-4)'} aria-hidden="true" /> },
+              { id: 'progresso', label: labels.progresso, icon: ({ active }) => <ChartLine size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-4)'} aria-hidden="true" /> },
+              { id: 'perfil', label: labels.perfil, icon: ({ active }) => <User size={24} strokeWidth={active ? 2 : 1.5} color={active ? 'var(--primary)' : 'var(--fg-4)'} aria-hidden="true" /> },
+            ]}
+            label={t('nav.mainNavigation')}
+            onSelect={(id) => navigate(id as BottomTab)}
           />
         }
         fab={

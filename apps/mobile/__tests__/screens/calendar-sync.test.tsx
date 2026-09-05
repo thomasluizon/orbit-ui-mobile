@@ -182,11 +182,13 @@ vi.mock("@/components/ui/icons", () => {
     Bell: createIcon("Bell"),
     CalendarDays: createIcon("CalendarDays"),
     Check: createIcon("Check"),
+    CheckCheck: createIcon("CheckCheck"),
     ChevronLeft: createIcon("ChevronLeft"),
     ChevronRight: createIcon("ChevronRight"),
     Link: createIcon("Link"),
     Loader2: createIcon("Loader2"),
     RefreshCw: createIcon("RefreshCw"),
+    SquareX: createIcon("SquareX"),
     WifiOff: createIcon("WifiOff"),
     X: createIcon("X"),
   };
@@ -353,6 +355,31 @@ describe("CalendarSyncScreen", () => {
 
     expect(countEventTitles(tree.root)).toBe(8);
     expect(findShowMore(tree.root)).toHaveLength(0);
+
+    const deselect = tree.root.find(
+      (node: TestNode) =>
+        node.props.accessibilityLabel === "calendar.deselectAll" &&
+        typeof node.props.onPress === "function",
+    );
+    TestRenderer.act(() => {
+      (deselect.props.onPress as () => void)();
+    });
+    const select = tree.root.find(
+      (node: TestNode) =>
+        node.props.accessibilityLabel === "calendar.selectAll" &&
+        typeof node.props.onPress === "function",
+    );
+    expect(select.props.accessibilityState).toEqual({ selected: false });
+    TestRenderer.act(() => {
+      (select.props.onPress as () => void)();
+    });
+    expect(
+      tree.root.find(
+        (node: TestNode) =>
+          node.props.accessibilityLabel === "calendar.deselectAll" &&
+          typeof node.props.onPress === "function",
+      ).props.accessibilityState,
+    ).toEqual({ selected: true });
   });
 
   it("shows the source calendar name in each event's meta", async () => {

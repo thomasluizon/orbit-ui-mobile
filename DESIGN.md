@@ -680,7 +680,9 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | Primitive | Key specs | Web | Mobile |
 |---|---|---|---|
 | NavHeader | 56px, centred UPPERCASE Geist Mono 13/500 +0.09em title, back chevron 24/2.0, right slot help / close / share | `ui/app-bar.tsx` | `ui/app-bar.tsx` |
-| SectionTitle | Geist Sans 20/500 -0.01em | `ui/section-label.tsx` | `ui/section-label.tsx` |
+| Pager | caller-controlled segments and back/forward controls, unavailable handlers disable controls, closing action replaces forward | `ui/pager.tsx` | `ui/pager.tsx` |
+| SegmentedControl | views of one subject, selected neutral surface with current-position ring, caller words, whole-control and option disabled states | `ui/segmented-control.tsx` | `ui/segmented-control.tsx` |
+| SectionTitle | Geist Sans 20/500 -0.01em, optional mono uppercase eyebrow, fixed scale spacing, no action slot | `ui/section-label.tsx` | `ui/section-label.tsx` |
 | ListRow | icon 24/1.5 in a 28px slot, title Geist Sans 17/400, desc 14 fg-3, value + trailing chevron 24 fg-4, **draws no rule of its own**, danger = status-bad | `ui/settings-row.tsx` | `ui/settings-row.tsx` |
 | SettingsGroup | the only owner of row separation: a hairline *between* adjacent rows, never after the last | `ui/settings-group.tsx` | `ui/settings-group.tsx` |
 | Switch | 48x28 pill, 22px thumb, on = primary / off = `rgba(fg,0.16)` | `ui/switch.tsx` | `ui/switch.tsx` |
@@ -700,7 +702,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | Overlay | see **Overlay** | `ui/sheet.tsx` | `ui/sheet.tsx` |
 | Toast | neutral / working / done / lost; stable live region; only done self-dismisses, at 5000ms minimum; working draws three dots; done uses `--status-done`; text action only | `ui/toast.tsx` | `ui/app-toast.tsx` |
 | Skeleton | one accessible busy unit shaped as habit row / settings row / stat tile / grid; opacity pulse only | `ui/skeleton.tsx` | same |
-| TabBar + FAB | top hairline, opaque canvas bg, **max 5 destinations**, icon 24 (active primary 2.0 / inactive fg-4 1.5), label 12 (active primary-soft / inactive fg-3), 500 weight; FAB 60px primary circle, ring `0 0 0 6px var(--bg)` | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |
+| TabBar | caller-owned items and words, one current position, top hairline on opaque canvas, icon 24 (active primary 2.0 / inactive fg-4 1.5), label 12/500 (active primary-soft / inactive fg-3); create belongs to the shell | `navigation/bottom-tab-bar.tsx` | `navigation/bottom-tab-bar.tsx` |
 | EmptyState | required title, one action; 96px real `OrbitMark`, `--fg-1`, no arc and no accent. An Astra-owned region takes `AstraGlyph` instead | `ui/empty-state.tsx` | same |
 | ErrorState | one caller-owned message and one optional text action; no code, severity or detail slot | `ui/error-state.tsx` | same |
 | CapacityNotice | neutral limit message, optional explanatory body and one action; never `--status-bad` | `ui/capacity-notice.tsx` | same |

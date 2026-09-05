@@ -36,7 +36,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
 
   return (
     <>
-      <SectionLabel bottom={10}>{t('calendar.calendars.title')}</SectionLabel>
+      <SectionLabel>{t('calendar.calendars.title')}</SectionLabel>
 
       {isLoading && (
         <div

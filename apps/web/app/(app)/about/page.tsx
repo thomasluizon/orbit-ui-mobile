@@ -21,7 +21,6 @@ export default function AboutPage() {
     <div className="md:mx-auto md:max-w-[760px]">
       <div className="flex flex-col min-h-[100dvh]">
         <AppBar
-          back
           backLabel={t('common.backToProfile')}
           onBack={() => goBackOrFallback('/profile')}
           title={t('about.title')}

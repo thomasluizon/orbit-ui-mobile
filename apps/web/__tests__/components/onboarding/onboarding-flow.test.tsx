@@ -122,7 +122,7 @@ describe('OnboardingFlow', () => {
 
   it('shows step counter', () => {
     renderFlow()
-    expect(document.body.textContent).toContain('onboarding.flow.step')
+    expect(screen.getByRole('list', { name: /^onboarding\.flow\.step:/ })).toBeInTheDocument()
   })
 
   it('shows skip button', () => {
@@ -190,10 +190,10 @@ describe('OnboardingFlow', () => {
     expect(screen.getByTestId('step-complete')).toBeInTheDocument()
   })
 
-  it('renders progress bar', () => {
+  it('renders the current pager position', () => {
     renderFlow()
-    const progress = document.querySelector('progress')
-    expect(progress).toBeInTheDocument()
+    const progress = screen.getByRole('list', { name: /^onboarding\.flow\.step:/ })
+    expect(progress.querySelectorAll('[aria-current="step"]')).toHaveLength(1)
   })
 
   it('renders the onboarding as a fullscreen portal dialog container', () => {

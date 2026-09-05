@@ -139,7 +139,7 @@ function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorPr
   if (!visible) return null
   return (
     <section>
-      <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.endDate')}</SectionLabel>
+      <SectionLabel>{t('habits.form.endDate')}</SectionLabel>
       <DateField value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={onChange} />
     </section>
   )
@@ -163,7 +163,7 @@ function SlipAlertEditor({
   if (!visible) return null
   return (
     <section>
-      <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.slipAlert')}</SectionLabel>
+      <SectionLabel>{t('habits.form.slipAlert')}</SectionLabel>
       <SlipAlertSection hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={onToggle} t={t} />
     </section>
   )
@@ -178,7 +178,7 @@ function SubHabitSection({
 }: Readonly<SubHabitSectionProps>) {
   return (
     <section>
-      <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.subHabits')}</SectionLabel>
+      <SectionLabel>{t('habits.form.subHabits')}</SectionLabel>
       {canUseSubHabits ? (
         <Proposed proposed={proposed && !!children} scope="field" label={t('habits.detail.proposed')}>
           {children}
@@ -427,7 +427,7 @@ export function HabitFormFields({
             }}
           >
             <section>
-              <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.exactTime')}</SectionLabel>
+              <SectionLabel>{t('habits.form.exactTime')}</SectionLabel>
               <TimeField
                 label={t('habits.form.exactTime')}
                 hint={t('habits.form.anyTimeHint')}
@@ -438,7 +438,7 @@ export function HabitFormFields({
             </section>
 
             <section>
-              <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.reminders')}</SectionLabel>
+              <SectionLabel>{t('habits.form.reminders')}</SectionLabel>
               <ReminderEditors
                 dueTime={dueTime}
                 reminderEnabled={reminderEnabled}
@@ -453,7 +453,7 @@ export function HabitFormFields({
             </section>
 
             <section>
-              <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.checklist')}</SectionLabel>
+              <SectionLabel>{t('habits.form.checklist')}</SectionLabel>
               <HabitChecklist
                 items={checklistItems}
                 editable
@@ -523,7 +523,7 @@ export function HabitFormFields({
             <EndDateEditor visible={showEndDate} value={endDate} onChange={(value) => setValue('endDate', value, { shouldDirty: true })} t={t} />
 
             <section>
-              <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.description')}</SectionLabel>
+              <SectionLabel>{t('habits.form.description')}</SectionLabel>
               <Input
                 label={t('habits.form.description')}
                 value={description}

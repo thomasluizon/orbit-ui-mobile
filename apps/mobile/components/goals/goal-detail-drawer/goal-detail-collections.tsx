@@ -28,7 +28,7 @@ export function GoalDetailCollections({
 
   const linkedHabitsSection = (
     <View>
-      <SectionLabel top={8} bottom={0}>
+      <SectionLabel>
         {t('goals.linkedHabits')}
       </SectionLabel>
       <GoalLinkedHabitsSection
@@ -42,7 +42,7 @@ export function GoalDetailCollections({
   const progressHistorySection =
     entries.length > 0 ? (
       <View>
-        <SectionLabel top={8} bottom={0}>
+        <SectionLabel>
           {t('goals.progressHistory')}
         </SectionLabel>
         <GoalProgressHistorySection

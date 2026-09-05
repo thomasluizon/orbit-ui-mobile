@@ -50,7 +50,11 @@ export default function WrappedScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top']}>
-      <AppBar back onBack={() => goBackOrFallback('/profile')} backLabel={t('wrapped.back')} />
+      <AppBar
+        onBack={() => goBackOrFallback('/profile')}
+        backLabel={t('wrapped.back')}
+        title={t('wrapped.title')}
+      />
       <WrappedCover
         tokens={tokens}
         period={period}

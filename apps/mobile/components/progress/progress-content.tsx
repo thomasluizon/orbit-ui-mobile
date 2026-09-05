@@ -172,7 +172,7 @@ function GoalsSection({ goals, tokens }: Readonly<{ goals: readonly Goal[]; toke
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
   const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
   const filtered = filterProgressGoals(goals, filter)
-  const options = [{ id: 'all', label: t('progressScreen.goals.all') }, { id: 'active', label: t('progressScreen.goals.active') }, { id: 'completed', label: t('progressScreen.goals.completed') }, { id: 'abandoned', label: t('progressScreen.goals.abandoned') }] as const
+  const options = [{ value: 'all', label: t('progressScreen.goals.all') }, { value: 'active', label: t('progressScreen.goals.active') }, { value: 'completed', label: t('progressScreen.goals.completed') }, { value: 'abandoned', label: t('progressScreen.goals.abandoned') }] as const
   const handleDragEnd = ({ data, from, to }: DragEndParams<Goal>) => {
     if (from === to) return
     const positions: GoalPositionItem[] = data.map((goal, position) => ({ id: goal.id, position }))
@@ -184,7 +184,7 @@ function GoalsSection({ goals, tokens }: Readonly<{ goals: readonly Goal[]; toke
   }
   return (
     <Section title={t('progressScreen.sections.goals')} tokens={tokens}>
-      {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={(id) => setFilter(id as ProgressGoalFilter)} label={t('progressScreen.goals.views')} /> : null}
+      {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={setFilter} label={t('progressScreen.goals.views')} /> : null}
       {goals.length === 0 ? <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant="ghost" onClick={() => router.push('/')}>{t('progressScreen.startHabit')}</PillButton>} /> : null}
       {goals.length > 0 && filtered.length === 0 ? <View style={styles.emptyLine}><Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.goals.filterEmpty')}</Text><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></View> : null}
       {filtered.length > 0 ? <NestableDraggableFlatList data={filtered} keyExtractor={(goal) => goal.id} renderItem={renderGoal} onDragEnd={handleDragEnd} activationDistance={5} ItemSeparatorComponent={GoalSeparator} /> : null}

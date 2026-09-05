@@ -28,8 +28,8 @@ import { OnboardingFeatures } from './onboarding-features'
 import { OnboardingComplete } from './onboarding-complete'
 import { OnboardingTemplatePacks } from './onboarding-template-packs'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
-import { PillButton } from '@/components/ui/pill-button'
-import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
+import { Pager } from '@/components/ui/pager'
+import { createTokensV2, easings } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
@@ -40,46 +40,6 @@ import {
 
 const MOBILE_ASTRA_OFFSET = 1
 
-interface ProgressDotProps {
-  active: boolean
-  activeColor: string
-  inactiveColor: string
-  reducedMotion: boolean
-}
-
-const DOT_INACTIVE_SCALE = 7 / 24
-
-function ProgressDot({ active, activeColor, inactiveColor, reducedMotion }: Readonly<ProgressDotProps>) {
-  const scale = useMemo(() => new Animated.Value(DOT_INACTIVE_SCALE), [])
-
-  useEffect(() => {
-    if (reducedMotion) {
-      scale.setValue(active ? 1 : DOT_INACTIVE_SCALE)
-      return
-    }
-    const animation = Animated.timing(scale, {
-      toValue: active ? 1 : DOT_INACTIVE_SCALE,
-      duration: 220,
-      easing: toAnimatedEasing(easings.smooth),
-      useNativeDriver: true,
-    })
-    animation.start()
-    return () => animation.stop()
-  }, [active, reducedMotion, scale])
-
-  return (
-    <Animated.View
-      style={{
-        width: 24,
-        height: 7,
-        borderRadius: 999,
-        backgroundColor: active ? activeColor : inactiveColor,
-        transformOrigin: 'left',
-        transform: [{ scaleX: scale }],
-      }}
-    />
-  )
-}
 
 interface OnboardingStepContentProps {
   viewingAstra: boolean
@@ -169,11 +129,9 @@ function OnboardingStepContent({
 }
 
 interface OnboardingFooterProps {
-  tokens: AppTokensV2
   styles: OnboardingFlowStyles
   displayTotal: number
   displayStep: number
-  prefersReducedMotion: boolean
   canAdvance: boolean
   hasPrev: boolean
   isStarter: boolean
@@ -183,11 +141,9 @@ interface OnboardingFooterProps {
 }
 
 function OnboardingFooter({
-  tokens,
   styles,
   displayTotal,
   displayStep,
-  prefersReducedMotion,
   canAdvance,
   hasPrev,
   isStarter,
@@ -198,48 +154,11 @@ function OnboardingFooter({
   const { t } = useTranslation()
   return (
     <View style={styles.footer}>
-      <View style={styles.dotsRow}>
-        {Array.from({ length: displayTotal }, (_, i) => `progress-dot-${i}`).map(
-          (dotKey, i) => (
-            <ProgressDot
-              key={dotKey}
-              active={i === displayStep - 1}
-              activeColor={tokens.primary}
-              inactiveColor={`${tokens.fg1}2E`}
-              reducedMotion={prefersReducedMotion}
-            />
-          ),
-        )}
-      </View>
-
-      <View style={styles.footerActions}>
-        <View style={styles.footerSide}>
-          {hasPrev && (
-            <Pressable
-              onPress={onPrev}
-              style={({ pressed }) => [
-                styles.backButton,
-                pressed && styles.textButtonPressed,
-              ]}
-              accessibilityRole="button"
-            >
-              <Text style={styles.backText}>
-                {t('onboarding.flow.back')}
-              </Text>
-            </Pressable>
-          )}
-        </View>
-        <View style={styles.footerCenter}>
-          {canAdvance && (
-            <PillButton onClick={onNext}>
-              {isStarter
-                ? t('onboarding.flow.begin')
-                : t('onboarding.flow.next')}
-            </PillButton>
-          )}
-        </View>
-        <View style={styles.footerSide} />
-      </View>
+      <Pager index={displayStep - 1} count={displayTotal}
+        label={t('onboarding.flow.step', { current: displayStep, total: displayTotal })}
+        backLabel={t('onboarding.flow.back')} onBack={hasPrev ? onPrev : undefined}
+        forwardLabel={isStarter ? t('onboarding.flow.begin') : t('onboarding.flow.next')}
+        onForward={canAdvance ? onNext : undefined} />
 
       {onHaveAccount && (
         <Pressable
@@ -476,11 +395,9 @@ export function OnboardingFlow() {
 
         {!hideFooter && (
           <OnboardingFooter
-            tokens={tokens}
             styles={styles}
             displayTotal={displayTotal}
             displayStep={displayStep}
-            prefersReducedMotion={prefersReducedMotion}
             canAdvance={canAdvance}
             hasPrev={hasPrev}
             isStarter={isStarter}

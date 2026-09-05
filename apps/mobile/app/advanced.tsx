@@ -151,7 +151,6 @@ export default function AdvancedScreen() {
       edges={['top']}
     >
       <AppBar
-        back
         onBack={() => goBackOrFallback('/profile')}
         title={t('advancedSettings.title')}
         backLabel={t('common.backToProfile')}
@@ -174,7 +173,8 @@ export default function AdvancedScreen() {
         </Animated.View>
 
         <Animated.View entering={sectionEntrance(1)}>
-          <SectionLabel trailing={<ProBadge />}>{t('orbitMcp.title')}</SectionLabel>
+          <><SectionLabel>{t('orbitMcp.title')}</SectionLabel>
+{<ProBadge />}</>
 
           <View style={localStyles.mcpIntro}>
             {!profile?.hasProAccess ? (

@@ -27,8 +27,7 @@ export default function DeleteAccountPage() {
   return (
     <div className="mx-auto flex min-h-[100dvh] max-w-[var(--app-max-w)] flex-col">
       <AppBar
-        back
-        backLabel={t('common.goBack')}
+        backLabel={t(isAuthenticated ? 'common.backToToday' : 'auth.backToLogin')}
         onBack={() => goBackOrFallback(isAuthenticated ? '/' : '/login')}
         title={t('deleteAccount.title')}
       />

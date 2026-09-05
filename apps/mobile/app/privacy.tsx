@@ -40,12 +40,11 @@ export default function PrivacyScreen() {
       edges={['top']}
     >
       <AppBar
-        back
         onBack={() => goBackOrFallback(isAuthenticated ? '/' : '/login')}
         title={t('privacy.title')}
-        subtitle={t('privacy.lastUpdated')}
-        backLabel={t('common.goBack')}
+        backLabel={t(isAuthenticated ? 'common.backToToday' : 'auth.backToLogin')}
       />
+      <Text style={{ paddingHorizontal: 16, color: tokens.fg3 }}>{t('privacy.lastUpdated')}</Text>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
