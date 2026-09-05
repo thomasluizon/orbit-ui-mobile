@@ -75,9 +75,12 @@ describe('list primitives on mobile', () => {
     expect(tree.root.findAllByType(Pressable)).toHaveLength(0)
   })
 
-  it('keeps trailing and vertical padding when the leading inset is disabled', () => {
+  it('keeps required padding when a caller passes the legacy inset option', () => {
     const tree = render(<ListRow title="Tags" inset={false} onClick={vi.fn()} />)
-    expect(StyleSheet.flatten(tree.root.findByType(View).props.style)).toMatchObject({ padding: 16, paddingStart: 0 })
+    const rowStyle = StyleSheet.flatten(tree.root.findByType(View).props.style)
+    expect(rowStyle).toMatchObject({ padding: 16 })
+    expect(rowStyle).not.toHaveProperty('paddingStart')
+    expect(rowStyle).not.toHaveProperty('paddingLeft')
   })
 
   it('keeps ListRow body and trailing actions independent', () => {

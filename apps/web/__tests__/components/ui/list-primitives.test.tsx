@@ -14,7 +14,7 @@ describe('list primitives on web', () => {
     const action = screen.getByRole('button', { name: 'Download invoice' })
     const row = action.parentElement
     expect(row).toBe(container.firstElementChild)
-    expect(row).toHaveStyle({ padding: '16px', paddingInlineStart: '16px' })
+    expect(row).toHaveStyle({ padding: '16px' })
     expect(action).toHaveStyle({ width: '44px', height: '44px' })
     action.focus()
     expect(action).toHaveFocus()
@@ -35,9 +35,9 @@ describe('list primitives on web', () => {
     expect(screen.queryByRole('button')).toBeNull()
   })
 
-  it('keeps trailing and vertical padding when the leading inset is disabled', () => {
+  it('keeps required padding when a caller passes the legacy inset option', () => {
     const { container } = render(<ListRow title="Tags" inset={false} onClick={vi.fn()} />)
-    expect(container.firstElementChild).toHaveStyle({ padding: '16px', paddingInlineStart: '0px' })
+    expect(container.firstElementChild).toHaveStyle({ paddingTop: '16px', paddingRight: '16px', paddingBottom: '16px', paddingLeft: '16px' })
   })
 
   it('keeps ListRow body and trailing actions independent', () => {

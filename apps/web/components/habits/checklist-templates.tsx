@@ -72,7 +72,6 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
   return (
     <>
       <ListRow
-        inset={false}
         icon="template"
         title={t('habits.form.templates')}
         value={templates.length > 0 ? String(templates.length) : undefined}

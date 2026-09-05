@@ -9,7 +9,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 export function ListRow(props: Readonly<ListRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { icon, title, description, value, trailing, danger = false, action, chevron = true, inset = true, onClick, readOnly = false } = props
+  const { icon, title, description, value, trailing, danger = false, action, chevron = true, onClick, readOnly = false } = props
   const titleColor = danger ? tokens.statusBad : tokens.fg1
   const body: ReactNode = (
     <>
@@ -29,7 +29,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
   )
 
   return (
-    <View style={[styles.row, !inset ? styles.noInset : null]}>
+    <View style={styles.row}>
       {readOnly || !onClick ? (
         <View style={styles.body}>{body}</View>
       ) : (
@@ -47,7 +47,6 @@ export function ListRow(props: Readonly<ListRowProps>) {
 const styles = StyleSheet.create({
   row: { minHeight: 52, padding: 16, flexDirection: 'row', alignItems: 'center' },
   body: { minHeight: 44, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
-  noInset: { paddingStart: 0 },
   iconSlot: { width: 28, flexShrink: 0, alignItems: 'center' },
   textBlock: { flex: 1, minWidth: 0, gap: 4 },
   title: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 21.25 },

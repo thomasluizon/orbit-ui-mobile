@@ -25,13 +25,13 @@ function RowBody({ title, description, icon, value, danger, trailing }: Readonly
 }
 
 export function ListRow(props: Readonly<ListRowProps>) {
-  const { action, chevron = true, inset = true, onClick, readOnly = false } = props
+  const { action, chevron = true, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
   const content = <>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}><ChevronRight size={24} color="var(--fg-4)" strokeWidth={1.8} /></span> : null}</>
   const bodyStyle = { minHeight: 44, padding: 0, gap: 12 } as const
 
   return (
-    <div className="flex items-center" style={{ minHeight: 52, padding: 16, paddingInlineStart: inset ? 16 : 0 }}>
+    <div className="flex items-center" style={{ minHeight: 52, padding: 16 }}>
       {readOnly || !onClick ? (
         <div className="flex min-w-0 flex-1 items-center" style={bodyStyle}>{content}</div>
       ) : (
