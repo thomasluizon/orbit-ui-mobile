@@ -39,19 +39,34 @@ describe('PillButton (mobile)', () => {
     const visibleHeight = pressableHeight(tree)
 
     expect(visibleHeight).toBe(40)
-    expect(button.props.hitSlop).toBe(2)
-    expect(visibleHeight! + button.props.hitSlop * 2).toBe(44)
+    expect(button.props.hitSlop).toEqual({ top: 2, bottom: 2, left: iconOnly ? 2 : 4, right: iconOnly ? 2 : 4 })
+    expect(visibleHeight! + button.props.hitSlop.top + button.props.hitSlop.bottom).toBe(44)
     if (iconOnly) {
       const visibleWidth = flattenStyle(button.props.style({ pressed: false })).width
       expect(visibleWidth).toBe(40)
-      expect(visibleWidth + button.props.hitSlop * 2).toBe(44)
+      expect(visibleWidth + button.props.hitSlop.left + button.props.hitSlop.right).toBe(44)
     }
+  })
+
+  it('covers even a zero-width label without growing the narrow visible pill', () => {
+    const tree = renderPill(<PillButton size="sm">i</PillButton>)
+    const button = tree.root.findByType('Pressable')
+    const visible = flattenStyle(button.props.style({ pressed: false }))
+    const minimumVisibleWidth = visible.paddingHorizontal * 2
+
+    expect(textContents(tree)).toContain('i')
+    expect(visible.height).toBe(40)
+    expect(visible.paddingHorizontal).toBe(18)
+    expect(visible.width).toBeUndefined()
+    expect(visible.minWidth).toBeUndefined()
+    expect(minimumVisibleWidth + button.props.hitSlop.left + button.props.hitSlop.right).toBe(44)
+    expect(visible.height + button.props.hitSlop.top + button.props.hitSlop.bottom).toBe(44)
   })
 
   it('keeps the standard target at its existing 50px size', () => {
     const tree = renderPill(<PillButton>Medium</PillButton>)
     expect(pressableHeight(tree)).toBe(50)
-    expect(tree.root.findByType('Pressable').props.hitSlop).toBe(0)
+    expect(tree.root.findByType('Pressable').props.hitSlop).toEqual({ top: 0, bottom: 0, left: 0, right: 0 })
   })
 
   it('renders its label', () => {

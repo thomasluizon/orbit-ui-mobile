@@ -46,7 +46,7 @@ export function Button({
       className={[
         'inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 font-medium transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40',
         variantClasses[variant],
-        size === 'sm' ? (iconOnly ? 'touch-target' : 'touch-target-y') : undefined,
+        size === 'sm' ? 'touch-target' : undefined,
       ]
         .filter(Boolean)
         .join(' ')}
