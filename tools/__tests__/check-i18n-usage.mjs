@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process"
-import { mkdirSync, writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
-import { check, root } from "./_harness.mjs"
+import { check, root, REPO_ROOT, T } from "./_harness.mjs"
 
 const catalog = { common: { save: "Save" }, habits: { hideCompleted: "Hide completed" } }
 const catalogPath = (locale) => `packages/shared/src/i18n/${locale}.json`
@@ -39,6 +39,29 @@ i18n.t('common.save')`,
   })
   check("check-i18n-usage.mjs", "parses both libraries, lexical scopes, aliases, constants and server namespaces",
     ["--root", clean], { status: 0, stdout: /9 resolved calls/ }, { cwd: root })
+
+  for (const [platform, path, key] of [
+    ["web", "apps/web/app/step-up/step-up-screen.tsx", "attemptsOne"],
+    ["mobile", "apps/mobile/app/step-up.tsx", "stepUp.attemptsOne"],
+  ]) {
+    const source = readFileSync(join(REPO_ROOT, path), "utf8")
+    const en = JSON.parse(readFileSync(join(REPO_ROOT, catalogPath("en")), "utf8"))
+    const pt = JSON.parse(readFileSync(join(REPO_ROOT, catalogPath("pt-BR")), "utf8"))
+    const directory = repository(`production-step-up-${platform}`, { [path]: source }, en, pt)
+    check("check-i18n-usage.mjs", `resolves all translators in the real ${platform} step-up module`,
+      ["--root", directory], { status: 0, stdout: /Unresolved translation calls: 0 in 0 files/ })
+    const target = `t('${key}')`
+    T(`check-i18n-usage.mjs: ${platform} production probe has exactly one target`, source.split(target).length === 2)
+    const line = source.slice(0, source.indexOf(target)).split("\n").length
+    const missingKey = platform === "web" ? "round2ProbeMissing" : "stepUp.round2ProbeMissing"
+    writeFileSync(join(directory, path), source.replace(target, `t('${missingKey}')`))
+    check("check-i18n-usage.mjs", `rejects the forwarded attemptsOne probe in a copy of ${platform} production source`,
+      ["--root", directory], {
+        status: 1,
+        stderr: new RegExp(`${path.replaceAll(".", "\\.")}:${line}: missing stepUp\\.round2ProbeMissing in en\\.json, pt-BR\\.json`),
+        stdout: /; 1 misses/,
+      })
+  }
 
   for (const [platform, hook, key] of [
     ["web", "const t = useTranslations('common')", "save"],
