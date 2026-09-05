@@ -1,18 +1,13 @@
-export interface SegmentedOption {
-  id: string
+export type SegmentedControlOption<TValue extends string> = {
+  value: TValue
   label: string
   disabled?: boolean
 }
 
-export type SegmentedOptions =
-  | readonly [SegmentedOption, SegmentedOption]
-  | readonly [SegmentedOption, SegmentedOption, SegmentedOption]
-  | readonly [SegmentedOption, SegmentedOption, SegmentedOption, SegmentedOption]
-
-export interface SegmentedControlProps {
-  options: SegmentedOptions
-  value: string
-  onChange: (id: string) => void
+export type SegmentedControlProps<TValue extends string> = {
+  options: readonly SegmentedControlOption<TValue>[]
+  value: NoInfer<TValue>
+  onChange: (value: NoInfer<TValue>) => void
   label: string
   disabled?: boolean
 }

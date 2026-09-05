@@ -173,6 +173,12 @@ function RescheduleBlock({ habit, slipping, hasPro, locale, tokens }: Readonly<{
   )
 }
 
+function HabitDetailNavigation({ parentId, onBack }: Readonly<{ parentId?: string | null; onBack: () => void }>) {
+  const { t } = useTranslation()
+  return <AppBar title={t('habits.detail.screenTitle')} onBack={onBack}
+    backLabel={t(parentId ? 'common.backToParentHabit' : 'common.backToToday')} />
+}
+
 export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }: Readonly<HabitDetailScreenProps>) {
   const { t, i18n } = useTranslation()
   const router = useRouter()
@@ -308,7 +314,7 @@ export function HabitDetailScreen({ habitId, date, fromToday = false, parentId }
     if (allHabitsQuery.isError) void allHabitsQuery.refetch()
   }
 
-  const appBar = <AppBar back title={t('habits.detail.screenTitle')} onBack={back} />
+  const appBar = <HabitDetailNavigation parentId={parentId} onBack={back} />
   if (detailQuery.isLoading || allHabitsQuery.isLoading) return <FlowShell nav={false} header={appBar}><Skeleton variant="habit-row" label={t('habits.detail.loading')} /><Skeleton variant="stat-tile" label={t('habits.detail.loading')} /><Skeleton variant="grid" rows={6} cols={7} cell={32} gap={4} label={t('habits.detail.loading')} /></FlowShell>
   if (detailQuery.isError || allHabitsQuery.isError || !habit || !detailQuery.data) return <FlowShell nav={false} header={appBar}><ErrorState message={t('habits.detail.loadError')} action={<PillButton variant="secondary" onClick={retryFailedQueries}>{t('habits.detail.retry')}</PillButton>} /></FlowShell>
 

@@ -93,12 +93,9 @@ export default function AiSettingsScreen() {
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
       edges={['top']}
     >
-      <AppBar
-        back
-        onBack={() => goBackOrFallback('/profile')}
-        title={t('aiSettings.title')}
-        backLabel={t('common.backToProfile')}
-      />
+      <AppBar onBack={() => goBackOrFallback('/profile')}
+title={t('aiSettings.title')}
+backLabel={t('common.backToProfile')} />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}

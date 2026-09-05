@@ -75,6 +75,18 @@ function UpgradeContent({
   )
 }
 
+function getUpgradeBackLabelKey(from: string | string[] | undefined): string {
+  const route = Array.isArray(from) ? from[0] : from
+  const labels: Record<string, string> = {
+    '/': 'nav.today', '/(tabs)': 'nav.today', '/calendar': 'nav.calendar',
+    '/progress': 'nav.progress', '/profile': 'nav.profile', '/advanced': 'advancedSettings.title',
+    '/ai-settings': 'aiSettings.title', '/calendar-sync': 'calendar.title',
+    '/preferences': 'preferences.title', '/about': 'about.title', '/wrapped': 'wrapped.title',
+  }
+  if (route?.startsWith('/habits/')) return 'habits.detail.screenTitle'
+  return labels[route ?? '/profile'] ?? 'nav.profile'
+}
+
 export default function UpgradeScreen() {
   const { from } = useLocalSearchParams<{ from?: string | string[] }>()
   const goBackOrFallback = useGoBackOrFallback()
@@ -117,6 +129,7 @@ export default function UpgradeScreen() {
   const returningFromBillingRef = useRef(false)
   const [prevProcessing, setPrevProcessing] = useState(false)
   const fallbackRoute = getUpgradeFallbackRoute(from, '/profile')
+  const upgradeBackLabelKey = getUpgradeBackLabelKey(from)
 
   if (prevProcessing !== playBilling.isProcessing) {
     setPrevProcessing(playBilling.isProcessing)
@@ -268,12 +281,9 @@ export default function UpgradeScreen() {
       style={[styles.safe, { backgroundColor: tokens.bg }]}
       edges={['top', 'bottom']}
     >
-      <AppBar
-        back
-        onBack={() => goBackOrFallback(fallbackRoute)}
-        title={t('upgrade.title')}
-        backLabel={t('common.goBack')}
-      />
+      <AppBar onBack={() => goBackOrFallback(fallbackRoute)}
+title={t('upgrade.title')}
+backLabel={t('common.backToDestination', { destination: t(upgradeBackLabelKey) })} />
 
       <ScrollView
         style={styles.container}

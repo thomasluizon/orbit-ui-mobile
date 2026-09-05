@@ -26,13 +26,10 @@ export default function TermsScreen() {
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
       edges={['top']}
     >
-      <AppBar
-        back
-        onBack={() => goBackOrFallback(isAuthenticated ? '/' : '/login')}
-        title={t('terms.title')}
-        subtitle={t('terms.lastUpdated')}
-        backLabel={t('common.goBack')}
-      />
+      <AppBar onBack={() => goBackOrFallback(isAuthenticated ? '/' : '/login')}
+title={t('terms.title')}
+backLabel={t(isAuthenticated ? 'common.backToToday' : 'auth.backToLogin')} />
+      <Text style={{ paddingHorizontal: 16, color: tokens.fg3 }}>{t('terms.lastUpdated')}</Text>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}

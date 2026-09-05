@@ -155,7 +155,7 @@ function EndDateEditor({ visible, value, onChange, t }: Readonly<EndDateEditorPr
   if (!visible) return null
   return (
     <View>
-      <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.endDate')}</SectionLabel>
+      <SectionLabel>{t('habits.form.endDate')}</SectionLabel>
       <DateField value={value} placeholder={t('habits.form.endDatePlaceholder')} onChange={onChange} />
     </View>
   )
@@ -183,7 +183,7 @@ function SlipAlertEditor({
   if (!visible) return null
   return (
     <View>
-      <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.slipAlert')}</SectionLabel>
+      <SectionLabel>{t('habits.form.slipAlert')}</SectionLabel>
       <SlipAlertSection tokens={tokens} hasProAccess={hasProAccess} slipAlertEnabled={slipAlertEnabled} onToggle={onToggle} onUpgrade={onUpgrade} />
     </View>
   )
@@ -198,7 +198,7 @@ function SubHabitSection({
 }: Readonly<SubHabitSectionProps>) {
   return (
     <View>
-      <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.subHabits')}</SectionLabel>
+      <SectionLabel>{t('habits.form.subHabits')}</SectionLabel>
       {canUseSubHabits ? (
         <Proposed proposed={proposed && !!children} scope="field" label={t('habits.detail.proposed')}>
           {children}
@@ -438,7 +438,7 @@ export function HabitFormFields({
         {detailsOpen ? (
           <Animated.View entering={DISCLOSURE_ENTER} exiting={DISCLOSURE_EXIT} style={styles.details}>
             <View>
-              <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.exactTime')}</SectionLabel>
+              <SectionLabel>{t('habits.form.exactTime')}</SectionLabel>
               <TimeField
                 label={t('habits.form.exactTime')}
                 hint={t('habits.form.anyTimeHint')}
@@ -448,7 +448,7 @@ export function HabitFormFields({
               />
             </View>
             <View>
-              <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.reminders')}</SectionLabel>
+              <SectionLabel>{t('habits.form.reminders')}</SectionLabel>
               <ReminderEditors
                 dueTime={dueTime}
                 reminderEnabled={reminderEnabled}
@@ -463,7 +463,7 @@ export function HabitFormFields({
               />
             </View>
             <View>
-              <SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.checklist')}</SectionLabel>
+              <SectionLabel>{t('habits.form.checklist')}</SectionLabel>
               <HabitChecklist items={checklistItems} editable proposedItemCount={proposal.checklistItems} onItemsChange={controller.setChecklistItems} />
               <ChecklistTemplates items={checklistItems} onLoad={controller.setChecklistItems} />
             </View>
@@ -481,7 +481,7 @@ export function HabitFormFields({
             <View><TagPickerField tags={availableTags} selectedIds={tags.selectedTagIds} atLimit={tags.atTagLimit} disabled={tagMutationPending} onToggle={tags.toggleTag} onCreate={() => tags.setShowNewTag(true)} onEdit={tags.startEditTag} onDelete={(id) => void tags.deleteTag(id, async (tagId) => { await deleteTag.mutateAsync(tagId) })} editLabel={t('habits.form.editTag')} deleteLabel={t('habits.form.deleteTag')} editor={tags.showNewTag ? <TagEditorRow value={tags.newTagName} placeholder={t('habits.form.tagName')} disabled={createTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.add')} onChange={tags.setNewTagName} onCommit={() => void createNewTag()} onCancel={() => tags.setShowNewTag(false)} styles={formStyles} tokens={tokens} /> : tags.editingTagId ? <TagEditorRow value={tags.editTagName} disabled={updateTag.isPending} inputAriaLabel={t('habits.form.tagName')} cancelAriaLabel={t('common.cancel')} actionLabel={t('common.save')} onChange={tags.setEditTagName} onCommit={() => void saveEditedTag()} onCancel={tags.cancelEditTag} styles={formStyles} tokens={tokens} /> : undefined} />{tags.atTagLimit ? <Text style={styles.hint}>{t('habits.form.tagLimit')}</Text> : null}</View>
             <View><GoalLinkingField selectedGoalIds={selectedGoalIds} atGoalLimit={atGoalLimit} onToggleGoal={onToggleGoal} /></View>
             <EndDateEditor visible={showEndDate} value={endDate} onChange={(value) => setValue('endDate', value, { shouldDirty: true })} t={t} />
-            <View><SectionLabel inset={false} top={0} bottom={8}>{t('habits.form.description')}</SectionLabel><Input label={t('habits.form.description')} value={description} onChange={(value) => setValue('description', value, { shouldDirty: true })} placeholder={t('habits.form.descriptionPlaceholder')} multiline rows={3} maxLength={MAX_HABIT_DESCRIPTION_LENGTH} /></View>
+            <View><SectionLabel>{t('habits.form.description')}</SectionLabel><Input label={t('habits.form.description')} value={description} onChange={(value) => setValue('description', value, { shouldDirty: true })} placeholder={t('habits.form.descriptionPlaceholder')} multiline rows={3} maxLength={MAX_HABIT_DESCRIPTION_LENGTH} /></View>
           </Animated.View>
         ) : null}
       </View>

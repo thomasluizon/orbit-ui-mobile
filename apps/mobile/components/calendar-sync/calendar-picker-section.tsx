@@ -47,7 +47,7 @@ export function CalendarPickerSection({
 
   return (
     <>
-      <SectionLabel bottom={10}>{t('calendar.calendars.title')}</SectionLabel>
+      <SectionLabel>{t('calendar.calendars.title')}</SectionLabel>
 
       {isLoading ? (
         <View

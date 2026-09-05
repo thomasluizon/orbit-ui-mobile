@@ -447,11 +447,6 @@
       "count": 5
     }
   },
-  "components/onboarding/onboarding-flow.styles.ts": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
   "components/onboarding/onboarding-meet-astra.tsx": {
     "local/spacing-scale": {
       "count": 3
@@ -515,14 +510,6 @@
     },
     "local/spacing-scale": {
       "count": 4
-    }
-  },
-  "components/ui/app-bar.tsx": {
-    "local/icon-size-grid": {
-      "count": 3
-    },
-    "local/spacing-scale": {
-      "count": 3
     }
   },
   "components/ui/app-error-boundary.tsx": {
@@ -593,11 +580,6 @@
     },
     "local/spacing-scale": {
       "count": 4
-    }
-  },
-  "components/ui/section-label.tsx": {
-    "local/spacing-scale": {
-      "count": 1
     }
   },
   "components/ui/settings-description.tsx": {

@@ -44,7 +44,7 @@ export function MarketingConsentSection() {
 
   return (
     <>
-      <SectionLabel bottom={4}>{t('profile.sections.communication')}</SectionLabel>
+      <SectionLabel>{t('profile.sections.communication')}</SectionLabel>
       <SettingsRow
         icon={Mail}
         label={t('profile.marketingEmails.title')}

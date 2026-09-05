@@ -280,12 +280,12 @@ function GoalsSection({ goals }: Readonly<{ goals: readonly Goal[] }>) {
   const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
   const filtered = filterProgressGoals(goals, filter)
   const options = [
-    { id: 'all', label: t('progressScreen.goals.all') }, { id: 'active', label: t('progressScreen.goals.active') },
-    { id: 'completed', label: t('progressScreen.goals.completed') }, { id: 'abandoned', label: t('progressScreen.goals.abandoned') },
+    { value: 'all', label: t('progressScreen.goals.all') }, { value: 'active', label: t('progressScreen.goals.active') },
+    { value: 'completed', label: t('progressScreen.goals.completed') }, { value: 'abandoned', label: t('progressScreen.goals.abandoned') },
   ] as const
   return (
     <Section title={t('progressScreen.sections.goals')}>
-      {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={(id) => setFilter(id as ProgressGoalFilter)} label={t('progressScreen.goals.views')} /> : null}
+      {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={(id) => setFilter(id)} label={t('progressScreen.goals.views')} /> : null}
       {goals.length === 0 ? <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant="ghost" onClick={() => router.push('/')}>{t('progressScreen.startHabit')}</PillButton>} /> : null}
       {goals.length > 0 && filtered.length === 0 ? <div className="flex flex-col items-start gap-3 py-6"><p className="text-[14px] text-[var(--fg-3)]">{t('progressScreen.goals.filterEmpty')}</p><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></div> : null}
       {filtered.length > 0 ? (

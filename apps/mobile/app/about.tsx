@@ -37,12 +37,9 @@ export default function AboutScreen() {
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
       edges={['top']}
     >
-      <AppBar
-        back
-        onBack={() => goBackOrFallback('/profile')}
-        title={t('about.title')}
-        backLabel={t('common.backToProfile')}
-      />
+      <AppBar onBack={() => goBackOrFallback('/profile')}
+title={t('about.title')}
+backLabel={t('common.backToProfile')} />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}

@@ -210,7 +210,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
         </div>
       )}
 
-      <SectionLabel top={8} bottom={6}>
+      <SectionLabel>
         {t('onboarding.flow.createHabit.starters')}
       </SectionLabel>
       <div className="flex flex-wrap" style={{ gap: 6 }}>

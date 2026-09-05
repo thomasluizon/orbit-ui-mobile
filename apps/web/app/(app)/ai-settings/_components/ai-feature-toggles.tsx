@@ -32,9 +32,10 @@ export function AiFeatureToggles({
 
   return (
     <>
-      <SectionLabel bottom={4} trailing={<ProBadge />}>
+      <><SectionLabel>
         {t('profile.sections.aiFeatures')}
       </SectionLabel>
+{<ProBadge />}</>
       {hasProAccess ? (
         <SettingsRow
           icon={Satellite}

@@ -103,6 +103,10 @@
     "eyebrow": "Que bom te ver de volta"
   },
   "common": {
+    "backToToday": "Voltar para hoje",
+    "backToParentHabit": "Voltar ao hábito principal",
+    "backToDestination": "Voltar para {destination}",
+    "closeConversation": "Fechar conversa",
     "appName": "Orbit",
     "save": "Salvar",
     "add": "Adicionar",

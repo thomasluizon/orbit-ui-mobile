@@ -134,9 +134,6 @@
     }
   },
   "app/(app)/profile/_components/profile-header-bar.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 1
     }
@@ -675,7 +672,7 @@
       "count": 1
     },
     "local/spacing-scale": {
-      "count": 4
+      "count": 2
     }
   },
   "components/onboarding/onboarding-meet-astra.tsx": {
@@ -735,14 +732,6 @@
       "count": 3
     }
   },
-  "components/ui/app-bar.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
   "components/ui/app-select.tsx": {
     "local/require-focus-replacement": {
       "count": 1
@@ -794,11 +783,6 @@
     "local/icon-size-grid": {
       "count": 1
     },
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/ui/section-label.tsx": {
     "local/spacing-scale": {
       "count": 1
     }

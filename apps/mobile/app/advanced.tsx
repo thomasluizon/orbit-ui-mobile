@@ -150,12 +150,9 @@ export default function AdvancedScreen() {
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
       edges={['top']}
     >
-      <AppBar
-        back
-        onBack={() => goBackOrFallback('/profile')}
-        title={t('advancedSettings.title')}
-        backLabel={t('common.backToProfile')}
-      />
+      <AppBar onBack={() => goBackOrFallback('/profile')}
+title={t('advancedSettings.title')}
+backLabel={t('common.backToProfile')} />
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
@@ -174,7 +171,8 @@ export default function AdvancedScreen() {
         </Animated.View>
 
         <Animated.View entering={sectionEntrance(1)}>
-          <SectionLabel trailing={<ProBadge />}>{t('orbitMcp.title')}</SectionLabel>
+          <><SectionLabel>{t('orbitMcp.title')}</SectionLabel>
+{<ProBadge />}</>
 
           <View style={localStyles.mcpIntro}>
             {!profile?.hasProAccess ? (

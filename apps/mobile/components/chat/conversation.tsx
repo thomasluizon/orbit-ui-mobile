@@ -22,7 +22,6 @@ import { Composer } from "@/components/shell/composer";
 import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
-import { AstraMark } from "@/components/ui/astra-avatar";
 import { RefreshCw } from "@/components/ui/icons";
 import { KeyboardAwareFlatList } from "@/components/ui/keyboard-aware-scroll-view";
 import { createStyles } from "@/components/chat/conversation.styles";
@@ -152,13 +151,9 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
-        <AppBar
-          back
-          onBack={closeConversation}
-          backLabel={t("common.goBack")}
-          titleIcon={<AstraMark size={18} />}
-          title={t("chat.title")}
-        />
+        <AppBar onBack={closeConversation}
+backLabel={t("common.closeConversation")}
+title={t("chat.title")} />
 
         {showSuggestions ? (
           <ChatEmptyState

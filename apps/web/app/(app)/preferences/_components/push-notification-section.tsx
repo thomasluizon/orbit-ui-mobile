@@ -27,7 +27,7 @@ export function PushNotificationSection({
 
   return (
     <>
-      <SectionLabel bottom={4}>{t('settings.notifications.title')}</SectionLabel>
+      <SectionLabel>{t('settings.notifications.title')}</SectionLabel>
       <SettingsRow
         label={t('settings.notifications.allowed')}
         accessory="none"

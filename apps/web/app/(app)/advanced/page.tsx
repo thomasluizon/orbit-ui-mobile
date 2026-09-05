@@ -88,12 +88,9 @@ export default function AdvancedPage() {
   return (
     <div className="md:mx-auto md:max-w-[760px]">
       <div className="flex flex-col min-h-[100dvh]">
-        <AppBar
-          back
-          backLabel={t('common.backToProfile')}
-          onBack={() => goBackOrFallback('/profile')}
-          title={t('advancedSettings.title')}
-        />
+        <AppBar backLabel={t('common.backToProfile')}
+onBack={() => goBackOrFallback('/profile')}
+title={t('advancedSettings.title')} />
         <div className="flex-1 min-h-0 overflow-y-auto stagger-enter">
           <div>
             <div>
@@ -107,7 +104,8 @@ export default function AdvancedPage() {
                 divider={false}
               />
 
-              <SectionLabel trailing={<ProBadge />}>{t('orbitMcp.title')}</SectionLabel>
+              <><SectionLabel>{t('orbitMcp.title')}</SectionLabel>
+{<ProBadge />}</>
               <div style={{ padding: '0 16px 12px' }}>
                 {!profile?.hasProAccess && (
                   <div className="flex items-center justify-end" style={{ marginBottom: 8 }}>
