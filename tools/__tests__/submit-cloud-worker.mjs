@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process"
+import filesystem from "node:fs"
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
 import { join } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
 
@@ -15,6 +17,7 @@ import {
   toolPath,
 } from "./_harness.mjs"
 import { cloudConfig, fakeCodex, task, taskPage } from "./cloud-worker.mjs"
+import { persistReconciledReceipt } from "../lib/cloud-worker.mjs"
 
 const TOOL = "submit-cloud-worker.mjs"
 
@@ -58,6 +61,39 @@ const spawnTool = (entry, args, env) => {
 const runConcurrent = (entry, env) => spawnTool(entry, argvOf(entry), env).result
 
 export const cases = async () => {
+  const renameRaceMirror = stage("submit-cloud/rename-race/receipts/task_e_a419.json", '{"taskId":"task_e_a419"}')
+  const renameRaceLock = join(renameRaceMirror, "..", "..", "receipt-task_e_a419.json.lock")
+  mkdirSync(renameRaceLock)
+  writeFileSync(join(renameRaceLock, "owner.json"), JSON.stringify({ pid: process.pid }))
+  const originalRename = filesystem.renameSync
+  let contentionObserved = false
+  let renameRaceError = null
+  try {
+    filesystem.renameSync = (source, destination) => {
+      try {
+        return originalRename(source, destination)
+      } catch (error) {
+        if (destination === renameRaceLock && !contentionObserved) {
+          contentionObserved = true
+          filesystem.rmSync(renameRaceLock, { recursive: true })
+        }
+        throw error
+      }
+    }
+    syncBuiltinESMExports()
+    persistReconciledReceipt({ taskId: "task_e_a419", firstReadyObservedAt: "2026-09-05T00:00:00.000Z" }, renameRaceMirror, [], { lockTimeoutMs: 1000 })
+  } catch (error) {
+    renameRaceError = error
+  } finally {
+    filesystem.renameSync = originalRename
+    syncBuiltinESMExports()
+  }
+  T(
+    `${TOOL}: a receipt claim survives its owner releasing after a native rename failure`,
+    contentionObserved && renameRaceError === null && !existsSync(renameRaceLock) &&
+      JSON.parse(readFileSync(renameRaceMirror, "utf8")).firstReadyObservedAt === "2026-09-05T00:00:00.000Z",
+    String(renameRaceError),
+  )
   const schedulerContract = readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")
   const normalizedSchedulerContract = schedulerContract.replace(/\s+/g, " ")
   T(
@@ -856,6 +892,17 @@ export const cases = async () => {
   )
 
   const recoveryRace = fixture("recovery-race")
+  const releaseRacingList = stage("submit-cloud/release-racing-list", "waiting")
+  writeFileSync(recoveryRace.codex.script, readFileSync(recoveryRace.codex.script, "utf8").replace(
+    'const args = process.argv.slice(2)',
+    `const args = process.argv.slice(2)
+if (args[1] === "list") {
+  writeFileSync(${JSON.stringify(releaseRacingList)}, "entered")
+  while (readFileSync(${JSON.stringify(releaseRacingList)}, "utf8") !== "released") {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10)
+  }
+}`,
+  ))
   const recoveryRaceDirectory = join(recoveryRace.repo.path, ".git", "orbit-cloud", "receipts")
   mkdirSync(recoveryRaceDirectory, { recursive: true })
   const recoveryRaceReservationId = "00000000-0000-0000-0000-000000000402"
@@ -878,14 +925,21 @@ export const cases = async () => {
     {
       ORBIT_FAKE_CODEX_LOG: recoveryRace.log,
       ORBIT_FAKE_LIST: taskPage([task(recoveryRaceTaskId, "pending", 0)]),
-      ORBIT_FAKE_LIST_DELAY_MS: "300",
     },
   )
-  const racingListDeadline = Date.now() + 2000
-  while (!readFileSync(recoveryRace.log, "utf8").includes('"list"') && Date.now() < racingListDeadline) await wait(10)
-  const racingClear = run(TOOL, ["--clear-unknown", recoveryRacePath, "--assert-no-task-exists"], {
-    path: recoveryRace.path,
-  })
+  let racingClear
+  try {
+    const racingListDeadline = Date.now() + 30_000
+    while (readFileSync(releaseRacingList, "utf8") !== "entered") {
+      if (Date.now() >= racingListDeadline) throw new Error("abandon did not enter the coordinated list call")
+      await wait(10)
+    }
+    racingClear = run(TOOL, ["--clear-unknown", recoveryRacePath, "--assert-no-task-exists"], {
+      path: recoveryRace.path,
+    })
+  } finally {
+    writeFileSync(releaseRacingList, "released")
+  }
   const racingAbandonResult = await racingAbandon.result
   const racingReservation = JSON.parse(readFileSync(recoveryRacePath, "utf8"))
   T(
