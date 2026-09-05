@@ -125,7 +125,7 @@ export function PricingSection({
                 <p
                   role="alert"
                   aria-live="polite"
-                  className="text-center text-xs text-[var(--status-bad)]"
+                  className="text-left text-sm leading-[1.55] text-[var(--status-bad)]"
                 >
                   {checkoutError}
                 </p>

@@ -285,7 +285,8 @@ export const styles = StyleSheet.create({
   },
   errorText: {
     fontFamily: 'Geist_400Regular',
-    fontSize: 12,
-    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: 'left',
   },
 })
