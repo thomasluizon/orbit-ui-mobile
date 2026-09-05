@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
+import type { StyleProp, ViewStyle } from 'react-native'
 import { act, create } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { ListRow } from '@/components/ui/list-row'
@@ -45,6 +46,40 @@ function resolvePressedStyle(node: TestNode) {
 }
 
 describe('list primitives on mobile', () => {
+  it('insets invoice actions and navigation controls without shrinking their touch targets', () => {
+    const tree = render(
+      <ListRow title="Invoice" description="September subscription" chevron={false}
+        action={{ icon: 'download', label: 'Download invoice', onPress: vi.fn() }} />,
+    )
+    const row = tree.root.findByType(View)
+    const action = tree.root.findByType(Pressable)
+    expect(action.props.accessibilityLabel).toBe('Download invoice')
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ padding: 16 })
+    const actionStyle = action.props.style as (state: { pressed: boolean }) => unknown
+    for (const pressed of [false, true]) {
+      expect(StyleSheet.flatten(actionStyle({ pressed }))).toMatchObject({ width: 44, height: 44, flexShrink: 0 })
+      expect(StyleSheet.flatten(row.props.style)).toMatchObject({ padding: 16 })
+    }
+
+    void act(() => { tree.update(<ListRow title="Account" onClick={vi.fn()} />) })
+    const navigation = tree.root.findByType(Pressable)
+    expect(StyleSheet.flatten(tree.root.findByType(View).props.style)).toMatchObject({ padding: 16 })
+    expect(StyleSheet.flatten(resolvePressedStyle(navigation))).toMatchObject({ minHeight: 44 })
+    const chevron = navigation.findAllByType(View).find((node) =>
+      StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 44,
+    )
+    expect(StyleSheet.flatten(chevron?.props.style)).toMatchObject({ width: 44, height: 44, flexShrink: 0 })
+
+    void act(() => { tree.update(<ListRow title="Read only" readOnly />) })
+    expect(StyleSheet.flatten(tree.root.findByType(View).props.style)).toMatchObject({ padding: 16 })
+    expect(tree.root.findAllByType(Pressable)).toHaveLength(0)
+  })
+
+  it('keeps trailing and vertical padding when the leading inset is disabled', () => {
+    const tree = render(<ListRow title="Tags" inset={false} onClick={vi.fn()} />)
+    expect(StyleSheet.flatten(tree.root.findByType(View).props.style)).toMatchObject({ padding: 16, paddingStart: 0 })
+  })
+
   it('keeps ListRow body and trailing actions independent', () => {
     const onClick = vi.fn()
     const onAction = vi.fn()

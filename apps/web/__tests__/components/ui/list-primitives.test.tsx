@@ -6,6 +6,40 @@ import { RowList } from '@/components/ui/row-list'
 import { SettingsGroup } from '@/components/ui/settings-group-list'
 
 describe('list primitives on web', () => {
+  it('insets invoice actions and navigation controls without shrinking their touch targets', () => {
+    const { container, rerender } = render(
+      <ListRow title="Invoice" description="September subscription" chevron={false}
+        action={{ icon: 'download', label: 'Download invoice', onPress: vi.fn() }} />,
+    )
+    const action = screen.getByRole('button', { name: 'Download invoice' })
+    const row = action.parentElement
+    expect(row).toBe(container.firstElementChild)
+    expect(row).toHaveStyle({ padding: '16px', paddingInlineStart: '16px' })
+    expect(action).toHaveStyle({ width: '44px', height: '44px' })
+    action.focus()
+    expect(action).toHaveFocus()
+    fireEvent.pointerEnter(action)
+    fireEvent.pointerDown(action)
+    expect(row).toHaveStyle({ padding: '16px' })
+    fireEvent.pointerUp(action)
+    fireEvent.pointerLeave(action)
+
+    rerender(<ListRow title="Account" onClick={vi.fn()} />)
+    const navigation = screen.getByRole('button', { name: 'Account' })
+    expect(navigation.parentElement).toHaveStyle({ padding: '16px' })
+    expect(navigation).toHaveStyle({ minHeight: '44px', padding: '0px' })
+    expect(navigation.lastElementChild).toHaveStyle({ width: '44px', height: '44px' })
+
+    rerender(<ListRow title="Read only" readOnly />)
+    expect(container.firstElementChild).toHaveStyle({ padding: '16px' })
+    expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('keeps trailing and vertical padding when the leading inset is disabled', () => {
+    const { container } = render(<ListRow title="Tags" inset={false} onClick={vi.fn()} />)
+    expect(container.firstElementChild).toHaveStyle({ padding: '16px', paddingInlineStart: '0px' })
+  })
+
   it('keeps ListRow body and trailing actions independent', () => {
     const onClick = vi.fn()
     const onAction = vi.fn()

@@ -29,11 +29,11 @@ export function ListRow(props: Readonly<ListRowProps>) {
   )
 
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, !inset ? styles.noInset : null]}>
       {readOnly || !onClick ? (
-        <View style={[styles.body, !inset ? styles.noInset : null]}>{body}</View>
+        <View style={styles.body}>{body}</View>
       ) : (
-        <Pressable accessibilityRole="button" onPress={onClick} style={({ pressed }) => [styles.body, !inset ? styles.noInset : null, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>{body}</Pressable>
+        <Pressable accessibilityRole="button" onPress={onClick} style={({ pressed }) => [styles.body, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>{body}</Pressable>
       )}
       {action ? (
         <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={({ pressed }) => [styles.control, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
@@ -45,9 +45,9 @@ export function ListRow(props: Readonly<ListRowProps>) {
 }
 
 const styles = StyleSheet.create({
-  row: { minHeight: 52, flexDirection: 'row', alignItems: 'center' },
-  body: { minHeight: 52, flex: 1, minWidth: 0, paddingLeft: 16, paddingVertical: 8, gap: 12, flexDirection: 'row', alignItems: 'center' },
-  noInset: { paddingLeft: 0 },
+  row: { minHeight: 52, padding: 16, flexDirection: 'row', alignItems: 'center' },
+  body: { minHeight: 44, flex: 1, minWidth: 0, gap: 12, flexDirection: 'row', alignItems: 'center' },
+  noInset: { paddingStart: 0 },
   iconSlot: { width: 28, flexShrink: 0, alignItems: 'center' },
   textBlock: { flex: 1, minWidth: 0, gap: 4 },
   title: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 21.25 },
