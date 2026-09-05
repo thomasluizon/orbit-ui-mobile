@@ -291,8 +291,13 @@ describe('PlanSelection (mobile)', () => {
         node.type === 'View' && node.props.accessibilityLabel === 'upgrade.plans.loading'
           && node.props.accessibilityRole !== 'progressbar',
     )
-    expect(loadingWrapper).toHaveLength(1)
-    expect(loadingWrapper[0].props.accessible).toBe(true)
+    expect(loadingWrapper).toHaveLength(0)
+    expect(loading.root.findAll(
+      (node: { type: unknown; props: Record<string, unknown> }) =>
+        node.type === 'View' && node.props.accessibilityRole === 'progressbar'
+          && node.props.accessibilityLabel === 'upgrade.plans.loading'
+          && node.props.accessible === true,
+    )).toHaveLength(6)
 
     const failed = renderSelection('yearly', {
       plans: null,
