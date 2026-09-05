@@ -66,12 +66,10 @@ apps/web/e2e/.results/
 .tmp/
 temporary screenshots/
 
-# Screenshots are bulk binary evidence: regenerable, never committed.
-# The DURABLE evidence the oracle reads - the surface inventory, the defect
-# reports and the human sign-off - lives in .claude/manifests/ and IS
-# committed. Ignoring it was the mechanism behind "attempt N+1 rediscovers
-# attempt N": six sessions each rebuilt a denominator the last one had
-# already derived, because nothing survived the session boundary.
+# Local diagnostic artifacts stay uncommitted. Visual completion comes from
+# Thomas reviewing the running surface on seeded data, not screenshot files.
+# The surface inventory in .claude/manifests/ stays committed so coverage
+# tooling and later sessions share the same surface list.
 .artifacts/
 
 # Expo

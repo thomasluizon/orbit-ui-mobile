@@ -28,8 +28,8 @@
 //    third surface's status with nobody editing it. Regenerating the manifest
 //    is a visible git diff; a silent recompute is not.
 //
-// There is deliberately no status field. Completion is derived by
-// tools/check-surface-coverage.mjs from evidence on disk.
+// There is deliberately no status field. tools/redesign-coverage.mjs validates
+// the group assignments; visual completion requires review of the running app.
 
 import { execFileSync } from "node:child_process"
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"
@@ -243,13 +243,6 @@ export function mobileRouteIdentity(posixPath) {
   return { href, label: all.join("/") || "index" }
 }
 
-/** The multi-view root's view names, parsed from its TAB_VIEWS tuple. */
-export function readRootViews(source) {
-  const match = source.match(/const\s+TAB_VIEWS\s*=\s*\[([^\]]+)\]/)
-  if (!match) throw new Error("could not parse TAB_VIEWS from the web view-state module")
-  return [...match[1].matchAll(/'([^']+)'|"([^"]+)"/g)].map((entry) => entry[1] ?? entry[2])
-}
-
 /**
  * True when this file is itself an overlay: it directly imports an overlay base
  * for its platform, or mounts its own portal/modal.
@@ -297,16 +290,16 @@ function specialSurfaceLabel(sourceFile, filename) {
   return slug(segments.join("-")) || "root"
 }
 
-function chatBlockEntries(platform, routeSurfaceId, routeSourceFile) {
-  const routeClosure = closureOf(join(REPO_ROOT, routeSourceFile))
+function chatBlockEntries(platform, routeSurfaceId, hostSourceFile) {
+  const hostClosure = closureOf(join(REPO_ROOT, hostSourceFile))
   const candidateRoots =
     platform === "web"
-      ? [join(REPO_ROOT, "apps", "web", "components", "chat"), join(REPO_ROOT, "apps", "web", "app", "(chat)", "chat")]
+      ? [join(REPO_ROOT, "apps", "web", "components", "chat")]
       : [join(REPO_ROOT, "apps", "mobile", "components", "chat")]
   const candidates = candidateRoots
     .flatMap((root) => walk(root))
     .concat(platform === "mobile" ? [join(REPO_ROOT, "apps", "mobile", "components", "message-bubble.tsx")] : [])
-    .filter((file) => file.endsWith(".tsx") && routeClosure.has(file) && file !== join(REPO_ROOT, routeSourceFile))
+    .filter((file) => file.endsWith(".tsx") && hostClosure.has(file) && file !== join(REPO_ROOT, hostSourceFile))
     .sort()
 
   return candidates.map((absolutePath) => {
@@ -329,8 +322,6 @@ function chatBlockEntries(platform, routeSurfaceId, routeSourceFile) {
 function webEntries() {
   const appDir = join(REPO_ROOT, "apps", "web", "app")
   const componentsDir = join(REPO_ROOT, "apps", "web", "components")
-  const multiViewRoot = "apps/web/app/(app)/page.tsx"
-  const viewSource = "apps/web/app/(app)/use-today-view-state.ts"
   const surfaces = []
 
   const pages = walk(appDir)
@@ -340,12 +331,6 @@ function webEntries() {
   if (pages.length === 0) throw new Error("no page.tsx found under apps/web/app")
 
   for (const sourceFile of pages) {
-    if (sourceFile === multiViewRoot) {
-      for (const view of readRootViews(readFileSync(join(REPO_ROOT, viewSource), "utf8"))) {
-        surfaces.push({ surfaceId: `view-${slug(view)}`, platform: "web", kind: "view", sourceFile, href: "/" })
-      }
-      continue
-    }
     const { href, label } = webRouteIdentity(sourceFile)
     const surface = { surfaceId: `route-${slug(label) || "root"}`, platform: "web", kind: "route", sourceFile, href }
     if (surface.surfaceId === "route-explore" || surface.surfaceId === "route-insights") {
@@ -375,7 +360,7 @@ function webEntries() {
     surfaces.push({ surfaceId: `not-found-${label}`, platform: "web", kind: "not-found", sourceFile, href: null })
   }
 
-  surfaces.push(...chatBlockEntries("web", "route-chat", "apps/web/app/(chat)/chat/page.tsx"))
+  surfaces.push(...chatBlockEntries("web", "route-chat", "apps/web/app/(app)/layout.tsx"))
 
   // Overlays and any other non-route surface, found by what a component
   // RENDERS rather than by what it is named. This is what makes the command
@@ -436,7 +421,7 @@ function mobileEntries() {
     surfaces.push({ surfaceId: "m-error-root", platform: "mobile", kind: "error", sourceFile: errorSource, href: null })
   }
 
-  surfaces.push(...chatBlockEntries("mobile", "m-route-chat", "apps/mobile/app/chat.tsx"))
+  surfaces.push(...chatBlockEntries("mobile", "m-route-chat", "apps/mobile/app/_layout.tsx"))
 
   const candidates = [...walk(componentsDir), ...walk(appDir)]
     .map(toPosix)
@@ -523,21 +508,6 @@ function attachOwnershipAndStates(surfaces) {
   return surfaces
 }
 
-/**
- * Whether a screenshot of this cell is obtainable AT ALL. Recorded in the
- * manifest because the completion oracle must not demand evidence that cannot
- * exist: requiring a judge report for a mobile cell made `done` mathematically
- * unreachable for 348 of 804 cells, which is a silently unsatisfiable gate
- * rather than a strict one.
- * @returns {"web-capture" | "none"}
- */
-export function pixelEvidenceFor(surface, state) {
-  if (surface.platform !== "web") return "none"
-  if (state !== "default") return "none"
-  if (surface.surfaceId === "route-r-code") return "none"
-  return "web-capture"
-}
-
 function gitSha(ref) {
   try {
     return execFileSync("git", ["rev-parse", ref], { cwd: REPO_ROOT, encoding: "utf8" }).trim()
@@ -562,7 +532,7 @@ function buildManifest(baselineRef) {
       for (const theme of THEMES)
         for (const locale of LOCALES) {
           const { states, ownedFilesOverride, ...rest } = surface
-          cells.push({ ...rest, state, theme, locale, pixelEvidence: pixelEvidenceFor(surface, state) })
+          cells.push({ ...rest, state, theme, locale })
         }
 
   const resolvedBaseline = gitSha(baselineRef)

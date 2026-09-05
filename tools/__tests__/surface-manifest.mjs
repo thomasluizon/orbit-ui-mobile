@@ -14,7 +14,9 @@ export async function cases() {
   if (!repository) return
 
   const files = {
-    "apps/web/app/(chat)/chat/page.tsx": "import { MessageBubble } from '@/components/chat/message-bubble'\nexport default function Page() { return <MessageBubble /> }\n",
+    "apps/web/app/(app)/page.tsx": "export default function TodayPage() { return null }\n",
+    "apps/web/app/chat/page.tsx": "export default function ChatRedirect() { return null }\n",
+    "apps/web/app/(app)/layout.tsx": "import { MessageBubble } from '@/components/chat/message-bubble'\nexport default function Layout() { return <MessageBubble /> }\n",
     "apps/web/app/(chat)/error.tsx": "export default function ErrorScreen() { return null }\n",
     "apps/web/app/global-error.tsx": "export default function GlobalError() { return null }\n",
     "apps/web/app/(app)/explore/page.tsx": "export default function Page() { return null }\n",
@@ -22,7 +24,8 @@ export async function cases() {
     "apps/web/app/not-found.tsx": "export default function NotFound() { return null }\n",
     "apps/web/components/chat/message-bubble.tsx": "import { PendingOperationCard } from './pending-operation-card'\nexport function MessageBubble() { return <PendingOperationCard /> }\n",
     "apps/web/components/chat/pending-operation-card.tsx": "export function PendingOperationCard() { return null }\n",
-    "apps/mobile/app/chat.tsx": "import { PendingOperationCard } from '@/components/chat/pending-operation-card'\nexport default function Chat() { return <PendingOperationCard /> }\n",
+    "apps/mobile/app/chat.tsx": "export default function ChatRedirect() { return null }\n",
+    "apps/mobile/app/_layout.tsx": "import { PendingOperationCard } from '@/components/chat/pending-operation-card'\nexport default function Layout() { return <PendingOperationCard /> }\n",
     "apps/mobile/app/preferences.tsx": "export default function Preferences() { return null }\n",
     "apps/mobile/app/preferences-sections.tsx": "export function PreferencesSections() { return null }\n",
     "apps/mobile/app/+not-found.tsx": "export default function NotFound() { return null }\n",
@@ -51,6 +54,10 @@ export async function cases() {
   const manifest = JSON.parse(readFileSync(join(repository.path, ".claude", "manifests", "surfaces.json"), "utf8"))
   const surfaces = [...new Map(manifest.cells.map((cell) => [cell.surfaceId, cell])).values()]
   const ids = new Set(surfaces.map((surface) => surface.surfaceId))
+  T(
+    "the web root is inventoried without the retired tab-view module",
+    surfaces.some((surface) => surface.surfaceId === "route-root" && surface.kind === "route" && surface.href === "/"),
+  )
   T("mobile section files without a default export are not routes", !ids.has("m-route-preferences-sections"))
   T("mobile default-export screens remain routes", ids.has("m-route-preferences"))
   T("mobile aliases resolve inside the mobile app for overlays", ids.has("m-overlay-preferences-picker"))
@@ -61,8 +68,8 @@ export async function cases() {
   T("the Android widget is an authoritative surface", ids.has("m-widget-orbit-widget"))
   const widget = surfaces.find((surface) => surface.surfaceId === "m-widget-orbit-widget")
   T("Android widget ownership excludes generated build trees", widget?.ownedFiles.every((path) => !/\/android\/(?:build|\.gradle|\.cxx)\//.test(path)), JSON.stringify(widget?.ownedFiles))
-  T("web chat blocks are visible under route-chat", surfaces.some((surface) => surface.surfaceId === "block-chat-pending-operation-card" && surface.parentSurfaceId === "route-chat"))
-  T("mobile chat blocks are visible under m-route-chat", surfaces.some((surface) => surface.surfaceId === "m-block-chat-pending-operation-card" && surface.parentSurfaceId === "m-route-chat"))
+  T("web layout-hosted chat blocks remain visible under the redirect route", surfaces.some((surface) => surface.surfaceId === "block-chat-pending-operation-card" && surface.parentSurfaceId === "route-chat"))
+  T("mobile layout-hosted chat blocks remain visible under the redirect route", surfaces.some((surface) => surface.surfaceId === "m-block-chat-pending-operation-card" && surface.parentSurfaceId === "m-route-chat"))
   T(
     "web-only routes carry an explicit counterpart reason",
     ["route-explore", "route-insights"].every((surfaceId) => surfaces.find((surface) => surface.surfaceId === surfaceId)?.counterpart?.status === "web-only"),
