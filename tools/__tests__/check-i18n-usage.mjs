@@ -112,6 +112,59 @@ function label(t) { t = useTranslations('habits'); return t('save') }` })
   check("check-i18n-usage.mjs", "does not infer a reassigned parameter from its incoming argument", ["--root", reassigned],
     { status: 0, stdout: /Unresolved translator bindings: 1; 1 with literal keys/ })
 
+  for (const [label, escape] of [
+    ["alias-mutation", "const alias = shared; alias.t = habits"],
+    ["alias-binding", "const alias = shared"],
+    ["call-argument", "mutate(shared)"],
+    ["returned-carrier", "function leak() { return shared }"],
+    ["stored-carrier", "const holder = { shared }"],
+    ["property-write", "shared.t = habits"],
+    ["computed-write", "shared['t'] = habits"],
+    ["compound-write", "shared.t &&= habits"],
+    ["delete-property", "delete shared.t"],
+    ["wrapped-write", "(shared as Carrier).t = habits"],
+    ["destructuring-write", "({ t: shared.t } = { t: habits })"],
+    ["unknown-method", "shared.mutate()"],
+  ]) {
+    const directory = repository(`carrier-${label}`, { "apps/web/page.tsx": `function Screen() {
+const common = useTranslations('common'); const habits = useTranslations('habits')
+const shared = { t: common }; ${escape}; return <Child {...shared} />
+}
+function Child({ t }) { return t('save') }` })
+    check("check-i18n-usage.mjs", `reports ${label} carriers unresolved instead of validating common.save`,
+      ["--root", directory], { status: 0, stdout: /Unresolved translator bindings: 1; 1 with literal keys[\s\S]*0 resolved calls/ })
+  }
+  for (const [label, expression] of [
+    ["direct", "shared.t('save')"],
+    ["wrapped-direct", "(shared as Carrier).t('save')"],
+    ["computed-direct", "shared['t']('save')"],
+    ["destructured-alias", "(() => { const { t: words } = shared; return words('save') })()"],
+  ]) {
+    const directory = repository(`carrier-call-${label}`, { "apps/web/page.tsx": `function Screen() {
+const common = useTranslations('common'); const habits = useTranslations('habits')
+const shared = { t: common }; const alias = shared; alias.t = habits; return ${expression}
+}` })
+    check("check-i18n-usage.mjs", `keeps ${label} calls through an alias-mutated carrier visible`,
+      ["--root", directory], { status: 0, stdout: /Unresolved translator bindings: 1; 1 with literal keys[\s\S]*0 resolved calls/ })
+  }
+  const confinedCarrier = repository("confined-carrier", { "apps/web/page.tsx": `function Screen() {
+const common = useTranslations('common'); const shared = { t: common }
+const { t: words } = shared; return words('save') + shared.t('save')
+}` })
+  check("check-i18n-usage.mjs", "checks direct and destructured calls through an unescaped carrier",
+    ["--root", confinedCarrier], { status: 0, stdout: /Unresolved translation calls: 0 in 0 files[\s\S]*2 resolved calls/ })
+  for (const [label, source] of [
+    ["exported-carrier", "export const shared = { t: useTranslations('common') }; const { t } = shared; t('save')"],
+    ["accessor-carrier", "const shared = { t: useTranslations('common'), get mutate() { this.t = unknown } }; const { t } = shared; t('save')"],
+    ["parameter-carrier", "const shared = { t: useTranslations('common') }; render(shared); function render(props) { const alias = props; alias.t = unknown; return props.t('save') }"],
+    ["cyclic-carrier-member", "const shared = { t: shared.t }; shared.t('save')"],
+    ["forwarded-unproven-alias", "const shared = { t: useTranslations('common') }; consume(shared); const { t: words } = shared; label(words); function label(translate) { return translate('save') }"],
+  ]) {
+    const directory = repository(label, { "apps/web/page.tsx": source })
+    check("check-i18n-usage.mjs", `does not trust ${label} values`, ["--root", directory],
+      { status: 0, stdout: /Unresolved translator bindings: 1; 1 with literal keys[\s\S]*0 resolved calls/ })
+  }
+
   for (const [label, source, key] of [
     ["root", "const t = useTranslations();\nt('missing.key')", "missing.key"],
     ["namespace", "const t = useTranslations('habits');\nt('missing')", "habits.missing"],

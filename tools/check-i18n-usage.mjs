@@ -121,6 +121,23 @@ function parameterArguments(parameter, references, checker) {
 
 function bindingSources(source, checker) {
   const references = localReferences(source, checker)
+  function confined(binding) {
+    if (!binding?.name || !ts.isIdentifier(binding.name)) return false
+    if (ts.isVariableDeclaration(binding) && binding.parent.parent.modifiers?.some(
+      (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) return false
+    const usages = references.get(checker.getSymbolAtLocation(binding.name)) ?? []
+    return usages.every((reference) => {
+      if (reference === binding.name) return true
+      const parent = reference.parent
+      // Spreads copy props; destructuring extracts values without sharing the carrier.
+      if (ts.isJsxSpreadAttribute(parent)) return true
+      if (ts.isVariableDeclaration(parent) && parent.initializer === reference &&
+        ts.isObjectBindingPattern(parent.name)) return parent.name.elements.every(
+          (element) => ts.isIdentifier(element.name) && !element.initializer)
+      return ts.isPropertyAccessExpression(parent) && parent.expression === reference &&
+        parent.name.text === "t" && ts.isCallExpression(parent.parent) && parent.parent.expression === parent
+    })
+  }
   function written(binding) {
     const usages = references.get(checker.getSymbolAtLocation(binding.name)) ?? []
     return usages.some((reference) => {
@@ -139,8 +156,13 @@ function bindingSources(source, checker) {
     expression = unwrap(expression)
     if (!expression || seen.has(expression)) return undefined
     seen = new Set([...seen, expression])
-    if (ts.isIdentifier(expression)) return members(inputs(checker.getSymbolAtLocation(expression)?.valueDeclaration, seen), name, seen)
+    if (ts.isIdentifier(expression)) {
+      const binding = checker.getSymbolAtLocation(expression)?.valueDeclaration
+      return confined(binding) ? members(inputs(binding, seen), name, seen) : undefined
+    }
     if (!ts.isObjectLiteralExpression(expression) && !ts.isJsxAttributes(expression)) return undefined
+    if (ts.isObjectLiteralExpression(expression) && expression.properties.some((item) =>
+      !ts.isPropertyAssignment(item) && !ts.isShorthandPropertyAssignment(item) && !ts.isSpreadAssignment(item))) return undefined
     for (const item of [...expression.properties].reverse()) {
       if (ts.isSpreadAssignment(item) || ts.isJsxSpreadAttribute(item)) {
         const found = member(item.expression, name, seen)
@@ -169,12 +191,12 @@ function bindingSources(source, checker) {
     }
     return undefined
   }
-  return inputs
+  return { inputs, member }
 }
 
 function extractor(source, checker) {
   const declaration = (identifier) => checker.getSymbolAtLocation(identifier)?.valueDeclaration
-  const inputs = bindingSources(source, checker)
+  const { inputs, member } = bindingSources(source, checker)
   function literal(expression, seen = new Set()) {
     expression = unwrap(expression)
     if (!expression) return undefined
@@ -209,29 +231,48 @@ function extractor(source, checker) {
   }
   function translator(expression, seen = new Set()) {
     expression = unwrap(expression)
-    if (!expression) return undefined
+    if (!expression || seen.has(expression)) return undefined
     if (ts.isCallExpression(expression)) {
       const name = factoryName(expression.expression)
       if (["useTranslations", "getTranslations"].includes(name)) return factory(expression, false)
+    }
+    if ((ts.isPropertyAccessExpression(expression) && expression.name.text === "t") ||
+      (ts.isElementAccessExpression(expression) && ts.isStringLiteral(expression.argumentExpression) && expression.argumentExpression.text === "t")) {
+      const carrier = unwrap(expression.expression)
+      const binding = ts.isIdentifier(carrier) ? declaration(carrier) : undefined
+      if (!ts.isIdentifier(carrier) || (binding && !ts.isImportClause(binding) && !ts.isImportSpecifier(binding))) {
+        return agreedTranslator(member(carrier, "t", seen), new Set([...seen, expression]))
+      }
+      return undefined
     }
     if (!ts.isIdentifier(expression)) return undefined
     const binding = declaration(expression)
     if (!binding || seen.has(binding)) return undefined
     const visited = new Set([...seen, binding])
-    if (ts.isVariableDeclaration(binding)) return translator(binding.initializer, visited)
+    if (ts.isVariableDeclaration(binding)) {
+      const initial = translator(binding.initializer, visited)
+      if (!initial) return undefined
+      const incoming = inputs(binding)
+      return incoming ? initial : { prefix: undefined }
+    }
     if (ts.isBindingElement(binding) && (binding.propertyName ?? binding.name).getText(source) === "t") {
       const initializer = unwrap(binding.parent.parent.initializer)
       if (initializer && ts.isCallExpression(initializer) && factoryName(initializer.expression) === "useTranslation") {
         return factory(initializer, true)
       }
+      return agreedTranslator(inputs(binding), visited)
     }
     const incoming = inputs(binding)
     if (incoming) {
       const translations = incoming.map((value) => translator(value, visited))
-      const prefix = translations[0]?.prefix
-      if (prefix !== undefined && translations.every((value) => value?.prefix === prefix)) return { prefix }
+      if (translations.some(Boolean)) return agreedTranslator(incoming, visited)
     }
     return undefined
+  }
+  function agreedTranslator(values, seen) {
+    const translations = values?.map((value) => translator(value, seen))
+    const prefix = translations?.[0]?.prefix
+    return { prefix: prefix !== undefined && translations.every((value) => value?.prefix === prefix) ? prefix : undefined }
   }
   function callTranslator(expression) {
     const bound = translator(expression)
