@@ -5,17 +5,17 @@ import { resolve } from 'node:path'
 import { PillButton } from '@/components/ui/pill-button'
 
 describe('PillButton', () => {
-  it.each([false, true])('attaches a centered 44px expansion rule without growing the small button (iconOnly: %s)', (iconOnly) => {
+  it.each([false, true])('expands the full small target to 44px without growing its visible box (iconOnly: %s)', (iconOnly) => {
     const css = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
-    const targetRules = css.match(/\.touch-target(?:::before)?\s*\{[^}]*\}/g)
-    expect(targetRules).toHaveLength(2)
+    const targetRules = css.match(/\.touch-target(?:-y)?(?:::(?:before|after))?\s*\{[^}]*\}/g)
+    expect(targetRules).toHaveLength(4)
     const { container } = render(<>
       <style>{targetRules!.join('\n')}</style>
       {iconOnly ? <PillButton size="sm" iconOnly label="Small"><span /></PillButton> : <PillButton size="sm">Small</PillButton>}
     </>)
     const button = screen.getByRole('button', { name: 'Small' })
     const rules = Array.from(container.querySelector('style')!.sheet!.cssRules) as CSSStyleRule[]
-    const expansion = rules.find((rule) => rule.selectorText.endsWith('::before') && button.matches(rule.selectorText.replace('::before', '')))
+    const expansion = rules.find((rule) => /::(before|after)$/.test(rule.selectorText) && button.matches(rule.selectorText.replace(/::(before|after)$/, '')))
 
     expect(getComputedStyle(button).position).toBe('relative')
     expect(button).toHaveStyle({ height: '40px' })
@@ -23,8 +23,11 @@ describe('PillButton', () => {
     expect(expansion).toBeDefined()
     expect(expansion!.style.getPropertyValue('content')).toBe('""')
     expect(expansion!.style.getPropertyValue('position')).toBe('absolute')
-    for (const edge of ['top', 'bottom', 'left', 'right']) {
+    for (const edge of ['top', 'bottom']) {
       expect(expansion!.style.getPropertyValue(edge)).toBe('calc(50% - 22px)')
+    }
+    for (const edge of ['left', 'right']) {
+      expect(expansion!.style.getPropertyValue(edge)).toBe(iconOnly ? 'calc(50% - 22px)' : '0px')
     }
     expect(expansion!.style.getPropertyValue('pointer-events')).not.toBe('none')
   })
