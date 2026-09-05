@@ -13,6 +13,7 @@ import {
   canvasColor,
   resolveWebThemeVariables,
 } from '@/lib/theme-dom'
+import { RESPONSIVE_TYPE_BREAKPOINT, responsiveTypeRoles } from '@orbit/shared/theme'
 
 const SCHEMES: ColorScheme[] = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan']
 const MODES: ThemeMode[] = ['dark', 'light']
@@ -36,6 +37,29 @@ function documentedTokens(): string[] {
 }
 
 describe('web theme variables', () => {
+  it('publishes both responsive type pairs from the shared contract', () => {
+    const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+    const boundary = `@media (min-width: ${RESPONSIVE_TYPE_BREAKPOINT / 16}rem)`
+    const wideSection = stylesheet.slice(stylesheet.indexOf(boundary))
+    for (const [selector, name] of [
+      ['t-display-heading', 'displayHeading'], ['t-allowance', 'allowance'],
+    ] as const) {
+      const role = responsiveTypeRoles[name]
+      const pattern = new RegExp(`\\.${selector} \\{([^}]+)\\}`)
+      const compact = stylesheet.match(pattern)?.[1]
+      const wide = wideSection.match(pattern)?.[1]
+      expect(compact).toContain(`font-family: var(--font-${role.family});`)
+      expect(compact).toContain(`font-weight: ${role.weight};`)
+      expect(compact).toContain(`letter-spacing: ${role.letterSpacingEm}em;`)
+      expect(compact).toContain('color: var(--fg-1);')
+      expect(compact).toContain(`font-size: ${role.compact.size}px;`)
+      expect(compact).toContain(`line-height: ${role.compact.lineHeight};`)
+      expect(wide).toContain(`font-size: ${role.wide.size}px;`)
+      expect(wide).toContain(`line-height: ${role.wide.lineHeight};`)
+      if ('tabularNums' in role) expect(compact).toContain('font-variant-numeric: tabular-nums;')
+    }
+  })
+
   afterEach(() => {
     document.documentElement.className = ''
     document.documentElement.removeAttribute('style')

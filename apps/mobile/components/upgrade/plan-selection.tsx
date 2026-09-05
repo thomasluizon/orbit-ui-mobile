@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { applySubscriptionDiscount } from '@orbit/shared/utils'
+import { getUpgradeTierReservation } from '@orbit/shared/utils/upgrade'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { Badge } from '@/components/ui/badge'
 import { ErrorState } from '@/components/ui/error-state'
@@ -140,17 +141,22 @@ export function PlanSelection({
       <PlanLoadMotion stateKey="loading" reduced={prefersReducedMotion}>
         <View style={styles.planState}>
           {intervalControl}
-          {[0, 1].map((tierIndex) => (
-            <View key={tierIndex} style={styles.planChoices}>
-              {[0, 1, 2].map((rowIndex) => (
-                <Skeleton
-                  key={rowIndex}
-                  variant="settings"
-                  label={t('upgrade.plans.loading')}
-                />
-              ))}
-            </View>
-          ))}
+          <View style={styles.planChoices}>
+            {(['yearly', 'monthly'] as const).map((interval) => (
+              <TierReservation key={interval} interval={interval} t={t} tokens={tokens}>
+                <View style={styles.planChoices}>
+                  {[0, 1, 2].map((rowIndex) => (
+                    <Skeleton
+                      key={rowIndex}
+                      variant="settings"
+                      label={t('upgrade.plans.loading')}
+                    />
+                  ))}
+                </View>
+              </TierReservation>
+            ))}
+          </View>
+          <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.errorText, { color: tokens.statusBad }]}>{checkoutError}</Text>
         </View>
       </PlanLoadMotion>
     )
@@ -212,17 +218,18 @@ export function PlanSelection({
         {intervalControl}
         <View style={styles.planChoices}>
           {tiers.map((tier) => (
-            <TierCard
-              key={tier.interval}
-              tier={tier}
-              recommended={tier.interval === 'yearly'}
-              selected={tier.interval === selectedInterval}
-              loading={checkoutLoading === tier.interval}
-              disabled={checkoutPending || checkoutDisabled}
-              onCheckout={onCheckout}
-              t={t}
-              tokens={tokens}
-            />
+            <TierReservation key={tier.interval} interval={tier.interval} t={t} tokens={tokens}>
+              <TierCard
+                tier={tier}
+                recommended={tier.interval === 'yearly'}
+                selected={tier.interval === selectedInterval}
+                loading={checkoutLoading === tier.interval}
+                disabled={checkoutPending || checkoutDisabled}
+                onCheckout={onCheckout}
+                t={t}
+                tokens={tokens}
+              />
+            </TierReservation>
           ))}
         </View>
         <Text
@@ -234,6 +241,45 @@ export function PlanSelection({
         </Text>
       </View>
     </PlanLoadMotion>
+  )
+}
+
+function TierReservation({ interval, t, tokens, children }: Readonly<{
+  interval: SubscriptionInterval
+  t: UpgradeTextFn
+  tokens: Tokens
+  children: ReactNode
+}>) {
+  const [height, setHeight] = useState(0)
+  const [contentHeight, setContentHeight] = useState(0)
+  return (
+    <View testID={`upgrade-reservation-${interval}`} style={{ minHeight: Math.max(height, contentHeight) }}>
+      <View
+        importantForAccessibility="no-hide-descendants"
+        pointerEvents="none"
+        style={{ opacity: 0 }}
+        onLayout={({ nativeEvent }) => setHeight(nativeEvent.layout.height)}
+        testID={`upgrade-measurement-${interval}`}
+      >
+        <TierCard
+          tier={getUpgradeTierReservation(interval, t)}
+          recommended={interval === 'yearly'}
+          selected={false}
+          loading={false}
+          disabled
+          onCheckout={() => {}}
+          t={t}
+          tokens={tokens}
+        />
+      </View>
+      <View
+        testID={`upgrade-content-${interval}`}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, minHeight: height }}
+        onLayout={({ nativeEvent }) => setContentHeight(nativeEvent.layout.height)}
+      >
+        {children}
+      </View>
+    </View>
   )
 }
 
@@ -261,6 +307,7 @@ function TierCard({
       testID={`upgrade-tier-${tier.interval}`}
       style={[
         styles.tierCard,
+        { flexGrow: 1 },
         {
           backgroundColor: selected ? tokens.primaryDim : tokens.bgCard,
           borderColor: selected ? tokens.primary : tokens.hairline,

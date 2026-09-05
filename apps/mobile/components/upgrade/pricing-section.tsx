@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, Text, View, useWindowDimensions } from 'react-native'
+import { responsiveTypeStyle } from '@/lib/theme'
 import { Calendar, Eye, FileText } from '@/components/ui/icons'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import type { PlayOffer } from '@/hooks/use-play-billing'
@@ -62,6 +63,7 @@ export function PricingSection({
   tokens: Tokens
 }>) {
   const trialActive = !!profile?.isTrialActive
+  const { width } = useWindowDimensions()
   const trialEyebrow =
     trialDaysLeft === null
       ? t('upgrade.convert.trialEyebrow')
@@ -75,7 +77,7 @@ export function PricingSection({
     <View style={styles.pricingSections}>
       <View style={styles.convertHeader}>
         <Text style={[styles.convertEyebrow, { color: tokens.fg3 }]}>{eyebrow}</Text>
-        <Text accessibilityRole="header" style={[styles.convertHeading, { color: tokens.fg1 }]}>{heading}</Text>
+        <Text accessibilityRole="header" style={[responsiveTypeStyle('displayHeading', width), { color: tokens.fg1 }]}>{heading}</Text>
         <Text style={[styles.convertPromise, { color: tokens.fg2 }]}>{t('upgrade.convert.promise')}</Text>
         {!trialActive ? (
           <Text style={[styles.convertTrust, { color: tokens.fg3 }]}>{t('upgrade.convert.trustLine')}</Text>
@@ -209,10 +211,11 @@ function Allowance({
   color: string
   mutedColor: string
 }>) {
+  const { width } = useWindowDimensions()
   return (
     <View style={styles.allowanceColumn}>
       <Text style={[styles.allowanceLabel, { color: mutedColor }]}>{label}</Text>
-      <Text style={[styles.allowanceAmount, { color }]}>{amount}</Text>
+      <Text style={[responsiveTypeStyle('allowance', width), { color }]}>{amount}</Text>
       <Text style={[styles.allowancePerDay, { color: mutedColor }]}>{perDay}</Text>
     </View>
   )
