@@ -7,7 +7,7 @@ export const styles = StyleSheet.create({
   billingBody: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 25 },
   billingSecondary: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },
   billingMeta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 17, fontVariant: ['tabular-nums'] },
-  billingHeading: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, lineHeight: 27, letterSpacing: -0.44, flexShrink: 1 },
+  billingHeading: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, lineHeight: 27, letterSpacing: -0.44, flexShrink: 0 },
   pricingSections: {
     gap: 32,
   },

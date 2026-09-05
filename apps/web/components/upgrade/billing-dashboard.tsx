@@ -61,7 +61,7 @@ function PlanSummary({ status, billing, locale, t }: Readonly<{
   return (
     <section className="flex flex-col gap-3 rounded-[var(--r-card)] p-6" style={cardSurface}>
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="min-w-0 flex-1 font-display text-[22px] font-medium leading-[1.4] tracking-[-0.02em] text-[var(--fg-1)]">{t(summary.nameKey)}</h1>
+        <h1 className="min-w-max flex-1 font-display text-[22px] font-medium leading-[1.4] tracking-[-0.02em] text-[var(--fg-1)]">{t(summary.nameKey)}</h1>
         {summary.badgeKey ? <Badge>{t(summary.badgeKey)}</Badge> : null}
       </div>
       <p className="t-body text-pretty text-[var(--fg-2)]">{t(summary.bodyKey, { limit: status.aiMessagesLimit })}</p>
