@@ -232,6 +232,11 @@ describe('PlanSelection', () => {
 
   it('owns loading and retry states for the price tiers', () => {
     const loading = renderSelection({ plans: null, isLoading: true })
+    const announcements = screen.getAllByLabelText('upgrade.plans.loading')
+    expect(announcements).toHaveLength(6)
+    for (const announcement of announcements) {
+      expect(announcement).toHaveAttribute('role', 'progressbar')
+    }
     expect(screen.getAllByRole('progressbar')).toHaveLength(6)
 
     const onRetry = vi.fn()

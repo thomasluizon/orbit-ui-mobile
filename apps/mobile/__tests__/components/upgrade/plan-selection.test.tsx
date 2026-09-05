@@ -286,6 +286,14 @@ describe('PlanSelection (mobile)', () => {
         node.type === 'View' && node.props.testID === 'skeleton-unit-settings',
     )).toHaveLength(6)
 
+    const loadingWrapper = loading.root.findAll(
+      (node: { type: unknown; props: Record<string, unknown> }) =>
+        node.type === 'View' && node.props.accessibilityLabel === 'upgrade.plans.loading'
+          && node.props.accessibilityRole !== 'progressbar',
+    )
+    expect(loadingWrapper).toHaveLength(1)
+    expect(loadingWrapper[0].props.accessible).toBe(true)
+
     const failed = renderSelection('yearly', {
       plans: null,
       isLoading: false,

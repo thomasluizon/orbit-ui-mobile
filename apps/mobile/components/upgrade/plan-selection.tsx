@@ -138,7 +138,7 @@ export function PlanSelection({
   if (isLoading) {
     return (
       <PlanLoadMotion stateKey="loading" reduced={prefersReducedMotion}>
-        <View accessibilityLabel={t('upgrade.plans.loading')} style={styles.planState}>
+        <View accessible accessibilityLabel={t('upgrade.plans.loading')} style={styles.planState}>
           {intervalControl}
           {[0, 1].map((tierIndex) => (
             <View key={tierIndex} style={styles.planChoices}>

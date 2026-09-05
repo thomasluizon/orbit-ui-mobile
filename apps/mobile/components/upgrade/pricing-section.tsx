@@ -96,7 +96,7 @@ export function PricingSection({
         <Text style={[styles.allowanceNote, { color: tokens.fg3 }]}>{t('upgrade.convert.allowanceNote')}</Text>
       </View>
 
-      <View accessibilityLabel={t('upgrade.outcomes.label')} style={styles.outcomes}>
+      <View accessible accessibilityLabel={t('upgrade.outcomes.label')} style={styles.outcomes}>
         {OUTCOMES.map(({ key, Icon }) => (
           <View key={key} style={styles.outcomeRow}>
             <View

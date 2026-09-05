@@ -113,7 +113,7 @@ export function PlanSelection({
   if (isLoading) {
     return (
       <PlanLoadMotion stateKey="loading" reduced={prefersReducedMotion}>
-        <div className="flex flex-col gap-4" aria-label={t('upgrade.plans.loading')}>
+        <div className="flex flex-col gap-4">
           {intervalControl}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {[0, 1].map((tierIndex) => (

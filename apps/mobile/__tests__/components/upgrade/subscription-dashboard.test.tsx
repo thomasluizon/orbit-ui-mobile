@@ -449,6 +449,10 @@ describe('subscription dashboards (mobile)', () => {
       (node) => node.type === 'View'
         && node.props.accessibilityLabel === 'upgrade.convert.allowanceLabel',
     )).toHaveLength(0)
+    const outcomes = tree.root.findAll((node) => node.type === 'View'
+      && node.props.accessibilityLabel === 'upgrade.outcomes.label')
+    expect(outcomes).toHaveLength(1)
+    expect(outcomes[0]?.props.accessible).toBe(true)
     expect(text).toContain('upgrade.convert.promise')
     expect(text).toContain('upgrade.convert.trustLine')
     expect(text).toContain('upgrade.convert.cancelAnytime')
