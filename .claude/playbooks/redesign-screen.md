@@ -1,15 +1,31 @@
 # Rebuilding a redesign screen
 
-**At a glance:** the D76 eight-step loop for one of the thirteen screens, and the ui-skills sweep
-that closes it. Read it before you write a work order for a screen ticket. Groundwork tickets do not
+**At a glance:** the D76 eight-step loop for the thirteen redesign screens, D90's temporary
+suspension, and the ui-skills sweep. Read it before writing a screen work order. Groundwork tickets do not
 use this; they run autonomously through `/orchestrate`.
 
 The loop exists because an agent cannot tell that its own output is mediocre. Every step that feels
 skippable is one that was skipped before and produced a screen Thomas rejected on sight.
 
-## The eight steps
+## During the remainder of the redesign (D90)
 
-Steps 1 to 4 happen with Thomas, in conversation, before any code exists.
+D90 suspends D76 steps 3 and 7 and D88's per-screen merge hold until the redesign ships. A screen
+does not stop for a conversation or wait for Thomas's eyes. Read the canvas, `DESIGN.md` under the
+D42 precedence ladder, and the brain decision record in place of the conversation. The canvas,
+`DESIGN.md` (including Information architecture and Bans), the step 6 ui-skills sweep, Pullfrog and
+the gates remain required. Every other step stands, with the approval in step 8 taken once at the
+end rather than holding each screen.
+
+Screens may merge on the same terms as groundwork: green checks, approval at the current head and
+zero unresolved review threads, through the authorized merge workflow. Worker merge prohibitions
+still apply. Thomas reviews the whole redesign at the end: web and an APK from `redesign/main`.
+D76 and D88 are suspended, not deleted; they return when the redesign ships.
+
+Decision record: brain ADR `Run the rest of the redesign unattended and review it once as a whole`.
+
+## The eight steps (D76; apply D90 above while active)
+
+Outside D90's temporary suspension, steps 1 to 4 happen with Thomas, in conversation, before code.
 
 1. **Look at the screen running**, together.
 2. **A subagent judges it** against `design/canvas/<screen>.dc.html` and `DESIGN.md`, with the audit
@@ -26,11 +42,12 @@ Steps 1 to 4 happen with Thomas, in conversation, before any code exists.
    are the evidence.
 8. **He approves and the next screen starts**, or it goes back into the loop.
 
-**A screen being built with no conversation behind it is out of contract.** Stop and open the
-conversation instead.
+Outside D90, **a redesign screen being built with no conversation behind it is out of contract.**
+Stop and open the conversation instead.
 
-When step 4 moves a screen off the canvas, Thomas's approval in that conversation is the grant.
+Outside D90, when step 4 moves a screen off the canvas, Thomas's approval is the grant.
 Record the deviation on the ticket, then push it back with `DesignSync`.
+During D90, the canvas and `DESIGN.md` precedence ladder settle design calls in place of conversation.
 
 ## Step 6, the sweep
 

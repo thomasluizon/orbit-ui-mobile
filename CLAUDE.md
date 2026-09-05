@@ -60,9 +60,11 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `FEATURES.md` | The Free/Trial/Pro/Yearly gating the arch map lacks. |
 | `TESTING.md` | Unit, smoke, hermetic layout guard and performance, mutation, and harness suite catalog; authoring rules and local Lighthouse commands and report location. |
 | `architecture.json` | Generated map. Read it INSTEAD of exploring the codebase. |
-| `.claude/rules/core.md` | Judgement auto-loaded on EVERY turn. |
+| `.claude/rules/core.md` | Always-loaded judgement and D89/D90 operating-contract pointers. |
 | `.claude/skills/ticket/SKILL.md` | GitHub ticket creation, labels, relations, and milestone rules. |
-| `.claude/skills/orchestrate/SKILL.md` | Ticket queue, worker, review, readiness, and handoff contract. |
+| `.claude/skills/orchestrate/SKILL.md` | Ticket queue, worker, review and readiness contract; D89 redesign invocation and local/cloud caps. |
+| `.claude/skills/handoff/SKILL.md` | Handoff prompts with the required standing-contract block before the task. |
+| `.claude/playbooks/redesign-screen.md` | Thirteen-screen D76 loop, temporary D90 suspension and required ui-skills sweep. |
 | `.claude/skills/android-generate/SKILL.md` | Local APK build, and the emulator install path. Read before building or running the Android app. |
 | `.claude/skills/android-release/SKILL.md` | Dispatching `android-release.yml` to a Google Play track. |
 | **D1..D42 register** | Historical decision record in the brain vault: `2 Areas/20-29 Orbit Engineering/Decisions/`. Current ticket routing is defined here. |

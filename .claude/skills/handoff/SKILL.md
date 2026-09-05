@@ -59,10 +59,10 @@ below even when the task is groundwork or the next session already knows the rul
 in the linked files.
 
 > Standing operating contract: read `.claude/rules/core.md` before starting.
-> - Enter through `/orchestrate`; Codex writes every code change and Claude never edits code.
-> - Run UI cloud-first with `--cloud --parallel`, with a small local pool for `api` and `landing` (D89).
+> - Enter through `/orchestrate`; Codex writes every code change and Claude never edits code. A single ticket with no flags still runs locally.
+> - Redesign queues use `/orchestrate --cloud --parallel` for UI, with a small local pool for `orbit-api` and `orbit-landing-page` (D89).
 > - Follow `DESIGN.md` for UI under the D42 precedence ladder with `design/canvas/`.
-> - Every screen runs the D76 loop and ui-skills sweep in `.claude/playbooks/redesign-screen.md`.
+> - The thirteen redesign screens use `.claude/playbooks/redesign-screen.md`; groundwork runs autonomously. Until the redesign ships, D90 suspends D76 steps 3/7 and D88's per-screen hold: no conversation or eyes wait; screens may merge on groundwork terms. Canvas, `DESIGN.md`, the step 6 ui-skills sweep, Pullfrog and gates remain required. D76/D88 return when it ships.
 > - Read `hot.md` and the brain ADRs as the decision record.
 
 **4. The task, stated as work rather than as history.** What to do next, in the order it has to happen.
