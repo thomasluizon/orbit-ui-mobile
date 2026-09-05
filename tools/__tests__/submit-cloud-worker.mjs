@@ -15,6 +15,7 @@ import {
   toolPath,
 } from "./_harness.mjs"
 import { cloudConfig, fakeCodex, task, taskPage } from "./cloud-worker.mjs"
+import { CLOUD_FINISHING_CONTRACT } from "../lib/cloud-worker.mjs"
 
 const TOOL = "submit-cloud-worker.mjs"
 
@@ -96,7 +97,7 @@ export const cases = async () => {
     `${TOOL}: the order goes through stdin and ends with the finishing contract`,
     exec?.at(-1) === receipt.baseSha &&
       readFileSync(stdinLog, "utf8").startsWith("Implement the measured cloud path.") &&
-      readFileSync(stdinLog, "utf8").endsWith("Delivery happens outside the container.\n"),
+      readFileSync(stdinLog, "utf8").endsWith(`${CLOUD_FINISHING_CONTRACT}\n`),
     `${JSON.stringify(exec)}\n${readFileSync(stdinLog, "utf8")}`,
   )
   const branchIndex = exec?.indexOf("--branch") ?? -1
@@ -199,7 +200,7 @@ export const cases = async () => {
     `${TOOL}: an order larger than the Windows argv limit is submitted intact through stdin`,
     largeOrderResult.status === 0 &&
       readFileSync(largeOrderStdin, "utf8").startsWith("x".repeat(40_000)) &&
-      readFileSync(largeOrderStdin, "utf8").endsWith("Delivery happens outside the container.\n") &&
+      readFileSync(largeOrderStdin, "utf8").endsWith(`${CLOUD_FINISHING_CONTRACT}\n`) &&
       largeOrderExec.every((argument) => argument.length < 1000),
     `exit ${largeOrderResult.status}: ${largeOrderResult.stdout || largeOrderResult.stderr}\n${JSON.stringify(largeOrderExec)}`,
   )
