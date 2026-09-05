@@ -64,6 +64,7 @@ export function Button({
 
   return (
     <Pressable
+      hitSlop={Math.max(0, (44 - sizeSpec.height) / 2)}
       onPress={loading ? undefined : onClick}
       disabled={disabled || loading}
       accessibilityRole="button"

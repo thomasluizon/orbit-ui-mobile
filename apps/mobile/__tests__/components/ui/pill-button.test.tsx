@@ -31,6 +31,29 @@ function pressableHeight(tree: any): number | undefined {
 }
 
 describe('PillButton (mobile)', () => {
+  it.each([false, true])('expands the small target to 44 without growing its visible box (iconOnly: %s)', (iconOnly) => {
+    const tree = renderPill(iconOnly
+      ? <PillButton size="sm" iconOnly label="Small"><span /></PillButton>
+      : <PillButton size="sm">Small</PillButton>)
+    const button = tree.root.findByType('Pressable')
+    const visibleHeight = pressableHeight(tree)
+
+    expect(visibleHeight).toBe(40)
+    expect(button.props.hitSlop).toBe(2)
+    expect(visibleHeight! + button.props.hitSlop * 2).toBe(44)
+    if (iconOnly) {
+      const visibleWidth = flattenStyle(button.props.style({ pressed: false })).width
+      expect(visibleWidth).toBe(40)
+      expect(visibleWidth + button.props.hitSlop * 2).toBe(44)
+    }
+  })
+
+  it('keeps the standard target at its existing 50px size', () => {
+    const tree = renderPill(<PillButton>Medium</PillButton>)
+    expect(pressableHeight(tree)).toBe(50)
+    expect(tree.root.findByType('Pressable').props.hitSlop).toBe(0)
+  })
+
   it('renders its label', () => {
     const tree = renderPill(<PillButton onClick={() => {}}>Continue</PillButton>)
     expect(textContents(tree)).toContain('Continue')
