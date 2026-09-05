@@ -1,0 +1,54 @@
+name: Layout Guard
+
+on:
+  pull_request:
+    branches: [main, redesign/main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/shared/**'
+      - '.github/workflows/layout.yml'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+concurrency:
+  group: layout-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  layout:
+    name: Upgrade layout geometry
+    runs-on: ubuntu-24.04
+    env:
+      API_BASE: http://127.0.0.1:5099
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install lockfile-pinned Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Build web
+        run: npm run build -w apps/web
+
+      - name: Check upgrade layout
+        run: npm run test:layout -w apps/web
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: layout-diagnostics
+          path: apps/web/e2e/.results
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 14
