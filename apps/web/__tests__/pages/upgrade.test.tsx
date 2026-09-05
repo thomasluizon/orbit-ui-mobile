@@ -221,6 +221,7 @@ describe('UpgradePage', () => {
     { metaKey: true },
     { ctrlKey: true },
     { shiftKey: true },
+    { altKey: true },
     { button: 1 },
     { button: 2 },
   ])('leaves modified decline clicks to the browser: %j', (modifiers) => {
