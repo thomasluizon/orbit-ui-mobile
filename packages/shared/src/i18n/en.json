@@ -586,8 +586,8 @@
       "emojiDescription": "Choose a visual cue for this habit",
       "emojiOpenPicker": "Choose habit emoji",
       "emojiPickerTitle": "Choose an emoji",
-    "emojiSearchPlaceholder": "Search emojis...",
-    "emojiClearSearch": "Clear emoji search",
+      "emojiSearchPlaceholder": "Search emojis...",
+      "emojiClearSearch": "Clear emoji search",
       "emojiCategories": "Emoji categories",
       "emojiPickerEmpty": "No emojis found",
       "emojiRemove": "Remove emoji",
@@ -2133,7 +2133,7 @@
         "monthly": "Pro Monthly",
         "yearly": "Pro Yearly",
         "lifetime": "Lifetime Pro",
-        "lifetimeHint": "Your Pro access never expires. There is no renewal.",
+        "lifetimeHint": "You have Pro for life. There is nothing to renew, and nothing to cancel.",
         "renewsOn": "Renews {date}",
         "canceledBadge": "Cancels at period end",
         "canceledHint": "Access until {date}",
@@ -2141,7 +2141,11 @@
         "trialBadge": "Trial",
         "trialHint": "Your trial ends {date}",
         "monthlyPrice": "Monthly plan price: {price}",
-        "yearlyPrice": "Yearly plan price: {price}"
+        "yearlyPrice": "Yearly plan price: {price}",
+        "proBody": "The {limit} messages a day are on, along with the calendar, the retrospective and Astra noticing things.",
+        "canceledBody": "The subscription is canceled and will not renew. Everything in Pro stays on until the period ends.",
+        "pastDueBody": "The last charge did not go through. Everything in Pro stays on while the provider retries; updating the card in the portal fixes it.",
+        "lifetimeBadge": "Lifetime"
       },
       "payment": {
         "title": "Payment method",
@@ -2165,19 +2169,20 @@
         "reasonCreate": "First payment",
         "reasonCycle": "Renewal",
         "reasonUpdate": "Plan change",
-        "reasonManual": "Manual"
+        "reasonManual": "Manual",
+        "downloadDated": "Download the invoice from {date}"
       },
       "actions": {
-        "manage": "Manage Subscription",
-        "manageHint": "Change plan, update payment method, or cancel",
-        "providerNote": "Stripe handles billing changes. Orbit does not store card details and will never ask for your password here.",
-        "managePlay": "Manage on Google Play",
-        "managePlayHint": "Google Play handles this subscription. You can change or cancel it there.",
+        "manage": "Open the Stripe portal",
+        "manageHint": "Your subscription is billed by Stripe. Changing plan, changing the card or cancelling happens in their portal.",
+        "providerNote": "Any billing change happens with the provider. Orbit never holds your card details and never asks for your password here.",
+        "managePlay": "Open Google Play",
+        "managePlayHint": "You subscribed through Google Play, so billing is handled there. Changing plan or cancelling happens in the Play subscriptions dashboard.",
         "opening": "Opening billing settings"
       },
       "error": "Couldn't load billing details",
       "retry": "Try again",
-      "portalFailed": "Billing settings did not open. Check your connection and try again.",
+      "portalFailed": "The portal did not open.",
       "portalReturned": "Subscription details refreshed",
       "offline": "You are offline. Reconnect to manage billing.",
       "lapsed": {
@@ -2188,12 +2193,15 @@
         "fallback": "Your subscription has ended.",
         "features": "Astra's higher daily limit and calendar sync are no longer active.",
         "yearlyFeature": "Yearly retrospective access is no longer active.",
-        "action": "Subscribe again"
+        "action": "Subscribe again",
+        "ended": "Your subscription ended on {date}.",
+        "body": "The account went back to the free plan. Your habits, logs and goals are all still here, unchanged."
       },
       "paymentIssue": {
         "title": "We couldn't process your payment",
         "body": "Your Pro access is still active. Open billing below and update your payment method to keep it."
-      }
+      },
+      "portalFix": "Check the connection and try again. Your subscription stays exactly as it is."
     },
     "playError": {
       "unavailable": "Google Play billing isn't available on this device.",

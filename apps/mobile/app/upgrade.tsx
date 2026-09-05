@@ -69,7 +69,7 @@ function UpgradeContent({
 
   return (
     <>
-      {state === 'offline' ? <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.offline')} /></View> : null}
+      {state === 'offline' && content === 'pitch' ? <View style={styles.padBlock}><ErrorState message={t('upgrade.billing.offline')} /></View> : null}
       {body}
     </>
   )
@@ -113,6 +113,7 @@ export default function UpgradeScreen() {
   } = useBilling(showBilling && !isPlaySource && !status?.isLifetimePro)
   const [selectedInterval, setSelectedInterval] = useState<SubscriptionInterval>('yearly')
   const [checkoutLoading, setCheckoutLoading] = useState<SubscriptionInterval | null>(null)
+  const [showPitch, setShowPitch] = useState(false)
   const [portalState, setPortalState] = useState<SubscriptionPortalState>('idle')
   const returningFromBillingRef = useRef(false)
   const [prevProcessing, setPrevProcessing] = useState(false)
@@ -196,7 +197,6 @@ export default function UpgradeScreen() {
 
   const billingDashboard = model.content === 'play' ? (
     <>
-      <SubscriptionNotice status={status} locale={locale} t={t} tokens={tokens} />
       <PlayBillingDashboard
         status={status}
         displayPrice={
@@ -216,7 +216,6 @@ export default function UpgradeScreen() {
     </>
   ) : (
     <>
-      <SubscriptionNotice status={status} locale={locale} t={t} tokens={tokens} />
       <BillingDashboard
         state={model.state}
         data={billing}
@@ -233,9 +232,10 @@ export default function UpgradeScreen() {
     </>
   )
 
-  const pitchContent = (
+  const pitchContent = !status?.hasProAccess && status?.lapseReason && !showPitch ? (
+    <SubscriptionNotice status={status} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} tokens={tokens} />
+  ) : (
     <>
-      <SubscriptionNotice status={status} locale={locale} t={t} tokens={tokens} />
       <PricingSection
         profile={status}
         plans={plans}
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   container: { flex: 1 },
   scrollContent: {
-    paddingTop: 8,
+    paddingTop: 16,
     paddingBottom: 32,
   },
   padBlock: {

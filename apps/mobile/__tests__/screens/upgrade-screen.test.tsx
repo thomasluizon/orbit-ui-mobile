@@ -270,7 +270,11 @@ describe('UpgradeScreen', () => {
           && node.props.children === 'upgrade.billing.lapsed.title')).toHaveLength(1)
       expect(tree.root.findAll((node) =>
         node.type === 'Text'
-          && node.props.children === `upgrade.billing.lapsed.${lapseReason}`)).toHaveLength(1)
+          && node.props.children === `upgrade.billing.lapsed.${lapseReason}`)).toHaveLength(0)
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'upgrade.billing.lapsed.ended')).toHaveLength(1)
+      expect(tree.root.findAll((node) => node.type === 'PricingSection')).toHaveLength(0)
+      const action = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'button-primary-md')[0]!
+      TestRenderer.act(() => { (action.props.onPress as () => void)() })
       expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
     },
   )
@@ -283,16 +287,7 @@ describe('UpgradeScreen', () => {
 
     const tree = await renderScreen()
 
-    expect(tree.root.findAll((node) =>
-      node.type === 'Text'
-        && node.props.accessibilityRole === 'header'
-        && node.props.children === 'upgrade.billing.paymentIssue.title')).toHaveLength(1)
-    expect(tree.root.findAll((node) =>
-      node.type === 'Text'
-        && node.props.children === 'upgrade.billing.paymentIssue.body')).toHaveLength(1)
-    expect(tree.root.findAll((node) =>
-      node.type === 'Text'
-        && node.props.children === 'upgrade.billing.lapsed.title')).toHaveLength(0)
+    expect(findByType(tree.root, 'BillingDashboard').props.state).toBe('past-due')
     expect(findByType(tree.root, 'BillingDashboard')).toBeTruthy()
   })
 

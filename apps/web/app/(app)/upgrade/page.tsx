@@ -9,6 +9,7 @@ import {
   getFriendlyErrorMessage,
   getTrialDaysLeft,
   resolveSubscriptionScreen,
+  playManageSubscriptionUrl,
 } from '@orbit/shared/utils'
 import type { SubscriptionPortalState } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
@@ -63,6 +64,7 @@ export default function UpgradePage() {
   const [checkoutLoading, setCheckoutLoading] = useState<SubscriptionInterval | null>(null)
   const checkoutPendingRef = useRef(false)
   const [checkoutError, setCheckoutError] = useState('')
+  const [showPitch, setShowPitch] = useState(false)
   const [portalState, setPortalState] = useState<SubscriptionPortalState>('idle')
 
   const model = resolveSubscriptionScreen({
@@ -130,13 +132,18 @@ export default function UpgradePage() {
     if (!isOnline) return
     setPortalState('opening')
     try {
+      if (status?.source === 'play') {
+        globalThis.sessionStorage.setItem(PORTAL_RETURN_KEY, '1')
+        globalThis.location.href = playManageSubscriptionUrl()
+        return
+      }
       const data = await openCustomerPortal()
       globalThis.sessionStorage.setItem(PORTAL_RETURN_KEY, '1')
       globalThis.location.href = data.url
     } catch {
       setPortalState('failed')
     }
-  }, [isOnline])
+  }, [isOnline, status])
 
   const retryLoad = () => {
     void Promise.all([refetchStatus(), refetchBilling(), refetchPlans()])
@@ -162,10 +169,11 @@ export default function UpgradePage() {
         }
       />
     )
+  } else if (!status?.hasProAccess && (status?.lapseReason || status?.subscriptionEndedAtUtc) && !showPitch) {
+    content = <SubscriptionNotice status={status} locale={locale} onResubscribe={() => setShowPitch(true)} t={t} />
   } else if (model.content === 'pitch') {
     content = (
       <div className="flex flex-col gap-6">
-        <SubscriptionNotice status={status} locale={locale} t={t} />
         <PricingSection
           profile={status}
           plans={plans}
@@ -186,9 +194,9 @@ export default function UpgradePage() {
   } else if (model.content === 'play') {
     content = (
       <div className="flex flex-col gap-6">
-        <SubscriptionNotice status={status} locale={locale} t={t} />
         <PlayBillingDashboard
           state={model.state}
+          onManagePlay={() => void handleOpenPortal()}
           status={status}
           locale={locale}
           usagePercent={usagePercent}
@@ -200,7 +208,6 @@ export default function UpgradePage() {
   } else {
     content = (
       <div className="flex flex-col gap-6">
-        <SubscriptionNotice status={status} locale={locale} t={t} />
         <BillingDashboard
           state={model.state}
           billing={billing}
@@ -224,8 +231,8 @@ export default function UpgradePage() {
         onBack={() => goBackOrFallback('/profile')}
         title={t('upgrade.title')}
       />
-      <main className="mx-auto w-full max-w-[620px] flex-1 px-4 py-6">
-        {model.state === 'offline' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
+      <main className="mx-auto w-full max-w-[620px] flex-1 px-4 py-4" data-state={model.state}>
+        {model.state === 'offline' && model.content === 'pitch' ? <ErrorState message={t('upgrade.billing.offline')} /> : null}
         {content}
       </main>
     </div>

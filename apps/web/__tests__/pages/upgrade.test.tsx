@@ -555,14 +555,14 @@ describe('UpgradePage', () => {
     expect(document.body.textContent).toContain('upgrade.billing.invoices.statusOpen')
     expect(document.body.textContent).toContain('upgrade.billing.invoices.reasonCycle')
     expect(document.body.textContent).toContain('upgrade.billing.invoices.reasonManual')
-    expect(screen.getAllByRole('button', { name: 'upgrade.billing.invoices.download' })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: /^upgrade\.billing\.invoices\.downloadDated:/ })).toHaveLength(1)
 
     online.unmount()
     mockIsOnline = false
     render(<UpgradePage />)
     expect(document.body.textContent).toContain('upgrade.billing.invoices.statusPaid')
     expect(document.body.textContent).toContain('upgrade.billing.invoices.reasonCycle')
-    expect(screen.queryByRole('button', { name: 'upgrade.billing.invoices.download' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^upgrade\.billing\.invoices\.downloadDated:/ })).not.toBeInTheDocument()
   })
 
   it('shows usage stats for Pro users with billing', () => {
@@ -621,7 +621,7 @@ describe('UpgradePage', () => {
     expect(screen.getByText('upgrade.billing.usage.nearLimitBody')).toBeInTheDocument()
   })
 
-  it('keeps payment details read only and uses one provider handoff action', () => {
+  it('keeps card details visible with a change action and one filled provider action', () => {
     mockHasProAccess = true
     mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
     mockBilling = {
@@ -640,7 +640,7 @@ describe('UpgradePage', () => {
       recentInvoices: [],
     }
     render(<UpgradePage />)
-    expect(screen.queryByText('upgrade.billing.payment.change')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'upgrade.billing.payment.change' })).toBeEnabled()
     expect(screen.getByText('upgrade.billing.actions.manage')).toBeInTheDocument()
   })
 
@@ -686,7 +686,7 @@ describe('UpgradePage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('upgrade.billing.portalFailed')
     expect(screen.getByRole('button', { name: 'upgrade.billing.retry' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'upgrade.billing.payment.change' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'upgrade.billing.payment.change' })).toBeDisabled()
   })
 
   it('shows the Google Play management panel for Play-sourced Pro users', () => {
@@ -759,8 +759,14 @@ describe('UpgradePage', () => {
     }
     render(<UpgradePage />)
     expect(screen.getByText('upgrade.billing.lapsed.title')).toBeInTheDocument()
-    expect(document.body.textContent).toContain(`upgrade.billing.lapsed.${lapseReason}`)
+    expect(document.body.textContent).not.toContain(`upgrade.billing.lapsed.${lapseReason}`)
+    expect(document.body.textContent).toContain('upgrade.billing.lapsed.ended')
+    expect(document.body.textContent).toContain('2026-08-01')
+    expect(document.body.textContent).toContain('upgrade.billing.usage.title')
+    expect(document.body.textContent).not.toContain('upgrade.convert.freeHeading')
+    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.lapsed.action' }))
     expect(document.body.textContent).toContain('upgrade.convert.freeHeading')
+    expect(screen.queryByText('upgrade.billing.lapsed.title')).not.toBeInTheDocument()
   })
 
   it('keeps Pro access truthful after a failed payment', () => {
@@ -777,8 +783,8 @@ describe('UpgradePage', () => {
 
     render(<UpgradePage />)
 
-    expect(screen.getByText('upgrade.billing.paymentIssue.title')).toBeInTheDocument()
-    expect(screen.getByText('upgrade.billing.paymentIssue.body')).toBeInTheDocument()
+    expect(screen.getByText('upgrade.billing.plan.pastDue')).toBeInTheDocument()
+    expect(document.body.textContent).toContain('upgrade.billing.plan.pastDueBody')
     expect(screen.queryByText('upgrade.billing.lapsed.title')).not.toBeInTheDocument()
     expect(document.body.textContent).not.toContain('upgrade.convert.freeHeading')
   })

@@ -1,6 +1,13 @@
 import { StyleSheet } from 'react-native'
 
 export const styles = StyleSheet.create({
+  billingStack: { gap: 24, paddingHorizontal: 16 },
+  billingCard: { borderRadius: 20, borderWidth: 1, padding: 24, gap: 12 },
+  billingWell: { borderRadius: 12, padding: 16, gap: 12 },
+  billingBody: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 25 },
+  billingSecondary: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },
+  billingMeta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 17, fontVariant: ['tabular-nums'] },
+  billingHeading: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, lineHeight: 27, letterSpacing: -0.44, flexShrink: 1 },
   pricingSections: {
     gap: 32,
   },

@@ -1,12 +1,19 @@
 import { Text, View } from 'react-native'
 import type { SubscriptionPortalState } from '@orbit/shared/utils'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
-import { PillButton } from '@/components/ui/pill-button'
+import { ProviderHandoff } from './provider-handoff'
 import { PlanSummaryCard } from './plan-summary-card'
 import { UsageCard } from './usage-card'
 import { formatBillingDate } from './types'
 import { styles } from './styles'
 import type { Tokens, UpgradeTextFn } from './types'
+
+function handoffState(isOnline: boolean, portalState: SubscriptionPortalState) {
+  if (!isOnline) return 'offline'
+  if (portalState === 'opening') return 'portal-opening'
+  if (portalState === 'failed') return 'portal-failed'
+  return 'play'
+}
 
 export function PlayBillingDashboard({
   status,
@@ -42,7 +49,7 @@ export function PlayBillingDashboard({
     : null
 
   return (
-    <>
+    <View style={styles.billingStack}>
       <PlanSummaryCard
         planLabel={
           interval === 'yearly'
@@ -51,6 +58,7 @@ export function PlayBillingDashboard({
               ? t('upgrade.billing.plan.monthly')
               : t('upgrade.billing.plan.pro')
         }
+        body={t('upgrade.billing.plan.proBody', { limit: status.aiMessagesLimit })}
         meta={[
           priceLine,
           status.planExpiresAt
@@ -64,6 +72,7 @@ export function PlayBillingDashboard({
         t={t}
         tokens={tokens}
       />
+      <ProviderHandoff provider="play" state={handoffState(isOnline, portalState)} onManage={onManagePlay} t={t} tokens={tokens} />
       <UsageCard
         usagePercent={usagePercent}
         usageUrgent={usagePercent >= 80}
@@ -71,27 +80,7 @@ export function PlayBillingDashboard({
         t={t}
         tokens={tokens}
       />
-      <View style={styles.actionPad}>
-        {portalState === 'failed' ? (
-          <>
-            <Text accessibilityRole="alert" style={[styles.centerMuted, { color: tokens.fg2 }]}>
-              {t('upgrade.billing.portalFailed')}
-            </Text>
-            <PillButton variant="ghost" onClick={onManagePlay}>
-              {t('upgrade.billing.retry')}
-            </PillButton>
-          </>
-        ) : (
-          <PillButton variant="primary" loading={portalState === 'opening'} disabled={!isOnline} onClick={onManagePlay}>
-            {portalState === 'opening'
-              ? t('upgrade.billing.actions.opening')
-              : t('upgrade.billing.actions.managePlay')}
-          </PillButton>
-        )}
-        <Text style={[styles.centerMuted, { color: tokens.fg3 }]}>
-          {t('upgrade.billing.actions.managePlayHint')}
-        </Text>
-      </View>
-    </>
+      <Text style={[styles.billingSecondary, { color: tokens.fg3 }]}>{t('upgrade.billing.actions.providerNote')}</Text>
+    </View>
   )
 }

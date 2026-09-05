@@ -207,7 +207,7 @@ describe('subscription dashboards (mobile)', () => {
       )
       const summary = tree.root.findByType('PlanSummaryCard')
       expect(summary.props.planLabel).toBe(expectedLabel)
-      expect(summary.props.meta).toContain(expectedMeta)
+      expect(state === 'lifetime' ? summary.props.body : summary.props.meta).toContain(expectedMeta)
       if (state === 'canceled') {
         expect(renderedText(tree)).toContain('upgrade.billing.plan.canceledBadge')
       }
@@ -274,7 +274,7 @@ describe('subscription dashboards (mobile)', () => {
     ).toHaveLength(1)
     expect(
       online.root.findAll((node) => node.type === 'Pressable'
-        && node.props.accessibilityLabel === 'upgrade.billing.invoices.download'),
+        && String(node.props.accessibilityLabel).startsWith('upgrade.billing.invoices.downloadDated:')),
     ).toHaveLength(1)
 
     const offline = render(
@@ -296,11 +296,11 @@ describe('subscription dashboards (mobile)', () => {
     expect(renderedText(offline)).toContain('upgrade.billing.invoices.reasonCycle')
     expect(
       offline.root.findAll((node) => node.type === 'Pressable'
-        && node.props.accessibilityLabel === 'upgrade.billing.payment.change'),
-    ).toHaveLength(0)
+        && node.props.accessibilityLabel === 'upgrade.billing.payment.change' && node.props.disabled),
+    ).toHaveLength(1)
     expect(
       offline.root.findAll((node) => node.type === 'Pressable'
-        && node.props.accessibilityLabel === 'upgrade.billing.invoices.download'),
+        && String(node.props.accessibilityLabel).startsWith('upgrade.billing.invoices.downloadDated:')),
     ).toHaveLength(0)
     const manageButton = offline.root.findAll(
       (node) => Boolean(node.type === 'Pressable'
@@ -308,11 +308,11 @@ describe('subscription dashboards (mobile)', () => {
         && node.props.accessibilityState
         && (node.props.accessibilityState as { disabled?: boolean }).disabled === true),
     )
-    expect(manageButton).toHaveLength(1)
+    expect(manageButton).toHaveLength(2)
   })
 
   it.each([
-    ['portal-opening', 'upgrade.billing.actions.opening'],
+    ['portal-opening', 'upgrade.billing.actions.manage'],
     ['portal-failed', 'upgrade.billing.portalFailed'],
   ] as const)('renders the %s Stripe portal outcome', (state, expectedText) => {
     const tree = render(
@@ -399,7 +399,7 @@ describe('subscription dashboards (mobile)', () => {
   )
 
   it.each([
-    ['opening', true, 'upgrade.billing.actions.opening'],
+    ['opening', true, 'upgrade.billing.actions.managePlay'],
     ['failed', true, 'upgrade.billing.portalFailed'],
     ['idle', false, 'upgrade.billing.actions.managePlay'],
   ] as const)('renders the %s Play portal outcome online=%s', (portalState, isOnline, expectedText) => {
