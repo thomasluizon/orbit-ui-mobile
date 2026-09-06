@@ -1,3 +1,4 @@
+import { extractBackendStatus } from '@orbit/shared/utils'
 import { QueryClient } from '@tanstack/react-query'
 
 export function createQueryClient(): QueryClient {
@@ -8,6 +9,7 @@ export function createQueryClient(): QueryClient {
         gcTime: 24 * 60 * 60 * 1000,
         retry: (failureCount, error) => {
           if (typeof navigator !== 'undefined' && !navigator.onLine) return false
+          if (extractBackendStatus(error) === 429) return false
           if (error instanceof Error && error.message.includes('401')) return false
           return failureCount < 3
         },

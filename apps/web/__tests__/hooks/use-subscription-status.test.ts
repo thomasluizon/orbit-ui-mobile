@@ -52,7 +52,7 @@ describe('useSubscriptionStatus', () => {
     })
 
     await waitFor(() => expect(result.current.status).toEqual(status))
-    expect(mockFetch).toHaveBeenCalledWith(API.subscription.status)
+    expect(mockFetch).toHaveBeenCalledWith(API.subscription.status, undefined)
   })
 
   it('keeps status empty when the live request fails', async () => {

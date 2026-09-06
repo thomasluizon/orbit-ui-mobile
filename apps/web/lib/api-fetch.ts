@@ -1,6 +1,7 @@
 'use client'
 
 import { toast } from 'sonner'
+import { useThrottleStore } from '@/stores/throttle-store'
 import {
   buildClientTimeZoneHeaders,
   extractBackendError,
@@ -157,7 +158,8 @@ export async function apiFetch<T>(
     const backendMsg = extractBackendError({ data: body })
     const error = new ApiError(status, backendMsg || getToastTitle(status), body)
 
-    if (!behavior?.handlesError) reportApiError(error)
+    const throttled = useThrottleStore.getState().show(status, body)
+    if (!throttled && !behavior?.handlesError) reportApiError(error)
 
     throw error
   }

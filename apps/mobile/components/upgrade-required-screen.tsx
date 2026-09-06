@@ -1,85 +1,50 @@
-import { Linking, StyleSheet, Text, View } from 'react-native'
-import Constants from 'expo-constants'
+import { useState } from 'react'
+import { Linking, Modal, ScrollView, Text, View } from 'react-native'
+import appConfig from '@/app.json'
+import { useTranslation } from 'react-i18next'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { PillButton } from '@/components/ui/pill-button'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
-import { i18n } from '@/lib/i18n'
+import { OrbitMark } from '@/components/ui/orbit-mark'
+import { errorSurfaceStyles as styles } from '@/components/ui/error-surface-styles'
+import { getAppVersion } from '@/lib/app-version'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useVersionGateStore } from '@/stores/version-gate-store'
 
-function openPlayListing(): void {
-  const packageName = Constants.expoConfig?.android?.package
-  const webUrl = packageName
-    ? `https://play.google.com/store/apps/details?id=${packageName}`
-    : 'https://play.google.com/store/apps/details?id=org.useorbit.app'
-  const marketUrl = packageName ? `market://details?id=${packageName}` : webUrl
-
-  void Linking.openURL(marketUrl).catch(() => {
-    void Linking.openURL(webUrl).catch(() => {})
-  })
-}
-
-/**
- * Full-screen, non-dismissible blocker shown when the server returns HTTP 426
- * (the installed app version is below the supported floor). An old native
- * binary cannot self-heal, so the only path forward is a store update. Copy
- * resolves through the i18n singleton; tokens come from useAppTheme so the
- * blocker tracks the active scheme and mode.
- */
 export function UpgradeRequiredScreen() {
+  const { t } = useTranslation()
   const upgradeRequired = useVersionGateStore((s) => s.upgradeRequired)
+  const minVersion = useVersionGateStore((s) => s.minVersion)
   const { currentScheme, currentTheme } = useAppTheme()
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
   if (!upgradeRequired) return null
-
   const tokens = createTokensV2(currentScheme, currentTheme)
-
+  const currentVersion = getAppVersion()
+  const openStore = async () => {
+    setBusy(true)
+    setFailed(false)
+    const packageName = appConfig.expo.android.package
+    const webUrl = `https://play.google.com/store/apps/details?id=${packageName}`
+    try {
+      try { await Linking.openURL(`market://details?id=${packageName}`) }
+      catch { await Linking.openURL(webUrl) }
+    } catch { setFailed(true) }
+    finally { setBusy(false) }
+  }
   return (
-    <View style={[styles.root, { backgroundColor: tokens.bg }]}>
-      <SatelliteGlyph size={96} />
-      <Text
-        accessibilityRole="header"
-        style={[styles.title, { color: tokens.fg1 }]}
-      >
-        {i18n.t('forceUpdate.title')}
-      </Text>
-      <Text style={[styles.description, { color: tokens.fg2 }]}>
-        {i18n.t('forceUpdate.description')}
-      </Text>
-      <PillButton
-        onClick={openPlayListing}
-
-
-      >
-        {i18n.t('forceUpdate.cta')}
-      </PillButton>
-    </View>
+    <Modal visible animationType="none" onRequestClose={() => {}}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: tokens.bg }}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', gap: 24, padding: 32 }}>
+          <OrbitMark size={40} />
+          <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{t('forceUpdate.title')}</Text>
+          <Text style={[styles.body, { color: tokens.fg2 }]}>
+            {currentVersion && minVersion ? t('forceUpdate.versions', { currentVersion, minVersion }) : t('forceUpdate.description')}
+          </Text>
+          {failed ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.fg2 }]}>{t('forceUpdate.storeFailure')}</Text> : null}
+          <View><PillButton loading={busy} onClick={() => { void openStore() }}>{t('forceUpdate.cta')}</PillButton></View>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   )
 }
-
-const styles = StyleSheet.create({
-  root: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 9999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 36,
-    paddingVertical: 64,
-  },
-  title: {
-    marginTop: 18,
-    fontFamily: 'Geist_500Medium',
-    fontSize: 22,
-    lineHeight: 29,
-    textAlign: 'center',
-  },
-  description: {
-    marginTop: 10,
-    fontFamily: 'Geist_400Regular',
-    fontSize: 16,
-    lineHeight: 25,
-    textAlign: 'center',
-  },
-  cta: {
-    marginTop: 24,
-  },
-})

@@ -1,5 +1,6 @@
 'use client'
 
+import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { useEffect, useState, useRef, Suspense, type CSSProperties } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
@@ -150,7 +151,7 @@ function AuthCallbackContent() {
       try {
         const referralCode = getCookieValue('referral_code')
 
-        const response = await fetch('/api/auth/google', {
+        const response = await fetchWithThrottle('/api/auth/google', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

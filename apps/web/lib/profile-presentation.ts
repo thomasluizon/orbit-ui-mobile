@@ -1,3 +1,4 @@
+import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { API } from '@orbit/shared/api'
 import type { Profile, ThemeMode } from '@orbit/shared/types/profile'
 import { resolveSupportedLocale } from '@orbit/shared/utils'
@@ -40,7 +41,7 @@ export function applyProfilePresentation(profile: Pick<
 
 export async function hydrateProfilePresentation(): Promise<Profile | null> {
   try {
-    const response = await fetch(API.profile.get, { cache: 'no-store' })
+    const response = await fetchWithThrottle(API.profile.get, { cache: 'no-store' })
     if (!response.ok) return null
     const profile = await response.json() as Profile
     applyProfilePresentation(profile)

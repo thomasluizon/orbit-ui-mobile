@@ -32,17 +32,11 @@ const { openUrlMock, stateRef } = vi.hoisted(() => ({
   stateRef: { upgradeRequired: false, minVersion: null as string | null },
 }))
 
-vi.mock('react-native', () => ({
-  ActivityIndicator: 'ActivityIndicator',
+vi.mock('react-native', async () => ({
+  ...await import('../../test-mocks/react-native'),
   Linking: { openURL: openUrlMock },
-  Pressable: 'Pressable',
-  StyleSheet: {
-    create: (styles: Record<string, unknown>) => styles,
-    absoluteFill: {},
-  },
-  Text: 'Text',
-  View: 'View',
 }))
+vi.mock('@/lib/app-version', () => ({ getAppVersion: () => '1.0.0' }))
 
 vi.mock('expo-constants', () => ({
   default: { expoConfig: { android: { package: 'org.useorbit.app' } } },

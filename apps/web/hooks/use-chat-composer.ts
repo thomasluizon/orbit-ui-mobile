@@ -1,5 +1,7 @@
 'use client'
 
+import { useThrottleStore } from '@/stores/throttle-store'
+
 import {
   useState,
   useRef,
@@ -429,6 +431,7 @@ export function useChatComposer() {
         const errorBody = (await response.json().catch(() => null)) as
           | { error?: string; errorCode?: string }
           | null
+        useThrottleStore.getState().show(response.status, errorBody)
         handleFailedSend(
           {
             status: response.status,
