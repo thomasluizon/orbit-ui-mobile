@@ -1872,3 +1872,16 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     color: var(--bg);
   }
 }
+
+@media (min-width: 64rem) and (hover: hover) and (pointer: fine) {
+  .error-surface-action button[data-variant="primary"]:enabled:hover {
+    background: var(--fg-1);
+    opacity: 0.9;
+  }
+}
+@media (min-width: 64rem) {
+  .error-surface-action button[data-variant="primary"]:enabled:active {
+    background: var(--fg-1);
+    opacity: 0.85;
+  }
+}
