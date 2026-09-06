@@ -6,19 +6,20 @@
 // from a run that finished, so nobody went looking.
 //
 // Pure: takes the run record, wake sources already verified by the adapter's reader, and an injected
-// liveness predicate, and returns { block, message } or null. OS process probes belong at the adapter
+// identity predicate, and returns { block, message } or null. OS process probes belong at the adapter
 // boundary so this rule can be tested without real processes.
 //
-// What it CAN prove: that at least one registered wake source is a process that still exists.
+// What it CAN prove: that at least one registered wake source still identifies its live process.
 // launch-worker.mjs registers itself, so a launched worker is real evidence, not a claim. What it
 // CANNOT prove: that the wake source will actually re-invoke this session. That is still the run's
 // own responsibility, and the invariant in the skill says to name it.
 
 /**
- * @param options `{ state, wakeSources, sessionId, stopHookActive, isAlive, receiptVerdict }`
+ * @param options `{ state, wakeSources, sessionId, stopHookActive, isWakeSourceAlive, receiptVerdict }`
+ * `isWakeSourceAlive(source)` must compare the persisted identity with a fresh OS observation.
  * @returns `{ block, message }` when an unattended run is about to go quiet, else null
  */
-export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHookActive = false, isAlive = () => false, receiptVerdict = () => null } = {}) {
+export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHookActive = false, isWakeSourceAlive = () => false, receiptVerdict = () => null } = {}) {
   // A blocked stop that blocks again is an infinite loop, and Claude Code sets this flag on the
   // second pass for exactly that reason.
   if (stopHookActive) return null
@@ -65,7 +66,7 @@ export function checkSleepStop({ state, wakeSources = [], sessionId = "", stopHo
    * as "unreadable receipt", which is quieter and easier to mistake for a transient fault. */
   const unwrittenReceipts = uniquePullRequests.filter((entry) => entry.receiptWritten === false)
   const invalidPullRequestIdentities = rawPullRequests.length - pullRequests.length + unwrittenReceipts.length
-  const live = wakeSources.filter((source) => Number.isInteger(source?.pid) && isAlive(source.pid))
+  const live = wakeSources.filter((source) => Number.isInteger(source?.pid) && isWakeSourceAlive(source))
 
   if (remaining.length === 0 && pendingPullRequests.length === 0 && invalidPullRequestIdentities === 0) {
     /**

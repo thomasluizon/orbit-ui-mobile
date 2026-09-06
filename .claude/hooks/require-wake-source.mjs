@@ -21,19 +21,9 @@
 import { readFileSync } from "node:fs"
 
 import { readinessReport } from "../../tools/lib/readiness-receipt.mjs"
-import { readRunState, readWakeSources } from "../../tools/lib/run-state.mjs"
+import { isWakeSourceAlive, readRunState, readWakeSources } from "../../tools/lib/run-state.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
-
-/** Signal 0 tests for existence without delivering anything. EPERM means it exists and is not ours. */
-const isAlive = (pid) => {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return error?.code === "EPERM"
-  }
-}
 
 /** READY comes from the persisted receipt alone. An unreadable or not-READY receipt is null. */
 const receiptVerdict = (entry) => {
@@ -49,10 +39,10 @@ try {
   const input = readStdinJson()
   const verdict = checkSleepStop({
     state: readRunState(),
-    wakeSources: readWakeSources(), // Reject recycled pids before the rule's final liveness check.
+    wakeSources: readWakeSources(),
     sessionId: input?.session_id ?? "",
     stopHookActive: input?.stop_hook_active === true,
-    isAlive,
+    isWakeSourceAlive,
     receiptVerdict,
   })
   if (verdict?.block) {

@@ -141,6 +141,12 @@ const processStartIdentity = (pid) => {
   return null
 }
 
+/** Recheck the recorded process at the decision point; pid ownership alone is not evidence. */
+export const isWakeSourceAlive = (source) =>
+  Number.isInteger(source?.pid) && source.pid > 0 &&
+  typeof source.processStartIdentity === "string" &&
+  source.processStartIdentity === processStartIdentity(source.pid)
+
 /** Only registrations that still identify their live process. Sweep only proven missing pids. */
 export const readWakeSources = (repoRoot = REPO_ROOT) => {
   const directory = wakeSourceDirectory(repoRoot)
@@ -163,7 +169,7 @@ export const readWakeSources = (repoRoot = REPO_ROOT) => {
         // A denied or otherwise failed probe proves neither death nor a matching identity.
         continue
       }
-      if (typeof source.processStartIdentity === "string" && source.processStartIdentity === processStartIdentity(source.pid)) sources.push(source)
+      if (isWakeSourceAlive(source)) sources.push(source)
     } catch {
       /* an unreadable entry is not a live wake source, and must not mask the readable ones */
     }
