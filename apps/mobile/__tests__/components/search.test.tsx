@@ -15,9 +15,10 @@ import { dismissTopOverlay } from '@/lib/overlay-stack'
 vi.unmock('react-i18next')
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
 vi.mock('@/components/ui/icons', async (importOriginal) => ({ ...await importOriginal<typeof import('@/components/ui/icons')>(), Circle: () => null, SkipForward: () => null }))
-const mocks = vi.hoisted(() => ({ query: vi.fn(), pending: false, push: vi.fn(), back: vi.fn(), log: vi.fn(), skip: vi.fn(), retry: vi.fn() }))
+const mocks = vi.hoisted(() => ({ query: vi.fn(), showError: vi.fn(), pending: false, push: vi.fn(), back: vi.fn(), log: vi.fn(), skip: vi.fn(), retry: vi.fn() }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push, back: mocks.back }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: (filters: HabitsFilter) => mocks.query(filters) }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError }) }))
 vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutate: mocks.log, isPending: mocks.pending }), useSkipHabit: () => ({ mutate: mocks.skip, isPending: mocks.pending }) }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: (props: { open: boolean; initialTitle: string }) => props.open ? React.createElement('CreateForm', props) : null }))
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true }))
@@ -118,11 +119,14 @@ describe('mobile search', () => {
     expect(mocks.query).toHaveBeenCalledWith({ search: 'walk', page: 1, pageSize: 20 })
   })
 
-  it('marks exactly one palette option as the current position', async () => {
+  it('exposes no static selection or keyboard hints on the phone', async () => {
+    mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk' })]))
     await mount()
-    const selected = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.role === 'option' && (node.props.accessibilityState as { selected: boolean }).selected)
-    expect(selected).toHaveLength(1)
-    expect(renderedText(selected[0]?.props.children)).toContain('Create habit')
+    const selected = tree.root.findAll((node) => String(node.type) === 'Pressable' && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true)
+    expect(selected).toHaveLength(0)
+    expect(text()).not.toContain('↑↓')
+    expect(text()).not.toContain('↵')
+    expect(text()).not.toContain('Esc')
   })
 
   it('shows one result with the singular count', async () => {
@@ -153,6 +157,19 @@ describe('mobile search', () => {
     expect(text()).not.toContain('Nothing by that name.')
   })
 
+  it.each(['log', 'skip'] as const)('reports a rejected %s and lets the person retry', async (page) => {
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title: 'Walk' })]))
+    mocks[page].mockImplementation((_input, options: { onError?: (error: Error) => void }) => options.onError?.(new Error('Rejected')))
+    await mount()
+    await pressText(page === 'log' ? 'Log a habit' : 'Skip a habit')
+    await pressLabel('Walk')
+    expect(mocks.showError).toHaveBeenCalledWith(en.errors.updateHabit)
+    expect(mocks.back).not.toHaveBeenCalled()
+    expect(text()).not.toContain('Create habit')
+    await pressLabel('Walk')
+    expect(mocks[page]).toHaveBeenCalledTimes(2)
+  })
+
   it.each(['log', 'skip'] as const)('opens the %s page, performs the selected action, and backs out first', async (page) => {
     mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title: 'Walk', isOverdue: true, searchMatches: [{ field: 'title', value: null }] })]))
     await mount()
@@ -176,7 +193,7 @@ describe('mobile search', () => {
     await pressText(page === 'log' ? 'Log a habit' : 'Skip a habit')
     await type('walk')
     expect(mocks.query).toHaveBeenLastCalledWith({ search: 'walk', page: 1, pageSize: 20 })
-    const choices = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.role === 'option')
+    const choices = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.role === 'button' && node.props.accessibilityLabel === 'Walk to the shop in the name')
     const onPress = choices[0]!.props.onPress as () => void
     await TestRenderer.act(() => { onPress() })
     expect(mocks[page]).toHaveBeenCalledWith(page === 'log' ? { habitId: 'child', intent: 'log' } : { habitId: 'child' }, expect.objectContaining({ onSuccess: expect.any(Function) }))

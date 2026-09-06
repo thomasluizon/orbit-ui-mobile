@@ -1,3 +1,5 @@
+import type { HabitListSnapshots } from '@orbit/shared/query'
+import { snapshotHabitLists, restoreHabitLists, discardCachedHabitSearches } from '@/lib/habit-mutation-helpers'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { habitKeys, tagKeys , QUERY_STALE_TIMES } from '@orbit/shared/query'
 
@@ -33,7 +35,7 @@ export interface Tag {
 type TagQueryClient = ReturnType<typeof useQueryClient>
 type TagMutationContext = {
   previousLists?: readonly (readonly [readonly unknown[], Tag[] | undefined])[]
-  previousHabitLists?: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
+  previousHabitLists?: HabitListSnapshots
   tempId?: string
   request?: { name: string; color: string }
 }
@@ -69,7 +71,7 @@ function restoreTagMutationContext(
     restoreQueryLists(queryClient, context.previousLists)
   }
   if (context?.previousHabitLists) {
-    restoreQueryLists(queryClient, context.previousHabitLists)
+    restoreHabitLists(queryClient, context.previousHabitLists)
   }
   if (context?.request) {
     pendingCreateTagIds.delete(context.request)
@@ -213,7 +215,10 @@ export function useCreateTag() {
     },
 
     onSettled: (data) => {
-      if (isQueuedResult(data)) return
+      if (isQueuedResult(data)) {
+        discardCachedHabitSearches(queryClient)
+        return
+      }
       void invalidateTagMutationQueries(queryClient)
     },
   })
@@ -250,9 +255,7 @@ export function useUpdateTag() {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = queryClient.getQueriesData<Tag[]>({ queryKey: tagKeys.lists() })
-      const previousHabitLists = queryClient.getQueriesData<HabitScheduleItem[]>({
-        queryKey: habitKeys.lists(),
-      })
+      const previousHabitLists = snapshotHabitLists(queryClient)
 
       setOptimisticTagDetails(queryClient, tagId, name, color)
       updateHabitTagReferences(queryClient, renameHabitTagReferences(tagId, name, color))
@@ -265,7 +268,10 @@ export function useUpdateTag() {
     },
 
     onSettled: (data) => {
-      if (isQueuedResult(data)) return
+      if (isQueuedResult(data)) {
+        discardCachedHabitSearches(queryClient)
+        return
+      }
       void invalidateTagMutationQueries(queryClient)
     },
   })
@@ -304,7 +310,10 @@ export function useRestoreTag() {
     },
 
     onSettled: (data) => {
-      if (isQueuedResult(data)) return
+      if (isQueuedResult(data)) {
+        discardCachedHabitSearches(queryClient)
+        return
+      }
       void invalidateTagMutationQueries(queryClient)
     },
   })
@@ -344,9 +353,7 @@ export function useDeleteTag() {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = queryClient.getQueriesData<Tag[]>({ queryKey: tagKeys.lists() })
-      const previousHabitLists = queryClient.getQueriesData<HabitScheduleItem[]>({
-        queryKey: habitKeys.lists(),
-      })
+      const previousHabitLists = snapshotHabitLists(queryClient)
 
       setOptimisticDeletedTag(queryClient, tagId)
       updateHabitTagReferences(queryClient, removeHabitTagReferences(tagId))
@@ -359,7 +366,10 @@ export function useDeleteTag() {
     },
 
     onSettled: (data) => {
-      if (isQueuedResult(data)) return
+      if (isQueuedResult(data)) {
+        discardCachedHabitSearches(queryClient)
+        return
+      }
       void invalidateTagMutationQueries(queryClient)
     },
   })
@@ -413,9 +423,7 @@ export function useAssignTags() {
     onMutate: async ({ habitId, tagIds }) => {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
-      const previousHabitLists = queryClient.getQueriesData<HabitScheduleItem[]>({
-        queryKey: habitKeys.lists(),
-      })
+      const previousHabitLists = snapshotHabitLists(queryClient)
       const availableTags = getAvailableTags(queryClient)
       const nextTags = resolveHabitTags(availableTags, tagIds)
 
@@ -429,7 +437,10 @@ export function useAssignTags() {
     },
 
     onSettled: (data) => {
-      if (isQueuedResult(data)) return
+      if (isQueuedResult(data)) {
+        discardCachedHabitSearches(queryClient)
+        return
+      }
       void invalidateTagMutationQueries(queryClient)
     },
   })

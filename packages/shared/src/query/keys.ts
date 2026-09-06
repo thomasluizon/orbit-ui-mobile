@@ -1,3 +1,8 @@
+import type { HabitScheduleItem } from '../types/habit'
+
+export type HabitListKey = readonly ['habits', 'list', ...unknown[]]
+export type HabitListSnapshots = readonly (readonly [HabitListKey, HabitScheduleItem[] | undefined])[]
+
 export const habitKeys = {
   all: ['habits'] as const,
   lists: () => [...habitKeys.all, 'list'] as const,

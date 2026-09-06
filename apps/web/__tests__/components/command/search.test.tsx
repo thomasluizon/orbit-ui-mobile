@@ -9,10 +9,11 @@ import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/ty
 import { normalizeHabitQueryData } from '@orbit/shared/utils'
 import { CommandMenu } from '@/components/command/command-menu'
 
-const mocks = vi.hoisted(() => ({ pending: false, push: vi.fn(), log: vi.fn(), skip: vi.fn(), query: vi.fn(), retry: vi.fn(), wide: false }))
+const mocks = vi.hoisted(() => ({ showError: vi.fn(), pending: false, push: vi.fn(), log: vi.fn(), skip: vi.fn(), query: vi.fn(), retry: vi.fn(), wide: false }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: (filters: HabitsFilter) => mocks.query(filters) }))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError }) }))
 vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutate: mocks.log, isPending: mocks.pending }), useSkipHabit: () => ({ mutate: mocks.skip, isPending: mocks.pending }) }))
 
 function result(habits: NormalizedHabit[], pending = false, error = false) {
@@ -109,6 +110,19 @@ describe('habit search', () => {
     expect(screen.queryByText('Actions')).toBeNull()
   })
 
+  it.each(['log', 'skip'] as const)('reports a rejected %s and lets the person retry', async (page) => {
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title: 'Walk' })]))
+    mocks[page].mockImplementation((_input, options: { onError?: (error: Error) => void }) => options.onError?.(new Error('Rejected')))
+    mount()
+    fireEvent.click(screen.getByRole('option', { name: page === 'log' ? 'Log a habit' : 'Skip a habit' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Walk' }))
+    expect(mocks.showError).toHaveBeenCalledWith(en.errors.updateHabit)
+    expect(screen.queryByText('Create habit')).toBeNull()
+    expect(screen.getByRole('option', { name: 'Walk' })).not.toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(screen.getByRole('option', { name: 'Walk' }))
+    expect(mocks[page]).toHaveBeenCalledTimes(2)
+  })
+
   it.each(['log', 'skip'] as const)('selects a habit only after opening the %s page', async (page) => {
     mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title: 'Walk', isOverdue: true, searchMatches: [{ field: 'title', value: null }] })]))
     mount()
@@ -140,14 +154,17 @@ describe('habit search', () => {
   })
 
   it('keeps server matches selectable without moving input focus', async () => {
-    mocks.query.mockReturnValue(result([createMockHabit({ id: 'stretch', title: 'Stretch', searchMatches: [{ field: 'tag', value: 'walking' }] })]))
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'stretch', title: 'Stretch', searchMatches: [{ field: 'tag', value: 'walking' }] }), createMockHabit({ id: 'walk', title: 'Walk', searchMatches: [{ field: 'title', value: null }] })]))
     mount(true)
     const input = screen.getByRole('combobox')
     input.focus()
     fireEvent.change(input, { target: { value: 'walking' } })
     expect(await screen.findByText('“walking”')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('option', { selected: true })).toHaveAccessibleName('Open Stretch in the tag “walking”'))
     fireEvent.keyDown(input, { key: 'ArrowDown' })
-    await waitFor(() => expect(screen.getAllByRole('option', { selected: true })).toHaveLength(1))
+    await waitFor(() => expect(screen.getByRole('option', { selected: true })).toHaveAccessibleName('Open Walk in the name'))
+    fireEvent.keyDown(input, { key: 'ArrowUp' })
+    await waitFor(() => expect(screen.getByRole('option', { selected: true })).toHaveAccessibleName('Open Stretch in the tag “walking”'))
     expect(input).toHaveFocus()
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(mocks.push).toHaveBeenCalledWith('/habits/stretch')

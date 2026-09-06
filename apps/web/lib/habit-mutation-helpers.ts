@@ -1,3 +1,4 @@
+import type { HabitListKey, HabitListSnapshots } from '@orbit/shared/query'
 import type { useQueryClient } from '@tanstack/react-query'
 import { goalKeys, habitKeys } from '@orbit/shared/query'
 import type {
@@ -8,14 +9,12 @@ import type {
 } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
 
-export type HabitListSnapshots = ReadonlyArray<
-  readonly [readonly unknown[], HabitScheduleItem[] | undefined]
->
+export type { HabitListSnapshots } from '@orbit/shared/query'
 
 export function snapshotHabitLists(queryClient: ReturnType<typeof useQueryClient>): HabitListSnapshots {
   return queryClient.getQueriesData<HabitScheduleItem[]>({
     queryKey: habitKeys.lists(),
-  })
+  }).filter((entry): entry is [HabitListKey, HabitScheduleItem[] | undefined] => entry[0][0] === 'habits' && entry[0][1] === 'list')
 }
 
 export function restoreHabitLists(

@@ -25,6 +25,8 @@ const mocks = vi.hoisted(() => {
 
   const queryClient = {
     cancelQueries: vi.fn(async () => {}),
+    getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
     invalidateQueries: vi.fn(async () => {}),
     getQueriesData: vi.fn((filters: { queryKey: readonly unknown[] }) => {
       if (JSON.stringify(filters.queryKey) === JSON.stringify(tagKeys.lists())) {
@@ -466,4 +468,24 @@ describe('mobile tag hooks', () => {
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalled()
     await vi.waitFor(() => expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['habits', 'search'] }))
   })
+})
+
+ it('drops cached search matches after queued tag assignment before reconnect', async () => {
+  const { QueryClient } = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query')
+  const client = new QueryClient()
+  mocks.useQueryClient.mockReturnValueOnce(client as unknown as typeof mocks.queryClient)
+  const habit = makeHabit()
+  const key = habitKeys.search({ search: 'Health', page: 1 })
+  client.setQueryData(key, { items: [habit], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 })
+  client.setQueryData(habitKeys.list({}), [habit])
+  const mutation = useAssignTags() as unknown as MutationConfig<{ queued: true; queuedMutationId: string }, { habitId: string; tagIds: string[] }, { previousHabitLists: unknown }>
+  const variables = { habitId: habit.id, tagIds: [] }
+  mocks.queueOrExecute.mockResolvedValue({ queued: true, queuedMutationId: 'mutation-1' })
+  const context = await mutation.onMutate?.(variables)
+  const response = await mutation.mutationFn(variables)
+  mutation.onSettled?.(response, null, variables, context)
+  expect(client.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.[0]?.tags).toEqual([])
+  expect(client.getQueryData(key)).toBeUndefined()
+  expect(client.isFetching()).toBe(0)
+  client.clear()
 })

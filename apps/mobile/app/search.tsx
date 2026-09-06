@@ -10,10 +10,10 @@ import { Search } from '@/components/ui/icons'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { SearchEmpty, Searching, SearchResult } from '@/components/search/search-results'
-import { CommandKeyHints } from '@/components/command/command-key-hints'
 import { CommandGroups } from '@/components/command/command-groups'
 import { useOverlayBack } from '@/hooks/use-overlay-back'
 import { useHabitSearch } from '@/hooks/use-habit-search'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { useLogHabit, useSkipHabit } from '@/hooks/use-habits'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -26,12 +26,13 @@ export default function SearchScreen() {
   const search = useHabitSearch()
   const [commandPage, setCommandPage] = useState<SearchCommandPage>(null)
   const [createTitle, setCreateTitle] = useState<string | null>(null)
+  const { showError } = useAppToast()
+  const onActionError = () => showError(t('errors.updateHabit'))
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()
   const habits = search.data ? (search.query && !commandPage ? search.data.topLevelHabits : buildCommandHabitList(search.data, search.query).map(({ habit }) => habit)) : []
   const hideCreate = !!search.query && habits.length === 0 && !search.busy
   const commands = searchCommands(search.text, commandPage, t).filter((command) => !hideCreate || command.id !== 'create')
-  const activeId = (!search.query || commandPage) ? habits[0]?.id ?? commands[0]?.id : commands[0]?.id
   function back() {
     if (commandPage) { setCommandPage(null); search.changeText('') }
     else router.back()
@@ -44,8 +45,8 @@ export default function SearchScreen() {
   }
   function selectHabit(id: string) {
     if (logHabit.isPending || skipHabit.isPending) return
-    if (commandPage === 'log') logHabit.mutate({ habitId: id, intent: 'log' }, { onSuccess: back })
-    else if (commandPage === 'skip') skipHabit.mutate({ habitId: id }, { onSuccess: back })
+    if (commandPage === 'log') logHabit.mutate({ habitId: id, intent: 'log' }, { onSuccess: back, onError: onActionError })
+    else if (commandPage === 'skip') skipHabit.mutate({ habitId: id }, { onSuccess: back, onError: onActionError })
     else router.push(`/habits/${id}`)
   }
   return <View style={[styles.screen, { backgroundColor: tokens.bg }]}>
@@ -61,17 +62,16 @@ export default function SearchScreen() {
         {habits.length > 0 && (search.query && !commandPage
           ? <Text style={[styles.count, { color: tokens.fg4 }]}>{t('habits.search.count', { count: search.data?.totalCount ?? 0 })}</Text>
           : <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg4 }]}>{t('command.groups.search')}</Text>)}
-        {habits.map((habit) => <SearchResult key={habit.id} habit={habit} selected={(!search.query || commandPage) ? habit.id === activeId : undefined} disabled={logHabit.isPending || skipHabit.isPending} query={search.query} onOpen={() => selectHabit(habit.id)} actionLabel={commandPage ? habit.title : undefined} />)}
+        {habits.map((habit) => <SearchResult key={habit.id} habit={habit} disabled={logHabit.isPending || skipHabit.isPending} query={search.query} onOpen={() => selectHabit(habit.id)} actionLabel={commandPage ? habit.title : undefined} />)}
         {habits.length === 0 && (commandPage || !search.query) && commands.length === 0 && <Text style={{ color: tokens.fg3 }}>{t('command.empty')}</Text>}
         {habits.length === 0 && search.query && !commandPage && <SearchEmpty query={search.query} onCreate={() => setCreateTitle(search.query)} />}
       </>}
-      {!commandPage && <CommandGroups activeId={activeId} hideCreate={hideCreate} query={search.text} onSelect={selectCommand} />}
+      {!commandPage && <CommandGroups hideCreate={hideCreate} query={search.text} onSelect={selectCommand} />}
       <View style={styles.pagination}>
         {search.page > 1 && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page - 1)}>{t('habits.search.previous')}</Button>}
         {(search.data?.totalPages ?? 0) > search.page && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page + 1)}>{t('habits.search.next')}</Button>}
       </View>
     </ScrollView>
-    <CommandKeyHints back={commandPage !== null} />
     <CreateHabitModal open={createTitle !== null} initialTitle={createTitle ?? ''} onClose={() => setCreateTitle(null)} />
   </View>
 }

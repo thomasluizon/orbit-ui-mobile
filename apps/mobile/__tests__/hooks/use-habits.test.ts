@@ -39,6 +39,8 @@ const mocks = vi.hoisted(() => {
 
   const queryClient = {
     cancelQueries: vi.fn(async () => {}),
+    getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
     invalidateQueries: vi.fn(async () => {}),
     getQueriesData: vi.fn((filters: { queryKey: readonly unknown[] }) =>
       state.entries
@@ -1868,4 +1870,22 @@ describe('mobile habit hooks', () => {
       activeDays: ['2026-08-28'],
     })
   })
+})
+
+ it('drops an empty search page after creating its named habit offline before reconnect', async () => {
+  const { QueryClient } = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query')
+  const client = new QueryClient()
+  mocks.useQueryClient.mockReturnValueOnce(client as unknown as typeof mocks.queryClient)
+  const key = habitKeys.search({ search: 'yoga', page: 1 })
+  client.setQueryData(key, { items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 })
+  client.setQueryData(habitKeys.list({}), [])
+  const mutation = useCreateHabit() as unknown as MutationConfig<{ id: string; queued: true; queuedMutationId: string }, CreateHabitRequest, { previousLists: unknown; tempId: string }>
+  const request: CreateHabitRequest = { title: 'yoga', frequencyUnit: 'Day' }
+  const context = await mutation.onMutate?.(request)
+  const response = await mutation.mutationFn(request)
+  mutation.onSettled?.(response, null, request, context)
+  expect(client.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.map((habit) => habit.title)).toEqual(['yoga'])
+  expect(client.getQueryData(key)).toBeUndefined()
+  expect(client.isFetching()).toBe(0)
+  client.clear()
 })

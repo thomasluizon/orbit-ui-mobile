@@ -8,6 +8,7 @@ import { type SearchCommandId, type SearchCommandPage } from '@orbit/shared/util
 import { useHabitSearch } from '@/hooks/use-habit-search'
 import { SearchEmpty, SearchResults, Searching } from '@/components/search/search-results'
 import { Button } from '@/components/ui/pill-button'
+import { useAppToast } from '@/hooks/use-app-toast'
 import { useLogHabit, useSkipHabit } from '@/hooks/use-habits'
 import { CommandHabitItems } from './command-habit-items'
 import { buildCommandHabitList } from './build-command-habit-list'
@@ -27,6 +28,8 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
   const router = useRouter()
   const search = useHabitSearch()
   const [page, setPage] = useState<SearchCommandPage>(null)
+  const { showError } = useAppToast()
+  const onActionError = () => showError(t('errors.updateHabit'))
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()
   const entries = search.data ? (search.query && !page ? search.data.topLevelHabits.map((habit) => ({ habit, parentTitle: null })) : buildCommandHabitList(search.data, search.query)) : []
@@ -39,8 +42,8 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
   }
   function chooseHabit(id: string) {
     if (logHabit.isPending || skipHabit.isPending) return
-    if (page === 'log') logHabit.mutate({ habitId: id }, { onSuccess: () => { back(); onClose() } })
-    else if (page === 'skip') skipHabit.mutate({ habitId: id }, { onSuccess: () => { back(); onClose() } })
+    if (page === 'log') logHabit.mutate({ habitId: id }, { onSuccess: () => { back(); onClose() }, onError: onActionError })
+    else if (page === 'skip') skipHabit.mutate({ habitId: id }, { onSuccess: () => { back(); onClose() }, onError: onActionError })
     else run(() => router.push(`/habits/${id}`))
   }
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {

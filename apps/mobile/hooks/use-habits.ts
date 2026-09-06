@@ -1,3 +1,4 @@
+import type { HabitListSnapshots } from '@orbit/shared/query'
 import {
   useMutation,
   useQueryClient,
@@ -99,7 +100,6 @@ type CreateSubHabitMutationInput = {
   data: CreateSubHabitRequest
   __offlineTempId?: string
 }
-type HabitListSnapshots = readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
 type HabitDetailSnapshots = readonly (readonly [readonly unknown[], HabitDetail | undefined])[]
 type LogHabitSnapshot = {
   previousLists: HabitListSnapshots

@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { QueryClient } from '@tanstack/react-query'
+import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
+import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import {
   gamificationKeys,
   goalKeys,
@@ -54,6 +54,7 @@ function createQueryClient(): QueryClient {
 }
 
 it('invalidates all search pages at settlement while isolating them from optimistic list writers', () => {
+  expectTypeOf<ReturnType<typeof habitKeys.search>>().not.toMatchTypeOf<ReturnType<typeof snapshotHabitLists>[number][0]>()
   const queryClient = createQueryClient()
   const keys = [habitKeys.search({ search: 'Test', page: 1 }), habitKeys.search({ search: 'Test', page: 2 }), habitKeys.search({ search: 'other', page: 1 })]
   const response = { items: [makeHabit()], page: 1, pageSize: 20, totalCount: 21, totalPages: 2 }
@@ -132,7 +133,9 @@ describe('finalizeHabitMutation', () => {
 
   it('skips invalidation for queued mutations', () => {
     const queryClient = {
-      invalidateQueries: vi.fn(async () => {}),
+      getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
+    invalidateQueries: vi.fn(async () => {}),
     }
 
     finalizeHabitMutation(
@@ -153,7 +156,9 @@ describe('finalizeHabitMutation', () => {
 
   it('invalidates habit-related caches and refreshes the widget on success', () => {
     const queryClient = {
-      invalidateQueries: vi.fn(async () => {}),
+      getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
+    invalidateQueries: vi.fn(async () => {}),
     }
 
     finalizeHabitMutation(
@@ -190,7 +195,9 @@ describe('finalizeHabitMutation', () => {
   it('returns immediately instead of waiting for invalidations to settle', () => {
     const pendingInvalidation = new Promise<void>(() => {})
     const queryClient = {
-      invalidateQueries: vi.fn(() => pendingInvalidation),
+      getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
+    invalidateQueries: vi.fn(() => pendingInvalidation),
     }
 
     const result = finalizeHabitMutation(
@@ -214,17 +221,23 @@ describe('finalizeHabitMutation', () => {
   })
 
   it('invalidates the habit count only when includeCount is set (parity with web create/delete/bulk)', () => {
-    const withCount = { invalidateQueries: vi.fn(async () => {}) }
+    const withCount = { getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
+    invalidateQueries: vi.fn(async () => {}) }
     finalizeHabitMutation(withCount as never, { ok: true }, null, { includeCount: true })
     expect(withCount.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
 
-    const withoutCount = { invalidateQueries: vi.fn(async () => {}) }
+    const withoutCount = { getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
+    invalidateQueries: vi.fn(async () => {}) }
     finalizeHabitMutation(withoutCount as never, { ok: true }, null, { includeGoals: true })
     expect(withoutCount.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
   })
 
   it('still refetches on a plain (non-queued) online error so the cache reconciles', () => {
-    const queryClient = { invalidateQueries: vi.fn(async () => {}) }
+    const queryClient = { getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
+    invalidateQueries: vi.fn(async () => {}) }
 
     finalizeHabitMutation(queryClient as never, { ok: true }, new Error('network'), {
       includeGoals: true,
@@ -236,7 +249,9 @@ describe('finalizeHabitMutation', () => {
   })
 
   it('still skips invalidation for a queued (offline) result even on error', () => {
-    const queryClient = { invalidateQueries: vi.fn(async () => {}) }
+    const queryClient = { getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
+    invalidateQueries: vi.fn(async () => {}) }
 
     finalizeHabitMutation(
       queryClient as never,
@@ -492,4 +507,20 @@ describe('optimisticMoveHabitParent', () => {
 
     expect(result).toEqual([parent])
   })
+})
+
+it('clears a mounted search observer before replay without starting a request', () => {
+  const client = createQueryClient()
+  const key = habitKeys.search({ search: 'Test' })
+  const response = { items: [makeHabit()], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 }
+  client.setQueryData(key, response)
+  const fetch = vi.fn(() => Promise.resolve(response))
+  const observer = new QueryObserver(client, { queryKey: key, queryFn: fetch, enabled: false })
+  const unsubscribe = observer.subscribe(vi.fn())
+  finalizeHabitMutation(client, { queued: true, queuedMutationId: 'queued' }, null)
+  expect(observer.getCurrentResult().data).toBeUndefined()
+  expect(fetch).not.toHaveBeenCalled()
+  expect(client.getQueryData(key)).toBeUndefined()
+  unsubscribe()
+  client.clear()
 })
