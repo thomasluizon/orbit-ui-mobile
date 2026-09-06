@@ -6,6 +6,8 @@ import { Markdown } from '@/components/ui/markdown'
 
 describe('Markdown server rendering', () => {
   it.each([
+    '[docs](https://markdown.invalid/path)',
+    '[docs](//markdown.invalid/path)',
     '[docs](https://example.com)',
     '[docs](http://example.com)',
     '[docs](HTTPS://example.com)',
@@ -20,6 +22,33 @@ describe('Markdown server rendering', () => {
     expect(markup).toMatch(/<a href="(?:https?:)?\/\//i)
     expect(markup).toContain('target="_blank"')
     expect(markup).toContain('rel="noopener noreferrer"')
+  })
+
+  it.each([
+    ['https://markdown.invalid/path', true],
+    ['//markdown.invalid/path', true],
+    ['//attacker.example/path', true],
+    ['https://example.com/path', true],
+    ['docs/page', false],
+    ['/docs/page', false],
+    ['?q=1', false],
+    ['#section', false],
+  ] as const)('names linked images and preserves the destination context for %s', (href, isolated) => {
+    const markup = renderToStaticMarkup(
+      <Markdown content={`[docs](${href}) [![alt](https://example.com/i.png)](${href})`} />,
+    )
+    const attributes = isolated ? ' target="_blank" rel="noopener noreferrer"' : ''
+    expect(markup).toContain(`<a href="${href}"${attributes}>docs</a>`)
+    expect(markup).toContain(`<a href="${href}"${attributes}>alt</a>`)
+    expect(markup).not.toContain('<img')
+  })
+
+  it('escapes image labels and falls back to the title', () => {
+    const markup = renderToStaticMarkup(
+      <Markdown content={'![<b>alt</b>](https://example.com/i.png) ![](https://example.com/i.png "title") ![](https://example.com/i.png)'} />,
+    )
+    expect(markup).toContain('&lt;b&gt;alt&lt;/b&gt; title ')
+    expect(markup).not.toMatch(/<(?:img|b)\b/)
   })
 
   it.each(['mailto:a@b.com', '/habits', './habits', '../habits', '?view=full', '#notes'])('preserves the current context for %s', (href) => {

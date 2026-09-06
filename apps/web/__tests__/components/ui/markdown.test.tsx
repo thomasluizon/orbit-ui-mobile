@@ -35,6 +35,8 @@ describe('Markdown', () => {
 
   it.each([
     'see https://useorbit.org for more',
+    '[docs](https://markdown.invalid/path)',
+    '[docs](//markdown.invalid/path)',
     '[docs](https://useorbit.org/docs)',
     '[docs](http://useorbit.org/docs)',
     '[docs](HTTPS://useorbit.org/docs)',
@@ -46,6 +48,41 @@ describe('Markdown', () => {
     expect(link).toHaveAttribute('href')
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it.each([
+    ['https://markdown.invalid/path', true],
+    ['//markdown.invalid/path', true],
+    ['//attacker.example/path', true],
+    ['https://example.com/path', true],
+    ['docs/page', false],
+    ['/docs/page', false],
+    ['?q=1', false],
+    ['#section', false],
+  ] as const)('names linked images and preserves the destination context for %s', (href, isolated) => {
+    const { getByRole, container } = render(
+      <Markdown content={`[docs](${href}) [![alt](https://example.com/i.png)](${href})`} />,
+    )
+    for (const name of ['docs', 'alt']) {
+      const link = getByRole('link', { name })
+      expect(link).toHaveAttribute('href', href)
+      if (isolated) {
+        expect(link).toHaveAttribute('target', '_blank')
+        expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+      } else {
+        expect(link).not.toHaveAttribute('target')
+        expect(link).not.toHaveAttribute('rel')
+      }
+    }
+    expect(container.querySelector('img')).toBeNull()
+  })
+
+  it('renders image labels as text and falls back to the title', () => {
+    const { container } = render(
+      <Markdown content={'![<b>alt</b>](https://example.com/i.png) ![](https://example.com/i.png "title") ![](https://example.com/i.png)'} />,
+    )
+    expect(container.textContent.trimEnd()).toBe('<b>alt</b> title')
+    expect(container.querySelector('img, b')).toBeNull()
   })
 
   it.each(['mailto:a@b.com', '/habits', './habits', '../habits', '?view=full', '#notes'])('keeps %s in its current context', (href) => {

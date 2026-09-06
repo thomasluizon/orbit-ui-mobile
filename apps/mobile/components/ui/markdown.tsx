@@ -1,5 +1,5 @@
 import { Children, cloneElement, isValidElement, useMemo, useState, type ReactNode } from 'react'
-import { Linking, Text, type StyleProp, type TextStyle } from 'react-native'
+import { Linking, Text, type ImageStyle, type StyleProp, type TextStyle } from 'react-native'
 import RNMarkdown, {
   Renderer,
   type MarkedStyles,
@@ -75,7 +75,7 @@ function ProseLink({ children, href, styles, colors }: Readonly<{
 }
 
 class SafeLinkRenderer extends Renderer implements RendererInterface {
-  constructor(private readonly colors: ProseColors) {
+  constructor(private readonly colors: ProseColors, private readonly textStyles?: TextStyle) {
     super()
   }
 
@@ -94,6 +94,14 @@ class SafeLinkRenderer extends Renderer implements RendererInterface {
         {children}
       </ProseLink>
     )
+  }
+
+  override image(_uri: string, alt?: string, _style?: ImageStyle, title?: string): ReactNode {
+    return <Text selectable key={this.getKey()} style={this.textStyles}>{alt || title || ''}</Text>
+  }
+
+  override linkImage(href: string, _imageUrl: string, alt?: string, _style?: ImageStyle, title?: string | null): ReactNode {
+    return this.link(alt || title || '', href, this.textStyles)
   }
 }
 
@@ -174,7 +182,7 @@ export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>
     () => createMarkedStyles(tokens, colors),
     [tokens, colors],
   )
-  const renderer = useMemo(() => new SafeLinkRenderer(colors), [colors])
+  const renderer = useMemo(() => new SafeLinkRenderer(colors, styles.text), [colors, styles.text])
 
   return (
     <RNMarkdown

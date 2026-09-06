@@ -1,6 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { isValidElement, type ReactElement } from 'react'
 import { Text } from 'react-native'
+import { marked } from 'marked'
+import Parser from 'react-native-marked/src/lib/Parser'
+import type { MarkedStyles, RendererInterface } from 'react-native-marked'
 import { Markdown } from '@/components/ui/markdown'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -14,18 +17,21 @@ const themeSelection = vi.hoisted((): { currentScheme: 'purple'; currentTheme: '
 vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => themeSelection }))
 
 const openURL = vi.fn((_url: string) => Promise.resolve())
-vi.mock('react-native', () => ({
+vi.mock('react-native', async (importOriginal) => ({
+  ...await importOriginal<typeof import('react-native')>(),
   Linking: { openURL: (url: string) => openURL(url) },
   Text: 'Text',
+  TouchableHighlight: 'TouchableHighlight',
 }))
 
+vi.mock('react-native-marked/src/components/MDImage', () => ({ default: 'Image' }))
+vi.mock('react-native-marked/src/components/MDSvg', () => ({ default: 'Image' }))
+vi.mock('react-native-marked/src/components/MDList', () => ({ default: 'List' }))
+vi.mock('react-native-marked/src/components/MDTable', () => ({ default: 'Table' }))
+
 const markedProps: { current: Record<string, unknown> | null } = { current: null }
-vi.mock('react-native-marked', () => {
-  class Renderer {
-    getKey() {
-      return 'k'
-    }
-  }
+vi.mock('react-native-marked', async () => {
+  const { default: Renderer } = await vi.importActual<{ default: typeof import('react-native-marked').Renderer }>('react-native-marked/src/lib/Renderer')
   return {
     __esModule: true,
     default: (props: Record<string, unknown>) => {
@@ -70,10 +76,51 @@ function renderMarkdown(props: Parameters<typeof Markdown>[0]): Record<string, u
   return markedProps.current
 }
 
+function renderParsedMarkdown(content: string) {
+  const props = renderMarkdown({ children: content })
+  const parser = new Parser({ renderer: props.renderer as RendererInterface, styles: props.styles as MarkedStyles })
+  let tree: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => { tree = TestRenderer.create(<>{parser.parse(marked.lexer(content))}</>) })
+  return tree
+}
+
 describe('mobile Markdown wrapper', () => {
   beforeEach(() => {
     openURL.mockClear()
     themeSelection.currentTheme = 'dark'
+  })
+
+  it('blocks unsafe linked images before they can open a URL', () => {
+    const tree = renderParsedMarkdown('[![alt](https://example.com/i.png)](javascript:alert(1))')
+    const pressable = tree.root.findAll((node: { props: NativeLinkProps }) => typeof node.props.onPress === 'function')
+    expect(pressable).toHaveLength(0)
+    expect(tree.root.findAllByType('Text').some((node: { children: unknown[] }) => node.children.join('') === 'alt')).toBe(true)
+    expect(tree.root.findAllByType('Image')).toHaveLength(0)
+    expect(openURL).not.toHaveBeenCalled()
+  })
+
+  it('opens safe linked images through their accessible text label', () => {
+    const tree = renderParsedMarkdown('[![alt](https://example.com/i.png)](https://example.com/path)')
+    const link = tree.root.findAllByType('Text').find((node: { props: NativeLinkProps }) => node.props.accessibilityRole === 'link')
+    expect(link).toBeDefined()
+    expect(link.children.join('')).toBe('alt')
+    expect(typeof link.props.onPress).toBe('function')
+    link.props.onPress()
+    expect(openURL).toHaveBeenCalledExactlyOnceWith('https://example.com/path')
+    expect(tree.root.findAllByType('Image')).toHaveLength(0)
+  })
+
+  it.each([
+    ['![alt](https://example.com/i.png)', 'alt'],
+    ['![](https://example.com/i.png "title")', 'title'],
+    ['![<b>alt</b>](https://example.com/i.png)', '<b>alt</b>'],
+  ])('renders a bare image as themed text: %s', (content, label) => {
+    const tree = renderParsedMarkdown(content)
+    const text = tree.root.findAllByType('Text').find((node: { props: { children: unknown } }) => node.props.children === label)
+    expect(text).toBeDefined()
+    expect(text.props.style).toMatchObject({ color: createTokensV2('purple', 'dark').fg2 })
+    expect(tree.root.findAllByType('Image')).toHaveLength(0)
+    expect(openURL).not.toHaveBeenCalled()
   })
 
   it('passes the content through as the markdown value', () => {

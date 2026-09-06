@@ -41,9 +41,10 @@ function escapeHtml(text: string): string {
 
 function linkAttributes(href: string): string {
   try {
-    const { protocol, origin } = new URL(href, LINK_BASE_ORIGIN)
+    const { protocol } = new URL(href, LINK_BASE_ORIGIN)
     if (!/^(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix):$/i.test(protocol)) return ''
-    const external = (protocol === 'http:' || protocol === 'https:') && origin !== LINK_BASE_ORIGIN
+    const hasOwnOrigin = /^(?:\/\/|[A-Za-z][A-Za-z0-9+.-]*:)/.test(href)
+    const external = (protocol === 'http:' || protocol === 'https:') && hasOwnOrigin
     const context = external ? ' target="_blank" rel="noopener noreferrer"' : ''
     return ` href="${escapeHtml(href)}"${context}`
   } catch {
@@ -60,8 +61,8 @@ class ProseRenderer extends Renderer {
     return `<a${linkAttributes(href)}>${this.parser.parseInline(tokens)}</a>`
   }
 
-  override image(): string {
-    return ''
+  override image({ text, title }: Tokens.Image): string {
+    return escapeHtml(text || title || '')
   }
 
   override hr(): string {
