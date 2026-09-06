@@ -23135,8 +23135,6 @@
       "retrospective.generating",
       "retrospective.locked",
       "retrospective.lockedHint",
-      "retrospective.lockedYearly",
-      "retrospective.lockedYearlyHint",
       "retrospective.metrics.activeDays",
       "retrospective.metrics.completionRate",
       "retrospective.metrics.currentStreak",
