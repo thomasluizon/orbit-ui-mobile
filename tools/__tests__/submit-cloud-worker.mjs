@@ -222,7 +222,8 @@ export const cases = async () => {
       normalizedSchedulerContract.includes("Every `CLOUD_TASK_EMPTY` failure by name") &&
       normalizedSchedulerContract.includes("Never count an empty result as a completed ticket"),
   )
-  for (const ending of ["empty", "materialized", "uncertain"]) {
+  for (const ending of ["empty", "materialized", "uncertain", "missing-handoff", "malformed-handoff"]) {
+    const invalidHandoff = ending.endsWith("-handoff")
     const retryEntry = fixture(`empty-retry-${ending}`)
     const orderText = "Edit README.md to describe the measured cloud path.\n"
     writeFileSync(retryEntry.order, orderText)
@@ -289,12 +290,16 @@ export const cases = async () => {
         manualSteps: [],
         testResults: "Focused README verification passed.",
       }
-      if (ending === "materialized") {
-        const source = stageRepo("empty-retry-delivered-patch")
+      if (ending === "materialized" || invalidHandoff) {
+        const source = stageRepo(`empty-retry-delivered-patch-${ending}`)
         writeFileSync(join(source.path, "implementation.txt"), "Recovered implementation.\n")
-        mkdirSync(join(source.path, ".claude"), { recursive: true })
-        writeFileSync(join(source.path, ".claude", "cloud-handoff.json"), JSON.stringify(handoff))
-        source.git(["add", "implementation.txt", ".claude/cloud-handoff.json"])
+        source.git(["add", "implementation.txt"])
+        if (ending !== "missing-handoff") {
+          mkdirSync(join(source.path, ".claude"), { recursive: true })
+          writeFileSync(join(source.path, ".claude", "cloud-handoff.json"),
+            ending === "malformed-handoff" ? "{invalid JSON" : JSON.stringify(handoff))
+          source.git(["add", ".claude/cloud-handoff.json"])
+        }
         deliveredPatch = source.git(["diff", "--cached", "--binary", "--full-index"]).stdout
       }
       const result = run("materialize-cloud-result.mjs", ["--receipt", secondReceipt.receiptPath], {
@@ -309,15 +314,51 @@ export const cases = async () => {
       })
       const settled = JSON.parse(readFileSync(secondReceipt.receiptPath, "utf8"))
       T(
-        `${TOOL}: ${ending} retry releases ownership only after materialization`,
+        `${TOOL}: ${ending} retry admission follows its terminal outcome`,
         ending === "empty"
           ? result.status === 3 && JSON.parse(result.stdout).retry === "exhausted" && receiptBlocksTicketAdmission(settled)
-          : result.status === 0 && !receiptBlocksTicketAdmission(settled) &&
+          : invalidHandoff
+            ? result.status === 10 && settled.unusable?.outcome === "CLOUD_HANDOFF_INVALID" &&
+              !settled.materialized && !receiptBlocksTicketAdmission(settled)
+            : result.status === 0 && !receiptBlocksTicketAdmission(settled) &&
             JSON.stringify(settled.materialized?.handoff) === JSON.stringify(handoff),
         result.stdout || result.stderr,
       )
+      if (invalidHandoff) {
+        T(`${TOOL}: ${ending} preserves the staged implementation for manual delivery`,
+          retryEntry.repo.git(["show", ":implementation.txt"]).stdout === "Recovered implementation.\n")
+        retryEntry.repo.git(["commit", "-q", "-m", "manual delivery of preserved patch"])
+        retryEntry.repo.git(["push", "-q", "origin", "main"])
+        const nextId = "task_e_e435"
+        const nextEnv = {
+          ...retryEnv,
+          ORBIT_FAKE_EXEC_URL: `https://chatgpt.com/codex/tasks/${nextId}`,
+          ORBIT_FAKE_LIST: taskPage([task(firstId, "ready", 0), task(retryId, "ready", 1), task(nextId, "ready", 0)]),
+        }
+        const next = run(TOOL, argvOf(retryEntry), { path: retryEntry.path, env: nextEnv })
+        T(`${TOOL}: ${ending} terminal unusability permits a new same-ticket submission`,
+          next.status === 0 && !JSON.parse(next.stdout).emptyRetryOf, next.stdout || next.stderr)
+        if (next.status === 0) {
+          const nextReceipt = JSON.parse(next.stdout)
+          const nextEmpty = run("materialize-cloud-result.mjs", ["--receipt", nextReceipt.receiptPath], {
+            path: materializer.path,
+            env: { ...nextEnv, ORBIT_FAKE_APPLY_MODE: "noop" },
+          })
+          T(`${TOOL}: ${ending} readmitted task still reports an empty result as unfinished`, nextEmpty.status === 3)
+          const exhausted = run(TOOL, argvOf(retryEntry), { path: retryEntry.path, env: nextEnv })
+          const executions = readFileSync(retryEntry.log, "utf8").trim().split(/\r?\n/).map(JSON.parse)
+            .filter((args) => args[1] === "exec")
+          const receiptsDirectory = join(retryEntry.repo.path, ".git", "orbit-cloud", "receipts")
+          const retries = readdirSync(receiptsDirectory).map((name) =>
+            JSON.parse(readFileSync(join(receiptsDirectory, name), "utf8"))).filter((receipt) => receipt.emptyRetryOf)
+          T(`${TOOL}: ${ending} terminal resolution never replenishes the single empty-result retry`,
+            exhausted.status === 3 && exhausted.stderr.includes("CLOUD_TASK_EMPTY") &&
+              executions.length === 3 && retries.length === 1 && retries[0].emptyRetryOf === firstId,
+            exhausted.stdout || exhausted.stderr)
+        }
+      }
     }
-    if (ending !== "materialized") {
+    if (ending !== "materialized" && !invalidHandoff) {
       if (ending === "uncertain") {
         const receiptsDirectory = join(retryEntry.repo.path, ".git", "orbit-cloud", "receipts")
         const reservationPath = join(receiptsDirectory, readdirSync(receiptsDirectory).find((name) => name.startsWith("reservation-")))

@@ -573,12 +573,15 @@ if (existingReceipts.length > 0) {
       persistReceipt(receipt, stablePath)
       return receipt
     })
-    const retryParents = new Set(reconciledReceipts.map((receipt) => receipt.emptyRetryOf).filter(Boolean))
+    const ticketRetries = reconciledReceipts.filter((receipt) => receipt.ticket === ticket && receipt.emptyRetryOf)
+    const emptyRetrySpent = ticketRetries.length > 0
+    // Clearing an uncertain reservation releases capacity, but leaves its original empty task unfinished (#433).
+    const retryParents = new Set(ticketRetries.filter((receipt) => !receipt.released).map((receipt) => receipt.emptyRetryOf))
     const blockers = reconciledReceipts.filter((receipt) => (
       receipt.ticket === ticket && receiptBlocksTicketAdmission(receipt) && !retryParents.has(receipt.taskId)
     ))
     const blockedTicket = blockers[0]
-    if (blockers.length === 1 && blockedTicket.emptyFailure && !blockedTicket.emptyRetryOf) {
+    if (blockers.length === 1 && blockedTicket.emptyFailure && !emptyRetrySpent) {
       const expected = { environmentId, repositoryKey, ticket, branch, baseSha, worktree, orderSha256 }
       if (Object.entries(expected).some(([key, value]) => blockedTicket[key] !== value)) {
         fail(2, "CLOUD_TASK_EMPTY retry requires the same ticket, environment, branch, base, worktree, and unchanged order")
@@ -600,7 +603,7 @@ if (existingReceipts.length > 0) {
           : "wait for it to finish"
       fail(
         3,
-        blockedTicket.emptyRetryOf
+        emptyRetrySpent && (blockedTicket.emptyFailure || blockedTicket.emptyRetryOf)
           ? `CLOUD_TASK_EMPTY: ticket ${ticket} remains unfinished; its single retry is already reserved or exhausted`
           : `ticket ${ticket} already has ${blockedState}; ${nextAction} before resubmitting`,
       )

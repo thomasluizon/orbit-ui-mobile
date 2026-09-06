@@ -43,7 +43,7 @@ export const receiptConsumesFleetCapacity = (receipt) => (
 
 // Ticket admission measures ownership, so every unresolved receipt blocks even after the task is terminal.
 export const receiptBlocksTicketAdmission = (receipt) => (
-  receipt.emptyFailure || receipt.emptyRetryOf ? !receipt.materialized : !receiptIsResolved(receipt)
+  receipt.emptyFailure ? !receipt.materialized : !receiptIsResolved(receipt)
 )
 
 export const CLOUD_FINISHING_CONTRACT = `## Cloud finishing contract
