@@ -47,6 +47,9 @@ function enqueueToast(
 
   const nextToast = createToast({ ...toast, message: trimmedMessage })
   set((state) => {
+    if (!toast.onAction && [state.currentToast, state.queue.at(-1)].some((item) =>
+      !item?.toast.onAction && item?.toast.message === trimmedMessage && item.toast.kind === toast.kind,
+    )) return state
     if (!state.currentToast) return { currentToast: nextToast }
 
     if (!hasRemovalPath(state.currentToast.toast)) {

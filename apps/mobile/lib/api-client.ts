@@ -181,6 +181,10 @@ async function handleUnauthorized<T>(
     await import('@/stores/auth-store')
   const refreshOutcome = await refreshSession({ clearOnFailure: false })
 
+  if (refreshOutcome.status === 'network-error') {
+    throw new TypeError('Network request failed')
+  }
+
   if (refreshOutcome.status === 'refreshed') {
     const retry = await executeRequest(path, effectiveOptions, refreshOutcome.token)
     if (retry.response.status !== 401) {
@@ -194,7 +198,7 @@ async function handleUnauthorized<T>(
     throw toUnauthorizedError(retry.requestId)
   }
 
-  if (refreshOutcome.status === 'unauthorized' && !isAuthTransitionInFlight()) {
+  if (!isAuthTransitionInFlight()) {
     await clearSessionAndResetAuth()
     await redirectToLogin()
   }

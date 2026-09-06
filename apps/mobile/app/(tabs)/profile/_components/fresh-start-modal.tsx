@@ -20,6 +20,7 @@ import {
   queueOrExecute,
 } from '@/lib/offline-mutations'
 import * as offlineQueue from '@/lib/offline-queue'
+import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { clearPersistedQueryCache } from '@/lib/query-client'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { AppTextInput } from '@/components/ui/app-text-input'
@@ -150,6 +151,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
       if (isQueuedResult(result)) {
         offlineQueue.enqueue(queuedResetMutation)
       }
+      await useOfflineSyncStore.getState().clearDrops()
 
       await Promise.all([
         clearChecklistTemplates(),
