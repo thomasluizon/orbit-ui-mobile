@@ -143,7 +143,7 @@ async function parseApiResponse<T>(
       requestId,
     )
     const failure = createApiClientError(response.status, error, `Request failed: ${response.status}`)
-    useThrottleStore.getState().show(failure)
+    useThrottleStore.getState().show(response.status, error)
     throw failure
   }
 

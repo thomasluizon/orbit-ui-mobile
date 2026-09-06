@@ -19,10 +19,10 @@ describe('error surface', () => {
   })
   it('only opens for a timed throttle and can return to the original screen', () => {
     let state: ThrottleStoreState = createThrottleStoreState((next) => { state = { ...state, ...next } })
-    expect(state.show(new Error('failure'))).toBe(false)
+    expect(state.show(500, { error: 'failure' })).toBe(false)
     expect(state.error).toBeNull()
-    expect(state.show(rejection)).toBe(true)
-    expect(state.error).toBe(rejection)
+    expect(state.show(rejection.status, rejection.data)).toBe(true)
+    expect(state.error).toEqual(rejection)
     state.clear()
     expect(state.error).toBeNull()
   })

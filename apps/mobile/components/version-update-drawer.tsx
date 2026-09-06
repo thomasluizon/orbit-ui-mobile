@@ -103,8 +103,9 @@ export function VersionUpdateDrawer() {
     updateAvailable &&
     !forceUpdate
 
+  const restoreAndroidAction = useCallback(() => setAndroidRequested(false), [])
   const { downloaded: androidUpdateReady, install: installAndroidUpdate } =
-    useAndroidFlexibleUpdate(androidFlexibleActive)
+    useAndroidFlexibleUpdate(androidFlexibleActive, restoreAndroidAction)
 
   useEffect(() => {
     if (Platform.OS !== 'android' || !updateAvailable || !forceUpdate) return

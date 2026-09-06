@@ -158,7 +158,7 @@ export async function apiFetch<T>(
     const backendMsg = extractBackendError({ data: body })
     const error = new ApiError(status, backendMsg || getToastTitle(status), body)
 
-    const throttled = useThrottleStore.getState().show(error)
+    const throttled = useThrottleStore.getState().show(status, body)
     if (!throttled && !behavior?.handlesError) reportApiError(error)
 
     throw error
