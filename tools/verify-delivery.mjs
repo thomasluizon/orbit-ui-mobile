@@ -121,12 +121,14 @@ if (typeof githubCwd !== "string" || githubCwd.trim().length === 0) {
 }
 
 let issue
+let ticketReference
 try {
   const resolvedTicket = resolveTicket(issueArgument)
   /** Labels are the only field asserted here, so the board read is pure cost on the hottest path. */
   const liveTicket = await readTicket(resolvedTicket.number, { withProjectItem: false })
   assertRepositoryLabel(liveTicket, repoKey)
   issue = resolvedTicket.identifier ?? `#${resolvedTicket.number}`
+  ticketReference = `${config.tickets.repository}#${resolvedTicket.number}`
 } catch (error) {
   fail(2, `ticket assertion failed: ${error.message}`)
 }
@@ -249,7 +251,12 @@ if (!checks.prCount.pass) emit("NO_PR")
  * that links the issue, and this file is the only thing that checks the work order was honoured.
  */
 const escapedIssue = issue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-const mentionsIssue = (text) => typeof text === "string" && new RegExp(`(^|[^A-Za-z0-9])${escapedIssue}(?![A-Za-z0-9])`, "i").test(text)
+const escapedTicketReference = ticketReference.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+/** Keep bare #N and migrated identifiers for compatibility: this checks a ticket mention, not
+ * GitHub's closing semantics. Qualified references must name the configured ticket repository;
+ * the wider leading boundary prevents a different owner or repository from matching by suffix. */
+const ticketMention = new RegExp(`(?:(^|[^A-Za-z0-9])${escapedIssue}|(^|[^A-Za-z0-9_./-])${escapedTicketReference})(?![A-Za-z0-9])`, "i")
+const mentionsIssue = (text) => typeof text === "string" && ticketMention.test(text)
 checks.linksTicket = {
   pass: mentionsIssue(pullRequest.title) || mentionsIssue(pullRequest.body),
   observed: mentionsIssue(pullRequest.title) ? "title" : mentionsIssue(pullRequest.body) ? "body" : "neither title nor body names the issue",
