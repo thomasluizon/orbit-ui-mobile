@@ -122,6 +122,10 @@ const offlineMocks = vi.hoisted(() => {
   }
 })
 
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: { getState: () => ({ isAuthenticated: true, user: { userId: 'account-a' } }), subscribe: () => () => {} },
+}))
+
 vi.mock('expo-sqlite', () => ({
   openDatabaseSync: () => ({
     execSync: vi.fn(),
@@ -149,7 +153,7 @@ vi.mock('expo-sqlite', () => ({
         })
         return
       }
-      if (sql === 'DELETE FROM mutation_queue') {
+      if (sql === 'DELETE FROM mutation_queue' || sql.startsWith('DELETE FROM mutation_queue WHERE account_id IS ?')) {
         offlineMocks.rows.clear()
         return
       }

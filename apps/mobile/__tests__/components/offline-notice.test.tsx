@@ -1,4 +1,5 @@
 import React from 'react'
+import { Pressable } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createInstance } from 'i18next'
 import en from '@orbit/shared/i18n/en.json'
@@ -20,11 +21,17 @@ interface RenderTree {
   }
 }
 const mocks = vi.hoisted(() => ({
+  storage: new Map<string, string>(),
   queue: { isOnline: false, pendingCount: 0, isFlushing: false, hasFailed: false },
   enqueue: vi.fn(),
   push: vi.fn(),
   translate: (key: string, values?: Record<string, unknown>) => key + JSON.stringify(values),
 }))
+vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
+  getItem: (key: string) => Promise.resolve(mocks.storage.get(key) ?? null),
+  setItem: (key: string, value: string) => { mocks.storage.set(key, value); return Promise.resolve() },
+  removeItem: (key: string) => { mocks.storage.delete(key); return Promise.resolve() },
+} }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => mocks.queue }))
 vi.mock('@/lib/offline-queue', () => ({ enqueue: mocks.enqueue }))
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
@@ -111,6 +118,42 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     TestRenderer.act(() => (toast().onAction as () => void)())
     expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({ targetEntityId: 'walk', payload: { date: '2026-09-05' }, retries: 0 }))
     expect(useOfflineSyncStore.getState().drops).toEqual([])
+  })
+
+  it('keeps Undo operable alongside pending queue status and removes the empty host', () => {
+    const undo = vi.fn()
+    update({ pendingCount: 1 })
+    TestRenderer.act(() => useAppToastStore.getState().showQueued('Deleted habit', 'Undo', undo))
+    const control = tree.root.findAllByType(Pressable).find((node) => node.props.accessibilityLabel === 'Undo')
+    expect(control).toBeDefined()
+    TestRenderer.act(() => (control!.props.onPress as () => void)())
+    expect(undo).toHaveBeenCalledOnce()
+    expect(toast().message).toBe(language.t('common.queued', { count: 1 }))
+    update({ pendingCount: 0 })
+    TestRenderer.act(() => vi.advanceTimersByTime(5_000))
+    expect(tree.root.findAllByType(Toast)).toHaveLength(0)
+    expect(tree.root.findAllByType('View')).toHaveLength(0)
+  })
+
+  it('retains orphan recovery when creation closes without success', () => {
+    TestRenderer.act(() => { useOfflineSyncStore.getState().addDrop({ ...droppedLog, mutation: { ...droppedLog.mutation, targetEntityId: 'offline-habit-orphan' } }) })
+    TestRenderer.act(() => (toast().onAction as () => void)())
+    TestRenderer.act(() => (tree.root.findByType(CreateHabitModal).props.onClose as () => void)())
+    expect(useOfflineSyncStore.getState().drops).toHaveLength(1)
+    expect(JSON.parse(mocks.storage.get('@orbit/offline-sync-notices')!).state.drops).toHaveLength(1)
+    expect(toast().kind).toBe('lost')
+    expect(tree.root.findByType(CreateHabitModal).props.open).toBe(false)
+  })
+
+  it('removes orphan recovery only on the creation completion signal', () => {
+    TestRenderer.act(() => { useOfflineSyncStore.getState().addDrop({ ...droppedLog, mutation: { ...droppedLog.mutation, targetEntityId: 'offline-habit-orphan' } }) })
+    TestRenderer.act(() => (toast().onAction as () => void)())
+    const modal = tree.root.findByType(CreateHabitModal).props
+    expect(modal.onCreated).toBeTypeOf('function')
+    TestRenderer.act(() => (modal.onCreated as () => void)())
+    expect(useOfflineSyncStore.getState().drops).toEqual([])
+    expect(tree.root.findAllByType(Toast)).toHaveLength(0)
+    expect(JSON.parse(mocks.storage.get('@orbit/offline-sync-notices')!).state.drops).toEqual([])
   })
 
   it('removes cleared recovery notices and refuses their retained actions', () => {

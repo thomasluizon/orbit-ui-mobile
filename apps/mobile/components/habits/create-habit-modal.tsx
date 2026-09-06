@@ -87,6 +87,7 @@ function hasCreateHabitChanges({
 interface CreateHabitModalProps {
   open: boolean
   onClose: () => void
+  onCreated?: () => void
   initialDate?: string | null
   parentHabit?: NormalizedHabit | null
   recoveryMessage?: string
@@ -103,6 +104,7 @@ function resolveCreateSheetTitle(
 export function CreateHabitModal({
   open,
   onClose,
+  onCreated,
   initialDate,
   parentHabit,
   recoveryMessage,
@@ -347,7 +349,7 @@ export function CreateHabitModal({
         )
         await createHabit.mutateAsync(request)
       }
-      closeSheet(onClose)
+      closeSheet(() => { onClose(); onCreated?.() })
     } catch (error: unknown) {
       showError(
         getFriendlyErrorMessage(
@@ -372,6 +374,7 @@ export function CreateHabitModal({
     createSubHabit,
     closeSheet,
     onClose,
+    onCreated,
     showError,
     translate,
   ])

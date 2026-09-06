@@ -6,6 +6,7 @@ import { zLayers } from '@orbit/shared/theme'
 import { mutationTypeSchema } from '@orbit/shared/types/sync'
 import { useOffline } from '@/hooks/use-offline'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import { AppToast, Toast } from '@/components/ui/app-toast'
 import { AlertTriangle, RefreshCw, WifiOff, X } from '@/components/ui/icons'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
@@ -57,7 +58,7 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
         <X size={20} color={tokens.fg2} />
       </Pressable>
       <CreateHabitModal open={creating} initialDate={date} recoveryMessage={message}
-        onClose={() => { setCreating(false); dismissDrop(drop.id) }} />
+        onClose={() => setCreating(false)} onCreated={() => dismissDrop(drop.id)} />
     </View>
   )
 }
@@ -68,6 +69,7 @@ export function OfflineNotice() {
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { isOnline, pendingCount, isFlushing, hasFailed } = useOffline()
   const drop = useOfflineSyncStore((state) => state.drops[0])
+  const currentToast = useAppToastStore((state) => state.currentToast)
   const [sawPending, setSawPending] = useState(false)
   const clearSynced = useCallback(() => setSawPending(false), [])
   const pendingNoticeVisible = pendingCount > 0 && (!isOnline || !hasFailed || isFlushing)
@@ -80,13 +82,13 @@ export function OfflineNotice() {
   else if (pendingCount > 0 && isOnline && hasFailed) notice = <Toast kind="neutral" icon={<RefreshCw size={20} color={tokens.fg2} />} message={t('common.syncRetrying')} />
   else if (pendingCount > 0) notice = <Toast kind="neutral" icon={<WifiOff size={20} color={tokens.fg2} />} message={t('common.queued', { count: pendingCount })} />
   else if (sawPending && !isFlushing) notice = <Toast kind="done" message={t('common.synced')} onDone={clearSynced} />
-  else return <AppToast placement="slot" />
+  if (!notice && !currentToast) return null
 
-  return <View style={styles.host} testID="offline-notice">{notice}</View>
+  return <View style={styles.host} testID="offline-notice">{notice}<AppToast placement="slot" /></View>
 }
 
 const styles = StyleSheet.create({
-  host: { padding: 16, zIndex: zLayers.toast },
+  host: { padding: 16, gap: 12, zIndex: zLayers.toast },
   dropped: { gap: 4 },
   dismiss: { alignSelf: 'flex-end', minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
 })

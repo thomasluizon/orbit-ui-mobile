@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite'
+import { useAuthStore } from '@/stores/auth-store'
 import {
   mutationEntityTypeSchema,
   mutationScopeSchema,
@@ -51,13 +52,17 @@ function getDb(): SQLite.SQLiteDatabase {
         payload TEXT,
         retries INTEGER NOT NULL DEFAULT 0,
         max_retries INTEGER NOT NULL DEFAULT 3,
-        meta TEXT
+        meta TEXT,
+        account_id TEXT
       );
     `)
 
     const columns = db.getAllSync<{ name: string }>('PRAGMA table_info(mutation_queue)')
     if (!columns.some((column) => column.name === 'meta')) {
       db.execSync('ALTER TABLE mutation_queue ADD COLUMN meta TEXT;')
+    }
+    if (!columns.some((column) => column.name === 'account_id')) {
+      db.execSync('ALTER TABLE mutation_queue ADD COLUMN account_id TEXT;')
     }
   }
   return db
@@ -72,8 +77,12 @@ function emitQueueCount(): void {
 
 export function subscribeQueueCount(listener: QueueListener): () => void {
   queueListeners.add(listener)
+  const unsubscribeAuth = useAuthStore.subscribe((state, previous) => {
+    if (state.isAuthenticated !== previous.isAuthenticated || state.user?.userId !== previous.user?.userId) listener(count())
+  })
   listener(count())
   return () => {
+    unsubscribeAuth()
     queueListeners.delete(listener)
   }
 }
@@ -125,10 +134,15 @@ function mapRow(row: QueueRow): PersistedQueuedMutation {
   }
 }
 
-function upsert(database: SQLite.SQLiteDatabase, mutation: PersistedQueuedMutation): void {
+function currentAccountId(): string | null {
+  const { isAuthenticated, user } = useAuthStore.getState()
+  return isAuthenticated ? user?.userId ?? null : null
+}
+
+function upsert(database: SQLite.SQLiteDatabase, mutation: PersistedQueuedMutation, accountId: string | null): void {
   database.runSync(
-    `INSERT OR REPLACE INTO mutation_queue (id, timestamp, type, endpoint, method, payload, retries, max_retries, meta)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO mutation_queue (id, timestamp, type, endpoint, method, payload, retries, max_retries, meta, account_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       mutation.id,
       mutation.timestamp,
@@ -139,16 +153,18 @@ function upsert(database: SQLite.SQLiteDatabase, mutation: PersistedQueuedMutati
       mutation.retries,
       mutation.maxRetries,
       JSON.stringify(buildMeta(mutation)),
+      accountId,
     ],
   )
 }
 
 function replaceAll(mutations: PersistedQueuedMutation[]): void {
   const database = getDb()
+  const accountId = currentAccountId()
   database.withTransactionSync(() => {
-    database.runSync('DELETE FROM mutation_queue')
+    database.runSync('DELETE FROM mutation_queue WHERE account_id IS ? OR account_id IS NULL', [accountId])
     for (const mutation of mutations) {
-      upsert(database, mutation)
+      upsert(database, mutation, accountId)
     }
   })
   emitQueueCount()
@@ -194,9 +210,16 @@ const FIRST_WRITE_WINS_TYPES = new Set<string>(['logHabit'])
 export function findUnfinalizedFirstWrite(
   mutation: Pick<QueuedMutation, 'type' | 'dedupeKey'>,
 ): PersistedQueuedMutation | null {
+  return findFirstWrite(getAll(), mutation)
+}
+
+function findFirstWrite(
+  queued: PersistedQueuedMutation[],
+  mutation: Pick<QueuedMutation, 'type' | 'dedupeKey'>,
+): PersistedQueuedMutation | null {
   if (!mutation.dedupeKey || !FIRST_WRITE_WINS_TYPES.has(mutation.type)) return null
 
-  return getAll().find(
+  return queued.find(
     (queuedMutation) =>
       queuedMutation.type === mutation.type &&
       queuedMutation.dedupeKey === mutation.dedupeKey,
@@ -309,11 +332,12 @@ export function enqueue(
     dependsOn: mutation.dependsOn ?? [],
   }
 
-  const existingMutation = findUnfinalizedFirstWrite(normalized)
+  const existing = getForAccount(currentAccountId())
+  const existingMutation = findFirstWrite(existing, normalized)
 
   if (existingMutation) return existingMutation.id
 
-  const compacted = compactQueuedMutations(getAll(), normalized)
+  const compacted = compactQueuedMutations(existing, normalized)
   replaceAll(compacted)
   return normalized.id
 }
@@ -323,8 +347,13 @@ export function dequeue(): PersistedQueuedMutation | null {
 }
 
 export function getAll(): PersistedQueuedMutation[] {
+  const accountId = currentAccountId()
+  return accountId === null ? [] : getForAccount(accountId)
+}
+
+function getForAccount(accountId: string | null): PersistedQueuedMutation[] {
   const database = getDb()
-  const rows = database.getAllSync<QueueRow>('SELECT * FROM mutation_queue ORDER BY timestamp ASC')
+  const rows = database.getAllSync<QueueRow>('SELECT * FROM mutation_queue WHERE account_id IS ? OR account_id IS NULL ORDER BY timestamp ASC', [accountId])
   return rows.map(mapRow)
 }
 
@@ -333,6 +362,7 @@ export function getById(id: string): PersistedQueuedMutation | null {
 }
 
 export function update(id: string, patch: Partial<PersistedQueuedMutation>): void {
+  if (!getById(id)) return
   const updated = getAll().map((mutation) =>
     mutation.id === id
       ? {
@@ -346,12 +376,14 @@ export function update(id: string, patch: Partial<PersistedQueuedMutation>): voi
 }
 
 export function remove(id: string): void {
+  if (!getById(id)) return
   const database = getDb()
   database.runSync('DELETE FROM mutation_queue WHERE id = ?', [id])
   emitQueueCount()
 }
 
 export function replaceEntityReferences(oldId: string, newId: string): void {
+  if (currentAccountId() === null) return
   const updated = getAll().map((mutation) => ({
     ...mutation,
     endpoint: mutation.endpoint.includes(oldId)
@@ -379,7 +411,18 @@ export function clear(): void {
 }
 
 export function count(): number {
+  const accountId = currentAccountId()
+  if (accountId === null) return 0
   const database = getDb()
-  const row = database.getFirstSync<{ cnt: number }>('SELECT COUNT(*) as cnt FROM mutation_queue')
+  const row = database.getFirstSync<{ cnt: number }>('SELECT COUNT(*) as cnt FROM mutation_queue WHERE account_id = ? OR account_id IS NULL', [accountId])
   return row?.cnt ?? 0
+}
+
+export function retainAccount(accountId: string): void {
+  const database = getDb()
+  database.withTransactionSync(() => {
+    database.runSync('DELETE FROM mutation_queue WHERE account_id IS NOT NULL AND account_id != ?', [accountId])
+    database.runSync('UPDATE mutation_queue SET account_id = ? WHERE account_id IS NULL', [accountId])
+  })
+  emitQueueCount()
 }
