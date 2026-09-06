@@ -103,6 +103,10 @@
     "eyebrow": "Welcome back"
   },
   "common": {
+    "backToToday": "Back to today",
+    "backToParentHabit": "Back to parent habit",
+    "backToDestination": "Back to {destination}",
+    "closeConversation": "Close conversation",
     "appName": "Orbit",
     "save": "Save",
     "add": "Add",
@@ -1525,6 +1529,7 @@
     }
   },
   "privacy": {
+    "close": "Close privacy policy",
     "title": "Privacy Policy",
     "lastUpdated": "Last updated: August 2026",
     "intro": {
@@ -3093,6 +3098,7 @@
     }
   },
   "terms": {
+    "close": "Close terms of service",
     "title": "Terms of Service",
     "lastUpdated": "Last updated: June 2026",
     "intro": {

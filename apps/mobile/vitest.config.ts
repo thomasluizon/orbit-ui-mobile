@@ -233,14 +233,6 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/file-asset.ts'),
       },
       {
-        find: 'nativewind/jsx-dev-runtime',
-        replacement: path.resolve(__dirname, './test-mocks/react-jsx-dev-runtime.ts'),
-      },
-      {
-        find: 'nativewind/jsx-runtime',
-        replacement: path.resolve(__dirname, './test-mocks/react-jsx-runtime.ts'),
-      },
-      {
         find: /^date-fns$/,
         replacement: path.resolve(__dirname, './test-mocks/date-fns.ts'),
       },
@@ -259,14 +251,6 @@ export default defineConfig({
       {
         find: '@orbit/shared/utils/dates',
         replacement: path.resolve(__dirname, './test-mocks/shared-dates.ts'),
-      },
-      {
-        find: 'react-native-css-interop/jsx-dev-runtime',
-        replacement: path.resolve(__dirname, './test-mocks/react-jsx-dev-runtime.ts'),
-      },
-      {
-        find: 'react-native-css-interop/jsx-runtime',
-        replacement: path.resolve(__dirname, './test-mocks/react-jsx-runtime.ts'),
       },
       { find: '@', replacement: path.resolve(__dirname) },
       {

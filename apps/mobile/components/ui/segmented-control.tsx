@@ -3,7 +3,7 @@ import type { SegmentedControlProps } from '@orbit/shared/contracts/navigation'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-export function SegmentedControl(props: Readonly<SegmentedControlProps>) {
+export function SegmentedControl<TValue extends string>(props: Readonly<SegmentedControlProps<TValue>>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
@@ -12,31 +12,31 @@ export function SegmentedControl(props: Readonly<SegmentedControlProps>) {
       accessibilityRole="radiogroup"
       accessibilityLabel={props.label}
       accessibilityState={{ disabled: props.disabled }}
-      testID="segmented-control"
+      testID={`segmented-control-${props.disabled ? 'disabled' : 'enabled'}`}
       style={[
         styles.group,
         { backgroundColor: tokens.bgField, borderColor: tokens.borderControl },
-        props.disabled ? styles.disabled : null,
       ]}
     >
       {props.options.map((option) => {
-        const selected = option.id === props.value
+        const selected = option.value === props.value
         const disabled = props.disabled || option.disabled
         return (
           <Pressable
-            key={option.id}
+            key={option.value}
             accessibilityRole="radio"
             accessibilityState={{ checked: selected, disabled }}
             disabled={disabled}
-            testID={`segment-${option.id}`}
+            testID={`segment-${option.value}-${selected ? 'selected' : 'unselected'}-${disabled ? 'disabled' : 'enabled'}`}
             onPress={() => {
-              if (!selected) props.onChange(option.id)
+              if (!disabled && !selected) props.onChange(option.value)
             }}
             style={({ pressed }) => [
               styles.option,
               selected
-                ? { backgroundColor: tokens.bgElev2, borderColor: tokens.primary }
+                ? { backgroundColor: tokens.bgHover, borderColor: tokens.primary }
                 : styles.unselected,
+              disabled ? styles.disabled : null,
               pressed ? styles.pressed : null,
             ]}
           >
