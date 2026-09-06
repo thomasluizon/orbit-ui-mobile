@@ -11,6 +11,7 @@ import {
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { Button } from '@/components/ui/pill-button'
+import { useUIStore } from '@/stores/ui-store'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
@@ -33,6 +34,7 @@ export function NotificationDetailModal({
   const wide = useIsWideDesktop()
   const targetKey = getNotificationTargetKey(notification.url)
   const router = useRouter()
+  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const { canView, canMarkAsRead } = getNotificationDetailActionVisibility(notification)
   const { sheetRef, closeSheet } = useSheetHost()
 
@@ -42,6 +44,7 @@ export function NotificationDetailModal({
     closeSheet(() => {
       onOpenChange(false)
       router.push(resolveNotificationUrl(url))
+      if (url.split(/[?#]/, 1)[0] === '/chat') setAstraConversationOpen(true)
     })
   }
 

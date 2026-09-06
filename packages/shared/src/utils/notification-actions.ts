@@ -36,6 +36,8 @@ const ABSORBED_PROGRESS_ROUTES = ['/streak', '/achievements', '/retrospective'] 
 
 export function resolveNotificationUrl(url: string): string {
   const pathname = url.split(/[?#]/, 1)[0] ?? url
+  if (pathname === '/chat') return '/'
+  if (pathname === '/calendar-sync') return '/calendar'
   const isAbsorbedRoute = ABSORBED_PROGRESS_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   )
@@ -67,7 +69,7 @@ export function getNotificationInboxState(
   notifications: readonly NotificationItem[],
   unreadCount: number,
   pendingDeleteIds: readonly string[],
-) {
+): { visibleNotifications: NotificationItem[]; visibleUnreadCount: number } {
   const pending = new Set(pendingDeleteIds)
   const hiddenUnread = notifications.filter((item) => pending.has(item.id) && !item.isRead).length
   return {

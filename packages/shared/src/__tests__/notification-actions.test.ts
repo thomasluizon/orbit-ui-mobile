@@ -18,12 +18,14 @@ describe('notification-actions', () => {
     ['/profile', 'nav.profile'],
     ['/habits/123', 'notifications.habit'],
     ['/streak', 'nav.progress'],
+    ['/chat', 'nav.today'],
+    ['/calendar-sync?mode=review', 'nav.calendar'],
   ])('labels the existing target %s', (url, label) => {
     expect(getNotificationTargetKey(url)).toBe(label)
     expect(isViewableNotificationUrl(url)).toBe(true)
   })
 
-  it.each(['/unknown', '/chat', '/social', '/habits/../login', '/habits/%2e%2e', '/habits/one/edit', '//evil.com', '/profile/unknown'])(
+  it.each(['/unknown', '/social', '/habits/../login', '/habits/%2e%2e', '/habits/one/edit', '//evil.com', '/profile/unknown'])(
     'never offers a view to the unsupported destination %s', (url) => {
       expect(getNotificationTargetKey(url)).toBeNull()
       expect(getNotificationDetailActionVisibility({ url, isRead: false }).canView).toBe(false)
@@ -68,6 +70,11 @@ describe('notification-actions', () => {
     expect(resolveNotificationUrl('/habits/1?date=2026-08-28')).toBe(
       '/habits/1?date=2026-08-28',
     )
+  })
+
+  it('resolves legacy conversation and calendar links into the four destinations', () => {
+    expect(resolveNotificationUrl('/chat')).toBe('/')
+    expect(resolveNotificationUrl('/calendar-sync?mode=review')).toBe('/calendar')
   })
 
   it('derives notification detail action visibility', () => {

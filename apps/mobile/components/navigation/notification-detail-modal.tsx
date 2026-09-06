@@ -11,6 +11,7 @@ import {
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { Button } from '@/components/ui/pill-button'
+import { useUIStore } from '@/stores/ui-store'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -34,6 +35,7 @@ export function NotificationDetailModal({
   const { width } = useWindowDimensions()
   const targetKey = getNotificationTargetKey(notification.url)
   const router = useRouter()
+  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -51,6 +53,7 @@ export function NotificationDetailModal({
     closeSheet(() => {
       onClose()
       router.push(resolveNotificationUrl(url))
+      if (url.split(/[?#]/, 1)[0] === '/chat') setAstraConversationOpen(true)
     })
   }
 

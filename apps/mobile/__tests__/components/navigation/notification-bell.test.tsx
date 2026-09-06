@@ -11,6 +11,7 @@ import { NotificationDeleteNotice } from '@/components/navigation/notification-d
 import { NotificationDetailModal } from '@/components/navigation/notification-detail-modal'
 import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
 import { createTokensV2 } from '@/lib/theme'
+import { useUIStore } from '@/stores/ui-store'
 
 const TestRenderer = require('react-test-renderer')
 const state = vi.hoisted(() => ({
@@ -87,6 +88,7 @@ function seed(count: number) {
   state.unreadCount = count
 }
 beforeEach(() => {
+  useUIStore.setState({ astraConversationOpen: false })
   vi.useFakeTimers()
   vi.clearAllMocks()
   resetPendingNotificationDeletesForTests()
@@ -222,12 +224,18 @@ describe('mobile alerts', () => {
     TestRenderer.act(() => vi.advanceTimersByTime(5000))
     expect(state.remove).not.toHaveBeenCalled()
   })
-  it('navigates from detail to the target after closing', () => {
-    const tree = render(<NotificationDetailModal open notification={createMockNotification({ url: '/streak' })}
+  it.each([
+    ['/streak', '/progress', en.nav.progress], ['/', '/', en.nav.today],
+    ['/calendar', '/calendar', en.nav.calendar], ['/profile', '/profile', en.nav.profile],
+    ['/habits/123', '/habits/123', en.notifications.habit], ['/chat', '/', en.nav.today],
+    ['/calendar-sync?mode=review', '/calendar', en.nav.calendar],
+  ])('navigates from detail %s to the target after closing', (url, destination, labelTarget) => {
+    const tree = render(<NotificationDetailModal open notification={createMockNotification({ url })}
       onClose={vi.fn()} onMarkAsRead={vi.fn()} onDelete={vi.fn()} />)
-    const label = en.notifications.openIn.replace('{target}', en.nav.progress)
+    const label = en.notifications.openIn.replace('{target}', labelTarget)
     const target = hosts(tree, 'Pressable').find((node) => node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0)!
     TestRenderer.act(() => target.props.onPress?.())
-    expect(state.push).toHaveBeenCalledWith('/progress')
+    expect(state.push).toHaveBeenCalledWith(destination)
+    expect(useUIStore.getState().astraConversationOpen).toBe(url === '/chat')
   })
 })
