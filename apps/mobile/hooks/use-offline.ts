@@ -1,78 +1,81 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo'
 import { AppState, type AppStateStatus } from 'react-native'
 import * as offlineQueue from '@/lib/offline-queue'
-import { flushQueuedMutations } from '@/lib/offline-mutations'
+import { canAutoFlush, flushQueuedMutations } from '@/lib/offline-mutations'
+import { useOfflineSyncStore } from '@/stores/offline-sync-store'
+import { captureError } from '@/lib/sentry'
 import { getCurrentConnectivity, setCachedConnectivity } from '@/lib/offline-runtime'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
 
 interface UseOfflineReturn {
   isOnline: boolean
   pendingCount: number
+  hasFailed: boolean
   enqueue: (mutation: Omit<QueuedMutation, 'retries' | 'maxRetries'>) => void
   flush: () => Promise<void>
   isFlushing: boolean
 }
 
-export function useOffline(): UseOfflineReturn {
+export function useOffline(manageQueue = false): UseOfflineReturn {
   const [isOnline, setIsOnline] = useState(true)
+  const [connectivityReady, setConnectivityReady] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
-  const [isFlushing, setIsFlushing] = useState(false)
-  const flushLock = useRef(false)
+  const [hasFailed, setHasFailed] = useState(false)
+  const isFlushing = useOfflineSyncStore((state) => state.isFlushing)
+  const isRetrying = useOfflineSyncStore((state) => state.isRetrying)
 
   // react-doctor-disable-next-line effect-needs-cleanup -- FP: the effect cleans up — `return () => unsubscribe()` invokes NetInfo's unsubscribe; RD only recognizes removeEventListener/subscription.remove(), not an unsubscribe callback. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
     void getCurrentConnectivity().then((online) => {
       setCachedConnectivity(online)
       setIsOnline(online)
+      setConnectivityReady(true)
     })
 
     const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
       const online = state.isConnected === true && state.isInternetReachable !== false
       setCachedConnectivity(online)
       setIsOnline(online)
+      setConnectivityReady(true)
     })
     return () => unsubscribe()
   }, [])
 
-  // Update pending count on mount
   useEffect(() => {
-    const unsubscribe = offlineQueue.subscribeQueueCount(setPendingCount)
+    const unsubscribe = offlineQueue.subscribeQueueCount((count) => {
+      setPendingCount(count)
+      setHasFailed(offlineQueue.getAll().some((mutation) => mutation.status === 'failed'))
+    })
     return () => unsubscribe()
   }, [])
 
-  // Flush queue when coming back online
   const flush = useCallback(async () => {
-    if (flushLock.current) return
-    flushLock.current = true
-    setIsFlushing(true)
-
+    if (!canAutoFlush()) return
     try {
       await flushQueuedMutations()
+    } catch (error) {
+      captureError(error)
     } finally {
       setPendingCount(offlineQueue.count())
-      setIsFlushing(false)
-      flushLock.current = false
     }
   }, [])
 
-  // Auto-flush when connectivity is restored
   useEffect(() => {
-    if (isOnline && pendingCount > 0 && !isFlushing) {
-      flush()
+    if (manageQueue && connectivityReady && isOnline && pendingCount > 0 && !isFlushing) {
+      void flush()
     }
-  }, [isOnline, pendingCount, isFlushing, flush])
+  }, [manageQueue, connectivityReady, isOnline, pendingCount, isFlushing, flush])
 
-  // Also try flushing when app returns to foreground
   useEffect(() => {
     const handleAppState = (nextState: AppStateStatus) => {
-      if (nextState === 'active' && isOnline && pendingCount > 0) {
-        flush()
+      if (manageQueue && connectivityReady && nextState === 'active' && isOnline && pendingCount > 0) {
+        void flush()
       }
     }
     const subscription = AppState.addEventListener('change', handleAppState)
     return () => subscription.remove()
-  }, [isOnline, pendingCount, flush])
+  }, [manageQueue, connectivityReady, isOnline, pendingCount, flush])
 
   const enqueue = useCallback(
     (mutation: Omit<QueuedMutation, 'retries' | 'maxRetries'>) => {
@@ -81,5 +84,5 @@ export function useOffline(): UseOfflineReturn {
     [],
   )
 
-  return { isOnline, pendingCount, enqueue, flush, isFlushing }
+  return { isOnline, pendingCount, hasFailed: hasFailed || isRetrying, enqueue, flush, isFlushing }
 }

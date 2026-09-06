@@ -31,6 +31,11 @@ import { clearOfflineEntity, getResolvedEntityId, markOfflineTombstone, resolveO
 import { getCurrentConnectivity } from './offline-runtime'
 import { setPendingIdempotencyKey } from './idempotency-key'
 import { persistQueryCache, queryClient } from './query-client'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { captureError } from './sentry'
+import { useOfflineSyncStore } from '@/stores/offline-sync-store'
+import type { HabitScheduleItem } from '@orbit/shared/types/habit'
+import { findHabitInList } from '@orbit/shared/utils'
 
 type InvalidationQueryKey = readonly unknown[]
 
@@ -71,6 +76,8 @@ export interface DroppedMutation {
   id: string
   type: string
   lastError: string | null
+  mutation: PersistedQueuedMutation
+  itemName?: string
 }
 
 type DroppedMutationListener = (dropped: DroppedMutation) => void
@@ -91,6 +98,8 @@ export function subscribeDroppedMutations(listener: DroppedMutationListener): ()
 }
 
 function notifyDroppedMutation(dropped: DroppedMutation): void {
+  useOfflineSyncStore.getState().addDrop(dropped)
+  captureError(new Error(`Offline mutation dropped: ${dropped.type}: ${dropped.lastError}`))
   for (const listener of droppedMutationListeners) listener(dropped)
 }
 
@@ -303,11 +312,38 @@ async function resolveMutationReferences<T extends PersistedQueuedMutation>(muta
 
 const BACKOFF_BASE_DELAY_MS = 2_000
 const BACKOFF_MAX_DELAY_MS = 60_000
-const BACKOFF_MAX_ATTEMPTS = 6
+const DEPENDENCY_MAX_AGE_MS = 24 * 60 * 60 * 1000
+const RECOVERY_KEY = '@orbit/offline-queue-recovery-310'
 
 let backoffAttempt = 0
 let backoffTimer: ReturnType<typeof setTimeout> | null = null
 let flushInFlight = false
+
+export function canAutoFlush(): boolean {
+  return !flushInFlight && backoffTimer === null
+}
+
+function describeDroppedMutation(mutation: PersistedQueuedMutation, lastError: string): DroppedMutation {
+  const dropped: DroppedMutation = { id: mutation.id, type: mutation.type, lastError, mutation }
+  if (mutation.entityType === 'habit' && mutation.targetEntityId) {
+    for (const [, habits] of queryClient.getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })) {
+      const habit = habits && findHabitInList(habits, mutation.targetEntityId)
+      if (habit) {
+        dropped.itemName = habit.title
+        break
+      }
+    }
+  }
+  return dropped
+}
+
+async function recoverInstalledQueue(): Promise<void> {
+  if (await AsyncStorage.getItem(RECOVERY_KEY) === '1') return
+  for (const mutation of getAll()) {
+    if (mutation.status === 'syncing') update(mutation.id, { status: 'pending' })
+  }
+  await AsyncStorage.setItem(RECOVERY_KEY, '1')
+}
 
 function computeBackoffDelay(attempt: number): number {
   return Math.min(BACKOFF_BASE_DELAY_MS * 2 ** attempt, BACKOFF_MAX_DELAY_MS)
@@ -328,14 +364,15 @@ function clearBackoffTimer(): void {
 export function cancelScheduledFlush(): void {
   clearBackoffTimer()
   backoffAttempt = 0
+  useOfflineSyncStore.setState({ isRetrying: false })
 }
 
 function scheduleBackoffFlush(): void {
   if (backoffTimer !== null) return
-  if (backoffAttempt >= BACKOFF_MAX_ATTEMPTS) return
+  useOfflineSyncStore.setState({ isRetrying: true })
 
   const delay = computeBackoffDelay(backoffAttempt)
-  backoffAttempt += 1
+  backoffAttempt = Math.min(backoffAttempt + 1, 5)
   backoffTimer = setTimeout(() => {
     backoffTimer = null
     void (async () => {
@@ -343,9 +380,12 @@ function scheduleBackoffFlush(): void {
         backoffAttempt = 0
         return
       }
-      if (!(await getCurrentConnectivity())) return
+      if (!(await getCurrentConnectivity())) {
+        scheduleBackoffFlush()
+        return
+      }
       await flushQueuedMutations()
-    })()
+    })().catch(captureError)
   }, delay)
 }
 
@@ -594,7 +634,7 @@ async function handleFlushFailure(
       await clearOfflineEntity(mutation.entityType, mutation.clientEntityId)
     }
 
-    dropped = { id: mutation.id, type: mutation.type, lastError }
+    dropped = describeDroppedMutation(mutation, lastError)
   } else {
     update(mutation.id, {
       retries: nextRetries,
@@ -631,7 +671,7 @@ async function dropQueuedMutation(
     await clearOfflineEntity(mutation.entityType, mutation.clientEntityId)
   }
 
-  return { id: mutation.id, type: mutation.type, lastError }
+  return describeDroppedMutation(mutation, lastError)
 }
 
 async function invalidateTouchedScopes(scopes: Set<MutationScope>): Promise<void> {
@@ -671,6 +711,10 @@ async function processQueuedMutationFlush(
 
   const mutation = await resolveMutationReferences(currentMutation)
   if (hasPendingOfflineDependencies(mutation)) {
+    if (Date.now() - mutation.timestamp >= DEPENDENCY_MAX_AGE_MS) {
+      const dropped = await dropQueuedMutation(mutation, 'Unresolved dependency after 24 hours', touchedScopes)
+      return { failedDelta: 1, stopReason: null, succeededDelta: 0, dropped }
+    }
     update(mutation.id, { status: 'pending', lastError: null })
     return { failedDelta: 0, stopReason: null, succeededDelta: 0, dropped: null }
   }
@@ -738,27 +782,33 @@ async function runQueueFlush(): Promise<FlushOutcome> {
 }
 
 export async function flushQueuedMutations(): Promise<{
+  blocked?: 'in-flight'
   succeeded: number
   failed: number
   remaining: number
   droppedMutations: DroppedMutation[]
 }> {
   if (flushInFlight) {
-    return { succeeded: 0, failed: 0, remaining: count(), droppedMutations: [] }
+    return { blocked: 'in-flight', succeeded: 0, failed: 0, remaining: count(), droppedMutations: [] }
   }
 
   flushInFlight = true
+  useOfflineSyncStore.setState({ isFlushing: true })
   let outcome: FlushOutcome
   try {
+    await recoverInstalledQueue()
     outcome = await runQueueFlush()
+    if (outcome.remaining > 0 && outcome.succeeded === 0) {
+      scheduleBackoffFlush()
+    } else {
+      cancelScheduledFlush()
+    }
+  } catch (error) {
+    if (count() > 0) scheduleBackoffFlush()
+    throw error
   } finally {
     flushInFlight = false
-  }
-
-  if (outcome.stopReason === 'network' && outcome.remaining > 0) {
-    scheduleBackoffFlush()
-  } else {
-    cancelScheduledFlush()
+    useOfflineSyncStore.setState({ isFlushing: false })
   }
 
   return {

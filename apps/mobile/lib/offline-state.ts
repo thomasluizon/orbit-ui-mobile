@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import type { MutationEntityType } from '@orbit/shared/types/sync'
 
 const STORAGE_KEY = '@orbit/offline-state'
@@ -35,7 +36,6 @@ async function readState(): Promise<OfflineState> {
       return stateCache
     }
   } catch {
-    // Ignore storage failures and fall back to an in-memory empty state.
   }
 
   stateCache = { entities: {} }
@@ -48,7 +48,6 @@ async function writeState(state: OfflineState): Promise<void> {
   try {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   } catch {
-    // Best-effort persistence only.
   }
 }
 
@@ -140,6 +139,7 @@ export async function clearOfflineEntity(
 }
 
 export async function clearOfflineState(): Promise<void> {
+  useOfflineSyncStore.setState({ drops: [] })
   stateCache = null
   try {
     await AsyncStorage.removeItem(STORAGE_KEY)

@@ -57,13 +57,14 @@ import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guar
 import { BottomTabBar, type BottomTabId } from '@/components/navigation/bottom-tab-bar'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Fab } from '@/components/ui/fab'
-import { Plus, WifiOff } from '@/components/ui/icons'
+import { Plus } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
 import { OverlayLayer } from '@/components/global-overlays'
 import * as Sentry from '@sentry/react-native'
-import { AppToast, Toast } from '@/components/ui/app-toast'
+import { OfflineNotice } from '@/components/offline-notice'
+import { AppToast } from '@/components/ui/app-toast'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
 import { AstraConversation } from '@/components/chat/conversation'
 import { Composer } from '@/components/shell/composer'
@@ -304,13 +305,7 @@ function RootLayoutNav() {
                 conversationLabel={t('todayAstra.openConversation')}
               />
             }
-            notice={offline.isOnline ? undefined : (
-              <Toast
-                kind="neutral"
-                icon={<WifiOff size={20} strokeWidth={2} color={tokens.fg2} />}
-                message={t('offline.title')}
-              />
-            )}
+            notice={<OfflineNotice />}
             tabBar={<AppBottomTabBar pathname={pathname} />}
             fab={pathname === '/' && !todayFabHidden
               ? <AppCreateFab onCreate={handleCreate} />
@@ -321,7 +316,7 @@ function RootLayoutNav() {
             />
           </Shell412>
         ) : (
-          <Shell412 nav={false}>
+          <Shell412 nav={false} notice={isAuthenticated ? <OfflineNotice /> : undefined}>
             <RootStackScreens
               screenBackgroundColor={surfaces.screen.backgroundColor}
             />
@@ -355,7 +350,7 @@ function RootLayoutNav() {
       </View>
 
       {isAuthenticated ? <GlobalOverlays profile={profile} /> : null}
-      <AppToast />
+      {!isAuthenticated ? <AppToast /> : null}
     </>
   )
 }

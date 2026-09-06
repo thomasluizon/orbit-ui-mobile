@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useWatch } from 'react-hook-form'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -89,6 +89,7 @@ interface CreateHabitModalProps {
   onClose: () => void
   initialDate?: string | null
   parentHabit?: NormalizedHabit | null
+  recoveryMessage?: string
 }
 
 function resolveCreateSheetTitle(
@@ -104,6 +105,7 @@ export function CreateHabitModal({
   onClose,
   initialDate,
   parentHabit,
+  recoveryMessage,
 }: Readonly<CreateHabitModalProps>) {
   const { t, i18n } = useTranslation()
   const router = useRouter()
@@ -470,6 +472,7 @@ export function CreateHabitModal({
         title={sheetTitle}
       >
         <View style={styles.scrollContent}>
+          {recoveryMessage ? <Text style={{ color: tokens.fg2 }}>{recoveryMessage} {t('common.syncOrphanedDetail')}</Text> : null}
           <HabitFormFields
             formHelpers={formHelpers}
             tags={tags}

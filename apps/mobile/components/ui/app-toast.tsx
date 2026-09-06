@@ -71,6 +71,9 @@ export function Toast(props: Readonly<ToastProps>) {
   const [focused, setFocused] = useState(false)
   const onDone = props.kind === 'done' ? props.onDone : undefined
   const doneAfterMs = props.kind === 'done' ? props.doneAfterMs : undefined
+  const lossColors = { background: tokens.bg, action: tokens.primarySoft }
+  const neutralColors = { background: tokens.bgSheet, action: tokens.fg1 }
+  const colors = { neutral: neutralColors, working: neutralColors, done: neutralColors, lost: lossColors }[props.kind]
 
   useDoneTimer(props.kind, props.message, doneAfterMs, onDone, hovered || focused)
 
@@ -97,7 +100,7 @@ export function Toast(props: Readonly<ToastProps>) {
       style={[
         styles.toast,
         {
-          backgroundColor: tokens.bgSheet,
+          backgroundColor: colors.background,
           borderColor: tokens.hairline,
         },
       ]}
@@ -137,7 +140,7 @@ export function Toast(props: Readonly<ToastProps>) {
           style={({ pressed }) => [styles.action, pressed ? styles.pressed : null]}
           testID="toast-action"
         >
-          <Text style={[styles.actionText, { color: tokens.fg1 }]}>{props.actionLabel}</Text>
+          <Text style={[styles.actionText, { color: colors.action }]}>{props.actionLabel}</Text>
         </Pressable>
       ) : null}
     </Pressable>
@@ -166,10 +169,7 @@ export function AppToast() {
 
 const styles = StyleSheet.create({
   host: {
-    position: 'absolute',
-    top: 64,
-    left: 16,
-    right: 16,
+    padding: 16,
     zIndex: zLayers.toast,
   },
   toast: {

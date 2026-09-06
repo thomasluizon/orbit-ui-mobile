@@ -86,4 +86,17 @@ describe('app toast store', () => {
     expect(onAction).toHaveBeenCalledTimes(1)
     expect(useAppToastStore.getState().currentToast).toBeNull()
   })
+  it('refuses identical visible messages and queue-tail duplicates without limiting depth', () => {
+    const store = useAppToastStore.getState()
+    for (let index = 0; index < 20; index += 1) store.showSuccess('Saved')
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Saved')
+    expect(useAppToastStore.getState().queue).toEqual([])
+    for (let index = 0; index < 20; index += 1) store.showSuccess('Another')
+    expect(useAppToastStore.getState().queue).toHaveLength(1)
+    store.showInfo('Another')
+    expect(useAppToastStore.getState().queue).toHaveLength(2)
+    store.dismissToast()
+    expect(useAppToastStore.getState().currentToast?.toast.message).toBe('Another')
+  })
+
 })

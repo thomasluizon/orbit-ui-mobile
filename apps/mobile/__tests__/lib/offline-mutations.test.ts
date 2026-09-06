@@ -9,6 +9,7 @@ import { logHabitResponseSchema } from '@orbit/shared/types/habit'
 import {
   buildQueuedMutation,
   cancelScheduledFlush,
+  canAutoFlush,
   createQueuedAck,
   createTempEntityId,
   flushQueuedMutations,
@@ -21,7 +22,12 @@ import {
   subscribeDroppedMutations,
   withQueuedMarker,
 } from '@/lib/offline-mutations'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { captureError } from '@/lib/sentry'
+import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { consumePendingIdempotencyKey } from '@/lib/idempotency-key'
+
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
 const mocks = vi.hoisted(() => {
   const queued: PersistedQueuedMutation[] = []
@@ -177,6 +183,7 @@ vi.mock('@/lib/query-client', () => ({
   persistQueryCache: mocks.persistQueryCache,
   queryClient: {
     invalidateQueries: mocks.invalidateQueries,
+    getQueriesData: vi.fn(() => []),
   },
 }))
 
@@ -735,7 +742,7 @@ describe('offline mutations', () => {
       failed: 1,
       remaining: 0,
       droppedMutations: [
-        { id: 'update-bad', type: 'updateHabit', lastError: '400 validation failed' },
+        { id: 'update-bad', type: 'updateHabit', lastError: '400 validation failed', mutation: droppedCandidate },
       ],
     })
 
@@ -812,7 +819,7 @@ describe('offline mutations', () => {
 
     expect(getMutationScope(retiredType)).toBeUndefined()
     expect(mocks.invalidateQueries).not.toHaveBeenCalled()
-    expect(result.droppedMutations).toEqual([
+    expect(result.droppedMutations).toMatchObject([
       {
         id: 'retired-rejected-operation',
         type: retiredType,
@@ -988,6 +995,7 @@ describe('offline mutations', () => {
           id,
           type,
           lastError: 'Automatic replay is blocked for this mutation while offline',
+          mutation: expect.objectContaining({ type }),
         }],
       })
       expect(dropped).toEqual(result.droppedMutations)
@@ -1108,7 +1116,7 @@ describe('offline mutations', () => {
     const result = await flushQueuedMutations()
 
     expect(result.failed).toBe(1)
-    expect(result.droppedMutations).toEqual([])
+    expect(result.droppedMutations).toMatchObject([])
     expect(mocks.setOfflineEntityStatus).toHaveBeenCalledWith(
       'habit',
       'offline-habit-y',
@@ -1480,4 +1488,101 @@ describe('offline mutation helpers', () => {
       expect(getMutationScope(type)).toBe(scope)
     }
   })
+  describe('stuck queue recovery', () => {
+    beforeEach(() => {
+      vi.clearAllMocks()
+      mocks.queued.length = 0
+      mocks.resolvedIds.clear()
+      mocks.apiClient.mockReset()
+      mocks.apiClient.mockResolvedValue(null)
+      cancelScheduledFlush()
+      vi.useFakeTimers()
+      mocks.setOnline(true)
+      useOfflineSyncStore.setState({ drops: [] })
+    })
+    afterEach(() => { cancelScheduledFlush(); vi.useRealTimers(); vi.restoreAllMocks() })
+
+    function blockedMutation() {
+      return buildQueuedMutation({ type: 'logHabit', scope: 'habits', endpoint: '/api/habits/offline-habit-orphan/log', method: 'POST', payload: { date: '2026-09-05' }, entityType: 'habit', targetEntityId: 'offline-habit-orphan' })
+    }
+
+    it('backs off a dependency wait beyond six timers and drops exactly once at 24 hours', async () => {
+      const mutation = blockedMutation()
+      mocks.queued.push(mutation)
+      const listener = vi.fn()
+      const unsubscribe = subscribeDroppedMutations(listener)
+      await flushQueuedMutations()
+      expect(canAutoFlush()).toBe(false)
+      expect(mocks.apiClient).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(182_000)
+      expect(mocks.persistQueryCache).toHaveBeenCalledTimes(8)
+      expect(mocks.queued).toHaveLength(1)
+      vi.setSystemTime(mutation.timestamp + 24 * 60 * 60 * 1000 - 1)
+      await flushQueuedMutations()
+      expect(listener).not.toHaveBeenCalled()
+      vi.setSystemTime(mutation.timestamp + 24 * 60 * 60 * 1000)
+      await flushQueuedMutations()
+      await flushQueuedMutations()
+      expect(mocks.queued).toHaveLength(0)
+      expect(listener).toHaveBeenCalledTimes(1)
+      expect(listener).toHaveBeenCalledWith(expect.objectContaining({ lastError: 'Unresolved dependency after 24 hours', mutation }))
+      expect(useOfflineSyncStore.getState().drops).toHaveLength(1)
+      expect(captureError).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('logHabit: Unresolved dependency') }))
+      unsubscribe()
+    })
+
+    it('cancels the pending timer after progress and preserves a younger blocked change', async () => {
+      mocks.queued.push(blockedMutation())
+      await flushQueuedMutations()
+      expect(canAutoFlush()).toBe(false)
+      mocks.queued.push(buildQueuedMutation({ type: 'updateHabit', scope: 'habits', endpoint: '/api/habits/real', method: 'PUT', payload: {} }))
+      const result = await flushQueuedMutations()
+      expect(result).toMatchObject({ succeeded: 1, remaining: 1 })
+      expect(canAutoFlush()).toBe(true)
+      const calls = mocks.persistQueryCache.mock.calls.length
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(mocks.persistQueryCache).toHaveBeenCalledTimes(calls)
+    })
+
+    it('bounds repeated server failures by the schedule and keeps the existing three-failure ceiling', async () => {
+      mocks.apiClient.mockRejectedValue(new Error('500 server error'))
+      mocks.queued.push(buildQueuedMutation({ type: 'updateHabit', scope: 'habits', endpoint: '/api/habits/real', method: 'PUT', payload: {} }))
+      await flushQueuedMutations()
+      expect(mocks.queued[0]).toMatchObject({ retries: 1, status: 'failed' })
+      await vi.advanceTimersByTimeAsync(1_999)
+      expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(mocks.queued[0]).toMatchObject({ retries: 2 })
+      await vi.advanceTimersByTimeAsync(4_000)
+      expect(mocks.apiClient).toHaveBeenCalledTimes(3)
+      expect(mocks.queued).toEqual([])
+      expect(useOfflineSyncStore.getState().drops).toHaveLength(1)
+    })
+
+    it('reports an in-flight no-op truthfully', async () => {
+      let finish: (() => void) | undefined
+      mocks.apiClient.mockImplementation(() => new Promise((resolve) => { finish = () => resolve(null) }))
+      mocks.queued.push(buildQueuedMutation({ type: 'updateHabit', scope: 'habits', endpoint: '/api/habits/real', method: 'PUT', payload: {} }))
+      const first = flushQueuedMutations()
+      await vi.waitFor(() => expect(finish).toBeDefined())
+      expect(await flushQueuedMutations()).toMatchObject({ blocked: 'in-flight', remaining: 1 })
+      finish?.()
+      await first
+    })
+
+    it('recovers installed syncing rows once and applies the age limit on the first pass', async () => {
+      const recoveryKey = '@orbit/offline-queue-recovery-310'
+      let marker: string | null = null
+      vi.spyOn(AsyncStorage, 'getItem').mockImplementation((key) => Promise.resolve(key === recoveryKey ? marker : null))
+      const write = vi.spyOn(AsyncStorage, 'setItem').mockImplementation((key, value) => { if (key === recoveryKey) marker = value; return Promise.resolve() })
+      const mutation = { ...blockedMutation(), timestamp: Date.now() - 24 * 60 * 60 * 1000, status: 'syncing' as const }
+      mocks.queued.push(mutation)
+      await flushQueuedMutations()
+      await flushQueuedMutations()
+      expect(mocks.update).toHaveBeenCalledWith(mutation.id, { status: 'pending' })
+      expect(mocks.queued).toEqual([])
+      expect(write.mock.calls.filter(([key]) => key === recoveryKey)).toHaveLength(1)
+    })
+  })
+
 })
