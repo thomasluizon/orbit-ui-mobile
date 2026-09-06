@@ -24018,6 +24018,7 @@
         "apps/web/__tests__/components/ui/highlight-text.test.tsx",
         "apps/web/__tests__/components/ui/info-card.test.tsx",
         "apps/web/__tests__/components/ui/list-primitives.test.tsx",
+        "apps/web/__tests__/components/ui/markdown-server.test.tsx",
         "apps/web/__tests__/components/ui/markdown.test.tsx",
         "apps/web/__tests__/components/ui/menu.test.tsx",
         "apps/web/__tests__/components/ui/otp-input.test.tsx",
