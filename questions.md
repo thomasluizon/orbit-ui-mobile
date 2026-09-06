@@ -8,7 +8,35 @@ answers *follow the best approach*, can I continue?" If yes, it is not a questio
 `design/canvas/`, `DESIGN.md` and the brain, and move on. Only a question that survives that test
 belongs in this file.
 
-**Status: no open questions.**
+**Status: one open question, below. It does not block anything; #329 is deferred for a
+different reason.**
+
+---
+
+## Open: what does Progresso show for a multi-day gap it cannot repair?
+
+Raised 2026-09-06 by the #329 worker, which stopped rather than guess:
+
+> The existing repair endpoint only repairs yesterday and rejects additional request fields. Its
+> handler spends exactly one freeze, so it cannot support the canvas’s “Spend 2 freezes” action.
+
+The drawing gives the gap state one action, “Spend N freezes”, and a separate no-freeze variant whose
+line says the bank is empty. Neither fits a gap the API cannot repair while the bank is full. So:
+
+- The **action** cannot render, because pressing it would fail.
+- The **no-freeze line** cannot render, because it would blame an empty bank that is not empty.
+- An undrawn third variant, the gap stated plainly with nothing to press, is what the run would take
+  as the best approach, and it is genuinely a new state nobody drew.
+
+This survives the test: “follow the best approach” produces a state that does not exist in the granted
+drawing, on a screen a person sees. Adding it is a design decision, not an implementation detail.
+
+**What the run did instead of deciding it:** filed the API work as `thomasluizon/orbit-tickets#442`,
+an atomic multi-day repair endpoint, and recorded #329 as blocked by it. So the question only needs
+answering if you want Progresso to ship before that endpoint does.
+
+**If you do**, the reversible default is the third variant above: render the gap well, state the gap,
+offer nothing, and say nothing false about why.
 
 ---
 
