@@ -9,6 +9,7 @@ interface OfflineSyncState {
   drops: DroppedMutation[]
   addDrop: (drop: DroppedMutation) => void
   dismissDrop: (id: string) => void
+  clearDrops: () => Promise<void>
 }
 
 export const useOfflineSyncStore = create<OfflineSyncState>()(persist((set) => ({
@@ -21,6 +22,10 @@ export const useOfflineSyncStore = create<OfflineSyncState>()(persist((set) => (
       : [...state.drops, drop],
   })),
   dismissDrop: (id) => set((state) => ({ drops: state.drops.filter((drop) => drop.id !== id) })),
+  clearDrops: async () => {
+    await set({ drops: [] })
+    await useOfflineSyncStore.persist.rehydrate()
+  },
 }), {
   name: '@orbit/offline-sync-notices',
   storage: createJSONStorage(() => AsyncStorage),

@@ -318,6 +318,7 @@ const RECOVERY_KEY = '@orbit/offline-queue-recovery-310'
 let backoffAttempt = 0
 let backoffTimer: ReturnType<typeof setTimeout> | null = null
 let flushInFlight = false
+let installedQueueRecovered = false
 
 export function canAutoFlush(): boolean {
   return !flushInFlight && backoffTimer === null
@@ -338,11 +339,26 @@ function describeDroppedMutation(mutation: PersistedQueuedMutation, lastError: s
 }
 
 async function recoverInstalledQueue(): Promise<void> {
-  if (await AsyncStorage.getItem(RECOVERY_KEY) === '1') return
+  if (installedQueueRecovered) return
+  let marker: string | null = null
+  try {
+    marker = await AsyncStorage.getItem(RECOVERY_KEY)
+  } catch (error) {
+    captureError(error)
+  }
+  if (marker === '1') {
+    installedQueueRecovered = true
+    return
+  }
   for (const mutation of getAll()) {
     if (mutation.status === 'syncing') update(mutation.id, { status: 'pending' })
   }
-  await AsyncStorage.setItem(RECOVERY_KEY, '1')
+  installedQueueRecovered = true
+  try {
+    await AsyncStorage.setItem(RECOVERY_KEY, '1')
+  } catch (error) {
+    captureError(error)
+  }
 }
 
 function computeBackoffDelay(attempt: number): number {

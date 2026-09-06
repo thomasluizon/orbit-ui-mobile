@@ -22,7 +22,6 @@ import {
   subscribeDroppedMutations,
   withQueuedMarker,
 } from '@/lib/offline-mutations'
-import AsyncStorage from '@react-native-async-storage/async-storage'
 import { captureError } from '@/lib/sentry'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { consumePendingIdempotencyKey } from '@/lib/idempotency-key'
@@ -1583,7 +1582,43 @@ describe('offline mutation helpers', () => {
       await first
     })
 
+    it.each(['getItem', 'setItem'] as const)('delivers installed rows despite persistent recovery marker %s failures', async (operation) => {
+      vi.resetModules()
+      const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage')
+      const replay = await import('@/lib/offline-mutations')
+      const recoveryKey = '@orbit/offline-queue-recovery-310'
+      const markerError = new Error('Recovery marker unavailable')
+      vi.spyOn(AsyncStorage, 'getItem').mockImplementation((key) => {
+        if (key === recoveryKey && operation === 'getItem') return Promise.reject(markerError)
+        return Promise.resolve(null)
+      })
+      vi.spyOn(AsyncStorage, 'setItem').mockImplementation((key) => {
+        if (key === recoveryKey && operation === 'setItem') return Promise.reject(markerError)
+        return Promise.resolve()
+      })
+      const mutation = buildQueuedMutation({ type: 'updateHabit', scope: 'habits', endpoint: '/api/habits/real', method: 'PUT', payload: {} })
+      mocks.queued.push({ ...mutation, status: 'syncing' })
+      try {
+        await expect(replay.flushQueuedMutations()).resolves.toMatchObject({ succeeded: 1, remaining: 0 })
+        expect(mocks.update).toHaveBeenCalledWith(mutation.id, { status: 'pending' })
+        expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+        expect(captureError).toHaveBeenCalledTimes(1)
+        expect(replay.canAutoFlush()).toBe(true)
+        mocks.queued.push(buildQueuedMutation({ ...mutation, scope: 'habits', type: 'updateHabit' }))
+        await replay.flushQueuedMutations()
+        await vi.advanceTimersByTimeAsync(120_000)
+        expect(mocks.apiClient).toHaveBeenCalledTimes(2)
+        expect(captureError).toHaveBeenCalledTimes(1)
+        expect(mocks.queued).toEqual([])
+      } finally {
+        replay.cancelScheduledFlush()
+      }
+    })
+
     it('recovers installed syncing rows once and applies the age limit on the first pass', async () => {
+      vi.resetModules()
+      const { default: AsyncStorage } = await import('@react-native-async-storage/async-storage')
+      const { flushQueuedMutations } = await import('@/lib/offline-mutations')
       const recoveryKey = '@orbit/offline-queue-recovery-310'
       let marker: string | null = null
       vi.spyOn(AsyncStorage, 'getItem').mockImplementation((key) => Promise.resolve(key === recoveryKey ? marker : null))

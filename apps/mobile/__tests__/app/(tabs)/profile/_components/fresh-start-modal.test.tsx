@@ -1,9 +1,12 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FreshStartModal } from '@/app/(tabs)/profile/_components/fresh-start-modal'
+import { useOfflineSyncStore } from '@/stores/offline-sync-store'
+import type { DroppedMutation } from '@/lib/offline-mutations'
 
 const replace = vi.fn()
 const queryClientClear = vi.fn()
+const storage = vi.hoisted(() => new Map<string, string>())
 
 vi.mock('@/components/ui/icons', () => {
   const icon = (name: string) => (props: Record<string, unknown>) =>
@@ -27,7 +30,11 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
-  default: { removeItem: vi.fn(async () => { await Promise.resolve(); return undefined; }) },
+  default: {
+    getItem: vi.fn((key: string) => Promise.resolve(storage.get(key) ?? null)),
+    setItem: vi.fn((key: string, value: string) => { storage.set(key, value); return Promise.resolve() }),
+    removeItem: vi.fn((key: string) => { storage.delete(key); return Promise.resolve() }),
+  },
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -118,6 +125,8 @@ await Promise.resolve()
 
 describe('FreshStartModal', () => {
   beforeEach(() => {
+    storage.clear()
+    useOfflineSyncStore.setState({ drops: [] })
     replace.mockClear()
     queryClientClear.mockClear()
   })
@@ -181,6 +190,27 @@ await Promise.resolve()
     const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
     await confirmReset(tree)
     expect(vi.mocked(offlineQueue.enqueue)).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([false, true])('clears persisted recovery actions after Fresh Start (queued: %s)', async (queued) => {
+    const offlineMutations = await import('@/lib/offline-mutations')
+    const offlineQueue = await import('@/lib/offline-queue')
+    const drops: DroppedMutation[] = (['createHabit', 'updateHabit'] as const).map((type) => ({
+      id: type, type, lastError: '400',
+      mutation: { id: type, type, timestamp: 1, retries: 3, maxRetries: 3, endpoint: '/api/habits', method: 'POST', payload: { title: 'Old habit' } },
+    }))
+    for (const drop of drops) useOfflineSyncStore.getState().addDrop(drop)
+    expect(storage.get('@orbit/offline-sync-notices')).toContain('Old habit')
+    if (queued) vi.mocked(offlineMutations.queueOrExecute).mockResolvedValueOnce({ queued: true, queuedMutationId: 'reset-1' })
+    const tree = await render(<FreshStartModal open onClose={vi.fn()} />)
+    await confirmReset(tree)
+    expect(useOfflineSyncStore.getState().drops).toEqual([])
+    expect(storage.get('@orbit/offline-sync-notices')).not.toContain('Old habit')
+    await useOfflineSyncStore.persist.rehydrate()
+    expect(useOfflineSyncStore.getState().drops).toEqual([])
+    expect(offlineQueue.clear).toHaveBeenCalledTimes(1)
+    expect(offlineQueue.enqueue).toHaveBeenCalledTimes(queued ? 1 : 0)
+    if (queued) expect(offlineQueue.enqueue).toHaveBeenCalledWith(expect.objectContaining({ id: 'reset-1', type: 'resetProfile' }))
   })
 
   it('surfaces a friendly error and keeps the modal open on failure', async () => {

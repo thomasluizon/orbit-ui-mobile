@@ -26286,6 +26286,7 @@
       "apps/mobile/modules": [],
       "apps/mobile/plugins": [],
       "apps/mobile/stores": [
+        "apps/mobile/__tests__/app/(tabs)/profile/_components/fresh-start-modal.test.tsx",
         "apps/mobile/__tests__/components/goals/goal-detail-drawer.test.tsx",
         "apps/mobile/__tests__/components/habits/habit-detail-screen.test.tsx",
         "apps/mobile/__tests__/components/habits/habit-list.test.tsx",

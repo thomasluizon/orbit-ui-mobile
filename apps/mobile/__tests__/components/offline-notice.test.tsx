@@ -112,6 +112,15 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     expect(useOfflineSyncStore.getState().drops).toEqual([])
   })
 
+  it('removes cleared recovery notices and refuses their retained actions', () => {
+    TestRenderer.act(() => { useOfflineSyncStore.getState().addDrop(droppedLog) })
+    const recover = toast().onAction as () => void
+    TestRenderer.act(() => { useOfflineSyncStore.setState({ drops: [] }) })
+    expect(tree.root.findAllByType(Toast)).toHaveLength(0)
+    TestRenderer.act(() => recover())
+    expect(mocks.enqueue).not.toHaveBeenCalled()
+  })
+
   it('opens creation for an orphaned log, carries its date, and never requeues its temporary identifier', () => {
     TestRenderer.act(() => { useOfflineSyncStore.getState().addDrop({ ...droppedLog, mutation: { ...droppedLog.mutation, targetEntityId: 'offline-habit-orphan' } }) })
     expect(toast().message).toBe(language.t('common.syncOrphaned', { date: '2026-09-05' }))

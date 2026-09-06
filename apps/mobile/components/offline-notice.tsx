@@ -33,6 +33,7 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
     : t(retryable ? (mutation.type === 'logHabit' ? 'common.syncDroppedAction' : 'common.syncRetryAction') : 'common.syncReviewAction')
 
   function recover() {
+    if (!useOfflineSyncStore.getState().drops.some((entry) => entry.id === drop.id)) return
     if (needsCreation) {
       setCreating(true)
       return
