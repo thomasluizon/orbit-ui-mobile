@@ -596,16 +596,19 @@ async function handleFlushFailure(
   stopReason: FlushStopReason
   dropped: DroppedMutation | null
 }> {
-  if (isTransientNetworkError(error)) {
-    update(mutation.id, { status: 'failed', lastError: getErrorMessage(error) })
-    return { incrementFailed: false, stopReason: 'network', dropped: null }
-  }
-
   const lastError = getErrorMessage(error)
   if (shouldStopFlushing(error)) {
     update(mutation.id, { status: 'failed', lastError })
+    if (mutation.entityType && mutation.clientEntityId) {
+      await setOfflineEntityStatus(mutation.entityType, mutation.clientEntityId, 'failed', lastError)
+    }
     return { incrementFailed: true, stopReason: 'auth', dropped: null }
   }
+  if (isTransientNetworkError(error)) {
+    update(mutation.id, { status: 'failed', lastError })
+    return { incrementFailed: false, stopReason: 'network', dropped: null }
+  }
+
   const nextRetries = mutation.retries + 1
   const dropMutation = shouldDropMutation(error, nextRetries, mutation.maxRetries)
   let dropped: DroppedMutation | null = null

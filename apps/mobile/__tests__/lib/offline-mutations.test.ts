@@ -1541,7 +1541,7 @@ describe('offline mutation helpers', () => {
 
     it.each([401, 403])('cancels an existing retry on HTTP %s after partial progress without exhausting a row', async (status) => {
       const first = buildQueuedMutation({ type: 'updateHabit', scope: 'habits', endpoint: '/api/habits/first', method: 'PUT', payload: {} })
-      const stopped = buildQueuedMutation({ type: 'updateHabit', scope: 'habits', endpoint: '/api/habits/stopped', method: 'PUT', payload: {} })
+      const stopped = buildQueuedMutation({ type: 'createHabit', scope: 'habits', endpoint: '/api/habits', method: 'POST', payload: { title: 'Read' }, entityType: 'habit', clientEntityId: 'offline-habit-stopped' })
       stopped.retries = stopped.maxRetries - 1
       mocks.queued.push(first, stopped)
       mocks.apiClient.mockRejectedValueOnce(new Error('Network request failed'))
@@ -1556,6 +1556,7 @@ describe('offline mutation helpers', () => {
       expect(mocks.apiClient).toHaveBeenCalledTimes(3)
       expect(mocks.queued).toEqual(queuedAfterStop)
       expect(stopped.retries).toBe(stopped.maxRetries - 1)
+      expect(mocks.setOfflineEntityStatus).toHaveBeenLastCalledWith('habit', 'offline-habit-stopped', 'failed', 'Access denied')
       expect(useOfflineSyncStore.getState().drops).toEqual([])
       expect(useOfflineSyncStore.getState().isRetrying).toBe(false)
       expect(vi.getTimerCount()).toBe(0)
