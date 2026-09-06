@@ -37,7 +37,7 @@ type InvalidationQueryKey = readonly unknown[]
 const SCOPE_QUERY_KEYS: Record<MutationScope, readonly InvalidationQueryKey[]> = {
   habits: [habitKeys.all, goalKeys.all, profileKeys.all, gamificationKeys.all],
   goals: [goalKeys.all, habitKeys.lists()],
-  tags: [tagKeys.all, habitKeys.lists()],
+  tags: [tagKeys.all, habitKeys.lists(), habitKeys.searches()],
   notifications: [notificationKeys.all],
   profile: [profileKeys.all],
   apiKeys: [apiKeyKeys.all],

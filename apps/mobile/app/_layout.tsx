@@ -298,6 +298,7 @@ function RootLayoutNav() {
         {showBottomNav ? (
           <Shell412
             header={<SearchHeader pathname={pathname} />}
+            safeAreaTop={['/', '/calendar', '/progress', '/profile', '/search'].includes(pathname)}
             {...conversation}
             composer={
               <Composer
@@ -323,7 +324,7 @@ function RootLayoutNav() {
             />
           </Shell412>
         ) : (
-          <Shell412 nav={false}>
+          <Shell412 nav={false} safeAreaTop={pathname === '/search'}>
             <RootStackScreens
               screenBackgroundColor={surfaces.screen.backgroundColor}
             />

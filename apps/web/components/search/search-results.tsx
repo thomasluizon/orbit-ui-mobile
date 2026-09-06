@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { CommandItem } from 'cmdk'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ChevronRight, Circle } from '@/components/ui/icons'
 import { Button } from '@/components/ui/pill-button'
@@ -29,10 +30,10 @@ export function SearchResults({ habits, query, onOpen, totalCount }: Readonly<{ 
   const t = useTranslations()
   return <div className="flex flex-col gap-4">
     <p className="px-1 font-mono text-[length:var(--fs-xs)] text-[var(--fg-4)]">{t('habits.search.count', { count: totalCount })}</p>
-    <div className="flex flex-col gap-2">{habits.map((habit) => <button key={habit.id} type="button" aria-label={t('habits.search.open', { name: habit.title })} onClick={() => onOpen(habit.id)} className="flex min-h-11 items-center gap-3 rounded-[var(--r-well)] bg-[var(--bg-card)] p-3 text-left shadow-[inset_0_0_0_1px_var(--hairline-ghost)] hover:bg-[var(--bg-hover)] focus-visible:outline-2">
+    <div className="flex flex-col gap-2">{habits.map((habit) => <CommandItem key={habit.id} asChild value={habit.id} onSelect={() => onOpen(habit.id)}><button type="button" aria-label={t('habits.search.open', { name: habit.title })} className="flex min-h-11 items-center gap-3 rounded-[var(--r-well)] bg-[var(--bg-card)] p-3 text-left shadow-[inset_0_0_0_1px_var(--hairline-ghost)] hover:bg-[var(--bg-hover)] data-[selected=true]:bg-[var(--primary-dim)] data-[selected=true]:shadow-[inset_0_0_0_1.5px_var(--primary)] focus-visible:outline-2">
       <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-[var(--r-well)] bg-[var(--bg-well)] text-xl">{habit.emoji || <Circle size={20} />}</span>
       <span className="min-w-0 flex-1"><span className="block truncate text-[length:var(--fs-md)] text-[var(--fg-1)]">{habit.title}</span><HabitMatchLine habit={habit} query={query} /></span>
       <ChevronRight size={20} className="shrink-0 text-[var(--fg-4)]" aria-hidden />
-    </button>)}</div>
+    </button></CommandItem>)}</div>
   </div>
 }

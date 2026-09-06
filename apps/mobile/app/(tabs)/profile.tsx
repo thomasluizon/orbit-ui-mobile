@@ -133,7 +133,7 @@ export default function ProfileScreen() {
       : profile?.email
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <AppBar title={t('nav.profile')} action={<SearchHeaderAction />} />
       <View testID="profile-header-actions" style={{ flexDirection: 'row', flexShrink: 0, alignItems: 'center', justifyContent: 'flex-end', gap: 12, paddingHorizontal: 16, paddingBottom: 12 }}>
         <ThemeToggle />

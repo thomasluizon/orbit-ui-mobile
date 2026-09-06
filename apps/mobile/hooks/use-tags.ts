@@ -79,6 +79,7 @@ function restoreTagMutationContext(
 async function invalidateTagMutationQueries(queryClient: TagQueryClient): Promise<void> {
   await queryClient.invalidateQueries({ queryKey: tagKeys.all })
   await queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+  await queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
 }
 
 function getAvailableTags(queryClient: TagQueryClient): Tag[] {

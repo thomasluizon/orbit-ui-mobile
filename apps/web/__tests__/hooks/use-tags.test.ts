@@ -82,6 +82,22 @@ function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleIte
 }
 
 describe('web tag hooks', () => {
+  it('invalidates every search page after renaming a tag without applying array updates to pages', async () => {
+    const { updateTag } = await import('@/app/actions/tags')
+    vi.mocked(updateTag).mockResolvedValue(undefined)
+    const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
+    const keys = [habitKeys.search({ search: 'Health', page: 1 }), habitKeys.search({ search: 'Focus', page: 2 })]
+    const response = { items: [makeHabit()], page: 1, pageSize: 20, totalCount: 1, totalPages: 1 }
+    for (const key of keys) queryClient.setQueryData(key, response)
+    queryClient.setQueryData(habitKeys.list({}), response.items)
+    const { result } = renderHook(() => useUpdateTag(), { wrapper: createWrapper(queryClient) })
+    await act(() => result.current.mutateAsync({ tagId: 'tag-1', name: 'Focus', color: '#00ff00' }))
+    for (const key of keys) {
+      await waitFor(() => expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true))
+      expect(queryClient.getQueryData(key)).toEqual(response)
+    }
+    queryClient.clear()
+  })
   beforeEach(() => {
     vi.clearAllMocks()
   })

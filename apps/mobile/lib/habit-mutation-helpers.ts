@@ -696,6 +696,7 @@ export function invalidateHabitMutationQueries(
 ): void {
   const invalidations: Promise<unknown>[] = [
     queryClient.invalidateQueries({ queryKey: habitKeys.lists() }),
+    queryClient.invalidateQueries({ queryKey: habitKeys.searches() }),
     queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() }),
     /**
      * The mounted summary MUST refetch, so this cannot narrow to `refetchType: 'none'`. `useSummary`

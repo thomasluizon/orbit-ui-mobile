@@ -230,6 +230,7 @@ export function useLogHabit() {
 
     onSettled: (_data, _error, { habitId }) => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.logs(habitId) })
       void queryClient.invalidateQueries({ queryKey: habitKeys.metrics(habitId) })
@@ -285,6 +286,7 @@ export function useSkipHabit() {
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
@@ -306,6 +308,7 @@ export function useCreateHabit() {
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
@@ -340,6 +343,7 @@ export function useUpdateHabit() {
 
     onSettled: (_data, _err, { habitId }) => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
       void queryClient.invalidateQueries({ queryKey: habitKeys.fullDetail(habitId) })
@@ -350,6 +354,7 @@ export function useUpdateHabit() {
 
 function invalidateHabitDeleteQueries(queryClient: ReturnType<typeof useQueryClient>): void {
   void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+  void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
   void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
@@ -441,6 +446,7 @@ export function useReorderHabits() {
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
     },
   })
@@ -454,6 +460,7 @@ export function useDuplicateHabit() {
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
@@ -516,6 +523,7 @@ export function useUpdateChecklist() {
 
     onSettled: (_data, _err, { habitId }) => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.detail(habitId) })
       void queryClient.invalidateQueries({ queryKey: habitKeys.fullDetail(habitId) })
@@ -554,6 +562,7 @@ export function useCreateSubHabit() {
 
     onSettled: (_result, _error, { parentId }) => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.detail(parentId) })
@@ -575,6 +584,7 @@ export function useMoveHabitParent() {
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
@@ -589,6 +599,7 @@ export function useBulkCreateHabits() {
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
@@ -626,6 +637,7 @@ export function useBulkDeleteHabits() {
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
@@ -686,6 +698,7 @@ export function useBulkLogHabits() {
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
@@ -736,6 +749,7 @@ export function useBulkSkipHabits() {
 
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },

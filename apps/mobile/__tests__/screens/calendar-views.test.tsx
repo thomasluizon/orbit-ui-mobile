@@ -4,6 +4,7 @@ import { formatAPIDate } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 
 import CalendarScreen from "@/app/(tabs)/calendar";
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 const TestRenderer = require("react-test-renderer");
 
@@ -140,6 +141,14 @@ function pressTab(tree: Tree, label: string) {
 }
 
 describe("CalendarScreen views (mobile)", () => {
+  it('leaves the top safe area to the shell', () => {
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />) })
+    const safeAreas = tree.root.findAll((node) => node.type === SafeAreaView)
+    expect(safeAreas.length).toBeGreaterThan(0)
+    for (const safeArea of safeAreas) expect(safeArea.props.edges).toEqual(['left', 'right', 'bottom'])
+    TestRenderer.act(() => tree.update(<></>))
+  })
   beforeEach(() => {
     calendarGridProps.current = null;
     state.monthError = null;

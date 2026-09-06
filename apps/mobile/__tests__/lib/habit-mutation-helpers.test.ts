@@ -15,6 +15,8 @@ import {
   buildOptimisticSubHabit,
   finalizeHabitMutation,
   optimisticMoveHabitParent,
+  snapshotHabitLists,
+  updateHabitLists,
 } from '@/lib/habit-mutation-helpers'
 import type { Goal } from '@orbit/shared/types/goal'
 import type {
@@ -50,6 +52,24 @@ function createQueryClient(): QueryClient {
     },
   })
 }
+
+it('invalidates all search pages at settlement while isolating them from optimistic list writers', () => {
+  const queryClient = createQueryClient()
+  const keys = [habitKeys.search({ search: 'Test', page: 1 }), habitKeys.search({ search: 'Test', page: 2 }), habitKeys.search({ search: 'other', page: 1 })]
+  const response = { items: [makeHabit()], page: 1, pageSize: 20, totalCount: 21, totalPages: 2 }
+  for (const key of keys) queryClient.setQueryData(key, response)
+  queryClient.setQueryData(habitKeys.list({}), response.items)
+  expect(snapshotHabitLists(queryClient)).toHaveLength(1)
+  updateHabitLists(queryClient, () => [])
+  expect(queryClient.getQueryData(habitKeys.list({}))).toEqual([])
+  for (const key of keys) expect(queryClient.getQueryData(key)).toEqual(response)
+  finalizeHabitMutation(queryClient, undefined, null)
+  for (const key of keys) {
+    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
+    expect(queryClient.getQueryData(key)).toEqual(response)
+  }
+  queryClient.clear()
+})
 
 function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleItem {
   return {

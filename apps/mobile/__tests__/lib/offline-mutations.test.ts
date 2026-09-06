@@ -5,6 +5,8 @@ import type {
   QueuedMutation,
 } from '@orbit/shared/types/sync'
 import { logHabitResponseSchema } from '@orbit/shared/types/habit'
+import { habitKeys } from '@orbit/shared/query'
+import { API } from '@orbit/shared/api'
 
 import {
   buildQueuedMutation,
@@ -234,6 +236,15 @@ describe('offline mutations', () => {
     expect(mocks.queued[0]?.clientEntityId).toBe('offline-habit-1')
     expect(mocks.upsertOfflineEntity).toHaveBeenCalledTimes(1)
     expect(mocks.persistQueryCache).toHaveBeenCalledTimes(1)
+  })
+
+  it('invalidates search pages after replaying an offline tag rename', async () => {
+    const mutation = buildQueuedMutation({ type: 'updateTag', scope: 'tags', endpoint: API.tags.update('tag-1'), method: 'PUT', payload: { name: 'Focus', color: '#00ff00' } })
+    await queueOrExecute({ mutation, execute: vi.fn(), queuedResult: { queued: true as const } })
+    mocks.setOnline(true)
+    await flushQueuedMutations()
+    expect(mocks.queued).toHaveLength(0)
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.searches() })
   })
 
   it('builds the queued result from the retained durable mutation id', async () => {

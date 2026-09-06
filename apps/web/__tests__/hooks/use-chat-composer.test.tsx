@@ -1016,6 +1016,8 @@ describe('web useChatComposer streaming send', () => {
 
     result.current.handleBreakdownConfirmed()
 
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.searches() })
+
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.lists(),
     })

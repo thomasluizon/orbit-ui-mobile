@@ -46,7 +46,7 @@ describe('habit search', () => {
     expect(screen.getByText('“walking”')).toBeInTheDocument()
     expect(screen.getByText('“Walk to the shop”')).toBeInTheDocument()
     expect(screen.getByText(locale === 'en' ? '4 habits' : '4 hábitos')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: locale === 'en' ? 'Open House routine' : 'Abrir House routine' }))
+    fireEvent.click(screen.getByRole('option', { name: locale === 'en' ? 'Open House routine' : 'Abrir House routine' }))
     expect(mocks.push).toHaveBeenCalledWith('/habits/parent')
     expect(mocks.query).toHaveBeenCalledWith({ search: 'walk', page: 1, pageSize: 20 })
   })
@@ -106,7 +106,7 @@ describe('habit search', () => {
 
   it('keeps server matches selectable without moving input focus', async () => {
     mocks.query.mockReturnValue(result([createMockHabit({ id: 'stretch', title: 'Stretch', searchMatches: [{ field: 'tag', value: 'walking' }] })]))
-    mount()
+    mount(true)
     const input = screen.getByRole('combobox')
     input.focus()
     fireEvent.change(input, { target: { value: 'walking' } })
