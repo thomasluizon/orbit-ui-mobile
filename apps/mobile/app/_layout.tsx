@@ -69,6 +69,7 @@ import { Composer } from '@/components/shell/composer'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useOffline } from '@/hooks/use-offline'
 import { captureError } from '@/lib/sentry'
+import { ThrottleScreen } from '@/components/throttle-screen'
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
 import {
   captureBuildEnabled,
@@ -495,6 +496,7 @@ function RootLayoutContent() {
         ]}
       >
         <RootLayoutNav />
+        <ThrottleScreen />
         <UpgradeRequiredScreen />
       </View>
     </NavigationThemeProvider>

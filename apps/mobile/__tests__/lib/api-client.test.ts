@@ -1,3 +1,4 @@
+import { useThrottleStore } from '@/stores/throttle-store'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
@@ -59,6 +60,16 @@ vi.mock('expo-router', () => ({
 vi.stubGlobal('fetch', fetchMock)
 
 describe('mobile apiClient', () => {
+  it('opens the countdown for a refused request without retrying its write', async () => {
+    getTokenMock.mockResolvedValue('token')
+    const payload = { error: 'Too many requests', requestId: 'real-reference', limit: 10, count: 11, retryAfterUtc: '2026-09-06T00:00:42.000Z' }
+    fetchMock.mockResolvedValue(new Response(JSON.stringify(payload), { status: 429 }))
+    await expect(apiClient('/api/habits', { method: 'POST' })).rejects.toMatchObject({ status: 429 })
+    expect(useThrottleStore.getState().error).toMatchObject({ status: 429, data: payload })
+    expect(fetchMock).toHaveBeenCalledOnce()
+    useThrottleStore.getState().clear()
+  })
+
   beforeEach(() => {
     getTokenMock.mockReset()
     clearAllTokensMock.mockReset()

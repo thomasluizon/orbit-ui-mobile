@@ -11,9 +11,10 @@ import {
   VOICE_MOBILE_SPEECH_RMS_THRESHOLD,
   VOICE_SILENCE_TIMEOUT_MS,
 } from '@orbit/shared/chat'
-import { getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { getErrorSurface, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { File } from 'expo-file-system'
 import { apiClient } from '@/lib/api-client'
+import { useThrottleStore } from '@/stores/throttle-store'
 export { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
 
 interface TranscriptionResponse {
@@ -141,6 +142,7 @@ export function useSpeechToText() {
 
   const startRecording = useCallback(async () => {
     if (isRecordingRef.current) return
+    if ((getErrorSurface(useThrottleStore.getState().error).retryAt ?? 0) > Date.now()) return
 
     setError(null)
     setTranscript('')

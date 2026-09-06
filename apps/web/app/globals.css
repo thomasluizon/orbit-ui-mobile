@@ -138,9 +138,8 @@
   font-weight: 500;
   line-height: 1.2;
   letter-spacing: -0.02em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
 }
 
 .orbit-sheet-close {
@@ -1839,4 +1838,50 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 [data-sonner-toast] [data-button]:hover {
   opacity: 0.85;
+}
+
+.error-surface {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  max-width: 560px;
+  padding: 64px 16px 32px;
+  color: var(--fg-1);
+  overflow-wrap: anywhere;
+}
+.error-surface-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  text-wrap: pretty;
+}
+.error-surface-body {
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--fg-2);
+  text-wrap: pretty;
+}
+@media (min-width: 64rem) {
+  .error-surface { padding: 32px; }
+  .error-surface-title { font-size: 28px; line-height: 1.15; }
+  .error-surface-action button[data-variant="primary"] {
+    background: var(--fg-1);
+    color: var(--bg);
+  }
+}
+
+@media (min-width: 64rem) and (hover: hover) and (pointer: fine) {
+  .error-surface-action button[data-variant="primary"]:enabled:hover {
+    background: var(--fg-1);
+    opacity: 0.9;
+  }
+}
+@media (min-width: 64rem) {
+  .error-surface-action button[data-variant="primary"]:enabled:active {
+    background: var(--fg-1);
+    opacity: 0.85;
+  }
 }
