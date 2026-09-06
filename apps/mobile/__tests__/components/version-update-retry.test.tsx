@@ -83,7 +83,7 @@ describe('Android flexible update recovery', () => {
     sheetTestControls.defer(false)
   })
 
-  it.each(['rejection', 'cancellation'] as const)('restores the action after %s and succeeds on a second attempt in the same session', async (failure) => {
+  it.each(['rejection', 'cancellation', 'status FAILED', 'status CANCELED'] as const)('restores the action after %s and succeeds on a second attempt in the same session', async (failure) => {
     if (failure === 'rejection') mocks.startUpdate.mockRejectedValueOnce(new Error('Play launch failed'))
     expect(hasSheet()).toBe(true)
     await pressAction('versionUpdate.updateCta')
@@ -96,6 +96,12 @@ describe('Android flexible update recovery', () => {
       expect(hasSheet()).toBe(false)
       await TestRenderer.act(() => { mocks.intentListener?.('6') })
     }
+    if (failure === 'status FAILED' || failure === 'status CANCELED') {
+      expect(hasSheet()).toBe(false)
+      await TestRenderer.act(() => {
+        mocks.statusListener?.({ status: failure === 'status FAILED' ? 5 : 6, bytesDownloaded: 50, totalBytesToDownload: 100 })
+      })
+    }
     expect(hasSheet()).toBe(true)
     await pressAction('versionUpdate.updateCta')
     expect(mocks.startUpdate).toHaveBeenCalledTimes(1)
@@ -105,6 +111,11 @@ describe('Android flexible update recovery', () => {
 
     await TestRenderer.act(() => { mocks.intentListener?.('4') })
     expect(hasSheet()).toBe(false)
+    for (const status of [0, 1, 2, 3, 4]) {
+      await TestRenderer.act(() => { mocks.statusListener?.({ status, bytesDownloaded: 0, totalBytesToDownload: 100 }) })
+      expect(hasSheet()).toBe(false)
+      expect(mocks.startUpdate).toHaveBeenCalledTimes(2)
+    }
     await TestRenderer.act(() => { mocks.statusListener?.({ status: 11, bytesDownloaded: 100, totalBytesToDownload: 100 }) })
     expect(hasSheet()).toBe(true)
     await pressAction('versionUpdate.restartCta')

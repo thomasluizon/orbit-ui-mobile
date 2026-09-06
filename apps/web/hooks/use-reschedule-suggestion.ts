@@ -1,5 +1,6 @@
 'use client'
 
+import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { useQuery } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
@@ -28,7 +29,7 @@ export function useRescheduleSuggestion({
     queryKey: habitKeys.rescheduleSuggestion(habitId),
     queryFn: async (): Promise<RescheduleSuggestion> => {
       const params = new URLSearchParams({ language: locale })
-      const res = await fetch(
+      const res = await fetchWithThrottle(
         `${API.habits.rescheduleSuggestion(habitId)}?${params.toString()}`,
       )
       if (!res.ok) {

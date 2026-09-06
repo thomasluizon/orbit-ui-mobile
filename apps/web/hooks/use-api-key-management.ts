@@ -1,3 +1,4 @@
+import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { useState, useMemo } from 'react'
 import { useMutation, useQuery, type QueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
@@ -19,7 +20,7 @@ interface ScopeOption {
 }
 
 async function fetchApiKeys(): Promise<ApiKey[]> {
-  const res = await fetch(API.apiKeys.list)
+  const res = await fetchWithThrottle(API.apiKeys.list)
   if (!res.ok) {
     throw new Error('Failed to load API keys')
   }
@@ -27,7 +28,7 @@ async function fetchApiKeys(): Promise<ApiKey[]> {
 }
 
 async function fetchCapabilities(): Promise<AgentCapability[]> {
-  const res = await fetch(API.ai.capabilities)
+  const res = await fetchWithThrottle(API.ai.capabilities)
   if (!res.ok) {
     throw new Error('Failed to load AI capabilities')
   }

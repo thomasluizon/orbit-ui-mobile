@@ -1,5 +1,6 @@
 'use client'
 
+import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { useQuery } from '@tanstack/react-query'
 import { calendarKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
@@ -27,7 +28,7 @@ export function useCalendarEvents(options?: CalendarEventsQueryOptions) {
   return useQuery<CalendarEventsResult>({
     queryKey: CALENDAR_EVENTS_KEY,
     queryFn: async () => {
-      const res = await fetch(API.calendar.events)
+      const res = await fetchWithThrottle(API.calendar.events)
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as
           | { error?: string; message?: string }

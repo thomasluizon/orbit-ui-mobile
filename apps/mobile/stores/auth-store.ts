@@ -24,6 +24,7 @@ import { setRuntimeTheme } from '@/lib/theme'
 import { useChatStore } from './chat-store'
 import { useReviewReminderStore } from './review-reminder-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
+import { useThrottleStore } from './throttle-store'
 
 const MOBILE_API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
@@ -197,6 +198,9 @@ export async function refreshSession(options?: {
   }
 
   if (!response.ok) {
+    if (response.status === 429) {
+      useThrottleStore.getState().show(response.status, await response.json().catch(() => null))
+    }
     if (clearOnFailure) {
       await clearSessionAndResetAuth()
     }

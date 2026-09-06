@@ -1,12 +1,13 @@
 'use client'
 
+import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { useQuery } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { subscriptionKeys } from '@orbit/shared/query'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 
 async function fetchSubscriptionStatus(): Promise<SubscriptionStatus> {
-  const response = await fetch(API.subscription.status)
+  const response = await fetchWithThrottle(API.subscription.status)
   if (!response.ok) throw new Error(`Failed with status ${response.status}`)
   return response.json() as Promise<SubscriptionStatus>
 }

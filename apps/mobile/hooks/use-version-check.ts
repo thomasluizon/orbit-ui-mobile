@@ -145,12 +145,16 @@ export function useAndroidFlexibleUpdate(active: boolean, onInterrupted: () => v
 
   const restoreAction = useCallback(() => {
     startedRef.current = false
+    setDownloaded(false)
     onInterrupted()
   }, [onInterrupted])
 
   useEffect(() => {
     if (!inAppUpdates) return
     const onStatus = (event: StatusUpdateEvent) => {
+      if (active && (event.status === IAUInstallStatus.FAILED || event.status === IAUInstallStatus.CANCELED)) {
+        restoreAction()
+      }
       if (event.status === IAUInstallStatus.DOWNLOADED) {
         void Promise.resolve().then(() => setDownloaded(true))
       }
