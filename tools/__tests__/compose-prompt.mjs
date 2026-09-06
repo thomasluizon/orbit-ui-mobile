@@ -132,6 +132,27 @@ export const cases = () => {
   ]) {
     const contract = order.slice(order.indexOf(heading))
     T(
+      `${TOOL}: ${mode} requires the unchanged covered test before edits and a failing strengthened test before the fix`,
+      /When a round fixes a defect that an existing test did not catch/.test(order) &&
+        /Before changing the test or implementation, run that existing test unchanged/.test(order) &&
+        /report whether it passes with the defect present/.test(order) &&
+        /strengthen the test to exercise the real failing path and run it with the defect still present/.test(order) &&
+        /Observe it fail for the intended reason before fixing the implementation/.test(order) &&
+        /After the fix, rerun it and confirm it passes/.test(order),
+      order,
+    )
+    T(
+      `${TOOL}: ${mode} delivers both red-first observations with commands and outcomes to review`,
+      /Both observations must reach the pull request body/.test(order) &&
+        /unchanged test with the defect present, and strengthened test failing before the fix/.test(order) &&
+        /Name the test, exact commands, and observed outcomes/.test(order) &&
+        /If either observation cannot be obtained, report why; never claim an unobserved result/.test(order) &&
+        (mode === "Cloud"
+          ? /Record both observations in the committed handoff's `testResults` for the orchestrator to carry into the PR body/.test(order)
+          : /Put both observations in the PR body's `## Test evidence` section/.test(order)),
+      order,
+    )
+    T(
       `${TOOL}: ${mode} finishing regenerates architecture before committing a structural change`,
       /Before committing, if your change alters routes, endpoints, or module structure,/.test(contract) &&
         /run `node tools\/arch-map\.mjs`/.test(contract) &&

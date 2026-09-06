@@ -3,6 +3,7 @@
 > **At a glance** - how to write a test in orbit-ui-mobile and the catalog of every suite.
 > - Unit-only policy (Vitest); the only sanctioned E2E against prod is the post-deploy web smoke suite.
 > - Assert behavior and data-attributes, never class names or implementation details.
+> - For a defect missed by existing coverage, observe the unchanged test first, then the strengthened test failing before the fix; carry both observations into the PR body.
 > - PillButton target unit cases require installed Chrome; other web component tests use jsdom.
 > - Nine suites: web / mobile / shared unit, web Playwright e2e (which IS the post-deploy smoke), the hermetic layout guard, the authed-Today Lighthouse budget gate, Stryker mutation, and the two harness suites (hook parity and the tools execution gate) that test the agent harness rather than the product.
 > - The two harness suites are run BY HAND after any change to `tools/**` or `.claude/**`: `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`. The `Harness Execution` CI job was removed from branch protection on 2026-08-04, because a broken harness self-check froze every product merge.
@@ -19,6 +20,9 @@ PillButton's three target cases run inside Vitest with Playwright's `chrome` cha
 - **Behavior, not implementation.** Assert what the user or caller observes: rendered text, a `data-*` attribute, a returned value, a thrown error. Never assert class names, call order, or private state. Those pass while the behavior is broken and block honest refactors.
 - **Three axes.** A real test covers the happy path **and** an edge case **and** a failure case. Invalid input must be *rejected*, not just valid input accepted.
 - **Factories over literals.** Build fixtures with `packages/shared/src/__tests__/factories.ts` so a schema change updates every test in one place.
+- **Fixtures follow producers.** Confirm payload shapes against the real producer or recorded external response. Never write the fixture that agrees with a guess (CLAUDE.md code standard 8).
+- **Exercise the path that broke.** Advance timers through automatic replays, enter the affected mode, prove accepted destinations as well as rejection, and mount the owning composition when ownership is the behavior. A child-only test cannot prove that its parent avoids duplicate subscriptions.
+- **Observe the missed regression before fixing it.** When existing coverage missed a defect, run that test unchanged before editing the test or implementation and record whether it passes with the defect present. Strengthen the test to drive the failing path, observe it fail for the intended reason with the defect still present, then fix the implementation and confirm it passes. Put both pre-fix observations, the test name, exact commands, and the final passing result in the PR body; Cloud workers record them in the committed handoff's `testResults` for delivery to the PR. Explain any observation you could not obtain instead of claiming it happened.
 - **Mock at the boundary.** Mobile: mock at the hook level (query by role or `testID`). Web: mock `next/navigation` and server actions, query by role or `data-*`. Shared: no mocks, pin the pure logic directly.
 - **Parity.** A behavior that lands on both platforms gets a test on both platforms in the same change (the cross-platform parity rule).
 - **Property tests** for pure shared logic (`@fast-check/vitest`) when a value range matters more than a single example.
