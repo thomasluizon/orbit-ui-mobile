@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
@@ -74,7 +74,7 @@ export function NotificationDetailModal({
             notification.createdAtUtc,
             (key, values) => t(`notifications.${key}`, values),
           )}
-          {targetKey ? ` · ${t(targetKey)}` : null}
+          {targetKey ? ` Â· ${t(targetKey)}` : null}
         </Text>
         <Text style={styles.bodyText}>{notification.body}</Text>
 
@@ -85,69 +85,18 @@ export function NotificationDetailModal({
             </Button>
           ) : null}
           {canMarkAsRead ? (
-            <QuietAction
-              label={t('notifications.markAsRead')}
-              color={tokens.fg2}
-              onPress={() => onMarkAsRead(notification.id)}
-            />
+            <Button variant="ghost" size="sm" onClick={() => onMarkAsRead(notification.id)}>
+              {t('notifications.markAsRead')}
+            </Button>
           ) : null}
-          <QuietAction
-            label={t('notifications.delete')}
-            color={tokens.statusBad}
-            onPress={handleDelete}
-          />
+          <Button variant="destructive" size="sm" onClick={handleDelete}>
+            {t('notifications.delete')}
+          </Button>
         </View>
       </View>
     </Sheet>) : null
   )
 }
-
-function QuietAction({
-  label,
-  color,
-  onPress,
-}: Readonly<{ label: string; color: string; onPress: () => void }>) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  )
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      hitSlop={{ top: 4, bottom: 4 }}
-      style={({ pressed }) => [
-        quietActionStyles.chip,
-        {
-          backgroundColor: pressed ? tokens.bgHover : 'transparent',
-        },
-        pressed && quietActionStyles.pressed,
-      ]}
-    >
-      <Text style={[quietActionStyles.label, { color }]}>{label}</Text>
-    </Pressable>
-  )
-}
-
-const quietActionStyles = StyleSheet.create({
-  chip: {
-    borderRadius: 999,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: {
-    transform: [{ scale: 0.96 }],
-  },
-  label: {
-    fontFamily: 'Geist_500Medium',
-    fontSize: 14,
-  },
-})
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({

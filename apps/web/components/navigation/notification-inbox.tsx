@@ -8,6 +8,7 @@ import { useMarkNotificationRead, useMarkAllNotificationsRead, useDeleteNotifica
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { cancelPendingNotificationDelete, queuePendingNotificationDelete } from '@/lib/pending-notification-deletes'
 import { ArrowLeft } from '@/components/ui/icons'
+import { Button } from '@/components/ui/pill-button'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { NotificationBellDisplay } from './notification-bell'
 import { NotificationDetailModal } from './notification-detail-modal'
@@ -41,10 +42,10 @@ export function NotificationInbox() {
           <NotificationBellDisplay count={inbox.visibleUnreadCount} />
         </div>
         <div className="flex flex-wrap items-center gap-2 px-2 pb-2">
-          {inbox.visibleUnreadCount > 0 ? <button type="button" className="min-h-11 cursor-pointer rounded-full px-2 text-sm text-[var(--fg-1)] hover:bg-[var(--bg-hover)]"
-            onClick={() => markAllAsRead.mutate()}>{t('notifications.markAllRead')}</button> : null}
-          {inbox.visibleNotifications.length > 0 ? <button type="button" className="min-h-11 cursor-pointer rounded-full px-2 text-sm text-[var(--fg-1)] hover:bg-[var(--bg-hover)]"
-            onClick={() => setConfirmOpen(true)}>{t('notifications.deleteAll')}</button> : null}
+          {inbox.visibleUnreadCount > 0 ? <Button variant="ghost" size="sm"
+            onClick={() => markAllAsRead.mutate()}>{t('notifications.markAllRead')}</Button> : null}
+          {inbox.visibleNotifications.length > 0 ? <Button variant="ghost" size="sm"
+            onClick={() => setConfirmOpen(true)}>{t('notifications.deleteAll')}</Button> : null}
         </div>
       </header>
       <NotificationList items={inbox.visibleNotifications} isLoading={inbox.isLoading} isError={inbox.isError}

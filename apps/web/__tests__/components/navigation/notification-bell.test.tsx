@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { Calendar, ChartLine, CircleDot, Home, Trash2, User } from '@/components/ui/icons'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import en from '@orbit/shared/i18n/en.json'
@@ -72,6 +75,64 @@ afterEach(() => {
 })
 
 describe('alerts', () => {
+  it('shows an inset focus indicator only on the focused row', () => {
+    seed(2)
+    showInbox()
+    const stylesheet = document.createElement('style')
+    const css = readFileSync('app/globals.css', 'utf8')
+    stylesheet.textContent = css.match(/\.orbit-notification-row:focus-visible\s*\{[^}]+\}/)?.[0] ?? ''
+    try {
+      const first = screen.getByRole('button', { name: 'Alert 0. unread. Progress' })
+      const second = screen.getByRole('button', { name: 'Alert 1. unread. Progress' })
+      first.focus()
+      document.head.append(stylesheet)
+      expect(first).toHaveFocus()
+      expect(getComputedStyle(first).outline).toBe('2px solid var(--primary)')
+      expect(getComputedStyle(first).outlineOffset).toBe('-2px')
+      expect(getComputedStyle(second).outlineOffset).not.toBe('-2px')
+    } finally {
+      stylesheet.remove()
+    }
+  })
+
+  it.each([
+    ['/', null, Home], ['/calendar-sync', null, Calendar], ['/streak', null, ChartLine],
+    ['/profile', null, User], ['/', 'a12b34cd-1234-4567-89ab-123456789abc', CircleDot],
+  ] as const)('shows the destination glyph at 16px for %s with habit %s', (url, habitId, Glyph) => {
+    state.notifications = [createMockNotification({ title: 'Reminder', url, habitId, isRead: false })]
+    showInbox()
+    const glyph = screen.getByRole('button', { name: /^Reminder\. unread\./ }).querySelector('svg')!
+    const expected = document.createElement('div')
+    expected.innerHTML = renderToStaticMarkup(<Glyph size={16} />)
+    expect(glyph.innerHTML).toBe(expected.querySelector('svg')!.innerHTML)
+    expect(glyph).toHaveAttribute('width', '16')
+    expect(glyph).toHaveAttribute('height', '16')
+    expect(glyph).toHaveAttribute('aria-hidden', 'true')
+  })
+
+  it('uses canonical ghost list and read actions and a destructive detail delete', () => {
+    seed(1)
+    showInbox()
+    for (const name of ['Mark all read', 'Clear all']) {
+      expect(screen.getByRole('button', { name })).toHaveAttribute('data-variant', 'ghost')
+      expect(screen.getByRole('button', { name })).toHaveAttribute('data-size', 'sm')
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Alert 0. unread. Progress' }))
+    expect(screen.getByRole('button', { name: 'Mark as read' })).toHaveAttribute('data-variant', 'ghost')
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveAttribute('data-variant', 'destructive')
+  })
+
+  it('identifies the queued delete with a neutral trash glyph beside undo', () => {
+    seed(1)
+    showInbox()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete: Alert 0' }))
+    const notice = screen.getByRole('status')
+    const expected = document.createElement('div')
+    expected.innerHTML = renderToStaticMarkup(<Trash2 size={20} />)
+    expect(notice.querySelector('svg')?.innerHTML).toBe(expected.querySelector('svg')!.innerHTML)
+    expect(notice).toHaveAttribute('data-kind', 'neutral')
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument()
+  })
   it.each(['en', 'pt-BR'])('keeps the inbox header count passive and updates it from inbox state in %s', (locale) => {
     state.locale = locale
     state.pathname = '/notifications'

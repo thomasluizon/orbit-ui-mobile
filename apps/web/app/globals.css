@@ -1428,6 +1428,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   outline-offset: 2px;
 }
 
+.orbit-notification-row:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
 /* Minimum touch target size: 44px effective, centered on the control */
 .touch-target {
   position: relative;

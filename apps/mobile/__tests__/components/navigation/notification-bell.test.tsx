@@ -50,7 +50,7 @@ vi.mock('@/lib/haptics', () => ({ triggerHaptic: vi.fn() }))
 
 type Node = {
   type: unknown
-  props: { accessibilityLabel?: string; accessibilityRole?: string; accessible?: boolean; testID?: string; children?: unknown; style?: unknown; onPress?: () => void; accessibilityState?: { busy?: boolean } }
+  props: { accessibilityLabel?: string; accessibilityRole?: string; accessible?: boolean; testID?: string; children?: unknown; style?: unknown; size?: number; color?: string; onFocus?: () => void; onBlur?: () => void; onPress?: () => void; accessibilityState?: { busy?: boolean } }
   parent: Node | null
   findAll: (predicate: (node: Node) => boolean) => Node[]
 }
@@ -115,6 +115,61 @@ afterEach(() => {
 })
 
 describe('mobile alerts', () => {
+  it.each(['dark', 'light'] as const)('shows an inset focus indicator until the row loses focus in %s', (mode) => {
+    state.mode = mode
+    seed(1)
+    const tree = render()
+    const row = () => hosts(tree, 'Pressable', 'Alert 0. unread. Progress')[0]!
+    const rowStyle = () => {
+      const style = row().props.style
+      return StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style)
+    }
+    expect(rowStyle().outlineWidth).toBeUndefined()
+    TestRenderer.act(() => row().props.onFocus?.())
+    expect(rowStyle()).toMatchObject({
+      outlineWidth: 2, outlineOffset: -2, outlineStyle: 'solid',
+      outlineColor: createTokensV2('purple', mode).primary,
+    })
+    TestRenderer.act(() => row().props.onBlur?.())
+    expect(rowStyle().outlineWidth).toBeUndefined()
+  })
+
+  it.each([
+    ['/', null, 'Home'], ['/calendar-sync', null, 'Calendar'], ['/streak', null, 'ChartLine'],
+    ['/profile', null, 'User'], ['/', 'a12b34cd-1234-4567-89ab-123456789abc', 'CircleDot'],
+  ] as const)('shows the destination glyph at 16px for %s with habit %s', (url, habitId, glyph) => {
+    state.notifications = [createMockNotification({ title: 'Reminder', url, habitId, isRead: false })]
+    const tree = render()
+    const row = hosts(tree, 'Pressable').find((node) => node.props.accessibilityLabel?.startsWith('Reminder. unread.'))!
+    const icons = row.findAll((node) => node.type === glyph)
+    expect(icons).toHaveLength(1)
+    expect(icons[0]!.props).toMatchObject({ size: 16, color: createTokensV2('purple', 'dark').fg4 })
+  })
+
+  it('uses canonical ghost list and read actions and a destructive detail delete', () => {
+    seed(1)
+    const tree = render()
+    const action = (label: string) => hosts(tree, 'Pressable').find(
+      (node) => node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0,
+    )!
+    for (const label of ['Mark all read', 'Clear all']) {
+      expect(action(label).props.testID).toBe('button-ghost-sm')
+    }
+    press(tree, 'Alert 0. unread. Progress')
+    expect(action('Mark as read').props.testID).toBe('button-ghost-sm')
+    expect(action('Delete').props.testID).toBe('button-destructive-sm')
+  })
+
+  it('identifies the queued delete with a neutral trash glyph beside undo', () => {
+    seed(1)
+    const tree = render()
+    press(tree, 'Delete: Alert 0')
+    const notice = testId(tree, 'toast-neutral')[0]!
+    const icons = notice.findAll((node) => node.type === 'Trash2')
+    expect(icons).toHaveLength(1)
+    expect(icons[0]!.props).toMatchObject({ size: 20, color: createTokensV2('purple', 'dark').fg2 })
+    expect(hosts(tree, 'Pressable', 'Undo')).toHaveLength(1)
+  })
   it.each(['en', 'pt-BR'])('keeps the inbox header count passive and updates it from inbox state in %s', (locale) => {
     state.locale = locale
     state.pathname = '/notifications'

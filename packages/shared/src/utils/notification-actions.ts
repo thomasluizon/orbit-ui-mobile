@@ -63,7 +63,8 @@ export function getNotificationDestination(
   return { url: destination, opensAstra: habitId === null && url.split(/[?#]/, 1)[0] === '/chat' }
 }
 
-export function getNotificationTargetKey(url: string | null, habitId: string | null = null): string | null {
+export function getNotificationTargetKey(url: string | null, habitId: string | null = null):
+  'nav.today' | 'nav.calendar' | 'nav.progress' | 'nav.profile' | 'notifications.habit' | null {
   const destination = getNotificationDestination(url, habitId)
   if (!destination) return null
   const pathname = destination.url.split(/[?#]/, 1)[0]

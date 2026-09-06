@@ -10,6 +10,7 @@ import { cancelPendingNotificationDelete, queuePendingNotificationDelete } from 
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ArrowLeft } from '@/components/ui/icons'
+import { Button } from '@/components/ui/pill-button'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { NotificationBellDisplay } from './notification-bell'
 import { NotificationDetailModal } from './notification-detail-modal'
@@ -45,14 +46,10 @@ export function NotificationInbox() {
           <NotificationBellDisplay count={inbox.visibleUnreadCount} />
         </View>
         <View style={styles.actions}>
-          {inbox.visibleUnreadCount > 0 ? <Pressable accessibilityRole="button" accessibilityLabel={t('notifications.markAllRead')} onPress={() => markAllAsRead.mutate()}
-            style={({ pressed }) => [styles.action, pressed && { backgroundColor: tokens.bgHover }]}>
-            <Text style={[styles.actionText, { color: tokens.fg1 }]}>{t('notifications.markAllRead')}</Text>
-          </Pressable> : null}
-          {inbox.visibleNotifications.length > 0 ? <Pressable accessibilityRole="button" accessibilityLabel={t('notifications.deleteAll')} onPress={() => setConfirmOpen(true)}
-            style={({ pressed }) => [styles.action, pressed && { backgroundColor: tokens.bgHover }]}>
-            <Text style={[styles.actionText, { color: tokens.fg1 }]}>{t('notifications.deleteAll')}</Text>
-          </Pressable> : null}
+          {inbox.visibleUnreadCount > 0 ? <Button variant="ghost" size="sm" accessibleName={t('notifications.markAllRead')}
+            onClick={() => markAllAsRead.mutate()}>{t('notifications.markAllRead')}</Button> : null}
+          {inbox.visibleNotifications.length > 0 ? <Button variant="ghost" size="sm" accessibleName={t('notifications.deleteAll')}
+            onClick={() => setConfirmOpen(true)}>{t('notifications.deleteAll')}</Button> : null}
         </View>
       </View>
       <ScrollView style={styles.scroller}>
@@ -84,7 +81,5 @@ const styles = StyleSheet.create({
   back: { width: 44, height: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, minWidth: 0, fontFamily: 'Geist_500Medium', fontSize: 20 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, paddingHorizontal: 8, paddingBottom: 8 },
-  action: { minHeight: 44, paddingHorizontal: 8, borderRadius: 999, justifyContent: 'center' },
-  actionText: { fontFamily: 'Geist_400Regular', fontSize: 14 },
   scroller: { flex: 1 },
 })

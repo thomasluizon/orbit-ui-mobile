@@ -1,10 +1,19 @@
+import { useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { ArrowUpRight, Trash2 } from '@/components/ui/icons'
+import { Calendar, ChartLine, CircleDot, Home, Trash2, User } from '@/components/ui/icons'
 import { formatNotificationRelativeTime, getNotificationTargetKey } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+const TARGET_ICONS = {
+  'nav.today': Home,
+  'nav.calendar': Calendar,
+  'nav.progress': ChartLine,
+  'nav.profile': User,
+  'notifications.habit': CircleDot,
+}
 
 export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
   item: NotificationItem
@@ -12,16 +21,20 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
   onDelete: (item: NotificationItem) => void
 }>) {
   const { t } = useTranslation()
+  const [focused, setFocused] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const targetKey = getNotificationTargetKey(item.url, item.habitId)
+  const TargetIcon = targetKey ? TARGET_ICONS[targetKey] : null
   return (
     <View testID={item.isRead ? 'notification-read' : 'notification-unread'}
       style={[styles.wrapper, !item.isRead && { backgroundColor: tokens.bgCard, boxShadow: `inset 0 0 0 1px ${tokens.hairline}` }]}>
       <Pressable accessibilityRole="button"
         accessibilityLabel={`${item.title}. ${t(item.isRead ? 'notifications.read' : 'notifications.unread')}${targetKey ? `. ${t(targetKey)}` : ''}`}
         onPress={() => onOpen(item)}
-        style={({ pressed }) => [styles.row, pressed && { backgroundColor: tokens.bgHover }]}>
+        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+        style={({ pressed }) => [styles.row, pressed && { backgroundColor: tokens.bgHover },
+          focused && { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -2 }]}>
         <View testID="notification-dot-column" style={styles.dotColumn}>
           {!item.isRead ? <View testID="notification-unread-dot" style={[styles.dot, { backgroundColor: tokens.fg1 }]} /> : null}
         </View>
@@ -36,8 +49,8 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
             </Text>
           </View>
           <Text style={[styles.body, { color: tokens.fg3 }]}>{item.body}</Text>
-          {targetKey ? <View style={styles.target}>
-            <ArrowUpRight size={16} color={tokens.fg4} />
+          {targetKey && TargetIcon ? <View style={styles.target}>
+            <TargetIcon size={16} color={tokens.fg4} />
             <Text style={[styles.meta, { color: tokens.fg4 }]}>{t(targetKey)}</Text>
           </View> : null}
         </View>

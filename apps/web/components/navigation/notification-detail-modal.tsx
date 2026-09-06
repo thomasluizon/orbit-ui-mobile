@@ -66,13 +66,13 @@ export function NotificationDetailModal({
             </Button>
           )}
           {canMarkAsRead && (
-            <QuietLink onClick={() => onMarkAsRead(notification.id)}>
+            <Button variant="ghost" size="sm" onClick={() => onMarkAsRead(notification.id)}>
               {t('notifications.markAsRead')}
-            </QuietLink>
+            </Button>
           )}
-          <QuietLink destructive onClick={handleDelete}>
+          <Button variant="destructive" size="sm" onClick={handleDelete}>
             {t('notifications.delete')}
-          </QuietLink>
+          </Button>
         </div>
       }
     >
@@ -89,7 +89,7 @@ export function NotificationDetailModal({
             {formatNotificationRelativeTime(notification.createdAtUtc, (key, values) =>
               t(`notifications.${key}`, values),
             )}
-            {targetKey ? ` · ${t(targetKey)}` : null}
+            {targetKey ? ` Ã‚Â· ${t(targetKey)}` : null}
           </p>
         </div>
         <div>
@@ -107,28 +107,5 @@ export function NotificationDetailModal({
         </div>
       </div>
     </Sheet>) : null
-  )
-}
-
-interface QuietLinkProps {
-  children: React.ReactNode
-  onClick: () => void
-  destructive?: boolean
-}
-
-function QuietLink({
-  children,
-  onClick,
-  destructive = false,
-}: Readonly<QuietLinkProps>) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="min-h-11 cursor-pointer rounded-full px-2 text-sm hover:bg-[var(--bg-hover)]"
-      style={destructive ? { color: 'var(--status-bad)' } : undefined}
-    >
-      {children}
-    </button>
   )
 }
