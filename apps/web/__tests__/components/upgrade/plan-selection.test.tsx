@@ -70,7 +70,7 @@ function renderSelection(overrides: Partial<Parameters<typeof PlanSelection>[0]>
 }
 
 function tierNamed(name: string) {
-  return screen.getByRole('heading', { level: 2, name }).closest('section')!
+  return screen.getByRole('heading', { level: 3, name }).closest('section')!
 }
 
 describe('PlanSelection', () => {
@@ -100,7 +100,7 @@ describe('PlanSelection', () => {
       'aria-checked',
       'true',
     )
-    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
+    expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
       'upgrade.plans.yearly.name',
       'upgrade.plans.monthly.name',
     ])
@@ -121,7 +121,7 @@ describe('PlanSelection', () => {
       'aria-checked',
       'true',
     )
-    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
+    expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
       'upgrade.plans.monthly.name',
       'upgrade.plans.yearly.name',
     ])

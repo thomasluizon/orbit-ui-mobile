@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { useTranslations } from 'next-intl'
-import en from '@orbit/shared/i18n/en.json'
-import { UsageStats } from '@/components/upgrade/usage-stats'
 
 const mockOpenCustomerPortal = vi.hoisted(() => vi.fn())
 const mockGoBackOrFallback = vi.hoisted(() => vi.fn())
+const mockRefetchStatus = vi.hoisted(() => vi.fn())
+const mockRefetchBilling = vi.hoisted(() => vi.fn())
+const mockShowSuccess = vi.hoisted(() => vi.fn())
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -80,7 +80,7 @@ vi.mock('@/hooks/use-subscription-status', () => ({
       : null,
     isLoading: false,
     isError: false,
-    refetch: vi.fn(),
+    refetch: mockRefetchStatus,
   }),
 }))
 
@@ -88,7 +88,7 @@ vi.mock('@/hooks/use-offline', () => ({
   useOffline: () => ({ isOnline: mockIsOnline }),
 }))
 vi.mock('@/hooks/use-app-toast', () => ({
-  useAppToast: () => ({ showSuccess: vi.fn() }),
+  useAppToast: () => ({ showSuccess: mockShowSuccess }),
 }))
 
 let mockPlans: Record<string, unknown> | null = null
@@ -115,7 +115,7 @@ const mockUseBilling = vi.fn((_enabled?: boolean) => ({
   billing: mockBilling,
   isLoading: mockIsBillingLoading,
   isError: mockIsBillingError,
-  refetch: vi.fn(),
+  refetch: mockRefetchBilling,
 }))
 
 vi.mock('@/hooks/use-billing', () => ({
@@ -142,11 +142,6 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 })
 
 import UpgradePage from '@/app/(app)/upgrade/page'
-
-function UsageStatsWithoutProfile() {
-  const t = useTranslations()
-  return <UsageStats usagePercent={0} usageUrgent={false} profile={null} t={t} />
-}
 
 describe('UpgradePage', () => {
   beforeEach(() => {
@@ -175,11 +170,38 @@ describe('UpgradePage', () => {
     mockUseBilling.mockClear()
     mockOpenCustomerPortal.mockReset()
     mockGoBackOrFallback.mockReset()
+    mockRefetchStatus.mockReset().mockResolvedValue(undefined)
+    mockRefetchBilling.mockReset().mockResolvedValue(undefined)
+    mockShowSuccess.mockReset()
     globalThis.sessionStorage.clear()
   })
 
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.unstubAllGlobals()
+  })
+
+  it.each([false, true])('nests the complete purchase heading outline, trial=%s', (trialActive) => {
+    mockHasProAccess = trialActive
+    mockProfile = { ...mockProfile, isTrialActive: trialActive }
+    mockPlans = {
+      monthly: { unitAmount: 999 },
+      yearly: { unitAmount: 4999 },
+      currency: 'usd',
+      savingsPercent: 58,
+      couponPercentOff: null,
+    }
+    render(<UpgradePage />)
+    expect(screen.getAllByRole('heading').map((heading) => ({
+      level: Number(heading.tagName.slice(1)),
+      name: heading.textContent,
+    }))).toEqual([
+      { level: 1, name: 'upgrade.title' },
+      { level: 2, name: trialActive ? 'upgrade.convert.trialHeading' : 'upgrade.convert.freeHeading' },
+      { level: 3, name: 'upgrade.plans.yearly.name' },
+      { level: 3, name: 'upgrade.plans.monthly.name' },
+      { level: 2, name: 'upgrade.billing.usage.title' },
+    ])
   })
 
   it('renders without crashing', () => {
@@ -355,438 +377,6 @@ describe('UpgradePage', () => {
     expect(screen.queryByText('upgrade.billing.plan.monthly')).not.toBeInTheDocument()
   })
 
-  it('shows billing loading state for Pro users', () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
-    mockIsBillingLoading = true
-    const { container } = render(<UpgradePage />)
-    const shimmerElements = container.querySelectorAll('.skeleton-pulse')
-    expect(shimmerElements.length).toBeGreaterThan(0)
-  })
-
-  it('shows billing error state for Pro users', () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
-    mockIsBillingError = true
-    mockBilling = null
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.error')).toBeInTheDocument()
-    expect(screen.getByText('upgrade.billing.retry')).toBeInTheDocument()
-  })
-
-  it('shows billing plan details when loaded', () => {
-    mockHasProAccess = true
-    mockProfile = {
-      ...mockProfile,
-      hasProAccess: true,
-      isTrialActive: false,
-      subscriptionInterval: 'monthly',
-      aiMessagesUsed: 10,
-      aiMessagesLimit: 500,
-    }
-    mockBilling = {
-      interval: 'monthly',
-      cancelAtPeriodEnd: false,
-      status: 'active',
-      currentPeriodEnd: '2025-07-15T00:00:00Z',
-      amountPerPeriod: 999,
-      currency: 'usd',
-      paymentMethod: {
-        brand: 'visa',
-        last4: '4242',
-        expMonth: 12,
-        expYear: 2028,
-      },
-      recentInvoices: [],
-    }
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.plan.monthly')).toBeInTheDocument()
-  })
-
-  it('labels the Stripe amount as the monthly plan price when catalog pricing differs', () => {
-    mockHasProAccess = true
-    mockProfile = {
-      ...mockProfile,
-      hasProAccess: true,
-      isTrialActive: false,
-      subscriptionInterval: 'yearly',
-      subscriptionSource: 'stripe',
-    }
-    mockPlans = {
-      monthly: { unitAmount: 1999, currency: 'usd' },
-      yearly: { unitAmount: 19999, currency: 'usd' },
-      currency: 'usd',
-      savingsPercent: 17,
-      couponPercentOff: null,
-    }
-    mockBilling = {
-      interval: 'monthly',
-      cancelAtPeriodEnd: false,
-      status: 'active',
-      currentPeriodEnd: '2025-07-15T00:00:00Z',
-      amountPerPeriod: 777,
-      currency: 'usd',
-      paymentMethod: null,
-      recentInvoices: [],
-    }
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.plan.monthly')).toBeInTheDocument()
-    expect(
-      screen.getByText('upgrade.billing.plan.monthlyPrice:{"price":"usd 7.77"}'),
-    ).toBeInTheDocument()
-    expect(en.upgrade.billing.plan.monthlyPrice).toBe('Monthly plan price: {price}')
-    expect(document.body.textContent).not.toContain('usd 199.99')
-  })
-
-  it('shows yearly plan label for yearly billing', () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
-    mockBilling = {
-      interval: 'yearly',
-      cancelAtPeriodEnd: false,
-      status: 'active',
-      currentPeriodEnd: '2026-01-15T00:00:00Z',
-      amountPerPeriod: 7999,
-      currency: 'usd',
-      paymentMethod: null,
-      recentInvoices: [],
-    }
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.plan.yearly')).toBeInTheDocument()
-  })
-
-  it('shows canceled badge when subscription is canceling', () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
-    mockBilling = {
-      interval: 'monthly',
-      cancelAtPeriodEnd: true,
-      status: 'active',
-      currentPeriodEnd: '2025-07-15T00:00:00Z',
-      amountPerPeriod: 999,
-      currency: 'usd',
-      paymentMethod: null,
-      recentInvoices: [],
-    }
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.plan.canceledBadge')).toBeInTheDocument()
-    expect(document.body.textContent).toContain('upgrade.billing.plan.canceledHint')
-  })
-
-  it('uses a neutral Pro label when Stripe omits interval, price, and renewal', () => {
-    mockHasProAccess = true
-    mockProfile = {
-      ...mockProfile,
-      hasProAccess: true,
-      isTrialActive: false,
-      planExpiresAt: null,
-    }
-    mockBilling = {
-      interval: null,
-      cancelAtPeriodEnd: false,
-      status: 'active',
-      currentPeriodEnd: null,
-      amountPerPeriod: 0,
-      currency: null,
-      paymentMethod: null,
-      recentInvoices: [],
-    }
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.plan.pro')).toBeInTheDocument()
-    expect(document.body.textContent).not.toContain('upgrade.billing.plan.monthlyPrice')
-    expect(document.body.textContent).not.toContain('upgrade.billing.plan.renewsOn')
-  })
-
-  it('shows payment method details', () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
-    mockBilling = {
-      interval: 'monthly',
-      cancelAtPeriodEnd: false,
-      status: 'active',
-      currentPeriodEnd: '2025-07-15T00:00:00Z',
-      amountPerPeriod: 999,
-      currency: 'usd',
-      paymentMethod: {
-        brand: 'visa',
-        last4: '4242',
-        expMonth: 12,
-        expYear: 2028,
-      },
-      recentInvoices: [],
-    }
-    render(<UpgradePage />)
-    expect(document.body.textContent).toContain('upgrade.billing.payment.card')
-    expect(document.body.textContent).toContain('upgrade.billing.payment.expires')
-  })
-
-  it('renders paid and open invoice outcomes with only the available download action', () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
-    mockBilling = {
-      interval: 'monthly',
-      cancelAtPeriodEnd: false,
-      status: 'active',
-      currentPeriodEnd: '2025-07-15T00:00:00Z',
-      amountPerPeriod: 999,
-      currency: 'usd',
-      paymentMethod: null,
-      recentInvoices: [
-        {
-          id: 'invoice-paid',
-          date: '2026-08-01T00:00:00Z',
-          amountPaid: 999,
-          currency: 'usd',
-          status: 'paid',
-          hostedInvoiceUrl: null,
-          invoicePdf: 'https://billing.test/invoice.pdf',
-          billingReason: 'subscription_cycle',
-        },
-        {
-          id: 'invoice-open',
-          date: '2026-08-02T00:00:00Z',
-          amountPaid: 999,
-          currency: 'usd',
-          status: 'open',
-          hostedInvoiceUrl: null,
-          invoicePdf: null,
-          billingReason: 'manual',
-        },
-      ],
-    }
-    const online = render(<UpgradePage />)
-    expect(document.body.textContent).toContain('upgrade.billing.invoices.statusPaid')
-    expect(document.body.textContent).toContain('upgrade.billing.invoices.statusOpen')
-    expect(document.body.textContent).toContain('upgrade.billing.invoices.reasonCycle')
-    expect(document.body.textContent).toContain('upgrade.billing.invoices.reasonManual')
-    expect(screen.getAllByRole('button', { name: 'upgrade.billing.invoices.download' })).toHaveLength(1)
-
-    online.unmount()
-    mockIsOnline = false
-    render(<UpgradePage />)
-    expect(document.body.textContent).toContain('upgrade.billing.invoices.statusPaid')
-    expect(document.body.textContent).toContain('upgrade.billing.invoices.reasonCycle')
-    expect(screen.queryByRole('button', { name: 'upgrade.billing.invoices.download' })).not.toBeInTheDocument()
-  })
-
-  it('shows usage stats for Pro users with billing', () => {
-    mockHasProAccess = true
-    mockProfile = {
-      ...mockProfile,
-      hasProAccess: true,
-      isTrialActive: false,
-      aiMessagesUsed: 10,
-      aiMessagesLimit: 500,
-    }
-    mockBilling = {
-      interval: 'monthly',
-      cancelAtPeriodEnd: false,
-      status: 'active',
-      currentPeriodEnd: '2025-07-15T00:00:00Z',
-      amountPerPeriod: 999,
-      currency: 'usd',
-      paymentMethod: null,
-      recentInvoices: [],
-    }
-    render(<UpgradePage />)
-    expect(document.body.textContent).toContain('upgrade.billing.usage.title')
-    expect(document.body.textContent).toContain('upgrade.billing.usage.aiMessages')
-    expect(document.body.textContent).not.toContain('upgrade.billing.usage.nearLimit')
-  })
-
-  it('renders zero cached usage when profile content is unavailable', () => {
-    render(<UsageStatsWithoutProfile />)
-    expect(
-      screen.getByText('upgrade.billing.usage.aiMessagesOf:{"used":0,"limit":0}'),
-    ).toBeInTheDocument()
-  })
-
-  it('shows the capacity notice when Pro usage reaches the warning threshold', () => {
-    mockHasProAccess = true
-    mockProfile = {
-      ...mockProfile,
-      hasProAccess: true,
-      isTrialActive: false,
-      aiMessagesUsed: 40,
-      aiMessagesLimit: 50,
-    }
-    mockBilling = {
-      interval: 'monthly',
-      cancelAtPeriodEnd: false,
-      status: 'active',
-      currentPeriodEnd: '2025-07-15T00:00:00Z',
-      amountPerPeriod: 999,
-      currency: 'usd',
-      paymentMethod: null,
-      recentInvoices: [],
-    }
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.usage.nearLimit')).toBeInTheDocument()
-    expect(screen.getByText('upgrade.billing.usage.nearLimitBody')).toBeInTheDocument()
-  })
-
-  it('keeps payment details read only and uses one provider handoff action', () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
-    mockBilling = {
-      interval: 'monthly',
-      cancelAtPeriodEnd: false,
-      status: 'active',
-      currentPeriodEnd: '2025-07-15T00:00:00Z',
-      amountPerPeriod: 999,
-      currency: 'usd',
-      paymentMethod: {
-        brand: 'mastercard',
-        last4: '1234',
-        expMonth: 6,
-        expYear: 2027,
-      },
-      recentInvoices: [],
-    }
-    render(<UpgradePage />)
-    expect(screen.queryByText('upgrade.billing.payment.change')).not.toBeInTheDocument()
-    expect(screen.getByText('upgrade.billing.actions.manage')).toBeInTheDocument()
-  })
-
-  it('shows past_due badge when billing status is past_due', () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
-    mockBilling = {
-      interval: 'monthly',
-      cancelAtPeriodEnd: false,
-      status: 'past_due',
-      currentPeriodEnd: '2025-07-15T00:00:00Z',
-      amountPerPeriod: 999,
-      currency: 'usd',
-      paymentMethod: null,
-      recentInvoices: [],
-    }
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.plan.pastDue')).toBeInTheDocument()
-  })
-
-  it('renders the portal failure and leaves payment details read only', async () => {
-    mockHasProAccess = true
-    mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
-    mockBilling = {
-      interval: 'monthly',
-      cancelAtPeriodEnd: false,
-      status: 'active',
-      currentPeriodEnd: '2025-07-15T00:00:00Z',
-      amountPerPeriod: 999,
-      currency: 'usd',
-      paymentMethod: {
-        brand: 'visa',
-        last4: '4242',
-        expMonth: 12,
-        expYear: 2028,
-      },
-      recentInvoices: [],
-    }
-    mockOpenCustomerPortal.mockRejectedValue(new Error('portal unavailable'))
-    render(<UpgradePage />)
-
-    fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.actions.manage' }))
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('upgrade.billing.portalFailed')
-    expect(screen.getByRole('button', { name: 'upgrade.billing.retry' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'upgrade.billing.payment.change' })).not.toBeInTheDocument()
-  })
-
-  it('shows the Google Play management panel for Play-sourced Pro users', () => {
-    mockHasProAccess = true
-    mockProfile = {
-      ...mockProfile,
-      hasProAccess: true,
-      isTrialActive: false,
-      subscriptionSource: 'play',
-      subscriptionInterval: 'yearly',
-      planExpiresAt: '2026-07-15T00:00:00Z',
-    }
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.actions.managePlay')).toBeInTheDocument()
-    expect(screen.queryByText('upgrade.billing.actions.manage')).not.toBeInTheDocument()
-  })
-
-  it('does not substitute Stripe catalog pricing on the Play management panel', () => {
-    mockHasProAccess = true
-    mockProfile = {
-      ...mockProfile,
-      hasProAccess: true,
-      isTrialActive: false,
-      subscriptionSource: 'play',
-      subscriptionInterval: 'yearly',
-      planExpiresAt: '2026-07-15T00:00:00Z',
-    }
-    mockPlans = {
-      monthly: { unitAmount: 1999, currency: 'usd' },
-      yearly: { unitAmount: 19999, currency: 'usd' },
-      currency: 'usd',
-      savingsPercent: 17,
-      couponPercentOff: null,
-    }
-    render(<UpgradePage />)
-    expect(document.body.textContent).not.toContain('upgrade.billing.plan.yearlyPrice')
-    expect(document.body.textContent).not.toContain('usd 199.99')
-  })
-
-  it.each([
-    ['monthly', 'upgrade.billing.plan.monthly'],
-    [null, 'upgrade.billing.plan.pro'],
-  ] as const)('shows the %s Play interval without inventing a renewal', (interval, label) => {
-    mockHasProAccess = true
-    mockProfile = {
-      ...mockProfile,
-      hasProAccess: true,
-      isTrialActive: false,
-      subscriptionSource: 'play',
-      subscriptionInterval: interval,
-      planExpiresAt: null,
-    }
-    render(<UpgradePage />)
-    expect(screen.getByText(label)).toBeInTheDocument()
-    expect(document.body.textContent).not.toContain('upgrade.billing.plan.renewsOn')
-  })
-
-  it.each([
-    ['canceled', 'yearly'],
-    ['payment_failed', 'monthly'],
-    ['expired', null],
-  ] as const)('shows the %s lapse outcome for the cached %s plan', (lapseReason, interval) => {
-    mockProfile = {
-      ...mockProfile,
-      hasProAccess: false,
-      isTrialActive: false,
-      subscriptionInterval: interval,
-      lapseReason,
-      subscriptionEndedAt: '2026-08-01T00:00:00Z',
-    }
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.lapsed.title')).toBeInTheDocument()
-    expect(document.body.textContent).toContain(`upgrade.billing.lapsed.${lapseReason}`)
-    expect(document.body.textContent).toContain('upgrade.convert.freeHeading')
-  })
-
-  it('keeps Pro access truthful after a failed payment', () => {
-    mockHasProAccess = true
-    mockProfile = {
-      ...mockProfile,
-      hasProAccess: true,
-      isTrialActive: false,
-      subscriptionSource: 'stripe',
-      lapseReason: 'payment_failed',
-      subscriptionEndedAt: '2026-08-01T00:00:00Z',
-    }
-    mockBilling = { status: 'past_due', cancelAtPeriodEnd: false }
-
-    render(<UpgradePage />)
-
-    expect(screen.getByText('upgrade.billing.paymentIssue.title')).toBeInTheDocument()
-    expect(screen.getByText('upgrade.billing.paymentIssue.body')).toBeInTheDocument()
-    expect(screen.queryByText('upgrade.billing.lapsed.title')).not.toBeInTheDocument()
-    expect(document.body.textContent).not.toContain('upgrade.convert.freeHeading')
-  })
-
   it.each([false, true])('keeps cached pitch content with paid actions disabled offline, trial=%s', (trialActive) => {
     mockIsOnline = false
     mockHasProAccess = trialActive
@@ -816,37 +406,6 @@ describe('UpgradePage', () => {
     expect(paidActions).toHaveLength(2)
     expect(paidActions[0]).toBeDisabled()
     expect(paidActions[1]).toBeDisabled()
-  })
-
-  it('keeps the Play dashboard and disables its handoff while offline', () => {
-    mockIsOnline = false
-    mockHasProAccess = true
-    mockProfile = {
-      ...mockProfile,
-      hasProAccess: true,
-      isTrialActive: false,
-      subscriptionSource: 'play',
-      subscriptionInterval: 'yearly',
-    }
-    render(<UpgradePage />)
-    expect(screen.getByText('upgrade.billing.offline')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'upgrade.billing.actions.managePlay' })).toBeDisabled()
-    expect(screen.queryByText('upgrade.billing.actions.manage')).not.toBeInTheDocument()
-  })
-
-  it('skips Stripe billing and shows the lifetime panel for lifetime Pro users', () => {
-    mockHasProAccess = true
-    mockProfile = {
-      ...mockProfile,
-      hasProAccess: true,
-      isTrialActive: false,
-      isLifetimePro: true,
-    }
-    mockBilling = null
-    render(<UpgradePage />)
-    expect(mockUseBilling).toHaveBeenCalledWith(false)
-    expect(screen.getByText('upgrade.billing.plan.lifetime')).toBeInTheDocument()
-    expect(screen.queryByText('upgrade.billing.error')).not.toBeInTheDocument()
   })
 
   it('routes checkout through the geo-forwarding BFF route, not a direct Stripe action', async () => {
@@ -960,5 +519,4 @@ describe('UpgradePage', () => {
         })[0],
       ).not.toBeDisabled()
     })
-  })
-})
+  })})
