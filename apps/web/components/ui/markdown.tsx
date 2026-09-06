@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { marked } from 'marked'
+import { marked, Renderer, type Tokens } from 'marked'
 import DOMPurify from 'dompurify'
 
 interface MarkdownProps {
@@ -33,45 +33,89 @@ const ALLOWED_TAGS = [
 ]
 const ALLOWED_ATTR = ['href', 'target', 'rel']
 
-function isAbsoluteWebLink(href: string | null): boolean {
+function isAbsoluteWebLink(href: string): boolean {
   try {
-    const { protocol } = new URL(href ?? '')
+    const { protocol } = new URL(href)
     return protocol === 'http:' || protocol === 'https:'
   } catch {
     return false
   }
 }
 
+function escapeHtml(text: string): string {
+  return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#39;')
+}
+
+function linkAttributes(href: string): string {
+  try {
+    const { protocol } = new URL(href, 'https://markdown.invalid')
+    if (!/^(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix):$/i.test(protocol)) return ''
+    const context = isAbsoluteWebLink(href) ? ' target="_blank" rel="noopener noreferrer"' : ''
+    return ` href="${escapeHtml(href)}"${context}`
+  } catch {
+    return ''
+  }
+}
+
+class ProseRenderer extends Renderer {
+  override html({ text }: Tokens.HTML | Tokens.Tag): string {
+    return escapeHtml(text)
+  }
+
+  override link({ href, tokens }: Tokens.Link): string {
+    return `<a${linkAttributes(href)}>${this.parser.parseInline(tokens)}</a>`
+  }
+
+  override image(): string {
+    return ''
+  }
+
+  override hr(): string {
+    return ''
+  }
+
+  override checkbox(): string {
+    return ''
+  }
+
+  override del({ tokens }: Tokens.Del): string {
+    return this.parser.parseInline(tokens)
+  }
+
+  override heading(token: Tokens.Heading): string {
+    return token.depth <= 3 ? super.heading(token) : `${this.parser.parseInline(token.tokens)}\n`
+  }
+
+  override code(token: Tokens.Code): string {
+    return super.code({ ...token, lang: undefined })
+  }
+
+  override list(token: Tokens.List): string {
+    return super.list({ ...token, start: 1 })
+  }
+
+  override tablecell(token: Tokens.TableCell): string {
+    return super.tablecell({ ...token, align: null })
+  }
+}
+
 /**
  * The single web markdown renderer for chat messages and habit/goal
- * descriptions. Parses with `marked`, then sanitizes through DOMPurify with a
- * fixed tag/attribute allowlist (no scripts, no event handlers, links only) and
- * renders inside the `.prose-orbit` typographic scope.
+ * descriptions. Escapes raw HTML and emits allowlisted Markdown on both server
+ * and client, with DOMPurify providing additional client-side sanitization.
  */
 export function Markdown({ content, className }: Readonly<MarkdownProps>) {
+  const renderer = useMemo(() => new ProseRenderer(), [])
   const html = useMemo(() => {
     if (!content) return ''
-    const raw = marked.parse(content, { async: false })
-    const sanitized = DOMPurify.sanitize(raw, {
-      ALLOWED_TAGS,
-      ALLOWED_ATTR,
-      RETURN_DOM_FRAGMENT: true,
-    })
-    for (const anchor of sanitized.querySelectorAll('a')) {
-      if (isAbsoluteWebLink(anchor.getAttribute('href'))) {
-        anchor.setAttribute('target', '_blank')
-        anchor.setAttribute('rel', 'noopener noreferrer')
-      } else {
-        anchor.removeAttribute('target')
-        anchor.removeAttribute('rel')
-      }
-    }
-    const container = document.createElement('div')
-    container.appendChild(sanitized)
-    return container.innerHTML
+    const raw = marked.parse(content, { async: false, renderer })
+    // DOMPurify has no sanitizer without a DOM; the renderer enforces the policy before this optional client pass. https://github.com/thomasluizon/orbit-tickets/issues/314
+    const sanitized = DOMPurify.isSupported ? DOMPurify.sanitize(raw, { ALLOWED_TAGS, ALLOWED_ATTR }) : raw
+    return sanitized
       .replaceAll('<pre>', '<pre tabindex="0">')
       .replaceAll('<table>', '<table tabindex="0">')
-  }, [content])
+  }, [content, renderer])
 
   if (!html) return null
 

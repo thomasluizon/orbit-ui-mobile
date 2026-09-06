@@ -13,12 +13,10 @@ describe('Markdown', () => {
     '<a href="  https://example.com  ">docs</a>',
     '<a href="ht&#9;tps://example.com">docs</a>',
     '<a href="&#1;https://example.com">docs</a>',
-  ])('isolates raw absolute anchors after sanitization: %s', (content) => {
+  ])('renders raw absolute anchors as text: %s', (content) => {
     const { container } = render(<Markdown content={content} />)
-    const link = container.querySelector('a')
-    expect(link).toHaveAttribute('href')
-    expect(link).toHaveAttribute('target', '_blank')
-    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(container.querySelector('a')).toBeNull()
+    expect(container.textContent.trimEnd()).toBe(content)
   })
 
   it.each([
@@ -29,12 +27,10 @@ describe('Markdown', () => {
     '<a href="javascript:alert(1)" target="_blank" rel="opener">unsafe</a>',
     '<a href="data:text/html,unsafe" target="_blank" rel="opener">unsafe</a>',
     '<a target="_blank" rel="opener">no destination</a>',
-  ])('strips caller-supplied context from raw non-web anchors: %s', (content) => {
+  ])('renders raw non-web anchors and their supplied targets as text: %s', (content) => {
     const { container } = render(<Markdown content={content} />)
-    const link = container.querySelector('a')
-    expect(link).not.toBeNull()
-    expect(link).not.toHaveAttribute('target')
-    expect(link).not.toHaveAttribute('rel')
+    expect(container.querySelector('a')).toBeNull()
+    expect(container.textContent.trimEnd()).toBe(content)
   })
 
   it.each([
@@ -88,12 +84,13 @@ describe('Markdown', () => {
     expect(container.querySelectorAll('li')).toHaveLength(2)
   })
 
-  it('strips script tags and event handlers (XSS safe)', () => {
+  it('renders script tags and event handlers as inert text', () => {
     const { container } = render(
       <Markdown content={'<script>alert(1)</script><img src=x onerror="alert(1)">'} />,
     )
     expect(container.querySelector('script')).toBeNull()
-    expect(container.innerHTML).not.toContain('onerror')
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.textContent).toBe('<script>alert(1)</script><img src=x onerror="alert(1)">')
   })
 
   it('renders nothing for empty content', () => {
