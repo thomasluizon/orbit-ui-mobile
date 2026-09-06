@@ -16,11 +16,13 @@ import { TodayDateControl } from './today-shell'
 import { useShellComposerSlot } from '@/components/shell/destination-shell'
 import type { TodayView } from './use-today-page'
 
-const SelectionTray = dynamic(() =>
-  import('@/components/habits/selection-tray').then((module) => module.SelectionTray),
+const SelectionTray = dynamic(
+  () => import('@/components/habits/selection-tray').then((module) => module.SelectionTray),
+  { loading: () => null },
 )
-const ConfirmSheet = dynamic(() =>
-  import('@/components/ui/confirm-sheet').then((module) => module.ConfirmSheet),
+const ConfirmSheet = dynamic(
+  () => import('@/components/ui/confirm-sheet').then((module) => module.ConfirmSheet),
+  { loading: () => null },
 )
 
 function boundaryKey(boundary: ReturnType<typeof getTodayBoundary>): string | null {
