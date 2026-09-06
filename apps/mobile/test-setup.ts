@@ -1,6 +1,8 @@
 import { vi } from 'vitest'
 import React from 'react'
 
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+
 ;(globalThis as { __DEV__?: boolean }).__DEV__ = true
 
 vi.mock('react-native', async () => {

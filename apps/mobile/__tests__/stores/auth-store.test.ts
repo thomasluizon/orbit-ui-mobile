@@ -28,6 +28,7 @@ const {
   clearStoredAuthReturnUrlMock,
   clearMessagesMock,
   offlineQueueClearMock,
+  retainAccountMock,
   clearOfflineStateMock,
   unsubscribePushTokenMock,
   fetchMock,
@@ -51,6 +52,7 @@ const {
   clearStoredAuthReturnUrlMock: vi.fn(),
   clearMessagesMock: vi.fn(),
   offlineQueueClearMock: vi.fn(),
+  retainAccountMock: vi.fn(),
   clearOfflineStateMock: vi.fn(),
   unsubscribePushTokenMock: vi.fn(),
   fetchMock: vi.fn(),
@@ -89,6 +91,7 @@ vi.mock('@/lib/api-client', () => ({
 
 vi.mock('@/lib/offline-queue', () => ({
   clear: offlineQueueClearMock,
+  retainAccount: retainAccountMock,
 }))
 
 vi.mock('@/lib/offline-mutations', () => ({
@@ -162,6 +165,7 @@ describe('mobile auth store security paths', () => {
     clearStoredAuthReturnUrlMock.mockReset()
     clearMessagesMock.mockReset()
     offlineQueueClearMock.mockReset()
+    retainAccountMock.mockReset()
     clearOfflineStateMock.mockReset()
     unsubscribePushTokenMock.mockReset()
     fetchMock.mockReset()
@@ -474,10 +478,10 @@ describe('mobile auth store security paths', () => {
     expect(cancelPersistentReminderMock).toHaveBeenCalledTimes(1)
   })
 
-  it('clears the offline queue and offline state before establishing a new session on login', async () => {
+  it('filters queue ownership and clears offline state before establishing a new session on login', async () => {
     const order: string[] = []
-    offlineQueueClearMock.mockImplementation(() => {
-      order.push('offlineQueue.clear')
+    retainAccountMock.mockImplementation(() => {
+      order.push('offlineQueue.retainAccount')
     })
     clearOfflineStateMock.mockImplementation(() => {
       order.push('clearOfflineState')
@@ -490,9 +494,10 @@ describe('mobile auth store security paths', () => {
       name: 'User',
     })
 
-    expect(offlineQueueClearMock).toHaveBeenCalledTimes(1)
+    expect(retainAccountMock).toHaveBeenCalledWith('user-1')
+    expect(offlineQueueClearMock).not.toHaveBeenCalled()
     expect(clearOfflineStateMock).toHaveBeenCalledTimes(1)
-    expect(order).toContain('offlineQueue.clear')
+    expect(order).toContain('offlineQueue.retainAccount')
     expect(order).toContain('clearOfflineState')
     expect(useAuthStore.getState().isAuthenticated).toBe(true)
   })
