@@ -99,6 +99,15 @@ it('pauses both retained consumers through the app focus bridge and resumes one 
   expect(apiClient).toHaveBeenCalledTimes(1)
 })
 
+it('refreshes a fresh notification cache immediately when Android returns active with both consumers attached', async () => {
+  TestRenderer.act(() => { tree = TestRenderer.create(retainedStack(true)) })
+  expect(apiClient).not.toHaveBeenCalled()
+  await TestRenderer.act(() => { listeners.forEach((listener) => listener('background')) })
+  expect(apiClient).not.toHaveBeenCalled()
+  await TestRenderer.act(() => { listeners.forEach((listener) => listener('active')) })
+  expect(apiClient).toHaveBeenCalledTimes(1)
+})
+
 it('does not start a poll when the retained consumers mount while unfocused', async () => {
   focusManager.setFocused(false)
   const interval = vi.spyOn(globalThis, 'setInterval')

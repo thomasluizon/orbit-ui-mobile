@@ -247,7 +247,7 @@ describe('mobile notification hooks', () => {
     }
   })
 
-  it('pauses polling through query focus and resumes after foreground', () => {
+  it('pauses polling through query focus and invalidates immediately after foreground', () => {
     vi.useFakeTimers()
     const handle = renderHook(() => useNotifications())
     try {
@@ -255,7 +255,6 @@ describe('mobile notification hooks', () => {
       vi.advanceTimersByTime(NOTIFICATIONS_REFETCH_INTERVAL)
       expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
       focusManager.setFocused(true)
-      vi.advanceTimersByTime(NOTIFICATIONS_REFETCH_INTERVAL)
       expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledExactlyOnceWith({
         queryKey: notificationKeys.lists(),
       })
