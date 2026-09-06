@@ -207,7 +207,7 @@ Drive the production path: advance replay timers, enter the affected mode, asser
 
 Both observations must reach the pull request body: unchanged test with the defect present, and strengthened test failing before the fix. Name the test, exact commands, and observed outcomes, including the passing result after the fix. If either observation cannot be obtained, report why; never claim an unobserved result.
 ${cloud
-  ? "Record both observations in the committed handoff's `testResults` for the orchestrator to carry into the PR body."
+  ? "Record both observations in the committed handoff's `testResults` for the orchestrator to carry into the PR body's `## Test evidence` section."
   : "Put both observations in the PR body's `## Test evidence` section."}`
 
 const finishing = `## Finishing contract

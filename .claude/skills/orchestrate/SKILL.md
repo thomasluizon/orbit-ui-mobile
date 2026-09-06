@@ -597,8 +597,12 @@ do not run readiness or merge until Thomas answers and the resulting work is ver
 
 On success, read `assumptions` using step 7's adjudication rule, and carry them verbatim into the PR
 body's `## Assumptions`. Carry `manualSteps` into `## Manual steps`, including each exact key,
-location and proof, and carry `testResults` into validation. Save the resulting PR body in the
-scratchpad before delivery. Only after reading the durable receipt, restore
+location and proof. Carry `materialized.handoff.testResults` verbatim into the eventual PR body's
+`## Test evidence` section: the materializer returns that section as `pullRequestBody` on initial
+delivery and receipt retries. Include that returned section unchanged in the final body alongside
+the change summary, assumptions and manual steps; append local validation results without replacing
+the worker's observations. Save the resulting PR body in the scratchpad before delivery and use
+that saved body when opening or updating the PR. Only after reading the durable receipt, restore
 `.claude/cloud-handoff.json` to HEAD in the index and worktree, removing a newly added artifact if
 needed; it is transport, not product source. Receipt retries return the preserved handoff without
 reapplying the diff. A legacy receipt without `handoffRequired` has no such proof: recover the full
