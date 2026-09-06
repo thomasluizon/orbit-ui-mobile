@@ -200,6 +200,10 @@ commit added a mock that agreed with the guess, so the harness stayed green over
 
 const finishing = `## Finishing contract
 
+Before committing, if your change alters routes, endpoints, or module structure,
+run \`node tools/arch-map.mjs\`. Stage \`architecture.json\` and \`architecture.html\` only if the generator changed them;
+include the changed artifacts in the same commit as the source change.
+
 **Commit as soon as the code compiles and the focused tests pass. Run the broader suite after.**
 
 That order is the contract, not a preference. Measured: one worker spent its entire 45-minute
