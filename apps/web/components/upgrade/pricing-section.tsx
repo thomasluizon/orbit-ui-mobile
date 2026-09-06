@@ -62,9 +62,9 @@ export function PricingSection({
         <p className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)]">
           {eyebrow}
         </p>
-        <h1 className="t-display-heading text-pretty">
+        <h2 className="t-display-heading text-pretty">
           {heading}
-        </h1>
+        </h2>
         <p className="t-secondary max-w-[46ch] text-pretty">
           {t('upgrade.convert.promise')}
         </p>
@@ -123,7 +123,7 @@ export function PricingSection({
             <div className="flex flex-col items-start gap-2">
               <p
                 role="alert"
-                className="text-left text-sm leading-[1.55] text-[var(--status-bad)]"
+                className="text-left text-sm leading-[1.55] text-[var(--fg-2)]"
               >
                 {checkoutError}
               </p>

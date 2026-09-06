@@ -45,6 +45,14 @@ describe('resolveSubscriptionScreen', () => {
     expect(resolve(overrides)).toMatchObject({ state: expected })
   })
 
+  it('recognizes a lapsed plan from the end date without a reason', () => {
+    expect(resolve({ status: { ...status, plan: 'free', hasProAccess: false, lapseReason: null, subscriptionEndedAtUtc: '2026-09-01T00:00:00Z' } })).toMatchObject({ state: 'lapsed' })
+  })
+
+  it('keeps lifetime access out of the Play handoff even with a retained Play source', () => {
+    expect(resolve({ status: { ...status, source: 'play', isLifetimePro: true } })).toMatchObject({ state: 'lifetime', content: 'stripe' })
+  })
+
   it('keeps monthly as a first-class interval axis', () => {
     expect(resolve({ status: { ...status, subscriptionInterval: 'monthly' } })).toMatchObject({
       state: 'stripe',
