@@ -656,6 +656,33 @@ typedTester.run('icon-size-grid', rule('icon-size-grid'), {
     'declare const Check: (props: { size?: number }) => unknown; export const a = <Check size={13} />',
   ]),
   invalid: inSubject([
+    // Each regression also renders a control that must stay silent. One diagnostic proves
+    // that conditions on the icon are checked without treating another node as the icon.
+    ...[
+      ['sm:size-[22px]', 'sm:size-[24px]'],
+      ['hover:w-[22px]', 'hover:w-[16px]'],
+      ['focus:h-[22px]', 'focus:h-[20px]'],
+      ['dark:size-[22px]', '[&_path]:w-[22px]'],
+      ['size-[22px]!', 'before:size-[22px]'],
+      ['group-hover:size-[22px]', 'after:h-[22px]'],
+      ['md:dark:hover:size-[22px]!', 'sm:before:w-[22px]!'],
+      ['peer-focus:w-[22px]', 'hover:[&_path]:w-[22px]!'],
+      ['data-[state=open]:h-[22px]', '[&:hover_path]:h-[22px]'],
+      ['supports-[display:grid]:size-[22px]', '*:w-[22px]'],
+      ['min-[500px]:size-[22px]', '**:h-[22px]'],
+      ['[@media(min-width:500px)]:size-[22px]', 'first-letter:w-[22px]'],
+      ['has-[:focus]:size-[22px]', 'first-line:h-[22px]'],
+      ['group-[:nth-of-type(3)_&]:w-[22px]', 'marker:w-[22px]'],
+      ['@sm/card:h-[22px]', 'selection:h-[22px]'],
+      ['not-hover:w-[22px]', 'file:w-[22px]'],
+      ['aria-checked:h-[22px]!', 'placeholder:h-[22px]'],
+      ['motion-safe:size-[22px]', 'backdrop:w-[22px]'],
+      ['sm:w-[22px]!', 'details-content:h-[22px]'],
+      ['focus:h-[22px]!', 'sm:w-[16px]! hover:h-[20px]! dark:size-[24px]!'],
+    ].map(([offGrid, control]) => ({
+      code: `import { Check } from './icons'; export const a = <><Check className="${offGrid}" /><Check className="${control}" /></>`,
+      errors: [{ messageId: 'offGridIconSize', data: { size: '22' }, type: 'JSXAttribute', column: 60 }],
+    })),
     ...[
       'className="size-[22px]"',
       'className="w-[22px] h-[22px]"',

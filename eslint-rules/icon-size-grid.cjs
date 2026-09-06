@@ -37,9 +37,14 @@
  *   - class names reached through variables, spreads, or runtime interpolation.
  *     Only literal string parts of `className` are scanned, including branches
  *     and class-builder arguments; class-builder execution is not evaluated.
- *   - classes other than bare `size-[Npx]`, `w-[Npx]` and `h-[Npx]` tokens.
- *     Variants, important modifiers, other units, CSS variables, calc(), and
- *     theme spacing classes are not resolved. Neither are styles or stylesheets.
+ *   - arbitrary selector variants (`[&_path]:`), child selectors (`*:` / `**:`),
+ *     and pseudo-element variants (`before:` etc.). Those can size another node.
+ *     Arbitrary selectors are not interpreted, even if one would target the icon.
+ *     Named variants are treated as conditions; custom variant definitions are not read.
+ *   - classes other than `size-[Npx]`, `w-[Npx]` and `h-[Npx]`, optionally under
+ *     conditions or with a trailing important `!`. Other units, CSS variables,
+ *     calc(), theme spacing classes, and legacy leading `!` are not resolved.
+ *     Neither are styles or stylesheets.
  *   - which declaration wins the CSS cascade. Each off-grid literal is reported
  *     even if another class or a style would override it at runtime.
  */
@@ -69,13 +74,56 @@ const staticSize = (node) => {
   return null
 }
 
+// These built-in variants select pseudo-elements, not the icon's width or height.
+const PSEUDO_ELEMENTS = new Set([
+  'before', 'after', 'first-letter', 'first-line', 'marker', 'selection',
+  'file', 'placeholder', 'backdrop', 'details-content',
+])
+
+// Colons inside arbitrary values belong to the condition or selector, not the stack.
+const splitVariants = (token) => {
+  const parts = []
+  let depth = 0
+  let quote = null
+  let start = 0
+  for (let index = 0; index < token.length; index++) {
+    const character = token[index]
+    if (character === '\\') {
+      index++
+    } else if (quote) {
+      if (character === quote) quote = null
+    } else if (character === '"' || character === "'") {
+      quote = character
+    } else if (character === '[' || character === '(') {
+      depth++
+    } else if (character === ']' || character === ')') {
+      depth--
+    } else if (character === ':' && depth === 0) {
+      parts.push(token.slice(start, index))
+      start = index + 1
+    }
+  }
+  parts.push(token.slice(start))
+  return parts
+}
+
+const iconUtility = (token) => {
+  const variants = splitVariants(token)
+  const utility = variants.pop()
+  // Standalone brackets carry selectors, except at-rules, which carry conditions.
+  // Brackets within named variants (has-[], group-[], data-[]) still condition this node.
+  if (variants.some((variant) => PSEUDO_ELEMENTS.has(variant) || /^\*{1,2}$/.test(variant) ||
+    (variant.startsWith('[') && !variant.startsWith('[@')))) return null
+  return utility.endsWith('!') ? utility.slice(0, -1) : utility
+}
+
 // Check each dimension independently: a legal width cannot excuse an off-grid height.
 // Repeated values (including a square w/h pair) need only one diagnostic per attribute.
 const classSizes = (attribute) => {
   const sizes = new Set()
   for (const part of collectStaticStrings(getAttributeValueNode(attribute))) {
     for (const token of part.split(/\s+/)) {
-      const match = /^(?:size|w|h)-\[(\d+(?:\.\d+)?)px\]$/.exec(token)
+      const match = /^(?:size|w|h)-\[(\d+(?:\.\d+)?)px\]$/.exec(iconUtility(token))
       if (match && !ALLOWED.has(Number(match[1]))) sizes.add(Number(match[1]))
     }
   }
