@@ -42,7 +42,7 @@ export interface SubscriptionScreenModel {
 
 function resolvePitchState(status: SubscriptionStatus): SubscriptionScreenState {
   if (status.plan === 'pro' && status.isTrialActive) return 'trial'
-  if (status.lapseReason) return 'lapsed'
+  if (status.lapseReason || status.subscriptionEndedAtUtc) return 'lapsed'
   return 'free'
 }
 
@@ -67,7 +67,7 @@ export function resolveSubscriptionScreen(
   const status = input.status
   const isManageView = Boolean(status?.hasProAccess && !status.isTrialActive)
   const content: SubscriptionScreenContent = isManageView
-    ? status?.source === 'play'
+    ? status?.source === 'play' && !status.isLifetimePro
       ? 'play'
       : 'stripe'
     : 'pitch'

@@ -1,7 +1,6 @@
 import { useTranslations } from 'next-intl'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
-import { cardLabelStyle, cardSurface, metaTextStyle } from './styles'
 
 export function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
   usagePercent: number
@@ -11,16 +10,16 @@ export function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
 }>) {
   return (
     <div className="flex flex-col gap-3">
-    <div className="flex flex-col gap-2 rounded-[var(--r-card)] p-6" style={cardSurface}>
-      <div style={cardLabelStyle}>{t('upgrade.billing.usage.title')}</div>
-      <div className="flex items-baseline justify-between">
-        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-1)' }}>
+    <section className="flex flex-col gap-2">
+      <h2 className="text-sm font-medium text-[var(--fg-2)]">{t('upgrade.billing.usage.title')}</h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-1)' }}>
           {t('upgrade.billing.usage.aiMessages')}
         </span>
         <span
           style={{
-            ...metaTextStyle,
-            color: usageUrgent ? 'var(--status-overdue-text)' : 'var(--fg-2)',
+            fontFamily: 'var(--font-mono)', fontSize: 12, lineHeight: 1.4, fontVariantNumeric: 'tabular-nums',
+            color: 'var(--fg-3)',
           }}
         >
           {t('upgrade.billing.usage.aiMessagesOf', {
@@ -34,7 +33,7 @@ export function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
         label={t('upgrade.billing.usage.aiMessages')}
 
       />
-    </div>
+    </section>
     {usageUrgent ? (
       <CapacityNotice
         message={t('upgrade.billing.usage.nearLimit')}
