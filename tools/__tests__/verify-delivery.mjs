@@ -145,6 +145,7 @@ export const cases = () => {
 export const resolveTicket = (reference) => {
   const value = String(reference).toUpperCase()
   if (value === "ORB-200") return { identifier: "ORB-200", number: 200 }
+  if (value === "#393") return { identifier: null, number: 393 }
   if (value === "#9001" || value === "9001") return { identifier: null, number: 9001 }
   throw new Error("Unknown migrated ticket " + reference)
 }
@@ -319,6 +320,43 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     { status: 0, stdout: /"issue": "#9001"[\s\S]*"verdict": "DELIVERED"/ },
     { path: testedToolPath, env: ghPlan(JSON.stringify([numericPullRequest])) },
   )
+
+  const ticketRepository = hermeticConfig.tickets.repository
+  for (const [name, reference, title, body, linked] of [
+    ["canonical closing reference alone links the ticket", "#393", "Fix delivery linking", "Closes thomasluizon/orbit-tickets#393", true],
+    ["a qualified numeric suffix does not link the ticket", "#393", "Fix delivery linking", "thomasluizon/orbit-tickets#3931", false],
+    ["a qualified alphabetic suffix does not link the ticket", "#393", "Fix delivery linking", `${ticketRepository}#393a`, false],
+    ["a bare reference remains accepted for compatibility", "#393", "Fix delivery linking", "Implements #393.", true],
+    ["a bare numeric suffix does not link the ticket", "#393", "Fix delivery linking", "#3931", false],
+    ["a qualified title alone links the ticket", "#393", `${ticketRepository}#393`, "", true],
+    ["qualified references are case insensitive and allow punctuation", "#393", "Fix delivery linking", `(${ticketRepository.toUpperCase()}#393).`, true],
+    ["another repository does not link the ticket", "#393", "Fix delivery linking", "thomasluizon/orbit-ui-mobile#393", false],
+    ["another owner does not link by suffix", "#393", "Fix delivery linking", `other-${ticketRepository}#393`, false],
+    ["a migrated identifier accepts its canonical numeric reference", "ORB-200", "Fix delivery linking", `${ticketRepository}#200`, true],
+  ]) {
+    const result = check(
+      TOOL,
+      name,
+      ["--issue", reference, "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+      { status: linked ? 0 : 1, stdout: new RegExp(`"verdict": "${linked ? "DELIVERED" : "UNLINKED_PR"}"`) },
+      { path: testedToolPath, env: ghPlan(JSON.stringify([{ ...pullRequest(pushed.head), title, body }])) },
+    )
+    T(`${TOOL}: ${name} reports linksTicket`, JSON.parse(result.stdout).checks.linksTicket.pass === linked, result.stdout)
+  }
+
+  /** A different owner and a literal dot prove the matcher reads and escapes the configured slug. */
+  const configuredRepository = "another-owner/ticket.archive"
+  writeFileSync(hermeticStaged.configPath, JSON.stringify({ ...hermeticConfig, tickets: { ...hermeticConfig.tickets, repository: configuredRepository } }))
+  for (const [repository, linked] of [[configuredRepository, true], [ticketRepository, false], ["another-owner/ticketXarchive", false]]) {
+    check(
+      TOOL,
+      `configured ticket repository matches ${repository}: ${linked}`,
+      ["--issue", "#393", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+      { status: linked ? 0 : 1, stdout: new RegExp(`"verdict": "${linked ? "DELIVERED" : "UNLINKED_PR"}"`) },
+      { path: testedToolPath, env: ghPlan(JSON.stringify([{ ...pullRequest(pushed.head), title: "Fix delivery linking", body: `Closes ${repository}#393` }])) },
+    )
+  }
+  writeFileSync(hermeticStaged.configPath, JSON.stringify(hermeticConfig))
 
   /**
    * Pullfrog publishes `pullfrog-approval`, which branch protection requires on `main` and pins to
