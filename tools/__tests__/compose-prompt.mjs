@@ -126,6 +126,20 @@ export const cases = () => {
     options(ticketPlan()),
   )
   const cloudPrompt = composed(cloudOut)
+  for (const [mode, order, heading] of [
+    ["local", prompt, "## Finishing contract"],
+    ["Cloud", cloudPrompt, "## Cloud finishing contract"],
+  ]) {
+    const contract = order.slice(order.indexOf(heading))
+    T(
+      `${TOOL}: ${mode} finishing regenerates architecture before committing a structural change`,
+      /Before committing, if your change alters routes, endpoints, or module structure,/.test(contract) &&
+        /run `node tools\/arch-map\.mjs`/.test(contract) &&
+        /Stage `architecture\.json` and `architecture\.html` only if the generator changed them/.test(contract) &&
+        /include the changed artifacts in the same commit as the source change/.test(contract),
+      contract,
+    )
+  }
   T(
     `${TOOL}: Cloud retains the ticket and decision escalation without instructions to push or open a PR`,
     cloudPrompt.startsWith("# Ticket body\n\nKeep this verbatim.") &&
