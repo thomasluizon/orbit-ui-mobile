@@ -460,7 +460,8 @@ describe('CreateHabitModal (mobile)', () => {
 
   it('creates the habit and closes on a successful submit', async () => {
     const onClose = vi.fn()
-    const tree = renderModal(<CreateHabitModal open onClose={onClose} />)
+    const onCreated = vi.fn()
+    const tree = renderModal(<CreateHabitModal open onClose={onClose} onCreated={onCreated} />)
 
     await TestRenderer.act(async () => {
 await Promise.resolve()
@@ -468,6 +469,7 @@ await Promise.resolve()
     })
 
     expect(mockCreateMutateAsync).toHaveBeenCalledTimes(1)
+    expect(onCreated).toHaveBeenCalledOnce()
     expect(mockSuggestMutateAsync).not.toHaveBeenCalled()
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(mockShowError).not.toHaveBeenCalled()

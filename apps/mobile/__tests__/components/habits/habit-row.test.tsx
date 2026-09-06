@@ -1,6 +1,7 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
+import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { StyleSheet } from 'react-native'
 import {
   __resetTestHostConfig,
@@ -416,5 +417,33 @@ describe('HabitRow menu (mobile)', () => {
     expect(text).toContain('common.edit')
     expect(text).not.toContain('habits.actions.skip')
     expect(onLog).not.toHaveBeenCalled()
+  })
+})
+
+
+describe('offline row presentation', () => {
+  it('keeps the logged row identical across all queue notice states', () => {
+    const habit = createMockHabit({ title: 'Walk', isCompleted: true })
+    let tree: { toJSON: () => unknown; update: (element: React.ReactNode) => void; unmount: () => void }
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitRow habit={habit} />) })
+    const onlineRow = JSON.stringify(tree!.toJSON())
+    for (const state of [
+      { isFlushing: false, isRetrying: false },
+      { isFlushing: true, isRetrying: false },
+      { isFlushing: false, isRetrying: true },
+      { isFlushing: false, isRetrying: false },
+    ]) {
+      TestRenderer.act(() => { useOfflineSyncStore.setState(state); tree.update(<HabitRow habit={habit} />) })
+      expect(JSON.stringify(tree!.toJSON())).toBe(onlineRow)
+    }
+    TestRenderer.act(() => {
+      useOfflineSyncStore.setState({ drops: [{ id: 'lost-log', type: 'logHabit', lastError: '500', mutation: {
+        id: 'lost-log', type: 'logHabit', timestamp: 1, retries: 3, maxRetries: 3,
+        endpoint: '/api/habits/walk/log', method: 'POST', payload: null,
+      } }] })
+      tree.update(<HabitRow habit={habit} />)
+    })
+    expect(JSON.stringify(tree!.toJSON())).toBe(onlineRow)
+    TestRenderer.act(() => { tree.unmount(); useOfflineSyncStore.setState({ isFlushing: false, isRetrying: false, drops: [] }) })
   })
 })
