@@ -623,6 +623,19 @@ const inSubject = (cases) =>
 
 typedTester.run('icon-size-grid', rule('icon-size-grid'), {
   valid: inSubject([
+    ...[16, 20, 24].flatMap((size) => [
+      `import { Check } from './icons'; export const a = <Check className="size-[${size}px]" />`,
+      `import { Check } from './icons'; export const a = <Check className="w-[${size}px] h-[${size}px]" />`,
+    ]),
+    'import { Check } from \'./icons\'; export const a = <Check className="size-6 min-w-[22px] max-h-[22px]" />',
+    'import { Check } from \'./icons\'; export const a = <Check className="size-[1.5rem] size-[var(--icon-size)]" />',
+    'import { Check } from \'./icons\'; declare const classes: string; export const a = <Check className={classes} />',
+    'import { Check } from \'./icons\'; export const a = <Check className="[&_path]:w-[22px]" />',
+    '<div className="size-[22px] w-[18px] h-[18px]" />',
+    'declare const Card: (props: { className?: string }) => unknown; export const a = <Card className="size-[22px]" />',
+    ...['OrbitMark', 'AstraGlyph'].map((name) =>
+      `declare const ${name}: (props: { className?: string }) => unknown; export const a = <${name} className="size-[96px] w-[48px] h-[48px]" />`,
+    ),
     "import { Check } from './icons'; export const a = <Check size={16} />",
     "import { Check } from './icons'; export const a = <Check size={20} />",
     "import { Check } from './icons'; export const a = <Check size={24} />",
@@ -643,6 +656,42 @@ typedTester.run('icon-size-grid', rule('icon-size-grid'), {
     'declare const Check: (props: { size?: number }) => unknown; export const a = <Check size={13} />',
   ]),
   invalid: inSubject([
+    ...[
+      'className="size-[22px]"',
+      'className="w-[22px] h-[22px]"',
+      'className="h-[22px] shrink-0 w-[22px]"',
+      'className={"size-[22px]"}',
+      'className={`size-[22px]`}',
+      'className={`size-[22px] ${tone}`}',
+      'className={active ? "size-[22px]" : "size-[24px]"}',
+      'className={["w-[22px]", "h-[22px]", tone].filter(Boolean).join(" ")}',
+      'className="w-[22px] h-[24px]"',
+      'className="w-[24px] h-[22px]"',
+      'size={24} className="size-[22px]"',
+    ].map((attributes) => ({
+      code: `import { Check } from './icons'; declare const tone: string; declare const active: boolean; export const a = <Check ${attributes} />`,
+      errors: [{ messageId: 'offGridIconSize', data: { size: '22' }, type: 'JSXAttribute' }],
+    })),
+    {
+      code: 'import { Check } from \'./icons\'; export const a = <Check className="size-[22.5px]" />',
+      errors: [{ messageId: 'offGridIconSize', data: { size: '22.5' } }],
+    },
+    {
+      code: 'import { Check } from \'./icons\'; export const a = <Check className="w-[18px] h-[22px]" />',
+      errors: [{ messageId: 'offGridIconSize', data: { size: '18' } }, { messageId: 'offGridIconSize', data: { size: '22' } }],
+    },
+    {
+      code: 'import { Check } from \'./icons\'; const Icon = Check; export const a = <Icon className="size-[22px]" />',
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    {
+      code: 'import { Check, Trash2 } from \'./icons\'; declare const key: "a" | "b"; const icons = { a: Check, b: Trash2 } as const; const Icon = icons[key]; export const a = <Icon className="w-[22px] h-[22px]" />',
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
+    {
+      code: 'import { Check } from \'./icons\'; const cards = [{ icon: Check }]; export const a = cards.map((card) => <card.icon className="size-[22px]" />)',
+      errors: [{ messageId: 'offGridIconSize' }],
+    },
     {
       code: "import { Check } from './icons'; export const a = <Check size={22} />",
       errors: [{ messageId: 'offGridIconSize' }],
