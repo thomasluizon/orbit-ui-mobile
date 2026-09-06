@@ -25,7 +25,7 @@ export const fakeCodex = (label) => {
   writeFileSync(
     script,
     `#!/usr/bin/env node
-import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { appendFileSync, chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 const args = process.argv.slice(2)
 if (process.env.ORBIT_FAKE_CODEX_LOG) appendFileSync(process.env.ORBIT_FAKE_CODEX_LOG, JSON.stringify(args) + "\\n")
@@ -43,13 +43,6 @@ if (args[0] === "cloud" && args[1] === "exec") {
   process.stdout.write(process.env.ORBIT_FAKE_EXEC_URL || "")
 }
 else if (args[0] === "cloud" && args[1] === "list") {
-  if (process.env.ORBIT_FAKE_LIST_RELEASE_PATH) {
-    const deadline = Date.now() + 10000
-    while (!existsSync(process.env.ORBIT_FAKE_LIST_RELEASE_PATH) && Date.now() < deadline) {
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10)
-    }
-    if (!existsSync(process.env.ORBIT_FAKE_LIST_RELEASE_PATH)) throw new Error("fixture list release timed out")
-  }
   const delayMs = Number(process.env.ORBIT_FAKE_LIST_DELAY_MS || 0)
   if (delayMs > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs)
   if (process.env.ORBIT_FAKE_LIST_PUBLICATION_PATH) {
@@ -74,6 +67,11 @@ else if (args[0] === "cloud" && args[1] === "diff") {
   process.stdout.write(process.env.ORBIT_FAKE_DIFF)
 }
 else if (args[0] === "cloud" && args[1] === "apply") {
+  if (process.env.ORBIT_FAKE_APPLY_PATCH !== undefined) {
+    const applied = spawnSync("git", ["apply", "--index", "-"], { encoding: "utf8", input: process.env.ORBIT_FAKE_APPLY_PATCH })
+    process.stderr.write(applied.stderr || "")
+    process.exit(applied.status ?? 1)
+  }
   if (process.env.ORBIT_FAKE_APPLY_MODE === "noop") process.exit(0)
   if (process.env.ORBIT_FAKE_APPLY_MODE === "fail-noop") process.exit(23)
   if (process.env.ORBIT_FAKE_APPLY_MODE === "move-head") {
@@ -127,9 +125,10 @@ export const cases = async () => {
   const order = "Implement the ticket.\n"
   const completed = cloud.cloudOrder(order)
   T(
-    "cloud-worker.mjs: the contract leads with commit and its consequence on the same line",
-    cloud.CLOUD_FINISHING_CONTRACT.split("\n")[2].startsWith("- `git add`") &&
-      cloud.CLOUD_FINISHING_CONTRACT.split("\n")[2].includes("Without a commit there is no diff"),
+    "cloud-worker.mjs: the commit requirement and loss consequence precede all Cloud finishing steps",
+    cloud.CLOUD_FINISHING_CONTRACT.startsWith("## Cloud finishing contract\n\n**Commit the implementation. Without a commit there is no diff and the work is lost.**\n\n-") &&
+      /Do not wait on CI or poll GitHub Actions/.test(completed),
+    completed,
   )
   T(
     "cloud-worker.mjs: every submitted order ends with the cloud commit and delivery contract",

@@ -44,7 +44,6 @@ import {
 import {
   formatAPIDate,
   isShareableAchievement,
-  resolveShellDestination,
 } from '@orbit/shared/utils'
 import {
   isReviewMomentEligible,
@@ -54,7 +53,7 @@ import { useLiveOnboardingActions } from '@/components/onboarding/onboarding-act
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
-import { BottomTabBar, type BottomTabId } from '@/components/navigation/bottom-tab-bar'
+import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Fab } from '@/components/ui/fab'
 import { Plus, WifiOff } from '@/components/ui/icons'
@@ -311,7 +310,7 @@ function RootLayoutNav() {
                 message={t('offline.title')}
               />
             )}
-            tabBar={<AppBottomTabBar pathname={pathname} />}
+            tabBar={<DestinationTabBar pathname={pathname} />}
             fab={pathname === '/' && !todayFabHidden
               ? <AppCreateFab onCreate={handleCreate} />
               : undefined}
@@ -502,34 +501,6 @@ function RootLayoutContent() {
   )
 }
 
-/**
- * Wraps the v8 BottomTabBar primitive in a router-aware container. Lives in
- * the root layout so the tab bar is shown over every (tabs) screen exactly
- * like the previous BottomNav. Tab labels come from the i18n catalog so
- * pt-BR users see localized strings.
- */
-function AppBottomTabBar({ pathname }: Readonly<{ pathname: string }>) {
-  const router = useRouter()
-  const setActiveView = useUIStore((s) => s.setActiveView)
-
-  const active: BottomTabId | null = useMemo(
-    () => resolveShellDestination(pathname),
-    [pathname],
-  )
-
-  const handleTab = (id: BottomTabId) => {
-    if (id === 'hoje') {
-      setActiveView('today')
-      router.navigate('/')
-      return
-    }
-    if (id === 'calendario') router.navigate('/calendar')
-    else if (id === 'progresso') router.navigate('/progress')
-    else router.navigate('/profile')
-  }
-
-  return <BottomTabBar active={active} onTab={handleTab} />
-}
 
 function AppCreateFab({ onCreate }: Readonly<{ onCreate: () => void }>) {
   const { t } = useTranslation()

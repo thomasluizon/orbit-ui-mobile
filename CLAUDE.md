@@ -12,7 +12,7 @@ Every ticket lives in the private `thomasluizon/orbit-tickets` GitHub repository
 
 ## Cross-platform parity (MANDATORY)
 
-Every change lands in BOTH `apps/web` AND `apps/mobile` in the same task: logic, features, behavior, and error handling identical, reverts included. Allowed differences are platform adapters (BFF vs direct API, cookie vs SecureStore, shadcn vs NativeWind, next-intl vs i18next) and a layout-shell divergence enumerated in `DESIGN.md`, limited to navigation chrome (sidebar vs tab bar), the command palette and keyboard shortcuts, and hover affordances on that shell chrome. The desktop stats rail was a fourth and is deleted (D69, 2026-08-16). Everything below the shell, including a screen, component, data flow, error path, or behavior, remains parity-bound. i18n keys land in `en.json` AND `pt-BR.json` in the same edit. The Cross-Platform Parity job in `guards.yml` fails a one-sided UI change; the escape hatch is `parity:exempt` with a one-line PR-body justification naming the applicable platform adapter or enumerated layout-shell divergence.
+Every change lands in BOTH `apps/web` AND `apps/mobile` in the same task: logic, features, behavior, and error handling identical, reverts included. Allowed differences are platform adapters (BFF vs direct API, cookie vs SecureStore, shadcn vs React Native StyleSheet, next-intl vs i18next) and a layout-shell divergence enumerated in `DESIGN.md`, limited to navigation chrome (sidebar vs tab bar), the command palette and keyboard shortcuts, and hover affordances on that shell chrome. The desktop stats rail was a fourth and is deleted (D69, 2026-08-16). Everything below the shell, including a screen, component, data flow, error path, or behavior, remains parity-bound. i18n keys land in `en.json` AND `pt-BR.json` in the same edit. The Cross-Platform Parity job in `guards.yml` fails a one-sided UI change; the escape hatch is `parity:exempt` with a one-line PR-body justification naming the applicable platform adapter or enumerated layout-shell divergence.
 
 ## Code standards
 
@@ -53,16 +53,20 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | Doc | Purpose |
 |---|---|
 | `BRAND.md` | Audience, positioning and principles; read before brand, copy, positioning or design-direction work, and before ORB-30. |
-| `DESIGN.md` | UI spec; read before frontend work. |
+| `DESIGN.md` | UI spec, including the Pro responsive type pairs and price-loading reservation rule; read before frontend work. |
+| `questions.md` | Run-level redesign questions, the decision bar, and composition decisions settled by the orchestrator under D90. |
 | `design/canvas/` | The granted canvas export: 21 screens plus 166 tokens. Outranks DESIGN.md prose on how a surface looks; never over `## Information architecture` or `## Bans`. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
 | `.claude/skills/pr-review/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |
 | `FEATURES.md` | The Free/Trial/Pro/Yearly gating the arch map lacks. |
 | `TESTING.md` | Unit, smoke, hermetic layout guard and performance, mutation, and harness suite catalog; authoring rules, Chrome prerequisite for target geometry tests, and local Lighthouse commands and report location. |
 | `architecture.json` | Generated map. Read it INSTEAD of exploring the codebase. |
-| `.claude/rules/core.md` | Judgement auto-loaded on EVERY turn. |
+| `.claude/rules/core.md` | Always-loaded judgement and D89/D90 operating-contract pointers. |
 | `.claude/skills/ticket/SKILL.md` | GitHub ticket creation, labels, relations, and milestone rules. |
-| `.claude/skills/orchestrate/SKILL.md` | Ticket queue, worker, review, readiness, and handoff contract. |
+| `.claude/skills/orchestrate/SKILL.md` | Ticket queue, worker, review and readiness contract; D89 caps and terminal Cloud handoff failures with staged work preserved. |
+| `.claude/skills/handoff/SKILL.md` | Handoff prompts with the required standing-contract block before the task. |
+| `.claude/playbooks/redesign-screen.md` | Thirteen-screen D76 loop; D90 suspends human steps 1/3/7/8, keeps 2/4/5/6 and the ui-skills sweep. |
+| `.claude/rules/visual-delivery.md` | Visual inventory and critic gates; D90 moves human inspection to the whole-redesign review. |
 | `.claude/skills/android-generate/SKILL.md` | Local APK build, and the emulator install path. Read before building or running the Android app. |
 | `.claude/skills/android-release/SKILL.md` | Dispatching `android-release.yml` to a Google Play track. |
 | **D1..D42 register** | Historical decision record in the brain vault: `2 Areas/20-29 Orbit Engineering/Decisions/`. Current ticket routing is defined here. |

@@ -240,7 +240,7 @@ export function OnboardingCreateGoal({
         </div>
       </div>
 
-      <SectionLabel top={4} bottom={6}>
+      <SectionLabel>
         {t('onboarding.flow.createGoal.starters')}
       </SectionLabel>
       <div className="flex flex-wrap" style={{ gap: 6 }}>

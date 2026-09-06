@@ -20,6 +20,7 @@
     "lefthook.yml",
     "package-lock.json",
     "package.json",
+    "questions.md",
     "sonar-project.properties",
     "tsconfig.base.json",
     "tsconfig.json",

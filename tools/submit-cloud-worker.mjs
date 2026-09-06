@@ -637,6 +637,7 @@ const reservation = {
   namedTargets,
   ...(emptyRetryOf ? { emptyRetryOf } : {}),
   submittedOrderSha256: createHash("sha256").update(submittedOrder).digest("hex"),
+  handoffRequired: true,
   orderFile,
   worktree,
   submittedAt: submittedAt.toISOString(),

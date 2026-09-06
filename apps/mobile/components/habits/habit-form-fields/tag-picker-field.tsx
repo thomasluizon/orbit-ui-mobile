@@ -51,7 +51,7 @@ export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, o
     {editor}
   </>
   return <>
-    <ListRow inset={false} title={t('habits.form.tags')} value={t('habits.form.selectedCount', { count: selectedIds.length })} onClick={() => setOpen(true)} />
+    <ListRow title={t('habits.form.tags')} value={t('habits.form.selectedCount', { count: selectedIds.length })} onClick={() => setOpen(true)} />
     <TagPreview tags={selectedTags} moreLabel={t('habits.form.moreSelected', { count: Math.max(0, selectedTags.length - 3) })} styles={styles} />
     {open ? <Sheet open title={t('habits.form.tags')} virtualizedBody={tags.length >= 21} onClose={() => { setOpen(false); setQuery('') }}><View style={styles.list}>
       {tags.length >= 8 ? <Text style={styles.count}>{t('habits.form.availableCount', { count: tags.length })}</Text> : null}

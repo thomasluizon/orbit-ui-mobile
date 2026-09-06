@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import type { useTranslations } from 'next-intl'
 import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
@@ -74,10 +74,22 @@ function tierNamed(name: string) {
 }
 
 describe('PlanSelection', () => {
+  const observers: { measure: () => void; disconnect: ReturnType<typeof vi.fn> }[] = []
   beforeEach(() => {
+    observers.length = 0
+    vi.stubGlobal('ResizeObserver', class {
+      disconnect = vi.fn()
+      constructor(measure: () => void) { observers.push({ measure, disconnect: this.disconnect }) }
+      observe() {}
+    })
     motionMocks.reduced = false
     motionMocks.renderedProps.length = 0
     motionMocks.presenceProps.length = 0
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   it('leads with annual and gives the recommended tier the only filled action', () => {
@@ -92,7 +104,7 @@ describe('PlanSelection', () => {
       'upgrade.plans.yearly.name',
       'upgrade.plans.monthly.name',
     ])
-    expect(screen.getAllByText('upgrade.plans.recommended')).toHaveLength(1)
+    expect(screen.getAllByText('upgrade.plans.recommended').filter((node) => !node.closest('[inert]'))).toHaveLength(1)
     expect(tierNamed('upgrade.plans.yearly.name')).toHaveAttribute('data-selected', 'true')
     expect(within(tierNamed('upgrade.plans.yearly.name')).getByRole('button')).toHaveAttribute('data-variant', 'primary')
     expect(tierNamed('upgrade.plans.monthly.name')).not.toHaveAttribute('data-selected')
@@ -227,7 +239,7 @@ describe('PlanSelection', () => {
 
     first.unmount()
     renderSelection()
-    expect(screen.queryByText(/upgrade\.plans\.coupon\.line/)).not.toBeInTheDocument()
+    expect(screen.queryAllByText(/upgrade\.plans\.coupon\.line/).filter((node) => !node.closest('[inert]'))).toHaveLength(0)
   })
 
   it('owns loading and retry states for the price tiers', () => {
@@ -244,6 +256,36 @@ describe('PlanSelection', () => {
     renderSelection({ plans: null, isLoading: false, isError: true, onRetry })
     fireEvent.click(screen.getByRole('button', { name: 'upgrade.plans.retry' }))
     expect(onRetry).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the loaded tier measuring layout mounted while prices load', () => {
+    const view = renderSelection({ plans: null, isLoading: true })
+    expect(view.container.querySelectorAll('[data-tier-reservation]')).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: /upgrade\.plans\.checkoutLabel/ })).toBeNull()
+    view.rerender(<PlanSelection {...view} plans={{ ...plans, couponPercentOff: 23 }} isLoading={false} />)
+    expect(view.container.querySelectorAll('[data-tier-reservation]')).toHaveLength(2)
+  })
+
+  it.each(['yearly', 'monthly'] as const)('reserves the measured %s height through loading and coupon arrival', (interval) => {
+    let measuredHeight = 317
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.hasAttribute('data-tier-measurement') ? measuredHeight : 0
+    })
+    const view = renderSelection({ plans: null, isLoading: true })
+    const reservation = () => view.container.querySelector(`[data-tier-reservation="${interval}"]`)
+    expect(reservation()).toHaveStyle({ minHeight: '317px' })
+    expect(view.container.querySelector(`[data-tier-measurement="${interval}"]`)).toHaveAttribute('inert')
+    expect(screen.queryAllByRole('button', { name: /checkoutLabel/ })).toHaveLength(0)
+
+    view.rerender(<PlanSelection {...view} plans={{ ...plans, couponPercentOff: 23 }} isLoading={false} />)
+    expect(reservation()).toHaveStyle({ minHeight: '317px' })
+    measuredHeight = 389
+    act(() => observers.forEach(({ measure }) => measure()))
+    expect(reservation()).toHaveStyle({ minHeight: '389px' })
+    view.rerender(<PlanSelection {...view} plans={plans} isLoading />)
+    expect(reservation()).toHaveStyle({ minHeight: '389px' })
+    view.unmount()
+    expect(observers.every(({ disconnect }) => disconnect.mock.calls.length > 0)).toBe(true)
   })
 
   it('checks out from either tier with the same CTA verb', () => {
