@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+
 type AsyncStorageMock = {
   getItem: ReturnType<typeof vi.fn>
   setItem: ReturnType<typeof vi.fn>
@@ -9,7 +11,7 @@ async function loadOfflineStateModule(overrides?: Partial<AsyncStorageMock>) {
   vi.resetModules()
 
   const asyncStorage: AsyncStorageMock = {
-    getItem: overrides?.getItem ?? vi.fn(async () => null),
+    getItem: overrides?.getItem ?? vi.fn(() => Promise.resolve(null)),
     setItem: overrides?.setItem ?? vi.fn(async () => {}),
   }
 
@@ -175,7 +177,7 @@ describe('offline-state', () => {
       },
     })
     const { getResolvedEntityId } = await loadOfflineStateModule({
-      getItem: vi.fn(async () => persisted),
+      getItem: vi.fn(() => Promise.resolve(persisted)),
     })
 
     expect(await getResolvedEntityId('habit', 'offline-habit-9')).toBe('habit-9')
@@ -206,12 +208,8 @@ describe('offline-state', () => {
       markOfflineTombstone,
       upsertOfflineEntity,
     } = await loadOfflineStateModule({
-      getItem: vi.fn(async () => {
-        throw new Error('read failed')
-      }),
-      setItem: vi.fn(async () => {
-        throw new Error('write failed')
-      }),
+      getItem: vi.fn(() => Promise.reject(new Error('read failed'))),
+      setItem: vi.fn(() => Promise.reject(new Error('write failed'))),
     })
 
     await expect(

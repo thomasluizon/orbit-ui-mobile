@@ -105,6 +105,7 @@
     "react-test-renderer": "19.2.7",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.62.1",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "yoga-layout": "^3.2.1"
   }
 }
