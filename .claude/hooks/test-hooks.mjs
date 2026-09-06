@@ -9,7 +9,7 @@
 // Plus a cheap frontmatter check over the agents and skills this repo ships.
 // Run: node .claude/hooks/test-hooks.mjs   (exits non-zero on any failure)
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
@@ -621,25 +621,11 @@ T("adapter identifier: the ledger is restored, so the id blocks again -> 2", run
  * a session id that does not match is treated as a previous run's and ignored.
  */
 const WAKE_HOOK = "require-wake-source.mjs"
-const { readWakeSources, runStatePath } = await import("../../tools/lib/run-state.mjs")
+const { clearWakeSource, readWakeSources, registerWakeSource, runStatePath, wakeSourceDirectory } = await import("../../tools/lib/run-state.mjs")
 const stopPayload = { session_id: "orbit-hooks-gate-session", stop_hook_active: false }
 const priorState = existsSync(runStatePath()) ? readFileSync(runStatePath(), "utf8") : null
-/**
- * LIVE, not merely registered. `readWakeSources` returns every registration file; the hook then
- * proves each pid with `process.kill(pid, 0)` before honouring it. Counting registrations made this
- * gate take the "a live wake source allows the stop" arm whenever an old overnight run had left a
- * file behind for a process that has since died, and then fail because the hook correctly blocked.
- * Measured on this checkout 2026-08-10: red on main and on the branch alike, for stale state alone.
- */
-const isAlive = (pid) => {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch {
-    return false
-  }
-}
-const liveWakeSources = readWakeSources().filter((source) => isAlive(source.pid)).length
+// The reader proves process identity before the rule checks liveness again.
+const liveWakeSources = readWakeSources().length
 try {
   writeFileSync(runStatePath(), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }))
   // A live wake source is a legitimate reason NOT to block, so assert the blocking case only when
@@ -657,6 +643,46 @@ try {
   if (priorState === null) rmSync(runStatePath(), { force: true })
   else writeFileSync(runStatePath(), priorState)
 }
+// Exercise the real adapter in an isolated checkout so another run cannot mask a bad identity.
+const wakeCheckout = join(root, "wake-identity")
+const wakeHooks = join(wakeCheckout, ".claude", "hooks")
+mkdirSync(join(wakeCheckout, ".git"), { recursive: true })
+mkdirSync(wakeHooks, { recursive: true })
+cpSync(join(repoRoot, "tools", "lib"), join(wakeCheckout, "tools", "lib"), { recursive: true })
+cpSync(join(hooksDir, "_lib"), join(wakeHooks, "_lib"), { recursive: true })
+cpSync(join(hooksDir, WAKE_HOOK), join(wakeHooks, WAKE_HOOK))
+writeFileSync(runStatePath(wakeCheckout), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }))
+const wakeFile = join(wakeSourceDirectory(wakeCheckout), `${process.pid}.json`)
+const isolatedWakeStop = () => spawnSync(process.execPath, [join(wakeHooks, WAKE_HOOK)], {
+  input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true,
+}).status
+registerWakeSource({ pid: process.pid, what: "hook identity regression" }, wakeCheckout)
+const registeredWake = JSON.parse(readFileSync(wakeFile, "utf8"))
+T("wake identity: registration captures a real OS process start identity", typeof registeredWake.processStartIdentity, "string")
+T("wake identity: the same live process allows the real Stop adapter", isolatedWakeStop(), 0)
+writeFileSync(wakeFile, JSON.stringify({ ...registeredWake, processStartIdentity: `${registeredWake.processStartIdentity}:different-start` }))
+T("wake identity: a live pid with a different start identity blocks the real Stop adapter", isolatedWakeStop(), 2)
+T("wake identity: a live mismatched record is left alone", existsSync(wakeFile), true)
+writeFileSync(wakeFile, JSON.stringify({ pid: process.pid, what: "legacy registration" }))
+T("wake identity: a legacy pid-only record cannot allow a stop", isolatedWakeStop(), 2)
+T("wake identity: a legacy live record is left alone", existsSync(wakeFile), true)
+writeFileSync(wakeFile, JSON.stringify(registeredWake))
+const originalKill = process.kill
+try {
+  process.kill = () => { throw new Error("process probe unavailable") }
+  T("wake identity: an inconclusive probe supplies no wake source", readWakeSources(wakeCheckout).length, 0)
+  T("wake identity: an inconclusive probe never deletes the record", existsSync(wakeFile), true)
+} finally {
+  process.kill = originalKill
+}
+const exitedProcess = spawnSync(process.execPath, ["-e", ""], { windowsHide: true })
+const deadWakeFile = join(wakeSourceDirectory(wakeCheckout), `${exitedProcess.pid}.json`)
+writeFileSync(deadWakeFile, JSON.stringify({ pid: exitedProcess.pid, what: "exited launcher" }))
+T("wake identity: sweeping a dead registration keeps the live one", readWakeSources(wakeCheckout).map((source) => source.pid), [process.pid])
+T("wake identity: a proven dead registration is removed", existsSync(deadWakeFile), false)
+clearWakeSource(process.pid, wakeCheckout)
+T("wake identity: cleanup removes the matching launch registration", existsSync(wakeFile), false)
+
 // The ticket guard is wired to BOTH events: the shell call and source that would issue it later.
 const TICKET_HOOK = "forbid-raw-ticket-mutation.mjs"
 T("adapter tickets: raw issue edit -> 2", runHook(TICKET_HOOK, bash(`gh issue edit 215 --repo ${TICKET_REPO} --add-label Bug`)), 2)

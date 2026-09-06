@@ -5,9 +5,9 @@
 // with nothing scheduled. The queue stopped there, and the artifacts it left are indistinguishable
 // from a run that finished, so nobody went looking.
 //
-// Pure: takes the run record, the registered wake sources, and an injected liveness predicate, and
-// returns { block, message } or null. Liveness is injected because a hook must never spawn a
-// subprocess and because a test cannot conjure a process that is reliably dead.
+// Pure: takes the run record, wake sources already verified by the adapter's reader, and an injected
+// liveness predicate, and returns { block, message } or null. OS process probes belong at the adapter
+// boundary so this rule can be tested without real processes.
 //
 // What it CAN prove: that at least one registered wake source is a process that still exists.
 // launch-worker.mjs registers itself, so a launched worker is real evidence, not a claim. What it

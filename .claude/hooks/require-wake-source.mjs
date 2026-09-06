@@ -8,7 +8,7 @@
 // re-derived here: launch-worker.mjs writes them with that same module, and two definitions of
 // where the files live is how one of them silently stops finding the other.
 //
-// This hook reads DISK ONLY: the run record, the receipt files it names, and pid liveness. It
+// This hook reads local state only: the run record, receipt files, and OS process identities. It
 // never calls GitHub. The previous revision re-verified every ledger row against live GitHub
 // (pull request view, branch protection, review threads, board item-list) on EVERY Stop of EVERY
 // session in this project, including for a dead session's ledger it then discarded on the
@@ -49,7 +49,7 @@ try {
   const input = readStdinJson()
   const verdict = checkSleepStop({
     state: readRunState(),
-    wakeSources: readWakeSources(),
+    wakeSources: readWakeSources(), // Reject recycled pids before the rule's final liveness check.
     sessionId: input?.session_id ?? "",
     stopHookActive: input?.stop_hook_active === true,
     isAlive,
