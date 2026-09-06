@@ -467,7 +467,7 @@ async function markQueuedMutation(mutation: QueuedMutation): Promise<string> {
     await markOfflineTombstone(mutation.entityType, mutation.targetEntityId, true)
   }
 
-  await persistQueryCache()
+  await persistQueryCache({ discardHabitSearches: mutation.scope === 'habits' || mutation.scope === 'tags' })
   return queuedMutationId
 }
 

@@ -157,6 +157,9 @@ Core tracker. Caps in `AppConstants.cs` (e.g. sub-habits max 20, depth max 5, ta
 | Tags on cards | Color-coded tag badges on habit cards | Free | Both | — |
 | Bulk actions | Multi-select to log/skip/delete (max 100/op) | Free | Both | — |
 | Search & filters | Search by name, filter by frequency | Free | Both | — |
+| Dedicated habit search | Search route with paginated results, counts, retry, and create from the empty search query | Free | Both | en + pt-BR |
+| Search match reasons | Result lines explain name, description, tag, or child matches using metadata returned by the API | Free | Both | en + pt-BR |
+| Search log and skip pages | Command pages select a habit to log or skip; failed actions show an error and remain open for retry | Free | Both | en + pt-BR |
 | AI daily summary card | AI summary card atop Today | Pro | Both | — |
 | Reminders | Relative or scheduled per-habit push reminders | Free | Both | — |
 | Duplicate habits | Clone a habit with all settings | Free | Both | — |
