@@ -19,7 +19,7 @@ import {
   useOnboardingHasProAccess,
   useOnboardingIsLive,
 } from './onboarding-actions-context'
-import { PillButton } from '@/components/ui/pill-button'
+import { Pager } from '@/components/ui/pager'
 import { QuietLink } from '@/components/ui/quiet-link'
 import { OnboardingWelcome } from './onboarding-welcome'
 import { OnboardingMeetAstra } from './onboarding-meet-astra'
@@ -281,30 +281,14 @@ export function OnboardingFlow() {
         {!hideFooter && (
           <div
             className="relative z-[1] flex flex-col items-center"
-            style={{ padding: '12px 28px 24px', gap: 22 }}
+            style={{ padding: '12px 24px 24px', gap: 24 }}
           >
-            <ProgressDots active={displayStep - 1} total={displayTotal} />
-            <progress
-              className="sr-only"
-              value={displayStep}
-              max={displayTotal}
-            >
-              {t('onboarding.flow.step', { current: displayStep, total: displayTotal })}
-            </progress>
-            <div className="flex w-full items-center" style={{ gap: 4 }}>
-              <div className="flex flex-1 justify-start">
-                {hasPrev && (
-                  <QuietLink onClick={goPrev}>{t('onboarding.flow.back')}</QuietLink>
-                )}
-              </div>
-              <div className="flex flex-[2] justify-center">
-                {canAdvance && (
-                  <PillButton onClick={goNext}>
-                    {isStarter ? t('onboarding.flow.begin') : t('onboarding.flow.next')}
-                  </PillButton>
-                )}
-              </div>
-              <div className="flex-1" aria-hidden="true" />
+            <div className="w-full">
+              <Pager index={displayStep - 1} count={displayTotal}
+                label={t('onboarding.flow.step', { current: displayStep, total: displayTotal })}
+                backLabel={t('onboarding.flow.back')} onBack={hasPrev ? goPrev : undefined}
+                forwardLabel={isStarter ? t('onboarding.flow.begin') : t('onboarding.flow.next')}
+                onForward={canAdvance ? goNext : undefined} />
             </div>
           </div>
         )}
@@ -313,33 +297,4 @@ export function OnboardingFlow() {
   )
 
   return createPortal(overlay, document.body)
-}
-
-interface ProgressDotsProps {
-  active: number
-  total: number
-}
-
-function ProgressDots({ active, total }: Readonly<ProgressDotsProps>) {
-  return (
-    <div aria-hidden="true" className="flex items-center" style={{ gap: 8 }}>
-      {Array.from({ length: total }, (_, i) => `progress-dot-${i}`).map((dotKey, i) => (
-        <span
-          key={dotKey}
-          className="transition-[transform,background-color] duration-[var(--dur-base)] ease-[var(--ease-standard)]"
-          style={{
-            width: 24,
-            height: 7,
-            borderRadius: 999,
-            transformOrigin: 'left center',
-            transform: i === active ? 'scaleX(1)' : 'scaleX(0.2917)',
-            background:
-              i === active
-                ? 'var(--primary)'
-                : 'color-mix(in srgb, var(--fg-1) 18%, transparent)',
-          }}
-        />
-      ))}
-    </div>
-  )
 }

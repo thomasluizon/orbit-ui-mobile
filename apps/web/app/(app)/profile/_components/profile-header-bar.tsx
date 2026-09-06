@@ -1,6 +1,5 @@
 'use client'
 
-import { User } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
@@ -21,23 +20,19 @@ export function ProfileHeaderBar({ streak, error }: Readonly<ProfileHeaderBarPro
 
   return (
     <>
-      <AppBar
-        leadingIcon={<User size={22} strokeWidth={1.8} color="var(--fg-1)" />}
-        trailing={
-          <>
-            <ThemeToggle />
-            <span data-tour="tour-streak-badge">
-              <StreakBadge streak={streak} isFrozen={streakInfo?.isFrozenToday ?? false} />
-            </span>
-            <NotificationBell />
-          </>
-        }
-      />
+      <AppBar title={t('nav.profile')} />
+      <div data-testid="profile-header-actions" className="flex shrink-0 items-center justify-end gap-3 px-4 pb-3">
+        <ThemeToggle />
+        <span data-tour="tour-streak-badge">
+          <StreakBadge streak={streak} isFrozen={streakInfo?.isFrozenToday ?? false} />
+        </span>
+        <NotificationBell />
+      </div>
 
       {error && (
         <p
           style={{
-            margin: '12px 20px',
+            padding: '12px 16px',
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
             color: 'var(--status-bad)',

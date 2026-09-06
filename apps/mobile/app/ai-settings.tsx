@@ -94,7 +94,6 @@ export default function AiSettingsScreen() {
       edges={['top']}
     >
       <AppBar
-        back
         onBack={() => goBackOrFallback('/profile')}
         title={t('aiSettings.title')}
         backLabel={t('common.backToProfile')}

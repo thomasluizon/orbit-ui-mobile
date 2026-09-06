@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
 import { AppBar } from '@/components/ui/app-bar'
-import { AstraMark } from '@/components/ui/astra-avatar'
 import type { useChatComposer } from '@/hooks/use-chat-composer'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
@@ -91,10 +90,8 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
     <div className="relative flex flex-col h-full">
       <div className="relative z-10 shrink-0">
         <AppBar
-          back
-          backLabel={t('common.goBack')}
+          backLabel={t('common.closeConversation')}
           onBack={close}
-          titleIcon={<AstraMark size={18} />}
           title={t('chat.title')}
         />
       </div>

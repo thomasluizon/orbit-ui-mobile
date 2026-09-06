@@ -13,7 +13,7 @@ export function createStyles(tokens: AppTokensV2) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingTop: 48,
       paddingBottom: 0,
       minHeight: 56,
@@ -37,7 +37,7 @@ export function createStyles(tokens: AppTokensV2) {
     },
     scrollContent: {
       flexGrow: 1,
-      paddingHorizontal: 28,
+      paddingHorizontal: 24,
     },
     stepWrapper: {
       width: '100%',
@@ -47,43 +47,15 @@ export function createStyles(tokens: AppTokensV2) {
       justifyContent: 'center',
     },
     footer: {
-      paddingHorizontal: 28,
+      paddingHorizontal: 24,
       paddingTop: 12,
       paddingBottom: 32,
-      gap: 22,
-      alignItems: 'center',
-    },
-    dotsRow: {
-      flexDirection: 'row',
-      gap: 8,
-    },
-    footerActions: {
-      flexDirection: 'row',
-      width: '100%',
-      alignItems: 'center',
-    },
-    footerSide: {
-      flex: 1,
-      alignItems: 'flex-start',
-    },
-    footerCenter: {
-      flex: 2,
-      alignItems: 'center',
-    },
-    backButton: {
-      minHeight: 44,
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 12,
+      gap: 24,
+      alignItems: 'stretch',
     },
     textButtonPressed: {
       transform: [{ scale: 0.96 }],
       opacity: 0.7,
-    },
-    backText: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 13,
-      color: tokens.fg3,
     },
     haveAccountButton: {
       minHeight: 44,

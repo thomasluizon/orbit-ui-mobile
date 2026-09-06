@@ -32,9 +32,14 @@ export function AiFeatureToggles({
 
   return (
     <>
-      <SectionLabel bottom={4} trailing={<ProBadge />}>
-        {t('profile.sections.aiFeatures')}
-      </SectionLabel>
+      <div data-testid="section-heading-row" className="flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <SectionLabel>{t('profile.sections.aiFeatures')}</SectionLabel>
+        </div>
+        <div className="flex shrink-0 items-center pt-6 pr-4 pb-3">
+          <ProBadge />
+        </div>
+      </div>
       {hasProAccess ? (
         <SettingsRow
           icon={Satellite}

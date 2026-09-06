@@ -259,7 +259,6 @@ function CalendarSyncPageContent() {
   return (
     <div className="flex flex-col min-h-[100dvh]">
       <AppBar
-        back
         backLabel={t('common.backToProfile')}
         onBack={() => goBackOrFallback('/profile')}
         title={isReviewMode ? t('calendar.autoSync.reviewModeTitle') : t('calendar.title')}
@@ -381,18 +380,19 @@ function CalendarSyncPageContent() {
             />
           ) : (
             <>
-              <SectionLabel
-                trailing={
+              <div data-testid="section-heading-row" className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <SectionLabel>{plural(t('calendar.eventsFound', { count: events.length }), events.length)}</SectionLabel>
+                </div>
+                <div className="flex shrink-0 items-center pt-6 pr-4 pb-3">
                   <SelectAllToggle
                     allSelected={allSelected}
                     onToggle={toggleAll}
                     selectAllLabel={t('calendar.selectAll')}
                     deselectAllLabel={t('calendar.deselectAll')}
                   />
-                }
-              >
-                {plural(t('calendar.eventsFound', { count: events.length }), events.length)}
-              </SectionLabel>
+                </div>
+              </div>
 
               <div className="stagger-enter">
                 {events.slice(0, visibleCount).map((event) => (

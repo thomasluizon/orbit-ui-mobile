@@ -39,7 +39,7 @@ export function PreferenceSettingsList({
     <div className="flex-1 min-h-0 overflow-y-auto">
       <div>
         <div className="stagger-enter">
-          <SectionLabel bottom={4}>{t('preferences.general')}</SectionLabel>
+          <SectionLabel>{t('preferences.general')}</SectionLabel>
           <SettingsRow
             icon={Languages}
             label={t('profile.language.title')}
@@ -62,7 +62,7 @@ export function PreferenceSettingsList({
             divider={false}
           />
 
-          <SectionLabel bottom={4}>{t('settings.homeScreen.title')}</SectionLabel>
+          <SectionLabel>{t('settings.homeScreen.title')}</SectionLabel>
           <SettingsRow
             label={t('settings.homeScreen.showGeneral')}
             desc={t('settings.homeScreen.showGeneralDesc')}
