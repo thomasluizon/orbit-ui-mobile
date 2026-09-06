@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
+import { pathToFileURL } from "node:url"
 
 import {
   REPO_ROOT,
@@ -9,6 +10,7 @@ import {
   stage,
   stageRepo,
   stageWithConfig,
+  toolPath,
 } from "./_harness.mjs"
 import { cloudConfig, fakeCodex, task, taskPage } from "./cloud-worker.mjs"
 import { receiptBlocksTicketAdmission } from "../lib/cloud-worker.mjs"
@@ -62,6 +64,163 @@ const recoveryPathOf = (entry) => join(
 )
 
 export const cases = () => {
+  const handoff = {
+    needsDecision: null,
+    assumptions: ["Used the existing adapter; rejected a second API."],
+    manualSteps: ["Set FEATURE_ENABLED in the service dashboard; verify the health response."],
+    testResults: "Focused tests passed.",
+  }
+  for (const [label, report] of [
+    ["complete", handoff],
+    ["decision", { ...handoff, needsDecision: "Enable the feature? Recommend keeping it disabled." }],
+    ["missing", null],
+    ["invalid", { ...handoff, manualSteps: "not an array" }],
+    ["malformed", "{invalid JSON"],
+    ["recovered-invalid", { ...handoff, manualSteps: "not an array" }],
+  ]) {
+    const entry = fixture(`handoff-${label}`)
+    const submitPath = join(entry.base, "tools", "submit-cloud-worker.mjs")
+    cpSync(toolPath("submit-cloud-worker.mjs"), submitPath)
+    cpSync(toolPath("check-dashes.mjs"), join(entry.base, "tools", "check-dashes.mjs"))
+    const orderPath = stage(`handoff-${label}/order.md`, "Implement #398 and return the required handoff.\n")
+    // The fixture's ignore-rule commit must be published before real submission preflight.
+    entry.repo.git(["push", "origin", "main"])
+    const submitted = run("submit-cloud-worker.mjs", [
+      "--issue", "#398", "--env", entry.config.cloud.environmentId, "--branch", "main",
+      "--order", orderPath, "--worktree", entry.repo.path,
+    ], { path: submitPath, env: { ORBIT_FAKE_EXEC_URL: `https://chatgpt.com/codex/tasks/${entry.receipt.taskId}` } })
+    T(`${TOOL}: ${label} handoff starts with a real submission receipt`, submitted.status === 0, submitted.stdout || submitted.stderr)
+    if (submitted.status !== 0) continue
+    entry.receipt = JSON.parse(submitted.stdout)
+    entry.receiptPath = entry.receipt.receiptPath
+    const watched = run("submit-cloud-worker.mjs", ["--watch", entry.receiptPath], {
+      path: submitPath, env: { ORBIT_FAKE_LIST: taskPage([task(entry.receipt.taskId, "ready", 1)]) },
+    })
+    T(`${TOOL}: ${label} watcher retains the required handoff contract`, watched.status === 0 &&
+      JSON.parse(readFileSync(entry.receiptPath, "utf8")).handoffRequired === true, watched.stdout || watched.stderr)
+    const source = stageRepo(`handoff-patch-${label}`)
+    writeFileSync(join(source.path, "implementation.txt"), "implementation\n")
+    source.git(["add", "implementation.txt"])
+    if (report) {
+      mkdirSync(join(source.path, ".claude"), { recursive: true })
+      writeFileSync(join(source.path, ".claude", "cloud-handoff.json"), typeof report === "string" ? report : JSON.stringify(report))
+      source.git(["add", ".claude/cloud-handoff.json"])
+    }
+    const patch = source.git(["diff", "--cached", "--binary", "--full-index"]).stdout
+    if (label === "recovered-invalid") {
+      const patchPath = stage(`handoff-${label}/cloud.patch`, patch)
+      const applied = entry.repo.git(["apply", "--index", patchPath])
+      T(`${TOOL}: recovery fixture stages the real immutable patch`, applied.status === 0, applied.stderr)
+      writeFileSync(recoveryPathOf(entry), JSON.stringify({
+        taskId: entry.receipt.taskId, baseSha: entry.receipt.baseSha,
+        worktree: entry.receipt.worktree, attemptedAt: new Date().toISOString(),
+      }))
+    }
+    const result = invoke(entry, [task(entry.receipt.taskId, "ready", 1)], [], {
+      ORBIT_FAKE_APPLY_PATCH: patch, ORBIT_FAKE_DIFF: patch,
+    })
+    const stored = JSON.parse(readFileSync(entry.receiptPath, "utf8"))
+    if (["missing", "invalid", "malformed", "recovered-invalid"].includes(label)) {
+      const mirrored = JSON.parse(readFileSync(stored.mirrorPath, "utf8"))
+      T(`${TOOL}: ${label} handoff resolves both receipts and preserves the complete staged patch`,
+        result.status === 10 && JSON.parse(result.stdout).outcome === "CLOUD_HANDOFF_INVALID" &&
+          !stored.materialized && stored.unusable?.outcome === "CLOUD_HANDOFF_INVALID" &&
+          stored.unusable?.reason.includes("staged patch is preserved") &&
+          JSON.stringify(stored.unusable) === JSON.stringify(mirrored.unusable) &&
+          !receiptBlocksTicketAdmission(stored) && !receiptBlocksTicketAdmission(mirrored) &&
+          !existsSync(recoveryPathOf(entry)) &&
+          entry.repo.git(["diff", "--cached", "--binary", "--full-index"]).stdout === patch &&
+          entry.repo.git(["diff"]).stdout === "" && entry.repo.git(["rev-parse", "HEAD"]).stdout.trim() === entry.head,
+        `${result.stdout || result.stderr}\n${JSON.stringify(stored)}`)
+      const callsBeforeRetry = readFileSync(entry.log, "utf8")
+      const retry = invoke(entry, [], [], { ORBIT_FAKE_DIFF: patch })
+      T(`${TOOL}: ${label} retry returns its terminal reason without Cloud calls or patch changes`,
+        retry.status === 10 && JSON.parse(retry.stdout).outcome === "CLOUD_HANDOFF_INVALID" &&
+          JSON.parse(retry.stdout).message.includes(stored.unusable?.reason) &&
+          readFileSync(entry.log, "utf8") === callsBeforeRetry &&
+          entry.repo.git(["diff", "--cached", "--binary", "--full-index"]).stdout === patch,
+        retry.stdout || retry.stderr)
+      continue
+    }
+    const expectedExit = report.needsDecision ? 10 : 0
+    const mirrored = JSON.parse(readFileSync(stored.mirrorPath, "utf8"))
+    T(`${TOOL}: ${label} metadata survives submission, watch and real Git apply without terminal output`,
+      result.status === expectedExit && JSON.stringify(stored.materialized?.handoff) === JSON.stringify(report) &&
+        JSON.stringify(mirrored.materialized?.handoff) === JSON.stringify(report), result.stdout || result.stderr)
+    const retry = invoke(entry, [], [], { ORBIT_FAKE_HANG: "apply" })
+    T(`${TOOL}: ${label} durable handoff is returned on retry with the same decision gate`,
+      retry.status === expectedExit && JSON.stringify(JSON.parse(retry.stdout).handoff) === JSON.stringify(report),
+      retry.stdout || retry.stderr)
+  }
+  for (const observation of ["readdirSync", "readFileSync", "renameSync"]) {
+    const edge = fixture(`deadline-edge-${observation}`, { taskId: "task_e_a419", receiptLockSeconds: 0.01 })
+    const lockDirectory = join(edge.repo.path, ".git", "orbit-cloud", `receipt-${edge.receipt.taskId}.json.lock`)
+    const preload = stage(`materialize-cloud/deadline-${observation}.mjs`, `
+import fs from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
+import { join } from "node:path"
+const lock = ${JSON.stringify(lockDirectory)}
+const observation = ${JSON.stringify(observation)}
+const original = fs[observation]
+let clock = 0
+performance.now = () => clock
+let injected = false
+fs[observation] = (path, ...args) => {
+  const target = observation === "readFileSync" ? join(lock, "owner.json") : lock
+  if (injected || (observation === "renameSync" ? args[0] : path) !== target || !fs.existsSync(lock)) {
+    return original(path, ...args)
+  }
+  injected = true
+  if (observation === "renameSync") {
+    try { return original(path, ...args) } catch (error) {
+      fs.rmSync(lock, { recursive: true })
+      clock = 10
+      throw error
+    }
+  }
+  fs.rmSync(lock, { recursive: true })
+  clock = 10
+  return original(path, ...args)
+}
+syncBuiltinESMExports()
+`)
+    const env = { NODE_OPTIONS: `--import=${pathToFileURL(preload).href}` }
+    mkdirSync(lockDirectory, { recursive: true })
+    writeFileSync(join(lockDirectory, "owner.json"), JSON.stringify({ pid: process.pid }))
+    const probe = stage(`materialize-cloud/deadline-probe-${observation}.mjs`, `
+import { persistReconciledReceipt, ReceiptLockTimeoutError } from ${JSON.stringify(pathToFileURL(join(edge.base, "tools", "lib", "cloud-worker.mjs")).href)}
+try {
+  persistReconciledReceipt({ taskId: "task_e_a419" }, ${JSON.stringify(join(dirname(lockDirectory), "receipts", "task_e_a419.json"))}, [], { lockTimeoutMs: 10 })
+  process.exitCode = 1
+} catch (error) {
+  console.log(JSON.stringify({ name: error.name, code: error.code, timeoutMs: error.timeoutMs }))
+  process.exitCode = error instanceof ReceiptLockTimeoutError && error.code === "RECEIPT_LOCK_TIMEOUT" && error.timeoutMs === 10 ? 0 : 1
+}
+`)
+    const classified = run(TOOL, [], { path: probe, env })
+    T(`${TOOL}: ${observation} at the receipt deadline preserves the timeout class`,
+      classified.status === 0, classified.stdout || classified.stderr)
+    const result = invoke(edge, [task(edge.receipt.taskId, "ready", 1)], [], {
+      ...env,
+      ORBIT_FAKE_APPLY_RECEIPT_LOCK_PATH: lockDirectory,
+      ORBIT_FAKE_RECEIPT_LOCK_OWNER_PID: String(process.pid),
+    })
+    const staged = edge.repo.git(["diff", "--cached", "--name-only"]).stdout.trim()
+    T(`${TOOL}: ${observation} at the receipt deadline preserves post-apply recovery`,
+      result.status === 9 && /"outcome":"APPLIED_RECEIPT_WRITE_FAILED"/.test(result.stdout) &&
+        result.stdout.includes("only the receipt write failed") && staged === "cloud-landed.txt" &&
+        existsSync(recoveryPathOf(edge)) && !JSON.parse(readFileSync(edge.receiptPath, "utf8")).materialized,
+      `exit ${result.status}: ${result.stdout || result.stderr}; staged ${staged}`)
+    const recovered = invoke(edge, [task(edge.receipt.taskId, "applied", 1)], [], {
+      ORBIT_FAKE_DIFF: edge.repo.git(["diff", "--cached", "--binary", "--full-index"]).stdout,
+    })
+    const calls = readFileSync(edge.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+    T(`${TOOL}: ${observation} deadline recovery records the staged diff without applying twice`,
+      recovered.status === 0 && /"recovered":true/.test(recovered.stdout) &&
+        Boolean(JSON.parse(readFileSync(edge.receiptPath, "utf8")).materialized) &&
+        !existsSync(recoveryPathOf(edge)) && calls.filter((args) => args[1] === "apply").length === 1,
+      `exit ${recovered.status}: ${recovered.stdout || recovered.stderr}`)
+  }
   const wrongRepository = fixture("wrong-repository", { taskId: "task_e_bad2" })
   const apiRepository = stageRepo("materialize-cloud-wrong-repository-api")
   const apiHead = apiRepository.git(["rev-parse", "HEAD"]).stdout.trim()

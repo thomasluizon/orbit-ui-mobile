@@ -6,6 +6,7 @@ import {
   canAccessEntitlement,
   resolveAccessibleColorScheme,
   resolveUpgradeEntitlementDenial,
+  getUpgradeTierReservation,
 } from '../utils/upgrade'
 
 function getMessageValue(
@@ -21,7 +22,25 @@ function getMessageValue(
 }
 
 describe('upgrade utils', () => {
-  it('omits color schemes from upgrade surfaces and selectable preference copy', () => {
+  it.each([en, ptBR])('reserves complete annual and monthly content in each locale before a price response', (messages) => {
+    const t = (key: string, params?: Record<string, unknown>) => {
+      const message = getMessageValue(messages, key)
+      if (typeof message !== 'string') throw new Error(`Missing message: ${key}`)
+      return message.replace(/\{(\w+)\}/g, (_match, name: string) => String(params?.[name]))
+    }
+    const annual = getUpgradeTierReservation('yearly', t)
+    const monthly = getUpgradeTierReservation('monthly', t)
+    expect(annual.heroLine).toBe(messages.upgrade.plans.yearly.heroLine)
+    expect(annual.secondLine).toContain(messages.upgrade.plans.loading)
+    expect(annual.couponLine).toBe(monthly.couponLine)
+    expect(annual.couponLine).toContain(messages.upgrade.plans.loading)
+    expect(monthly.heroLine).toBeUndefined()
+    expect(monthly.secondLine).toBeUndefined()
+    expect(annual.price).toBe(messages.upgrade.plans.loading)
+    expect(monthly.price).toBe(messages.upgrade.plans.loading)
+  })
+
+  it('keeps subscription and preference copy accurate in both locales', () => {
     const removedKeys = [
       'trial.expired.allColors',
       'upgrade.features.colors',
@@ -45,6 +64,12 @@ describe('upgrade utils', () => {
     )
     expect(ptBR.tour.profile.preferences.description).toBe(
       'Deixe tudo do seu jeito: idioma, fuso horário, dia de início da semana, notificações push e mais.',
+    )
+    expect(en.tour.profile.subscription.description).toBe(
+      'Free includes 5 Astra messages a day. Pro includes 50, which is ten times more.',
+    )
+    expect(ptBR.tour.profile.subscription.description).toBe(
+      'O plano grátis inclui 5 mensagens da Astra por dia. O Pro inclui 50, dez vezes mais.',
     )
     expect(en.profile.freshStart.preservePreferences).toBe(
       'Theme, language, and timezone',

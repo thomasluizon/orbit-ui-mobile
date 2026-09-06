@@ -611,6 +611,7 @@ const reservation = {
   baseSha,
   orderSha256: createHash("sha256").update(orderText).digest("hex"),
   submittedOrderSha256: createHash("sha256").update(submittedOrder).digest("hex"),
+  handoffRequired: true,
   orderFile,
   worktree,
   submittedAt: submittedAt.toISOString(),

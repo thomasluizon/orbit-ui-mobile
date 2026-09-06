@@ -53,3 +53,12 @@ would annotate "Recommend: X"; decide X and move on.
 
 Retry once with different wording, then say the answer came from built-in defaults, not a match.
 Never invent ratings, prices, reviews, or org details, or a `file:line` no tool gave you.
+
+### 9. Carry the standing operating contract (D89, D90)
+
+Enter through `/orchestrate`: Codex writes every code change; Claude never edits code. A bare ticket stays local.
+Redesign queues use `/orchestrate --cloud --parallel` for UI, a small local pool for `api`/`landing` (D89).
+D76 covers the thirteen redesign screens; groundwork runs autonomously. See `.claude/playbooks/redesign-screen.md`.
+Until shipping, D90 suspends D76 steps 1/3/7/8 and D88's hold; steps 2/4/5/6 stand. No human wait; screens merge like groundwork. D76/D88 then return.
+`design/canvas/`, authoritative `DESIGN.md` under D42, step 6 ui-skills sweep, Pullfrog and gates still apply.
+`hot.md` and brain ADRs are the decision record. Every `/handoff` carries this contract before its task, pointing here and to the playbook.

@@ -58,7 +58,7 @@ function LoadedContent({
   return (
     <>
       <View>
-        <SectionLabel top={0} bottom={8}>
+        <SectionLabel>
           {t('referral.drawer.yourLink')}
         </SectionLabel>
         <View style={styles.linkWell}>

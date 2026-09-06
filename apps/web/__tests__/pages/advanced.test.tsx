@@ -168,6 +168,8 @@ describe('AdvancedPage', () => {
     render(<AdvancedPage />)
     expect(screen.getByText('orbitMcp.title')).toBeInTheDocument()
     expect(screen.getByTestId('pro-badge')).toBeInTheDocument()
+    expect(screen.getByTestId('section-heading-row')).toContainElement(screen.getByText('orbitMcp.title'))
+    expect(screen.getByTestId('section-heading-row')).toContainElement(screen.getByTestId('pro-badge'))
   })
 
   it.each([

@@ -91,12 +91,23 @@ function label(t) { return t('missing') }`,
     ["unknown-caller", "function Screen(){ const t = useTranslations('common'); return label(t) + label(unknown) }"],
     ["escaped-helper", "function Screen(){ const t = useTranslations('common'); consume(label); return label(t) }"],
     ["escaped-object", "function Screen(){ const t = useTranslations('common'); consume({label}); return label(t) }"],
-    ["exported-helper", "export {label}; function Screen(){ const t = useTranslations('common'); return label(t) }"],
   ]) {
     const directory = repository(label, { "apps/web/page.tsx": `${source}\nfunction label(t){ return t('save') }` })
     check("check-i18n-usage.mjs", `keeps ${label} visible instead of guessing a namespace`, ["--root", directory],
       { status: 0, stdout: /Unresolved translator bindings: 1; 1 with literal keys/ })
   }
+  const acrossModules = repository("across-modules", {
+    "apps/web/page.tsx": `import { Label, label } from './labels'
+function Screen() { const t = useTranslations('common'); return label(t) + <Label t={t} /> }`,
+    "apps/web/labels.tsx": `export function label(t) { return t('save') }
+export function Label({ t }) { return t('save') }`,
+  })
+  check("check-i18n-usage.mjs", "traces translators through imported helpers and component props",
+    ["--root", acrossModules], { status: 0, stdout: /Unresolved translation calls: 0 in 0 files[\s\S]*2 resolved calls/ })
+  writeFileSync(join(acrossModules, "apps/web/labels.tsx"), `export function label(t) { return t('missing') }
+export function Label({ t }) { return t('save') }`)
+  check("check-i18n-usage.mjs", "rejects missing keys read through a module boundary",
+    ["--root", acrossModules], { status: 1, stderr: /apps\/web\/labels.tsx:1: missing common.missing/ })
   const overridden = repository("overridden-prop", { "apps/web/page.tsx": `function Screen(){
 const t = useTranslations('common'); const shared = { t }; return <Child {...shared} t={useTranslations('habits')} />
 }

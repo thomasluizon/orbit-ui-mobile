@@ -50,7 +50,7 @@ export function CalendarAutoSyncSection({
 
   return (
     <>
-      <SectionLabel bottom={10}>{t('calendar.autoSync.title')}</SectionLabel>
+      <SectionLabel>{t('calendar.autoSync.title')}</SectionLabel>
       <View style={styles.cardPad}>
         <View
           style={[

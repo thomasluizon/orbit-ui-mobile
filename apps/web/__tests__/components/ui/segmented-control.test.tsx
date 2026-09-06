@@ -3,9 +3,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 
 const options = [
-  { id: 'all', label: 'All' },
-  { id: 'active', label: 'Active' },
-  { id: 'completed', label: 'Completed' },
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Active' },
+  { value: 'completed', label: 'Completed' },
 ] as const
 
 describe('SegmentedControl', () => {
@@ -26,6 +26,7 @@ describe('SegmentedControl', () => {
     expect(onChange).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('radio', { name: 'Completed' }))
     expect(onChange).toHaveBeenCalledWith('completed')
+    expect(screen.getByRole('radio', { name: 'All' })).toHaveAttribute('aria-checked', 'true')
   })
 
   it('moves between enabled views with arrow keys', () => {
@@ -46,4 +47,27 @@ describe('SegmentedControl', () => {
     fireEvent.keyDown(screen.getByRole('radio', { name: 'All' }), { key: 'ArrowRight' })
     expect(onChange).toHaveBeenCalledWith('completed')
   })
+})
+
+it('blocks disabled options independently of the whole control', () => {
+  const onChange = vi.fn()
+  const choices = [options[0], options[1], { ...options[2], disabled: true }] as const
+  const { rerender } = render(<SegmentedControl options={choices} value="active" onChange={onChange} label="Views" />)
+  expect(screen.getAllByRole('radio').filter((node) => node.getAttribute('aria-checked') === 'true')).toEqual([screen.getByRole('radio', { name: 'Active' })])
+  fireEvent.click(screen.getByRole('radio', { name: 'Completed' }))
+  expect(onChange).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('radio', { name: 'All' }))
+  expect(onChange).toHaveBeenCalledExactlyOnceWith('all')
+  onChange.mockClear()
+  rerender(<SegmentedControl options={choices} value="active" onChange={onChange} label="Views" disabled />)
+  for (const option of screen.getAllByRole('radio')) fireEvent.click(option)
+  expect(onChange).not.toHaveBeenCalled()
+})
+
+it('keeps an enabled option in the keyboard path when the current view becomes disabled', () => {
+  const onChange = vi.fn()
+  render(<SegmentedControl options={[{ ...options[0], disabled: true }, options[1], options[2]]} value="all" onChange={onChange} label="Views" />)
+  expect(screen.getByRole('radio', { name: 'Active' })).toHaveAttribute('tabindex', '0')
+  fireEvent.keyDown(screen.getByRole('radio', { name: 'Active' }), { key: 'ArrowRight' })
+  expect(onChange).toHaveBeenCalledExactlyOnceWith('completed')
 })

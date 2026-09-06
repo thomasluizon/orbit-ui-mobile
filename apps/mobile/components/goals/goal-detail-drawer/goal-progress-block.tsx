@@ -65,7 +65,7 @@ export function GoalProgressBlock({
 
   return (
     <View>
-      <SectionLabel top={4} bottom={8}>
+      <SectionLabel>
         {t('goals.progress')}
       </SectionLabel>
       <View style={styles.progressBlock}>
