@@ -29,7 +29,7 @@ export default function TermsScreen() {
       <AppBar
         onBack={() => goBackOrFallback(isAuthenticated ? '/' : '/login')}
         title={t('terms.title')}
-        backLabel={t(isAuthenticated ? 'common.backToToday' : 'auth.backToLogin')}
+        backLabel={t('terms.close')}
       />
       <Text style={{ paddingHorizontal: 16, color: tokens.fg3 }}>{t('terms.lastUpdated')}</Text>
       <ScrollView

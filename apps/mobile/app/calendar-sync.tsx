@@ -528,13 +528,11 @@ export default function CalendarSyncScreen() {
               />
             ) : (
               <>
-                <><SectionLabel>
-                  {plural(
-                    t('calendar.eventsFound', { count: events.length }),
-                    events.length,
-                  )}
-                </SectionLabel>
-{
+                <View testID="section-heading-row" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <SectionLabel>{plural(t('calendar.eventsFound', { count: events.length }), events.length)}</SectionLabel>
+                  </View>
+                  <View style={{ flexShrink: 0, alignItems: 'center', paddingTop: 24, paddingRight: 16, paddingBottom: 12 }}>
                     <SelectAllToggle
                       allSelected={allSelected}
                       onToggle={toggleAll}
@@ -543,7 +541,8 @@ export default function CalendarSyncScreen() {
                       tokens={tokens}
                       tintStyle={chipTint}
                     />
-                  }</>
+                  </View>
+                </View>
                 {events.slice(0, visibleCount).map((event, index) => (
                   <CalendarSyncEventRow
                     key={event.id}

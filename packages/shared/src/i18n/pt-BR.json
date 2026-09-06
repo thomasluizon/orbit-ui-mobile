@@ -1529,6 +1529,7 @@
     }
   },
   "privacy": {
+    "close": "Fechar política de privacidade",
     "title": "Política de Privacidade",
     "lastUpdated": "Última atualização: agosto de 2026",
     "intro": {
@@ -3093,6 +3094,7 @@
     }
   },
   "terms": {
+    "close": "Fechar termos de serviço",
     "title": "Termos de Serviço",
     "lastUpdated": "Última atualização: Junho de 2026",
     "intro": {

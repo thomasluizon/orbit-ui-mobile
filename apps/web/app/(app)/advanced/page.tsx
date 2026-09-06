@@ -106,8 +106,10 @@ export default function AdvancedPage() {
                 divider={false}
               />
 
-              <><SectionLabel>{t('orbitMcp.title')}</SectionLabel>
-{<ProBadge />}</>
+              <div data-testid="section-heading-row" className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1"><SectionLabel>{t('orbitMcp.title')}</SectionLabel></div>
+                <div className="flex shrink-0 items-center pt-6 pr-4 pb-3"><ProBadge /></div>
+              </div>
               <div style={{ padding: '0 16px 12px' }}>
                 {!profile?.hasProAccess && (
                   <div className="flex items-center justify-end" style={{ marginBottom: 8 }}>

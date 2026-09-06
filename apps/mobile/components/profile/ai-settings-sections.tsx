@@ -67,10 +67,14 @@ export function AiFeatureToggles({
 }: Readonly<AiFeatureTogglesProps>) {
   return (
     <>
-      <><SectionLabel>
-        {t('profile.sections.aiFeatures')}
-      </SectionLabel>
-{<ProBadge />}</>
+      <View testID="section-heading-row" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <SectionLabel>{t('profile.sections.aiFeatures')}</SectionLabel>
+        </View>
+        <View style={{ flexShrink: 0, alignItems: 'center', paddingTop: 24, paddingRight: 16, paddingBottom: 12 }}>
+          <ProBadge />
+        </View>
+      </View>
       {hasProAccess ? (
         <SettingsRow
           icon={Satellite}

@@ -153,7 +153,7 @@ vi.mock('@/hooks/use-tour-scroll-container', () => ({
 }))
 
 vi.mock('@/components/ui/theme-toggle', () => ({
-  ThemeToggle: () => null,
+  ThemeToggle: () => React.createElement('ThemeToggle'),
 }))
 
 vi.mock('@/components/marketing-consent/marketing-consent-section', () => ({
@@ -194,18 +194,13 @@ vi.mock('@/components/profile/profile-nav-icon', () => ({
 }))
 
 vi.mock('@/components/gamification/streak-badge', () => ({
-  StreakBadge: () => null,
+  StreakBadge: () => React.createElement('StreakBadge'),
 }))
 
 vi.mock('@/components/navigation/notification-bell', () => ({
-  NotificationBell: () => null,
+  NotificationBell: () => React.createElement('NotificationBell'),
 }))
 
-vi.mock('@/components/ui/app-bar', () => ({
-  AppBar: ({ trailing }: { trailing?: React.ReactNode }) => (
-    <>{trailing}</>
-  ),
-}))
 
 vi.mock('@/components/ui/section-label', () => ({
   SectionLabel: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -293,6 +288,17 @@ function findRowByLabel(
 }
 
 describe('ProfileScreen', () => {
+  it('keeps all three controls outside the centred header and before scrolling content', async () => {
+    const tree = await renderProfileScreen()
+    const header = tree.root.findByProps({ testID: 'nav-header-plain' })
+    const actions = tree.root.findByProps({ testID: 'profile-header-actions' })
+    for (const control of ['ThemeToggle', 'StreakBadge', 'NotificationBell']) {
+      expect(header.findAllByType(control)).toHaveLength(0)
+      expect(actions.findAllByType(control)).toHaveLength(1)
+    }
+    expect(actions.findAllByType('ScrollView')).toHaveLength(0)
+  })
+
   beforeEach(() => {
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()

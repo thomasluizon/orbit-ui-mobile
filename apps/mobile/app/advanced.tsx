@@ -173,8 +173,10 @@ export default function AdvancedScreen() {
         </Animated.View>
 
         <Animated.View entering={sectionEntrance(1)}>
-          <><SectionLabel>{t('orbitMcp.title')}</SectionLabel>
-{<ProBadge />}</>
+          <View testID="section-heading-row" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <View style={{ flex: 1, minWidth: 0 }}><SectionLabel>{t('orbitMcp.title')}</SectionLabel></View>
+            <View style={{ flexShrink: 0, alignItems: 'center', paddingTop: 24, paddingRight: 16, paddingBottom: 12 }}><ProBadge /></View>
+          </View>
 
           <View style={localStyles.mcpIntro}>
             {!profile?.hasProAccess ? (

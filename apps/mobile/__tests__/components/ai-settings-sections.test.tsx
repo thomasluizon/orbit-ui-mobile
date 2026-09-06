@@ -1,10 +1,11 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { createTokensV2 } from '@/lib/theme'
+import type { ReactTestRenderer } from 'react-test-renderer'
 import { AiFeatureToggles } from '@/components/profile/ai-settings-sections'
 
 vi.mock('@/components/ui/pro-badge', () => ({
-  ProBadge: () => null,
+  ProBadge: () => React.createElement('ProBadge', { testID: 'pro-badge' }),
 }))
 
 const TestRenderer = require('react-test-renderer')
@@ -66,6 +67,13 @@ function press(node: TestNode | undefined) {
 }
 
 describe('mobile AiFeatureToggles', () => {
+  it('keeps the plan badge in the section heading row', () => {
+    const tree = renderToggles() as ReactTestRenderer
+    const row = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'section-heading-row')[0]!
+    expect(row.findAll((node) => typeof node.type === 'string' && node.props.testID === 'pro-badge')).toHaveLength(1)
+    expect(row.findAll((node) => node.props.children === 'profile.sections.aiFeatures').length).toBeGreaterThan(0)
+  })
+
   it('renders exactly the daily summary and proactive switches for Pro users', () => {
     const tree = renderToggles()
     const switches = nodesWithRole(tree, 'switch')

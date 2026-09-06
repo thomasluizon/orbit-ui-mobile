@@ -133,11 +133,6 @@
       "count": 1
     }
   },
-  "app/(app)/profile/_components/profile-header-bar.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "app/(app)/profile/_components/profile-identity-header.tsx": {
     "local/spacing-scale": {
       "count": 3

@@ -20,23 +20,19 @@ export function ProfileHeaderBar({ streak, error }: Readonly<ProfileHeaderBarPro
 
   return (
     <>
-      <AppBar
-        action={
-          <>
-            <ThemeToggle />
-            <span data-tour="tour-streak-badge">
-              <StreakBadge streak={streak} isFrozen={streakInfo?.isFrozenToday ?? false} />
-            </span>
-            <NotificationBell />
-          </>
-        }
-        title={t('nav.profile')}
-      />
+      <AppBar title={t('nav.profile')} />
+      <div data-testid="profile-header-actions" className="flex shrink-0 items-center justify-end gap-3 px-4 pb-3">
+        <ThemeToggle />
+        <span data-tour="tour-streak-badge">
+          <StreakBadge streak={streak} isFrozen={streakInfo?.isFrozenToday ?? false} />
+        </span>
+        <NotificationBell />
+      </div>
 
       {error && (
         <p
           style={{
-            margin: '12px 20px',
+            padding: '12px 16px',
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
             color: 'var(--status-bad)',

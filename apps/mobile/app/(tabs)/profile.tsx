@@ -133,16 +133,12 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
-      <AppBar
-        action={
-          <>
-            <ThemeToggle />
-            <StreakBadge streak={profile?.currentStreak ?? 0} isFrozen={streakInfo?.isFrozenToday ?? false} />
-            <NotificationBell />
-          </>
-        }
-        title={t('nav.profile')}
-      />
+      <AppBar title={t('nav.profile')} />
+      <View testID="profile-header-actions" style={{ flexDirection: 'row', flexShrink: 0, alignItems: 'center', justifyContent: 'flex-end', gap: 12, paddingHorizontal: 16, paddingBottom: 12 }}>
+        <ThemeToggle />
+        <StreakBadge streak={profile?.currentStreak ?? 0} isFrozen={streakInfo?.isFrozenToday ?? false} />
+        <NotificationBell />
+      </View>
       <ScrollView
         ref={profileScrollRef}
         style={styles.container}

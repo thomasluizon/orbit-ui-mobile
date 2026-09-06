@@ -35,7 +35,7 @@ export default function TermsPage() {
   return (
     <div className="mx-auto flex min-h-[100dvh] max-w-[var(--app-max-w)] flex-col">
       <AppBar
-        backLabel={t(isAuthenticated ? 'common.backToToday' : 'auth.backToLogin')}
+        backLabel={t('terms.close')}
         onBack={() => goBackOrFallback(isAuthenticated ? '/' : '/login')}
         title={t('terms.title')}
       />
