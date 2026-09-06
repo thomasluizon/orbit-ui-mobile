@@ -20,8 +20,6 @@ interface VersionUpdateSheetProps {
   title: string
   description: string
   actionLabel: string
-  latestVersion: string | null
-  currentVersion: string | null
   styles: ReturnType<typeof createStyles>
   onAction: () => void
   onLater: () => void
@@ -32,8 +30,6 @@ function VersionUpdateSheet({
   title,
   description,
   actionLabel,
-  latestVersion,
-  currentVersion,
   styles,
   onAction,
   onLater,
@@ -43,31 +39,17 @@ function VersionUpdateSheet({
   if (!open) return null
 
   return (
-    <Sheet ref={sheetRef} open onClose={onLater} title={title}>
-      <View style={styles.container}>
-        <Text style={styles.title}>{latestVersion ? `Orbit ${latestVersion}` : title}</Text>
-        {currentVersion && latestVersion ? (
-          <Text style={styles.delta}>{currentVersion} → {latestVersion}</Text>
-        ) : null}
-        <Text style={styles.description}>{description}</Text>
-        <View style={styles.spacer} />
-        <View style={styles.buttons}>
-          <PillButton onClick={() => closeSheet(onAction)}>{actionLabel}</PillButton>
-          <PillButton variant="ghost" onClick={() => closeSheet()}>
-            {t('versionUpdate.laterCta')}
-          </PillButton>
-        </View>
+    <Sheet ref={sheetRef} open onClose={onLater} title={title} actions={
+      <View style={styles.buttons}>
+        <PillButton size="sm" variant="ghost" onClick={() => closeSheet()}>{t('versionUpdate.laterCta')}</PillButton>
+        <PillButton size="sm" onClick={() => closeSheet(onAction)}>{actionLabel}</PillButton>
       </View>
+    }>
+      <Text style={styles.description}>{description}</Text>
     </Sheet>
   )
 }
 
-/**
- * Version-update sheet (iOS path) per the m-version artboard: sheet title,
- * Geist Sans version highlight, Geist Mono tabular delta, fg-2 body, then a primary
- * update pill with download glyph and a ghost Later pill.
- * Android path defers to native Play Core flow.
- */
 export function VersionUpdateDrawer() {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -79,13 +61,11 @@ export function VersionUpdateDrawer() {
   const {
     updateAvailable,
     forceUpdate,
-    latestVersion,
-    currentVersion,
     iosStoreUrl,
   } = useVersionCheck()
 
   const androidImmediateStartedRef = useRef(false)
-  const androidFlexibleSnoozedRef = useRef(false)
+  const [androidRequested, setAndroidRequested] = useState(false)
   const [snoozedUntil, setSnoozedUntil] = useState<number | null>(null)
   const [snoozeLoaded, setSnoozeLoaded] = useState(false)
   const [dismissedForSession, setDismissedForSession] = useState(false)
@@ -119,11 +99,9 @@ export function VersionUpdateDrawer() {
 
   const androidFlexibleActive =
     Platform.OS === 'android' &&
+    androidRequested &&
     updateAvailable &&
-    !forceUpdate &&
-    snoozeLoaded &&
-    !isSnoozed &&
-    !dismissedForSession
+    !forceUpdate
 
   const { downloaded: androidUpdateReady, install: installAndroidUpdate } =
     useAndroidFlexibleUpdate(androidFlexibleActive)
@@ -134,14 +112,6 @@ export function VersionUpdateDrawer() {
     androidImmediateStartedRef.current = true
     void startAndroidUpdate({ immediate: true })
   }, [updateAvailable, forceUpdate])
-
-  useEffect(() => {
-    if (!androidFlexibleActive || androidFlexibleSnoozedRef.current) return
-    androidFlexibleSnoozedRef.current = true
-    const until = Date.now() + SNOOZE_DURATION_MS
-    void Promise.resolve().then(() => setSnoozedUntil(until))
-    AsyncStorage.setItem(SNOOZE_STORAGE_KEY, String(until)).catch(() => {})
-  }, [androidFlexibleActive])
 
   const shouldShowIosSheet =
     Platform.OS === 'ios' &&
@@ -167,19 +137,10 @@ export function VersionUpdateDrawer() {
   const handleAndroidLater = () => setAndroidRestartDismissed(true)
 
   if (Platform.OS === 'android') {
-    return (
-      <VersionUpdateSheet
-        open={androidUpdateReady && !androidRestartDismissed}
-        title={t('versionUpdate.readyTitle')}
-        description={t('versionUpdate.readyDescription')}
-        actionLabel={t('versionUpdate.restartCta')}
-        latestVersion={latestVersion}
-        currentVersion={currentVersion}
-        styles={styles}
-        onAction={installAndroidUpdate}
-        onLater={handleAndroidLater}
-      />
-    )
+    return <AndroidVersionUpdateSheet ready={androidUpdateReady} restartDismissed={androidRestartDismissed}
+      softOpen={updateAvailable && !forceUpdate && snoozeLoaded && !isSnoozed && !dismissedForSession && !androidRequested}
+      styles={styles} install={installAndroidUpdate} request={() => setAndroidRequested(true)}
+      later={handleIosLater} restartLater={handleAndroidLater} />
   }
 
   if (Platform.OS !== 'ios') return null
@@ -190,8 +151,6 @@ export function VersionUpdateDrawer() {
       title={t('versionUpdate.title')}
       description={t('versionUpdate.description')}
       actionLabel={t('versionUpdate.updateCta')}
-      latestVersion={latestVersion}
-      currentVersion={currentVersion}
       styles={styles}
       onAction={handleIosUpdate}
       onLater={handleIosLater}
@@ -199,38 +158,30 @@ export function VersionUpdateDrawer() {
   )
 }
 
+function AndroidVersionUpdateSheet({ ready, softOpen, restartDismissed, styles, install, request, later, restartLater }: Readonly<{
+  ready: boolean; softOpen: boolean; restartDismissed: boolean
+  styles: ReturnType<typeof createStyles>
+  install: () => void; request: () => void; later: () => void; restartLater: () => void
+}>) {
+  const { t } = useTranslation()
+  return <VersionUpdateSheet open={ready ? !restartDismissed : softOpen}
+    title={t(ready ? 'versionUpdate.readyTitle' : 'versionUpdate.title')}
+    description={t(ready ? 'versionUpdate.readyDescription' : 'versionUpdate.description')}
+    actionLabel={t(ready ? 'versionUpdate.restartCta' : 'versionUpdate.updateCta')}
+    styles={styles} onAction={ready ? install : request} onLater={ready ? restartLater : later} />
+}
+
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
-    container: {
-      paddingHorizontal: 24,
-      paddingTop: 8,
-      paddingBottom: 24,
-      gap: 12,
-    },
-    title: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 20,
-      color: tokens.fg1,
-    },
-    delta: {
-      fontFamily: 'GeistMono_500Medium',
-      fontSize: 12,
-      color: tokens.fg3,
-      fontVariant: ['tabular-nums'],
-    },
     description: {
       fontFamily: 'Geist_400Regular',
       fontSize: 16,
-      lineHeight: 22,
+      lineHeight: 24.8,
       color: tokens.fg2,
-      marginTop: 4,
-    },
-    spacer: {
-      flex: 1,
-      minHeight: 12,
     },
     buttons: {
-      flexDirection: 'column',
+      flexDirection: 'row',
+      flexWrap: 'wrap',
       gap: 8,
       paddingTop: 8,
     },

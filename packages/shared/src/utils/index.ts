@@ -639,3 +639,5 @@ export {
   type ProposedTintDecision,
   type ProposedTintElementProps,
 } from './proposed-tint'
+
+export * from './error-surface'
