@@ -20,6 +20,8 @@ const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+
 const TestRenderer = require('react-test-renderer')
 
 function flattenText(node: unknown): string {
@@ -101,6 +103,10 @@ const offlineMocks = vi.hoisted(() => {
   }
 })
 
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: { getState: () => ({ isAuthenticated: true, user: { userId: 'account-a' } }), subscribe: () => () => {} },
+}))
+
 vi.mock('expo-sqlite', () => ({
   openDatabaseSync: () => ({
     execSync: vi.fn(),
@@ -128,7 +134,7 @@ vi.mock('expo-sqlite', () => ({
         })
         return
       }
-      if (sql === 'DELETE FROM mutation_queue') {
+      if (sql === 'DELETE FROM mutation_queue' || sql.startsWith('DELETE FROM mutation_queue WHERE account_id IS ?')) {
         offlineMocks.rows.clear()
         return
       }

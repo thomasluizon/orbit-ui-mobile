@@ -1,7 +1,9 @@
 import React from 'react'
-import { Text } from 'react-native'
+import { StyleSheet, Text } from 'react-native'
+import Yoga from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Toast } from '@/components/ui/app-toast'
+import { AppToast, Toast } from '@/components/ui/app-toast'
+import { useAppToastStore } from '@/stores/app-toast-store'
 import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer = require('react-test-renderer')
@@ -23,6 +25,36 @@ describe('mobile Toast', () => {
   afterEach(() => {
     TestRenderer.act(() => vi.runOnlyPendingTimers())
     vi.useRealTimers()
+  })
+
+  it.each([48, 112, 200])('keeps the public route height unchanged with a %ipx toast', (toastHeight) => {
+    useAppToastStore.setState({ currentToast: null, queue: [] })
+    const tree = render(<AppToast />)
+    const root = Yoga.Node.create()
+    const route = Yoga.Node.create()
+    root.setWidth(412)
+    root.setHeight(820)
+    route.setFlex(1)
+    root.insertChild(route, 0)
+    root.calculateLayout(undefined, undefined)
+    const heightWithoutToast = route.getComputedHeight()
+    TestRenderer.act(() => { useAppToastStore.getState().showInfo('Feedback') })
+    const hostStyle = StyleSheet.flatten(tree.root.findByProps({ pointerEvents: 'box-none' }).props.style)
+    const host = Yoga.Node.create()
+    const content = Yoga.Node.create()
+    content.setHeight(toastHeight)
+    host.insertChild(content, 0)
+    host.setPadding(Yoga.EDGE_ALL, hostStyle.padding)
+    host.setPositionType(hostStyle.position === 'absolute' ? Yoga.POSITION_TYPE_ABSOLUTE : Yoga.POSITION_TYPE_RELATIVE)
+    root.insertChild(host, 1)
+    try {
+      root.calculateLayout(undefined, undefined)
+      expect(route.getComputedHeight()).toBe(heightWithoutToast)
+      expect(route.getComputedHeight()).toBe(820)
+    } finally {
+      root.freeRecursive()
+      TestRenderer.act(() => tree.unmount())
+    }
   })
 
   it('calls onDone once at the default 5000ms and never before', () => {

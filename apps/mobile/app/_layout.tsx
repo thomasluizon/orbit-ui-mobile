@@ -57,13 +57,14 @@ import { NotificationDeleteNotice } from '@/components/navigation/notification-d
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Fab } from '@/components/ui/fab'
-import { Plus, WifiOff } from '@/components/ui/icons'
+import { Plus } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
 import { OverlayLayer } from '@/components/global-overlays'
 import * as Sentry from '@sentry/react-native'
-import { AppToast, Toast } from '@/components/ui/app-toast'
+import { OfflineNotice } from '@/components/offline-notice'
+import { AppToast } from '@/components/ui/app-toast'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
 import { AstraConversation } from '@/components/chat/conversation'
 import { Composer } from '@/components/shell/composer'
@@ -308,13 +309,7 @@ function RootLayoutNav() {
             )}
             notice={<>
               <NotificationDeleteNotice />
-              {offline.isOnline ? null : (
-              <Toast
-                kind="neutral"
-                icon={<WifiOff size={20} strokeWidth={2} color={tokens.fg2} />}
-                message={t('offline.title')}
-              />
-              )}
+              <OfflineNotice />
             </>}
             tabBar={<DestinationTabBar pathname={pathname} />}
             fab={pathname === '/' && !todayFabHidden
@@ -326,7 +321,7 @@ function RootLayoutNav() {
             />
           </Shell412>
         ) : (
-          <Shell412 nav={false}>
+          <Shell412 nav={false} notice={isAuthenticated ? <OfflineNotice /> : undefined}>
             <RootStackScreens
               screenBackgroundColor={surfaces.screen.backgroundColor}
             />
@@ -334,33 +329,48 @@ function RootLayoutNav() {
         )}
 
         {captureBuildEnabled && captureReady ? (
-          <>
-            <View
-              accessibilityLabel={captureProbeId}
-              accessible
-              collapsable={false}
-              importantForAccessibility="yes"
-              pointerEvents="none"
-              style={styles.captureProbe}
-              testID={captureProbeId}
-            />
-            {captureRequestId ? (
-              <View
-                accessibilityLabel={captureRequestId}
-                accessible
-                collapsable={false}
-                importantForAccessibility="yes"
-                pointerEvents="none"
-                style={styles.captureProbe}
-                testID={captureRequestId}
-              />
-            ) : null}
-          </>
+          <CaptureProbes
+            captureProbeId={captureProbeId}
+            captureRequestId={captureRequestId}
+          />
         ) : null}
       </View>
 
       {isAuthenticated ? <GlobalOverlays profile={profile} /> : null}
-      <AppToast />
+      {!isAuthenticated ? <AppToast /> : null}
+    </>
+  )
+}
+
+function CaptureProbes({
+  captureProbeId,
+  captureRequestId,
+}: Readonly<{
+  captureProbeId: string
+  captureRequestId: string | null
+}>) {
+  return (
+    <>
+      <View
+        accessibilityLabel={captureProbeId}
+        accessible
+        collapsable={false}
+        importantForAccessibility="yes"
+        pointerEvents="none"
+        style={styles.captureProbe}
+        testID={captureProbeId}
+      />
+      {captureRequestId ? (
+        <View
+          accessibilityLabel={captureRequestId}
+          accessible
+          collapsable={false}
+          importantForAccessibility="yes"
+          pointerEvents="none"
+          style={styles.captureProbe}
+          testID={captureRequestId}
+        />
+      ) : null}
     </>
   )
 }

@@ -233,7 +233,7 @@ describe('mobile apiClient', () => {
     refreshSessionMock.mockResolvedValue({ status: 'network-error' })
     fetchMock.mockResolvedValue({ ok: false, status: 401 })
 
-    await expect(apiClient('/secure')).rejects.toThrow('Unauthorized')
+    await expect(apiClient('/secure')).rejects.toThrow('Network request failed')
 
     expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
     expect(routerReplaceMock).not.toHaveBeenCalled()
