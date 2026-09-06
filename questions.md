@@ -8,14 +8,14 @@ answers *follow the best approach*, can I continue?" If yes, it is not a questio
 `design/canvas/`, `DESIGN.md` and the brain, and move on. Only a question that survives that test
 belongs in this file.
 
-**Status: one open question, below. It does not block anything; #329 is deferred for a
+**Status: one open question, below. It does not block anything; `thomasluizon/orbit-tickets#329` is deferred for a
 different reason.**
 
 ---
 
 ## Open: what does Progresso show for a multi-day gap it cannot repair?
 
-Raised 2026-09-06 by the #329 worker, which stopped rather than guess:
+Raised 2026-09-06 by the `thomasluizon/orbit-tickets#329` worker, which stopped rather than guess:
 
 > The existing repair endpoint only repairs yesterday and rejects additional request fields. Its
 > handler spends exactly one freeze, so it cannot support the canvas’s “Spend 2 freezes” action.
@@ -32,7 +32,7 @@ This survives the test: “follow the best approach” produces a state that doe
 drawing, on a screen a person sees. Adding it is a design decision, not an implementation detail.
 
 **What the run did instead of deciding it:** filed the API work as `thomasluizon/orbit-tickets#442`,
-an atomic multi-day repair endpoint, and recorded #329 as blocked by it. So the question only needs
+an atomic multi-day repair endpoint, and recorded `thomasluizon/orbit-tickets#329` as blocked by it. So the question only needs
 answering if you want Progresso to ship before that endpoint does.
 
 **If you do**, the reversible default is the third variant above: render the gap well, state the gap,
