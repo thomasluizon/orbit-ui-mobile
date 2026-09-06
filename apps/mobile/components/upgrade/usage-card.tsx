@@ -19,18 +19,18 @@ export function UsageCard({
 }>) {
   return (
     <View style={{ gap: 12 }}>
-    <View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
-      <Text style={[styles.cardLabel, { color: tokens.fg3 }]}>
+    <View style={{ gap: 8 }}>
+      <Text accessibilityRole="header" style={[styles.billingSecondary, { color: tokens.fg2 }]}>
         {t('upgrade.billing.usage.title')}
       </Text>
-      <View style={styles.usageRow}>
-        <Text style={[styles.usageLabel, { color: tokens.fg1 }]}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+        <Text style={[styles.billingSecondary, { color: tokens.fg1 }]}>
           {t('upgrade.billing.usage.aiMessages')}
         </Text>
         <Text
           style={[
-            styles.usageValue,
-            { color: usageUrgent ? tokens.statusOverdueText : tokens.fg2 },
+            styles.billingMeta,
+            { color: tokens.fg3 },
           ]}
         >
           {t('upgrade.billing.usage.aiMessagesOf', {
