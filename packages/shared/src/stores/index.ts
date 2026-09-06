@@ -65,3 +65,5 @@ export {
   type TourUIState,
   type UIStoreState,
 } from './ui-store'
+
+export * from './throttle-store'

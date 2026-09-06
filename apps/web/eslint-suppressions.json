@@ -73,14 +73,6 @@
       "count": 4
     }
   },
-  "app/(app)/error.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
   "app/(app)/layout.tsx": {
     "local/spacing-scale": {
       "count": 2
@@ -245,22 +237,9 @@
       "count": 5
     }
   },
-  "app/global-error.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
   "app/layout.tsx": {
     "local/icon-size-grid": {
       "count": 3
-    }
-  },
-  "app/not-found.tsx": {
-    "local/spacing-scale": {
-      "count": 2
     }
   },
   "components/advanced/advanced-sections.tsx": {
@@ -796,14 +775,6 @@
     }
   },
   "components/ui/settings-row.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "components/ui/update-available-banner.tsx": {
     "local/icon-size-grid": {
       "count": 2
     },

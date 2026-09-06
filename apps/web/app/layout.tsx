@@ -11,6 +11,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next'
 import { neutralColors } from '@orbit/shared/theme'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
 import { resolveWebThemeVariables, VALID_COLOR_SCHEMES } from '@/lib/theme-dom'
+import { ThrottleScreen } from '@/components/ui/throttle-screen'
 import './globals.css'
 
 const geist = Geist({
@@ -182,6 +183,7 @@ export default async function RootLayout({
               },
             }}
           />
+        <ThrottleScreen />
         </NextIntlClientProvider>
         <Analytics />
         <SpeedInsights />

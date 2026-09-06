@@ -1,5 +1,6 @@
 'use client'
 
+import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { API } from '@orbit/shared/api'
@@ -120,7 +121,7 @@ export default function UpgradePage() {
         const checkoutUrl = timeZone
           ? `${API.subscription.checkout}?timeZone=${encodeURIComponent(timeZone)}`
           : API.subscription.checkout
-        const response = await fetch(checkoutUrl, {
+        const response = await fetchWithThrottle(checkoutUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ interval }),

@@ -1,5 +1,6 @@
 'use client'
 
+import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { useState, useRef, useCallback, useEffect, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
 import { API } from '@orbit/shared/api'
@@ -8,7 +9,8 @@ import {
   VOICE_SILENCE_TIMEOUT_MS,
   VOICE_WEB_SPEECH_RMS_THRESHOLD,
 } from '@orbit/shared/chat'
-import { ERROR_CODE_TO_KEY } from '@orbit/shared/utils'
+import { ERROR_CODE_TO_KEY, getErrorSurface } from '@orbit/shared/utils'
+import { useThrottleStore } from '@/stores/throttle-store'
 export { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
 
 interface TranscriptionResponse {
@@ -83,7 +85,7 @@ export function useSpeechToText() {
       try {
         const formData = new FormData()
         formData.append('audio', blob, 'recording.webm')
-        const response = await fetch(API.chat.transcribe, { method: 'POST', body: formData })
+        const response = await fetchWithThrottle(API.chat.transcribe, { method: 'POST', body: formData })
         const data = (await response.json().catch(() => null)) as TranscriptionResponse | null
         const text = data?.text?.trim() ?? ''
         if (!response.ok || !text) {
@@ -156,6 +158,7 @@ export function useSpeechToText() {
 
   const startRecording = useCallback(async () => {
     if (!isSupported || isRecording) return
+    if ((getErrorSurface(useThrottleStore.getState().error).retryAt ?? 0) > Date.now()) return
     setError(null)
     setTranscript('')
     setRecordingDuration(0)

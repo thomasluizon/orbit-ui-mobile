@@ -73,6 +73,8 @@ vi.mock('sp-react-native-in-app-updates', () => {
     installUpdate = mocks.installUpdate
     addStatusUpdateListener = mocks.addStatusUpdateListener
     removeStatusUpdateListener = mocks.removeStatusUpdateListener
+    addIntentSelectionListener = vi.fn()
+    removeIntentSelectionListener = vi.fn()
   }
   return {
     default: MockInAppUpdates,
@@ -224,7 +226,7 @@ describe('useAndroidFlexibleUpdate', () => {
       current: { downloaded: boolean; install: () => void } | null
     } = { current: null }
     function Harness() {
-      result.current = useAndroidFlexibleUpdate(active)
+      result.current = useAndroidFlexibleUpdate(active, () => {})
       return null
     }
     TestRenderer.act(() => {

@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { VOICE_LEVEL_POLL_MS, VOICE_SILENCE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
+import { useThrottleStore } from '@/stores/throttle-store'
+import { getErrorSurface } from '@orbit/shared/utils'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -42,6 +44,7 @@ describe('useSpeechToText', () => {
   beforeEach(() => {
     MockMediaRecorder.instances = []
     vi.clearAllMocks()
+    useThrottleStore.getState().clear()
     vi.stubGlobal('MediaRecorder', MockMediaRecorder)
     vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } })
   })
@@ -71,6 +74,36 @@ describe('useSpeechToText', () => {
   })
 
   describe('with recording support', () => {
+    it('blocks recording after a timed transcription refusal until the deadline, then allows another attempt', async () => {
+      const retryAt = Date.now() + 60_000
+      const fetchMock = vi.fn(async () => Response.json({
+        error: 'Rate limited', requestId: 'transcription-request', limit: 1, count: 2,
+        retryAfterUtc: new Date(retryAt).toISOString(),
+      }, { status: 429 }))
+      vi.stubGlobal('fetch', fetchMock)
+      const { result } = renderHook(() => useSpeechToText())
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { result.current.stopRecording() })
+      await waitFor(() => expect(result.current.isTranscribing).toBe(false))
+
+      await act(async () => { await result.current.startRecording() })
+      expect(result.current.isRecording).toBe(false)
+      expect(getUserMedia).toHaveBeenCalledTimes(1)
+      expect(getErrorSurface(useThrottleStore.getState().error)).toEqual({
+        retryAt, requestId: 'transcription-request',
+      })
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+
+      vi.spyOn(Date, 'now').mockReturnValue(retryAt - 1)
+      await act(async () => { await result.current.startRecording() })
+      expect(result.current.isRecording).toBe(false)
+      vi.spyOn(Date, 'now').mockReturnValue(retryAt)
+      await act(async () => { await result.current.startRecording() })
+      expect(result.current.isRecording).toBe(true)
+      expect(getUserMedia).toHaveBeenCalledTimes(2)
+      vi.restoreAllMocks()
+    })
+
     it('reports supported', () => {
       const { result } = renderHook(() => useSpeechToText())
       expect(result.current.isSupported).toBe(true)

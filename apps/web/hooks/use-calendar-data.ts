@@ -1,5 +1,6 @@
 'use client'
 
+import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { useMemo } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import {
@@ -9,6 +10,7 @@ import {
 import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import {
+  ApiClientError,
   buildCalendarDayMap,
   formatAPIDate,
   splitCalendarMonthRange,
@@ -21,10 +23,10 @@ async function fetchCalendarMonth(
   monthEnd: string,
 ): Promise<CalendarMonthResponse> {
   const url = `${API.habits.calendarMonth}?dateFrom=${monthStart}&dateTo=${monthEnd}`
-  const res = await fetch(url)
+  const res = await fetchWithThrottle(url)
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null
-    throw new Error(body?.error ?? `Failed with status ${res.status}`)
+    throw new ApiClientError(res.status, body?.error ?? `Failed with status ${res.status}`)
   }
   return res.json() as Promise<CalendarMonthResponse>
 }
