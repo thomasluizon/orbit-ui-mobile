@@ -40,6 +40,7 @@ const fixture = (label, overrides = {}) => {
     branch: "main",
     baseSha: overrides.baseSha ?? head,
     worktree: repo.path,
+    namedTargets: overrides.namedTargets ?? [],
     submittedAt: "2026-08-31T17:00:00.000Z",
     deadline: overrides.deadline ?? new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     ...(overrides.abandoned ? { abandoned: overrides.abandoned } : {}),
@@ -444,6 +445,23 @@ try {
     `exit ${emptyResult.status}: ${emptyResult.stdout || emptyResult.stderr}`,
   )
 
+  for (const [label, title] of [["missing", undefined], ["non-string", { text: "invalid title" }]]) {
+    const untitled = fixture(`empty-title-${label}`, { namedTargets: ["README.md"] })
+    const result = invoke(untitled, [{ ...task(untitled.receipt.taskId, "ready", 0), title }], [], {
+      ORBIT_FAKE_APPLY_MODE: "noop",
+    })
+    const report = JSON.parse(result.stdout)
+    const retained = JSON.parse(readFileSync(untitled.receiptPath, "utf8"))
+    T(
+      `${TOOL}: ${label} title still reports an empty failure and retains ticket admission`,
+      result.status === 3 && report.outcome === "CLOUD_TASK_EMPTY" && report.retry === "required" &&
+        !Object.hasOwn(report.failure, "title") && !Object.hasOwn(retained.emptyFailure, "title") &&
+        report.failure.classification === "lost-work suspect" && receiptBlocksTicketAdmission(retained) &&
+        retained.materialized === undefined && retained.released === undefined && retained.unusable === undefined,
+      result.stdout || result.stderr,
+    )
+  }
+
   for (const [status, outcome, message] of [
     ["error", "CLOUD_TASK_ERROR", "failed; no diff will exist"],
     ["applied", "CLOUD_TASK_APPLIED", "already applied elsewhere; it will not be applied again"],
@@ -550,20 +568,25 @@ try {
       JSON.stringify(largeLandingReceipt),
   )
 
-  const noOp = fixture("no-op", { taskId: "task_e_a13" })
+  const noOp = fixture("no-op", { taskId: "task_e_a13", namedTargets: ["DESIGN.md"] })
   const noOpResult = invoke(noOp, [task(noOp.receipt.taskId, "ready", 1)], [], { ORBIT_FAKE_APPLY_MODE: "noop" })
   const noOpReceipt = JSON.parse(readFileSync(noOp.receiptPath, "utf8"))
   const noOpRetry = invoke(noOp, [task(noOp.receipt.taskId, "ready", 1)])
   const noOpInvocations = readFileSync(noOp.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
   T(
-    `${TOOL}: a successful no-op with a zero-byte authoritative diff resolves as unusable`,
+    `${TOOL}: an empty diff retains a named failure and ticket ownership across repeated calls`,
     noOpResult.status === 3 &&
       /"outcome":"CLOUD_TASK_EMPTY"/.test(noOpResult.stdout) &&
       noOpReceipt.materialized === undefined &&
-      noOpReceipt.unusable?.reason === "task has no unified diff" &&
-      !receiptBlocksTicketAdmission(noOpReceipt) &&
+      noOpReceipt.unusable === undefined &&
+      noOpReceipt.emptyFailure?.classification === "lost-work suspect" &&
+      noOpReceipt.emptyFailure?.title === "measured task" &&
+      noOpReceipt.emptyFailure?.summary.files_changed === 1 &&
+      noOpReceipt.emptyFailure?.namedTargets[0] === "DESIGN.md" &&
+      receiptBlocksTicketAdmission(noOpReceipt) &&
       noOpRetry.status === 3 &&
-      /"outcome":"CLOUD_TASK_UNUSABLE"/.test(noOpRetry.stdout) &&
+      /"outcome":"CLOUD_TASK_EMPTY"/.test(noOpRetry.stdout) &&
+      /"retry":"required"/.test(noOpRetry.stdout) &&
       noOpInvocations.filter((args) => args[1] === "apply").length === 1,
     `exit ${noOpResult.status}: ${noOpResult.stdout || noOpResult.stderr}\n` +
       `retry ${noOpRetry.status}: ${noOpRetry.stdout || noOpRetry.stderr}\n` +
@@ -580,11 +603,11 @@ try {
   const failedEmptyReceipt = JSON.parse(readFileSync(failedEmpty.receiptPath, "utf8"))
   const failedEmptyInvocations = readFileSync(failedEmpty.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
   T(
-    `${TOOL}: a failed apply with no landing and a zero-byte authoritative diff resolves as unusable`,
+    `${TOOL}: a failed empty apply with no named targets remains unfinished with unknown cause`,
     failedEmptyResult.status === 3 &&
       /"outcome":"CLOUD_TASK_EMPTY"/.test(failedEmptyResult.stdout) &&
-      failedEmptyReceipt.unusable?.status === "ready" &&
-      !receiptBlocksTicketAdmission(failedEmptyReceipt) &&
+      failedEmptyReceipt.emptyFailure?.classification === "cause unknown" &&
+      receiptBlocksTicketAdmission(failedEmptyReceipt) &&
       failedEmptyInvocations.filter((args) => args[1] === "apply").length === 1 &&
       failedEmptyInvocations.filter((args) => args[1] === "diff").length === 1,
     `exit ${failedEmptyResult.status}: ${failedEmptyResult.stdout || failedEmptyResult.stderr}\n` +

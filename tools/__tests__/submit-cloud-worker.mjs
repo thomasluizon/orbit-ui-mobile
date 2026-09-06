@@ -17,7 +17,7 @@ import {
   toolPath,
 } from "./_harness.mjs"
 import { cloudConfig, fakeCodex, task, taskPage } from "./cloud-worker.mjs"
-import { acquireSubmissionLock, CLOUD_FINISHING_CONTRACT, persistReconciledReceipt } from "../lib/cloud-worker.mjs"
+import { receiptBlocksTicketAdmission, acquireSubmissionLock, CLOUD_FINISHING_CONTRACT, persistReconciledReceipt } from "../lib/cloud-worker.mjs"
 
 const TOOL = "submit-cloud-worker.mjs"
 
@@ -216,6 +216,164 @@ export const cases = async () => {
   }
   const schedulerContract = readFileSync(join(REPO_ROOT, ".claude", "skills", "orchestrate", "SKILL.md"), "utf8")
   const normalizedSchedulerContract = schedulerContract.replace(/\s+/g, " ")
+  T(
+    `${TOOL}: the wake report names empty failures and the scheduler retries once`,
+    normalizedSchedulerContract.includes("Resubmit once with the original `submit-cloud-worker.mjs` arguments") &&
+      normalizedSchedulerContract.includes("Every `CLOUD_TASK_EMPTY` failure by name") &&
+      normalizedSchedulerContract.includes("Never count an empty result as a completed ticket"),
+  )
+  for (const ending of ["empty", "materialized", "uncertain", "missing-handoff", "malformed-handoff"]) {
+    const invalidHandoff = ending.endsWith("-handoff")
+    const retryEntry = fixture(`empty-retry-${ending}`)
+    const orderText = "Edit README.md to describe the measured cloud path.\n"
+    writeFileSync(retryEntry.order, orderText)
+    writeFileSync(join(retryEntry.repo.path, "README.md"), "Original description.\n")
+    retryEntry.repo.git(["add", "README.md"])
+    retryEntry.repo.git(["commit", "-q", "-m", "named target"])
+    retryEntry.repo.git(["push", "-q", "origin", "main"])
+    const firstId = "task_e_e433"
+    const retryId = "task_e_e434"
+    const retryStdin = stage(`submit-cloud/empty-retry-${ending}-stdin.txt`, "")
+    const retryEnv = {
+      ORBIT_FAKE_CODEX_LOG: retryEntry.log,
+      ORBIT_FAKE_EXEC_URL: `https://chatgpt.com/codex/tasks/${firstId}`,
+      ORBIT_FAKE_STDIN_LOG: retryStdin,
+      ORBIT_FAKE_LIST: taskPage([task(firstId, "ready", 0)]),
+    }
+    const first = run(TOOL, argvOf(retryEntry), { path: retryEntry.path, env: retryEnv })
+    const firstReceipt = JSON.parse(first.stdout)
+    T(
+      `${TOOL}: ${ending} named targets exclude the trailing NUL separator from real git ls-files`,
+      JSON.stringify(firstReceipt.namedTargets) === JSON.stringify(["README.md"]),
+      JSON.stringify(firstReceipt.namedTargets),
+    )
+    const materializer = stageWithConfig(`empty-retry-${ending}-materialize`, "materialize-cloud-result.mjs", retryEntry.config)
+    const empty = run("materialize-cloud-result.mjs", ["--receipt", firstReceipt.receiptPath], {
+      path: materializer.path,
+      env: { ...retryEnv, ORBIT_FAKE_APPLY_MODE: "noop" },
+    })
+    const failedReceipt = JSON.parse(readFileSync(firstReceipt.receiptPath, "utf8"))
+    T(
+      `${TOOL}: ${ending} original empty task remains owned and reported`,
+      empty.status === 3 && JSON.parse(empty.stdout).outcome === "CLOUD_TASK_EMPTY" &&
+        receiptBlocksTicketAdmission(failedReceipt) && failedReceipt.emptyFailure.namedTargets[0] === "README.md",
+      empty.stdout || empty.stderr,
+    )
+    const failedWatch = run(TOOL, ["--watch", firstReceipt.receiptPath], { path: retryEntry.path, env: retryEnv })
+    T(
+      `${TOOL}: ${ending} watcher reports the named failure instead of resolved success`,
+      failedWatch.status === 3 && JSON.parse(failedWatch.stdout).outcome === "CLOUD_TASK_EMPTY",
+      failedWatch.stdout || failedWatch.stderr,
+    )
+    writeFileSync(retryEntry.order, "A different order.\n")
+    const changed = run(TOOL, argvOf(retryEntry), { path: retryEntry.path, env: retryEnv })
+    T(`${TOOL}: ${ending} retry refuses changed work orders`, changed.status === 2, changed.stderr)
+    writeFileSync(retryEntry.order, orderText)
+    const second = run(TOOL, argvOf(retryEntry), {
+      path: retryEntry.path,
+      env: { ...retryEnv, ORBIT_FAKE_EXEC_URL: ending === "uncertain" ? "unconfirmed" : `https://chatgpt.com/codex/tasks/${retryId}` },
+    })
+    const pointedOrder = readFileSync(retryStdin, "utf8")
+    T(
+      `${TOOL}: ${ending} retry begins with a standalone commit order and retains the original task`,
+      pointedOrder.startsWith("Commit the changes with `git add`") &&
+        pointedOrder.split("\n")[1] === "" && pointedOrder.includes("Retry 1 of 1") &&
+        pointedOrder.includes(orderText) && (ending === "uncertain" ? second.status === 1 : JSON.parse(second.stdout).emptyRetryOf === firstId),
+      second.stdout || second.stderr,
+    )
+    if (ending !== "uncertain") {
+      const secondReceipt = JSON.parse(second.stdout)
+      let deliveredPatch
+      const handoff = {
+        needsDecision: null,
+        assumptions: [],
+        manualSteps: [],
+        testResults: "Focused README verification passed.",
+      }
+      if (ending === "materialized" || invalidHandoff) {
+        const source = stageRepo(`empty-retry-delivered-patch-${ending}`)
+        writeFileSync(join(source.path, "implementation.txt"), "Recovered implementation.\n")
+        source.git(["add", "implementation.txt"])
+        if (ending !== "missing-handoff") {
+          mkdirSync(join(source.path, ".claude"), { recursive: true })
+          writeFileSync(join(source.path, ".claude", "cloud-handoff.json"),
+            ending === "malformed-handoff" ? "{invalid JSON" : JSON.stringify(handoff))
+          source.git(["add", ".claude/cloud-handoff.json"])
+        }
+        deliveredPatch = source.git(["diff", "--cached", "--binary", "--full-index"]).stdout
+      }
+      const result = run("materialize-cloud-result.mjs", ["--receipt", secondReceipt.receiptPath], {
+        path: materializer.path,
+        env: {
+          ...retryEnv,
+          ORBIT_FAKE_LIST: taskPage([task(firstId, "ready", 0), task(retryId, "ready", 0)]),
+          ...(ending === "empty"
+            ? { ORBIT_FAKE_APPLY_MODE: "noop" }
+            : { ORBIT_FAKE_APPLY_PATCH: deliveredPatch, ORBIT_FAKE_DIFF: deliveredPatch }),
+        },
+      })
+      const settled = JSON.parse(readFileSync(secondReceipt.receiptPath, "utf8"))
+      T(
+        `${TOOL}: ${ending} retry admission follows its terminal outcome`,
+        ending === "empty"
+          ? result.status === 3 && JSON.parse(result.stdout).retry === "exhausted" && receiptBlocksTicketAdmission(settled)
+          : invalidHandoff
+            ? result.status === 10 && settled.unusable?.outcome === "CLOUD_HANDOFF_INVALID" &&
+              !settled.materialized && !receiptBlocksTicketAdmission(settled)
+            : result.status === 0 && !receiptBlocksTicketAdmission(settled) &&
+            JSON.stringify(settled.materialized?.handoff) === JSON.stringify(handoff),
+        result.stdout || result.stderr,
+      )
+      if (invalidHandoff) {
+        T(`${TOOL}: ${ending} preserves the staged implementation for manual delivery`,
+          retryEntry.repo.git(["show", ":implementation.txt"]).stdout === "Recovered implementation.\n")
+        retryEntry.repo.git(["commit", "-q", "-m", "manual delivery of preserved patch"])
+        retryEntry.repo.git(["push", "-q", "origin", "main"])
+        const nextId = "task_e_e435"
+        const nextEnv = {
+          ...retryEnv,
+          ORBIT_FAKE_EXEC_URL: `https://chatgpt.com/codex/tasks/${nextId}`,
+          ORBIT_FAKE_LIST: taskPage([task(firstId, "ready", 0), task(retryId, "ready", 1), task(nextId, "ready", 0)]),
+        }
+        const next = run(TOOL, argvOf(retryEntry), { path: retryEntry.path, env: nextEnv })
+        T(`${TOOL}: ${ending} terminal unusability permits a new same-ticket submission`,
+          next.status === 0 && !JSON.parse(next.stdout).emptyRetryOf, next.stdout || next.stderr)
+        if (next.status === 0) {
+          const nextReceipt = JSON.parse(next.stdout)
+          const nextEmpty = run("materialize-cloud-result.mjs", ["--receipt", nextReceipt.receiptPath], {
+            path: materializer.path,
+            env: { ...nextEnv, ORBIT_FAKE_APPLY_MODE: "noop" },
+          })
+          T(`${TOOL}: ${ending} readmitted task still reports an empty result as unfinished`, nextEmpty.status === 3)
+          const exhausted = run(TOOL, argvOf(retryEntry), { path: retryEntry.path, env: nextEnv })
+          const executions = readFileSync(retryEntry.log, "utf8").trim().split(/\r?\n/).map(JSON.parse)
+            .filter((args) => args[1] === "exec")
+          const receiptsDirectory = join(retryEntry.repo.path, ".git", "orbit-cloud", "receipts")
+          const retries = readdirSync(receiptsDirectory).map((name) =>
+            JSON.parse(readFileSync(join(receiptsDirectory, name), "utf8"))).filter((receipt) => receipt.emptyRetryOf)
+          T(`${TOOL}: ${ending} terminal resolution never replenishes the single empty-result retry`,
+            exhausted.status === 3 && exhausted.stderr.includes("CLOUD_TASK_EMPTY") &&
+              executions.length === 3 && retries.length === 1 && retries[0].emptyRetryOf === firstId,
+            exhausted.stdout || exhausted.stderr)
+        }
+      }
+    }
+    if (ending !== "materialized" && !invalidHandoff) {
+      if (ending === "uncertain") {
+        const receiptsDirectory = join(retryEntry.repo.path, ".git", "orbit-cloud", "receipts")
+        const reservationPath = join(receiptsDirectory, readdirSync(receiptsDirectory).find((name) => name.startsWith("reservation-")))
+        const cleared = run(TOOL, ["--clear-unknown", reservationPath, "--assert-no-task-exists"], { path: retryEntry.path, env: retryEnv })
+        T(`${TOOL}: the uncertain retry can release capacity after explicit absence confirmation`, cleared.status === 0, cleared.stderr)
+      }
+      const third = run(TOOL, argvOf(retryEntry), { path: retryEntry.path, env: retryEnv })
+      const executions = readFileSync(retryEntry.log, "utf8").trim().split(/\r?\n/).map(JSON.parse).filter((args) => args[1] === "exec")
+      T(
+        `${TOOL}: ${ending} retry cannot loop or silently readmit the ticket`,
+        third.status === 3 && third.stderr.includes("CLOUD_TASK_EMPTY") && executions.length === 2,
+        third.stdout || third.stderr,
+      )
+    }
+  }
   T(
     `${TOOL}: the scheduler contract resolves every terminal task status`,
     schedulerContract.includes("When a task receipt reaches any terminal status") &&
@@ -763,7 +921,8 @@ export const cases = async () => {
   )
 
   const execTimeout = fixture("exec-timeout")
-  execTimeout.config.timeouts.cloudCommandMinutes = 0.005
+  // Allow the fake CLI to start before testing its deliberate post-acceptance hang (#433).
+  execTimeout.config.timeouts.cloudCommandMinutes = 0.05
   writeFileSync(execTimeout.configPath, `${JSON.stringify(execTimeout.config, null, 2)}\n`)
   const acceptanceLog = stage("submit-cloud/exec-timeout-acceptance.txt", "")
   const execTimeoutResult = run(TOOL, argvOf(execTimeout), {
@@ -808,7 +967,8 @@ export const cases = async () => {
   )
 
   const liveOrphan = fixture("live-orphan")
-  liveOrphan.config.timeouts.cloudCommandMinutes = 0.005
+  // The preliminary list must finish before the deliberate submission timeout (#433).
+  liveOrphan.config.timeouts.cloudCommandMinutes = 0.05
   writeFileSync(liveOrphan.configPath, `${JSON.stringify(liveOrphan.config, null, 2)}\n`)
   const liveOrphanTaskId = "task_e_a401"
   const liveOrphanDirectory = join(liveOrphan.repo.path, ".git", "orbit-cloud", "receipts")

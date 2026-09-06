@@ -42,7 +42,9 @@ export const receiptConsumesFleetCapacity = (receipt) => (
 )
 
 // Ticket admission measures ownership, so every unresolved receipt blocks even after the task is terminal.
-export const receiptBlocksTicketAdmission = (receipt) => !receiptIsResolved(receipt)
+export const receiptBlocksTicketAdmission = (receipt) => (
+  receipt.emptyFailure ? !receipt.materialized : !receiptIsResolved(receipt)
+)
 
 export const CLOUD_FINISHING_CONTRACT = `## Cloud finishing contract
 
@@ -54,11 +56,15 @@ export const CLOUD_FINISHING_CONTRACT = `## Cloud finishing contract
 - Never push, never create a branch, never open a pull request. Delivery happens outside the container.
 - Report the commit and test results, then stop. Do not wait on CI or poll GitHub Actions; the orchestrator owns CI waiting.`
 
-export const cloudOrder = (order) => {
+export const cloudOrder = (order, emptyRetryOf = null) => {
   const trimmed = order.trimEnd()
-  return trimmed.endsWith(CLOUD_FINISHING_CONTRACT)
+  const completed = trimmed.endsWith(CLOUD_FINISHING_CONTRACT)
     ? `${trimmed}\n`
     : `${trimmed}\n\n${CLOUD_FINISHING_CONTRACT}\n`
+  return emptyRetryOf
+    ? `Commit the changes with \`git add\` on named paths and \`git commit\` before finishing. Without a commit there is no diff and the work is lost.\n\n` +
+      `Retry 1 of 1: task ${emptyRetryOf} returned CLOUD_TASK_EMPTY. Recheck the original targets, implement the required edits, and commit them. An empty diff is a failure, not proof that no work was needed.\n\n${completed}`
+    : completed
 }
 
 export const resolveOnPath = (command, options = {}) => {
@@ -186,7 +192,8 @@ const validateTask = (task) => {
   ) {
     throw new Error(`codex cloud list task ${task.id} carries no non-negative summary.files_changed`)
   }
-  return task
+  const { title, ...validatedTask } = task
+  return typeof title === "string" ? { ...validatedTask, title } : validatedTask
 }
 
 export const parseTaskList = (stdout) => {
@@ -316,7 +323,7 @@ const newestRecord = (scratchRecord, mirroredRecord) => {
 
 export const reconcileReceiptCopies = (scratchReceipt, mirroredReceipt) => {
   const reconciled = { ...scratchReceipt, ...mirroredReceipt }
-  for (const field of ["lastObserved", "abandoned", "lateTerminal", "materialized", "released", "unusable"]) {
+  for (const field of ["lastObserved", "abandoned", "lateTerminal", "materialized", "released", "unusable", "emptyFailure"]) {
     const record = newestRecord(scratchReceipt[field], mirroredReceipt[field])
     if (record !== undefined) reconciled[field] = record
   }
