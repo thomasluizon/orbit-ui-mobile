@@ -23887,6 +23887,7 @@
         "apps/web/__tests__/pages/progress.test.tsx",
         "apps/web/__tests__/pages/referral-redirect.test.ts",
         "apps/web/__tests__/pages/support.test.tsx",
+        "apps/web/__tests__/pages/upgrade-management.test.tsx",
         "apps/web/__tests__/pages/upgrade.test.tsx",
         "apps/web/__tests__/pages/wrapped-page.test.tsx",
         "apps/web/__tests__/privacy-policy-disclosure.test.ts"
@@ -24042,7 +24043,7 @@
         "apps/web/__tests__/hooks/use-bulk-actions.test.ts",
         "apps/web/__tests__/hooks/use-chat-composer.test.tsx",
         "apps/web/__tests__/pages/error.test.tsx",
-        "apps/web/__tests__/pages/upgrade.test.tsx"
+        "apps/web/__tests__/pages/upgrade-management.test.tsx"
       ],
       "apps/web/hooks": [
         "apps/web/__tests__/app/chat-page-desktop-handoff.test.tsx",
@@ -24598,6 +24599,7 @@
         "apps/web/__tests__/lib/api-fetch.test.ts",
         "apps/web/__tests__/lib/step-up-storage.test.ts",
         "apps/web/__tests__/pages/calendar-sync.test.tsx",
+        "apps/web/__tests__/pages/upgrade-management.test.tsx",
         "apps/web/__tests__/pages/upgrade.test.tsx",
         "apps/web/__tests__/stores/ui-store.test.ts",
         "packages/shared/src/__tests__/achievement-i18n.test.ts",

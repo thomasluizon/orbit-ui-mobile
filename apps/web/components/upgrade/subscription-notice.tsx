@@ -19,7 +19,7 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t }: Readonl
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3 rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]">
-        <h1 className="font-display text-[22px] font-medium leading-[1.4] text-[var(--fg-1)]">{t('upgrade.billing.lapsed.title')}</h1>
+        <h2 className="font-display text-[22px] font-medium leading-[1.4] text-[var(--fg-1)]">{t('upgrade.billing.lapsed.title')}</h2>
         {endedAt ? <p className="font-mono text-xs text-[var(--fg-3)]">{t('upgrade.billing.lapsed.ended', { date: endedAt })}</p> : null}
         <p className="t-body text-[var(--fg-2)]">{t('upgrade.billing.lapsed.body')}</p>
         <div className="flex flex-col gap-1 text-sm leading-[1.55] text-[var(--fg-3)]">

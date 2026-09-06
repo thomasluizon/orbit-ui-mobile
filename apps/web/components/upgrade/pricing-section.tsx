@@ -62,9 +62,9 @@ export function PricingSection({
         <p className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)]">
           {eyebrow}
         </p>
-        <h1 className="t-display-heading text-pretty">
+        <h2 className="t-display-heading text-pretty">
           {heading}
-        </h1>
+        </h2>
         <p className="t-secondary max-w-[46ch] text-pretty">
           {t('upgrade.convert.promise')}
         </p>
