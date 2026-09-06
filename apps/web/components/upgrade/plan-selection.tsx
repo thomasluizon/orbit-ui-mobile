@@ -275,7 +275,7 @@ function TierCard({
     >
       <div className="flex flex-1 flex-col gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <h2 className="min-w-0 flex-1 text-[17px] font-medium leading-[1.3]">{tier.name}</h2>
+          <h3 className="min-w-0 flex-1 text-[17px] font-medium leading-[1.3]">{tier.name}</h3>
           {recommended ? (
             <Badge>{t('upgrade.plans.recommended')}</Badge>
           ) : null}

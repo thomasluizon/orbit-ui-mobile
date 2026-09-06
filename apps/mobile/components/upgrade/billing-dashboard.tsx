@@ -195,7 +195,7 @@ export function BillingDashboard({
         t={t}
         tokens={tokens}
       />
-      <Text style={[styles.billingSecondary, { color: tokens.fg3 }]}>{t('upgrade.billing.actions.providerNote')}</Text>
+      {!status.isLifetimePro ? <Text style={[styles.billingSecondary, { color: tokens.fg3 }]}>{t('upgrade.billing.actions.providerNote')}</Text> : null}
     </View>
   )
 }

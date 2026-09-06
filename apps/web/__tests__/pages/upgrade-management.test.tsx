@@ -231,6 +231,8 @@ describe('UpgradePage subscription management', () => {
       }))
     }
     await waitFor(() => expect(document.querySelector('main')).toHaveAttribute('data-state', state))
+    const hasProviderGuidance = !['lifetime', 'lapsed', 'loading', 'load-failed'].includes(state)
+    expect(screen.queryAllByText('upgrade.billing.actions.providerNote')).toHaveLength(Number(hasProviderGuidance))
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('upgrade.title')
     if (!['loading', 'load-failed'].includes(state)) {

@@ -174,7 +174,7 @@ export function BillingDashboard({
       <PaymentMethodSection method={status.isLifetimePro ? null : billing?.paymentMethod} state={state} onOpenPortal={onOpenPortal} t={t} />
       <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={status} t={t} />
       <InvoiceHistory invoices={status.isLifetimePro ? undefined : billing?.recentInvoices} locale={locale} state={state} t={t} />
-      <p className="t-secondary text-pretty text-[var(--fg-3)]">{t('upgrade.billing.actions.providerNote')}</p>
+      {!status.isLifetimePro ? <p className="t-secondary text-pretty text-[var(--fg-3)]">{t('upgrade.billing.actions.providerNote')}</p> : null}
     </div>
   )
 }

@@ -32,6 +32,7 @@ function singleLineLabels(messages: typeof en, trial: boolean): string[] {
 }
 
 async function assertHeadingLeading(heading: Locator, context: string): Promise<void> {
+  await expect(heading, `${context}: heading was not found or is not visible`).toBeVisible({ timeout: 5000 })
   const metrics = await heading.evaluate((element) => {
     const range = document.createRange()
     range.selectNodeContents(element)
@@ -83,20 +84,21 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           const main = page.locator('main').last()
           const heading = subscriptionState === 'trial'
             ? messages.upgrade.convert.trialHeading : messages.upgrade.convert.freeHeading
+          const pitchHeading = main.getByRole('heading', { level: 2, name: heading, exact: true })
           await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
-          await expect(main.getByRole('heading', { name: heading, exact: true })).toBeVisible()
+          await expect(pitchHeading, `${locale} ${subscriptionState}: pitch heading was not found`).toBeVisible({ timeout: 5000 })
           await expect(main.getByText(messages.upgrade.convert.stayFree, { exact: true })).toBeVisible()
           await page.evaluate(() => document.fonts.ready)
 
           const overflows = await main.evaluate((root) =>
-            Array.from(root.querySelectorAll('p,h1,h2,a,button,span'))
+            Array.from(root.querySelectorAll('p,h1,h2,h3,a,button,span'))
               .filter((element) => element.textContent.trim())
               .filter((element) => element.scrollWidth > element.getBoundingClientRect().width + 0.5)
               .map((element) => element.textContent.trim()),
           )
           expect(overflows, `copy stays inside the layout at ${width}px`).toEqual([])
 
-          await assertHeadingLeading(main.getByRole('heading', { level: 1, name: heading, exact: true }),
+          await assertHeadingLeading(pitchHeading,
             `${locale} ${subscriptionState} at ${width}px`)
 
           for (const label of singleLineLabels(messages, subscriptionState === 'trial')) {

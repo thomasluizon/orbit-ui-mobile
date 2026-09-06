@@ -235,6 +235,11 @@ describe('subscription dashboards (mobile)', () => {
       const summary = tree.root.findByType('PlanSummaryCard')
       expect(summary.props.planLabel).toBe(expectedLabel)
       expect(state === 'lifetime' ? summary.props.body : (summary.props.facts as (string | null)[]).filter(Boolean).join(' ')).toContain(expectedMeta)
+      if (state === 'lifetime') {
+        expect(renderedText(tree)).not.toContain('upgrade.billing.actions.providerNote')
+      } else {
+        expect(renderedText(tree)).toContain('upgrade.billing.actions.providerNote')
+      }
       if (state === 'canceled') {
         expect(renderedText(tree)).toContain('upgrade.billing.plan.canceledBadge')
       }
@@ -380,6 +385,7 @@ describe('subscription dashboards (mobile)', () => {
         tokens={tokens}
       />,
     )
+    expect(renderedText(withoutPrice)).toContain('upgrade.billing.actions.providerNote')
     expect((withoutPrice.root.findByType('PlanSummaryCard').props.facts as (string | null)[]).filter(Boolean).join(' ')).not.toContain(
       'upgrade.billing.plan.yearlyPrice',
     )

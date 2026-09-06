@@ -181,15 +181,27 @@ describe('UpgradePage', () => {
     vi.unstubAllGlobals()
   })
 
-  it.each([false, true])('keeps one page heading in the purchase pitch, trial=%s', (trialActive) => {
+  it.each([false, true])('nests the complete purchase heading outline, trial=%s', (trialActive) => {
     mockHasProAccess = trialActive
     mockProfile = { ...mockProfile, isTrialActive: trialActive }
+    mockPlans = {
+      monthly: { unitAmount: 999 },
+      yearly: { unitAmount: 4999 },
+      currency: 'usd',
+      savingsPercent: 58,
+      couponPercentOff: null,
+    }
     render(<UpgradePage />)
-    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('upgrade.title')
-    expect(screen.getByRole('heading', {
-      level: 2, name: trialActive ? 'upgrade.convert.trialHeading' : 'upgrade.convert.freeHeading',
-    })).toBeInTheDocument()
+    expect(screen.getAllByRole('heading').map((heading) => ({
+      level: Number(heading.tagName.slice(1)),
+      name: heading.textContent,
+    }))).toEqual([
+      { level: 1, name: 'upgrade.title' },
+      { level: 2, name: trialActive ? 'upgrade.convert.trialHeading' : 'upgrade.convert.freeHeading' },
+      { level: 3, name: 'upgrade.plans.yearly.name' },
+      { level: 3, name: 'upgrade.plans.monthly.name' },
+      { level: 2, name: 'upgrade.billing.usage.title' },
+    ])
   })
 
   it('renders without crashing', () => {
