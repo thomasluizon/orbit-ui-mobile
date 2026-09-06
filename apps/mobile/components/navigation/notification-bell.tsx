@@ -1,4 +1,4 @@
-import { Pressable, Text } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { Bell } from '@/components/ui/icons'
@@ -9,22 +9,27 @@ import { plural } from '@/lib/plural'
 import { createStyles } from './notification-bell.styles'
 
 export function NotificationBell() {
-  const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
+  const { visibleUnreadCount: count } = useNotificationInbox()
+  return <NotificationBellDisplay count={count}
+    onPress={pathname === '/notifications' ? undefined : () => router.push('/notifications')} />
+}
+
+export function NotificationBellDisplay({ count, onPress }: { count: number; onPress?: () => void }) {
+  const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = createStyles(tokens)
-  const { visibleUnreadCount: count } = useNotificationInbox()
-  return (
-    <Pressable accessibilityRole="button"
-      accessibilityLabel={count > 0 ? plural(t('notifications.bellWithCount', { count }), count) : t('notifications.bell')}
-      style={({ pressed }) => [styles.bellButton, pressed && { backgroundColor: tokens.bgHover }]}
-      onPress={() => { if (pathname !== '/notifications') router.push('/notifications') }}>
+  const label = count > 0 ? plural(t('notifications.bellWithCount', { count }), count) : t('notifications.bell')
+  const content = <>
       <Bell size={24} color={tokens.fg2} strokeWidth={1.8} />
       {count > 0 ? <Text accessible={false} testID="notification-count" style={styles.bellCount}>
         {count > 9 ? '9+' : count}
       </Text> : null}
-    </Pressable>
-  )
+  </>
+  return onPress ? <Pressable accessibilityRole="button" accessibilityLabel={label}
+    style={({ pressed }) => [styles.bellButton, pressed && { backgroundColor: tokens.bgHover }]}
+    onPress={onPress}>{content}</Pressable>
+    : <View accessible accessibilityRole="image" accessibilityLabel={label} style={styles.bellButton}>{content}</View>
 }

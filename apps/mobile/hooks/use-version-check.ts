@@ -132,7 +132,7 @@ export async function startAndroidUpdate(
  * restarts the app. Without this `install` call a flexible update downloads but
  * never installs. No-op on iOS.
  */
-export function useAndroidFlexibleUpdate(active: boolean): {
+export function useAndroidFlexibleUpdate(active: boolean, onInterrupted: () => void): {
   downloaded: boolean
   install: () => void
 } {
@@ -143,26 +143,41 @@ export function useAndroidFlexibleUpdate(active: boolean): {
   const [downloaded, setDownloaded] = useState(false)
   const startedRef = useRef(false)
 
+  const restoreAction = useCallback(() => {
+    startedRef.current = false
+    setDownloaded(false)
+    onInterrupted()
+  }, [onInterrupted])
+
   useEffect(() => {
     if (!inAppUpdates) return
     const onStatus = (event: StatusUpdateEvent) => {
+      if (active && (event.status === IAUInstallStatus.FAILED || event.status === IAUInstallStatus.CANCELED)) {
+        restoreAction()
+      }
       if (event.status === IAUInstallStatus.DOWNLOADED) {
         void Promise.resolve().then(() => setDownloaded(true))
       }
     }
+    const onIntentResult = (result: unknown) => {
+      // WHY: onActivityResult emits a string despite InstallationResult's numeric type: https://github.com/SudoPlz/sp-react-native-in-app-updates/blob/v1.5.0/android/src/main/java/com/sudoplz/rninappupdates/SpReactNativeInAppUpdatesModule.java#L195
+      if (active && result === String(IAUInstallStatus.CANCELED)) restoreAction()
+    }
     inAppUpdates.addStatusUpdateListener(onStatus)
+    inAppUpdates.addIntentSelectionListener(onIntentResult)
     return () => {
       inAppUpdates.removeStatusUpdateListener(onStatus)
+      inAppUpdates.removeIntentSelectionListener(onIntentResult)
     }
-  }, [inAppUpdates])
+  }, [active, inAppUpdates, restoreAction])
 
   useEffect(() => {
     if (!inAppUpdates || !active || startedRef.current) return
     startedRef.current = true
     void inAppUpdates
       .startUpdate({ updateType: IAUUpdateKind.FLEXIBLE })
-      .catch(() => {})
-  }, [active, inAppUpdates])
+      .catch(restoreAction)
+  }, [active, inAppUpdates, restoreAction])
 
   const install = useCallback(() => {
     inAppUpdates?.installUpdate()

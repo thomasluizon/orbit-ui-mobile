@@ -1,3 +1,4 @@
+import { useThrottleStore } from '@/stores/throttle-store'
 import { getToken, clearAllTokens } from './secure-store'
 import { buildClientTimeZoneHeaders, createApiClientError, validateApiResponse } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
@@ -90,7 +91,7 @@ async function executeRequest(
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: buildRequestHeaders(token, options),
-  } as RequestInit)
+  })
 
   return {
     response,
@@ -141,11 +142,9 @@ async function parseApiResponse<T>(
       (await response.json().catch(() => null)) as ApiErrorPayload | null,
       requestId,
     )
-    throw createApiClientError(
-      response.status,
-      error,
-      `Request failed: ${response.status}`,
-    )
+    const failure = createApiClientError(response.status, error, `Request failed: ${response.status}`)
+    useThrottleStore.getState().show(response.status, error)
+    throw failure
   }
 
   if (response.status === 204) return undefined as T

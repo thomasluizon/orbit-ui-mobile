@@ -9,7 +9,7 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { cancelPendingNotificationDelete, queuePendingNotificationDelete } from '@/lib/pending-notification-deletes'
 import { ArrowLeft } from '@/components/ui/icons'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
-import { NotificationBell } from './notification-bell'
+import { NotificationBellDisplay } from './notification-bell'
 import { NotificationDetailModal } from './notification-detail-modal'
 import { NotificationList } from './notification-list'
 
@@ -38,7 +38,7 @@ export function NotificationInbox() {
             <ArrowLeft size={20} aria-hidden="true" />
           </button>
           <h1 className="min-w-0 flex-1 text-xl font-medium">{t('notifications.title')}</h1>
-          <NotificationBell />
+          <NotificationBellDisplay count={inbox.visibleUnreadCount} />
         </div>
         <div className="flex flex-wrap items-center gap-2 px-2 pb-2">
           {inbox.visibleUnreadCount > 0 ? <button type="button" className="min-h-11 cursor-pointer rounded-full px-2 text-sm text-[var(--fg-1)] hover:bg-[var(--bg-hover)]"

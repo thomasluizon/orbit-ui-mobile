@@ -16,10 +16,10 @@ import { useUIStore } from '@/stores/ui-store'
 const TestRenderer = require('react-test-renderer')
 const state = vi.hoisted(() => ({
   notifications: [] as NotificationItem[], unreadCount: 0, isLoading: false, isError: false,
-  locale: 'en', mode: 'dark', push: vi.fn(), back: vi.fn(), refetch: vi.fn(), mark: vi.fn(), markAll: vi.fn(),
+  locale: 'en', mode: 'dark', pathname: '/', push: vi.fn(), back: vi.fn(), refetch: vi.fn(), mark: vi.fn(), markAll: vi.fn(),
   remove: vi.fn(), clear: vi.fn(),
 }))
-vi.mock('expo-router', () => ({ useRouter: () => ({ push: state.push }), usePathname: () => '/' }))
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: state.push }), usePathname: () => state.pathname }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => state.back }))
 vi.mock('react-native-safe-area-context', async () => {
   const { View } = await import('react-native')
@@ -50,7 +50,7 @@ vi.mock('@/lib/haptics', () => ({ triggerHaptic: vi.fn() }))
 
 type Node = {
   type: unknown
-  props: { accessibilityLabel?: string; testID?: string; children?: unknown; style?: unknown; onPress?: () => void; accessibilityState?: { busy?: boolean } }
+  props: { accessibilityLabel?: string; accessibilityRole?: string; accessible?: boolean; testID?: string; children?: unknown; style?: unknown; onPress?: () => void; accessibilityState?: { busy?: boolean } }
   parent: Node | null
   findAll: (predicate: (node: Node) => boolean) => Node[]
 }
@@ -92,7 +92,7 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
   resetPendingNotificationDeletesForTests()
-  Object.assign(state, { notifications: [], unreadCount: 0, isLoading: false, isError: false, locale: 'en', mode: 'dark' })
+  Object.assign(state, { notifications: [], unreadCount: 0, isLoading: false, isError: false, locale: 'en', mode: 'dark', pathname: '/' })
   state.mark.mockImplementation((id: string) => {
     state.notifications = state.notifications.map((item) => item.id === id ? { ...item, isRead: true } : item)
     state.unreadCount -= 1
@@ -115,6 +115,40 @@ afterEach(() => {
 })
 
 describe('mobile alerts', () => {
+  it.each(['en', 'pt-BR'])('keeps the inbox header count passive and updates it from inbox state in %s', (locale) => {
+    state.locale = locale
+    state.pathname = '/notifications'
+    seed(2)
+    const messages = locale === 'en' ? en : pt
+    const tree = render()
+    const expectCount = (count: number) => {
+      const label = messages.notifications.bellWithCount.replace('{count}', String(count))
+      expect(hosts(tree, 'Pressable', label)).toHaveLength(0)
+      const indicator = hosts(tree, 'View', label)[0]!
+      expect(indicator.props).toMatchObject({ accessible: true, accessibilityRole: 'image' })
+      expect(indicator.props.onPress).toBeUndefined()
+      expect(testId(tree, 'notification-count')[0]!.props.children).toBe(count)
+    }
+    expectCount(2)
+    press(tree, messages.notifications.deleteNotification.replace('{title}', 'Alert 0'))
+    expectCount(1)
+    press(tree, messages.notifications.deleteUndo)
+    expectCount(2)
+    state.unreadCount = 4
+    refresh(tree)
+    expectCount(4)
+    press(tree, messages.notifications.markAllRead)
+    refresh(tree)
+    expect(testId(tree, 'notification-count')).toHaveLength(0)
+    expect(hosts(tree, 'View', messages.notifications.bell)[0]!.props.accessibilityRole).toBe('image')
+    expect(hosts(tree, 'Pressable', messages.notifications.bell)).toHaveLength(0)
+  })
+  it('renders the standalone bell passively on the current inbox route', () => {
+    state.pathname = '/notifications'
+    const tree = render(<NotificationBell />)
+    expect(hosts(tree, 'Pressable', 'Alerts')).toHaveLength(0)
+    expect(hosts(tree, 'View', 'Alerts')[0]!.props.accessibilityRole).toBe('image')
+  })
   it('pushes the inbox and keeps zero absent', () => {
     const tree = render(<NotificationBell />)
     press(tree, 'Alerts')
@@ -148,7 +182,8 @@ describe('mobile alerts', () => {
     state.isLoading = true
     const tree = render()
     expect(testId(tree, 'notification-skeleton-line')).toHaveLength(15)
-    expect(hosts(tree, 'View', 'Alerts')[0]!.props.accessibilityState).toEqual({ busy: true })
+    const list = hosts(tree, 'View', 'Alerts').find((node) => node.findAll((child) => child.props.testID === 'notification-skeleton-line').length > 0)
+    expect(list!.props.accessibilityState).toEqual({ busy: true })
     expect(text(tree, 'Nothing to see here')).toHaveLength(0)
   })
   it('offers retry on a load failure', () => {

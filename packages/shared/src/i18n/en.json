@@ -53,9 +53,9 @@
     "retryHint": "Notification setup failed. Tap Enable to retry."
   },
   "notFoundPage": {
-    "title": "Page not found",
-    "description": "This page drifted out of orbit.",
-    "home": "Back to home"
+    "title": "This page does not exist",
+    "description": "The address may have changed, or the item was deleted. Your day is still where it was.",
+    "action": "Go to Today"
   },
   "updatePrompt": {
     "eyebrow": "Update available",
@@ -2880,20 +2880,24 @@
     }
   },
   "versionUpdate": {
-    "title": "Update available",
-    "description": "A newer version of Orbit is available. Update now to get the latest fixes and features.",
-    "updateCta": "Update now",
+    "title": "A new version is in the store",
+    "description": "You can update now or keep going. Nothing stops working.",
+    "updateCta": "Open the store",
     "laterCta": "Later",
     "readyTitle": "Update ready",
     "readyDescription": "A new version of Orbit finished downloading. Restart to finish updating.",
     "restartCta": "Restart now"
   },
   "forceUpdate": {
-    "title": "Update required",
-    "description": "This version of Orbit is no longer supported. Update to keep going.",
-    "cta": "Update Orbit",
-    "banner": "A new version of Orbit is available.",
-    "refresh": "Refresh"
+    "title": "This version of Orbit has stopped working",
+    "description": "Update in the store to carry on.",
+    "cta": "Update in the store",
+    "banner": "A new version of Orbit is ready",
+    "refresh": "Reload",
+    "versions": "The installed version is {currentVersion} and the server now asks for {minVersion}. Update in the store to carry on.",
+    "bannerVersion": "Reload to pick up {minVersion}.",
+    "bannerDescription": "Reload to pick it up.",
+    "storeFailure": "The store did not open. Try again."
   },
   "today": {
     "setupChecklist": {
@@ -3218,5 +3222,13 @@
       "Epic": "Epic",
       "Legendary": "Legendary"
     }
+  },
+  "errorScreen": {
+    "title": "The request did not finish",
+    "body": "Try again, and if it keeps happening, sign out and sign back in.",
+    "retry": "Try again",
+    "reference": "ref {requestId}",
+    "throttleTitle": "Too many requests in a short time",
+    "throttleBody": "The server asked us to wait before the next request."
   }
 }

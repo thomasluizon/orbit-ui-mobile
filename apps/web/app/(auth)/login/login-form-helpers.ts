@@ -1,3 +1,4 @@
+import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import type { useRouter } from 'next/navigation'
 import type { useTranslations } from 'next-intl'
 import {
@@ -77,7 +78,7 @@ export async function fetchAuthEndpoint(
   url: string,
   body: Record<string, unknown>,
 ): Promise<unknown> {
-  const response = await fetch(url, {
+  const response = await fetchWithThrottle(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

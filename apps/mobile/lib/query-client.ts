@@ -1,3 +1,4 @@
+import { extractBackendStatus } from '@orbit/shared/utils'
 import { QueryClient, focusManager, onlineManager } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppState, type AppStateStatus } from 'react-native'
@@ -27,6 +28,7 @@ export const queryClient = new QueryClient({
       staleTime: 1000 * 60 * 5,
       gcTime: 1000 * 60 * 60 * 24,
       retry: (failureCount, error) => {
+        if (extractBackendStatus(error) === 429) return false
         if (error instanceof Error && error.message.includes('401')) return false
         return failureCount < 3
       },

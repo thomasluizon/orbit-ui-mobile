@@ -11,12 +11,12 @@ import { NotificationDeleteNotice } from '@/components/navigation/notification-d
 
 const state = vi.hoisted(() => ({
   notifications: [] as NotificationItem[], unreadCount: 0, isLoading: false, isError: false,
-  locale: 'en', push: vi.fn(), back: vi.fn(), refetch: vi.fn(), mark: vi.fn(), markAll: vi.fn(),
+  locale: 'en', pathname: '/', push: vi.fn(), back: vi.fn(), refetch: vi.fn(), mark: vi.fn(), markAll: vi.fn(),
   remove: vi.fn(), clear: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: state.push }), usePathname: () => '/',
+  useRouter: () => ({ push: state.push }), usePathname: () => state.pathname,
 }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => state.back }))
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
@@ -50,7 +50,7 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
   resetPendingNotificationDeletesForTests()
-  Object.assign(state, { notifications: [], unreadCount: 0, isLoading: false, isError: false, locale: 'en' })
+  Object.assign(state, { notifications: [], unreadCount: 0, isLoading: false, isError: false, locale: 'en', pathname: '/' })
   state.mark.mockImplementation((id: string) => {
     state.notifications = state.notifications.map((item) => item.id === id ? { ...item, isRead: true } : item)
     state.unreadCount -= 1
@@ -72,6 +72,39 @@ afterEach(() => {
 })
 
 describe('alerts', () => {
+  it.each(['en', 'pt-BR'])('keeps the inbox header count passive and updates it from inbox state in %s', (locale) => {
+    state.locale = locale
+    state.pathname = '/notifications'
+    seed(2)
+    const messages = locale === 'en' ? en : pt
+    const view = showInbox()
+    const expectCount = (count: number) => {
+      const label = messages.notifications.bellWithCount.replace('{count}', String(count))
+      expect(screen.queryByRole('button', { name: label })).toBeNull()
+      const indicator = screen.getByRole('img', { name: label })
+      expect(indicator).not.toHaveAttribute('tabindex')
+      expect(indicator.querySelector('[data-notification-count]')).toHaveTextContent(String(count))
+    }
+    expectCount(2)
+    fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteNotification.replace('{title}', 'Alert 0') }))
+    expectCount(1)
+    fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteUndo }))
+    expectCount(2)
+    state.unreadCount = 4
+    view.rerender(<><NotificationInbox /><NotificationDeleteNotice /></>)
+    expectCount(4)
+    fireEvent.click(screen.getByRole('button', { name: messages.notifications.markAllRead }))
+    view.rerender(<NotificationInbox />)
+    expect(view.container.querySelector('[data-notification-count]')).toBeNull()
+    expect(screen.getByRole('img', { name: messages.notifications.bell })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: messages.notifications.bell })).toBeNull()
+  })
+  it('renders the standalone bell passively on the current inbox route', () => {
+    state.pathname = '/notifications'
+    render(<NotificationBell />)
+    expect(screen.queryByRole('button', { name: 'Alerts' })).toBeNull()
+    expect(screen.getByRole('img', { name: 'Alerts' })).toBeInTheDocument()
+  })
   it('pushes the inbox and keeps zero absent', () => {
     const { container } = render(<NotificationBell />)
     fireEvent.click(screen.getByRole('button', { name: 'Alerts' }))

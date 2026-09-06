@@ -11,7 +11,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ArrowLeft } from '@/components/ui/icons'
 import { ConfirmSheet } from '@/components/ui/confirm-sheet'
-import { NotificationBell } from './notification-bell'
+import { NotificationBellDisplay } from './notification-bell'
 import { NotificationDetailModal } from './notification-detail-modal'
 import { NotificationList } from './notification-list'
 
@@ -42,7 +42,7 @@ export function NotificationInbox() {
             <ArrowLeft size={20} color={tokens.fg2} />
           </Pressable>
           <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{t('notifications.title')}</Text>
-          <NotificationBell />
+          <NotificationBellDisplay count={inbox.visibleUnreadCount} />
         </View>
         <View style={styles.actions}>
           {inbox.visibleUnreadCount > 0 ? <Pressable accessibilityRole="button" accessibilityLabel={t('notifications.markAllRead')} onPress={() => markAllAsRead.mutate()}
