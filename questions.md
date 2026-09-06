@@ -46,3 +46,11 @@ specific measured value here.
 
 Answered by D90 itself. It does not, for the rest of the redesign. Everything else stands: the canvas,
 `DESIGN.md` and its precedence ladder, the step 6 sweep, Pullfrog, and the gates.
+
+### Generic error reassurance (thomasluizon/orbit-tickets#338)
+
+The generic boundaries receive arbitrary errors and cannot prove a write was rolled back.
+The canvas voice rule at `Orbit Estados.dc.html:129` therefore wins over its unsupported
+reassurance in `failBody`, as Thomas's later ticket comment confirms. Both locales omit that
+reassurance, keep the circumstance and the retry and sign-out-and-back-in instruction, and
+show a reference only when the error carries a real API request ID. No question remains.
