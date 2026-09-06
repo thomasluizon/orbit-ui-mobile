@@ -67,6 +67,11 @@ else if (args[0] === "cloud" && args[1] === "diff") {
   process.stdout.write(process.env.ORBIT_FAKE_DIFF)
 }
 else if (args[0] === "cloud" && args[1] === "apply") {
+  if (process.env.ORBIT_FAKE_APPLY_PATCH !== undefined) {
+    const applied = spawnSync("git", ["apply", "--index", "-"], { encoding: "utf8", input: process.env.ORBIT_FAKE_APPLY_PATCH })
+    process.stderr.write(applied.stderr || "")
+    process.exit(applied.status ?? 1)
+  }
   if (process.env.ORBIT_FAKE_APPLY_MODE === "noop") process.exit(0)
   if (process.env.ORBIT_FAKE_APPLY_MODE === "fail-noop") process.exit(23)
   if (process.env.ORBIT_FAKE_APPLY_MODE === "move-head") {
@@ -119,6 +124,12 @@ export const cases = async () => {
   const cloud = await import(pathToFileURL(toolPath("lib/cloud-worker.mjs")).href)
   const order = "Implement the ticket.\n"
   const completed = cloud.cloudOrder(order)
+  T(
+    "cloud-worker.mjs: the commit requirement and loss consequence precede all Cloud finishing steps",
+    cloud.CLOUD_FINISHING_CONTRACT.startsWith("## Cloud finishing contract\n\n**Commit the implementation. Without a commit there is no diff and the work is lost.**\n\n-") &&
+      /Do not wait on CI or poll GitHub Actions/.test(completed),
+    completed,
+  )
   T(
     "cloud-worker.mjs: every submitted order ends with the cloud commit and delivery contract",
     completed.endsWith(`${cloud.CLOUD_FINISHING_CONTRACT}\n`) && completed.includes("Without a commit there is no diff"),
