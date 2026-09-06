@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ToastProps } from '@orbit/shared/contracts/feedback'
 import { zLayers } from '@orbit/shared/theme'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   Pressable,
   StyleSheet,
@@ -71,6 +72,9 @@ export function Toast(props: Readonly<ToastProps>) {
   const [focused, setFocused] = useState(false)
   const onDone = props.kind === 'done' ? props.onDone : undefined
   const doneAfterMs = props.kind === 'done' ? props.doneAfterMs : undefined
+  const lossColors = { background: tokens.bg, action: tokens.primarySoft }
+  const neutralColors = { background: tokens.bgSheet, action: tokens.fg1 }
+  const colors = { neutral: neutralColors, working: neutralColors, done: neutralColors, lost: lossColors }[props.kind]
 
   useDoneTimer(props.kind, props.message, doneAfterMs, onDone, hovered || focused)
 
@@ -97,7 +101,7 @@ export function Toast(props: Readonly<ToastProps>) {
       style={[
         styles.toast,
         {
-          backgroundColor: tokens.bgSheet,
+          backgroundColor: colors.background,
           borderColor: tokens.hairline,
         },
       ]}
@@ -137,7 +141,7 @@ export function Toast(props: Readonly<ToastProps>) {
           style={({ pressed }) => [styles.action, pressed ? styles.pressed : null]}
           testID="toast-action"
         >
-          <Text style={[styles.actionText, { color: tokens.fg1 }]}>{props.actionLabel}</Text>
+          <Text style={[styles.actionText, { color: colors.action }]}>{props.actionLabel}</Text>
         </Pressable>
       ) : null}
     </Pressable>
@@ -145,7 +149,8 @@ export function Toast(props: Readonly<ToastProps>) {
 }
 
 /** Legacy root mount. The host owns placement and adapts the queue to the prop-driven Toast. */
-export function AppToast() {
+export function AppToast({ placement = 'overlay' }: Readonly<{ placement?: 'overlay' | 'slot' }>) {
+  const insets = useSafeAreaInsets()
   const currentToast = useAppToastStore((state) => state.currentToast)
   const triggerAction = useAppToastStore((state) => state.triggerAction)
 
@@ -157,19 +162,23 @@ export function AppToast() {
       ? { ...toast, onAction: triggerAction }
       : toast
 
+  if (placement === 'slot') return <Toast {...hostedToast} />
+
   return (
-    <View pointerEvents="box-none" style={styles.host}>
+    <View pointerEvents="box-none" style={[styles.host, styles.overlay, { bottom: insets.bottom }]}>
       <Toast {...hostedToast} />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  host: {
+  overlay: {
     position: 'absolute',
-    top: 64,
-    left: 16,
-    right: 16,
+    left: 0,
+    right: 0,
+  },
+  host: {
+    padding: 16,
     zIndex: zLayers.toast,
   },
   toast: {
