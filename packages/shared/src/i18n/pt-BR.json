@@ -186,6 +186,7 @@
     "syncRetryAction": "Tentar esta alteração de novo",
     "syncReviewAction": "Revisar a alteração",
     "syncChangeDroppedDetail": "O resto da fila subiu.",
+    "syncHabitNotCreated": "O hábito {item} não foi criado.",
     "syncEntity": {
       "habits": "hábito",
       "goals": "meta",

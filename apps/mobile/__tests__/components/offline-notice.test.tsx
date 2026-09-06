@@ -47,6 +47,8 @@ const droppedLog: DroppedMutation = {
 
 describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
   let tree: RenderTree
+  let unsubscribeToasts: () => void
+  const toastChanges = vi.fn()
   const language = createInstance()
   beforeEach(async () => {
     vi.useFakeTimers()
@@ -56,10 +58,13 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     mocks.enqueue.mockClear()
     useOfflineSyncStore.setState({ drops: [], isFlushing: false })
     useAppToastStore.setState({ currentToast: null, queue: [] })
+    toastChanges.mockClear()
+    unsubscribeToasts = useAppToastStore.subscribe(toastChanges)
     TestRenderer.act(() => { tree = TestRenderer.create(<OfflineNotice />) })
   })
   afterEach(() => {
     TestRenderer.act(() => tree.unmount())
+    unsubscribeToasts()
     vi.useRealTimers()
   })
   function update(patch: Partial<typeof mocks.queue>) {
@@ -91,6 +96,7 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     expect(tree.root.findAllByType(Toast)).toHaveLength(0)
     expect(useAppToastStore.getState().currentToast).toBeNull()
     expect(useAppToastStore.getState().queue).toEqual([])
+    expect(toastChanges).not.toHaveBeenCalled()
   })
 
   it('keeps each dropped change until acted on and never claims a pending queue landed', () => {
@@ -119,6 +125,17 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     expect(toast().message).toBe(language.t('common.syncRetrying'))
     update({ pendingCount: 0, hasFailed: false })
     expect(tree.root.findAllByType(Toast)).toHaveLength(0)
+  })
+
+  it('names a failed habit creation without inventing a lost log', () => {
+    TestRenderer.act(() => {
+      useOfflineSyncStore.getState().addDrop({
+        id: 'create-lost', type: 'createHabit', lastError: '400',
+        mutation: { ...droppedLog.mutation, id: 'create-lost', type: 'createHabit', targetEntityId: null, payload: { title: 'Read' } },
+      })
+    })
+    expect(toast().message).toBe(language.t('common.syncHabitNotCreated', { item: 'Read' }))
+    expect(toast().actionLabel).toBe(language.t('habits.createHabit'))
   })
 
 })

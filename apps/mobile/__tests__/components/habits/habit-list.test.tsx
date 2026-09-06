@@ -20,6 +20,8 @@ const YESTERDAY = formatAPIDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+
 const TestRenderer = require('react-test-renderer')
 
 function flattenText(node: unknown): string {

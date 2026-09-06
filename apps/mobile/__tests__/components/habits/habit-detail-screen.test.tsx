@@ -18,6 +18,8 @@ import { flushQueuedMutations } from '@/lib/offline-mutations'
 import { clear as clearOfflineQueue, getAll as getQueuedMutations } from '@/lib/offline-queue'
 import { useChatStore } from '@/stores/chat-store'
 
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+
 const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
@@ -166,7 +168,7 @@ vi.mock('expo-sqlite', () => ({
 
 vi.mock('@/lib/api-client', () => ({ apiClient: offlineMocks.apiClient }))
 vi.mock('@react-native-async-storage/async-storage', () => ({
-  default: { setItem: mocks.setStorage },
+  default: { setItem: mocks.setStorage, getItem: () => Promise.resolve(null) },
 }))
 vi.mock('@/lib/offline-runtime', () => ({
   getCurrentConnectivity: () => Promise.resolve(offlineMocks.isOnline()),

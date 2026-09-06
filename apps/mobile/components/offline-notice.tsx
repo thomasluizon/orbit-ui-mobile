@@ -12,8 +12,8 @@ import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { enqueue } from '@/lib/offline-queue'
-import { createTempEntityId, getMutationScope, type DroppedMutation } from '@/lib/offline-mutations'
-import { canRetryDroppedMutation, getDroppedItemName, getRecoveryDate, needsHabitCreation } from '@/lib/offline-recovery'
+import { buildQueuedMutation, getMutationScope, type DroppedMutation } from '@/lib/offline-mutations'
+import { canRetryDroppedMutation, getDroppedItemName, getRecoveryDate, getRecoveryMessage, needsHabitCreation } from '@/lib/offline-recovery'
 
 function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; remaining: number }>) {
   const { t } = useTranslation()
@@ -28,8 +28,7 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
   const scope = getMutationScope(mutation.type) ?? 'profile'
   const date = getRecoveryDate(mutation)
   const item = drop.itemName ?? getDroppedItemName(mutation) ?? t(`common.syncEntity.${scope}`)
-  const message = needsCreation ? t('common.syncOrphaned', { date: date ?? t('common.syncUnknownDate') })
-    : t(mutation.type === 'logHabit' ? 'common.syncDropped' : 'common.syncChangeDropped', { item })
+  const message = getRecoveryMessage(mutation, item, t)
   const actionLabel = needsCreation ? t('habits.createHabit')
     : t(retryable ? (mutation.type === 'logHabit' ? 'common.syncDroppedAction' : 'common.syncRetryAction') : 'common.syncReviewAction')
 
@@ -39,7 +38,7 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
       return
     }
     if (retryable) {
-      enqueue({ ...mutation, type: mutationTypeSchema.parse(mutation.type), id: createTempEntityId('habit'), timestamp: Date.now(), retries: 0, status: 'pending', lastError: null })
+      enqueue(buildQueuedMutation({ ...mutation, scope, type: mutationTypeSchema.parse(mutation.type) }))
     } else {
       router.push(scope === 'habits' || scope === 'goals' || scope === 'tags' ? '/' : '/preferences')
     }

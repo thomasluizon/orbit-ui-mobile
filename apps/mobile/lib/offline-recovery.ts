@@ -11,9 +11,9 @@ export function getRecoveryDate(mutation: PersistedQueuedMutation): string | nul
 
 export function needsHabitCreation(mutation: PersistedQueuedMutation): boolean {
   return getMutationScope(mutation.type) === 'habits' && (
-    mutation.type === 'createHabit' || mutation.type === 'createSubHabit' ||
-    Boolean(mutation.targetEntityId?.startsWith('offline-')) ||
-    Boolean(mutation.dependsOn?.some((id) => id.startsWith('offline-')))
+    mutation.type === 'createHabit' ||
+    Boolean(mutation.targetEntityId?.startsWith('offline-habit-')) ||
+    (mutation.type === 'logHabit' && mutation.endpoint.includes('offline-habit-'))
   )
 }
 
@@ -29,4 +29,18 @@ export function getDroppedItemName(mutation: PersistedQueuedMutation): string | 
     if ('name' in payload && typeof payload.name === 'string') return payload.name
   }
   return null
+}
+
+export function getRecoveryMessage(
+  mutation: PersistedQueuedMutation,
+  item: string,
+  translate: (key: string, values?: Record<string, unknown>) => string,
+): string {
+  if (needsHabitCreation(mutation)) {
+    if (mutation.type === 'logHabit') {
+      return translate('common.syncOrphaned', { date: getRecoveryDate(mutation) ?? translate('common.syncUnknownDate') })
+    }
+    return translate('common.syncHabitNotCreated', { item })
+  }
+  return translate(mutation.type === 'logHabit' ? 'common.syncDropped' : 'common.syncChangeDropped', { item })
 }

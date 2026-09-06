@@ -186,6 +186,7 @@
     "syncRetryAction": "Try this change again",
     "syncReviewAction": "Review the change",
     "syncChangeDroppedDetail": "The rest of the queue landed.",
+    "syncHabitNotCreated": "The habit {item} was not created.",
     "syncEntity": {
       "habits": "habit",
       "goals": "goal",
