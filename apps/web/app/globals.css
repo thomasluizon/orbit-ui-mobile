@@ -1583,6 +1583,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   max-width: 65ch;
   min-width: 0;
   overflow-wrap: anywhere;
+  text-wrap: pretty;
 }
 
 .prose-orbit h1 {
@@ -1637,13 +1638,22 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .prose-orbit a {
-  color: var(--fg-1);
-  text-decoration: underline;
   overflow-wrap: anywhere;
 }
 
-.prose-orbit a:hover {
+.prose-orbit a[href] {
+  color: var(--fg-1);
   text-decoration: underline;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .prose-orbit a[href]:hover {
+    text-decoration-thickness: 2px;
+  }
+}
+
+.prose-orbit a[href]:active {
+  color: var(--fg-2);
 }
 
 .prose-orbit strong {
@@ -1735,8 +1745,17 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 [data-bubble-role='user'] .prose-orbit,
-[data-bubble-role='user'] .prose-orbit :is(strong, em, a, code, li) {
+[data-bubble-role='user'] .prose-orbit :is(strong, em, code, li),
+[data-bubble-role='user'] .prose-orbit a[href] {
   color: var(--fg-on-primary);
+}
+
+[data-bubble-role='user'] .prose-orbit a[href]:active {
+  background: var(--primary-pressed);
+}
+
+.prose-orbit a[href] :is(strong, em, code) {
+  color: inherit;
 }
 
 [data-bubble-role='user'] .prose-orbit code {

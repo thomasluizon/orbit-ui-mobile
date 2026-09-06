@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { marked } from 'marked'
+import { marked, Renderer, type Tokens } from 'marked'
 import DOMPurify from 'dompurify'
 
 interface MarkdownProps {
@@ -33,6 +33,15 @@ const ALLOWED_TAGS = [
 ]
 const ALLOWED_ATTR = ['href', 'target', 'rel']
 
+class ProseLinkRenderer extends Renderer {
+  override link(token: Tokens.Link): string {
+    const anchor = super.link(token)
+    return /^https?:/i.test(token.href)
+      ? anchor.replace('<a ', '<a target="_blank" rel="noopener noreferrer" ')
+      : anchor
+  }
+}
+
 /**
  * The single web markdown renderer for chat messages and habit/goal
  * descriptions. Parses with `marked`, then sanitizes through DOMPurify with a
@@ -40,9 +49,10 @@ const ALLOWED_ATTR = ['href', 'target', 'rel']
  * renders inside the `.prose-orbit` typographic scope.
  */
 export function Markdown({ content, className }: Readonly<MarkdownProps>) {
+  const renderer = useMemo(() => new ProseLinkRenderer(), [])
   const html = useMemo(() => {
     if (!content) return ''
-    const raw = marked.parse(content, { async: false })
+    const raw = marked.parse(content, { async: false, renderer })
     const sanitized = DOMPurify.sanitize(raw, {
       ALLOWED_TAGS,
       ALLOWED_ATTR,
@@ -50,7 +60,7 @@ export function Markdown({ content, className }: Readonly<MarkdownProps>) {
     return sanitized
       .replaceAll('<pre>', '<pre tabindex="0">')
       .replaceAll('<table>', '<table tabindex="0">')
-  }, [content])
+  }, [content, renderer])
 
   if (!html) return null
 

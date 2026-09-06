@@ -4,6 +4,48 @@ import { render } from '@testing-library/react'
 import { Markdown } from '@/components/ui/markdown'
 
 describe('Markdown', () => {
+  it.each([
+    'see https://useorbit.org for more',
+    '[docs](https://useorbit.org/docs)',
+    '[docs](http://useorbit.org/docs)',
+    '[docs](HTTPS://useorbit.org/docs)',
+  ])('opens absolute web links outside Orbit: %s', (content) => {
+    const { container } = render(<Markdown content={content} />)
+    const link = container.querySelector('a')
+    expect(link).toHaveAttribute('href')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it.each(['mailto:a@b.com', '/habits', '#notes'])('keeps %s in its current context', (href) => {
+    const { container } = render(<Markdown content={`[label](${href})`} />)
+    const link = container.querySelector('a')
+    expect(link).toHaveAttribute('href', href)
+    expect(link).not.toHaveAttribute('target')
+    expect(link).not.toHaveAttribute('rel')
+  })
+
+  it.each(['javascript:alert(1)', 'data:text/html,<script>'])('sanitizes %s', (href) => {
+    const { container } = render(<Markdown content={`[label](${href})`} />)
+    const link = container.querySelector('a')
+    expect(link).not.toHaveAttribute('href')
+    expect(link).not.toHaveAttribute('target')
+  })
+
+  it('handles multiple links and preserves inline formatting and escaped attributes', () => {
+    const { container } = render(
+      <Markdown content={'[**first**](https://useorbit.org/?a=1&b=2 "A &quot;title&quot;") [second](https://useorbit.org/docs)'} />,
+    )
+    const links = container.querySelectorAll('a')
+    expect(links).toHaveLength(2)
+    for (const link of links) {
+      expect(link).toHaveAttribute('target', '_blank')
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    }
+    expect(links[0]).toHaveAttribute('href', 'https://useorbit.org/?a=1&b=2')
+    expect(links[0]?.querySelector('strong')).toHaveTextContent('first')
+  })
+
   it('renders bold, lists, and headings from markdown', () => {
     const { container } = render(
       <Markdown content={'# Title\n\n**bold** text\n\n- one\n- two'} />,
