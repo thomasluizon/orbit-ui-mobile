@@ -4,14 +4,13 @@ import { useState, type KeyboardEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Command, CommandEmpty, CommandGroup, CommandList } from 'cmdk'
-import { type SearchCommandId, type SearchCommandPage } from '@orbit/shared/utils'
+import { buildSearchEntries, type CommandHabitEntry, type SearchCommandId, type SearchCommandPage } from '@orbit/shared/utils'
 import { useHabitSearch } from '@/hooks/use-habit-search'
 import { SearchEmpty, SearchResults, Searching } from '@/components/search/search-results'
 import { Button } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useLogHabit, useSkipHabit } from '@/hooks/use-habits'
 import { CommandHabitItems } from './command-habit-items'
-import { buildCommandHabitList } from './build-command-habit-list'
 import { CommandGroups } from './command-groups'
 import { CommandHabitSkeleton, CommandKeyHint, CommandSearchField, GROUP_CLASS } from './command-menu-chrome'
 import type { CommandNavigationItem } from './command-palette'
@@ -32,7 +31,8 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
   const onActionError = () => showError(t('errors.updateHabit'))
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()
-  const entries = search.data ? (search.query && !page ? search.data.topLevelHabits.map((habit) => ({ habit, parentTitle: null })) : buildCommandHabitList(search.data, search.query)) : []
+  const entries = buildSearchEntries(search.data, search.query, page)
+  const pageLabel = page === 'log' ? t('command.page.log') : t('command.page.skip')
   const showResults = resultsMode && page === null && !!search.query
   function run(action: () => void) { action(); onClose() }
   function back() { setPage(null); search.changeText('') }
@@ -52,14 +52,12 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
     }
   }
   return <Command shouldFilter={false} label={t('command.title')} className="flex flex-col overflow-hidden" onKeyDown={handleKeyDown}>
-    <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={page ? t(page === 'log' ? 'command.page.log' : 'command.page.skip') : null} onBack={back} />
+    <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={page === null ? null : pageLabel} onBack={back} />
     <CommandList label={t('command.title')} aria-busy={search.busy} className="h-[min(60vh,400px)] overflow-y-auto overflow-x-hidden overscroll-contain p-2">
       {search.isSuccess && !search.busy && !showResults && <CommandEmpty className="p-3 text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('command.empty')}</CommandEmpty>}
       {search.isError && <div role="alert"><p>{t('habits.search.loadError')}</p><Button size="sm" variant="ghost" onClick={() => void search.refetch()}>{t('common.retry')}</Button></div>}
       {search.showLoading && <><Searching /><CommandHabitSkeleton heading={t('command.groups.search')} /></>}
-      {!search.busy && !search.isError && (showResults
-        ? (entries.length ? <SearchResults totalCount={search.data?.totalCount ?? 0} habits={entries.map(({ habit }) => habit)} query={search.query} onOpen={chooseHabit} /> : <SearchEmpty query={search.query} onCreate={() => onCreateHabit(search.query)} />)
-        : entries.length > 0 && <CommandGroup heading={t('command.groups.search')} className={GROUP_CLASS} data-command-group="habits"><CommandHabitItems disabled={logHabit.isPending || skipHabit.isPending} entries={entries} query={search.query} onSelectHabit={(habit) => chooseHabit(habit.id)} /></CommandGroup>)}
+      {!search.busy && !search.isError && <CommandResults showResults={showResults} entries={entries} totalCount={search.data?.totalCount ?? 0} query={search.query} onOpen={chooseHabit} onCreate={() => onCreateHabit(search.query)} disabled={logHabit.isPending || skipHabit.isPending} />}
       {page === null && <CommandGroups hideCreate={showResults && entries.length === 0 && !search.busy} query={search.text} navItems={navItems} onSelect={chooseCommand} onNavigate={run} />}
       <div className="flex gap-3">
         {search.page > 1 && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page - 1)}>{t('habits.search.previous')}</Button>}
@@ -72,4 +70,16 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
       <CommandKeyHint keys={['Esc']} label={t(page ? 'command.hints.back' : 'command.hints.close')} />
     </div>
   </Command>
+}
+
+function CommandResults({ showResults, entries, totalCount, query, onOpen, onCreate, disabled }: Readonly<{
+  showResults: boolean; entries: CommandHabitEntry[]; totalCount: number; query: string
+  onOpen: (id: string) => void; onCreate: () => void; disabled: boolean
+}>) {
+  const t = useTranslations()
+  if (showResults) return entries.length > 0
+    ? <SearchResults totalCount={totalCount} habits={entries.map(({ habit }) => habit)} query={query} onOpen={onOpen} />
+    : <SearchEmpty query={query} onCreate={onCreate} />
+  if (entries.length === 0) return null
+  return <CommandGroup heading={t('command.groups.search')} className={GROUP_CLASS} data-command-group="habits"><CommandHabitItems disabled={disabled} entries={entries} query={query} onSelectHabit={(habit) => onOpen(habit.id)} /></CommandGroup>
 }

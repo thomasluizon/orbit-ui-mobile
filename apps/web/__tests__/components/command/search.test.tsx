@@ -97,6 +97,7 @@ describe('habit search', () => {
     expect(screen.queryByRole('status')).toBeNull()
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'walk' } })
     expect(await screen.findByRole('status')).toHaveTextContent('Searching')
+    expect(screen.getByRole('status')).toHaveAccessibleName('Searching')
     expect(screen.getByRole('combobox')).toHaveValue('walk')
     expect(screen.queryByText('Nothing by that name.')).toBeNull()
     expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'true')

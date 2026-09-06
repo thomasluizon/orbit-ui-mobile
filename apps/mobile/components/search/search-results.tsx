@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { Animated, StyleSheet, Text, View, Pressable } from 'react-native'
 import { Trans, useTranslation } from 'react-i18next'
-import { computeHabitMatchBadges } from '@orbit/shared/utils'
+import { buildSearchMatchLines } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ChevronRight, Circle } from '@/components/ui/icons'
 import { Button } from '@/components/ui/pill-button'
@@ -9,28 +9,26 @@ import { createTokensV2, radius } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-const MATCH_KEYS = { title: 'habits.search.matchTitle', description: 'habits.search.matchDescription', tag: 'habits.search.matchTag', child: 'habits.search.matchChild' } as const
-
 export function Searching() {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const reducedMotion = usePrefersReducedMotion()
-  const dots = useMemo(() => [new Animated.Value(1), new Animated.Value(1), new Animated.Value(1)], [])
+  const dots = useMemo(() => ['first', 'second', 'third'].map((id) => ({ id, opacity: new Animated.Value(1) })), [])
   useEffect(() => {
     if (reducedMotion) return
-    const animations = dots.map((dot, index) => Animated.sequence([
+    const animations = dots.map(({ opacity }, index) => Animated.sequence([
       Animated.delay(index * 150),
       Animated.loop(Animated.sequence([
-      Animated.timing(dot, { toValue: 0.35, duration: 550, useNativeDriver: true }),
-      Animated.timing(dot, { toValue: 1, duration: 550, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 0.35, duration: 550, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 550, useNativeDriver: true }),
     ])),
     ]))
     animations.forEach((animation) => animation.start())
     return () => animations.forEach((animation) => animation.stop())
   }, [dots, reducedMotion])
   return <View role="status" accessibilityRole="text" accessibilityLiveRegion="polite" style={styles.loading}>
-    <View importantForAccessibility="no-hide-descendants" style={styles.dots}>{dots.map((dot, index) => <Animated.View key={index} style={[styles.dot, { opacity: dot, backgroundColor: tokens.fg3 }]} />)}</View>
+    <View importantForAccessibility="no-hide-descendants" style={styles.dots}>{dots.map(({ id, opacity }) => <Animated.View key={id} style={[styles.dot, { opacity, backgroundColor: tokens.fg3 }]} />)}</View>
     <Text style={[styles.body, { color: tokens.fg3 }]}>{t('habits.search.searching')}</Text>
   </View>
 }
@@ -50,14 +48,12 @@ export function SearchResult({ habit, query, onOpen, actionLabel, disabled = fal
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const matches = computeHabitMatchBadges(query, habit)
-  const accessibleName = [actionLabel ?? t('habits.search.open', { name: habit.title }), ...matches.map((match) =>
-    [t(MATCH_KEYS[match.field]), ...(match.value === null ? [] : [`“${match.value}”`])].join(' '),
-  )].join(' ')
+  const matches = buildSearchMatchLines(query, habit, t)
+  const accessibleName = [actionLabel ?? t('habits.search.open', { name: habit.title }), ...matches.map((match) => match.text)].join(' ')
   return <Pressable role="button" accessibilityRole="button" disabled={disabled} accessibilityLabel={accessibleName} accessibilityState={{ disabled }} onPress={onOpen} style={({ pressed }) => [styles.row, { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, borderColor: tokens.hairlineGhost, borderWidth: 1 }]}>
     <View importantForAccessibility="no-hide-descendants" style={[styles.well, { backgroundColor: tokens.bgWell }]}>{habit.emoji ? <Text style={styles.emoji}>{habit.emoji}</Text> : <Circle size={20} color={tokens.fg3} />}</View>
     <View style={styles.content}><Text numberOfLines={1} style={[styles.name, { color: tokens.fg1 }]}>{habit.title}</Text>
-      {matches.map((match, index) => <Text key={`${match.field}-${index}`} numberOfLines={1} style={[styles.match, { color: tokens.fg3 }]}>{t(MATCH_KEYS[match.field])}{match.value !== null && <> <Text style={{ color: tokens.fg2 }}>{`“${match.value}”`}</Text></>}</Text>)}
+      {matches.map((match) => <Text key={match.id} numberOfLines={1} style={[styles.match, { color: tokens.fg3 }]}>{match.label}{match.fragment !== null && <> <Text style={{ color: tokens.fg2 }}>{match.fragment}</Text></>}</Text>)}
     </View><ChevronRight size={20} color={tokens.fg4} />
   </Pressable>
 }

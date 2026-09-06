@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { buildCommandHabitList, searchCommands, type SearchCommandId, type SearchCommandPage } from '@orbit/shared/utils'
+import { buildSearchEntries, searchCommands, type SearchCommandId, type SearchCommandPage } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/pill-button'
@@ -30,7 +30,7 @@ export default function SearchScreen() {
   const onActionError = () => showError(t('errors.updateHabit'))
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()
-  const habits = search.data ? (search.query && !commandPage ? search.data.topLevelHabits : buildCommandHabitList(search.data, search.query).map(({ habit }) => habit)) : []
+  const habits = buildSearchEntries(search.data, search.query, commandPage).map(({ habit }) => habit)
   const hideCreate = !!search.query && habits.length === 0 && !search.busy
   const commands = searchCommands(search.text, commandPage, t).filter((command) => !hideCreate || command.id !== 'create')
   function back() {
@@ -52,7 +52,7 @@ export default function SearchScreen() {
   return <View style={[styles.screen, { backgroundColor: tokens.bg }]}>
     <AppBar title={t('habits.search.title')} onBack={back} backLabel={t('common.back')} />
     <View style={styles.field}>
-      {commandPage && <Text style={[styles.chip, { color: tokens.fg2, backgroundColor: tokens.bgWell, borderColor: tokens.hairline }]}>{t(commandPage === 'log' ? 'command.page.log' : 'command.page.skip')}</Text>}
+      {commandPage !== null && <Text style={[styles.chip, { color: tokens.fg2, backgroundColor: tokens.bgWell, borderColor: tokens.hairline }]}>{t(commandPage === 'log' ? 'command.page.log' : 'command.page.skip')}</Text>}
       <View style={styles.input}><Input label={t('habits.search.title')} placeholder={t('command.placeholder')} value={search.text} onChange={search.changeText} trailing={<Search size={20} color={tokens.fg3} />} /></View>
     </View>
     <ScrollView role="list" keyboardShouldPersistTaps="handled" contentContainerStyle={styles.list} accessibilityState={{ busy: search.busy }}>
@@ -64,7 +64,7 @@ export default function SearchScreen() {
           : <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg4 }]}>{t('command.groups.search')}</Text>)}
         {habits.map((habit) => <SearchResult key={habit.id} habit={habit} disabled={logHabit.isPending || skipHabit.isPending} query={search.query} onOpen={() => selectHabit(habit.id)} actionLabel={commandPage ? habit.title : undefined} />)}
         {habits.length === 0 && (commandPage || !search.query) && commands.length === 0 && <Text style={{ color: tokens.fg3 }}>{t('command.empty')}</Text>}
-        {habits.length === 0 && search.query && !commandPage && <SearchEmpty query={search.query} onCreate={() => setCreateTitle(search.query)} />}
+        {habits.length === 0 && search.query.length > 0 && commandPage === null && <SearchEmpty query={search.query} onCreate={() => setCreateTitle(search.query)} />}
       </>}
       {!commandPage && <CommandGroups hideCreate={hideCreate} query={search.text} onSelect={selectCommand} />}
       <View style={styles.pagination}>

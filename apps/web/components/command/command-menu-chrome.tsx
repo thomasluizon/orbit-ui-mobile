@@ -50,7 +50,7 @@ export function CommandKeyHint({ keys, label }: Readonly<{ keys: readonly string
 export function CommandSearchField({ search, setSearch, activePageLabel, onBack }: Readonly<{ search: string; setSearch: (value: string) => void; activePageLabel: string | null; onBack: () => void }>) {
   const t = useTranslations()
   const inputRef = useRef<HTMLInputElement>(null)
-  return (<>
+  return (
       <div className="flex items-center gap-2 p-4 shadow-[inset_0_-1px_0_var(--hairline)]">
       {activePageLabel !== null && (
         <div className="flex shrink-0 items-center gap-1">
@@ -107,5 +107,5 @@ export function CommandSearchField({ search, setSearch, activePageLabel, onBack 
       </div>
 
       </div>
-</>)
+ )
 }

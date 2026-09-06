@@ -645,3 +645,5 @@ export { searchCommands, type SearchCommandPage, type SearchCommandId } from './
 export { buildCommandHabitList, type CommandHabitEntry } from './command-habit-list'
 
 export * from './error-surface'
+
+export { buildSearchEntries, buildSearchMatchLines, type SearchMatchLine } from './search-presentation'

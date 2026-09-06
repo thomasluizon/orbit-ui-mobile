@@ -82,6 +82,9 @@ function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleIte
 }
 
 describe('web tag hooks', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
   it('invalidates every search page after renaming a tag without applying array updates to pages', async () => {
     const { updateTag } = await import('@/app/actions/tags')
     vi.mocked(updateTag).mockResolvedValue(undefined)
@@ -98,9 +101,7 @@ describe('web tag hooks', () => {
     }
     queryClient.clear()
   })
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
+
 
   it('creates a tag optimistically and remaps the temp id on success', async () => {
     const { createTag } = await import('@/app/actions/tags')

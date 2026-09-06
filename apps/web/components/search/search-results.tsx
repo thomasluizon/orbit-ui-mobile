@@ -1,5 +1,6 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { CommandItem } from 'cmdk'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -10,17 +11,19 @@ import { HabitMatchLine } from './habit-match-line'
 
 export function Searching() {
   const t = useTranslations()
-  return <div role="status" className="flex items-center gap-3 p-3 text-[length:var(--fs-sm)] text-[var(--fg-3)]">
+  return <output aria-live="polite" aria-label={t('habits.search.searching')} className="flex items-center gap-3 p-3 text-[length:var(--fs-sm)] text-[var(--fg-3)]">
     <span aria-hidden className="flex gap-1">{[0, 1, 2].map((index) => <span key={index} className="search-dot size-1 rounded-full bg-[var(--fg-3)]" style={{ animationDelay: `${index * 0.15}s` }} />)}</span>
     {t('habits.search.searching')}
-  </div>
+  </output>
 }
+
+function renderQueryText(chunks: ReactNode) { return <span>{chunks}</span> }
 
 export function SearchEmpty({ query, onCreate }: Readonly<{ query: string; onCreate: () => void }>) {
   const t = useTranslations()
   const wide = useIsWideDesktop()
   return <div className="flex flex-col items-start gap-3 p-3">
-    <p className="text-[length:var(--fs-md)]">{t.rich('habits.search.emptyTitle', { query, queryText: (chunks) => <span>{chunks}</span> })}</p>
+    <p className="text-[length:var(--fs-md)]">{t.rich('habits.search.emptyTitle', { query, queryText: renderQueryText })}</p>
     <p className="text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('habits.search.emptyBody')}</p>
     <Button size="sm" variant={wide ? 'secondary' : 'primary'} onClick={onCreate}>{t('habits.search.create')}</Button>
   </div>
