@@ -64,4 +64,14 @@ describe('habit list overlay caller guards', () => {
     expect(habitList).not.toContain('skipConfirmTitle')
     expect(habitList).toContain('await skipHabit.mutateAsync({ habitId, date })')
   })
+
+  it('keeps Today selection overlays out of the initial route chunk', () => {
+    const caller = source('app/(app)/today-page-view.tsx')
+
+    expect(caller).toContain("import('@/components/habits/selection-tray')")
+    expect(caller).toContain("import('@/components/ui/confirm-sheet')")
+    expect(caller).not.toContain("import { SelectionTray } from '@/components/habits/selection-tray'")
+    expect(caller).not.toContain("import { ConfirmSheet } from '@/components/ui/confirm-sheet'")
+    expect(caller).toMatch(/view\.selection\.showBulkDeleteConfirm \? \(\s*<ConfirmSheet/)
+  })
 })
