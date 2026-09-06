@@ -5,6 +5,38 @@ import { Markdown } from '@/components/ui/markdown'
 
 describe('Markdown', () => {
   it.each([
+    '<a href="https://example.com">docs</a>',
+    '<div><a href="http://example.com">docs</a></div>',
+    '<a href="HTTPS://example.com" target="_self" rel="opener">docs</a>',
+    '<a href="https://example.com" target="_blank" rel="opener">docs</a>',
+    '<a href="&#104;ttps://example.com">docs</a>',
+    '<a href="  https://example.com  ">docs</a>',
+    '<a href="ht&#9;tps://example.com">docs</a>',
+  ])('isolates raw absolute anchors after sanitization: %s', (content) => {
+    const { container } = render(<Markdown content={content} />)
+    const link = container.querySelector('a')
+    expect(link).toHaveAttribute('href')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it.each([
+    '<a href="/habits" target="_blank" rel="opener">habits</a>',
+    '<a href="#notes" target="_blank" rel="opener">notes</a>',
+    '<a href="mailto:a@b.com" target="_blank" rel="opener">mail</a>',
+    '<a href="/habits" target="named-window">habits</a>',
+    '<a href="javascript:alert(1)" target="_blank" rel="opener">unsafe</a>',
+    '<a href="data:text/html,unsafe" target="_blank" rel="opener">unsafe</a>',
+    '<a target="_blank" rel="opener">no destination</a>',
+  ])('strips caller-supplied context from raw non-web anchors: %s', (content) => {
+    const { container } = render(<Markdown content={content} />)
+    const link = container.querySelector('a')
+    expect(link).not.toBeNull()
+    expect(link).not.toHaveAttribute('target')
+    expect(link).not.toHaveAttribute('rel')
+  })
+
+  it.each([
     'see https://useorbit.org for more',
     '[docs](https://useorbit.org/docs)',
     '[docs](http://useorbit.org/docs)',
