@@ -108,7 +108,12 @@ describe('mobile search', () => {
     expect(text()).toContain('“walking”')
     expect(text()).toContain('“Walk to the shop”')
     expect(text()).toContain(locale === 'en' ? '4 habits' : '4 hábitos')
-    await pressLabel(locale === 'en' ? 'Open House routine' : 'Abrir House routine')
+    const expectedNames = locale === 'en'
+      ? ['Open Walk in the name', 'Open Run in the description', 'Open Stretch in the tag “walking”', 'Open House routine inside “Walk to the shop”']
+      : ['Abrir Walk no nome', 'Abrir Run na descrição', 'Abrir Stretch na etiqueta “walking”', 'Abrir House routine dentro de “Walk to the shop”']
+    const results = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.role === 'button')
+    expect(results.map((node) => node.props.accessibilityLabel)).toEqual(expectedNames)
+    await pressLabel(expectedNames[3]!)
     expect(mocks.push).toHaveBeenCalledWith('/habits/parent')
     expect(mocks.query).toHaveBeenCalledWith({ search: 'walk', page: 1, pageSize: 20 })
   })
@@ -158,7 +163,7 @@ describe('mobile search', () => {
     expect(mocks[page]).toHaveBeenCalledWith(page === 'log' ? { habitId: 'habit', intent: 'log' } : { habitId: 'habit' }, expect.objectContaining({ onSuccess: expect.any(Function) }))
     mocks.pending = true
     await type('walk')
-    await pressLabel('Walk')
+    await pressLabel('Walk in the name')
     expect(mocks[page]).toHaveBeenCalledTimes(1)
     await TestRenderer.act(() => { expect(dismissTopOverlay('system-back')).toBe(true) })
     expect(text()).toContain('Create habit')
@@ -176,7 +181,7 @@ describe('mobile search', () => {
     await TestRenderer.act(() => { onPress() })
     expect(mocks[page]).toHaveBeenCalledWith(page === 'log' ? { habitId: 'child', intent: 'log' } : { habitId: 'child' }, expect.objectContaining({ onSuccess: expect.any(Function) }))
     expect(choices).toHaveLength(1)
-    expect(choices[0]!.props.accessibilityLabel).toBe('Walk to the shop')
+    expect(choices[0]!.props.accessibilityLabel).toBe('Walk to the shop in the name')
     expect(mocks.push).not.toHaveBeenCalled()
   })
 

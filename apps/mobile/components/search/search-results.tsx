@@ -50,10 +50,14 @@ export function SearchResult({ habit, query, onOpen, selected, actionLabel, disa
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  return <Pressable role={selected === undefined ? 'button' : 'option'} accessibilityRole="button" disabled={disabled} accessibilityLabel={actionLabel ?? t('habits.search.open', { name: habit.title })} accessibilityState={{ selected, disabled }} onPress={onOpen} style={({ pressed }) => [styles.row, { backgroundColor: selected ? tokens.primaryDim : pressed ? tokens.bgHover : tokens.bgCard, borderColor: selected ? tokens.primary : tokens.hairlineGhost, borderWidth: selected ? 1.5 : 1 }]}>
+  const matches = computeHabitMatchBadges(query, habit)
+  const accessibleName = [actionLabel ?? t('habits.search.open', { name: habit.title }), ...matches.map((match) =>
+    [t(MATCH_KEYS[match.field]), ...(match.value === null ? [] : [`“${match.value}”`])].join(' '),
+  )].join(' ')
+  return <Pressable role={selected === undefined ? 'button' : 'option'} accessibilityRole="button" disabled={disabled} accessibilityLabel={accessibleName} accessibilityState={{ selected, disabled }} onPress={onOpen} style={({ pressed }) => [styles.row, { backgroundColor: selected ? tokens.primaryDim : pressed ? tokens.bgHover : tokens.bgCard, borderColor: selected ? tokens.primary : tokens.hairlineGhost, borderWidth: selected ? 1.5 : 1 }]}>
     <View importantForAccessibility="no-hide-descendants" style={[styles.well, { backgroundColor: tokens.bgWell }]}>{habit.emoji ? <Text style={styles.emoji}>{habit.emoji}</Text> : <Circle size={20} color={tokens.fg3} />}</View>
     <View style={styles.content}><Text numberOfLines={1} style={[styles.name, { color: tokens.fg1 }]}>{habit.title}</Text>
-      {computeHabitMatchBadges(query, habit).map((match, index) => <Text key={`${match.field}-${index}`} numberOfLines={1} style={[styles.match, { color: tokens.fg3 }]}>{t(MATCH_KEYS[match.field])}{match.value !== null && <> <Text style={{ color: tokens.fg2 }}>{`“${match.value}”`}</Text></>}</Text>)}
+      {matches.map((match, index) => <Text key={`${match.field}-${index}`} numberOfLines={1} style={[styles.match, { color: tokens.fg3 }]}>{t(MATCH_KEYS[match.field])}{match.value !== null && <> <Text style={{ color: tokens.fg2 }}>{`“${match.value}”`}</Text></>}</Text>)}
     </View><ChevronRight size={20} color={tokens.fg4} />
   </Pressable>
 }

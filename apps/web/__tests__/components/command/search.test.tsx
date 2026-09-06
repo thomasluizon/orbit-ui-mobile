@@ -63,7 +63,11 @@ describe('habit search', () => {
     expect(screen.getByText('“walking”')).toBeInTheDocument()
     expect(screen.getByText('“Walk to the shop”')).toBeInTheDocument()
     expect(screen.getByText(locale === 'en' ? '4 habits' : '4 hábitos')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('option', { name: locale === 'en' ? 'Open House routine' : 'Abrir House routine' }))
+    const expectedNames = locale === 'en'
+      ? ['Open Walk in the name', 'Open Park run in the description', 'Open Stretch in the tag “walking”', 'Open House routine inside “Walk to the shop”']
+      : ['Abrir Walk no nome', 'Abrir Park run na descrição', 'Abrir Stretch na etiqueta “walking”', 'Abrir House routine dentro de “Walk to the shop”']
+    screen.getAllByRole('option').forEach((option, index) => expect(option).toHaveAccessibleName(expectedNames[index]))
+    fireEvent.click(screen.getByRole('option', { name: expectedNames[3] }))
     expect(mocks.push).toHaveBeenCalledWith('/habits/parent')
     expect(mocks.query).toHaveBeenCalledWith({ search: 'walk', page: 1, pageSize: 20 })
   })

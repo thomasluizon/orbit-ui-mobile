@@ -15,7 +15,7 @@ function habitLeading(emoji: string | null | undefined): ReactNode {
       </span>
     )
   }
-  return <Circle className="size-[22px]" strokeWidth={1.8} aria-hidden />
+  return <Circle size={20} strokeWidth={1.8} aria-hidden />
 }
 
 interface CommandHabitItemsProps {

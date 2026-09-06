@@ -413,7 +413,7 @@
       "open": "Open {name}",
       "next": "Next",
       "previous": "Previous",
-      "loadError": "Could not load habits. Try again."
+      "loadError": "Could not load habits."
     },
     "createHabit": "Create Habit",
     "askAstra": "Ask Astra",

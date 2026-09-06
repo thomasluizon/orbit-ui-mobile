@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { CommandGroup, CommandInput } from 'cmdk'
 import { ArrowLeft, Search } from '@/components/ui/icons'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/pill-button'
 
 export const GROUP_CLASS =
   'mb-1 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-[12px] [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.06em] [&_[cmdk-group-heading]]:text-[var(--fg-4)] [&_[cmdk-group-heading]]:font-mono'
@@ -53,17 +54,18 @@ export function CommandSearchField({ search, setSearch, activePageLabel, onBack 
       <div className="flex items-center gap-2 p-4 shadow-[inset_0_-1px_0_var(--hairline)]">
       {activePageLabel !== null && (
         <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            aria-label={t('common.back')}
+          <Button
+            variant="ghost"
+            size="sm"
+            iconOnly
+            label={t('common.back')}
             onClick={() => {
               onBack()
               inputRef.current?.focus()
             }}
-            className="flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] [transition-duration:var(--dur-hover-control),var(--dur-hover-control),150ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96]"
           >
             <ArrowLeft size={20} strokeWidth={1.8} aria-hidden />
-          </button>
+          </Button>
           <span
             className="rounded-[8px] px-3 py-1 text-[12px] font-medium text-[var(--fg-2)]"
             style={{ background: 'var(--bg-elev)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
