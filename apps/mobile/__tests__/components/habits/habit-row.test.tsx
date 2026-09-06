@@ -436,6 +436,14 @@ describe('offline row presentation', () => {
       TestRenderer.act(() => { useOfflineSyncStore.setState(state); tree.update(<HabitRow habit={habit} />) })
       expect(JSON.stringify(tree!.toJSON())).toBe(onlineRow)
     }
-    TestRenderer.act(() => { tree.unmount(); useOfflineSyncStore.setState({ isFlushing: false, isRetrying: false }) })
+    TestRenderer.act(() => {
+      useOfflineSyncStore.setState({ drops: [{ id: 'lost-log', type: 'logHabit', lastError: '500', mutation: {
+        id: 'lost-log', type: 'logHabit', timestamp: 1, retries: 3, maxRetries: 3,
+        endpoint: '/api/habits/walk/log', method: 'POST', payload: null,
+      } }] })
+      tree.update(<HabitRow habit={habit} />)
+    })
+    expect(JSON.stringify(tree!.toJSON())).toBe(onlineRow)
+    TestRenderer.act(() => { tree.unmount(); useOfflineSyncStore.setState({ isFlushing: false, isRetrying: false, drops: [] }) })
   })
 })

@@ -1544,6 +1544,19 @@ describe('offline mutation helpers', () => {
       expect(mocks.persistQueryCache).toHaveBeenCalledTimes(calls)
     })
 
+
+    it('counts a terminal removal as progress when another dependency is still blocked', async () => {
+      mocks.queued.push(blockedMutation())
+      await flushQueuedMutations()
+      expect(canAutoFlush()).toBe(false)
+      mocks.apiClient.mockRejectedValue(new Error('400 validation failed'))
+      mocks.queued.push(buildQueuedMutation({ type: 'updateHabit', scope: 'habits', endpoint: '/api/habits/real', method: 'PUT', payload: {} }))
+      const result = await flushQueuedMutations()
+      expect(result).toMatchObject({ succeeded: 0, failed: 1, remaining: 1 })
+      expect(result.droppedMutations).toHaveLength(1)
+      expect(canAutoFlush()).toBe(true)
+    })
+
     it('bounds repeated server failures by the schedule and keeps the existing three-failure ceiling', async () => {
       mocks.apiClient.mockRejectedValue(new Error('500 server error'))
       mocks.queued.push(buildQueuedMutation({ type: 'updateHabit', scope: 'habits', endpoint: '/api/habits/real', method: 'PUT', payload: {} }))

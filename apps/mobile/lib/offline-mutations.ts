@@ -798,7 +798,8 @@ export async function flushQueuedMutations(): Promise<{
   try {
     await recoverInstalledQueue()
     outcome = await runQueueFlush()
-    if (outcome.remaining > 0 && outcome.succeeded === 0) {
+    const drained = outcome.succeeded + outcome.droppedMutations.length
+    if (outcome.remaining > 0 && drained === 0) {
       scheduleBackoffFlush()
     } else {
       cancelScheduledFlush()

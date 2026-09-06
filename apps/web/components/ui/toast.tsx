@@ -83,6 +83,9 @@ export function Toast(props: Readonly<ToastProps>) {
   }, [])
 
   const role = props.kind === 'lost' ? 'alert' : 'status'
+  const neutralColors = { background: 'bg-[var(--bg-elev)]', action: 'text-[var(--fg-1)]' }
+  const lossColors = { background: 'bg-[var(--bg)]', action: 'text-[var(--primary-soft)]' }
+  const colors = { neutral: neutralColors, working: neutralColors, done: neutralColors, lost: lossColors }[props.kind]
 
   return (
     <div
@@ -91,7 +94,7 @@ export function Toast(props: Readonly<ToastProps>) {
       aria-atomic="true"
       data-kind={props.kind}
       tabIndex={-1}
-      className="flex items-center gap-3 rounded-[var(--r-card)] bg-[var(--bg-elev)] p-4 text-[var(--fg-1)] shadow-[var(--sh-2)]"
+      className={`flex items-center gap-3 rounded-[var(--r-card)] ${colors.background} p-4 text-[var(--fg-1)] shadow-[var(--sh-2)]`}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
       onFocusCapture={() => setFocused(true)}
@@ -119,7 +122,7 @@ export function Toast(props: Readonly<ToastProps>) {
       {(props.kind === 'neutral' || props.kind === 'lost') && props.actionLabel ? (
         <button
           type="button"
-          className="cursor-pointer border-0 bg-transparent p-2 text-sm font-medium text-[var(--fg-1)] underline underline-offset-4 hover:text-[var(--fg-2)]"
+          className={`cursor-pointer border-0 bg-transparent p-2 text-sm font-medium ${colors.action} underline underline-offset-4 hover:text-[var(--fg-2)]`}
           style={{ fontFamily: 'var(--font-sans)' }}
           onFocus={() => setFocused(true)}
           onClick={props.onAction}
