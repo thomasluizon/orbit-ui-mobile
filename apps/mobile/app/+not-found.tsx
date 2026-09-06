@@ -1,8 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { ScrollView, Text } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { OrbitMark } from '@/components/ui/orbit-mark'
+import { errorSurfaceStyles as styles } from '@/components/ui/error-surface-styles'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -11,45 +12,12 @@ export default function NotFoundScreen() {
   const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-
   return (
-    <View style={[styles.root, { backgroundColor: tokens.bg }]}>
-      <SatelliteGlyph size={104} />
-      <Text style={[styles.title, { color: tokens.fg1 }]}>{t('notFoundPage.title')}</Text>
-      <Text style={[styles.description, { color: tokens.fg2 }]}>
-        {t('notFoundPage.description')}
-      </Text>
-      <View style={styles.cta}>
-        <PillButton onClick={() => router.replace('/')}>{t('common.goHome')}</PillButton>
-      </View>
-    </View>
+    <ScrollView style={{ backgroundColor: tokens.bg }} contentContainerStyle={styles.root}>
+      <OrbitMark size={40} />
+      <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{t('notFoundPage.title')}</Text>
+      <Text style={[styles.body, { color: tokens.fg2 }]}>{t('notFoundPage.description')}</Text>
+      <PillButton onClick={() => router.replace('/')}>{t('notFoundPage.action')}</PillButton>
+    </ScrollView>
   )
 }
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 36,
-    paddingVertical: 64,
-  },
-  title: {
-    marginTop: 18,
-    fontFamily: 'Geist_500Medium',
-    fontSize: 22,
-    lineHeight: 29,
-    textAlign: 'center',
-  },
-  description: {
-    marginTop: 8,
-    maxWidth: 300,
-    fontFamily: 'Geist_400Regular',
-    fontSize: 14,
-    lineHeight: 22,
-    textAlign: 'center',
-  },
-  cta: {
-    marginTop: 24,
-  },
-})

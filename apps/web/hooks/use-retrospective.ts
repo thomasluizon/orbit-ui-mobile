@@ -1,5 +1,6 @@
 'use client'
 
+import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { useState, useCallback, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations, useLocale } from 'next-intl'
@@ -53,7 +54,7 @@ export function useRetrospective() {
     setData(null)
 
     try {
-      const res = await fetch(buildRetrospectiveRequestUrl(period, locale))
+      const res = await fetchWithThrottle(buildRetrospectiveRequestUrl(period, locale))
       if (isStale()) return
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as
