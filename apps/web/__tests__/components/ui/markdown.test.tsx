@@ -54,14 +54,18 @@ describe('Markdown', () => {
     ['https://markdown.invalid/path', true],
     ['//markdown.invalid/path', true],
     ['//attacker.example/path', true],
+    ['/\\attacker.example/path', true],
+    ['\\/attacker.example/path', true],
+    ['\\\\attacker.example/path', true],
     ['https://example.com/path', true],
     ['docs/page', false],
     ['/docs/page', false],
     ['?q=1', false],
     ['#section', false],
   ] as const)('names linked images and preserves the destination context for %s', (href, isolated) => {
+    const destination = href.replaceAll('\\', '\\\\')
     const { getByRole, container } = render(
-      <Markdown content={`[docs](${href}) [![alt](https://example.com/i.png)](${href})`} />,
+      <Markdown content={`[docs](${destination}) [![alt](https://example.com/i.png)](${destination})`} />,
     )
     for (const name of ['docs', 'alt']) {
       const link = getByRole('link', { name })

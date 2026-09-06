@@ -33,6 +33,7 @@ const ALLOWED_TAGS = [
 ]
 const ALLOWED_ATTR = ['href', 'target', 'rel']
 const LINK_BASE_ORIGIN = 'https://markdown.invalid'
+const LINK_COMPARISON_ORIGIN = 'https://markdown-secondary.invalid'
 
 function escapeHtml(text: string): string {
   return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -41,10 +42,10 @@ function escapeHtml(text: string): string {
 
 function linkAttributes(href: string): string {
   try {
-    const { protocol } = new URL(href, LINK_BASE_ORIGIN)
+    const { protocol, origin } = new URL(href, LINK_BASE_ORIGIN)
     if (!/^(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix):$/i.test(protocol)) return ''
-    const hasOwnOrigin = /^(?:\/\/|[A-Za-z][A-Za-z0-9+.-]*:)/.test(href)
-    const external = (protocol === 'http:' || protocol === 'https:') && hasOwnOrigin
+    const external = (protocol === 'http:' || protocol === 'https:')
+      && origin === new URL(href, LINK_COMPARISON_ORIGIN).origin
     const context = external ? ' target="_blank" rel="noopener noreferrer"' : ''
     return ` href="${escapeHtml(href)}"${context}`
   } catch {
