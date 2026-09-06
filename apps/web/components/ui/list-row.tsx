@@ -25,21 +25,23 @@ function RowBody({ title, description, icon, value, danger, trailing }: Readonly
 }
 
 export function ListRow(props: Readonly<ListRowProps>) {
-  const { action, chevron = true, inset = true, onClick, readOnly = false } = props
+  const { action, chevron = true, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
-  const content = <>{body}{!readOnly && chevron ? <span className="flex h-11 w-11 shrink-0 items-center justify-center"><ChevronRight size={24} color="var(--fg-4)" strokeWidth={1.8} /></span> : null}</>
-  const bodyStyle = { minHeight: 52, padding: `8px 0 8px ${inset ? 16 : 0}px`, gap: 12 } as const
+  const content = <span className={`flex min-w-0 flex-1 items-center ${!readOnly && onClick ? 'orbit-list-row group-active/list-body:scale-[0.96]' : ''}`} style={{ minHeight: 44, gap: 12 }}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}><ChevronRight size={24} color="var(--fg-4)" strokeWidth={1.8} /></span> : null}</span>
+  const bodyStyle = { minHeight: 76, padding: 16, paddingInlineEnd: action ? 0 : 16 } as const
 
   return (
-    <div className="flex items-center" style={{ minHeight: 52 }}>
+    <div className="flex items-stretch" style={{ minHeight: 52 }}>
       {readOnly || !onClick ? (
         <div className="flex min-w-0 flex-1 items-center" style={bodyStyle}>{content}</div>
       ) : (
-        <button type="button" onClick={onClick} className="orbit-list-row flex min-w-0 flex-1 cursor-pointer items-center border-0 bg-transparent text-left active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]" style={bodyStyle}>{content}</button>
+        <button type="button" onClick={onClick} className="orbit-list-row-body group/list-body flex min-w-0 flex-1 cursor-pointer items-center border-0 bg-transparent text-left" style={bodyStyle}>{content}</button>
       )}
       {action ? (
-        <button type="button" aria-label={action.label} onClick={action.onPress} className="habit-control-motion flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]" style={{ color: action.danger ? 'var(--status-bad)' : 'var(--fg-2)' }}>
-          <Icon name={action.icon} size={20} color="currentColor" />
+        <button type="button" aria-label={action.label} onClick={action.onPress} className="orbit-list-row-action group/list-action flex shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent" style={{ padding: 16, paddingInlineStart: 0, color: action.danger ? 'var(--status-bad)' : 'var(--fg-2)' }}>
+          <span className="habit-control-motion flex shrink-0 items-center justify-center rounded-full group-hover/list-action:bg-[var(--bg-hover)] group-active/list-action:scale-[0.96]" style={{ width: 44, height: 44 }}>
+            <Icon name={action.icon} size={20} color="currentColor" />
+          </span>
         </button>
       ) : null}
     </div>

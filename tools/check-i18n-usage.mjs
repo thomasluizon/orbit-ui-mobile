@@ -80,14 +80,21 @@ function unwrap(expression) {
   return expression
 }
 
-function localReferences(source, checker) {
+function referencedSymbol(node, checker) {
+  const symbol = ts.isShorthandPropertyAssignment(node.parent)
+    ? checker.getShorthandAssignmentValueSymbol(node.parent)
+    : ts.isExportSpecifier(node.parent) ? checker.getExportSpecifierLocalTargetSymbol(node.parent)
+      : checker.getSymbolAtLocation(node)
+  if (!(symbol?.flags & ts.SymbolFlags.Alias)) return symbol
+  const target = checker.getAliasedSymbol(symbol)
+  return target.valueDeclaration ? target : symbol
+}
+
+function programReferences(sources, checker) {
   const references = new Map()
   function visit(node) {
     if (ts.isIdentifier(node)) {
-      const symbol = ts.isShorthandPropertyAssignment(node.parent)
-        ? checker.getShorthandAssignmentValueSymbol(node.parent)
-        : ts.isExportSpecifier(node.parent) ? checker.getExportSpecifierLocalTargetSymbol(node.parent)
-          : checker.getSymbolAtLocation(node)
+      const symbol = referencedSymbol(node, checker)
       if (symbol) {
         if (!references.has(symbol)) references.set(symbol, [])
         references.get(symbol).push(node)
@@ -95,20 +102,25 @@ function localReferences(source, checker) {
     }
     ts.forEachChild(node, visit)
   }
-  visit(source)
+  sources.forEach(visit)
   return references
+}
+
+function localReferences(source, checker) {
+  return programReferences([source], checker)
 }
 
 function parameterArguments(parameter, references, checker) {
   const owner = parameter.parent
-  if (!ts.isFunctionDeclaration(owner) || !owner.name ||
-    owner.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) return undefined
-  const callers = references.get(checker.getSymbolAtLocation(owner.name)) ?? []
+  if (!ts.isFunctionDeclaration(owner) || !owner.name) return undefined
+  const callers = references.get(referencedSymbol(owner.name, checker)) ?? []
   const position = owner.parameters.indexOf(parameter)
   const argumentsFound = []
   for (const reference of callers) {
     if (reference === owner.name) continue
     const parent = reference.parent
+    if (ts.isImportSpecifier(parent) || ts.isImportClause(parent) || ts.isNamespaceImport(parent) ||
+      ts.isExportSpecifier(parent)) continue
     if (ts.isCallExpression(parent) && parent.expression === reference) {
       if (parent.arguments.some(ts.isSpreadElement) || !parent.arguments[position]) return undefined
       argumentsFound.push(parent.arguments[position])
@@ -119,13 +131,15 @@ function parameterArguments(parameter, references, checker) {
   return argumentsFound.length ? argumentsFound : undefined
 }
 
-function bindingSources(source, checker) {
+function bindingSources(source, checker, programReferences) {
   const references = localReferences(source, checker)
+  const propertyName = (name) => ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)
+    ? name.text : name?.getText(name.getSourceFile())
   function confined(binding) {
     if (!binding?.name || !ts.isIdentifier(binding.name)) return false
     if (ts.isVariableDeclaration(binding) && binding.parent.parent.modifiers?.some(
       (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) return false
-    const usages = references.get(checker.getSymbolAtLocation(binding.name)) ?? []
+    const usages = references.get(referencedSymbol(binding.name, checker)) ?? []
     return usages.every((reference) => {
       if (reference === binding.name) return true
       const parent = reference.parent
@@ -139,7 +153,7 @@ function bindingSources(source, checker) {
     })
   }
   function written(binding) {
-    const usages = references.get(checker.getSymbolAtLocation(binding.name)) ?? []
+    const usages = references.get(referencedSymbol(binding.name, checker)) ?? []
     return usages.some((reference) => {
       let target = reference
       while (ts.isPropertyAccessExpression(target.parent) || ts.isElementAccessExpression(target.parent)) target = target.parent
@@ -152,6 +166,27 @@ function bindingSources(source, checker) {
     const groups = expressions.map((expression) => member(expression, name, seen))
     return groups.every((group) => group?.length) ? groups.flat() : undefined
   }
+  function returned(call) {
+    if (!ts.isIdentifier(call.expression)) return undefined
+    const declaration = referencedSymbol(call.expression, checker)?.valueDeclaration
+    if (!declaration) return undefined
+    const owner = ts.isFunctionDeclaration(declaration) ? declaration
+      : ts.isVariableDeclaration(declaration) ? unwrap(declaration.initializer) : undefined
+    if (!owner || (!ts.isFunctionDeclaration(owner) && !ts.isArrowFunction(owner) && !ts.isFunctionExpression(owner))) return undefined
+    if (!ts.isBlock(owner.body)) return [owner.body]
+    const values = []
+    function visit(node) {
+      if (node !== owner.body && ts.isFunctionLike(node)) return
+      if (ts.isReturnStatement(node)) {
+        if (!node.expression) values.length = 0
+        else values.push(node.expression)
+        return
+      }
+      ts.forEachChild(node, visit)
+    }
+    visit(owner.body)
+    return values.length ? values : undefined
+  }
   function member(expression, name, seen) {
     expression = unwrap(expression)
     if (!expression || seen.has(expression)) return undefined
@@ -160,6 +195,7 @@ function bindingSources(source, checker) {
       const binding = checker.getSymbolAtLocation(expression)?.valueDeclaration
       return confined(binding) ? members(inputs(binding, seen), name, seen) : undefined
     }
+    if (ts.isCallExpression(expression)) return members(returned(expression), name, seen)
     if (!ts.isObjectLiteralExpression(expression) && !ts.isJsxAttributes(expression)) return undefined
     if (ts.isObjectLiteralExpression(expression) && expression.properties.some((item) =>
       !ts.isPropertyAssignment(item) && !ts.isShorthandPropertyAssignment(item) && !ts.isSpreadAssignment(item))) return undefined
@@ -167,7 +203,7 @@ function bindingSources(source, checker) {
       if (ts.isSpreadAssignment(item) || ts.isJsxSpreadAttribute(item)) {
         const found = member(item.expression, name, seen)
         if (found === undefined || found.length) return found
-      } else if (item.name?.getText(source) === name) {
+      } else if (propertyName(item.name) === name) {
         if (ts.isShorthandPropertyAssignment(item)) {
           const binding = checker.getShorthandAssignmentValueSymbol(item)?.valueDeclaration
           return binding?.name && ts.isIdentifier(binding.name) ? [binding.name] : undefined
@@ -182,21 +218,23 @@ function bindingSources(source, checker) {
     if (!binding || seen.has(binding) || written(binding)) return undefined
     const visited = new Set([...seen, binding])
     if (ts.isVariableDeclaration(binding)) return binding.initializer ? [binding.initializer] : undefined
-    if (ts.isParameter(binding)) return parameterArguments(binding, references, checker)
+    if (ts.isParameter(binding)) return parameterArguments(binding, programReferences, checker)
     if (ts.isBindingElement(binding) && ts.isObjectBindingPattern(binding.parent) && !binding.dotDotDotToken) {
       const container = binding.parent.parent
-      const values = ts.isParameter(container) ? parameterArguments(container, references, checker)
+      const values = ts.isParameter(container) ? parameterArguments(container, programReferences, checker)
         : container.initializer ? [container.initializer] : undefined
-      return members(values, (binding.propertyName ?? binding.name).getText(source), visited)
+      return members(values, propertyName(binding.propertyName ?? binding.name), visited)
     }
     return undefined
   }
   return { inputs, member }
 }
 
-function extractor(source, checker) {
-  const declaration = (identifier) => checker.getSymbolAtLocation(identifier)?.valueDeclaration
-  const { inputs, member } = bindingSources(source, checker)
+function extractor(source, checker, references) {
+  const declaration = (identifier) => referencedSymbol(identifier, checker)?.valueDeclaration
+  const { inputs, member } = bindingSources(source, checker, references)
+  const nameText = (name) => ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)
+    ? name.text : name?.getText(name.getSourceFile())
   function literal(expression, seen = new Set()) {
     expression = unwrap(expression)
     if (!expression) return undefined
@@ -255,7 +293,7 @@ function extractor(source, checker) {
       const incoming = inputs(binding)
       return incoming ? initial : { prefix: undefined }
     }
-    if (ts.isBindingElement(binding) && (binding.propertyName ?? binding.name).getText(source) === "t") {
+    if (ts.isBindingElement(binding) && nameText(binding.propertyName ?? binding.name) === "t") {
       const initializer = unwrap(binding.parent.parent.initializer)
       if (initializer && ts.isCallExpression(initializer) && factoryName(initializer.expression) === "useTranslation") {
         return factory(initializer, true)
@@ -310,8 +348,38 @@ function extractor(source, checker) {
 
 function analyze(paths, read, root) {
   const sources = new Map(paths.map((path) => [resolve(root, path), read(path)]))
-  const compilerOptions = { noResolve: true, noLib: true, allowJs: true, target: ts.ScriptTarget.Latest, jsx: ts.JsxEmit.Preserve }
+  const compilerOptions = {
+    noLib: true,
+    allowJs: true,
+    target: ts.ScriptTarget.Latest,
+    jsx: ts.JsxEmit.Preserve,
+    module: ts.ModuleKind.ESNext,
+    moduleResolution: ts.ModuleResolutionKind.Bundler,
+    moduleDetection: ts.ModuleDetectionKind.Force,
+  }
   const host = ts.createCompilerHost(compilerOptions, true)
+  function sourceModule(candidate) {
+    for (const path of [candidate, ...[".ts", ".tsx", ".js", ".jsx"].map((extension) => candidate + extension),
+      ...[".ts", ".tsx", ".js", ".jsx"].map((extension) => join(candidate, `index${extension}`))]) {
+      if (sources.has(resolve(path))) {
+        const extension = path.endsWith("x") ? ts.Extension.Tsx : ts.Extension.Ts
+        return { resolvedFileName: resolve(path), extension }
+      }
+    }
+    return undefined
+  }
+  host.resolveModuleNames = (names, containingFile) => names.map((name) => {
+    let candidate
+    if (name.startsWith(".")) candidate = resolve(dirname(containingFile), name)
+    else if (name === "@orbit/shared") candidate = join(root, "packages/shared/src/index")
+    else if (name.startsWith("@orbit/shared/")) candidate = join(root, "packages/shared/src", name.slice(14))
+    else if (name.startsWith("@/")) {
+      const relativePath = relative(root, containingFile).replaceAll("\\", "/")
+      const app = relativePath.match(/^apps\/(web|mobile)\//)?.[1]
+      if (app) candidate = join(root, "apps", app, name.slice(2))
+    }
+    return candidate ? sourceModule(candidate) : undefined
+  })
   host.getSourceFile = (path, languageVersion) => sources.has(resolve(path))
     ? ts.createSourceFile(path, sources.get(resolve(path)), languageVersion, true) : undefined
   const program = ts.createProgram([...sources.keys()], compilerOptions, host)
@@ -319,7 +387,8 @@ function analyze(paths, read, root) {
   const checker = program.getTypeChecker()
   const diagnostics = program.getSyntacticDiagnostics()
   if (diagnostics.length) throw new Error(ts.formatDiagnosticsWithColorAndContext(diagnostics, host))
-  return program.getSourceFiles().flatMap((source) => extractor(source, checker).map((usage) => ({
+  const references = programReferences(program.getSourceFiles(), checker)
+  return program.getSourceFiles().flatMap((source) => extractor(source, checker, references).map((usage) => ({
     file: relative(root, source.fileName).replaceAll("\\", "/"), ...usage,
   })))
 }

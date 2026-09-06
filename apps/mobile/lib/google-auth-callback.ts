@@ -133,7 +133,7 @@ export function buildGoogleAuthFallbackUrl(
   params: Record<string, string | string[] | undefined>,
   callbackUrl: string = AUTH_CALLBACK_URL,
 ): string | null {
-  const entries: string[][] = []
+  const entries: [string, string][] = []
 
   for (const [key, value] of Object.entries(params)) {
     if (typeof value === 'string') {

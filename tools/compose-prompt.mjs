@@ -20,6 +20,7 @@ import { writeFileSync } from "node:fs"
 import { isAbsolute, resolve } from "node:path"
 import { assertRepositoryLabel, readComments, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
+import { CLOUD_FINISHING_CONTRACT } from "./lib/cloud-worker.mjs"
 
 const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|landing> --out <absolute path>
 
@@ -29,6 +30,7 @@ const USAGE = `usage: compose-prompt.mjs --issue <ORB-N|#N|N> --repo <ui|api|lan
   --worktree <path> worktree the worker will run in, named in the brief
   --branch <name>   branch already checked out for the worker
   --base <ref>      base branch the pull request targets (default: main)
+  --cloud          compose the container contract instead of local PR delivery
   --help, -h        print this usage and exit 0
 
 Prints the output path on stdout.
@@ -55,11 +57,13 @@ const out = argOf("--out")
 const worktree = argOf("--worktree")
 const branch = argOf("--branch")
 const baseBranch = argOf("--base") ?? "main"
+const cloud = process.argv.includes("--cloud")
 if (!issue || !repoKey || !out || !isAbsolute(out)) fail(2, USAGE)
 
 const config = readOrchestratorConfig()
 const repoPath = config.repos?.[repoKey]
 if (!repoPath) fail(2, `unknown repo key "${repoKey}"; declared: ${Object.keys(config.repos ?? {}).join(", ")}`)
+if (cloud && repoKey !== config.cloud.repositoryKey) fail(2, `--cloud is bound to repository ${config.cloud.repositoryKey}; ${repoKey} must run locally`)
 
 /** The prompt must not land inside a repository: a worker that finds its own work order in the
  * tree can commit it, and a reviewer would then read instructions written by the change. */
@@ -105,6 +109,18 @@ const ticket = `${liveTicket.body.replace(/\s*$/, "")}${commentSection}`
  */
 const worktreeLine = worktree ? `\nWorking tree \`${worktree}\`.` : ""
 const branchLine = branch ? `\nBranch \`${branch}\` is ALREADY checked out for you.` : ""
+const locationInstruction = cloud
+  ? `Use the current container checkout for repository \`${repoKey}\`. Local materialization paths belong to the orchestrator.`
+  : `Repository \`${repoKey}\` at \`${repoPath}\`.${worktreeLine}${branchLine}`
+const decisionDelivery = cloud ? "commit" : "commit and push"
+const baseInstruction = cloud
+  ? `Base branch \`${baseBranch}\`: the orchestrator owns pull request delivery outside the container.`
+  : `Base branch \`${baseBranch}\`: open your pull request against it, and do not create another branch.`
+const outputInstruction = cloud
+  ? `Committed implementation in the container, including \`.claude/cloud-handoff.json\` as specified by the Cloud finishing contract. The orchestrator preserves that artifact in the receipt and reads it before delivery, carrying its assumptions and manual steps into the PR for ${ticketReference}. Also report the commit and tests in your final output. Never push or open a pull request.`
+  : `One commit series on your branch, pushed, with exactly one open pull request that links
+${ticketReference}. The orchestrator verifies delivery from git and GitHub artifacts with
+tools/verify-delivery.mjs; your own exit code counts for nothing. It owns CI waiting after handoff.`
 
 /**
  * WHY this block is in EVERY prompt, measured 2026-08-06. The ticket is quoted verbatim (D2), and a
@@ -139,17 +155,17 @@ const brief = `## Orchestrator's brief
 ticket above is the specification.
 
 **Ambiguity has two tiers, and only one of them is yours.** A mechanical ambiguity (a file name, an
-import shape, where a test lives) you resolve yourself and record in the PR body under
-\`## Assumptions\`, one line per assumption naming the alternative you rejected. A decision that is
+import shape, where a test lives) you resolve yourself and record in ${cloud ? "the committed handoff's `assumptions` array" : "the PR body's `## Assumptions` section"},
+one line per assumption naming the alternative you rejected. A decision that is
 Thomas's is NEVER yours to guess: a product, brand, copy, price or design call; a tool or process
 the ticket names two contradictory ways; a dependency or capability the ticket presumes that turns
-out not to exist. Hitting one of those, stop: commit and push whatever is already safe and
+out not to exist. Hitting one of those, stop: ${cloud ? "record the question in the handoff's `needsDecision` field, then " : ""}${decisionDelivery} whatever is already safe and
 coherent, and make the LAST line of your output exactly
 \`NEEDS_DECISION: <one question, with your recommended answer>\`. The orchestrator carries that
 question to Thomas. The question costs a minute; a confidently wrong pull request costs the night.
 
-**Where you are.** Repository \`${repoKey}\` at \`${repoPath}\`.${worktreeLine}${branchLine}
-Base branch \`${baseBranch}\`: open your pull request against it, and do not create another branch.
+**Where you are.** ${locationInstruction}
+${baseInstruction}
 
 **Scope.** Only files this ticket names or provably requires. File and line counts are advisory
 review information, never delivery gates. Keep one atomic behaviour complete: migrations with their
@@ -158,9 +174,7 @@ with the module or route change that requires regeneration, and required lockfil
 in this pull request. Do not split required generated output away to make the diff look smaller, and
 do not deliver partial behaviour silently.${browserBan}
 
-**Output.** One commit series on your branch, pushed, with exactly one open pull request that links
-${ticketReference}. Nothing else counts as delivery, and your own exit code counts for nothing:
-delivery is verified from git and GitHub artifacts by tools/verify-delivery.mjs.
+**Output.** ${outputInstruction}
 
 **Boundaries.** Never merge, in any shape: no gh pr merge, no PUT /repos/{owner}/{repo}/pulls/N/merge,
 no GraphQL mergePullRequest, no --admin. Never push to main. Never force-push. Never --no-verify or
@@ -193,8 +207,9 @@ deadline running and rerunning tests, passed every check, and timed out without 
 work was lost. Committing first means a timeout can only ever cost you the last verification step,
 never the work itself.
 
-Then, in order: run the broader suite, push, and open exactly one pull request. Stop there and
-report. You do not merge and you do not wait for review.
+Then, in order: run the broader suite, push, and open or update exactly one pull request. Stop there
+and report its URL and test results. Do not wait on CI or poll GitHub Actions. The orchestrator owns
+CI waiting, review fixes and final readiness verification. You do not merge or wait for review.
 
 **The pull request must NOT be a draft.** Never pass \`--draft\` to \`gh pr create\`, and if your
 tooling opened one anyway, run \`gh pr ready <number>\` before you report. Confirm it with
@@ -210,12 +225,6 @@ BODY pass through the Dash Ban and Copy Register jobs exactly as source files do
 no en dash anywhere in either, no shouted strings, and none of the cliche register those jobs reject.
 A red gate on your own PR description blocks the merge just as hard as a failing test.
 
-**Your pull request must be GREEN before you report.** After pushing, read the checks with
-\`gh pr checks <number>\`. A red required check means the work is not delivered, whatever your own
-test run said, and \`tools/verify-delivery.mjs\` now returns CI_FAILING for it. If a check is red for
-a reason your change caused, fix it and push again. If it is red for an infrastructure reason, say so
-explicitly and name the step that failed rather than reporting a clean run.
-
 **Your PR body carries two structured sections when they apply, and omits them when empty.**
 \`## Assumptions\`: every reading you chose where the ticket was ambiguous, one line each with the
 rejected alternative, so the orchestrator can put them to Thomas instead of discovering them in
@@ -225,5 +234,5 @@ migration or backfill), each naming the exact key, the exact console or screen, 
 took effect. The harness reads both sections mechanically at handover; prose elsewhere in the body
 does not reach it.`
 
-writeFileSync(resolve(out), `${ticket.replace(/\s*$/, "")}\n\n---\n\n${brief}\n\n---\n\n${finishing}\n`, "utf8")
+writeFileSync(resolve(out), `${ticket.replace(/\s*$/, "")}\n\n---\n\n${brief}\n\n---\n\n${cloud ? CLOUD_FINISHING_CONTRACT : finishing}\n`, "utf8")
 console.log(resolve(out))

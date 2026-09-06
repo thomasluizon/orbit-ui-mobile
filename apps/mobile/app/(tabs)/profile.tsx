@@ -13,7 +13,6 @@ import {
   shouldRedirectProfileNavItem,
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
-import { User as UserIcon } from '@/components/ui/icons'
 import { deriveNextRewardCarrot } from '@orbit/shared/utils'
 import {
   useProfile,
@@ -134,16 +133,12 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
-      <AppBar
-        LeadingIcon={UserIcon}
-        trailing={
-          <>
-            <ThemeToggle />
-            <StreakBadge streak={profile?.currentStreak ?? 0} isFrozen={streakInfo?.isFrozenToday ?? false} />
-            <NotificationBell />
-          </>
-        }
-      />
+      <AppBar title={t('nav.profile')} />
+      <View testID="profile-header-actions" style={{ flexDirection: 'row', flexShrink: 0, alignItems: 'center', justifyContent: 'flex-end', gap: 12, paddingHorizontal: 16, paddingBottom: 12 }}>
+        <ThemeToggle />
+        <StreakBadge streak={profile?.currentStreak ?? 0} isFrozen={streakInfo?.isFrozenToday ?? false} />
+        <NotificationBell />
+      </View>
       <ScrollView
         ref={profileScrollRef}
         style={styles.container}

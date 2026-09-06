@@ -95,7 +95,7 @@ export function AutoSyncSettingsCard() {
 
   return (
     <>
-      <SectionLabel bottom={10}>{t('calendar.autoSync.title')}</SectionLabel>
+      <SectionLabel>{t('calendar.autoSync.title')}</SectionLabel>
       <div style={{ padding: '0 20px' }}>
         <div
           className="flex items-center"

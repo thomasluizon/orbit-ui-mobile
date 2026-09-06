@@ -5,7 +5,7 @@ import {
   selectionAlpha,
   statusConstants,
 } from '../theme/neutral-ramp'
-import { typeRoles } from '../theme/type-roles'
+import { resolveResponsiveTypeRole, responsiveTypeRoles, typeRoles } from '../theme/type-roles'
 import type { ColorScheme } from '../theme/types'
 
 const ALL_SCHEMES: ColorScheme[] = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan']
@@ -103,6 +103,31 @@ describe('byte-exact mode colors', () => {
 })
 
 describe('type roles', () => {
+  it('encodes the Pro drawing heading and allowance pairs', () => {
+    expect(responsiveTypeRoles).toEqual({
+      displayHeading: {
+        family: 'display', weight: 500, letterSpacingEm: -0.02, colorToken: 'fg1',
+        compact: { size: 28, lineHeight: 1.18 }, wide: { size: 34, lineHeight: 1.15 },
+      },
+      allowance: {
+        family: 'display', weight: 600, letterSpacingEm: -0.02, colorToken: 'fg1', tabularNums: true,
+        compact: { size: 34, lineHeight: 1.05 }, wide: { size: 44, lineHeight: 1.02 },
+      },
+    })
+  })
+
+  it.each([320, 412, 639.99, 640, 1416])('resolves both pairs at width %s', (width) => {
+    const wide = width >= 640
+    expect(resolveResponsiveTypeRole('displayHeading', width)).toEqual({
+      family: 'display', weight: 500, letterSpacingEm: -0.02, colorToken: 'fg1',
+      size: wide ? 34 : 28, lineHeight: wide ? 1.15 : 1.18,
+    })
+    expect(resolveResponsiveTypeRole('allowance', width)).toEqual({
+      family: 'display', weight: 600, letterSpacingEm: -0.02, colorToken: 'fg1', tabularNums: true,
+      size: wide ? 44 : 34, lineHeight: wide ? 1.02 : 1.05,
+    })
+  })
+
   it('defines the 11 semantic roles', () => {
     expect(Object.keys(typeRoles)).toEqual([
       'eyebrow', 'display', 'hero', 'h1', 'h2', 'row',

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { BottomTabBar, type BottomTab } from '@/components/navigation/bottom-tab-bar'
+import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 
-const labels: Record<BottomTab, string> = {
+const labels: Record<string, string> = {
   hoje: 'Hoje',
   calendario: 'Calendário',
   progresso: 'Progresso',
@@ -13,10 +13,10 @@ describe('BottomTabBar', () => {
   it('renders exactly the four locked destinations', () => {
     render(
       <BottomTabBar
-        active="hoje"
-        labels={labels}
-        navLabel="Navegação principal"
-        onTab={() => {}}
+        activeId="hoje"
+        items={Object.entries(labels).map(([id, label]) => ({ id, label }))}
+        label="Navegação principal"
+        onSelect={() => {}}
       />,
     )
 
@@ -33,10 +33,10 @@ describe('BottomTabBar', () => {
     const onTab = vi.fn()
     render(
       <BottomTabBar
-        active="perfil"
-        labels={labels}
-        navLabel="Navegação principal"
-        onTab={onTab}
+        activeId="perfil"
+        items={Object.entries(labels).map(([id, label]) => ({ id, label }))}
+        label="Navegação principal"
+        onSelect={onTab}
       />,
     )
 
@@ -45,4 +45,18 @@ describe('BottomTabBar', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Calendário' }))
     expect(onTab).toHaveBeenCalledWith('calendario')
   })
+})
+
+it('keeps one current position when another or the current item is pressed', () => {
+  const onSelect = vi.fn()
+  const items = Object.entries(labels).map(([id, label]) => ({ id, label }))
+  render(<BottomTabBar items={items} activeId="calendario" onSelect={onSelect} label="Navigation" />)
+  const buttons = screen.getAllByRole('button')
+  expect(buttons.filter((button) => button.hasAttribute('aria-current'))).toEqual([buttons[1]])
+  fireEvent.click(buttons[2]!)
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith('progresso')
+  onSelect.mockClear()
+  fireEvent.click(buttons[1]!)
+  expect(onSelect).toHaveBeenCalledExactlyOnceWith('calendario')
+  expect(buttons.filter((button) => button.hasAttribute('aria-current'))).toEqual([buttons[1]])
 })

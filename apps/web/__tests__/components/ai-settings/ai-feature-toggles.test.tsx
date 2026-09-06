@@ -6,7 +6,7 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/components/ui/pro-badge', () => ({
-  ProBadge: () => null,
+  ProBadge: () => <span data-testid="pro-badge">Pro</span>,
 }))
 
 import { AiFeatureToggles } from '@/app/(app)/ai-settings/_components/ai-feature-toggles'
@@ -25,6 +25,12 @@ function baseProps() {
 }
 
 describe('AiFeatureToggles', () => {
+  it('keeps the plan badge in the section heading row', () => {
+    render(<AiFeatureToggles {...baseProps()} />)
+    const row = screen.getByTestId('section-heading-row')
+    expect(row).toContainElement(screen.getByRole('heading', { name: 'profile.sections.aiFeatures' }))
+    expect(row).toContainElement(screen.getByTestId('pro-badge'))
+  })
   it('renders exactly the daily summary and proactive switches for Pro users', () => {
     render(<AiFeatureToggles {...baseProps()} />)
     const switches = screen.getAllByRole('switch')
