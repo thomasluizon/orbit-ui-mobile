@@ -3,6 +3,7 @@ import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
+import { useSearchHabits } from '@/hooks/use-habit-queries'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import type { HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
@@ -1537,4 +1538,15 @@ describe('useBulkSkipHabits', () => {
     expect(children?.find((habit) => habit.id === 'child-accepted')?.isCompleted).toBe(true)
     expect(children?.find((habit) => habit.id === 'child-rejected')?.isCompleted).toBe(false)
   })
+})
+
+it('loads only the requested search page and preserves its totals', async () => {
+  const response = { items: [makeScheduleItem({ id: 'last', title: 'Walk' })], page: 2, pageSize: 20, totalCount: 21, totalPages: 2 }
+  mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(response) })
+  const { result } = renderHook(() => useSearchHabits({ search: 'walk', page: 2, pageSize: 20 }), { wrapper: createWrapper() })
+  await waitFor(() => expect(result.current.isSuccess).toBe(true))
+  expect(result.current.data).toMatchObject({ totalCount: 21, totalPages: 2, currentPage: 2 })
+  expect(result.current.data?.topLevelHabits.map((habit) => habit.id)).toEqual(['last'])
+  expect(mockFetch).toHaveBeenCalledTimes(1)
+  expect(mockFetch.mock.calls[0]?.[0]).toBe('/api/habits?search=walk&page=2&pageSize=20')
 })

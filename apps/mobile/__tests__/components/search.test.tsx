@@ -13,9 +13,10 @@ import { dismissTopOverlay } from '@/lib/overlay-stack'
 vi.unmock('react-i18next')
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
 vi.mock('@/components/ui/icons', async (importOriginal) => ({ ...await importOriginal<typeof import('@/components/ui/icons')>(), Circle: () => null, SkipForward: () => null }))
-const mocks = vi.hoisted(() => ({ query: vi.fn(), push: vi.fn(), back: vi.fn(), log: vi.fn(), skip: vi.fn(), retry: vi.fn() }))
+const mocks = vi.hoisted(() => ({ query: vi.fn(), pending: false, push: vi.fn(), back: vi.fn(), log: vi.fn(), skip: vi.fn(), retry: vi.fn() }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push, back: mocks.back }) }))
-vi.mock('@/hooks/use-habits', () => ({ useHabits: (filters: HabitsFilter) => mocks.query(filters), useLogHabit: () => ({ mutate: mocks.log }), useSkipHabit: () => ({ mutate: mocks.skip }) }))
+vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: (filters: HabitsFilter) => mocks.query(filters) }))
+vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutate: mocks.log, isPending: mocks.pending }), useSkipHabit: () => ({ mutate: mocks.skip, isPending: mocks.pending }) }))
 vi.mock('@/components/habits/create-habit-modal', () => ({ CreateHabitModal: (props: { open: boolean; initialTitle: string }) => props.open ? React.createElement('CreateForm', props) : null }))
 vi.mock('@/lib/motion', () => ({ usePrefersReducedMotion: () => true }))
 
@@ -24,7 +25,7 @@ type Tree = import('react-test-renderer').ReactTestRenderer
 let tree: Tree
 
 function result(habits: NormalizedHabit[], pending = false, error = false) {
-  return { data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map() }, isPending: pending, isFetching: pending, isSuccess: !pending && !error, isError: error, refetch: mocks.retry }
+  return { data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map(), totalCount: habits.length, totalPages: habits.length === 20 ? 2 : 1, currentPage: 1 }, isPending: pending, isFetching: pending, isSuccess: !pending && !error, isError: error, refetch: mocks.retry }
 }
 
 async function mount(locale = 'en') {
@@ -60,6 +61,7 @@ async function pressText(label: string) {
 beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
+  mocks.pending = false
   mocks.query.mockReturnValue(result([]))
 })
 afterEach(async () => {
@@ -85,6 +87,13 @@ describe('mobile search', () => {
     await pressLabel(locale === 'en' ? 'Open House routine' : 'Abrir House routine')
     expect(mocks.push).toHaveBeenCalledWith('/habits/parent')
     expect(mocks.query).toHaveBeenCalledWith({ search: 'walk', page: 1, pageSize: 20 })
+  })
+
+  it('marks exactly one palette option as the current position', async () => {
+    await mount()
+    const selected = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.role === 'option' && (node.props.accessibilityState as { selected: boolean }).selected)
+    expect(selected).toHaveLength(1)
+    expect(renderedText(selected[0]?.props.children)).toContain('Create habit')
   })
 
   it('shows one result with the singular count', async () => {
@@ -123,6 +132,10 @@ describe('mobile search', () => {
     expect(text()).not.toContain('Create habit')
     await pressLabel('Walk')
     expect(mocks[page]).toHaveBeenCalledWith(page === 'log' ? { habitId: 'habit', intent: 'log' } : { habitId: 'habit' }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    mocks.pending = true
+    await type('walk')
+    await pressLabel('Walk')
+    expect(mocks[page]).toHaveBeenCalledTimes(1)
     await TestRenderer.act(() => { expect(dismissTopOverlay('system-back')).toBe(true) })
     expect(text()).toContain('Create habit')
     expect(mocks.back).not.toHaveBeenCalled()
@@ -143,6 +156,14 @@ describe('mobile search', () => {
     expect(mocks.query).toHaveBeenLastCalledWith({ search: '', page: 2, pageSize: 20 })
     await type('walk')
     expect(mocks.query).toHaveBeenLastCalledWith({ search: 'walk', page: 1, pageSize: 20 })
+  })
+
+  it('does not offer another page when the last page contains twenty results', async () => {
+    const response = result(Array.from({ length: 20 }, (_, index) => createMockHabit({ id: String(index) })))
+    response.data.totalPages = 1
+    mocks.query.mockReturnValue(response)
+    await mount()
+    expect(text()).not.toContain('Next')
   })
 
   it('keeps the query and offers retry after a request fails', async () => {

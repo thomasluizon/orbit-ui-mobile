@@ -7,13 +7,14 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 import { CommandMenu } from '@/components/command/command-menu'
 
-const mocks = vi.hoisted(() => ({ push: vi.fn(), log: vi.fn(), skip: vi.fn(), query: vi.fn(), retry: vi.fn(), wide: false }))
+const mocks = vi.hoisted(() => ({ pending: false, push: vi.fn(), log: vi.fn(), skip: vi.fn(), query: vi.fn(), retry: vi.fn(), wide: false }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
-vi.mock('@/hooks/use-habits', () => ({ useHabits: (filters: HabitsFilter) => mocks.query(filters), useLogHabit: () => ({ mutate: mocks.log }), useSkipHabit: () => ({ mutate: mocks.skip }) }))
+vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: (filters: HabitsFilter) => mocks.query(filters) }))
+vi.mock('@/hooks/use-habits', () => ({ useLogHabit: () => ({ mutate: mocks.log, isPending: mocks.pending }), useSkipHabit: () => ({ mutate: mocks.skip, isPending: mocks.pending }) }))
 
 function result(habits: NormalizedHabit[], pending = false, error = false) {
-  return { data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map() }, isPending: pending, isFetching: pending, isSuccess: !pending && !error, isError: error, refetch: mocks.retry }
+  return { data: { topLevelHabits: habits, habitsById: new Map(habits.map((habit) => [habit.id, habit])), childrenByParent: new Map(), totalCount: habits.length, totalPages: habits.length === 20 ? 2 : 1, currentPage: 1 }, isPending: pending, isFetching: pending, isSuccess: !pending && !error, isError: error, refetch: mocks.retry }
 }
 
 function mount(resultsMode = false, locale = 'en', onCreate = vi.fn()) {
@@ -22,6 +23,7 @@ function mount(resultsMode = false, locale = 'en', onCreate = vi.fn()) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mocks.pending = false
   mocks.wide = false
   Element.prototype.scrollIntoView = vi.fn()
   vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
@@ -94,6 +96,12 @@ describe('habit search', () => {
     expect(screen.queryByText('Create habit')).toBeNull()
     fireEvent.click(screen.getByRole('option', { name: 'Walk' }))
     expect(mocks[page]).toHaveBeenCalledWith({ habitId: 'habit' }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    mocks.pending = true
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'walk' } })
+    const pendingOption = await screen.findByRole('option', { name: 'Walk' })
+    expect(pendingOption).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(pendingOption)
+    expect(mocks[page]).toHaveBeenCalledTimes(1)
   })
 
   it('keeps server matches selectable without moving input focus', async () => {
@@ -117,6 +125,21 @@ describe('habit search', () => {
     expect(mocks.query).toHaveBeenLastCalledWith({ search: '', page: 2, pageSize: 20 })
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'run' } })
     await waitFor(() => expect(mocks.query).toHaveBeenLastCalledWith({ search: 'run', page: 1, pageSize: 20 }))
+  })
+
+  it('does not offer another page when the last page contains twenty results', () => {
+    const response = result(Array.from({ length: 20 }, (_, index) => createMockHabit({ id: String(index) })))
+    response.data.totalPages = 1
+    mocks.query.mockReturnValue(response)
+    mount()
+    expect(screen.queryByRole('button', { name: 'Next' })).toBeNull()
+  })
+
+  it.each([[false, 'primary'], [true, 'secondary']] as const)('uses the no-results action variant for wide=%s', async (wide, variant) => {
+    mocks.wide = wide
+    mount(true)
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'yoga' } })
+    expect(await screen.findByRole('button', { name: 'Create with that name' })).toHaveAttribute('data-variant', variant)
   })
 
   it('offers retry on failure while preserving the query', async () => {

@@ -20600,6 +20600,8 @@
           "chat.title",
           "chat.unknownEntity",
           "command.empty",
+          "command.hints.navigate",
+          "command.hints.select",
           "command.placeholder",
           "common.add",
           "common.amPm",

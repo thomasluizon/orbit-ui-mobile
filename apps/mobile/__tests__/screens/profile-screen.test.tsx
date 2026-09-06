@@ -245,6 +245,7 @@ vi.mock('@/components/ui/icons', () => {
     Calendar: createIcon('Calendar'),
     Languages: createIcon('Languages'),
     Moon: createIcon('Moon'),
+    Search: createIcon('Search'),
   }
 })
 

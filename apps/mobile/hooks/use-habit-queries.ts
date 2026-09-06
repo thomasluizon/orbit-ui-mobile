@@ -51,7 +51,7 @@ export function useHabits(filters: HabitsFilter) {
       const firstQuery = buildUrlWithQuery(API.habits.list, buildHabitQueryString(requestFilters))
       const firstPage = await apiClient<PaginatedResponse<HabitScheduleItem>>(firstQuery)
 
-      if (requestFilters.page !== undefined || requestFilters.dateFrom || firstPage.totalPages <= 1) {
+      if (requestFilters.dateFrom || firstPage.totalPages <= 1) {
         return firstPage.items
       }
 
@@ -159,3 +159,14 @@ export {
   normalizeHabits,
   sortNormalizedHabits as sortByPosition,
 } from '@orbit/shared/utils'
+
+export function useSearchHabits(filters: HabitsFilter) {
+  return useQuery({
+    queryKey: habitKeys.search(filters as Record<string, unknown>),
+    queryFn: () => apiClient<PaginatedResponse<HabitScheduleItem>>(
+      buildUrlWithQuery(API.habits.list, buildHabitQueryString(filters)),
+    ),
+    select: (response): NormalizedHabitsData => normalizeHabitQueryData(response.items, response),
+    staleTime: QUERY_STALE_TIMES.habits,
+  })
+}

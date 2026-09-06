@@ -19,6 +19,7 @@ function habitLeading(emoji: string | null | undefined): ReactNode {
 }
 
 interface CommandHabitItemsProps {
+  disabled?: boolean
   query?: string
   entries: readonly CommandHabitEntry[]
   onSelectHabit: (habit: NormalizedHabit) => void
@@ -26,12 +27,13 @@ interface CommandHabitItemsProps {
 
 /** Renders the habit rows shared by the search/jump, log, and skip palette pages.
  *  Sub-habits show a "Parent · Child" label so they read distinctly in the flat list. */
-export function CommandHabitItems({ entries, onSelectHabit, query = '' }: Readonly<CommandHabitItemsProps>) {
+export function CommandHabitItems({ entries, onSelectHabit, query = '', disabled = false }: Readonly<CommandHabitItemsProps>) {
   return (
     <>
       {entries.map(({ habit, parentTitle }) => (
         <CommandRow
           key={habit.id}
+          disabled={disabled}
           leading={habitLeading(habit.emoji)}
           description={<HabitMatchLine habit={habit} query={query} />}
           label={parentTitle ? `${parentTitle} · ${habit.title}` : habit.title}

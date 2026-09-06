@@ -68,8 +68,8 @@ vi.mock('@/stores/ui-store', () => ({
     selector({ setActiveView: mockSetActiveView }),
 }))
 
+vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: () => habitsQuery }))
 vi.mock('@/hooks/use-habits', () => ({
-  useHabits: () => habitsQuery,
   useLogHabit: () => ({ mutate: vi.fn() }),
   useSkipHabit: () => ({ mutate: vi.fn() }),
 }))

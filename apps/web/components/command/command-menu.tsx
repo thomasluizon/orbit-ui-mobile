@@ -38,6 +38,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
     else if (id === 'log' || id === 'skip') { setPage(id); search.changeText('') }
   }
   function chooseHabit(id: string) {
+    if (logHabit.isPending || skipHabit.isPending) return
     if (page === 'log') logHabit.mutate({ habitId: id }, { onSuccess: () => { back(); onClose() } })
     else if (page === 'skip') skipHabit.mutate({ habitId: id }, { onSuccess: () => { back(); onClose() } })
     else run(() => router.push(`/habits/${id}`))
@@ -54,12 +55,12 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
       {search.isError && <div role="alert"><p>{t('habits.search.loadError')}</p><Button size="sm" variant="ghost" onClick={() => void search.refetch()}>{t('common.retry')}</Button></div>}
       {search.showLoading && <><Searching /><CommandHabitSkeleton heading={t('command.groups.search')} /></>}
       {!search.busy && !search.isError && (showResults
-        ? (entries.length ? <SearchResults habits={entries.map(({ habit }) => habit)} query={search.query} onOpen={chooseHabit} /> : <SearchEmpty query={search.query} onCreate={() => onCreateHabit(search.query)} />)
-        : entries.length > 0 && <CommandGroup heading={t('command.groups.search')} className={GROUP_CLASS} data-command-group="habits"><CommandHabitItems entries={entries} query={search.query} onSelectHabit={(habit) => chooseHabit(habit.id)} /></CommandGroup>)}
+        ? (entries.length ? <SearchResults totalCount={search.data?.totalCount ?? 0} habits={entries.map(({ habit }) => habit)} query={search.query} onOpen={chooseHabit} /> : <SearchEmpty query={search.query} onCreate={() => onCreateHabit(search.query)} />)
+        : entries.length > 0 && <CommandGroup heading={t('command.groups.search')} className={GROUP_CLASS} data-command-group="habits"><CommandHabitItems disabled={logHabit.isPending || skipHabit.isPending} entries={entries} query={search.query} onSelectHabit={(habit) => chooseHabit(habit.id)} /></CommandGroup>)}
       {page === null && <CommandGroups hideCreate={showResults && entries.length === 0 && !search.busy} query={search.text} navItems={navItems} onSelect={chooseCommand} onNavigate={run} />}
       <div className="flex gap-3">
         {search.page > 1 && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page - 1)}>{t('habits.search.previous')}</Button>}
-        {search.data?.topLevelHabits.length === 20 && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page + 1)}>{t('habits.search.next')}</Button>}
+        {(search.data?.totalPages ?? 0) > search.page && <Button size="sm" variant="ghost" disabled={search.busy} onClick={() => search.setPage(search.page + 1)}>{t('habits.search.next')}</Button>}
       </div>
     </CommandList>
     <div className="flex flex-wrap items-center gap-4 px-4 py-3 shadow-[inset_0_1px_0_var(--hairline)]">

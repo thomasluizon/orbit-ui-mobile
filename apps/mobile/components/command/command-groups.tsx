@@ -8,7 +8,7 @@ import { CalendarDays, ChartLine, CheckCircle2, Home, Plus, SkipForward, User } 
 const ICONS = { create: Plus, log: CheckCircle2, skip: SkipForward, today: Home, calendar: CalendarDays, progress: ChartLine, profile: User }
 const GROUP_KEYS = { create: 'command.groups.create', actions: 'command.groups.actions', destinations: 'command.groups.destinations' } as const
 
-export function CommandGroups({ query, onSelect, hideCreate = false }: Readonly<{ hideCreate?: boolean; query: string; onSelect: (id: SearchCommandId) => void }>) {
+export function CommandGroups({ query, onSelect, hideCreate = false, activeId }: Readonly<{ activeId?: string; hideCreate?: boolean; query: string; onSelect: (id: SearchCommandId) => void }>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -18,7 +18,7 @@ export function CommandGroups({ query, onSelect, hideCreate = false }: Readonly<
     if (!entries.length) return null
     return <View key={group} style={styles.group}>
       <Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg4 }]}>{t(GROUP_KEYS[group])}</Text>
-      {entries.map((entry) => { const Icon = ICONS[entry.id]; return <Pressable key={entry.id} accessibilityRole="button" onPress={() => onSelect(entry.id)} style={({ pressed }) => [styles.row, { backgroundColor: pressed ? tokens.bgHover : 'transparent' }]}><Icon size={20} color={tokens.fg3} /><Text style={[styles.label, { color: tokens.fg1 }]}>{t(entry.label)}</Text></Pressable> })}
+      {entries.map((entry) => { const Icon = ICONS[entry.id]; return <Pressable key={entry.id} role="option" accessibilityState={{ selected: entry.id === activeId }} accessibilityRole="button" onPress={() => onSelect(entry.id)} style={({ pressed }) => [styles.row, { backgroundColor: entry.id === activeId ? tokens.primaryDim : pressed ? tokens.bgHover : 'transparent', borderWidth: entry.id === activeId ? 1.5 : 0, borderColor: tokens.primary }]}><Icon size={20} color={tokens.fg3} /><Text style={[styles.label, { color: tokens.fg1 }]}>{t(entry.label)}</Text></Pressable> })}
     </View>
   })
 }
