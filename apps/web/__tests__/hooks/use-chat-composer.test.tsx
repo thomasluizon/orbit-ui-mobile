@@ -64,6 +64,8 @@ vi.mock('@/app/actions/chat', () => ({
 
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useChatStore } from '@/stores/chat-store'
+import { useThrottleStore } from '@/stores/throttle-store'
+import { getErrorSurface } from '@orbit/shared/utils'
 import { Composer } from '@/components/shell/composer'
 
 function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
@@ -133,6 +135,7 @@ function textFile(name: string, content: string, size = content.length) {
 
 describe('web useChatComposer streaming send', () => {
   beforeEach(() => {
+    useThrottleStore.getState().clear()
     mocks.state.profile = undefined
     mocks.state.isRecording = false
     mocks.state.isTranscribing = false
@@ -151,8 +154,33 @@ describe('web useChatComposer streaming send', () => {
   })
 
   afterEach(() => {
+    useThrottleStore.getState().clear()
     vi.unstubAllGlobals()
     vi.useRealTimers()
+  })
+
+  it('publishes the stream refusal deadline without replaying the send', async () => {
+    const payload = { error: 'Too many requests', requestId: 'stream-reference', limit: 10, count: 11, retryAfterUtc: '2026-09-06T00:00:42.000Z' }
+    mocks.fetch.mockResolvedValue(new Response(JSON.stringify(payload), { status: 429 }))
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => { await result.current.sendMessage('hello') })
+
+    expect(getErrorSurface(useThrottleStore.getState().error)).toEqual({ requestId: 'stream-reference', retryAt: Date.parse(payload.retryAfterUtc) })
+    expect(mocks.fetch).toHaveBeenCalledOnce()
+    expect(useChatStore.getState().isTyping).toBe(false)
+  })
+
+  it.each([
+    [429, '{'],
+    [429, JSON.stringify({ error: 'Too many requests', retryAfterUtc: 'invalid' })],
+    [500, JSON.stringify({ retryAfterUtc: '2026-09-06T00:00:42.000Z' })],
+  ])('keeps untimed or non-throttle failures local (%s, %s)', async (status, body) => {
+    mocks.fetch.mockResolvedValue(new Response(body, { status }))
+    const { result } = renderHook(() => useChatComposer())
+    await act(async () => { await result.current.sendMessage('hello') })
+    expect(useThrottleStore.getState().error).toBeNull()
+    expect(result.current.sendError).toBeTruthy()
   })
 
   it('streams deltas into a single ai bubble and the final response wins', async () => {

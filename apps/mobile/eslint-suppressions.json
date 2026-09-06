@@ -92,11 +92,6 @@
       "count": 10
     }
   },
-  "app/+not-found.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "app/about.tsx": {
     "local/spacing-scale": {
       "count": 3
@@ -512,14 +507,6 @@
       "count": 4
     }
   },
-  "components/ui/app-error-boundary.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
   "components/ui/app-text-input.tsx": {
     "local/spacing-scale": {
       "count": 5
@@ -606,14 +593,6 @@
   "components/ui/year-picker.tsx": {
     "local/spacing-scale": {
       "count": 1
-    }
-  },
-  "components/upgrade-required-screen.tsx": {
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 3
     }
   },
   "components/wrapped/wrapped-entry-button.tsx": {

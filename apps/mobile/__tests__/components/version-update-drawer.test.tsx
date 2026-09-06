@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   platform: 'android',
   install: vi.fn(),
   downloaded: true,
+  forceUpdate: false,
+  flexibleActive: false,
 }))
 
 vi.mock('react-i18next', () => ({
@@ -24,10 +26,10 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 
 vi.mock('@/hooks/use-version-check', () => ({
   startAndroidUpdate: vi.fn(),
-  useAndroidFlexibleUpdate: () => ({ downloaded: mocks.downloaded, install: mocks.install }),
+  useAndroidFlexibleUpdate: (active: boolean) => { mocks.flexibleActive = active; return { downloaded: mocks.downloaded, install: mocks.install } },
   useVersionCheck: () => ({
     updateAvailable: true,
-    forceUpdate: false,
+    forceUpdate: mocks.forceUpdate,
     latestVersion: '1.4.0',
     currentVersion: '1.3.27',
     iosStoreUrl: 'https://apps.apple.com/app/id1',
@@ -88,6 +90,8 @@ describe('VersionUpdateDrawer close path', () => {
   beforeEach(() => {
     mocks.platform = 'android'
     mocks.downloaded = true
+    mocks.forceUpdate = false
+    mocks.flexibleActive = false
     mocks.install.mockReset()
     sheetTestControls.defer(true)
   })
@@ -125,4 +129,38 @@ describe('VersionUpdateDrawer close path', () => {
 
     expect(mocks.install).toHaveBeenCalledTimes(1)
   })
+  it('shows a dismissible soft update before starting Play', async () => {
+    mocks.downloaded = false
+    let tree: ReturnType<typeof render>
+    await TestRenderer.act(() => { tree = render() })
+    expect(sheetCount(tree)).toBe(1)
+    expect(mocks.flexibleActive).toBe(false)
+    pressPill(tree, 'versionUpdate.updateCta')
+    expect(mocks.flexibleActive).toBe(false)
+    await TestRenderer.act(() => { sheetTestControls.completeDismissal() })
+    expect(mocks.flexibleActive).toBe(true)
+    expect(sheetCount(tree)).toBe(0)
+  })
+
+  it('lets Later dismiss the soft update without starting Play', async () => {
+    mocks.downloaded = false
+    let tree: ReturnType<typeof render>
+    await TestRenderer.act(() => { tree = render() })
+    pressPill(tree, 'versionUpdate.laterCta')
+    await TestRenderer.act(() => { sheetTestControls.completeDismissal() })
+    expect(sheetCount(tree)).toBe(0)
+    expect(mocks.flexibleActive).toBe(false)
+  })
+
+  it('leaves forced updates to Play without an Orbit drawer', async () => {
+    mocks.downloaded = false
+    mocks.forceUpdate = true
+    let tree: ReturnType<typeof render>
+    await TestRenderer.act(() => { tree = render() })
+    expect(sheetCount(tree)).toBe(0)
+    expect(mocks.flexibleActive).toBe(false)
+    const { startAndroidUpdate } = await import('@/hooks/use-version-check')
+    expect(startAndroidUpdate).toHaveBeenCalledWith({ immediate: true })
+  })
+
 })

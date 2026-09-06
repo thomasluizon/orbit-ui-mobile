@@ -49,7 +49,7 @@ describe('UpdateAvailableBanner', () => {
   it('hides when the dismiss button is clicked', () => {
     useVersionGateStore.getState().markUpgradeRequired('1.5.0')
     render(<UpdateAvailableBanner />)
-    fireEvent.click(screen.getByLabelText('common.dismiss'))
+    fireEvent.click(screen.getByRole('button', { name: 'versionUpdate.laterCta' }))
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 

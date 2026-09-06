@@ -4,6 +4,7 @@ import { API } from '@orbit/shared/api'
 import { VOICE_SILENCE_TIMEOUT_MS, VOICE_LEVEL_POLL_MS } from '@orbit/shared/chat'
 
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
+import { useThrottleStore } from '@/stores/throttle-store'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -11,9 +12,9 @@ type AnalysisHandler = (event: { dataPoints: { rms: number }[] }) => Promise<voi
 
 const mocks = vi.hoisted(() => ({
   apiClient: vi.fn(),
-  requestPermissionsAsync: vi.fn(async () => ({ granted: true })),
+  requestPermissionsAsync: vi.fn(() => Promise.resolve({ granted: true })),
   startRecording: vi.fn(),
-  stopRecording: vi.fn(async () => ({ fileUri: 'file:///tmp/recording.wav' })),
+  stopRecording: vi.fn(() => Promise.resolve({ fileUri: 'file:///tmp/recording.wav' })),
   onAnalysis: undefined as AnalysisHandler | undefined,
 }))
 
@@ -55,17 +56,33 @@ async function renderHook(): Promise<{ current: SpeechApi }> {
 
 describe('useSpeechToText', () => {
   beforeEach(() => {
+    useThrottleStore.getState().clear()
     mocks.apiClient.mockReset()
     mocks.requestPermissionsAsync.mockReset()
     mocks.requestPermissionsAsync.mockResolvedValue({ granted: true })
     mocks.startRecording.mockReset()
-    mocks.startRecording.mockImplementation(async (config: { onAudioAnalysis?: AnalysisHandler }) => {
+    mocks.startRecording.mockImplementation((config: { onAudioAnalysis?: AnalysisHandler }) => {
       mocks.onAnalysis = config.onAudioAnalysis
-      return { fileUri: 'file:///tmp/recording.wav' }
+      return Promise.resolve({ fileUri: 'file:///tmp/recording.wav' })
     })
     mocks.stopRecording.mockReset()
     mocks.stopRecording.mockResolvedValue({ fileUri: 'file:///tmp/recording.wav' })
     mocks.onAnalysis = undefined
+  })
+
+  it('blocks microphone access during a timed throttle and permits recording at the deadline', async () => {
+    const retryAt = Date.now() + 60_000
+    useThrottleStore.getState().show(429, { retryAfterUtc: new Date(retryAt).toISOString() })
+    const hook = await renderHook()
+    await TestRenderer.act(async () => { await hook.current.startRecording() })
+    expect(hook.current.isRecording).toBe(false)
+    expect(mocks.requestPermissionsAsync).not.toHaveBeenCalled()
+    vi.spyOn(Date, 'now').mockReturnValue(retryAt)
+    await TestRenderer.act(async () => { await hook.current.startRecording() })
+    expect(hook.current.isRecording).toBe(true)
+    vi.restoreAllMocks()
+    mocks.apiClient.mockResolvedValue({ text: 'log water' })
+    await TestRenderer.act(async () => { await hook.current.stopRecording() })
   })
 
   it('records, uploads the audio, and commits the transcribed text', async () => {
