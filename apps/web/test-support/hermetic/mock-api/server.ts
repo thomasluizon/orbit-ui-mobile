@@ -1,8 +1,8 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { z, type ZodType } from 'zod'
-import { profileSchema } from '@orbit/shared/types/profile'
+import { profileSchema, subscriptionStatusSchema } from '@orbit/shared/types/profile'
 import { appConfigSchema } from '@orbit/shared/types/config'
-import { subscriptionPlansSchema } from '@orbit/shared/types/subscription'
+import { billingDetailsSchema, subscriptionPlansSchema } from '@orbit/shared/types/subscription'
 import { gamificationProfileSchema } from '@orbit/shared/types/gamification'
 import {
   createPaginatedSchema,
@@ -16,6 +16,7 @@ import { notificationsResponseSchema } from '@orbit/shared/types/notification'
 import { profileFixture } from './fixtures/profile'
 import { configFixture } from './fixtures/config'
 import { subscriptionPlansFixture } from './fixtures/subscription-plans'
+import { billingDetailsFixture, subscriptionStatusFixture } from './fixtures/subscriptions'
 import { gamificationProfileFixture } from './fixtures/gamification'
 import {
   emptyChecklistTemplatesFixture,
@@ -45,6 +46,18 @@ const routes: MockRoute[] = [
     path: '/api/subscriptions/plans',
     schema: subscriptionPlansSchema,
     body: subscriptionPlansFixture,
+  },
+  {
+    method: 'GET',
+    path: '/api/subscriptions/status',
+    schema: subscriptionStatusSchema,
+    body: subscriptionStatusFixture,
+  },
+  {
+    method: 'GET',
+    path: '/api/subscriptions/billing',
+    schema: billingDetailsSchema,
+    body: billingDetailsFixture,
   },
   {
     method: 'GET',

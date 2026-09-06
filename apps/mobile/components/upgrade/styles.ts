@@ -1,6 +1,13 @@
 import { StyleSheet } from 'react-native'
 
 export const styles = StyleSheet.create({
+  billingStack: { gap: 24, paddingHorizontal: 16 },
+  billingCard: { borderRadius: 20, borderWidth: 1, padding: 24, gap: 12 },
+  billingWell: { borderRadius: 12, padding: 16, gap: 12 },
+  billingBody: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 25 },
+  billingSecondary: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 22 },
+  billingMeta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 17, fontVariant: ['tabular-nums'] },
+  billingHeading: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 22, lineHeight: 27, letterSpacing: -0.44, flexShrink: 0 },
   pricingSections: {
     gap: 32,
   },
@@ -103,51 +110,6 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
   },
-  card: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    padding: 24,
-  },
-  cardLabel: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 14,
-  },
-  cardValueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-  },
-  cardValue: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 17,
-  },
-  cardMeta: {
-    fontFamily: 'GeistMono_400Regular',
-    fontSize: 13,
-    fontVariant: ['tabular-nums'],
-    marginTop: 8,
-  },
-  usageRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginTop: 8,
-    marginBottom: 12,
-  },
-  usageLabel: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 15,
-  },
-  usageValue: {
-    fontFamily: 'GeistMono_400Regular',
-    fontSize: 13,
-    fontVariant: ['tabular-nums'],
-  },
   freeLink: {
     alignSelf: 'flex-start',
     justifyContent: 'center',
@@ -210,13 +172,6 @@ export const styles = StyleSheet.create({
   tierAction: {
     paddingTop: 8,
   },
-  actionPad: {
-    paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 4,
-    gap: 12,
-    alignItems: 'center',
-  },
   renewalNote: {
     fontFamily: 'Geist_400Regular',
     fontSize: 14,
@@ -255,23 +210,6 @@ export const styles = StyleSheet.create({
   },
   pressedScale: {
     transform: [{ scale: 0.96 }],
-  },
-  noticeTitle: {
-    fontFamily: 'Geist_500Medium',
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  noticeBody: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 8,
-  },
-  centerMuted: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'center',
   },
   errorText: {
     fontFamily: 'Geist_400Regular',

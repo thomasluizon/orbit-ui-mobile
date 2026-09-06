@@ -54,10 +54,10 @@ describe('upgrade utils', () => {
     }
 
     expect(en.onboarding.featureGuide.settingsSection.subscriptionDesc).toBe(
-      'The free tier includes goals, habits, and 5 AI messages a day. Orbit Pro raises the AI allowance to 50 a day and adds daily summaries, sub-habits, calendar sync, and the AI goal review.',
+      'The free tier includes goals, habits, and 5 AI messages a day. Orbit Pro raises the AI allowance to 50 a day and adds daily summaries, sub-habits, calendar sync, the periodic retrospective, and the AI goal review.',
     )
     expect(ptBR.onboarding.featureGuide.settingsSection.subscriptionDesc).toBe(
-      'O plano grátis inclui metas, hábitos e 5 mensagens de IA por dia. O Orbit Pro sobe a cota de IA para 50 por dia e libera resumos diários, sub-hábitos, sincronização com calendário e a análise de metas por IA.',
+      'O plano grátis inclui metas, hábitos e 5 mensagens de IA por dia. O Orbit Pro sobe a cota de IA para 50 por dia e libera resumos diários, sub-hábitos, sincronização com calendário, a retrospectiva periódica e a análise de metas por IA.',
     )
     expect(en.tour.profile.preferences.description).toBe(
       'Customize your experience: language, timezone, week start day, push notifications, and more.',
