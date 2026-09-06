@@ -1,4 +1,4 @@
-import type { HabitListSnapshots } from '@orbit/shared/query'
+import type { HabitListKey, HabitListSnapshots } from '@orbit/shared/query'
 import { snapshotHabitLists, restoreHabitLists, discardCachedHabitSearches } from '@/lib/habit-mutation-helpers'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { habitKeys, tagKeys , QUERY_STALE_TIMES } from '@orbit/shared/query'
@@ -94,7 +94,7 @@ function updateHabitTagReferences(
   queryClient: TagQueryClient,
   updater: (tags: Tag[]) => Tag[],
 ): void {
-  queryClient.setQueriesData<HabitScheduleItem[]>(
+  queryClient.setQueriesData<HabitScheduleItem[], { queryKey: HabitListKey }>(
     { queryKey: habitKeys.lists() },
     (old) => mapHabitTagReferences(old, updater),
   )
@@ -143,7 +143,7 @@ function setOptimisticAssignedTags(
   habitId: string,
   nextTags: Tag[],
 ): void {
-  queryClient.setQueriesData<HabitScheduleItem[]>(
+  queryClient.setQueriesData<HabitScheduleItem[], { queryKey: HabitListKey }>(
     { queryKey: habitKeys.lists() },
     (old) => setHabitTags(old, habitId, nextTags),
   )

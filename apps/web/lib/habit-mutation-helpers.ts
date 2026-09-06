@@ -32,7 +32,7 @@ export function updateHabitLists(
   queryClient: ReturnType<typeof useQueryClient>,
   updater: (items: HabitScheduleItem[]) => HabitScheduleItem[],
 ): void {
-  queryClient.setQueriesData<HabitScheduleItem[]>(
+  queryClient.setQueriesData<HabitScheduleItem[], { queryKey: HabitListKey }>(
     { queryKey: habitKeys.lists() },
     (old) => (old ? updater(old) : old),
   )

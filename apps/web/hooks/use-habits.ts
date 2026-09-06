@@ -1,5 +1,7 @@
 'use client'
 
+import type { HabitListKey } from '@orbit/shared/query'
+
 import {
   useMutation,
   useQueryClient,
@@ -141,7 +143,7 @@ export function useLogHabit() {
       })
 
       if (!date) {
-        queryClient.setQueriesData<HabitScheduleItem[]>(
+        queryClient.setQueriesData<HabitScheduleItem[], { queryKey: HabitListKey }>(
           { queryKey: habitKeys.lists() },
           (old) => old ? optimisticToggleCompletion(old, habitId) : old,
         )
@@ -262,7 +264,7 @@ export function useSkipHabit() {
       })
 
       if (!date) {
-        queryClient.setQueriesData<HabitScheduleItem[]>(
+        queryClient.setQueriesData<HabitScheduleItem[], { queryKey: HabitListKey }>(
           { queryKey: habitKeys.lists() },
           (old) => {
             if (!old) return old
@@ -494,7 +496,7 @@ export function useUpdateChecklist() {
         habitKeys.fullDetail(habitId),
       )
 
-      queryClient.setQueriesData<HabitScheduleItem[]>(
+      queryClient.setQueriesData<HabitScheduleItem[], { queryKey: HabitListKey }>(
         { queryKey: habitKeys.lists() },
         (old) => old ? optimisticUpdateChecklist(old, habitId, items) : old,
       )

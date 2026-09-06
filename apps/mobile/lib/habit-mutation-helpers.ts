@@ -70,7 +70,7 @@ export function updateHabitLists(
   queryClient: QueryClient,
   updater: (items: HabitScheduleItem[]) => HabitScheduleItem[],
 ): void {
-  queryClient.setQueriesData<HabitScheduleItem[]>(
+  queryClient.setQueriesData<HabitScheduleItem[], { queryKey: HabitListKey }>(
     { queryKey: habitKeys.lists() },
     (old) => (old ? updater(old) : old),
   )
