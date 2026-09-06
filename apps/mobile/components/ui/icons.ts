@@ -1,4 +1,6 @@
 export {
+  IconPlayerSkipForward as SkipForward,
+  IconCircle as Circle,
   IconAlertTriangle as AlertTriangle,
   IconAdjustmentsHorizontal as AdjustmentsHorizontal,
   IconArchiveOff as ArchiveX,

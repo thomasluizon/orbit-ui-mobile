@@ -52,7 +52,7 @@ export function useHabits(filters: HabitsFilter, initialItems?: HabitScheduleIte
       const firstQuery = buildUrlWithQuery(API.habits.list, buildHabitQueryString(requestFilters))
       const firstPage = await fetchJson<PaginatedResponse<HabitScheduleItem>>(firstQuery)
 
-      if (requestFilters.dateFrom || firstPage.totalPages <= 1) {
+      if (requestFilters.page !== undefined || requestFilters.dateFrom || firstPage.totalPages <= 1) {
         return firstPage.items
       }
 

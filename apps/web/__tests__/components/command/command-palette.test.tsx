@@ -150,6 +150,7 @@ describe('CommandPalette', () => {
 
     expect(groups.map((group) => group.dataset.commandGroup)).toEqual([
       'habits',
+      'create',
       'actions',
       'destinations',
     ])
@@ -173,8 +174,7 @@ describe('CommandPalette', () => {
   it('jumps to a searched habit via router.push', () => {
     renderPalette()
     fireEvent.click(screen.getByText('Run'))
-    expect(mockSetActiveView).toHaveBeenCalledWith('today')
-    expect(mockPush).toHaveBeenCalledWith('/')
+    expect(mockPush).toHaveBeenCalledWith('/habits/h1')
   })
 
   it('closes when Escape is pressed in the focused search input', async () => {
@@ -211,7 +211,7 @@ describe('CommandPalette', () => {
     fireEvent.click(screen.getByText('command.logHabit'))
 
     expect(screen.queryByText('command.hints.close')).not.toBeInTheDocument()
-    expect(screen.getAllByText('command.hints.back')).toHaveLength(2)
+    expect(screen.getAllByText('command.hints.back')).toHaveLength(1)
   })
 
   it('does not open over a Sheet that already owns modal focus', async () => {

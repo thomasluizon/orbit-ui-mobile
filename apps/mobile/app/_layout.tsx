@@ -54,6 +54,7 @@ import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
+import { SearchHeader } from '@/components/search/search-header-action'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Fab } from '@/components/ui/fab'
 import { Plus, WifiOff } from '@/components/ui/icons'
@@ -135,6 +136,7 @@ function RootStackScreens({
 
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="search" />
         <Stack.Screen
           name="chat"
           options={{
@@ -295,6 +297,7 @@ function RootLayoutNav() {
       <View style={{ flex: 1 }}>
         {showBottomNav ? (
           <Shell412
+            header={<SearchHeader pathname={pathname} />}
             {...conversation}
             composer={
               <Composer

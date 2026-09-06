@@ -17,6 +17,8 @@ import { resolveShellDestination } from '@orbit/shared/utils'
 import { CalendarDays, ChartLine, Home, Plus, User } from '@/components/ui/icons'
 import { CommandPalette, type CommandNavigationItem } from '@/components/command/command-palette'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
+import { AppBar } from '@/components/ui/app-bar'
+import { SearchHeaderAction } from '@/components/search/search-header-action'
 import { Fab } from '@/components/ui/fab'
 import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
@@ -130,8 +132,8 @@ function DestinationShellContent({
   const pathname = usePathname()
   const wide = useIsWideDesktop()
   const { profile } = useProfile()
-  const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
+  const setPaletteOpen = useShellStore((state) => state.setPaletteOpen)
   const todayFabHidden = useUIStore((state) => state.todayFabHidden)
   const destination = resolveShellDestination(pathname)
   const navigationEnabled = hasPrimaryNavigation(pathname)
@@ -247,6 +249,7 @@ function DestinationShellContent({
   return (
     <>
       <Shell412
+        header={destination && pathname !== '/profile' ? <AppBar title={labels[destination]} action={<SearchHeaderAction />} /> : undefined}
         {...conversationSlot}
         tabBar={
           <BottomTabBar
