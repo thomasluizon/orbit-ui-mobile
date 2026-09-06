@@ -23621,6 +23621,7 @@
         "apps/mobile/__tests__/components/ui/app-toast.test.tsx",
         "apps/mobile/__tests__/components/ui/feedback-primitives.test.tsx",
         "apps/mobile/__tests__/components/ui/list-primitives.test.tsx",
+        "apps/mobile/__tests__/components/ui/markdown.test.tsx",
         "apps/mobile/__tests__/components/ui/proposed.test.tsx",
         "apps/mobile/__tests__/components/ui/redesign-primitives.test.tsx",
         "apps/mobile/__tests__/components/ui/year-picker.test.tsx",
