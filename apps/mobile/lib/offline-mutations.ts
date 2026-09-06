@@ -35,7 +35,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { captureError } from './sentry'
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
-import { findHabitInList } from '@orbit/shared/utils'
+import { ApiClientError, findHabitInList } from '@orbit/shared/utils'
 
 type InvalidationQueryKey = readonly unknown[]
 
@@ -220,22 +220,28 @@ function nextQueuedIdentifier(prefix: string): string {
   return `${prefix}-${Date.now()}-${queuedMutationSequence.toString(36)}`
 }
 
-function payloadHasOfflineReference(value: unknown, referenceField = false): boolean {
-  if (typeof value === 'string') return referenceField && value.startsWith('offline-')
-  if (Array.isArray(value)) return value.some((entry) => payloadHasOfflineReference(entry, referenceField))
+function getPayloadOfflineReferences(value: unknown, referenceField = false): string[] {
+  if (typeof value === 'string') return referenceField && value.startsWith('offline-') ? [value] : []
+  if (Array.isArray(value)) return value.flatMap((entry) => getPayloadOfflineReferences(entry, referenceField))
   if (value && typeof value === 'object') {
-    return Object.entries(value).some(([key, entry]) =>
-      payloadHasOfflineReference(entry, key === 'id' || key.endsWith('Id') || key.endsWith('Ids')),
+    return Object.entries(value).flatMap(([key, entry]) =>
+      getPayloadOfflineReferences(entry, key === 'id' || key.endsWith('Id') || key.endsWith('Ids')),
     )
   }
-  return false
+  return []
+}
+
+function getPendingOfflineDependencies(mutation: PersistedQueuedMutation): string[] {
+  return [
+    mutation.targetEntityId ?? '',
+    ...(mutation.dependsOn ?? []),
+    ...mutation.endpoint.split('/'),
+    ...getPayloadOfflineReferences(mutation.payload),
+  ].filter((id) => id.startsWith('offline-'))
 }
 
 export function hasPendingOfflineDependencies(mutation: PersistedQueuedMutation): boolean {
-  return Boolean(mutation.targetEntityId?.startsWith('offline-')) ||
-    (mutation.dependsOn ?? []).some((id) => id.startsWith('offline-')) ||
-    mutation.endpoint.split('/').some((segment) => segment.startsWith('offline-')) ||
-    payloadHasOfflineReference(mutation.payload)
+  return getPendingOfflineDependencies(mutation).length > 0
 }
 
 function replaceIdInValue(value: unknown, oldId: string, newId: string): unknown {
@@ -291,10 +297,11 @@ const RECOVERY_KEY = '@orbit/offline-queue-recovery-310'
 let backoffAttempt = 0
 let backoffTimer: ReturnType<typeof setTimeout> | null = null
 let flushInFlight = false
+let flushStoppedForAuth = false
 let installedQueueRecovered = false
 
 export function canAutoFlush(): boolean {
-  return !flushInFlight && backoffTimer === null
+  return !flushInFlight && !flushStoppedForAuth && backoffTimer === null
 }
 
 function describeDroppedMutation(mutation: PersistedQueuedMutation, lastError: string): DroppedMutation {
@@ -353,6 +360,7 @@ function clearBackoffTimer(): void {
 export function cancelScheduledFlush(): void {
   clearBackoffTimer()
   backoffAttempt = 0
+  flushStoppedForAuth = false
   useOfflineSyncStore.setState({ isRetrying: false })
 }
 
@@ -366,7 +374,7 @@ function scheduleBackoffFlush(): void {
     backoffTimer = null
     void (async () => {
       if (count() === 0) {
-        backoffAttempt = 0
+        cancelScheduledFlush()
         return
       }
       if (!(await getCurrentConnectivity())) {
@@ -409,6 +417,7 @@ function shouldDropMutation(error: unknown, nextRetries: number, maxRetries: num
 }
 
 function shouldStopFlushing(error: unknown): boolean {
+  if (error instanceof ApiClientError && (error.status === 401 || error.status === 403)) return true
   if (!(error instanceof Error)) return false
 
   const message = error.message.toLowerCase()
@@ -593,6 +602,10 @@ async function handleFlushFailure(
   }
 
   const lastError = getErrorMessage(error)
+  if (shouldStopFlushing(error)) {
+    update(mutation.id, { status: 'failed', lastError })
+    return { incrementFailed: true, stopReason: 'auth', dropped: null }
+  }
   const nextRetries = mutation.retries + 1
   const dropMutation = shouldDropMutation(error, nextRetries, mutation.maxRetries)
   let dropped: DroppedMutation | null = null
@@ -625,7 +638,7 @@ async function handleFlushFailure(
 
   return {
     incrementFailed: true,
-    stopReason: shouldStopFlushing(error) ? 'auth' : null,
+    stopReason: null,
     dropped,
   }
 }
@@ -662,6 +675,12 @@ type FlushStepResult = {
   dropped: DroppedMutation | null
 }
 
+function hasExpiredOrphanDependency(mutation: PersistedQueuedMutation, dependencies: string[]): boolean {
+  if (Date.now() - mutation.timestamp < DEPENDENCY_MAX_AGE_MS) return false
+  const producers = getAll().filter((queued) => queued.id !== mutation.id && queued.clientEntityId)
+  return dependencies.some((id) => !producers.some((producer) => producer.clientEntityId === id))
+}
+
 async function processQueuedMutationFlush(
   originalMutation: PersistedQueuedMutation,
   touchedScopes: Set<MutationScope>,
@@ -681,8 +700,9 @@ async function processQueuedMutationFlush(
   }
 
   const mutation = await resolveMutationReferences(currentMutation)
-  if (hasPendingOfflineDependencies(mutation)) {
-    if (Date.now() - mutation.timestamp >= DEPENDENCY_MAX_AGE_MS) {
+  const dependencies = getPendingOfflineDependencies(mutation)
+  if (dependencies.length > 0) {
+    if (hasExpiredOrphanDependency(mutation, dependencies)) {
       const dropped = await dropQueuedMutation(mutation, 'Unresolved dependency after 24 hours', touchedScopes)
       return { failedDelta: 1, stopReason: null, succeededDelta: 0, dropped }
     }
@@ -770,7 +790,10 @@ export async function flushQueuedMutations(): Promise<{
     await recoverInstalledQueue()
     outcome = await runQueueFlush()
     const drained = outcome.succeeded + outcome.droppedMutations.length
-    if (outcome.remaining > 0 && drained === 0) {
+    if (outcome.stopReason === 'auth') {
+      cancelScheduledFlush()
+      flushStoppedForAuth = true
+    } else if (outcome.remaining > 0 && drained === 0) {
       scheduleBackoffFlush()
     } else {
       cancelScheduledFlush()

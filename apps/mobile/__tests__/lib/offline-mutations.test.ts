@@ -5,6 +5,7 @@ import type {
   QueuedMutation,
 } from '@orbit/shared/types/sync'
 import { logHabitResponseSchema } from '@orbit/shared/types/habit'
+import { ApiClientError } from '@orbit/shared/utils'
 
 import {
   buildQueuedMutation,
@@ -646,8 +647,9 @@ describe('offline mutations', () => {
   })
 
   it('stops flushing on unauthorized errors and leaves the remaining queue intact', async () => {
+    vi.useFakeTimers()
     mocks.setOnline(true)
-    mocks.apiClient.mockRejectedValueOnce(new Error('Unauthorized'))
+    mocks.apiClient.mockRejectedValue(new Error('Unauthorized'))
 
     const firstMutation = {
       ...buildQueuedMutation({
@@ -690,11 +692,23 @@ describe('offline mutations', () => {
     })
     expect(mocks.apiClient).toHaveBeenCalledTimes(1)
     expect(mocks.update).toHaveBeenCalledWith(firstMutation.id, {
-      retries: 1,
       status: 'failed',
       lastError: 'Unauthorized',
     })
+    expect(firstMutation.retries).toBe(0)
     expect(mocks.remove).not.toHaveBeenCalled()
+    const queuedAfterStop = structuredClone(mocks.queued)
+    try {
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+      expect(mocks.queued).toEqual(queuedAfterStop)
+      expect(vi.getTimerCount()).toBe(0)
+      expect(useOfflineSyncStore.getState().isRetrying).toBe(false)
+      expect(canAutoFlush()).toBe(false)
+    } finally {
+      cancelScheduledFlush()
+      vi.useRealTimers()
+    }
   })
 
   it('drops a validation-rejected mutation, keeps flushing the rest, and reports the dropped one', async () => {
@@ -1224,12 +1238,15 @@ describe('offline mutations', () => {
 
       await flushQueuedMutations()
       expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+      expect(useOfflineSyncStore.getState().isRetrying).toBe(true)
 
       mocks.queued.length = 0
 
       await vi.advanceTimersByTimeAsync(2_000)
 
       expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+      expect(useOfflineSyncStore.getState().isRetrying).toBe(false)
+      expect(canAutoFlush()).toBe(true)
     })
   })
 
@@ -1521,6 +1538,64 @@ describe('offline mutation helpers', () => {
     function blockedMutation() {
       return buildQueuedMutation({ type: 'logHabit', scope: 'habits', endpoint: '/api/habits/offline-habit-orphan/log', method: 'POST', payload: { date: '2026-09-05' }, entityType: 'habit', targetEntityId: 'offline-habit-orphan' })
     }
+
+    it.each([401, 403])('cancels an existing retry on HTTP %s after partial progress without exhausting a row', async (status) => {
+      const first = buildQueuedMutation({ type: 'updateHabit', scope: 'habits', endpoint: '/api/habits/first', method: 'PUT', payload: {} })
+      const stopped = buildQueuedMutation({ type: 'updateHabit', scope: 'habits', endpoint: '/api/habits/stopped', method: 'PUT', payload: {} })
+      stopped.retries = stopped.maxRetries - 1
+      mocks.queued.push(first, stopped)
+      mocks.apiClient.mockRejectedValueOnce(new Error('Network request failed'))
+      await flushQueuedMutations()
+      expect(useOfflineSyncStore.getState().isRetrying).toBe(true)
+
+      mocks.apiClient.mockResolvedValueOnce(null).mockRejectedValue(new ApiClientError(status, 'Access denied'))
+      expect(await flushQueuedMutations()).toMatchObject({ succeeded: 1, failed: 1, remaining: 1, droppedMutations: [] })
+      const queuedAfterStop = structuredClone(mocks.queued)
+      await vi.advanceTimersByTimeAsync(120_000)
+
+      expect(mocks.apiClient).toHaveBeenCalledTimes(3)
+      expect(mocks.queued).toEqual(queuedAfterStop)
+      expect(stopped.retries).toBe(stopped.maxRetries - 1)
+      expect(useOfflineSyncStore.getState().drops).toEqual([])
+      expect(useOfflineSyncStore.getState().isRetrying).toBe(false)
+      expect(vi.getTimerCount()).toBe(0)
+      expect(canAutoFlush()).toBe(false)
+
+      cancelScheduledFlush()
+      expect(canAutoFlush()).toBe(true)
+      mocks.apiClient.mockResolvedValue(null)
+      expect(await flushQueuedMutations()).toMatchObject({ succeeded: 1, remaining: 0 })
+    })
+
+    it('preserves an expired dependent while its producer retries and later resolves the reference', async () => {
+      const producer = buildQueuedMutation({
+        type: 'createHabit', scope: 'habits', endpoint: '/api/habits', method: 'POST',
+        payload: { title: 'Read' }, entityType: 'habit', clientEntityId: 'offline-habit-orphan',
+      })
+      const dependent = blockedMutation()
+      producer.timestamp = Date.now() - 26 * 60 * 60 * 1000
+      dependent.timestamp = Date.now() - 25 * 60 * 60 * 1000
+      mocks.queued.push(producer, dependent)
+      mocks.apiClient.mockRejectedValueOnce(new Error('500 server error'))
+
+      expect(await flushQueuedMutations()).toMatchObject({ failed: 1, remaining: 2, droppedMutations: [] })
+      expect(producer).toMatchObject({ retries: 1, status: 'failed' })
+      expect(dependent).toMatchObject({ retries: 0, status: 'pending' })
+      expect(useOfflineSyncStore.getState().drops).toEqual([])
+
+      mocks.apiClient.mockImplementation((endpoint: string) =>
+        Promise.resolve(endpoint === '/api/habits' ? { id: 'habit-1' } : null),
+      )
+      await vi.advanceTimersByTimeAsync(2_000)
+
+      expect(mocks.apiClient).toHaveBeenCalledTimes(3)
+      expect(mocks.apiClient).toHaveBeenLastCalledWith('/api/habits/habit-1/log', expect.objectContaining({
+        body: JSON.stringify(dependent.payload), idempotencyKey: dependent.id,
+      }), logHabitResponseSchema)
+      expect(mocks.queued).toEqual([])
+      expect(useOfflineSyncStore.getState().drops).toEqual([])
+      expect(vi.getTimerCount()).toBe(0)
+    })
 
     it('backs off a dependency wait beyond six timers and drops exactly once at 24 hours', async () => {
       const mutation = blockedMutation()
