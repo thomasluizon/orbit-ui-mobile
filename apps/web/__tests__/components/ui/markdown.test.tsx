@@ -12,6 +12,7 @@ describe('Markdown', () => {
     '<a href="&#104;ttps://example.com">docs</a>',
     '<a href="  https://example.com  ">docs</a>',
     '<a href="ht&#9;tps://example.com">docs</a>',
+    '<a href="&#1;https://example.com">docs</a>',
   ])('isolates raw absolute anchors after sanitization: %s', (content) => {
     const { container } = render(<Markdown content={content} />)
     const link = container.querySelector('a')

@@ -33,6 +33,15 @@ const ALLOWED_TAGS = [
 ]
 const ALLOWED_ATTR = ['href', 'target', 'rel']
 
+function isAbsoluteWebLink(href: string | null): boolean {
+  try {
+    const { protocol } = new URL(href ?? '')
+    return protocol === 'http:' || protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 /**
  * The single web markdown renderer for chat messages and habit/goal
  * descriptions. Parses with `marked`, then sanitizes through DOMPurify with a
@@ -49,8 +58,7 @@ export function Markdown({ content, className }: Readonly<MarkdownProps>) {
       RETURN_DOM_FRAGMENT: true,
     })
     for (const anchor of sanitized.querySelectorAll('a')) {
-      const href = anchor.getAttribute('href')?.replace(/[\t\n\r]/g, '').trim() ?? ''
-      if (/^https?:/i.test(href)) {
+      if (isAbsoluteWebLink(anchor.getAttribute('href'))) {
         anchor.setAttribute('target', '_blank')
         anchor.setAttribute('rel', 'noopener noreferrer')
       } else {
