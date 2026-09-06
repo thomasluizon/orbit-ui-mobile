@@ -9,18 +9,20 @@ describe('Markdown server rendering', () => {
     '[docs](https://example.com)',
     '[docs](http://example.com)',
     '[docs](HTTPS://example.com)',
+    '[docs](//example.com/path)',
+    '[docs](//example.org/docs?view=full#notes)',
     'https://example.com',
     '<https://example.com>',
   ])('isolates absolute links without browser globals: %s', (content) => {
     expect(typeof window).toBe('undefined')
     expect(typeof document).toBe('undefined')
     const markup = renderToStaticMarkup(<Markdown content={content} />)
-    expect(markup).toMatch(/<a href="https?:/i)
+    expect(markup).toMatch(/<a href="(?:https?:)?\/\//i)
     expect(markup).toContain('target="_blank"')
     expect(markup).toContain('rel="noopener noreferrer"')
   })
 
-  it.each(['mailto:a@b.com', '/habits', '#notes'])('preserves the current context for %s', (href) => {
+  it.each(['mailto:a@b.com', '/habits', './habits', '../habits', '?view=full', '#notes'])('preserves the current context for %s', (href) => {
     const markup = renderToStaticMarkup(<Markdown content={`[label](${href})`} />)
     expect(markup).toContain(`<a href="${href}">label</a>`)
     expect(markup).not.toContain('target=')

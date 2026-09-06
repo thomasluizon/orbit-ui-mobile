@@ -32,15 +32,7 @@ const ALLOWED_TAGS = [
   'td',
 ]
 const ALLOWED_ATTR = ['href', 'target', 'rel']
-
-function isAbsoluteWebLink(href: string): boolean {
-  try {
-    const { protocol } = new URL(href)
-    return protocol === 'http:' || protocol === 'https:'
-  } catch {
-    return false
-  }
-}
+const LINK_BASE_ORIGIN = 'https://markdown.invalid'
 
 function escapeHtml(text: string): string {
   return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
@@ -49,9 +41,10 @@ function escapeHtml(text: string): string {
 
 function linkAttributes(href: string): string {
   try {
-    const { protocol } = new URL(href, 'https://markdown.invalid')
+    const { protocol, origin } = new URL(href, LINK_BASE_ORIGIN)
     if (!/^(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|matrix):$/i.test(protocol)) return ''
-    const context = isAbsoluteWebLink(href) ? ' target="_blank" rel="noopener noreferrer"' : ''
+    const external = (protocol === 'http:' || protocol === 'https:') && origin !== LINK_BASE_ORIGIN
+    const context = external ? ' target="_blank" rel="noopener noreferrer"' : ''
     return ` href="${escapeHtml(href)}"${context}`
   } catch {
     return ''

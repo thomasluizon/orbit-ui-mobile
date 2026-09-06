@@ -38,6 +38,8 @@ describe('Markdown', () => {
     '[docs](https://useorbit.org/docs)',
     '[docs](http://useorbit.org/docs)',
     '[docs](HTTPS://useorbit.org/docs)',
+    '[docs](//example.com/path)',
+    '[docs](//example.org/docs?view=full#notes)',
   ])('opens absolute web links outside Orbit: %s', (content) => {
     const { container } = render(<Markdown content={content} />)
     const link = container.querySelector('a')
@@ -46,7 +48,7 @@ describe('Markdown', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
   })
 
-  it.each(['mailto:a@b.com', '/habits', '#notes'])('keeps %s in its current context', (href) => {
+  it.each(['mailto:a@b.com', '/habits', './habits', '../habits', '?view=full', '#notes'])('keeps %s in its current context', (href) => {
     const { container } = render(<Markdown content={`[label](${href})`} />)
     const link = container.querySelector('a')
     expect(link).toHaveAttribute('href', href)
