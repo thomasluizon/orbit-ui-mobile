@@ -59,4 +59,35 @@ describe('Markdown server rendering', () => {
     expect(markup).toContain('<strong>docs</strong></a>')
     expect(markup).not.toContain('title=')
   })
+
+  it('keeps unsupported Markdown elements and attributes out of server markup', () => {
+    const content = [
+      '#### Heading',
+      '~~removed~~',
+      '![image](https://example.com/image.png)',
+      '---',
+      '- [x] task',
+      '3. third',
+      '```js\ncode\n```',
+      '| column |\n| :---: |\n| cell |',
+    ].join('\n\n')
+    const markup = renderToStaticMarkup(<Markdown content={content} />)
+    expect(markup).not.toMatch(/<(?:h4|del|img|hr|input)\b/)
+    expect(markup).not.toMatch(/\s(?:start|align|title)=/)
+    expect(markup).not.toContain('language-js')
+    for (const text of ['Heading', 'removed', 'task', 'third', 'code', 'column', 'cell']) {
+      expect(markup).toContain(text)
+    }
+    expect(markup).toContain('<pre tabindex="0">')
+    expect(markup).toContain('<table tabindex="0">')
+  })
+
+  it.each(['script', 'style', 'textarea'])('escapes nested markup inside inline %s tags', (tag) => {
+    const content = `before <${tag}><img src=x onerror=alert(1)></${tag}> after`
+    const markup = renderToStaticMarkup(<Markdown content={content} />)
+    expect(markup).toContain(`&lt;${tag}&gt;&lt;img`)
+    expect(markup).toContain(`&lt;/${tag}&gt; after`)
+    expect(markup).not.toContain(`<${tag}`)
+    expect(markup).not.toContain('<img')
+  })
 })
