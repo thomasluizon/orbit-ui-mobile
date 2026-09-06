@@ -89,7 +89,7 @@ export function NotificationDetailModal({
             {formatNotificationRelativeTime(notification.createdAtUtc, (key, values) =>
               t(`notifications.${key}`, values),
             )}
-            {targetKey ? ` Ã‚Â· ${t(targetKey)}` : null}
+            {targetKey ? ` · ${t(targetKey)}` : null}
           </p>
         </div>
         <div>

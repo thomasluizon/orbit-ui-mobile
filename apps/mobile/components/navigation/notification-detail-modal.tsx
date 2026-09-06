@@ -74,7 +74,7 @@ export function NotificationDetailModal({
             notification.createdAtUtc,
             (key, values) => t(`notifications.${key}`, values),
           )}
-          {targetKey ? ` Â· ${t(targetKey)}` : null}
+          {targetKey ? ` · ${t(targetKey)}` : null}
         </Text>
         <Text style={styles.bodyText}>{notification.body}</Text>
 

@@ -340,4 +340,23 @@ describe('mobile alerts', () => {
     expect(state.push).toHaveBeenCalledWith(destination)
     expect(useUIStore.getState().astraConversationOpen).toBe(url === '/chat')
   })
+
+  it.each([
+    ['en', '5 min ago · Calendar'],
+    ['pt-BR', 'há 5 min · Calendário'],
+  ])('renders the complete detail metadata with one middle dot in %s', (locale, metadata) => {
+    state.locale = locale
+    vi.setSystemTime(new Date('2026-09-06T12:00:00Z'))
+    state.notifications = [createMockNotification({
+      title: 'Reminder', url: '/calendar', isRead: false, createdAtUtc: '2026-09-06T11:55:00Z',
+    })]
+    const messages = locale === 'en' ? en : pt
+    const tree = render()
+    press(tree, `Reminder. ${messages.notifications.unread}. ${messages.nav.calendar}`)
+    const renderedText = hosts(tree, 'Text').map((node) =>
+      React.Children.toArray(node.props.children as React.ReactNode)
+        .filter((child) => typeof child === 'string' || typeof child === 'number').join(''),
+    )
+    expect(renderedText).toContain(metadata)
+  })
 })

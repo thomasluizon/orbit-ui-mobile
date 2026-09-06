@@ -297,4 +297,21 @@ describe('alerts', () => {
     void act(() => vi.advanceTimersByTime(5000))
     expect(state.remove).not.toHaveBeenCalled()
   })
+
+  it.each([
+    ['en', '5 min ago · Calendar'],
+    ['pt-BR', 'há 5 min · Calendário'],
+  ])('renders the complete detail metadata with one middle dot in %s', (locale, metadata) => {
+    state.locale = locale
+    vi.setSystemTime(new Date('2026-09-06T12:00:00Z'))
+    state.notifications = [createMockNotification({
+      title: 'Reminder', url: '/calendar', isRead: false, createdAtUtc: '2026-09-06T11:55:00Z',
+    })]
+    const messages = locale === 'en' ? en : pt
+    showInbox()
+    fireEvent.click(screen.getByRole('button', {
+      name: `Reminder. ${messages.notifications.unread}. ${messages.nav.calendar}`,
+    }))
+    expect(screen.getByText(metadata, { exact: true }).textContent).toBe(metadata)
+  })
 })
