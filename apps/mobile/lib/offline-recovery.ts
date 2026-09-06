@@ -1,5 +1,5 @@
 import type { PersistedQueuedMutation } from '@orbit/shared/types/sync'
-import { getMutationScope, isAutomaticReplayBlocked } from './offline-mutations'
+import { getMutationScope, hasPendingOfflineDependencies, isAutomaticReplayBlocked } from './offline-mutations'
 
 export function getRecoveryDate(mutation: PersistedQueuedMutation): string | null {
   const payload = mutation.payload
@@ -10,7 +10,7 @@ export function getRecoveryDate(mutation: PersistedQueuedMutation): string | nul
 }
 
 export function needsHabitCreation(mutation: PersistedQueuedMutation): boolean {
-  return getMutationScope(mutation.type) === 'habits' && (
+  return (mutation.scope ?? getMutationScope(mutation.type)) === 'habits' && (
     mutation.type === 'createHabit' ||
     Boolean(mutation.targetEntityId?.startsWith('offline-habit-')) ||
     (mutation.type === 'logHabit' && mutation.endpoint.includes('offline-habit-'))
@@ -19,7 +19,7 @@ export function needsHabitCreation(mutation: PersistedQueuedMutation): boolean {
 
 export function canRetryDroppedMutation(mutation: PersistedQueuedMutation): boolean {
   return Boolean(getMutationScope(mutation.type)) && !isAutomaticReplayBlocked(mutation.type) &&
-    !JSON.stringify([mutation.endpoint, mutation.payload, mutation.dependsOn]).includes('offline-')
+    !hasPendingOfflineDependencies(mutation)
 }
 
 export function getDroppedItemName(mutation: PersistedQueuedMutation): string | null {

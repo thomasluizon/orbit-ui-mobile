@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ToastProps } from '@orbit/shared/contracts/feedback'
 import { zLayers } from '@orbit/shared/theme'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
   Pressable,
   StyleSheet,
@@ -148,7 +149,8 @@ export function Toast(props: Readonly<ToastProps>) {
 }
 
 /** Legacy root mount. The host owns placement and adapts the queue to the prop-driven Toast. */
-export function AppToast() {
+export function AppToast({ placement = 'overlay' }: Readonly<{ placement?: 'overlay' | 'slot' }>) {
+  const insets = useSafeAreaInsets()
   const currentToast = useAppToastStore((state) => state.currentToast)
   const triggerAction = useAppToastStore((state) => state.triggerAction)
 
@@ -161,13 +163,18 @@ export function AppToast() {
       : toast
 
   return (
-    <View pointerEvents="box-none" style={styles.host}>
+    <View pointerEvents="box-none" style={[styles.host, placement === 'overlay' && styles.overlay, placement === 'overlay' && { bottom: insets.bottom }]}>
       <Toast {...hostedToast} />
     </View>
   )
 }
 
 const styles = StyleSheet.create({
+  overlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+  },
   host: {
     padding: 16,
     zIndex: zLayers.toast,

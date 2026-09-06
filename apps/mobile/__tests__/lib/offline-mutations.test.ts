@@ -1473,6 +1473,9 @@ describe('offline mutation helpers', () => {
   it('maps every mutation type group to its invalidation scope', () => {
     const cases: [MutationType, string][] = [
       ['createGoal', 'goals'],
+      ['restoreGoal', 'goals'],
+      ['restoreTag', 'tags'],
+      ['setName', 'profile'],
       ['linkGoalHabits', 'goals'],
       ['assignTags', 'tags'],
       ['markNotificationRead', 'notifications'],
@@ -1486,6 +1489,20 @@ describe('offline mutation helpers', () => {
     for (const [type, scope] of cases) {
       expect(getMutationScope(type)).toBe(scope)
     }
+  })
+
+  it.each(['offline-work', 'offline-habit-123-1'])('delivers tag text %s instead of waiting for a dependency', async (name) => {
+    mocks.apiClient.mockClear()
+    mocks.invalidateQueries.mockClear()
+    mocks.queued.length = 0
+    mocks.setOnline(true)
+    const payload = { name, color: '#123456' }
+    mocks.queued.push(buildQueuedMutation({
+      type: 'updateTag', scope: 'tags', endpoint: '/api/tags/work', method: 'PUT', payload,
+    }))
+    expect(await flushQueuedMutations()).toMatchObject({ succeeded: 1, remaining: 0 })
+    expect(mocks.apiClient).toHaveBeenCalledWith('/api/tags/work', expect.objectContaining({ body: JSON.stringify(payload) }), undefined)
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['tags'] })
   })
   describe('stuck queue recovery', () => {
     beforeEach(() => {

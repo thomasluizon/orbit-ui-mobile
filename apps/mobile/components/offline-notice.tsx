@@ -25,7 +25,7 @@ function DroppedNotice({ drop, remaining }: Readonly<{ drop: DroppedMutation; re
   const mutation = drop.mutation
   const needsCreation = needsHabitCreation(mutation)
   const retryable = canRetryDroppedMutation(mutation)
-  const scope = getMutationScope(mutation.type) ?? 'profile'
+  const scope = mutation.scope ?? getMutationScope(mutation.type) ?? 'profile'
   const date = getRecoveryDate(mutation)
   const item = drop.itemName ?? getDroppedItemName(mutation) ?? t(`common.syncEntity.${scope}`)
   const message = getRecoveryMessage(mutation, item, t)
@@ -80,7 +80,7 @@ export function OfflineNotice() {
   else if (pendingCount > 0 && isOnline && hasFailed) notice = <Toast kind="neutral" icon={<RefreshCw size={20} color={tokens.fg2} />} message={t('common.syncRetrying')} />
   else if (pendingCount > 0) notice = <Toast kind="neutral" icon={<WifiOff size={20} color={tokens.fg2} />} message={t('common.queued', { count: pendingCount })} />
   else if (sawPending && !isFlushing) notice = <Toast kind="done" message={t('common.synced')} onDone={clearSynced} />
-  else return <AppToast />
+  else return <AppToast placement="slot" />
 
   return <View style={styles.host} testID="offline-notice">{notice}</View>
 }

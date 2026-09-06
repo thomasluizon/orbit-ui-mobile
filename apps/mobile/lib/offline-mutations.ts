@@ -220,49 +220,22 @@ function nextQueuedIdentifier(prefix: string): string {
   return `${prefix}-${Date.now()}-${queuedMutationSequence.toString(36)}`
 }
 
-const OFFLINE_ID_PATTERN = /\boffline-[a-z]+-[a-z0-9-]+\b/g
-
-function collectOfflineIds(value: unknown, ids: Set<string>): void {
-  if (typeof value === 'string') {
-    for (const match of value.matchAll(OFFLINE_ID_PATTERN)) {
-      if (match[0]) {
-        ids.add(match[0])
-      }
-    }
-    return
-  }
-
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      collectOfflineIds(entry, ids)
-    }
-    return
-  }
-
+function payloadHasOfflineReference(value: unknown, referenceField = false): boolean {
+  if (typeof value === 'string') return referenceField && value.startsWith('offline-')
+  if (Array.isArray(value)) return value.some((entry) => payloadHasOfflineReference(entry, referenceField))
   if (value && typeof value === 'object') {
-    for (const entry of Object.values(value as Record<string, unknown>)) {
-      collectOfflineIds(entry, ids)
-    }
+    return Object.entries(value).some(([key, entry]) =>
+      payloadHasOfflineReference(entry, key === 'id' || key.endsWith('Id') || key.endsWith('Ids')),
+    )
   }
+  return false
 }
 
-function hasPendingOfflineDependencies(mutation: PersistedQueuedMutation): boolean {
-  const pendingIds = new Set<string>()
-
-  if (mutation.targetEntityId?.startsWith('offline-')) {
-    pendingIds.add(mutation.targetEntityId)
-  }
-
-  for (const dependencyId of mutation.dependsOn ?? []) {
-    if (dependencyId.startsWith('offline-')) {
-      pendingIds.add(dependencyId)
-    }
-  }
-
-  collectOfflineIds(mutation.endpoint, pendingIds)
-  collectOfflineIds(mutation.payload, pendingIds)
-
-  return pendingIds.size > 0
+export function hasPendingOfflineDependencies(mutation: PersistedQueuedMutation): boolean {
+  return Boolean(mutation.targetEntityId?.startsWith('offline-')) ||
+    (mutation.dependsOn ?? []).some((id) => id.startsWith('offline-')) ||
+    mutation.endpoint.split('/').some((segment) => segment.startsWith('offline-')) ||
+    payloadHasOfflineReference(mutation.payload)
 }
 
 function replaceIdInValue(value: unknown, oldId: string, newId: string): unknown {
@@ -442,46 +415,28 @@ function shouldStopFlushing(error: unknown): boolean {
   return message.includes('unauthorized') || message.includes('forbidden')
 }
 
+const MUTATION_SCOPES = {
+  createHabit: 'habits', updateHabit: 'habits', deleteHabit: 'habits', restoreHabit: 'habits',
+  logHabit: 'habits', skipHabit: 'habits', reorderHabits: 'habits', updateChecklist: 'habits',
+  duplicateHabit: 'habits', moveHabitParent: 'habits', createSubHabit: 'habits',
+  bulkCreateHabits: 'habits', bulkDeleteHabits: 'habits', bulkCascadeDeleteHabits: 'habits',
+  bulkLogHabits: 'habits', bulkSkipHabits: 'habits',
+  createGoal: 'goals', updateGoal: 'goals', deleteGoal: 'goals', restoreGoal: 'goals',
+  updateGoalProgress: 'goals', updateGoalStatus: 'goals', reorderGoals: 'goals', linkGoalHabits: 'goals',
+  createTag: 'tags', updateTag: 'tags', deleteTag: 'tags', restoreTag: 'tags', assignTags: 'tags',
+  markNotificationRead: 'notifications', markAllNotificationsRead: 'notifications',
+  deleteNotification: 'notifications', deleteAllNotifications: 'notifications',
+  createApiKey: 'apiKeys', deleteApiKey: 'apiKeys', dismissCalendarPrompt: 'calendar',
+  setName: 'profile', setLanguage: 'profile', setWeekStartDay: 'profile', setColorScheme: 'profile',
+  setThemePreference: 'profile', setTimeZone: 'profile', setAiSummary: 'profile',
+  setProactiveAstra: 'profile', setMarketingConsent: 'profile', completeOnboarding: 'profile',
+  dismissImportPrompt: 'profile', resetProfile: 'profile',
+} satisfies Record<MutationType, MutationScope>
+
 export function getMutationScope(type: string): MutationScope | undefined {
-  switch (type) {
-    case 'createGoal':
-    case 'updateGoal':
-    case 'deleteGoal':
-    case 'updateGoalProgress':
-    case 'updateGoalStatus':
-    case 'reorderGoals':
-    case 'linkGoalHabits':
-      return 'goals'
-    case 'createTag':
-    case 'updateTag':
-    case 'deleteTag':
-    case 'assignTags':
-      return 'tags'
-    case 'markNotificationRead':
-    case 'markAllNotificationsRead':
-    case 'deleteNotification':
-    case 'deleteAllNotifications':
-      return 'notifications'
-    case 'createApiKey':
-    case 'deleteApiKey':
-      return 'apiKeys'
-    case 'dismissCalendarPrompt':
-      return 'calendar'
-    case 'setLanguage':
-    case 'setWeekStartDay':
-    case 'setColorScheme':
-    case 'setThemePreference':
-    case 'setTimeZone':
-    case 'setAiSummary':
-    case 'setProactiveAstra':
-    case 'setMarketingConsent':
-    case 'completeOnboarding':
-    case 'dismissImportPrompt':
-    case 'resetProfile':
-      return 'profile'
-    default:
-      return mutationTypeSchema.safeParse(type).success ? 'habits' : undefined
-  }
+  const parsed = mutationTypeSchema.safeParse(type)
+  if (!parsed.success) return undefined
+  return MUTATION_SCOPES[parsed.data]
 }
 
 async function markQueuedMutation(mutation: QueuedMutation): Promise<string> {

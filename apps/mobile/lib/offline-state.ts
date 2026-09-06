@@ -139,7 +139,7 @@ export async function clearOfflineEntity(
 }
 
 export async function clearOfflineState(): Promise<void> {
-  useOfflineSyncStore.setState({ drops: [] })
+  await useOfflineSyncStore.getState().clearDrops()
   stateCache = null
   try {
     await AsyncStorage.removeItem(STORAGE_KEY)

@@ -56,6 +56,7 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     mocks.translate = (key, values) => language.t(key, values)
     Object.assign(mocks.queue, { isOnline: false, pendingCount: 0, isFlushing: false, hasFailed: false })
     mocks.enqueue.mockClear()
+    mocks.push.mockClear()
     useOfflineSyncStore.setState({ drops: [], isFlushing: false })
     useAppToastStore.setState({ currentToast: null, queue: [] })
     toastChanges.mockClear()
@@ -145,6 +146,40 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     })
     expect(toast().message).toBe(language.t('common.syncHabitNotCreated', { item: 'Read' }))
     expect(toast().actionLabel).toBe(language.t('habits.createHabit'))
+  })
+
+  it.each([
+    ['restoreGoal', 'goals'], ['restoreTag', 'tags'], ['setName', 'profile'],
+    ['dismissCalendarPrompt', 'profile'],
+  ] as const)('preserves the persisted scope of %s when displaying and retrying', (type, scope) => {
+    TestRenderer.act(() => { useOfflineSyncStore.getState().addDrop({
+      ...droppedLog, type, itemName: undefined,
+      mutation: { ...droppedLog.mutation, type, scope, payload: null },
+    }) })
+    expect(toast().message).toBe(language.t('common.syncChangeDropped', { item: language.t(`common.syncEntity.${scope}`) }))
+    TestRenderer.act(() => (toast().onAction as () => void)())
+    expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({ type, scope }))
+  })
+
+  it('uses the persisted scope when a recovery needs navigation', () => {
+    TestRenderer.act(() => { useOfflineSyncStore.getState().addDrop({
+      ...droppedLog, type: 'restoreGoal', itemName: undefined,
+      mutation: { ...droppedLog.mutation, type: 'restoreGoal', scope: 'profile', dependsOn: ['offline-goal-missing'] },
+    }) })
+    TestRenderer.act(() => (toast().onAction as () => void)())
+    expect(mocks.push).toHaveBeenLastCalledWith('/preferences')
+  })
+
+  it.each(['offline-work', 'offline-habit-123-1'])('retries a tag named %s without losing its payload', (name) => {
+    const payload = { name, color: '#123456' }
+    TestRenderer.act(() => { useOfflineSyncStore.getState().addDrop({
+      ...droppedLog, type: 'updateTag', itemName: undefined,
+      mutation: { ...droppedLog.mutation, type: 'updateTag', scope: 'tags', endpoint: '/api/tags/work', payload },
+    }) })
+    expect(toast().actionLabel).toBe(language.t('common.syncRetryAction'))
+    TestRenderer.act(() => (toast().onAction as () => void)())
+    expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({ payload, scope: 'tags' }))
+    expect(useOfflineSyncStore.getState().drops).toHaveLength(0)
   })
 
 })

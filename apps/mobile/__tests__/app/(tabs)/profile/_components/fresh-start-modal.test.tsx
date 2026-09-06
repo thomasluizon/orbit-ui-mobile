@@ -4,6 +4,8 @@ import { FreshStartModal } from '@/app/(tabs)/profile/_components/fresh-start-mo
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import type { DroppedMutation } from '@/lib/offline-mutations'
 
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+
 const replace = vi.fn()
 const queryClientClear = vi.fn()
 const storage = vi.hoisted(() => new Map<string, string>())
