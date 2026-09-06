@@ -13,7 +13,7 @@ import { useShareCard } from '@/hooks/use-share-card'
 import { Sheet } from '@/components/ui/sheet'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 import { Skeleton } from '@/components/ui/skeleton'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -108,7 +108,7 @@ export function ShareCardPanel({ open, onClose, displayName }: Readonly<ShareCar
 
         {!isLoading && !isError && recap && isEmpty ? (
           <View style={styles.emptyState}>
-            <SatelliteGlyph />
+            <OrbitMark size={96} />
             <Text style={styles.emptyText}>{t('shareCard.empty')}</Text>
           </View>
         ) : null}

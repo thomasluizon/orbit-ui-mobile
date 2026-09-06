@@ -53,6 +53,7 @@ import { useLiveOnboardingActions } from '@/components/onboarding/onboarding-act
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
+import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Fab } from '@/components/ui/fab'
@@ -135,6 +136,7 @@ function RootStackScreens({
 
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="notifications" />
         <Stack.Screen
           name="chat"
           options={{
@@ -296,20 +298,23 @@ function RootLayoutNav() {
         {showBottomNav ? (
           <Shell412
             {...conversation}
-            composer={
+            composer={pathname === '/notifications' ? undefined : (
               <Composer
                 {...chat.composerProps}
                 onOpenConversation={() => setAstraConversationOpen(true)}
                 conversationLabel={t('todayAstra.openConversation')}
               />
-            }
-            notice={offline.isOnline ? undefined : (
+            )}
+            notice={<>
+              <NotificationDeleteNotice />
+              {offline.isOnline ? null : (
               <Toast
                 kind="neutral"
                 icon={<WifiOff size={20} strokeWidth={2} color={tokens.fg2} />}
                 message={t('offline.title')}
               />
-            )}
+              )}
+            </>}
             tabBar={<DestinationTabBar pathname={pathname} />}
             fab={pathname === '/' && !todayFabHidden
               ? <AppCreateFab onCreate={handleCreate} />

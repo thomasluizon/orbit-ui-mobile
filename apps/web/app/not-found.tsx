@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 
 export default function NotFound() {
   const t = useTranslations()
@@ -16,7 +16,7 @@ export default function NotFound() {
           className="shrink-0"
           style={{ animation: 'fresh-start-orb 0.28s var(--ease-out) both' }}
         >
-          <SatelliteGlyph size={104} />
+          <OrbitMark size={104} />
         </div>
         <div className="flex flex-col items-center md:items-start">
           <h1

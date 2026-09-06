@@ -1,109 +1,67 @@
-import { View, Text, Pressable } from 'react-native'
-import Animated, { FadeInDown, FadeOut, ReduceMotion } from 'react-native-reanimated'
-import { Bell, Flame, Sparkles, Trophy, X } from '@/components/ui/icons'
-import {
-  formatNotificationRelativeTime,
-  getNotificationGlyph,
-  type NotificationGlyph,
-} from '@orbit/shared/utils'
+import { View, Text, Pressable, StyleSheet } from 'react-native'
+import { useTranslation } from 'react-i18next'
+import { ArrowUpRight, Trash2 } from '@/components/ui/icons'
+import { formatNotificationRelativeTime, getNotificationTargetKey } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
-import type { createTokensV2 } from '@/lib/theme'
-import type { NotificationBellStyles } from './notification-bell.styles'
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
-type AppTokens = ReturnType<typeof createTokensV2>
-
-const glyphIconMap = {
-  streak: Flame,
-  celebration: Trophy,
-  astra: Sparkles,
-  reminder: Bell,
-} as const
-
-function glyphColor(glyph: NotificationGlyph, tokens: AppTokens): string {
-  if (glyph === 'streak') return tokens.statusOverdue
-  if (glyph === 'reminder') return tokens.fg3
-  return tokens.primarySoft
-}
-
-function rowEntrance(index: number) {
-  return FadeInDown.duration(280)
-    .delay(Math.min(index, 8) * 40)
-    .reduceMotion(ReduceMotion.System)
-}
-
-interface NotificationRowProps {
+export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
   item: NotificationItem
-  index: number
-  tokens: AppTokens
-  styles: NotificationBellStyles
-  t: (key: string, values?: Record<string, unknown>) => string
-  onPress: (notification: NotificationItem) => void
-  onRequestDelete: (notification: NotificationItem) => void
-}
-
-export function NotificationRow({
-  item,
-  index,
-  tokens,
-  styles,
-  t,
-  onPress,
-  onRequestDelete,
-}: Readonly<NotificationRowProps>) {
-  const glyph = getNotificationGlyph(item)
-  const GlyphIcon = glyphIconMap[glyph]
+  onOpen: (item: NotificationItem) => void
+  onDelete: (item: NotificationItem) => void
+}>) {
+  const { t } = useTranslation()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const targetKey = getNotificationTargetKey(item.url)
   return (
-    <Animated.View
-      entering={rowEntrance(index)}
-      exiting={FadeOut.duration(160).reduceMotion(ReduceMotion.System)}
-    >
-      <Pressable
-        style={({ pressed }) => [
-          styles.notifRow,
-          !item.isRead && styles.notifUnread,
-          item.isRead && pressed && styles.notifRowPressed,
-        ]}
-        onPress={() => onPress(item)}
-        accessibilityRole="button"
-        accessibilityLabel={`${item.title}. ${item.body}`}
-      >
-        <View style={styles.notifGlyphCircle}>
-          <GlyphIcon size={20} color={glyphColor(glyph, tokens)} strokeWidth={1.8} />
+    <View testID={item.isRead ? 'notification-read' : 'notification-unread'}
+      style={[styles.wrapper, !item.isRead && { backgroundColor: tokens.bgCard, boxShadow: `inset 0 0 0 1px ${tokens.hairline}` }]}>
+      <Pressable accessibilityRole="button"
+        accessibilityLabel={`${item.title}. ${t(item.isRead ? 'notifications.read' : 'notifications.unread')}`}
+        onPress={() => onOpen(item)}
+        style={({ pressed }) => [styles.row, pressed && { backgroundColor: tokens.bgHover }]}>
+        <View testID="notification-dot-column" style={styles.dotColumn}>
+          {!item.isRead ? <View testID="notification-unread-dot" style={[styles.dot, { backgroundColor: tokens.fg1 }]} /> : null}
         </View>
-        <View style={styles.notifContent}>
-          <View style={styles.notifTopRow}>
-            <Text style={styles.notifTitle} numberOfLines={1}>
-              {item.title}
-            </Text>
-            <Text style={styles.notifTime}>
-              {formatNotificationRelativeTime(item.createdAtUtc, (key, values) =>
-                t(`notifications.${key}`, values),
-              )}
+        <View style={styles.content}>
+          <View style={styles.topRow}>
+            <Text testID="notification-title" style={[styles.title, {
+              fontFamily: item.isRead ? 'Geist_400Regular' : 'Geist_500Medium',
+              color: item.isRead ? tokens.fg2 : tokens.fg1,
+            }]}>{item.title}</Text>
+            <Text style={[styles.meta, { color: tokens.fg4 }]}>
+              {formatNotificationRelativeTime(item.createdAtUtc, (key, values) => t(`notifications.${key}`, values))}
             </Text>
           </View>
-          <Text style={styles.notifBody} numberOfLines={2}>
-            {item.body}
-          </Text>
+          <Text style={[styles.body, { color: tokens.fg3 }]}>{item.body}</Text>
+          {targetKey ? <View style={styles.target}>
+            <ArrowUpRight size={16} color={tokens.fg4} />
+            <Text style={[styles.meta, { color: tokens.fg4 }]}>{t(targetKey)}</Text>
+          </View> : null}
         </View>
-        <Pressable
-          style={({ pressed }) => [
-            styles.deleteBtn,
-            pressed ? styles.deleteBtnPressed : null,
-          ]}
-          onPress={() => onRequestDelete(item)}
-          accessibilityRole="button"
-          accessibilityLabel={t('notifications.deleteNotification')}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          {({ pressed }) => (
-            <X
-              size={18}
-              color={pressed ? tokens.statusBad : tokens.fg4}
-              strokeWidth={1.8}
-            />
-          )}
-        </Pressable>
       </Pressable>
-    </Animated.View>
+      <Pressable accessibilityRole="button"
+        accessibilityLabel={t('notifications.deleteNotification', { title: item.title })}
+        onPress={() => onDelete(item)}
+        style={({ pressed }) => [styles.delete, pressed && { backgroundColor: tokens.bgHover }]}>
+        <Trash2 size={20} color={tokens.statusBad} />
+      </Pressable>
+    </View>
   )
 }
+
+const styles = StyleSheet.create({
+  wrapper: { flexDirection: 'row', alignItems: 'stretch', gap: 4, borderRadius: 12 },
+  row: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 16, minHeight: 44, borderRadius: 12 },
+  dotColumn: { width: 8, flexShrink: 0, alignSelf: 'stretch', justifyContent: 'center' },
+  dot: { width: 8, height: 8, borderRadius: 999 },
+  content: { flex: 1, minWidth: 0, gap: 4 },
+  topRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  title: { flex: 1, minWidth: 0, fontSize: 16, lineHeight: 22.4 },
+  meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12 },
+  body: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
+  target: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  delete: { width: 44, height: 44, alignSelf: 'center', alignItems: 'center', justifyContent: 'center', borderRadius: 999 },
+})

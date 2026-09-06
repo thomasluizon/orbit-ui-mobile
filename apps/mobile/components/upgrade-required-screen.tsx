@@ -1,7 +1,7 @@
 import { Linking, StyleSheet, Text, View } from 'react-native'
 import Constants from 'expo-constants'
 import { PillButton } from '@/components/ui/pill-button'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 import { i18n } from '@/lib/i18n'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -35,7 +35,7 @@ export function UpgradeRequiredScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: tokens.bg }]}>
-      <SatelliteGlyph size={96} />
+      <OrbitMark size={96} />
       <Text
         accessibilityRole="header"
         style={[styles.title, { color: tokens.fg1 }]}

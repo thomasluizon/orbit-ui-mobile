@@ -1,14 +1,44 @@
 import { describe, expect, it } from 'vitest'
 import {
   getNotificationDetailActionVisibility,
-  getNotificationGlyph,
+  getNotificationInboxState,
+  getNotificationTargetKey,
   isViewableNotificationUrl,
   resolveNotificationUrl,
   selectNewestUnreadProactiveCheckin,
   shouldShowTodayAstraLine,
 } from '../utils/notification-actions'
+import { createMockNotification } from './factories'
 
 describe('notification-actions', () => {
+  it.each([
+    ['/', 'nav.today'],
+    ['/calendar', 'nav.calendar'],
+    ['/progress', 'nav.progress'],
+    ['/profile', 'nav.profile'],
+    ['/habits/123', 'notifications.habit'],
+    ['/streak', 'nav.progress'],
+  ])('labels the existing target %s', (url, label) => {
+    expect(getNotificationTargetKey(url)).toBe(label)
+    expect(isViewableNotificationUrl(url)).toBe(true)
+  })
+
+  it.each(['/unknown', '/chat', '/social', '/habits/../login', '/habits/%2e%2e', '/habits/one/edit', '//evil.com', '/profile/unknown'])(
+    'never offers a view to the unsupported destination %s', (url) => {
+      expect(getNotificationTargetKey(url)).toBeNull()
+      expect(getNotificationDetailActionVisibility({ url, isRead: false }).canView).toBe(false)
+    },
+  )
+
+  it('uses the endpoint total and subtracts only pending unread items', () => {
+    const unread = createMockNotification({ id: 'unread', isRead: false })
+    const read = createMockNotification({ id: 'read', isRead: true })
+    expect(getNotificationInboxState([unread, read], 20, ['unread', 'read'])).toEqual({
+      visibleNotifications: [], visibleUnreadCount: 19,
+    })
+    expect(getNotificationInboxState([], 20, []).visibleUnreadCount).toBe(20)
+  })
+
   it('accepts safe internal URLs', () => {
     expect(isViewableNotificationUrl('/habits/1')).toBe(true)
     expect(isViewableNotificationUrl('/')).toBe(true)
@@ -54,27 +84,6 @@ describe('notification-actions', () => {
         url: null,
       }),
     ).toEqual({ canView: false, canMarkAsRead: false })
-  })
-
-  it('maps streak notifications to the flame glyph', () => {
-    expect(getNotificationGlyph({ url: '/streak', habitId: null })).toBe('streak')
-  })
-
-  it('maps Astra-produced notifications to the sparkles glyph', () => {
-    expect(getNotificationGlyph({ url: '/chat', habitId: null })).toBe('astra')
-    expect(
-      getNotificationGlyph({ url: '/calendar-sync?mode=review', habitId: null }),
-    ).toBe('astra')
-  })
-
-  it('maps gamification and referral notifications to the celebration glyph', () => {
-    expect(getNotificationGlyph({ url: null, habitId: null })).toBe('celebration')
-    expect(getNotificationGlyph({ url: '/profile', habitId: null })).toBe('celebration')
-  })
-
-  it('falls back to the reminder glyph for habit notifications', () => {
-    expect(getNotificationGlyph({ url: '/', habitId: 'habit-1' })).toBe('reminder')
-    expect(getNotificationGlyph({ url: '/calendar-sync', habitId: null })).toBe('reminder')
   })
 
   it('selects the newest unread Astra check-in without treating habit reminders as check-ins', () => {

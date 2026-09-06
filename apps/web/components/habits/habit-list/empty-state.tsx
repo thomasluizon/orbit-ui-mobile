@@ -1,7 +1,7 @@
 'use client'
 
 import { PillButton } from '@/components/ui/pill-button'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useTranslations } from 'next-intl'
 
@@ -51,7 +51,7 @@ export function HabitListEmptyState({
       className="flex flex-col items-center justify-center text-center"
       style={{ padding: '64px 32px', gap: 16 }}
     >
-      <SatelliteGlyph size={104} />
+      <OrbitMark size={104} />
       <div
         style={{
           fontFamily: 'var(--font-sans)',

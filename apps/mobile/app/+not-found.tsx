@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { PillButton } from '@/components/ui/pill-button'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -14,7 +14,7 @@ export default function NotFoundScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: tokens.bg }]}>
-      <SatelliteGlyph size={104} />
+      <OrbitMark size={104} />
       <Text style={[styles.title, { color: tokens.fg1 }]}>{t('notFoundPage.title')}</Text>
       <Text style={[styles.description, { color: tokens.fg2 }]}>
         {t('notFoundPage.description')}

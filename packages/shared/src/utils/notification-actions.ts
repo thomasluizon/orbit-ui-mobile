@@ -27,9 +27,9 @@ export function isViewableNotificationUrl(
   url: string | null | undefined,
 ): url is string {
   if (typeof url !== 'string' || !url.startsWith('/') || url.startsWith('//')) return false
-  return !url.startsWith('/social') &&
-    !url.startsWith('/public-profile') &&
-    !url.startsWith('/u/')
+  const pathname = resolveNotificationUrl(url).split(/[?#]/, 1)[0] ?? url
+  return ['/', '/calendar', '/progress', '/profile'].includes(pathname) ||
+    /^\/habits\/[^/\\.%]+$/.test(pathname)
 }
 
 const ABSORBED_PROGRESS_ROUTES = ['/streak', '/achievements', '/retrospective'] as const
@@ -51,24 +51,27 @@ export function getNotificationDetailActionVisibility(
   }
 }
 
-export type NotificationGlyph =
-  | 'streak'
-  | 'celebration'
-  | 'astra'
-  | 'reminder'
-
-/** Resolves the inbox glyph for a notification from the destination the API
- *  attaches: streak alerts get the flame, gamification and referral
- *  celebrations the trophy, Astra-produced surfaces the sparkles, and habit
- *  reminders fall back to the bell. */
-export function getNotificationGlyph(
-  notification: Pick<NotificationItem, 'url' | 'habitId'>,
-): NotificationGlyph {
-  const { url, habitId } = notification
-  if (url?.startsWith('/streak')) return 'streak'
-  if (url?.startsWith('/chat') || url?.startsWith('/calendar-sync?mode=review')) {
-    return 'astra'
+export function getNotificationTargetKey(url: string | null): string | null {
+  if (!isViewableNotificationUrl(url)) return null
+  const pathname = resolveNotificationUrl(url).split(/[?#]/, 1)[0]
+  switch (pathname) {
+    case '/': return 'nav.today'
+    case '/calendar': return 'nav.calendar'
+    case '/progress': return 'nav.progress'
+    case '/profile': return 'nav.profile'
+    default: return 'notifications.habit'
   }
-  if (url?.startsWith('/profile') || (!url && !habitId)) return 'celebration'
-  return 'reminder'
+}
+
+export function getNotificationInboxState(
+  notifications: readonly NotificationItem[],
+  unreadCount: number,
+  pendingDeleteIds: readonly string[],
+) {
+  const pending = new Set(pendingDeleteIds)
+  const hiddenUnread = notifications.filter((item) => pending.has(item.id) && !item.isRead).length
+  return {
+    visibleNotifications: notifications.filter((item) => !pending.has(item.id)),
+    visibleUnreadCount: Math.max(0, unreadCount - hiddenUnread),
+  }
 }

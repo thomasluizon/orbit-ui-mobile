@@ -363,10 +363,10 @@ export {
   snapshotNotificationList,
 } from './notification-cache'
 export { formatNotificationRelativeTime } from './notification-time'
-export type { NotificationGlyph } from './notification-actions'
 export {
   getNotificationDetailActionVisibility,
-  getNotificationGlyph,
+  getNotificationTargetKey,
+  getNotificationInboxState,
   isViewableNotificationUrl,
   resolveNotificationUrl,
   selectNewestUnreadProactiveCheckin,

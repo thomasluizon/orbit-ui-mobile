@@ -1,291 +1,194 @@
-import { beforeEach, describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
+import type { NotificationItem } from '@orbit/shared/types/notification'
+import { createMockNotification } from '@orbit/shared/__tests__/factories'
+import en from '@orbit/shared/i18n/en.json'
+import pt from '@orbit/shared/i18n/pt-BR.json'
 import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notification-deletes'
+import { NotificationBell } from '@/components/navigation/notification-bell'
+import { NotificationInbox } from '@/components/navigation/notification-inbox'
+import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 
+const state = vi.hoisted(() => ({
+  notifications: [] as NotificationItem[], unreadCount: 0, isLoading: false, isError: false,
+  locale: 'en', push: vi.fn(), back: vi.fn(), refetch: vi.fn(), mark: vi.fn(), markAll: vi.fn(),
+  remove: vi.fn(), clear: vi.fn(),
+}))
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: state.push }), usePathname: () => '/',
+}))
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => state.back }))
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (params) return `${key}:${JSON.stringify(params)}`
-    return key
+  useTranslations: () => (key: string, values?: Record<string, unknown>) => {
+    const messages = state.locale === 'en' ? en : pt
+    const [namespace, name = ''] = key.split('.')
+    const group = messages[namespace as keyof typeof messages]
+    const value = typeof group === 'object' ? Reflect.get(group, name) as unknown : undefined
+    return typeof value === 'string' ? value.replace(/\{(\w+)\}/g, (_, token: string) => String(values?.[token])) : key
   },
 }))
-
-vi.mock('@/lib/plural', () => ({
-  plural: (text: string) => text,
-}))
-
-let mockNotifications: Array<{ id: string; title: string; body: string; isRead: boolean; createdAtUtc: string; url: string | null; habitId: string | null }> = []
-let mockUnreadCount = 0
-let mockIsLoading = false
-let mockIsError = false
-const refetchMock = vi.fn()
-const markAsReadMutate = vi.fn()
-const markAllAsReadMutate = vi.fn()
-const deleteNotificationMutate = vi.fn()
-const deleteAllMutate = vi.fn()
-const showQueued = vi.fn()
-
 vi.mock('@/hooks/use-notifications', () => ({
-  useNotifications: () => ({
-    notifications: mockNotifications,
-    unreadCount: mockUnreadCount,
-    isLoading: mockIsLoading,
-    isError: mockIsError,
-    refetch: refetchMock,
-  }),
-  useMarkNotificationRead: () => ({ mutate: markAsReadMutate }),
-  useMarkAllNotificationsRead: () => ({ mutate: markAllAsReadMutate }),
-  useDeleteNotification: () => ({ mutate: deleteNotificationMutate }),
-  useDeleteAllNotifications: () => ({ mutate: deleteAllMutate }),
+  useNotifications: () => ({ ...state }),
+  useMarkNotificationRead: () => ({ mutate: state.mark }),
+  useMarkAllNotificationsRead: () => ({ mutate: state.markAll }),
+  useDeleteNotification: () => ({ mutate: state.remove }),
+  useDeleteAllNotifications: () => ({ mutate: state.clear }),
 }))
 
-vi.mock('./notification-detail-modal', () => ({
-  NotificationDetailModal: () => null,
-}))
+function showInbox() {
+  return render(<><NotificationInbox /><NotificationDeleteNotice /></>)
+}
+function seed(count: number) {
+  state.notifications = Array.from({ length: count }, (_, index) => createMockNotification({
+    id: String(index), title: `Alert ${index}`, url: '/progress', isRead: false,
+  }))
+  state.unreadCount = count
+}
+beforeEach(() => {
+  vi.useFakeTimers()
+  vi.clearAllMocks()
+  resetPendingNotificationDeletesForTests()
+  Object.assign(state, { notifications: [], unreadCount: 0, isLoading: false, isError: false, locale: 'en' })
+  state.mark.mockImplementation((id: string) => {
+    state.notifications = state.notifications.map((item) => item.id === id ? { ...item, isRead: true } : item)
+    state.unreadCount -= 1
+  })
+  state.markAll.mockImplementation(() => {
+    state.notifications = state.notifications.map((item) => ({ ...item, isRead: true }))
+    state.unreadCount = 0
+  })
+  state.remove.mockImplementation((id: string) => {
+    state.notifications = state.notifications.filter((item) => item.id !== id)
+    state.unreadCount -= 1
+  })
+  state.clear.mockImplementation(() => { state.notifications = []; state.unreadCount = 0 })
+})
+afterEach(() => {
+  cleanup()
+  resetPendingNotificationDeletesForTests()
+  vi.useRealTimers()
+})
 
-vi.mock('@/components/navigation/notification-detail-modal', () => ({
-  NotificationDetailModal: () => null,
-}))
-
-vi.mock('@/hooks/use-app-toast', () => ({
-  useAppToast: () => ({
-    showQueued,
-  }),
-}))
-
-import { NotificationBell } from '@/components/navigation/notification-bell'
-
-describe('NotificationBell', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-    resetPendingNotificationDeletesForTests()
-    mockNotifications = []
-    mockUnreadCount = 0
-    mockIsLoading = false
-    mockIsError = false
-    refetchMock.mockReset()
-    markAsReadMutate.mockReset()
-    markAllAsReadMutate.mockReset()
-    deleteNotificationMutate.mockReset()
-    deleteAllMutate.mockReset()
-    showQueued.mockReset()
+describe('alerts', () => {
+  it('pushes the inbox and keeps zero absent', () => {
+    const { container } = render(<NotificationBell />)
+    fireEvent.click(screen.getByRole('button', { name: 'Alerts' }))
+    expect(state.push).toHaveBeenCalledWith('/notifications')
+    expect(container.querySelector('[data-notification-count]')).toBeNull()
+    expect(screen.queryByText('0')).toBeNull()
   })
 
-  it('renders the bell button', () => {
-    render(<NotificationBell />)
-    expect(screen.getByLabelText('notifications.bell')).toBeInTheDocument()
+  it.each([1, 9, 25])('renders the neutral count pill from the unread total %s while loading', (count) => {
+    state.unreadCount = count
+    state.isLoading = true
+    const { container } = render(<NotificationBell />)
+    expect(screen.getByText(count > 9 ? '9+' : String(count))).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: `Alerts, ${count} unread` })).toBeInTheDocument()
+    const badge = container.querySelector('[data-notification-count]')!
+    expect(badge.outerHTML).not.toMatch(/--primary/)
+    expect(badge.outerHTML).toContain('--fg-1')
   })
 
-  it('shows unread indicator when there are unread notifications', () => {
-    mockNotifications = Array.from({ length: 3 }, (_, index) => ({
-      id: `${index + 1}`,
-      title: `Notification ${index + 1}`,
-      body: 'Body',
-      isRead: false,
-      createdAtUtc: new Date().toISOString(),
-      url: null,
-      habitId: null,
-    }))
-    render(<NotificationBell />)
-    expect(screen.getByLabelText(/notifications.bellWithCount/)).toBeInTheDocument()
+  it('renders an empty inbox without an action and returns through the back affordance', () => {
+    showInbox()
+    expect(screen.getByText('Nothing to see here')).toBeInTheDocument()
+    expect(screen.queryByText('Clear all')).toBeNull()
+    expect(screen.queryByText('Mark all read')).toBeNull()
+    expect(screen.getByRole('list').querySelector('button')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: en.common.back }))
+    expect(state.back).toHaveBeenCalledWith('/')
   })
 
-  it('keeps the count out of the visible glyph regardless of how many unread', () => {
-    mockNotifications = Array.from({ length: 15 }, (_, index) => ({
-      id: `${index + 1}`,
-      title: `Notification ${index + 1}`,
-      body: 'Body',
-      isRead: false,
-      createdAtUtc: new Date().toISOString(),
-      url: null,
-      habitId: null,
-    }))
-    render(<NotificationBell />)
-    expect(screen.queryByText('15')).not.toBeInTheDocument()
-    expect(screen.queryByText('9+')).not.toBeInTheDocument()
+  it('reserves three skeleton lines per row and exposes loading', () => {
+    state.isLoading = true
+    const { container } = showInbox()
+    expect(screen.getByRole('list')).toHaveAttribute('aria-busy', 'true')
+    expect(container.querySelectorAll('[data-skeleton-line]')).toHaveLength(15)
+    expect(screen.queryByText('Nothing to see here')).toBeNull()
   })
 
-  it('does not show unread indicator when unread count is 0', () => {
-    mockUnreadCount = 0
-    render(<NotificationBell />)
-    expect(screen.getByLabelText('notifications.bell')).toBeInTheDocument()
-    expect(screen.queryByLabelText(/notifications.bellWithCount/)).not.toBeInTheDocument()
+  it('offers retry after a load failure', () => {
+    state.isError = true
+    showInbox()
+    expect(screen.getByText(en.notifications.loadError)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: en.common.retry }))
+    expect(state.refetch).toHaveBeenCalledOnce()
   })
 
-  it('opens dropdown on click', () => {
-    mockUnreadCount = 0
-    mockNotifications = []
-    render(<NotificationBell />)
-    fireEvent.click(screen.getByLabelText('notifications.bell'))
-    expect(screen.getByText('notifications.title')).toBeInTheDocument()
+  it.each([1, 50])('renders the endpoint list of %s items without paging', (count) => {
+    seed(count)
+    showInbox()
+    expect(screen.getAllByRole('listitem')).toHaveLength(count)
+    expect(screen.queryByText(/load more/i)).toBeNull()
   })
 
-  it('shows empty state when no notifications', () => {
-    mockUnreadCount = 0
-    mockNotifications = []
-    mockIsLoading = false
-    render(<NotificationBell />)
-    fireEvent.click(screen.getByLabelText('notifications.bell'))
-    expect(screen.getByText('notifications.empty')).toBeInTheDocument()
+  it('distinguishes unread without colour and changes only when marked read', () => {
+    seed(1)
+    const view = showInbox()
+    const row = screen.getByRole('listitem')
+    expect(row.querySelector('[data-unread-dot]')).not.toBeNull()
+    expect(row.querySelector('[data-notification-title]')).toHaveStyle({ fontWeight: 500 })
+    fireEvent.click(screen.getByRole('button', { name: 'Alert 0. unread' }))
+    expect(screen.getByRole('button', { name: 'Mark as read' })).toBeInTheDocument()
+    expect(state.mark).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Mark as read' }))
+    view.rerender(<><NotificationInbox /><NotificationDeleteNotice /></>)
+    expect(screen.queryByRole('button', { name: 'Mark as read' })).toBeNull()
+    expect(row.querySelector('[data-unread-dot]')).toBeNull()
+    expect(row.querySelector('[data-unread-column]')).not.toBeNull()
+    expect(row.querySelector('[data-notification-title]')).toHaveStyle({ fontWeight: 400 })
   })
 
-  it('shows loading skeletons when loading', () => {
-    mockUnreadCount = 0
-    mockNotifications = []
-    mockIsLoading = true
-    render(<NotificationBell />)
-    fireEvent.click(screen.getByLabelText('notifications.bell'))
-    const pulseElements = document.querySelectorAll('.animate-pulse')
-    expect(pulseElements.length).toBeGreaterThan(0)
+  it('marks all read and removes the header action at zero', () => {
+    seed(2)
+    const view = showInbox()
+    fireEvent.click(screen.getByRole('button', { name: 'Mark all read' }))
+    view.rerender(<NotificationInbox />)
+    expect(screen.queryByRole('button', { name: 'Mark all read' })).toBeNull()
+    expect(screen.getAllByRole('button', { name: /Alert \d. read/ })).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Clear all' })).toBeInTheDocument()
   })
 
-  it('shows a load-error state with a retry that refetches when the query fails', () => {
-    mockUnreadCount = 0
-    mockNotifications = []
-    mockIsLoading = false
-    mockIsError = true
-    render(<NotificationBell />)
-    fireEvent.click(screen.getByLabelText('notifications.bell'))
-    expect(screen.getByText('notifications.loadError')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
-    expect(refetchMock).toHaveBeenCalled()
+  it('keeps delete beside the row and offers undo until the queue commits', () => {
+    seed(2)
+    showInbox()
+    const remove = screen.getByRole('button', { name: 'Delete: Alert 0' })
+    expect(remove.parentElement).toBe(screen.getAllByRole('listitem')[0])
+    fireEvent.click(remove)
+    expect(screen.queryByRole('button', { name: 'Alert 0. unread' })).toBeNull()
+    expect(state.remove).not.toHaveBeenCalled()
+    void act(() => vi.advanceTimersByTime(4000))
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    expect(screen.getByRole('button', { name: 'Alert 0. unread' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+    void act(() => vi.advanceTimersByTime(5000))
+    expect(state.remove).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete: Alert 0' }))
+    void act(() => vi.advanceTimersByTime(5000))
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Alert 0. unread' })).toBeNull()
+    expect(state.remove).toHaveBeenCalledOnce()
   })
 
-  it('renders notification items', () => {
-    mockIsLoading = false
-    mockUnreadCount = 1
-    mockNotifications = [
-      {
-        id: '1',
-        title: 'Test notification',
-        body: 'Test body',
-        isRead: false,
-        createdAtUtc: new Date().toISOString(),
-        url: null,
-        habitId: null,
-      },
-    ]
-    render(<NotificationBell />)
-    fireEvent.click(screen.getByLabelText(/notifications.bellWithCount/))
-    expect(screen.getByText('Test notification')).toBeInTheDocument()
-    expect(screen.getByText('Test body')).toBeInTheDocument()
-  })
-
-  it('shows mark all read button when there are unread notifications', () => {
-    mockIsLoading = false
-    mockUnreadCount = 2
-    mockNotifications = [
-      {
-        id: '1',
-        title: 'N1',
-        body: 'B1',
-        isRead: false,
-        createdAtUtc: new Date().toISOString(),
-        url: null,
-        habitId: null,
-      },
-    ]
-    render(<NotificationBell />)
-    fireEvent.click(screen.getByLabelText(/notifications.bellWithCount/))
-    expect(
-      screen.getByRole('button', { name: 'notifications.markAllRead' }),
-    ).toBeInTheDocument()
-  })
-
-  it('has aria-expanded attribute', () => {
-    mockUnreadCount = 0
-    render(<NotificationBell />)
-    const btn = screen.getByLabelText('notifications.bell')
-    expect(btn).toHaveAttribute('aria-expanded', 'false')
-    fireEvent.click(btn)
-    expect(btn).toHaveAttribute('aria-expanded', 'true')
-  })
-
-  it('queues single deletes with undo instead of deleting immediately', () => {
-    let undoAction: (() => void) | undefined
-    mockNotifications = [
-      {
-        id: '1',
-        title: 'Test notification',
-        body: 'Test body',
-        isRead: false,
-        createdAtUtc: new Date().toISOString(),
-        url: null,
-        habitId: null,
-      },
-    ]
-    mockUnreadCount = 1
-    showQueued.mockImplementation((_message, _label, onAction) => {
-      undoAction = onAction
-    })
-
-    render(<NotificationBell />)
-    fireEvent.click(screen.getByLabelText(/notifications.bellWithCount/))
-    fireEvent.click(screen.getByLabelText('notifications.deleteNotification'))
-
-    expect(showQueued).toHaveBeenCalled()
-    expect(screen.queryByText('Test notification')).not.toBeInTheDocument()
-    expect(deleteNotificationMutate).not.toHaveBeenCalled()
-
-    act(() => {
-      undoAction?.()
-    })
-
-    expect(screen.getByText('Test notification')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByLabelText('notifications.deleteNotification'))
-    vi.advanceTimersByTime(5000)
-
-    expect(deleteNotificationMutate).toHaveBeenCalledWith('1')
-  })
-
-  it('opens a confirmation dialog before deleting all notifications', () => {
-    mockNotifications = [
-      {
-        id: '1',
-        title: 'Test notification',
-        body: 'Test body',
-        isRead: false,
-        createdAtUtc: new Date().toISOString(),
-        url: null,
-        habitId: null,
-      },
-    ]
-
-    render(<NotificationBell />)
-    fireEvent.click(screen.getByLabelText(/notifications.bellWithCount/))
-    fireEvent.click(screen.getByLabelText('notifications.deleteAll'))
-
-    expect(screen.getByText('notifications.deleteAllConfirmTitle')).toBeInTheDocument()
-    expect(deleteAllMutate).not.toHaveBeenCalled()
-  })
-
-  it('preserves queued notification deletes across unmounts', () => {
-    mockNotifications = [
-      {
-        id: '1',
-        title: 'Test notification',
-        body: 'Test body',
-        isRead: false,
-        createdAtUtc: new Date().toISOString(),
-        url: null,
-        habitId: null,
-      },
-    ]
-    mockUnreadCount = 1
-
-    const firstRender = render(<NotificationBell />)
-    fireEvent.click(screen.getByLabelText(/notifications.bellWithCount/))
-    fireEvent.click(screen.getByLabelText('notifications.deleteNotification'))
-    firstRender.unmount()
-
-    render(<NotificationBell />)
-    fireEvent.click(screen.getByLabelText('notifications.bell'))
-    expect(screen.queryByText('Test notification')).not.toBeInTheDocument()
-
-    act(() => {
-      vi.advanceTimersByTime(5000)
-    })
-
-    expect(deleteNotificationMutate).toHaveBeenCalledWith('1')
+  it.each(['en', 'pt-BR'])('names the count and irreversible clear in %s, asks first, and clears pending undo', (locale) => {
+    state.locale = locale
+    seed(2)
+    const messages = locale === 'en' ? en : pt
+    const view = showInbox()
+    fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteAll }))
+    expect(screen.getByText(messages.notifications.deleteAllConfirmDescription.replace('{count}', '2'))).toBeInTheDocument()
+    expect(state.clear).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: messages.common.cancel }))
+    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+    fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteNotification.replace('{title}', 'Alert 0') }))
+    fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteAll }))
+    fireEvent.click(screen.getByRole('button', { name: messages.notifications.delete }))
+    view.rerender(<><NotificationInbox /><NotificationDeleteNotice /></>)
+    expect(screen.getByText(messages.notifications.empty)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: messages.notifications.deleteUndo })).toBeNull()
+    void act(() => vi.advanceTimersByTime(5000))
+    expect(state.remove).not.toHaveBeenCalled()
   })
 })

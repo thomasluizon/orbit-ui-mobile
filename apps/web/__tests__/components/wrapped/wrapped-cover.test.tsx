@@ -26,7 +26,7 @@ vi.mock('@/components/ui/pill-button', () => ({
     <button type="button" disabled={disabled} onClick={onClick}>{children}</button>
   ),
 }))
-vi.mock('@/components/ui/satellite-glyph', () => ({ SatelliteGlyph: () => <span data-testid="glyph" /> }))
+vi.mock('@/components/ui/orbit-mark', () => ({ OrbitMark: () => <span data-testid="glyph" /> }))
 vi.mock('@/app/(app)/wrapped/_components/wrapped-styles', () => ({ coverTitleStyle: {}, coverSubtitleStyle: {} }))
 
 import { WrappedCover } from '@/app/(app)/wrapped/_components/wrapped-cover'
