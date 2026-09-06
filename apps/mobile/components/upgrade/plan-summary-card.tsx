@@ -19,7 +19,7 @@ export function PlanSummaryCard({
   return (
     <View style={[styles.billingCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-        <Text accessibilityRole="header" style={[styles.billingHeading, { color: tokens.fg1 }]}>{planLabel}</Text>
+        <Text accessibilityRole="header" style={[styles.billingHeading, { color: tokens.fg1, lineHeight: 26.4 }]}>{planLabel}</Text>
         {badges}
       </View>
       {body ? <Text style={[styles.billingBody, { color: tokens.fg2 }]}>{body}</Text> : null}

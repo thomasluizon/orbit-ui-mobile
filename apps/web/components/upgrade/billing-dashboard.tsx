@@ -61,10 +61,10 @@ function PlanSummary({ status, billing, locale, t }: Readonly<{
   return (
     <section className="flex flex-col gap-3 rounded-[var(--r-card)] p-6" style={cardSurface}>
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="min-w-max flex-1 font-display text-[22px] font-medium leading-[1.4] tracking-[-0.02em] text-[var(--fg-1)]">{t(summary.nameKey)}</h2>
+        <h2 className="min-w-max flex-1 font-display text-[22px] font-medium leading-[1.2] tracking-[-0.02em] text-[var(--fg-1)]">{t(summary.nameKey)}</h2>
         {summary.badgeKey ? <Badge>{t(summary.badgeKey)}</Badge> : null}
       </div>
-      <p className="t-body text-pretty text-[var(--fg-2)]">{t(summary.bodyKey, { limit: status.aiMessagesLimit })}</p>
+      <p className="t-body text-pretty" style={{ color: 'var(--fg-2)' }}>{t(summary.bodyKey, { limit: status.aiMessagesLimit })}</p>
       {price || summary.renewal ? <div className="flex flex-col gap-1 font-mono text-xs leading-[1.4] text-[var(--fg-2)]">
         {price ? <p>{price}</p> : null}
         {summary.renewal ? <p>{t(summary.renewalKey, { date: formatBillingDate(summary.renewal, locale) })}</p> : null}
@@ -134,7 +134,7 @@ function InvoiceHistory({ invoices, locale, state, t }: Readonly<{
 }>) {
   if (!invoices?.length) return null
   return (
-    <section className="flex flex-col gap-2 rounded-[var(--r-card)] p-6" style={cardSurface}>
+    <section className="flex flex-col gap-1">
       <h2 className="text-sm font-medium text-[var(--fg-2)]">{t('upgrade.billing.invoices.title')}</h2>
       <div className="flex flex-col gap-1">
         {invoices.map((invoice) => (

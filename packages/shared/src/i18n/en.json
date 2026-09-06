@@ -2206,7 +2206,10 @@
         "payment_failed": "Your subscription ended after a payment problem on {date}.",
         "expired": "Your subscription expired on {date}.",
         "fallback": "Your subscription has ended.",
-        "features": "Astra's higher daily limit, calendar sync, and the periodic retrospective are no longer active.",
+        "lostMessages": "Astra messages went back to {limit} a day.",
+        "lostCalendar": "Google Calendar no longer syncs.",
+        "lostRetrospective": "The periodic retrospective stopped.",
+        "paymentFix": "Update your payment method with the provider.",
         "action": "Subscribe again",
         "ended": "Your subscription ended on {date}.",
         "body": "The account went back to the free plan. Your habits, logs and goals are all still here, unchanged."

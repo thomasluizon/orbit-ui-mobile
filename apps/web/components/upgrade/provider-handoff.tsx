@@ -26,12 +26,12 @@ export function ProviderHandoff({ provider, state, onManage, t }: Readonly<{
           {provider === 'play' ? t('upgrade.billing.actions.managePlayHint') : t('upgrade.billing.actions.manageHint')}
         </p>
       </div>
-      {failed ? (
-        <div className="flex flex-col gap-3 rounded-[var(--r-well)] bg-[var(--bg-well)] p-4" role="alert">
+      <div role="alert" className={failed ? 'flex flex-col gap-3 rounded-[var(--r-well)] bg-[var(--bg-well)] p-4' : 'sr-only'}>
+        {failed ? <>
           <p className="t-body">{t('upgrade.billing.portalFailed')}</p>
           <p className="t-secondary">{t('upgrade.billing.portalFix')}</p>
-        </div>
-      ) : null}
+        </> : null}
+      </div>
       <div className="flex">
         <PillButton variant="primary" loading={opening} disabled={state === 'offline'} onClick={onManage}>
           {t(failed ? 'upgrade.billing.retry' : manageLabel)}

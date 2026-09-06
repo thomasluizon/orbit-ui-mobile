@@ -20,7 +20,7 @@ export function UsageCard({
   return (
     <View style={{ gap: 12 }}>
     <View style={{ gap: 8 }}>
-      <Text accessibilityRole="header" style={[styles.billingSecondary, { color: tokens.fg2 }]}>
+      <Text accessibilityRole="header" style={[styles.billingSecondary, { fontFamily: 'Geist_500Medium', color: tokens.fg2 }]}>
         {t('upgrade.billing.usage.title')}
       </Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>

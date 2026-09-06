@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { useTranslations } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import { UsageStats } from '@/components/upgrade/usage-stats'
+import { ProviderHandoff } from '@/components/upgrade/provider-handoff'
 
 const mockOpenCustomerPortal = vi.hoisted(() => vi.fn())
 const mockGoBackOrFallback = vi.hoisted(() => vi.fn())
@@ -152,6 +153,29 @@ function UsageStatsWithoutProfile() {
 }
 
 describe('UpgradePage subscription management', () => {
+  it('exposes each outcome as a heading in the pitch', () => {
+    render(<UpgradePage />)
+    for (const outcome of ['calendar', 'retrospective', 'noticing']) {
+      expect(screen.getByRole('heading', { name: `upgrade.outcomes.${outcome}.title`, level: 3 })).toBeInTheDocument()
+    }
+  })
+
+  it('updates one mounted portal alert through failure and retry', () => {
+    function Handoff({ state }: { state: 'stripe' | 'portal-failed' }) {
+      const t = useTranslations()
+      return <ProviderHandoff provider="stripe" state={state} onManage={() => {}} t={t} />
+    }
+    const { rerender } = render(<Handoff state="stripe" />)
+    const alert = screen.getByRole('alert')
+    expect(alert).toBeEmptyDOMElement()
+    rerender(<Handoff state="portal-failed" />)
+    expect(screen.getByRole('alert')).toBe(alert)
+    expect(alert).toHaveTextContent('upgrade.billing.portalFailed')
+    rerender(<Handoff state="stripe" />)
+    expect(screen.getByRole('alert')).toBe(alert)
+    expect(alert).toBeEmptyDOMElement()
+  })
+
   beforeEach(() => {
     vi.stubGlobal('ResizeObserver', class {
       observe() {}
@@ -776,14 +800,27 @@ describe('UpgradePage subscription management', () => {
     }
     render(<UpgradePage />)
     expect(screen.getByText('upgrade.billing.lapsed.title')).toBeInTheDocument()
-    expect(document.body.textContent).not.toContain(`upgrade.billing.lapsed.${lapseReason}`)
-    expect(document.body.textContent).toContain('upgrade.billing.lapsed.ended')
+    const endedKey = lapseReason === 'payment_failed' ? 'payment_failed' : 'ended'
+    expect(document.body.textContent).toContain(`upgrade.billing.lapsed.${endedKey}`)
     expect(document.body.textContent).toContain('2026-08-01')
     expect(document.body.textContent).toContain('upgrade.billing.usage.title')
-    expect(screen.getByText('upgrade.billing.lapsed.features')).toBeInTheDocument()
+    expect(screen.getByText('upgrade.billing.lapsed.lostCalendar')).toBeInTheDocument()
+    expect(screen.getByText('upgrade.billing.lapsed.lostRetrospective')).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('upgrade.convert.freeHeading')
     fireEvent.click(screen.getByRole('button', { name: 'upgrade.billing.lapsed.action' }))
     expect(document.body.textContent).toContain('upgrade.convert.freeHeading')
+    expect(screen.getByRole('heading', { name: 'upgrade.convert.freeHeading' })).toHaveFocus()
+    expect(screen.queryByText('upgrade.billing.lapsed.title')).not.toBeInTheDocument()
+  })
+
+  it.each(['stripe', 'play'])('names an entitled %s payment failure without billing details', (source) => {
+    mockHasProAccess = true
+    mockProfile = { ...mockProfile, isTrialActive: false, subscriptionSource: source, lapseReason: 'payment_failed' }
+    mockBilling = null
+    render(<UpgradePage />)
+    expect(screen.getByText('upgrade.billing.plan.pastDue')).toBeInTheDocument()
+    expect(document.body.textContent).toContain('upgrade.billing.plan.pastDueBody')
+    expect(screen.getByRole('button', { name: source === 'play' ? 'upgrade.billing.actions.managePlay' : 'upgrade.billing.actions.manage' })).toBeEnabled()
     expect(screen.queryByText('upgrade.billing.lapsed.title')).not.toBeInTheDocument()
   })
 

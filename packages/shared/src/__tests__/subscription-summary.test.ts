@@ -53,9 +53,9 @@ describe('subscriptionSummary', () => {
     })
   })
 
-  it('keeps a Play payment retry on the renewal path', () => {
+  it('names a Play payment failure while keeping the renewal path', () => {
     expect(subscriptionSummary({ ...status, source: 'play', lapseReason: 'payment_failed' }, null)).toMatchObject({
-      bodyKey: 'upgrade.billing.plan.proBody', badgeKey: null,
+      bodyKey: 'upgrade.billing.plan.pastDueBody', badgeKey: 'upgrade.billing.plan.pastDue',
       renewal: status.planExpiresAt, renewalKey: 'upgrade.billing.plan.renewsOn',
     })
   })

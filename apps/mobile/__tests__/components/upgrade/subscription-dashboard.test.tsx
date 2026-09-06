@@ -1,5 +1,5 @@
 import React from 'react'
-import { Linking, StyleSheet, type PressableStateCallbackType, type StyleProp, type ViewStyle } from 'react-native'
+import { AccessibilityInfo, Linking, StyleSheet, type PressableStateCallbackType, type StyleProp, type ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import type { SubscriptionStatus } from '@orbit/shared/types/profile'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
@@ -8,12 +8,13 @@ import { createTokensV2 } from '@/lib/theme'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
+import { ProviderHandoff } from '@/components/upgrade/provider-handoff'
 import type { UpgradeTextFn } from '@/components/upgrade/types'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 
 vi.mock('react-native', async (importOriginal) => {
   const native = await importOriginal<typeof import('react-native')>()
-  return { ...native, Linking: { openURL: vi.fn() } }
+  return { ...native, Linking: { openURL: vi.fn() }, AccessibilityInfo: { ...native.AccessibilityInfo, sendAccessibilityEvent: vi.fn() } }
 })
 
 vi.mock('@/components/upgrade/plan-summary-card', () => ({
@@ -44,6 +45,7 @@ type RenderedTree = {
       { type: unknown; props: Record<string, unknown> }[]
   }
   toJSON: () => unknown
+  update: (element: React.ReactElement) => void
 }
 
 const t: UpgradeTextFn = (key, params) =>
@@ -135,6 +137,29 @@ function renderPricing(
 }
 
 describe('subscription dashboards (mobile)', () => {
+  it('focuses the pitch heading only after an explicit resubscribe', () => {
+    vi.mocked(AccessibilityInfo.sendAccessibilityEvent).mockClear()
+    renderPricing()
+    expect(AccessibilityInfo.sendAccessibilityEvent).not.toHaveBeenCalled()
+    renderPricing({ focusOnMount: true })
+    expect(AccessibilityInfo.sendAccessibilityEvent).toHaveBeenCalledWith(expect.any(Object), 'focus')
+    expect(AccessibilityInfo.sendAccessibilityEvent).toHaveBeenCalledTimes(1)
+  })
+
+  it('updates one mounted portal error announcement through failure and retry', () => {
+    const element = (state: 'stripe' | 'portal-failed') => <ProviderHandoff provider="stripe" state={state} onManage={() => {}} t={t} tokens={tokens} />
+    const tree = render(element('stripe'))
+    const region = tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'alert')[0]
+    expect(region).toBeDefined()
+    expect(region?.props.accessibilityLiveRegion).toBe('assertive')
+    expect(renderedText(tree)).not.toContain('upgrade.billing.portalFailed')
+    TestRenderer.act(() => tree.update(element('portal-failed')))
+    expect(tree.root.findAll((node) => node.type === 'View' && node.props.accessibilityRole === 'alert')[0]).toBe(region)
+    expect(renderedText(tree)).toContain('upgrade.billing.portalFailed')
+    TestRenderer.act(() => tree.update(element('stripe')))
+    expect(renderedText(tree)).not.toContain('upgrade.billing.portalFailed')
+  })
+
   it('reports an invoice handoff failure and clears it when the hosted invoice retry succeeds', async () => {
     const openURL = vi.spyOn(Linking, 'openURL').mockRejectedValueOnce(new Error('unavailable')).mockResolvedValueOnce(undefined)
     const url = 'https://billing.test/hosted-invoice'
@@ -409,6 +434,19 @@ describe('subscription dashboards (mobile)', () => {
     )
   })
 
+  it('names a failed Play renewal while keeping entitled access and the provider action', () => {
+    const tree = render(<PlayBillingDashboard
+      status={{ ...status, source: 'play', lapseReason: 'payment_failed' }}
+      locale="en" usagePercent={16} usageProfile={status} portalState="idle" isOnline
+      onManagePlay={() => {}} t={t} tokens={tokens} />)
+    const summary = tree.root.findByType('PlanSummaryCard')
+    expect(summary.props.body).toBe('upgrade.billing.plan.pastDueBody:{"limit":50}')
+    expect(renderedText(tree)).toContain('upgrade.billing.plan.pastDue')
+    expect(renderedText(tree)).toContain('upgrade.billing.actions.managePlay')
+    expect((summary.props.facts as string[]).join(' ')).toContain('upgrade.billing.plan.renewsOn:')
+    expect(renderedText(tree)).not.toContain('upgrade.billing.lapsed.title')
+  })
+
   it('labels entitled Play cancellation as access ending and keeps its price and handoff', () => {
     const tree = render(<PlayBillingDashboard
       status={{ ...status, source: 'play', lapseReason: 'canceled' }} displayPrice="R$ 99,90"
@@ -507,8 +545,7 @@ describe('subscription dashboards (mobile)', () => {
     )).toHaveLength(0)
     const outcomes = tree.root.findAll((node) => node.type === 'View'
       && node.props.accessibilityLabel === 'upgrade.outcomes.label')
-    expect(outcomes).toHaveLength(1)
-    expect(outcomes[0]?.props.accessible).toBe(true)
+    expect(outcomes).toHaveLength(0)
     expect(text).toContain('upgrade.convert.promise')
     expect(text).toContain('upgrade.convert.trustLine')
     expect(text).toContain('upgrade.convert.cancelAnytime')
@@ -577,13 +614,13 @@ describe('subscription dashboards (mobile)', () => {
     expect(renderedText(online)).toContain('upgrade.restorePurchase')
 
     const restoring = renderPricing({ plans, isOnline: false, isRestoring: true })
-    expect(renderedText(restoring)).not.toContain('upgrade.restorePurchase')
+    expect(renderedText(restoring)).toContain('upgrade.restorePurchase')
     const restoreButton = restoring.root.findAll(
       (node) => node.type === 'Pressable'
         && node.props.accessibilityRole === 'button'
         && (node.props.hitSlop as { top?: number } | undefined)?.top === 6,
     )[0]
-    expect(restoreButton?.props.accessibilityState).toEqual({ disabled: true })
+    expect(restoreButton?.props.accessibilityState).toEqual({ disabled: true, busy: true })
 
     const offlinePlans = renderPricing({ plans, isOnline: false, isRestoring: false })
     expect(renderedText(offlinePlans)).toContain('upgrade.restorePurchase')
@@ -592,7 +629,7 @@ describe('subscription dashboards (mobile)', () => {
         && node.props.accessibilityRole === 'button'
         && (node.props.hitSlop as { top?: number } | undefined)?.top === 6,
     )[0]
-    expect(offlineRestore?.props.accessibilityState).toEqual({ disabled: true })
+    expect(offlineRestore?.props.accessibilityState).toEqual({ disabled: true, busy: false })
   })
 
   it.each([
@@ -609,7 +646,7 @@ describe('subscription dashboards (mobile)', () => {
       for (const [onPress, disabled] of [[onRestore, restoreDisabled], [onStayFree, declineDisabled]] as const) {
         const action = tree.root.findAll((node) => node.type === 'Pressable' && node.props.onPress === onPress)[0]!
         expect(action.props.disabled).toBe(disabled)
-        expect(action.props.accessibilityState).toEqual({ disabled })
+        expect(action.props.accessibilityState).toMatchObject({ disabled })
         const resolveStyle = action.props.style as (state: PressableStateCallbackType) => StyleProp<ViewStyle>
         for (const pressed of [false, true]) {
           const style = StyleSheet.flatten(resolveStyle({ pressed }))
