@@ -23843,6 +23843,7 @@
         "apps/web/__tests__/app/today-astra-surfaces.test.tsx",
         "apps/web/__tests__/app/today-initial-data.test.ts",
         "apps/web/__tests__/app/today-model.test.ts",
+        "apps/web/__tests__/app/today-overlays.test.tsx",
         "apps/web/__tests__/app/today-page.test.tsx",
         "apps/web/__tests__/app/today-preload-hydration.test.tsx",
         "apps/web/__tests__/app/today-provider.test.tsx",
@@ -23894,6 +23895,7 @@
       ],
       "apps/web/components": [
         "apps/web/__tests__/app/chat-page-desktop-handoff.test.tsx",
+        "apps/web/__tests__/app/today-overlays.test.tsx",
         "apps/web/__tests__/app/today-page.test.tsx",
         "apps/web/__tests__/app/use-today-selection.test.tsx",
         "apps/web/__tests__/components/calendar/calendar-agenda-view.test.tsx",
@@ -23946,6 +23948,7 @@
         "apps/web/__tests__/components/habits/habit-detail-screen.test.tsx",
         "apps/web/__tests__/components/habits/habit-emoji-selector.test.tsx",
         "apps/web/__tests__/components/habits/habit-form-fields.test.tsx",
+        "apps/web/__tests__/components/habits/habit-list-overlay-guards.test.ts",
         "apps/web/__tests__/components/habits/habit-list.test.tsx",
         "apps/web/__tests__/components/habits/habit-log-button.test.tsx",
         "apps/web/__tests__/components/habits/habit-row.test.tsx",
