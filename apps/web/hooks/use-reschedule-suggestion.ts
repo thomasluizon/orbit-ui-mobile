@@ -4,6 +4,7 @@ import { fetchWithThrottle } from '@/lib/throttle-fetch'
 import { useQuery } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
+import { ApiClientError } from '@orbit/shared/utils'
 import type {
   RescheduleSuggestion,
   RescheduleSuggestionResponse,
@@ -34,7 +35,7 @@ export function useRescheduleSuggestion({
       )
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null
-        throw new Error(body?.error ?? 'Failed to fetch reschedule suggestion')
+        throw new ApiClientError(res.status, body?.error ?? 'Failed to fetch reschedule suggestion')
       }
       const data = (await res.json()) as RescheduleSuggestionResponse
       return data.suggestion

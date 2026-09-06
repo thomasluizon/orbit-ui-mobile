@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { subscriptionKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
-import { isMissingBillingStatus } from '@orbit/shared/utils'
+import { ApiClientError, isMissingBillingStatus } from '@orbit/shared/utils'
 
 async function fetchBillingDetails(): Promise<BillingDetails | null> {
   const res = await fetchWithThrottle(API.subscription.billing)
@@ -14,7 +14,7 @@ async function fetchBillingDetails(): Promise<BillingDetails | null> {
   }
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string; message?: string } | null
-    throw new Error(body?.error ?? body?.message ?? `Failed with status ${res.status}`)
+    throw new ApiClientError(res.status, body?.error ?? body?.message ?? `Failed with status ${res.status}`)
   }
   return res.json() as Promise<BillingDetails>
 }

@@ -10,6 +10,7 @@ import {
 import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import {
+  ApiClientError,
   buildCalendarDayMap,
   formatAPIDate,
   splitCalendarMonthRange,
@@ -25,7 +26,7 @@ async function fetchCalendarMonth(
   const res = await fetchWithThrottle(url)
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null
-    throw new Error(body?.error ?? `Failed with status ${res.status}`)
+    throw new ApiClientError(res.status, body?.error ?? `Failed with status ${res.status}`)
   }
   return res.json() as Promise<CalendarMonthResponse>
 }
