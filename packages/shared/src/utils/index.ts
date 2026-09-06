@@ -74,7 +74,7 @@ export {
   validateApiResponse,
 } from './error-utils'
 export { isFeatureEnabled } from './config'
-export { stripInlineMarkdown } from './markdown'
+export { getMarkdownImageLabel, stripInlineMarkdown } from './markdown'
 export {
   resolveShellDestination,
   SHELL_DESTINATION_ROUTES,

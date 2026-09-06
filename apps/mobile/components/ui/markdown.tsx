@@ -7,6 +7,7 @@ import RNMarkdown, {
 } from 'react-native-marked'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { getMarkdownImageLabel } from '@orbit/shared/utils'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -97,11 +98,11 @@ class SafeLinkRenderer extends Renderer implements RendererInterface {
   }
 
   override image(_uri: string, alt?: string, _style?: ImageStyle, title?: string): ReactNode {
-    return <Text selectable key={this.getKey()} style={this.textStyles}>{alt || title || ''}</Text>
+    return <Text selectable key={this.getKey()} style={this.textStyles}>{getMarkdownImageLabel(alt || title || '')}</Text>
   }
 
   override linkImage(href: string, _imageUrl: string, alt?: string, _style?: ImageStyle, title?: string | null): ReactNode {
-    return this.link(alt || title || '', href, this.textStyles)
+    return this.link(getMarkdownImageLabel(alt || title || ''), href, this.textStyles)
   }
 }
 

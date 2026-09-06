@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { marked, Renderer, type Tokens } from 'marked'
 import DOMPurify from 'dompurify'
+import { getMarkdownImageLabel } from '@orbit/shared/utils'
 
 interface MarkdownProps {
   content: string
@@ -63,7 +64,7 @@ class ProseRenderer extends Renderer {
   }
 
   override image({ text, title }: Tokens.Image): string {
-    return escapeHtml(text || title || '')
+    return escapeHtml(getMarkdownImageLabel(text || title || ''))
   }
 
   override hr(): string {

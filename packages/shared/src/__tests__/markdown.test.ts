@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { stripInlineMarkdown } from '../utils/markdown'
+import { getMarkdownImageLabel, stripInlineMarkdown } from '../utils/markdown'
+
+describe('semantic image labels', () => {
+  it.each([
+    ['**bold** A &amp; B', 'bold A & B'],
+    ['a \\* b', 'a * b'],
+    ['&#42;literal&#42; &amp;amp; &#65; &#x1F680;', '*literal* &amp; A 🚀'],
+    ['***nested*** ~~removed~~ [A &amp; B](x) ![**child**](x)', 'nested removed A & B child'],
+    ['**bold** <b title="&amp;">&amp;</b>', 'bold <b title="&amp;">&</b>'],
+    ['`\\* &amp;` and \\&amp;', '\\* &amp; and &amp;'],
+    ['a  \nb &amp; c', 'a\nb & c'],
+    ['<script>literal &amp;</script> &amp;', '<script>literal &amp;</script> &'],
+  ])('flattens %s without losing literal text', (source, label) => {
+    expect(getMarkdownImageLabel(source)).toBe(label)
+  })
+})
 
 describe('stripInlineMarkdown', () => {
   it('strips bold and italic markers but keeps the text', () => {

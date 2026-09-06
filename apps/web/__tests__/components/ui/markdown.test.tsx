@@ -4,6 +4,25 @@ import { render } from '@testing-library/react'
 import { Markdown } from '@/components/ui/markdown'
 
 describe('Markdown', () => {
+  describe.each(['bare', 'linked'])('%s image labels', (context) => {
+    it.each([
+      ['**bold**', 'bold'],
+      ['A &amp; B', 'A & B'],
+      ['a \\* b', 'a * b'],
+      ['**bold** <b title="&amp;">x</b>', 'bold <b title="&amp;">x</b>'],
+      ['***nested*** ~~removed~~ `&amp;`', 'nested removed &amp;'],
+      ['&#42;literal&#42; &amp;amp; &#x1F680; \\&amp;', '*literal* &amp; 🚀 &amp;'],
+    ])('renders semantic plain text for %s', (source, label) => {
+      const image = `![${source}](https://example.com/i.png)`
+      const content = context === 'linked' ? `[${image}](https://example.com/path)` : image
+      const { container, getByRole } = render(<Markdown content={content} />)
+      expect(container.textContent.trimEnd()).toBe(label)
+      expect(container.querySelector('img, b, strong, em, del, code')).toBeNull()
+      if (context === 'linked') expect(getByRole('link', { name: label })).toHaveAttribute('href', 'https://example.com/path')
+      else expect(container.querySelector('a')).toBeNull()
+    })
+  })
+
   it.each([
     '<a href="https://example.com">docs</a>',
     '<div><a href="http://example.com">docs</a></div>',

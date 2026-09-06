@@ -5,6 +5,25 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { Markdown } from '@/components/ui/markdown'
 
 describe('Markdown server rendering', () => {
+  describe.each(['bare', 'linked'])('%s image labels', (context) => {
+    it.each([
+      ['**bold**', 'bold'],
+      ['A &amp; B', 'A &amp; B'],
+      ['a \\* b', 'a * b'],
+      ['**bold** <b title="&amp;">x</b>', 'bold &lt;b title=&quot;&amp;amp;&quot;&gt;x&lt;/b&gt;'],
+      ['***nested*** ~~removed~~ `&amp;`', 'nested removed &amp;amp;'],
+      ['&#42;literal&#42; &amp;amp; &#x1F680; \\&amp;', '*literal* &amp;amp; 🚀 &amp;amp;'],
+    ])('renders semantic plain text for %s', (source, label) => {
+      const image = `![${source}](https://example.com/i.png)`
+      const content = context === 'linked' ? `[${image}](https://example.com/path)` : image
+      const markup = renderToStaticMarkup(<Markdown content={content} />)
+      expect(markup).toContain(context === 'linked'
+        ? `<a href="https://example.com/path" target="_blank" rel="noopener noreferrer">${label}</a>`
+        : `<p>${label}</p>`)
+      expect(markup).not.toMatch(/<(?:img|b|strong|em|del|code)\b/)
+    })
+  })
+
   it.each([
     '[docs](https://markdown.invalid/path)',
     '[docs](//markdown.invalid/path)',

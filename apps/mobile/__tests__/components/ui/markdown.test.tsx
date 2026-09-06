@@ -85,6 +85,32 @@ function renderParsedMarkdown(content: string) {
 }
 
 describe('mobile Markdown wrapper', () => {
+  describe.each(['bare', 'linked'])('%s image labels', (context) => {
+    it.each([
+      ['**bold**', 'bold'],
+      ['A &amp; B', 'A & B'],
+      ['a \\* b', 'a * b'],
+      ['**bold** <b title="&amp;">x</b>', 'bold <b title="&amp;">x</b>'],
+      ['***nested*** ~~removed~~ `&amp;`', 'nested removed &amp;'],
+      ['&#42;literal&#42; &amp;amp; &#x1F680; \\&amp;', '*literal* &amp; 🚀 &amp;'],
+    ])('renders semantic plain text for %s', (source, label) => {
+      const image = `![${source}](https://example.com/i.png)`
+      const content = context === 'linked' ? `[${image}](https://example.com/path)` : image
+      const tree = renderParsedMarkdown(content)
+      const text = tree.root.findAllByType('Text').find((node: { children: unknown[] }) => node.children.every((child) => typeof child === 'string'))
+      expect(text.children.join('')).toBe(label)
+      expect(tree.root.findAllByType('Image')).toHaveLength(0)
+      if (context === 'linked') {
+        expect(text.props.accessibilityRole).toBe('link')
+        text.props.onPress()
+        expect(openURL).toHaveBeenCalledExactlyOnceWith('https://example.com/path')
+      } else {
+        expect(text.props.style).toMatchObject({ color: createTokensV2('purple', 'dark').fg2 })
+        expect(openURL).not.toHaveBeenCalled()
+      }
+    })
+  })
+
   beforeEach(() => {
     openURL.mockClear()
     themeSelection.currentTheme = 'dark'
