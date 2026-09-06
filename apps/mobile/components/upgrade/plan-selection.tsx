@@ -126,8 +126,8 @@ export function PlanSelection({
       <SegmentedControl
         label={t('upgrade.plans.intervalLabel')}
         options={[
-          { id: 'monthly', label: t('upgrade.plans.interval.monthly') },
-          { id: 'yearly', label: t('upgrade.plans.interval.annual') },
+          { value: 'monthly', label: t('upgrade.plans.interval.monthly') },
+          { value: 'yearly', label: t('upgrade.plans.interval.annual') },
         ]}
         value={selectedInterval}
         onChange={selectInterval}

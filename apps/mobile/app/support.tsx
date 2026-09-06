@@ -250,7 +250,6 @@ export default function SupportScreen() {
       edges={['top']}
     >
       <AppBar
-        back
         onBack={() => goBackOrFallback('/profile')}
         title={t('profile.support.title')}
         backLabel={t('common.backToProfile')}

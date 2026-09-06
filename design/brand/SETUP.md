@@ -63,7 +63,7 @@ work and lands after the accent grant, so this stays true for the whole canvas p
   shape. This is the only genuine loss. `DESIGN.md` recovers most of it: the **Primitives kit** table
   names all 22 primitives with the file path on both platforms, so paste that table when the tool
   needs to map a generated screen onto a real component. That happens at the SCREEN stage, not now.
-- **`apps/mobile`**: the 412px shell and the NativeWind idiom. Claude Design emits HTML and React, not
+- **`apps/mobile`**: the 412px shell and the React Native StyleSheet idiom. Claude Design emits HTML and React, not
   React Native, so it can act on almost none of this. Near zero loss.
 - **`packages/shared`**: the Zod contract types and the locked `theme/button.ts` size table. The
   contract types describe data, not design. The button geometry matters, and `DESIGN.md` **Buttons**

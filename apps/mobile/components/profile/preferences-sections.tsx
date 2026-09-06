@@ -66,7 +66,7 @@ export function PushNotificationSection({
 
   return (
     <>
-      <SectionLabel bottom={4}>{t('settings.notifications.title')}</SectionLabel>
+      <SectionLabel>{t('settings.notifications.title')}</SectionLabel>
       {pushSupported ? (
         <>
           <SettingsRow
@@ -198,7 +198,7 @@ export function PreferenceSettingsList({
   return (
     <>
       <Animated.View entering={sectionEntrance(0)}>
-        <SectionLabel bottom={4}>{t('preferences.general')}</SectionLabel>
+        <SectionLabel>{t('preferences.general')}</SectionLabel>
         <SettingsRow
           icon={Languages}
           label={t('profile.language.title')}
@@ -223,7 +223,7 @@ export function PreferenceSettingsList({
       </Animated.View>
 
       <Animated.View entering={sectionEntrance(1)}>
-        <SectionLabel bottom={4}>{t('settings.homeScreen.title')}</SectionLabel>
+        <SectionLabel>{t('settings.homeScreen.title')}</SectionLabel>
         <SettingsRow
           label={t('settings.homeScreen.showGeneral')}
           desc={t('settings.homeScreen.showGeneralDesc')}
