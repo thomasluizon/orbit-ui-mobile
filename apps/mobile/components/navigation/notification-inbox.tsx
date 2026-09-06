@@ -65,7 +65,7 @@ export function NotificationInbox() {
         onMarkAsRead={(id) => markAsRead.mutate(id)}
         onDelete={() => requestDeleteNotification(selected)} /> : null}
       <ConfirmSheet open={confirmOpen} title={t('notifications.deleteAllConfirmTitle')}
-        message={t('notifications.deleteAllConfirmDescription', { count: inbox.notifications.length })}
+        message={t('notifications.deleteAllConfirmDescription')}
         confirmLabel={t('notifications.delete')} destructive
         onCancel={() => setConfirmOpen(false)}
         onConfirm={() => {

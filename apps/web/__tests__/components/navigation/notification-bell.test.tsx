@@ -130,7 +130,7 @@ describe('alerts', () => {
     const row = screen.getByRole('listitem')
     expect(row.querySelector('[data-unread-dot]')).not.toBeNull()
     expect(row.querySelector('[data-notification-title]')).toHaveStyle({ fontWeight: 500 })
-    fireEvent.click(screen.getByRole('button', { name: 'Alert 0. unread' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Alert 0. unread. Progress' }))
     expect(screen.getByRole('button', { name: 'Mark as read' })).toBeInTheDocument()
     expect(state.mark).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Mark as read' }))
@@ -139,6 +139,18 @@ describe('alerts', () => {
     expect(row.querySelector('[data-unread-dot]')).toBeNull()
     expect(row.querySelector('[data-unread-column]')).not.toBeNull()
     expect(row.querySelector('[data-notification-title]')).toHaveStyle({ fontWeight: 400 })
+  })
+
+  it.each(['en', 'pt-BR'])('announces the title, read state and habit destination in %s', (locale) => {
+    state.locale = locale
+    const messages = locale === 'en' ? en : pt
+    state.notifications = [createMockNotification({ title: 'Reminder', url: '/', habitId: 'a12b34cd-1234-4567-89ab-123456789abc', isRead: false })]
+    state.unreadCount = 1
+    const view = showInbox()
+    expect(screen.getByRole('button', { name: `Reminder. ${messages.notifications.unread}. ${messages.notifications.habit}` })).toBeInTheDocument()
+    state.notifications[0] = { ...state.notifications[0]!, isRead: true }
+    view.rerender(<NotificationInbox />)
+    expect(screen.getByRole('button', { name: `Reminder. ${messages.notifications.read}. ${messages.notifications.habit}` })).toBeInTheDocument()
   })
 
   it('marks all read and removes the header action at zero', () => {
@@ -157,31 +169,31 @@ describe('alerts', () => {
     const remove = screen.getByRole('button', { name: 'Delete: Alert 0' })
     expect(remove.parentElement).toBe(screen.getAllByRole('listitem')[0])
     fireEvent.click(remove)
-    expect(screen.queryByRole('button', { name: 'Alert 0. unread' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Alert 0. unread. Progress' })).toBeNull()
     expect(state.remove).not.toHaveBeenCalled()
     void act(() => vi.advanceTimersByTime(4000))
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
-    expect(screen.getByRole('button', { name: 'Alert 0. unread' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Alert 0. unread. Progress' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
     void act(() => vi.advanceTimersByTime(5000))
     expect(state.remove).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Delete: Alert 0' }))
     void act(() => vi.advanceTimersByTime(5000))
     expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Alert 0. unread' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Alert 0. unread. Progress' })).toBeNull()
     expect(state.remove).toHaveBeenCalledOnce()
   })
 
-  it.each(['en', 'pt-BR'])('names the count and irreversible clear in %s, asks first, and clears pending undo', (locale) => {
+  it.each(['en', 'pt-BR'])('confirms the full scope and irreversible clear in %s, asks first, and clears pending undo', (locale) => {
     state.locale = locale
-    seed(2)
+    seed(50)
     const messages = locale === 'en' ? en : pt
     const view = showInbox()
     fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteAll }))
-    expect(screen.getByText(messages.notifications.deleteAllConfirmDescription.replace('{count}', '2'))).toBeInTheDocument()
+    expect(screen.getByText(locale === 'en' ? 'All alerts leave the list. There is no way to undo this.' : 'Todos os avisos saem da lista. Não há como desfazer.')).toBeInTheDocument()
     expect(state.clear).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: messages.common.cancel }))
-    expect(screen.getAllByRole('listitem')).toHaveLength(2)
+    expect(screen.getAllByRole('listitem')).toHaveLength(50)
     fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteNotification.replace('{title}', 'Alert 0') }))
     fireEvent.click(screen.getByRole('button', { name: messages.notifications.deleteAll }))
     fireEvent.click(screen.getByRole('button', { name: messages.notifications.delete }))

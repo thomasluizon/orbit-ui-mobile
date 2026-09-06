@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   getNotificationDetailActionVisibility,
+  getNotificationDestination,
   getNotificationInboxState,
   getNotificationTargetKey,
   isViewableNotificationUrl,
@@ -16,7 +17,6 @@ describe('notification-actions', () => {
     ['/calendar', 'nav.calendar'],
     ['/progress', 'nav.progress'],
     ['/profile', 'nav.profile'],
-    ['/habits/123', 'notifications.habit'],
     ['/streak', 'nav.progress'],
     ['/chat', 'nav.today'],
     ['/calendar-sync?mode=review', 'nav.calendar'],
@@ -25,12 +25,29 @@ describe('notification-actions', () => {
     expect(isViewableNotificationUrl(url)).toBe(true)
   })
 
+  it('labels the scheduler reminder as a habit target', () => {
+    const notification = createMockNotification({ url: '/', habitId: 'a12b34cd-1234-4567-89ab-123456789abc' })
+    expect(getNotificationTargetKey(notification.url, notification.habitId)).toBe('notifications.habit')
+    expect(getNotificationDetailActionVisibility(notification).canView).toBe(true)
+    expect(getNotificationDestination(notification.url, notification.habitId)).toEqual({
+      url: '/habits/a12b34cd-1234-4567-89ab-123456789abc', opensAstra: false,
+    })
+  })
+
   it.each(['/unknown', '/social', '/habits/../login', '/habits/%2e%2e', '/habits/one/edit', '//evil.com', '/profile/unknown'])(
     'never offers a view to the unsupported destination %s', (url) => {
       expect(getNotificationTargetKey(url)).toBeNull()
-      expect(getNotificationDetailActionVisibility({ url, isRead: false }).canView).toBe(false)
+      expect(getNotificationDestination(url, 'a12b34cd-1234-4567-89ab-123456789abc')).toBeNull()
+      expect(getNotificationDetailActionVisibility({ url, isRead: false, habitId: null }).canView).toBe(false)
     },
   )
+
+  it.each(['', '../profile', 'one?next=/profile', 'one#fragment', '%2e%2e'])('rejects a malformed habit target %s', (habitId) => {
+    const notification = createMockNotification({ url: '/', habitId })
+    expect(getNotificationDestination(notification.url, habitId)).toBeNull()
+    expect(getNotificationTargetKey(notification.url, habitId)).toBeNull()
+    expect(getNotificationDetailActionVisibility(notification).canView).toBe(false)
+  })
 
   it('uses the endpoint total and subtracts only pending unread items', () => {
     const unread = createMockNotification({ id: 'unread', isRead: false })
@@ -82,6 +99,7 @@ describe('notification-actions', () => {
       getNotificationDetailActionVisibility({
         isRead: false,
         url: '/profile',
+        habitId: null,
       }),
     ).toEqual({ canView: true, canMarkAsRead: true })
 
@@ -89,6 +107,7 @@ describe('notification-actions', () => {
       getNotificationDetailActionVisibility({
         isRead: true,
         url: null,
+        habitId: null,
       }),
     ).toEqual({ canView: false, canMarkAsRead: false })
   })

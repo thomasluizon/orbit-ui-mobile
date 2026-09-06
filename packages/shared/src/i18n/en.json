@@ -75,7 +75,7 @@
     "markAsRead": "Mark as read",
     "deleteAll": "Clear all",
     "deleteAllConfirmTitle": "Delete all alerts?",
-    "deleteAllConfirmDescription": "All {count} alerts leave the list. There is no way to undo this.",
+    "deleteAllConfirmDescription": "All alerts leave the list. There is no way to undo this.",
     "delete": "Delete",
     "deleteNotification": "Delete: {title}",
     "deleteUndo": "Undo",

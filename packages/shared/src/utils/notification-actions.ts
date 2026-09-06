@@ -45,17 +45,28 @@ export function resolveNotificationUrl(url: string): string {
 }
 
 export function getNotificationDetailActionVisibility(
-  notification: Pick<NotificationItem, 'isRead' | 'url'>,
+  notification: Pick<NotificationItem, 'isRead' | 'url' | 'habitId'>,
 ): { canView: boolean; canMarkAsRead: boolean } {
   return {
-    canView: isViewableNotificationUrl(notification.url),
+    canView: getNotificationDestination(notification.url, notification.habitId) !== null,
     canMarkAsRead: !notification.isRead,
   }
 }
 
-export function getNotificationTargetKey(url: string | null): string | null {
+export function getNotificationDestination(
+  url: string | null | undefined,
+  habitId: string | null = null,
+): { url: string; opensAstra: boolean } | null {
   if (!isViewableNotificationUrl(url)) return null
-  const pathname = resolveNotificationUrl(url).split(/[?#]/, 1)[0]
+  const destination = habitId === null ? resolveNotificationUrl(url) : `/habits/${encodeURIComponent(habitId)}`
+  if (!isViewableNotificationUrl(destination)) return null
+  return { url: destination, opensAstra: habitId === null && url.split(/[?#]/, 1)[0] === '/chat' }
+}
+
+export function getNotificationTargetKey(url: string | null, habitId: string | null = null): string | null {
+  const destination = getNotificationDestination(url, habitId)
+  if (!destination) return null
+  const pathname = destination.url.split(/[?#]/, 1)[0]
   switch (pathname) {
     case '/': return 'nav.today'
     case '/calendar': return 'nav.calendar'

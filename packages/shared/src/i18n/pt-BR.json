@@ -75,7 +75,7 @@
     "markAsRead": "Marcar como lida",
     "deleteAll": "Limpar tudo",
     "deleteAllConfirmTitle": "Apagar todos os avisos?",
-    "deleteAllConfirmDescription": "Os {count} avisos saem da lista. Não há como desfazer.",
+    "deleteAllConfirmDescription": "Todos os avisos saem da lista. Não há como desfazer.",
     "delete": "Apagar",
     "deleteNotification": "Apagar: {title}",
     "deleteUndo": "Desfazer",

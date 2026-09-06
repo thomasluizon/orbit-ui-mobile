@@ -365,6 +365,7 @@ export {
 export { formatNotificationRelativeTime } from './notification-time'
 export {
   getNotificationDetailActionVisibility,
+  getNotificationDestination,
   getNotificationTargetKey,
   getNotificationInboxState,
   isViewableNotificationUrl,

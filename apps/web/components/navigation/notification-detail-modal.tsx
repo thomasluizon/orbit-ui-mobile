@@ -6,8 +6,7 @@ import {
   formatNotificationRelativeTime,
   getNotificationDetailActionVisibility,
   getNotificationTargetKey,
-  isViewableNotificationUrl,
-  resolveNotificationUrl,
+  getNotificationDestination,
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { Button } from '@/components/ui/pill-button'
@@ -32,19 +31,19 @@ export function NotificationDetailModal({
 }: Readonly<NotificationDetailModalProps>) {
   const t = useTranslations()
   const wide = useIsWideDesktop()
-  const targetKey = getNotificationTargetKey(notification.url)
+  const targetKey = getNotificationTargetKey(notification.url, notification.habitId)
   const router = useRouter()
   const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const { canView, canMarkAsRead } = getNotificationDetailActionVisibility(notification)
   const { sheetRef, closeSheet } = useSheetHost()
 
   function handleView() {
-    const url = notification.url
-    if (!url || !isViewableNotificationUrl(url)) return
+    const destination = getNotificationDestination(notification.url, notification.habitId)
+    if (!destination) return
     closeSheet(() => {
       onOpenChange(false)
-      router.push(resolveNotificationUrl(url))
-      if (url.split(/[?#]/, 1)[0] === '/chat') setAstraConversationOpen(true)
+      router.push(destination.url)
+      if (destination.opensAstra) setAstraConversationOpen(true)
     })
   }
 

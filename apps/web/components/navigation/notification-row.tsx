@@ -11,12 +11,12 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
   onDelete: (item: NotificationItem) => void
 }>) {
   const t = useTranslations()
-  const targetKey = getNotificationTargetKey(item.url)
+  const targetKey = getNotificationTargetKey(item.url, item.habitId)
   return (
     <li data-read={item.isRead} className="flex items-stretch gap-1 rounded-[var(--r-well)]"
       style={item.isRead ? undefined : { background: 'var(--bg-card)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}>
       <button type="button" onClick={() => onOpen(item)}
-        aria-label={`${item.title}. ${t(item.isRead ? 'notifications.read' : 'notifications.unread')}`}
+        aria-label={`${item.title}. ${t(item.isRead ? 'notifications.read' : 'notifications.unread')}${targetKey ? `. ${t(targetKey)}` : ''}`}
         className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-start gap-3 rounded-[var(--r-well)] border-0 bg-transparent p-4 text-left hover:bg-[var(--bg-hover)]">
         <span aria-hidden="true" data-unread-column="" className="flex w-2 shrink-0 self-stretch items-center">
           {!item.isRead ? <span data-unread-dot="" className="size-2 rounded-full bg-[var(--fg-1)]" /> : null}

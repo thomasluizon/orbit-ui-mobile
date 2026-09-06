@@ -113,9 +113,9 @@ describe('NotificationDetailModal', () => {
 
   it.each([
     ['/', '/'], ['/calendar', '/calendar'], ['/profile', '/profile'],
-    ['/habits/123', '/habits/123'], ['/chat', '/'], ['/calendar-sync?mode=review', '/calendar'],
-  ])('opens %s in its existing destination %s', (url, destination) => {
-    render(<NotificationDetailModal {...defaultProps} notification={{ ...mockNotification, url }} />)
+    ['/', '/habits/a12b34cd-1234-4567-89ab-123456789abc', 'a12b34cd-1234-4567-89ab-123456789abc'], ['/chat', '/'], ['/calendar-sync?mode=review', '/calendar'],
+  ])('opens %s in its existing destination %s', (url, destination, habitId: string | null = null) => {
+    render(<NotificationDetailModal {...defaultProps} notification={{ ...mockNotification, url, habitId }} />)
     fireEvent.click(screen.getByRole('button', { name: /notifications.openIn/ }))
     expect(mockPush).toHaveBeenCalledWith(destination)
     expect(useUIStore.getState().astraConversationOpen).toBe(url === '/chat')

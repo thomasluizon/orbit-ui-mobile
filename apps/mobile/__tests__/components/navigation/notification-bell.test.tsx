@@ -167,7 +167,7 @@ describe('mobile alerts', () => {
     const tree = render()
     expect(testId(tree, 'notification-unread-dot')).toHaveLength(1)
     expect(StyleSheet.flatten(testId(tree, 'notification-title')[0]!.props.style)).toMatchObject({ fontFamily: 'Geist_500Medium' })
-    press(tree, 'Alert 0. unread')
+    press(tree, 'Alert 0. unread. Progress')
     expect(state.mark).not.toHaveBeenCalled()
     press(tree, 'Mark as read')
     refresh(tree)
@@ -176,6 +176,18 @@ describe('mobile alerts', () => {
     expect(StyleSheet.flatten(testId(tree, 'notification-title')[0]!.props.style)).toMatchObject({ fontFamily: 'Geist_400Regular' })
     expect(hosts(tree, 'Pressable', 'Mark as read')).toHaveLength(0)
   })
+  it.each(['en', 'pt-BR'])('announces the title, read state and habit destination in %s', (locale) => {
+    state.locale = locale
+    const messages = locale === 'en' ? en : pt
+    state.notifications = [createMockNotification({ title: 'Reminder', url: '/', habitId: 'a12b34cd-1234-4567-89ab-123456789abc', isRead: false })]
+    state.unreadCount = 1
+    const tree = render()
+    expect(hosts(tree, 'Pressable', `Reminder. ${messages.notifications.unread}. ${messages.notifications.habit}`)).toHaveLength(1)
+    state.notifications[0] = { ...state.notifications[0]!, isRead: true }
+    refresh(tree)
+    expect(hosts(tree, 'Pressable', `Reminder. ${messages.notifications.read}. ${messages.notifications.habit}`)).toHaveLength(1)
+  })
+
   it('marks all read and removes only the mark action', () => {
     seed(2)
     const tree = render()
@@ -188,33 +200,33 @@ describe('mobile alerts', () => {
   it('keeps delete outside the row body, restores on undo and dismisses on commit', () => {
     seed(2)
     const tree = render()
-    const body = hosts(tree, 'Pressable', 'Alert 0. unread')[0]!
+    const body = hosts(tree, 'Pressable', 'Alert 0. unread. Progress')[0]!
     expect(body.findAll((node) => node.props.accessibilityLabel === 'Delete: Alert 0')).toHaveLength(0)
     press(tree, 'Delete: Alert 0')
-    expect(hosts(tree, 'Pressable', 'Alert 0. unread')).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', 'Alert 0. unread. Progress')).toHaveLength(0)
     expect(state.remove).not.toHaveBeenCalled()
     TestRenderer.act(() => vi.advanceTimersByTime(4000))
     press(tree, 'Undo')
-    expect(hosts(tree, 'Pressable', 'Alert 0. unread')).toHaveLength(1)
+    expect(hosts(tree, 'Pressable', 'Alert 0. unread. Progress')).toHaveLength(1)
     expect(hosts(tree, 'Pressable', 'Undo')).toHaveLength(0)
     TestRenderer.act(() => vi.advanceTimersByTime(5000))
     expect(state.remove).not.toHaveBeenCalled()
     press(tree, 'Delete: Alert 0')
     TestRenderer.act(() => vi.advanceTimersByTime(5000))
     expect(hosts(tree, 'Pressable', 'Undo')).toHaveLength(0)
-    expect(hosts(tree, 'Pressable', 'Alert 0. unread')).toHaveLength(0)
+    expect(hosts(tree, 'Pressable', 'Alert 0. unread. Progress')).toHaveLength(0)
     expect(state.remove).toHaveBeenCalledOnce()
   })
-  it.each(['en', 'pt-BR'])('confirms the count and irreversible clear in %s', (locale) => {
+  it.each(['en', 'pt-BR'])('confirms the full scope and irreversible clear in %s', (locale) => {
     state.locale = locale
-    seed(2)
+    seed(50)
     const messages = locale === 'en' ? en : pt
     const tree = render()
     press(tree, messages.notifications.deleteAll)
-    expect(text(tree, messages.notifications.deleteAllConfirmDescription.replace('{count}', '2'))).toHaveLength(1)
+    expect(text(tree, locale === 'en' ? 'All alerts leave the list. There is no way to undo this.' : 'Todos os avisos saem da lista. Não há como desfazer.')).toHaveLength(1)
     expect(state.clear).not.toHaveBeenCalled()
     press(tree, messages.common.cancel)
-    expect(testId(tree, 'notification-unread')).toHaveLength(2)
+    expect(testId(tree, 'notification-unread')).toHaveLength(50)
     press(tree, messages.notifications.deleteNotification.replace('{title}', 'Alert 0'))
     press(tree, messages.notifications.deleteAll)
     press(tree, messages.notifications.delete)
@@ -227,10 +239,10 @@ describe('mobile alerts', () => {
   it.each([
     ['/streak', '/progress', en.nav.progress], ['/', '/', en.nav.today],
     ['/calendar', '/calendar', en.nav.calendar], ['/profile', '/profile', en.nav.profile],
-    ['/habits/123', '/habits/123', en.notifications.habit], ['/chat', '/', en.nav.today],
+    ['/', '/habits/a12b34cd-1234-4567-89ab-123456789abc', en.notifications.habit, 'a12b34cd-1234-4567-89ab-123456789abc'], ['/chat', '/', en.nav.today],
     ['/calendar-sync?mode=review', '/calendar', en.nav.calendar],
-  ])('navigates from detail %s to the target after closing', (url, destination, labelTarget) => {
-    const tree = render(<NotificationDetailModal open notification={createMockNotification({ url })}
+  ])('navigates from detail %s to the target after closing', (url, destination, labelTarget, habitId: string | null = null) => {
+    const tree = render(<NotificationDetailModal open notification={createMockNotification({ url, habitId })}
       onClose={vi.fn()} onMarkAsRead={vi.fn()} onDelete={vi.fn()} />)
     const label = en.notifications.openIn.replace('{target}', labelTarget)
     const target = hosts(tree, 'Pressable').find((node) => node.findAll((child) => child.type === 'Text' && child.props.children === label).length > 0)!

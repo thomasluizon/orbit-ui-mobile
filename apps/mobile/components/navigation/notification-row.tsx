@@ -14,12 +14,12 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const targetKey = getNotificationTargetKey(item.url)
+  const targetKey = getNotificationTargetKey(item.url, item.habitId)
   return (
     <View testID={item.isRead ? 'notification-read' : 'notification-unread'}
       style={[styles.wrapper, !item.isRead && { backgroundColor: tokens.bgCard, boxShadow: `inset 0 0 0 1px ${tokens.hairline}` }]}>
       <Pressable accessibilityRole="button"
-        accessibilityLabel={`${item.title}. ${t(item.isRead ? 'notifications.read' : 'notifications.unread')}`}
+        accessibilityLabel={`${item.title}. ${t(item.isRead ? 'notifications.read' : 'notifications.unread')}${targetKey ? `. ${t(targetKey)}` : ''}`}
         onPress={() => onOpen(item)}
         style={({ pressed }) => [styles.row, pressed && { backgroundColor: tokens.bgHover }]}>
         <View testID="notification-dot-column" style={styles.dotColumn}>
