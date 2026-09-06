@@ -4,6 +4,8 @@ import { createInstance } from 'i18next'
 import { I18nextProvider, initReactI18next } from 'react-i18next'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitsFilter, NormalizedHabit } from '@orbit/shared/types/habit'
+import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
+import { normalizeHabitQueryData } from '@orbit/shared/utils'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { renderedText } from '../support/react-test-renderer'
@@ -32,6 +34,21 @@ async function mount(locale = 'en') {
   const i18n = createInstance()
   await i18n.use(initReactI18next).init({ lng: locale, resources: { en: { translation: en }, 'pt-BR': { translation: ptBR } }, interpolation: { prefix: '{', suffix: '}', escapeValue: false } })
   await TestRenderer.act(() => { tree = TestRenderer.create(<I18nextProvider i18n={i18n}><SearchScreen /></I18nextProvider>) })
+}
+
+function descendantResult(depth: number) {
+  const target = { ...createMockHabit({ id: 'child', title: 'Walk to the shop', searchMatches: [{ field: 'title', value: null }] }), children: [] }
+  const branch = depth === 1 ? target : {
+    ...createMockHabit({ id: 'middle', title: 'Errands', hasSubHabits: true, searchMatches: [{ field: 'child', value: target.title }] }), children: [target],
+  }
+  const response = createPaginatedSchema(habitScheduleItemSchema).parse({
+    items: [{
+      ...createMockHabit({ id: 'parent', title: 'House routine', hasSubHabits: true, searchMatches: depth === 1 ? [{ field: 'child', value: target.title }] : null }),
+      linkedGoals: [], children: [{ ...createMockHabit({ id: 'sibling', title: 'Wash dishes' }), children: [] }, branch],
+    }],
+    page: 1, pageSize: 20, totalCount: 1, totalPages: 1,
+  })
+  return { ...result([]), data: normalizeHabitQueryData(response.items, response) }
 }
 
 function text() { return tree.root.findAll((node) => String(node.type) === 'Text').map((node) => renderedText(node.props.children)).join(' ') }
@@ -132,7 +149,7 @@ describe('mobile search', () => {
   })
 
   it.each(['log', 'skip'] as const)('opens the %s page, performs the selected action, and backs out first', async (page) => {
-    mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title: 'Walk', isOverdue: true })]))
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title: 'Walk', isOverdue: true, searchMatches: [{ field: 'title', value: null }] })]))
     await mount()
     await pressText(page === 'log' ? 'Log a habit' : 'Skip a habit')
     expect(mocks[page]).not.toHaveBeenCalled()
@@ -146,6 +163,21 @@ describe('mobile search', () => {
     await TestRenderer.act(() => { expect(dismissTopOverlay('system-back')).toBe(true) })
     expect(text()).toContain('Create habit')
     expect(mocks.back).not.toHaveBeenCalled()
+  })
+
+  it.each([{ page: 'log', depth: 1 }, { page: 'skip', depth: 1 }, { page: 'log', depth: 2 }, { page: 'skip', depth: 2 }] as const)('targets the descendant on the $page page at depth $depth', async ({ page, depth }) => {
+    mocks.query.mockReturnValue(descendantResult(depth))
+    await mount()
+    await pressText(page === 'log' ? 'Log a habit' : 'Skip a habit')
+    await type('walk')
+    expect(mocks.query).toHaveBeenLastCalledWith({ search: 'walk', page: 1, pageSize: 20 })
+    const choices = tree.root.findAll((node) => String(node.type) === 'Pressable' && node.props.role === 'option')
+    const onPress = choices[0]!.props.onPress as () => void
+    await TestRenderer.act(() => { onPress() })
+    expect(mocks[page]).toHaveBeenCalledWith(page === 'log' ? { habitId: 'child', intent: 'log' } : { habitId: 'child' }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    expect(choices).toHaveLength(1)
+    expect(choices[0]!.props.accessibilityLabel).toBe('Walk to the shop')
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
   it('shows a total no match on an empty action page', async () => {

@@ -27,7 +27,7 @@ export function buildCommandHabitList({
   habitsById,
   childrenByParent,
   topLevelHabits,
-}: CommandHabitListInput): CommandHabitEntry[] {
+}: CommandHabitListInput, searchQuery = ''): CommandHabitEntry[] {
   const visibility = createHabitVisibilityHelpers({
     habitsById,
     childrenByParent,
@@ -68,5 +68,7 @@ export function buildCommandHabitList({
     collectSubtree(habit.id, habit.title, 'all')
   }
 
-  return entries
+  return searchQuery.trim()
+    ? entries.filter(({ habit }) => habit.searchMatches?.some((match) => match.field !== 'child'))
+    : entries
 }

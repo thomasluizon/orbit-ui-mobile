@@ -5,6 +5,8 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
+import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
+import { normalizeHabitQueryData } from '@orbit/shared/utils'
 import { CommandMenu } from '@/components/command/command-menu'
 
 const mocks = vi.hoisted(() => ({ pending: false, push: vi.fn(), log: vi.fn(), skip: vi.fn(), query: vi.fn(), retry: vi.fn(), wide: false }))
@@ -19,6 +21,21 @@ function result(habits: NormalizedHabit[], pending = false, error = false) {
 
 function mount(resultsMode = false, locale = 'en', onCreate = vi.fn()) {
   return render(<NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : ptBR}><CommandMenu resultsMode={resultsMode} navItems={[]} onCreateHabit={onCreate} onClose={vi.fn()} /></NextIntlClientProvider>)
+}
+
+function descendantResult(depth: number) {
+  const target = { ...createMockHabit({ id: 'child', title: 'Walk to the shop', searchMatches: [{ field: 'title', value: null }] }), children: [] }
+  const branch = depth === 1 ? target : {
+    ...createMockHabit({ id: 'middle', title: 'Errands', hasSubHabits: true, searchMatches: [{ field: 'child', value: target.title }] }), children: [target],
+  }
+  const response = createPaginatedSchema(habitScheduleItemSchema).parse({
+    items: [{
+      ...createMockHabit({ id: 'parent', title: 'House routine', hasSubHabits: true, searchMatches: depth === 1 ? [{ field: 'child', value: target.title }] : null }),
+      linkedGoals: [], children: [{ ...createMockHabit({ id: 'sibling', title: 'Wash dishes' }), children: [] }, branch],
+    }],
+    page: 1, pageSize: 20, totalCount: 1, totalPages: 1,
+  })
+  return { ...result([]), data: normalizeHabitQueryData(response.items, response) }
 }
 
 beforeEach(() => {
@@ -89,7 +106,7 @@ describe('habit search', () => {
   })
 
   it.each(['log', 'skip'] as const)('selects a habit only after opening the %s page', async (page) => {
-    mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title: 'Walk', isOverdue: true })]))
+    mocks.query.mockReturnValue(result([createMockHabit({ id: 'habit', title: 'Walk', isOverdue: true, searchMatches: [{ field: 'title', value: null }] })]))
     mount()
     fireEvent.click(screen.getByRole('option', { name: page === 'log' ? 'Log a habit' : 'Skip a habit' }))
     expect(mocks[page]).not.toHaveBeenCalled()
@@ -98,10 +115,24 @@ describe('habit search', () => {
     expect(mocks[page]).toHaveBeenCalledWith({ habitId: 'habit' }, expect.objectContaining({ onSuccess: expect.any(Function) }))
     mocks.pending = true
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'walk' } })
-    const pendingOption = await screen.findByRole('option', { name: 'Walk' })
+    const pendingOption = await screen.findByRole('option', { name: /^Walk/ })
     expect(pendingOption).toHaveAttribute('aria-disabled', 'true')
     fireEvent.click(pendingOption)
     expect(mocks[page]).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([{ page: 'log', depth: 1 }, { page: 'skip', depth: 1 }, { page: 'log', depth: 2 }, { page: 'skip', depth: 2 }] as const)('targets the descendant on the $page page at depth $depth', async ({ page, depth }) => {
+    mocks.query.mockReturnValue(descendantResult(depth))
+    mount(true)
+    fireEvent.click(screen.getByRole('option', { name: page === 'log' ? 'Log a habit' : 'Skip a habit' }))
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'walk' } })
+    await waitFor(() => expect(mocks.query).toHaveBeenLastCalledWith({ search: 'walk', page: 1, pageSize: 20 }))
+    await waitFor(() => expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'false'))
+    fireEvent.click(screen.getAllByRole('option')[0]!)
+    expect(mocks[page]).toHaveBeenCalledWith({ habitId: 'child' }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    expect(screen.getAllByRole('option')).toHaveLength(1)
+    expect(screen.getByRole('option')).toHaveTextContent('Walk to the shop')
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
   it('keeps server matches selectable without moving input focus', async () => {

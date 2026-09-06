@@ -29,7 +29,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
   const [page, setPage] = useState<SearchCommandPage>(null)
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()
-  const entries = search.data ? (search.query ? search.data.topLevelHabits.map((habit) => ({ habit, parentTitle: null })) : buildCommandHabitList(search.data)) : []
+  const entries = search.data ? (search.query && !page ? search.data.topLevelHabits.map((habit) => ({ habit, parentTitle: null })) : buildCommandHabitList(search.data, search.query)) : []
   const showResults = resultsMode && page === null && !!search.query
   function run(action: () => void) { action(); onClose() }
   function back() { setPage(null); search.changeText('') }

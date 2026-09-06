@@ -34,6 +34,26 @@ describe('buildCommandHabitList', () => {
     expect(buildCommandHabitList(buildInput([]))).toEqual([])
   })
 
+  it.each(['title', 'description', 'tag'] as const)('offers only habits with their own %s match on a searched action page', (field) => {
+    const parent = scheduledHabit('parent', { hasSubHabits: true, searchMatches: [{ field: 'child', value: 'walk' }] })
+    const unrelated = scheduledHabit('unrelated', { parentId: parent.id })
+    const target = scheduledHabit('target', { parentId: parent.id, searchMatches: [{ field, value: field === 'tag' ? 'walk' : null }] })
+    const finished = scheduledHabit('finished', { parentId: parent.id, frequencyUnit: null, isCompleted: true, searchMatches: [{ field: 'title', value: null }] })
+
+    expect(buildCommandHabitList(buildInput([parent, unrelated, target, finished]), 'walk')).toEqual([
+      { habit: target, parentTitle: parent.title },
+    ])
+  })
+
+  it('retains a parent that also matches in its own field', () => {
+    const parent = scheduledHabit('parent', { searchMatches: [{ field: 'child', value: 'walk' }, { field: 'description', value: null }] })
+    const unrelated = scheduledHabit('unrelated')
+
+    expect(buildCommandHabitList(buildInput([parent, unrelated]), 'walk')).toEqual([
+      { habit: parent, parentTitle: null },
+    ])
+  })
+
   it('puts Today choices before the All remainder without repeating either', () => {
     const today = formatAPIDate(new Date())
     const later = scheduledHabit('later')

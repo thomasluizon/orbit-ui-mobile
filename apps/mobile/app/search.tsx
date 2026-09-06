@@ -28,7 +28,7 @@ export default function SearchScreen() {
   const [createTitle, setCreateTitle] = useState<string | null>(null)
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()
-  const habits = search.data ? (search.query ? search.data.topLevelHabits : buildCommandHabitList(search.data).map(({ habit }) => habit)) : []
+  const habits = search.data ? (search.query && !commandPage ? search.data.topLevelHabits : buildCommandHabitList(search.data, search.query).map(({ habit }) => habit)) : []
   const hideCreate = !!search.query && habits.length === 0 && !search.busy
   const commands = searchCommands(search.text, commandPage, t).filter((command) => !hideCreate || command.id !== 'create')
   const activeId = (!search.query || commandPage) ? habits[0]?.id ?? commands[0]?.id : commands[0]?.id
