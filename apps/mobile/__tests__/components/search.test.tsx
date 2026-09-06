@@ -70,6 +70,13 @@ afterEach(async () => {
 })
 
 describe('mobile search', () => {
+  it('keeps the habit group before create, actions and destinations', async () => {
+    mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk' })]))
+    await mount()
+    const headings = tree.root.findAll((node) => String(node.type) === 'Text' && node.props.accessibilityRole === 'header').map((node) => renderedText(node.props.children))
+    expect(headings).toEqual(['Search habits', 'Habits', 'Create', 'Actions', 'Go to'])
+  })
+
   it.each(['en', 'pt-BR'])('shows all match kinds and navigates to the parent in %s', async (locale) => {
     mocks.query.mockReturnValue(result([
       createMockHabit({ id: 'title', title: 'Walk', searchMatches: [{ field: 'title', value: null }] }),
