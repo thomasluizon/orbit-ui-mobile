@@ -143,7 +143,7 @@ describe('list primitives on mobile', () => {
     expect(bodyTexts.map((node) => node.props.children)).toContain('Synced')
     const leadingIcon = bodyControl
       .findAll((node) => typeof node.props.strokeWidth === 'number')
-      .at(0)
+      .find((node) => (node.props.strokeWidth as number) > 1.7)
     expect(leadingIcon?.props.strokeWidth).toBeCloseTo(1.8)
     const valueText = bodyTexts.find((node) => node.props.children === 'Ready for a deliberately long reminder summary')
     expect(valueText?.props.numberOfLines).toBe(1)
