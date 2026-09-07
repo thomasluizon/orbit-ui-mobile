@@ -121,7 +121,6 @@ const mocks = vi.hoisted(() => {
     clearPersistedQueryCache: vi.fn(async () => {}),
     plural: vi.fn((value: string) => value),
     themeToggle: vi.fn(() => React.createElement('ThemeToggle')),
-    freshStartAnimation: vi.fn(() => null),
   }
 })
 
@@ -214,9 +213,6 @@ vi.mock('@/components/profile/profile-nav-icon', () => ({
   ProfileNavIcon: () => null,
 }))
 
-vi.mock('@/components/ui/fresh-start-animation', () => ({
-  FreshStartAnimation: () => null,
-}))
 
 vi.mock('@/components/tour/tour-replay-modal', () => ({
   TourReplayModal: () => null,
@@ -264,9 +260,6 @@ vi.mock('@/components/ui/theme-toggle', () => ({
   ThemeToggle: mocks.themeToggle,
 }))
 
-vi.mock('@/components/ui/fresh-start-animation', () => ({
-  FreshStartAnimation: mocks.freshStartAnimation,
-}))
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,

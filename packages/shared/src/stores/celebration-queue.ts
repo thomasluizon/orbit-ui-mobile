@@ -1,13 +1,11 @@
 export type CelebrationKind =
   | "streak"
-  | "achievement"
   | "all-done"
   | "goal-completed"
   | "level-up";
 
 export interface CelebrationPayloadMap {
   streak: { streak: number };
-  achievement: { achievementId: string; xpReward: number };
   "all-done": Record<string, never>;
   "goal-completed": { name: string };
   "level-up": { level: number };
@@ -18,13 +16,6 @@ export type CelebrationQueueItem =
       id: string;
       kind: "streak";
       payload: CelebrationPayloadMap["streak"];
-      priority: number;
-      sequence: number;
-    }
-  | {
-      id: string;
-      kind: "achievement";
-      payload: CelebrationPayloadMap["achievement"];
       priority: number;
       sequence: number;
     }
@@ -71,8 +62,6 @@ export function getCelebrationPriority(kind: CelebrationKind): number {
   switch (kind) {
     case "streak":
       return 0;
-    case "achievement":
-      return 1;
     case "goal-completed":
     case "all-done":
       return 2;
@@ -110,12 +99,6 @@ export function isDuplicateCelebration(
           return (
             item.payload.streak ===
             (candidate.payload as CelebrationPayloadMap["streak"]).streak
-          );
-        case "achievement":
-          return (
-            item.payload.achievementId ===
-            (candidate.payload as CelebrationPayloadMap["achievement"])
-              .achievementId
           );
         case "goal-completed":
           return (

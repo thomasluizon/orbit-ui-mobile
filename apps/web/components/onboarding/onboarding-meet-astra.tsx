@@ -18,7 +18,7 @@ export function OnboardingMeetAstra({ onImport }: Readonly<OnboardingMeetAstraPr
       <AstraAvatar
         size={116}
         label={t('chat.astraAvatarLabel')}
-        style={{ animation: 'fresh-start-orb 0.6s var(--ease-out) both' }}
+        style={{ animation: 'orb-entrance 0.6s var(--ease-out) both' }}
       />
 
       <div
