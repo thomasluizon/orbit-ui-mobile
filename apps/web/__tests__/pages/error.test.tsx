@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { captureException } from '@sentry/nextjs'
 
 vi.mock('next-intl', () => ({
   NextIntlClientProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -89,11 +90,12 @@ describe('AuthError', () => {
     expect(mockReset).toHaveBeenCalledTimes(1)
   })
 
-  it('renders the SVG warning icon', () => {
-    const error = new Error('fail') as Error & { digest?: string }
-    const { container } = render(<AuthError error={error} reset={mockReset} />)
-    const svg = container.querySelector('svg')
-    expect(svg).toBeTruthy()
+  it('reports the failure while keeping raw details out of the message', () => {
+    const error = new Error('Internal authentication detail')
+    render(<AuthError error={error} reset={mockReset} />)
+    expect(captureException).toHaveBeenCalledExactlyOnceWith(error)
+    expect(screen.getByText('auth.genericError')).toBeInTheDocument()
+    expect(screen.queryByText(error.message)).not.toBeInTheDocument()
   })
 })
 
