@@ -16,6 +16,11 @@ export function useGoalDrag(drag: (() => void) | undefined) {
     gesture.current?.cancel()
     gesture.current = null
   }
+  const cancel = () => {
+    suppressed.current = false
+    gesture.current?.cancel()
+    gesture.current = null
+  }
   return {
     suppressPress: () => {
       const shouldSuppress = gesture.current?.suppressPress() ?? suppressed.current
@@ -28,7 +33,7 @@ export function useGoalDrag(drag: (() => void) | undefined) {
     },
     onTouchMove: (event: GestureResponderEvent) => gesture.current?.move(event.nativeEvent.pageX, event.nativeEvent.pageY),
     onTouchEnd: stop,
-    onTouchCancel: stop,
+    onTouchCancel: cancel,
     onPointerDown: (event: PointerEvent) => {
       const { pointerType, pageX, pageY } = event.nativeEvent
       if (pointerType !== 'touch') start(pointerType, pageX, pageY)
@@ -37,6 +42,6 @@ export function useGoalDrag(drag: (() => void) | undefined) {
       if (event.nativeEvent.pointerType !== 'touch') gesture.current?.move(event.nativeEvent.pageX, event.nativeEvent.pageY)
     },
     onPointerUp: stop,
-    onPointerCancel: stop,
+    onPointerCancel: cancel,
   }
 }
