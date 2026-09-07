@@ -9,6 +9,17 @@ import { Input } from '@/components/ui/input'
 import { OtpInput } from '@/components/ui/otp-input'
 import { Switch } from '@/components/ui/switch'
 import { TimeField } from '@/components/ui/time-field'
+import { createTokensV2 } from '@/lib/theme'
+
+const focus = vi.hoisted(() => vi.fn())
+vi.mock('react-native', async (importActual) => {
+  const actual = await importActual<typeof import('react-native')>()
+  const React = await import('react')
+  return { ...actual, TextInput: React.forwardRef((props: Record<string, unknown>, ref) => {
+    React.useImperativeHandle(ref, () => ({ focus }))
+    return React.createElement('TextInput', props)
+  }) }
+})
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { uses24HourClock: true } }),
@@ -55,6 +66,50 @@ function textValues(root: TestNode): unknown[] {
 }
 
 describe('form primitives on mobile', () => {
+  it('focuses only on an explicit request and preserves email keyboard settings', () => {
+    focus.mockClear()
+    const props = { label: 'Email', value: 'invalid', onChange: vi.fn(), kind: 'email' as const, autoComplete: 'email' as const }
+    const tree = render(<Input {...props} focusRequest={0} />)
+    expect(focus).not.toHaveBeenCalled()
+    void act(() => tree.update(<Input {...props} error="Invalid email" focusRequest={1} />))
+    expect(focus).toHaveBeenCalledTimes(1)
+    void act(() => tree.update(<Input {...props} value="editing" error="Still invalid" focusRequest={1} />))
+    expect(focus).toHaveBeenCalledTimes(1)
+    void act(() => tree.update(<Input {...props} error="Still invalid" focusRequest={2} />))
+    expect(focus).toHaveBeenCalledTimes(2)
+    const input = tree.root.findAllByType('TextInput')[0]!
+    expect(input.props).toMatchObject({ keyboardType: 'email-address', autoComplete: 'email', autoCorrect: false, autoCapitalize: 'none' })
+  })
+
+  it.each([undefined, 'Invalid email'])('distinguishes input focus while preserving error=%s', (error) => {
+    const tokens = createTokensV2('purple', 'dark')
+    const tree = render(<Input label="Email" value="invalid" onChange={vi.fn()} error={error} />)
+    const input = tree.root.findAllByType('TextInput')[0]!
+    const style = () => StyleSheet.flatten(prop(input, 'style'))
+    const resting = style()
+    void act(() => prop<(() => void) | undefined>(input, 'onFocus')?.())
+    expect(style()).not.toEqual(resting)
+    expect(style()).toMatchObject({ outlineWidth: 2, outlineColor: tokens.primary })
+    if (error) expect(style()).toMatchObject({ borderColor: tokens.statusBad })
+    void act(() => prop<() => void>(input, 'onBlur')())
+    expect(style()).toEqual(resting)
+  })
+
+  it.each([undefined, 'Wrong code'])('distinguishes OTP focus entering and leaving with error=%s', (error) => {
+    const tokens = createTokensV2('purple', 'dark')
+    const tree = render(<OtpInput label="Code" value="12" onChange={vi.fn()} autoFocus={false} error={error} />)
+    const input = tree.root.findAllByType('TextInput')[0]!
+    const cell = () => tree.root.find((node) => node.type === 'View' && node.props.testID === 'otp-cell-2')
+    expect(cell().props['data-active']).toBeUndefined()
+    void act(() => prop<(() => void) | undefined>(input, 'onFocus')?.())
+    expect(cell().props['data-active']).toBe('')
+    expect(StyleSheet.flatten(prop(cell(), 'style'))).toMatchObject({ outlineWidth: 2, outlineColor: tokens.primary })
+    if (error) expect(StyleSheet.flatten(prop(cell(), 'style'))).toMatchObject({ borderColor: tokens.statusBad })
+    void act(() => prop<() => void>(input, 'onBlur')())
+    expect(cell().props['data-active']).toBeUndefined()
+    expect(StyleSheet.flatten(prop(cell(), 'style'))).toMatchObject({ outlineWidth: 0 })
+  })
+
   it('renders labelled single and multiline inputs with their shared limits', () => {
     const onChange = vi.fn()
     const tree = render(

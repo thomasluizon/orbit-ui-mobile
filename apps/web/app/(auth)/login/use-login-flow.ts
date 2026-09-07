@@ -23,6 +23,7 @@ export function useLoginFlow() {
   const prefersReducedMotion = useReducedMotion()
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
+  const [emailFocusRequest, setEmailFocusRequest] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isResending, setIsResending] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
@@ -83,7 +84,11 @@ export function useLoginFlow() {
 
   async function sendCode() {
     if (!available() || !email.trim()) return
-    if (!isValidEmail(email)) { setErrorKey('auth.errors.invalidEmail'); return }
+    if (!isValidEmail(email)) {
+      setErrorKey('auth.errors.invalidEmail')
+      setEmailFocusRequest((request) => request + 1)
+      return
+    }
     const locked = attempts.current.get(email.trim().toLowerCase())
     if (locked && locked.count >= 3 && locked.expiresAt > Date.now()) {
       setStep('code')
@@ -190,7 +195,7 @@ export function useLoginFlow() {
     finally { busy.current = false; setIsSubmitting(false) }
   }
 
-  return { t, step, email, setEmail, isSubmitting, isResending, isGoogleLoading, errorKey,
+  return { t, step, email, setEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, errorKey,
     errorMessage: errorKey ? t(errorKey) : null, successMessage, referralCode, fromOnboarding,
     pendingHabitCount, isOnline, authStepMotion, ...entry, codeFailure, lockCountdown, accountBack,
     sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, continueAccount }

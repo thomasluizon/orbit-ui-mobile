@@ -27,19 +27,15 @@ vi.mock('next-intl', () => ({
 
 vi.mock('motion/react', () => {
   const React = require('react')
-  const motion = new Proxy(
-    {},
-    {
-      get: (_target, key: string) =>
-        React.forwardRef(function MockMotionComponent(
+  const motion = {
+      div: React.forwardRef(function MockMotionComponent(
           props: Record<string, unknown> & { children?: React.ReactNode },
           ref: React.ForwardedRef<unknown>,
         ) {
           const { children, ...rest } = props
-          return React.createElement(key, { ...rest, ref }, children)
+          return React.createElement('div', { ...rest, ref }, children)
         }),
-    },
-  )
+  }
 
   return {
     AnimatePresence: ({ children }: { children: React.ReactNode }) =>
@@ -128,6 +124,7 @@ describe('LoginPage', () => {
     const input = await screen.findByRole('textbox', { name: 'auth.verificationCode' })
     expect(screen.getAllByRole('textbox')).toHaveLength(1)
     expect(input).toHaveAttribute('autocomplete', 'one-time-code')
+    expect(input).toHaveAttribute('name', 'verificationCode')
   })
 
   it('resolves auth motion presets with the reduced-motion preference', () => {
@@ -163,12 +160,24 @@ describe('LoginPage', () => {
     fireEvent.input(screen.getByLabelText('auth.email'), {
       target: { value: 'not-an-email' },
     })
+    const input = screen.getByLabelText('auth.email')
+    const submit = screen.getByRole('button', { name: 'auth.sendCode' })
+    submit.focus()
     fireEvent.submit(screen.getByLabelText('auth.email').closest('form')!)
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent('auth.errors.invalidEmail')
     })
     expect(mockShowError).not.toHaveBeenCalled()
+    expect(input).toHaveFocus()
+    expect(input).toHaveAttribute('name', 'email')
+    expect(input).toHaveAttribute('autocomplete', 'email')
+    expect(input).toHaveAttribute('spellcheck', 'false')
+    submit.focus()
+    fireEvent.input(input, { target: { value: 'still-invalid' } })
+    expect(submit).toHaveFocus()
+    fireEvent.submit(input.closest('form')!)
+    await waitFor(() => expect(input).toHaveFocus())
   })
 
   it('surfaces the offline state and disables sending when the device is offline', () => {

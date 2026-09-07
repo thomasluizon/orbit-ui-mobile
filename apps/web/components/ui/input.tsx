@@ -1,7 +1,7 @@
 'use client'
 
 import type { InputProps } from '@orbit/shared/contracts/forms'
-import { useId, type ChangeEvent } from 'react'
+import { useEffect, useId, useRef, type ChangeEvent } from 'react'
 
 const CONTROL_STYLE = {
   width: '100%',
@@ -29,6 +29,8 @@ export function Input({
   autoComplete,
   mono = false,
   autoFocus = false,
+  focusRequest = 0,
+  name,
   onSubmit,
   trailing,
   ...shape
@@ -36,6 +38,11 @@ export function Input({
   const controlId = useId()
   const errorId = useId()
   const multiline = shape.multiline === true
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
+
+  useEffect(() => {
+    if (focusRequest) inputRef.current?.focus()
+  }, [focusRequest])
 
   function handleChange(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     onChange(event.target.value)
@@ -43,12 +50,15 @@ export function Input({
 
   const controlProps = {
     id: controlId,
+    ref: (control: HTMLInputElement | HTMLTextAreaElement | null) => { inputRef.current = control },
+    name,
     value,
     placeholder,
     disabled,
     maxLength,
     inputMode,
     autoComplete,
+    spellCheck: kind === 'email' ? false : undefined,
     autoFocus,
     'aria-invalid': error ? true : undefined,
     'aria-describedby': error ? errorId : undefined,
@@ -65,9 +75,9 @@ export function Input({
         {label}
       </label>
       <div
-        className={`overflow-hidden rounded-[12px] bg-[var(--bg-field)] ${error
+        className={`overflow-hidden rounded-[12px] bg-[var(--bg-field)] focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-[var(--primary)] forced-colors:border forced-colors:border-[CanvasText] forced-colors:focus-within:outline-[Highlight] ${error
           ? 'shadow-[inset_0_0_0_2px_var(--status-bad)]'
-          : 'shadow-[inset_0_0_0_1px_var(--border-control)] focus-within:shadow-[inset_0_0_0_2px_var(--primary)]'} ${disabled ? 'opacity-60' : ''}`}
+          : 'shadow-[inset_0_0_0_1px_var(--border-control)]'} ${disabled ? 'opacity-60' : ''}`}
         style={{ minHeight: 54 }}
       >
         {multiline ? (

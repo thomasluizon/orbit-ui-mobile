@@ -6,6 +6,7 @@ import { LoginOfflineNotice } from './login-sections'
 
 interface EmailStepProps {
   email: string
+  emailFocusRequest: number
   onEmailChange: (email: string) => void
   isSubmitting: boolean
   isGoogleLoading: boolean
@@ -18,7 +19,7 @@ interface EmailStepProps {
   sendCodeLabel?: string
 }
 
-export function EmailStep({ email, onEmailChange, isSubmitting, isGoogleLoading, isOnline,
+export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmitting, isGoogleLoading, isOnline,
   errorKey, errorMessage, onSendCode, onSignInWithGoogle, t, sendCodeLabel }: Readonly<EmailStepProps>) {
   const fieldError = isOnline && errorKey === 'auth.errors.invalidEmail' ? errorMessage : null
   const googleError = isOnline && errorKey === 'auth.errors.googleError' ? errorMessage : null
@@ -26,7 +27,7 @@ export function EmailStep({ email, onEmailChange, isSubmitting, isGoogleLoading,
   return (
     <div data-testid="login-email-step-stack" className="flex flex-col gap-6">
       <form noValidate className="flex flex-col gap-6" onSubmit={(event) => { event.preventDefault(); onSendCode() }}>
-        <Input label={t('auth.email')} value={email} onChange={onEmailChange} kind="email"
+        <Input label={t('auth.email')} value={email} onChange={onEmailChange} kind="email" name="email" focusRequest={emailFocusRequest}
           autoComplete="email" placeholder={t('auth.emailPlaceholder')}
           disabled={isSubmitting || isGoogleLoading} error={fieldError ?? undefined} />
         <div className="flex flex-col gap-3">

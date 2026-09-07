@@ -26,6 +26,7 @@ export function useLoginFlow() {
   const fromOnboarding = params.from === 'onboarding' || onboardingLocallyDone
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
+  const [emailFocusRequest, setEmailFocusRequest] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isResending, setIsResending] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
@@ -77,7 +78,11 @@ export function useLoginFlow() {
 
   async function sendCode() {
     if (busy.current || !isOnline || !email.trim()) return
-    if (!isValidEmail(email)) { setErrorKey('auth.errors.invalidEmail'); return }
+    if (!isValidEmail(email)) {
+      setErrorKey('auth.errors.invalidEmail')
+      setEmailFocusRequest((request) => request + 1)
+      return
+    }
     const locked = attempts.current.get(email.trim().toLowerCase())
     if (locked && locked.count >= 3 && locked.expiresAt > Date.now()) {
       setStep('code')
@@ -190,7 +195,7 @@ export function useLoginFlow() {
   function openPrivacyPolicy() { router.push('/about') }
   function openTerms() { router.push('/about') }
 
-  return { t, step, email, setEmail, isSubmitting, isResending, isGoogleLoading, errorKey,
+  return { t, step, email, setEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, errorKey,
     errorMessage: errorKey ? t(errorKey) : null, successMessage, showReferralBanner, fromOnboarding,
     plannedHabitCount, isOnline, ...entry, codeFailure, lockCountdown, accountBack,
     canSubmitEmail: Boolean(email.trim()) && !isSubmitting && !isGoogleLoading && isOnline,
