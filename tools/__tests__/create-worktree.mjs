@@ -3,7 +3,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileS
 import { join } from "node:path"
 import { setTimeout } from "node:timers/promises"
 
-import { T, check, root, stage, toolPath } from "./_harness.mjs"
+import { T, check, processIsRunning, root, stage, toolPath } from "./_harness.mjs"
 
 const TOOL = "create-worktree.mjs"
 
@@ -58,7 +58,69 @@ if (basename(process.argv[1]) === "worktree" && process.argv[2] === "create") {
   T(`${TOOL}: the created worktree starts at origin/main`, createdCommit === remoteCommit, `created ${createdCommit}, remote ${remoteCommit}\n${result.stderr}`)
   await killedHolder(fixtureRoot, repository)
   await killedHolder(fixtureRoot, repository, true)
+  await survivingChild(fixtureRoot, repository)
   await concurrentCreation(fixtureRoot, source, repository)
+}
+
+const survivingChild = async (fixtureRoot, repository) => {
+  const running = join(fixtureRoot, "orphan-running")
+  const release = join(fixtureRoot, "orphan-release")
+  const waiting = join(fixtureRoot, "orphan-waiter-entered")
+  const entered = join(fixtureRoot, "orphan-waiter-created")
+  const shim = stage("create-worktree/bin/orphan.cjs", `
+const { basename } = require("node:path")
+const { existsSync, writeFileSync } = require("node:fs")
+const childProcess = require("node:child_process")
+const realSpawnSync = childProcess.spawnSync
+if (basename(process.argv[1]) === "worktree") {
+  if (process.argv.includes("orphan-holder")) {
+    writeFileSync(${JSON.stringify(running)}, String(process.pid))
+    const deadline = Date.now() + 25000
+    while (!existsSync(${JSON.stringify(release)})) {
+      if (Date.now() > deadline) process.exit(4)
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20)
+    }
+    const result = realSpawnSync("git", ["-C", ${JSON.stringify(repository)}, "worktree", "add", "-q", "--detach", ${JSON.stringify(join(fixtureRoot, "orphan-created"))}, "main"], { stdio: "inherit" })
+    process.exit(result.status ?? 1)
+  }
+  writeFileSync(${JSON.stringify(entered)}, "entered")
+  process.exit(0)
+}
+childProcess.spawnSync = (command, args, options) => {
+  const result = realSpawnSync(command, args, { ...options, detached: args[0] === "worktree" })
+  if (command === "git" && args.includes("--git-common-dir") && process.argv.includes("orphan-waiter")) {
+    writeFileSync(${JSON.stringify(waiting)}, "waiting")
+  }
+  return result
+}
+require("node:module").syncBuiltinESMExports()
+`)
+  const holder = launch(repository, "orphan-holder", shim)
+  let waiter
+  let childPid
+  try {
+    await waitFor([running])
+    childPid = Number(readFileSync(running, "utf8"))
+    const exited = new Promise((resolve) => holder.child.once("exit", resolve))
+    holder.child.kill("SIGKILL")
+    await exited
+    waiter = launch(repository, "orphan-waiter", shim)
+    await waitFor([waiting])
+    await setTimeout(2500)
+    const childSurvived = processIsRunning(childPid)
+    const reclaimedWhileChildAlive = existsSync(entered)
+    writeFileSync(release, "release")
+    const result = await waiter.result
+    T(`${TOOL}: waits for a surviving critical-section child after its wrapper is killed`,
+      childSurvived && !reclaimedWhileChildAlive && result.status === 0 && existsSync(join(fixtureRoot, "orphan-created", ".git")),
+      JSON.stringify({ childSurvived, reclaimedWhileChildAlive, ...result }))
+  } finally {
+    writeFileSync(release, "release")
+    holder.child.kill("SIGKILL")
+    if (waiter) await waiter.result
+    await holder.result
+    if (childPid && processIsRunning(childPid)) process.kill(childPid, "SIGKILL")
+  }
 }
 
 const waitFor = async (paths) => {
@@ -93,11 +155,19 @@ const { writeFileSync } = require("node:fs")
 const childProcess = require("node:child_process")
 if (basename(process.argv[1]) === "worktree") process.exit(0)
 const realSpawnSync = childProcess.spawnSync
-childProcess.spawnSync = (command, args, options) => {
-  if (command === "git" && args[2] === "fetch" && process.argv.includes("killed-holder")) {
+const realSpawn = childProcess.spawn
+const beforeSpawn = (args) => {
+  if (args.includes("fetch") && process.argv.includes("killed-holder")) {
     writeFileSync(${JSON.stringify(held)}, "held")
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0)
   }
+}
+childProcess.spawn = (command, args, options) => {
+  beforeSpawn(args)
+  return realSpawn(command, args, options)
+}
+childProcess.spawnSync = (command, args, options) => {
+  beforeSpawn(args)
   return realSpawnSync(command, args, options)
 }
 require("node:module").syncBuiltinESMExports()
@@ -142,8 +212,13 @@ if (basename(process.argv[1]) === "worktree" && process.argv[2] === "create") {
   if (result.error) throw result.error
   process.exit(result.status ?? 1)
 }
+const realSpawn = childProcess.spawn
+childProcess.spawn = (command, args, options) => {
+  if (args.includes("fetch")) appendFileSync(${JSON.stringify(fetchLog)}, "fetch\\n")
+  return realSpawn(command, args, options)
+}
 childProcess.spawnSync = (command, args, options) => {
-  if (command === "git" && !entered) {
+  if (command === "git" && !entered && process.argv.includes("--name")) {
     entered = true
     const name = process.argv[process.argv.indexOf("--name") + 1]
     writeFileSync(join(${JSON.stringify(fixtureRoot)}, name + ".entered"), "entered")
@@ -153,7 +228,7 @@ childProcess.spawnSync = (command, args, options) => {
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20)
     }
   }
-  if (command === "git" && args[2] === "fetch") {
+  if (command === "git" && args[2] === "fetch" && process.argv.includes("--name")) {
     appendFileSync(${JSON.stringify(fetchLog)}, "fetch\\n")
   }
   return realSpawnSync(command, args, options)

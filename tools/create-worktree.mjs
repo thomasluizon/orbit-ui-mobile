@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { spawnSync } from "node:child_process"
+import { spawn, spawnSync } from "node:child_process"
 import { mkdtempSync, readFileSync, readdirSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs"
 import { basename, join, resolve } from "node:path"
 import { setTimeout } from "node:timers/promises"
@@ -41,29 +41,29 @@ if (!repoArgument?.startsWith("path:") || !baseBranch) fail(2, `${USAGE}\n\n--re
 const repository = resolve(repoArgument.slice("path:".length))
 const requestedAt = Date.now()
 const abort = (code, message) => { throw Object.assign(new Error(message), { exitCode: code }) }
-const git = (gitArgs) => {
-  const result = spawnSync(process.env.GIT_BIN || "git", ["-C", repository, ...gitArgs], { encoding: "utf8" })
+const git = async (gitArgs, run = spawnSync) => {
+  const result = await run(process.env.GIT_BIN || "git", ["-C", repository, ...gitArgs], { encoding: "utf8" })
   if (result.status !== 0) abort(3, `git ${gitArgs.join(" ")} failed: ${(result.stderr || result.stdout || "unknown error").trim()}`)
   return result.stdout.trim()
 }
 
-const refreshBase = (refreshPath) => {
+const refreshBase = async (refreshPath, run) => {
   let previous = null
   try {
     previous = JSON.parse(readFileSync(refreshPath, "utf8"))
   } catch (error) {
     if (error.code !== "ENOENT") throw error
   }
-  if (previous?.baseBranch !== baseBranch || previous.completedAt < requestedAt) git(["fetch", "origin", baseBranch])
-  let localCommit = git(["rev-parse", `refs/heads/${baseBranch}`])
-  const remoteCommit = git(["rev-parse", `refs/remotes/origin/${baseBranch}`])
+  if (previous?.baseBranch !== baseBranch || previous.completedAt < requestedAt) await git(["fetch", "origin", baseBranch], run)
+  let localCommit = await git(["rev-parse", `refs/heads/${baseBranch}`], run)
+  const remoteCommit = await git(["rev-parse", `refs/remotes/origin/${baseBranch}`], run)
   if (localCommit !== remoteCommit) {
-    const ancestor = spawnSync(process.env.GIT_BIN || "git", ["-C", repository, "merge-base", "--is-ancestor", localCommit, remoteCommit])
+    const ancestor = await run(process.env.GIT_BIN || "git", ["-C", repository, "merge-base", "--is-ancestor", localCommit, remoteCommit])
     if (ancestor.status !== 0) abort(1, `refusing non-fast-forward base ${baseBranch}: local ${localCommit}, origin ${remoteCommit}`)
-    const currentBranch = git(["branch", "--show-current"])
-    if (currentBranch === baseBranch) git(["merge", "--ff-only", `origin/${baseBranch}`])
-    else git(["branch", "-f", baseBranch, `origin/${baseBranch}`])
-    localCommit = git(["rev-parse", `refs/heads/${baseBranch}`])
+    const currentBranch = await git(["branch", "--show-current"], run)
+    if (currentBranch === baseBranch) await git(["merge", "--ff-only", `origin/${baseBranch}`], run)
+    else await git(["branch", "-f", baseBranch, `origin/${baseBranch}`], run)
+    localCommit = await git(["rev-parse", `refs/heads/${baseBranch}`], run)
   }
   if (localCommit !== remoteCommit) abort(1, `refusing stale base ${baseBranch}: local ${localCommit}, origin ${remoteCommit}`)
   if (previous?.baseBranch !== baseBranch || previous.completedAt < requestedAt) {
@@ -163,13 +163,59 @@ const acquireLock = async (lockPath) => {
   }
 }
 
+const runLocked = async (lockPath, owner, command, commandArgs) => {
+  // The gate cannot execute until its identity is published. EOF before authorization exits it.
+  // Linux exec preserves the registered PID/start identity; Windows keeps a detached supervisor.
+  const windowsGate = `
+    const { spawnSync } = require("node:child_process")
+    let authorization = ""
+    process.stdin.setEncoding("utf8")
+    process.stdin.on("data", (chunk) => { authorization += chunk })
+    process.stdin.on("end", () => {
+      if (authorization !== "run\\n") process.exit(3)
+      const result = spawnSync(process.argv[1], process.argv.slice(2), { stdio: ["ignore", "inherit", "inherit"], windowsHide: true })
+      if (result.error) throw result.error
+      process.exit(result.status ?? 3)
+    })
+  `
+  const child = process.platform === "win32"
+    ? spawn(process.execPath, ["-e", windowsGate, command, ...commandArgs], { detached: true, windowsHide: true })
+    : spawn("/bin/sh", ["-c", 'read -r authorization && [ "$authorization" = run ] && exec "$@"', "create-worktree", command, ...commandArgs], { detached: true })
+  let stdout = ""
+  let stderr = ""
+  const completion = new Promise((resolve) => {
+    child.stdout.on("data", (chunk) => { stdout += chunk })
+    child.stderr.on("data", (chunk) => { stderr += chunk })
+    child.on("error", (error) => { stderr += error.message })
+    child.on("close", (status) => resolve({ status, stdout, stderr }))
+  })
+  const childOwner = `${owner}.${child.pid}`
+  let candidate
+  try {
+    if (!child.pid) return await completion
+    const identity = processStartIdentity(child.pid)
+    if (!identity) abort(3, "cannot establish repository lock child identity")
+    candidate = mkdtempSync(`${lockPath}-child-`)
+    writeFileSync(join(candidate, childOwner), JSON.stringify({ pid: child.pid, processStartIdentity: identity }))
+    renameSync(join(candidate, childOwner), join(lockPath, childOwner))
+    child.stdin.end("run\n")
+    return await completion
+  } finally {
+    child.stdin.destroy()
+    await completion
+    removeOwner(lockPath, childOwner)
+    if (candidate) removeOwner(candidate, childOwner)
+  }
+}
+
 const createWorktree = async () => {
-  const commonDirectory = git(["rev-parse", "--path-format=absolute", "--git-common-dir"])
+  const commonDirectory = await git(["rev-parse", "--path-format=absolute", "--git-common-dir"])
   const lockPath = join(commonDirectory, "create-worktree.lock")
   const owner = await acquireLock(lockPath)
   try {
-    refreshBase(join(commonDirectory, "create-worktree-refresh.json"))
-    const result = spawnSync(process.env.ORCA_BIN || "orca", ["worktree", "create", ...args], { encoding: "utf8" })
+    const run = (command, commandArgs) => runLocked(lockPath, owner, command, commandArgs)
+    await refreshBase(join(commonDirectory, "create-worktree-refresh.json"), run)
+    const result = await run(process.env.ORCA_BIN || "orca", ["worktree", "create", ...args])
     if (result.stdout) process.stdout.write(result.stdout)
     if (result.stderr) process.stderr.write(result.stderr)
     if (result.status !== 0) abort(3, `orca worktree create failed with exit ${result.status ?? "unknown"}`)
