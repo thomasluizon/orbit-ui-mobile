@@ -165,9 +165,14 @@ describe('alerts', () => {
       expect(contour).toBe('inset 0 0 0 4px var(--fg-1)')
       const companion = theme[contour.match(/var\(([^)]+)\)/)![1] as `--${string}`]!
       expect(contrastOnSurface(foreground, [companion])).toBeGreaterThanOrEqual(3)
-      for (const layers of [[theme['--bg']!], [theme['--bg']!, theme['--bg-card']!],
-        [theme['--bg']!, theme['--bg-hover']!], [theme['--bg']!, theme['--bg-card']!, theme['--bg-hover']!]]) {
-        expect.soft(contrastOnSurface(companion, layers)).toBeGreaterThanOrEqual(3)
+      const surfaces = {
+        'resting read': [theme['--bg']!],
+        'resting unread': [theme['--bg']!, theme['--bg-card']!],
+        'hovered or pressed read': [theme['--bg']!, theme['--bg-hover']!],
+        'hovered or pressed unread': [theme['--bg']!, theme['--bg-card']!, theme['--bg-hover']!],
+      }
+      for (const [surface, layers] of Object.entries(surfaces)) {
+        expect.soft(contrastOnSurface(companion, layers), surface).toBeGreaterThanOrEqual(3)
       }
       expect(getComputedStyle(first).outlineOffset).toBe('-3px')
       expect(getComputedStyle(second).outlineOffset).not.toBe('-3px')

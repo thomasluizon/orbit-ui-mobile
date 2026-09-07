@@ -186,26 +186,34 @@ describe('mobile alerts', () => {
       const style = row().props.style
       return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
     }
-    expect(rowStyle().outlineWidth).toBeUndefined()
+    const restingStyle = rowStyle()
+    expect(restingStyle.outlineWidth).toBeUndefined()
     TestRenderer.act(() => row().props.onFocus?.())
     const tokens = createTokensV2('purple', mode)
     expect(rowStyle().outlineColor, 'Focus must retain the accent semantic').toBe(tokens.primary)
+    expect(rowStyle().borderColor, 'Focus companion must be a solid border on Android API 24 and later').toBe(tokens.fg1)
     expect(rowStyle()).toMatchObject({
       outlineWidth: 2, outlineOffset: -3, outlineStyle: 'solid',
-      boxShadow: `inset 0 0 0 4px ${tokens.fg1}`,
+      borderWidth: 4, borderStyle: 'solid', padding: 12,
     })
-    const companion = (rowStyle().boxShadow as string).split(' ').at(-1)!
+    expect(rowStyle().boxShadow).toBeUndefined()
+    expect(restingStyle).toMatchObject({ borderWidth: 4, borderColor: 'transparent', padding: 12 })
+    const companion = rowStyle().borderColor as string
     expect(contrastOnSurface(rowStyle().outlineColor, [companion])).toBeGreaterThanOrEqual(3)
     expect(contrastOnSurface(companion, [tokens.bg])).toBeGreaterThanOrEqual(3)
     for (const pressed of [false, true]) {
       const focusedStyle = rowStyle(pressed)
-      const layers = [tokens.bg, tokens.bgCard]
-      if (focusedStyle.backgroundColor) layers.push(focusedStyle.backgroundColor)
-      expect.soft(contrastOnSurface(companion, layers)).toBeGreaterThanOrEqual(3)
+      expect(focusedStyle.borderColor).toBe(companion)
+      expect(focusedStyle.boxShadow).toBeUndefined()
+      for (const layers of [[tokens.bg], [tokens.bg, tokens.bgCard]]) {
+        if (focusedStyle.backgroundColor) layers.push(focusedStyle.backgroundColor)
+        expect.soft(contrastOnSurface(companion, layers)).toBeGreaterThanOrEqual(3)
+      }
     }
     TestRenderer.act(() => row().props.onBlur?.())
     expect(rowStyle().outlineWidth).toBeUndefined()
     expect(rowStyle().boxShadow).toBeUndefined()
+    expect(rowStyle()).toEqual(restingStyle)
   })
 
   it.each([

@@ -35,7 +35,7 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         style={({ pressed }) => [styles.row, pressed && { backgroundColor: tokens.bgHover },
           focused && { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -3,
-            boxShadow: `inset 0 0 0 4px ${tokens.fg1}` }]}>
+            borderColor: tokens.fg1 }]}>
         <View testID="notification-dot-column" style={styles.dotColumn}>
           {!item.isRead ? <View testID="notification-unread-dot" style={[styles.dot, { backgroundColor: tokens.fg1 }]} /> : null}
         </View>
@@ -68,7 +68,7 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
 
 const styles = StyleSheet.create({
   wrapper: { flexDirection: 'row', alignItems: 'stretch', gap: 4, borderRadius: 12 },
-  row: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 16, minHeight: 44, borderRadius: 12 },
+  row: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 12, minHeight: 44, borderRadius: 12, borderWidth: 4, borderStyle: 'solid', borderColor: 'transparent' },
   dotColumn: { width: 8, flexShrink: 0, alignSelf: 'stretch', justifyContent: 'center' },
   dot: { width: 8, height: 8, borderRadius: 999 },
   content: { flex: 1, minWidth: 0, gap: 4 },

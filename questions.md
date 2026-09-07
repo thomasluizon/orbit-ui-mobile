@@ -122,6 +122,16 @@ retains its hover fill; a keyboard or touch press without hover retains the rest
 Read hover or press measures 12.8770:1 dark and 14.6979:1 light. These are source-composited
 measurements, with Vitest checks on the actual focus styles, not browser or device pixel samples.
 
+Review round 3 replaces only the Android focus contour's inset shadow with a solid 4px `fg1`
+border. React Native 0.86.3 creates inset shadows only at API 29 and later, while this app's
+Expo prebuild configuration resolves to minimum API 24. Border and outline creation have no SDK
+gate. The 2px accent outline at offset -3 stays inside the border, leaving 1px of `fg1` on
+each edge. A permanent transparent border and 12px padding retain the original 16px content
+inset without focus layout movement. Web keeps its round 2 outline and inset shadow; the
+contrast pairs above remain the same. These are source assertions. Runtime verification on
+an API 24 to 28 device or emulator has not been done; Thomas or a delegated Android tester
+needs to check focus, press and blur in both themes on that device range.
+
 ### Entrar lockout recovery (ORB-63, ticket 69)
 
 The 2026-09-07 work order replaces the sentence at `design/canvas/Orbit Entrar.dc.html:263`
