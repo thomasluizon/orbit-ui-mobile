@@ -114,24 +114,106 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+function contrastOnSurface(foreground: string, layers: string[]): number {
+  const channels = (color: string) => color.startsWith('#')
+    ? [1, 3, 5].map((offset) => Number.parseInt(color.slice(offset, offset + 2), 16))
+    : color.match(/[\d.]+/g)!.map(Number)
+  const background = layers.reduce((below, layer) => {
+    const [red, green, blue, alpha = 1] = channels(layer)
+    return [red!, green!, blue!].map((value, index) => Math.round(value * alpha + below[index]! * (1 - alpha)))
+  }, [0, 0, 0])
+  const luminance = (rgb: number[]) => rgb.slice(0, 3).reduce((sum, value, index) => {
+    const normalized = value / 255
+    const linear = normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
+    return sum + linear * [0.2126, 0.7152, 0.0722][index]!
+  }, 0)
+  const front = luminance(channels(foreground))
+  const back = luminance(background)
+  return (Math.max(front, back) + 0.05) / (Math.min(front, back) + 0.05)
+}
+
 describe('mobile alerts', () => {
+  it.each(['dark', 'light'].flatMap((mode) =>
+    ['row body', 'row timestamp', 'row target', 'detail body', 'detail metadata'].map((field) => ({ mode, field })),
+  ))('resolves rendered $field to fg2 in $mode', ({ mode, field }) => {
+    state.mode = mode
+    vi.setSystemTime(new Date('2026-09-06T12:00:00Z'))
+    state.notifications = [createMockNotification({ title: 'Reminder', body: 'Time for a walk',
+      url: '/calendar', isRead: false, createdAtUtc: '2026-09-06T11:55:00Z' })]
+    const tree = render()
+    const labels = { 'row body': 'Time for a walk', 'row timestamp': '5 min ago', 'row target': 'Calendar',
+      'detail body': 'Time for a walk', 'detail metadata': '5 min ago · Calendar' }
+    if (field.startsWith('detail')) press(tree, 'Reminder. unread. Calendar')
+    const matches = hosts(tree, 'Text').filter((node) =>
+      React.Children.toArray(node.props.children as React.ReactNode)
+        .filter((child) => typeof child === 'string' || typeof child === 'number').join('') === labels[field as keyof typeof labels],
+    )
+    const element = field.startsWith('detail') ? matches.at(-1)! : matches[0]!
+    const foreground = (StyleSheet.flatten(element.props.style) as { color: string }).color
+    const tokens = createTokensV2('purple', mode as 'dark' | 'light')
+    expect(foreground, field).toBe(tokens.fg2)
+    const surfaces = field.startsWith('detail') ? [[tokens.bgSheet]]
+      : [[tokens.bg], [tokens.bg, tokens.bgCard], [tokens.bg, tokens.bgCard, tokens.bgHover]]
+    for (const layers of surfaces) expect(contrastOnSurface(foreground, layers)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it.each(['dark', 'light'] as const)('shows retry press feedback and restores its resting surface on release in %s', (mode) => {
+    state.mode = mode
+    state.isError = true
+    const tree = render()
+    expect(text(tree, en.notifications.loadError)).toHaveLength(1)
+    const retry = hosts(tree, 'Pressable', en.common.retry)[0]!
+    const surface = (pressed: boolean) => {
+      const style = retry.props.style
+      return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style).backgroundColor
+    }
+    const resting = surface(false)
+    const pressed = surface(true)
+    expect(pressed, 'Retry must visibly change its surface while pressed').not.toBe(resting)
+    const tokens = createTokensV2('purple', mode)
+    const label = retry.findAll((node) => node.type === 'Text' && node.props.children === en.common.retry)[0]!
+    const { color: foreground } = StyleSheet.flatten(label.props.style) as { color: string }
+    expect(contrastOnSurface(foreground, [tokens.bg, pressed])).toBeGreaterThanOrEqual(4.5)
+    expect(surface(false), 'Retry must restore its resting surface after release').toBe(resting)
+  })
+
   it.each(['dark', 'light'] as const)('shows an inset focus indicator until the row loses focus in %s', (mode) => {
     state.mode = mode
     seed(1)
     const tree = render()
     const row = () => hosts(tree, 'Pressable', 'Alert 0. unread. Progress')[0]!
-    const rowStyle = () => {
+    const rowStyle = (pressed = false) => {
       const style = row().props.style
-      return StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style)
+      return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
     }
-    expect(rowStyle().outlineWidth).toBeUndefined()
+    const restingStyle = rowStyle()
+    expect(restingStyle.outlineWidth).toBeUndefined()
     TestRenderer.act(() => row().props.onFocus?.())
+    const tokens = createTokensV2('purple', mode)
+    expect(rowStyle().outlineColor, 'Focus must retain the accent semantic').toBe(tokens.primary)
+    expect(rowStyle().borderColor, 'Focus companion must be a solid border on Android API 24 and later').toBe(tokens.fg1)
     expect(rowStyle()).toMatchObject({
-      outlineWidth: 2, outlineOffset: -2, outlineStyle: 'solid',
-      outlineColor: createTokensV2('purple', mode).primary,
+      outlineWidth: 2, outlineOffset: -3, outlineStyle: 'solid',
+      borderWidth: 4, borderStyle: 'solid', padding: 12,
     })
+    expect(rowStyle().boxShadow).toBeUndefined()
+    expect(restingStyle).toMatchObject({ borderWidth: 4, borderColor: 'transparent', padding: 12 })
+    const companion = rowStyle().borderColor as string
+    expect(contrastOnSurface(rowStyle().outlineColor, [companion])).toBeGreaterThanOrEqual(3)
+    expect(contrastOnSurface(companion, [tokens.bg])).toBeGreaterThanOrEqual(3)
+    for (const pressed of [false, true]) {
+      const focusedStyle = rowStyle(pressed)
+      expect(focusedStyle.borderColor).toBe(companion)
+      expect(focusedStyle.boxShadow).toBeUndefined()
+      for (const layers of [[tokens.bg], [tokens.bg, tokens.bgCard]]) {
+        if (focusedStyle.backgroundColor) layers.push(focusedStyle.backgroundColor)
+        expect.soft(contrastOnSurface(companion, layers)).toBeGreaterThanOrEqual(3)
+      }
+    }
     TestRenderer.act(() => row().props.onBlur?.())
     expect(rowStyle().outlineWidth).toBeUndefined()
+    expect(rowStyle().boxShadow).toBeUndefined()
+    expect(rowStyle()).toEqual(restingStyle)
   })
 
   it.each([

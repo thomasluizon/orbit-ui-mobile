@@ -58,6 +58,7 @@ export {
   VERIFICATION_CODE_LENGTH,
   type AuthLoginErrorInput,
   recordLoginFailure,
+  deriveLoginEmailSubmission,
   formatLoginCountdown,
   type LoginAttempts,
   type LoginCodeFailure,

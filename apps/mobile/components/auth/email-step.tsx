@@ -7,6 +7,7 @@ import { LoginOfflineNotice } from './login-sections'
 
 interface EmailStepProps {
   email: string
+  emailFocusRequest: number
   onEmailChange: (email: string) => void
   isSubmitting: boolean
   isGoogleLoading: boolean
@@ -23,7 +24,7 @@ interface EmailStepProps {
   sendCodeLabel?: string
 }
 
-export function EmailStep({ email, onEmailChange, isSubmitting, isGoogleLoading, isOnline, errorKey,
+export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmitting, isGoogleLoading, isOnline, errorKey,
   errorMessage, onSendCode, onSignInWithGoogle, onOpenTerms, onOpenPrivacy, tokens, styles, t,
   sendCodeLabel }: Readonly<EmailStepProps>) {
   const fieldError = isOnline && errorKey === 'auth.errors.invalidEmail' ? errorMessage : null
@@ -31,7 +32,7 @@ export function EmailStep({ email, onEmailChange, isSubmitting, isGoogleLoading,
   const sendError = isOnline && errorMessage && !fieldError && !googleError ? errorMessage : null
   return <View style={styles.step}>
     <Input label={t('auth.email')} value={email} onChange={onEmailChange} placeholder={t('auth.emailPlaceholder')}
-      kind="email" autoComplete="email" disabled={isSubmitting || isGoogleLoading}
+      kind="email" name="email" focusRequest={emailFocusRequest} autoComplete="email" disabled={isSubmitting || isGoogleLoading}
       onSubmit={onSendCode} error={fieldError ?? undefined} />
     <View style={styles.actionGroup}>
       {!isOnline && <LoginOfflineNotice t={t} styles={styles} tokens={tokens} />}

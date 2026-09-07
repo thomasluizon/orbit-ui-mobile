@@ -1,4 +1,5 @@
 import { extractBackendErrorCode } from './error-utils'
+import { isValidEmail } from './email'
 
 export const VERIFICATION_CODE_LENGTH = 6
 
@@ -132,6 +133,24 @@ export type LoginCodeFailure = 'wrong' | 'expired' | 'locked' | null
 export interface LoginAttempts {
   count: number
   expiresAt: number
+}
+
+export type LoginEmailSubmission =
+  | { status: 'invalid' }
+  | { status: 'ready' }
+  | { status: 'locked'; remainingSeconds: number }
+
+export function deriveLoginEmailSubmission(
+  email: string,
+  attempts: ReadonlyMap<string, LoginAttempts>,
+  now: number,
+): LoginEmailSubmission {
+  if (!isValidEmail(email)) return { status: 'invalid' }
+  const locked = attempts.get(email.trim().toLowerCase())
+  if (locked && locked.count >= 3 && locked.expiresAt > now) {
+    return { status: 'locked', remainingSeconds: Math.ceil((locked.expiresAt - now) / 1000) }
+  }
+  return { status: 'ready' }
 }
 
 export function recordLoginFailure(

@@ -63,7 +63,7 @@ Flags, all combinable:
                      ticket with comment-ticket.mjs BEFORE compose-prompt. No worker until answered.
                      THEN write .git/orbit-orchestrate-run.json: session, sleep, remaining[]
                                         ---- per ticket, in wave order ----
- 3  Worktree         orca worktree create; git switch -c feature/<ticket-slug>-<slug>
+ 3  Worktree         tools/create-worktree.mjs; git switch -c feature/<ticket-slug>-<slug>
                      stackParent set -> branch from ITS branch, not from main
  4  Compose prompt   ticket verbatim + comments + ORCHESTRATOR'S BRIEF + finishing contract
                      written to the scratchpad, never inside a repo
@@ -429,9 +429,14 @@ broken drift gate, partial behavior, or detached migration merely to reduce a nu
 ## Step 3. Worktree
 
 ```bash
-orca worktree create --repo path:<repo> --name <slug> --base-branch main \
+node tools/create-worktree.mjs --repo path:<repo> --name <slug> --base-branch main \
   --issue <ticket-number> --no-parent --comment "<one line>" --json
 ```
+
+The wrapper fetches the named base immediately before creation, fast-forwards its local ref only
+when ancestry proves that is safe, and refuses a divergent ref. It prints `WORKTREE_BASE <branch>
+<commit>` before invoking Orca. Preserve that line in the run log and confirm the new worktree's
+`git rev-parse HEAD` prints the same commit before creating its contract branch.
 
 Orca creates `refs/heads/<gituser>/<name>`. That is not the contract branch. Derive the ticket slug
 from its actual reference: `orb-N` for a migrated ORB identifier, or `ticket-N` for a GitHub-only
