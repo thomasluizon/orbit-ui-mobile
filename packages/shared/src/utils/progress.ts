@@ -140,13 +140,17 @@ export function getAvailableStreakRepairDate(
 export function buildProtectedDayLabels(
   dates: readonly string[],
   now: Date = new Date(),
+  locale?: string,
+  isFrozenToday = false,
 ): { id: string; dateLabel: string; isToday: boolean }[] {
   const today = startOfDay(now)
-  return dates.map((date) => {
+  const protectedDates = new Set(dates)
+  if (isFrozenToday) protectedDates.add(format(today, 'yyyy-MM-dd'))
+  return [...protectedDates].sort().reverse().map((date) => {
     const parsed = startOfDay(parseISO(date))
     return {
       id: date,
-      dateLabel: format(parsed, 'yyyy-MM-dd'),
+      dateLabel: locale ? new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(parsed) : format(parsed, 'yyyy-MM-dd'),
       isToday: isSameDay(parsed, today),
     }
   })

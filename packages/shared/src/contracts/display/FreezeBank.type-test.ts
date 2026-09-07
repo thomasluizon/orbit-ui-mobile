@@ -10,14 +10,11 @@ type Words = {
   missed: 'missed'
   today: 'today'
   legendLabel: 'Legend'
-  disclosureCollapsed: 'Show freeze details'
-  disclosureExpanded: 'Hide freeze details'
   bankedLabel: 'Banked'
   usedLabel: 'Used'
   nextLabel: 'Next freeze'
   nextProgressLabel: 'Freeze progress'
-  nextFreezeInDays: 'Next freeze in 3 days'
-  capacityMessage: 'The bank is full'
+  nextFreezeProgress: 'Next freeze in 3 days'
   protectedLabel: 'Protected days'
   protectedEmpty: 'No protected days'
   protectedDay: 'Protected'
@@ -31,11 +28,12 @@ export type FreezeBankTypeContract = [
         banked: 1
         ceiling: 3
         usedThisMonth: 2
-        monthlyUseCeiling: 3
         daysTowardNext: 4
         earnRateDays: 7
         tierValue: 'Silver'
         tierLabel: 'Streak tier'
+        longestValue: 21
+        longestLabel: 'Best streak'
         protectedDays: readonly []
         words: Words
       },
@@ -44,6 +42,6 @@ export type FreezeBankTypeContract = [
   >,
   // @ts-expect-error the protected empty state requires caller-owned words
   Assert<IsExact<Omit<FreezeBankProps, 'words'>, FreezeBankProps>>,
-  // @ts-expect-error the tier belongs inside the disclosure and is required
+  // @ts-expect-error the streak tier is required
   Assert<IsExact<Omit<FreezeBankProps, 'tierValue'>, FreezeBankProps>>,
 ]

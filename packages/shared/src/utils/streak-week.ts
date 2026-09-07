@@ -12,7 +12,7 @@ interface StreakWeekDay {
 }
 
 /**
- * Derives the 7-day streak timeline (ending today) from streak info.
+ * Derives the streak timeline (ending today, seven days by default) from streak info.
  * All comparisons are midnight-anchored so the lastActiveDate day itself
  * counts as active regardless of the current time of day.
  */
@@ -21,16 +21,17 @@ export function buildStreakWeekDays(
   currentStreak: number,
   isFrozenToday: boolean,
   now: Date = new Date(),
+  length: 7 | 14 = 7,
 ): StreakWeekDay[] {
   const today = startOfDay(now)
   const freezeDates = new Set(streakInfo?.recentFreezeDates ?? [])
   const lastActive = streakInfo?.lastActiveDate
   const lastActiveDate = lastActive ? startOfDay(parseISO(lastActive)) : null
 
-  return Array.from({ length: 7 }, (_, i) => {
-    const date = subDays(today, 6 - i)
+  return Array.from({ length }, (_, i) => {
+    const date = subDays(today, length - 1 - i)
     const dateStr = format(date, 'yyyy-MM-dd')
-    const isTodayDate = i === 6
+    const isTodayDate = i === length - 1
 
     let status: StreakWeekDayStatus = 'missed'
 

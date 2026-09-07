@@ -178,6 +178,8 @@ describe('mobile ProgressContent', () => {
     mocks.account.profile.hasProAccess = true
     mocks.goals.data.allGoals = []
     mocks.gamification.profile.achievements = []
+    mocks.freeze.isFrozenToday = false
+    mocks.freeze.streakInfo.recentFreezeDates = []
     mocks.freeze.streakInfo.lastActiveDate = null
     mocks.freeze.streakInfo.isRepairAvailable = false
     mocks.freeze.streakInfo.repairDate = null
@@ -403,4 +405,29 @@ describe('mobile ProgressContent', () => {
       { id: 'goal-1', position: 1 },
     ])
   })
+
+  it('renders fourteen account days and exposes the bank on the owning screen', async () => {
+    const tree = await renderProgress()
+    const strip = tree.root.findAll((node) => node.props.testID === 'day-strip-account')[0]!
+    const cells = strip.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image')
+    expect(cells).toHaveLength(14)
+    expect(cells.at(-1)?.props.testID).toBe('day-strip-cell-today')
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.streak.banked').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.type === 'StatTile' && node.props.label === 'streakDisplay.detail.tierTileLabel')).toHaveLength(1)
+  })
+
+  it('announces frozen today above the strip and includes its protected date', async () => {
+    mocks.freeze.isFrozenToday = true
+    const tree = await renderProgress()
+    const hosts = tree.root.findAll((node) => typeof node.type === 'string')
+    const banner = hosts.findIndex((node) => node.props.accessibilityLiveRegion === 'polite' && node.props.accessibilityLabel === 'progressScreen.streak.frozenToday')
+    expect(banner).toBeGreaterThanOrEqual(0)
+    expect(banner).toBeLessThan(hosts.findIndex((node) => node.props.testID === 'day-strip-account'))
+    expect(tree.root.findAll((node) => node.props.testID === 'day-strip-cell-frozen').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.streak.protectedToday').length).toBeGreaterThan(0)
+    mocks.freeze.isFrozenToday = false
+    const open = await renderProgress()
+    expect(open.root.findAll((node) => node.props.children === 'progressScreen.streak.frozenToday')).toHaveLength(0)
+  })
+
 })

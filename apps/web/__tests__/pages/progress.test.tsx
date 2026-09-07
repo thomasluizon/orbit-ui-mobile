@@ -139,6 +139,8 @@ describe('ProgressContent', () => {
     mocks.account.profile.hasProAccess = true
     mocks.goals.data.allGoals = []
     mocks.gamification.profile.achievements = []
+    mocks.freeze.isFrozenToday = false
+    mocks.freeze.streakInfo.recentFreezeDates = []
     mocks.freeze.streakInfo.lastActiveDate = null
     mocks.freeze.streakInfo.isRepairAvailable = false
     mocks.freeze.streakInfo.repairDate = null
@@ -328,4 +330,29 @@ describe('ProgressContent', () => {
 
     mocks.freeze.streakInfo = streakInfo
   })
+
+  it('renders fourteen account days and exposes the bank on the owning page', () => {
+    const { container } = render(<ProgressPage />)
+    const strip = container.querySelector('[data-scope="account"]')!
+    expect(strip.querySelectorAll('[data-state]')).toHaveLength(14)
+    expect(strip.querySelector('[data-state="today"]')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.streak.banked')).toBeInTheDocument()
+    expect(screen.getByText('streakDisplay.detail.tierTileLabel')).toBeInTheDocument()
+  })
+
+  it('announces frozen today above the strip and includes its protected date', () => {
+    mocks.freeze.isFrozenToday = true
+    const { container, rerender } = render(<ProgressPage />)
+    const banner = screen.getByRole('status')
+    expect(banner).toHaveTextContent('progressScreen.streak.frozenToday')
+    const strip = container.querySelector('[data-scope="account"]')!
+    expect(banner.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(strip.lastElementChild).toHaveAttribute('data-state', 'frozen')
+    expect(screen.getByText('progressScreen.streak.protectedToday')).toBeInTheDocument()
+    mocks.freeze.isFrozenToday = false
+    rerender(<ProgressPage />)
+    expect(screen.queryByText('progressScreen.streak.frozenToday')).not.toBeInTheDocument()
+    expect(strip.lastElementChild).toHaveAttribute('data-state', 'today')
+  })
+
 })
