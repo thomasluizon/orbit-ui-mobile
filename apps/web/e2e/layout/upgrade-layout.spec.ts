@@ -12,7 +12,6 @@ function singleLineLabels(messages: typeof en, trial: boolean): string[] {
       messages.upgrade.convert.freeEyebrow,
       messages.upgrade.convert.trustLine,
     ]),
-    messages.upgrade.convert.promise,
     messages.upgrade.free,
     'Pro',
     messages.upgrade.convert.freeAllowance,
