@@ -163,7 +163,7 @@ const acquireLock = async (lockPath) => {
   }
 }
 
-const runLocked = async (lockPath, owner, command, commandArgs) => {
+const runLocked = async (lockPath, command, commandArgs) => {
   // The gate cannot execute until its identity is published. EOF before authorization exits it.
   // Linux exec preserves the registered PID/start identity; Windows keeps a detached supervisor.
   const windowsGate = `
@@ -192,13 +192,14 @@ const runLocked = async (lockPath, owner, command, commandArgs) => {
     child.on("error", (error) => { stderr += error.message })
     child.on("close", (status) => resolve({ status, stdout, stderr }))
   })
-  const childOwner = `${owner}.${child.pid}`
+  let childOwner
   let candidate
   try {
     if (!child.pid) return await completion
     const identity = processStartIdentity(child.pid)
     if (!identity) abort(3, "cannot establish repository lock child identity")
     candidate = mkdtempSync(`${lockPath}-child-`)
+    childOwner = basename(candidate)
     writeFileSync(join(candidate, childOwner), JSON.stringify({ pid: child.pid, processStartIdentity: identity }))
     renameSync(join(candidate, childOwner), join(lockPath, childOwner))
     child.stdin.end("run\n")
@@ -206,7 +207,7 @@ const runLocked = async (lockPath, owner, command, commandArgs) => {
   } finally {
     child.stdin.destroy()
     await completion
-    removeOwner(lockPath, childOwner)
+    if (childOwner) removeOwner(lockPath, childOwner)
     if (candidate) removeOwner(candidate, childOwner)
   }
 }
@@ -216,7 +217,7 @@ const createWorktree = async () => {
   const lockPath = join(commonDirectory, "create-worktree.lock")
   const owner = await acquireLock(lockPath)
   try {
-    const run = (command, commandArgs) => runLocked(lockPath, owner, command, commandArgs)
+    const run = (command, commandArgs) => runLocked(lockPath, command, commandArgs)
     await refreshBase(join(commonDirectory, "create-worktree-refresh.json"), run)
     const result = await run(process.env.ORCA_BIN || "orca", ["worktree", "create", ...args])
     if (result.stdout) process.stdout.write(result.stdout)
