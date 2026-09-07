@@ -57,7 +57,7 @@ describe('proxy', () => {
   })
 
   it('allows public legal pages without resolving a session', async () => {
-    for (const path of ['/terms', '/privacy', '/delete-account']) {
+    for (const path of ['/terms', '/privacy', '/delete-account', '/about']) {
       const response = await proxy(createRequest(path))
 
       expect(response).toMatchObject({ type: 'next' })

@@ -137,7 +137,8 @@ describe('useLoginFlow send-code step', () => {
     })
 
     expect(fetchMock).not.toHaveBeenCalled()
-    expect(mocks.showError).toHaveBeenCalledWith('auth.errors.invalidEmail')
+    expect(result.current.errorMessage).toBe('auth.errors.invalidEmail')
+    expect(mocks.showError).not.toHaveBeenCalled()
     expect(result.current.step).toBe('email')
   })
 
@@ -151,7 +152,7 @@ describe('useLoginFlow send-code step', () => {
     })
 
     expect(fetchMock).not.toHaveBeenCalled()
-    expect(mocks.showError).toHaveBeenCalledWith('auth.errors.offline')
+    expect(mocks.showError).not.toHaveBeenCalled()
     expect(result.current.step).toBe('email')
   })
 
@@ -212,8 +213,10 @@ describe('useLoginFlow verify-code success', () => {
     })
 
     expect(requestBodyFor('/api/auth/verify-code')).toMatchObject({ referralCode: 'friend-42' })
-    expect(localStorage.getItem('orbit_referral_applied')).toBe('1')
-    expect(result.current.successMessage).toBe('profile.deleteAccount.reactivated')
+    expect(result.current.accountBack).toMatchObject({ wasReactivated: true })
+    expect(mocks.push).not.toHaveBeenCalled()
+    await act(async () => result.current.continueAccount())
+    expect(mocks.push).toHaveBeenCalledWith('/')
   })
 
   it('auto-submits once six digits are entered and completes the session', async () => {
@@ -236,11 +239,11 @@ describe('useLoginFlow verify-code failure', () => {
     await advanceToCodeStep(result)
     typeCode(result, '111111')
 
-    await waitFor(() => expect(mocks.showError).toHaveBeenCalledWith('auth.errors.unauthorized'))
+    await waitFor(() => expect(result.current.errorMessage).toBe('auth.errors.unauthorized'))
     expect(mocks.setAuth).not.toHaveBeenCalled()
     expect(mocks.push).not.toHaveBeenCalled()
     expect(result.current.step).toBe('code')
-    expect(result.current.codeDigits).toEqual(['', '', '', '', '', ''])
+    expect(result.current.codeDigits.join('')).toBe('111111')
   })
 
   it('maps a 5xx failure to the server-error message', async () => {
@@ -252,7 +255,7 @@ describe('useLoginFlow verify-code failure', () => {
       await result.current.verifyCode('123456')
     })
 
-    expect(mocks.showError).toHaveBeenCalledWith('auth.errors.serverError')
+    expect(result.current.errorMessage).toBe('auth.errors.unknownError')
     expect(mocks.setAuth).not.toHaveBeenCalled()
   })
 
@@ -265,7 +268,107 @@ describe('useLoginFlow verify-code failure', () => {
       await result.current.verifyCode('123456')
     })
 
-    expect(mocks.showError).toHaveBeenCalledWith('auth.errors.invalidCode')
+    expect(result.current.errorMessage).toBe('auth.errors.invalidCode')
     expect(mocks.setAuth).not.toHaveBeenCalled()
+  })
+})
+
+describe('auth state recovery', () => {
+  it.each([429, 500, 503])('keeps the address and one send failure for HTTP %s', async (status) => {
+    fetchMock.mockResolvedValue(jsonResponse({ error: 'Request failed' }, status))
+    const { result } = renderHook(() => useLoginFlow())
+    await advanceToCodeStep(result)
+    expect(result.current.step).toBe('email')
+    expect(result.current.email).toBe('user@test.com')
+    expect(result.current.errorKey).toBe('auth.errors.sendFailed')
+    expect(mocks.showError).not.toHaveBeenCalled()
+  })
+
+  it('keeps the same send failure after a thrown network error', async () => {
+    fetchMock.mockRejectedValue(new TypeError('network disconnected'))
+    const { result } = renderHook(() => useLoginFlow())
+    await advanceToCodeStep(result)
+    expect(result.current.errorKey).toBe('auth.errors.sendFailed')
+    expect(result.current.email).toBe('user@test.com')
+  })
+
+  it('prefills a valid link without verifying it until the action', async () => {
+    mocks.search = 'email=user%40test.com&code=123456'
+    const { result } = renderHook(() => useLoginFlow())
+    expect(result.current.step).toBe('code')
+    expect(result.current.codeDigits.join('')).toBe('123456')
+    expect(fetchMock).not.toHaveBeenCalled()
+    await act(async () => result.current.verifyCode())
+    expect(mocks.setAuth).toHaveBeenCalledTimes(1)
+  })
+
+  it('deduplicates the sixth digit and a simultaneous verify action', async () => {
+    const { result } = renderHook(() => useLoginFlow())
+    await advanceToCodeStep(result)
+    await act(async () => {
+      result.current.onCodeChange('123456')
+      await result.current.verifyCode('123456')
+    })
+    expect(fetchMock.mock.calls.filter(([url]) => typeof url === 'string' && url.includes('verify-code'))).toHaveLength(1)
+  })
+
+  it('locks after three wrong codes, retains the address lock, and allows another address', async () => {
+    wireAuthNetwork({ body: { error: 'Invalid verification code' }, status: 400 })
+    const { result } = renderHook(() => useLoginFlow())
+    await advanceToCodeStep(result)
+    for (const code of ['111111', '222222', '333333']) {
+      await act(async () => { result.current.onCodeChange(code) })
+    }
+    expect(result.current.codeFailure).toBe('locked')
+    expect(result.current.lockCountdown).toBe(900)
+    expect(result.current.codeDigits.join('')).toBe('333333')
+    const calls = fetchMock.mock.calls.length
+    await act(async () => { await result.current.verifyCode('444444'); await result.current.resendCode() })
+    expect(fetchMock).toHaveBeenCalledTimes(calls)
+    act(() => result.current.backToEmail())
+    act(() => result.current.setEmail('other@test.com'))
+    await act(async () => result.current.sendCode())
+    expect(result.current.step).toBe('code')
+    expect(result.current.codeFailure).toBeNull()
+    act(() => result.current.backToEmail())
+    act(() => result.current.setEmail('USER@test.com'))
+    const before = fetchMock.mock.calls.length
+    await act(async () => result.current.sendCode())
+    expect(result.current.codeFailure).toBe('locked')
+    expect(fetchMock).toHaveBeenCalledTimes(before)
+  })
+
+  it('allows verification after the observed lock elapses without automatic replay', async () => {
+    vi.useFakeTimers()
+    wireAuthNetwork({ body: { error: 'Invalid verification code' }, status: 400 })
+    const { result, unmount } = renderHook(() => useLoginFlow())
+    await advanceToCodeStep(result)
+    for (const code of ['111111', '222222', '333333']) await act(async () => result.current.verifyCode(code))
+    expect(result.current.codeFailure).toBe('locked')
+    const calls = fetchMock.mock.calls.length
+    await act(async () => vi.advanceTimersByTime(900_000))
+    expect(result.current.codeFailure).toBeNull()
+    expect(fetchMock).toHaveBeenCalledTimes(calls)
+    wireAuthNetwork()
+    await act(async () => result.current.verifyCode('123456'))
+    expect(mocks.setAuth).toHaveBeenCalledTimes(1)
+    await act(async () => result.current.resendCode())
+    expect(result.current.codeFailure).toBeNull()
+    expect(result.current.successMessage).toBe('auth.codeResent')
+    expect(result.current.resendCountdown).toBe(60)
+    unmount()
+  })
+  it('lets the server decide retries after a reload with an unknown lock deadline', async () => {
+    wireAuthNetwork({ body: { error: 'Too many attempts. Try again in 15 minutes' }, status: 400 })
+    const { result } = renderHook(() => useLoginFlow())
+    await advanceToCodeStep(result)
+    await act(async () => result.current.verifyCode('123456'))
+    expect(result.current.codeFailure).toBe('locked')
+    const calls = fetchMock.mock.calls.length
+    await act(async () => result.current.verifyCode('123456'))
+    expect(fetchMock).toHaveBeenCalledTimes(calls + 1)
+    wireAuthNetwork()
+    await act(async () => result.current.verifyCode('123456'))
+    expect(mocks.setAuth).toHaveBeenCalledTimes(1)
   })
 })

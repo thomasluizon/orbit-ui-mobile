@@ -18,6 +18,7 @@ const PUBLIC_PATHS = [
   '/r/',
   '/terms',
   '/privacy',
+  '/about',
   '/delete-account',
   '/.well-known',
   '/app-ads.txt',

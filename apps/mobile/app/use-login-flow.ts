@@ -1,373 +1,197 @@
-import { useEffect, useMemo, useState } from 'react'
-// react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { Animated, Keyboard, Platform } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
-import {
-  ApiClientError,
-  extractAuthBackendMessage,
-  isValidEmail,
-  isVerificationCodeComplete,
-  resolveAuthLoginErrorKey,
-} from '@orbit/shared/utils'
-import { useAppToast } from '@/hooks/use-app-toast'
-import { easings } from '@/lib/theme'
-import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
+import { ApiClientError, extractAuthBackendMessage, isValidEmail, resolveAuthLoginErrorKey,
+  recordLoginFailure, type LoginAttempts, type LoginCodeFailure } from '@orbit/shared/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api-client'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
-import {
-  clearStoredReferralCode,
-  consumeStoredAuthReturnUrl,
-  getSafeReturnUrl,
-  getStoredReferralCode,
-  isSafeReturnUrl,
-  isValidReferralCode,
-  isValidVerificationCode,
-  markReferralApplied,
-  storeAuthReturnUrl,
-  storeReferralCode,
-} from '@/lib/auth-flow'
+import { clearStoredReferralCode, consumeStoredAuthReturnUrl, getSafeReturnUrl, getStoredReferralCode,
+  isSafeReturnUrl, isValidReferralCode, isValidVerificationCode, markReferralApplied,
+  storeAuthReturnUrl, storeReferralCode } from '@/lib/auth-flow'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { useOffline } from '@/hooks/use-offline'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
-interface AuthErrorState {
-  message: string
-}
-
 export function useLoginFlow() {
   const { t, i18n } = useTranslation()
-  const params = useLocalSearchParams<{
-    ref?: string
-    returnUrl?: string
-    email?: string
-    code?: string
-    from?: string
-  }>()
+  const params = useLocalSearchParams<{ ref?: string; returnUrl?: string; email?: string; code?: string; from?: string }>()
   const router = useRouter()
   const login = useAuthStore((s) => s.login)
   const { isOnline } = useOffline()
-  const { showError } = useAppToast()
-  const onboardingLocallyDone = useOnboardingDraftStore(
-    (s) => s.onboardingLocallyDone,
-  )
+  const onboardingLocallyDone = useOnboardingDraftStore((s) => s.onboardingLocallyDone)
   const plannedHabitCount = useOnboardingDraftStore((s) => s.habits.length)
   const fromOnboarding = params.from === 'onboarding' || onboardingLocallyDone
-
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [errorKey, setErrorKey] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [showReferralBanner, setShowReferralBanner] = useState(false)
-  const [keyboardVisible, setKeyboardVisible] = useState(false)
-  const isCodeStep = step === 'code'
-  const isAndroidKeyboardOpen = Platform.OS === 'android' && keyboardVisible
-  const prefersReducedMotion = usePrefersReducedMotion()
-  const stepEntrance = useMemo(() => new Animated.Value(1), [])
-  const shakeOffset = useMemo(() => new Animated.Value(0), [])
+  const [codeFailure, setCodeFailure] = useState<LoginCodeFailure>(null)
+  const [lockCountdown, setLockCountdown] = useState(0)
+  const [accountBack, setAccountBack] = useState<BackendLoginResponse | null>(null)
+  const busy = useRef(false)
+  const attempts = useRef(new Map<string, LoginAttempts>())
+  const entry = useLoginCodeEntry((code) => { void verifyCode(code) })
+  const { setCodeDigits } = entry
 
   useEffect(() => {
-    if (prefersReducedMotion) {
-      stepEntrance.setValue(1)
-      return
-    }
-    stepEntrance.setValue(0)
-    const animation = Animated.timing(stepEntrance, {
-      toValue: 1,
-      duration: 280,
-      easing: toAnimatedEasing(easings.out),
-      useNativeDriver: true,
-    })
-    animation.start()
-    return () => animation.stop()
-  }, [prefersReducedMotion, step, stepEntrance])
-
-  useEffect(() => {
-    if (!errorMessage || step !== 'code' || prefersReducedMotion) return
-    shakeOffset.setValue(0)
-    const shakeFrame = (toValue: number) =>
-      Animated.timing(shakeOffset, {
-        toValue,
-        duration: 56,
-        useNativeDriver: true,
-      })
-    const animation = Animated.sequence([
-      shakeFrame(-4),
-      shakeFrame(4),
-      shakeFrame(-4),
-      shakeFrame(4),
-      shakeFrame(0),
-    ])
-    animation.start()
-    return () => animation.stop()
-  }, [errorMessage, prefersReducedMotion, shakeOffset, step])
-
-  const {
-    codeDigits,
-    setCodeDigits,
-    canResend,
-    resendCountdown,
-    startResendCountdown,
-    resetCodeDigits,
-    onCodeChange,
-    onCodeInput,
-    onCodeKeyPress,
-  } = useLoginCodeEntry(() => {
-    void verifyCode()
-  })
-
-  useEffect(() => {
-    async function hydrateAuthFlowState() {
-      const refCode = typeof params.ref === 'string' ? params.ref : undefined
-      const returnUrl = typeof params.returnUrl === 'string' ? params.returnUrl : undefined
-      const deepLinkEmail = typeof params.email === 'string' ? params.email : undefined
-      const deepLinkCode = typeof params.code === 'string' ? params.code : undefined
-
-      if (refCode && isValidReferralCode(refCode)) {
-        await storeReferralCode(refCode)
-        setShowReferralBanner(true)
-      } else {
-        setShowReferralBanner(Boolean(await getStoredReferralCode()))
-      }
-
-      if (returnUrl && isSafeReturnUrl(returnUrl)) {
-        await storeAuthReturnUrl(returnUrl)
-      }
-
-      if (deepLinkEmail) {
-        setEmail(deepLinkEmail)
-      }
-
-      if (deepLinkEmail && isValidVerificationCode(deepLinkCode)) {
-        setCodeDigits(deepLinkCode.split(''))
+    let active = true
+    async function hydrate() {
+      if (typeof params.ref === 'string' && isValidReferralCode(params.ref)) await storeReferralCode(params.ref)
+      const referral = await getStoredReferralCode()
+      if (typeof params.returnUrl === 'string' && isSafeReturnUrl(params.returnUrl)) await storeAuthReturnUrl(params.returnUrl)
+      if (!active) return
+      setShowReferralBanner(Boolean(referral))
+      if (typeof params.email === 'string') setEmail(params.email)
+      if (typeof params.email === 'string' && isValidEmail(params.email) && isValidVerificationCode(params.code)) {
+        setCodeDigits(params.code.split(''))
         setStep('code')
       }
     }
-
-    hydrateAuthFlowState().catch(() => {})
-  }, [
-    params.code,
-    params.email,
-    params.ref,
-    params.returnUrl,
-    setCodeDigits,
-    setEmail,
-    setShowReferralBanner,
-    setStep,
-  ])
+    void hydrate().catch(() => { if (active) setErrorKey('auth.errors.unknownError') })
+    return () => { active = false }
+  }, [params.code, params.email, params.ref, params.returnUrl, setCodeDigits])
 
   useEffect(() => {
-    if (Platform.OS !== 'android') return
+    if (codeFailure !== 'locked') return
+    if ((attempts.current.get(email.trim().toLowerCase())?.expiresAt ?? 0) <= Date.now()) return
+    const timer = setInterval(() => {
+      const until = attempts.current.get(email.trim().toLowerCase())?.expiresAt ?? 0
+      const remaining = Math.max(0, Math.ceil((until - Date.now()) / 1000))
+      setLockCountdown(remaining)
+      if (!remaining) { setCodeFailure(null); setErrorKey(null) }
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [codeFailure, email])
 
-    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
-      setKeyboardVisible(true)
-    })
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardVisible(false)
-    })
-
-    return () => {
-      showSubscription.remove()
-      hideSubscription.remove()
-    }
-  }, [])
-
-  function resolveLoginErrorState(
-    err: unknown,
-    source: 'google' | 'magic-code' = 'magic-code',
-  ): AuthErrorState {
-    const status = err instanceof ApiClientError ? err.status : undefined
-    const backendMessage = extractAuthBackendMessage(err)
-    const key = resolveAuthLoginErrorKey({ status, backendMessage, raw: err, source })
-
-    return { message: t(key) }
-  }
-
-  function reportError(message: string) {
-    setErrorMessage(message)
-    showError(message)
+  function resolveErrorKey(error: unknown, source: 'magic-code' | 'send' = 'magic-code') {
+    return resolveAuthLoginErrorKey({ status: error instanceof ApiClientError ? error.status : undefined,
+      backendMessage: extractAuthBackendMessage(error), raw: error, source })
   }
 
   async function sendCode() {
-    if (!isOnline) {
-      reportError(t('auth.errors.offline'))
+    if (busy.current || !isOnline || !email.trim()) return
+    if (!isValidEmail(email)) { setErrorKey('auth.errors.invalidEmail'); return }
+    const locked = attempts.current.get(email.trim().toLowerCase())
+    if (locked && locked.count >= 3 && locked.expiresAt > Date.now()) {
+      setStep('code')
+      setCodeFailure('locked')
+      setLockCountdown(Math.ceil((locked.expiresAt - Date.now()) / 1000))
+      setErrorKey(null)
       return
     }
-
-    const trimmed = email.trim()
-    if (!trimmed) return
-    if (!isValidEmail(trimmed)) {
-      reportError(t('auth.errors.invalidEmail'))
-      return
-    }
+    busy.current = true
     setIsSubmitting(true)
-    setErrorMessage(null)
-
+    setErrorKey(null)
     try {
-      await apiClient(API.auth.sendCode, {
-        method: 'POST',
-        body: JSON.stringify({ email: trimmed, language: i18n.language }),
-      })
+      await apiClient(API.auth.sendCode, { method: 'POST', body: JSON.stringify({ email: email.trim(), language: i18n.language }) })
+      entry.resetCodeDigits()
+      setCodeFailure(null)
       setStep('code')
       setSuccessMessage(t('auth.codeSent'))
-      startResendCountdown()
-    } catch (err: unknown) {
-      reportError(resolveLoginErrorState(err).message)
-    } finally {
-      setIsSubmitting(false)
-    }
+      entry.startResendCountdown()
+    } catch (error: unknown) { setErrorKey(resolveErrorKey(error, 'send')) }
+    finally { busy.current = false; setIsSubmitting(false) }
   }
 
-  async function verifyCode() {
-    if (!isOnline) {
-      reportError(t('auth.errors.offline'))
-      return
+  async function completeLogin(response: BackendLoginResponse, today = false) {
+    await login(response.token, response.refreshToken, { userId: response.userId, name: response.name, email: response.email })
+    if (await getStoredReferralCode()) {
+      await markReferralApplied()
+      await clearStoredReferralCode()
+      setShowReferralBanner(false)
     }
+    const returnUrl = getSafeReturnUrl(await consumeStoredAuthReturnUrl())
+    router.replace(today ? '/' : returnUrl)
+  }
 
-    const code = codeDigits.join('')
-    if (code.length !== 6) return
+  function reportVerificationFailure(error: unknown) {
+    const key = resolveErrorKey(error)
+    const address = email.trim().toLowerCase()
+    const next = recordLoginFailure(key, attempts.current.get(address), Date.now())
+    attempts.current.set(address, next.attempts)
+    setCodeFailure(next.failure)
+    setLockCountdown(next.failure === 'locked' ? Math.max(0, Math.ceil((next.attempts.expiresAt - Date.now()) / 1000)) : 0)
+    setErrorKey(next.failure === 'locked' ? null : key)
+  }
+
+  async function verifyCode(codeOverride?: string) {
+    const code = codeOverride ?? entry.codeDigits.join('')
+    if (busy.current || !isOnline || code.length !== 6 || (codeFailure === 'locked' && lockCountdown > 0) || codeFailure === 'expired') return
+    busy.current = true
     setIsSubmitting(true)
-    setSuccessMessage(null)
-    setErrorMessage(null)
-
+    setErrorKey(null)
     try {
       const referralCode = await getStoredReferralCode()
-      const res = await apiClient<BackendLoginResponse>(API.auth.verifyCode, {
-        method: 'POST',
-        body: JSON.stringify({
-          email: email.trim(),
-          code,
-          language: i18n.language,
-          ...(referralCode ? { referralCode } : {}),
-        }),
+      const response = await apiClient<BackendLoginResponse>(API.auth.verifyCode, {
+        method: 'POST', body: JSON.stringify({ email: email.trim(), code, language: i18n.language,
+          ...(referralCode ? { referralCode } : {}) }),
       })
-      await login(res.token, res.refreshToken, {
-        userId: res.userId,
-        name: res.name,
-        email: res.email,
-      })
-      if (res.wasReactivated) {
-        setSuccessMessage(t('profile.deleteAccount.reactivated'))
-      }
-      if (referralCode) {
-        await markReferralApplied()
-        await clearStoredReferralCode()
-        setShowReferralBanner(false)
-      }
-      const returnUrl = getSafeReturnUrl(await consumeStoredAuthReturnUrl())
-      router.replace(returnUrl)
-    } catch (err: unknown) {
-      reportError(resolveLoginErrorState(err).message)
-      resetCodeDigits()
-    } finally {
-      setIsSubmitting(false)
-    }
+      if (response.wasReactivated) setAccountBack(response)
+      else await completeLogin(response)
+    } catch (error: unknown) { reportVerificationFailure(error) }
+    finally { busy.current = false; setIsSubmitting(false) }
   }
 
   async function resendCode() {
-    if (!isOnline) {
-      reportError(t('auth.errors.offline'))
-      return
-    }
-
-    if (!canResend) return
+    if (busy.current || !isOnline || (codeFailure === 'locked' && lockCountdown > 0) || (!entry.canResend && codeFailure !== 'expired')) return
+    busy.current = true
     setIsSubmitting(true)
     setSuccessMessage(null)
-    setErrorMessage(null)
-
+    setErrorKey(null)
     try {
-      await apiClient(API.auth.sendCode, {
-        method: 'POST',
-        body: JSON.stringify({ email: email.trim(), language: i18n.language }),
-      })
-      setSuccessMessage(t('auth.codeSent'))
-      startResendCountdown()
-    } catch (err: unknown) {
-      reportError(resolveLoginErrorState(err).message)
-    } finally {
-      setIsSubmitting(false)
-    }
+      await apiClient(API.auth.sendCode, { method: 'POST', body: JSON.stringify({ email: email.trim(), language: i18n.language }) })
+      entry.resetCodeDigits()
+      setCodeFailure(null)
+      setSuccessMessage(t('auth.codeResent'))
+      entry.startResendCountdown()
+    } catch (error: unknown) { setErrorKey(resolveErrorKey(error, 'send')) }
+    finally { busy.current = false; setIsSubmitting(false) }
   }
 
   function backToEmail() {
+    if (busy.current) return
     setStep('email')
     setSuccessMessage(null)
-    setErrorMessage(null)
-    resetCodeDigits()
+    setErrorKey(null)
+    setCodeFailure(null)
+    entry.resetCodeDigits()
   }
 
   async function signInWithGoogle() {
-    if (!isOnline) {
-      reportError(t('auth.errors.offline'))
-      return
-    }
-
+    if (busy.current || !isOnline) return
+    busy.current = true
     setIsGoogleLoading(true)
-    setErrorMessage(null)
-
+    setErrorKey(null)
     try {
-      const pendingReturnUrl = typeof params.returnUrl === 'string' ? params.returnUrl : undefined
-      const result = await startMobileGoogleAuth({
-        returnUrl: pendingReturnUrl,
-      })
-
-      if (result.type !== 'success') return
-
-      router.replace('/auth-callback')
-    } catch (err: unknown) {
-      reportError(resolveLoginErrorState(err, 'google').message)
-    } finally {
-      setIsGoogleLoading(false)
-    }
+      const result = await startMobileGoogleAuth({ returnUrl: typeof params.returnUrl === 'string' ? params.returnUrl : undefined })
+      if (result.type === 'success') router.replace('/auth-callback')
+    } catch { setErrorKey('auth.errors.googleError') }
+    finally { busy.current = false; setIsGoogleLoading(false) }
   }
 
-  function openPrivacyPolicy() {
-    router.push('/privacy')
+  async function continueAccount() {
+    if (!accountBack || busy.current) return
+    busy.current = true
+    setIsSubmitting(true)
+    setErrorKey(null)
+    try { await completeLogin(accountBack, true) }
+    catch { setErrorKey('auth.errors.unknownError') }
+    finally { busy.current = false; setIsSubmitting(false) }
   }
 
-  function openTerms() {
-    router.push('/terms')
-  }
+  function openPrivacyPolicy() { router.push('/about') }
+  function openTerms() { router.push('/about') }
 
-  const canSubmitEmail = Boolean(email.trim()) && !isSubmitting && isOnline
-  const canSubmitCode =
-    isVerificationCodeComplete(codeDigits) && !isSubmitting && isOnline
-
-  return {
-    t,
-    step,
-    email,
-    setEmail,
-    isSubmitting,
-    isGoogleLoading,
-    successMessage,
-    showReferralBanner,
-    fromOnboarding,
-    plannedHabitCount,
-    isOnline,
-    isCodeStep,
-    isAndroidKeyboardOpen,
-    stepEntrance,
-    shakeOffset,
-    codeDigits,
-    canResend,
-    resendCountdown,
-    onCodeChange,
-    onCodeInput,
-    onCodeKeyPress,
-    canSubmitEmail,
-    canSubmitCode,
-    sendCode,
-    verifyCode,
-    resendCode,
-    backToEmail,
-    signInWithGoogle,
-    openPrivacyPolicy,
-    openTerms,
-  }
+  return { t, step, email, setEmail, isSubmitting, isGoogleLoading, errorKey,
+    errorMessage: errorKey ? t(errorKey) : null, successMessage, showReferralBanner, fromOnboarding,
+    plannedHabitCount, isOnline, ...entry, codeFailure, lockCountdown, accountBack,
+    canSubmitEmail: Boolean(email.trim()) && !isSubmitting && !isGoogleLoading && isOnline,
+    canSubmitCode: entry.codeDigits.join('').length === 6 && !isSubmitting && isOnline,
+    sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, continueAccount, openPrivacyPolicy, openTerms }
 }

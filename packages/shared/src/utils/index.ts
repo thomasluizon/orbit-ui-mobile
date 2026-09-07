@@ -57,6 +57,10 @@ export {
   resolveAuthLoginErrorKey,
   VERIFICATION_CODE_LENGTH,
   type AuthLoginErrorInput,
+  recordLoginFailure,
+  formatLoginCountdown,
+  type LoginAttempts,
+  type LoginCodeFailure,
 } from './auth-login'
 export {
   ApiClientError,
@@ -591,12 +595,14 @@ export {
   achievementGlyphKey,
   buildGoalMovePositions,
   buildProtectedDayLabels,
+  deriveProgressViewState,
   filterProgressGoals,
   getAvailableStreakRepairDate,
   getGoalDeadlinePresentation,
   getGamificationLevelTitleKey,
   PROGRESS_GOAL_FILTERS,
   visibleProgressAchievements,
+  isProgressEmpty,
 } from './progress'
 export type { AchievementGlyphKey, GoalDeadlineState, ProgressGoalFilter } from './progress'
 export {

@@ -112,14 +112,6 @@
       "count": 1
     }
   },
-  "app/auth-callback.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "app/calendar-sync-styles.ts": {
     "local/spacing-scale": {
       "count": 23
@@ -128,11 +120,6 @@
   "app/calendar-sync.tsx": {
     "local/icon-size-grid": {
       "count": 4
-    }
-  },
-  "app/login-styles.ts": {
-    "local/spacing-scale": {
-      "count": 6
     }
   },
   "app/preferences-styles.ts": {

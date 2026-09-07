@@ -82,6 +82,9 @@ export default function AppLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const pathname = usePathname()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  if (pathname === '/about' && !isAuthenticated) return <>{children}</>
   return (
     <Providers>
       <TodayProvider>

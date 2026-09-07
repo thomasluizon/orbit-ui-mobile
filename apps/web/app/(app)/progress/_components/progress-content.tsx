@@ -24,6 +24,7 @@ import {
   getGoalDeadlinePresentation,
   getGamificationLevelTitleKey,
   getStreakTierLabelKey,
+  deriveProgressViewState,
   visibleProgressAchievements,
   type ProgressGoalFilter,
 } from '@orbit/shared/utils'
@@ -88,11 +89,15 @@ function LockedCard({ title, body, action }: Readonly<{ title: string; body: str
 
 function ProgressLoading({ label }: Readonly<{ label: string }>) {
   return (
-    <div className="flex flex-col gap-6 py-8">
-      <Skeleton variant="stat-tile" label={label} />
-      <Skeleton variant="habit-row" label={label} />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div className="flex flex-col gap-8" role="progressbar" aria-label={label} aria-busy="true">
+      <div className="flex w-full max-w-[560px] flex-col gap-3" aria-hidden="true">
+        {Array.from({ length: 2 }, (_, index) => <Skeleton key={index} variant="settings" label={label} />)}
+      </div>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-hidden="true">
         {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" label={label} />)}
+      </div>
+      <div className="flex flex-col gap-3" aria-hidden="true">
+        {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} variant="habit-row" label={label} />)}
       </div>
     </div>
   )
@@ -403,20 +408,25 @@ function AchievementsSection({ profile, canView, xpProgress }: Readonly<{ profil
 
 export function ProgressContent() {
   const t = useTranslations()
+  const router = useRouter()
   const account = useProfile()
   const canView = account.profile?.canViewGamification ?? false
   const goals = useGoals()
   const gamification = useGamificationProfile(canView)
   const allGoals = goals.data?.allGoals ?? []
-  const loading = account.isLoading || goals.isLoading || (canView && gamification.isLoading)
-  const error = account.isError || goals.isError || (canView && gamification.isError)
-  const retry = () => { void account.refetch(); void goals.refetch(); void gamification.refetch() }
+  const { error, loading, empty } = deriveProgressViewState({ goalCount: allGoals.length, account, goals, gamification, canView })
+  const retry = () => {
+    void account.refetch()
+    void goals.refetch()
+    if (canView) void gamification.refetch()
+  }
   return (
-    <main className="flex w-full flex-col gap-8 px-4 py-8 md:px-0">
-      <h1 className="t-h1" tabIndex={-1}>{t('progressScreen.title')}</h1>
+    <main className="flex w-full flex-col gap-8 px-4 py-4 md:px-0">
+      <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
-      {!loading && error ? <ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /> : null}
-      {!loading && !error ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} /><GoalsSection goals={allGoals} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} /><AchievementsSection profile={gamification.profile} canView={canView} xpProgress={gamification.xpProgress} /></> : null}
+      {error ? <div className="w-full max-w-[620px]"><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
+      {empty ? <div className="pt-12"><EmptyState title={t('progressScreen.empty')} action={<PillButton variant="ghost" size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></div> : null}
+      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} /><GoalsSection goals={allGoals} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} /><AchievementsSection profile={gamification.profile} canView={canView} xpProgress={gamification.xpProgress} /></> : null}
     </main>
   )
 }

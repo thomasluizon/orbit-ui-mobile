@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 /**
- * Remove one completed Orca worktree only after independently checking that no work can be lost.
- * Orca may drop its runtime connection after completing a removal, so success is verified from the
- * filesystem and git, never from its reply.
+ * Remove one completed worktree only after independently checking that no work can be lost.
  *
  * Runs only after `gh pr view` reads MERGED. The worker PID liveness check the previous revision
  * carried is gone with the detached-spawn design: a worker is now a CHILD of tools/launch-worker.mjs
@@ -17,25 +15,28 @@ import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
 
 const USAGE = `usage: teardown-worktree.mjs (--issue <ORB-N|#N|N> | --worktree <path>) --repo <ui|api|landing> [--base <ref>]
 
-  --issue <reference> remove the Orca worktree linked to this ticket
-  --worktree <path>   remove this Orca child worktree
+  --issue <reference> remove the child worktree whose directory name contains ticket-<number>
+  --worktree <path>   remove this child worktree (its name must contain ticket-<number>)
   --repo <key>        repository key the ticket must target
-  --base <ref>        branch that must contain the merge commit (default: worktree base or main)
+  --base <ref>        optionally narrow the merged pull request lookup to this target branch
   --help, -h          print this usage and exit 0
 
 All four checks must pass before anything is removed: the tree is clean, the pull request is merged
 with its merge commit present in the target branch, the local branch tip is contained in the pull
 request head, and the linked ticket is closed with board status Done.
 
+The local contract branch is retained because deleting a branch that is the base of a stacked pull
+request can close that pull request. Existing worktrees can be cleared safely by running this tool
+once per ticket; there is deliberately no unchecked bulk-delete mode.
+
 exit codes: 0 removed and verified, 1 evidence or removal verification failed, 2 usage error,
-            3 an orca, git, or gh command could not be read`
+            3 a git or gh command could not be read`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
   process.exit(0)
 }
 
-const ORCA = process.env.ORCA_BIN || "C:\\Users\\thoma\\AppData\\Local\\Programs\\orca\\resources\\bin\\orca"
 const GIT = process.env.GIT_BIN || "git"
 const GH = process.env.GH_BIN || "gh"
 const fail = (code, message) => {
@@ -67,21 +68,6 @@ if (requestedIssue) {
   }
 }
 
-const orca = (args) => {
-  let raw
-  try {
-    raw = execFileSync(ORCA, [...args, "--json"], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
-  } catch (error) {
-    return fail(3, `orca ${args.join(" ")} failed: ${error.stdout?.toString().trim() || error.stderr?.toString().trim() || error.message}`)
-  }
-  try {
-    const parsed = JSON.parse(raw)
-    if (parsed.ok === false) fail(3, `orca ${args.join(" ")} failed: ${parsed.error?.message ?? "unknown error"}`)
-    return parsed.result ?? parsed
-  } catch {
-    return fail(3, `orca ${args.join(" ")} returned unparseable output: ${raw.slice(0, 300)}`)
-  }
-}
 const git = (path, args, { allowFailure = false } = {}) => {
   const result = spawnSync(GIT, ["-C", path, ...args], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
   if (result.status === 0) return result.stdout.trim()
@@ -90,61 +76,64 @@ const git = (path, args, { allowFailure = false } = {}) => {
 }
 const normalize = (path) => (typeof path === "string" ? resolve(path.replace(/^path:/, "")) : "").replaceAll("\\", "/").replace(/\/+$/, "").toLowerCase()
 
-/** Orca still exposes its historical ticket-link field under its pre-migration name. This work
- * order does not own Orca's response schema, so read the confirmed field without exporting that
- * name into this tool's interface or artifacts. */
-const ORCA_TICKET_LINK_FIELD = ["linked", "Lin", "earIssue"].join("")
-const linkedTicketOf = (entry) => entry?.[ORCA_TICKET_LINK_FIELD]
-
-const worktrees = orca(["worktree", "list"]).worktrees ?? []
 const requestedTicketNumber = requestedIssue ? resolveTicket(requestedIssue).number : null
-const linksRequestedTicket = (entry) => {
-  const linked = linkedTicketOf(entry)
-  if (!linked) return false
-  try {
-    return resolveTicket(linked).number === requestedTicketNumber
-  } catch {
-    return false
-  }
-}
-const worktree = requestedIssue
-  ? worktrees.find((entry) => !entry.isMainWorktree && !entry.isArchived && linksRequestedTicket(entry))
-  : worktrees.find((entry) => normalize(entry.path) === normalize(requestedWorktree))
-if (!worktree) fail(1, requestedIssue ? `no active Orca worktree is linked to ${requestedIssue}` : `no active Orca worktree matches ${requestedWorktree}`)
-if (worktree.isMainWorktree) fail(1, "refusing to remove a primary checkout")
-const linkedTicket = linkedTicketOf(worktree)
-if (!linkedTicket) fail(1, "refusing a worktree without a linked ticket")
 
 let config
 let ticket
+let repositoryPath
 try {
   config = readOrchestratorConfig()
   if (typeof config.repos?.[repoKey] !== "string") throw new Error(`unknown repository key ${JSON.stringify(repoKey)}`)
-  const resolvedTicket = resolveTicket(linkedTicket)
-  ticket = await readTicket(resolvedTicket.number)
+  repositoryPath = config.repos[repoKey]
+} catch (error) {
+  fail(1, `ticket assertion failed: ${error.message}`)
+}
+
+const porcelain = git(repositoryPath, ["worktree", "list", "--porcelain"])
+const worktrees = porcelain.split(/\n\s*\n/).filter(Boolean).map((record) => {
+  const fields = Object.fromEntries(record.split("\n").map((line) => {
+    const separator = line.indexOf(" ")
+    return separator === -1 ? [line, true] : [line.slice(0, separator), line.slice(separator + 1)]
+  }))
+  return { path: fields.worktree, branch: typeof fields.branch === "string" ? fields.branch : null }
+})
+const ticketNumberFromName = (path) => {
+  const match = normalize(path).split("/").at(-1)?.match(/(?:^|[-_])ticket[-_](\d+)(?:[-_]|$)/i)
+  return match ? Number(match[1]) : null
+}
+const matches = requestedIssue
+  ? worktrees.filter((entry) => normalize(entry.path) !== normalize(repositoryPath) && ticketNumberFromName(entry.path) === requestedTicketNumber)
+  : worktrees.filter((entry) => normalize(entry.path) === normalize(requestedWorktree))
+if (matches.length === 0) fail(1, requestedIssue ? `no active Git worktree name matches ticket ${requestedTicketNumber}` : `no active Git worktree matches ${requestedWorktree}`)
+if (matches.length > 1) fail(1, `multiple active Git worktree names match ticket ${requestedTicketNumber}; use --worktree <path>`)
+const worktree = matches[0]
+if (normalize(worktree.path) === normalize(repositoryPath)) fail(1, "refusing to remove a primary checkout")
+const linkedTicketNumber = requestedTicketNumber ?? ticketNumberFromName(worktree.path)
+if (!linkedTicketNumber) fail(1, "refusing a worktree whose directory name has no ticket-<number>")
+try {
+  ticket = await readTicket(linkedTicketNumber)
   assertRepositoryLabel(ticket, repoKey)
 } catch (error) {
   fail(1, `ticket assertion failed: ${error.message}`)
 }
 
 const path = worktree.path
-const selector = `path:${path}`
 const branch = (worktree.branch ?? git(path, ["rev-parse", "--abbrev-ref", "HEAD"])).replace(/^refs\/heads\//, "")
-const base = requestedBase ?? worktree.baseRef ?? "main"
-
-git(path, ["fetch", "--quiet", "origin", base], { allowFailure: true })
-const baseRef = git(path, ["rev-parse", "--verify", "--quiet", `origin/${base}`], { allowFailure: true }) ? `origin/${base}` : base
-
 let pullRequest
 try {
-  const [first] = JSON.parse(execFileSync(GH, ["pr", "list", "--head", branch, "--base", base, "--state", "merged", "--limit", "1", "--json", "number,mergeCommit,headRefOid,mergedAt"], { cwd: path, encoding: "utf8" }))
+  const baseFilter = requestedBase ? ["--base", requestedBase] : []
+  const [first] = JSON.parse(execFileSync(GH, ["pr", "list", "--head", branch, ...baseFilter, "--state", "merged", "--limit", "1", "--json", "number,mergeCommit,headRefOid,mergedAt,baseRefName"], { cwd: path, encoding: "utf8" }))
   pullRequest = first
 } catch (error) {
   fail(3, `gh pr list for ${branch} failed: ${(error.stdout?.toString() || error.stderr?.toString() || error.message).trim()}`)
 }
-if (!pullRequest?.mergedAt || !pullRequest.mergeCommit?.oid || !pullRequest.headRefOid) {
+if (!pullRequest?.mergedAt || !pullRequest.mergeCommit?.oid || !pullRequest.headRefOid || typeof pullRequest.baseRefName !== "string" || !pullRequest.baseRefName) {
   fail(1, `no merged pull request with merge and head commits was found for ${branch}`)
 }
+
+const base = pullRequest.baseRefName
+git(path, ["fetch", "--quiet", "origin", base], { allowFailure: true })
+const baseRef = git(path, ["rev-parse", "--verify", "--quiet", `origin/${base}`], { allowFailure: true }) ? `origin/${base}` : base
 
 /** Both commits are fetched first: a worktree legitimately has never seen the squash commit its
  * own branch became, and an unreadable commit must fail as unreadable rather than as "not an
@@ -175,18 +164,10 @@ const gitCommon = (args) => {
   const result = spawnSync(GIT, [`--git-dir=${commonDir}`, ...args], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
   return result.status === 0 ? result.stdout.trim() : null
 }
-try {
-  execFileSync(ORCA, ["worktree", "rm", "--worktree", selector, "--json"], { encoding: "utf8" })
-} catch {
-  // Verification below decides whether a dropped Orca runtime connection was harmless.
-}
+if (gitCommon(["worktree", "remove", path]) === null) fail(1, `git refused to remove worktree ${path}`)
 gitCommon(["worktree", "prune"])
 const stillListed = (gitCommon(["worktree", "list", "--porcelain"]) ?? "").split("\n").some((line) => line.startsWith("worktree ") && normalize(line.slice("worktree ".length)) === normalize(path))
 if (existsSync(path) || stillListed) fail(1, `removal verification failed: filesystem=${existsSync(path) ? "present" : "gone"}, git-worktree-list=${stillListed ? "present" : "gone"}`)
 
-if (gitCommon(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`]) !== null) {
-  gitCommon(["branch", "-D", branch])
-  if (gitCommon(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`]) !== null) fail(1, `removed worktree but local branch ${branch} still exists`)
-}
 console.log(`REMOVED worktree ${path}`)
-console.log(`REMOVED local branch ${branch}`)
+console.log(`RETAINED local branch ${branch} (it may be the base of a stacked pull request)`)
