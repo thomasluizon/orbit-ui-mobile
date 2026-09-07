@@ -1,5 +1,5 @@
 import type { OtpInputProps } from '@orbit/shared/contracts/forms'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -16,6 +16,7 @@ export function OtpInput({
   length = 6,
 }: Readonly<OtpInputProps>) {
   const inputRef = useRef<TextInput>(null)
+  const [focused, setFocused] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -41,6 +42,8 @@ export function OtpInput({
           ref={inputRef}
           value={value}
           onChangeText={handleChange}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           editable={!disabled}
           keyboardType="number-pad"
           textContentType="oneTimeCode"
@@ -55,6 +58,7 @@ export function OtpInput({
           <View
             key={index}
             testID={`otp-cell-${index}`}
+            data-active={focused && !disabled && index === activeIndex ? '' : undefined}
             pointerEvents="none"
             accessible={false}
             importantForAccessibility="no-hide-descendants"
@@ -64,10 +68,13 @@ export function OtpInput({
                 backgroundColor: tokens.bgField,
                 borderColor: error
                   ? tokens.statusBad
-                  : index === activeIndex
+                  : focused && !disabled && index === activeIndex
                     ? tokens.primary
                     : tokens.borderControl,
-                borderWidth: error || index === activeIndex ? 2 : 1,
+                borderWidth: error || (focused && !disabled && index === activeIndex) ? 2 : 1,
+                outlineWidth: focused && !disabled && index === activeIndex ? 2 : 0,
+                outlineOffset: 2,
+                outlineColor: tokens.primary,
               },
             ]}
           >

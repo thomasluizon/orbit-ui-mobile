@@ -53,7 +53,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
               isSubmitting={flow.isSubmitting} isGoogleLoading={flow.isGoogleLoading || googlePending}
               errorKey={emailErrorKey}
               errorMessage={emailErrorMessage}
-              isOnline={flow.isOnline} t={t} tokens={tokens} styles={styles}
+              isOnline={flow.isOnline} t={t} tokens={tokens} styles={styles} emailFocusRequest={flow.emailFocusRequest}
               onSendCode={() => { setCallbackDismissed(true); void flow.sendCode() }}
               onSignInWithGoogle={() => { setCallbackDismissed(true); void flow.signInWithGoogle() }}
               onOpenPrivacy={flow.openPrivacyPolicy} onOpenTerms={flow.openTerms}
