@@ -17,17 +17,20 @@
  *
  * One file per wake source rather than an array in one file: under `--parallel` three launchers write
  * at once, and a read-modify-write on a shared array loses entries. A crashed launcher leaks its file
- * instead of removing it, which is exactly why the reader checks that the pid is still ALIVE rather
- * than trusting the file's existence.
+ * instead of removing it. The reader checks the process start identity as well as liveness, because
+ * a reused pid must never turn an old registration into evidence that a worker still exists.
  *
  * Every write fails soft. A launch must never die because a status file could not be written.
  */
 
+import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const GITDIR_LINE = /^gitdir:[ \t]*(.+?)[ \t]*$/m
+// Linux proc_pid_stat(5): Z is zombie; x is the historical spelling of dead state X.
+const LINUX_DEAD_PROCESS_STATES = new Set(["Z", "X", "x"])
 
 /**
  * The directory git itself keeps state in. An ordinary checkout carries a `.git` DIRECTORY; a linked
@@ -112,16 +115,63 @@ export const writeRunState = (state, repoRoot = REPO_ROOT) => {
   writeFileSync(runStatePath(repoRoot), `${JSON.stringify({ ...state, readinessLedger }, null, 2)}\n`)
 }
 
-/** Every wake source ever registered and not yet removed. Liveness is the CALLER's question. */
+/**
+ * OS start identity, never the launcher's wall-clock timestamp. Windows emits UTC .NET ticks as a
+ * decimal string; Linux combines /proc stat field 22 with boot_id so a reboot cannot repeat it.
+ * Both sources were read on this machine for #437. A failed probe supplies no identity evidence.
+ */
+const processStartIdentity = (pid) => {
+  try {
+    if (process.platform === "win32") {
+      const result = spawnSync("powershell.exe", [
+        "-NoProfile", "-NonInteractive", "-Command",
+        `(Get-Process -Id ${pid} -ErrorAction Stop).StartTime.ToUniversalTime().Ticks.ToString()`,
+      ], { encoding: "utf8", windowsHide: true, timeout: 3000 })
+      const ticks = result.stdout?.trim()
+      return result.status === 0 && /^\d+$/.test(ticks) ? `win32:${ticks}` : null
+    }
+    if (process.platform === "linux") {
+      const stat = readFileSync(`/proc/${pid}/stat`, "utf8")
+      const fields = stat.slice(stat.lastIndexOf(") ") + 2).trim().split(/\s+/)
+      const bootId = readFileSync("/proc/sys/kernel/random/boot_id", "utf8").trim()
+      return !LINUX_DEAD_PROCESS_STATES.has(fields[0]) && /^\d+$/.test(fields[19]) && /^[0-9a-f-]{36}$/.test(bootId)
+        ? `linux:${bootId}:${fields[19]}` : null
+    }
+  } catch {
+    /* unreadable process metadata cannot identify a wake source */
+  }
+  return null
+}
+
+/** Recheck the recorded process at the decision point; pid ownership alone is not evidence. */
+export const isWakeSourceAlive = (source) =>
+  Number.isInteger(source?.pid) && source.pid > 0 &&
+  typeof source.processStartIdentity === "string" &&
+  source.processStartIdentity === processStartIdentity(source.pid)
+
+/** Only registrations that still identify their live process. Sweep only proven missing pids. */
 export const readWakeSources = (repoRoot = REPO_ROOT) => {
   const directory = wakeSourceDirectory(repoRoot)
-  if (!existsSync(directory)) return []
+  let names
+  try {
+    names = readdirSync(directory)
+  } catch {
+    return []
+  }
   const sources = []
-  for (const name of readdirSync(directory)) {
+  for (const name of names) {
     if (!name.endsWith(".json")) continue
     try {
       const source = JSON.parse(readFileSync(join(directory, name), "utf8"))
-      if (Number.isInteger(source?.pid)) sources.push(source)
+      if (!Number.isInteger(source?.pid) || source.pid <= 0) continue
+      try {
+        process.kill(source.pid, 0)
+      } catch (error) {
+        if (error?.code === "ESRCH") rmSync(join(directory, name), { force: true })
+        // A denied or otherwise failed probe proves neither death nor a matching identity.
+        continue
+      }
+      if (isWakeSourceAlive(source)) sources.push(source)
     } catch {
       /* an unreadable entry is not a live wake source, and must not mask the readable ones */
     }
@@ -131,8 +181,10 @@ export const readWakeSources = (repoRoot = REPO_ROOT) => {
 
 export const registerWakeSource = (source, repoRoot = REPO_ROOT) => {
   try {
+    if (!Number.isInteger(source?.pid) || source.pid <= 0) return
+    const identity = processStartIdentity(source.pid)
     mkdirSync(wakeSourceDirectory(repoRoot), { recursive: true })
-    writeFileSync(join(wakeSourceDirectory(repoRoot), `${source.pid}.json`), `${JSON.stringify(source, null, 2)}\n`)
+    writeFileSync(join(wakeSourceDirectory(repoRoot), `${source.pid}.json`), `${JSON.stringify({ ...source, processStartIdentity: identity }, null, 2)}\n`)
   } catch {
     /* a status file is never worth failing a launch over */
   }
@@ -142,6 +194,6 @@ export const clearWakeSource = (pid, repoRoot = REPO_ROOT) => {
   try {
     rmSync(join(wakeSourceDirectory(repoRoot), `${pid}.json`), { force: true })
   } catch {
-    /* same: the reader checks liveness, so a leaked entry is already handled */
+    /* same: the reader checks process identity and sweeps dead entries */
   }
 }

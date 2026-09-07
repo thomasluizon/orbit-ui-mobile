@@ -33,10 +33,10 @@ export function PlayBillingDashboard({
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3 rounded-[var(--r-card)] p-6" style={cardSurface}>
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="min-w-max flex-1 font-display text-[22px] font-medium leading-[1.4] tracking-[-0.02em] text-[var(--fg-1)]">{t(summary.nameKey)}</h2>
+          <h2 className="min-w-max flex-1 font-display text-[22px] font-medium leading-[1.2] tracking-[-0.02em] text-[var(--fg-1)]">{t(summary.nameKey)}</h2>
           {summary.badgeKey ? <Badge>{t(summary.badgeKey)}</Badge> : null}
         </div>
-        <p className="t-body text-pretty text-[var(--fg-2)]">{t(summary.bodyKey, { limit: status.aiMessagesLimit })}</p>
+        <p className="t-body text-pretty" style={{ color: 'var(--fg-2)' }}>{t(summary.bodyKey, { limit: status.aiMessagesLimit })}</p>
         {summary.renewal ? <p className="font-mono text-xs text-[var(--fg-2)]">{t(summary.renewalKey, { date: formatBillingDate(summary.renewal, locale) })}</p> : null}
       </section>
       <ProviderHandoff provider="play" state={state} onManage={onManagePlay} t={t} />

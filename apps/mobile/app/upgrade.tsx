@@ -249,6 +249,7 @@ export default function UpgradeScreen() {
   ) : (
     <>
       <PricingSection
+        focusOnMount={showPitch}
         profile={status}
         plans={plans}
         isLoadingPlans={isLoadingPlans}

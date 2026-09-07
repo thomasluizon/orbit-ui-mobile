@@ -40,12 +40,14 @@ export function ProviderHandoff({ provider, state, onManage, t, tokens }: Readon
           {provider === 'play' ? t('upgrade.billing.actions.managePlayHint') : t('upgrade.billing.actions.manageHint')}
         </Text>
       </View>
-      {failed ? (
-        <View accessibilityRole="alert" style={[styles.billingWell, { backgroundColor: tokens.bgWell }]}>
+      <View accessibilityRole="alert" accessibilityLiveRegion="assertive" style={failed
+        ? [styles.billingWell, { backgroundColor: tokens.bgWell }]
+        : { position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>
+        {failed ? <>
           <Text style={[styles.billingBody, { color: tokens.fg1 }]}>{t('upgrade.billing.portalFailed')}</Text>
           <Text style={[styles.billingSecondary, { color: tokens.fg2 }]}>{t('upgrade.billing.portalFix')}</Text>
-        </View>
-      ) : null}
+        </> : null}
+      </View>
       <View style={{ alignItems: 'flex-start' }}>
         <PillButton variant="primary" loading={opening} disabled={state === 'offline'} onClick={onManage}>
           {t(failed ? 'upgrade.billing.retry' : manageLabel)}

@@ -193,6 +193,7 @@ export default function UpgradePage() {
     content = (
       <div className="flex flex-col gap-6">
         <PricingSection
+          focusOnMount={showPitch}
           profile={status}
           plans={plans}
           isLoadingPlans={isLoadingPlans}

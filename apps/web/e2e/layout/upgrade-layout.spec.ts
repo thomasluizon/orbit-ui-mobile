@@ -12,7 +12,6 @@ function singleLineLabels(messages: typeof en, trial: boolean): string[] {
       messages.upgrade.convert.freeEyebrow,
       messages.upgrade.convert.trustLine,
     ]),
-    messages.upgrade.convert.promise,
     messages.upgrade.free,
     'Pro',
     messages.upgrade.convert.freeAllowance,
@@ -69,7 +68,8 @@ async function assertSubscriptionOutcome(main: Locator, state: string, messages:
     await expect(main.getByText(messages.upgrade.billing.plan.canceledBody, { exact: true })).toBeVisible()
   }
   if (state === 'lapsed') {
-    await expect(main.getByText(messages.upgrade.billing.lapsed.features, { exact: true })).toBeVisible()
+    await expect(main.getByText(messages.upgrade.billing.lapsed.lostCalendar, { exact: true })).toBeVisible()
+    await expect(main.getByText(messages.upgrade.billing.lapsed.lostRetrospective, { exact: true })).toBeVisible()
   }
 }
 
