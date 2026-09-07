@@ -1,6 +1,7 @@
 import { Children, cloneElement, isValidElement, useMemo, useState, type ReactNode } from 'react'
 import { Linking, Text, type ImageStyle, type StyleProp, type TextStyle } from 'react-native'
 import RNMarkdown, {
+  MarkedTokenizer,
   Renderer,
   type MarkedStyles,
   type RendererInterface,
@@ -75,6 +76,20 @@ function ProseLink({ children, href, styles, colors }: Readonly<{
   )
 }
 
+class ImageLabelTokenizer extends MarkedTokenizer {
+  override link(...args: Parameters<MarkedTokenizer['link']>): ReturnType<MarkedTokenizer['link']> {
+    const token = super.link(...args)
+    if (token?.type === 'image') token.text = getMarkdownImageLabel(token)
+    return token
+  }
+
+  override reflink(...args: Parameters<MarkedTokenizer['reflink']>): ReturnType<MarkedTokenizer['reflink']> {
+    const token = super.reflink(...args)
+    if (token?.type === 'image') token.text = getMarkdownImageLabel(token)
+    return token
+  }
+}
+
 class SafeLinkRenderer extends Renderer implements RendererInterface {
   constructor(private readonly colors: ProseColors, private readonly textStyles?: TextStyle) {
     super()
@@ -98,11 +113,11 @@ class SafeLinkRenderer extends Renderer implements RendererInterface {
   }
 
   override image(_uri: string, alt?: string, _style?: ImageStyle, title?: string): ReactNode {
-    return <Text selectable key={this.getKey()} style={this.textStyles}>{getMarkdownImageLabel(alt || title || '')}</Text>
+    return <Text selectable key={this.getKey()} style={this.textStyles}>{alt ?? title ?? ''}</Text>
   }
 
   override linkImage(href: string, _imageUrl: string, alt?: string, _style?: ImageStyle, title?: string | null): ReactNode {
-    return this.link(getMarkdownImageLabel(alt || title || ''), href, this.textStyles)
+    return this.link(alt ?? title ?? '', href, this.textStyles)
   }
 }
 
@@ -184,12 +199,14 @@ export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>
     [tokens, colors],
   )
   const renderer = useMemo(() => new SafeLinkRenderer(colors, styles.text), [colors, styles.text])
+  const tokenizer = useMemo(() => new ImageLabelTokenizer(), [])
 
   return (
     <RNMarkdown
       value={children}
       styles={styles}
       renderer={renderer}
+      tokenizer={tokenizer}
       theme={{
         colors: {
           text: colors.body,

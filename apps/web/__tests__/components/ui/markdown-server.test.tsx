@@ -5,6 +5,19 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { Markdown } from '@/components/ui/markdown'
 
 describe('Markdown server rendering', () => {
+  it.each([
+    ['![outer [inner][ref]](image.png)\n\n[ref]: https://example.com', 'outer inner'],
+    ['![outer [inner][ref]][picture]\n\n[ref]: https://example.com\n[picture]: image.png', 'outer inner'],
+    ['![](image.png "**literal**")', '**literal**'],
+    ['[![](image.png "**literal**")](https://example.com/path)', '**literal**'],
+  ])('preserves document context and literal titles: %s', (content, label) => {
+    const markup = renderToStaticMarkup(<Markdown content={content} />)
+    expect(markup).toContain(content.startsWith('[!')
+      ? `<a href="https://example.com/path" target="_blank" rel="noopener noreferrer">${label}</a>`
+      : `<p>${label}</p>`)
+    expect(markup).not.toMatch(/<(?:img|strong)\b/)
+  })
+
   describe.each(['bare', 'linked'])('%s image labels', (context) => {
     it.each([
       ['**bold**', 'bold'],

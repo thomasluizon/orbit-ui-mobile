@@ -1,5 +1,5 @@
 import { decode } from 'html-entities'
-import { Lexer, type Token, type Tokens } from 'marked'
+import type { Token, Tokens } from 'marked'
 
 type ImageLabelToken = Tokens.Br | Tokens.Codespan | Tokens.Del | Tokens.Em | Tokens.Escape
   | Tokens.Image | Tokens.Link | Tokens.Strong | Tokens.Tag | Tokens.Text
@@ -13,8 +13,8 @@ function imageLabelText(tokens: Token[]): string {
   }).join('')
 }
 
-export function getMarkdownImageLabel(markdown: string): string {
-  return imageLabelText(Lexer.lexInline(markdown))
+export function getMarkdownImageLabel({ text, title, tokens }: Pick<Tokens.Image, 'text' | 'title' | 'tokens'>): string {
+  return text ? imageLabelText(tokens) : title || ''
 }
 
 /**

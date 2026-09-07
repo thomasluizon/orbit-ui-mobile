@@ -63,8 +63,8 @@ class ProseRenderer extends Renderer {
     return `<a${linkAttributes(href)}>${this.parser.parseInline(tokens)}</a>`
   }
 
-  override image({ text, title }: Tokens.Image): string {
-    return escapeHtml(getMarkdownImageLabel(text || title || ''))
+  override image(image: Tokens.Image): string {
+    return escapeHtml(getMarkdownImageLabel(image))
   }
 
   override hr(): string {

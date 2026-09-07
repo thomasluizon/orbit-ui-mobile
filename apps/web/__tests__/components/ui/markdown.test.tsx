@@ -4,6 +4,19 @@ import { render } from '@testing-library/react'
 import { Markdown } from '@/components/ui/markdown'
 
 describe('Markdown', () => {
+  it.each([
+    ['![outer [inner][ref]](image.png)\n\n[ref]: https://example.com', 'outer inner'],
+    ['![outer [inner][ref]][picture]\n\n[ref]: https://example.com\n[picture]: image.png', 'outer inner'],
+    ['![](image.png "**literal**")', '**literal**'],
+    ['[![](image.png "**literal**")](https://example.com/path)', '**literal**'],
+  ])('preserves document context and literal titles: %s', (content, label) => {
+    const { container, getByRole } = render(<Markdown content={content} />)
+    expect(container.textContent.trimEnd()).toBe(label)
+    expect(container.querySelector('img, strong')).toBeNull()
+    if (content.startsWith('[!')) expect(getByRole('link', { name: label })).toHaveAttribute('href', 'https://example.com/path')
+    else expect(container.querySelector('a')).toBeNull()
+  })
+
   describe.each(['bare', 'linked'])('%s image labels', (context) => {
     it.each([
       ['**bold**', 'bold'],

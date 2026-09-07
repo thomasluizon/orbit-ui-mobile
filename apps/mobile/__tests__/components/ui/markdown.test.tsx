@@ -1,14 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { isValidElement, type ReactElement } from 'react'
 import { Text } from 'react-native'
-import { marked } from 'marked'
-import Parser from 'react-native-marked/src/lib/Parser'
-import type { MarkedStyles, RendererInterface } from 'react-native-marked'
+import { Tokenizer } from 'marked'
+import type { useMarkdownHookOptions } from 'react-native-marked'
 import { Markdown } from '@/components/ui/markdown'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const TestRenderer = require('react-test-renderer')
+const { default: useMarkdown } = await vi.importActual<{ default: typeof import('react-native-marked').useMarkdown }>('react-native-marked/src/hooks/useMarkdown')
 
 const themeSelection = vi.hoisted((): { currentScheme: 'purple'; currentTheme: 'dark' | 'light' } => ({
   currentScheme: 'purple',
@@ -39,6 +39,7 @@ vi.mock('react-native-marked', async () => {
       return null
     },
     Renderer,
+    MarkedTokenizer: Tokenizer,
   }
 })
 
@@ -76,15 +77,38 @@ function renderMarkdown(props: Parameters<typeof Markdown>[0]): Record<string, u
   return markedProps.current
 }
 
+function ParsedMarkdown({ content, options }: { content: string; options: useMarkdownHookOptions }) {
+  return <>{useMarkdown(content, options)}</>
+}
+
 function renderParsedMarkdown(content: string) {
   const props = renderMarkdown({ children: content })
-  const parser = new Parser({ renderer: props.renderer as RendererInterface, styles: props.styles as MarkedStyles })
   let tree: ReturnType<typeof TestRenderer.create>
-  TestRenderer.act(() => { tree = TestRenderer.create(<>{parser.parse(marked.lexer(content))}</>) })
+  TestRenderer.act(() => { tree = TestRenderer.create(<ParsedMarkdown content={content} options={props} />) })
   return tree
 }
 
 describe('mobile Markdown wrapper', () => {
+  it.each([
+    ['![outer [inner][ref]](image.png)\n\n[ref]: https://example.com', 'outer inner'],
+    ['![outer [inner][ref]][picture]\n\n[ref]: https://example.com\n[picture]: image.png', 'outer inner'],
+    ['![](image.png "**literal**")', '**literal**'],
+    ['[![](image.png "**literal**")](https://example.com/path)', '**literal**'],
+  ])('preserves document context and literal titles: %s', (content, label) => {
+    const tree = renderParsedMarkdown(content)
+    const text = tree.root.findAllByType('Text').find((node: { children: unknown[] }) => node.children.every((child) => typeof child === 'string'))
+    expect(text.children.join('')).toBe(label)
+    expect(tree.root.findAllByType('Image')).toHaveLength(0)
+    if (content.startsWith('[!')) {
+      expect(text.props.accessibilityRole).toBe('link')
+      text.props.onPress()
+      expect(openURL).toHaveBeenCalledExactlyOnceWith('https://example.com/path')
+    } else {
+      expect(text.props.style).toMatchObject({ color: createTokensV2('purple', 'dark').fg2 })
+      expect(openURL).not.toHaveBeenCalled()
+    }
+  })
+
   describe.each(['bare', 'linked'])('%s image labels', (context) => {
     it.each([
       ['**bold**', 'bold'],
