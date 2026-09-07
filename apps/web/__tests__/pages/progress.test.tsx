@@ -342,6 +342,16 @@ describe('ProgressContent', () => {
     expect(screen.getByText('streakDisplay.detail.tierTileLabel')).toBeInTheDocument()
   })
 
+  it('lets all fourteen account days share the visible row', () => {
+    const { container } = render(<ProgressPage />)
+    const strip = container.querySelector('[data-scope="account"]')!
+    const cells = strip.querySelectorAll('[data-state]')
+    expect(cells).toHaveLength(14)
+    expect(cells[13]).toHaveAttribute('aria-current', 'date')
+    expect(strip).toHaveStyle({ width: '100%', minWidth: '0px', justifyContent: 'space-between', gap: '4px' })
+    for (const cell of cells) expect(cell).toHaveStyle({ flexShrink: '1', minWidth: '0px' })
+  })
+
   it('announces frozen today above the strip and includes its protected date', () => {
     mocks.freeze.isFrozenToday = true
     const { container, rerender } = render(<ProgressPage />)

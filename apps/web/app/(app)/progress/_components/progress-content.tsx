@@ -159,7 +159,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
         <p className="text-[17px] text-[var(--fg-2)]">{t('progressScreen.streak.currentLabel', { count: currentStreak })}</p>
       </div>
       {freeze.isFrozenToday ? <div role="status" className="flex items-center gap-3 rounded-[12px] bg-[var(--bg-well)] p-3 text-[14px] text-[var(--fg-2)]"><Snowflake size={20} strokeWidth={2} color="var(--status-frozen)" aria-hidden="true" /><p>{t('progressScreen.streak.frozenToday')}</p></div> : null}
-      <div className="max-w-full overflow-x-auto py-1">
+      <div className="min-w-0 w-full py-1">
         <DayStrip size={isDesktop ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
       </div>
       {canView && freeze.streakInfo ? (

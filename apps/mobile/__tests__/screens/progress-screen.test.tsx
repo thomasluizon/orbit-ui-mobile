@@ -1,5 +1,7 @@
 import React from 'react'
+import * as ReactNative from 'react-native'
 import { StyleSheet, type ViewStyle } from 'react-native'
+import Yoga from 'yoga-layout'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
@@ -417,6 +419,44 @@ describe('mobile ProgressContent', () => {
     expect(cells.at(-1)?.props.testID).toBe('day-strip-cell-today')
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.streak.banked').length).toBeGreaterThan(0)
     expect(tree.root.findAll((node) => node.type === 'StatTile' && node.props.label === 'streakDisplay.detail.tierTileLabel')).toHaveLength(1)
+  })
+
+  it.each([320, 412, 1440])('keeps today inside the full visible account row at %ipx', async (width) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 892, scale: 1, fontScale: 1 })
+    const tree = await renderProgress()
+    const strip = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'day-strip-account')[0]!
+    const cells = strip.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image')
+    const rowStyle = StyleSheet.flatten(strip.props.style as ViewStyle)
+    const visibleWidth = Math.min(width - 32, 560)
+    const row = Yoga.Node.create()
+    row.setWidth(visibleWidth)
+    row.setFlexDirection(rowStyle.flexDirection === 'row' ? Yoga.FLEX_DIRECTION_ROW : Yoga.FLEX_DIRECTION_COLUMN)
+    row.setGap(Yoga.GUTTER_ALL, Number(rowStyle.gap ?? 0))
+    row.setJustifyContent(rowStyle.justifyContent === 'space-between' ? Yoga.JUSTIFY_SPACE_BETWEEN : Yoga.JUSTIFY_FLEX_START)
+    const dayNodes = cells.map((cell, index) => {
+      const style = StyleSheet.flatten(cell.props.style as ViewStyle)
+      const day = Yoga.Node.create()
+      day.setWidth(Number(style.width))
+      day.setHeight(Number(style.height))
+      day.setFlexShrink(style.flexShrink)
+      day.setMinWidth(typeof style.minWidth === 'number' ? style.minWidth : undefined)
+      row.insertChild(day, index)
+      return day
+    })
+    try {
+      row.calculateLayout(undefined, undefined)
+      expect(cells).toHaveLength(14)
+      expect(cells[13]?.props.testID).toBe('day-strip-cell-today')
+      const today = dayNodes[13]!
+      const right = today.getComputedLeft() + today.getComputedWidth()
+      expect(right, 'today must fit inside the visible row').toBeLessThanOrEqual(visibleWidth)
+      expect(right, 'the fourteen days must occupy the full row').toBe(visibleWidth)
+      for (const day of dayNodes) expect(day.getComputedWidth()).toBeGreaterThanOrEqual(16)
+      for (let ancestor = strip.parent; ancestor; ancestor = ancestor.parent) expect(ancestor.props.horizontal).not.toBe(true)
+    } finally {
+      row.freeRecursive()
+      dimensions.mockRestore()
+    }
   })
 
   it('announces frozen today above the strip and includes its protected date', async () => {
