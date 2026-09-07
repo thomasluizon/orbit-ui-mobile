@@ -27,14 +27,31 @@ export const cases = () => {
   git(source, ["push", "-q", "origin", "main"])
   const remoteCommit = git(source, ["rev-parse", "HEAD"]).stdout.trim()
 
-  const orca = stage("create-worktree/bin/orca", `#!/bin/sh\nrepo=\"\"\nwhile [ \"$#\" -gt 0 ]; do\n  if [ \"$1\" = \"--repo\" ]; then repo=\${2#path:}; shift 2; continue; fi\n  shift\ndone\ngit -C \"$repo\" worktree add -q --detach \"${created}\" main\n`)
-  chmodSync(orca, 0o755)
+  let env
+  if (process.platform === "win32") {
+    const shim = stage("create-worktree/bin/orca.cjs", `
+const { basename } = require("node:path")
+if (basename(process.argv[1]) === "worktree" && process.argv[2] === "create") {
+  const { spawnSync } = require("node:child_process")
+  const args = process.argv.slice(3)
+  const repository = args[args.indexOf("--repo") + 1].slice("path:".length)
+  const result = spawnSync("git", ["-C", repository, "worktree", "add", "-q", "--detach", ${JSON.stringify(created)}, "main"], { stdio: "inherit" })
+  if (result.error) throw result.error
+  process.exit(result.status ?? 1)
+}
+`)
+    env = { ORCA_BIN: process.execPath, NODE_OPTIONS: `--require "${shim.replaceAll("\\", "/")}"` }
+  } else {
+    const orca = stage("create-worktree/bin/orca", `#!/bin/sh\nrepo=\"\"\nwhile [ \"$#\" -gt 0 ]; do\n  if [ \"$1\" = \"--repo\" ]; then repo=\${2#path:}; shift 2; continue; fi\n  shift\ndone\ngit -C \"$repo\" worktree add -q --detach \"${created}\" main\n`)
+    chmodSync(orca, 0o755)
+    env = { ORCA_BIN: orca }
+  }
   const result = check(
     TOOL,
     `${TOOL}: fetches a stale base before creation and prints the chosen remote commit`,
     ["--repo", `path:${repository}`, "--name", "ticket-447", "--base-branch", "main", "--issue", "447", "--no-parent", "--comment", "test", "--json"],
     { status: 0, stdout: new RegExp(`WORKTREE_BASE main ${remoteCommit}`) },
-    { env: { ORCA_BIN: orca } },
+    { env },
   )
   const createdCommit = git(created, ["rev-parse", "HEAD"]).stdout.trim()
   T(`${TOOL}: the created worktree starts at origin/main`, createdCommit === remoteCommit, `created ${createdCommit}, remote ${remoteCommit}\n${result.stderr}`)
