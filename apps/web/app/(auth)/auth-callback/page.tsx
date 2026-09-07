@@ -1,275 +1,80 @@
 'use client'
 
 import { fetchWithThrottle } from '@/lib/throttle-fetch'
-import { useEffect, useState, useRef, Suspense, type CSSProperties } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useTranslations, useLocale } from 'next-intl'
-import { TriangleAlert } from '@/components/ui/icons'
-import { PillButton } from '@/components/ui/pill-button'
-import {
-  extractAuthBackendMessage,
-  extractBackendRequestId,
-  resolveAuthLoginErrorKey,
-} from '@orbit/shared/utils'
+import { useLocale } from 'next-intl'
+import type { Session } from '@supabase/supabase-js'
 import { useAuthStore } from '@/stores/auth-store'
 import { getSupabaseClient } from '@/lib/supabase'
-import { hydrateProfilePresentation } from '@/lib/profile-presentation'
+import { LoginContent } from '../login/login-content'
+import { getCookieValue, handleVerifySuccess } from '../login/login-form-helpers'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
-const errorTitleStyle: CSSProperties = {
-  margin: 0,
-  fontFamily: 'var(--font-sans)',
-  fontSize: 22,
-  fontWeight: 500,
-  lineHeight: 1.3,
-  color: 'var(--fg-1)',
-  animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-  animationDelay: '160ms',
-}
-
-function getCookieValue(name: string): string | undefined {
-  if (typeof document === 'undefined') return undefined
-  const match = new RegExp(`(?:^|; )${name}=([^;]*)`).exec(document.cookie)
-  const value = match?.[1]
-  return value === undefined ? undefined : decodeURIComponent(value)
-}
-
-interface AuthFetchError {
-  status: number
-  body: unknown
-}
-
-interface AuthCallbackErrorState {
-  message: string
-}
-
-function isAuthFetchError(err: unknown): err is AuthFetchError {
-  return (
-    !!err &&
-    typeof err === 'object' &&
-    typeof (err as { status?: unknown }).status === 'number'
-  )
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object'
-}
-
-function mergeRequestIdIntoBody(body: unknown, requestId: string | null): unknown {
-  const trimmedRequestId = requestId?.trim()
-  if (!trimmedRequestId) return body
-  if (isRecord(body) && typeof body.requestId !== 'string') {
-    return {
-      ...body,
-      requestId: trimmedRequestId,
-    }
-  }
-
-  if (body === null) {
-    return { requestId: trimmedRequestId }
-  }
-
-  return body
-}
-
-function resolveAuthCallbackError(
-  err: unknown,
-  t: ReturnType<typeof useTranslations>,
-): AuthCallbackErrorState {
-  const status = isAuthFetchError(err) ? err.status : undefined
-  const body = isAuthFetchError(err) ? err.body : err
-  const backendMessage = extractAuthBackendMessage(body)
-  const requestId = extractBackendRequestId(body)
-  const hasStructuredContext =
-    status !== undefined ||
-    backendMessage !== undefined ||
-    requestId !== undefined ||
-    err instanceof TypeError
-
-  if (!hasStructuredContext) {
-    return {
-      message: t('auth.callbackError'),
-    }
-  }
-
-  const key = resolveAuthLoginErrorKey({
-    status,
-    backendMessage,
-    raw: err,
-    source: 'google',
-  })
-
-  return {
-    message: t(key),
-  }
-}
-
 export default function AuthCallbackPage() {
-  return (
-    <Suspense fallback={null}>
-      <AuthCallbackContent />
-    </Suspense>
-  )
+  return <Suspense fallback={null}><AuthCallbackContent /></Suspense>
 }
 
 function AuthCallbackContent() {
-  const t = useTranslations()
   const locale = useLocale()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { setAuth } = useAuthStore()
-  const [errorState, setErrorState] = useState<AuthCallbackErrorState | null>(null)
-  const processedRef = useRef(false)
-  const isAuthenticatedRef = useRef(false)
-  const errorMessageRef = useRef<string | null>(null)
+  const [state, setState] = useState<'pending' | 'failed' | 'account'>('pending')
+  const [accountBack, setAccountBack] = useState<LoginResponse | null>(null)
+  const [loading, setLoading] = useState(false)
+  const processing = useRef(false)
+  const completed = useRef(false)
+  const failed = useRef(false)
 
-  // react-doctor-disable-next-line no-fetch-in-effect -- one-time OAuth token exchange fired by Supabase's client SIGNED_IN event (guarded by processedRef); cannot move to a Server Component or data layer https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
-    if (processedRef.current) return
-    processedRef.current = true
-
-    let extractedProviderToken: string | undefined
-    let extractedProviderRefreshToken: string | undefined
-
-    if (globalThis.location.hash) {
-      const hashParams = new URLSearchParams(globalThis.location.hash.substring(1))
-      extractedProviderToken = hashParams.get('provider_token') ?? undefined
-      extractedProviderRefreshToken = hashParams.get('provider_refresh_token') ?? undefined
-    }
     const query = new URLSearchParams(globalThis.location.search)
-    extractedProviderToken ??= query.get('provider_token') ?? undefined
-    extractedProviderRefreshToken ??= query.get('provider_refresh_token') ?? undefined
-
+    const hash = new URLSearchParams(globalThis.location.hash.substring(1))
     const supabase = getSupabaseClient()
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') return
-      if (!session) return
-
-      subscription.unsubscribe()
-
+    async function exchange(session: Session) {
       try {
         const referralCode = getCookieValue('referral_code')
-
         const response = await fetchWithThrottle('/api/auth/google', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            accessToken: session.access_token,
-            language: locale,
-            googleAccessToken: extractedProviderToken ?? session.provider_token ?? undefined,
-            googleRefreshToken: extractedProviderRefreshToken ?? session.provider_refresh_token ?? undefined,
+            accessToken: session.access_token, language: locale,
+            googleAccessToken: hash.get('provider_token') ?? query.get('provider_token') ?? session.provider_token ?? undefined,
+            googleRefreshToken: hash.get('provider_refresh_token') ?? query.get('provider_refresh_token') ?? session.provider_refresh_token ?? undefined,
             ...(referralCode ? { referralCode } : {}),
           }),
         })
-
-        if (!response.ok) {
-          const errorBody = mergeRequestIdIntoBody(
-            await response.json().catch(() => null),
-            response.headers.get('x-orbit-request-id'),
-          )
-          const nextErrorState = resolveAuthCallbackError(
-            {
-              status: response.status,
-              body: errorBody,
-            },
-            t,
-          )
-          setErrorState(nextErrorState)
-          errorMessageRef.current = nextErrorState.message
-          return
-        }
-
-        const loginResponse = (await response.json()) as LoginResponse
-        setAuth(loginResponse)
-        isAuthenticatedRef.current = true
-        await hydrateProfilePresentation()
-
-        if (referralCode) {
-          localStorage.setItem('orbit_referral_applied', '1')
-          document.cookie = 'referral_code=;max-age=0;path=/;samesite=strict;secure'
-        }
-
+        if (!response.ok) { failed.current = true; setState('failed'); return }
+        const loginResponse = await response.json() as LoginResponse
+        completed.current = true
+        if (loginResponse.wasReactivated) { setAccountBack(loginResponse); setState('account'); return }
         const storedReturn = sessionStorage.getItem('auth_return_url')
         sessionStorage.removeItem('auth_return_url')
-        const returnUrl = searchParams.get('returnUrl') ?? storedReturn ?? undefined
-        const safeUrl =
-          returnUrl && returnUrl.startsWith('/') && !returnUrl.startsWith('//')
-            ? returnUrl
-            : '/'
-        router.push(safeUrl)
-      } catch (error: unknown) {
-        const nextErrorState = resolveAuthCallbackError(error, t)
-        setErrorState(nextErrorState)
-        errorMessageRef.current = nextErrorState.message
-      }
+        const url = searchParams.get('returnUrl') ?? storedReturn
+        const safeUrl = url && url.startsWith('/') && !url.startsWith('//') ? url : '/'
+        await handleVerifySuccess(loginResponse, referralCode, setAuth, router, () => safeUrl)
+      } catch { failed.current = true; setState('failed') }
+    }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') || !session || processing.current) return
+      processing.current = true
+      void exchange(session)
     })
-
-    const timeoutId = setTimeout(() => {
+    const timeout = setTimeout(() => {
+      if (!completed.current && !failed.current) { failed.current = true; setState('failed') }
       subscription.unsubscribe()
-      if (!isAuthenticatedRef.current && !errorMessageRef.current) {
-        const nextErrorState = {
-          message: t('auth.callbackError'),
-        }
-        setErrorState(nextErrorState)
-        errorMessageRef.current = nextErrorState.message
-      }
-    }, 15000)
+    }, 15_000)
+    return () => { clearTimeout(timeout); subscription.unsubscribe() }
+  }, [locale, router, searchParams, setAuth])
 
-    return () => clearTimeout(timeoutId)
-  }, [locale, router, searchParams, setAuth, t])
+  async function continueAccount() {
+    if (!accountBack || loading) return
+    setLoading(true)
+    try {
+      sessionStorage.removeItem('auth_return_url')
+      await handleVerifySuccess(accountBack, getCookieValue('referral_code'), setAuth, router, () => '/')
+    } catch { setState('failed') }
+    finally { setLoading(false) }
+  }
 
-  return (
-    <div className="w-full max-w-sm">
-      <div className="flex flex-col items-center" style={{ gap: 20 }}>
-        {errorState ? (
-          <>
-            <div
-              className="flex items-center justify-center rounded-full"
-              style={{
-                width: 80,
-                height: 80,
-                background: 'var(--bg-field)',
-                boxShadow: 'inset 0 0 0 1px var(--hairline)',
-                animation: 'fresh-start-orb 0.6s var(--ease-out) both',
-              }}
-            >
-              <TriangleAlert size={34} strokeWidth={1.8} className="text-[var(--fg-3)]" />
-            </div>
-            <p className="text-center" style={errorTitleStyle}>
-              {errorState.message}
-            </p>
-            <div
-              style={{
-                animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-                animationDelay: '240ms',
-              }}
-            >
-              <PillButton onClick={() => router.push('/login')}>
-                {t('auth.backToLogin')}
-              </PillButton>
-            </div>
-          </>
-        ) : (
-          <>
-            <svg className="size-8 animate-spin text-[var(--primary)]" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            <p
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 12,
-                letterSpacing: '0.02em',
-                color: 'var(--fg-3)',
-                margin: 0,
-              }}
-            >
-              {t('auth.signingIn')}
-            </p>
-          </>
-        )}
-      </div>
-    </div>
-  )
+  return <LoginContent callback={{ state, onContinue: () => void continueAccount(), loading }} />
 }

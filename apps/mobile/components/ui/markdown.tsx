@@ -1,12 +1,14 @@
-import { useMemo, type ReactNode } from 'react'
-import { Linking, Text, type TextStyle } from 'react-native'
+import { Children, cloneElement, isValidElement, useMemo, useState, type ReactNode } from 'react'
+import { Linking, Text, type ImageStyle, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import RNMarkdown, {
+  MarkedTokenizer,
   Renderer,
   type MarkedStyles,
   type RendererInterface,
 } from 'react-native-marked'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { getMarkdownImageLabel } from '@orbit/shared/utils'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -21,51 +23,124 @@ interface ProseColors {
   body: string
   heading: string
   link: string
+  activeLink: TextStyle
 }
 
 function resolveProseColors(tokens: AppTokens, tone: MarkdownTone): ProseColors {
   if (tone === "muted")
-    return { body: tokens.fg3, heading: tokens.fg2, link: tokens.primarySoft }
+    return { body: tokens.fg3, heading: tokens.fg2, link: tokens.fg1, activeLink: { color: tokens.fg2 } }
   if (tone === "onPrimary")
     return {
       body: tokens.fgOnPrimary,
       heading: tokens.fgOnPrimary,
       link: tokens.fgOnPrimary,
+      activeLink: { color: tokens.fgOnPrimary, backgroundColor: tokens.primaryPressed },
     }
-  return { body: tokens.fg2, heading: tokens.fg1, link: tokens.primarySoft }
+  return { body: tokens.fg2, heading: tokens.fg1, link: tokens.fg1, activeLink: { color: tokens.fg2 } }
 }
 
 const SAFE_LINK_SCHEME = /^(https?:|mailto:)/i
 
-/**
- * Renderer that gates link presses to http(s)/mailto. The library's default
- * link handler passes the raw href straight to Linking.openURL, which would
- * happily attempt javascript:/data: URLs — so we reject anything else.
- */
+function styleLinkChildren(children: ReactNode, style: TextStyle): ReactNode {
+  return Children.map(children, (child) => {
+    if (!isValidElement<{ style?: StyleProp<TextStyle>; children?: ReactNode }>(child)) return child
+    return cloneElement(child, {
+      ...(child.type === Text ? { style: [child.props.style, style] } : {}),
+      children: styleLinkChildren(child.props.children, style),
+    })
+  })
+}
+
+function ProseLink({ children, href, styles, colors }: Readonly<{
+  children: ReactNode
+  href: string
+  styles?: TextStyle
+  colors: ProseColors
+}>) {
+  const [pressed, setPressed] = useState(false)
+  const safe = SAFE_LINK_SCHEME.test(href.trim())
+  const style: TextStyle = safe
+    ? { color: colors.link, textDecorationLine: 'underline', ...(pressed ? colors.activeLink : {}) }
+    : { color: colors.body, textDecorationLine: 'none' }
+  return (
+    <Text
+      selectable
+      accessibilityRole={safe ? 'link' : undefined}
+      style={[styles, style]}
+      onPress={safe ? () => { void Linking.openURL(href) } : undefined}
+      onPressIn={safe ? () => setPressed(true) : undefined}
+      onPressOut={safe ? () => setPressed(false) : undefined}
+    >
+      {styleLinkChildren(children, style)}
+    </Text>
+  )
+}
+
+class ImageLabelTokenizer extends MarkedTokenizer {
+  override link(...args: Parameters<MarkedTokenizer['link']>): ReturnType<MarkedTokenizer['link']> {
+    const token = super.link(...args)
+    if (token?.type === 'image') token.text = getMarkdownImageLabel(token)
+    return token
+  }
+
+  override reflink(...args: Parameters<MarkedTokenizer['reflink']>): ReturnType<MarkedTokenizer['reflink']> {
+    const token = super.reflink(...args)
+    if (token?.type === 'image') token.text = getMarkdownImageLabel(token)
+    return token
+  }
+}
+
 class SafeLinkRenderer extends Renderer implements RendererInterface {
+  constructor(private readonly colors: ProseColors, private readonly textStyles?: TextStyle) {
+    super()
+  }
+
+  override paragraph(children: ReactNode[], styles?: ViewStyle): ReactNode {
+    return super.paragraph([this.text(children, this.textStyles)], styles)
+  }
+
+  override listItem(children: ReactNode[], styles?: ViewStyle): ReactNode {
+    const blocks: ReactNode[] = []
+    let inline: ReactNode[] = []
+    const flush = () => {
+      if (inline.length > 0) blocks.push(this.text(inline, this.textStyles))
+      inline = []
+    }
+    for (const child of children) {
+      if (isValidElement(child) && (child.type === Text || child.type === ProseLink)) {
+        inline.push(child)
+      } else {
+        flush()
+        blocks.push(child)
+      }
+    }
+    flush()
+    return super.listItem(blocks, styles)
+  }
+
   override link(
     children: string | ReactNode[],
     href: string,
     styles?: TextStyle,
   ): ReactNode {
-    const safe = SAFE_LINK_SCHEME.test(href.trim())
     return (
-      <Text
+      <ProseLink
         key={this.getKey()}
-        selectable
-        accessibilityRole="link"
-        style={styles}
-        onPress={
-          safe
-            ? () => {
-                void Linking.openURL(href)
-              }
-            : undefined
-        }
+        href={href}
+        styles={styles}
+        colors={this.colors}
       >
         {children}
-      </Text>
+      </ProseLink>
     )
+  }
+
+  override image(_uri: string, alt?: string, _style?: ImageStyle, title?: string): ReactNode {
+    return <Text selectable key={this.getKey()} style={this.textStyles}>{alt ?? title ?? ''}</Text>
+  }
+
+  override linkImage(href: string, _imageUrl: string, alt?: string, _style?: ImageStyle, title?: string | null): ReactNode {
+    return this.link(alt ?? title ?? '', href, this.textStyles)
   }
 }
 
@@ -146,13 +221,15 @@ export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>
     () => createMarkedStyles(tokens, colors),
     [tokens, colors],
   )
-  const renderer = useMemo(() => new SafeLinkRenderer(), [])
+  const renderer = useMemo(() => new SafeLinkRenderer(colors, styles.text), [colors, styles.text])
+  const tokenizer = useMemo(() => new ImageLabelTokenizer(), [])
 
   return (
     <RNMarkdown
       value={children}
       styles={styles}
       renderer={renderer}
+      tokenizer={tokenizer}
       theme={{
         colors: {
           text: colors.body,

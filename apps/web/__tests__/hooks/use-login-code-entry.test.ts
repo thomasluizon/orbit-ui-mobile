@@ -1,185 +1,65 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
-import type { ClipboardEvent, KeyboardEvent } from 'react'
-import { VERIFICATION_CODE_LENGTH } from '@orbit/shared/utils'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
+async function renderEntry(complete?: (code: string) => void) { return renderHook(() => useLoginCodeEntry(complete)) }
 
-function attachFocusableRef(
-  refs: Array<HTMLInputElement | null>,
-  index: number,
-): ReturnType<typeof vi.fn> {
-  const focus = vi.fn()
-  refs[index] = { focus } as unknown as HTMLInputElement
-  return focus
-}
+describe('login code entry', () => {
+  afterEach(() => { vi.useRealTimers() })
 
-describe('useLoginCodeEntry', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
+  it('keeps partial input and submits each completed edit once', async () => {
+    const complete = vi.fn()
+    const { result, unmount } = await renderEntry(complete)
+    await act(async () => result.current.onCodeChange('12345'))
+    expect(result.current.codeDigits.join('')).toBe('12345')
+    expect(complete).not.toHaveBeenCalled()
+    await act(async () => {
+      result.current.onCodeChange('123456')
+      result.current.onCodeChange('123456')
+    })
+    expect(complete).toHaveBeenCalledExactlyOnceWith('123456')
+    await act(async () => result.current.onCodeChange('12345'))
+    await act(async () => result.current.onCodeChange('123457'))
+    expect(complete).toHaveBeenLastCalledWith('123457')
+    await act(async () => unmount())
   })
 
-  afterEach(() => {
-    vi.runOnlyPendingTimers()
-    vi.useRealTimers()
-    vi.restoreAllMocks()
-  })
-
-  it('updates a single input digit and focuses the next field', () => {
-    const { result } = renderHook(() => useLoginCodeEntry())
-    const nextFocus = attachFocusableRef(result.current.codeInputRefs.current, 1)
-
-    act(() => {
-      result.current.onCodeInput(0, '7')
-    })
-
-    expect(result.current.codeDigits[0]).toBe('7')
-    expect(nextFocus).toHaveBeenCalledTimes(1)
-  })
-
-  it('fills multiple digits from one input and auto-submits once complete', () => {
-    const onComplete = vi.fn()
-    const { result } = renderHook(() => useLoginCodeEntry(onComplete))
-    const lastFocus = attachFocusableRef(
-      result.current.codeInputRefs.current,
-      VERIFICATION_CODE_LENGTH - 1,
-    )
-
-    act(() => {
-      result.current.onCodeInput(0, '123456')
-    })
-
-    expect(result.current.codeDigits).toEqual(['1', '2', '3', '4', '5', '6'])
-    expect(lastFocus).toHaveBeenCalledTimes(1)
-    expect(onComplete).toHaveBeenCalledTimes(1)
-    expect(onComplete).toHaveBeenCalledWith('123456')
-  })
-
-  it('replaces the whole controlled value and clears trailing digits', () => {
-    const { result } = renderHook(() => useLoginCodeEntry())
-
-    act(() => result.current.onCodeChange('123456'))
-    act(() => result.current.onCodeChange('92345'))
-
-    expect(result.current.codeDigits).toEqual(['9', '2', '3', '4', '5', ''])
-  })
-
-  it('auto-submits when the final digit is typed manually', () => {
-    const onComplete = vi.fn()
-    const { result } = renderHook(() => useLoginCodeEntry(onComplete))
-
-    act(() => {
-      result.current.setCodeDigits(['1', '2', '3', '4', '5', ''])
-    })
-    expect(onComplete).not.toHaveBeenCalled()
-
-    act(() => {
-      result.current.onCodeInput(5, '6')
-    })
-
-    expect(onComplete).toHaveBeenCalledTimes(1)
-    expect(onComplete).toHaveBeenCalledWith('123456')
-  })
-
-  it('auto-submits when a complete code is set from a deep link', () => {
-    const onComplete = vi.fn()
-    const { result } = renderHook(() => useLoginCodeEntry(onComplete))
-
-    act(() => {
-      result.current.setCodeDigits('123456'.split(''))
-    })
-
-    expect(onComplete).toHaveBeenCalledTimes(1)
-    expect(onComplete).toHaveBeenCalledWith('123456')
-  })
-
-  it('fills digits from paste events and triggers completion when enough digits are provided', () => {
-    const onComplete = vi.fn()
-    const { result } = renderHook(() => useLoginCodeEntry(onComplete))
-    const lastFocus = attachFocusableRef(
-      result.current.codeInputRefs.current,
-      VERIFICATION_CODE_LENGTH - 1,
-    )
-    const preventDefault = vi.fn()
-
-    act(() => {
-      result.current.onCodePaste({
-        preventDefault,
-        clipboardData: {
-          getData: () => '98 76-54',
-        },
-      } as unknown as ClipboardEvent<HTMLInputElement>)
-    })
-
-    expect(preventDefault).toHaveBeenCalledTimes(1)
-    expect(result.current.codeDigits).toEqual(['9', '8', '7', '6', '5', '4'])
-    expect(lastFocus).toHaveBeenCalledTimes(1)
-    expect(onComplete).toHaveBeenCalledTimes(1)
-    expect(onComplete).toHaveBeenCalledWith('987654')
-  })
-
-  it('does not double-submit the same complete code', () => {
-    const onComplete = vi.fn()
-    const { result } = renderHook(() => useLoginCodeEntry(onComplete))
-
-    act(() => {
-      result.current.onCodeInput(0, '123456')
-    })
-    act(() => {
-      result.current.onCodeInput(5, '6')
-    })
-
-    expect(onComplete).toHaveBeenCalledTimes(1)
-  })
-
-  it('moves focus backward on backspace and resets digits', () => {
-    const { result } = renderHook(() => useLoginCodeEntry())
-    const previousFocus = attachFocusableRef(result.current.codeInputRefs.current, 0)
-
-    act(() => {
-      result.current.setCodeDigits(['4', '', '', '', '', ''])
-      result.current.onCodeKeydown(1, {
-        key: 'Backspace',
-      } as KeyboardEvent<HTMLInputElement>)
-    })
-
-    expect(previousFocus).toHaveBeenCalledTimes(1)
-
-    act(() => {
-      result.current.resetCodeDigits()
-    })
-
+  it('accepts a complete paste and leaves prefilled links ready for manual submission', async () => {
+    const complete = vi.fn()
+    const { result, unmount } = await renderEntry(complete)
+    await act(async () => result.current.setCodeDigits('654321'.split('')))
+    expect(result.current.codeDigits.join('')).toBe('654321')
+    expect(complete).not.toHaveBeenCalled()
+    await act(async () => result.current.onCodeChange('12 34-567'))
+    expect(result.current.codeDigits.join('')).toBe('123456')
+    expect(complete).toHaveBeenCalledExactlyOnceWith('123456')
+    await act(async () => result.current.onCodeChange(''))
     expect(result.current.codeDigits).toEqual(['', '', '', '', '', ''])
+    await act(async () => unmount())
   })
 
-  it('starts, advances, and clears the resend countdown timer', () => {
-    const clearIntervalSpy = vi.spyOn(globalThis, 'clearInterval')
-    const { result, unmount } = renderHook(() => useLoginCodeEntry())
-
-    act(() => {
-      result.current.startResendCountdown()
-    })
-
+  it('counts 60 seconds, restarts the cooldown, and stops timers on unmount', async () => {
+    vi.useFakeTimers()
+    const { result, unmount } = await renderEntry()
+    await act(async () => result.current.startResendCountdown())
     expect(result.current.canResend).toBe(false)
     expect(result.current.resendCountdown).toBe(60)
-
-    act(() => {
-      vi.advanceTimersByTime(1000)
-    })
-
-    expect(result.current.resendCountdown).toBe(59)
-
-    act(() => {
-      vi.advanceTimersByTime(59000)
-    })
-
+    await act(async () => vi.advanceTimersByTime(59_000))
+    expect(result.current.resendCountdown).toBe(1)
+    await act(async () => vi.advanceTimersByTime(1000))
     expect(result.current.canResend).toBe(true)
-    expect(result.current.resendCountdown).toBe(0)
+    expect(vi.getTimerCount()).toBe(0)
+    await act(async () => result.current.startResendCountdown())
+    expect(result.current.resendCountdown).toBe(60)
+    await act(async () => unmount())
+    expect(vi.getTimerCount()).toBe(0)
+  })
 
-    act(() => {
-      result.current.startResendCountdown()
-    })
-    unmount()
-
-    expect(clearIntervalSpy).toHaveBeenCalled()
+  it('starts empty after leaving and returning', async () => {
+    const first = await renderEntry()
+    await act(async () => first.result.current.onCodeChange('1234'))
+    await act(async () => first.unmount())
+    const second = await renderEntry()
+    expect(second.result.current.codeDigits.join('')).toBe('')
+    await act(async () => second.unmount())
   })
 })

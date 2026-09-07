@@ -57,6 +57,10 @@ export {
   resolveAuthLoginErrorKey,
   VERIFICATION_CODE_LENGTH,
   type AuthLoginErrorInput,
+  recordLoginFailure,
+  formatLoginCountdown,
+  type LoginAttempts,
+  type LoginCodeFailure,
 } from './auth-login'
 export {
   ApiClientError,
@@ -74,7 +78,7 @@ export {
   validateApiResponse,
 } from './error-utils'
 export { isFeatureEnabled } from './config'
-export { stripInlineMarkdown } from './markdown'
+export { getMarkdownImageLabel, stripInlineMarkdown } from './markdown'
 export {
   resolveShellDestination,
   SHELL_DESTINATION_ROUTES,

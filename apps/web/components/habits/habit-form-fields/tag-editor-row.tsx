@@ -59,7 +59,7 @@ export function TagEditorRow({
       <button
         type="button"
         aria-label={cancelAriaLabel}
-        className="touch-target shrink-0 grid size-10 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors duration-[var(--dur-fast)]"
+        className="habit-control-motion touch-target shrink-0 grid size-10 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96]"
         disabled={disabled}
         onClick={onCancel}
       >

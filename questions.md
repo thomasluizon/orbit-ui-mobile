@@ -44,6 +44,41 @@ offer nothing, and say nothing false about why.
 
 Kept so the same question is not raised twice.
 
+### Habit form picker motion (ticket 409)
+
+Thomas settled this on 2026-09-07: Android keeps native TrueSheet motion. The requested
+220ms scale/fade entrance and 165ms scale/fade exit apply on web; they are not built on Android.
+Both platforms keep `Sheet` ownership of dismissal.
+
+Verified again in the installed `@lodev09/react-native-true-sheet` source:
+`src/TrueSheet.types.ts:592`, `:606`, `:614`, and `:659` expose only `animated?: boolean`
+on presentation and dismissal. `src/fabric/TrueSheetViewNativeComponent.ts:105` exposes
+`initialDetentAnimated?: WithDefault<boolean, true>`. Neither interface accepts a duration,
+easing, scale, or opacity input for the native presentation.
+
+Reversing this decision requires replacing the native sheet library. Thomas can confirm or
+override it at the whole redesign review; implementation and delivery continue now.
+
+### Entrar lockout recovery (ORB-63, ticket 69)
+
+The 2026-09-07 work order replaces the sentence at `design/canvas/Orbit Entrar.dc.html:263`
+and `:226` which promised that the current code survives a lock. The implementation says:
+"After 3 attempts, verification is locked for 15 minutes. Ask for a new code when the time has passed."
+The pt-BR key carries the approved translation in the same edit.
+
+The four API sources are `src/Orbit.Application/Auth/Commands/SendCodeCommand.cs:56`
+(five-minute lifetime), `src/Orbit.Application/Common/AppConstants.cs:43` (three attempts),
+`src/Orbit.Application/Common/AppConstants.cs:44` (15-minute window), and
+`src/Orbit.Application/Auth/Commands/VerifyCodeCommand.cs:87` (the lock's expiry).
+They were read again for this implementation. A five-minute code cannot survive a 15-minute lock.
+The numbers retain the drawing's `data-mock` annotation on web; native text carries the same values.
+Thomas can restore the drawing's sentence as the reversible alternative at the whole-redesign review.
+
+The referral banner continues on both steps, as the work order directs. Moving it into the email
+branch remains the reversible alternative. The offline notice reuses `auth.errors.offline`, which
+asks for reconnection and retry, instead of the drawing's unsupported automatic-send promise.
+No offline request queue was introduced.
+
 ### The three design-system gaps on the upgrade screen (ticket 421)
 
 `.claude/rules/core.md` rule 6 says expanding the design system is Thomas's call, and the ticket body

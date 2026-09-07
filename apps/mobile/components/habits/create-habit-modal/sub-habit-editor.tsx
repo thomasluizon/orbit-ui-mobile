@@ -1,4 +1,5 @@
-import { Pressable, Text, View } from 'react-native'
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
+import { Text, View } from 'react-native'
 import { Plus, Trash2 } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { MAX_HABIT_TITLE_LENGTH, MAX_SUB_HABITS } from '@orbit/shared/validation'

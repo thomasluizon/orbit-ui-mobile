@@ -12,7 +12,7 @@ import {
 } from '@/hooks/use-checklist-templates'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { ListRow } from '@/components/ui/list-row'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 interface ChecklistTemplatesProps {
   items: ChecklistItem[]
@@ -26,6 +26,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
   const createTemplate = useCreateChecklistTemplate()
   const deleteTemplate = useDeleteChecklistTemplate()
   const [open, setOpen] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
   const [showSave, setShowSave] = useState(false)
   const [templateName, setTemplateName] = useState('')
 
@@ -51,11 +52,13 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
     (id: string) => {
       const tmpl = templates.find((entry) => entry.id === id)
       if (tmpl) {
-        onLoad(applyChecklistTemplate(tmpl))
-        setOpen(false)
+        closeSheet(() => {
+          setOpen(false)
+          onLoad(applyChecklistTemplate(tmpl))
+        })
       }
     },
-    [onLoad, templates],
+    [closeSheet, onLoad, templates],
   )
 
   const handleDelete = useCallback(
@@ -78,7 +81,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
         onClick={() => setOpen(true)}
       />
       {open ? (
-        <Sheet open title={t('habits.form.templates')} onClose={() => setOpen(false)}>
+        <Sheet ref={sheetRef} open title={t('habits.form.templates')} onClose={() => setOpen(false)}>
           <div className="flex flex-col" style={{ gap: 4 }}>
             {templates.length > 0 && items.length > 0 && !showSave ? (
               <ListRow
@@ -105,7 +108,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           />
           <button
             type="button"
-            className="shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 hover:bg-[var(--primary-hover)] transition-[background-color,opacity] duration-150"
+            className="habit-control-motion shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 hover:bg-[var(--primary-hover)] active:scale-[0.96]"
             style={{
               padding: '8px 12px',
               fontFamily: 'var(--font-sans)',
@@ -120,7 +123,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           </button>
           <button
             type="button"
-            className="shrink-0 grid size-10 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors duration-150"
+            className="habit-control-motion shrink-0 grid size-11 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96]"
             onClick={() => setShowSave(false)}
             aria-label={t('common.close')}
           >
@@ -145,8 +148,8 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
               />
             ))}
             {templates.length === 0 && !showSave ? (
-              <div className="flex flex-col items-center px-6 py-8 text-center" style={{ gap: 12 }}>
-                <p className="text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noTemplates')}</p>
+              <div className="flex flex-col items-center py-8 text-center" style={{ gap: 12 }}>
+                <p className="max-w-full truncate text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noTemplates')}</p>
                 <p className="text-sm text-[var(--fg-3)]">{t('habits.form.noTemplatesDescription')}</p>
                 <button type="button" className="chip mt-2" disabled={items.length === 0} onClick={() => setShowSave(true)}>{t('habits.form.saveCurrentList')}</button>
                 {items.length === 0 ? <p className="text-xs text-[var(--fg-3)]">{t('habits.form.saveCurrentListDisabled')}</p> : null}

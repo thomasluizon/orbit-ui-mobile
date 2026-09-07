@@ -46,10 +46,10 @@ describe('auth login helpers', () => {
     expect(getAuthLoginErrorKeyByCode('INVALID_VERIFICATION_CODE')).toBe('auth.errors.invalidCode')
     expect(getAuthLoginErrorKeyByCode('CODE_EXPIRED')).toBe('auth.errors.codeExpired')
     expect(getAuthLoginErrorKeyByCode('TOO_MANY_ATTEMPTS')).toBe('auth.errors.tooManyAttempts')
-    expect(getAuthLoginErrorKeyByCode('RATE_LIMITED')).toBe('auth.errors.rateLimited')
+    expect(getAuthLoginErrorKeyByCode('RATE_LIMITED')).toBe('auth.errors.sendFailed')
     expect(getAuthLoginErrorKeyByCode('INVALID_EMAIL')).toBe('auth.errors.invalidEmail')
     expect(getAuthLoginErrorKeyByCode('UNKNOWN_CODE')).toBeUndefined()
-    expect(Object.keys(AUTH_BACKEND_ERROR_CODE_MAP)).toHaveLength(5)
+    expect(Object.keys(AUTH_BACKEND_ERROR_CODE_MAP)).toHaveLength(6)
   })
 })
 
@@ -97,8 +97,8 @@ describe('resolveAuthLoginErrorKey', () => {
     expect(resolveAuthLoginErrorKey({ status: 403 })).toBe('auth.errors.forbidden')
   })
 
-  it('maps 404 to emailNotFound', () => {
-    expect(resolveAuthLoginErrorKey({ status: 404 })).toBe('auth.errors.emailNotFound')
+  it('does not disclose account existence for 404', () => {
+    expect(resolveAuthLoginErrorKey({ status: 404 })).toBe('auth.errors.unknownError')
   })
 
   it('maps 409 to conflict', () => {
@@ -106,19 +106,19 @@ describe('resolveAuthLoginErrorKey', () => {
   })
 
   it('maps 429 to rateLimited', () => {
-    expect(resolveAuthLoginErrorKey({ status: 429 })).toBe('auth.errors.rateLimited')
+    expect(resolveAuthLoginErrorKey({ status: 429 })).toBe('auth.errors.sendFailed')
   })
 
   it('maps 5xx to serverError', () => {
-    expect(resolveAuthLoginErrorKey({ status: 500 })).toBe('auth.errors.serverError')
-    expect(resolveAuthLoginErrorKey({ status: 502 })).toBe('auth.errors.serverError')
-    expect(resolveAuthLoginErrorKey({ status: 503 })).toBe('auth.errors.serverError')
-    expect(resolveAuthLoginErrorKey({ status: 504 })).toBe('auth.errors.serverError')
+    expect(resolveAuthLoginErrorKey({ status: 500 })).toBe('auth.errors.unknownError')
+    expect(resolveAuthLoginErrorKey({ status: 502 })).toBe('auth.errors.unknownError')
+    expect(resolveAuthLoginErrorKey({ status: 503 })).toBe('auth.errors.unknownError')
+    expect(resolveAuthLoginErrorKey({ status: 504 })).toBe('auth.errors.unknownError')
   })
 
   it('detects TypeError as network failure', () => {
     expect(resolveAuthLoginErrorKey({ raw: new TypeError('fetch failed') })).toBe(
-      'auth.errors.networkError',
+      'auth.errors.unknownError',
     )
   })
 

@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
+import { StyleSheet, Text, View } from 'react-native'
 import type { SegmentedControlProps } from '@orbit/shared/contracts/navigation'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -70,6 +71,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 44,
     minWidth: 0,
+    flexShrink: 1,
     paddingHorizontal: 12,
   },
   unselected: {
