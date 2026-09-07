@@ -254,6 +254,8 @@ describe('ProgressContent', () => {
     expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
     expect(screen.getByText('progressScreen.achievements.lockedBody')).toBeInTheDocument()
     expect(screen.getAllByText('progressScreen.streak.lockedAction').length).toBeGreaterThan(0)
+    expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
+    expect(screen.getByText('streakDisplay.detail.tierTileLabel')).toBeInTheDocument()
   })
 
   it('keeps free gamification cohorts open while locking only the Pro figures', () => {

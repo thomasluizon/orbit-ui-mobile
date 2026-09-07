@@ -302,6 +302,9 @@ describe('mobile ProgressContent', () => {
       'progressScreen.achievements.lockedBody',
     ]))
     expect(tree.root.findAll((node) => node.type === 'ProBadge')).toHaveLength(3)
+    const labels = tree.root.findAll((node) => node.type === 'StatTile').map((node) => node.props.label)
+    expect(labels).toContain('progressScreen.streak.longest')
+    expect(labels).toContain('streakDisplay.detail.tierTileLabel')
   })
 
   it('keeps free gamification cohorts open while locking only the Pro figures', async () => {
