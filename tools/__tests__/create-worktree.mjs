@@ -59,10 +59,23 @@ if (basename(process.argv[1]) === "worktree" && process.argv[2] === "create") {
   await killedHolder(fixtureRoot, repository)
   await killedHolder(fixtureRoot, repository, true)
   await survivingChild(fixtureRoot, repository)
+  if (process.platform === "win32") await survivingChild(fixtureRoot, repository, true)
   await concurrentCreation(fixtureRoot, source, repository)
+  const marker = join(repository, ".git", "create-worktree-refresh.json")
+  const shim = stage("create-worktree/bin/corrupt-marker.cjs", `
+if (require("node:path").basename(process.argv[1]) === "worktree") process.exit(0)
+`)
+  for (const contents of ["", '{"baseBranch":']) {
+    writeFileSync(marker, contents)
+    const recovered = await launch(repository, "corrupt-marker", shim).result
+    T(`${TOOL}: rebuilds a ${contents ? "corrupt" : "truncated"} refresh marker`,
+      recovered.status === 0, JSON.stringify(recovered))
+  }
 }
 
-const survivingChild = async (fixtureRoot, repository) => {
+const survivingChild = async (fixtureRoot, repository, killSupervisor = false) => {
+  fixtureRoot = join(fixtureRoot, killSupervisor ? "supervisor" : "wrapper")
+  mkdirSync(fixtureRoot, { recursive: true })
   const running = join(fixtureRoot, "orphan-running")
   const release = join(fixtureRoot, "orphan-release")
   const waiting = join(fixtureRoot, "orphan-waiter-entered")
@@ -74,7 +87,7 @@ const childProcess = require("node:child_process")
 const realSpawnSync = childProcess.spawnSync
 if (basename(process.argv[1]) === "worktree") {
   if (process.argv.includes("orphan-holder")) {
-    writeFileSync(${JSON.stringify(running)}, String(process.pid))
+    writeFileSync(${JSON.stringify(running)}, JSON.stringify({ pid: process.pid, supervisor: process.ppid }))
     const deadline = Date.now() + 25000
     while (!existsSync(${JSON.stringify(release)})) {
       if (Date.now() > deadline) process.exit(4)
@@ -87,7 +100,10 @@ if (basename(process.argv[1]) === "worktree") {
   process.exit(0)
 }
 childProcess.spawnSync = (command, args, options) => {
-  const result = realSpawnSync(command, args, { ...options, detached: args[0] === "worktree" })
+  const result = realSpawnSync(command, args, {
+    ...options, detached: args[0] === "worktree",
+    ...(args[0] === "worktree" && ${killSupervisor} ? { stdio: "ignore" } : {}),
+  })
   if (command === "git" && args.includes("--git-common-dir") && process.argv.includes("orphan-waiter")) {
     writeFileSync(${JSON.stringify(waiting)}, "waiting")
   }
@@ -100,9 +116,11 @@ require("node:module").syncBuiltinESMExports()
   let childPid
   try {
     await waitFor([running])
-    childPid = Number(readFileSync(running, "utf8"))
+    const command = JSON.parse(readFileSync(running, "utf8"))
+    childPid = command.pid
     const exited = new Promise((resolve) => holder.child.once("exit", resolve))
-    holder.child.kill("SIGKILL")
+    if (killSupervisor) process.kill(command.supervisor, "SIGKILL")
+    else holder.child.kill("SIGKILL")
     await exited
     waiter = launch(repository, "orphan-waiter", shim)
     await waitFor([waiting])
@@ -111,7 +129,7 @@ require("node:module").syncBuiltinESMExports()
     const reclaimedWhileChildAlive = existsSync(entered)
     writeFileSync(release, "release")
     const result = await waiter.result
-    T(`${TOOL}: waits for a surviving critical-section child after its wrapper is killed`,
+    T(`${TOOL}: waits for a surviving critical-section child after its ${killSupervisor ? "Windows supervisor" : "wrapper"} is killed`,
       childSurvived && !reclaimedWhileChildAlive && result.status === 0 && existsSync(join(fixtureRoot, "orphan-created", ".git")),
       JSON.stringify({ childSurvived, reclaimedWhileChildAlive, ...result }))
   } finally {

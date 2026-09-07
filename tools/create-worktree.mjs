@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn, spawnSync } from "node:child_process"
+import { randomUUID } from "node:crypto"
 import { mkdtempSync, readFileSync, readdirSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs"
 import { basename, join, resolve } from "node:path"
 import { setTimeout } from "node:timers/promises"
@@ -52,7 +53,8 @@ const refreshBase = async (refreshPath, run) => {
   try {
     previous = JSON.parse(readFileSync(refreshPath, "utf8"))
   } catch (error) {
-    if (error.code !== "ENOENT") throw error
+    // #447: an interrupted marker write is a cache miss, never a permanent creation failure.
+    if (!(error instanceof SyntaxError) && error.code !== "ENOENT") throw error
   }
   if (previous?.baseBranch !== baseBranch || previous.completedAt < requestedAt) await git(["fetch", "origin", baseBranch], run)
   let localCommit = await git(["rev-parse", `refs/heads/${baseBranch}`], run)
@@ -91,7 +93,60 @@ const processStartIdentity = (pid) => {
   return null
 }
 
+// #447: the command inherits this lease before it can execute. Windows closes it on exit,
+// including after supervisor death, so no PID-publication race or live supervisor is required.
+const windowsLease = (name, pid = null) => {
+  if (!/^Local\\orbit-worktree-[0-9a-f-]{36}$/.test(name)) throw new Error("invalid Windows lease name")
+  const source = `
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+public static class WorktreeLease {
+  [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+  static extern IntPtr CreateEventW(IntPtr security, bool manual, bool initial, string name);
+  [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+  static extern IntPtr OpenEventW(uint access, bool inherit, string name);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  static extern IntPtr OpenProcess(uint access, bool inherit, int pid);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  static extern bool DuplicateHandle(IntPtr sourceProcess, IntPtr source, IntPtr targetProcess,
+    out IntPtr target, uint access, bool inherit, uint options);
+  [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+  public static bool Exists(string name) {
+    IntPtr lease = OpenEventW(0x100000, false, name);
+    if (lease != IntPtr.Zero) { CloseHandle(lease); return true; }
+    int error = Marshal.GetLastWin32Error();
+    if (error == 2) return false;
+    throw new Win32Exception(error);
+  }
+  public static void Retain(string name, int pid) {
+    IntPtr lease = CreateEventW(IntPtr.Zero, true, false, name);
+    if (lease == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
+    try {
+      IntPtr process = OpenProcess(0x40, false, pid);
+      if (process == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
+      try {
+        IntPtr inherited;
+        if (!DuplicateHandle(new IntPtr(-1), lease, process, out inherited, 0, true, 2))
+          throw new Win32Exception(Marshal.GetLastWin32Error());
+      } finally { CloseHandle(process); }
+    } finally { CloseHandle(lease); }
+  }
+}
+`
+  const operation = pid === null
+    ? `if ([WorktreeLease]::Exists('${name}')) { exit 0 }; exit 1`
+    : `[WorktreeLease]::Retain('${name}', ${pid}); exit 0`
+  const script = `$ErrorActionPreference = 'Stop'\ntry {\nAdd-Type -TypeDefinition @'\n${source}\n'@\n${operation}\n} catch { [Console]::Error.WriteLine($_); exit 3 }`
+  const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-EncodedCommand",
+    Buffer.from(script, "utf16le").toString("base64")], { encoding: "utf8", windowsHide: true, timeout: 10000 })
+  if (result.status === 0) return true
+  if (pid === null && result.status === 1) return false
+  abort(3, `Windows repository lease failed: ${result.stderr || result.error?.message || result.status}`)
+}
+
 const holderIsAlive = (holder) => {
+  if (process.platform === "win32" && holder.windowsLease) return windowsLease(holder.windowsLease)
   if (!Number.isInteger(holder.pid) || holder.pid <= 0 || typeof holder.processStartIdentity !== "string") {
     throw new Error("invalid repository lock identity")
   }
@@ -165,7 +220,7 @@ const acquireLock = async (lockPath) => {
 
 const runLocked = async (lockPath, command, commandArgs) => {
   // The gate cannot execute until its identity is published. EOF before authorization exits it.
-  // Linux exec preserves the registered PID/start identity; Windows keeps a detached supervisor.
+  // Linux exec preserves the registered identity; Windows commands inherit a kernel lease.
   const windowsGate = `
     const { spawnSync } = require("node:child_process")
     let authorization = ""
@@ -194,20 +249,35 @@ const runLocked = async (lockPath, command, commandArgs) => {
   })
   let childOwner
   let candidate
+  let lease
+  let leaseReleased = false
   try {
     if (!child.pid) return await completion
-    const identity = processStartIdentity(child.pid)
-    if (!identity) abort(3, "cannot establish repository lock child identity")
     candidate = mkdtempSync(`${lockPath}-child-`)
     childOwner = basename(candidate)
-    writeFileSync(join(candidate, childOwner), JSON.stringify({ pid: child.pid, processStartIdentity: identity }))
+    let holder
+    if (process.platform === "win32") {
+      lease = `Local\\orbit-worktree-${randomUUID()}`
+      windowsLease(lease, child.pid)
+      holder = { windowsLease: lease }
+    } else {
+      const identity = processStartIdentity(child.pid)
+      if (!identity) abort(3, "cannot establish repository lock child identity")
+      holder = { pid: child.pid, processStartIdentity: identity }
+    }
+    writeFileSync(join(candidate, childOwner), JSON.stringify(holder))
     renameSync(join(candidate, childOwner), join(lockPath, childOwner))
     child.stdin.end("run\n")
-    return await completion
+    const result = await completion
+    if (result.status === 0 && lease) {
+      while (windowsLease(lease)) await setTimeout(50)
+      leaseReleased = true
+    }
+    return result
   } finally {
     child.stdin.destroy()
     await completion
-    if (childOwner) removeOwner(lockPath, childOwner)
+    if (childOwner && (!lease || leaseReleased || !windowsLease(lease))) removeOwner(lockPath, childOwner)
     if (candidate) removeOwner(candidate, childOwner)
   }
 }
