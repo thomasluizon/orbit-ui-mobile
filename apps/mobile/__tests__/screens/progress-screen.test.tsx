@@ -1,13 +1,16 @@
 import React from 'react'
+import { StyleSheet, type ViewStyle } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
-import { ProgressContent } from '@/components/progress/progress-content'
+import ProgressScreen from '@/app/(tabs)/progress'
 
 const TestRenderer = require('react-test-renderer')
 
 type TestNode = {
   type: unknown
   props: Record<string, unknown>
+  parent: TestNode | null
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
 
@@ -17,7 +20,7 @@ const mocks = vi.hoisted(() => ({
   reorder: { mutate: vi.fn() },
   updateStatus: { mutate: vi.fn(), isPending: false },
   account: {
-    profile: { canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9 },
+    profile: { canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9, totalXp: 150 },
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -143,7 +146,7 @@ vi.mock('@/components/ui/stat-tile', () => ({
 async function renderProgress(): Promise<{ root: TestNode }> {
   let tree: { root: TestNode } | undefined
   await TestRenderer.act(async () => {
-    tree = TestRenderer.create(<ProgressContent />)
+    tree = TestRenderer.create(<ProgressScreen />)
     await Promise.resolve()
   })
   return tree!
@@ -153,9 +156,24 @@ function findPill(root: TestNode, label: string): TestNode {
   return root.findAll((node) => node.type === 'PillButton' && node.props.children === label)[0]!
 }
 
+function isAccessibilityHidden(node: TestNode): boolean {
+  for (let ancestor: TestNode | null = node; ancestor; ancestor = ancestor.parent) {
+    if (ancestor.props.importantForAccessibility === 'no-hide-descendants') return true
+    const style = ancestor.props.style as ViewStyle | undefined
+    if (style && StyleSheet.flatten(style).display === 'none') return true
+  }
+  return false
+}
+
 describe('mobile ProgressContent', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    for (const query of [mocks.account, mocks.goals, mocks.gamification]) {
+      query.isLoading = false
+      query.isError = false
+    }
+    Object.assign(mocks.account.profile, { currentStreak: 4, longestStreak: 9, totalXp: 150 })
+    Object.assign(mocks.gamification.profile, { currentStreak: 4, longestStreak: 9, totalXp: 150, achievementsEarned: 0 })
     mocks.account.profile.canViewGamification = true
     mocks.account.profile.hasProAccess = true
     mocks.goals.data.allGoals = []
@@ -167,6 +185,95 @@ describe('mobile ProgressContent', () => {
     mocks.retrospective.isLoading = false
     mocks.retrospective.isError = false
     mocks.retrospective.error = null
+  })
+
+  it.each(['account', 'goals', 'gamification'] as const)('renders the complete global skeleton while %s loads', async (query) => {
+    mocks[query].isLoading = true
+    const tree = await renderProgress()
+    const announcements = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar' && !isAccessibilityHidden(node))
+    expect(announcements).toHaveLength(1)
+    expect(announcements[0]?.props).toMatchObject({ accessible: true, accessibilityLabel: 'progressScreen.loading', accessibilityState: { busy: true } })
+    const units = tree.root.findAll((node) => typeof node.type === 'string' && typeof node.props.testID === 'string' && node.props.testID.startsWith('skeleton-unit-'))
+    expect(units.map((unit) => unit.props.testID)).toEqual([
+      'skeleton-unit-settings', 'skeleton-unit-settings',
+      'skeleton-unit-stat-tile', 'skeleton-unit-stat-tile', 'skeleton-unit-stat-tile', 'skeleton-unit-stat-tile',
+      'skeleton-unit-habit-row', 'skeleton-unit-habit-row', 'skeleton-unit-habit-row',
+    ])
+    expect(tree.root.findAll((node) => node.type === 'PillButton')).toHaveLength(0)
+  })
+
+  it.each(['loading', 'error', 'empty', 'populated'])('exposes one screen heading in the %s state', async (state) => {
+    mocks.account.isLoading = state === 'loading'
+    mocks.account.isError = state === 'error'
+    if (state === 'empty') {
+      Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+      Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    }
+    const tree = await renderProgress()
+    const headings = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.accessible === true && node.props.children === 'progressScreen.title' && !isAccessibilityHidden(node))
+    expect(headings).toHaveLength(1)
+  })
+
+  it.each(['account', 'goals', 'gamification'] as const)('retries a global %s error with one action', async (query) => {
+    mocks[query].isError = true
+    const tree = await renderProgress()
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'error-state')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'PillButton')).toHaveLength(1)
+    await TestRenderer.act(() => {
+      ;(findPill(tree.root, 'progressScreen.retry').props.onClick as () => void)()
+    })
+    for (const request of [mocks.account, mocks.goals, mocks.gamification]) expect(request.refetch).toHaveBeenCalledTimes(1)
+    mocks[query].isError = false
+    const recovered = await renderProgress()
+    expect(recovered.root.findAll((node) => node.props.testID === 'error-state')).toHaveLength(0)
+    expect(recovered.root.findAll((node) => node.props.children === 'progressScreen.sections.streak').length).toBeGreaterThan(0)
+  })
+
+  it('shows a retryable error even while another resource is loading', async () => {
+    mocks.account.isError = true
+    mocks.goals.isLoading = true
+    const tree = await renderProgress()
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'error-state')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
+  })
+
+  it('does not retry a disabled gamification query', async () => {
+    mocks.account.profile.canViewGamification = false
+    mocks.goals.isError = true
+    const tree = await renderProgress()
+    await TestRenderer.act(() => {
+      ;(findPill(tree.root, 'progressScreen.retry').props.onClick as () => void)()
+    })
+    expect(mocks.account.refetch).toHaveBeenCalledTimes(1)
+    expect(mocks.goals.refetch).toHaveBeenCalledTimes(1)
+    expect(mocks.gamification.refetch).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('renders one orbital empty invitation for Pro access %s', async (hasProAccess) => {
+    mocks.account.profile.hasProAccess = hasProAccess
+    Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    const tree = await renderProgress()
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.empty').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'empty-state-mark-orbit')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'PillButton')).toHaveLength(1)
+    await TestRenderer.act(() => {
+      ;(findPill(tree.root, 'progressScreen.emptyAction').props.onClick as () => void)()
+    })
+    expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/')
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.sections.streak')).toHaveLength(0)
+  })
+
+  it.each(['goal', 'longestStreak', 'xp', 'achievement'] as const)('keeps existing %s records visible after the current streak resets', async (record) => {
+    Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    if (record === 'goal') mocks.goals.data.allGoals = [createMockGoal()]
+    if (record === 'longestStreak') mocks.account.profile.longestStreak = 9
+    if (record === 'xp') mocks.account.profile.totalXp = 150
+    if (record === 'achievement') mocks.gamification.profile.achievementsEarned = 1
+    const tree = await renderProgress()
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.empty')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.sections.streak').length).toBeGreaterThan(0)
   })
 
   it('renders the API window figures and all four section labels', async () => {

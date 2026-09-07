@@ -2424,9 +2424,10 @@
   "progressScreen": {
     "title": "Progress",
     "loading": "Loading your progress",
-    "error": "Your progress could not be loaded.",
+    "error": "We could not load your progress. Check the connection and try again.",
     "retry": "Try again",
-    "empty": "Your progress starts with the next habit you practice.",
+    "empty": "Nothing to measure yet",
+    "emptyAction": "Start a habit",
     "startHabit": "Go to habits",
     "sections": {
       "streak": "Streak",

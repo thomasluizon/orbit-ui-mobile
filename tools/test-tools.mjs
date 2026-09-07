@@ -71,6 +71,7 @@ configure({ toolsDir: TOOLS_DIR, self: SELF })
  * universal contract to check and this registry is the only coverage it can carry.
  */
 const CASE_MODULES = [
+  ["add-ticket-to-project.mjs", "add-ticket-to-project"],
   ["android-emulator.mjs", "android-emulator"],
   ["arch-map.mjs", "arch-map"],
   ["board-view.mjs", "board-view"],
@@ -148,6 +149,7 @@ for (const [file, module] of REPOSITORY_CASE_MODULES) {
 
 /** argv that must be refused before the tool does any work. One row per tools/ script. */
 const INVALID_INPUT = {
+  "add-ticket-to-project.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "android-emulator.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "arch-map.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },
   "board-view.mjs": { argv: ["--orbit-not-a-flag"], status: 2 },

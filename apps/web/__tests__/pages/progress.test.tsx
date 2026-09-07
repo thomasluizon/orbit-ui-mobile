@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
 const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
@@ -7,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   reorder: { mutate: vi.fn() },
   updateStatus: { mutate: vi.fn(), isPending: false },
   account: {
-    profile: { canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9 },
+    profile: { canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9, totalXp: 150 },
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -122,11 +123,18 @@ vi.mock('@/hooks/use-retrospective', () => ({
   useProgressRetrospective: () => mocks.retrospective,
 }))
 
+import ProgressPage from '@/app/(app)/progress/page'
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
 
 describe('ProgressContent', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    for (const query of [mocks.account, mocks.goals, mocks.gamification]) {
+      query.isLoading = false
+      query.isError = false
+    }
+    Object.assign(mocks.account.profile, { currentStreak: 4, longestStreak: 9, totalXp: 150 })
+    Object.assign(mocks.gamification.profile, { currentStreak: 4, longestStreak: 9, totalXp: 150, achievementsEarned: 0 })
     mocks.account.profile.canViewGamification = true
     mocks.account.profile.hasProAccess = true
     mocks.goals.data.allGoals = []
@@ -139,6 +147,85 @@ describe('ProgressContent', () => {
     mocks.retrospective.isLoading = false
     mocks.retrospective.isError = false
     mocks.retrospective.error = null
+  })
+
+  it.each(['account', 'goals', 'gamification'] as const)('renders the complete global skeleton while %s loads', (query) => {
+    mocks[query].isLoading = true
+    const { container } = render(<ProgressPage />)
+    expect(screen.getAllByRole('progressbar')).toHaveLength(1)
+    expect(screen.getByRole('progressbar', { name: 'progressScreen.loading' })).toHaveAttribute('aria-busy', 'true')
+    expect(Array.from(container.querySelectorAll('[data-variant]')).map((unit) => unit.getAttribute('data-variant'))).toEqual([
+      'settings', 'settings', 'stat-tile', 'stat-tile', 'stat-tile', 'stat-tile', 'habit-row', 'habit-row', 'habit-row',
+    ])
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()
+  })
+
+  it.each(['loading', 'error', 'empty', 'populated'])('exposes one screen heading in the %s state', (state) => {
+    mocks.account.isLoading = state === 'loading'
+    mocks.account.isError = state === 'error'
+    if (state === 'empty') {
+      Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+      Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    }
+    render(<ProgressPage />)
+    expect(screen.getAllByRole('heading', { name: 'progressScreen.title', level: 1 })).toHaveLength(1)
+  })
+
+  it.each(['account', 'goals', 'gamification'] as const)('retries a global %s error with one action', (query) => {
+    mocks[query].isError = true
+    const { rerender } = render(<ProgressPage />)
+    expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.error')
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'progressScreen.retry' }))
+    for (const request of [mocks.account, mocks.goals, mocks.gamification]) expect(request.refetch).toHaveBeenCalledTimes(1)
+    mocks[query].isError = false
+    rerender(<ProgressPage />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'progressScreen.sections.streak' })).toBeInTheDocument()
+  })
+
+  it('shows a retryable error even while another resource is loading', () => {
+    mocks.account.isError = true
+    mocks.goals.isLoading = true
+    render(<ProgressPage />)
+    expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.error')
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+  })
+
+  it('does not retry a disabled gamification query', () => {
+    mocks.account.profile.canViewGamification = false
+    mocks.goals.isError = true
+    render(<ProgressPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'progressScreen.retry' }))
+    expect(mocks.account.refetch).toHaveBeenCalledTimes(1)
+    expect(mocks.goals.refetch).toHaveBeenCalledTimes(1)
+    expect(mocks.gamification.refetch).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])('renders one orbital empty invitation for Pro access %s', (hasProAccess) => {
+    mocks.account.profile.hasProAccess = hasProAccess
+    Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    const { container } = render(<ProgressPage />)
+    expect(screen.getByText('progressScreen.empty')).toBeInTheDocument()
+    expect(container.querySelectorAll('[data-mark="orbit"]')).toHaveLength(1)
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'progressScreen.emptyAction' }))
+    expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/')
+    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()
+  })
+
+  it.each(['goal', 'longestStreak', 'xp', 'achievement'] as const)('keeps existing %s records visible after the current streak resets', (record) => {
+    Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    if (record === 'goal') mocks.goals.data.allGoals = [createMockGoal()]
+    if (record === 'longestStreak') mocks.account.profile.longestStreak = 9
+    if (record === 'xp') mocks.account.profile.totalXp = 150
+    if (record === 'achievement') mocks.gamification.profile.achievementsEarned = 1
+    render(<ProgressPage />)
+    expect(screen.queryByText('progressScreen.empty')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'progressScreen.sections.streak' })).toBeInTheDocument()
   })
 
   it('renders the four sections in the decided descending order and the API figures', () => {
