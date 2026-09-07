@@ -52,7 +52,7 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
           <RefreshCw className="size-8 text-[var(--fg-1)]" />
         </div>
 
-        <div className="fresh-start-text mt-10 text-center">
+        <div className="fresh-start-text mt-8 text-center">
           <p
             style={{
               fontFamily: 'var(--font-sans)',

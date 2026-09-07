@@ -101,9 +101,9 @@ export function AchievementToast() {
       role="status"
       aria-live="polite"
       aria-atomic="true"
-      className="fixed left-1/2"
+      className="fixed left-1/2 z-toast"
       style={{
-        top: 56,
+        top: 48,
         maxWidth: 380,
         width: 'calc(100% - 32px)',
         transition: 'opacity 280ms var(--ease-out), transform 280ms var(--ease-out)',
@@ -111,13 +111,12 @@ export function AchievementToast() {
         transform: isVisible
           ? 'translate(-50%, 0) scale(1)'
           : 'translate(-50%, -100%) scale(0.96)',
-        zIndex: 10000,
       }}
     >
       <div
         className="flex items-start"
         style={{
-          padding: '14px 16px',
+          padding: '12px 16px',
           background: 'var(--bg-sheet)',
           borderRadius: 18,
           boxShadow: '0 14px 36px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--hairline)',
@@ -134,9 +133,9 @@ export function AchievementToast() {
             background: 'rgba(var(--primary-rgb), 0.16)',
           }}
         >
-          <Trophy size={17} strokeWidth={2.2} color="var(--primary)" />
+          <Trophy size={16} strokeWidth={2.2} color="var(--primary)" />
         </div>
-        <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 2 }}>
+        <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 4 }}>
           <span
             style={{
               fontFamily: 'var(--font-mono)',

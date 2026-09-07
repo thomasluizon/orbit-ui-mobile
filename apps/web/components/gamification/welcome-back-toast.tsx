@@ -18,7 +18,6 @@ const toastSurfaceStyle: CSSProperties = {
   borderRadius: 18,
   boxShadow: '0 14px 36px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--hairline)',
   transition: 'opacity 280ms var(--ease-out), transform 280ms var(--ease-out)',
-  zIndex: 10000,
 }
 
 export function WelcomeBackToast() {
@@ -100,7 +99,7 @@ export function WelcomeBackToast() {
     <button
       type="button"
       aria-label={message}
-      className="fixed left-1/2 appearance-none border-0 cursor-pointer text-left"
+      className="fixed left-1/2 z-toast appearance-none border-0 cursor-pointer text-left"
       style={{
         ...toastSurfaceStyle,
         opacity: isVisible ? 1 : 0,
@@ -124,7 +123,7 @@ export function WelcomeBackToast() {
           {variant === 'welcome' ? (
             '🔥'
           ) : (
-            <Gift size={17} strokeWidth={2.2} color="var(--primary)" />
+            <Gift size={16} strokeWidth={2.2} color="var(--primary)" />
           )}
         </span>
         <div className="flex-1 flex flex-col" style={{ gap: 4 }}>
