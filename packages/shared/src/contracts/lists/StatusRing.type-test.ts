@@ -1,4 +1,13 @@
+import type { HabitStatus } from './HabitRow'
 import type { StatusRingProps } from './StatusRing'
+
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
+type Assert<T extends true> = T
 
 type Accepts<
   Actual extends Expected & Record<Exclude<keyof Actual, keyof Expected>, never>,
@@ -17,4 +26,16 @@ type Frozen = Accepts<{ label: 'frozen'; status: 'frozen' }, StatusRingProps>
 // @ts-expect-error skip is not a habit-row state
 type Skipped = Accepts<{ label: 'skipped'; status: 'skip' }, StatusRingProps>
 
-export type StatusRingTypeAssertions = Pending | Done | MissingLabel | Children | Frozen | Skipped
+export type StatusRingTypeAssertionsWidthAssertions = [
+  Assert<IsExactWidth<StatusRingProps['status'], HabitStatus | undefined>>,
+  Assert<IsExactWidth<StatusRingProps['size'], number | undefined>>,
+  Assert<IsExactWidth<StatusRingProps['label'], string>>,
+]
+
+export type StatusRingTypeAssertions =
+  | Pending
+  | Done
+  | MissingLabel
+  | Children
+  | Frozen
+  | Skipped

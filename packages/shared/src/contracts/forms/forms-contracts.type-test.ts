@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type {
   CheckboxProps,
   CheckRowProps,
@@ -13,6 +14,45 @@ type Exact<
   Actual extends Expected & Record<Exclude<keyof Actual, keyof Expected>, never>,
   Expected,
 > = Actual
+
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
+type Assert<T extends true> = T
+type Fields<T> = { [TKey in keyof T]: T[TKey] }
+
+type SingleLineVariant = Extract<InputProps, { multiline?: never }>
+type MultilineVariant = Extract<InputProps, { multiline: true }>
+type ExpectedSingleLineVariant = {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  disabled?: boolean
+  error?: string
+  maxLength?: number
+  kind?: 'text' | 'email' | 'number'
+  inputMode?: 'text' | 'email' | 'numeric' | 'decimal' | 'tel' | 'url'
+  autoComplete?: 'email' | 'name' | 'off'
+  mono?: boolean
+  autoFocus?: boolean
+  focusRequest?: number
+  name?: string
+  onSubmit?: () => void
+  trailing?: ReactNode
+  multiline?: never
+  rows?: never
+}
+type ExpectedMultilineVariant = Omit<
+  ExpectedSingleLineVariant,
+  'multiline' | 'rows'
+> & {
+  multiline: true
+  rows?: number
+}
 
 type InputBase = { label: 'Name'; value: ''; onChange: (value: string) => void }
 type SingleInput = Exact<InputBase & { maxLength: 60 }, InputProps>
@@ -96,6 +136,74 @@ type DateRowWithoutLabel = Exact<{ value: 'August 28, 2026' }, DateRowProps>
 type DateRowWithoutValue = Exact<{ label: 'Started' }, DateRowProps>
 // @ts-expect-error the component receives display text, not a Date
 type DateObjectRow = Exact<{ label: 'Started'; value: Date }, DateRowProps>
+
+export type FormContractAssertionsWidthAssertions = [
+  Assert<IsExactWidth<Fields<SingleLineVariant>, ExpectedSingleLineVariant>>,
+  Assert<IsExactWidth<Fields<MultilineVariant>, Fields<ExpectedMultilineVariant>>>,
+  Assert<IsExactWidth<InputProps['label'], string>>,
+  Assert<IsExactWidth<InputProps['value'], string>>,
+  Assert<IsExactWidth<InputProps['onChange'], (value: string) => void>>,
+  Assert<IsExactWidth<InputProps['placeholder'], string | undefined>>,
+  Assert<IsExactWidth<InputProps['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<InputProps['error'], string | undefined>>,
+  Assert<IsExactWidth<InputProps['maxLength'], number | undefined>>,
+  Assert<IsExactWidth<InputProps['kind'], 'text' | 'email' | 'number' | undefined>>,
+  Assert<IsExactWidth<InputProps['inputMode'], 'text' | 'email' | 'numeric' | 'decimal' | 'tel' | 'url' | undefined>>,
+  Assert<IsExactWidth<InputProps['autoComplete'], 'email' | 'name' | 'off' | undefined>>,
+  Assert<IsExactWidth<InputProps['mono'], boolean | undefined>>,
+  Assert<IsExactWidth<InputProps['autoFocus'], boolean | undefined>>,
+  Assert<IsExactWidth<InputProps['focusRequest'], number | undefined>>,
+  Assert<IsExactWidth<InputProps['name'], string | undefined>>,
+  Assert<IsExactWidth<InputProps['onSubmit'], (() => void) | undefined>>,
+  Assert<IsExactWidth<InputProps['trailing'], ReactNode>>,
+  Assert<IsExactWidth<InputProps['multiline'], true | undefined>>,
+  Assert<IsExactWidth<InputProps['rows'], number | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['length'], number | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['value'], string>>,
+  Assert<IsExactWidth<OtpInputProps['onChange'], (value: string) => void>>,
+  Assert<IsExactWidth<OtpInputProps['onComplete'], ((value: string) => void) | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['error'], string | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['hint'], string | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['autoFocus'], boolean | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['label'], string>>,
+  Assert<IsExactWidth<OtpInputProps['id'], string | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['name'], string | undefined>>,
+  Assert<IsExactWidth<CheckboxProps['checked'], boolean>>,
+  Assert<IsExactWidth<CheckboxProps['onChange'], (checked: boolean) => void>>,
+  Assert<IsExactWidth<CheckboxProps['label'], string | undefined>>,
+  Assert<IsExactWidth<CheckboxProps['error'], boolean | undefined>>,
+  Assert<IsExactWidth<CheckboxProps['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<CheckboxProps['loading'], boolean | undefined>>,
+  Assert<IsExactWidth<CheckboxProps['as'], 'button' | 'span' | undefined>>,
+  Assert<IsExactWidth<CheckRowProps['label'], string>>,
+  Assert<IsExactWidth<CheckRowProps['checked'], boolean>>,
+  Assert<IsExactWidth<CheckRowProps['onChange'], (checked: boolean) => void>>,
+  Assert<IsExactWidth<CheckRowProps['description'], string | undefined>>,
+  Assert<IsExactWidth<CheckRowProps['error'], string | undefined>>,
+  Assert<IsExactWidth<CheckRowProps['value'], string | number | undefined>>,
+  Assert<IsExactWidth<CheckRowProps['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<CheckRowProps['loading'], boolean | undefined>>,
+  Assert<IsExactWidth<SwitchProps['label'], string>>,
+  Assert<IsExactWidth<SwitchProps['checked'], boolean>>,
+  Assert<IsExactWidth<SwitchProps['onChange'], (checked: boolean) => void>>,
+  Assert<IsExactWidth<TimeFieldProps['label'], string | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['value'], Time24 | ''>>,
+  Assert<IsExactWidth<TimeFieldProps['onChange'], (value: Time24) => void>>,
+  Assert<IsExactWidth<TimeFieldProps['onClear'], (() => void) | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['hourCycle'], 'h23' | 'h12' | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['id'], string | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['placeholder'], string | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['ariaLabel'], string | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['accessibilityLabel'], string | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['className'], string | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['hint'], string | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<TimeFieldProps['error'], string | undefined>>,
+  Assert<IsExactWidth<DateRowProps['label'], string>>,
+  Assert<IsExactWidth<DateRowProps['value'], string>>,
+  Assert<IsExactWidth<DateRowProps['note'], string | undefined>>,
+]
 
 export type FormContractAssertions =
   | SingleInput

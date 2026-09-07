@@ -1,4 +1,56 @@
-import type { HabitRowProps } from './HabitRow'
+import type { ReactNode } from 'react'
+import type { HabitRowProps, HabitStatus } from './HabitRow'
+
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
+type Assert<T extends true> = T
+type Fields<T> = { [TKey in keyof T]: T[TKey] }
+
+type ReplacementMenuVariant = Extract<HabitRowProps, { trailing: ReactNode; onMenu: () => void }>
+type ReplacementPlainVariant = Extract<HabitRowProps, { trailing: ReactNode; onMenu?: never }>
+type LogMenuVariant = Extract<HabitRowProps, { onLog: () => void; onMenu: () => void }>
+type LogPlainVariant = Extract<HabitRowProps, { onLog: () => void; onMenu?: never }>
+type RingMenuVariant = Extract<
+  HabitRowProps,
+  { statusLabel: string; onLog?: never; onMenu: () => void }
+>
+type RingPlainVariant = Extract<
+  HabitRowProps,
+  { statusLabel: string; onLog?: never; onMenu?: never }
+>
+type ExpectedBase = {
+  icon?: string
+  title: string
+  meta?: string
+  status?: HabitStatus
+  depth?: 0 | 1
+  compact?: boolean
+  onClick?: () => void
+}
+type ExpectedReplacement = {
+  trailing: ReactNode
+  statusLabel?: never
+  onLog?: never
+  logLabel?: never
+}
+type ExpectedLog = {
+  trailing?: never
+  statusLabel: string
+  onLog: () => void
+  logLabel: string
+}
+type ExpectedRing = {
+  trailing?: never
+  statusLabel: string
+  onLog?: never
+  logLabel?: never
+}
+type ExpectedMenu = { onMenu: () => void; menuLabel: string }
+type ExpectedPlainMenu = { onMenu?: never; menuLabel?: never }
 
 type Accepts<
   Actual extends Expected & Record<Exclude<keyof Actual, keyof Expected>, never>,
@@ -80,6 +132,28 @@ type Skipped = Accepts<{
 }, HabitRowProps>
 // @ts-expect-error only two inline display depths are representable
 type Deep = Accepts<{ title: 'Walk'; depth: 2; statusLabel: 'pending' }, HabitRowProps>
+
+export type HabitRowTypeAssertionsWidthAssertions = [
+  Assert<IsExactWidth<Fields<ReplacementMenuVariant>, Fields<ExpectedBase & ExpectedReplacement & ExpectedMenu>>>,
+  Assert<IsExactWidth<Fields<ReplacementPlainVariant>, Fields<ExpectedBase & ExpectedReplacement & ExpectedPlainMenu>>>,
+  Assert<IsExactWidth<Fields<LogMenuVariant>, Fields<ExpectedBase & ExpectedLog & ExpectedMenu>>>,
+  Assert<IsExactWidth<Fields<LogPlainVariant>, Fields<ExpectedBase & ExpectedLog & ExpectedPlainMenu>>>,
+  Assert<IsExactWidth<Fields<RingMenuVariant>, Fields<ExpectedBase & ExpectedRing & ExpectedMenu>>>,
+  Assert<IsExactWidth<Fields<RingPlainVariant>, Fields<ExpectedBase & ExpectedRing & ExpectedPlainMenu>>>,
+  Assert<IsExactWidth<HabitRowProps['icon'], string | undefined>>,
+  Assert<IsExactWidth<HabitRowProps['title'], string>>,
+  Assert<IsExactWidth<HabitRowProps['meta'], string | undefined>>,
+  Assert<IsExactWidth<HabitRowProps['status'], HabitStatus | undefined>>,
+  Assert<IsExactWidth<HabitRowProps['depth'], 0 | 1 | undefined>>,
+  Assert<IsExactWidth<HabitRowProps['compact'], boolean | undefined>>,
+  Assert<IsExactWidth<HabitRowProps['onClick'], (() => void) | undefined>>,
+  Assert<IsExactWidth<HabitRowProps['trailing'], ReactNode>>,
+  Assert<IsExactWidth<HabitRowProps['statusLabel'], string | undefined>>,
+  Assert<IsExactWidth<HabitRowProps['onLog'], (() => void) | undefined>>,
+  Assert<IsExactWidth<HabitRowProps['logLabel'], string | undefined>>,
+  Assert<IsExactWidth<HabitRowProps['onMenu'], (() => void) | undefined>>,
+  Assert<IsExactWidth<HabitRowProps['menuLabel'], string | undefined>>,
+]
 
 export type HabitRowTypeAssertions =
   | Plain

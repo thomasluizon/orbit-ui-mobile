@@ -1,9 +1,134 @@
+import type { ReactNode } from 'react'
 import type {
   ComposerAttachWords,
   ComposerAttachment,
   ComposerProps,
+  ComposerSuggestion,
   ComposerSuggestions,
+  ComposerVoiceWords,
+  ComposerWords,
 } from './Composer'
+
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
+type Assert<T extends true> = T
+type Project<T, TKeys extends keyof T> = Pick<T, TKeys>
+type NormalizeFunction<T> = T extends (...args: infer TArgs) => infer TResult
+  ? (...args: TArgs) => TResult
+  : T
+
+type IdleVariant = Extract<ComposerProps, { state: 'idle' }>
+type SendingVariant = Extract<ComposerProps, { state: 'sending' }>
+type AtLimitVariant = Extract<ComposerProps, { state: 'atLimit' }>
+type OfflineVariant = Extract<ComposerProps, { state: 'offline' }>
+type RecordingVariant = Extract<ComposerProps, { state: 'recording' }>
+type TranscribingVariant = Extract<ComposerProps, { state: 'transcribing' }>
+type VoiceVariant = Extract<ComposerProps, { onVoice: () => void }>
+type NoVoiceVariant = Extract<ComposerProps, { onVoice?: never }>
+type BothAttachVariant = Extract<
+  ComposerProps,
+  { onAttachFile: () => void; onAttachImage: () => void }
+>
+type FileAttachVariant = Extract<
+  ComposerProps,
+  { onAttachFile: () => void; onAttachImage?: never }
+>
+type ImageAttachVariant = Extract<
+  ComposerProps,
+  { onAttachFile?: never; onAttachImage: () => void }
+>
+type NoAttachVariant = Extract<
+  ComposerProps,
+  { onAttachFile?: never; onAttachImage?: never }
+>
+type AttachmentTrayVariant = Extract<ComposerProps, { attachments: readonly ComposerAttachment[] }>
+type NoAttachmentTrayVariant = Extract<ComposerProps, { attachments?: never }>
+type RetryVariant = Extract<ComposerProps, { onRetry: () => void }>
+type NoRetryVariant = Extract<ComposerProps, { onRetry?: never }>
+
+type ExpectedIdleState = { state: 'idle'; limitReason?: never; limitRecovery?: never }
+type ExpectedSendingState = { state: 'sending'; limitReason?: never; limitRecovery?: never }
+type ExpectedAtLimitState = { state: 'atLimit'; limitReason: string; limitRecovery?: ReactNode }
+type ExpectedOfflineState = { state: 'offline'; limitReason: string; limitRecovery?: never }
+type ExpectedRecordingState = {
+  state: 'recording'
+  limitReason?: never
+  limitRecovery?: never
+  voiceWords: ComposerVoiceWords
+}
+type ExpectedTranscribingState = {
+  state: 'transcribing'
+  limitReason?: never
+  limitRecovery?: never
+  voiceWords: ComposerVoiceWords
+}
+
+export type ComposerContractWidthAssertions = [
+  Assert<IsExactWidth<Project<IdleVariant, 'state' | 'limitReason' | 'limitRecovery'>, ExpectedIdleState>>,
+  Assert<IsExactWidth<Project<SendingVariant, 'state' | 'limitReason' | 'limitRecovery'>, ExpectedSendingState>>,
+  Assert<IsExactWidth<Project<AtLimitVariant, 'state' | 'limitReason' | 'limitRecovery'>, ExpectedAtLimitState>>,
+  Assert<IsExactWidth<Project<OfflineVariant, 'state' | 'limitReason' | 'limitRecovery'>, ExpectedOfflineState>>,
+  Assert<IsExactWidth<Project<RecordingVariant, 'state' | 'limitReason' | 'limitRecovery' | 'voiceWords'>, ExpectedRecordingState>>,
+  Assert<IsExactWidth<NormalizeFunction<RecordingVariant['onVoice']>, () => void>>,
+  Assert<IsExactWidth<Project<TranscribingVariant, 'state' | 'limitReason' | 'limitRecovery' | 'voiceWords'>, ExpectedTranscribingState>>,
+  Assert<IsExactWidth<NormalizeFunction<TranscribingVariant['onVoice']>, () => void>>,
+  Assert<IsExactWidth<NormalizeFunction<VoiceVariant['onVoice']>, () => void>>,
+  Assert<IsExactWidth<VoiceVariant['voiceWords'], ComposerVoiceWords>>,
+  Assert<IsExactWidth<Project<NoVoiceVariant, 'onVoice' | 'voiceWords'>, { onVoice?: never; voiceWords?: never }>>,
+  Assert<IsExactWidth<Project<BothAttachVariant, 'onAttachFile' | 'onAttachImage' | 'attachWords'>, { onAttachFile: () => void; onAttachImage: () => void; attachWords: ComposerAttachWords }>>,
+  Assert<IsExactWidth<Project<FileAttachVariant, 'onAttachFile' | 'onAttachImage' | 'attachWords'>, { onAttachFile: () => void; onAttachImage?: never; attachWords: ComposerAttachWords }>>,
+  Assert<IsExactWidth<Project<ImageAttachVariant, 'onAttachFile' | 'onAttachImage' | 'attachWords'>, { onAttachFile?: never; onAttachImage: () => void; attachWords: ComposerAttachWords }>>,
+  Assert<IsExactWidth<Project<NoAttachVariant, 'onAttachFile' | 'onAttachImage' | 'attachWords'>, { onAttachFile?: never; onAttachImage?: never; attachWords?: never }>>,
+  Assert<IsExactWidth<Project<AttachmentTrayVariant, 'attachments' | 'onAttachRemove'>, { attachments: readonly ComposerAttachment[]; onAttachRemove: (id: string) => void }>>,
+  Assert<IsExactWidth<Project<NoAttachmentTrayVariant, 'attachments' | 'onAttachRemove'>, { attachments?: never; onAttachRemove?: never }>>,
+  Assert<IsExactWidth<Project<RetryVariant, 'words' | 'onRetry'>, { words: ComposerWords & { retry: string }; onRetry: () => void }>>,
+  Assert<IsExactWidth<Project<NoRetryVariant, 'words' | 'onRetry'>, { words: ComposerWords; onRetry?: never }>>,
+  Assert<IsExactWidth<Extract<ComposerSuggestions, readonly [unknown, unknown, unknown]>, readonly [ComposerSuggestion, ComposerSuggestion, ComposerSuggestion]>>,
+  Assert<IsExactWidth<Extract<ComposerSuggestions, readonly [unknown, unknown, unknown, unknown]>, readonly [ComposerSuggestion, ComposerSuggestion, ComposerSuggestion, ComposerSuggestion]>>,
+  Assert<IsExactWidth<Extract<ComposerSuggestions, readonly [unknown, unknown, unknown, unknown, unknown]>, readonly [ComposerSuggestion, ComposerSuggestion, ComposerSuggestion, ComposerSuggestion, ComposerSuggestion]>>,
+  Assert<IsExactWidth<Extract<ComposerSuggestions, readonly [unknown, unknown, unknown, unknown, unknown, unknown]>, readonly [ComposerSuggestion, ComposerSuggestion, ComposerSuggestion, ComposerSuggestion, ComposerSuggestion, ComposerSuggestion]>>,
+  Assert<IsExactWidth<ComposerWords['placeholder'], string>>,
+  Assert<IsExactWidth<ComposerWords['send'], string>>,
+  Assert<IsExactWidth<ComposerWords['suggestionsLabel'], string>>,
+  Assert<IsExactWidth<ComposerWords['retry'], string | undefined>>,
+  Assert<IsExactWidth<ComposerVoiceWords['start'], string>>,
+  Assert<IsExactWidth<ComposerVoiceWords['stop'], string>>,
+  Assert<IsExactWidth<ComposerVoiceWords['recording'], string>>,
+  Assert<IsExactWidth<ComposerVoiceWords['transcribing'], string>>,
+  Assert<IsExactWidth<ComposerAttachWords['file'], string>>,
+  Assert<IsExactWidth<ComposerAttachWords['image'], string>>,
+  Assert<IsExactWidth<ComposerAttachWords['trayLabel'], string>>,
+  Assert<IsExactWidth<ComposerAttachWords['remove'], (name: string) => string>>,
+  Assert<IsExactWidth<ComposerAttachment['id'], string>>,
+  Assert<IsExactWidth<ComposerAttachment['kind'], 'file' | 'image'>>,
+  Assert<IsExactWidth<ComposerAttachment['name'], string>>,
+  Assert<IsExactWidth<ComposerSuggestion['id'], string>>,
+  Assert<IsExactWidth<ComposerSuggestion['label'], string>>,
+  Assert<IsExactWidth<ComposerSuggestion['icon'], ReactNode>>,
+  Assert<IsExactWidth<ComposerSuggestion['onSelect'], () => void>>,
+  Assert<IsExactWidth<ComposerProps['words'], ComposerWords | (ComposerWords & { retry: string })>>,
+  Assert<IsExactWidth<ComposerProps['value'], string>>,
+  Assert<IsExactWidth<ComposerProps['onChangeValue'], (value: string) => void>>,
+  Assert<IsExactWidth<ComposerProps['onSend'], () => void>>,
+  Assert<IsExactWidth<ComposerProps['suggestions'], ComposerSuggestions>>,
+  Assert<IsExactWidth<ComposerProps['onOpenConversation'], (() => void) | undefined>>,
+  Assert<IsExactWidth<ComposerProps['conversationLabel'], string | undefined>>,
+  Assert<IsExactWidth<ComposerProps['state'], 'idle' | 'sending' | 'atLimit' | 'offline' | 'recording' | 'transcribing'>>,
+  Assert<IsExactWidth<ComposerProps['limitReason'], string | undefined>>,
+  Assert<IsExactWidth<ComposerProps['limitRecovery'], ReactNode>>,
+  Assert<IsExactWidth<NormalizeFunction<ComposerProps['onVoice']>, (() => void) | undefined>>,
+  Assert<IsExactWidth<ComposerProps['voiceWords'], ComposerVoiceWords | undefined>>,
+  Assert<IsExactWidth<ComposerProps['onAttachFile'], (() => void) | undefined>>,
+  Assert<IsExactWidth<ComposerProps['onAttachImage'], (() => void) | undefined>>,
+  Assert<IsExactWidth<ComposerProps['attachWords'], ComposerAttachWords | undefined>>,
+  Assert<IsExactWidth<ComposerProps['attachments'], readonly ComposerAttachment[] | undefined>>,
+  Assert<IsExactWidth<ComposerProps['onAttachRemove'], ((id: string) => void) | undefined>>,
+  Assert<IsExactWidth<ComposerProps['onRetry'], (() => void) | undefined>>,
+]
 
 const words = {
   placeholder: 'Placeholder',
