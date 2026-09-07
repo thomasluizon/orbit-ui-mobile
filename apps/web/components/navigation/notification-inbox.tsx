@@ -35,6 +35,7 @@ export function NotificationInbox() {
       <header className="flex flex-col shadow-[inset_0_-1px_0_var(--hairline)]">
         <div className="flex items-center gap-2 px-3 pt-2">
           <button type="button" aria-label={t('common.back')} onClick={() => goBack('/')}
+            style={{ transition: 'background-color var(--dur-hover-control) var(--ease-standard)' }}
             className="grid size-11 shrink-0 cursor-pointer place-items-center rounded-full hover:bg-[var(--bg-hover)]">
             <ArrowLeft size={20} aria-hidden="true" />
           </button>

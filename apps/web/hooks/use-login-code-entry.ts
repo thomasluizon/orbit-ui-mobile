@@ -1,151 +1,46 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  createVerificationCodeDigits,
-  fillVerificationCodeDigits,
-  isVerificationCodeComplete,
-  normalizeVerificationCodeInput,
-  VERIFICATION_CODE_LENGTH,
-} from '@orbit/shared/utils'
+import { createVerificationCodeDigits, normalizeVerificationCodeInput, VERIFICATION_CODE_LENGTH } from '@orbit/shared/utils'
 
-interface UseLoginCodeEntryResult {
-  codeDigits: string[]
-  setCodeDigits: React.Dispatch<React.SetStateAction<string[]>>
-  codeInputRefs: React.RefObject<(HTMLInputElement | null)[]>
-  canResend: boolean
-  resendCountdown: number
-  startResendCountdown: () => void
-  resetCodeDigits: () => void
-  onCodeChange: (value: string) => void
-  onCodeInput: (index: number, value: string) => void
-  onCodePaste: (event: React.ClipboardEvent<HTMLInputElement>) => void
-  onCodeKeydown: (index: number, event: React.KeyboardEvent<HTMLInputElement>) => void
-}
-
-export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseLoginCodeEntryResult {
+export function useLoginCodeEntry(onCompleteCode?: (code: string) => void) {
   const [codeDigits, setCodeDigits] = useState(() => createVerificationCodeDigits())
-  const [canResend, setCanResend] = useState(true)
   const [resendCountdown, setResendCountdown] = useState(0)
-  const codeInputRefs = useRef<(HTMLInputElement | null)[]>([])
-  const resendTimerRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null)
-  const resendCountdownRef = useRef(0)
-  const submittedCodeRef = useRef<string | null>(null)
+  const resendTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const submittedCode = useRef<string | null>(null)
 
   const clearResendTimer = useCallback(() => {
-    if (resendTimerRef.current === null) return
-    globalThis.clearInterval(resendTimerRef.current)
-    resendTimerRef.current = null
+    if (resendTimer.current !== null) clearInterval(resendTimer.current)
+    resendTimer.current = null
   }, [])
 
-  useEffect(() => () => clearResendTimer(), [clearResendTimer])
-
-  const joinedCode = codeDigits.join('')
-  useEffect(() => {
-    if (!isVerificationCodeComplete(codeDigits, VERIFICATION_CODE_LENGTH)) {
-      submittedCodeRef.current = null
-      return
-    }
-    if (submittedCodeRef.current === joinedCode) return
-    submittedCodeRef.current = joinedCode
-    // react-doctor-disable-next-line no-pass-data-to-parent, no-pass-live-state-to-parent -- reusable controlled code-entry primitive: a single deduped effect is the one notification point for completion however the digits were filled (keystroke, paste, or the parent's own setCodeDigits); lifting codeDigits into every parent is a worse API; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    onCompleteCode?.(joinedCode)
-  }, [codeDigits, joinedCode, onCompleteCode])
+  useEffect(() => clearResendTimer, [clearResendTimer])
 
   const startResendCountdown = useCallback(() => {
     clearResendTimer()
-    setCanResend(false)
-    resendCountdownRef.current = 60
+    const expiresAt = Date.now() + 60_000
     setResendCountdown(60)
-    resendTimerRef.current = globalThis.setInterval(() => {
-      const next = Math.max(resendCountdownRef.current - 1, 0)
-      resendCountdownRef.current = next
-      setResendCountdown(next)
-      if (next === 0) {
-        clearResendTimer()
-        setCanResend(true)
-      }
+    resendTimer.current = setInterval(() => {
+      const seconds = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000))
+      setResendCountdown(seconds)
+      if (!seconds) clearResendTimer()
     }, 1000)
   }, [clearResendTimer])
 
   const resetCodeDigits = useCallback(() => {
+    submittedCode.current = null
     setCodeDigits(createVerificationCodeDigits())
   }, [])
 
-  const onCodeChange = useCallback((value: string) => {
-    const cleanValue = normalizeVerificationCodeInput(value)
-      .slice(0, VERIFICATION_CODE_LENGTH)
-    const { digits } = fillVerificationCodeDigits(
-      0,
-      cleanValue,
-      createVerificationCodeDigits(),
-    )
-    setCodeDigits(digits)
-  }, [])
-
-  const onCodeInput = useCallback(
-    (index: number, value: string) => {
-      const cleanValue = normalizeVerificationCodeInput(value)
-
-      if (cleanValue.length > 1) {
-        const { digits, nextFocusIndex } = fillVerificationCodeDigits(
-          index,
-          cleanValue,
-          codeDigits,
-        )
-        setCodeDigits(digits)
-        codeInputRefs.current[nextFocusIndex]?.focus()
-        return
-      }
-
-      setCodeDigits((previous) => {
-        const nextDigits = [...previous]
-        nextDigits[index] = cleanValue
-        return nextDigits
-      })
-
-      if (cleanValue && index < VERIFICATION_CODE_LENGTH - 1) {
-        codeInputRefs.current[index + 1]?.focus()
-      }
-    },
-    [codeDigits],
-  )
-
-  const onCodePaste = useCallback(
-    (event: React.ClipboardEvent<HTMLInputElement>) => {
-      event.preventDefault()
-      const pasted = normalizeVerificationCodeInput(event.clipboardData.getData('text'))
-      if (!pasted) return
-
-      const { digits, nextFocusIndex } = fillVerificationCodeDigits(
-        0,
-        pasted.slice(0, VERIFICATION_CODE_LENGTH),
-        createVerificationCodeDigits(),
-      )
-      setCodeDigits(digits)
-      codeInputRefs.current[nextFocusIndex]?.focus()
-    },
-    [],
-  )
-
-  const onCodeKeydown = useCallback(
-    (index: number, event: React.KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === 'Backspace' && !codeDigits[index] && index > 0) {
-        codeInputRefs.current[index - 1]?.focus()
-      }
-    },
-    [codeDigits],
-  )
-
-  return {
-    codeDigits,
-    setCodeDigits,
-    codeInputRefs,
-    canResend,
-    resendCountdown,
-    startResendCountdown,
-    resetCodeDigits,
-    onCodeChange,
-    onCodeInput,
-    onCodePaste,
-    onCodeKeydown,
+  function onCodeChange(value: string) {
+    const code = normalizeVerificationCodeInput(value).slice(0, VERIFICATION_CODE_LENGTH)
+    setCodeDigits(Array.from({ length: VERIFICATION_CODE_LENGTH }, (_, index) => code[index] ?? ''))
+    if (code.length !== VERIFICATION_CODE_LENGTH) {
+      submittedCode.current = null
+    } else if (submittedCode.current !== code) {
+      submittedCode.current = code
+      onCompleteCode?.(code)
+    }
   }
+
+  return { codeDigits, setCodeDigits, canResend: resendCountdown === 0, resendCountdown,
+    startResendCountdown, resetCodeDigits, onCodeChange }
 }

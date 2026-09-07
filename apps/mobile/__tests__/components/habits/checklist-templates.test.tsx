@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn(),
   showError: vi.fn(),
   isPending: false,
+  closeSheet: vi.fn<(afterClose: () => void) => void>(),
 }))
 
 vi.mock('react-i18next', () => ({
@@ -35,6 +36,7 @@ vi.mock('@/components/ui/list-row', () => ({
 
 vi.mock('@/components/ui/sheet', () => ({
   Sheet: (props: Record<string, unknown>) => React.createElement('Sheet', props, props.children as React.ReactNode),
+  useSheetHost: () => ({ sheetRef: { current: null }, closeSheet: mocks.closeSheet }),
 }))
 
 vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
@@ -92,6 +94,7 @@ describe('ChecklistTemplates mobile', () => {
     mocks.remove.mockReset()
     mocks.showError.mockReset()
     mocks.isPending = false
+    mocks.closeSheet.mockReset()
   })
 
   it('saves the current checklist under a trimmed template name', () => {
@@ -120,6 +123,11 @@ describe('ChecklistTemplates mobile', () => {
     const { tree, onLoad } = renderTemplates()
     press(listRow(tree, 'habits.form.templates'))
     press(listRow(tree, 'Workout'))
+    expect(mocks.closeSheet).toHaveBeenCalledOnce()
+    expect(onLoad).not.toHaveBeenCalled()
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1)
+    TestRenderer.act(() => mocks.closeSheet.mock.calls[0]![0]())
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
     expect(onLoad).toHaveBeenCalledWith([
       { text: 'Warm up', isChecked: false },
       { text: 'Run', isChecked: false },

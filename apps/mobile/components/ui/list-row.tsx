@@ -1,3 +1,4 @@
+import Animated from 'react-native-reanimated'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
@@ -7,6 +8,11 @@ import { Icon } from '@/components/ui/icon'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
+const AnimatedContent = Animated.createAnimatedComponent(View)
+const PRESS_TRANSITION = {
+  transition: 'transform 150ms cubic-bezier(0.16, 1, 0.3, 1)',
+} as const
+
 export function ListRow(props: Readonly<ListRowProps>) {
   const [bodyPressed, setBodyPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
@@ -15,7 +21,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
   const titleColor = danger ? tokens.statusBad : tokens.fg1
   const bodyStyle = [styles.body, action ? styles.bodyWithAction : null]
   const body: ReactNode = (
-    <View style={[styles.bodyContent, bodyPressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
+    <AnimatedContent style={[PRESS_TRANSITION, styles.bodyContent, bodyPressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
       {icon ? (
         <View style={styles.iconSlot}>
           {typeof icon === 'string' ? <Icon name={icon} size={24} color={titleColor} /> : icon}
@@ -28,7 +34,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
       {value ? <Text style={[styles.value, { color: tokens.fg3 }]} numberOfLines={1}>{value}</Text> : null}
       {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
       {!readOnly && chevron ? <View style={styles.control}><ChevronRight size={24} color={tokens.fg4} strokeWidth={1.8} /></View> : null}
-    </View>
+    </AnimatedContent>
   )
 
   return (
@@ -41,9 +47,9 @@ export function ListRow(props: Readonly<ListRowProps>) {
       {action ? (
         <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={styles.action}>
           {({ pressed }) => (
-            <View style={[styles.control, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
+            <AnimatedContent style={[PRESS_TRANSITION, styles.control, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
               <Icon name={action.icon} size={20} color={action.danger ? tokens.statusBad : tokens.fg2} />
-            </View>
+            </AnimatedContent>
           )}
         </Pressable>
       ) : null}

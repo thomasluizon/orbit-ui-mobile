@@ -1,5 +1,5 @@
 import type { OtpInputProps } from '@orbit/shared/contracts/forms'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -16,6 +16,7 @@ export function OtpInput({
   length = 6,
 }: Readonly<OtpInputProps>) {
   const inputRef = useRef<TextInput>(null)
+  const [focused, setFocused] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -35,12 +36,14 @@ export function OtpInput({
   }, [error])
 
   return (
-    <View style={styles.root} data-error={error ? '' : undefined}>
+    <View style={styles.root}>
       <View style={styles.cellRow}>
         <TextInput
           ref={inputRef}
           value={value}
           onChangeText={handleChange}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           editable={!disabled}
           keyboardType="number-pad"
           textContentType="oneTimeCode"
@@ -55,18 +58,23 @@ export function OtpInput({
           <View
             key={index}
             testID={`otp-cell-${index}`}
+            data-active={focused && !disabled && index === activeIndex ? '' : undefined}
             pointerEvents="none"
-            data-active={index === activeIndex ? '' : undefined}
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
             style={[
               styles.cell,
               {
                 backgroundColor: tokens.bgField,
                 borderColor: error
                   ? tokens.statusBad
-                  : index === activeIndex
+                  : focused && !disabled && index === activeIndex
                     ? tokens.primary
                     : tokens.borderControl,
-                borderWidth: error || index === activeIndex ? 2 : 1,
+                borderWidth: error || (focused && !disabled && index === activeIndex) ? 2 : 1,
+                outlineWidth: focused && !disabled && index === activeIndex ? 2 : 0,
+                outlineOffset: 2,
+                outlineColor: tokens.primary,
               },
             ]}
           >
@@ -90,7 +98,7 @@ const styles = StyleSheet.create({
   root: { gap: 8 },
   cellRow: { position: 'relative', flexDirection: 'row', justifyContent: 'center', gap: 8 },
   realInput: { ...StyleSheet.absoluteFill, zIndex: 1, opacity: 0.01 },
-  cell: { width: 48, height: 58, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  cell: { width: 44, height: 56, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   digit: { fontFamily: 'GeistMono_500Medium', fontSize: 26, fontVariant: ['tabular-nums'] },
   caption: { fontFamily: 'Geist_400Regular', fontSize: 12 },
 })

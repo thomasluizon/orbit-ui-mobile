@@ -114,7 +114,7 @@ export function HabitUnderstanding({
             />
 
             {mode === 'fixed' ? (
-              <fieldset aria-label={labels.days} className="flex" style={{ gap: 4 }}>
+              <fieldset aria-label={labels.days} className="flex flex-wrap" style={{ gap: 4 }}>
                 {dayOptions.map((day) => {
                   const selected = days.includes(day.value)
                   return (
@@ -125,7 +125,7 @@ export function HabitUnderstanding({
                 })}
               </fieldset>
             ) : (
-              <div className="flex items-center" style={{ gap: 8 }}>
+              <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
                 <button type="button" aria-label={labels.less} disabled={scheduleLocked} className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40" onClick={() => onQuantityChange(Math.max(1, quantity - 1))}>
                   <Minus size={20} strokeWidth={2} aria-hidden="true" />
                 </button>
@@ -133,11 +133,11 @@ export function HabitUnderstanding({
                 <button type="button" aria-label={labels.more} disabled={scheduleLocked} className="habit-control-motion grid size-11 place-items-center rounded-full border-0 bg-[var(--bg-well)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-hover)] hover:text-[var(--fg-1)] active:scale-[0.96] disabled:opacity-40" onClick={() => onQuantityChange(quantity + 1)}>
                   <Plus size={20} strokeWidth={2} aria-hidden="true" />
                 </button>
-                <span className="truncate text-sm text-[var(--fg-3)]">{labels.count(quantity)}</span>
+                <span className="whitespace-nowrap text-sm text-[var(--fg-3)]">{labels.count(quantity)}</span>
               </div>
             )}
 
-            <div className="flex items-center" style={{ gap: 8 }}>
+            <div className="flex flex-wrap items-center" style={{ gap: 8 }}>
               <button
                 type="button"
                 aria-label={labels.repeatLess}
@@ -157,7 +157,7 @@ export function HabitUnderstanding({
               >
                 <Plus size={20} strokeWidth={2} aria-hidden="true" />
               </button>
-              <span className="truncate text-sm text-[var(--fg-3)]">{labels.repeat(intervalWeeks)}</span>
+              <span className="whitespace-nowrap text-sm text-[var(--fg-3)]">{labels.repeat(intervalWeeks)}</span>
             </div>
           </section>
         </Proposed>

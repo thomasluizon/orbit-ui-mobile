@@ -11,6 +11,10 @@ const mocks = vi.hoisted(() => ({
   login: vi.fn(),
 }))
 
+vi.mock('@/components/auth/login-content', () => ({
+  LoginContent: ({ callback }: { callback: { state: string } }) => React.createElement('View', { callbackState: callback.state }),
+}))
+
 vi.mock('expo-linking', () => ({ useLinkingURL: () => null }))
 
 vi.mock('expo-router', () => ({
@@ -98,7 +102,7 @@ describe('AuthCallbackScreen capture retention', () => {
     })
 
     expect(mocks.replace).not.toHaveBeenCalled()
-    expect(JSON.stringify(tree!.toJSON())).toContain('auth.signingIn')
+    expect(JSON.stringify(tree!.toJSON())).toContain('pending')
   })
 
   it('keeps the production payload-free redirect behavior', async () => {

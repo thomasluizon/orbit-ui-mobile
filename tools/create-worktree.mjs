@@ -1,0 +1,305 @@
+#!/usr/bin/env node
+
+import { spawn, spawnSync } from "node:child_process"
+import { randomUUID } from "node:crypto"
+import { mkdtempSync, readFileSync, readdirSync, renameSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs"
+import { basename, join, resolve } from "node:path"
+import { setTimeout } from "node:timers/promises"
+
+const USAGE = `usage: create-worktree.mjs --repo path:<path> --name <name> --base-branch <branch> --issue <ticket> --no-parent --comment <text> --json
+
+Serializes refresh and creation per repository; overlapping callers share a completed base fetch.
+Fetches the requested remote base, refuses creation unless the local base is exactly that commit,
+prints the selected commit, then delegates the unchanged arguments to orca worktree create.
+
+exit codes: 0 created, 1 local and remote base differ, 2 usage error, 3 git or orca failed`
+
+if (process.argv.includes("--help") || process.argv.includes("-h")) {
+  console.log(USAGE)
+  process.exit(0)
+}
+
+const args = process.argv.slice(2)
+const valueOf = (flag) => {
+  const index = args.indexOf(flag)
+  if (index === -1) return null
+  const value = args[index + 1]
+  return value === undefined || value.startsWith("-") ? undefined : value
+}
+const fail = (code, message) => {
+  console.error(message)
+  process.exit(code)
+}
+const knownFlags = new Set(["--repo", "--name", "--base-branch", "--issue", "--no-parent", "--comment", "--json"])
+const unknown = args.filter((value) => value.startsWith("-") && !knownFlags.has(value))
+if (unknown.length > 0) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
+
+const repoArgument = valueOf("--repo")
+const baseBranch = valueOf("--base-branch")
+if (repoArgument === undefined || baseBranch === undefined) fail(2, `${USAGE}\n\nflags require values`)
+if (!repoArgument?.startsWith("path:") || !baseBranch) fail(2, `${USAGE}\n\n--repo path:<path> and --base-branch are required`)
+
+const repository = resolve(repoArgument.slice("path:".length))
+const requestedAt = Date.now()
+const abort = (code, message) => { throw Object.assign(new Error(message), { exitCode: code }) }
+const git = async (gitArgs, run = spawnSync) => {
+  const result = await run(process.env.GIT_BIN || "git", ["-C", repository, ...gitArgs], { encoding: "utf8" })
+  if (result.status !== 0) abort(3, `git ${gitArgs.join(" ")} failed: ${(result.stderr || result.stdout || "unknown error").trim()}`)
+  return result.stdout.trim()
+}
+
+const refreshBase = async (refreshPath, run) => {
+  let previous = null
+  try {
+    previous = JSON.parse(readFileSync(refreshPath, "utf8"))
+  } catch (error) {
+    // #447: an interrupted marker write is a cache miss, never a permanent creation failure.
+    if (!(error instanceof SyntaxError) && error.code !== "ENOENT") throw error
+  }
+  if (previous?.baseBranch !== baseBranch || previous.completedAt < requestedAt) await git(["fetch", "origin", baseBranch], run)
+  let localCommit = await git(["rev-parse", `refs/heads/${baseBranch}`], run)
+  const remoteCommit = await git(["rev-parse", `refs/remotes/origin/${baseBranch}`], run)
+  if (localCommit !== remoteCommit) {
+    const ancestor = await run(process.env.GIT_BIN || "git", ["-C", repository, "merge-base", "--is-ancestor", localCommit, remoteCommit])
+    if (ancestor.status !== 0) abort(1, `refusing non-fast-forward base ${baseBranch}: local ${localCommit}, origin ${remoteCommit}`)
+    const currentBranch = await git(["branch", "--show-current"], run)
+    if (currentBranch === baseBranch) await git(["merge", "--ff-only", `origin/${baseBranch}`], run)
+    else await git(["branch", "-f", baseBranch, `origin/${baseBranch}`], run)
+    localCommit = await git(["rev-parse", `refs/heads/${baseBranch}`], run)
+  }
+  if (localCommit !== remoteCommit) abort(1, `refusing stale base ${baseBranch}: local ${localCommit}, origin ${remoteCommit}`)
+  if (previous?.baseBranch !== baseBranch || previous.completedAt < requestedAt) {
+    writeFileSync(refreshPath, JSON.stringify({ baseBranch, completedAt: Date.now() }))
+  }
+  console.log(`WORKTREE_BASE ${baseBranch} ${remoteCommit}`)
+}
+
+// Same OS identity as #437's run-state.mjs on redesign/main, which this branch predates.
+const processStartIdentity = (pid) => {
+  if (process.platform === "win32") {
+    const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+      `(Get-Process -Id ${pid} -ErrorAction Stop).StartTime.ToUniversalTime().Ticks.ToString()`,
+    ], { encoding: "utf8", windowsHide: true, timeout: 3000 })
+    const ticks = result.stdout?.trim()
+    return result.status === 0 && /^\d+$/.test(ticks) ? `win32:${ticks}` : null
+  }
+  if (process.platform === "linux") {
+    const stat = readFileSync(`/proc/${pid}/stat`, "utf8")
+    const fields = stat.slice(stat.lastIndexOf(") ") + 2).trim().split(/\s+/)
+    if (["Z", "X", "x"].includes(fields[0])) return false
+    const bootId = readFileSync("/proc/sys/kernel/random/boot_id", "utf8").trim()
+    return /^\d+$/.test(fields[19]) && /^[0-9a-f-]{36}$/.test(bootId) ? `linux:${bootId}:${fields[19]}` : null
+  }
+  return null
+}
+
+// #447: the command inherits this lease before it can execute. Windows closes it on exit,
+// including after supervisor death, so no PID-publication race or live supervisor is required.
+const windowsLease = (name, pid = null) => {
+  if (!/^Local\\orbit-worktree-[0-9a-f-]{36}$/.test(name)) throw new Error("invalid Windows lease name")
+  const source = `
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+public static class WorktreeLease {
+  [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+  static extern IntPtr CreateEventW(IntPtr security, bool manual, bool initial, string name);
+  [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+  static extern IntPtr OpenEventW(uint access, bool inherit, string name);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  static extern IntPtr OpenProcess(uint access, bool inherit, int pid);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  static extern bool DuplicateHandle(IntPtr sourceProcess, IntPtr source, IntPtr targetProcess,
+    out IntPtr target, uint access, bool inherit, uint options);
+  [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+  public static bool Exists(string name) {
+    IntPtr lease = OpenEventW(0x100000, false, name);
+    if (lease != IntPtr.Zero) { CloseHandle(lease); return true; }
+    int error = Marshal.GetLastWin32Error();
+    if (error == 2) return false;
+    throw new Win32Exception(error);
+  }
+  public static void Retain(string name, int pid) {
+    IntPtr lease = CreateEventW(IntPtr.Zero, true, false, name);
+    if (lease == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
+    try {
+      IntPtr process = OpenProcess(0x40, false, pid);
+      if (process == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
+      try {
+        IntPtr inherited;
+        if (!DuplicateHandle(new IntPtr(-1), lease, process, out inherited, 0, true, 2))
+          throw new Win32Exception(Marshal.GetLastWin32Error());
+      } finally { CloseHandle(process); }
+    } finally { CloseHandle(lease); }
+  }
+}
+`
+  const operation = pid === null
+    ? `if ([WorktreeLease]::Exists('${name}')) { exit 0 }; exit 1`
+    : `[WorktreeLease]::Retain('${name}', ${pid}); exit 0`
+  const script = `$ErrorActionPreference = 'Stop'\ntry {\nAdd-Type -TypeDefinition @'\n${source}\n'@\n${operation}\n} catch { [Console]::Error.WriteLine($_); exit 3 }`
+  const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-EncodedCommand",
+    Buffer.from(script, "utf16le").toString("base64")], { encoding: "utf8", windowsHide: true, timeout: 10000 })
+  if (result.status === 0) return true
+  if (pid === null && result.status === 1) return false
+  abort(3, `Windows repository lease failed: ${result.stderr || result.error?.message || result.status}`)
+}
+
+const holderIsAlive = (holder) => {
+  if (process.platform === "win32" && holder.windowsLease) return windowsLease(holder.windowsLease)
+  if (!Number.isInteger(holder.pid) || holder.pid <= 0 || typeof holder.processStartIdentity !== "string") {
+    throw new Error("invalid repository lock identity")
+  }
+  try {
+    process.kill(holder.pid, 0)
+  } catch (error) {
+    if (error.code === "ESRCH") return false
+    if (error.code === "EPERM") return true
+    throw error
+  }
+  try {
+    const identity = processStartIdentity(holder.pid)
+    // A denied metadata probe cannot prove that a live holder has been replaced.
+    return identity === null || identity === holder.processStartIdentity
+  } catch (error) {
+    if (error.code === "ENOENT") return false
+    if (error.code === "EACCES" || error.code === "EPERM") return true
+    throw error
+  }
+}
+
+const removeOwner = (lockPath, owner) => {
+  try {
+    unlinkSync(join(lockPath, owner))
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error
+  }
+  try {
+    rmdirSync(lockPath)
+  } catch (error) {
+    if (error.code !== "ENOENT" && error.code !== "ENOTEMPTY") throw error
+  }
+}
+
+const reclaimLock = (lockPath) => {
+  try {
+    const owners = readdirSync(lockPath)
+    for (const owner of owners) {
+      if (!holderIsAlive(JSON.parse(readFileSync(join(lockPath, owner), "utf8")))) removeOwner(lockPath, owner)
+    }
+    if (owners.length === 0) rmdirSync(lockPath)
+  } catch (error) {
+    if (error.code !== "ENOENT" && error.code !== "ENOTEMPTY") throw error
+  }
+}
+
+const acquireLock = async (lockPath) => {
+  const identity = processStartIdentity(process.pid)
+  if (!identity) abort(3, "cannot establish repository lock process identity")
+  const candidate = mkdtempSync(`${lockPath}-`)
+  const owner = basename(candidate)
+  writeFileSync(join(candidate, owner), JSON.stringify({ pid: process.pid, processStartIdentity: identity }))
+  try {
+    while (true) {
+      try {
+        // Publish a populated directory atomically. Reclaimers can only delete the old owner's
+        // unique filename; rmdir cannot remove a replacement holder's populated directory.
+        renameSync(candidate, lockPath)
+        return owner
+      } catch (error) {
+        if (!["EEXIST", "ENOTEMPTY", "EPERM"].includes(error.code)) throw error
+      }
+      reclaimLock(lockPath)
+      if (Date.now() - requestedAt > 120000) abort(3, `timed out waiting for repository lock ${lockPath}`)
+      await setTimeout(50)
+    }
+  } finally {
+    removeOwner(candidate, owner)
+  }
+}
+
+const runLocked = async (lockPath, command, commandArgs) => {
+  // The gate cannot execute until its identity is published. EOF before authorization exits it.
+  // Linux exec preserves the registered identity; Windows commands inherit a kernel lease.
+  const windowsGate = `
+    const { spawnSync } = require("node:child_process")
+    let authorization = ""
+    process.stdin.setEncoding("utf8")
+    process.stdin.on("data", (chunk) => { authorization += chunk })
+    process.stdin.on("end", () => {
+      if (authorization !== "run\\n") process.exit(3)
+      const result = spawnSync(process.argv[1], process.argv.slice(2), { stdio: ["ignore", "inherit", "inherit"], windowsHide: true })
+      if (result.error) throw result.error
+      process.exit(result.status ?? 3)
+    })
+  `
+  const child = process.platform === "win32"
+    ? spawn(process.execPath, ["-e", windowsGate, command, ...commandArgs], { detached: true, windowsHide: true })
+    : spawn("/bin/sh", ["-c", 'read -r authorization && [ "$authorization" = run ] && exec "$@"', "create-worktree", command, ...commandArgs], { detached: true })
+  let stdout = ""
+  let stderr = ""
+  const completion = new Promise((resolve) => {
+    child.stdout.setEncoding("utf8")
+    child.stderr.setEncoding("utf8")
+    child.stdout.on("data", (chunk) => { stdout += chunk })
+    child.stderr.on("data", (chunk) => { stderr += chunk })
+    child.stdin.on("error", (error) => { stderr += error.message })
+    child.on("error", (error) => { stderr += error.message })
+    child.on("close", (status) => resolve({ status, stdout, stderr }))
+  })
+  let childOwner
+  let candidate
+  let lease
+  let leaseReleased = false
+  try {
+    if (!child.pid) return await completion
+    candidate = mkdtempSync(`${lockPath}-child-`)
+    childOwner = basename(candidate)
+    let holder
+    if (process.platform === "win32") {
+      lease = `Local\\orbit-worktree-${randomUUID()}`
+      windowsLease(lease, child.pid)
+      holder = { windowsLease: lease }
+    } else {
+      const identity = processStartIdentity(child.pid)
+      if (!identity) abort(3, "cannot establish repository lock child identity")
+      holder = { pid: child.pid, processStartIdentity: identity }
+    }
+    writeFileSync(join(candidate, childOwner), JSON.stringify(holder))
+    renameSync(join(candidate, childOwner), join(lockPath, childOwner))
+    child.stdin.end("run\n")
+    const result = await completion
+    if (result.status === 0 && lease) {
+      while (windowsLease(lease)) await setTimeout(50)
+      leaseReleased = true
+    }
+    return result
+  } finally {
+    child.stdin.destroy()
+    await completion
+    if (childOwner && (!lease || leaseReleased || !windowsLease(lease))) removeOwner(lockPath, childOwner)
+    if (candidate) removeOwner(candidate, childOwner)
+  }
+}
+
+const createWorktree = async () => {
+  const commonDirectory = await git(["rev-parse", "--path-format=absolute", "--git-common-dir"])
+  const lockPath = join(commonDirectory, "create-worktree.lock")
+  const owner = await acquireLock(lockPath)
+  try {
+    const run = (command, commandArgs) => runLocked(lockPath, command, commandArgs)
+    await refreshBase(join(commonDirectory, "create-worktree-refresh.json"), run)
+    const result = await run(process.env.ORCA_BIN || "orca", ["worktree", "create", ...args])
+    if (result.stdout) process.stdout.write(result.stdout)
+    if (result.stderr) process.stderr.write(result.stderr)
+    if (result.status !== 0) abort(3, `orca worktree create failed with exit ${result.status ?? "unknown"}`)
+  } finally {
+    removeOwner(lockPath, owner)
+  }
+}
+
+try {
+  await createWorktree()
+} catch (error) {
+  fail(error.exitCode ?? 3, error.message)
+}

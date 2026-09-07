@@ -85,7 +85,6 @@ const SLIDE_FROM_RIGHT_SCREENS = [
   'preferences',
   'ai-settings',
   'advanced',
-  'about',
   'support',
   'achievements',
   'streak',
@@ -171,6 +170,7 @@ function RootStackScreens({
         options={{ animation: captureBuildEnabled ? 'none' : 'fade' }}
       />
       <Stack.Screen name="r" />
+      <Stack.Screen name="about" />
       <Stack.Screen
         name="auth-callback"
         options={{

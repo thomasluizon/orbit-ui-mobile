@@ -108,7 +108,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     timestamp: {
       fontFamily: 'GeistMono_400Regular',
       fontSize: 12,
-      color: tokens.fg4,
+      color: tokens.fg2,
       fontVariant: ['tabular-nums'],
     },
     bodyText: {

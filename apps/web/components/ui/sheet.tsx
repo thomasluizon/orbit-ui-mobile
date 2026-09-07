@@ -40,12 +40,13 @@ export function useSheetHost() {
 }
 
 interface WebSheetProps extends SheetProps {
+  virtualizedBody?: boolean
   /** The handle `useSheetHost` fills in, so the host can close through the exit transition. */
   ref?: Ref<SheetHandle>
 }
 
 /** The sole modal surface. Callers mount it to open and unmount it to close. */
-export function Sheet({ title, headerAccessory, actions, onClose, children, ref }: Readonly<WebSheetProps>) {
+export function Sheet({ title, headerAccessory, actions, virtualizedBody, onClose, children, ref }: Readonly<WebSheetProps>) {
   const t = useTranslations()
   const [presented, setPresented] = useState(true)
   const [modalFocusOwnerActive, setModalFocusOwnerActive] = useState(true)
@@ -123,7 +124,7 @@ export function Sheet({ title, headerAccessory, actions, onClose, children, ref 
               ) : null}
             </header>
             {children == null ? null : (
-              <div className="orbit-sheet-body" data-slot="sheet-body">
+              <div className="orbit-sheet-body" data-slot="sheet-body" style={virtualizedBody ? { display: 'flex', flexDirection: 'column', overflowY: 'hidden' } : undefined}>
                 {children}
               </div>
             )}

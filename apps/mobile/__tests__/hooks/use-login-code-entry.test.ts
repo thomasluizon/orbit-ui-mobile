@@ -1,207 +1,72 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
+import React from 'react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
-
-const TestRenderer = require('react-test-renderer')
-const React = require('react')
-
-type Hook = ReturnType<typeof useLoginCodeEntry>
-
-interface Harness {
-  current: Hook
-  unmount: () => void
+const { act, create } = require('react-test-renderer')
+async function renderEntry(complete?: (code: string) => void) {
+  let current: ReturnType<typeof useLoginCodeEntry>
+  let tree: { unmount: () => void }
+  function Probe() { current = useLoginCodeEntry(complete); return null }
+  await act(() => { tree = create(React.createElement(Probe)) })
+  return { result: { get current() { return current } }, unmount: () => tree.unmount() }
 }
 
-async function renderLoginCodeEntry(onComplete?: (code: string) => void): Promise<Harness> {
-  const holder: { current: Hook | null } = { current: null }
+describe('login code entry', () => {
+  afterEach(() => { vi.useRealTimers() })
 
-  function Component() {
-    holder.current = useLoginCodeEntry(onComplete)
-    return null
-  }
-
-  const rendererHolder: { current: { unmount: () => void } | null } = {
-    current: null,
-  }
-  await TestRenderer.act(async () => {
-    rendererHolder.current = TestRenderer.create(React.createElement(Component))
-    await Promise.resolve()
+  it('keeps partial input and submits each completed edit once', async () => {
+    const complete = vi.fn()
+    const { result, unmount } = await renderEntry(complete)
+    await act(() => result.current.onCodeChange('12345'))
+    expect(result.current.codeDigits.join('')).toBe('12345')
+    expect(complete).not.toHaveBeenCalled()
+    await act(() => {
+      result.current.onCodeChange('123456')
+      result.current.onCodeChange('123456')
+    })
+    expect(complete).toHaveBeenCalledExactlyOnceWith('123456')
+    await act(() => result.current.onCodeChange('12345'))
+    await act(() => result.current.onCodeChange('123457'))
+    expect(complete).toHaveBeenLastCalledWith('123457')
+    await act(() => unmount())
   })
 
-  if (!holder.current || !rendererHolder.current) {
-    throw new Error('Expected useLoginCodeEntry to initialize')
-  }
-
-  return {
-    get current() {
-      if (!holder.current) throw new Error('hook not rendered')
-      return holder.current
-    },
-    unmount: () => (rendererHolder.current as { unmount: () => void }).unmount(),
-  }
-}
-
-async function act(fn: () => void): Promise<void> {
-  await TestRenderer.act(async () => {
-    fn()
-    await Promise.resolve()
-  })
-}
-
-function pressKey(key: string) {
-  return { nativeEvent: { key } } as Parameters<Hook['onCodeKeyPress']>[1]
-}
-
-describe('mobile useLoginCodeEntry', () => {
-  it('advances digit-by-digit on single-character input', async () => {
-    const harness = await renderLoginCodeEntry()
-
-    await act(() => harness.current.onCodeInput(0, '1'))
-    await act(() => harness.current.onCodeInput(1, '2'))
-
-    expect(harness.current.codeDigits).toEqual(['1', '2', '', '', '', ''])
+  it('accepts a complete paste and leaves prefilled links ready for manual submission', async () => {
+    const complete = vi.fn()
+    const { result, unmount } = await renderEntry(complete)
+    await act(() => result.current.setCodeDigits('654321'.split('')))
+    expect(result.current.codeDigits.join('')).toBe('654321')
+    expect(complete).not.toHaveBeenCalled()
+    await act(() => result.current.onCodeChange('12 34-567'))
+    expect(result.current.codeDigits.join('')).toBe('123456')
+    expect(complete).toHaveBeenCalledExactlyOnceWith('123456')
+    await act(() => result.current.onCodeChange(''))
+    expect(result.current.codeDigits).toEqual(['', '', '', '', '', ''])
+    await act(() => unmount())
   })
 
-  it('ignores non-numeric characters', async () => {
-    const harness = await renderLoginCodeEntry()
-
-    await act(() => harness.current.onCodeInput(0, 'a'))
-
-    expect(harness.current.codeDigits).toEqual(['', '', '', '', '', ''])
+  it('counts 60 seconds, restarts the cooldown, and stops timers on unmount', async () => {
+    vi.useFakeTimers()
+    const { result, unmount } = await renderEntry()
+    await act(() => result.current.startResendCountdown())
+    expect(result.current.canResend).toBe(false)
+    expect(result.current.resendCountdown).toBe(60)
+    await act(() => vi.advanceTimersByTime(59_000))
+    expect(result.current.resendCountdown).toBe(1)
+    await act(() => vi.advanceTimersByTime(1000))
+    expect(result.current.canResend).toBe(true)
+    expect(vi.getTimerCount()).toBe(0)
+    await act(() => result.current.startResendCountdown())
+    expect(result.current.resendCountdown).toBe(60)
+    await act(() => unmount())
+    expect(vi.getTimerCount()).toBe(0)
   })
 
-  it('fills all digits from a pasted multi-character value', async () => {
-    const harness = await renderLoginCodeEntry()
-
-    await act(() => harness.current.onCodeInput(0, '654321'))
-
-    expect(harness.current.codeDigits).toEqual(['6', '5', '4', '3', '2', '1'])
-  })
-
-  it('replaces the whole controlled value and clears trailing digits', async () => {
-    const harness = await renderLoginCodeEntry()
-
-    await act(() => harness.current.onCodeChange('123456'))
-    await act(() => harness.current.onCodeChange('92345'))
-
-    expect(harness.current.codeDigits).toEqual(['9', '2', '3', '4', '5', ''])
-  })
-
-  it('resets digits to empty', async () => {
-    const harness = await renderLoginCodeEntry()
-
-    await act(() => harness.current.onCodeInput(0, '123456'))
-    await act(() => harness.current.resetCodeDigits())
-
-    expect(harness.current.codeDigits).toEqual(['', '', '', '', '', ''])
-  })
-
-  describe('auto-submit (completeness watcher)', () => {
-    it('fires once when the final digit completes a valid code', async () => {
-      const onComplete = vi.fn()
-      const harness = await renderLoginCodeEntry(onComplete)
-
-      await act(() => harness.current.onCodeInput(0, '1'))
-      await act(() => harness.current.onCodeInput(1, '2'))
-      await act(() => harness.current.onCodeInput(2, '3'))
-      await act(() => harness.current.onCodeInput(3, '4'))
-      await act(() => harness.current.onCodeInput(4, '5'))
-      expect(onComplete).not.toHaveBeenCalled()
-
-      await act(() => harness.current.onCodeInput(5, '6'))
-
-      expect(onComplete).toHaveBeenCalledTimes(1)
-      expect(onComplete).toHaveBeenCalledWith('123456')
-    })
-
-    it('fires once for a pasted complete code (no double submit)', async () => {
-      const onComplete = vi.fn()
-      const harness = await renderLoginCodeEntry(onComplete)
-
-      await act(() => harness.current.onCodeInput(0, '123456'))
-
-      expect(onComplete).toHaveBeenCalledTimes(1)
-      expect(onComplete).toHaveBeenCalledWith('123456')
-    })
-
-    it('re-fires after the code is cleared and re-entered', async () => {
-      const onComplete = vi.fn()
-      const harness = await renderLoginCodeEntry(onComplete)
-
-      await act(() => harness.current.onCodeInput(0, '123456'))
-      expect(onComplete).toHaveBeenCalledTimes(1)
-
-      await act(() => harness.current.resetCodeDigits())
-      await act(() => harness.current.onCodeInput(0, '123456'))
-
-      expect(onComplete).toHaveBeenCalledTimes(2)
-    })
-
-    it('does not fire for an incomplete code', async () => {
-      const onComplete = vi.fn()
-      const harness = await renderLoginCodeEntry(onComplete)
-
-      await act(() => harness.current.onCodeInput(0, '12345'))
-
-      expect(onComplete).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('backspace navigation', () => {
-    it('moves focus to the previous input when backspacing an empty cell', async () => {
-      const harness = await renderLoginCodeEntry()
-      const focusSpy = vi.fn()
-      harness.current.codeInputRefs.current[0] = { focus: focusSpy } as never
-
-      await act(() => harness.current.onCodeKeyPress(1, pressKey('Backspace')))
-
-      expect(focusSpy).toHaveBeenCalled()
-    })
-
-    it('does not move focus when the current cell has a value', async () => {
-      const harness = await renderLoginCodeEntry()
-      await act(() => harness.current.onCodeInput(1, '4'))
-      const focusSpy = vi.fn()
-      harness.current.codeInputRefs.current[0] = { focus: focusSpy } as never
-
-      await act(() => harness.current.onCodeKeyPress(1, pressKey('Backspace')))
-
-      expect(focusSpy).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('resend countdown', () => {
-    beforeEach(() => {
-      vi.useFakeTimers()
-    })
-
-    afterEach(() => {
-      vi.useRealTimers()
-    })
-
-    it('counts down from 60 and re-enables resend at zero', async () => {
-      const harness = await renderLoginCodeEntry()
-
-      await act(() => harness.current.startResendCountdown())
-      expect(harness.current.canResend).toBe(false)
-      expect(harness.current.resendCountdown).toBe(60)
-
-      await act(() => vi.advanceTimersByTime(1000))
-      expect(harness.current.resendCountdown).toBe(59)
-
-      await act(() => vi.advanceTimersByTime(60_000))
-      expect(harness.current.resendCountdown).toBe(0)
-      expect(harness.current.canResend).toBe(true)
-    })
-
-    it('clears the interval on unmount', async () => {
-      const harness = await renderLoginCodeEntry()
-      await act(() => harness.current.startResendCountdown())
-
-      const clearSpy = vi.spyOn(globalThis, 'clearInterval')
-      await act(() => harness.unmount())
-
-      expect(clearSpy).toHaveBeenCalled()
-    })
+  it('starts empty after leaving and returning', async () => {
+    const first = await renderEntry()
+    await act(() => first.result.current.onCodeChange('1234'))
+    await act(() => first.unmount())
+    const second = await renderEntry()
+    expect(second.result.current.codeDigits.join('')).toBe('')
+    await act(() => second.unmount())
   })
 })

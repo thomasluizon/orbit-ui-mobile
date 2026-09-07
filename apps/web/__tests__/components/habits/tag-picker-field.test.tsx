@@ -84,6 +84,9 @@ describe('TagPickerField', () => {
     expect(screen.queryByText('Tag 20')).not.toBeInTheDocument()
     fireEvent.scroll(search.nextElementSibling!, { target: { scrollTop: 20 * 48 } })
     expect(await screen.findByText('Tag 20')).toBeInTheDocument()
+    fireEvent.change(search, { target: { value: 'Tag 49' } })
+    expect(screen.getByText('Tag 49')).toBeInTheDocument()
+    expect(search.nextElementSibling!.scrollTop).toBe(0)
   })
 
   it('filters tags while keeping a creation action when no tag matches', () => {

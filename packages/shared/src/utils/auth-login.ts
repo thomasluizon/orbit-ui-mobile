@@ -1,9 +1,11 @@
 import { extractBackendErrorCode } from './error-utils'
+import { isValidEmail } from './email'
 
 export const VERIFICATION_CODE_LENGTH = 6
 
 export const AUTH_BACKEND_ERROR_CODE_MAP: Record<string, string> = {
-  RATE_LIMITED: 'auth.errors.rateLimited',
+  RATE_LIMITED: 'auth.errors.sendFailed',
+  CODE_REQUEST_COOLDOWN: 'auth.errors.sendFailed',
   CODE_EXPIRED: 'auth.errors.codeExpired',
   TOO_MANY_ATTEMPTS: 'auth.errors.tooManyAttempts',
   INVALID_VERIFICATION_CODE: 'auth.errors.invalidCode',
@@ -11,9 +13,10 @@ export const AUTH_BACKEND_ERROR_CODE_MAP: Record<string, string> = {
 }
 
 export const AUTH_BACKEND_ERROR_MAP: Record<string, string> = {
-  'Please wait before requesting a new code': 'auth.errors.rateLimited',
+  'Please wait before requesting a new code': 'auth.errors.sendFailed',
   'Verification code expired or not found': 'auth.errors.codeExpired',
   'Too many attempts. Please request a new code': 'auth.errors.tooManyAttempts',
+  'Too many attempts. Try again in 15 minutes': 'auth.errors.tooManyAttempts',
   'Invalid verification code': 'auth.errors.invalidCode',
   'Invalid email format': 'auth.errors.invalidEmail',
 }
@@ -34,7 +37,7 @@ export interface AuthLoginErrorInput {
   /** Raw caught value, used only to detect network / TypeError. */
   raw?: unknown
   /** Discriminator: when set to 'google', unknown errors map to googleError. */
-  source?: 'google' | 'magic-code'
+  source?: 'google' | 'magic-code' | 'send'
 }
 
 function extractFromRecord(obj: Record<string, unknown>): string | undefined {
@@ -86,6 +89,8 @@ export function extractAuthBackendMessage(err: unknown): string | undefined {
  * Never returns the raw backend string.
  */
 export function resolveAuthLoginErrorKey(input: AuthLoginErrorInput): string {
+  if (input.source === 'send') return 'auth.errors.sendFailed'
+  if (input.source === 'google') return 'auth.errors.googleError'
   const errorCode = extractBackendErrorCode(input.raw)
   if (errorCode) {
     const mappedByCode = AUTH_BACKEND_ERROR_CODE_MAP[errorCode]
@@ -106,25 +111,71 @@ export function resolveAuthLoginErrorKey(input: AuthLoginErrorInput): string {
     case 403:
       return 'auth.errors.forbidden'
     case 404:
-      return 'auth.errors.emailNotFound'
+      return 'auth.errors.unknownError'
     case 409:
       return 'auth.errors.conflict'
     case 429:
-      return 'auth.errors.rateLimited'
+      return 'auth.errors.sendFailed'
     case 500:
     case 502:
     case 503:
     case 504:
-      return 'auth.errors.serverError'
+      return 'auth.errors.unknownError'
     default:
       break
   }
 
-  if (input.raw instanceof TypeError) return 'auth.errors.networkError'
-
-  if (input.source === 'google') return 'auth.errors.googleError'
-
   return 'auth.errors.unknownError'
+}
+
+export type LoginCodeFailure = 'wrong' | 'expired' | 'locked' | null
+
+export interface LoginAttempts {
+  count: number
+  expiresAt: number
+}
+
+export type LoginEmailSubmission =
+  | { status: 'invalid' }
+  | { status: 'ready' }
+  | { status: 'locked'; remainingSeconds: number }
+
+export function deriveLoginEmailSubmission(
+  email: string,
+  attempts: ReadonlyMap<string, LoginAttempts>,
+  now: number,
+): LoginEmailSubmission {
+  if (!isValidEmail(email)) return { status: 'invalid' }
+  const locked = attempts.get(email.trim().toLowerCase())
+  if (locked && locked.count >= 3 && locked.expiresAt > now) {
+    return { status: 'locked', remainingSeconds: Math.ceil((locked.expiresAt - now) / 1000) }
+  }
+  return { status: 'ready' }
+}
+
+export function recordLoginFailure(
+  key: string,
+  previous: LoginAttempts | undefined,
+  now: number,
+): { failure: LoginCodeFailure; attempts: LoginAttempts } {
+  const count = previous && previous.expiresAt > now ? previous.count : 0
+  if (key === 'auth.errors.tooManyAttempts') {
+    return { failure: 'locked', attempts: { count: 3, expiresAt: previous?.expiresAt ?? 0 } }
+  }
+  if (key === 'auth.errors.invalidCode' && count >= 2) {
+    return { failure: 'locked', attempts: { count: 3, expiresAt: now + 15 * 60 * 1000 } }
+  }
+  if (key === 'auth.errors.invalidCode') {
+    return { failure: 'wrong', attempts: { count: count + 1, expiresAt: now + 15 * 60 * 1000 } }
+  }
+  return {
+    failure: key === 'auth.errors.codeExpired' ? 'expired' : null,
+    attempts: previous ?? { count: 0, expiresAt: 0 },
+  }
+}
+
+export function formatLoginCountdown(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
 }
 
 export function isValidVerificationCode(value: string | null | undefined): value is string {

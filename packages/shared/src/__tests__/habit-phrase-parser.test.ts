@@ -41,6 +41,84 @@ const cases: PhraseCase[] = [
 ]
 
 describe('readHabitPhrase', () => {
+  it.each([
+    { locale: 'en', invalid: 'at 1.5pm', valid: 'at 1pm', dueTime: '13:00' },
+    { locale: 'en', invalid: 'at 13:30.5', valid: 'at 13:30', dueTime: '13:30' },
+    { locale: 'en', invalid: '1.5pm', valid: '1pm', dueTime: '13:00' },
+    { locale: 'en', invalid: '1.5:30', valid: '5:30', dueTime: '05:30' },
+    { locale: 'en', invalid: '13:30.5', valid: '13:30', dueTime: '13:30' },
+    { locale: 'en', invalid: '1.5h', valid: '5h', dueTime: '05:00' },
+    { locale: 'en', invalid: '13h.5', valid: '13h', dueTime: '13:00' },
+    { locale: 'en', invalid: '1pm.5', valid: '1pm', dueTime: '13:00' },
+    { locale: 'pt-BR', invalid: 'às 1,5h', valid: 'às 13h', dueTime: '13:00' },
+    { locale: 'pt-BR', invalid: 'às 13:30,5', valid: 'às 13:30', dueTime: '13:30' },
+    { locale: 'pt-BR', invalid: '1,5h', valid: '5h', dueTime: '05:00' },
+    { locale: 'pt-BR', invalid: '1,5:30', valid: '5:30', dueTime: '05:30' },
+    { locale: 'pt-BR', invalid: '13:30,5', valid: '13:30', dueTime: '13:30' },
+    { locale: 'pt-BR', invalid: '13h,5', valid: '13h', dueTime: '13:00' },
+  ] as const)('keeps decimal clock $invalid unresolved and valid clock $valid intact', ({ locale, invalid, valid, dueTime }) => {
+    for (const punctuation of ['', '.', ',']) {
+      const input = `${valid}${punctuation}`
+      const read = readHabitPhrase(input, locale)
+      expect(read.dueTime).toBe(dueTime)
+      expect(read.consumed).toEqual([{ start: 0, end: valid.length, kind: 'time' }])
+    }
+    for (const decimal of ['1.5 km', '1,5 km']) {
+      expect(readHabitPhrase(decimal, locale)).toMatchObject({ dueTime: null, consumed: [] })
+    }
+    const read = readHabitPhrase(invalid, locale)
+    expect(read).toMatchObject({ dueTime: null, consumed: [] })
+    expect(segmentHabitPhrase(invalid, read.consumed)).toEqual([{ text: invalid, consumed: false }])
+  })
+
+  it.each([
+    ['Read every day at 8h30', '08:30'],
+    ['Read every day 08h30', '08:30'],
+    ['Read every day at 8h', '08:00'],
+    ['Read every day 21h', '21:00'],
+  ])('consumes English h-clock forms: %s', (input, dueTime) => {
+    for (const variant of [input.toUpperCase(), input.toLowerCase()]) {
+      const read = readHabitPhrase(variant, 'en')
+      expect(read).toMatchObject({ cadence: 'daily', dueTime })
+      expect(read.consumed.filter((token) => token.kind === 'time')).toHaveLength(1)
+    }
+  })
+
+  it.each([9, 12, 99, 999])('accepts a positive weekly count of %s in both locales', (quantity) => {
+    expect(readHabitPhrase(`Run ${quantity} times a week`, 'en').frequencyQuantity).toBe(quantity)
+    expect(readHabitPhrase(`Correr ${quantity} vezes na semana`, 'pt-BR').frequencyQuantity).toBe(quantity)
+  })
+
+  it.each(cases)('reads case and accent variants of $input', ({ input, locale, cadence, quantity, days, interval, time }) => {
+    for (const variant of [input.toUpperCase(), input.toLowerCase(), input.normalize('NFD'), input.normalize('NFD').replace(/\p{M}/gu, '')]) {
+      expect(readHabitPhrase(variant, locale)).toMatchObject({ cadence, frequencyQuantity: quantity ?? null, days: days ?? [], intervalWeeks: interval ?? null, dueTime: time ?? null })
+    }
+  })
+
+  it.each(['Run 0 times a week', 'Run 000 times a week'])('leaves nonpositive counts unresolved: %s', (input) => {
+    expect(readHabitPhrase(input, 'en')).toMatchObject({ cadence: null, frequencyQuantity: null, consumed: [] })
+  })
+
+  it.each(['at 8:99', 'at 8:3', 'at 13pm', 'at 0am', 'at 7:30:20'])('does not consume part of an invalid clock: %s', (input) => {
+    expect(readHabitPhrase(input, 'en')).toMatchObject({ dueTime: null, consumed: [] })
+  })
+
+  it.each(['às 8:99', 'às 8:3', 'às 8h99', '21:15:30'])('does not consume part of an invalid Portuguese clock: %s', (input) => {
+    expect(readHabitPhrase(input, 'pt-BR')).toMatchObject({ dueTime: null, consumed: [] })
+  })
+
+  it.each(['segundas-feiras', 'terças-feiras', 'quartas-feiras', 'quintas-feiras', 'sextas-feiras'])('consumes the entire plural weekday: %s', (input) => {
+    const read = readHabitPhrase(input, 'pt-BR')
+    expect(read.cadence).toBe('fixed')
+    expect(segmentHabitPhrase(input, read.consumed)).toEqual([{ text: input, consumed: true }])
+  })
+
+  it('includes trailing decomposed accents in highlighted spans', () => {
+    const input = 'LER SEGUNDA-FEIRÁ'.normalize('NFD')
+    const segments = segmentHabitPhrase(input, readHabitPhrase(input, 'pt-BR').consumed)
+    expect(segments).toEqual([{ text: 'LER ', consumed: false }, { text: 'SEGUNDA-FEIRÁ'.normalize('NFD'), consumed: true }])
+  })
+
   it.each(cases)('reads $input', ({ input, locale, cadence, quantity, days, interval, time }) => {
     expect(readHabitPhrase(input, locale)).toMatchObject({
       cadence,

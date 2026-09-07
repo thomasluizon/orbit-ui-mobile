@@ -1,5 +1,6 @@
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useMemo } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { StyleSheet, Text, TextInput, View } from 'react-native'
 import Animated, { Easing, FadeIn, FadeOut } from 'react-native-reanimated'
 import type { HabitUnderstandingProps } from '@orbit/shared/utils'
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
@@ -223,13 +224,13 @@ function createStyles(tokens: AppTokens) {
     sentenceLayer: {
       position: 'relative',
     },
-    days: { flexDirection: 'row', gap: 4 },
+    days: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
     day: { alignItems: 'center', borderRadius: radius.full, height: 44, justifyContent: 'center', width: 44 },
     dayIdle: { backgroundColor: tokens.bgWell, borderColor: tokens.hairline, borderWidth: 1 },
     daySelected: { backgroundColor: tokens.primaryDim, borderColor: tokens.primary, borderWidth: 1.5 },
     dayText: { color: tokens.fg2, fontFamily: 'Geist_500Medium', fontSize: 14 },
     dayTextSelected: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 14 },
-    stepper: { alignItems: 'center', flexDirection: 'row', gap: 8 },
+    stepper: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     stepButton: {
       alignItems: 'center',
       backgroundColor: tokens.bgWell,
@@ -248,7 +249,7 @@ function createStyles(tokens: AppTokens) {
       textAlign: 'center',
       fontVariant: ['tabular-nums'],
     },
-    pressed: { opacity: 0.72 },
+    pressed: { transform: [{ scale: 0.96 }] },
     disabled: { opacity: 0.4 },
   })
 }

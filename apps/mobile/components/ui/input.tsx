@@ -1,5 +1,5 @@
 import type { InputProps } from '@orbit/shared/contracts/forms'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet, Text, TextInput, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -30,11 +30,15 @@ export function Input({
   autoComplete,
   mono = false,
   autoFocus = false,
+  focusRequest = 0,
   onSubmit,
   trailing,
   ...shape
 }: Readonly<InputProps>) {
   const inputRef = useRef<TextInput>(null)
+  useEffect(() => {
+    if (focusRequest) inputRef.current?.focus()
+  }, [focusRequest])
   const keyboardAware = useKeyboardAwareInputReveal()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -43,11 +47,7 @@ export function Input({
   )
   const [focused, setFocused] = useState(false)
   const multiline = shape.multiline === true
-  const borderColor = error
-    ? tokens.statusBad
-    : focused
-      ? tokens.primary
-      : tokens.hairline
+  const borderColor = error ? tokens.statusBad : tokens.borderControl
 
   return (
     <View style={styles.root} data-multiline={multiline ? '' : undefined} data-error={error ? '' : undefined}>
@@ -85,7 +85,10 @@ export function Input({
               color: tokens.fg1,
               backgroundColor: tokens.bgField,
               borderColor,
-              borderWidth: error || focused ? 2 : 1,
+              borderWidth: error ? 2 : 1,
+              outlineWidth: focused && !disabled ? 2 : 0,
+              outlineOffset: 2,
+              outlineColor: tokens.primary,
               fontFamily: mono ? 'GeistMono_400Regular' : 'Geist_400Regular',
             },
             disabled ? styles.disabled : null,

@@ -27,19 +27,15 @@ vi.mock('next-intl', () => ({
 
 vi.mock('motion/react', () => {
   const React = require('react')
-  const motion = new Proxy(
-    {},
-    {
-      get: (_target, key: string) =>
-        React.forwardRef(function MockMotionComponent(
+  const motion = {
+      div: React.forwardRef(function MockMotionComponent(
           props: Record<string, unknown> & { children?: React.ReactNode },
           ref: React.ForwardedRef<unknown>,
         ) {
           const { children, ...rest } = props
-          return React.createElement(key, { ...rest, ref }, children)
+          return React.createElement('div', { ...rest, ref }, children)
         }),
-    },
-  )
+  }
 
   return {
     AnimatePresence: ({ children }: { children: React.ReactNode }) =>
@@ -115,11 +111,11 @@ describe('LoginPage', () => {
     }
   })
 
-  it('keeps the login card at a wider minimum size on larger small screens', () => {
+  it('renders the lockup and no navigation shell', () => {
     const { container } = render(<LoginPage />)
 
-    expect(container.firstChild).toHaveClass('max-w-[26rem]')
-    expect(container.firstChild).toHaveClass('min-[480px]:min-w-[22rem]')
+    expect(container.querySelector('[data-asset=orbit-lockup]')).toBeInTheDocument()
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
   })
 
   it('renders one verification code input and exposes one-time-code autocomplete', async () => {
@@ -128,13 +124,13 @@ describe('LoginPage', () => {
     const input = await screen.findByRole('textbox', { name: 'auth.verificationCode' })
     expect(screen.getAllByRole('textbox')).toHaveLength(1)
     expect(input).toHaveAttribute('autocomplete', 'one-time-code')
+    expect(input).toHaveAttribute('name', 'verificationCode')
   })
 
   it('resolves auth motion presets with the reduced-motion preference', () => {
     render(<LoginPage />)
 
     expect(mockResolveMotionPreset).toHaveBeenCalledWith('route-replace', true)
-    expect(mockResolveMotionPreset).toHaveBeenCalledWith('success-feedback', true)
   })
 
   it('renders a spaced stack for send code, divider, and Google sign-in', () => {
@@ -147,13 +143,12 @@ describe('LoginPage', () => {
     render(<LoginPage />)
 
     const stack = screen.getByTestId('login-email-step-stack')
-    expect(stack).toHaveClass('space-y-4')
     expect(within(stack).getByRole('button', { name: 'auth.sendCode' })).toBeInTheDocument()
     expect(within(stack).getByText('auth.orContinueWith')).toBeInTheDocument()
     expect(within(stack).getByRole('button', { name: 'auth.signInWithGoogle' })).toBeInTheDocument()
   })
 
-  it('surfaces the resolved error via a toast when sending a code with an invalid email', async () => {
+  it('renders invalid email beside the field without a duplicate toast', async () => {
     searchParamValues = {
       email: null,
       code: null,
@@ -165,12 +160,24 @@ describe('LoginPage', () => {
     fireEvent.input(screen.getByLabelText('auth.email'), {
       target: { value: 'not-an-email' },
     })
+    const input = screen.getByLabelText('auth.email')
+    const submit = screen.getByRole('button', { name: 'auth.sendCode' })
+    submit.focus()
     fireEvent.submit(screen.getByLabelText('auth.email').closest('form')!)
 
     await waitFor(() => {
-      expect(mockShowError).toHaveBeenCalledWith('auth.errors.invalidEmail')
+      expect(screen.getByRole('alert')).toHaveTextContent('auth.errors.invalidEmail')
     })
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(mockShowError).not.toHaveBeenCalled()
+    expect(input).toHaveFocus()
+    expect(input).toHaveAttribute('name', 'email')
+    expect(input).toHaveAttribute('autocomplete', 'email')
+    expect(input).toHaveAttribute('spellcheck', 'false')
+    submit.focus()
+    fireEvent.input(input, { target: { value: 'still-invalid' } })
+    expect(submit).toHaveFocus()
+    fireEvent.submit(input.closest('form')!)
+    await waitFor(() => expect(input).toHaveFocus())
   })
 
   it('surfaces the offline state and disables sending when the device is offline', () => {
@@ -183,7 +190,7 @@ describe('LoginPage', () => {
 
     render(<LoginPage />)
 
-    expect(screen.getByText('offline.description')).toBeInTheDocument()
+    expect(screen.getByText('auth.errors.offline')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'auth.sendCode' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'auth.signInWithGoogle' })).toBeDisabled()
   })

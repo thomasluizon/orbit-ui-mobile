@@ -1,7 +1,8 @@
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, type Ref } from 'react'
 import type { SheetProps } from '@orbit/shared/contracts/overlay'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { X } from '@/components/ui/icons'
 import { KeyboardAwareSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
@@ -113,7 +114,7 @@ export function Sheet({
 
   const header = title || headerAccessory || onClose ? (
     <View style={styles.header}>
-      {title ? <Text style={styles.title}>{title}</Text> : <View style={styles.titleSpacer} />}
+      {title ? <Text numberOfLines={1} style={styles.title}>{title}</Text> : <View style={styles.titleSpacer} />}
       {headerAccessory}
       {onClose ? (
         <Pressable

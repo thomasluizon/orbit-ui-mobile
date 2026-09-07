@@ -1,7 +1,7 @@
 'use client'
 
 import type { OtpInputProps } from '@orbit/shared/contracts/forms'
-import { useEffect, useId, useRef, type ChangeEvent } from 'react'
+import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react'
 
 export function OtpInput({
   label,
@@ -14,9 +14,11 @@ export function OtpInput({
   autoFocus = true,
   length = 6,
   id,
+  name = 'verificationCode',
 }: Readonly<OtpInputProps>) {
   const descriptionId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
+  const [focused, setFocused] = useState(false)
   const digits = value.slice(0, length).split('')
   const activeIndex = Math.min(value.length, length - 1)
 
@@ -36,8 +38,11 @@ export function OtpInput({
         <input
           ref={inputRef}
           id={id}
+          name={name}
           value={value}
           onChange={handleChange}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           aria-label={label}
           aria-invalid={error ? true : undefined}
           aria-describedby={error || hint ? descriptionId : undefined}
@@ -55,12 +60,12 @@ export function OtpInput({
             aria-hidden="true"
             data-otp-cell=""
             data-error={error ? '' : undefined}
-            data-active={index === activeIndex ? '' : undefined}
-            className="grid h-[58px] w-12 place-items-center rounded-[12px] bg-[var(--bg-field)] font-mono text-[26px] font-medium text-[var(--fg-1)]"
+            data-active={focused && !disabled && index === activeIndex ? '' : undefined}
+            className="pointer-events-none grid h-[56px] w-[44px] shrink-0 place-items-center rounded-[12px] bg-[var(--bg-field)] font-mono text-[26px] font-medium text-[var(--fg-1)] data-[active]:outline-2 data-[active]:outline-offset-2 data-[active]:outline-[var(--primary)] forced-colors:border forced-colors:border-[CanvasText] forced-colors:data-[active]:outline-[Highlight]"
             style={{
               boxShadow: error
                 ? 'inset 0 0 0 2px var(--status-bad)'
-                : index === activeIndex
+                : focused && !disabled && index === activeIndex
                   ? 'inset 0 0 0 2px var(--primary)'
                   : 'inset 0 0 0 1px var(--border-control)',
             }}
