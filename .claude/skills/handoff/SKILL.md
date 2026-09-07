@@ -20,6 +20,10 @@ had a wrong Status, that `#36` needed a label, that `#316` to `#321` were all op
 needed recreating, and that Wrapped was blocked on a Pro gate. **Every one of the six was wrong by the
 time it was read.** The session cost real time proving that.
 
+The fluency trap is your own fluency making the checks feel redundant. After a long session in one
+repository, every skipped check feels obviously unnecessary. The checks you are most sure you can
+skip are the ones this skill exists to force. All six errors in the 2026-09-07 prompt were of this kind.
+
 So the prompt you write has two jobs and they pull against each other: carry enough that the next
 session is not starting cold, and carry nothing it should be checking for itself. Resolve it the same
 way every time: **point at the durable source, state the delta, and mark every identifier as a lead.**
@@ -75,10 +79,17 @@ toward, what it finished, and where it stopped. If the session was long enough t
 your own recall as a draft and check it against the durable trail: the scratchpad, `git log`, the
 tickets touched, the files changed. Read rather than remember.
 
-**B. Re-derive the live state instead of asserting it.** Anything the next session will act on gets
-checked now, in this run, and goes into the prompt with the command that produced it so the next
-session can re-run it. A count, a ticket state, a branch, a gate: check it. Where checking is expensive
-or slow, write the command into the prompt instead of the answer.
+**B. Re-derive the live state and pointer targets instead of asserting them.** Open and read every
+`hot.md` section, ticket, ADR, document path and artifact URL the prompt cites in the same run that
+writes it. Correct a stale source first or explicitly warn that it is stale and in what way. Check
+anything the next session will act on and record the command that produced each checked fact so the
+next session can re-run it. A count, a ticket state, a branch, a gate: check it. Where checking a fact
+is expensive or slow, write the command instead of the answer; still read its cited source now.
+
+Check durability too. Before citing anything the next session needs that lives only in this session's
+scratchpad, write it to `<repo>/.git/orbit-handoff/` and cite that copy. It outlives the session, sits
+beside the run state, and is never committed because `.git` is outside the tree. In a linked worktree,
+use the main checkout's `.git` directory.
 
 **C. Separate what is settled from what is open.** Settled decisions travel as pointers and are not
 reopened. Open questions travel as questions, each with the reason it is still open and who has to
@@ -94,8 +105,13 @@ Put this near the top of every prompt you write, in your own words:
 
 > Every identifier below came from a previous session. Treat each as a lead to verify, not a fact.
 
-**E. Hand it over.** Save it under the session scratchpad so it survives the turn, print it in one
-fenced block so it can be copied whole, and say in one line what you deliberately left out and why.
+Reconcile the delta against the task list: every item is present as work or carries an explicit
+"no action, because ..." line. A delta item with no disposition fails the prompt; resolve it before
+handover. A filed ticket is not a delivered ticket: each ticket this session filed belongs in the
+task list as work or as an explicit deferral with its reason.
+
+**E. Hand it over.** Save it under `<repo>/.git/orbit-handoff/` so it survives the session, print it in
+one fenced block so it can be copied whole, and say in one line what you deliberately left out and why.
 Before handing it over, verify that the saved prompt contains all five standing-contract points and
 both file pointers before any task instructions.
 
