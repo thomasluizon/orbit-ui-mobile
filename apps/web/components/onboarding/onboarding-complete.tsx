@@ -93,7 +93,7 @@ export function OnboardingComplete({
         className="flex flex-col items-center"
         style={{ gap: 14, paddingTop: 14 }}
       >
-        <div style={{ animation: 'fresh-start-orb 0.6s var(--ease-out) both' }}>
+        <div style={{ animation: 'orb-entrance 0.6s var(--ease-out) both' }}>
           <div className="animate-check-pop" style={{ animationDelay: '420ms' }}>
             <VerifiedBadge size={96} />
           </div>

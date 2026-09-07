@@ -25,7 +25,6 @@ import { clearPersistedQueryCache } from '@/lib/query-client'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
-import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 
@@ -98,7 +97,6 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
-  const [showFreshStartAnim, setShowFreshStartAnim] = useState(false)
   const [resetStep, setResetStep] = useState<'info' | 'confirm'>('info')
   const [resetConfirmText, setResetConfirmText] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
@@ -161,7 +159,8 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
       await clearPersistedQueryCache()
       closeSheet(() => {
         onClose()
-        setShowFreshStartAnim(true)
+        queryClient.clear()
+        router.replace('/')
       })
     } catch (err: unknown) {
       const msg = getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic')
@@ -169,12 +168,6 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
     } finally {
       setResetLoading(false)
     }
-  }
-
-  function handleFreshStartComplete() {
-    setShowFreshStartAnim(false)
-    queryClient.clear()
-    router.replace('/')
   }
 
   const deletedItems = buildFreshStartDeletedItems(t)
@@ -317,10 +310,6 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
           </View>
         )}
       </Sheet>) : null}
-
-      {showFreshStartAnim && (
-        <FreshStartAnimation onComplete={handleFreshStartComplete} />
-      )}
     </>
   )
 }

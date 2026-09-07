@@ -102,10 +102,6 @@
     "body": "{completed}/{total} concluídos hoje",
     "bodyEmpty": "Nada agendado para hoje"
   },
-  "welcome": {
-    "backMessage": "Sua sequência de {streak} dias continua firme.",
-    "eyebrow": "Que bom te ver de volta"
-  },
   "common": {
     "backToToday": "Voltar para hoje",
     "backToParentHabit": "Voltar ao hábito principal",
@@ -1398,8 +1394,6 @@
       "confirmPlaceholder": "ORBIT",
       "confirmButton": "Recomeçar minha conta",
       "processing": "Recomeçando...",
-      "successTitle": "Sua órbita recomeçou",
-      "successSubtitle": "Hora de um novo começo",
       "errorGeneric": "Algo deu errado. Tente de novo."
     },
     "deleteAccount": {
@@ -1424,8 +1418,6 @@
     }
   },
   "referral": {
-    "applied": "Indicação aplicada. Vocês dois ganharam desconto.",
-    "eyebrow": "Indicação aplicada",
     "card": {
       "title": "Convidar amigos",
       "hint": "Ganhe cupons de desconto para você e seus amigos",
@@ -2707,9 +2699,6 @@
         "description": "Complete 2500 hábitos no total"
       }
     },
-    "toast": {
-      "achievementEyebrow": "Conquista · +{xp} XP"
-    },
     "levelUp": {
       "title": "Subiu de nível",
       "steadyHand": "Mão firme."
@@ -2749,9 +2738,6 @@
     "freeze": {
       "title": "Congelamento de sequência",
       "activeToday": "Congelamento ativo hoje",
-      "celebrationTitle": "Sequência salva",
-      "celebrationSubtitle": "Sua sequência continua.",
-      "eyebrow": "Congelado · {date}",
       "auto": {
         "explainer": "Se você deixar um dia passar, o congelamento é usado automaticamente para manter sua sequência viva."
       },

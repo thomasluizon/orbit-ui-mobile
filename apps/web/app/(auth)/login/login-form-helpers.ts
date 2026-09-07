@@ -104,7 +104,6 @@ export async function handleVerifySuccess(
   setAuth(loginResponse)
   await hydrateProfilePresentation()
   if (referralCode) {
-    localStorage.setItem('orbit_referral_applied', '1')
     document.cookie = 'referral_code=;max-age=0;path=/;samesite=strict;secure'
   }
   setRouteTransitionIntent('replace')
