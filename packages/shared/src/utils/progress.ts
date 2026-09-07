@@ -2,6 +2,7 @@ import {
   differenceInCalendarDays,
   format,
   isSameDay,
+  isValid,
   parseISO,
   startOfDay,
 } from 'date-fns'
@@ -146,12 +147,13 @@ export function buildProtectedDayLabels(
   const today = startOfDay(now)
   const protectedDates = new Set(dates)
   if (isFrozenToday) protectedDates.add(format(today, 'yyyy-MM-dd'))
-  return [...protectedDates].sort().reverse().map((date) => {
+  return [...protectedDates].sort().reverse().flatMap((date) => {
     const parsed = startOfDay(parseISO(date))
-    return {
+    if (!isValid(parsed)) return []
+    return [{
       id: date,
       dateLabel: locale ? new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(parsed) : format(parsed, 'yyyy-MM-dd'),
       isToday: isSameDay(parsed, today),
-    }
+    }]
   })
 }

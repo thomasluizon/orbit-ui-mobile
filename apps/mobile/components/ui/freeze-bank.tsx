@@ -6,6 +6,17 @@ import { StatTile } from '@/components/ui/stat-tile'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
+function LegendMark({ state, tokens }: Readonly<{
+  state: 'active' | 'frozen' | 'missed'
+  tokens: ReturnType<typeof createTokensV2>
+}>) {
+  if (state === 'frozen') return <Snowflake size={16} strokeWidth={2} color={tokens.statusFrozen} />
+  const style = state === 'active'
+    ? { backgroundColor: tokens.fg1 }
+    : { borderWidth: 1, borderColor: tokens.fg4 }
+  return <View style={[styles.legendMark, style]} />
+}
+
 export function FreezeBank(props: Readonly<FreezeBankProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -16,7 +27,7 @@ export function FreezeBank(props: Readonly<FreezeBankProps>) {
       <View accessibilityLabel={props.words.legendLabel} style={styles.legend}>
         {(['active', 'frozen', 'missed'] as const).map((state) => (
           <View key={state} style={styles.legendItem}>
-            {state === 'frozen' ? <Snowflake size={16} strokeWidth={2} color={tokens.statusFrozen} /> : <View style={[styles.legendMark, state === 'active' ? { backgroundColor: tokens.fg1 } : { borderWidth: 1, borderColor: tokens.fg4 }]} />}
+            <LegendMark state={state} tokens={tokens} />
             <Text style={[styles.meta, { color: tokens.fg3 }]}>{props.words[state]}</Text>
           </View>
         ))}
