@@ -92,6 +92,11 @@ export const cases = () => {
     /your own exit code counts for nothing/.test(prompt) && /tools\/verify-delivery\.mjs/.test(prompt) && /NEVER open a browser and never start a server/.test(prompt) && /Playwright, Maestro or Cypress/.test(prompt),
     prompt,
   )
+  T(
+    `${TOOL}: the brief routes newly discovered findings through the sanctioned ticket creator`,
+    /file every finding through `node tools\/create-ticket\.mjs`/.test(prompt),
+    prompt,
+  )
   /**
    * The two-tier ambiguity rule replaces "choose the reading a careful colleague would", which
    * instructed silent assumptions. A worker must record mechanical choices in ## Assumptions and

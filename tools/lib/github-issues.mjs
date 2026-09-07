@@ -571,6 +571,26 @@ export const createTicket = async ({ title, body, labels, milestone = null, stat
   return { ...created, title, milestone, status }
 }
 
+/** Add an issue created outside this adapter to the configured project without changing its fields. */
+export const addTicketToProject = async (number) => {
+  positiveIssueNumber(number)
+  const tickets = ticketConfiguration()
+  const ticket = await readTicket(number)
+  if (ticket.projectItemId) {
+    return { number: ticket.number, url: ticket.url, title: ticket.title, added: false }
+  }
+  await runGh([
+    "project",
+    "item-add",
+    String(tickets.projectNumber),
+    "--owner",
+    tickets.projectOwner,
+    "--url",
+    ticket.url,
+  ])
+  return { number: ticket.number, url: ticket.url, title: ticket.title, added: true }
+}
+
 export const preflightTicketCompletion = async (number) => {
   positiveIssueNumber(number)
   const tickets = ticketConfiguration()
