@@ -1,160 +1,18 @@
 import { StyleSheet } from 'react-native'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import type { createTokensV2 } from '@/lib/theme'
 
-export type AppTokens = ReturnType<typeof createTokensV2>
-export type NotificationBellStyles = ReturnType<typeof createStyles>
-
-export function createStyles(tokens: AppTokens) {
+export function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     bellButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 999,
-      borderWidth: 1.5,
-      borderColor: tokens.hairlineStrong,
-      alignItems: 'center',
-      justifyContent: 'center',
+      width: 44, height: 44, borderRadius: 999,
+      alignItems: 'center', justifyContent: 'center',
     },
-    bellPressed: {
-      transform: [{ scale: 0.96 }],
-    },
-    bellUnreadDot: {
-      position: 'absolute',
-      top: 7,
-      right: 7,
-      width: 8,
-      height: 8,
-      borderRadius: 999,
-      backgroundColor: tokens.primary,
-      borderWidth: 2,
-      borderColor: tokens.bg,
-    },
-    actionsRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      gap: 10,
-      paddingHorizontal: 20,
-      marginBottom: 4,
-    },
-    sheetActionBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 999,
-      backgroundColor: tokens.bgElev,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    notifRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 12,
-      paddingVertical: 14,
-      paddingHorizontal: 20,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: tokens.hairline,
-    },
-    notifUnread: {
-      backgroundColor: tintFromPrimary(tokens, 0.06),
-    },
-    notifRowPressed: {
-      backgroundColor: tokens.bgElev,
-    },
-    notifGlyphCircle: {
-      width: 42,
-      height: 42,
-      borderRadius: 999,
-      backgroundColor: tokens.bgElev,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-    },
-    notifContent: {
-      flex: 1,
-      minWidth: 0,
-    },
-    notifTopRow: {
-      flexDirection: 'row',
-      alignItems: 'baseline',
-      justifyContent: 'space-between',
-      gap: 8,
-    },
-    notifTitle: {
-      flex: 1,
-      minWidth: 0,
-      fontFamily: 'Geist_500Medium',
-      fontSize: 15,
-      color: tokens.fg1,
-    },
-    notifTime: {
-      fontFamily: 'GeistMono_400Regular',
-      fontSize: 12,
-      color: tokens.fg3,
-      letterSpacing: 0.24,
-      fontVariant: ['tabular-nums'],
-      flexShrink: 0,
-    },
-    notifBody: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 14,
-      lineHeight: 19.6,
-      color: tokens.fg3,
-      marginTop: 3,
-    },
-    deleteBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 999,
-      backgroundColor: tokens.bgElev,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    deleteBtnPressed: {
-      transform: [{ scale: 0.96 }],
-      backgroundColor: tokens.bgElev2,
-    },
-    emptyContainer: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical: 40,
-      gap: 10,
-    },
-    emptyText: {
-      fontFamily: 'Geist_400Regular',
-      fontSize: 14,
-      color: tokens.fg3,
-    },
-    loadingState: {
-      paddingHorizontal: 20,
-      paddingVertical: 16,
-      gap: 12,
-    },
-    retryChip: {
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      backgroundColor: tokens.bgElev,
-      paddingVertical: 9,
-      paddingHorizontal: 16,
-    },
-    retryChipPressed: {
-      transform: [{ scale: 0.96 }],
-      backgroundColor: tokens.bgElev2,
-    },
-    retryChipLabel: {
-      fontFamily: 'Geist_500Medium',
-      fontSize: 13,
-      color: tokens.fg2,
-    },
-    listScroll: {
-      flex: 1,
-    },
-    listContent: {
-      paddingBottom: 8,
-    },
-    emptyListContainer: {
-      flexGrow: 1,
-      justifyContent: 'center',
+    bellCount: {
+      position: 'absolute', top: 0, right: 0,
+      minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 999,
+      backgroundColor: tokens.fg1, color: tokens.bg,
+      fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 20,
+      textAlign: 'center', boxShadow: `0 0 0 3px ${tokens.bg}`,
     },
   })
 }

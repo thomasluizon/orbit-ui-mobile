@@ -1,13 +1,12 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import {
   useQuery,
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import { AppState, type AppStateStatus } from 'react-native'
 import {
   notificationKeys,
-  NOTIFICATIONS_REFETCH_INTERVAL,
+  attachNotificationPolling,
   QUERY_STALE_TIMES,
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
@@ -34,6 +33,7 @@ import {
 
 export function useNotifications() {
   const queryClient = useQueryClient()
+  useEffect(() => attachNotificationPolling(queryClient), [queryClient])
 
   const query = useQuery({
     queryKey: notificationKeys.lists(),
@@ -43,42 +43,6 @@ export function useNotifications() {
 
   const notifications = query.data?.items ?? []
   const unreadCount = query.data?.unreadCount ?? 0
-
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  // react-doctor-disable-next-line effect-needs-cleanup -- FP: the interval is cleared on unmount — the returned cleanup calls stopPolling() which runs clearInterval; RD cannot trace the clear through the nested helper. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  useEffect(() => {
-    function startPolling() {
-      if (intervalRef.current) return
-      intervalRef.current = setInterval(() => {
-        void invalidateNotificationList(queryClient)
-      }, NOTIFICATIONS_REFETCH_INTERVAL)
-    }
-
-    function stopPolling() {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
-      }
-    }
-
-    const handleAppState = (nextState: AppStateStatus) => {
-      if (nextState === 'active') {
-        void invalidateNotificationList(queryClient)
-        startPolling()
-      } else {
-        stopPolling()
-      }
-    }
-
-    startPolling()
-    const subscription = AppState.addEventListener('change', handleAppState)
-
-    return () => {
-      stopPolling()
-      subscription.remove()
-    }
-  }, [queryClient])
 
   return {
     ...query,

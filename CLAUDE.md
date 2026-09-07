@@ -59,11 +59,11 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
 | `.claude/skills/pr-review/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |
 | `FEATURES.md` | The Free/Trial/Pro/Yearly gating the arch map lacks. |
-| `TESTING.md` | Unit, smoke, hermetic layout guard and performance, mutation, and harness suite catalog; authoring rules, Chrome prerequisite for target geometry tests, and local Lighthouse commands and report location. |
+| `TESTING.md` | Unit, smoke, hermetic layout guard and performance, mutation, and harness suite catalog; authoring rules including producer-derived fixtures and observed regression failures in PR evidence, Chrome prerequisite for target geometry tests, and local Lighthouse commands and report location. |
 | `architecture.json` | Generated map. Read it INSTEAD of exploring the codebase. |
 | `.claude/rules/core.md` | Always-loaded judgement and D89/D90 operating-contract pointers. |
 | `.claude/skills/ticket/SKILL.md` | GitHub ticket creation, labels, relations, and milestone rules. |
-| `.claude/skills/orchestrate/SKILL.md` | Ticket queue, worker, review and readiness contract; D89 caps and terminal Cloud handoff failures with staged work preserved. |
+| `.claude/skills/orchestrate/SKILL.md` | Ticket queue, worker, review and readiness contract; D89 caps, terminal Cloud handoff failures with staged work preserved, and Cloud test results carried into the PR body's Test evidence section. |
 | `.claude/skills/handoff/SKILL.md` | Handoff prompts with the required standing-contract block before the task. |
 | `.claude/playbooks/redesign-screen.md` | Thirteen-screen D76 loop; D90 suspends human steps 1/3/7/8, keeps 2/4/5/6 and the ui-skills sweep. |
 | `.claude/rules/visual-delivery.md` | Visual inventory and critic gates; D90 moves human inspection to the whole-redesign review. |

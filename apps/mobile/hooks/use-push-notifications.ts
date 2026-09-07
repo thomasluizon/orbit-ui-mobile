@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router'
 import { API } from '@orbit/shared/api'
 import { schemes } from '@orbit/shared/theme'
 import {
-  isViewableNotificationUrl,
+  getNotificationDestination,
   type NativePushRegistrationStatus,
 } from '@orbit/shared/utils'
 import { i18n } from '@/lib/i18n'
@@ -18,6 +18,7 @@ import {
   type NotificationPermissionsResponse,
 } from '@/lib/push-notification-permissions'
 import { useAuthStore } from '@/stores/auth-store'
+import { useUIStore } from '@/stores/ui-store'
 
 interface ExpoNotificationsModule {
   AndroidImportance: {
@@ -252,6 +253,7 @@ function getPushDisabledStorageKey(userId: string | null): string {
 
 export function usePushNotifications(): UsePushNotificationsReturn {
   const router = useRouter()
+  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -520,9 +522,11 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     const responseSubscription = activeNotificationsModule.addNotificationResponseReceivedListener(
       (response) => {
         const maybeUrl = response.notification.request.content?.data?.url
-        if (typeof maybeUrl === 'string' && isViewableNotificationUrl(maybeUrl)) {
-          router.push(maybeUrl)
-        }
+        if (typeof maybeUrl !== 'string') return
+        const destination = getNotificationDestination(maybeUrl)
+        if (!destination) return
+        router.push(destination.url)
+        if (destination.opensAstra) setAstraConversationOpen(true)
       },
     )
 
@@ -530,7 +534,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       appStateSubscription.remove()
       responseSubscription.remove()
     }
-  }, [isSupported, router, syncGrantedPermission])
+  }, [isSupported, router, setAstraConversationOpen, syncGrantedPermission])
 
   return {
     expoPushToken,

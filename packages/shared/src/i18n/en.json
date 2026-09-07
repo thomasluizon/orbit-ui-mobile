@@ -66,20 +66,20 @@
     "version": "v{previous} → v{next}"
   },
   "notifications": {
-    "title": "Notifications",
-    "bell": "Notifications",
-    "bellWithCount": "{count} unread notification | {count} unread notifications",
-    "empty": "No notifications yet",
+    "title": "Alerts",
+    "bell": "Alerts",
+    "bellWithCount": "Alerts, {count} unread",
+    "empty": "Nothing to see here",
     "loadError": "Couldn't load notifications",
     "markAllRead": "Mark all read",
     "markAsRead": "Mark as read",
-    "deleteAll": "Delete all",
-    "deleteAllConfirmTitle": "Delete all notifications?",
-    "deleteAllConfirmDescription": "This will remove every notification from your inbox.",
+    "deleteAll": "Clear all",
+    "deleteAllConfirmTitle": "Delete all alerts?",
+    "deleteAllConfirmDescription": "All alerts leave the list. There is no way to undo this.",
     "delete": "Delete",
-    "deleteNotification": "Delete notification",
-    "deleteUndo": "Undo delete",
-    "deleteQueued": "Notification will be deleted",
+    "deleteNotification": "Delete: {title}",
+    "deleteUndo": "Undo",
+    "deleteQueued": "The alert left the list.",
     "view": "View",
     "now": "Just now",
     "minutesAgo": "{n} min ago",
@@ -87,7 +87,11 @@
     "daysAgo": "{n}d ago",
     "channel": {
       "default": "Default"
-    }
+    },
+    "read": "read",
+    "unread": "unread",
+    "habit": "Habit",
+    "openIn": "Open in {target}"
   },
   "persistentReminder": {
     "label": "Persistent reminder",

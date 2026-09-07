@@ -69,7 +69,8 @@ export const cases = () => {
     needsDecision: null,
     assumptions: ["Used the existing adapter; rejected a second API."],
     manualSteps: ["Set FEATURE_ENABLED in the service dashboard; verify the health response."],
-    testResults: "Focused tests passed.",
+    testResults: "Unchanged coverage: node regression.mjs passed with the defect present.\n" +
+      "Strengthened coverage: node regression.mjs failed before the fix, then passed after it.",
   }
   for (const [label, report] of [
     ["complete", handoff],
@@ -152,6 +153,14 @@ export const cases = () => {
     T(`${TOOL}: ${label} durable handoff is returned on retry with the same decision gate`,
       retry.status === expectedExit && JSON.stringify(JSON.parse(retry.stdout).handoff) === JSON.stringify(report),
       retry.stdout || retry.stderr)
+    if (label === "complete") {
+      for (const [delivery, output] of [["initial", result], ["retry", retry]]) {
+        const body = JSON.parse(output.stdout).pullRequestBody
+        T(`${TOOL}: ${delivery} delivery PR body preserves both observations under Test evidence`,
+          body === `## Test evidence\n\n${report.testResults}\n`,
+          `Expected a Test evidence section containing the handoff results; got ${JSON.stringify(body)}`)
+      }
+    }
   }
   for (const observation of ["readdirSync", "readFileSync", "renameSync"]) {
     const edge = fixture(`deadline-edge-${observation}`, { taskId: "task_e_a419", receiptLockSeconds: 0.01 })
