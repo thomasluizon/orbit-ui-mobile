@@ -7,11 +7,13 @@ import { AppBar } from '@/components/ui/app-bar'
 import { CommandMenu } from '@/components/command/command-menu'
 import { CalendarDays, ChartLine, Home, User } from '@/components/ui/icons'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 
 export default function SearchPage() {
   const t = useTranslations()
   const router = useRouter()
   const [createTitle, setCreateTitle] = useState<string | null>(null)
+  useOverlayEscape({ open: true, onDismiss: () => router.back(), restoreFocus: false })
   const navItems = [
     { id: 'hoje', label: t('nav.today'), icon: Home, onSelect: () => router.push('/') },
     { id: 'calendario', label: t('nav.calendar'), icon: CalendarDays, onSelect: () => router.push('/calendar') },

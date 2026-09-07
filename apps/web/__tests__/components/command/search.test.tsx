@@ -8,9 +8,14 @@ import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 import { createPaginatedSchema, habitScheduleItemSchema } from '@orbit/shared/types/habit'
 import { normalizeHabitQueryData } from '@orbit/shared/utils'
 import { CommandMenu } from '@/components/command/command-menu'
+import SearchPage from '@/app/(app)/search/page'
 
-const mocks = vi.hoisted(() => ({ showError: vi.fn(), pending: false, push: vi.fn(), log: vi.fn(), skip: vi.fn(), query: vi.fn(), retry: vi.fn(), wide: false }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
+const mocks = vi.hoisted(() => ({ showError: vi.fn(), pending: false, back: vi.fn(), push: vi.fn(), log: vi.fn(), skip: vi.fn(), query: vi.fn(), retry: vi.fn(), wide: false }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push, back: mocks.back }) }))
+vi.mock('@/components/habits/create-habit-modal', async () => {
+  const { Sheet } = await import('@/components/ui/sheet')
+  return { CreateHabitModal: ({ onOpenChange }: { onOpenChange: (open: boolean) => void }) => <Sheet title="Create habit" onClose={() => onOpenChange(false)}><button type="button">Create action</button></Sheet> }
+})
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsWideDesktop: () => mocks.wide }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: (filters: HabitsFilter) => mocks.query(filters) }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError }) }))
@@ -49,6 +54,45 @@ beforeEach(() => {
 })
 
 describe('habit search', () => {
+  it.each(['', 'walk'])('leaves the standalone search page on Escape with query "%s"', async (query) => {
+    mocks.query.mockReturnValue(result([createMockHabit({ title: 'Walk', searchMatches: [{ field: 'title', value: null }] })]))
+    render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    const input = screen.getByRole('combobox')
+    if (query) {
+      fireEvent.change(input, { target: { value: query } })
+      expect(await screen.findByText('1 habit')).toBeInTheDocument()
+    }
+    expect(screen.getByText(en.command.hints.close)).toBeInTheDocument()
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(mocks.back).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['log', 'skip'] as const)('backs out of %s before Escape leaves the standalone search page', (page) => {
+    render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    fireEvent.click(screen.getByRole('option', { name: page === 'log' ? 'Log a habit' : 'Skip a habit' }))
+    expect(screen.getByText(en.command.hints.back)).toBeInTheDocument()
+    expect(screen.queryByText(en.command.hints.close)).toBeNull()
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
+    expect(mocks.back).not.toHaveBeenCalled()
+    expect(screen.getByRole('option', { name: 'Create habit' })).toBeInTheDocument()
+    expect(screen.getByText(en.command.hints.close)).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
+    expect(mocks.back).toHaveBeenCalledTimes(1)
+  })
+
+  it('dismisses the create sheet before Escape leaves the standalone search page', async () => {
+    render(<NextIntlClientProvider locale="en" messages={en}><SearchPage /></NextIntlClientProvider>)
+    fireEvent.click(screen.getByRole('option', { name: 'Create habit' }))
+    expect(mocks.back).not.toHaveBeenCalled()
+    const dialog = await screen.findByRole('dialog', { name: 'Create habit' })
+    await waitFor(() => expect(dialog).toContainElement(document.activeElement as HTMLElement))
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(mocks.back).not.toHaveBeenCalled()
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
+    expect(mocks.back).toHaveBeenCalledTimes(1)
+  })
+
   it.each(['en', 'pt-BR'])('renders all four match fields and opens the parent in %s', async (locale) => {
     const habits = [
       createMockHabit({ id: 'name', title: 'Walk', searchMatches: [{ field: 'title', value: null }] }),

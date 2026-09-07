@@ -28728,6 +28728,7 @@
         "apps/web/__tests__/components/calendar/calendar-picker-section.test.tsx",
         "apps/web/__tests__/components/calendar/calendar-shell.test.tsx",
         "apps/web/__tests__/components/calendar/select-all-toggle.test.tsx",
+        "apps/web/__tests__/components/command/search.test.tsx",
         "apps/web/__tests__/components/marketing-consent/marketing-consent-section.test.tsx",
         "apps/web/__tests__/components/next-reward-carrot.test.tsx",
         "apps/web/__tests__/components/preferences/preference-picker-sheet.test.tsx",
