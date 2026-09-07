@@ -4,7 +4,7 @@
 // zero CI read the suppression files, so a baseline edit could absorb a new
 // violation silently. Compares each workspace's total suppressed-violation
 // count in the working tree against the same file on THE BRANCH THIS MERGES
-// INTO, taken from GITHUB_BASE_REF and falling back to origin/main; exits 1 on
+// INTO, taken from GITHUB_BASE_REF or the checked-out branch's upstream; exits 1 on
 // growth. The base ref is load-bearing rather than tidiness: `redesign/main`
 // carries about 950 more suppressions than `main`, so a fixed origin/main
 // baseline would fail every redesign pull request against an unrelated total
@@ -20,7 +20,8 @@ import { fileURLToPath } from "node:url"
 const USAGE = `usage: check-suppressions-ratchet.mjs
 
   Compares each workspace's eslint-suppressions.json total against the branch this
-  merges into: origin/$GITHUB_BASE_REF when set, otherwise origin/main.
+  merges into: origin/$GITHUB_BASE_REF when set, otherwise the checked-out
+  branch's upstream. Refuses when neither identifies a base.
   Takes no arguments.
 
   --help, -h  print this usage and exit 0
@@ -51,17 +52,40 @@ const totalOf = (json) => {
   return total
 }
 
-// GITHUB_BASE_REF carries the base BRANCH NAME on a pull_request event and is empty everywhere
-// else, so a local run and a push build both keep the historical origin/main behaviour.
+// GITHUB_BASE_REF carries the base BRANCH NAME on a pull_request event. Local runs derive the same
+// fact from the current branch's configured upstream rather than guessing an unrelated base.
 //
 // The value is NOT normalised beyond trimming, deliberately. Stripping a `refs/heads/` prefix
 // "just in case" would be a defensive branch for a field this repository does not own, and it
 // would hide the very drift worth seeing. The run log below prints the raw field on every run
 // instead, so a shape that is not a bare branch name shows up as a named baseline miss rather
 // than as silent behaviour.
-export const baselineRefFrom = (env = process.env) => `origin/${env.GITHUB_BASE_REF?.trim() || "main"}`
+export const baselineRefFrom = (env = process.env, cwd = REPO_ROOT) => {
+  const pullRequestBase = env.GITHUB_BASE_REF?.trim()
+  if (pullRequestBase) return `origin/${pullRequestBase}`
 
-const BASE_REF = baselineRefFrom()
+  try {
+    return execFileSync("git", ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"], {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    }).trim()
+  } catch {
+    throw new Error(
+      "GITHUB_BASE_REF is unset and the checked-out branch has no upstream; set GITHUB_BASE_REF to the pull request base",
+    )
+  }
+}
+
+let BASE_REF
+try {
+  BASE_REF = baselineRefFrom()
+} catch (error) {
+  if (isMain) {
+    console.error(`check-suppressions-ratchet: ${error.message}`)
+    process.exit(2)
+  }
+}
 
 const baseVersionOf = (path) => {
   try {

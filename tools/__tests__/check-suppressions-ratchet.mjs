@@ -48,6 +48,11 @@ const buildFixture = () => {
   git(repo, "commit", "-m", "redesign baseline")
   git(repo, "update-ref", "refs/remotes/origin/redesign/main", git(repo, "rev-parse", "HEAD"))
 
+  git(repo, "checkout", "-b", "redesign/feature")
+  git(repo, "config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*")
+  git(repo, "config", "branch.redesign/feature.remote", "origin")
+  git(repo, "config", "branch.redesign/feature.merge", "refs/heads/redesign/main")
+
   // The working tree sits BETWEEN the two: growth against main, a shrink against redesign/main.
   writeBaselines(repo, 50)
 
@@ -55,18 +60,20 @@ const buildFixture = () => {
 }
 
 export const cases = async () => {
+  const path = buildFixture()
+
   // ---- the mapping, in isolation ------------------------------------------------------------
   T(
-    "check-suppressions-ratchet: an absent GITHUB_BASE_REF falls back to origin/main",
-    baselineRefFrom({}) === "origin/main",
+    "check-suppressions-ratchet: an absent GITHUB_BASE_REF uses the checked-out branch upstream",
+    baselineRefFrom({}, join(root, "ratchet-end-to-end")) === "origin/redesign/main",
   )
   T(
-    "check-suppressions-ratchet: an empty GITHUB_BASE_REF falls back to origin/main",
-    baselineRefFrom({ GITHUB_BASE_REF: "" }) === "origin/main",
+    "check-suppressions-ratchet: an empty GITHUB_BASE_REF uses the checked-out branch upstream",
+    baselineRefFrom({ GITHUB_BASE_REF: "" }, join(root, "ratchet-end-to-end")) === "origin/redesign/main",
   )
   T(
-    "check-suppressions-ratchet: a whitespace-only GITHUB_BASE_REF falls back to origin/main",
-    baselineRefFrom({ GITHUB_BASE_REF: "   " }) === "origin/main",
+    "check-suppressions-ratchet: a whitespace-only GITHUB_BASE_REF uses the checked-out branch upstream",
+    baselineRefFrom({ GITHUB_BASE_REF: "   " }, join(root, "ratchet-end-to-end")) === "origin/redesign/main",
   )
   T(
     "check-suppressions-ratchet: a multi-segment base branch keeps every segment",
@@ -86,13 +93,11 @@ export const cases = async () => {
   // ---- the CLI, end to end, against real git refs --------------------------------------------
   // These are the assertions that would catch baseVersionOf() regressing to a fixed origin/main, or
   // the growth path ceasing to exit 1. The mapping cases above cannot: they only format a string.
-  const path = buildFixture()
-
-  const againstMainImplicit = run(TOOL, [], { path, env: { GITHUB_BASE_REF: "" } })
+  const againstRedesignImplicit = run(TOOL, [], { path, env: { GITHUB_BASE_REF: "" } })
   T(
-    "check-suppressions-ratchet: with no base ref the CLI reads origin/main and fails on growth",
-    againstMainImplicit.status === 1 && againstMainImplicit.stdout.includes("10 on origin/main -> 50 here (GREW)"),
-    `exit ${againstMainImplicit.status}\n     ${againstMainImplicit.stdout.trim()}`,
+    "check-suppressions-ratchet: with no base ref the CLI reads the branch upstream and passes",
+    againstRedesignImplicit.status === 0 && againstRedesignImplicit.stdout.includes("100 on origin/redesign/main -> 50 here (ok)"),
+    `exit ${againstRedesignImplicit.status}\n     ${againstRedesignImplicit.stdout.trim()}`,
   )
 
   const againstMain = run(TOOL, [], { path, env: { GITHUB_BASE_REF: "main" } })
@@ -119,7 +124,7 @@ export const cases = async () => {
   T(
     "check-suppressions-ratchet: the run logs the raw GITHUB_BASE_REF it read",
     againstRedesign.stdout.includes("(GITHUB_BASE_REF=redesign/main)")
-      && againstMainImplicit.stdout.includes("(GITHUB_BASE_REF=)"),
+      && againstRedesignImplicit.stdout.includes("(GITHUB_BASE_REF=)"),
     againstRedesign.stdout.trim(),
   )
 }
