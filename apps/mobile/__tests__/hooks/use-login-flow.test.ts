@@ -369,6 +369,20 @@ describe('useLoginFlow (mobile)', () => {
 })
 
 describe('mobile auth state recovery', () => {
+  it('lets the server decide retries after a reload with an unknown lock deadline', async () => {
+    const harness = await renderLoginFlow()
+    await act(() => harness.current.setEmail('user@test.com'))
+    await act(() => harness.current.sendCode())
+    mocks.apiClient.mockRejectedValue(createApiClientError(400, { error: 'Too many attempts. Try again in 15 minutes' }, 'Request failed'))
+    await act(() => harness.current.verifyCode('123456'))
+    expect(harness.current.codeFailure).toBe('locked')
+    const calls = mocks.apiClient.mock.calls.length
+    await act(() => harness.current.verifyCode('123456'))
+    expect(mocks.apiClient).toHaveBeenCalledTimes(calls + 1)
+    mocks.apiClient.mockResolvedValue({ token: 'test-token', refreshToken: null, userId: 'user-id', name: 'Person', email: 'user@test.com', wasReactivated: false })
+    await act(() => harness.current.verifyCode('123456'))
+    expect(mocks.login).toHaveBeenCalledTimes(1)
+  })
   it.each([429, 500, 503])('keeps one send failure and the address for HTTP %s', async (status) => {
     mocks.apiClient.mockRejectedValue(createApiClientError(status, null, 'Request failed'))
     const harness = await renderLoginFlow()

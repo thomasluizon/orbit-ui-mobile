@@ -30,6 +30,7 @@ export function CodeStep({ email, codeDigits, isSubmitting, canResend, resendCou
   onResendCode, t }: Readonly<CodeStepProps>) {
   const reduced = useReducedMotion()
   const locked = codeFailure === 'locked'
+  const waiting = locked && lockCountdown > 0
   const expired = codeFailure === 'expired'
   const fieldError = isOnline && !locked ? errorSignal ?? undefined : undefined
   const shake = Boolean(fieldError) && !reduced
@@ -48,13 +49,13 @@ export function CodeStep({ email, codeDigits, isSubmitting, canResend, resendCou
           <OtpInput label={t('auth.verificationCode')} value={codeDigits.join('')}
             onChange={onCodeChange} error={fieldError}
             hint={!fieldError && !locked ? t('auth.codeHint') : undefined}
-            disabled={isSubmitting || expired || locked} />
+            disabled={isSubmitting || expired || waiting} />
         </motion.div>
         {!isOnline && <LoginOfflineNotice t={t} />}
-        {!locked && !expired && <PillButton disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6}
+        {!waiting && !expired && <PillButton disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6}
           loading={isSubmitting}>{t('auth.verify')}</PillButton>}
       </form>
-      {!locked && <div className="flex flex-col items-start gap-2">
+      {!waiting && <div className="flex flex-col items-start gap-2">
         {canResend || expired
           ? <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting}>
               {t('auth.resendCode')}
@@ -63,11 +64,8 @@ export function CodeStep({ email, codeDigits, isSubmitting, canResend, resendCou
               {t('auth.resendIn', { time: formatLoginCountdown(resendCountdown) })}
             </p>}
       </div>}
-      {locked && <div className="flex flex-col gap-2" data-mock>
+      {locked && <div className="flex flex-col gap-2">
         <div role="status"><CapacityNotice message={t('auth.errors.tooManyAttempts')} /></div>
-        <p className="font-mono text-xs tabular-nums text-[var(--fg-3)]">
-          {t('auth.lockIn', { time: formatLoginCountdown(lockCountdown) })}
-        </p>
       </div>}
     </div>
   )

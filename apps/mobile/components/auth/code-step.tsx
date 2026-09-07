@@ -39,6 +39,7 @@ export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, canRes
   const reduced = usePrefersReducedMotion()
   const shake = useMemo(() => new Animated.Value(0), [])
   const locked = codeFailure === 'locked'
+  const waiting = locked && lockCountdown > 0
   const expired = codeFailure === 'expired'
   const fieldError = isOnline && !locked ? errorSignal ?? undefined : undefined
   useEffect(() => {
@@ -60,19 +61,18 @@ export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, canRes
     <Animated.View style={{ transform: [{ translateX: shake }] }}>
       <OtpInput label={t('auth.verificationCode')} value={codeDigits.join('')} onChange={onCodeChange}
         error={fieldError} hint={!fieldError && !locked ? t('auth.codeHint') : undefined}
-        disabled={isSubmitting || expired || locked} />
+        disabled={isSubmitting || expired || waiting} />
     </Animated.View>
     {!isOnline && <LoginOfflineNotice t={t} styles={styles} tokens={tokens} />}
-    {!locked && !expired && <PillButton onClick={onVerifyCode} disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6}
+    {!waiting && !expired && <PillButton onClick={onVerifyCode} disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6}
       loading={isSubmitting}>{t('auth.verify')}</PillButton>}
-    {!locked && <View style={styles.titleBlock}>
+    {!waiting && <View style={styles.titleBlock}>
       {canResend || expired ? <View style={styles.quietAction}>
         <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting}>{t('auth.resendCode')}</PillButton>
       </View> : <Text style={styles.mono}>{t('auth.resendIn', { time: formatLoginCountdown(resendCountdown) })}</Text>}
     </View>}
     {locked && <View style={styles.titleBlock}>
       <View accessibilityLiveRegion="polite"><CapacityNotice message={t('auth.errors.tooManyAttempts')} /></View>
-      <Text style={styles.mono}>{t('auth.lockIn', { time: formatLoginCountdown(lockCountdown) })}</Text>
     </View>}
   </View>
 }

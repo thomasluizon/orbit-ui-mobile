@@ -67,6 +67,7 @@ describe.each(authLocales)('mobile auth composition in %s', (locale) => {
         if (state === 'locked out') {
           expect(root.findAll((node) => node.props.testID === 'capacity-notice').length).toBeGreaterThan(0)
           expect(textOf(root)).toContain(t('auth.errors.tooManyAttempts'))
+          expect(textOf(root)).not.toMatch(/\d+:\d{2}/)
         }
       }
       if (fixture.errorMessage) {

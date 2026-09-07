@@ -391,7 +391,6 @@
     },
     "emailTitle": "Sign in with your email",
     "codeResent": "A new code was sent.",
-    "lockIn": "Open again in {time}",
     "codeHint": "The code lasts 5 minutes.",
     "googleOffline": "Google needs a connection to open.",
     "onboarding": {

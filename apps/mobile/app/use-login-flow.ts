@@ -59,11 +59,12 @@ export function useLoginFlow() {
 
   useEffect(() => {
     if (codeFailure !== 'locked') return
+    if ((attempts.current.get(email.trim().toLowerCase())?.expiresAt ?? 0) <= Date.now()) return
     const timer = setInterval(() => {
       const until = attempts.current.get(email.trim().toLowerCase())?.expiresAt ?? 0
       const remaining = Math.max(0, Math.ceil((until - Date.now()) / 1000))
       setLockCountdown(remaining)
-      if (!remaining) { setCodeFailure('expired'); setErrorKey('auth.errors.codeExpired') }
+      if (!remaining) { setCodeFailure(null); setErrorKey(null) }
     }, 1000)
     return () => clearInterval(timer)
   }, [codeFailure, email])
@@ -115,13 +116,13 @@ export function useLoginFlow() {
     const next = recordLoginFailure(key, attempts.current.get(address), Date.now())
     attempts.current.set(address, next.attempts)
     setCodeFailure(next.failure)
-    setLockCountdown(next.failure === 'locked' ? 900 : 0)
+    setLockCountdown(next.failure === 'locked' ? Math.max(0, Math.ceil((next.attempts.expiresAt - Date.now()) / 1000)) : 0)
     setErrorKey(next.failure === 'locked' ? null : key)
   }
 
   async function verifyCode(codeOverride?: string) {
     const code = codeOverride ?? entry.codeDigits.join('')
-    if (busy.current || !isOnline || code.length !== 6 || codeFailure === 'locked' || codeFailure === 'expired') return
+    if (busy.current || !isOnline || code.length !== 6 || (codeFailure === 'locked' && lockCountdown > 0) || codeFailure === 'expired') return
     busy.current = true
     setIsSubmitting(true)
     setErrorKey(null)
@@ -138,7 +139,7 @@ export function useLoginFlow() {
   }
 
   async function resendCode() {
-    if (busy.current || !isOnline || codeFailure === 'locked' || (!entry.canResend && codeFailure !== 'expired')) return
+    if (busy.current || !isOnline || (codeFailure === 'locked' && lockCountdown > 0) || (!entry.canResend && codeFailure !== 'expired')) return
     busy.current = true
     setIsSubmitting(true)
     setSuccessMessage(null)

@@ -48,7 +48,10 @@ describe.each(authLocales)('auth screen composition in %s', (locale) => {
       expect(screen.queryByRole('button', { name: t('auth.verify') }) !== null).toBe(!blocked)
       expect(screen.queryByRole('button', { name: t('auth.resendCode') }) !== null).toBe(['resend ready', 'code expired'].includes(state))
       expect(screen.getByRole('button', { name: t('auth.changeEmail') })).toBeInTheDocument()
-      if (state === 'locked out') expect(container.querySelector('[data-capacity-notice]')).toHaveTextContent(t('auth.errors.tooManyAttempts'))
+      if (state === 'locked out') {
+        expect(container.querySelector('[data-capacity-notice]')).toHaveTextContent(t('auth.errors.tooManyAttempts'))
+        expect(container.textContent).not.toMatch(/\d+:\d{2}/)
+      }
       if (state === 'code wrong' || state === 'code expired') expect(container.querySelectorAll('[data-otp-cell][data-error]')).toHaveLength(6)
     })
   })

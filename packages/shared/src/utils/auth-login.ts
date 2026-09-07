@@ -140,7 +140,10 @@ export function recordLoginFailure(
   now: number,
 ): { failure: LoginCodeFailure; attempts: LoginAttempts } {
   const count = previous && previous.expiresAt > now ? previous.count : 0
-  if (key === 'auth.errors.tooManyAttempts' || (key === 'auth.errors.invalidCode' && count >= 2)) {
+  if (key === 'auth.errors.tooManyAttempts') {
+    return { failure: 'locked', attempts: { count: 3, expiresAt: previous?.expiresAt ?? 0 } }
+  }
+  if (key === 'auth.errors.invalidCode' && count >= 2) {
     return { failure: 'locked', attempts: { count: 3, expiresAt: now + 15 * 60 * 1000 } }
   }
   if (key === 'auth.errors.invalidCode') {

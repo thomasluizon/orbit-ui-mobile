@@ -3,6 +3,17 @@ import { formatLoginCountdown, recordLoginFailure, resolveAuthLoginErrorKey } fr
 import { authLocales, authTranslator } from './auth-screen-fixtures'
 
 describe('login recovery rules', () => {
+  it('does not move an observed deadline when the server refuses again partway through the lock', () => {
+    const previous = { count: 3, expiresAt: 900_000 }
+    const repeated = recordLoginFailure('auth.errors.tooManyAttempts', previous, 840_000)
+    expect(repeated.attempts.expiresAt).toBe(previous.expiresAt)
+    expect(repeated.failure).toBe('locked')
+  })
+  it('does not invent a deadline after a reload or rearm an elapsed observed window', () => {
+    expect(recordLoginFailure('auth.errors.tooManyAttempts', undefined, 840_000).attempts.expiresAt).toBe(0)
+    const previous = { count: 3, expiresAt: 900_000 }
+    expect(recordLoginFailure('auth.errors.tooManyAttempts', previous, 900_001).attempts.expiresAt).toBe(900_000)
+  })
   it('counts confirmed wrong codes through the third attempt and expires the attempt window', () => {
     const first = recordLoginFailure('auth.errors.invalidCode', undefined, 100)
     const second = recordLoginFailure('auth.errors.invalidCode', first.attempts, 200)

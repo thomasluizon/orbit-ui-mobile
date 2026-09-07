@@ -391,7 +391,6 @@
     },
     "emailTitle": "Entre com o seu email",
     "codeResent": "Um novo código foi enviado.",
-    "lockIn": "Liberado em {time}",
     "codeHint": "O código vale 5 minutos.",
     "googleOffline": "Precisa de conexão para abrir o Google.",
     "onboarding": {
