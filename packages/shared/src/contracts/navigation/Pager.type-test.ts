@@ -10,6 +10,30 @@ type IsExactWidth<T, U> =
       : false
     : false
 type Assert<T extends true> = T
+type Fields<T> = { [TKey in keyof T]: T[TKey] }
+
+type OwnForwardVariant = Extract<PagerProps, { forwardLabel: string }>
+type ReplacedForwardVariant = Extract<PagerProps, { forwardSlot: ReactNode }>
+type ExpectedOwnForwardVariant = {
+  index: number
+  count: number
+  label: string
+  backLabel: string
+  onBack?: () => void
+  forwardLabel: string
+  onForward?: () => void
+  forwardSlot?: never
+}
+type ExpectedReplacedForwardVariant = {
+  index: number
+  count: number
+  label: string
+  backLabel: string
+  onBack?: () => void
+  forwardSlot: ReactNode
+  forwardLabel?: never
+  onForward?: never
+}
 
 type Base = { index: 0; count: 3; label: 'Steps'; backLabel: 'Previous step' }
 type OwnForward = Base & { forwardLabel: 'Continue' }
@@ -17,6 +41,8 @@ type ReplacedForward = Base & { forwardSlot: 'Finish' }
 type ExpectedKeys = 'index' | 'count' | 'label' | 'backLabel' | 'onBack' | 'forwardLabel' | 'onForward' | 'forwardSlot'
 
 export type PagerTypeContract = [
+  Assert<IsExactWidth<Fields<OwnForwardVariant>, ExpectedOwnForwardVariant>>,
+  Assert<IsExactWidth<Fields<ReplacedForwardVariant>, ExpectedReplacedForwardVariant>>,
   Assert<IsExactWidth<PagerProps['index'], number>>,
   Assert<IsExactWidth<PagerProps['count'], number>>,
   Assert<IsExactWidth<PagerProps['label'], string>>,

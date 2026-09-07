@@ -11,7 +11,24 @@ type IsExactWidth<T, U> =
     : false
 type Assert<T extends true> = T
 
+type BackVariant = Extract<NavHeaderProps, { onBack: () => void }>
+type PlainVariant = Extract<NavHeaderProps, { onBack?: never }>
+type ExpectedBackVariant = {
+  title: string
+  onBack: () => void
+  backLabel: string
+  action?: ReactNode
+}
+type ExpectedPlainVariant = {
+  title: string
+  onBack?: never
+  backLabel?: never
+  action?: ReactNode
+}
+
 export type NavHeaderTypeContract = [
+  Assert<IsExactWidth<BackVariant, ExpectedBackVariant>>,
+  Assert<IsExactWidth<PlainVariant, ExpectedPlainVariant>>,
   Assert<IsExactWidth<NavHeaderProps['title'], string>>,
   Assert<IsExactWidth<NavHeaderProps['onBack'], (() => void) | undefined>>,
   Assert<IsExactWidth<NavHeaderProps['backLabel'], string | undefined>>,
