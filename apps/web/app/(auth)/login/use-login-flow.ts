@@ -3,7 +3,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useReducedMotion } from 'motion/react'
 import { useTranslations, useLocale } from 'next-intl'
 import { buildGoogleCalendarOAuthOptions, isValidEmail, isValidReferralCode, isValidVerificationCode,
-  recordLoginFailure, type LoginAttempts, type LoginCodeFailure } from '@orbit/shared/utils'
+  deriveLoginEmailSubmission, recordLoginFailure, type LoginAttempts, type LoginCodeFailure } from '@orbit/shared/utils'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useOffline } from '@/hooks/use-offline'
 import { useAuthStore } from '@/stores/auth-store'
@@ -84,16 +84,16 @@ export function useLoginFlow() {
 
   async function sendCode() {
     if (!available() || !email.trim()) return
-    if (!isValidEmail(email)) {
+    const submission = deriveLoginEmailSubmission(email, attempts.current, Date.now())
+    if (submission.status === 'invalid') {
       setErrorKey('auth.errors.invalidEmail')
       setEmailFocusRequest((request) => request + 1)
       return
     }
-    const locked = attempts.current.get(email.trim().toLowerCase())
-    if (locked && locked.count >= 3 && locked.expiresAt > Date.now()) {
+    if (submission.status === 'locked') {
       setStep('code')
       setCodeFailure('locked')
-      setLockCountdown(Math.ceil((locked.expiresAt - Date.now()) / 1000))
+      setLockCountdown(submission.remainingSeconds)
       setErrorKey(null)
       return
     }

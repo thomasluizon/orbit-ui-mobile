@@ -28450,6 +28450,7 @@
         "packages/shared/src/__tests__/habit-visibility.test.ts",
         "packages/shared/src/__tests__/highlight-text.test.ts",
         "packages/shared/src/__tests__/locale-format-device.test.ts",
+        "packages/shared/src/__tests__/login-email-submission.test.ts",
         "packages/shared/src/__tests__/markdown.test.ts",
         "packages/shared/src/__tests__/name-initials.test.ts",
         "packages/shared/src/__tests__/notification-actions.test.ts",

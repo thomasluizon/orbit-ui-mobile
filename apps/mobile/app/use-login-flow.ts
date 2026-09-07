@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { ApiClientError, extractAuthBackendMessage, isValidEmail, resolveAuthLoginErrorKey,
-  recordLoginFailure, type LoginAttempts, type LoginCodeFailure } from '@orbit/shared/utils'
+  deriveLoginEmailSubmission, recordLoginFailure, type LoginAttempts, type LoginCodeFailure } from '@orbit/shared/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api-client'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
@@ -78,16 +78,16 @@ export function useLoginFlow() {
 
   async function sendCode() {
     if (busy.current || !isOnline || !email.trim()) return
-    if (!isValidEmail(email)) {
+    const submission = deriveLoginEmailSubmission(email, attempts.current, Date.now())
+    if (submission.status === 'invalid') {
       setErrorKey('auth.errors.invalidEmail')
       setEmailFocusRequest((request) => request + 1)
       return
     }
-    const locked = attempts.current.get(email.trim().toLowerCase())
-    if (locked && locked.count >= 3 && locked.expiresAt > Date.now()) {
+    if (submission.status === 'locked') {
       setStep('code')
       setCodeFailure('locked')
-      setLockCountdown(Math.ceil((locked.expiresAt - Date.now()) / 1000))
+      setLockCountdown(submission.remainingSeconds)
       setErrorKey(null)
       return
     }
