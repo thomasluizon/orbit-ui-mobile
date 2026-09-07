@@ -24,6 +24,7 @@ export function useLoginFlow() {
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isResending, setIsResending] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [errorKey, setErrorKey] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -140,6 +141,7 @@ export function useLoginFlow() {
     if (!available() || (codeFailure === 'locked' && lockCountdown > 0) || (!entry.canResend && codeFailure !== 'expired')) return
     busy.current = true
     setIsSubmitting(true)
+    setIsResending(true)
     setSuccessMessage(null)
     setErrorKey(null)
     try {
@@ -149,7 +151,7 @@ export function useLoginFlow() {
       setSuccessMessage(t('auth.codeResent'))
       entry.startResendCountdown()
     } catch (error: unknown) { setErrorKey(resolveLoginErrorState(error, t, 'send').key) }
-    finally { busy.current = false; setIsSubmitting(false) }
+    finally { busy.current = false; setIsSubmitting(false); setIsResending(false) }
   }
 
   function backToEmail() {
@@ -188,7 +190,7 @@ export function useLoginFlow() {
     finally { busy.current = false; setIsSubmitting(false) }
   }
 
-  return { t, step, email, setEmail, isSubmitting, isGoogleLoading, errorKey,
+  return { t, step, email, setEmail, isSubmitting, isResending, isGoogleLoading, errorKey,
     errorMessage: errorKey ? t(errorKey) : null, successMessage, referralCode, fromOnboarding,
     pendingHabitCount, isOnline, authStepMotion, ...entry, codeFailure, lockCountdown, accountBack,
     sendCode, verifyCode, resendCode, backToEmail, signInWithGoogle, continueAccount }

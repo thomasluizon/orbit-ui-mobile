@@ -346,7 +346,7 @@
     "emailPlaceholder": "you@example.com",
     "sendCode": "Continue",
     "codeSent": "Code sent.",
-    "codeSentTo": "We sent 6 digits to",
+    "codeSentTo": "We sent 6 digits to {email}.",
     "verificationCode": "6 digit code",
     "verify": "Sign in",
     "resendCode": "Send another code",

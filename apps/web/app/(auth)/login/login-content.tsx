@@ -40,7 +40,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
         {flow.errorMessage && <p role="alert" className="text-sm text-[var(--status-bad-text)]">{flow.errorMessage}</p>}
       </div> : <LoginStepStage step={flow.step} motionPreset={flow.authStepMotion}>
         <div className="flex flex-col gap-6">
-          <LoginHeader step={flow.step} t={t} fromOnboarding={flow.fromOnboarding} pendingHabitCount={flow.pendingHabitCount} />
+          {flow.step === 'email' && <LoginHeader step="email" t={t} fromOnboarding={flow.fromOnboarding} pendingHabitCount={flow.pendingHabitCount} />}
           {flow.step === 'email' ? <EmailStep email={flow.email} onEmailChange={(email) => { setCallbackDismissed(true); flow.setEmail(email) }}
             isSubmitting={flow.isSubmitting} isGoogleLoading={flow.isGoogleLoading || googlePending}
             errorKey={googleFailed ? 'auth.errors.googleError' : flow.errorKey}
@@ -49,7 +49,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
             onSendCode={() => { setCallbackDismissed(true); void flow.sendCode() }}
               onSignInWithGoogle={() => { setCallbackDismissed(true); void flow.signInWithGoogle() }}
             sendCodeLabel={flow.fromOnboarding ? t('auth.onboarding.continue') : undefined} />
-            : <CodeStep email={flow.email} codeDigits={flow.codeDigits} isSubmitting={flow.isSubmitting}
+            : <CodeStep email={flow.email} codeDigits={flow.codeDigits} isSubmitting={flow.isSubmitting} isResending={flow.isResending}
               canResend={flow.canResend} resendCountdown={flow.resendCountdown} codeFailure={flow.codeFailure}
               lockCountdown={flow.lockCountdown} errorSignal={flow.errorMessage} successMessage={flow.successMessage}
               isOnline={flow.isOnline} onCodeChange={flow.onCodeChange} onBackToEmail={flow.backToEmail} t={t}

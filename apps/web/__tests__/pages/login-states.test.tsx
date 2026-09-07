@@ -22,6 +22,17 @@ function setFixture(state: Parameters<typeof createLoginScreenFixture>[0], local
 
 describe.each(authLocales)('auth screen composition in %s', (locale) => {
   beforeEach(() => vi.clearAllMocks())
+  it.each(['resend ready', 'code expired'] as const)('puts the busy state on resend for %s', (state) => {
+    const { t } = setFixture(state, locale)
+    mocks.flow.isSubmitting = true
+    mocks.flow.isResending = true
+    render(<LoginContent />)
+    expect(screen.getByRole('button', { name: t('auth.resendCode') })).toHaveAttribute('aria-busy', 'true')
+    if (state === 'code expired') expect(screen.queryByRole('button', { name: t('auth.verify') })).not.toBeInTheDocument()
+    else expect(screen.getByRole('button', { name: t('auth.verify') })).not.toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('textbox')).toBeDisabled()
+  })
+
   describe.each(['dark', 'light'])('%s theme', (theme) => {
     it.each(authScreenStates)('renders %s with its available recovery actions', (state) => {
       document.documentElement.className = theme

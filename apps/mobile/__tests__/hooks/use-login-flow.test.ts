@@ -369,6 +369,31 @@ describe('useLoginFlow (mobile)', () => {
 })
 
 describe('mobile auth state recovery', () => {
+  it.each(['success', 'failure'])('tracks the pending resend through %s without replaying verification', async (outcome) => {
+    vi.useFakeTimers()
+    try {
+      const harness = await renderLoginFlow()
+      await act(() => harness.current.setEmail('user@test.com'))
+      await act(() => harness.current.sendCode())
+      await act(() => { vi.advanceTimersByTime(60_000) })
+      let settle!: () => void
+      mocks.apiClient.mockReturnValueOnce(new Promise<void>((resolve, reject) => {
+        settle = () => outcome === 'success' ? resolve() : reject(new Error('network disconnected'))
+      }))
+      let pending!: Promise<void>
+      await act(() => { pending = harness.current.resendCode() })
+      expect(harness.current).toMatchObject({ isSubmitting: true, isResending: true })
+      const calls = mocks.apiClient.mock.calls.length
+      await act(async () => { await harness.current.resendCode(); await harness.current.verifyCode('123456') })
+      expect(mocks.apiClient).toHaveBeenCalledTimes(calls)
+      await act(async () => { settle(); await pending })
+      expect(harness.current).toMatchObject({ isSubmitting: false, isResending: false })
+      expect(harness.current.errorKey).toBe(outcome === 'success' ? null : 'auth.errors.sendFailed')
+      expect(harness.current.successMessage).toBe(outcome === 'success' ? 'auth.codeResent' : null)
+      expect(mocks.login).not.toHaveBeenCalled()
+    } finally { vi.useRealTimers() }
+  })
+
   it('lets the server decide retries after a reload with an unknown lock deadline', async () => {
     const harness = await renderLoginFlow()
     await act(() => harness.current.setEmail('user@test.com'))
