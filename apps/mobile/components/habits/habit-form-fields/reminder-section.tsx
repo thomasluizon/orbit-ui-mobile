@@ -1,5 +1,6 @@
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo } from "react";
-import { View, Text, Pressable } from "react-native";
+import { View, Text, } from "react-native";
 import { X, Plus, Bell } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import { HABIT_REMINDER_PRESETS } from "@orbit/shared/utils";

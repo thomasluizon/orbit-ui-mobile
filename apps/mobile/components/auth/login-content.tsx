@@ -48,7 +48,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
         {account ? <AccountBackState t={t} styles={styles} loading={flow.isSubmitting || callback?.loading}
           continueAccount={continueAccount} errorMessage={flow.errorMessage} /> : <LoginStepStage step={flow.step}>
           <View style={styles.step}>
-            <LoginHeader step={flow.step} t={t} styles={styles} fromOnboarding={flow.fromOnboarding} plannedHabitCount={flow.plannedHabitCount} />
+            {flow.step === 'email' && <LoginHeader step="email" t={t} styles={styles} fromOnboarding={flow.fromOnboarding} plannedHabitCount={flow.plannedHabitCount} />}
             {flow.step === 'email' ? <EmailStep email={flow.email} onEmailChange={(email) => { setCallbackDismissed(true); flow.setEmail(email) }}
               isSubmitting={flow.isSubmitting} isGoogleLoading={flow.isGoogleLoading || googlePending}
               errorKey={emailErrorKey}
@@ -58,7 +58,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
               onSignInWithGoogle={() => { setCallbackDismissed(true); void flow.signInWithGoogle() }}
               onOpenPrivacy={flow.openPrivacyPolicy} onOpenTerms={flow.openTerms}
               sendCodeLabel={sendCodeLabel} />
-              : <CodeStep email={flow.email} codeDigits={flow.codeDigits} isSubmitting={flow.isSubmitting}
+              : <CodeStep email={flow.email} codeDigits={flow.codeDigits} isSubmitting={flow.isSubmitting} isResending={flow.isResending}
                 canResend={flow.canResend} resendCountdown={flow.resendCountdown} codeFailure={flow.codeFailure}
                 lockCountdown={flow.lockCountdown} errorSignal={flow.errorMessage} successMessage={flow.successMessage}
                 isOnline={flow.isOnline} onCodeChange={flow.onCodeChange} onBackToEmail={flow.backToEmail} t={t}

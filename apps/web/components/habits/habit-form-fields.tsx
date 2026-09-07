@@ -427,7 +427,6 @@ export function HabitFormFields({
             }}
           >
             <section>
-              <SectionLabel>{t('habits.form.exactTime')}</SectionLabel>
               <TimeField
                 label={t('habits.form.exactTime')}
                 hint={t('habits.form.anyTimeHint')}
@@ -523,7 +522,6 @@ export function HabitFormFields({
             <EndDateEditor visible={showEndDate} value={endDate} onChange={(value) => setValue('endDate', value, { shouldDirty: true })} t={t} />
 
             <section>
-              <SectionLabel>{t('habits.form.description')}</SectionLabel>
               <Input
                 label={t('habits.form.description')}
                 value={description}

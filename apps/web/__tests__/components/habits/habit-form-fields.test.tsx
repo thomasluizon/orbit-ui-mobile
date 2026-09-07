@@ -304,6 +304,12 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('slip-alert')).toBeDefined()
   })
 
+  it('names the description field once in the owning form', () => {
+    renderForm(createFormHelpers({ title: 'Run' }), undefined, true)
+    expect(screen.getAllByText('habits.form.description')).toHaveLength(1)
+    expect(screen.getByRole('textbox', { name: 'habits.form.description' })).toBeInTheDocument()
+  })
+
   it('hides slip alerts for a positive habit', () => {
     mockProfileState.hasProAccess = true
     renderForm(createFormHelpers({ title: 'Run', isBadHabit: false }), undefined, true)
