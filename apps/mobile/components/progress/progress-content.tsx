@@ -1,5 +1,5 @@
 import { useMemo, useState, type ComponentType, type ReactNode } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
@@ -22,6 +22,7 @@ import {
   getGoalDeadlinePresentation,
   getGamificationLevelTitleKey,
   getStreakTierLabelKey,
+  isProgressEmpty,
   visibleProgressAchievements,
   type ProgressGoalFilter,
 } from '@orbit/shared/utils'
@@ -249,8 +250,33 @@ function AchievementsSection({ profile, canView, xpProgress, tokens }: Readonly<
   return <Section compact title={t('progressScreen.sections.achievements')} tokens={tokens}><View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}><View style={styles.xpRow}><Text style={[styles.progressTitle, { color: tokens.fg1 }]}>{t('progressScreen.achievements.level', { level: profile.level, title: levelTitle })}</Text><Text style={[styles.meta, { color: tokens.fg3 }]}>{t('progressScreen.achievements.xp', { current: profile.totalXp, next: profile.xpForNextLevel })}</Text></View><ProgressBar value={xpProgress} max={100} label={t('progressScreen.achievements.xp', { current: profile.totalXp, next: profile.xpForNextLevel })} /><Text style={[styles.achievementBody, { color: tokens.fg3 }]}>{t('progressScreen.achievements.next', { level: profile.nextReward.nextLevel, title: nextLevelTitle, xp: profile.nextReward.xpToNextLevel })}</Text></View>{achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <View key={category} style={styles.copy}><Text style={[styles.compactTitle, { color: tokens.fg2 }]}>{t(`gamification.categories.${category}`)}</Text>{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} tokens={tokens} />)}</View>)}</Section>
 }
 
+function ProgressLoading({ label }: Readonly<{ label: string }>) {
+  const { width } = useWindowDimensions()
+  const columns = width >= 768 ? 4 : 2
+  return (
+    <View style={styles.loading} accessibilityState={{ busy: true }}>
+      <View style={styles.loadingSettings}>
+        {Array.from({ length: 2 }, (_, index) => <Skeleton key={index} variant="settings" label={label} />)}
+      </View>
+      <View style={styles.loadingRows}>
+        {Array.from({ length: 4 / columns }, (_, row) => (
+          <View key={row} style={styles.loadingTileRow}>
+            {Array.from({ length: columns }, (_, column) => (
+              <View key={column} style={styles.loadingTile}><Skeleton variant="stat-tile" label={label} /></View>
+            ))}
+          </View>
+        ))}
+      </View>
+      <View style={styles.loadingRows}>
+        {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} variant="habit-row" label={label} />)}
+      </View>
+    </View>
+  )
+}
+
 export function ProgressContent() {
   const { t } = useTranslation()
+  const router = useRouter()
   const theme = useAppTheme()
   const tokens = useMemo(() => createTokensV2(theme.currentScheme, theme.currentTheme), [theme.currentScheme, theme.currentTheme])
   const account = useProfile()
@@ -258,15 +284,29 @@ export function ProgressContent() {
   const goals = useGoals()
   const gamification = useGamificationProfile(canView)
   const allGoals = goals.data?.allGoals ?? []
-  const loading = account.isLoading || goals.isLoading || (canView && gamification.isLoading)
   const error = account.isError || goals.isError || (canView && gamification.isError)
-  const retry = () => { void account.refetch(); void goals.refetch(); void gamification.refetch() }
-  return <NestableScrollContainer style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}><Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{t('progressScreen.title')}</Text>{loading ? <View style={styles.section}><Skeleton variant="stat-tile" label={t('progressScreen.loading')} /><Skeleton variant="habit-row" label={t('progressScreen.loading')} /></View> : null}{!loading && error ? <ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /> : null}{!loading && !error ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} tokens={tokens} /><GoalsSection goals={allGoals} tokens={tokens} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} tokens={tokens} /><AchievementsSection profile={gamification.profile} canView={canView} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}</NestableScrollContainer>
+  const loading = !error && (account.isLoading || goals.isLoading || (canView && gamification.isLoading))
+  const empty = !loading && !error && isProgressEmpty(allGoals.length, account.profile, canView ? gamification.profile : null)
+  const retry = () => {
+    void account.refetch()
+    void goals.refetch()
+    if (canView) void gamification.refetch()
+  }
+  return (
+    <NestableScrollContainer style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
+      {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
+      {empty ? <View style={styles.empty}><EmptyState title={t('progressScreen.empty')} action={<PillButton variant="ghost" size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></View> : null}
+      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} tokens={tokens} /><GoalsSection goals={allGoals} tokens={tokens} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} tokens={tokens} /><AchievementsSection profile={gamification.profile} canView={canView} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
+    </NestableScrollContainer>
+  )
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 }, content: { gap: 32, paddingBottom: 48, paddingHorizontal: 16, paddingTop: 32 },
-  title: { fontFamily: 'Geist_600SemiBold', fontSize: 28, lineHeight: 32 },
+  root: { flex: 1 }, content: { gap: 32, paddingBottom: 48, paddingHorizontal: 16, paddingTop: 16 },
+  loading: { gap: 32 }, loadingRows: { gap: 12 }, loadingSettings: { gap: 12, width: '100%', maxWidth: 560 },
+  loadingTileRow: { flexDirection: 'row', gap: 12 }, loadingTile: { flex: 1, minWidth: 0 },
+  error: { width: '100%', maxWidth: 620 }, empty: { paddingTop: 48 },
   section: { gap: 16 }, sectionTitle: { fontFamily: 'Geist_500Medium', fontSize: 20, lineHeight: 24 }, compactTitle: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 20 },
   streak: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 60, fontVariant: ['tabular-nums'], lineHeight: 64 },
   copy: { gap: 4 }, body: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 }, meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },
