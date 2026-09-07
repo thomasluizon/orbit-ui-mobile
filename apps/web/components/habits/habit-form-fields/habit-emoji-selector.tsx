@@ -10,7 +10,7 @@ interface HabitEmojiSelectorProps {
   wellSize?: number
 }
 
-export function HabitEmojiSelector({ selectedEmoji, onSelect, wellSize = 56 }: Readonly<HabitEmojiSelectorProps>) {
+export function HabitEmojiSelector({ selectedEmoji, onSelect, wellSize = 46 }: Readonly<HabitEmojiSelectorProps>) {
   const t = useTranslations()
   const [pickerOpen, setPickerOpen] = useState(false)
   const { sheetRef, closeSheet } = useSheetHost()
@@ -45,13 +45,12 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect, wellSize = 56 }: R
     <>
       <button
         type="button"
-        className="habit-control-motion grid shrink-0 cursor-pointer place-items-center border-0 hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+        className="habit-control-motion grid shrink-0 cursor-pointer place-items-center border-0 bg-[var(--bg-well)] hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
         style={{
           width: wellSize,
           height: wellSize,
           borderRadius: '999px',
           fontSize: wellSize === 76 ? 34 : 26,
-          background: 'var(--bg-well)',
         }}
         onClick={() => setPickerOpen(true)}
         aria-haspopup="dialog"
@@ -63,19 +62,20 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect, wellSize = 56 }: R
 
       {pickerOpen ? <Sheet ref={sheetRef} open title={t('habits.form.emojiPickerTitle')} onClose={hidePicker} headerAccessory={selectedEmoji ? (
         <div className="flex items-center gap-2">
-          <span className="grid size-10 place-items-center rounded-full bg-[var(--bg-well)] text-xl">{selectedEmoji}</span>
-          <button type="button" className="habit-control-motion grid size-10 place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--status-bad)] active:scale-[0.96]" aria-label={t('habits.form.emojiRemove')} onClick={() => onSelect('')}>
-            <Trash2 size={18} strokeWidth={1.8} aria-hidden="true" />
+          <span className="grid size-11 place-items-center rounded-full bg-[var(--bg-well)] text-xl">{selectedEmoji}</span>
+          <button type="button" className="habit-control-motion grid size-11 place-items-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-hover)] hover:text-[var(--status-bad)] active:scale-[0.96]" aria-label={t('habits.form.emojiRemove')} onClick={() => onSelect('')}>
+            <Trash2 size={20} strokeWidth={1.8} aria-hidden="true" />
           </button>
         </div>
       ) : undefined}>
-        <div className="space-y-3 p-4">
+        <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
             <input
               // react-doctor-disable-next-line no-autofocus -- emoji search field inside a user-invoked picker overlay; the user explicitly opened the picker to search, so focusing the search box on open is the intended interaction https://github.com/thomasluizon/orbit-ui-mobile/issues/243
               autoFocus
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              aria-label={t('habits.form.emojiSearchPlaceholder')}
               placeholder={t('habits.form.emojiSearchPlaceholder')}
               className="form-input min-w-0 flex-1"
             />
@@ -118,7 +118,7 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect, wellSize = 56 }: R
                 >
                   {t(category.labelKey)}
                 </h4>
-                <div className="grid grid-cols-7 gap-1.5 sm:grid-cols-9" role="listbox" aria-label={t(category.labelKey)}>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(44px,1fr))] gap-1" role="listbox" aria-label={t(category.labelKey)}>
                   {category.emojis.map((emoji) => {
                     const isSelected = selectedEmoji === emoji
                     return (
