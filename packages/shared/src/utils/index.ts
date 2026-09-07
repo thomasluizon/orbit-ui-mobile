@@ -591,6 +591,7 @@ export {
   achievementGlyphKey,
   buildGoalMovePositions,
   buildProtectedDayLabels,
+  deriveProgressViewState,
   filterProgressGoals,
   getAvailableStreakRepairDate,
   getGoalDeadlinePresentation,

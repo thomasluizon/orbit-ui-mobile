@@ -9,6 +9,25 @@ import type { Achievement, GamificationProfile } from '../types/gamification'
 import type { Goal, GoalPositionItem, GoalStatus } from '../types/goal'
 import type { Profile } from '../types/profile'
 
+type ProgressQueryState = { isLoading: boolean; isError: boolean }
+
+export function deriveProgressViewState({ goalCount, account, goals, gamification, canView }: {
+  goalCount: number
+  account: ProgressQueryState & {
+    profile: Pick<Profile, 'currentStreak' | 'longestStreak' | 'totalXp'> | undefined
+  }
+  goals: ProgressQueryState
+  gamification: ProgressQueryState & {
+    profile: Pick<GamificationProfile, 'currentStreak' | 'longestStreak' | 'totalXp' | 'achievementsEarned'> | null
+  }
+  canView: boolean
+}): { loading: boolean; error: boolean; empty: boolean } {
+  const error = account.isError || goals.isError || (canView && gamification.isError)
+  const loading = !error && (account.isLoading || goals.isLoading || (canView && gamification.isLoading))
+  const empty = !loading && !error && isProgressEmpty(goalCount, account.profile, canView ? gamification.profile : null)
+  return { loading, error, empty }
+}
+
 export function isProgressEmpty(
   goalCount: number,
   account: Pick<Profile, 'currentStreak' | 'longestStreak' | 'totalXp'> | undefined,

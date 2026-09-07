@@ -22,7 +22,7 @@ import {
   getGoalDeadlinePresentation,
   getGamificationLevelTitleKey,
   getStreakTierLabelKey,
-  isProgressEmpty,
+  deriveProgressViewState,
   visibleProgressAchievements,
   type ProgressGoalFilter,
 } from '@orbit/shared/utils'
@@ -284,9 +284,7 @@ export function ProgressContent() {
   const goals = useGoals()
   const gamification = useGamificationProfile(canView)
   const allGoals = goals.data?.allGoals ?? []
-  const error = account.isError || goals.isError || (canView && gamification.isError)
-  const loading = !error && (account.isLoading || goals.isLoading || (canView && gamification.isLoading))
-  const empty = !loading && !error && isProgressEmpty(allGoals.length, account.profile, canView ? gamification.profile : null)
+  const { error, loading, empty } = deriveProgressViewState({ goalCount: allGoals.length, account, goals, gamification, canView })
   const retry = () => {
     void account.refetch()
     void goals.refetch()

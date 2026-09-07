@@ -28403,6 +28403,7 @@
         "packages/shared/src/__tests__/preferences.test.ts",
         "packages/shared/src/__tests__/profile-navigation.test.ts",
         "packages/shared/src/__tests__/profile-selectors.test.ts",
+        "packages/shared/src/__tests__/progress-view-state.test.ts",
         "packages/shared/src/__tests__/progress.test.ts",
         "packages/shared/src/__tests__/push-notification-branches.test.ts",
         "packages/shared/src/__tests__/push-notification-settings.test.ts",
