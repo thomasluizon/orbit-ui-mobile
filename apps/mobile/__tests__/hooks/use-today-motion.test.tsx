@@ -68,7 +68,7 @@ describe('useTodayMotion', () => {
     await motion.update('2026-04-09')
 
     const values = transitionValues(motion.latest)
-    expect(values.opacity.value).toBeCloseTo(0.9)
+    expect(values.opacity.value).toBe(0.9)
     expect(values.translateY.value).toBe(8)
     expect(timing).toHaveBeenCalledWith(
       expect.anything(),
@@ -101,7 +101,7 @@ describe('useTodayMotion', () => {
 
     await motion.update('2026-04-10')
 
-    expect(values.opacity.value).toBeCloseTo(0.95)
+    expect(values.opacity.value).toBe(0.95)
     expect(values.translateY.value).toBe(3)
     await motion.unmount()
   })

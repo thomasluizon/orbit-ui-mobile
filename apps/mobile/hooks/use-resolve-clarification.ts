@@ -9,6 +9,9 @@ export function useResolveClarification() {
 
   return useMutation({
     mutationFn: async ({ operationId, value }: { operationId: string; value: string }) => {
+      // Cheap client-side guard mirroring the web server action — avoids a wasted
+      // round-trip if the caller hand-builds an oversized payload. Backend is
+      // authoritative via AppConstants.MaxClarificationValueLength.
       if (!value.trim() || value.length > MAX_CLARIFICATION_VALUE_LENGTH) {
         throw Object.assign(new Error('Invalid value'), { status: 400 })
       }
@@ -23,11 +26,13 @@ export function useResolveClarification() {
     },
 
     onSuccess: (response) => {
+      // Only invalidate when the tool actually ran successfully — Failed/Denied/PendingConfirmation
+      // leave the habit list unchanged.
       if (response.operation.status !== 'Succeeded') return
 
-      void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.count() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
   })
 }

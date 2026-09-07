@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   },
   pill: {
     borderRadius: 999,
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: 16,
   },
   pillLabel: {

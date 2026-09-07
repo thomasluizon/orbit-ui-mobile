@@ -24,7 +24,7 @@ async function loadModule() {
 }
 
 function insetPaddingBottom(result: unknown): number {
-  const layers = result as ({ paddingBottom?: number } | undefined)[]
+  const layers = result as Array<{ paddingBottom?: number } | undefined>
   const last = layers.at(-1)
   return last?.paddingBottom ?? Number.NaN
 }

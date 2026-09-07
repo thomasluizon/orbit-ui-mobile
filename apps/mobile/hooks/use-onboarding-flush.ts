@@ -49,12 +49,10 @@ export function useOnboardingFlush(): void {
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, hasCompletedOnboarding: true } : old,
         )
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: habitKeys.all }),
-          queryClient.invalidateQueries({ queryKey: goalKeys.all }),
-          queryClient.invalidateQueries({ queryKey: gamificationKeys.all }),
-          queryClient.invalidateQueries({ queryKey: profileKeys.all }),
-        ])
+        queryClient.invalidateQueries({ queryKey: habitKeys.all })
+        queryClient.invalidateQueries({ queryKey: goalKeys.all })
+        queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+        queryClient.invalidateQueries({ queryKey: profileKeys.all })
       } catch (error) {
         captureError(error)
       } finally {

@@ -79,7 +79,7 @@ describe('Sheet (mobile)', () => {
     expect(bodyScroller).toBeDefined()
     const nativeSheet = tree.root.findByType(TrueSheet)
     expect(nativeSheet.props.scrollable).toBe(true)
-    expect(nativeSheet.props.maxContentHeight).toBeCloseTo(892 * 0.85 - 24)
+    expect(nativeSheet.props.maxContentHeight).toBe(892 * 0.85 - 24)
   })
 
   it('lets a virtualized child own the body scroll container', async () => {

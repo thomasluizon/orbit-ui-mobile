@@ -36,7 +36,7 @@ export function createStyles() {
       fontFamily: 'GeistMono_400Regular',
       fontSize: 13,
       lineHeight: 18,
-      marginTop: 4,
+      marginTop: 3,
     },
     syncNowRow: {
       flexDirection: 'row',
@@ -96,7 +96,7 @@ export function createStyles() {
     },
     eventBody: {
       flex: 1,
-      gap: 4,
+      gap: 3,
     },
     eventTitle: {
       fontFamily: 'Geist_500Medium',
@@ -116,7 +116,7 @@ export function createStyles() {
     eventReminders: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      gap: 3,
     },
     eventDescription: {
       fontFamily: 'Geist_400Regular',
@@ -134,10 +134,10 @@ export function createStyles() {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 8,
+      gap: 7,
       borderRadius: 999,
       borderWidth: 1,
-      paddingVertical: 8,
+      paddingVertical: 9,
       paddingHorizontal: 16,
     },
     quietActionDim: {

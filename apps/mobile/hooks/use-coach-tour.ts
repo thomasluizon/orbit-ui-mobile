@@ -13,14 +13,12 @@ const COACH_TOUR_SEEN_KEY = 'orbit_coach_tour_seen'
  */
 export function useCoachTour() {
   const { profile } = useProfile()
-  const hasCompletedOnboarding = profile?.hasCompletedOnboarding ?? false
-  const hasCompletedTour = profile?.hasCompletedTour ?? false
   const triggered = useRef(false)
 
   useFocusEffect(
     useCallback(() => {
       if (triggered.current) return
-      if (!hasCompletedOnboarding || hasCompletedTour) return
+      if (!profile?.hasCompletedOnboarding || profile.hasCompletedTour) return
       if (useTourStore.getState().isActive) return
 
       let cancelled = false
@@ -43,6 +41,6 @@ export function useCoachTour() {
         cancelled = true
         clearTimeout(timer)
       }
-    }, [hasCompletedOnboarding, hasCompletedTour]),
+    }, [profile?.hasCompletedOnboarding, profile?.hasCompletedTour]),
   )
 }

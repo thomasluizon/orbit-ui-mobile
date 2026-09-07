@@ -1,7 +1,7 @@
-export function setStringAsync() {
+export async function setStringAsync() {
   return true
 }
 
-export function getStringAsync() {
+export async function getStringAsync() {
   return ''
 }

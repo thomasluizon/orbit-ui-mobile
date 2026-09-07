@@ -11,7 +11,7 @@ const FALLBACK_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=o
 
 const mocks = vi.hoisted(() => ({
   openURL: vi.fn(),
-  platform: { OS: 'android' },
+  platform: { OS: 'android' } as { OS: string },
   hasAction: vi.fn(),
   requestReview: vi.fn(),
   storeUrl: vi.fn(),
@@ -97,10 +97,9 @@ describe('mobile useReviewReminder', () => {
   it('dismiss snoozes the reminder by setting a future dismissedUntil', () => {
     seedEligibleState()
     const hook = renderReview(eligibleProfile)
-    const { dismiss: snoozeReminder } = hook.current
 
     TestRenderer.act(() => {
-      snoozeReminder()
+      hook.current.dismiss()
     })
 
     expect(useReviewReminderStore.getState().dismissedUntil).not.toBeNull()

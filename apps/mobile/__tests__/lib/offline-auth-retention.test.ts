@@ -99,7 +99,7 @@ describe('offline queue across the real API and auth boundary', () => {
     expect(queue.dequeue()).toBeNull()
     expect(queue.count()).toBe(0)
     await login()
-    expect(queue.getAll().map((row) => row.id).sort((a, b) => a.localeCompare(b))).toEqual(['later-delete', 'queued-delete'])
+    expect(queue.getAll().map((row) => row.id).sort()).toEqual(['later-delete', 'queued-delete'])
     expect(queue.getAll().every((row) => row.retries === 2)).toBe(true)
   })
 

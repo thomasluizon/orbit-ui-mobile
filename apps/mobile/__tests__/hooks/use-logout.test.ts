@@ -49,7 +49,7 @@ describe('useLogout (mobile)', () => {
 
   it('navigates only after session teardown resolves', async () => {
     const order: string[] = []
-    mocks.logout.mockImplementation(() => {
+    mocks.logout.mockImplementation(async () => {
       order.push('logout')
     })
     mocks.replace.mockImplementation(() => {

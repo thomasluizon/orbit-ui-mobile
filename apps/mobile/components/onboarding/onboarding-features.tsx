@@ -161,7 +161,7 @@ function createStyles(tokens: AppTokensV2) {
     },
     text: {
       flex: 1,
-      gap: 4,
+      gap: 3,
     },
     featureTitle: {
       fontFamily: 'Geist_500Medium',

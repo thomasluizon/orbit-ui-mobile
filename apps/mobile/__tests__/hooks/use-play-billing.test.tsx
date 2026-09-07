@@ -3,14 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { ErrorCode } from 'expo-iap'
 
-import {
-  extractPlayOffers,
-  mapPlayErrorKey,
-  selectPlayOffer,
-  usePlayBilling,
-  type PlayOffer,
-} from '@/hooks/use-play-billing'
-
 const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => {
@@ -68,6 +60,14 @@ vi.mock('@/stores/auth-store', () => ({
   useAuthStore: (selector: (state: { user: { userId: string } | null }) => unknown) =>
     selector({ user: mocks.state.authUser }),
 }))
+
+import {
+  extractPlayOffers,
+  mapPlayErrorKey,
+  selectPlayOffer,
+  usePlayBilling,
+  type PlayOffer,
+} from '@/hooks/use-play-billing'
 
 function renderUsePlayBilling(options?: { preferReferralOffer?: boolean }): ReturnType<typeof usePlayBilling> {
   const valueHolder: { current: ReturnType<typeof usePlayBilling> | null } = {
@@ -420,7 +420,7 @@ describe('usePlayBilling', () => {
     })
     expect(hook.current.isProcessing).toBe(true)
 
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
       mocks.state.iapOptions?.onPurchaseError?.({ code: ErrorCode.ServiceError })
     })
 

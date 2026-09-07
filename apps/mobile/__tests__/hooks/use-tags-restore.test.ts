@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
     getQueriesData: vi.fn(() => []),
     setQueriesData: vi.fn(),
   },
-  apiClient: vi.fn(() => undefined),
+  apiClient: vi.fn(async () => undefined),
   buildQueuedMutation: vi.fn((options: Record<string, unknown>) => ({ id: 'mutation-1', ...options })),
   createQueuedAck: vi.fn((id: string) => ({ queued: true as const, queuedMutationId: id })),
   isQueuedResult: vi.fn((value: unknown) => (

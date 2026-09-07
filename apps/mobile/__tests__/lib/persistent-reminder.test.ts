@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import expoNotificationsMock, {
-  AndroidImportance,
   dismissNotificationAsync,
   getPermissionsAsync,
   requestPermissionsAsync,
@@ -113,7 +112,7 @@ describe('persistent reminder', () => {
       expect(scheduleNotificationAsync).toHaveBeenCalledTimes(1)
       expect(setNotificationChannelAsync).toHaveBeenCalledWith(
         'persistent-reminder',
-        expect.objectContaining({ importance: AndroidImportance.LOW }),
+        expect.objectContaining({ importance: expoNotificationsMock.AndroidImportance.LOW }),
       )
 
       const request = lastScheduledRequest()

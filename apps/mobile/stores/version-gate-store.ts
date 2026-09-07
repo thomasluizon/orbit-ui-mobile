@@ -5,7 +5,7 @@ import {
 } from '@orbit/shared/stores'
 
 export const useVersionGateStore = create<VersionGateStoreState>((set) =>
-  createVersionGateStoreState(set),
+  createVersionGateStoreState(set as Parameters<typeof createVersionGateStoreState>[0]),
 )
 
 export function markUpgradeRequired(minVersion: string | null): void {

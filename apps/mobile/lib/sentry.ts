@@ -21,11 +21,8 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
     for (const breadcrumb of event.breadcrumbs) {
       if (breadcrumb.category === 'console') continue
       if (breadcrumb.category === 'http' && breadcrumb.data) {
-        const scrubbedData = { ...breadcrumb.data }
-        delete scrubbedData.Authorization
-        delete scrubbedData.authorization
-        delete scrubbedData.request_body
-        scrubbed.push({ ...breadcrumb, data: scrubbedData })
+        const { Authorization, authorization, request_body, ...rest } = breadcrumb.data
+        scrubbed.push({ ...breadcrumb, data: rest })
       } else {
         scrubbed.push(breadcrumb)
       }

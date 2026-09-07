@@ -126,8 +126,8 @@ function createStyles(tokens: AppTokens) {
     inputFocused: {
       borderWidth: 2,
       borderColor: tokens.primary,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingHorizontal: 15,
+      paddingVertical: 13,
     },
   })
 }

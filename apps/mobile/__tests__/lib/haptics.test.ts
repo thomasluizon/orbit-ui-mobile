@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   Platform: { OS: 'ios' },
   AccessibilityInfo: {
-    isReduceMotionEnabled: vi.fn(() => false),
+    isReduceMotionEnabled: vi.fn(async () => false),
   },
   Vibration: {
     vibrate: vi.fn(),

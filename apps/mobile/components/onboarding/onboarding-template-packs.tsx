@@ -235,7 +235,7 @@ function createStyles(tokens: AppTokensV2) {
     },
     packText: {
       flex: 1,
-      gap: 4,
+      gap: 3,
     },
     packName: {
       fontFamily: 'Geist_500Medium',

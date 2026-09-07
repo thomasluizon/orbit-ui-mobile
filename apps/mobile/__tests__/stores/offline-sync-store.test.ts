@@ -39,7 +39,7 @@ describe('offline recovery hydration', () => {
     const { store, saved, finish } = await startHydration()
     store.getState().addDrop(drop('new'))
     await finish()
-    expect(store.getState().drops.map((entry) => entry.id).sort((a, b) => a.localeCompare(b))).toEqual(['new', 'old'])
+    expect(store.getState().drops.map((entry) => entry.id).sort()).toEqual(['new', 'old'])
     expect(JSON.parse(saved.get(storageKey)!).state.drops).toHaveLength(2)
     await store.persist.rehydrate()
     expect(store.getState().drops).toHaveLength(2)

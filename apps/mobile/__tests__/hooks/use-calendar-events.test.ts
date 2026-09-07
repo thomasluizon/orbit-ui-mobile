@@ -34,7 +34,7 @@ function buildEvent(id: string): CalendarSyncEvent {
   }
 }
 
-function useCapturedQueryFn(): () => Promise<CalendarEventsResult> {
+function captureQueryFn(): () => Promise<CalendarEventsResult> {
   let captured: (() => Promise<CalendarEventsResult>) | null = null
   mocks.useQuery.mockImplementation(
     (config: { queryFn: () => Promise<CalendarEventsResult> }) => {
@@ -65,7 +65,7 @@ describe('mobile useCalendarEvents', () => {
   })
 
   it('returns a connected result with the fetched events', async () => {
-    const queryFn = useCapturedQueryFn()
+    const queryFn = captureQueryFn()
     mocks.apiClient.mockResolvedValue([buildEvent('a'), buildEvent('b')])
 
     const result = await queryFn()
@@ -78,7 +78,7 @@ describe('mobile useCalendarEvents', () => {
   })
 
   it('coerces a non-array payload to an empty connected list', async () => {
-    const queryFn = useCapturedQueryFn()
+    const queryFn = captureQueryFn()
     mocks.apiClient.mockResolvedValue(null)
 
     const result = await queryFn()
@@ -87,7 +87,7 @@ describe('mobile useCalendarEvents', () => {
   })
 
   it('maps a not-connected error to the not-connected status', async () => {
-    const queryFn = useCapturedQueryFn()
+    const queryFn = captureQueryFn()
     mocks.apiClient.mockRejectedValue(new Error('Google Calendar is not connected'))
 
     const result = await queryFn()
@@ -96,7 +96,7 @@ describe('mobile useCalendarEvents', () => {
   })
 
   it('maps an Unauthorized error to the not-connected status', async () => {
-    const queryFn = useCapturedQueryFn()
+    const queryFn = captureQueryFn()
     mocks.apiClient.mockRejectedValue(new Error('Unauthorized'))
 
     const result = await queryFn()
@@ -105,7 +105,7 @@ describe('mobile useCalendarEvents', () => {
   })
 
   it('rethrows unrelated network errors so the query surfaces them', async () => {
-    const queryFn = useCapturedQueryFn()
+    const queryFn = captureQueryFn()
     mocks.apiClient.mockRejectedValue(new Error('Internal server error'))
 
     await expect(queryFn()).rejects.toThrow('Internal server error')

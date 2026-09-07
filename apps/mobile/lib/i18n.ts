@@ -15,7 +15,7 @@ function detectInitialLocale() {
   }
 }
 
-void i18n.use(initReactI18next).init({
+i18n.use(initReactI18next).init({
   resources: {
     en: { translation: en },
     'pt-BR': { translation: ptBR },

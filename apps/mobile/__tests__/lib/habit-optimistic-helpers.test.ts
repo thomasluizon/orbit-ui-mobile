@@ -51,13 +51,13 @@ function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleIte
 
 function makeChild(overrides: Partial<HabitScheduleChild> = {}): HabitScheduleChild {
   return {
-    ...makeHabit(overrides),
+    ...makeHabit(overrides as Partial<HabitScheduleItem>),
     isLoggedInRange: false,
     instances: [],
     children: [],
     hasSubHabits: false,
     ...overrides,
-  }
+  } as unknown as HabitScheduleChild
 }
 
 describe('mobile optimistic habit helpers', () => {
@@ -111,7 +111,7 @@ describe('mobile optimistic habit helpers', () => {
     const child = makeChild({ id: 'child-1', children: [nestedChild], hasSubHabits: true })
     const parent = makeHabit({
       id: 'parent-1',
-      children: [child],
+      children: [child] as unknown as HabitScheduleChild[],
       hasSubHabits: true,
     })
 
@@ -128,7 +128,7 @@ describe('mobile optimistic habit helpers', () => {
     const child = makeChild({ id: 'child-1', children: [nestedChild], hasSubHabits: true })
     const keepParent = makeHabit({
       id: 'keep-parent',
-      children: [child],
+      children: [child] as unknown as HabitScheduleChild[],
       hasSubHabits: true,
     })
     const removeParent = makeHabit({ id: 'remove-parent' })
@@ -149,7 +149,7 @@ describe('mobile optimistic habit helpers', () => {
     const nestedParent = makeChild({ id: 'child-parent' })
     const parent = makeHabit({
       id: 'parent-1',
-      children: [nestedParent],
+      children: [nestedParent] as unknown as HabitScheduleChild[],
       hasSubHabits: true,
     })
     const newChild = makeChild({ id: 'child-2' })
@@ -167,7 +167,7 @@ describe('mobile optimistic habit helpers', () => {
     const parent = makeHabit({
       id: 'parent-1',
       position: 0,
-      children: [child],
+      children: [child] as unknown as HabitScheduleChild[],
       hasSubHabits: true,
     })
 
@@ -191,7 +191,7 @@ describe('mobile optimistic habit helpers', () => {
     })
     const parent = makeHabit({
       id: 'parent-1',
-      children: [child],
+      children: [child] as unknown as HabitScheduleChild[],
       hasSubHabits: true,
     })
 
@@ -209,7 +209,7 @@ describe('mobile optimistic habit helpers', () => {
     const child = makeChild({ id: 'child-1', children: [grandchild], hasSubHabits: true })
     const parent = makeHabit({
       id: 'parent-1',
-      children: [child],
+      children: [child] as unknown as HabitScheduleChild[],
       hasSubHabits: true,
     })
 
@@ -226,7 +226,7 @@ describe('mobile optimistic habit helpers', () => {
     const child = makeChild({ id: 'child-1', children: [grandParent], hasSubHabits: true })
     const parent = makeHabit({
       id: 'parent-1',
-      children: [child],
+      children: [child] as unknown as HabitScheduleChild[],
       hasSubHabits: true,
     })
 

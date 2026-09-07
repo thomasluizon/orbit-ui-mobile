@@ -1,17 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
 
-import { createTokensV2 } from "@/lib/theme";
-import {
-  CalendarHeader,
-  CalendarLegend,
-  CalendarWeekNav,
-} from "@/app/(tabs)/calendar/_components/calendar-shell";
-import {
-  CalendarStats,
-  type CalendarStat,
-} from "@/app/(tabs)/calendar/_components/calendar-stats";
-
 const TestRenderer = require("react-test-renderer");
 
 vi.mock("@/hooks/use-tour-target", () => ({
@@ -45,6 +34,17 @@ vi.mock("@/components/ui/year-picker", () => ({
       onPress: () => onSelectYear(2030),
     }),
 }));
+
+import { createTokensV2 } from "@/lib/theme";
+import {
+  CalendarHeader,
+  CalendarLegend,
+  CalendarWeekNav,
+} from "@/app/(tabs)/calendar/_components/calendar-shell";
+import {
+  CalendarStats,
+  type CalendarStat,
+} from "@/app/(tabs)/calendar/_components/calendar-stats";
 
 type TestNode = { type: unknown; props: Record<string, any> };
 type Tree = {

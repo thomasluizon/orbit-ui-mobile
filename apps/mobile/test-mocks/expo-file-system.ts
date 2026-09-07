@@ -1,7 +1,7 @@
 export class File extends Blob {
   readonly uri: string
 
-  constructor(...segments: ({ uri: string } | string)[]) {
+  constructor(...segments: Array<{ uri: string } | string>) {
     super(['mock-file-content'])
     this.uri = segments
       .map((segment) => (typeof segment === 'string' ? segment : segment.uri))

@@ -38,7 +38,7 @@ const mocks = vi.hoisted(() => {
     useQueryClient: vi.fn(() => queryClient),
     i18n: {
       language: 'en',
-      changeLanguage: vi.fn(() => undefined),
+      changeLanguage: vi.fn(async () => undefined),
     },
   }
 })

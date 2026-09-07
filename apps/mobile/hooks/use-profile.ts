@@ -41,7 +41,7 @@ export function useProfile(options?: { enabled?: boolean }) {
   }, [query.data?.language, i18n])
 
   const invalidate = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: profileKeys.all })
+    queryClient.invalidateQueries({ queryKey: profileKeys.all })
   }, [queryClient])
 
   const patchProfile = useCallback(

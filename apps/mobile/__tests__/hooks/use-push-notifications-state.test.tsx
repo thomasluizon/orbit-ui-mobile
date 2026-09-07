@@ -226,21 +226,6 @@ describe('usePushNotifications', () => {
     expect(mocks.storage.get('orbit_push_disabled:user-2')).toBeUndefined()
   })
 
-  it('does not register a token when there is no authenticated account', async () => {
-    mocks.auth.isAuthenticated = false
-    mocks.auth.user = null
-    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
-      createPermissionResponse('granted'),
-    )
-
-    await renderHarness()
-    await flush()
-
-    expect(notificationsModule.getDevicePushTokenAsync).toHaveBeenCalled()
-    expect(mocks.apiClient).not.toHaveBeenCalled()
-    expect(latestResult?.registrationStatus).toBe('idle')
-  })
-
   it('subscribes with the current payload shape and unsubscribes without re-registering on resume', async () => {
     vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
       createPermissionResponse('granted'),

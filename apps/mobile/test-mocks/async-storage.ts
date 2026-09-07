@@ -1,9 +1,9 @@
 const AsyncStorage = {
-  getItem: (_key: string) => null,
+  getItem: async (_key: string) => null,
   setItem: async (_key: string, _value: string) => {},
   removeItem: async (_key: string) => {},
   clear: async () => {},
-  multiGet: (_keys: string[]) => [],
+  multiGet: async (_keys: string[]) => [],
   multiSet: async (_entries: [string, string][]) => {},
   multiRemove: async (_keys: string[]) => {},
 }

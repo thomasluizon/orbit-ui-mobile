@@ -2,8 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types'
 
-import { useCoachTour } from '@/hooks/use-coach-tour'
-
 const TestRenderer = require('react-test-renderer')
 
 let mockProfile: Profile | undefined
@@ -19,8 +17,8 @@ vi.mock('expo-router', () => ({
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
-    getItem: vi.fn((key: string) => asyncStore[key] ?? null),
-    setItem: vi.fn((key: string, value: string) => {
+    getItem: vi.fn(async (key: string) => asyncStore[key] ?? null),
+    setItem: vi.fn(async (key: string, value: string) => {
       asyncStore[key] = value
     }),
   },
@@ -33,6 +31,8 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/stores/tour-store', () => ({
   useTourStore: { getState: () => storeState },
 }))
+
+import { useCoachTour } from '@/hooks/use-coach-tour'
 
 function HookHost() {
   useCoachTour()

@@ -12,6 +12,9 @@ import {
   useSetCalendarAutoSync,
 } from '@/hooks/use-calendar-auto-sync'
 
+// ---------------------------------------------------------------------------
+// Mocks
+// ---------------------------------------------------------------------------
 
 const mocks = vi.hoisted(() => {
   type Store = {
@@ -55,7 +58,7 @@ const mocks = vi.hoisted(() => {
         const currentValue = key === 'state' ? store.state : store.suggestions
         const nextValue =
           typeof updater === 'function'
-            ? (updater)(currentValue)
+            ? (updater as (old: unknown) => unknown)(currentValue)
             : updater
 
         if (key === 'state') {
@@ -87,6 +90,9 @@ vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
 
+// ---------------------------------------------------------------------------
+// Fixtures + helpers
+// ---------------------------------------------------------------------------
 
 type MutationConfig<TResult, TVariables, TContext> = {
   mutationFn: (variables: TVariables) => Promise<TResult>
@@ -133,6 +139,9 @@ function buildSuggestion(id: string): CalendarSyncSuggestion {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
 
 describe('mobile calendar auto-sync hooks', () => {
   beforeEach(() => {
@@ -185,12 +194,14 @@ describe('mobile calendar auto-sync hooks', () => {
       { previous: CalendarAutoSyncState | undefined }
     >
 
+    // Seed the store as if a useQuery had populated the cache.
     mocks.store.state = buildState({ enabled: false })
 
     mocks.apiClient.mockResolvedValue({ success: true })
 
     const context = await mutation.onMutate?.({ enabled: true })
 
+    // Optimistic update is applied immediately.
     expect(mocks.store.state.enabled).toBe(true)
 
     const result = await mutation.mutationFn({ enabled: true })
@@ -220,11 +231,13 @@ describe('mobile calendar auto-sync hooks', () => {
 
     const context = await mutation.onMutate?.({ enabled: true })
 
+    // Optimistic update toggled it on.
     expect(mocks.store.state.enabled).toBe(true)
 
     await expect(mutation.mutationFn({ enabled: true })).rejects.toThrow('Toggle failed')
     mutation.onError?.(new Error('Toggle failed'), { enabled: true }, context)
 
+    // Rolled back to the previous snapshot.
     expect(mocks.store.state).toEqual(initialState)
   })
 

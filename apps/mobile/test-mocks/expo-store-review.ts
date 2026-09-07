@@ -1,4 +1,4 @@
-export function hasAction() {
+export async function hasAction() {
   return true
 }
 

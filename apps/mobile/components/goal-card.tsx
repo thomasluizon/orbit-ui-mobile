@@ -267,7 +267,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
 
     badge: {
-      paddingHorizontal: 8,
+      paddingHorizontal: 9,
       paddingVertical: 2,
       borderRadius: 8,
       borderWidth: 1,

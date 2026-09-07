@@ -87,7 +87,7 @@ describe('NextRewardCarrot (mobile)', () => {
     expect(serialized).toContain('gamification.carrot.proTeaser.title')
     expect(serialized).toContain('gamification.carrot.proTeaser.achievements')
 
-    const [button] = findUpgradeButton(tree) as { props: { onPress: () => void } }[]
+    const [button] = findUpgradeButton(tree) as Array<{ props: { onPress: () => void } }>
     expect(button).toBeTruthy()
     TestRenderer.act(() => button!.props.onPress())
     expect(onUpgrade).toHaveBeenCalledTimes(1)

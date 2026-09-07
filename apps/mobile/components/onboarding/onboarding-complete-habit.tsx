@@ -166,7 +166,7 @@ function createStyles(tokens: AppTokensV2) {
       fontFamily: 'Geist_400Regular',
       fontSize: 13,
       color: tokens.fg3,
-      marginTop: 4,
+      marginTop: 3,
     },
     streakRow: {
       alignItems: 'center',

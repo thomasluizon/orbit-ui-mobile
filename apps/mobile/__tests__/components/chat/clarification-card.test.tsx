@@ -3,6 +3,9 @@ import type { ClarificationRequest } from '@orbit/shared/types'
 
 import { ClarificationCard } from '@/components/chat/clarification-card'
 
+// react-test-renderer ships as CJS-only and doesn't surface ESM-friendly types
+// for the bits we use, so we declare a local shape and require() it the same
+// way the sibling pending-operation-card.test.tsx does.
 interface TestNode {
   type: unknown
   props: {
@@ -125,7 +128,7 @@ describe('ClarificationCard (mobile)', () => {
 
   it('renders four quick-action buttons', async () => {
     let tree!: TestInstance
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
       tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
     })
 
@@ -135,7 +138,7 @@ describe('ClarificationCard (mobile)', () => {
 
   it('renders the question text', async () => {
     let tree!: TestInstance
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
       tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
     })
 
@@ -147,7 +150,7 @@ describe('ClarificationCard (mobile)', () => {
     mutateAsync.mockResolvedValueOnce({ operation: { status: 'Succeeded' } })
 
     let tree!: TestInstance
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
       tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
     })
 
@@ -167,7 +170,7 @@ describe('ClarificationCard (mobile)', () => {
     mutateAsync.mockResolvedValueOnce({ operation: { status: 'Succeeded' } })
 
     let tree!: TestInstance
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
       tree = TestRenderer.create(
         <ClarificationCard clarificationRequest={baseClarification} entityName="meditation" />,
       )
@@ -192,7 +195,7 @@ describe('ClarificationCard (mobile)', () => {
     mutateAsync.mockRejectedValueOnce(error)
 
     let tree!: TestInstance
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
       tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
     })
 
@@ -210,7 +213,7 @@ describe('ClarificationCard (mobile)', () => {
     mutateAsync.mockResolvedValueOnce({ operation: { status: 'Denied' } })
 
     let tree!: TestInstance
-    await TestRenderer.act(() => {
+    await TestRenderer.act(async () => {
       tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
     })
 

@@ -39,7 +39,7 @@ function resolveProseColors(tokens: AppTokens, tone: MarkdownTone): ProseColors 
   return { body: tokens.fg2, heading: tokens.fg1, link: tokens.fg1, activeLink: { color: tokens.fg2 } }
 }
 
-const SAFE_LINK_SCHEME = /^(https:|mailto:)/i
+const SAFE_LINK_SCHEME = /^(https?:|mailto:)/i
 
 function styleLinkChildren(children: ReactNode, style: TextStyle): ReactNode {
   return Children.map(children, (child) => {

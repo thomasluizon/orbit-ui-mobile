@@ -375,7 +375,7 @@ export function useUpdateGoalStatus() {
     mutationFn: async ({
       goalId,
       data,
-      goalName: _goalName,
+      goalName,
     }: {
       goalId: string
       data: UpdateGoalStatusRequest

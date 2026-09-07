@@ -3,13 +3,13 @@ import { describe, it, expect, vi } from "vitest";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 
+const TestRenderer = require("react-test-renderer");
+
 import { createTokensV2 } from "@/lib/theme";
 import {
   CalendarTimeGrid,
   type TimeGridColumn,
 } from "@/app/(tabs)/calendar/_components/calendar-time-grid";
-
-const TestRenderer = require("react-test-renderer");
 
 type TestNode = { type: unknown; props: Record<string, any> };
 type Tree = {
@@ -58,7 +58,7 @@ function renderGrid(
         t={translate}
         tokens={tokens}
       />,
-    );
+    ) as unknown as Tree;
   });
   return tree!;
 }

@@ -71,15 +71,15 @@ async function renderWrapped(
     return null
   }
 
-  const treeHolder: { current: { unmount: () => void } | null } = { current: null }
+  let tree: { unmount: () => void } | null = null
   await TestRenderer.act(async () => {
-    treeHolder.current = TestRenderer.create(React.createElement(Harness))
+    tree = TestRenderer.create(React.createElement(Harness))
     await Promise.resolve()
     await Promise.resolve()
   })
 
-  if (!ref.current || !treeHolder.current) throw new Error('useWrapped did not render')
-  mountedTrees.push(treeHolder.current)
+  if (!ref.current || !tree) throw new Error('useWrapped did not render')
+  mountedTrees.push(tree)
   return ref as { current: WrappedApi }
 }
 

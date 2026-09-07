@@ -137,6 +137,7 @@ describe('mobile useChecklistTemplates', () => {
       expect(next[1]?.items).toEqual(['B'])
       expect(next[1]?.id.startsWith('optimistic-')).toBe(true)
 
+      // When the cache is empty, still seeds with the placeholder
       const seeded = updater(undefined)!
       expect(seeded).toHaveLength(1)
       expect(seeded[0]?.name).toBe('New')
@@ -157,6 +158,8 @@ describe('mobile useChecklistTemplates', () => {
         snapshot,
       )
 
+      // When previous is undefined (empty-cache first-load case), the rollback
+      // still writes undefined back so the optimistic placeholder is cleared.
       mocks.queryClient.setQueryData.mockClear()
       onError(new Error('boom'), { name: 'X', items: [] }, { previous: undefined })
       expect(mocks.queryClient.setQueryData).toHaveBeenCalledWith(
@@ -201,6 +204,7 @@ describe('mobile useChecklistTemplates', () => {
       })
       expect(ctx.previous).toEqual(original)
 
+      // The setQueryData updater should remove the deleted entry
       const updateCall = mocks.queryClient.setQueryData.mock.calls[0]!
       const updater = updateCall[1] as (
         old: typeof original | undefined,
@@ -224,6 +228,7 @@ describe('mobile useChecklistTemplates', () => {
         snapshot,
       )
 
+      // Empty-cache path: setQueryData(key, undefined) clears the cache entry.
       mocks.queryClient.setQueryData.mockClear()
       onError(new Error('boom'), 't1', { previous: undefined })
       expect(mocks.queryClient.setQueryData).toHaveBeenCalledWith(

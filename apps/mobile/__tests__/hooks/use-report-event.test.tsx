@@ -28,7 +28,7 @@ vi.mock('@tanstack/react-query', () => ({
   useQuery: vi.fn(),
   useQueryClient: vi.fn(() => ({ invalidateQueries: mocks.invalidateQueries })),
   useMutation: (options: MutationOptions) => ({
-    mutateAsync: async (variables: string) => {
+    mutate: async (variables: string) => {
       const result = await options.mutationFn(variables)
       await options.onSuccess?.(result, variables, undefined)
     },
@@ -72,7 +72,7 @@ describe('mobile useReportEvent', () => {
     })
 
     const mutation = await callHook(() => useReportEvent())
-    await mutation.mutateAsync('card_shared')
+    await mutation.mutate('card_shared')
 
     expect(mocks.apiClient).toHaveBeenCalledWith(
       API.gamification.reportEvent,
@@ -93,7 +93,7 @@ describe('mobile useReportEvent', () => {
     mocks.apiClient.mockResolvedValue({ granted: [] })
 
     const mutation = await callHook(() => useReportEvent())
-    await mutation.mutateAsync('wrapped_viewed')
+    await mutation.mutate('wrapped_viewed')
 
     expect(mocks.enqueueCelebration).not.toHaveBeenCalled()
     expect(mocks.invalidateQueries).toHaveBeenCalled()

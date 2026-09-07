@@ -28,8 +28,8 @@ export function useHabitSuggestion() {
         habitSetupSuggestionSchema,
       ),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: subscriptionKeys.status() })
-      void queryClient.invalidateQueries({ queryKey: profileKeys.detail() })
+      queryClient.invalidateQueries({ queryKey: subscriptionKeys.status() })
+      queryClient.invalidateQueries({ queryKey: profileKeys.detail() })
     },
   })
 }

@@ -115,11 +115,9 @@ vi.mock('expo-sqlite', () => {
   }
 })
 
-let mutationSequence = 0
-
 function makeMutation(overrides: Partial<QueuedMutation> = {}): QueuedMutation {
   return {
-    id: overrides.id ?? `mutation-${mutationSequence++}`,
+    id: overrides.id ?? `mutation-${Math.random().toString(36).slice(2, 8)}`,
     timestamp: overrides.timestamp ?? Date.now(),
     type: overrides.type ?? 'createHabit',
     scope: overrides.scope ?? 'habits',
