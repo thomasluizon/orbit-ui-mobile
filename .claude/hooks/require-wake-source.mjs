@@ -8,7 +8,7 @@
 // re-derived here: launch-worker.mjs writes them with that same module, and two definitions of
 // where the files live is how one of them silently stops finding the other.
 //
-// This hook reads DISK ONLY: the run record, the receipt files it names, and pid liveness. It
+// This hook reads local state only: the run record, receipt files, and OS process identities. It
 // never calls GitHub. The previous revision re-verified every ledger row against live GitHub
 // (pull request view, branch protection, review threads, board item-list) on EVERY Stop of EVERY
 // session in this project, including for a dead session's ledger it then discarded on the
@@ -21,19 +21,9 @@
 import { readFileSync } from "node:fs"
 
 import { readinessReport } from "../../tools/lib/readiness-receipt.mjs"
-import { readRunState, readWakeSources } from "../../tools/lib/run-state.mjs"
+import { isWakeSourceAlive, readRunState, readWakeSources } from "../../tools/lib/run-state.mjs"
 import { readStdinJson } from "./_lib/io.mjs"
 import { checkSleepStop } from "./_lib/rules-sleep.mjs"
-
-/** Signal 0 tests for existence without delivering anything. EPERM means it exists and is not ours. */
-const isAlive = (pid) => {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return error?.code === "EPERM"
-  }
-}
 
 /** READY comes from the persisted receipt alone. An unreadable or not-READY receipt is null. */
 const receiptVerdict = (entry) => {
@@ -52,7 +42,7 @@ try {
     wakeSources: readWakeSources(),
     sessionId: input?.session_id ?? "",
     stopHookActive: input?.stop_hook_active === true,
-    isAlive,
+    isWakeSourceAlive,
     receiptVerdict,
   })
   if (verdict?.block) {

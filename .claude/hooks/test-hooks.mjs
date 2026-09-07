@@ -9,11 +9,11 @@
 // Plus a cheap frontmatter check over the agents and skills this repo ships.
 // Run: node .claude/hooks/test-hooks.mjs   (exits non-zero on any failure)
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { tmpdir } from "node:os"
 import { dirname, join } from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
@@ -325,14 +325,14 @@ console.log("\n# require-wake-source (_lib/rules-sleep.mjs)")
 const alive = () => true
 const dead = () => false
 const sleeping = { sessionId: "s1", sleep: true, remaining: ["ORB-2", "ORB-3"] }
-const stop = (options) => checkSleepStop({ sessionId: "s1", isAlive: dead, ...options })
+const stop = (options) => checkSleepStop({ sessionId: "s1", isWakeSourceAlive: dead, ...options })
 T("sleep-stop: work remaining and no live wake source blocks", blocks(stop({ state: sleeping })), true)
 T("sleep-stop: the refusal names the tickets and the action", stop({ state: sleeping })?.message.includes("LAUNCH THE NEXT TICKET"), true)
-T("sleep-stop: a live wake source allows", checkSleepStop({ state: sleeping, wakeSources: [{ pid: 1 }], sessionId: "s1", isAlive: alive }), null)
+T("sleep-stop: a live wake source allows", checkSleepStop({ state: sleeping, wakeSources: [{ pid: 1 }], sessionId: "s1", isWakeSourceAlive: alive }), null)
 // A leaked file from a crashed launcher is not a wake source, which is why liveness is checked at
 // all rather than the file's existence being trusted.
 T("sleep-stop: a registered but DEAD wake source is not one", blocks(stop({ state: sleeping, wakeSources: [{ pid: 1 }] })), true)
-T("sleep-stop: an exhausted queue allows", checkSleepStop({ state: { ...sleeping, remaining: [] }, sessionId: "s1", isAlive: dead }), null)
+T("sleep-stop: an exhausted queue allows", checkSleepStop({ state: { ...sleeping, remaining: [] }, sessionId: "s1", isWakeSourceAlive: dead }), null)
 // A salvaged pull request with no READY final-head receipt is unfinished work, not a finished
 // queue. PR #690 was opened by hand and reported as done while two required checks were red,
 // because opening it was treated as the end of salvage. Pullfrog now reviews every pull request in
@@ -341,17 +341,17 @@ T("sleep-stop: an exhausted queue allows", checkSleepStop({ state: { ...sleeping
 const salvaged = { ...sleeping, remaining: [], pullRequests: [{ repositoryKey: "ui", prNumber: 690, receiptPath: "C:/receipt.json" }] }
 T("sleep-stop: an open pull request with no READY receipt blocks the queue from reading as done", blocks(stop({ state: salvaged })), true)
 T("sleep-stop: the refusal names the repository-qualified pull request and receipt debt", stop({ state: salvaged })?.message.includes("ui#690") && stop({ state: salvaged })?.message.includes("READY final-head receipt"), true)
-T("sleep-stop: a live worker allows the turn to end", checkSleepStop({ state: salvaged, wakeSources: [{ pid: 1 }], sessionId: "s1", isAlive: alive }), null)
+T("sleep-stop: a live worker allows the turn to end", checkSleepStop({ state: salvaged, wakeSources: [{ pid: 1 }], sessionId: "s1", isWakeSourceAlive: alive }), null)
 T("sleep-stop: bare PR numbers are invalid run state and cannot clear readiness", blocks(stop({ state: { ...sleeping, remaining: [], pullRequests: [690] } })), true)
 T("sleep-stop: an append-only ledger survives a cleared pullRequests list", blocks(stop({ state: { ...sleeping, remaining: [], pullRequests: [], readinessLedger: salvaged.pullRequests } })), true)
-T("sleep-stop: a mechanically READY ledger permits queue completion", checkSleepStop({ state: { ...sleeping, remaining: [], pullRequests: [], readinessLedger: salvaged.pullRequests }, sessionId: "s1", isAlive: dead, receiptVerdict: () => "READY" }), null)
-T("sleep-stop: nothing remaining and no pull requests allows", checkSleepStop({ state: { ...sleeping, remaining: [], pullRequests: [] }, sessionId: "s1", isAlive: dead }), null)
-T("sleep-stop: a run that is not --sleep allows", checkSleepStop({ state: { ...sleeping, sleep: false }, sessionId: "s1", isAlive: dead }), null)
-T("sleep-stop: no record at all allows", checkSleepStop({ state: null, sessionId: "s1", isAlive: dead }), null)
+T("sleep-stop: a mechanically READY ledger permits queue completion", checkSleepStop({ state: { ...sleeping, remaining: [], pullRequests: [], readinessLedger: salvaged.pullRequests }, sessionId: "s1", isWakeSourceAlive: dead, receiptVerdict: () => "READY" }), null)
+T("sleep-stop: nothing remaining and no pull requests allows", checkSleepStop({ state: { ...sleeping, remaining: [], pullRequests: [] }, sessionId: "s1", isWakeSourceAlive: dead }), null)
+T("sleep-stop: a run that is not --sleep allows", checkSleepStop({ state: { ...sleeping, sleep: false }, sessionId: "s1", isWakeSourceAlive: dead }), null)
+T("sleep-stop: no record at all allows", checkSleepStop({ state: null, sessionId: "s1", isWakeSourceAlive: dead }), null)
 // A record from a previous run must never block today's session, and the session id is exact.
-T("sleep-stop: a record from another session allows", checkSleepStop({ state: sleeping, sessionId: "s2", isAlive: dead }), null)
+T("sleep-stop: a record from another session allows", checkSleepStop({ state: sleeping, sessionId: "s2", isWakeSourceAlive: dead }), null)
 // A blocked stop that blocks again is an infinite loop.
-T("sleep-stop: the second pass never blocks again", checkSleepStop({ state: sleeping, sessionId: "s1", stopHookActive: true, isAlive: dead }), null)
+T("sleep-stop: the second pass never blocks again", checkSleepStop({ state: sleeping, sessionId: "s1", stopHookActive: true, isWakeSourceAlive: dead }), null)
 
 /**
  * A run that CANNOT reach READY needs a legitimate terminal state. On 2026-08-08 a named blocker
@@ -370,12 +370,12 @@ T("sleep-stop: the BLOCKED banner names the pull request and its blocker", stop(
 T("sleep-stop: the same entry with NO recorded blocker still blocks the stop", blocks(stop({ state: { ...blockedRun, readinessLedger: [{ ...blockedEntry, blocker: null }] } })), true)
 T("sleep-stop: an empty blocker string is not a blocker", blocks(stop({ state: { ...blockedRun, readinessLedger: [{ ...blockedEntry, blocker: "" }] } })), true)
 // A finished run must stay silent, or a BLOCKED banner on every ending means nothing.
-T("sleep-stop: a genuinely READY queue reports no terminal banner", checkSleepStop({ state: blockedRun, sessionId: "s1", isAlive: dead, receiptVerdict: () => "READY" }), null)
+T("sleep-stop: a genuinely READY queue reports no terminal banner", checkSleepStop({ state: blockedRun, sessionId: "s1", isWakeSourceAlive: dead, receiptVerdict: () => "READY" }), null)
 // A live wake source means the TURN is ending, not the RUN. Announcing a final state there would be
 // the mirror of the defect: reporting an ending while work is still in flight.
 T(
   "sleep-stop: a blocked pull request with a LIVE wake source reports nothing, because the run has not ended",
-  checkSleepStop({ state: blockedRun, wakeSources: [{ pid: 1 }], sessionId: "s1", isAlive: alive }),
+  checkSleepStop({ state: blockedRun, wakeSources: [{ pid: 1 }], sessionId: "s1", isWakeSourceAlive: alive }),
   null,
 )
 
@@ -621,25 +621,11 @@ T("adapter identifier: the ledger is restored, so the id blocks again -> 2", run
  * a session id that does not match is treated as a previous run's and ignored.
  */
 const WAKE_HOOK = "require-wake-source.mjs"
-const { readWakeSources, runStatePath } = await import("../../tools/lib/run-state.mjs")
+const { clearWakeSource, readWakeSources, registerWakeSource, runStatePath, wakeSourceDirectory } = await import("../../tools/lib/run-state.mjs")
 const stopPayload = { session_id: "orbit-hooks-gate-session", stop_hook_active: false }
 const priorState = existsSync(runStatePath()) ? readFileSync(runStatePath(), "utf8") : null
-/**
- * LIVE, not merely registered. `readWakeSources` returns every registration file; the hook then
- * proves each pid with `process.kill(pid, 0)` before honouring it. Counting registrations made this
- * gate take the "a live wake source allows the stop" arm whenever an old overnight run had left a
- * file behind for a process that has since died, and then fail because the hook correctly blocked.
- * Measured on this checkout 2026-08-10: red on main and on the branch alike, for stale state alone.
- */
-const isAlive = (pid) => {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch {
-    return false
-  }
-}
-const liveWakeSources = readWakeSources().filter((source) => isAlive(source.pid)).length
+// The reader and the final predicate each prove the persisted process identity.
+const liveWakeSources = readWakeSources().length
 try {
   writeFileSync(runStatePath(), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }))
   // A live wake source is a legitimate reason NOT to block, so assert the blocking case only when
@@ -657,6 +643,142 @@ try {
   if (priorState === null) rmSync(runStatePath(), { force: true })
   else writeFileSync(runStatePath(), priorState)
 }
+// Exercise the real adapter in an isolated checkout so another run cannot mask a bad identity.
+const wakeCheckout = join(root, "wake-identity")
+const wakeHooks = join(wakeCheckout, ".claude", "hooks")
+mkdirSync(join(wakeCheckout, ".git"), { recursive: true })
+mkdirSync(wakeHooks, { recursive: true })
+cpSync(join(repoRoot, "tools", "lib"), join(wakeCheckout, "tools", "lib"), { recursive: true })
+cpSync(join(hooksDir, "_lib"), join(wakeHooks, "_lib"), { recursive: true })
+cpSync(join(hooksDir, WAKE_HOOK), join(wakeHooks, WAKE_HOOK))
+writeFileSync(runStatePath(wakeCheckout), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }))
+const wakeFile = join(wakeSourceDirectory(wakeCheckout), `${process.pid}.json`)
+const isolatedWakeStop = () => spawnSync(process.execPath, [join(wakeHooks, WAKE_HOOK)], {
+  input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true,
+}).status
+registerWakeSource({ pid: process.pid, what: "hook identity regression" }, wakeCheckout)
+const registeredWake = JSON.parse(readFileSync(wakeFile, "utf8"))
+T("wake identity: registration captures a real OS process start identity", typeof registeredWake.processStartIdentity, "string")
+T("wake identity: the same live process allows the real Stop adapter", isolatedWakeStop(), 0)
+writeFileSync(wakeFile, JSON.stringify({ ...registeredWake, processStartIdentity: `${registeredWake.processStartIdentity}:different-start` }))
+T("wake identity: a live pid with a different start identity blocks the real Stop adapter", isolatedWakeStop(), 2)
+T("wake identity: a live mismatched record is left alone", existsSync(wakeFile), true)
+writeFileSync(wakeFile, JSON.stringify({ pid: process.pid, what: "legacy registration" }))
+T("wake identity: a legacy pid-only record cannot allow a stop", isolatedWakeStop(), 2)
+T("wake identity: a legacy live record is left alone", existsSync(wakeFile), true)
+writeFileSync(wakeFile, JSON.stringify(registeredWake))
+// Keep the reader's real identity, then replace only the observation at the final decision.
+// Preloading patches the OS boundary in the actual adapter, including its predicate wiring.
+const wakeProbePreload = join(wakeCheckout, "wake-probe.mjs")
+const wakeProbeTrace = join(wakeCheckout, "wake-probes.json")
+writeFileSync(wakeProbePreload, `
+import childProcess from "node:child_process"
+import fs from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
+const observed = []
+const replaceIdentity = (identity) => {
+  const next = observed.length === 0 ? identity
+    : process.env.ORBIT_TEST_WAKE_PROBE === "unreadable" ? null : String(BigInt(identity) + 1n)
+  observed.push(next)
+  fs.writeFileSync(${JSON.stringify(wakeProbeTrace)}, JSON.stringify(observed))
+  if (next === null) throw new Error("process identity unavailable at final probe")
+  return next
+}
+const spawn = childProcess.spawnSync
+childProcess.spawnSync = (command, args, options) => {
+  const result = spawn(command, args, options)
+  if (command === "powershell.exe" && args.some((arg) => arg.includes("Get-Process -Id ${process.pid} "))) {
+    result.stdout = replaceIdentity(result.stdout.trim()) + "\\r\\n"
+  }
+  return result
+}
+const read = fs.readFileSync
+fs.readFileSync = (path, ...args) => {
+  const contents = read(path, ...args)
+  if (path !== "/proc/${process.pid}/stat") return contents
+  const start = contents.lastIndexOf(") ") + 2
+  const fields = contents.slice(start).trim().split(/\\s+/)
+  fields[19] = replaceIdentity(fields[19])
+  return contents.slice(0, start) + fields.join(" ") + "\\n"
+}
+syncBuiltinESMExports()
+`)
+for (const mode of ["replaced", "unreadable"]) {
+  writeFileSync(wakeProbeTrace, "[]")
+  const stopped = spawnSync(process.execPath, ["--import", pathToFileURL(wakeProbePreload).href, join(wakeHooks, WAKE_HOOK)], {
+    input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true,
+    env: { ...process.env, ORBIT_TEST_WAKE_PROBE: mode },
+  })
+  const observations = JSON.parse(readFileSync(wakeProbeTrace, "utf8"))
+  T(`wake identity: ${mode} identity after reader validation blocks the real Stop adapter`, {
+    status: stopped.status,
+    probes: observations.length,
+    readerMatched: registeredWake.processStartIdentity.endsWith(`:${observations[0]}`),
+    finalChanged: observations.length === 2 && observations[1] !== observations[0],
+    explainsBlock: stopped.stderr.includes("NO live background task"),
+  }, { status: 2, probes: 2, readerMatched: true, finalChanged: true, explainsBlock: true })
+}
+// Linux stat captured with `wsl.exe -d docker-desktop -- cat /proc/self/stat` for #437.
+// Change only the pid and observed state; keep the real adapter and successful kill(pid, 0).
+const linuxStat = "9 (cat) R 8 9 9 34816 9 4194560 174 0 1 0 0 0 0 0 20 0 1 0 185 1736704 194 18446744073709551615 104008432738304 104008433362862 140729346400016 0 0 0 0 4 0 0 0 0 17 1 0 0 0 0 0 104008433506352 104008433520688 104009433042944 140729346401036 140729346401056 140729346401056 140729346404335 0"
+const linuxBootId = "03b8381d-65e7-4b3e-b03e-138371be3664"
+const deadStatePreload = join(wakeCheckout, "wake-dead-state.mjs")
+writeFileSync(deadStatePreload, `
+import fs from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
+Object.defineProperty(process, "platform", { value: "linux" })
+const observed = []
+const read = fs.readFileSync
+fs.readFileSync = (path, ...args) => {
+  if (path === "/proc/sys/kernel/random/boot_id") return ${JSON.stringify(linuxBootId)} + "\\n"
+  if (path !== "/proc/${process.pid}/stat") return read(path, ...args)
+  const state = process.env.ORBIT_TEST_WAKE_STATE_AT === "final" && observed.length === 0
+    ? "R" : process.env.ORBIT_TEST_WAKE_STATE
+  observed.push(state)
+  fs.writeFileSync(${JSON.stringify(wakeProbeTrace)}, JSON.stringify(observed))
+  return ${JSON.stringify(linuxStat)}.replace(/^\\d+ \\(cat\\) R /, ${JSON.stringify(`${process.pid} (cat) `)} + state + " ") + "\\n"
+}
+syncBuiltinESMExports()
+`)
+writeFileSync(wakeFile, JSON.stringify({ ...registeredWake, processStartIdentity: `linux:${linuxBootId}:185` }))
+const deadStateResults = []
+for (const state of ["X", "x", "Z"]) {
+  for (const at of ["both", "final"]) {
+    writeFileSync(wakeProbeTrace, "[]")
+    const stopped = spawnSync(process.execPath, ["--import", pathToFileURL(deadStatePreload).href, join(wakeHooks, WAKE_HOOK)], {
+      input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true,
+      env: { ...process.env, ORBIT_TEST_WAKE_STATE: state, ORBIT_TEST_WAKE_STATE_AT: at },
+    })
+    deadStateResults.push({
+      state, at, status: stopped.status,
+      observations: JSON.parse(readFileSync(wakeProbeTrace, "utf8")),
+      explainsBlock: stopped.stderr.includes("NO live background task"),
+    })
+  }
+}
+T("wake identity: Linux dead states block the real Stop adapter at either probe", deadStateResults,
+  ["X", "x", "Z"].flatMap((state) => ["both", "final"].map((at) => ({
+    state, at, status: 2,
+    observations: at === "final" ? ["R", state] : [state],
+    explainsBlock: true,
+  }))))
+writeFileSync(wakeFile, JSON.stringify(registeredWake))
+const originalKill = process.kill
+try {
+  process.kill = () => { throw new Error("process probe unavailable") }
+  T("wake identity: an inconclusive probe supplies no wake source", readWakeSources(wakeCheckout).length, 0)
+  T("wake identity: an inconclusive probe never deletes the record", existsSync(wakeFile), true)
+} finally {
+  process.kill = originalKill
+}
+const exitedProcess = spawnSync(process.execPath, ["-e", ""], { windowsHide: true })
+const deadWakeFile = join(wakeSourceDirectory(wakeCheckout), `${exitedProcess.pid}.json`)
+writeFileSync(deadWakeFile, JSON.stringify({ pid: exitedProcess.pid, what: "exited launcher" }))
+T("wake identity: sweeping a dead registration keeps the live one", readWakeSources(wakeCheckout).map((source) => source.pid), [process.pid])
+T("wake identity: a proven dead registration is removed", existsSync(deadWakeFile), false)
+clearWakeSource(process.pid, wakeCheckout)
+T("wake identity: cleanup removes the matching launch registration", existsSync(wakeFile), false)
+
 // The ticket guard is wired to BOTH events: the shell call and source that would issue it later.
 const TICKET_HOOK = "forbid-raw-ticket-mutation.mjs"
 T("adapter tickets: raw issue edit -> 2", runHook(TICKET_HOOK, bash(`gh issue edit 215 --repo ${TICKET_REPO} --add-label Bug`)), 2)
