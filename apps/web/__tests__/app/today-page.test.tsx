@@ -3,7 +3,11 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
-import { TodayHabitsPanel, TodayHeaderRegion } from '@/app/(app)/today-page-view'
+import {
+  buildSelectionRefreshKey,
+  TodayHabitsPanel,
+  TodayHeaderRegion,
+} from '@/app/(app)/today-page-view'
 import { TodayDateControl } from '@/app/(app)/today-shell'
 import type { TodayView } from '@/app/(app)/use-today-page'
 import { useUIStore } from '@/stores/ui-store'
@@ -194,6 +198,12 @@ describe('Hoje date control', () => {
     motionTestState.completeAnimations = true
     motionTestState.reducedMotion = false
     motionTestState.renderedStyles.clear()
+  })
+
+  it('orders accented habit names with the active pt-BR locale', () => {
+    expect(buildSelectionRefreshKey(new Set(['Zebra', 'Água']), false, 'pt-BR')).toBe(
+      'Água,Zebra:some',
+    )
   })
 
   it('shows the day name over the numeric date', () => {

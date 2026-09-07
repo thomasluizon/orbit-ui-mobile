@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided motion components. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -24,6 +24,17 @@ const ConfirmSheet = dynamic(
   () => import('@/components/ui/confirm-sheet').then((module) => module.ConfirmSheet),
   { loading: () => null },
 )
+
+export function buildSelectionRefreshKey(
+  selectedHabitIds: ReadonlySet<string>,
+  allSelected: boolean,
+  locale: string,
+): string {
+  const selectedKey = Array.from(selectedHabitIds)
+    .sort((left, right) => left.localeCompare(right, locale))
+    .join(',')
+  return `${selectedKey}:${allSelected ? 'all' : 'some'}`
+}
 
 function boundaryKey(boundary: ReturnType<typeof getTodayBoundary>): string | null {
   if (boundary === 'last-loggable') return 'habits.todayBoundary.lastLoggable'
@@ -150,6 +161,7 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
 
 export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
   const t = useTranslations()
+  const locale = useLocale()
   const pathname = usePathname()
   const count = view.selectedHabitIds.size
 
@@ -167,7 +179,7 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
         onCancel={view.toggleSelectMode}
       />
     ),
-    `${Array.from(view.selectedHabitIds).sort().join(',')}:${view.selection.allSelected ? 'all' : 'some'}`,
+    buildSelectionRefreshKey(view.selectedHabitIds, view.selection.allSelected, locale),
   )
 
   return (
