@@ -17,7 +17,11 @@ export function useGoalDrag(drag: (() => void) | undefined) {
     gesture.current = null
   }
   return {
-    suppressPress: () => gesture.current?.suppressPress() ?? suppressed.current,
+    suppressPress: () => {
+      const shouldSuppress = gesture.current?.suppressPress() ?? suppressed.current
+      suppressed.current = false
+      return shouldSuppress
+    },
     onTouchStart: (event: GestureResponderEvent) => {
       if (gesture.current?.pointerType === 'mouse' || gesture.current?.pointerType === 'pen') return
       start('touch', event.nativeEvent.pageX, event.nativeEvent.pageY)
