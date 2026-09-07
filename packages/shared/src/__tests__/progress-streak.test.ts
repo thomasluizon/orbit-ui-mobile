@@ -21,8 +21,22 @@ describe('Progress streak history', () => {
     expect(buildProtectedDayLabels(dates, 'en', false, 'America/Sao_Paulo').every((day) => !day.isToday)).toBe(true)
   })
 
-  it.each([undefined, null, 'unsupported/timezone'])('labels no day as today without a usable account timezone (%j)', (timeZone) => {
-    expect(buildProtectedDayLabels(['2026-09-09', '2026-09-08'], 'en', true, timeZone).every((day) => !day.isToday)).toBe(true)
+  it.each([undefined, null, 'unsupported/timezone', ''])('matches the UTC date without a usable account timezone (%j)', (timeZone) => {
+    vi.setSystemTime(new Date('2026-09-09T01:00:00Z'))
+    const dates = ['2026-09-10', '2026-09-09', '2026-09-08']
+    expect(buildProtectedDayLabels(dates, 'en', true, timeZone).map(({ id, isToday }) => ({ id, isToday }))).toEqual([
+      { id: '2026-09-10', isToday: false },
+      { id: '2026-09-09', isToday: true },
+      { id: '2026-09-08', isToday: false },
+    ])
+    expect(buildProtectedDayLabels(dates, 'en', false, timeZone).every((day) => !day.isToday)).toBe(true)
+  })
+
+  it('labels a stored UTC calendar date as protected today for a null timezone', () => {
+    vi.setSystemTime(new Date('2026-09-09T01:00:00Z'))
+    expect(buildProtectedDayLabels(['2026-09-09'], 'en', true, null)).toEqual([
+      { id: '2026-09-09', dateLabel: 'Sep 9', isToday: true },
+    ])
   })
 
   it.each([

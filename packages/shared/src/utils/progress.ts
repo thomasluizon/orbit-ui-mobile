@@ -138,19 +138,20 @@ export function getAvailableStreakRepairDate(
   return isRepairAvailable === true && repairDate ? repairDate : null
 }
 
-function getProtectedAccountToday(timeZone: string): string | null {
+function getProtectedAccountToday(timeZone?: string | null): string {
+  const now = nowDate()
   try {
     return new Intl.DateTimeFormat('en-CA', {
-      timeZone,
+      timeZone: timeZone || 'UTC',
       calendar: 'iso8601',
       numberingSystem: 'latn',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
-    }).format(nowDate())
+    }).format(now)
   } catch (error) {
     if (!(error instanceof RangeError)) throw error
-    return null
+    return now.toISOString().slice(0, 10)
   }
 }
 
@@ -160,7 +161,7 @@ export function buildProtectedDayLabels(
   isFrozenToday = false,
   accountTimeZone?: string | null,
 ): { id: string; dateLabel: string; isToday: boolean }[] {
-  const accountToday = isFrozenToday && accountTimeZone ? getProtectedAccountToday(accountTimeZone) : null
+  const accountToday = isFrozenToday ? getProtectedAccountToday(accountTimeZone) : null
   const protectedDays = [...new Set(dates)].sort().reverse().flatMap((date) => {
     const parsed = startOfDay(parseISO(date))
     if (!isValid(parsed)) return []
