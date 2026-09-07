@@ -235,7 +235,7 @@ describe('mobile ProgressContent', () => {
     ['mouse', 'onPointerUp', false],
     ['mouse', 'onPointerCancel', false],
     ['touch', 'onTouchCancel', true],
-  ] as const)('suppresses only the release press after %s %s with early drift %s', async (pointerType, stopEvent, earlyDrift) => {
+  ] as const)('opens detail on the first non-pointer activation after %s %s with early drift %s', async (pointerType, stopEvent, earlyDrift) => {
     vi.useFakeTimers()
     const goal = createMockGoal()
     mocks.goals.data.allGoals = [goal, createMockGoal({ id: 'goal-2', title: 'Second', position: 1 })]
@@ -250,10 +250,12 @@ describe('mobile ProgressContent', () => {
       dispatch(stopEvent)
     })
     expect(mocks.drag).toHaveBeenCalledTimes(earlyDrift ? 0 : 1)
+    if (stopEvent === 'onTouchEnd' || stopEvent === 'onPointerUp') {
+      await TestRenderer.act(() => (card.props.onPress as () => void)())
+      expect(details(), 'the drag release must not open goal detail').toHaveLength(0)
+    }
     await TestRenderer.act(() => (card.props.onPress as () => void)())
-    expect(details(), 'the drag release must not open goal detail').toHaveLength(0)
-    await TestRenderer.act(() => (card.props.onPress as () => void)())
-    expect(details(), 'non-pointer activation after the release must open goal detail').toHaveLength(1)
+    expect(details(), 'the first non-pointer activation must open goal detail').toHaveLength(1)
     expect(details()[0]!.props.goalId).toBe(goal.id)
   })
 
