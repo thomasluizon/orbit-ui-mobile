@@ -133,6 +133,26 @@ function contrastOnSurface(foreground: string, layers: string[]): number {
 }
 
 describe('mobile alerts', () => {
+  it.each(['dark', 'light'] as const)('shows retry press feedback and restores its resting surface on release in %s', (mode) => {
+    state.mode = mode
+    state.isError = true
+    const tree = render()
+    expect(text(tree, en.notifications.loadError)).toHaveLength(1)
+    const retry = hosts(tree, 'Pressable', en.common.retry)[0]!
+    const surface = (pressed: boolean) => {
+      const style = retry.props.style
+      return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style).backgroundColor
+    }
+    const resting = surface(false)
+    const pressed = surface(true)
+    expect(pressed, 'Retry must visibly change its surface while pressed').not.toBe(resting)
+    const tokens = createTokensV2('purple', mode)
+    const label = retry.findAll((node) => node.type === 'Text' && node.props.children === en.common.retry)[0]!
+    const { color: foreground } = StyleSheet.flatten(label.props.style) as { color: string }
+    expect(contrastOnSurface(foreground, [tokens.bg, pressed])).toBeGreaterThanOrEqual(4.5)
+    expect(surface(false), 'Retry must restore its resting surface after release').toBe(resting)
+  })
+
   it.each(['dark', 'light'] as const)('shows an inset focus indicator until the row loses focus in %s', (mode) => {
     state.mode = mode
     seed(1)
