@@ -1,5 +1,6 @@
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useMemo, useState, type ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { Pencil, Trash2 } from '@/components/ui/icons'
 import type { HabitTag } from '@orbit/shared/types/habit'
@@ -51,13 +52,13 @@ export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, o
     {editor}
   </>
   return <>
-    <ListRow title={t('habits.form.tags')} value={t('habits.form.selectedCount', { count: selectedIds.length })} onClick={() => setOpen(true)} />
+    <ListRow inset={false} title={t('habits.form.tags')} value={t('habits.form.selectedCount', { count: selectedIds.length })} onClick={() => setOpen(true)} />
     <TagPreview tags={selectedTags} moreLabel={t('habits.form.moreSelected', { count: Math.max(0, selectedTags.length - 3) })} styles={styles} />
     {open ? <Sheet open title={t('habits.form.tags')} virtualizedBody={tags.length >= 21} onClose={() => { setOpen(false); setQuery('') }}><View style={styles.list}>
       {tags.length >= 8 ? <Text style={styles.count}>{t('habits.form.availableCount', { count: tags.length })}</Text> : null}
-      {tags.length >= 21 ? <BottomSheetAppTextInput value={query} onChangeText={setQuery} placeholder={t('habits.form.searchTags')} style={styles.search} /> : null}
+      {tags.length >= 21 ? <BottomSheetAppTextInput value={query} onChangeText={setQuery} accessibilityLabel={t('habits.form.searchTags')} placeholder={t('habits.form.searchTags')} style={styles.search} /> : null}
       {tags.length === 0 && !editor ? <View style={styles.empty}><Text numberOfLines={1} style={styles.emptyTitle}>{t('habits.form.noTags')}</Text><Pressable accessibilityRole="button" style={styles.action} onPress={onCreate}><Text numberOfLines={1} style={styles.actionText}>{t('habits.form.newTag')}</Text></Pressable></View> : null}
-      {tags.length >= 21 ? <KeyboardAwareFlatList data={filtered} renderItem={renderTag} keyExtractor={(tag) => tag.id} style={styles.virtualList} initialNumToRender={8} windowSize={5} nestedScrollEnabled keyboardShouldPersistTaps="handled" ListFooterComponent={trailingControls} /> : <>{filtered.map((tag) => <View key={tag.id}>{renderTag({ item: tag })}</View>)}{trailingControls}</>}
+      {tags.length >= 21 ? <KeyboardAwareFlatList key={query} data={filtered} renderItem={renderTag} keyExtractor={(tag) => tag.id} style={styles.virtualList} initialNumToRender={8} windowSize={5} nestedScrollEnabled keyboardShouldPersistTaps="handled" ListFooterComponent={trailingControls} /> : <>{filtered.map((tag) => <View key={tag.id}>{renderTag({ item: tag })}</View>)}{trailingControls}</>}
     </View></Sheet> : null}
   </>
 }

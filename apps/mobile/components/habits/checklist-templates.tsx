@@ -1,6 +1,6 @@
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useCallback, useMemo, useState } from 'react'
 import {
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -19,7 +19,7 @@ import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-i
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ListRow } from '@/components/ui/list-row'
-import { Sheet } from '@/components/ui/sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -64,6 +64,7 @@ export function ChecklistTemplates({
   const createTemplate = useCreateChecklistTemplate()
   const deleteTemplate = useDeleteChecklistTemplate()
   const [open, setOpen] = useState(false)
+  const { sheetRef, closeSheet } = useSheetHost()
   const [showSave, setShowSave] = useState(false)
   const [templateName, setTemplateName] = useState('')
 
@@ -88,9 +89,11 @@ export function ChecklistTemplates({
   const handleLoad = useCallback((id: string) => {
     const template = templates.find((entry) => entry.id === id)
     if (!template) return
-    onLoad(applyChecklistTemplate(template))
-    setOpen(false)
-  }, [onLoad, templates])
+    closeSheet(() => {
+      setOpen(false)
+      onLoad(applyChecklistTemplate(template))
+    })
+  }, [closeSheet, onLoad, templates])
 
   const handleDelete = useCallback((id: string) => {
     deleteTemplate.mutate(id, {
@@ -103,13 +106,14 @@ export function ChecklistTemplates({
   return (
     <>
       <ListRow
+        inset={false}
         icon="template"
         title={t('habits.form.templates')}
         value={templates.length > 0 ? String(templates.length) : undefined}
         onClick={() => setOpen(true)}
       />
       {open ? (
-        <Sheet open title={t('habits.form.templates')} onClose={() => setOpen(false)}>
+        <Sheet ref={sheetRef} open title={t('habits.form.templates')} onClose={() => setOpen(false)}>
           <View style={styles.container}>
             {templates.length > 0 && items.length > 0 && !showSave ? (
               <ListRow
@@ -229,7 +233,7 @@ function createStyles(tokens: AppTokens) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    emptyState: { alignItems: 'center', gap: 12, paddingHorizontal: 24, paddingVertical: 32 },
+    emptyState: { alignItems: 'center', gap: 12, paddingVertical: 32 },
     emptyTitle: { color: tokens.fg1, fontFamily: 'Geist_500Medium', fontSize: 20, textAlign: 'center' },
     emptyDescription: { color: tokens.fg3, fontFamily: 'Geist_400Regular', fontSize: 14, textAlign: 'center' },
     emptyAction: { backgroundColor: tokens.bgWell, borderRadius: 999, minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 },

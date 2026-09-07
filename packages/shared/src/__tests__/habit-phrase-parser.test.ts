@@ -41,6 +41,24 @@ const cases: PhraseCase[] = [
 ]
 
 describe('readHabitPhrase', () => {
+  it.each([
+    ['Read every day at 8h30', '08:30'],
+    ['Read every day 08h30', '08:30'],
+    ['Read every day at 8h', '08:00'],
+    ['Read every day 21h', '21:00'],
+  ])('consumes English h-clock forms: %s', (input, dueTime) => {
+    for (const variant of [input.toUpperCase(), input.toLowerCase()]) {
+      const read = readHabitPhrase(variant, 'en')
+      expect(read).toMatchObject({ cadence: 'daily', dueTime })
+      expect(read.consumed.filter((token) => token.kind === 'time')).toHaveLength(1)
+    }
+  })
+
+  it.each([9, 12, 99, 999])('accepts a positive weekly count of %s in both locales', (quantity) => {
+    expect(readHabitPhrase(`Run ${quantity} times a week`, 'en').frequencyQuantity).toBe(quantity)
+    expect(readHabitPhrase(`Correr ${quantity} vezes na semana`, 'pt-BR').frequencyQuantity).toBe(quantity)
+  })
+
   it.each(cases)('reads case and accent variants of $input', ({ input, locale, cadence, quantity, days, interval, time }) => {
     for (const variant of [input.toUpperCase(), input.toLowerCase(), input.normalize('NFD'), input.normalize('NFD').replace(/\p{M}/gu, '')]) {
       expect(readHabitPhrase(variant, locale)).toMatchObject({ cadence, frequencyQuantity: quantity ?? null, days: days ?? [], intervalWeeks: interval ?? null, dueTime: time ?? null })

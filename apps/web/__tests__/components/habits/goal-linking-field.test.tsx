@@ -131,5 +131,8 @@ describe('GoalLinkingField', () => {
 
     fireEvent.scroll(search.nextElementSibling!, { target: { scrollTop: 20 * 48 } })
     expect(await screen.findByText('Goal 20')).toBeInTheDocument()
+    fireEvent.change(search, { target: { value: 'Goal 49' } })
+    expect(screen.getByText('Goal 49')).toBeInTheDocument()
+    expect(search.nextElementSibling!.scrollTop).toBe(0)
   })
 })

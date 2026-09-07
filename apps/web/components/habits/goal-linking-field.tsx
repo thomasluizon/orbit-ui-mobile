@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 import { goalKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
@@ -48,6 +48,7 @@ function GoalPickerList({ goals, selectedIds, atLimit, onToggle }: Readonly<Goal
   const t = useTranslations()
   const [query, setQuery] = useState('')
   const [scrollTop, setScrollTop] = useState(0)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const filtered = goals.filter((goal) => goal.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   const virtualized = goals.length >= 21
   const start = virtualized ? Math.max(0, Math.floor(scrollTop / VIRTUAL_ROW_HEIGHT) - VIRTUAL_OVERSCAN) : 0
@@ -58,8 +59,8 @@ function GoalPickerList({ goals, selectedIds, atLimit, onToggle }: Readonly<Goal
   return (
     <div className="flex flex-col gap-1 p-2">
       {goals.length >= 8 ? <p className="px-3 py-1 text-xs text-[var(--fg-3)]">{t('habits.form.availableCount', { count: goals.length })}</p> : null}
-      {virtualized ? <input value={query} onChange={(event) => { setQuery(event.target.value); setScrollTop(0) }} className="form-input mb-2" placeholder={t('habits.form.searchGoals')} /> : null}
-      <div className={virtualized ? 'max-h-80 overflow-y-auto' : undefined} onScroll={virtualized ? (event) => setScrollTop(event.currentTarget.scrollTop) : undefined}>
+      {virtualized ? <input value={query} onChange={(event) => { setQuery(event.target.value); setScrollTop(0); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} className="form-input mb-2" aria-label={t('habits.form.searchGoals')} placeholder={t('habits.form.searchGoals')} /> : null}
+      <div ref={scrollRef} className={virtualized ? 'max-h-80 overflow-y-auto' : undefined} onScroll={virtualized ? (event) => setScrollTop(event.currentTarget.scrollTop) : undefined}>
         {virtualized && start > 0 ? <div aria-hidden="true" style={{ height: start * VIRTUAL_ROW_HEIGHT }} /> : null}
         {visible.map((goal) => {
           const selected = selectedIds.has(goal.id)
@@ -94,7 +95,7 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
 
   return (
     <>
-      <ListRow title={t('habits.form.goals')} value={t('habits.form.selectedCount', { count: selectedGoalIds.length })} onClick={() => setOpen(true)} />
+      <ListRow inset={false} title={t('habits.form.goals')} value={t('habits.form.selectedCount', { count: selectedGoalIds.length })} onClick={() => setOpen(true)} />
       {selectedGoals.length > 0 ? (
         <div className="flex flex-wrap gap-2 pt-2">
           {selectedGoals.slice(0, 3).map((goal) => <span key={goal.id} className="chip max-w-full truncate">{goal.title}</span>)}
@@ -102,10 +103,10 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
         </div>
       ) : null}
       {open ? (
-        <Sheet ref={sheetRef} open title={t('habits.form.goals')} onClose={() => setOpen(false)}>
+        <Sheet ref={sheetRef} open virtualizedBody={activeGoals.length >= 21} title={t('habits.form.goals')} onClose={() => setOpen(false)}>
           {activeGoals.length === 0 ? (
             <div className="flex flex-col items-center px-6 py-8 text-center" style={{ gap: 12 }}>
-              <p className="text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noGoals')}</p>
+              <p className="max-w-full truncate text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noGoals')}</p>
               <button type="button" className="chip mt-2" onClick={openCreateGoal}>{t('habits.form.createGoal')}</button>
             </div>
           ) : (

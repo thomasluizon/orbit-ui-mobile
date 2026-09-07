@@ -13,7 +13,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { icon, title, description, value, trailing, danger = false, action, chevron = true, onClick, readOnly = false } = props
   const titleColor = danger ? tokens.statusBad : tokens.fg1
-  const bodyStyle = [styles.body, action ? styles.bodyWithAction : null]
+  const bodyStyle = [styles.body, props.inset === false ? { paddingHorizontal: 0 } : null, action ? styles.bodyWithAction : null]
   const body: ReactNode = (
     <View style={[styles.bodyContent, bodyPressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.96 }] } : null]}>
       {icon ? (

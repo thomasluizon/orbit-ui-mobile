@@ -72,8 +72,9 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
     count: new RegExp(`\\b(?:(once|twice)|(${EN_NUMBER})\\s*(?:time|times|x))\\s*(?:(?:a|per|each)\\s*)?week\\b`, 'gu'),
     interval: new RegExp(`\\bevery\\s+(${EN_NUMBER})\\s+weeks?\\b`, 'gu'),
     times: [
-      /\bat\s+([01]?\d|2[0-3])(?::([0-5]\d))?\s*(am|pm)?\b(?![:\dh])/gu,
+      /\bat\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?\s*(am|pm)?\b(?![:\dh])/gu,
       /(?<![\w:])([01]?\d|2[0-3]):([0-5]\d)\s*(am|pm)?\b(?![:\d])/gu,
+      /(?<![\w:])([01]?\d|2[0-3])h([0-5]\d)?\b(?![:\d])/gu,
       /(?<![\w:])(1[0-2]|0?[1-9])\s*(am|pm)\b(?![:\d])/gu,
     ],
     numberWords: ENGLISH_NUMBERS,

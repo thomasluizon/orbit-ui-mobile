@@ -1,5 +1,6 @@
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
 import { useState, useMemo, useCallback } from "react";
-import { View, Text, Pressable } from "react-native";
+import { View, Text, } from "react-native";
 import { Plus, Trash2, X } from "@/components/ui/icons";
 import { useTranslation } from "react-i18next";
 import {
@@ -23,7 +24,7 @@ export function HabitEmojiSelector({
   tokens,
   styles,
   onSelect,
-  wellSize = 56,
+  wellSize = 46,
 }: Readonly<HabitEmojiSelectorProps>) {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -86,15 +87,14 @@ export function HabitEmojiSelector({
         title={t("habits.form.emojiPickerTitle")}
         headerAccessory={selectedEmoji ? (
           <View style={{ alignItems: 'center', flexDirection: 'row', gap: 8 }}>
-            <View style={{ alignItems: 'center', backgroundColor: tokens.bgWell, borderRadius: 999, height: 40, justifyContent: 'center', width: 40 }}><Text style={{ fontSize: 20 }}>{selectedEmoji}</Text></View>
-            <Pressable accessibilityRole="button" accessibilityLabel={t("habits.form.emojiRemove")} style={({ pressed }) => [{ alignItems: 'center', borderRadius: 999, height: 40, justifyContent: 'center', width: 40 }, pressed ? { transform: [{ scale: 0.96 }] } : null]} onPress={() => onSelect("")}>
-              <Trash2 size={18} color={tokens.fg2} strokeWidth={1.8} />
+            <View style={{ alignItems: 'center', backgroundColor: tokens.bgWell, borderRadius: 999, height: 44, justifyContent: 'center', width: 44 }}><Text style={{ fontSize: 20 }}>{selectedEmoji}</Text></View>
+            <Pressable accessibilityRole="button" accessibilityLabel={t("habits.form.emojiRemove")} style={({ pressed }) => [{ alignItems: 'center', borderRadius: 999, height: 44, justifyContent: 'center', width: 44 }, pressed ? { transform: [{ scale: 0.96 }] } : null]} onPress={() => onSelect("")}>
+              <Trash2 size={20} color={tokens.fg2} strokeWidth={1.8} />
             </Pressable>
           </View>
         ) : undefined}
       >
         <View style={styles.emojiSheetContent}>
-            <Text style={styles.hintText}>{t("habits.form.emojiDescription")}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <BottomSheetAppTextInput
                 value={query}
