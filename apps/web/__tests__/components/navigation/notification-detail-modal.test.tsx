@@ -21,6 +21,7 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 
 import { NotificationDetailModal } from '@/components/navigation/notification-detail-modal'
 import type { NotificationItem } from '@orbit/shared/types/notification'
+import { useUIStore } from '@/stores/ui-store'
 
 const mockNotification: NotificationItem = {
   id: 'n1',
@@ -42,6 +43,7 @@ describe('NotificationDetailModal', () => {
   }
 
   beforeEach(() => {
+    useUIStore.setState({ astraConversationOpen: false })
     defaultProps.onOpenChange.mockClear()
     defaultProps.onMarkAsRead.mockClear()
     defaultProps.onDelete.mockClear()
@@ -88,7 +90,7 @@ describe('NotificationDetailModal', () => {
 
   it('navigates and closes when view button clicked', () => {
     render(<NotificationDetailModal {...defaultProps} />)
-    fireEvent.click(screen.getByText('notifications.view'))
+    fireEvent.click(screen.getByRole('button', { name: /notifications.openIn/ }))
     expect(mockPush).toHaveBeenCalledWith('/progress')
     expect(defaultProps.onOpenChange).toHaveBeenCalledWith(false)
   })
@@ -98,7 +100,7 @@ describe('NotificationDetailModal', () => {
     render(
       <NotificationDetailModal {...defaultProps} notification={noUrlNotification} />,
     )
-    expect(screen.queryByText('notifications.view')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /notifications.openIn/ })).not.toBeInTheDocument()
   })
 
   it('does not navigate on open redirect attempt', () => {
@@ -106,6 +108,16 @@ describe('NotificationDetailModal', () => {
     render(
       <NotificationDetailModal {...defaultProps} notification={badUrl} />,
     )
-    expect(screen.queryByText('notifications.view')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /notifications.openIn/ })).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['/', '/'], ['/calendar', '/calendar'], ['/profile', '/profile'],
+    ['/', '/habits/a12b34cd-1234-4567-89ab-123456789abc', 'a12b34cd-1234-4567-89ab-123456789abc'], ['/chat', '/'], ['/calendar-sync?mode=review', '/calendar'],
+  ])('opens %s in its existing destination %s', (url, destination, habitId: string | null = null) => {
+    render(<NotificationDetailModal {...defaultProps} notification={{ ...mockNotification, url, habitId }} />)
+    fireEvent.click(screen.getByRole('button', { name: /notifications.openIn/ }))
+    expect(mockPush).toHaveBeenCalledWith(destination)
+    expect(useUIStore.getState().astraConversationOpen).toBe(url === '/chat')
   })
 })

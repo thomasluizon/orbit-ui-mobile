@@ -21,7 +21,7 @@ export const SHELL_DESTINATION_ROUTES: readonly ShellDestinationRoute[] = [
   { pattern: '/preferences', destination: 'perfil' },
   { pattern: '/advanced', destination: 'perfil' },
   { pattern: '/ai-settings', destination: 'perfil' },
-  { pattern: '/notifications', destination: 'perfil' },
+  { pattern: '/notifications', destination: 'hoje' },
   { pattern: '/account', destination: 'perfil' },
   { pattern: '/delete-account', destination: 'perfil' },
   { pattern: '/about', destination: 'perfil' },

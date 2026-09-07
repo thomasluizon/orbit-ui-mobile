@@ -34,9 +34,22 @@
  *     it, but it is not a value this rule can place on a 16/20/24 grid.
  *   - an icon whose props type resolves to `any`, which carries no declaration
  *     to attribute.
+ *   - class names reached through variables, spreads, or runtime interpolation.
+ *     Only literal string parts of `className` are scanned, including branches
+ *     and class-builder arguments; class-builder execution is not evaluated.
+ *   - arbitrary selector variants (`[&_path]:`), child selectors (`*:` / `**:`),
+ *     and pseudo-element variants (`before:` etc.). Those can size another node.
+ *     Arbitrary selectors are not interpreted, even if one would target the icon.
+ *     Named variants are treated as conditions; custom variant definitions are not read.
+ *   - classes other than `size-[Npx]`, `w-[Npx]` and `h-[Npx]`, optionally under
+ *     conditions or with a trailing important `!`. Other units, CSS variables,
+ *     calc(), theme spacing classes, and legacy leading `!` are not resolved.
+ *     Neither are styles or stylesheets.
+ *   - which declaration wins the CSS cascade. Each off-grid literal is reported
+ *     even if another class or a style would override it at runtime.
  */
 
-const { getAttribute, getAttributeValueNode, getElementName } = require('./_jsx-strings.cjs')
+const { collectStaticStrings, getAttribute, getAttributeValueNode, getElementName } = require('./_jsx-strings.cjs')
 
 const ALLOWED = new Set([16, 20, 24])
 
@@ -59,6 +72,62 @@ const staticSize = (node) => {
   if (typeof node.value === 'number') return node.value
   if (typeof node.value === 'string' && BARE_NUMBER.test(node.value.trim())) return Number(node.value)
   return null
+}
+
+// These built-in variants select pseudo-elements, not the icon's width or height.
+const PSEUDO_ELEMENTS = new Set([
+  'before', 'after', 'first-letter', 'first-line', 'marker', 'selection',
+  'file', 'placeholder', 'backdrop', 'details-content',
+])
+
+// Colons inside arbitrary values belong to the condition or selector, not the stack.
+const splitVariants = (token) => {
+  const parts = []
+  let depth = 0
+  let quote = null
+  let start = 0
+  for (let index = 0; index < token.length; index++) {
+    const character = token[index]
+    if (character === '\\') {
+      index++
+    } else if (quote) {
+      if (character === quote) quote = null
+    } else if (character === '"' || character === "'") {
+      quote = character
+    } else if (character === '[' || character === '(') {
+      depth++
+    } else if (character === ']' || character === ')') {
+      depth--
+    } else if (character === ':' && depth === 0) {
+      parts.push(token.slice(start, index))
+      start = index + 1
+    }
+  }
+  parts.push(token.slice(start))
+  return parts
+}
+
+const iconUtility = (token) => {
+  const variants = splitVariants(token)
+  const utility = variants.pop()
+  // Standalone brackets carry selectors, except at-rules, which carry conditions.
+  // Brackets within named variants (has-[], group-[], data-[]) still condition this node.
+  if (variants.some((variant) => PSEUDO_ELEMENTS.has(variant) || /^\*{1,2}$/.test(variant) ||
+    (variant.startsWith('[') && !variant.startsWith('[@')))) return null
+  return utility.endsWith('!') ? utility.slice(0, -1) : utility
+}
+
+// Check each dimension independently: a legal width cannot excuse an off-grid height.
+// Repeated values (including a square w/h pair) need only one diagnostic per attribute.
+const classSizes = (attribute) => {
+  const sizes = new Set()
+  for (const part of collectStaticStrings(getAttributeValueNode(attribute))) {
+    for (const token of part.split(/\s+/)) {
+      const match = /^(?:size|w|h)-\[(\d+(?:\.\d+)?)px\]$/.exec(iconUtility(token))
+      if (match && !ALLOWED.has(Number(match[1]))) sizes.add(Number(match[1]))
+    }
+  }
+  return [...sizes]
 }
 
 // A union or an intersection has to be opened up: an icon map indexed at render time
@@ -92,7 +161,7 @@ module.exports = {
   meta: {
     type: 'problem',
     docs: {
-      description: 'Icon `size` must be 16, 20 or 24 (DESIGN.md "Icons": Tabler is drawn on a 24 grid).',
+      description: 'Icon size props and arbitrary pixel classes must be 16, 20 or 24 (DESIGN.md "Icons").',
     },
     schema: [],
     messages: {
@@ -112,16 +181,22 @@ module.exports = {
 
         // The cheap AST test runs FIRST and rejects almost every element in the
         // repository, so the checker is asked only about the few tags that carry an
-        // off-grid literal size. That is what keeps a type-aware rule affordable.
+        // off-grid literal size prop or class. That keeps a type-aware rule affordable.
         const sizeAttribute = getAttribute(node, 'size')
-        if (!sizeAttribute) return
-
         const size = staticSize(getAttributeValueNode(sizeAttribute))
-        if (size === null || ALLOWED.has(size)) return
+        const classAttribute = getAttribute(node, 'className')
+        const offGridClasses = classSizes(classAttribute)
+        const offGridProp = size !== null && !ALLOWED.has(size)
+        if (!offGridProp && offGridClasses.length === 0) return
 
         if (!isTablerIcon(services.getTypeAtLocation(node.name), services, node.name)) return
 
-        context.report({ node: sizeAttribute, messageId: 'offGridIconSize', data: { size: String(size) } })
+        if (offGridProp) {
+          context.report({ node: sizeAttribute, messageId: 'offGridIconSize', data: { size: String(size) } })
+        }
+        for (const classSize of offGridClasses) {
+          context.report({ node: classAttribute, messageId: 'offGridIconSize', data: { size: String(classSize) } })
+        }
       },
     }
   },

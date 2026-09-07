@@ -53,6 +53,7 @@ import { useLiveOnboardingActions } from '@/components/onboarding/onboarding-act
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
+import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Fab } from '@/components/ui/fab'
@@ -137,6 +138,7 @@ function RootStackScreens({
 
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="notifications" />
         <Stack.Screen
           name="chat"
           options={{
@@ -298,14 +300,17 @@ function RootLayoutNav() {
         {showBottomNav ? (
           <Shell412
             {...conversation}
-            composer={
+            composer={pathname === '/notifications' ? undefined : (
               <Composer
                 {...chat.composerProps}
                 onOpenConversation={() => setAstraConversationOpen(true)}
                 conversationLabel={t('todayAstra.openConversation')}
               />
-            }
-            notice={<OfflineNotice />}
+            )}
+            notice={<>
+              <NotificationDeleteNotice />
+              <OfflineNotice />
+            </>}
             tabBar={<DestinationTabBar pathname={pathname} />}
             fab={pathname === '/' && !todayFabHidden
               ? <AppCreateFab onCreate={handleCreate} />
@@ -324,33 +329,48 @@ function RootLayoutNav() {
         )}
 
         {captureBuildEnabled && captureReady ? (
-          <>
-            <View
-              accessibilityLabel={captureProbeId}
-              accessible
-              collapsable={false}
-              importantForAccessibility="yes"
-              pointerEvents="none"
-              style={styles.captureProbe}
-              testID={captureProbeId}
-            />
-            {captureRequestId ? (
-              <View
-                accessibilityLabel={captureRequestId}
-                accessible
-                collapsable={false}
-                importantForAccessibility="yes"
-                pointerEvents="none"
-                style={styles.captureProbe}
-                testID={captureRequestId}
-              />
-            ) : null}
-          </>
+          <CaptureProbes
+            captureProbeId={captureProbeId}
+            captureRequestId={captureRequestId}
+          />
         ) : null}
       </View>
 
       {isAuthenticated ? <GlobalOverlays profile={profile} /> : null}
       {!isAuthenticated ? <AppToast /> : null}
+    </>
+  )
+}
+
+function CaptureProbes({
+  captureProbeId,
+  captureRequestId,
+}: Readonly<{
+  captureProbeId: string
+  captureRequestId: string | null
+}>) {
+  return (
+    <>
+      <View
+        accessibilityLabel={captureProbeId}
+        accessible
+        collapsable={false}
+        importantForAccessibility="yes"
+        pointerEvents="none"
+        style={styles.captureProbe}
+        testID={captureProbeId}
+      />
+      {captureRequestId ? (
+        <View
+          accessibilityLabel={captureRequestId}
+          accessible
+          collapsable={false}
+          importantForAccessibility="yes"
+          pointerEvents="none"
+          style={styles.captureProbe}
+          testID={captureRequestId}
+        />
+      ) : null}
     </>
   )
 }

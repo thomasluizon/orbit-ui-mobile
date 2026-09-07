@@ -5,6 +5,7 @@ import { API } from '@orbit/shared/api'
 const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({
   storage: new Map<string, string>(),
+  setAstraConversationOpen: vi.fn(),
   apiClient: vi.fn(() => Promise.resolve(undefined)),
   router: {
     push: vi.fn(),
@@ -80,6 +81,10 @@ vi.mock('expo-router', () => ({
   useRouter: () => mocks.router,
 }))
 
+vi.mock('@/stores/ui-store', () => ({
+  useUIStore: (selector: (state: { setAstraConversationOpen: typeof mocks.setAstraConversationOpen }) => unknown) => selector(mocks),
+}))
+
 vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
@@ -139,6 +144,7 @@ describe('usePushNotifications', () => {
     mocks.storage.clear()
     mocks.apiClient.mockClear()
     mocks.router.push.mockClear()
+    mocks.setAstraConversationOpen.mockClear()
     mocks.appState.listener = null
     mocks.auth.isAuthenticated = true
     mocks.auth.user = { userId: 'user-1' }
@@ -389,6 +395,38 @@ describe('usePushNotifications', () => {
       notify({ notification: { request: { content: {} } } })
     })
     expect(mocks.router.push).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['/chat', '/', true],
+    ['/calendar-sync', '/calendar', false],
+    ['/calendar-sync?mode=review', '/calendar', false],
+    ['/streak', '/progress', false],
+    ['/achievements?earned=latest', '/progress', false],
+    ['/retrospective/year', '/progress', false],
+    ['/', '/', false],
+    ['/calendar', '/calendar', false],
+    ['/progress?wrapped=month&year=2026&month=8', '/progress?wrapped=month&year=2026&month=8', false],
+    ['/profile', '/profile', false],
+  ])('routes the accepted push %s and applies its Astra overlay intent', async (url, destination, opensAstra) => {
+    await renderHarness()
+    await flush()
+    const listener = vi.mocked(notificationsModule.addNotificationResponseReceivedListener).mock.calls.at(-1)![0]
+    await TestRenderer.act(() => {
+      listener({
+        actionIdentifier: 'expo.modules.notifications.actions.DEFAULT',
+        notification: {
+          date: 1788670800000,
+          request: {
+            identifier: 'message-1', trigger: { type: 'push', channelId: null },
+            content: { title: 'Reminder', data: { url } },
+          },
+        },
+      } as unknown as Parameters<typeof listener>[0])
+    })
+    expect(mocks.router.push).toHaveBeenCalledWith(destination)
+    if (opensAstra) expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(true)
+    else expect(mocks.setAstraConversationOpen).not.toHaveBeenCalled()
   })
 
   it('reports unsupported and no-ops the actions when the module is unavailable', async () => {

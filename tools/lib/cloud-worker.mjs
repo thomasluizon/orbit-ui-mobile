@@ -55,6 +55,7 @@ export const CLOUD_FINISHING_CONTRACT = `## Cloud finishing contract
 - Include \`.claude/cloud-handoff.json\` in the committed diff, updating it after broader verification. Its required fields are \`needsDecision\` (null or the blocking question with your recommended answer), \`assumptions\` (an array of strings naming each choice and rejected alternative), \`manualSteps\` (an array of strings naming each external action, exact key/location and proof), and \`testResults\` (a non-empty string). Use empty arrays when there are none. Record a blocking decision here before committing the safe work; terminal output alone is not delivered. This artifact is required even when there are no decisions or manual steps.
 - Never \`--no-verify\`. If a pre-commit hook rejects the commit, report the exact hook output and stop, leaving the changes in place. Never edit a hook or a gate baseline to get past it.
 - Never push, never create a branch, never open a pull request. Delivery happens outside the container.
+- The orchestrator carries the committed handoff's \`testResults\` verbatim into the PR body's \`## Test evidence\` section using the materializer's \`pullRequestBody\` output.
 - Report the commit and test results, then stop. Do not wait on CI or poll GitHub Actions; the orchestrator owns CI waiting.`
 
 export const cloudOrder = (order, emptyRetryOf = null) => {
