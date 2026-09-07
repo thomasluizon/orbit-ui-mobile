@@ -26,7 +26,9 @@ vi.mock('react-native', async (importOriginal) => ({
 
 vi.mock('react-native-marked/src/components/MDImage', () => ({ default: 'Image' }))
 vi.mock('react-native-marked/src/components/MDSvg', () => ({ default: 'Image' }))
-vi.mock('react-native-marked/src/components/MDList', () => ({ default: 'List' }))
+vi.mock('react-native-marked/src/components/MDList', () => ({
+  default: ({ li }: { li: ReactElement[] }) => <section>{li}</section>,
+}))
 vi.mock('react-native-marked/src/components/MDTable', () => ({ default: 'Table' }))
 
 const markedProps: { current: Record<string, unknown> | null } = { current: null }
@@ -89,6 +91,30 @@ function renderParsedMarkdown(content: string) {
 }
 
 describe('mobile Markdown wrapper', () => {
+  describe.each([false, true])('list image labels with linked=%s', (linked) => {
+    it.each([false, true])('keeps list prose inline with nested=%s', (nested) => {
+      const image = '![alt](image.png)'
+      const content = `- before ${linked ? `[${image}](https://example.com/path)` : image} after${nested ? '\n  - nested' : ''}`
+      const tree = renderParsedMarkdown(content)
+      const item = tree.root.findAllByType('View')[0]
+      const inline = item.children.filter((child: { type: unknown }) => child.type === 'Text')
+      expect(inline, 'list item must have one inline text flow').toHaveLength(1)
+      const leaves = inline[0].findAllByType('Text').flatMap((node: { children: unknown[] }) => node.children.filter((child) => typeof child === 'string'))
+      expect(leaves.join('')).toBe('before alt after')
+      expect(tree.root.findAllByType('Image')).toHaveLength(0)
+      if (nested) {
+        expect(item.children).toHaveLength(2)
+        expect(inline[0].findAllByType('section')).toHaveLength(0)
+        expect(item.findAllByType('section')).toHaveLength(1)
+      }
+      if (linked) {
+        const link = inline[0].findAllByType('Text').find((node: { props: NativeLinkProps }) => node.props.accessibilityRole === 'link')
+        link.props.onPress()
+        expect(openURL).toHaveBeenCalledExactlyOnceWith('https://example.com/path')
+      }
+    })
+  })
+
   describe.each([false, true])('inline image labels with linked=%s', (linked) => {
     it.each(['alt', 'first  \nsecond'])('keeps the label in one inline sentence: %s', (source) => {
       const image = `![${source}](image.png)`

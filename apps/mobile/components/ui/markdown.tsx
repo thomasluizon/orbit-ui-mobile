@@ -99,6 +99,25 @@ class SafeLinkRenderer extends Renderer implements RendererInterface {
     return super.paragraph([this.text(children, this.textStyles)], styles)
   }
 
+  override listItem(children: ReactNode[], styles?: ViewStyle): ReactNode {
+    const blocks: ReactNode[] = []
+    let inline: ReactNode[] = []
+    const flush = () => {
+      if (inline.length > 0) blocks.push(this.text(inline, this.textStyles))
+      inline = []
+    }
+    for (const child of children) {
+      if (isValidElement(child) && (child.type === Text || child.type === ProseLink)) {
+        inline.push(child)
+      } else {
+        flush()
+        blocks.push(child)
+      }
+    }
+    flush()
+    return super.listItem(blocks, styles)
+  }
+
   override link(
     children: string | ReactNode[],
     href: string,

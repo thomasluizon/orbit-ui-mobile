@@ -106,7 +106,7 @@ export function Markdown({ content, className }: Readonly<MarkdownProps>) {
   const html = useMemo(() => {
     if (!content) return ''
     const raw = marked.parse(content, { async: false, renderer })
-    // DOMPurify has no sanitizer without a DOM; the renderer enforces the policy before this optional client pass. https://github.com/thomasluizon/orbit-tickets/issues/314
+    // Node's DOMPurify export has isSupported=false and no sanitize; the renderer enforces the policy before this client pass. https://github.com/thomasluizon/orbit-tickets/issues/314
     const sanitized = DOMPurify.isSupported ? DOMPurify.sanitize(raw, { ALLOWED_TAGS, ALLOWED_ATTR }) : raw
     return sanitized
       .replaceAll('<pre>', '<pre tabindex="0">')
