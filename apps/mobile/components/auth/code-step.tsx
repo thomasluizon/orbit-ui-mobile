@@ -7,13 +7,14 @@ import { PillButton } from '@/components/ui/pill-button'
 import { OtpInput } from '@/components/ui/otp-input'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import type { LoginStyles } from '@/app/login-styles'
-import { LoginOfflineNotice, LoginSuccessMessage } from './login-sections'
+import { LoginHeader, LoginOfflineNotice, LoginSuccessMessage } from './login-sections'
 
 interface CodeStepProps {
   email: string
   codeDigits: string[]
   onCodeChange: (value: string) => void
   isSubmitting: boolean
+  isResending: boolean
   canResend: boolean
   resendCountdown: number
   lockCountdown: number
@@ -29,7 +30,7 @@ interface CodeStepProps {
   t: (key: string, params?: Record<string, unknown>) => string
 }
 
-export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, canResend, resendCountdown,
+export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, isResending, canResend, resendCountdown,
   lockCountdown, codeFailure, errorSignal, successMessage, isOnline, onVerifyCode, onResendCode,
   onBackToEmail, tokens, styles, t }: Readonly<CodeStepProps>) {
   useEffect(() => {
@@ -53,7 +54,8 @@ export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, canRes
   }, [fieldError, reduced, shake])
   return <View style={styles.step}>
     <View style={styles.titleBlock}>
-      <Text style={styles.stepSubtitle}>{t('auth.codeSentTo')} {email}.</Text>
+      <LoginHeader step="code" t={t} styles={styles} />
+      <Text style={styles.stepSubtitle}>{t('auth.codeSentTo', { email })}</Text>
       <LoginSuccessMessage message={successMessage} styles={styles} />
       <View style={styles.quietAction}><PillButton variant="ghost" size="sm" disabled={isSubmitting}
         onClick={onBackToEmail}>{t('auth.changeEmail')}</PillButton></View>
@@ -65,10 +67,10 @@ export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, canRes
     </Animated.View>
     {!isOnline && <LoginOfflineNotice t={t} styles={styles} tokens={tokens} />}
     {!waiting && !expired && <PillButton onClick={onVerifyCode} disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6}
-      loading={isSubmitting}>{t('auth.verify')}</PillButton>}
+      loading={isSubmitting && !isResending}>{t('auth.verify')}</PillButton>}
     {!waiting && <View style={styles.titleBlock}>
       {canResend || expired ? <View style={styles.quietAction}>
-        <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting}>{t('auth.resendCode')}</PillButton>
+        <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting} loading={isResending}>{t('auth.resendCode')}</PillButton>
       </View> : <Text style={styles.mono}>{t('auth.resendIn', { time: formatLoginCountdown(resendCountdown) })}</Text>}
     </View>}
     {locked && <View style={styles.titleBlock}>

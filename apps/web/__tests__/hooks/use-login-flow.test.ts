@@ -274,6 +274,27 @@ describe('useLoginFlow verify-code failure', () => {
 })
 
 describe('auth state recovery', () => {
+  it.each(['success', 'failure'])('tracks the pending resend through %s without replaying verification', async (outcome) => {
+    vi.useFakeTimers()
+    const { result, unmount } = renderHook(() => useLoginFlow())
+    await advanceToCodeStep(result)
+    await act(async () => vi.advanceTimersByTime(60_000))
+    let settle!: (response: Response) => void
+    fetchMock.mockReturnValueOnce(new Promise<Response>((resolve) => { settle = resolve }))
+    let pending!: Promise<void>
+    act(() => { pending = result.current.resendCode() })
+    expect(result.current).toMatchObject({ isSubmitting: true, isResending: true })
+    const calls = fetchMock.mock.calls.length
+    await act(async () => { await result.current.resendCode(); await result.current.verifyCode('123456') })
+    expect(fetchMock).toHaveBeenCalledTimes(calls)
+    await act(async () => { settle(jsonResponse({}, outcome === 'success' ? 200 : 503)); await pending })
+    expect(result.current).toMatchObject({ isSubmitting: false, isResending: false })
+    expect(result.current.errorKey).toBe(outcome === 'success' ? null : 'auth.errors.sendFailed')
+    expect(result.current.successMessage).toBe(outcome === 'success' ? 'auth.codeResent' : null)
+    expect(mocks.setAuth).not.toHaveBeenCalled()
+    unmount()
+  })
+
   it.each([429, 500, 503])('keeps the address and one send failure for HTTP %s', async (status) => {
     fetchMock.mockResolvedValue(jsonResponse({ error: 'Request failed' }, status))
     const { result } = renderHook(() => useLoginFlow())

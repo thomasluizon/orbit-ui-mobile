@@ -40,6 +40,18 @@ function render() {
 
 describe.each(authLocales)('mobile auth composition in %s', (locale) => {
   beforeEach(() => vi.clearAllMocks())
+  it.each(['resend ready', 'code expired'] as const)('puts the busy state on resend for %s', (state) => {
+    const { t } = setFixture(state, locale)
+    mocks.flow.isSubmitting = true
+    mocks.flow.isResending = true
+    const tree = render()
+    expect(button(tree.root, t('auth.resendCode'))?.props.accessibilityState).toMatchObject({ busy: true })
+    if (state === 'code expired') expect(button(tree.root, t('auth.verify'))).toBeUndefined()
+    else expect(button(tree.root, t('auth.verify'))?.props.accessibilityState).toMatchObject({ busy: false })
+    expect(host(tree.root, 'TextInput')[0]!.props.editable).toBe(false)
+    act(() => tree.unmount())
+  })
+
   describe.each(['dark', 'light'])('%s theme', (theme) => {
     it.each(authScreenStates)('renders %s with its available recovery actions', (state) => {
       mocks.theme = theme
