@@ -18,7 +18,7 @@ const USAGE = `usage: teardown-worktree.mjs (--issue <ORB-N|#N|N> | --worktree <
   --issue <reference> remove the child worktree whose directory name contains ticket-<number>
   --worktree <path>   remove this child worktree (its name must contain ticket-<number>)
   --repo <key>        repository key the ticket must target
-  --base <ref>        branch that must contain the merge commit (default: worktree base or main)
+  --base <ref>        optionally narrow the merged pull request lookup to this target branch
   --help, -h          print this usage and exit 0
 
 All four checks must pass before anything is removed: the tree is clean, the pull request is merged
@@ -119,21 +119,21 @@ try {
 
 const path = worktree.path
 const branch = (worktree.branch ?? git(path, ["rev-parse", "--abbrev-ref", "HEAD"])).replace(/^refs\/heads\//, "")
-const base = requestedBase ?? "main"
-
-git(path, ["fetch", "--quiet", "origin", base], { allowFailure: true })
-const baseRef = git(path, ["rev-parse", "--verify", "--quiet", `origin/${base}`], { allowFailure: true }) ? `origin/${base}` : base
-
 let pullRequest
 try {
-  const [first] = JSON.parse(execFileSync(GH, ["pr", "list", "--head", branch, "--base", base, "--state", "merged", "--limit", "1", "--json", "number,mergeCommit,headRefOid,mergedAt"], { cwd: path, encoding: "utf8" }))
+  const baseFilter = requestedBase ? ["--base", requestedBase] : []
+  const [first] = JSON.parse(execFileSync(GH, ["pr", "list", "--head", branch, ...baseFilter, "--state", "merged", "--limit", "1", "--json", "number,mergeCommit,headRefOid,mergedAt,baseRefName"], { cwd: path, encoding: "utf8" }))
   pullRequest = first
 } catch (error) {
   fail(3, `gh pr list for ${branch} failed: ${(error.stdout?.toString() || error.stderr?.toString() || error.message).trim()}`)
 }
-if (!pullRequest?.mergedAt || !pullRequest.mergeCommit?.oid || !pullRequest.headRefOid) {
+if (!pullRequest?.mergedAt || !pullRequest.mergeCommit?.oid || !pullRequest.headRefOid || typeof pullRequest.baseRefName !== "string" || !pullRequest.baseRefName) {
   fail(1, `no merged pull request with merge and head commits was found for ${branch}`)
 }
+
+const base = pullRequest.baseRefName
+git(path, ["fetch", "--quiet", "origin", base], { allowFailure: true })
+const baseRef = git(path, ["rev-parse", "--verify", "--quiet", `origin/${base}`], { allowFailure: true }) ? `origin/${base}` : base
 
 /** Both commits are fetched first: a worktree legitimately has never seen the squash commit its
  * own branch became, and an unreadable commit must fail as unreadable rather than as "not an

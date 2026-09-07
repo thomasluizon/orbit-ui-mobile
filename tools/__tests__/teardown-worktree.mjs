@@ -11,7 +11,7 @@ let stagedConfigPath
 const check = (file, name, argv, expect, options = {}) => harnessCheck(file, name, [...argv, "--repo", "ui"], expect, { ...options, path: stagedToolPath })
 
 /** A linked child checkout is the smallest real Git fixture that can prove teardown verification. */
-const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, localFollowUp = false, contractSwitch = false } = {}) => {
+const stageTeardownWorktree = (label, { base = "main", dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, localFollowUp = false, contractSwitch = false } = {}) => {
   const primary = join(root, "teardown", label, "primary")
   const hasTicketName = !["no-ticket-name", "unlinked-refusal"].includes(label)
   const child = join(root, "teardown", label, hasTicketName ? `ticket-124-${label}` : "child")
@@ -20,7 +20,7 @@ const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMe
   const git = (cwd, args) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
   if (git(primary, ["init", "-q", "--bare", remote]).status !== 0) return null
   const initialBranch = contractSwitch ? "orca/ticket-124-teardown" : BRANCH
-  for (const args of [["init", "-q", "--initial-branch=main"], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"], ["remote", "add", "origin", remote], ["push", "-q", "-u", "origin", "main"], ["worktree", "add", "-q", "-b", initialBranch, child]]) {
+  for (const args of [["init", "-q", `--initial-branch=${base}`], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"], ["remote", "add", "origin", remote], ["push", "-q", "-u", "origin", base], ["worktree", "add", "-q", "-b", initialBranch, child]]) {
     if (git(primary, args).status !== 0) return null
   }
   if (contractSwitch && git(child, ["switch", "-q", "-c", BRANCH]).status !== 0) return null
@@ -35,7 +35,7 @@ const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMe
     }
     if (fastForwardMerged && git(primary, ["merge", "--ff-only", BRANCH]).status !== 0) return null
     mergeCommit = git(primary, ["rev-parse", "HEAD"]).stdout.trim()
-    if ((squashMerged || fastForwardMerged) && git(primary, ["push", "-q", "origin", "main"]).status !== 0) return null
+    if ((squashMerged || fastForwardMerged) && git(primary, ["push", "-q", "origin", base]).status !== 0) return null
   }
   const headCommit = git(child, ["rev-parse", "HEAD"]).stdout.trim()
   if (localFollowUp) {
@@ -43,10 +43,10 @@ const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMe
     if (git(child, ["add", "follow-up.txt"]).status !== 0 || git(child, ["commit", "-q", "-m", "local follow-up"]).status !== 0) return null
   }
   if (dirty) writeFileSync(join(child, "dirty.txt"), "uncommitted\n")
-  return { primary, child, headCommit, mergeCommit: mergeCommit ?? git(primary, ["rev-parse", "HEAD"]).stdout.trim() }
+  return { primary, child, headCommit, baseRefName: base, mergeCommit: mergeCommit ?? git(primary, ["rev-parse", "HEAD"]).stdout.trim() }
 }
 
-const mergedPullRequest = (fixture) => ({ number: 124, mergedAt: "2026-07-28T12:00:00Z", mergeCommit: { oid: fixture.mergeCommit }, headRefOid: fixture.headCommit })
+const mergedPullRequest = (fixture) => ({ number: 124, mergedAt: "2026-07-28T12:00:00Z", mergeCommit: { oid: fixture.mergeCommit }, headRefOid: fixture.headCommit, baseRefName: fixture.baseRefName })
 
 const pointConfigAt = (fixture) => {
   const config = realOrchestratorConfig()
@@ -113,6 +113,19 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     { env: orcaEnv(teardownPlan(switched)) },
   )
   T(`${TOOL}: contract-switch removal actually deleted the fixture`, !existsSync(switched.child), switchedResult.stderr)
+
+  const redesign = stageTeardownWorktree("redesign-base", { base: "redesign/main", changed: true, squashMerged: true, contractSwitch: true })
+  const redesignResult = check(
+    TOOL,
+    "without --base a branch merged into redesign/main is removed",
+    ["--issue", "ORB-124"],
+    { status: 0, stdout: /REMOVED worktree/ },
+    { env: orcaEnv([
+      { match: `pr list --head ${BRANCH} --base main`, stdout: "[]" },
+      ...teardownPlan(redesign),
+    ]) },
+  )
+  T(`${TOOL}: redesign-base removal actually deleted the fixture`, !existsSync(redesign.child), redesignResult.stderr)
 
   const primaryRefusal = stageTeardownWorktree("primary-refusal")
   pointConfigAt(primaryRefusal)
