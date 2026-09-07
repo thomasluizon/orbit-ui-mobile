@@ -8,6 +8,8 @@ answers *follow the best approach*, can I continue?" If yes, it is not a questio
 `design/canvas/`, `DESIGN.md` and the brain, and move on. Only a question that survives that test
 belongs in this file.
 
+**At a glance: one open question and the recorded redesign decisions, including notification text contrast (#459).**
+
 **Status: one open question, below. It does not block anything; `thomasluizon/orbit-tickets#329` is deferred for a
 different reason.**
 
@@ -58,6 +60,50 @@ easing, scale, or opacity input for the native presentation.
 
 Reversing this decision requires replacing the native sheet library. Thomas can confirm or
 override it at the whole redesign review; implementation and delivery continue now.
+
+### Notification text contrast (thomasluizon/orbit-tickets#459)
+
+Thomas settled the existing `--fg-2` token for notification body and metadata text on both
+platforms in the 2026-09-07 ticket comment. This changes two roles in the granted
+`design/canvas/Orbit Avisos.dc.html` drawing:
+
+- Body, lines 59 and 105: `font-size:14px;line-height:1.5;color:var(--fg-3);text-wrap:pretty`.
+- Timestamp, lines 57 and 103: `flex:0 0 auto;font-family:var(--font-mono);font-size:12px;color:var(--fg-4)`.
+- Target icon, lines 61 and 107: `display:grid;place-items:center;width:14px;height:14px;color:var(--fg-4)`.
+- Target label, lines 64 and 110: `font-family:var(--font-mono);font-size:12px;color:var(--fg-4)`.
+
+`DESIGN.md`, Accessibility, defines the role: "**Non-text UI elements meet 3:1 against their
+adjacent surface.** `--fg-4` is derived to exactly this floor at 3.03:1."
+Body and metadata are text and must clear 4.5:1. The target icon repeats the adjacent destination
+label and carries no unique meaning, so it retains `--fg-4`. Size (14px body, 12px mono metadata),
+weight and spacing retain hierarchy without relying on colour alone. Detail metadata uses `--fg-2`
+as well; its body already did. No global token changed.
+
+The merged bell opens `/notifications` on both platforms; there is no bell popover to measure.
+The actual layers are the inbox canvas, unread `bgCard` over that canvas, `bgHover` over the
+read or unread row on hover (web) or press (Android), and the opaque detail `bgSheet`.
+The theme resolvers in `apps/web/lib/theme-dom.ts` and `apps/mobile/lib/theme.ts` map these to
+`packages/shared/src/theme/neutral-ramp.ts`, with `bgSheet` equal to `bgElev`.
+
+Source-composited sRGB measurements, alpha blended in paint order and rounded to 8-bit channels:
+
+| Surface | Dark background | Dark fg2 | Light background | Light fg2 |
+|---|---|---|---|---|
+| Inbox, read row | `#09090B` | 12.0415:1 | `#FAFAFA` | 9.5719:1 |
+| Inbox, unread row | `#131315` | 11.2313:1 | `#FFFFFF` | 9.9909:1 |
+| Read row hover or press | `#2B2B2C` | 8.5611:1 | `#ECECEC` | 8.4570:1 |
+| Unread row hover or press | `#333335` | 7.6305:1 | `#F0F0F0` | 8.7669:1 |
+| Detail sheet | `#1C1C1E` | 10.2980:1 | `#FFFFFF` | 9.9909:1 |
+
+The old body measured 3.9132:1 on the dark unread hover or press pair. The old metadata measured
+1.9212:1 there and 2.5928:1 on the dark detail sheet. All corrected pairs exceed 7.63:1.
+These are calculations from the resolved production tokens and component layer composition,
+not browser or device measurements: the worker work order forbids opening either.
+Thomas confirms or overrides the deviation at the whole redesign review; work proceeds now.
+
+The same sweep measured the inset notification-row focus ring at 2.7564:1 when the dark unread
+row is hovered or pressed. The local ring also uses existing `fg2` on both platforms, retaining
+its 2px inset geometry and clearing 7.6305:1 on that pair. The global `primary` token is unchanged.
 
 ### Entrar lockout recovery (ORB-63, ticket 69)
 

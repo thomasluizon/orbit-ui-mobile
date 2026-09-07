@@ -114,22 +114,46 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+function contrastOnSurface(foreground: string, layers: string[]): number {
+  const channels = (color: string) => color.startsWith('#')
+    ? [1, 3, 5].map((offset) => Number.parseInt(color.slice(offset, offset + 2), 16))
+    : color.match(/[\d.]+/g)!.map(Number)
+  const background = layers.reduce((below, layer) => {
+    const [red, green, blue, alpha = 1] = channels(layer)
+    return [red!, green!, blue!].map((value, index) => Math.round(value * alpha + below[index]! * (1 - alpha)))
+  }, [0, 0, 0])
+  const luminance = (rgb: number[]) => rgb.slice(0, 3).reduce((sum, value, index) => {
+    const normalized = value / 255
+    const linear = normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
+    return sum + linear * [0.2126, 0.7152, 0.0722][index]!
+  }, 0)
+  const front = luminance(channels(foreground))
+  const back = luminance(background)
+  return (Math.max(front, back) + 0.05) / (Math.min(front, back) + 0.05)
+}
+
 describe('mobile alerts', () => {
   it.each(['dark', 'light'] as const)('shows an inset focus indicator until the row loses focus in %s', (mode) => {
     state.mode = mode
     seed(1)
     const tree = render()
     const row = () => hosts(tree, 'Pressable', 'Alert 0. unread. Progress')[0]!
-    const rowStyle = () => {
+    const rowStyle = (pressed = false) => {
       const style = row().props.style
-      return StyleSheet.flatten(typeof style === 'function' ? style({ pressed: false }) : style)
+      return StyleSheet.flatten(typeof style === 'function' ? style({ pressed }) : style)
     }
     expect(rowStyle().outlineWidth).toBeUndefined()
     TestRenderer.act(() => row().props.onFocus?.())
     expect(rowStyle()).toMatchObject({
       outlineWidth: 2, outlineOffset: -2, outlineStyle: 'solid',
-      outlineColor: createTokensV2('purple', mode).primary,
     })
+    const tokens = createTokensV2('purple', mode)
+    for (const pressed of [false, true]) {
+      const focusedStyle = rowStyle(pressed)
+      const layers = [tokens.bg, tokens.bgCard]
+      if (focusedStyle.backgroundColor) layers.push(focusedStyle.backgroundColor)
+      expect.soft(contrastOnSurface(focusedStyle.outlineColor, layers)).toBeGreaterThanOrEqual(3)
+    }
     TestRenderer.act(() => row().props.onBlur?.())
     expect(rowStyle().outlineWidth).toBeUndefined()
   })
