@@ -284,15 +284,14 @@ describe('UpgradeScreen', () => {
         node.type === 'Text'
           && node.props.accessibilityRole === 'header'
           && node.props.children === 'upgrade.billing.lapsed.title')).toHaveLength(1)
-      expect(tree.root.findAll((node) =>
-        node.type === 'Text'
-          && node.props.children === `upgrade.billing.lapsed.${lapseReason}`)).toHaveLength(0)
-      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'upgrade.billing.lapsed.ended')).toHaveLength(1)
-      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'upgrade.billing.lapsed.features')).toHaveLength(1)
+      const endedKey = lapseReason === 'payment_failed' ? 'payment_failed' : 'ended'
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === `upgrade.billing.lapsed.${endedKey}`)).toHaveLength(1)
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'upgrade.billing.lapsed.lostCalendar')).toHaveLength(1)
+      expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 'upgrade.billing.lapsed.lostRetrospective')).toHaveLength(1)
       expect(tree.root.findAll((node) => node.type === 'PricingSection')).toHaveLength(0)
       const action = tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'button-primary-md')[0]!
       TestRenderer.act(() => { (action.props.onPress as () => void)() })
-      expect(findByType(tree.root, 'PricingSection')).toBeTruthy()
+      expect(findByType(tree.root, 'PricingSection').props.focusOnMount).toBe(true)
     },
   )
 

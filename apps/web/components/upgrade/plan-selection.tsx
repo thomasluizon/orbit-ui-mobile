@@ -281,10 +281,10 @@ function TierCard({
           ) : null}
         </div>
         <p className="font-display text-[28px] font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums">
-          {tier.price}<span className="font-sans text-base font-normal text-[var(--fg-3)]">{tier.period}</span>
+          {tier.price}<span className="font-sans text-base font-normal" style={{ color: selected ? 'var(--fg-2)' : 'var(--fg-3)' }}>{tier.period}</span>
         </p>
         {tier.heroLine ? <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-2)]">{tier.heroLine}</p> : null}
-        {tier.secondLine ? <p className="font-mono text-xs leading-[1.5] tabular-nums text-[var(--fg-3)]">{tier.secondLine}</p> : null}
+        {tier.secondLine ? <p className="font-mono text-xs leading-[1.5] tabular-nums" style={{ color: selected ? 'var(--fg-2)' : 'var(--fg-3)' }}>{tier.secondLine}</p> : null}
         {tier.couponLine ? <p className="text-sm leading-[1.5] text-[var(--fg-2)]">{tier.couponLine}</p> : null}
       </div>
       <div className="pt-2">

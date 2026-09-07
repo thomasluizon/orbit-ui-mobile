@@ -2210,7 +2210,10 @@
         "payment_failed": "Sua assinatura terminou após um problema de pagamento em {date}.",
         "expired": "Sua assinatura expirou em {date}.",
         "fallback": "Sua assinatura terminou.",
-        "features": "O limite diário maior da Astra, a sincronização do calendário e a retrospectiva periódica não estão mais ativos.",
+        "lostMessages": "As mensagens do Astra voltaram para {limit} por dia.",
+        "lostCalendar": "A agenda do Google não sincroniza mais.",
+        "lostRetrospective": "A retrospectiva do período parou.",
+        "paymentFix": "Atualize a forma de pagamento no provedor.",
         "action": "Assinar de novo",
         "ended": "A sua assinatura terminou em {date}.",
         "body": "A conta voltou para o plano grátis. Os seus hábitos, registros e metas continuam aqui, sem mudança."
