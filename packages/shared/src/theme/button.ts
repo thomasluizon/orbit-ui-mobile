@@ -14,7 +14,7 @@ export interface ButtonSizeSpec {
   /** Label font size in px. */
   fontSize: number
   /** Leading-icon / busy-spinner size in px. */
-  iconSize: number
+  iconSize: 16 | 20 | 24
   /** Gap between the leading slot and the label in px. */
   gap: number
 }
@@ -22,5 +22,5 @@ export interface ButtonSizeSpec {
 /** `md` is the standard action and `sm` is the compact rail or toolbar action. */
 export const BUTTON_SIZES: Record<ButtonSize, ButtonSizeSpec> = {
   sm: { height: 40, paddingX: 18, fontSize: 14, iconSize: 16, gap: 7 },
-  md: { height: 50, paddingX: 26, fontSize: 16, iconSize: 18, gap: 9 },
+  md: { height: 50, paddingX: 26, fontSize: 16, iconSize: 20, gap: 9 },
 }
