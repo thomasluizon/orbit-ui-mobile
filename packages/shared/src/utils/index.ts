@@ -597,6 +597,7 @@ export {
   buildProtectedDayLabels,
   deriveProgressViewState,
   filterProgressGoals,
+  getProgressGoalLabelKey,
   getAvailableStreakRepairDate,
   getGoalDeadlinePresentation,
   getGamificationLevelTitleKey,

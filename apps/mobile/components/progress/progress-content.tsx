@@ -18,14 +18,15 @@ import {
   extractBackendErrorCode,
   filterProgressGoals,
   getAvailableStreakRepairDate,
-  getGoalMetricsStatusPresentation,
-  getGoalDeadlinePresentation,
+  getProgressGoalLabelKey,
   getGamificationLevelTitleKey,
   getStreakTierLabelKey,
   deriveProgressViewState,
   visibleProgressAchievements,
   type ProgressGoalFilter,
 } from '@orbit/shared/utils'
+import { Badge } from '@/components/ui/badge'
+import { useGoalDrag } from './use-goal-drag'
 import { DayStrip } from '@/components/dates/day-strip'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -54,7 +55,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
 import { StatusRing } from '@/components/ui/status-ring'
 import { useGamificationProfile, useRepairStreak, useStreakFreeze } from '@/hooks/use-gamification'
-import { useGoals, useReorderGoals, useUpdateGoalStatus } from '@/hooks/use-goals'
+import { useGoals, useReorderGoals } from '@/hooks/use-goals'
 import { useProfile } from '@/hooks/use-profile'
 import { useProgressRetrospective } from '@/hooks/use-retrospective'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
@@ -131,55 +132,38 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens }:
 
 function GoalIndicator({ goal }: Readonly<{ goal: Goal }>) {
   const { t } = useTranslation()
-  if (goal.status === 'Completed') {
-    return <StatusRing status="done" size={48} label={t('goals.status.completed')} />
-  }
-  if (goal.status !== 'Active') return null
-  return <ProgressRing value={goal.progressPercentage} size={48} label={t('goals.progressPercentage', { pct: Math.round(goal.progressPercentage) })} />
+  if (goal.status === 'Abandoned') return null
+  const label = t('goals.progressPercentage', { pct: Math.round(goal.progressPercentage) })
+  if (goal.status === 'Completed' || goal.progressPercentage >= 100) return <StatusRing status="done" size={30} label={label} />
+  return <ProgressRing value={goal.progressPercentage} size={44} label={label} />
 }
 
-function GoalDeadlineLine({ deadline, tokens }: Readonly<{ deadline: ReturnType<typeof getGoalDeadlinePresentation>; tokens: AppTokensV2 }>) {
+function GoalCard({ goal, index, canReorder, onDrag, onMove, onOpen, tokens }: Readonly<{
+  goal: Goal; index: number; canReorder: boolean; onDrag?: () => void; onMove: (goalId: string, target: number) => void; onOpen: () => void; tokens: AppTokensV2
+}>) {
   const { t } = useTranslation()
-  if (!deadline) return null
-  const color = deadline.state === 'overdue'
-    ? tokens.statusBadText
-    : deadline.state === 'dueToday' || deadline.state === 'soon'
-      ? tokens.statusOverdueText
-      : tokens.fg3
-  const copy = deadline.state === 'dueToday'
-    ? t('progressScreen.goals.dueToday')
-    : deadline.state === 'overdue'
-      ? t('progressScreen.goals.daysOverdue', { count: deadline.days })
-      : t('progressScreen.goals.daysLeft', { count: deadline.days })
-  return <Text style={[styles.meta, { color }]}>{copy}</Text>
-}
-
-function FinishGoalAction({ goal, tokens }: Readonly<{ goal: Goal; tokens: AppTokensV2 }>) {
-  const { t } = useTranslation()
-  const updateStatus = useUpdateGoalStatus()
-  return <View style={styles.copy}><Text style={[styles.meta, { color: tokens.fg3 }]}>{t('progressScreen.goals.finishReason')}</Text><View style={styles.actionStart}><PillButton variant="secondary" size="sm" loading={updateStatus.isPending} onClick={() => updateStatus.mutate({ goalId: goal.id, goalName: goal.title, data: { status: 'Completed' } })}>{t('progressScreen.goals.finish')}</PillButton></View></View>
-}
-
-function GoalCard({ goal, index, allGoals, canReorder, onLongPress, onOpen, tokens }: Readonly<{ goal: Goal; index: number; allGoals: readonly Goal[]; canReorder: boolean; onLongPress?: () => void; onOpen: () => void; tokens: AppTokensV2 }>) {
-  const { t } = useTranslation()
-  const reorder = useReorderGoals()
-  const achieved = goal.status === 'Active' && goal.progressPercentage >= 100
-  const tracking = getGoalMetricsStatusPresentation(goal.trackingStatus)
-  const deadline = getGoalDeadlinePresentation(goal.deadline, goal.status)
-  const move = (offset: number) => { const positions = buildGoalMovePositions(allGoals, goal.id, index + offset); if (positions) reorder.mutate(positions) }
+  const { suppressPress, ...gesture } = useGoalDrag(canReorder ? onDrag : undefined)
+  const labelKey = getProgressGoalLabelKey(goal)
+  const abandoned = goal.status === 'Abandoned'
   return (
-    <View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
-      <Pressable accessible accessibilityRole="button" accessibilityLabel={goal.title} accessibilityHint={canReorder ? t('progressScreen.goals.reorderHint') : undefined} accessibilityActions={canReorder ? [{ name: 'decrement', label: t('progressScreen.goals.moveUp') }, { name: 'increment', label: t('progressScreen.goals.moveDown') }] : undefined} onAccessibilityAction={canReorder ? (event) => move(event.nativeEvent.actionName === 'decrement' ? -1 : 1) : undefined} onLongPress={onLongPress} delayLongPress={300} onPress={onOpen} style={({ pressed }) => [styles.goalButton, pressed ? styles.pressed : null]}>
-        <View style={styles.goalRow}>
-          <GoalIndicator goal={goal} />
-          <View style={styles.goalCopy}><Text numberOfLines={1} style={[styles.cardTitle, { color: tokens.fg1 }]}>{goal.title}</Text>{goal.status !== 'Abandoned' ? <Text style={[styles.meta, { color: tokens.fg3 }]}>{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</Text> : null}</View>
-          <Text style={[styles.meta, { color: tokens.fg3 }]}>{achieved ? t('goals.status.achieved') : t(`goals.status.${goal.status.toLowerCase()}`)}</Text>
+    <Pressable accessible accessibilityRole="button" accessibilityLabel={goal.title}
+      accessibilityHint={canReorder ? t('progressScreen.goals.reorderHint') : undefined}
+      accessibilityActions={canReorder ? [{ name: 'decrement', label: t('progressScreen.goals.moveUp') }, { name: 'increment', label: t('progressScreen.goals.moveDown') }] : undefined}
+      onAccessibilityAction={canReorder ? (event) => {
+        const action = event.nativeEvent.actionName
+        if (action === 'decrement' || action === 'increment') onMove(goal.id, index + (action === 'decrement' ? -1 : 1))
+      } : undefined}
+      {...gesture} onPress={() => { if (!suppressPress()) onOpen() }}
+      style={({ pressed }) => [styles.goalCard, { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard, borderColor: tokens.hairlineGhost }]}>
+      <View style={styles.goalCopy}>
+        <Text style={[styles.goalTitle, { color: abandoned ? tokens.fg3 : tokens.fg1 }]}>{goal.title}</Text>
+        <View style={styles.goalMeta}>
+          {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
+          {!abandoned ? <Text style={[styles.meta, { color: tokens.fg3 }]}>{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</Text> : null}
         </View>
-        {goal.status === 'Active' && tracking ? <Text style={[styles.meta, { color: tokens.fg3 }]}>{t(tracking.labelKey)}</Text> : null}
-        <GoalDeadlineLine deadline={deadline} tokens={tokens} />
-      </Pressable>
-      {achieved ? <FinishGoalAction goal={goal} tokens={tokens} /> : null}
-    </View>
+      </View>
+      <GoalIndicator goal={goal} />
+    </Pressable>
   )
 }
 
@@ -192,22 +176,28 @@ function GoalsSection({ goals, tokens }: Readonly<{ goals: readonly Goal[]; toke
   const filtered = filterProgressGoals(goals, filter)
   const options = [{ value: 'all', label: t('progressScreen.goals.all') }, { value: 'active', label: t('progressScreen.goals.active') }, { value: 'completed', label: t('progressScreen.goals.completed') }, { value: 'abandoned', label: t('progressScreen.goals.abandoned') }] as const
   const handleDragEnd = ({ data, from, to }: DragEndParams<Goal>) => {
-    if (from === to) return
+    if (filter !== 'all' || reorder.isPending || from === to) return
     const positions: GoalPositionItem[] = data.map((goal, position) => ({ id: goal.id, position }))
     reorder.mutate(positions)
   }
+  const move = (goalId: string, target: number) => {
+    const positions = buildGoalMovePositions(goals, goalId, target)
+    if (positions) reorder.mutate(positions)
+  }
   const renderGoal = ({ item, getIndex, drag }: RenderItemParams<Goal>) => {
     const index = getIndex() ?? goals.findIndex((goal) => goal.id === item.id)
-    return <GoalCard goal={item} index={index} allGoals={goals} canReorder={filter === 'all'} onLongPress={filter === 'all' ? drag : undefined} onOpen={() => setDetailGoalId(item.id)} tokens={tokens} />
+    return <GoalCard goal={item} index={index} canReorder={filter === 'all' && !reorder.isPending} onDrag={drag} onMove={move} onOpen={() => setDetailGoalId(item.id)} tokens={tokens} />
   }
   return (
-    <Section title={t('progressScreen.sections.goals')} tokens={tokens}>
+    <View accessibilityLabel={t('progressScreen.sections.goals')} style={styles.goalsSection}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
       {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={setFilter} label={t('progressScreen.goals.views')} /> : null}
       {goals.length === 0 ? <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant="ghost" onClick={() => router.push('/')}>{t('progressScreen.startHabit')}</PillButton>} /> : null}
       {goals.length > 0 && filtered.length === 0 ? <View style={styles.emptyLine}><Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.goals.filterEmpty')}</Text><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></View> : null}
-      {filtered.length > 0 ? <NestableDraggableFlatList data={filtered} keyExtractor={(goal) => goal.id} renderItem={renderGoal} onDragEnd={handleDragEnd} activationDistance={5} ItemSeparatorComponent={GoalSeparator} /> : null}
+      {filtered.length > 0 && filter === 'all' ? <NestableDraggableFlatList data={filtered} keyExtractor={(goal) => goal.id} renderItem={renderGoal} onDragEnd={handleDragEnd} activationDistance={5} ItemSeparatorComponent={GoalSeparator} /> : null}
+      {filter !== 'all' ? filtered.map((goal) => <GoalCard key={goal.id} goal={goal} index={0} canReorder={false} onMove={move} onOpen={() => setDetailGoalId(goal.id)} tokens={tokens} />) : null}
+      {reorder.isError ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.goals.reorderError')}</Text> : null}
       {detailGoalId ? <GoalDetailDrawer open onClose={() => setDetailGoalId(null)} goalId={detailGoalId} /> : null}
-    </Section>
+    </View>
   )
 }
 
@@ -335,7 +325,9 @@ const styles = StyleSheet.create({
   notice: { borderRadius: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, paddingHorizontal: 16, paddingVertical: 12 },
   card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: 16 }, cardTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 }, actionStart: { alignSelf: 'flex-start' }, lockHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, half: { width: '48%' },
-  goalButton: { gap: 12 }, goalRow: { alignItems: 'center', flexDirection: 'row', gap: 12 }, goalCopy: { flex: 1, gap: 4 }, goalSeparator: { height: 12 }, pressed: { transform: [{ scale: 0.98 }] },
+  goalsSection: { gap: 12 }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, borderWidth: 1 },
+  goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 }, goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  goalCopy: { flex: 1, minWidth: 0, gap: 4 }, goalSeparator: { height: 12 },
   emptyLine: { alignItems: 'flex-start', gap: 12, paddingVertical: 24 },
   achievement: { borderRadius: 16, borderWidth: 1, gap: 8, minHeight: 156, padding: 16 }, achievementMark: { alignItems: 'center', borderRadius: 16, height: 30, justifyContent: 'center', width: 30 },
   achievementName: { fontFamily: 'Geist_500Medium', fontSize: 12, lineHeight: 16 }, achievementBody: { fontFamily: 'Geist_400Regular', fontSize: 11, lineHeight: 16 },

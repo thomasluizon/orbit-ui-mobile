@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
   repair: { mutate: vi.fn(), isPending: false, isError: false },
   reorder: { mutate: vi.fn() },
+  drag: vi.fn(),
   updateStatus: { mutate: vi.fn(), isPending: false },
   account: {
     profile: { timeZone: 'America/Sao_Paulo', canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9, totalXp: 150 },
@@ -114,6 +115,13 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
 }))
 vi.mock('expo-router', () => ({ useRouter: () => mocks.router }))
+vi.mock('react-native-draggable-flatlist', () => ({
+  NestableScrollContainer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  NestableDraggableFlatList: ({ data, renderItem, ...props }: {
+    data: ReturnType<typeof createMockGoal>[]
+    renderItem: (params: { item: ReturnType<typeof createMockGoal>; getIndex: () => number; drag: () => void; isActive: boolean }) => React.ReactNode
+  }) => React.createElement('DraggableFlatList', props, data.map((item, index) => <React.Fragment key={item.id}>{renderItem({ item, getIndex: () => index, drag: mocks.drag, isActive: false })}</React.Fragment>)),
+}))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => mocks.account }))
 vi.mock('@/hooks/use-goals', () => ({
   useGoals: () => mocks.goals,
@@ -168,6 +176,58 @@ function isAccessibilityHidden(node: TestNode): boolean {
 }
 
 describe('mobile ProgressContent', () => {
+  it.each(['on_track', 'at_risk', 'behind', 'no_deadline'])('renders one neutral tracking badge for %s without status or deadline', async (trackingStatus) => {
+    mocks.goals.data.allGoals = [createMockGoal({ trackingStatus, deadline: '2026-08-01' })]
+    const tree = await renderProgress()
+    const card = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'Read 12 Books')[0]!
+    expect(card.findAll((node) => node.props.children === 'goals.status.active')).toHaveLength(0)
+    expect(card.findAll((node) => typeof node.type === 'string' && node.props.testID === 'badge-solid')).toHaveLength(1)
+    expect(card.findAll((node) => node.props.children === 'progressScreen.goals.daysOverdue')).toHaveLength(0)
+  })
+
+  it('renders a reached target as a done disc with one badge and no finish entry', async () => {
+    mocks.goals.data.allGoals = [createMockGoal({ progressPercentage: 100, currentValue: 12, trackingStatus: 'no_deadline' })]
+    const tree = await renderProgress()
+    const card = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'Read 12 Books')[0]!
+    expect(card.findAll((node) => node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
+    expect(card.findAll((node) => typeof node.type === 'string' && node.props.testID === 'status-ring')).toHaveLength(1)
+    expect(card.findAll((node) => node.props.children === 'progressScreen.goals.targetReached').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.goals.finish')).toHaveLength(0)
+    expect(mocks.updateStatus.mutate).not.toHaveBeenCalled()
+  })
+
+  it('renders abandoned goals with an outline badge and a distinct clearable empty filter', async () => {
+    mocks.goals.data.allGoals = [createMockGoal({ status: 'Abandoned', progressPercentage: 100, trackingStatus: 'behind' })]
+    const tree = await renderProgress()
+    const card = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'Read 12 Books')[0]!
+    expect(card.findAll((node) => typeof node.type === 'string' && node.props.testID === 'badge-outline')).toHaveLength(1)
+    expect(card.findAll((node) => node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
+    const tab = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'segment-completed-unselected-enabled')[0]!
+    await TestRenderer.act(() => (tab.props.onPress as () => void)())
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.goals.filterEmpty').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.empty')).toHaveLength(0)
+    await TestRenderer.act(() => (findPill(tree.root, 'progressScreen.goals.clearFilter').props.onClick as () => void)())
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Read 12 Books').length).toBeGreaterThan(0)
+  })
+
+  it('cancels touch movement beyond 5px before the 300ms hold and never writes while filtered', async () => {
+    vi.useFakeTimers()
+    mocks.goals.data.allGoals = [createMockGoal(), createMockGoal({ id: 'goal-2', title: 'Second', position: 1 })]
+    const tree = await renderProgress()
+    const card = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'Read 12 Books')[0]!
+    const touch = (name: string, pageX: number) => (card.props[name] as ((event: unknown) => void) | undefined)?.({ nativeEvent: { pageX, pageY: 0, touches: [{ pageX, pageY: 0 }] } })
+    await TestRenderer.act(() => { touch('onTouchStart', 0); touch('onTouchMove', 6); vi.advanceTimersByTime(300); touch('onLongPress', 6) })
+    expect(mocks.drag).not.toHaveBeenCalled()
+    await TestRenderer.act(() => { touch('onTouchStart', 0); touch('onTouchMove', 5); vi.advanceTimersByTime(299) })
+    expect(mocks.drag).not.toHaveBeenCalled()
+    await TestRenderer.act(() => vi.advanceTimersByTime(1))
+    expect(mocks.drag).toHaveBeenCalledTimes(1)
+    expect(mocks.reorder.mutate).not.toHaveBeenCalled()
+    const tab = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'segment-active-unselected-enabled')[0]!
+    await TestRenderer.act(() => (tab.props.onPress as () => void)())
+    expect(tree.root.findAll((node) => node.type === 'DraggableFlatList')).toHaveLength(0)
+  })
+
   afterEach(() => { vi.useRealTimers() })
   beforeEach(() => {
     mocks.account.profile.timeZone = 'America/Sao_Paulo'
@@ -327,7 +387,7 @@ describe('mobile ProgressContent', () => {
     expect(text).not.toContain('progressScreen.achievements.lockedBody')
   })
 
-  it('dispatches the explicit repair and finish writes', async () => {
+  it('dispatches the explicit repair write', async () => {
     mocks.freeze.streakInfo.isRepairAvailable = true
     mocks.freeze.streakInfo.repairDate = '2026-08-27'
     mocks.goals.data.allGoals = [{
@@ -340,12 +400,8 @@ describe('mobile ProgressContent', () => {
 
     await TestRenderer.act(() => {
       ;(findPill(tree.root, 'progressScreen.streak.repairAction').props.onClick as () => void)()
-      ;(findPill(tree.root, 'progressScreen.goals.finish').props.onClick as () => void)()
     })
     expect(mocks.repair.mutate).toHaveBeenCalledTimes(1)
-    expect(mocks.updateStatus.mutate).toHaveBeenCalledWith({
-      goalId: 'goal-1', goalName: 'Read 10 books', data: { status: 'Completed' },
-    })
   })
 
   it('keeps the other sections open when the Pro figures report no habits', async () => {
@@ -400,8 +456,6 @@ describe('mobile ProgressContent', () => {
     const firstGoal = tree.root.findAll((node) => node.props.accessibilityLabel === 'Goal one')[0]!
 
     expect(list.props.activationDistance).toBe(5)
-    expect(firstGoal.props.delayLongPress).toBe(300)
-    expect(firstGoal.props.onLongPress).toEqual(expect.any(Function))
     expect(firstGoal.props.accessibilityActions).toHaveLength(2)
 
     await TestRenderer.act(() => {

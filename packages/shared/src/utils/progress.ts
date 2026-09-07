@@ -9,6 +9,7 @@ import type { Achievement, GamificationProfile } from '../types/gamification'
 import type { Goal, GoalPositionItem, GoalStatus } from '../types/goal'
 import type { Profile } from '../types/profile'
 import { nowDate } from './dates'
+import { getGoalMetricsStatusPresentation } from './goal-metrics'
 
 type ProgressQueryState = { isLoading: boolean; isError: boolean }
 
@@ -42,6 +43,13 @@ export function isProgressEmpty(
 
 export const PROGRESS_GOAL_FILTERS = ['all', 'active', 'completed', 'abandoned'] as const
 export type ProgressGoalFilter = (typeof PROGRESS_GOAL_FILTERS)[number]
+
+export function getProgressGoalLabelKey(goal: Goal): string | null {
+  if (goal.status === 'Abandoned') return 'goals.status.abandoned'
+  if (goal.status === 'Completed') return 'goals.status.completed'
+  if (goal.progressPercentage >= 100) return 'progressScreen.goals.targetReached'
+  return getGoalMetricsStatusPresentation(goal.trackingStatus)?.labelKey ?? null
+}
 export type GoalDeadlineState = 'overdue' | 'dueToday' | 'soon' | 'later'
 export type AchievementGlyphKey =
   | 'calendar'

@@ -2460,6 +2460,8 @@
     },
     "goals": {
       "views": "Visualizações das metas",
+      "targetReached": "Alvo alcançado",
+      "reorderError": "Não foi possível salvar a ordem. Tente arrastar de novo.",
       "all": "Todas",
       "active": "Ativas",
       "completed": "Concluídas",
@@ -2467,7 +2469,7 @@
       "empty": "Ainda não há metas. Um hábito é o próximo passo útil.",
       "filterEmpty": "Nenhuma meta corresponde a esta visualização.",
       "clearFilter": "Mostrar todas as metas",
-      "progress": "{current} de {target} {unit}",
+      "progress": "{current} / {target} {unit}",
       "dueToday": "Prazo hoje",
       "daysLeft": "{count, plural, one {Falta # dia} other {Faltam # dias}}",
       "daysOverdue": "{count, plural, one {Atrasada em # dia} other {Atrasada em # dias}}",
@@ -2475,7 +2477,7 @@
       "finish": "Finalizar meta",
       "moveUp": "Mover para cima",
       "moveDown": "Mover para baixo",
-      "reorderHint": "Use Alt e as setas para reordenar"
+      "reorderHint": "Segure e arraste para reordenar, ou use as ações de mover"
     },
     "window": {
       "completionRate": "Taxa de conclusão",
