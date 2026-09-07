@@ -294,7 +294,6 @@ describe('DestinationShell', () => {
     '/preferences',
     '/advanced',
     '/profile/security',
-    '/notifications/123',
     '/account/billing',
   ])('selects Profile for its secondary route %s', (pathname) => {
     mocks.pathname = pathname
@@ -304,6 +303,15 @@ describe('DestinationShell', () => {
       'aria-current',
       'page',
     )
+  })
+
+  it.each([false, true])('keeps navigation and hides the composer for alerts at wide=%s', (wide) => {
+    mocks.pathname = '/notifications'
+    mocks.wide = wide
+    render(<DestinationShell onCreate={() => {}} composer={<div data-testid="composer" />}><h1>Alerts</h1></DestinationShell>)
+    expect(screen.queryByTestId('composer')).toBeNull()
+    expect(screen.getByRole('button', { name: 'nav.today' })).toBeInTheDocument()
+    if (!wide) expect(screen.getByRole('button', { name: 'nav.today' })).toHaveAttribute('aria-current', 'page')
   })
 
   it.each(['/achievements', '/retrospective', '/streak'])(

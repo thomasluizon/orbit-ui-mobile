@@ -42,6 +42,7 @@ export function getAndroidBackFallbackRoute(
   switch (currentPath) {
     case '/':
       return null
+    case '/notifications':
     case '/calendar':
     case '/chat':
     case '/profile':

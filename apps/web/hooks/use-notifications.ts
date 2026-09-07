@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import {
   useQuery,
   useMutation,
@@ -7,7 +8,7 @@ import {
 } from '@tanstack/react-query'
 import {
   notificationKeys,
-  NOTIFICATIONS_REFETCH_INTERVAL,
+  attachNotificationPolling,
   QUERY_STALE_TIMES,
 } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
@@ -33,13 +34,14 @@ import {
 import { fetchJson } from '@/lib/api-fetch'
 
 export function useNotifications() {
+  const queryClient = useQueryClient()
+  useEffect(() => attachNotificationPolling(queryClient), [queryClient])
+
   const query = useQuery({
     queryKey: notificationKeys.lists(),
     queryFn: () => fetchJson<NotificationsResponse>(API.notifications.list, notificationsResponseSchema),
     staleTime: QUERY_STALE_TIMES.notifications,
     refetchOnWindowFocus: true,
-    refetchInterval: NOTIFICATIONS_REFETCH_INTERVAL,
-    refetchIntervalInBackground: false,
   })
 
   const notifications = query.data?.items ?? []

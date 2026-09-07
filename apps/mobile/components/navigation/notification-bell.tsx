@@ -1,326 +1,35 @@
-import { useMemo, useState, useCallback, useSyncExternalStore } from 'react'
-import { View, Text, Pressable } from 'react-native'
-import Animated, { ReduceMotion, ZoomIn } from 'react-native-reanimated'
-import { Bell, CheckCheck, Trash2 } from '@/components/ui/icons'
+import { Pressable, Text, View } from 'react-native'
+import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import type { NotificationItem } from '@orbit/shared/types/notification'
-import {
-  useNotifications,
-  useMarkNotificationRead,
-  useMarkAllNotificationsRead,
-  useDeleteNotification,
-  useDeleteAllNotifications,
-} from '@/hooks/use-notifications'
-import { ConfirmSheet } from '@/components/ui/confirm-sheet'
-import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
-import { Skeleton } from '@/components/ui/skeleton'
-import { NotificationDetailModal } from './notification-detail-modal'
-import { NotificationRow } from './notification-row'
-
-import { useAppToast } from '@/hooks/use-app-toast'
-import { plural } from '@/lib/plural'
+import { Bell } from '@/components/ui/icons'
+import { useNotificationInbox } from '@/hooks/use-notification-inbox'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import {
-  cancelPendingNotificationDelete,
-  getPendingNotificationDeleteIdsSnapshot,
-  queuePendingNotificationDelete,
-  subscribePendingNotificationDeleteIds,
-} from '@/lib/pending-notification-deletes'
-import {
-  createStyles,
-  type AppTokens,
-  type NotificationBellStyles,
-} from './notification-bell.styles'
-
-interface NotificationListActionsProps {
-  tokens: AppTokens
-  styles: NotificationBellStyles
-  showMarkAllRead: boolean
-  showDeleteAll: boolean
-  onMarkAllRead: () => void
-  onDeleteAll: () => void
-}
-
-function NotificationListActions({
-  tokens,
-  styles,
-  showMarkAllRead,
-  showDeleteAll,
-  onMarkAllRead,
-  onDeleteAll,
-}: Readonly<NotificationListActionsProps>) {
-  const { t } = useTranslation()
-  return (
-    <View style={styles.actionsRow}>
-      {showMarkAllRead && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.sheetActionBtn,
-            pressed ? styles.deleteBtnPressed : null,
-          ]}
-          hitSlop={2}
-          onPress={onMarkAllRead}
-          accessibilityRole="button"
-          accessibilityLabel={t('notifications.markAllRead')}
-        >
-          {({ pressed }) => (
-            <CheckCheck
-              size={18}
-              color={pressed ? tokens.primary : tokens.fg3}
-              strokeWidth={1.8}
-            />
-          )}
-        </Pressable>
-      )}
-      {showDeleteAll && (
-        <Pressable
-          style={({ pressed }) => [
-            styles.sheetActionBtn,
-            pressed ? styles.deleteBtnPressed : null,
-          ]}
-          hitSlop={2}
-          onPress={onDeleteAll}
-          accessibilityRole="button"
-          accessibilityLabel={t('notifications.deleteAll')}
-        >
-          {({ pressed }) => (
-            <Trash2
-              size={18}
-              color={pressed ? tokens.statusBad : tokens.fg3}
-              strokeWidth={1.8}
-            />
-          )}
-        </Pressable>
-      )}
-    </View>
-  )
-}
-
-interface NotificationListEmptyProps {
-  styles: NotificationBellStyles
-  isLoading: boolean
-  isError: boolean
-  onRetry: () => void
-}
-
-function NotificationListEmpty({
-  styles,
-  isLoading,
-  isError,
-  onRetry,
-}: Readonly<NotificationListEmptyProps>) {
-  const { t } = useTranslation()
-  if (isLoading) {
-    return (
-      <View style={styles.loadingState} accessibilityLabel={t('common.loading')}>
-        <Skeleton variant="settings" label={t('common.loading')} />
-        <Skeleton variant="settings" label={t('common.loading')} />
-      </View>
-    )
-  }
-  if (isError) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>{t('notifications.loadError')}</Text>
-        <Pressable
-          style={({ pressed }) => [
-            styles.retryChip,
-            pressed ? styles.retryChipPressed : null,
-          ]}
-          hitSlop={{ top: 4, bottom: 4 }}
-          onPress={onRetry}
-          accessibilityRole="button"
-          accessibilityLabel={t('common.retry')}
-        >
-          <Text style={styles.retryChipLabel}>{t('common.retry')}</Text>
-        </Pressable>
-      </View>
-    )
-  }
-  return (
-    <View style={styles.emptyContainer}>
-      <SatelliteGlyph size={96} />
-      <Text style={styles.emptyText}>{t('notifications.empty')}</Text>
-    </View>
-  )
-}
+import { plural } from '@/lib/plural'
+import { createStyles } from './notification-bell.styles'
 
 export function NotificationBell() {
-  const { sheetRef, closeSheet } = useSheetHost()
+  const router = useRouter()
+  const pathname = usePathname()
+  const { visibleUnreadCount: count } = useNotificationInbox()
+  return <NotificationBellDisplay count={count}
+    onPress={pathname === '/notifications' ? undefined : () => router.push('/notifications')} />
+}
+
+export function NotificationBellDisplay({ count, onPress }: { count: number; onPress?: () => void }) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  )
-  const { notifications, isLoading, isError, refetch } = useNotifications()
-  const markAsRead = useMarkNotificationRead()
-  const markAllAsRead = useMarkAllNotificationsRead()
-  const deleteNotification = useDeleteNotification()
-  const deleteAll = useDeleteAllNotifications()
-  const { showQueued } = useAppToast()
-
-  const [isOpen, setIsOpen] = useState(false)
-  const [selectedNotification, setSelectedNotification] =
-    useState<NotificationItem | null>(null)
-  const [isDetailOpen, setIsDetailOpen] = useState(false)
-  const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false)
-  const pendingDeleteIds = useSyncExternalStore(
-    subscribePendingNotificationDeleteIds,
-    getPendingNotificationDeleteIdsSnapshot,
-    getPendingNotificationDeleteIdsSnapshot,
-  )
-  const pendingDeleteIdSet = useMemo(() => new Set(pendingDeleteIds), [pendingDeleteIds])
-
-  const toggle = useCallback(() => {
-    setIsOpen((prev) => !prev)
-  }, [])
-
-  const styles = useMemo(() => createStyles(tokens), [tokens])
-  const visibleNotifications = useMemo(
-    () => notifications.filter((item) => !pendingDeleteIdSet.has(item.id)),
-    [notifications, pendingDeleteIdSet],
-  )
-  const visibleUnreadCount = useMemo(
-    () => visibleNotifications.filter((item) => !item.isRead).length,
-    [visibleNotifications],
-  )
-
-  const cancelPendingDelete = useCallback((notificationId: string) => {
-    cancelPendingNotificationDelete(notificationId)
-  }, [])
-
-  const requestDeleteNotification = useCallback((notification: NotificationItem) => {
-    const queued = queuePendingNotificationDelete(notification.id, () => {
-      deleteNotification.mutate(notification.id)
-    })
-    if (!queued) return
-
-    showQueued(t('notifications.deleteQueued'), t('notifications.deleteUndo'), () => {
-      cancelPendingDelete(notification.id)
-    })
-  }, [cancelPendingDelete, deleteNotification, showQueued, t])
-
-  function handlePress(notification: NotificationItem) {
-    closeSheet(() => {
-      setIsOpen(false)
-      setSelectedNotification(notification)
-      setIsDetailOpen(true)
-      if (!notification.isRead) {
-        markAsRead.mutate(notification.id)
-      }
-    })
-  }
-
-  function handleDetailMarkAsRead(id: string) {
-    markAsRead.mutate(id)
-  }
-
-  function handleDetailDelete(id: string) {
-    const notification = notifications.find((item) => item.id === id)
-    if (notification) {
-      requestDeleteNotification(notification)
-    }
-  }
-
-  function renderNotification(item: NotificationItem, index: number) {
-    return (
-      <NotificationRow
-        key={item.id}
-        item={item}
-        index={index}
-        tokens={tokens}
-        styles={styles}
-        t={t}
-        onPress={handlePress}
-        onRequestDelete={requestDeleteNotification}
-      />
-    )
-  }
-
-  return (
-    <View>
-      <Pressable
-        style={({ pressed }) => [
-          styles.bellButton,
-          { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
-          pressed ? styles.bellPressed : null,
-        ]}
-        hitSlop={2}
-        onPress={toggle}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: isOpen }}
-        accessibilityLabel={
-          visibleUnreadCount > 0
-            ? plural(t('notifications.bellWithCount', { count: visibleUnreadCount }), visibleUnreadCount)
-            : t('notifications.bell')
-        }
-      >
-        <Bell size={22} color={tokens.fg1} strokeWidth={1.8} />
-        {visibleUnreadCount > 0 && (
-          <Animated.View
-            style={styles.bellUnreadDot}
-            entering={ZoomIn.duration(160).reduceMotion(ReduceMotion.System)}
-          />
-        )}
-      </Pressable>
-
-      {isOpen ? (<Sheet
-        ref={sheetRef}
-        open
-        onClose={() => setIsOpen(false)}
-        title={t('notifications.title')}
-      >
-        <NotificationListActions
-          tokens={tokens}
-          styles={styles}
-          showMarkAllRead={visibleUnreadCount > 0}
-          showDeleteAll={visibleNotifications.length > 0}
-          onMarkAllRead={() => markAllAsRead.mutate()}
-          onDeleteAll={() => setShowDeleteAllConfirm(true)}
-        />
-        <View style={[
-          withDrawerContentInset(styles.listContent),
-          visibleNotifications.length === 0 && styles.emptyListContainer,
-        ]}>
-          {visibleNotifications.length === 0 ? (
-            <NotificationListEmpty
-              styles={styles}
-              isLoading={isLoading}
-              isError={isError}
-              onRetry={() => void refetch()}
-            />
-          ) : visibleNotifications.map((item, index) => renderNotification(item, index))}
-        </View>
-      </Sheet>) : null}
-
-      {selectedNotification && (
-        <NotificationDetailModal
-          open={isDetailOpen}
-          onClose={() => setIsDetailOpen(false)}
-          notification={
-            notifications.find((item) => item.id === selectedNotification.id) ??
-            selectedNotification
-          }
-          onMarkAsRead={handleDetailMarkAsRead}
-          onDelete={handleDetailDelete}
-        />
-      )}
-      <ConfirmSheet
-        open={showDeleteAllConfirm}
-        title={t('notifications.deleteAllConfirmTitle')}
-        message={t('notifications.deleteAllConfirmDescription')}
-        confirmLabel={t('notifications.deleteAll')}
-        destructive
-        onCancel={() => setShowDeleteAllConfirm(false)}
-        onConfirm={() => {
-          setShowDeleteAllConfirm(false)
-          deleteAll.mutate()
-        }}
-      />
-    </View>
-  )
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const styles = createStyles(tokens)
+  const label = count > 0 ? plural(t('notifications.bellWithCount', { count }), count) : t('notifications.bell')
+  const content = <>
+      <Bell size={24} color={tokens.fg2} strokeWidth={1.8} />
+      {count > 0 ? <Text accessible={false} testID="notification-count" style={styles.bellCount}>
+        {count > 9 ? '9+' : count}
+      </Text> : null}
+  </>
+  return onPress ? <Pressable accessibilityRole="button" accessibilityLabel={label}
+    style={({ pressed }) => [styles.bellButton, pressed && { backgroundColor: tokens.bgHover }]}
+    onPress={onPress}>{content}</Pressable>
+    : <View accessible accessibilityRole="image" accessibilityLabel={label} style={styles.bellButton}>{content}</View>
 }
