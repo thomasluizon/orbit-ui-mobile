@@ -10,21 +10,21 @@ export const setNotificationChannelAsync = vi.fn(
   async (_channelId: string, _options: Record<string, unknown>) => {},
 )
 export const scheduleNotificationAsync = vi.fn(
-  async (_request: unknown) => 'orbit-persistent-reminder',
+  (_request: unknown) => Promise.resolve('orbit-persistent-reminder'),
 )
 export const dismissNotificationAsync = vi.fn(async (_identifier: string) => {})
-export const getPermissionsAsync = vi.fn(async () => ({
+export const getPermissionsAsync = vi.fn(() => Promise.resolve({
   status: 'undetermined',
   granted: false,
   canAskAgain: true,
 }))
-export const requestPermissionsAsync = vi.fn(async () => ({
+export const requestPermissionsAsync = vi.fn(() => Promise.resolve({
   status: 'granted',
   granted: true,
   canAskAgain: true,
 }))
-export const getExpoPushTokenAsync = vi.fn(async () => ({ data: 'expo-token' }))
-export const getDevicePushTokenAsync = vi.fn(async () => ({ type: 'fcm', data: 'native-token' }))
+export const getExpoPushTokenAsync = vi.fn(() => Promise.resolve({ data: 'expo-token' }))
+export const getDevicePushTokenAsync = vi.fn(() => Promise.resolve({ type: 'fcm', data: 'native-token' }))
 export const addNotificationResponseReceivedListener = vi.fn(() => ({
   remove: vi.fn(),
 }))

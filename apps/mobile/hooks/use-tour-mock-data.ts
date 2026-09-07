@@ -40,7 +40,6 @@ export function useTourMockData() {
 
     queryClient.setQueryData(tagKeys.lists(), mockTags)
 
-    // Mock streak if user has none
     queryClient.setQueryDefaults(gamificationKeys.all, { staleTime: Infinity })
     queryClient.setQueryData(gamificationKeys.streak(), (old: StreakInfo | undefined) => {
       if (old && old.currentStreak > 0) return old
@@ -69,10 +68,10 @@ export function useTourMockData() {
 
     queryClient.setQueryDefaults(gamificationKeys.all, { staleTime: undefined })
 
-    queryClient.invalidateQueries({ queryKey: habitKeys.all })
-    queryClient.invalidateQueries({ queryKey: goalKeys.all })
-    queryClient.invalidateQueries({ queryKey: tagKeys.all })
-    queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+    void queryClient.invalidateQueries({ queryKey: habitKeys.all })
+    void queryClient.invalidateQueries({ queryKey: goalKeys.all })
+    void queryClient.invalidateQueries({ queryKey: tagKeys.all })
+    void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
   }, [queryClient])
 
   return { inject, restore }

@@ -25,6 +25,5 @@ export async function triggerHaptic(type: HapticFeedbackType): Promise<void> {
   try {
     Vibration.vibrate(getDuration(type))
   } catch {
-    // Best-effort only. Ignore unsupported environments.
   }
 }

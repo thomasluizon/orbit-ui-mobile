@@ -3,30 +3,33 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 
 const TestRenderer = require('react-test-renderer')
-const mocks = vi.hoisted(() => ({
-  storage: new Map<string, string>(),
-  setAstraConversationOpen: vi.fn(),
-  apiClient: vi.fn(() => Promise.resolve(undefined)),
-  router: {
-    push: vi.fn(),
-  },
-  appState: {
-    listener: null as ((state: string) => void) | null,
-  },
-  constants: {
-    appOwnership: 'standalone',
-    expoGoConfig: null,
-    expoConfig: {},
-    easConfig: {},
-  },
-  device: {
-    isDevice: true,
-  },
-  auth: {
+const mocks = vi.hoisted(() => {
+  const auth: { isAuthenticated: boolean; user: { userId: string } | null } = {
     isAuthenticated: true,
     user: { userId: 'user-1' },
-  },
-}))
+  }
+  return {
+    storage: new Map<string, string>(),
+    setAstraConversationOpen: vi.fn(),
+    apiClient: vi.fn(() => Promise.resolve(undefined)),
+    router: {
+      push: vi.fn(),
+    },
+    appState: {
+      listener: null as ((state: string) => void) | null,
+    },
+    constants: {
+      appOwnership: 'standalone',
+      expoGoConfig: null,
+      expoConfig: {},
+      easConfig: {},
+    },
+    device: {
+      isDevice: true,
+    },
+    auth,
+  }
+})
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
@@ -224,6 +227,21 @@ describe('usePushNotifications', () => {
     expect(latestResult?.registrationStatus).toBe('registered')
     expect(mocks.storage.get('orbit_push_disabled:user-1')).toBeUndefined()
     expect(mocks.storage.get('orbit_push_disabled:user-2')).toBeUndefined()
+  })
+
+  it('does not register a token when there is no authenticated account', async () => {
+    mocks.auth.isAuthenticated = false
+    mocks.auth.user = null
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('granted'),
+    )
+
+    await renderHarness()
+    await flush()
+
+    expect(notificationsModule.getDevicePushTokenAsync).toHaveBeenCalled()
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    expect(latestResult?.registrationStatus).toBe('idle')
   })
 
   it('subscribes with the current payload shape and unsubscribes without re-registering on resume', async () => {

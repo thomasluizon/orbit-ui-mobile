@@ -16,6 +16,7 @@ vi.mock('@/lib/use-app-theme', () => ({
 interface TestNode {
   readonly props: Readonly<Record<string, unknown>>
   find(predicate: (node: TestNode) => boolean): TestNode
+  findAll(predicate: (node: TestNode) => boolean): TestNode[]
   findByType(type: unknown): TestNode
   findAllByType(type: unknown): TestNode[]
 }
@@ -140,7 +141,10 @@ describe('list primitives on mobile', () => {
     if (!bodyControl || !actionControl) throw new Error('ListRow controls did not render')
     const bodyTexts = bodyControl.findAllByType(Text)
     expect(bodyTexts.map((node) => node.props.children)).toContain('Synced')
-    expect(bodyControl.find((node) => node.props.strokeWidth === 1.8)).toBeDefined()
+    const leadingIcon = bodyControl
+      .findAll((node) => typeof node.props.strokeWidth === 'number')
+      .at(0)
+    expect(leadingIcon?.props.strokeWidth).toBeCloseTo(1.8)
     const valueText = bodyTexts.find((node) => node.props.children === 'Ready for a deliberately long reminder summary')
     expect(valueText?.props.numberOfLines).toBe(1)
     expect(StyleSheet.flatten(valueText?.props.style)).toMatchObject({ flexShrink: 1, maxWidth: '50%' })
