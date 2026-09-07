@@ -1,0 +1,172 @@
+// @vitest-environment node
+
+import { describe, expect, it } from 'vitest'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { Markdown } from '@/components/ui/markdown'
+
+describe('Markdown server rendering', () => {
+  it.each(['bare', 'linked'])('preserves hard breaks in an inline %s image label', (context) => {
+    const image = '![first  \nsecond](image.png)'
+    const content = `before ${context === 'linked' ? `[${image}](https://example.com/path)` : image} after`
+    const markup = renderToStaticMarkup(<Markdown content={content} />)
+    expect(markup).toContain('first<br>second')
+    expect(markup).toContain('<p>before ')
+    expect(markup).toContain(' after</p>')
+    expect(markup).not.toContain('<img')
+  })
+
+  it.each([
+    ['![outer ![](inner.png "inner title") after](outer.png)', 'outer inner title after'],
+    ['![![](inner.png)](outer.png "outer title")', 'outer title'],
+    ['![outer [inner][ref]](image.png)\n\n[ref]: https://example.com', 'outer inner'],
+    ['![outer [inner][ref]][picture]\n\n[ref]: https://example.com\n[picture]: image.png', 'outer inner'],
+    ['![](image.png "**literal**")', '**literal**'],
+    ['[![](image.png "**literal**")](https://example.com/path)', '**literal**'],
+  ])('preserves document context and literal titles: %s', (content, label) => {
+    const markup = renderToStaticMarkup(<Markdown content={content} />)
+    expect(markup).toContain(content.startsWith('[!')
+      ? `<a href="https://example.com/path" target="_blank" rel="noopener noreferrer">${label}</a>`
+      : `<p>${label}</p>`)
+    expect(markup).not.toMatch(/<(?:img|strong)\b/)
+  })
+
+  describe.each(['bare', 'linked'])('%s image labels', (context) => {
+    it.each([
+      ['**bold**', 'bold'],
+      ['A &amp; B', 'A &amp; B'],
+      ['a \\* b', 'a * b'],
+      ['**bold** <b title="&amp;">x</b>', 'bold &lt;b title=&quot;&amp;amp;&quot;&gt;x&lt;/b&gt;'],
+      ['***nested*** ~~removed~~ `&amp;`', 'nested removed &amp;amp;'],
+      ['&#42;literal&#42; &amp;amp; &#x1F680; \\&amp;', '*literal* &amp;amp; 🚀 &amp;amp;'],
+    ])('renders semantic plain text for %s', (source, label) => {
+      const image = `![${source}](https://example.com/i.png)`
+      const content = context === 'linked' ? `[${image}](https://example.com/path)` : image
+      const markup = renderToStaticMarkup(<Markdown content={content} />)
+      expect(markup).toContain(context === 'linked'
+        ? `<a href="https://example.com/path" target="_blank" rel="noopener noreferrer">${label}</a>`
+        : `<p>${label}</p>`)
+      expect(markup).not.toMatch(/<(?:img|b|strong|em|del|code)\b/)
+    })
+  })
+
+  it.each([
+    '[docs](https://markdown.invalid/path)',
+    '[docs](//markdown.invalid/path)',
+    '[docs](https://example.com)',
+    '[docs](http://example.com)',
+    '[docs](HTTPS://example.com)',
+    '[docs](//example.com/path)',
+    '[docs](//example.org/docs?view=full#notes)',
+    'https://example.com',
+    '<https://example.com>',
+  ])('isolates absolute links without browser globals: %s', (content) => {
+    expect(typeof window).toBe('undefined')
+    expect(typeof document).toBe('undefined')
+    const markup = renderToStaticMarkup(<Markdown content={content} />)
+    expect(markup).toMatch(/<a href="(?:https?:)?\/\//i)
+    expect(markup).toContain('target="_blank"')
+    expect(markup).toContain('rel="noopener noreferrer"')
+  })
+
+  it.each([
+    ['https://markdown.invalid/path', true],
+    ['//markdown.invalid/path', true],
+    ['//attacker.example/path', true],
+    ['/\\attacker.example/path', true],
+    ['\\/attacker.example/path', true],
+    ['\\\\attacker.example/path', true],
+    ['https://example.com/path', true],
+    ['docs/page', false],
+    ['/docs/page', false],
+    ['?q=1', false],
+    ['#section', false],
+  ] as const)('names linked images and preserves the destination context for %s', (href, isolated) => {
+    const destination = href.replaceAll('\\', '\\\\')
+    const markup = renderToStaticMarkup(
+      <Markdown content={`[docs](${destination}) [![alt](https://example.com/i.png)](${destination})`} />,
+    )
+    const attributes = isolated ? ' target="_blank" rel="noopener noreferrer"' : ''
+    expect(markup).toContain(`<a href="${href}"${attributes}>docs</a>`)
+    expect(markup).toContain(`<a href="${href}"${attributes}>alt</a>`)
+    expect(markup).not.toContain('<img')
+  })
+
+  it('escapes image labels and falls back to the title', () => {
+    const markup = renderToStaticMarkup(
+      <Markdown content={'![<b>alt</b>](https://example.com/i.png) ![](https://example.com/i.png "title") ![](https://example.com/i.png)'} />,
+    )
+    expect(markup).toContain('&lt;b&gt;alt&lt;/b&gt; title ')
+    expect(markup).not.toMatch(/<(?:img|b)\b/)
+  })
+
+  it.each(['mailto:a@b.com', '/habits', './habits', '../habits', '?view=full', '#notes'])('preserves the current context for %s', (href) => {
+    const markup = renderToStaticMarkup(<Markdown content={`[label](${href})`} />)
+    expect(markup).toContain(`<a href="${href}">label</a>`)
+    expect(markup).not.toContain('target=')
+    expect(markup).not.toContain('rel=')
+  })
+
+  it.each([
+    '<a href="https://example.com">docs</a>',
+    '<a href="http://example.com" target="_self" rel="opener">docs</a>',
+    '<a href="https://example.com" target="_blank">docs</a>',
+    '<a href="/habits">habits</a>',
+    '<a href="/habits" target="_blank" rel="opener">habits</a>',
+    '<a href="#notes" target="_blank" rel="opener">notes</a>',
+    '<a href="mailto:a@b.com" target="_blank" rel="opener">mail</a>',
+    '<a href="javascript:alert(1)" onclick="alert(1)">unsafe</a><script>alert(1)</script>',
+  ])('escapes raw HTML without a DOM: %s', (content) => {
+    const markup = renderToStaticMarkup(<Markdown content={content} />)
+    expect(markup).toContain('&lt;a href=&quot;')
+    expect(markup).toContain('&lt;/a&gt;')
+    expect(markup).not.toContain('<a')
+    expect(markup).not.toContain('<script')
+  })
+
+  it.each(['javascript:alert(1)', 'data:text/html,<script>', 'vbscript:msgbox(1)'])('rejects unsafe Markdown href %s', (href) => {
+    const markup = renderToStaticMarkup(<Markdown content={`[label](${href})`} />)
+    expect(markup).toContain('<a>label</a>')
+    expect(markup).not.toContain('href=')
+    expect(markup).not.toContain('target=')
+  })
+
+  it('escapes attributes and preserves formatted link labels on the server', () => {
+    const markup = renderToStaticMarkup(
+      <Markdown content={'[**docs**](https://example.com/?a=1&b=2 "A &quot;title&quot;")'} />,
+    )
+    expect(markup).toContain('href="https://example.com/?a=1&amp;b=2"')
+    expect(markup).toContain('<strong>docs</strong></a>')
+    expect(markup).not.toContain('title=')
+  })
+
+  it('keeps unsupported Markdown elements and attributes out of server markup', () => {
+    const content = [
+      '#### Heading',
+      '~~removed~~',
+      '![image](https://example.com/image.png)',
+      '---',
+      '- [x] task',
+      '3. third',
+      '```js\ncode\n```',
+      '| column |\n| :---: |\n| cell |',
+    ].join('\n\n')
+    const markup = renderToStaticMarkup(<Markdown content={content} />)
+    expect(markup).not.toMatch(/<(?:h4|del|img|hr|input)\b/)
+    expect(markup).not.toMatch(/\s(?:start|align|title)=/)
+    expect(markup).not.toContain('language-js')
+    for (const text of ['Heading', 'removed', 'task', 'third', 'code', 'column', 'cell']) {
+      expect(markup).toContain(text)
+    }
+    expect(markup).toContain('<pre tabindex="0">')
+    expect(markup).toContain('<table tabindex="0">')
+  })
+
+  it.each(['script', 'style', 'textarea'])('escapes nested markup inside inline %s tags', (tag) => {
+    const content = `before <${tag}><img src=x onerror=alert(1)></${tag}> after`
+    const markup = renderToStaticMarkup(<Markdown content={content} />)
+    expect(markup).toContain(`&lt;${tag}&gt;&lt;img`)
+    expect(markup).toContain(`&lt;/${tag}&gt; after`)
+    expect(markup).not.toContain(`<${tag}`)
+    expect(markup).not.toContain('<img')
+  })
+})
