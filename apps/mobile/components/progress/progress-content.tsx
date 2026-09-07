@@ -1,4 +1,4 @@
-import { useMemo, useState, type ComponentType, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -78,6 +78,22 @@ function LockedCard({ title, body, action, tokens }: Readonly<{ title: string; b
   )
 }
 
+function FrozenTodayStatus({ isFrozenToday, tokens }: Readonly<{ isFrozenToday: boolean; tokens: AppTokensV2 }>) {
+  const { t } = useTranslation()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    let active = true
+    void Promise.resolve().then(() => { if (active) setMounted(true) })
+    return () => { active = false }
+  }, [])
+  const showMessage = mounted && isFrozenToday
+  return (
+    <View accessible accessibilityLiveRegion="polite" accessibilityLabel={showMessage ? t('progressScreen.streak.frozenToday') : ''} style={showMessage ? [styles.frozenBanner, { backgroundColor: tokens.bgWell }] : styles.screenReaderTitle}>
+      {showMessage ? <><Snowflake size={20} strokeWidth={2} color={tokens.statusFrozen} /><Text style={[styles.frozenCopy, { color: tokens.fg2 }]}>{t('progressScreen.streak.frozenToday')}</Text></> : null}
+    </View>
+  )
+}
+
 function StreakSection({ accountProfile, canView, gamificationProfile, tokens }: Readonly<{
   accountProfile: ReturnType<typeof useProfile>['profile']; canView: boolean; gamificationProfile: ReturnType<typeof useGamificationProfile>['profile']; tokens: AppTokensV2
 }>) {
@@ -105,9 +121,9 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens }:
   return (
     <View style={styles.streakSection}><Text accessible accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text>
       <View style={styles.streakFigure}><Text style={[styles.streak, { color: tokens.fg1 }]}>{new Intl.NumberFormat(i18n.language).format(currentStreak)}</Text><Text style={[styles.streakLabel, { color: tokens.fg2 }]}>{t('progressScreen.streak.currentLabel', { count: currentStreak })}</Text></View>
-      {freeze.isFrozenToday ? <View accessibilityLiveRegion="polite" accessibilityLabel={t('progressScreen.streak.frozenToday')} style={[styles.frozenBanner, { backgroundColor: tokens.bgWell }]}><Snowflake size={20} strokeWidth={2} color={tokens.statusFrozen} /><Text style={[styles.frozenCopy, { color: tokens.fg2 }]}>{t('progressScreen.streak.frozenToday')}</Text></View> : null}
+      <FrozenTodayStatus isFrozenToday={freeze.isFrozenToday} tokens={tokens} />
       <DayStrip size={width >= 768 ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
-      {canView && freeze.streakInfo ? <FreezeBank banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} usedThisMonth={freeze.freezesUsedThisMonth} longestValue={longestStreak} longestLabel={t('progressScreen.streak.longest')} daysTowardNext={Math.max(0, 7 - freeze.daysUntilNextFreeze)} earnRateDays={7} tierValue={tier} tierLabel={t('streakDisplay.detail.tierTileLabel')} protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, new Date(), i18n.language, freeze.isFrozenToday)} words={{ ...dayWords, legendLabel: t('progressScreen.streak.legend'), bankedLabel: t('progressScreen.streak.banked'), usedLabel: t('progressScreen.streak.used'), nextLabel: t('progressScreen.streak.next'), nextProgressLabel: t('progressScreen.streak.nextProgress'), nextFreezeProgress: t('progressScreen.streak.nextOf', { current: Math.max(0, 7 - freeze.daysUntilNextFreeze), total: 7 }), protectedLabel: t('progressScreen.streak.protectedDays'), protectedEmpty: t('progressScreen.streak.protectedEmpty'), protectedDay: t('progressScreen.streak.protected'), protectedToday: t('progressScreen.streak.protectedToday') }} /> : <><View style={styles.tileGrid}><View style={styles.half}><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /></View><View style={styles.half}><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></View></View><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} tokens={tokens} /></>}
+      {canView && freeze.streakInfo ? <FreezeBank banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} usedThisMonth={freeze.freezesUsedThisMonth} longestValue={longestStreak} longestLabel={t('progressScreen.streak.longest')} daysTowardNext={Math.max(0, 7 - freeze.daysUntilNextFreeze)} earnRateDays={7} tierValue={tier} tierLabel={t('streakDisplay.detail.tierTileLabel')} protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, i18n.language, freeze.isFrozenToday)} words={{ ...dayWords, legendLabel: t('progressScreen.streak.legend'), bankedLabel: t('progressScreen.streak.banked'), usedLabel: t('progressScreen.streak.used'), nextLabel: t('progressScreen.streak.next'), nextProgressLabel: t('progressScreen.streak.nextProgress'), nextFreezeProgress: t('progressScreen.streak.nextOf', { current: Math.max(0, 7 - freeze.daysUntilNextFreeze), total: 7 }), protectedLabel: t('progressScreen.streak.protectedDays'), protectedEmpty: t('progressScreen.streak.protectedEmpty'), protectedDay: t('progressScreen.streak.protected'), protectedToday: t('progressScreen.streak.protectedToday') }} /> : <><View style={styles.tileGrid}><View style={styles.half}><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /></View><View style={styles.half}><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></View></View><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} tokens={tokens} /></>}
       {repairDate ? <View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}><View style={styles.copy}><Text style={[styles.cardTitle, { color: tokens.fg1 }]}>{t('progressScreen.streak.repairTitle')}</Text><Text style={[styles.body, { color: tokens.fg3 }]}>{canRepair ? t('progressScreen.streak.repairBody', { count: freeze.freezesAvailable }) : t('progressScreen.streak.repairEmpty', { count: freeze.daysUntilNextFreeze })}</Text></View>{canRepair ? <View style={styles.actionStart}><PillButton loading={repair.isPending} onClick={() => repair.mutate()}>{t('progressScreen.streak.repairAction')}</PillButton></View> : null}{repair.isError ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.statusBad }]}>{t('progressScreen.streak.repairError')}</Text> : null}</View> : null}
     </View>
   )

@@ -459,8 +459,34 @@ describe('mobile ProgressContent', () => {
     }
   })
 
+  it.each([false, true])('stages a stable frozen live region when initially frozen is %s', async (initiallyFrozen) => {
+    mocks.freeze.isFrozenToday = initiallyFrozen
+    mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
+    let tree: { root: TestNode; update: (element: React.ReactNode) => void; unmount: () => void } | undefined
+    TestRenderer.act(() => { tree = TestRenderer.create(<ProgressScreen />) })
+    const regions = tree!.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite')
+    expect(regions, 'the empty polite region must already be mounted').toHaveLength(1)
+    const region = regions[0]!
+    expect(region.props.accessibilityLabel ?? '').toBe('')
+    expect(region.findAll((node) => node.props.children === 'progressScreen.streak.frozenToday')).toHaveLength(0)
+    mocks.freeze.isFrozenToday = true
+    await TestRenderer.act(async () => {
+      tree!.update(<ProgressScreen />)
+      await Promise.resolve()
+    })
+    expect(tree!.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite')[0]).toBe(region)
+    expect(region.props.accessibilityLabel).toBe('progressScreen.streak.frozenToday')
+    expect(region.findAll((node) => node.props.children === 'progressScreen.streak.frozenToday').length).toBeGreaterThan(0)
+    mocks.freeze.isFrozenToday = false
+    TestRenderer.act(() => { tree!.update(<ProgressScreen />) })
+    expect(tree!.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite')[0]).toBe(region)
+    expect(region.props.accessibilityLabel ?? '').toBe('')
+    TestRenderer.act(() => { tree!.unmount() })
+  })
+
   it('announces frozen today above the strip and includes its protected date', async () => {
     mocks.freeze.isFrozenToday = true
+    mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
     const tree = await renderProgress()
     const hosts = tree.root.findAll((node) => typeof node.type === 'string')
     const banner = hosts.findIndex((node) => node.props.accessibilityLiveRegion === 'polite' && node.props.accessibilityLabel === 'progressScreen.streak.frozenToday')

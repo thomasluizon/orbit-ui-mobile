@@ -1,10 +1,24 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { buildStreakWeekDays } from '../utils/streak-week'
 import { buildProtectedDayLabels } from '../utils/progress'
 
 const now = new Date(2026, 8, 7, 12)
 
 describe('Progress streak history', () => {
+  afterEach(() => { vi.useRealTimers() })
+  it.each([
+    [new Date(2026, 8, 8, 0, 30), '2026-09-07'],
+    [new Date(2026, 8, 7, 23, 30), '2026-09-08'],
+  ] as const)('uses only account freeze dates across midnight with device time %s', (deviceNow, accountToday) => {
+    vi.setSystemTime(deviceNow)
+    const dates = ['2026-09-04', accountToday, accountToday]
+    const protectedDays = buildProtectedDayLabels(dates, 'en', true)
+    expect.soft(protectedDays.map((day) => day.id), 'must not invent a device date').toEqual([accountToday, '2026-09-04'])
+    expect(protectedDays.find((day) => day.id === accountToday)?.isToday, 'today belongs to the account').toBe(true)
+    expect(buildProtectedDayLabels(dates, 'en', false).every((day) => !day.isToday)).toBe(true)
+    expect(dates).toEqual(['2026-09-04', accountToday, accountToday])
+  })
+
   it.each([
     ['', 'en'],
     ['not-a-date', 'en'],
@@ -13,13 +27,13 @@ describe('Progress streak history', () => {
     ['not-a-date', undefined],
     ['2026-02-30', undefined],
   ] as const)('omits invalid protected date %j with locale %j while retaining valid history', (invalidDate, locale) => {
-    const dates = [invalidDate, '2026-09-04']
-    expect(buildProtectedDayLabels(dates, now, locale, true)).toEqual([
+    const dates = [invalidDate, '2026-09-04', '2026-09-07']
+    expect(buildProtectedDayLabels(dates, locale, true)).toEqual([
       { id: '2026-09-07', dateLabel: locale ? 'Sep 7' : '2026-09-07', isToday: true },
       { id: '2026-09-04', dateLabel: locale ? 'Sep 4' : '2026-09-04', isToday: false },
     ])
-    expect(buildProtectedDayLabels([invalidDate], now, locale)).toEqual([])
-    expect(dates).toEqual([invalidDate, '2026-09-04'])
+    expect(buildProtectedDayLabels([invalidDate], locale)).toEqual([])
+    expect(dates).toEqual([invalidDate, '2026-09-04', '2026-09-07'])
   })
 
   it('derives fourteen account days with all four states and keeps today open', () => {
@@ -31,14 +45,14 @@ describe('Progress streak history', () => {
   })
 
   it('includes protected today once and formats dates in the requested locale', () => {
-    const dates = ['2026-09-04']
-    const protectedDays = buildProtectedDayLabels(dates, now, 'en', true)
+    const dates = ['2026-09-04', '2026-09-07', '2026-09-07']
+    const protectedDays = buildProtectedDayLabels(dates, 'en', true)
     expect(protectedDays.map((day) => day.id)).toEqual(['2026-09-07', '2026-09-04'])
     expect(protectedDays[0]).toEqual({ id: '2026-09-07', dateLabel: 'Sep 7', isToday: true })
-    expect(buildProtectedDayLabels(['2026-09-07'], now, 'pt-BR', true)).toEqual([
+    expect(buildProtectedDayLabels(['2026-09-07'], 'pt-BR', true)).toEqual([
       { id: '2026-09-07', dateLabel: '7 de set.', isToday: true },
     ])
-    expect(buildProtectedDayLabels([], now, 'en', false)).toEqual([])
-    expect(dates).toEqual(['2026-09-04'])
+    expect(buildProtectedDayLabels([], 'en', false)).toEqual([])
+    expect(dates).toEqual(['2026-09-04', '2026-09-07', '2026-09-07'])
   })
 })

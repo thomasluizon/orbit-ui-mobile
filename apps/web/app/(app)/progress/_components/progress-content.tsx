@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  useEffect,
   useMemo,
   useState,
   type ComponentType,
@@ -105,6 +106,22 @@ function ProgressLoading({ label }: Readonly<{ label: string }>) {
   )
 }
 
+function FrozenTodayStatus({ isFrozenToday }: Readonly<{ isFrozenToday: boolean }>) {
+  const t = useTranslations()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    let active = true
+    void Promise.resolve().then(() => { if (active) setMounted(true) })
+    return () => { active = false }
+  }, [])
+  const showMessage = mounted && isFrozenToday
+  return (
+    <div role="status" className={showMessage ? 'flex items-center gap-3 rounded-[12px] bg-[var(--bg-well)] p-3 text-[14px] text-[var(--fg-2)]' : 'sr-only'}>
+      {showMessage ? <><Snowflake size={20} strokeWidth={2} color="var(--status-frozen)" aria-hidden="true" /><p>{t('progressScreen.streak.frozenToday')}</p></> : null}
+    </div>
+  )
+}
+
 function StreakSection({ accountProfile, canView, gamificationProfile }: Readonly<{
   accountProfile: ReturnType<typeof useProfile>['profile']
   canView: boolean
@@ -158,7 +175,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
         <p className="font-[var(--font-display)] text-[60px] font-semibold leading-none tracking-[-0.03em] tabular-nums text-[var(--fg-1)]">{new Intl.NumberFormat(locale).format(currentStreak)}</p>
         <p className="text-[17px] text-[var(--fg-2)]">{t('progressScreen.streak.currentLabel', { count: currentStreak })}</p>
       </div>
-      {freeze.isFrozenToday ? <div role="status" className="flex items-center gap-3 rounded-[12px] bg-[var(--bg-well)] p-3 text-[14px] text-[var(--fg-2)]"><Snowflake size={20} strokeWidth={2} color="var(--status-frozen)" aria-hidden="true" /><p>{t('progressScreen.streak.frozenToday')}</p></div> : null}
+      <FrozenTodayStatus isFrozenToday={freeze.isFrozenToday} />
       <div className="min-w-0 w-full py-1">
         <DayStrip size={isDesktop ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
       </div>
@@ -172,7 +189,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
           earnRateDays={7}
           tierValue={tier}
           tierLabel={t('streakDisplay.detail.tierTileLabel')}
-          protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, new Date(), locale, freeze.isFrozenToday)}
+          protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, locale, freeze.isFrozenToday)}
           words={{
             ...dayWords,
             legendLabel: t('progressScreen.streak.legend'),

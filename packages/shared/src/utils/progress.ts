@@ -1,7 +1,6 @@
 import {
   differenceInCalendarDays,
   format,
-  isSameDay,
   isValid,
   parseISO,
   startOfDay,
@@ -140,20 +139,16 @@ export function getAvailableStreakRepairDate(
 
 export function buildProtectedDayLabels(
   dates: readonly string[],
-  now: Date = new Date(),
   locale?: string,
   isFrozenToday = false,
 ): { id: string; dateLabel: string; isToday: boolean }[] {
-  const today = startOfDay(now)
-  const protectedDates = new Set(dates)
-  if (isFrozenToday) protectedDates.add(format(today, 'yyyy-MM-dd'))
-  return [...protectedDates].sort().reverse().flatMap((date) => {
+  const protectedDays = [...new Set(dates)].sort().reverse().flatMap((date) => {
     const parsed = startOfDay(parseISO(date))
     if (!isValid(parsed)) return []
     return [{
       id: date,
       dateLabel: locale ? new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(parsed) : format(parsed, 'yyyy-MM-dd'),
-      isToday: isSameDay(parsed, today),
     }]
   })
+  return protectedDays.map((day, index) => ({ ...day, isToday: isFrozenToday && index === 0 }))
 }

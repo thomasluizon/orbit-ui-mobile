@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
 const mocks = vi.hoisted(() => ({
@@ -352,9 +352,29 @@ describe('ProgressContent', () => {
     for (const cell of cells) expect(cell).toHaveStyle({ flexShrink: '1', minWidth: '0px' })
   })
 
-  it('announces frozen today above the strip and includes its protected date', () => {
+  it.each([false, true])('stages a stable frozen status region when initially frozen is %s', async (initiallyFrozen) => {
+    mocks.freeze.isFrozenToday = initiallyFrozen
+    mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
+    const { rerender } = render(<ProgressPage />)
+    const region = screen.getByRole('status')
+    expect(region).toBeEmptyDOMElement()
+    expect(screen.queryByText('progressScreen.streak.frozenToday')).not.toBeInTheDocument()
     mocks.freeze.isFrozenToday = true
+    rerender(<ProgressPage />)
+    await act(async () => { await Promise.resolve() })
+    expect(screen.getByRole('status')).toBe(region)
+    expect(region).toHaveTextContent('progressScreen.streak.frozenToday')
+    mocks.freeze.isFrozenToday = false
+    rerender(<ProgressPage />)
+    expect(screen.getByRole('status')).toBe(region)
+    expect(region).toBeEmptyDOMElement()
+  })
+
+  it('announces frozen today above the strip and includes its protected date', async () => {
+    mocks.freeze.isFrozenToday = true
+    mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
     const { container, rerender } = render(<ProgressPage />)
+    await act(async () => { await Promise.resolve() })
     const banner = screen.getByRole('status')
     expect(banner).toHaveTextContent('progressScreen.streak.frozenToday')
     const strip = container.querySelector('[data-scope="account"]')!
