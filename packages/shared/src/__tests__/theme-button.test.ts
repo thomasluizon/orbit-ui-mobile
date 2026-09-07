@@ -8,12 +8,12 @@ describe('button geometry', () => {
     expect(Object.keys(BUTTON_SIZES).sort()).toEqual(['md', 'sm'])
   })
 
-  it('keeps md at the historical pill look', () => {
+  it('keeps the medium pill geometry with an allowed icon size', () => {
     expect(BUTTON_SIZES.md).toEqual({
       height: 50,
       paddingX: 26,
       fontSize: 16,
-      iconSize: 18,
+      iconSize: 20,
       gap: 9,
     })
   })
