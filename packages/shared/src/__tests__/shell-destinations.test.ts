@@ -15,7 +15,7 @@ describe('resolveShellDestination', () => {
     ['/preferences', 'perfil'],
     ['/advanced', 'perfil'],
     ['/profile/security', 'perfil'],
-    ['/notifications/123', 'perfil'],
+    ['/notifications', 'hoje'],
     ['/account/billing', 'perfil'],
   ] as const)('maps %s to %s', (pathname, destination) => {
     expect(resolveShellDestination(pathname)).toBe(destination)

@@ -6,6 +6,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Providers } from '@/lib/providers'
 import { DestinationShell } from '@/components/shell/destination-shell'
+import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 import { Toast } from '@/components/ui/toast'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { WifiOff } from '@/components/ui/icons'
@@ -251,6 +252,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
               />
             )}
             <UpdateAvailableBanner />
+            <NotificationDeleteNotice />
           </>
         )}
       >

@@ -5,7 +5,7 @@ import { RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
 import { RingMotif } from '@/components/gamification/ring-motif'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 import { coverSubtitleStyle, coverTitleStyle } from './wrapped-styles'
 
 interface WrappedCoverProps {
@@ -95,7 +95,7 @@ export function WrappedCover({
 
           {!isLoading && !isError && isEmpty && (
             <div className="flex flex-col items-center" style={{ gap: 12 }}>
-              <SatelliteGlyph />
+              <OrbitMark size={96} />
               <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)', maxWidth: 300 }}>
                 {t('wrapped.empty')}
               </p>

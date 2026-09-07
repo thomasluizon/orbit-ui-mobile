@@ -1,4 +1,5 @@
 import React from 'react'
+import { focusManager } from '@tanstack/query-core'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NOTIFICATIONS_REFETCH_INTERVAL, notificationKeys } from '@orbit/shared/query'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
@@ -18,11 +19,6 @@ const mocks = vi.hoisted(() => {
     notifications: undefined as NotificationsResponse | undefined,
   }
 
-  const appState = {
-    listener: null as ((nextState: string) => void) | null,
-    removeCount: 0,
-  }
-
   const queryClient = {
     cancelQueries: vi.fn(async () => {}),
     invalidateQueries: vi.fn(async () => {}),
@@ -39,7 +35,6 @@ const mocks = vi.hoisted(() => {
 
   return {
     state,
-    appState,
     queryClient,
     useQuery: vi.fn(() => ({ data: state.notifications })),
     useQueryClient: vi.fn(() => queryClient),
@@ -77,25 +72,6 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: mocks.useQueryClient,
   useMutation: mocks.useMutation,
 }))
-
-vi.mock('react-native', async () => {
-  const actual = await import('../../test-mocks/react-native')
-
-  return {
-    ...actual,
-    AppState: {
-      addEventListener: vi.fn((_eventName: string, listener: (nextState: string) => void) => {
-        mocks.appState.listener = listener
-        return {
-          remove: vi.fn(() => {
-            mocks.appState.removeCount += 1
-            mocks.appState.listener = null
-          }),
-        }
-      }),
-    },
-  }
-})
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: vi.fn(),
@@ -161,8 +137,7 @@ function renderHook(hook: () => unknown): { unmount: () => void } {
 describe('mobile notification hooks', () => {
   beforeEach(() => {
     mocks.state.notifications = createNotificationsResponse()
-    mocks.appState.listener = null
-    mocks.appState.removeCount = 0
+    focusManager.setFocused(true)
     mocks.queryClient.cancelQueries.mockClear()
     mocks.queryClient.invalidateQueries.mockClear()
     mocks.queryClient.getQueryData.mockClear()
@@ -254,7 +229,7 @@ describe('mobile notification hooks', () => {
     vi.useFakeTimers()
     try {
       const handle = renderHook(() => useNotifications())
-      expect(mocks.appState.listener).toBeTypeOf('function')
+      expect(focusManager.hasListeners()).toBe(true)
 
       mocks.queryClient.invalidateQueries.mockClear()
       vi.advanceTimersByTime(NOTIFICATIONS_REFETCH_INTERVAL)
@@ -266,27 +241,27 @@ describe('mobile notification hooks', () => {
       mocks.queryClient.invalidateQueries.mockClear()
       vi.advanceTimersByTime(NOTIFICATIONS_REFETCH_INTERVAL * 3)
       expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
-      expect(mocks.appState.removeCount).toBe(1)
+      expect(focusManager.hasListeners()).toBe(false)
     } finally {
       vi.useRealTimers()
     }
   })
 
-  it('refetches immediately when the app returns to the foreground', () => {
+  it('pauses polling through query focus and invalidates immediately after foreground', () => {
+    vi.useFakeTimers()
     const handle = renderHook(() => useNotifications())
-
-    mocks.queryClient.invalidateQueries.mockClear()
-    mocks.appState.listener?.('active')
-
-    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: notificationKeys.lists(),
-    })
-
-    mocks.queryClient.invalidateQueries.mockClear()
-    mocks.appState.listener?.('background')
-    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
-
-    handle.unmount()
+    try {
+      focusManager.setFocused(false)
+      vi.advanceTimersByTime(NOTIFICATIONS_REFETCH_INTERVAL)
+      expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+      focusManager.setFocused(true)
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledExactlyOnceWith({
+        queryKey: notificationKeys.lists(),
+      })
+    } finally {
+      handle.unmount()
+      vi.useRealTimers()
+    }
   })
 
   it('invalidates the list after a mark-read confirms online', async () => {

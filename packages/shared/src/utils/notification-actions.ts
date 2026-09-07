@@ -27,15 +27,17 @@ export function isViewableNotificationUrl(
   url: string | null | undefined,
 ): url is string {
   if (typeof url !== 'string' || !url.startsWith('/') || url.startsWith('//')) return false
-  return !url.startsWith('/social') &&
-    !url.startsWith('/public-profile') &&
-    !url.startsWith('/u/')
+  const pathname = resolveNotificationUrl(url).split(/[?#]/, 1)[0] ?? url
+  return ['/', '/calendar', '/progress', '/profile'].includes(pathname) ||
+    /^\/habits\/[^/\\.%]+$/.test(pathname)
 }
 
 const ABSORBED_PROGRESS_ROUTES = ['/streak', '/achievements', '/retrospective'] as const
 
 export function resolveNotificationUrl(url: string): string {
   const pathname = url.split(/[?#]/, 1)[0] ?? url
+  if (pathname === '/chat') return '/'
+  if (pathname === '/calendar-sync') return '/calendar'
   const isAbsorbedRoute = ABSORBED_PROGRESS_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   )
@@ -43,32 +45,47 @@ export function resolveNotificationUrl(url: string): string {
 }
 
 export function getNotificationDetailActionVisibility(
-  notification: Pick<NotificationItem, 'isRead' | 'url'>,
+  notification: Pick<NotificationItem, 'isRead' | 'url' | 'habitId'>,
 ): { canView: boolean; canMarkAsRead: boolean } {
   return {
-    canView: isViewableNotificationUrl(notification.url),
+    canView: getNotificationDestination(notification.url, notification.habitId) !== null,
     canMarkAsRead: !notification.isRead,
   }
 }
 
-export type NotificationGlyph =
-  | 'streak'
-  | 'celebration'
-  | 'astra'
-  | 'reminder'
+export function getNotificationDestination(
+  url: string | null | undefined,
+  habitId: string | null = null,
+): { url: string; opensAstra: boolean } | null {
+  if (!isViewableNotificationUrl(url)) return null
+  const destination = habitId === null ? resolveNotificationUrl(url) : `/habits/${encodeURIComponent(habitId)}`
+  if (!isViewableNotificationUrl(destination)) return null
+  return { url: destination, opensAstra: habitId === null && url.split(/[?#]/, 1)[0] === '/chat' }
+}
 
-/** Resolves the inbox glyph for a notification from the destination the API
- *  attaches: streak alerts get the flame, gamification and referral
- *  celebrations the trophy, Astra-produced surfaces the sparkles, and habit
- *  reminders fall back to the bell. */
-export function getNotificationGlyph(
-  notification: Pick<NotificationItem, 'url' | 'habitId'>,
-): NotificationGlyph {
-  const { url, habitId } = notification
-  if (url?.startsWith('/streak')) return 'streak'
-  if (url?.startsWith('/chat') || url?.startsWith('/calendar-sync?mode=review')) {
-    return 'astra'
+export function getNotificationTargetKey(url: string | null, habitId: string | null = null):
+  'nav.today' | 'nav.calendar' | 'nav.progress' | 'nav.profile' | 'notifications.habit' | null {
+  const destination = getNotificationDestination(url, habitId)
+  if (!destination) return null
+  const pathname = destination.url.split(/[?#]/, 1)[0]
+  switch (pathname) {
+    case '/': return 'nav.today'
+    case '/calendar': return 'nav.calendar'
+    case '/progress': return 'nav.progress'
+    case '/profile': return 'nav.profile'
+    default: return 'notifications.habit'
   }
-  if (url?.startsWith('/profile') || (!url && !habitId)) return 'celebration'
-  return 'reminder'
+}
+
+export function getNotificationInboxState(
+  notifications: readonly NotificationItem[],
+  unreadCount: number,
+  pendingDeleteIds: readonly string[],
+): { visibleNotifications: NotificationItem[]; visibleUnreadCount: number } {
+  const pending = new Set(pendingDeleteIds)
+  const hiddenUnread = notifications.filter((item) => pending.has(item.id) && !item.isRead).length
+  return {
+    visibleNotifications: notifications.filter((item) => !pending.has(item.id)),
+    visibleUnreadCount: Math.max(0, unreadCount - hiddenUnread),
+  }
 }
