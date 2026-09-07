@@ -261,12 +261,11 @@ function GoalCard({ goal, index, canReorder, onMove, onOpen }: Readonly<{
   )
 }
 
-function GoalsSection({ goals }: Readonly<{ goals: readonly Goal[] }>) {
+function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; onOpenGoal: (goalId: string) => void }>) {
   const t = useTranslations()
   const router = useRouter()
   const reorder = useReorderGoals()
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
-  const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
   const drag = useGoalDrag(goals, filter === 'all' && !reorder.isPending, reorder.mutate)
   const filtered = filterProgressGoals(goals, filter)
   const move = (goalId: string, target: number) => {
@@ -286,12 +285,11 @@ function GoalsSection({ goals }: Readonly<{ goals: readonly Goal[] }>) {
         <DndContext sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
           {filtered.map((goal) => {
             const index = goals.findIndex((item) => item.id === goal.id)
-            return <GoalCard key={goal.id} goal={goal} index={index} canReorder={filter === 'all' && !reorder.isPending} onMove={move} onOpen={() => setDetailGoalId(goal.id)} />
+            return <GoalCard key={goal.id} goal={goal} index={index} canReorder={filter === 'all' && !reorder.isPending} onMove={move} onOpen={() => onOpenGoal(goal.id)} />
           })}
         </div></SortableContext></DndContext>
       ) : null}
       {reorder.isError ? <p role="alert" className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.reorderError')}</p> : null}
-      {detailGoalId ? <GoalDetailDrawer open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /> : null}
     </section>
   )
 }
@@ -397,6 +395,7 @@ function AchievementsSection({ profile, canView, xpProgress }: Readonly<{ profil
 }
 
 export function ProgressContent() {
+  const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
   const t = useTranslations()
   const router = useRouter()
   const account = useProfile()
@@ -412,11 +411,14 @@ export function ProgressContent() {
   }
   return (
     <main className="flex w-full flex-col gap-8 px-4 py-4 md:px-0">
+      {detailGoalId ? <GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /> : null}
+      <div hidden={detailGoalId !== null} className="flex flex-col gap-8">
       <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {error ? <div className="w-full max-w-[620px]"><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
       {empty ? <div className="pt-12"><EmptyState title={t('progressScreen.empty')} action={<PillButton variant="ghost" size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></div> : null}
-      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} /><GoalsSection goals={allGoals} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} /><AchievementsSection profile={gamification.profile} canView={canView} xpProgress={gamification.xpProgress} /></> : null}
+      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} /><AchievementsSection profile={gamification.profile} canView={canView} xpProgress={gamification.xpProgress} /></> : null}
+      </div>
     </main>
   )
 }

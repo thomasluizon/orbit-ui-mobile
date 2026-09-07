@@ -16,3 +16,11 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
     }),
   })
 }
+
+Object.defineProperty(SVGElement.prototype, 'getTotalLength', {
+  configurable: true,
+  value: function (this: SVGElement) {
+    if (this.tagName !== 'circle') throw new Error('Only circle geometry is supported by this test double')
+    return 2 * Math.PI * Number(this.getAttribute('r'))
+  },
+})
