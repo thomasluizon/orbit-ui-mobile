@@ -37,7 +37,7 @@ export function FailureScreen({ error, retry, titleId }: Readonly<{ error: unkno
         <PillButton variant={waiting ? 'ghost' : 'primary'} disabled={waiting} loading={retrying}
           onClick={handleRetry}>{t('errorScreen.retry')}</PillButton>
       </div>
-      {!countdown && requestId ? <p className="font-mono text-[12px] leading-[1.5] text-[var(--fg-4)] break-all">{t('errorScreen.reference', { requestId })}</p> : null}
+      {!countdown && requestId ? <p className="font-mono text-[12px] leading-[1.5] text-[var(--fg-3)] break-all">{t('errorScreen.reference', { requestId })}</p> : null}
     </section>
   )
 }
