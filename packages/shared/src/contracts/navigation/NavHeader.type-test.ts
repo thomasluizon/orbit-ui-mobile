@@ -1,10 +1,21 @@
+import type { ReactNode } from 'react'
 import type { NavHeaderProps } from './NavHeader'
 
 type Keys<T> = T extends unknown ? keyof T : never
 type IsExact<T, U> = T extends U ? Exclude<keyof T, Keys<U>> extends never ? true : false : false
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
 type Assert<T extends true> = T
 
 export type NavHeaderTypeContract = [
+  Assert<IsExactWidth<NavHeaderProps['title'], string>>,
+  Assert<IsExactWidth<NavHeaderProps['onBack'], (() => void) | undefined>>,
+  Assert<IsExactWidth<NavHeaderProps['backLabel'], string | undefined>>,
+  Assert<IsExactWidth<NavHeaderProps['action'], ReactNode>>,
   Assert<IsExact<{ title: 'Habit' }, NavHeaderProps>>,
   Assert<IsExact<{ title: 'Habit'; action: 'Help' }, NavHeaderProps>>,
   Assert<IsExact<{ title: 'Habit'; onBack: () => void; backLabel: 'Today' }, NavHeaderProps>>,

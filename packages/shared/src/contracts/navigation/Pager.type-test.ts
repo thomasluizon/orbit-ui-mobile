@@ -1,7 +1,14 @@
+import type { ReactNode } from 'react'
 import type { PagerProps } from './Pager'
 
 type Keys<T> = T extends unknown ? keyof T : never
 type IsExact<T, U> = T extends U ? Exclude<keyof T, Keys<U>> extends never ? true : false : false
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
 type Assert<T extends true> = T
 
 type Base = { index: 0; count: 3; label: 'Steps'; backLabel: 'Previous step' }
@@ -10,6 +17,14 @@ type ReplacedForward = Base & { forwardSlot: 'Finish' }
 type ExpectedKeys = 'index' | 'count' | 'label' | 'backLabel' | 'onBack' | 'forwardLabel' | 'onForward' | 'forwardSlot'
 
 export type PagerTypeContract = [
+  Assert<IsExactWidth<PagerProps['index'], number>>,
+  Assert<IsExactWidth<PagerProps['count'], number>>,
+  Assert<IsExactWidth<PagerProps['label'], string>>,
+  Assert<IsExactWidth<PagerProps['backLabel'], string>>,
+  Assert<IsExactWidth<PagerProps['onBack'], (() => void) | undefined>>,
+  Assert<IsExactWidth<PagerProps['forwardLabel'], string | undefined>>,
+  Assert<IsExactWidth<PagerProps['onForward'], (() => void) | undefined>>,
+  Assert<IsExactWidth<PagerProps['forwardSlot'], ReactNode>>,
   Assert<IsExact<OwnForward, PagerProps>>,
   Assert<IsExact<OwnForward & { onForward: () => void }, PagerProps>>,
   Assert<IsExact<OwnForward & { onBack: () => void }, PagerProps>>,

@@ -1,11 +1,19 @@
-import type { ReactElement } from 'react'
+import type { ReactElement, ReactNode } from 'react'
 import type { SectionTitleProps } from './SectionTitle'
 
 type Keys<T> = T extends unknown ? keyof T : never
 type IsExact<T, U> = T extends U ? Exclude<keyof T, Keys<U>> extends never ? true : false : false
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
 type Assert<T extends true> = T
 
 export type SectionTitleTypeContract = [
+  Assert<IsExactWidth<SectionTitleProps['children'], ReactNode>>,
+  Assert<IsExactWidth<SectionTitleProps['eyebrow'], string | undefined>>,
   Assert<IsExact<{ children: 'Habits' }, SectionTitleProps>>,
   Assert<IsExact<{ children: 'Habits'; eyebrow: 'Today' }, SectionTitleProps>>,
   Assert<IsExact<{ children: ReactElement }, SectionTitleProps>>,

@@ -2,6 +2,12 @@ import type { SegmentedControlOption, SegmentedControlProps } from './SegmentedC
 
 type Keys<T> = T extends unknown ? keyof T : never
 type IsExact<T, U> = T extends U ? Exclude<keyof T, Keys<U>> extends never ? true : false : false
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
 type Assert<T extends true> = T
 
 type Value = 'all' | 'active' | 'done' | 'archived'
@@ -13,8 +19,21 @@ type TwoOptions = { options: readonly [All, Active]; value: 'all'; onChange: (va
 type ThreeOptions = { options: readonly [All, Active, Done]; value: 'done'; onChange: (value: 'all' | 'active' | 'done') => void; label: 'View' }
 type FourOptions = { options: readonly [All, Active, Done, Archived]; value: 'archived'; onChange: (value: Value) => void; label: 'View' }
 type ExpectedKeys = 'options' | 'value' | 'onChange' | 'label' | 'disabled'
+type ConcreteProps = SegmentedControlProps<Value>
+type ExpectedOptions =
+  | readonly [SegmentedControlOption<Value>, SegmentedControlOption<Value>]
+  | readonly [SegmentedControlOption<Value>, SegmentedControlOption<Value>, SegmentedControlOption<Value>]
+  | readonly [SegmentedControlOption<Value>, SegmentedControlOption<Value>, SegmentedControlOption<Value>, SegmentedControlOption<Value>]
 
 export type SegmentedControlTypeContract = [
+  Assert<IsExactWidth<ConcreteProps['options'], ExpectedOptions>>,
+  Assert<IsExactWidth<ConcreteProps['value'], Value>>,
+  Assert<IsExactWidth<ConcreteProps['onChange'], (value: Value) => void>>,
+  Assert<IsExactWidth<ConcreteProps['label'], string>>,
+  Assert<IsExactWidth<ConcreteProps['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<SegmentedControlOption<Value>['value'], Value>>,
+  Assert<IsExactWidth<SegmentedControlOption<Value>['label'], string>>,
+  Assert<IsExactWidth<SegmentedControlOption<Value>['disabled'], boolean | undefined>>,
   Assert<IsExact<TwoOptions, SegmentedControlProps<'all' | 'active'>>>,
   Assert<IsExact<ThreeOptions, SegmentedControlProps<'all' | 'active' | 'done'>>>,
   Assert<IsExact<FourOptions, SegmentedControlProps<Value>>>,
