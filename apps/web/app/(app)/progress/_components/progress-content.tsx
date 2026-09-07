@@ -134,7 +134,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
   const repair = useRepairStreak()
   const currentStreak = freeze.streakInfo?.currentStreak ?? gamificationProfile?.currentStreak ?? accountProfile?.currentStreak ?? 0
   const longestStreak = freeze.streakInfo?.longestStreak ?? gamificationProfile?.longestStreak ?? accountProfile?.longestStreak ?? 0
-  const days = buildStreakWeekDays(freeze.streakInfo, currentStreak, freeze.isFrozenToday, new Date(), 14)
+  const days = buildStreakWeekDays(freeze.streakInfo, currentStreak, freeze.isFrozenToday, new Date(), 14, accountProfile?.timeZone)
   const labels = useMemo(() => days.map((day) => new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(day.date)), [days, locale])
   const tier = t(getStreakTierLabelKey(currentStreak))
   const repairDate = getAvailableStreakRepairDate(

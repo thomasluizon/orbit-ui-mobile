@@ -78,6 +78,44 @@ describe('Progress streak history', () => {
     expect(new Set(days.map((day) => day.status))).toEqual(new Set(['missed', 'active', 'frozen', 'today']))
   })
 
+  it.each([
+    [new Date('2026-09-09T01:00:00Z'), 'America/Sao_Paulo', '2026-09-08'],
+    [new Date('2026-09-07T23:30:00Z'), 'Pacific/Kiritimati', '2026-09-08'],
+  ] as const)('ends the timeline on account today across device midnight at %s', (deviceNow, timeZone, accountToday) => {
+    const days = buildStreakWeekDays(
+      { lastActiveDate: accountToday, recentFreezeDates: [accountToday] },
+      1,
+      true,
+      deviceNow,
+      14,
+      timeZone,
+    )
+
+    expect(days.at(-1)).toMatchObject({
+      dateStr: accountToday,
+      status: 'frozen',
+      isToday: true,
+    })
+    expect(days.filter((day) => day.isToday)).toHaveLength(1)
+  })
+
+  it.each([undefined, null, 'unsupported/timezone', ''])('ends the timeline on UTC today without a usable account timezone (%j)', (timeZone) => {
+    const days = buildStreakWeekDays(
+      { lastActiveDate: '2026-09-09', recentFreezeDates: ['2026-09-09'] },
+      1,
+      true,
+      new Date('2026-09-09T01:00:00Z'),
+      14,
+      timeZone,
+    )
+
+    expect(days.at(-1)).toMatchObject({
+      dateStr: '2026-09-09',
+      status: 'frozen',
+      isToday: true,
+    })
+  })
+
   it('includes protected today once and formats dates in the requested locale', () => {
     vi.setSystemTime(new Date('2026-09-07T12:00:00Z'))
     const dates = ['2026-09-04', '2026-09-07', '2026-09-07']

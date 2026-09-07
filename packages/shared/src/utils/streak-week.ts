@@ -11,6 +11,24 @@ interface StreakWeekDay {
   isToday: boolean
 }
 
+function getAccountToday(now: Date, timeZone?: string | null): Date {
+  let accountDate: string
+  try {
+    accountDate = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timeZone || 'UTC',
+      calendar: 'iso8601',
+      numberingSystem: 'latn',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(now)
+  } catch (error) {
+    if (!(error instanceof RangeError)) throw error
+    accountDate = now.toISOString().slice(0, 10)
+  }
+  return startOfDay(parseISO(accountDate))
+}
+
 /**
  * Derives the streak timeline (ending today, seven days by default) from streak info.
  * All comparisons are midnight-anchored so the lastActiveDate day itself
@@ -22,8 +40,9 @@ export function buildStreakWeekDays(
   isFrozenToday: boolean,
   now: Date = new Date(),
   length: 7 | 14 = 7,
+  accountTimeZone?: string | null,
 ): StreakWeekDay[] {
-  const today = startOfDay(now)
+  const today = getAccountToday(now, accountTimeZone)
   const freezeDates = new Set(streakInfo?.recentFreezeDates ?? [])
   const lastActive = streakInfo?.lastActiveDate
   const lastActiveDate = lastActive ? startOfDay(parseISO(lastActive)) : null
