@@ -57,6 +57,10 @@ export {
   resolveAuthLoginErrorKey,
   VERIFICATION_CODE_LENGTH,
   type AuthLoginErrorInput,
+  recordLoginFailure,
+  formatLoginCountdown,
+  type LoginAttempts,
+  type LoginCodeFailure,
 } from './auth-login'
 export {
   ApiClientError,

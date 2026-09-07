@@ -1,171 +1,59 @@
-import { useEffect, useMemo } from 'react'
-// react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { Animated, Text, View } from 'react-native'
-import { AppLogo } from '@/components/ui/app-logo'
-import { easings } from '@/lib/theme'
+import { WifiOff } from '@/components/ui/icons'
+import { easings, type AppTokensV2 } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import type { LoginStyles } from '@/app/login-styles'
 
-type LoginStep = 'email' | 'code'
-type TranslationFn = (key: string, params?: Record<string, unknown>) => string
+type Translate = (key: string, params?: Record<string, unknown>) => string
 
-function useEntrance(
-  duration: number,
-  prefersReducedMotion: boolean,
-): Animated.Value {
-  const progress = useMemo(() => new Animated.Value(0), [])
+export function LoginHeader({ step, t, styles, fromOnboarding = false, plannedHabitCount = 0 }: Readonly<{
+  step: 'email' | 'code'; t: Translate; styles: LoginStyles; fromOnboarding?: boolean; plannedHabitCount?: number
+}>) {
+  const onboarding = fromOnboarding && step === 'email'
+  const title = onboarding ? t('auth.onboarding.title') : t(step === 'email' ? 'auth.emailTitle' : 'auth.enterCode')
+  return <View style={styles.titleBlock}>
+    <Text style={styles.stepTitle} accessibilityRole="header">{title}</Text>
+    {onboarding && <>
+      <Text style={styles.stepSubtitle}>{t('auth.onboarding.subtitle')}</Text>
+      <Text style={styles.mono}>{plannedHabitCount === 1 ? t('auth.onboarding.habitOne') : t('auth.onboarding.habits', { count: plannedHabitCount })}</Text>
+    </>}
+  </View>
+}
 
+export function ReferralBanner({ t, styles }: Readonly<{ t: Translate; styles: LoginStyles }>) {
+  return <View accessibilityLiveRegion="polite" style={styles.referralBanner}>
+    <View style={styles.hairline} />
+    <Text style={styles.referralBannerText}>{t('referral.loginBanner')}</Text>
+    <View style={styles.hairline} />
+  </View>
+}
+
+export function LoginSuccessMessage({ message, styles }: Readonly<{ message: string | null; styles: LoginStyles }>) {
+  return <Text style={styles.successText} accessibilityLiveRegion="polite">{message}</Text>
+}
+
+export function LoginOfflineNotice({ t, styles, tokens }: Readonly<{ t: Translate; styles: LoginStyles; tokens: AppTokensV2 }>) {
+  return <View style={styles.offlineNotice} accessibilityLiveRegion="polite" testID="offline-notice">
+    <WifiOff size={20} color={tokens.fg4} accessible={false} />
+    <Text style={styles.offlineText}>{t('auth.errors.offline')}</Text>
+  </View>
+}
+
+export function LoginStepStage({ step, children }: Readonly<{ step: string; children: ReactNode }>) {
+  const reduced = usePrefersReducedMotion()
+  const previousStep = useRef(step)
+  const progress = useMemo(() => new Animated.Value(1), [])
   useEffect(() => {
-    if (prefersReducedMotion) {
-      progress.setValue(1)
-      return
-    }
+    if (previousStep.current === step || reduced) { progress.setValue(1); previousStep.current = step; return }
+    previousStep.current = step
     progress.setValue(0)
-    const animation = Animated.timing(progress, {
-      toValue: 1,
-      duration,
-      easing: toAnimatedEasing(easings.out),
-      useNativeDriver: true,
-    })
+    const animation = Animated.timing(progress, { toValue: 1, duration: 220,
+      easing: toAnimatedEasing(easings.smooth), useNativeDriver: true })
     animation.start()
     return () => animation.stop()
-  }, [duration, prefersReducedMotion, progress])
-
-  return progress
-}
-
-interface LoginHeaderProps {
-  step: LoginStep
-  t: TranslationFn
-  styles: LoginStyles
-  fromOnboarding?: boolean
-  plannedHabitCount?: number
-}
-
-export function LoginHeader({
-  step,
-  t,
-  styles,
-  fromOnboarding = false,
-  plannedHabitCount = 0,
-}: Readonly<LoginHeaderProps>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
-  const logoEntrance = useEntrance(280, prefersReducedMotion)
-  const showPlanSummary = fromOnboarding && step === 'email'
-
-  const authTitle = step === 'email' ? t('auth.signIn') : t('auth.enterCode')
-  const title = showPlanSummary ? t('onboarding.flow.saveYourPlan.title') : authTitle
-
-  return (
-    <>
-      <View style={styles.brandingHeader}>
-        <Animated.View
-          style={{
-            opacity: logoEntrance,
-            transform: [
-              {
-                scale: logoEntrance.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.9, 1],
-                }),
-              },
-            ],
-          }}
-        >
-          <AppLogo size={64} />
-        </Animated.View>
-      </View>
-
-      <View style={styles.titleBlock}>
-        <Text style={styles.stepTitle} accessibilityRole="header">
-          {title}
-        </Text>
-        {showPlanSummary ? (
-          <>
-            <Text style={styles.stepSubtitle}>
-              {t('onboarding.flow.saveYourPlan.subtitle')}
-            </Text>
-            {plannedHabitCount > 0 && (
-              <Text style={styles.stepSubtitle}>
-                {plannedHabitCount === 1
-                  ? t('onboarding.flow.saveYourPlan.habitSummaryOne')
-                  : t('onboarding.flow.saveYourPlan.habitSummary', {
-                      count: plannedHabitCount,
-                    })}
-              </Text>
-            )}
-          </>
-        ) : (
-          step === 'email' && (
-            <Text style={styles.stepSubtitle}>{t('auth.signInSubtitle')}</Text>
-          )
-        )}
-      </View>
-    </>
-  )
-}
-
-interface ReferralBannerProps {
-  t: TranslationFn
-  styles: LoginStyles
-}
-
-export function ReferralBanner({ t, styles }: Readonly<ReferralBannerProps>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
-  const entrance = useEntrance(220, prefersReducedMotion)
-
-  return (
-    <Animated.View
-      accessibilityLiveRegion="polite"
-      style={[
-        styles.referralBanner,
-        {
-          opacity: entrance,
-          transform: [
-            {
-              translateY: entrance.interpolate({
-                inputRange: [0, 1],
-                outputRange: [8, 0],
-              }),
-            },
-          ],
-        },
-      ]}
-    >
-      <Text style={styles.referralBannerText}>{t('referral.loginBanner')}</Text>
-    </Animated.View>
-  )
-}
-
-interface LoginSuccessMessageProps {
-  message: string
-  styles: LoginStyles
-}
-
-export function LoginSuccessMessage({
-  message,
-  styles,
-}: Readonly<LoginSuccessMessageProps>) {
-  const prefersReducedMotion = usePrefersReducedMotion()
-  const entrance = useEntrance(220, prefersReducedMotion)
-
-  return (
-    <Animated.View
-      style={{
-        opacity: entrance,
-        transform: [
-          {
-            translateY: entrance.interpolate({
-              inputRange: [0, 1],
-              outputRange: [8, 0],
-            }),
-          },
-        ],
-      }}
-    >
-      <Text style={styles.successText} accessibilityLiveRegion="polite">
-        {message}
-      </Text>
-    </Animated.View>
-  )
+  }, [progress, reduced, step])
+  return <Animated.View style={{ opacity: progress, transform: [{ translateX: progress.interpolate({
+    inputRange: [0, 1], outputRange: [step === 'email' ? -12 : 12, 0],
+  }) }] }}>{children}</Animated.View>
 }

@@ -56,7 +56,7 @@ export function OtpInput({
             data-otp-cell=""
             data-error={error ? '' : undefined}
             data-active={index === activeIndex ? '' : undefined}
-            className="grid h-[58px] w-12 place-items-center rounded-[12px] bg-[var(--bg-field)] font-mono text-[26px] font-medium text-[var(--fg-1)]"
+            className="grid h-[56px] w-[44px] shrink-0 place-items-center rounded-[12px] bg-[var(--bg-field)] font-mono text-[26px] font-medium text-[var(--fg-1)]"
             style={{
               boxShadow: error
                 ? 'inset 0 0 0 2px var(--status-bad)'

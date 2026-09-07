@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { headers } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { Suspense, type CSSProperties } from 'react'
 import { Geist, Geist_Mono, Space_Grotesk } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
@@ -12,6 +12,8 @@ import { neutralColors } from '@orbit/shared/theme'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
 import { resolveWebThemeVariables, VALID_COLOR_SCHEMES } from '@/lib/theme-dom'
 import { ThrottleScreen } from '@/components/ui/throttle-screen'
+import { AUTH_COOKIE, REFRESH_COOKIE } from '@/lib/auth-api'
+import { PublicSessionBootstrap } from '@/lib/public-session-bootstrap'
 import './globals.css'
 
 const geist = Geist({
@@ -102,6 +104,8 @@ export default async function RootLayout({
   const locale = await getLocale()
   const messages = await getMessages()
   const nonce = (await headers()).get('x-nonce') ?? undefined
+  const cookieStore = await cookies()
+  const hasSessionCookie = Boolean(cookieStore.get(AUTH_COOKIE)?.value || cookieStore.get(REFRESH_COOKIE)?.value)
   const themeBootstrapScript = `
     try {
       const cookie = document.cookie
@@ -157,6 +161,7 @@ export default async function RootLayout({
       <body className="bg-[var(--bg)] text-[var(--fg-1)] font-sans antialiased">
         <NextIntlClientProvider locale={locale} messages={messages}>
           <Suspense fallback={null}>
+            <PublicSessionBootstrap hasSessionCookie={hasSessionCookie} />
             <NavigationHistoryTracker />
           </Suspense>
           {children}
