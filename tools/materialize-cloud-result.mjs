@@ -33,6 +33,8 @@ worktree. The receipt and worktree must still match the repository bound to the 
 The worktree must be clean and still at the receipt's exact base SHA. Abandoned tasks are quarantined
 unless --allow-abandoned is explicit. Materialization is serial across the repository.
 It never commits, pushes, opens a pull request, or merges.
+With a durable handoff, JSON output includes pullRequestBody: a ready-to-include ## Test evidence
+section containing materialized.handoff.testResults verbatim, including on receipt retries.
 An authoritative empty diff exits 3 with CLOUD_TASK_EMPTY and a durable failure receipt. The ticket
 remains unfinished. Resubmit the original order once through submit-cloud-worker.mjs, which reserves
 the bounded retry and places the commit instruction first. Report the failure and retry outcome.
@@ -176,6 +178,7 @@ const emitMaterialized = ({ recovered = false, alreadyMaterialized = false } = {
     status: receipt.materialized?.status ?? "",
     stagedStat: receipt.materialized?.stagedStat ?? "",
     handoff,
+    pullRequestBody: handoff ? `## Test evidence\n\n${handoff.testResults}\n` : undefined,
   }))
   process.exit(handoff?.needsDecision ? 10 : 0)
 }
