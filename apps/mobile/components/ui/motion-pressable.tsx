@@ -16,9 +16,7 @@ export function MotionPressable({ style, children, onPressIn, onPressOut, ...pro
         typeof style === 'function' ? style({ pressed }) : style,
         {
           transform: [{ scale: pressed ? 0.96 : 1 }],
-          transitionProperty: ['transform', 'backgroundColor'],
-          transitionDuration: [150, 240],
-          transitionTimingFunction: ['cubic-bezier(0.16, 1, 0.3, 1)', 'cubic-bezier(0.2, 0, 0, 1)'],
+          transition: 'transform 150ms cubic-bezier(0.16, 1, 0.3, 1), background-color 240ms cubic-bezier(0.2, 0, 0, 1)',
         },
       ]}
     >

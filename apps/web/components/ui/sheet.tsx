@@ -124,7 +124,7 @@ export function Sheet({ title, headerAccessory, actions, virtualizedBody, onClos
               ) : null}
             </header>
             {children == null ? null : (
-              <div className="orbit-sheet-body" data-slot="sheet-body" style={virtualizedBody ? { overflowY: 'hidden' } : undefined}>
+              <div className="orbit-sheet-body" data-slot="sheet-body" style={virtualizedBody ? { display: 'flex', flexDirection: 'column', overflowY: 'hidden' } : undefined}>
                 {children}
               </div>
             )}

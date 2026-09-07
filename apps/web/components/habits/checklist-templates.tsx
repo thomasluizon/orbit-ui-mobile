@@ -75,7 +75,6 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
   return (
     <>
       <ListRow
-        inset={false}
         icon="template"
         title={t('habits.form.templates')}
         value={templates.length > 0 ? String(templates.length) : undefined}
@@ -109,7 +108,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           />
           <button
             type="button"
-            className="shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 hover:bg-[var(--primary-hover)] transition-[background-color,opacity] duration-150"
+            className="habit-control-motion shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 hover:bg-[var(--primary-hover)] active:scale-[0.96]"
             style={{
               padding: '8px 12px',
               fontFamily: 'var(--font-sans)',
@@ -124,7 +123,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           </button>
           <button
             type="button"
-            className="shrink-0 grid size-10 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors duration-150"
+            className="habit-control-motion shrink-0 grid size-11 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.96]"
             onClick={() => setShowSave(false)}
             aria-label={t('common.close')}
           >

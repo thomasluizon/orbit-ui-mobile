@@ -57,10 +57,10 @@ function GoalPickerList({ goals, selectedIds, atLimit, onToggle }: Readonly<Goal
   const end = Math.min(filtered.length, start + visible.length)
 
   return (
-    <div className="flex flex-col gap-1 p-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-1 p-2">
       {goals.length >= 8 ? <p className="px-3 py-1 text-xs text-[var(--fg-3)]">{t('habits.form.availableCount', { count: goals.length })}</p> : null}
       {virtualized ? <input value={query} onChange={(event) => { setQuery(event.target.value); setScrollTop(0); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} className="form-input mb-2" aria-label={t('habits.form.searchGoals')} placeholder={t('habits.form.searchGoals')} /> : null}
-      <div ref={scrollRef} className={virtualized ? 'max-h-80 overflow-y-auto' : undefined} onScroll={virtualized ? (event) => setScrollTop(event.currentTarget.scrollTop) : undefined}>
+      <div ref={scrollRef} className={virtualized ? 'min-h-0 max-h-80 overflow-y-auto' : undefined} onScroll={virtualized ? (event) => setScrollTop(event.currentTarget.scrollTop) : undefined}>
         {virtualized && start > 0 ? <div aria-hidden="true" style={{ height: start * VIRTUAL_ROW_HEIGHT }} /> : null}
         {visible.map((goal) => {
           const selected = selectedIds.has(goal.id)
@@ -95,7 +95,7 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
 
   return (
     <>
-      <ListRow inset={false} title={t('habits.form.goals')} value={t('habits.form.selectedCount', { count: selectedGoalIds.length })} onClick={() => setOpen(true)} />
+      <ListRow title={t('habits.form.goals')} value={t('habits.form.selectedCount', { count: selectedGoalIds.length })} onClick={() => setOpen(true)} />
       {selectedGoals.length > 0 ? (
         <div className="flex flex-wrap gap-2 pt-2">
           {selectedGoals.slice(0, 3).map((goal) => <span key={goal.id} className="chip max-w-full truncate">{goal.title}</span>)}

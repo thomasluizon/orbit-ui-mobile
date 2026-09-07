@@ -72,11 +72,11 @@ function TagPickerList({ tags, selectedIds, atLimit, disabled, editor, onToggle,
   const end = Math.min(filtered.length, start + visible.length)
 
   return (
-    <div className="flex flex-col gap-1 p-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-1 p-2">
       {tags.length >= 8 ? <p className="px-3 py-1 text-xs text-[var(--fg-3)]">{t('habits.form.availableCount', { count: tags.length })}</p> : null}
       {virtualized ? <input value={query} onChange={(event) => { setQuery(event.target.value); setScrollTop(0); if (scrollRef.current) scrollRef.current.scrollTop = 0 }} className="form-input mb-2" aria-label={t('habits.form.searchTags')} placeholder={t('habits.form.searchTags')} /> : null}
       {tags.length === 0 && !editor ? <div className="flex flex-col items-center px-6 py-8 text-center" style={{ gap: 12 }}><p className="max-w-full truncate text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noTags')}</p><button type="button" className="chip mt-2" onClick={onCreate}>{t('habits.form.newTag')}</button></div> : null}
-      <div ref={scrollRef} className={virtualized ? 'max-h-80 overflow-y-auto' : undefined} onScroll={virtualized ? (event) => setScrollTop(event.currentTarget.scrollTop) : undefined}>
+      <div ref={scrollRef} className={virtualized ? 'min-h-0 max-h-80 overflow-y-auto' : undefined} onScroll={virtualized ? (event) => setScrollTop(event.currentTarget.scrollTop) : undefined}>
         <VirtualSpacer rows={start} />
         {visible.map((tag) => <TagPickerRow key={tag.id} tag={tag} selected={selectedIds.has(tag.id)} atLimit={atLimit} disabled={disabled} onToggle={onToggle} onEdit={onEdit} onDelete={onDelete} editLabel={editLabel} deleteLabel={deleteLabel} />)}
         <VirtualSpacer rows={filtered.length - end} />
@@ -95,7 +95,7 @@ export function TagPickerField({ tags, selectedIds, atLimit, disabled, editor, o
 
   return (
     <>
-      <ListRow inset={false} title={t('habits.form.tags')} value={t('habits.form.selectedCount', { count: selectedIds.length })} onClick={() => setOpen(true)} />
+      <ListRow title={t('habits.form.tags')} value={t('habits.form.selectedCount', { count: selectedIds.length })} onClick={() => setOpen(true)} />
       <TagPreview tags={selectedTags} moreLabel={t('habits.form.moreSelected', { count: Math.max(0, selectedTags.length - 3) })} />
       {open ? <Sheet open virtualizedBody={tags.length >= 21} title={t('habits.form.tags')} onClose={() => setOpen(false)}>
         <TagPickerList tags={tags} selectedIds={selectedSet} atLimit={atLimit} disabled={disabled} editor={editor} onToggle={onToggle} onCreate={onCreate} onEdit={onEdit} onDelete={onDelete} editLabel={editLabel} deleteLabel={deleteLabel} />

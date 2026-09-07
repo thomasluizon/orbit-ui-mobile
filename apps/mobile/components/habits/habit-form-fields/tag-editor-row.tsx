@@ -1,4 +1,5 @@
-import { View, Text, Pressable } from "react-native";
+import { MotionPressable as Pressable } from '@/components/ui/motion-pressable'
+import { View, Text, } from "react-native";
 import { X } from "@/components/ui/icons";
 import { MAX_TAG_NAME_LENGTH } from "@orbit/shared/validation";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
