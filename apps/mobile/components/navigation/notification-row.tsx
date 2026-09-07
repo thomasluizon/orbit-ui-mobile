@@ -34,7 +34,8 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
         onPress={() => onOpen(item)}
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         style={({ pressed }) => [styles.row, pressed && { backgroundColor: tokens.bgHover },
-          focused && { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -2 }]}>
+          focused && { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -3,
+            borderColor: tokens.fg1 }]}>
         <View testID="notification-dot-column" style={styles.dotColumn}>
           {!item.isRead ? <View testID="notification-unread-dot" style={[styles.dot, { backgroundColor: tokens.fg1 }]} /> : null}
         </View>
@@ -44,14 +45,14 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
               fontFamily: item.isRead ? 'Geist_400Regular' : 'Geist_500Medium',
               color: item.isRead ? tokens.fg2 : tokens.fg1,
             }]}>{item.title}</Text>
-            <Text style={[styles.meta, { color: tokens.fg4 }]}>
+            <Text style={[styles.meta, { color: tokens.fg2 }]}>
               {formatNotificationRelativeTime(item.createdAtUtc, (key, values) => t(`notifications.${key}`, values))}
             </Text>
           </View>
-          <Text style={[styles.body, { color: tokens.fg3 }]}>{item.body}</Text>
+          <Text style={[styles.body, { color: tokens.fg2 }]}>{item.body}</Text>
           {targetKey && TargetIcon ? <View style={styles.target}>
             <TargetIcon size={16} color={tokens.fg4} />
-            <Text style={[styles.meta, { color: tokens.fg4 }]}>{t(targetKey)}</Text>
+            <Text style={[styles.meta, { color: tokens.fg2 }]}>{t(targetKey)}</Text>
           </View> : null}
         </View>
       </Pressable>
@@ -67,7 +68,7 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
 
 const styles = StyleSheet.create({
   wrapper: { flexDirection: 'row', alignItems: 'stretch', gap: 4, borderRadius: 12 },
-  row: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 16, minHeight: 44, borderRadius: 12 },
+  row: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 12, minHeight: 44, borderRadius: 12, borderWidth: 4, borderStyle: 'solid', borderColor: 'transparent' },
   dotColumn: { width: 8, flexShrink: 0, alignSelf: 'stretch', justifyContent: 'center' },
   dot: { width: 8, height: 8, borderRadius: 999 },
   content: { flex: 1, minWidth: 0, gap: 4 },

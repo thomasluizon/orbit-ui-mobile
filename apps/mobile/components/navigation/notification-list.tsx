@@ -33,7 +33,8 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
           <View style={styles.empty}>
             {isError ? <>
               <Text style={[styles.copy, { color: tokens.fg3 }]}>{t('notifications.loadError')}</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel={t('common.retry')} onPress={onRetry} style={styles.retry}>
+              <Pressable accessibilityRole="button" accessibilityLabel={t('common.retry')} onPress={onRetry}
+                style={({ pressed }) => [styles.retry, pressed && { backgroundColor: tokens.bgHover }]}>
                 <Text style={[styles.copy, { color: tokens.fg1 }]}>{t('common.retry')}</Text>
               </Pressable>
             </> : <>

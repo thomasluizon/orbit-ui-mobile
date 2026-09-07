@@ -1,6 +1,9 @@
-import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, act, cleanup } from '@testing-library/react'
+import { afterEach, beforeAll, beforeEach, describe, it, expect, vi } from 'vitest'
+import { render, screen, fireEvent, act, cleanup, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { Calendar, ChartLine, CircleDot, Home, Trash2, User } from '@/components/ui/icons'
 import type { NotificationItem } from '@orbit/shared/types/notification'
@@ -11,6 +14,7 @@ import { resetPendingNotificationDeletesForTests } from '@/lib/pending-notificat
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { NotificationInbox } from '@/components/navigation/notification-inbox'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 const state = vi.hoisted(() => ({
   notifications: [] as NotificationItem[], unreadCount: 0, isLoading: false, isError: false,
@@ -74,8 +78,73 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+function contrastOnSurface(foreground: string, layers: string[]): number {
+  const channels = (color: string) => color.startsWith('#')
+    ? [1, 3, 5].map((offset) => Number.parseInt(color.slice(offset, offset + 2), 16))
+    : color.match(/[\d.]+/g)!.map(Number)
+  const background = layers.reduce((below, layer) => {
+    const [red, green, blue, alpha = 1] = channels(layer)
+    return [red!, green!, blue!].map((value, index) => Math.round(value * alpha + below[index]! * (1 - alpha)))
+  }, [0, 0, 0])
+  const luminance = (rgb: number[]) => rgb.slice(0, 3).reduce((sum, value, index) => {
+    const normalized = value / 255
+    const linear = normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
+    return sum + linear * [0.2126, 0.7152, 0.0722][index]!
+  }, 0)
+  const front = luminance(channels(foreground))
+  const back = luminance(background)
+  return (Math.max(front, back) + 0.05) / (Math.min(front, back) + 0.05)
+}
+
 describe('alerts', () => {
-  it('shows an inset focus indicator only on the focused row', () => {
+  let textStyles: string
+  beforeAll(async () => {
+    const source = resolve('app/globals.css')
+    const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
+    const rules: string[] = []
+    compiled.root.walkRules((rule) => {
+      if (rule.selector.startsWith('.text-')) {
+        rule.walkDecls('color', (declaration) => { rules.push(`${rule.selector} { color: ${declaration.value}; }`) })
+      }
+    })
+    textStyles = rules.join('\n')
+  })
+
+  it.each(['dark', 'light'].flatMap((mode) =>
+    ['row body', 'row timestamp', 'row target', 'detail body', 'detail metadata'].map((field) => ({ mode, field })),
+  ))('resolves rendered $field to fg2 in $mode', ({ mode, field }) => {
+    vi.setSystemTime(new Date('2026-09-06T12:00:00Z'))
+    state.notifications = [createMockNotification({ title: 'Reminder', body: 'Time for a walk',
+      url: '/calendar', isRead: false, createdAtUtc: '2026-09-06T11:55:00Z' })]
+    showInbox()
+    const stylesheet = document.createElement('style')
+    stylesheet.textContent = textStyles
+    document.head.append(stylesheet)
+    try {
+      const row = screen.getByRole('button', { name: 'Reminder. unread. Calendar' })
+      const rowLabels = { 'row body': 'Time for a walk', 'row timestamp': '5 min ago', 'row target': 'Calendar' }
+      let element: HTMLElement
+      if (field === 'detail body' || field === 'detail metadata') {
+        fireEvent.click(row)
+        element = field === 'detail body' ? screen.getAllByText('Time for a walk').at(-1)!
+          : screen.getByText('5 min ago · Calendar')
+      } else {
+        element = within(row).getByText(rowLabels[field as keyof typeof rowLabels])
+      }
+      const renderedColor = getComputedStyle(element).color
+      expect(renderedColor, field).toBe('var(--fg-2)')
+      const theme = resolveWebThemeVariables('purple', mode as 'dark' | 'light')
+      const foreground = theme[renderedColor.slice(4, -1) as `--${string}`]!
+      const surfaces = field.startsWith('detail') ? [[theme['--bg-elev']!]]
+        : [[theme['--bg']!], [theme['--bg']!, theme['--bg-card']!],
+          [theme['--bg']!, theme['--bg-card']!, theme['--bg-hover']!]]
+      for (const layers of surfaces) expect(contrastOnSurface(foreground, layers)).toBeGreaterThanOrEqual(4.5)
+    } finally {
+      stylesheet.remove()
+    }
+  })
+
+  it.each(['dark', 'light'] as const)('keeps the focused row visible against resting and hovered surfaces in %s', (mode) => {
     seed(2)
     showInbox()
     const stylesheet = document.createElement('style')
@@ -84,12 +153,30 @@ describe('alerts', () => {
     try {
       const first = screen.getByRole('button', { name: 'Alert 0. unread. Progress' })
       const second = screen.getByRole('button', { name: 'Alert 1. unread. Progress' })
-      first.focus()
       document.head.append(stylesheet)
+      fireEvent.keyDown(document, { key: 'Tab' })
+      first.focus()
       expect(first).toHaveFocus()
-      expect(getComputedStyle(first).outline).toBe('2px solid var(--primary)')
-      expect(getComputedStyle(first).outlineOffset).toBe('-2px')
-      expect(getComputedStyle(second).outlineOffset).not.toBe('-2px')
+      const theme = resolveWebThemeVariables('purple', mode)
+      const outlineColor = getComputedStyle(first).outline.match(/var\([^)]+\)/)![0]
+      expect(outlineColor, 'Focus must retain the accent semantic').toBe('var(--primary)')
+      const foreground = theme[outlineColor.slice(4, -1) as `--${string}`]!
+      const contour = getComputedStyle(first).boxShadow
+      expect(contour).toBe('inset 0 0 0 4px var(--fg-1)')
+      const companion = theme[contour.match(/var\(([^)]+)\)/)![1] as `--${string}`]!
+      expect(contrastOnSurface(foreground, [companion])).toBeGreaterThanOrEqual(3)
+      const surfaces = {
+        'resting read': [theme['--bg']!],
+        'resting unread': [theme['--bg']!, theme['--bg-card']!],
+        'hovered or pressed read': [theme['--bg']!, theme['--bg-hover']!],
+        'hovered or pressed unread': [theme['--bg']!, theme['--bg-card']!, theme['--bg-hover']!],
+      }
+      for (const [surface, layers] of Object.entries(surfaces)) {
+        expect.soft(contrastOnSurface(companion, layers), surface).toBeGreaterThanOrEqual(3)
+      }
+      expect(getComputedStyle(first).outlineOffset).toBe('-3px')
+      expect(getComputedStyle(second).outlineOffset).not.toBe('-3px')
+      expect(getComputedStyle(second).boxShadow).toBe('')
     } finally {
       stylesheet.remove()
     }

@@ -19,6 +19,31 @@ vi.mock('next-intl', () => ({
 }))
 
 describe('form primitives on web', () => {
+  it.each([false, true])('focuses only on an explicit request, multiline=%s', (multiline) => {
+    const shape = multiline ? { multiline: true as const, rows: 3 } : {}
+    const props = { label: 'Email', value: 'invalid', onChange: vi.fn(), ...shape }
+    const view = render(<><Input {...props} focusRequest={0} /><button>Continue</button></>)
+    const input = screen.getByRole('textbox')
+    const button = screen.getByRole('button')
+    button.focus()
+    view.rerender(<><Input {...props} error="Invalid email" focusRequest={1} /><button>Continue</button></>)
+    expect(input).toHaveFocus()
+    expect(input).toHaveAccessibleDescription('Invalid email')
+    button.focus()
+    view.rerender(<><Input {...props} value="editing" error="Still invalid" focusRequest={1} /><button>Continue</button></>)
+    expect(button).toHaveFocus()
+    view.rerender(<><Input {...props} error="Still invalid" focusRequest={2} /><button>Continue</button></>)
+    expect(input).toHaveFocus()
+  })
+
+  it('gives email fields a form name and disables spellcheck without losing autocomplete', () => {
+    render(<Input label="Email" value="" onChange={vi.fn()} kind="email" autoComplete="email" name="email" />)
+    const input = screen.getByRole('textbox')
+    expect(input).toHaveAttribute('name', 'email')
+    expect(input).toHaveAttribute('autocomplete', 'email')
+    expect(input).toHaveAttribute('spellcheck', 'false')
+  })
+
   it('renders labelled single and multiline inputs with their shared limits', () => {
     const onChange = vi.fn()
     const { rerender } = render(

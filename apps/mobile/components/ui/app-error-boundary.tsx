@@ -30,7 +30,7 @@ export function AppErrorScreen({ error, retry }: Readonly<{ error: unknown; retr
       <Text style={[styles.body, { color: tokens.fg2 }]}>{i18n.t(countdown ? 'errorScreen.throttleBody' : 'errorScreen.body')}</Text>
       {countdown ? <Text accessibilityRole="timer" style={[styles.countdown, { color: tokens.fg1 }]}>{countdown.label}</Text> : null}
       <PillButton variant={waiting ? 'ghost' : 'primary'} disabled={waiting} loading={retrying} onClick={handleRetry}>{i18n.t('errorScreen.retry')}</PillButton>
-      {!countdown && requestId ? <Text selectable style={[styles.reference, { color: tokens.fg4 }]}>{i18n.t('errorScreen.reference', { requestId })}</Text> : null}
+      {!countdown && requestId ? <Text selectable style={[styles.reference, { color: tokens.fg3 }]}>{i18n.t('errorScreen.reference', { requestId })}</Text> : null}
     </ScrollView>
   )
 }

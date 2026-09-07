@@ -1,13 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ReactElement } from 'react'
-import { AppState } from 'react-native'
+import { AppState, StyleSheet, type StyleProp, type TextStyle } from 'react-native'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
 import { i18n } from '@/lib/i18n'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
+import { getRuntimeTheme, setRuntimeTheme } from '@/lib/theme'
 
 interface TestNode {
-  props: { children?: unknown; onPress?: () => void; disabled?: boolean; accessibilityState?: unknown }
+  props: { children?: unknown; onPress?: () => void; disabled?: boolean; accessibilityState?: unknown; style?: StyleProp<TextStyle> }
 }
 interface TestTree {
   root: { findAllByType: (type: string) => TestNode[]; findByType: (type: string) => TestNode }
@@ -24,6 +25,24 @@ function button() { return tree.root.findByType('Pressable') }
 afterEach(async () => { await act(() => tree.unmount()); vi.useRealTimers(); vi.restoreAllMocks() })
 
 describe('AppErrorScreen', () => {
+  it.each(['dark', 'light'] as const)('keeps the rendered reference above the text contrast floor in %s', async (themeMode) => {
+    const previousTheme = getRuntimeTheme()
+    setRuntimeTheme({ themeMode })
+    try {
+      await mount({ status: 500, data: { requestId: 'real-reference' } })
+      const reference = tree.root.findAllByType('Text').find((node) => node.props.children === 'ref real-reference')!
+      const foreground = String(StyleSheet.flatten(reference.props.style).color)
+      const background = String(StyleSheet.flatten(tree.root.findByType('ScrollView').props.style).backgroundColor)
+      const luminance = (color: string) => color.match(/[\da-f]{2}/gi)!.reduce((sum, channel, index) => {
+        const value = Number.parseInt(channel, 16) / 255
+        const linear = value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+        return sum + linear * [0.2126, 0.7152, 0.0722][index]!
+      }, 0)
+      const lighter = Math.max(luminance(foreground), luminance(background))
+      const darker = Math.min(luminance(foreground), luminance(background))
+      expect((lighter + 0.05) / (darker + 0.05)).toBeGreaterThanOrEqual(4.5)
+    } finally { setRuntimeTheme(previousTheme) }
+  })
   it.each(['en', 'pt-BR'])('states the fix and exposes only a real reference in %s', async (locale) => {
     await i18n.changeLanguage(locale)
     const messages = locale === 'en' ? en : pt

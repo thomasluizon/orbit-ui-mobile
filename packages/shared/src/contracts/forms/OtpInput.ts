@@ -9,4 +9,5 @@ export interface OtpInputProps {
   autoFocus?: boolean
   label: string
   id?: string
+  name?: string
 }

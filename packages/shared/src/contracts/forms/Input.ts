@@ -13,6 +13,8 @@ type InputBase = {
   autoComplete?: 'email' | 'name' | 'off'
   mono?: boolean
   autoFocus?: boolean
+  focusRequest?: number
+  name?: string
   onSubmit?: () => void
   trailing?: ReactNode
 }
