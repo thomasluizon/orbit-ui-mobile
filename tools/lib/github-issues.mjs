@@ -574,8 +574,18 @@ export const createTicket = async ({ title, body, labels, milestone = null, stat
 /** Add an issue created outside this adapter to the configured project without changing its fields. */
 export const addTicketToProject = async (number) => {
   positiveIssueNumber(number)
-  const tickets = ticketConfiguration()
+  const { tickets, repos } = readOrchestratorConfig()
   const ticket = await readTicket(number)
+  const labels = ticket.labels.map((label) => label.name)
+  const routingLabels = labels.filter((name) => name.startsWith("repo:"))
+  const configuredLabels = Object.keys(repos).map((key) => `repo:${key}`)
+  let routingError
+  if (routingLabels.length === 0) routingError = "no routing label was found"
+  else if (routingLabels.length > 1) routingError = "multiple routing labels were found"
+  else if (!configuredLabels.includes(routingLabels[0])) routingError = "an unconfigured routing label was found"
+  if (routingError) {
+    throw new Error(`Ticket #${number}: ${routingError}; labels found: ${labels.join(", ") || "none"}; expected exactly one of ${configuredLabels.join(", ")}`)
+  }
   if (ticket.projectItemId) {
     return { number: ticket.number, url: ticket.url, title: ticket.title, added: false }
   }

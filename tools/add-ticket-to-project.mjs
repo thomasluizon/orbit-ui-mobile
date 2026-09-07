@@ -9,9 +9,10 @@ const USAGE = `usage: add-ticket-to-project.mjs --issue <ORB-N|#N|N>
   --help, -h            print this usage and exit 0
 
 Adds an existing issue to the configured project. If the issue is already present, writes nothing.
+Requires exactly one configured repo:* routing label, including when a card already exists.
 Prints one JSON object with number, url, title, and added.
 
-exit codes: 0 added or already present, 1 ticket read or project write failed, 2 usage error`
+exit codes: 0 added or already present, 1 invalid routing, ticket read or project write failed, 2 usage error`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
