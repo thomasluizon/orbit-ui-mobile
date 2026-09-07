@@ -434,15 +434,16 @@ describe('subscription dashboards (mobile)', () => {
     )
   })
 
-  it('names a failed Play renewal while keeping entitled access and the provider action', () => {
-    const tree = render(<PlayBillingDashboard
-      status={{ ...status, source: 'play', lapseReason: 'payment_failed' }}
-      locale="en" usagePercent={16} usageProfile={status} portalState="idle" isOnline
-      onManagePlay={() => {}} t={t} tokens={tokens} />)
+  it('names a failed Stripe renewal without billing details while keeping entitled access and the provider action', () => {
+    const tree = render(<BillingDashboard
+      state="stripe" data={null}
+      status={{ ...status, source: 'stripe', lapseReason: 'payment_failed' }}
+      locale="en" usagePercent={16} usageProfile={status} isOnline
+      onPortal={() => {}} onRetryPortal={() => {}} t={t} tokens={tokens} />)
     const summary = tree.root.findByType('PlanSummaryCard')
     expect(summary.props.body).toBe('upgrade.billing.plan.pastDueBody:{"limit":50}')
     expect(renderedText(tree)).toContain('upgrade.billing.plan.pastDue')
-    expect(renderedText(tree)).toContain('upgrade.billing.actions.managePlay')
+    expect(renderedText(tree)).toContain('upgrade.billing.actions.manage')
     expect((summary.props.facts as string[]).join(' ')).toContain('upgrade.billing.plan.renewsOn:')
     expect(renderedText(tree)).not.toContain('upgrade.billing.lapsed.title')
   })

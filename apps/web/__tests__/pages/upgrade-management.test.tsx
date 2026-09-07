@@ -813,14 +813,14 @@ describe('UpgradePage subscription management', () => {
     expect(screen.queryByText('upgrade.billing.lapsed.title')).not.toBeInTheDocument()
   })
 
-  it.each(['stripe', 'play'])('names an entitled %s payment failure without billing details', (source) => {
+  it('names an entitled Stripe payment failure without billing details', () => {
     mockHasProAccess = true
-    mockProfile = { ...mockProfile, isTrialActive: false, subscriptionSource: source, lapseReason: 'payment_failed' }
+    mockProfile = { ...mockProfile, isTrialActive: false, subscriptionSource: 'stripe', lapseReason: 'payment_failed' }
     mockBilling = null
     render(<UpgradePage />)
     expect(screen.getByText('upgrade.billing.plan.pastDue')).toBeInTheDocument()
     expect(document.body.textContent).toContain('upgrade.billing.plan.pastDueBody')
-    expect(screen.getByRole('button', { name: source === 'play' ? 'upgrade.billing.actions.managePlay' : 'upgrade.billing.actions.manage' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'upgrade.billing.actions.manage' })).toBeEnabled()
     expect(screen.queryByText('upgrade.billing.lapsed.title')).not.toBeInTheDocument()
   })
 

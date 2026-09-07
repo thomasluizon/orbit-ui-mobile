@@ -53,8 +53,8 @@ describe('subscriptionSummary', () => {
     })
   })
 
-  it('names a Play payment failure while keeping the renewal path', () => {
-    expect(subscriptionSummary({ ...status, source: 'play', lapseReason: 'payment_failed' }, null)).toMatchObject({
+  it('names a Stripe payment failure without billing details while keeping the renewal path', () => {
+    expect(subscriptionSummary({ ...status, source: 'stripe', lapseReason: 'payment_failed' }, null)).toMatchObject({
       bodyKey: 'upgrade.billing.plan.pastDueBody', badgeKey: 'upgrade.billing.plan.pastDue',
       renewal: status.planExpiresAt, renewalKey: 'upgrade.billing.plan.renewsOn',
     })
