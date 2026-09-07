@@ -10,7 +10,6 @@ import {
   isSafeReturnUrl,
   isValidReferralCode,
   isValidVerificationCode,
-  markReferralApplied,
   storeAuthReturnUrl,
   storeReferralCode,
 } from '@/lib/auth-flow'
@@ -78,11 +77,9 @@ describe('mobile auth flow helpers', () => {
     expect(removeItemMock).toHaveBeenCalledWith('auth_return_url')
   })
 
-  it('clears the stored referral code and marks referral applied', async () => {
+  it('clears the stored referral code', async () => {
     await clearStoredReferralCode()
-    await markReferralApplied()
 
     expect(removeItemMock).toHaveBeenCalledWith('referral_code')
-    expect(setItemMock).toHaveBeenCalledWith('orbit_referral_applied', '1')
   })
 })

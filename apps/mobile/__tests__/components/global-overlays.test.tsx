@@ -42,9 +42,6 @@ vi.mock('@/components/onboarding/calendar-import-prompt', () => ({
 vi.mock('@/components/onboarding/astra-import-prompt', () => ({
   AstraImportPrompt: 'AstraImportPrompt',
 }))
-vi.mock('@/components/gamification/achievement-toast', () => ({
-  AchievementToast: 'AchievementToast',
-}))
 vi.mock('@/components/gamification/all-done-celebration', () => ({
   AllDoneCelebration: 'AllDoneCelebration',
 }))
@@ -203,20 +200,6 @@ describe('OverlayLayer mount matrix', () => {
 
     expect(isMounted(preOnboarding, 'PushPrompt')).toBe(false)
     expect(isMounted(postOnboarding, 'PushPrompt')).toBe(true)
-  })
-
-  it('gates the achievement toast on pro access', async () => {
-    const withoutPro = await renderLayer({
-      hasCompletedOnboarding: true,
-      hasProAccess: false,
-    })
-    const withPro = await renderLayer({
-      hasCompletedOnboarding: true,
-      hasProAccess: true,
-    })
-
-    expect(isMounted(withoutPro, 'AchievementToast')).toBe(false)
-    expect(isMounted(withPro, 'AchievementToast')).toBe(true)
   })
 
   it('gates the level-up overlay on gamification visibility', async () => {

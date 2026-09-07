@@ -6,7 +6,6 @@ import {
 
 const REFERRAL_CODE_KEY = 'referral_code'
 const AUTH_RETURN_URL_KEY = 'auth_return_url'
-const REFERRAL_APPLIED_KEY = 'orbit_referral_applied'
 
 export function isValidReferralCode(value: string | null | undefined): value is string {
   return isValidReferralCodeShared(value)
@@ -56,8 +55,4 @@ export async function consumeStoredAuthReturnUrl(): Promise<string | null> {
 
 export async function clearStoredAuthReturnUrl(): Promise<void> {
   await AsyncStorage.removeItem(AUTH_RETURN_URL_KEY)
-}
-
-export async function markReferralApplied(): Promise<void> {
-  await AsyncStorage.setItem(REFERRAL_APPLIED_KEY, '1')
 }

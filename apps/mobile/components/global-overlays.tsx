@@ -7,7 +7,6 @@ import {
 } from '@/components/onboarding/onboarding-actions-context'
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
 import { AstraImportPrompt } from '@/components/onboarding/astra-import-prompt'
-import { AchievementToast } from '@/components/gamification/achievement-toast'
 import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
 import { GoalCompletedCelebration } from '@/components/gamification/goal-completed-celebration'
 import { CreateGoalModal } from '@/components/goals/create-goal-modal'
@@ -88,7 +87,6 @@ export function OverlayLayer({
           <StreakCelebration />
           <AllDoneCelebration />
           <GoalCompletedCelebration />
-          {hasProAccess ? <AchievementToast /> : null}
           {canViewGamification ? (
             <LevelUpOverlay
               leveledUp={leveledUp}

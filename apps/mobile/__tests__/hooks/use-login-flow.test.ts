@@ -24,7 +24,6 @@ const mocks = vi.hoisted(() => ({
   getStoredReferralCode: vi.fn(),
   getSafeReturnUrl: vi.fn(),
   consumeStoredAuthReturnUrl: vi.fn(),
-  markReferralApplied: vi.fn(),
   clearStoredReferralCode: vi.fn(),
   startMobileGoogleAuth: vi.fn(),
 }))
@@ -71,7 +70,6 @@ vi.mock('@/lib/auth-flow', () => ({
   isSafeReturnUrl: () => true,
   isValidReferralCode: () => false,
   isValidVerificationCode: () => false,
-  markReferralApplied: mocks.markReferralApplied,
   storeAuthReturnUrl: vi.fn(),
   storeReferralCode: vi.fn(),
 }))
@@ -335,7 +333,6 @@ describe('useLoginFlow (mobile)', () => {
 
     const [, options] = firstApiCall()
     expect(bodyOf(options)).toMatchObject({ referralCode: 'REF123' })
-    expect(mocks.markReferralApplied).toHaveBeenCalledTimes(1)
     expect(mocks.clearStoredReferralCode).toHaveBeenCalledTimes(1)
     expect(harness.current.showReferralBanner).toBe(false)
   })

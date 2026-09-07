@@ -21,7 +21,6 @@ import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onbo
 import { StreakCelebration } from '@/components/gamification/streak-celebration'
 import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
 import { GoalCompletedCelebration } from '@/components/gamification/goal-completed-celebration'
-import { AchievementToast } from '@/components/gamification/achievement-toast'
 import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
@@ -279,7 +278,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
       <GlobalOverlays
         profile={profile}
-        hasProAccess={hasProAccess}
         canViewGamification={canViewGamification}
         suppressOnboardingOverlay={shouldSuppressOnboardingOverlay({
           draftHydrated,
@@ -321,7 +319,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 // react-doctor-disable-next-line no-many-boolean-props -- private layout-internal overlay aggregator, not a reusable API; the flags are independent render gates, not a combinatorial surface https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 function GlobalOverlays({
   profile,
-  hasProAccess,
   canViewGamification,
   suppressOnboardingOverlay,
   showCalendarPrompt,
@@ -334,7 +331,6 @@ function GlobalOverlays({
   onDismissImportPrompt,
 }: Readonly<{
   profile: ReturnType<typeof useProfile>['profile']
-  hasProAccess: boolean
   canViewGamification: boolean
   suppressOnboardingOverlay: boolean
   showCalendarPrompt: boolean
@@ -408,7 +404,6 @@ function GlobalOverlays({
       <StreakCelebration />
       <AllDoneCelebration />
       <GoalCompletedCelebration />
-      {hasProAccess && <AchievementToast />}
       {canViewGamification && (
         <LevelUpOverlay
           leveledUp={gamification.leveledUp}

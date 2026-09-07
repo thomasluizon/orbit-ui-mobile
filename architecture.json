@@ -27330,7 +27330,6 @@
         "apps/web/__tests__/components/command/build-command-habit-list.test.ts",
         "apps/web/__tests__/components/command/command-palette.test.tsx",
         "apps/web/__tests__/components/dates/date-surfaces.test.tsx",
-        "apps/web/__tests__/components/gamification/achievement-toast.test.tsx",
         "apps/web/__tests__/components/gamification/all-done-celebration.test.tsx",
         "apps/web/__tests__/components/gamification/goal-completed-celebration.test.tsx",
         "apps/web/__tests__/components/gamification/level-up-overlay.test.tsx",
@@ -27568,7 +27567,6 @@
       "apps/web/stores": [
         "apps/web/__tests__/app/today-page.test.tsx",
         "apps/web/__tests__/components/command/command-palette.test.tsx",
-        "apps/web/__tests__/components/gamification/achievement-toast.test.tsx",
         "apps/web/__tests__/components/goals/goal-detail-drawer.test.tsx",
         "apps/web/__tests__/components/habits/goal-linking-field.test.tsx",
         "apps/web/__tests__/components/habits/habit-detail-screen.test.tsx",

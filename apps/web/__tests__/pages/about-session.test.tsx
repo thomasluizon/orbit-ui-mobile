@@ -45,7 +45,6 @@ vi.mock('@/components/onboarding/retained-onboarding-overlay', () => ({ Retained
 vi.mock('@/components/gamification/streak-celebration', () => ({ StreakCelebration: () => null }))
 vi.mock('@/components/gamification/all-done-celebration', () => ({ AllDoneCelebration: () => null }))
 vi.mock('@/components/gamification/goal-completed-celebration', () => ({ GoalCompletedCelebration: () => null }))
-vi.mock('@/components/gamification/achievement-toast', () => ({ AchievementToast: () => null }))
 vi.mock('@/components/gamification/level-up-overlay', () => ({ LevelUpOverlay: () => null }))
 vi.mock('@/components/referral/referral-prompt', () => ({ ReferralPrompt: () => null }))
 vi.mock('@/components/milestone-share/milestone-share-prompt', () => ({ MilestoneSharePrompt: () => null }))

@@ -61,7 +61,6 @@ export default defineConfig({
         'components/chat/chat-empty-state.tsx',
         'components/chat/conflict-warning.tsx',
         'components/chat/suggestion-chips.tsx',
-        'components/gamification/achievement-toast.tsx',
         'components/gamification/all-done-celebration.tsx',
         'components/gamification/celebration-motion.ts',
         'components/gamification/goal-completed-celebration.tsx',
