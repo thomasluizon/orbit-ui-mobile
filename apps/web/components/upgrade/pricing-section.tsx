@@ -1,4 +1,5 @@
 import { Calendar, Eye, FileText } from '@/components/ui/icons'
+import { useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { PlanSelection } from './plan-selection'
 import { plural } from '@/lib/plural'
@@ -13,6 +14,7 @@ const OUTCOMES = [
 ] as const
 
 interface PricingSectionProps {
+  focusOnMount?: boolean
   profile: { isTrialActive?: boolean } | null
   plans: ReturnType<typeof useSubscriptionPlans>['plans']
   isLoadingPlans: boolean
@@ -29,6 +31,7 @@ interface PricingSectionProps {
 }
 
 export function PricingSection({
+  focusOnMount = false,
   profile,
   plans,
   isLoadingPlans,
@@ -43,6 +46,10 @@ export function PricingSection({
   onRetryPlans,
   t,
 }: Readonly<PricingSectionProps>) {
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    if (focusOnMount) headingRef.current?.focus()
+  }, [focusOnMount])
   const trialActive = !!profile?.isTrialActive
   let eyebrow: string
   if (!trialActive) {
@@ -62,10 +69,10 @@ export function PricingSection({
         <p className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)]">
           {eyebrow}
         </p>
-        <h2 className="t-display-heading text-pretty">
+        <h2 ref={headingRef} tabIndex={-1} className="t-display-heading text-pretty">
           {heading}
         </h2>
-        <p className="t-secondary max-w-[46ch] text-pretty">
+        <p className="t-body max-w-[46ch] text-pretty" style={{ color: 'var(--fg-2)' }}>
           {t('upgrade.convert.promise')}
         </p>
         {!trialActive ? (
@@ -93,9 +100,9 @@ export function PricingSection({
               <Icon size={20} strokeWidth={1.8} />
             </span>
             <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <p className="text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">
+              <h3 className="text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">
                 {t(`upgrade.outcomes.${key}.title`)}
-              </p>
+              </h3>
               <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-3)]">
                 {t(`upgrade.outcomes.${key}.body`)}
               </p>
