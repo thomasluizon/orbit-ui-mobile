@@ -29,6 +29,8 @@ import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const GITDIR_LINE = /^gitdir:[ \t]*(.+?)[ \t]*$/m
+// Linux proc_pid_stat(5): Z is zombie; x is the historical spelling of dead state X.
+const LINUX_DEAD_PROCESS_STATES = new Set(["Z", "X", "x"])
 
 /**
  * The directory git itself keeps state in. An ordinary checkout carries a `.git` DIRECTORY; a linked
@@ -132,7 +134,7 @@ const processStartIdentity = (pid) => {
       const stat = readFileSync(`/proc/${pid}/stat`, "utf8")
       const fields = stat.slice(stat.lastIndexOf(") ") + 2).trim().split(/\s+/)
       const bootId = readFileSync("/proc/sys/kernel/random/boot_id", "utf8").trim()
-      return fields[0] !== "Z" && /^\d+$/.test(fields[19]) && /^[0-9a-f-]{36}$/.test(bootId)
+      return !LINUX_DEAD_PROCESS_STATES.has(fields[0]) && /^\d+$/.test(fields[19]) && /^[0-9a-f-]{36}$/.test(bootId)
         ? `linux:${bootId}:${fields[19]}` : null
     }
   } catch {

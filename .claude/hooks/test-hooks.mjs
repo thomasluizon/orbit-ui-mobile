@@ -718,6 +718,51 @@ for (const mode of ["replaced", "unreadable"]) {
     explainsBlock: stopped.stderr.includes("NO live background task"),
   }, { status: 2, probes: 2, readerMatched: true, finalChanged: true, explainsBlock: true })
 }
+// Linux stat captured with `wsl.exe -d docker-desktop -- cat /proc/self/stat` for #437.
+// Change only the pid and observed state; keep the real adapter and successful kill(pid, 0).
+const linuxStat = "9 (cat) R 8 9 9 34816 9 4194560 174 0 1 0 0 0 0 0 20 0 1 0 185 1736704 194 18446744073709551615 104008432738304 104008433362862 140729346400016 0 0 0 0 4 0 0 0 0 17 1 0 0 0 0 0 104008433506352 104008433520688 104009433042944 140729346401036 140729346401056 140729346401056 140729346404335 0"
+const linuxBootId = "03b8381d-65e7-4b3e-b03e-138371be3664"
+const deadStatePreload = join(wakeCheckout, "wake-dead-state.mjs")
+writeFileSync(deadStatePreload, `
+import fs from "node:fs"
+import { syncBuiltinESMExports } from "node:module"
+Object.defineProperty(process, "platform", { value: "linux" })
+const observed = []
+const read = fs.readFileSync
+fs.readFileSync = (path, ...args) => {
+  if (path === "/proc/sys/kernel/random/boot_id") return ${JSON.stringify(linuxBootId)} + "\\n"
+  if (path !== "/proc/${process.pid}/stat") return read(path, ...args)
+  const state = process.env.ORBIT_TEST_WAKE_STATE_AT === "final" && observed.length === 0
+    ? "R" : process.env.ORBIT_TEST_WAKE_STATE
+  observed.push(state)
+  fs.writeFileSync(${JSON.stringify(wakeProbeTrace)}, JSON.stringify(observed))
+  return ${JSON.stringify(linuxStat)}.replace(/^\\d+ \\(cat\\) R /, ${JSON.stringify(`${process.pid} (cat) `)} + state + " ") + "\\n"
+}
+syncBuiltinESMExports()
+`)
+writeFileSync(wakeFile, JSON.stringify({ ...registeredWake, processStartIdentity: `linux:${linuxBootId}:185` }))
+const deadStateResults = []
+for (const state of ["X", "x", "Z"]) {
+  for (const at of ["both", "final"]) {
+    writeFileSync(wakeProbeTrace, "[]")
+    const stopped = spawnSync(process.execPath, ["--import", pathToFileURL(deadStatePreload).href, join(wakeHooks, WAKE_HOOK)], {
+      input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true,
+      env: { ...process.env, ORBIT_TEST_WAKE_STATE: state, ORBIT_TEST_WAKE_STATE_AT: at },
+    })
+    deadStateResults.push({
+      state, at, status: stopped.status,
+      observations: JSON.parse(readFileSync(wakeProbeTrace, "utf8")),
+      explainsBlock: stopped.stderr.includes("NO live background task"),
+    })
+  }
+}
+T("wake identity: Linux dead states block the real Stop adapter at either probe", deadStateResults,
+  ["X", "x", "Z"].flatMap((state) => ["both", "final"].map((at) => ({
+    state, at, status: 2,
+    observations: at === "final" ? ["R", state] : [state],
+    explainsBlock: true,
+  }))))
+writeFileSync(wakeFile, JSON.stringify(registeredWake))
 const originalKill = process.kill
 try {
   process.kill = () => { throw new Error("process probe unavailable") }
