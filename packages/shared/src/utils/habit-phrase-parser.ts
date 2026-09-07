@@ -41,20 +41,20 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
   'pt-BR': {
     weekdays: [
       { day: 'Sunday', pattern: /\bdom(?:ingo)?s?\b/gu },
-      { day: 'Monday', pattern: /\bseg(?:unda)?s?(?:-feira)?\b/gu },
+      { day: 'Monday', pattern: /\bseg(?:unda)?s?(?:-feiras?)?\b/gu },
       { day: 'Tuesday', pattern: /\btercas?(?:-feiras?)?\b/gu },
-      { day: 'Wednesday', pattern: /\bqua(?:rta)?s?(?:-feira)?\b/gu },
-      { day: 'Thursday', pattern: /\bqui(?:nta)?s?(?:-feira)?\b/gu },
-      { day: 'Friday', pattern: /\bsex(?:ta)?s?(?:-feira)?\b/gu },
+      { day: 'Wednesday', pattern: /\bqua(?:rta)?s?(?:-feiras?)?\b/gu },
+      { day: 'Thursday', pattern: /\bqui(?:nta)?s?(?:-feiras?)?\b/gu },
+      { day: 'Friday', pattern: /\bsex(?:ta)?s?(?:-feiras?)?\b/gu },
       { day: 'Saturday', pattern: /\bsab(?:ado)?s?\b/gu },
     ],
     daily: /(?<![a-z])(todo dia|todos os dias|diariamente|toda manha|toda noite)(?![a-z])/gu,
     count: new RegExp(`\\b(${PT_NUMBER})\\s*(?:vez|vezes|x)\\s*(?:(?:por|na|a|em)\\s*)?semana\\b`, 'gu'),
     interval: new RegExp(`\\ba\\s+cada\\s+(${PT_NUMBER})\\s+semanas?\\b`, 'gu'),
     times: [
-      /\b(?:as|a)\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?\b/gu,
-      /\b([01]?\d|2[0-3]):([0-5]\d)\b/gu,
-      /\b([01]?\d|2[0-3])h([0-5]\d)?\b/gu,
+      /\b(?:as|a)\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?\b(?![:\dh])/gu,
+      /(?<![\w:])([01]?\d|2[0-3]):([0-5]\d)\b(?![:\d])/gu,
+      /(?<![\w:])([01]?\d|2[0-3])h([0-5]\d)?\b(?![:\d])/gu,
     ],
     numberWords: PORTUGUESE_NUMBERS,
   },
@@ -72,9 +72,9 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
     count: new RegExp(`\\b(?:(once|twice)|(${EN_NUMBER})\\s*(?:time|times|x))\\s*(?:(?:a|per|each)\\s*)?week\\b`, 'gu'),
     interval: new RegExp(`\\bevery\\s+(${EN_NUMBER})\\s+weeks?\\b`, 'gu'),
     times: [
-      /\bat\s+([01]?\d|2[0-3])(?::([0-5]\d))?\s*(am|pm)?\b/gu,
-      /\b([01]?\d|2[0-3]):([0-5]\d)\s*(am|pm)?\b/gu,
-      /\b(1[0-2]|0?[1-9])\s*(am|pm)\b/gu,
+      /\bat\s+([01]?\d|2[0-3])(?::([0-5]\d))?\s*(am|pm)?\b(?![:\dh])/gu,
+      /(?<![\w:])([01]?\d|2[0-3]):([0-5]\d)\s*(am|pm)?\b(?![:\d])/gu,
+      /(?<![\w:])(1[0-2]|0?[1-9])\s*(am|pm)\b(?![:\d])/gu,
     ],
     numberWords: ENGLISH_NUMBERS,
   },
@@ -97,7 +97,9 @@ function normalizePhrase(original: string): NormalizedPhrase {
     const character = String.fromCodePoint(original.codePointAt(index)!)
     const end = index + character.length
     const normalized = character.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
-    if (/\s/u.test(normalized)) {
+    if (!normalized && originalEnds.length > 0 && pendingSpaceStart === null) {
+      originalEnds[originalEnds.length - 1] = end
+    } else if (/\s/u.test(normalized)) {
       pendingSpaceStart ??= index
     } else {
       if (pendingSpaceStart !== null && text.length > 0) {
@@ -138,18 +140,14 @@ function parseNumber(value: string, words: Readonly<Record<string, number>>): nu
   return words[value] ?? Number.parseInt(value, 10)
 }
 
-function parseTime(match: RegExpExecArray, locale: SupportedLocale): string {
+function parseTime(match: RegExpExecArray): string | null {
   let hour = Number.parseInt(match[1]!, 10)
-  let minute = 0
-  let meridiem: string | undefined
-  if (locale === 'pt-BR') {
-    minute = Number.parseInt(match[2] ?? match[3] ?? '0', 10)
-  } else {
-    const second = match[2]
-    minute = Number.parseInt(second === 'am' || second === 'pm' ? '0' : (second ?? '0'), 10)
-    meridiem = match[3] ?? (second === 'am' || second === 'pm' ? second : undefined)
-    if (meridiem === 'pm' && hour < 12) hour += 12
-    if (meridiem === 'am' && hour === 12) hour = 0
+  const suffixes = match.slice(2)
+  const minute = Number.parseInt(suffixes.find((value) => value && /^\d+$/u.test(value)) ?? '0', 10)
+  const meridiem = suffixes.find((value) => value === 'am' || value === 'pm')
+  if (meridiem) {
+    if (hour < 1 || hour > 12) return null
+    hour = hour % 12 + (meridiem === 'pm' ? 12 : 0)
   }
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
@@ -175,6 +173,14 @@ function extractInterval(
   }
 }
 
+function extractCount(text: string, patterns: LocalePatterns): { match: RegExpExecArray; quantity: number } | null {
+  patterns.count.lastIndex = 0
+  const match = patterns.count.exec(text)
+  if (!match) return null
+  const quantity = parseNumber(match[1] ?? match[2]!, patterns.numberWords)
+  return quantity > 0 ? { match, quantity } : null
+}
+
 export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhraseRead {
   const phrase = normalizePhrase(text)
   const patterns = LOCALE_PATTERNS[locale]
@@ -182,8 +188,8 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
   const consumed: HabitPhraseToken[] = []
   const timeMatch = firstMatch(patterns.times, remaining)
   let dueTime: string | null = null
-  if (timeMatch) {
-    dueTime = parseTime(timeMatch, locale)
+  if (timeMatch) dueTime = parseTime(timeMatch)
+  if (timeMatch && dueTime) {
     consumed.push(toToken(phrase, timeMatch, 'time'))
     remaining = maskRange(remaining, timeMatch.index, timeMatch.index + timeMatch[0].length)
   }
@@ -206,13 +212,12 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
     days = [...new Set(weekdayMatches.map(({ day }) => day))]
     for (const { match } of weekdayMatches) consumed.push(toToken(phrase, match, 'weekday'))
   } else {
-    patterns.count.lastIndex = 0
-    const countMatch = patterns.count.exec(remaining)
-    if (countMatch) {
+    const count = extractCount(remaining, patterns)
+    if (count) {
       cadence = 'flexible'
-      frequencyQuantity = parseNumber(countMatch[1] ?? countMatch[2]!, patterns.numberWords)
-      consumed.push(toToken(phrase, countMatch, 'count'))
-      remaining = maskRange(remaining, countMatch.index, countMatch.index + countMatch[0].length)
+      frequencyQuantity = count.quantity
+      consumed.push(toToken(phrase, count.match, 'count'))
+      remaining = maskRange(remaining, count.match.index, count.match.index + count.match[0].length)
     }
     if (!cadence) {
       patterns.daily.lastIndex = 0

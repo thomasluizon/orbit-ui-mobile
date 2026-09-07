@@ -41,6 +41,36 @@ const cases: PhraseCase[] = [
 ]
 
 describe('readHabitPhrase', () => {
+  it.each(cases)('reads case and accent variants of $input', ({ input, locale, cadence, quantity, days, interval, time }) => {
+    for (const variant of [input.toUpperCase(), input.toLowerCase(), input.normalize('NFD'), input.normalize('NFD').replace(/\p{M}/gu, '')]) {
+      expect(readHabitPhrase(variant, locale)).toMatchObject({ cadence, frequencyQuantity: quantity ?? null, days: days ?? [], intervalWeeks: interval ?? null, dueTime: time ?? null })
+    }
+  })
+
+  it.each(['Run 0 times a week', 'Run 000 times a week'])('leaves nonpositive counts unresolved: %s', (input) => {
+    expect(readHabitPhrase(input, 'en')).toMatchObject({ cadence: null, frequencyQuantity: null, consumed: [] })
+  })
+
+  it.each(['at 8:99', 'at 8:3', 'at 13pm', 'at 0am', 'at 7:30:20'])('does not consume part of an invalid clock: %s', (input) => {
+    expect(readHabitPhrase(input, 'en')).toMatchObject({ dueTime: null, consumed: [] })
+  })
+
+  it.each(['às 8:99', 'às 8:3', 'às 8h99', '21:15:30'])('does not consume part of an invalid Portuguese clock: %s', (input) => {
+    expect(readHabitPhrase(input, 'pt-BR')).toMatchObject({ dueTime: null, consumed: [] })
+  })
+
+  it.each(['segundas-feiras', 'terças-feiras', 'quartas-feiras', 'quintas-feiras', 'sextas-feiras'])('consumes the entire plural weekday: %s', (input) => {
+    const read = readHabitPhrase(input, 'pt-BR')
+    expect(read.cadence).toBe('fixed')
+    expect(segmentHabitPhrase(input, read.consumed)).toEqual([{ text: input, consumed: true }])
+  })
+
+  it('includes trailing decomposed accents in highlighted spans', () => {
+    const input = 'LER SEGUNDA-FEIRÁ'.normalize('NFD')
+    const segments = segmentHabitPhrase(input, readHabitPhrase(input, 'pt-BR').consumed)
+    expect(segments).toEqual([{ text: 'LER ', consumed: false }, { text: 'SEGUNDA-FEIRÁ'.normalize('NFD'), consumed: true }])
+  })
+
   it.each(cases)('reads $input', ({ input, locale, cadence, quantity, days, interval, time }) => {
     expect(readHabitPhrase(input, locale)).toMatchObject({
       cadence,
