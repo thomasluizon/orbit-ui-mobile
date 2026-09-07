@@ -11,7 +11,6 @@ import {
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 import { resetAccount } from '@/app/actions/profile'
@@ -86,7 +85,6 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
   const [confirmText, setConfirmText] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [showAnimation, setShowAnimation] = useState(false)
 
   const isConfirmed = confirmText.trim().toUpperCase() === 'ORBIT'
   const { sheetRef, closeSheet } = useSheetHost()
@@ -115,20 +113,15 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
       localStorage.removeItem('orbit_trial_expired_seen')
       closeSheet(() => {
         handleOpenChange(false)
-        setShowAnimation(true)
+        queryClient.clear()
+        router.push('/')
+        router.refresh()
       })
     } catch (err: unknown) {
       setError(getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic'))
     } finally {
       setLoading(false)
     }
-  }
-
-  function handleAnimationComplete() {
-    setShowAnimation(false)
-    queryClient.clear()
-    router.push('/')
-    router.refresh()
   }
 
   const deletedItems = buildFreshStartDeletedItems(t)
@@ -165,8 +158,6 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
           />
         )}
       </Sheet>) : null}
-
-      {showAnimation && <FreshStartAnimation onComplete={handleAnimationComplete} />}
     </>
   )
 }

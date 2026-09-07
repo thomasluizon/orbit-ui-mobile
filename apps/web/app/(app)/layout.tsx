@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
@@ -21,10 +21,8 @@ import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onbo
 import { StreakCelebration } from '@/components/gamification/streak-celebration'
 import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
 import { GoalCompletedCelebration } from '@/components/gamification/goal-completed-celebration'
-import { WelcomeBackToast } from '@/components/gamification/welcome-back-toast'
 import { AchievementToast } from '@/components/gamification/achievement-toast'
 import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
-import { StreakFreezeCelebration } from '@/components/gamification/streak-freeze-celebration'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
 import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
@@ -146,8 +144,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     setAstraConversationOpen(true)
     router.replace(pathname)
   }, [pathname, router, searchParams, setAstraConversationOpen])
-
-  const streakFreezeRef = useRef<{ show: () => void }>(null)
 
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(false)
 
@@ -285,7 +281,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         profile={profile}
         hasProAccess={hasProAccess}
         canViewGamification={canViewGamification}
-        streakFreezeRef={streakFreezeRef}
         suppressOnboardingOverlay={shouldSuppressOnboardingOverlay({
           draftHydrated,
           hasPendingOnboardingAnswers,
@@ -328,7 +323,6 @@ function GlobalOverlays({
   profile,
   hasProAccess,
   canViewGamification,
-  streakFreezeRef,
   suppressOnboardingOverlay,
   showCalendarPrompt,
   onCalendarPromptOpenChange,
@@ -342,7 +336,6 @@ function GlobalOverlays({
   profile: ReturnType<typeof useProfile>['profile']
   hasProAccess: boolean
   canViewGamification: boolean
-  streakFreezeRef: React.RefObject<{ show: () => void } | null>
   suppressOnboardingOverlay: boolean
   showCalendarPrompt: boolean
   onCalendarPromptOpenChange: (open: boolean) => void
@@ -415,7 +408,6 @@ function GlobalOverlays({
       <StreakCelebration />
       <AllDoneCelebration />
       <GoalCompletedCelebration />
-      <WelcomeBackToast />
       {hasProAccess && <AchievementToast />}
       {canViewGamification && (
         <LevelUpOverlay
@@ -427,7 +419,6 @@ function GlobalOverlays({
       {profile?.hasCompletedOnboarding && <MarketingConsentPrompt />}
       {profile?.hasCompletedOnboarding && <ReferralPrompt />}
       {profile?.hasCompletedOnboarding && <MilestoneSharePrompt />}
-      <StreakFreezeCelebration ref={streakFreezeRef} />
       {showCalendarPrompt ? (<Sheet
         open
         onClose={() => (onCalendarPromptOpenChange)(false)}

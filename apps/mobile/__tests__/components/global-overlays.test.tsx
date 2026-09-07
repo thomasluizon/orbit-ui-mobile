@@ -72,12 +72,6 @@ vi.mock('@/components/review-moment/review-moment-sheet', () => ({
 vi.mock('@/components/gamification/streak-celebration', () => ({
   StreakCelebration: 'StreakCelebration',
 }))
-vi.mock('@/components/gamification/streak-freeze-celebration', () => ({
-  StreakFreezeCelebration: 'StreakFreezeCelebration',
-}))
-vi.mock('@/components/gamification/welcome-back-toast', () => ({
-  WelcomeBackToast: 'WelcomeBackToast',
-}))
 vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: 'ExpiryWarning' }))
 vi.mock('@/components/ui/trial-expired-modal', () => ({
   TrialExpiredModal: 'TrialExpiredModal',
@@ -115,7 +109,6 @@ function buildProps(
     leveledUp: false,
     newLevel: null,
     onClearLevelUp: () => {},
-    streakFreezeRef: () => {},
     ...overrides,
   }
 }
@@ -137,7 +130,6 @@ function isMounted(instance: TestInstance, overlayType: string): boolean {
 const ALWAYS_MOUNTED = [
   'ExpiryWarning',
   'TrialExpiredModal',
-  'StreakFreezeCelebration',
   'VersionUpdateDrawer',
   'TourProvider',
   'TourOverlay',
@@ -150,7 +142,6 @@ const GAMIFICATION_OVERLAYS = [
   'StreakCelebration',
   'AllDoneCelebration',
   'GoalCompletedCelebration',
-  'WelcomeBackToast',
   'MarketingConsentPrompt',
   'ReferralPrompt',
   'MilestoneSharePrompt',

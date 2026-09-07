@@ -91,7 +91,7 @@ export function AllDoneCelebration() {
                     height: 120,
                     fontSize: 60,
                     background: 'rgba(var(--primary-rgb), 0.16)',
-                    animation: 'fresh-start-orb 0.7s var(--ease-out) both',
+                    animation: 'orb-entrance 0.7s var(--ease-out) both',
                   }}
                 >
                   {'🎉'}

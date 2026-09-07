@@ -38,7 +38,7 @@ export function OnboardingWelcome({
             width: 116,
             height: 116,
             background: 'rgba(var(--primary-rgb), 0.14)',
-            animation: 'fresh-start-orb 0.6s var(--ease-out) both',
+            animation: 'orb-entrance 0.6s var(--ease-out) both',
           }}
         >
           <AppLogo size={56} />
