@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   reorder: { mutate: vi.fn() },
   updateStatus: { mutate: vi.fn(), isPending: false },
   account: {
-    profile: { canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9, totalXp: 150 },
+    profile: { timeZone: 'America/Sao_Paulo', canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9, totalXp: 150 },
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -127,7 +127,9 @@ import ProgressPage from '@/app/(app)/progress/page'
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
 
 describe('ProgressContent', () => {
+  afterEach(() => { vi.useRealTimers() })
   beforeEach(() => {
+    mocks.account.profile.timeZone = 'America/Sao_Paulo'
     vi.clearAllMocks()
     for (const query of [mocks.account, mocks.goals, mocks.gamification]) {
       query.isLoading = false
@@ -370,7 +372,28 @@ describe('ProgressContent', () => {
     expect(region).toBeEmptyDOMElement()
   })
 
+  it.each([
+    ['2026-09-09', '2026-09-08'],
+    ['2026-09-08', '2026-09-07'],
+  ])('labels the exact account day in history %j after timezone changes', async (...dates) => {
+    vi.setSystemTime(new Date('2026-09-09T01:00:00Z'))
+    mocks.freeze.isFrozenToday = true
+    mocks.freeze.streakInfo.recentFreezeDates = dates
+    const { rerender } = render(<ProgressPage />)
+    await act(async () => { await Promise.resolve() })
+    expect.soft(screen.getByText('progressScreen.streak.protectedToday').parentElement).toHaveTextContent('Sep 8')
+    mocks.account.profile.timeZone = 'Pacific/Kiritimati'
+    rerender(<ProgressPage />)
+    if (dates.includes('2026-09-09')) {
+      expect(screen.getByText('progressScreen.streak.protectedToday').parentElement).toHaveTextContent('Sep 9')
+    } else {
+      expect(screen.queryByText('progressScreen.streak.protectedToday')).not.toBeInTheDocument()
+    }
+    expect(screen.getByText('Sep 8')).toBeInTheDocument()
+  })
+
   it('announces frozen today above the strip and includes its protected date', async () => {
+    vi.setSystemTime(new Date('2026-09-07T12:00:00Z'))
     mocks.freeze.isFrozenToday = true
     mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
     const { container, rerender } = render(<ProgressPage />)

@@ -2,7 +2,7 @@ import React from 'react'
 import * as ReactNative from 'react-native'
 import { StyleSheet, type ViewStyle } from 'react-native'
 import Yoga from 'yoga-layout'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
 import ProgressScreen from '@/app/(tabs)/progress'
@@ -22,7 +22,7 @@ const mocks = vi.hoisted(() => ({
   reorder: { mutate: vi.fn() },
   updateStatus: { mutate: vi.fn(), isPending: false },
   account: {
-    profile: { canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9, totalXp: 150 },
+    profile: { timeZone: 'America/Sao_Paulo', canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9, totalXp: 150 },
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -168,7 +168,9 @@ function isAccessibilityHidden(node: TestNode): boolean {
 }
 
 describe('mobile ProgressContent', () => {
+  afterEach(() => { vi.useRealTimers() })
   beforeEach(() => {
+    mocks.account.profile.timeZone = 'America/Sao_Paulo'
     vi.clearAllMocks()
     for (const query of [mocks.account, mocks.goals, mocks.gamification]) {
       query.isLoading = false
@@ -484,7 +486,29 @@ describe('mobile ProgressContent', () => {
     TestRenderer.act(() => { tree!.unmount() })
   })
 
+  it.each([
+    ['2026-09-09', '2026-09-08'],
+    ['2026-09-08', '2026-09-07'],
+  ])('labels the exact account day in history %j after timezone changes', async (...dates) => {
+    vi.setSystemTime(new Date('2026-09-09T01:00:00Z'))
+    mocks.freeze.isFrozenToday = true
+    mocks.freeze.streakInfo.recentFreezeDates = dates
+    const tree = await renderProgress()
+    const todayLabel = tree.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'progressScreen.streak.protectedToday')[0]!
+    expect.soft(todayLabel.parent!.parent!.findAll((node) => node.props.children === 'Sep 8').length).toBeGreaterThan(0)
+    mocks.account.profile.timeZone = 'Pacific/Kiritimati'
+    const changed = await renderProgress()
+    const changedLabels = changed.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'progressScreen.streak.protectedToday')
+    if (dates.includes('2026-09-09')) {
+      expect(changedLabels[0]!.parent!.parent!.findAll((node) => node.props.children === 'Sep 9').length).toBeGreaterThan(0)
+    } else {
+      expect(changedLabels).toHaveLength(0)
+    }
+    expect(changed.root.findAll((node) => node.props.children === 'Sep 8').length).toBeGreaterThan(0)
+  })
+
   it('announces frozen today above the strip and includes its protected date', async () => {
+    vi.setSystemTime(new Date('2026-09-07T12:00:00Z'))
     mocks.freeze.isFrozenToday = true
     mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
     const tree = await renderProgress()

@@ -7,15 +7,34 @@ const now = new Date(2026, 8, 7, 12)
 describe('Progress streak history', () => {
   afterEach(() => { vi.useRealTimers() })
   it.each([
-    [new Date(2026, 8, 8, 0, 30), '2026-09-07'],
-    [new Date(2026, 8, 7, 23, 30), '2026-09-08'],
-  ] as const)('uses only account freeze dates across midnight with device time %s', (deviceNow, accountToday) => {
+    ['2026-09-09', '2026-09-08'],
+    ['2026-09-08', '2026-09-07'],
+  ])('matches the account date in history %j and follows timezone changes', (...dates) => {
+    vi.setSystemTime(new Date('2026-09-09T01:00:00Z'))
+    const protectedDays = buildProtectedDayLabels(dates, 'en', true, 'America/Sao_Paulo')
+    expect.soft(protectedDays.map(({ id, isToday }) => ({ id, isToday }))).toEqual(
+      dates.map((id) => ({ id, isToday: id === '2026-09-08' })),
+    )
+    expect(buildProtectedDayLabels(dates, 'en', true, 'Pacific/Kiritimati').filter((day) => day.isToday).map((day) => day.id)).toEqual(
+      dates.filter((date) => date === '2026-09-09'),
+    )
+    expect(buildProtectedDayLabels(dates, 'en', false, 'America/Sao_Paulo').every((day) => !day.isToday)).toBe(true)
+  })
+
+  it.each([undefined, null, 'unsupported/timezone'])('labels no day as today without a usable account timezone (%j)', (timeZone) => {
+    expect(buildProtectedDayLabels(['2026-09-09', '2026-09-08'], 'en', true, timeZone).every((day) => !day.isToday)).toBe(true)
+  })
+
+  it.each([
+    [new Date('2026-09-08T00:30:00Z'), '2026-09-07', 'America/Sao_Paulo'],
+    [new Date('2026-09-07T23:30:00Z'), '2026-09-08', 'Pacific/Kiritimati'],
+  ] as const)('uses only account freeze dates across midnight with device time %s', (deviceNow, accountToday, timeZone) => {
     vi.setSystemTime(deviceNow)
     const dates = ['2026-09-04', accountToday, accountToday]
-    const protectedDays = buildProtectedDayLabels(dates, 'en', true)
+    const protectedDays = buildProtectedDayLabels(dates, 'en', true, timeZone)
     expect.soft(protectedDays.map((day) => day.id), 'must not invent a device date').toEqual([accountToday, '2026-09-04'])
     expect(protectedDays.find((day) => day.id === accountToday)?.isToday, 'today belongs to the account').toBe(true)
-    expect(buildProtectedDayLabels(dates, 'en', false).every((day) => !day.isToday)).toBe(true)
+    expect(buildProtectedDayLabels(dates, 'en', false, timeZone).every((day) => !day.isToday)).toBe(true)
     expect(dates).toEqual(['2026-09-04', accountToday, accountToday])
   })
 
@@ -27,8 +46,9 @@ describe('Progress streak history', () => {
     ['not-a-date', undefined],
     ['2026-02-30', undefined],
   ] as const)('omits invalid protected date %j with locale %j while retaining valid history', (invalidDate, locale) => {
+    vi.setSystemTime(new Date('2026-09-07T12:00:00Z'))
     const dates = [invalidDate, '2026-09-04', '2026-09-07']
-    expect(buildProtectedDayLabels(dates, locale, true)).toEqual([
+    expect(buildProtectedDayLabels(dates, locale, true, 'America/Sao_Paulo')).toEqual([
       { id: '2026-09-07', dateLabel: locale ? 'Sep 7' : '2026-09-07', isToday: true },
       { id: '2026-09-04', dateLabel: locale ? 'Sep 4' : '2026-09-04', isToday: false },
     ])
@@ -45,11 +65,12 @@ describe('Progress streak history', () => {
   })
 
   it('includes protected today once and formats dates in the requested locale', () => {
+    vi.setSystemTime(new Date('2026-09-07T12:00:00Z'))
     const dates = ['2026-09-04', '2026-09-07', '2026-09-07']
-    const protectedDays = buildProtectedDayLabels(dates, 'en', true)
+    const protectedDays = buildProtectedDayLabels(dates, 'en', true, 'America/Sao_Paulo')
     expect(protectedDays.map((day) => day.id)).toEqual(['2026-09-07', '2026-09-04'])
     expect(protectedDays[0]).toEqual({ id: '2026-09-07', dateLabel: 'Sep 7', isToday: true })
-    expect(buildProtectedDayLabels(['2026-09-07'], 'pt-BR', true)).toEqual([
+    expect(buildProtectedDayLabels(['2026-09-07'], 'pt-BR', true, 'America/Sao_Paulo')).toEqual([
       { id: '2026-09-07', dateLabel: '7 de set.', isToday: true },
     ])
     expect(buildProtectedDayLabels([], 'en', false)).toEqual([])

@@ -189,7 +189,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
           earnRateDays={7}
           tierValue={tier}
           tierLabel={t('streakDisplay.detail.tierTileLabel')}
-          protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, locale, freeze.isFrozenToday)}
+          protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, locale, freeze.isFrozenToday, accountProfile?.timeZone)}
           words={{
             ...dayWords,
             legendLabel: t('progressScreen.streak.legend'),

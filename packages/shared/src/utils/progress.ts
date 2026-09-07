@@ -8,6 +8,7 @@ import {
 import type { Achievement, GamificationProfile } from '../types/gamification'
 import type { Goal, GoalPositionItem, GoalStatus } from '../types/goal'
 import type { Profile } from '../types/profile'
+import { nowDate } from './dates'
 
 type ProgressQueryState = { isLoading: boolean; isError: boolean }
 
@@ -137,11 +138,29 @@ export function getAvailableStreakRepairDate(
   return isRepairAvailable === true && repairDate ? repairDate : null
 }
 
+function getProtectedAccountToday(timeZone: string): string | null {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      calendar: 'iso8601',
+      numberingSystem: 'latn',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(nowDate())
+  } catch (error) {
+    if (!(error instanceof RangeError)) throw error
+    return null
+  }
+}
+
 export function buildProtectedDayLabels(
   dates: readonly string[],
   locale?: string,
   isFrozenToday = false,
+  accountTimeZone?: string | null,
 ): { id: string; dateLabel: string; isToday: boolean }[] {
+  const accountToday = isFrozenToday && accountTimeZone ? getProtectedAccountToday(accountTimeZone) : null
   const protectedDays = [...new Set(dates)].sort().reverse().flatMap((date) => {
     const parsed = startOfDay(parseISO(date))
     if (!isValid(parsed)) return []
@@ -150,5 +169,5 @@ export function buildProtectedDayLabels(
       dateLabel: locale ? new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(parsed) : format(parsed, 'yyyy-MM-dd'),
     }]
   })
-  return protectedDays.map((day, index) => ({ ...day, isToday: isFrozenToday && index === 0 }))
+  return protectedDays.map((day) => ({ ...day, isToday: isFrozenToday && day.id === accountToday }))
 }
