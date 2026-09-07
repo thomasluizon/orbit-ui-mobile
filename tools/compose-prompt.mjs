@@ -198,6 +198,11 @@ memory, not --help, not what it should obviously be. Never write the fixture tha
 guess. Two measured failures in this repository were a worker inventing a field while the same
 commit added a mock that agreed with the guess, so the harness stayed green over a defect.
 
+**File findings through the repository adapter.** When this work exposes a finding that belongs in
+a separate ticket, file every finding through \`node tools/create-ticket.mjs\`. Never use \`gh issue
+create\`: only the repository tool also creates the configured Projects card that later completion
+requires.
+
 **Prove the regression test catches the defect.** When a round fixes a defect that an existing test did not catch:
 1. Before changing the test or implementation, run that existing test unchanged and report whether it passes with the defect present.
 2. Then strengthen the test to exercise the real failing path and run it with the defect still present. Observe it fail for the intended reason before fixing the implementation.
