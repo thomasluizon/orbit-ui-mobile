@@ -35,7 +35,7 @@ export function OtpInput({
   }, [error])
 
   return (
-    <View style={styles.root} data-error={error ? '' : undefined}>
+    <View style={styles.root}>
       <View style={styles.cellRow}>
         <TextInput
           ref={inputRef}
@@ -56,7 +56,8 @@ export function OtpInput({
             key={index}
             testID={`otp-cell-${index}`}
             pointerEvents="none"
-            data-active={index === activeIndex ? '' : undefined}
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
             style={[
               styles.cell,
               {
@@ -90,7 +91,7 @@ const styles = StyleSheet.create({
   root: { gap: 8 },
   cellRow: { position: 'relative', flexDirection: 'row', justifyContent: 'center', gap: 8 },
   realInput: { ...StyleSheet.absoluteFill, zIndex: 1, opacity: 0.01 },
-  cell: { width: 48, height: 58, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  cell: { width: 44, height: 56, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   digit: { fontFamily: 'GeistMono_500Medium', fontSize: 26, fontVariant: ['tabular-nums'] },
   caption: { fontFamily: 'Geist_400Regular', fontSize: 12 },
 })

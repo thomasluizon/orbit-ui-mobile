@@ -1,6 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
+import { createApiClientError } from '@orbit/shared/utils'
 
 import { useLoginFlow } from '@/app/use-login-flow'
 
@@ -49,20 +50,6 @@ vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isO
 
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: mocks.showError }) }))
 
-vi.mock('@/hooks/use-login-code-entry', () => ({
-  useLoginCodeEntry: () => ({
-    codeDigits: mocks.codeDigits,
-    setCodeDigits: mocks.setCodeDigits,
-    codeInputRefs: { current: [{ focus: mocks.focus }] },
-    canResend: true,
-    resendCountdown: 0,
-    startResendCountdown: mocks.startResendCountdown,
-    resetCodeDigits: mocks.resetCodeDigits,
-    onCodeInput: vi.fn(),
-    onCodeKeyPress: vi.fn(),
-  }),
-}))
-
 vi.mock('expo-router', () => ({
   useRouter: () => ({ replace: mocks.replace, push: mocks.push }),
   useLocalSearchParams: () => mocks.params,
@@ -105,6 +92,9 @@ async function renderLoginFlow(): Promise<Harness> {
     TestRenderer.create(React.createElement(Probe))
     await Promise.resolve()
   })
+  if (mocks.codeDigits.join('')) {
+    await TestRenderer.act(() => holder.current?.setCodeDigits(mocks.codeDigits))
+  }
 
   return {
     get current() {
@@ -152,7 +142,7 @@ describe('useLoginFlow (mobile)', () => {
     await act(() => harness.current.sendCode())
 
     expect(mocks.apiClient).not.toHaveBeenCalled()
-    expect(mocks.showError).toHaveBeenCalledWith('auth.errors.offline')
+    expect(mocks.showError).not.toHaveBeenCalled()
   })
 
   it('rejects an invalid email without calling the API', async () => {
@@ -162,7 +152,8 @@ describe('useLoginFlow (mobile)', () => {
     await act(() => harness.current.sendCode())
 
     expect(mocks.apiClient).not.toHaveBeenCalled()
-    expect(mocks.showError).toHaveBeenCalledWith('auth.errors.invalidEmail')
+    expect(harness.current).toMatchObject({ errorMessage: 'auth.errors.invalidEmail' })
+    expect(mocks.showError).not.toHaveBeenCalled()
   })
 
   it('sends the code, advances to the code step, and starts the resend countdown', async () => {
@@ -177,7 +168,7 @@ describe('useLoginFlow (mobile)', () => {
     expect(bodyOf(options)).toMatchObject({ email: 'user@test.com', language: 'en' })
     expect(harness.current.step).toBe('code')
     expect(harness.current.successMessage).toBe('auth.codeSent')
-    expect(mocks.startResendCountdown).toHaveBeenCalledTimes(1)
+    expect(harness.current.resendCountdown).toBe(60)
   })
 
   it('verifies the code, logs in with the returned session, and redirects to the safe return url', async () => {
@@ -215,8 +206,9 @@ describe('useLoginFlow (mobile)', () => {
     await act(() => harness.current.setEmail('user@test.com'))
     await act(() => harness.current.verifyCode())
 
-    expect(mocks.showError).toHaveBeenCalled()
-    expect(mocks.resetCodeDigits).toHaveBeenCalledTimes(1)
+    expect(harness.current.errorMessage).toBeTruthy()
+    expect(mocks.showError).not.toHaveBeenCalled()
+    expect(harness.current.codeDigits.join('')).toBe('123456')
     expect(mocks.login).not.toHaveBeenCalled()
   })
 
@@ -245,8 +237,8 @@ describe('useLoginFlow (mobile)', () => {
     const [endpoint, options] = firstApiCall()
     expect(endpoint).toBe(API.auth.sendCode)
     expect(bodyOf(options)).toMatchObject({ email: 'user@test.com', language: 'en' })
-    expect(harness.current.successMessage).toBe('auth.codeSent')
-    expect(mocks.startResendCountdown).toHaveBeenCalledTimes(1)
+    expect(harness.current.successMessage).toBe('auth.codeResent')
+    expect(harness.current.resendCountdown).toBe(60)
   })
 
   it('blocks resending while offline', async () => {
@@ -257,7 +249,7 @@ describe('useLoginFlow (mobile)', () => {
     await act(() => harness.current.resendCode())
 
     expect(mocks.apiClient).not.toHaveBeenCalled()
-    expect(mocks.showError).toHaveBeenCalledWith('auth.errors.offline')
+    expect(mocks.showError).not.toHaveBeenCalled()
   })
 
   it('returns to the email step and clears code entry', async () => {
@@ -271,7 +263,7 @@ describe('useLoginFlow (mobile)', () => {
 
     expect(harness.current.step).toBe('email')
     expect(harness.current.successMessage).toBeNull()
-    expect(mocks.resetCodeDigits).toHaveBeenCalled()
+    expect(harness.current.codeDigits.join('')).toBe('')
   })
 
   it('shows the reactivation notice when a deleted account logs back in', async () => {
@@ -289,7 +281,10 @@ describe('useLoginFlow (mobile)', () => {
     await act(() => harness.current.setEmail('user@test.com'))
     await act(() => harness.current.verifyCode())
 
-    expect(harness.current.successMessage).toBe('profile.deleteAccount.reactivated')
+    expect(harness.current.accountBack).toMatchObject({ wasReactivated: true })
+    expect(mocks.replace).not.toHaveBeenCalled()
+    await act(() => harness.current.continueAccount())
+    expect(mocks.replace).toHaveBeenCalledWith('/')
   })
 
   it('applies a stored referral code on verification and hides the banner', async () => {
@@ -348,7 +343,7 @@ describe('useLoginFlow (mobile)', () => {
     await act(() => harness.current.signInWithGoogle())
 
     expect(mocks.startMobileGoogleAuth).not.toHaveBeenCalled()
-    expect(mocks.showError).toHaveBeenCalledWith('auth.errors.offline')
+    expect(mocks.showError).not.toHaveBeenCalled()
   })
 
   it('surfaces a Google sign-in failure', async () => {
@@ -357,7 +352,8 @@ describe('useLoginFlow (mobile)', () => {
 
     await act(() => harness.current.signInWithGoogle())
 
-    expect(mocks.showError).toHaveBeenCalled()
+    expect(harness.current.errorMessage).toBeTruthy()
+    expect(mocks.showError).not.toHaveBeenCalled()
     expect(harness.current.isGoogleLoading).toBe(false)
   })
 
@@ -365,9 +361,82 @@ describe('useLoginFlow (mobile)', () => {
     const harness = await renderLoginFlow()
 
     await act(() => harness.current.openPrivacyPolicy())
-    expect(mocks.push).toHaveBeenCalledWith('/privacy')
+    expect(mocks.push).toHaveBeenCalledWith('/about')
 
     await act(() => harness.current.openTerms())
-    expect(mocks.push).toHaveBeenCalledWith('/terms')
+    expect(mocks.push).toHaveBeenCalledWith('/about')
+  })
+})
+
+describe('mobile auth state recovery', () => {
+  it.each([429, 500, 503])('keeps one send failure and the address for HTTP %s', async (status) => {
+    mocks.apiClient.mockRejectedValue(createApiClientError(status, null, 'Request failed'))
+    const harness = await renderLoginFlow()
+    await act(() => harness.current.setEmail('user@test.com'))
+    await act(() => harness.current.sendCode())
+    expect(harness.current.errorKey).toBe('auth.errors.sendFailed')
+    expect(harness.current.email).toBe('user@test.com')
+    expect(harness.current.step).toBe('email')
+    expect(mocks.showError).not.toHaveBeenCalled()
+  })
+
+  it('keeps the same send failure after a network exception', async () => {
+    mocks.apiClient.mockRejectedValue(new TypeError('network disconnected'))
+    const harness = await renderLoginFlow()
+    await act(() => harness.current.setEmail('user@test.com'))
+    await act(() => harness.current.sendCode())
+    expect(harness.current.errorKey).toBe('auth.errors.sendFailed')
+  })
+
+  it('deduplicates the sixth digit and the verify button', async () => {
+    const harness = await renderLoginFlow()
+    await act(() => harness.current.setEmail('user@test.com'))
+    await act(() => harness.current.sendCode())
+    mocks.apiClient.mockResolvedValue({ token: 'test-token', refreshToken: null, userId: 'user-id', name: 'Person', email: 'user@test.com' })
+    mocks.apiClient.mockClear()
+    await act(async () => {
+      harness.current.onCodeChange('123456')
+      await harness.current.verifyCode('123456')
+    })
+    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+  })
+
+  it('locks after three wrong codes and permits a different email immediately', async () => {
+    const harness = await renderLoginFlow()
+    await act(() => harness.current.setEmail('user@test.com'))
+    await act(() => harness.current.sendCode())
+    mocks.apiClient.mockRejectedValue(createApiClientError(400, { error: 'Invalid verification code' }, 'Request failed'))
+    for (const code of ['111111', '222222', '333333']) await act(() => harness.current.onCodeChange(code))
+    expect(harness.current.codeFailure).toBe('locked')
+    expect(harness.current.lockCountdown).toBe(900)
+    const calls = mocks.apiClient.mock.calls.length
+    await act(async () => { await harness.current.verifyCode('444444'); await harness.current.resendCode() })
+    expect(mocks.apiClient).toHaveBeenCalledTimes(calls)
+    await act(() => harness.current.backToEmail())
+    await act(() => harness.current.setEmail('other@test.com'))
+    mocks.apiClient.mockResolvedValue({})
+    await act(() => harness.current.sendCode())
+    expect(harness.current.codeFailure).toBeNull()
+    expect(harness.current.step).toBe('code')
+    await act(() => harness.current.backToEmail())
+    await act(() => harness.current.setEmail('USER@test.com'))
+    const before = mocks.apiClient.mock.calls.length
+    await act(() => harness.current.sendCode())
+    expect(harness.current.codeFailure).toBe('locked')
+    expect(mocks.apiClient).toHaveBeenCalledTimes(before)
+  })
+
+  it('lets an expired code be resent even inside the local resend countdown', async () => {
+    const harness = await renderLoginFlow()
+    await act(() => harness.current.setEmail('user@test.com'))
+    await act(() => harness.current.sendCode())
+    mocks.apiClient.mockRejectedValue(createApiClientError(400, { error: 'Verification code expired or not found' }, 'Request failed'))
+    await act(() => harness.current.verifyCode('123456'))
+    expect(harness.current.codeFailure).toBe('expired')
+    mocks.apiClient.mockResolvedValue({})
+    await act(() => harness.current.resendCode())
+    expect(harness.current.codeFailure).toBeNull()
+    expect(harness.current.codeDigits.join('')).toBe('')
+    expect(harness.current.successMessage).toBe('auth.codeResent')
   })
 })

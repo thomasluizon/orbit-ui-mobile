@@ -1,140 +1,78 @@
-import { useEffect } from 'react'
-// react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { Animated, BackHandler, Pressable, Text, View } from 'react-native'
-import { type AppTokensV2 } from '@/lib/theme'
+import { useEffect, useMemo } from 'react'
+import { Animated, BackHandler, Text, View } from 'react-native'
+import { formatLoginCountdown, type LoginCodeFailure } from '@orbit/shared/utils'
+import { type AppTokensV2, easings } from '@/lib/theme'
+import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { PillButton } from '@/components/ui/pill-button'
 import { OtpInput } from '@/components/ui/otp-input'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
 import type { LoginStyles } from '@/app/login-styles'
-
-type TranslationFn = (key: string, params?: Record<string, unknown>) => string
+import { LoginOfflineNotice, LoginSuccessMessage } from './login-sections'
 
 interface CodeStepProps {
   email: string
   codeDigits: string[]
   onCodeChange: (value: string) => void
   isSubmitting: boolean
-  canSubmitCode: boolean
   canResend: boolean
   resendCountdown: number
+  lockCountdown: number
+  codeFailure: LoginCodeFailure
+  errorSignal: string | null
+  successMessage: string | null
   isOnline: boolean
   onVerifyCode: () => void
   onResendCode: () => void
   onBackToEmail: () => void
-  shakeOffset: Animated.Value
   tokens: AppTokensV2
   styles: LoginStyles
-  t: TranslationFn
+  t: (key: string, params?: Record<string, unknown>) => string
 }
 
-// react-doctor-disable-next-line no-many-boolean-props -- Deliberate presentational auth step: independent submitting/can-submit/can-resend UI-state flags owned by the login flow; an options-object rewrite would churn the caller and the web parity mirror for no runtime benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-export function CodeStep({
-  email,
-  codeDigits,
-  onCodeChange,
-  isSubmitting,
-  canSubmitCode,
-  canResend,
-  resendCountdown,
-  isOnline,
-  onVerifyCode,
-  onResendCode,
-  onBackToEmail,
-  shakeOffset,
-  tokens: _tokens,
-  styles,
-  t,
-}: Readonly<CodeStepProps>) {
+export function CodeStep({ email, codeDigits, onCodeChange, isSubmitting, canResend, resendCountdown,
+  lockCountdown, codeFailure, errorSignal, successMessage, isOnline, onVerifyCode, onResendCode,
+  onBackToEmail, tokens, styles, t }: Readonly<CodeStepProps>) {
   useEffect(() => {
-    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
-      onBackToEmail()
-      return true
-    })
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => { onBackToEmail(); return true })
     return () => subscription.remove()
   }, [onBackToEmail])
-
-  const resendDisabled = !isOnline || isSubmitting
-
-  return (
-    <>
-      <Text style={styles.codeSentText}>
-        {t('auth.codeSentTo')}{' '}
-        <Text style={styles.codeSentEmail}>{email}</Text>.
-      </Text>
-
-      <Animated.View style={{ transform: [{ translateX: shakeOffset }] }}>
-        <OtpInput
-          label={t('auth.verificationCode')}
-          value={codeDigits.join('')}
-          onChange={(value) => {
-            if (!isSubmitting) onCodeChange(value)
-          }}
-          disabled={isSubmitting}
-          autoFocus
-        />
-      </Animated.View>
-
-      <PillButton
-
-        onClick={onVerifyCode}
-        disabled={!canSubmitCode}
-        loading={isSubmitting}
-
-      >
-        {t('auth.verify')}
-      </PillButton>
-
-      <View style={styles.resendRow}>
-        {canResend ? (
-          <Pressable
-            onPress={onResendCode}
-            disabled={resendDisabled}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: resendDisabled }}
-            style={({ pressed }) => [
-              styles.textButton,
-              pressed && styles.textButtonPressed,
-              resendDisabled && styles.textButtonDisabled,
-            ]}
-          >
-            {({ pressed }) => (
-              <Text
-                style={[
-                  styles.resendActiveText,
-                  pressed && styles.resendActiveTextPressed,
-                ]}
-              >
-                {t('auth.resendCode')}
-              </Text>
-            )}
-          </Pressable>
-        ) : (
-          <View style={styles.textButton}>
-            <Text style={styles.resendCountdownText}>
-              {t('auth.resendIn', { seconds: resendCountdown })}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.changeEmailRow}>
-        <Pressable
-          onPress={onBackToEmail}
-          disabled={isSubmitting}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: isSubmitting }}
-          style={({ pressed }) => [
-            styles.textButton,
-            pressed && styles.textButtonPressed,
-            isSubmitting && styles.textButtonDisabled,
-          ]}
-        >
-          {({ pressed }) => (
-            <Text style={[styles.quietLink, pressed && styles.quietLinkPressed]}>
-              {t('auth.changeEmail')}
-            </Text>
-          )}
-        </Pressable>
-      </View>
-    </>
-  )
+  const reduced = usePrefersReducedMotion()
+  const shake = useMemo(() => new Animated.Value(0), [])
+  const locked = codeFailure === 'locked'
+  const expired = codeFailure === 'expired'
+  const fieldError = isOnline && !locked ? errorSignal ?? undefined : undefined
+  useEffect(() => {
+    shake.setValue(0)
+    if (!fieldError || reduced) return
+    const animation = Animated.sequence([-4, 4, -4, 4, 0].map((toValue) => Animated.timing(shake, {
+      toValue, duration: 56, easing: toAnimatedEasing(easings.smooth), useNativeDriver: true,
+    })))
+    animation.start()
+    return () => animation.stop()
+  }, [fieldError, reduced, shake])
+  return <View style={styles.step}>
+    <View style={styles.titleBlock}>
+      <Text style={styles.stepSubtitle}>{t('auth.codeSentTo')} {email}.</Text>
+      <LoginSuccessMessage message={successMessage} styles={styles} />
+      <View style={styles.quietAction}><PillButton variant="ghost" size="sm" disabled={isSubmitting}
+        onClick={onBackToEmail}>{t('auth.changeEmail')}</PillButton></View>
+    </View>
+    <Animated.View style={{ transform: [{ translateX: shake }] }}>
+      <OtpInput label={t('auth.verificationCode')} value={codeDigits.join('')} onChange={onCodeChange}
+        error={fieldError} hint={!fieldError && !locked ? t('auth.codeHint') : undefined}
+        disabled={isSubmitting || expired || locked} />
+    </Animated.View>
+    {!isOnline && <LoginOfflineNotice t={t} styles={styles} tokens={tokens} />}
+    {!locked && !expired && <PillButton onClick={onVerifyCode} disabled={isSubmitting || !isOnline || codeDigits.join('').length !== 6}
+      loading={isSubmitting}>{t('auth.verify')}</PillButton>}
+    {!locked && <View style={styles.titleBlock}>
+      {canResend || expired ? <View style={styles.quietAction}>
+        <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting}>{t('auth.resendCode')}</PillButton>
+      </View> : <Text style={styles.mono}>{t('auth.resendIn', { time: formatLoginCountdown(resendCountdown) })}</Text>}
+    </View>}
+    {locked && <View style={styles.titleBlock}>
+      <View accessibilityLiveRegion="polite"><CapacityNotice message={t('auth.errors.tooManyAttempts')} /></View>
+      <Text style={styles.mono}>{t('auth.lockIn', { time: formatLoginCountdown(lockCountdown) })}</Text>
+    </View>}
+  </View>
 }

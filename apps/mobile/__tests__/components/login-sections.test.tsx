@@ -50,7 +50,7 @@ describe('LoginHeader', () => {
       (node) => node.props.accessibilityRole === 'header',
     )
 
-    expect(heading.props.children).toBe('auth.signIn')
+    expect(heading.props.children).toBe('auth.emailTitle')
   })
 })
 
