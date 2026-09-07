@@ -226,11 +226,11 @@ describe('mobile Markdown wrapper', () => {
     expect(props.value).toBe('# Hello')
   })
 
-  it('opens http(s) and mailto links', () => {
+  it('opens https and mailto links', () => {
     const props = renderMarkdown({ children: 'x' })
     const renderer = props.renderer as CapturedRenderer
 
-    for (const href of ['https://orbit.app', 'http://x', 'mailto:a@b.com']) {
+    for (const href of ['https://orbit.app', 'mailto:a@b.com']) {
       const element = renderer.link(['label'], href)
       expect(isValidElement(element)).toBe(true)
       const link = renderLink(element)
@@ -239,15 +239,15 @@ describe('mobile Markdown wrapper', () => {
       link.props.onPress?.()
     }
 
-    expect(openURL).toHaveBeenCalledTimes(3)
+    expect(openURL).toHaveBeenCalledTimes(2)
     expect(openURL).toHaveBeenCalledWith('https://orbit.app')
   })
 
-  it('refuses to open javascript: and data: link schemes', () => {
+  it('refuses to open clear-text and executable link schemes', () => {
     const props = renderMarkdown({ children: 'x' })
     const renderer = props.renderer as CapturedRenderer
 
-    for (const href of ['javascript:alert(1)', 'data:text/html,<script>']) {
+    for (const href of ['http://example.com', 'javascript:alert(1)', 'data:text/html,<script>']) {
       const link = renderLink(renderer.link(['label'], href))
       expect(link.props.onPress).toBeUndefined()
       expect(link.props.onPressIn).toBeUndefined()

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   AccessibilityInfo: {
-    isReduceMotionEnabled: vi.fn(async () => false),
+    isReduceMotionEnabled: vi.fn(() => false),
     addEventListener: vi.fn(() => ({
       remove: vi.fn(),
     })),

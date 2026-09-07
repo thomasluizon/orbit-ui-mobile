@@ -11,7 +11,7 @@ export enum ErrorCode {
 
 export async function finishTransaction(): Promise<void> {}
 
-export async function getAvailablePurchases(): Promise<unknown[]> {
+export function getAvailablePurchases(): unknown[] {
   return []
 }
 
@@ -19,7 +19,7 @@ export function useIAP() {
   return {
     connected: false,
     subscriptions: [],
-    fetchProducts: async () => undefined,
-    requestPurchase: async () => null,
+    fetchProducts: () => undefined,
+    requestPurchase: () => null,
   }
 }

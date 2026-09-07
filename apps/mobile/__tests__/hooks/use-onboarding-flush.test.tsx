@@ -25,9 +25,9 @@ const mocks = vi.hoisted(() => {
     authState: { isAuthenticated: true },
     draftState,
     queryClient,
-    profile: { hasCompletedOnboarding: false } as { hasCompletedOnboarding: boolean },
+    profile: { hasCompletedOnboarding: false },
     captureError: vi.fn(),
-    applyOnboarding: vi.fn(async () => ({
+    applyOnboarding: vi.fn(() => ({
       applied: true,
       createdHabitCount: 1,
       createdGoal: false,

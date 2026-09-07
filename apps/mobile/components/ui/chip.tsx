@@ -57,13 +57,13 @@ export function Chip({
 
 const styles = StyleSheet.create({
   chip: {
-    paddingVertical: 9,
+    paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: radius.full,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 8,
   },
   chipPressed: {
     transform: [{ scale: 0.96 }],

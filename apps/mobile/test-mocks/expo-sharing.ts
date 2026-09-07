@@ -1,4 +1,4 @@
-export async function isAvailableAsync(): Promise<boolean> {
+export function isAvailableAsync(): boolean {
   return true
 }
 

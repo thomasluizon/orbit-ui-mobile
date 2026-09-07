@@ -10,11 +10,11 @@ const storage = new Map<string, string>()
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
-    getItem: vi.fn(async (key: string) => storage.get(key) ?? null),
-    setItem: vi.fn(async (key: string, value: string) => {
+    getItem: vi.fn((key: string) => storage.get(key) ?? null),
+    setItem: vi.fn((key: string, value: string) => {
       storage.set(key, value)
     }),
-    removeItem: vi.fn(async (key: string) => {
+    removeItem: vi.fn((key: string) => {
       storage.delete(key)
     }),
   },

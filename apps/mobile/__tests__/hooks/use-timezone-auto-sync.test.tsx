@@ -44,7 +44,7 @@ const mocks = vi.hoisted(() => {
     appState,
     appStateListeners,
     useQueryClient: vi.fn(() => queryClient),
-    performQueuedApiMutation: vi.fn(async () => undefined),
+    performQueuedApiMutation: vi.fn(() => undefined),
   }
 })
 

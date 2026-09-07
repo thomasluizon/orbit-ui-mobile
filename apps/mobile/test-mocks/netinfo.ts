@@ -2,7 +2,7 @@ const NetInfo = {
   addEventListener: (_listener: (state: { isConnected: boolean | null }) => void) => {
     return () => {}
   },
-  fetch: async () => ({ isConnected: true }),
+  fetch: () => ({ isConnected: true }),
 }
 
 export default NetInfo
