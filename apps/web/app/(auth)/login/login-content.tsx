@@ -45,7 +45,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
             isSubmitting={flow.isSubmitting} isGoogleLoading={flow.isGoogleLoading || googlePending}
             errorKey={googleFailed ? 'auth.errors.googleError' : flow.errorKey}
             errorMessage={googleFailed ? t('auth.errors.googleError') : flow.errorMessage}
-            isOnline={flow.isOnline} t={t}
+            isOnline={flow.isOnline} t={t} emailFocusRequest={flow.emailFocusRequest}
             onSendCode={() => { setCallbackDismissed(true); void flow.sendCode() }}
               onSignInWithGoogle={() => { setCallbackDismissed(true); void flow.signInWithGoogle() }}
             sendCodeLabel={flow.fromOnboarding ? t('auth.onboarding.continue') : undefined} />

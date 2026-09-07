@@ -26984,10 +26984,12 @@
         "apps/mobile/__tests__/components/version-update-drawer.test.tsx",
         "apps/mobile/__tests__/components/version-update-retry.test.tsx",
         "apps/mobile/__tests__/hooks/use-bulk-actions.test.ts",
+        "apps/mobile/__tests__/hooks/use-login-flow.test.ts",
         "apps/mobile/__tests__/hooks/use-today-selection.test.tsx",
         "apps/mobile/__tests__/screens/chat-screen.test.tsx",
         "apps/mobile/__tests__/screens/login-states.test.tsx",
         "apps/mobile/__tests__/screens/profile-screen.test.tsx",
+        "apps/mobile/__tests__/screens/progress-screen.test.tsx",
         "apps/mobile/__tests__/stores/ui-store.test.ts"
       ],
       "apps/mobile/hooks": [
@@ -27083,6 +27085,7 @@
         "apps/mobile/__tests__/components/ui/app-error-boundary.test.tsx",
         "apps/mobile/__tests__/components/ui/app-toast.test.tsx",
         "apps/mobile/__tests__/components/ui/feedback-primitives.test.tsx",
+        "apps/mobile/__tests__/components/ui/form-primitives.test.tsx",
         "apps/mobile/__tests__/components/ui/list-primitives.test.tsx",
         "apps/mobile/__tests__/components/ui/markdown.test.tsx",
         "apps/mobile/__tests__/components/ui/proposed.test.tsx",
@@ -28076,6 +28079,7 @@
         "packages/shared/src/__tests__/habit-visibility.test.ts",
         "packages/shared/src/__tests__/highlight-text.test.ts",
         "packages/shared/src/__tests__/locale-format-device.test.ts",
+        "packages/shared/src/__tests__/login-email-submission.test.ts",
         "packages/shared/src/__tests__/markdown.test.ts",
         "packages/shared/src/__tests__/name-initials.test.ts",
         "packages/shared/src/__tests__/notification-actions.test.ts",

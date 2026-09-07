@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { ApiClientError, extractAuthBackendMessage, isValidEmail, resolveAuthLoginErrorKey,
-  recordLoginFailure, type LoginAttempts, type LoginCodeFailure } from '@orbit/shared/utils'
+  deriveLoginEmailSubmission, recordLoginFailure, type LoginAttempts, type LoginCodeFailure } from '@orbit/shared/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api-client'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
@@ -26,6 +26,7 @@ export function useLoginFlow() {
   const fromOnboarding = params.from === 'onboarding' || onboardingLocallyDone
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
+  const [emailFocusRequest, setEmailFocusRequest] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isResending, setIsResending] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
@@ -77,12 +78,16 @@ export function useLoginFlow() {
 
   async function sendCode() {
     if (busy.current || !isOnline || !email.trim()) return
-    if (!isValidEmail(email)) { setErrorKey('auth.errors.invalidEmail'); return }
-    const locked = attempts.current.get(email.trim().toLowerCase())
-    if (locked && locked.count >= 3 && locked.expiresAt > Date.now()) {
+    const submission = deriveLoginEmailSubmission(email, attempts.current, Date.now())
+    if (submission.status === 'invalid') {
+      setErrorKey('auth.errors.invalidEmail')
+      setEmailFocusRequest((request) => request + 1)
+      return
+    }
+    if (submission.status === 'locked') {
       setStep('code')
       setCodeFailure('locked')
-      setLockCountdown(Math.ceil((locked.expiresAt - Date.now()) / 1000))
+      setLockCountdown(submission.remainingSeconds)
       setErrorKey(null)
       return
     }
@@ -190,7 +195,7 @@ export function useLoginFlow() {
   function openPrivacyPolicy() { router.push('/about') }
   function openTerms() { router.push('/about') }
 
-  return { t, step, email, setEmail, isSubmitting, isResending, isGoogleLoading, errorKey,
+  return { t, step, email, setEmail, emailFocusRequest, isSubmitting, isResending, isGoogleLoading, errorKey,
     errorMessage: errorKey ? t(errorKey) : null, successMessage, showReferralBanner, fromOnboarding,
     plannedHabitCount, isOnline, ...entry, codeFailure, lockCountdown, accountBack,
     canSubmitEmail: Boolean(email.trim()) && !isSubmitting && !isGoogleLoading && isOnline,

@@ -4,6 +4,7 @@ import { API } from '@orbit/shared/api'
 import { createApiClientError } from '@orbit/shared/utils'
 
 import { useLoginFlow } from '@/app/use-login-flow'
+import { LoginContent } from '@/components/auth/login-content'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -30,7 +31,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('react-native', async () => {
   const actual = await vi.importActual<Record<string, unknown>>('react-native')
-  return { ...actual, Keyboard: { addListener: () => ({ remove: () => {} }) } }
+  return { ...actual, Keyboard: { addListener: () => ({ remove: () => {} }) },
+    TextInput: React.forwardRef((props: Record<string, unknown>, ref) => {
+      React.useImperativeHandle(ref, () => ({ focus: mocks.focus }))
+      return React.createElement('TextInput', props)
+    }) }
 })
 
 vi.mock('@/lib/motion', () => ({
@@ -38,7 +43,10 @@ vi.mock('@/lib/motion', () => ({
   usePrefersReducedMotion: () => true,
 }))
 
-vi.mock('@/lib/theme', () => ({ easings: { out: 'ease-out' } }))
+vi.mock('@/components/ui/keyboard-aware-scroll-view', async () => {
+  const { View } = await import('react-native')
+  return { useKeyboardAwareInputReveal: () => null, KeyboardAwareScrollView: ({ children }: { children: React.ReactNode }) => React.createElement(View, {}, children) }
+})
 
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
 
@@ -134,6 +142,28 @@ beforeEach(() => {
 })
 
 describe('useLoginFlow (mobile)', () => {
+  it('returns focus from the login submit action on every invalid attempt without stealing focus during editing', async () => {
+    let tree: { root: { findAllByType: (type: string) => { props: Record<string, unknown> }[] }; unmount: () => void }
+    await act(() => { tree = TestRenderer.create(React.createElement(LoginContent)) })
+    const input = () => tree.root.findAllByType('TextInput')[0]!
+    await act(() => (input().props.onChangeText as (value: string) => void)('not-an-email'))
+    expect(mocks.focus).not.toHaveBeenCalled()
+    const submit = tree!.root.findAllByType('Pressable').find((node) => node.props.accessibilityRole === 'button')!
+    await act(() => (submit.props.onPress as () => void)())
+    expect(mocks.focus).toHaveBeenCalledTimes(1)
+    expect(input().props.accessibilityHint).toBe('auth.errors.invalidEmail')
+    await act(() => (input().props.onChangeText as (value: string) => void)('still-invalid'))
+    expect(mocks.focus).toHaveBeenCalledTimes(1)
+    await act(() => (input().props.onSubmitEditing as () => void)())
+    expect(mocks.focus).toHaveBeenCalledTimes(2)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+    await act(() => (input().props.onChangeText as (value: string) => void)('person@example.com'))
+    await act(() => (input().props.onSubmitEditing as () => void)())
+    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+    expect(input().props.autoComplete).toBe('sms-otp')
+    await act(() => tree.unmount())
+  })
+
   it('blocks sending a code while offline and surfaces the offline error', async () => {
     mocks.isOnline = false
     const harness = await renderLoginFlow()

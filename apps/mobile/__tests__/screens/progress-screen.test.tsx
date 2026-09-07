@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
 import ProgressScreen from '@/app/(tabs)/progress'
+import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -226,6 +227,34 @@ describe('mobile ProgressContent', () => {
     const tab = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'segment-active-unselected-enabled')[0]!
     await TestRenderer.act(() => (tab.props.onPress as () => void)())
     expect(tree.root.findAll((node) => node.type === 'DraggableFlatList')).toHaveLength(0)
+  })
+
+  it.each([
+    ['touch', 'onTouchEnd', false],
+    ['touch', 'onTouchCancel', false],
+    ['mouse', 'onPointerUp', false],
+    ['mouse', 'onPointerCancel', false],
+    ['touch', 'onTouchCancel', true],
+  ] as const)('suppresses only the release press after %s %s with early drift %s', async (pointerType, stopEvent, earlyDrift) => {
+    vi.useFakeTimers()
+    const goal = createMockGoal()
+    mocks.goals.data.allGoals = [goal, createMockGoal({ id: 'goal-2', title: 'Second', position: 1 })]
+    const tree = await renderProgress()
+    const card = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === goal.title)[0]!
+    const details = () => tree.root.findAll((node) => node.type === GoalDetailDrawer && node.props.open === true)
+    const dispatch = (name: string, pageX = 0) => (card.props[name] as (event: unknown) => void)({ nativeEvent: { pointerType, pageX, pageY: 0 } })
+    await TestRenderer.act(() => {
+      dispatch(pointerType === 'touch' ? 'onTouchStart' : 'onPointerDown')
+      if (earlyDrift || pointerType === 'mouse') dispatch(pointerType === 'touch' ? 'onTouchMove' : 'onPointerMove', 6)
+      if (pointerType === 'touch') vi.advanceTimersByTime(300)
+      dispatch(stopEvent)
+    })
+    expect(mocks.drag).toHaveBeenCalledTimes(earlyDrift ? 0 : 1)
+    await TestRenderer.act(() => (card.props.onPress as () => void)())
+    expect(details(), 'the drag release must not open goal detail').toHaveLength(0)
+    await TestRenderer.act(() => (card.props.onPress as () => void)())
+    expect(details(), 'non-pointer activation after the release must open goal detail').toHaveLength(1)
+    expect(details()[0]!.props.goalId).toBe(goal.id)
   })
 
   afterEach(() => { vi.useRealTimers() })
