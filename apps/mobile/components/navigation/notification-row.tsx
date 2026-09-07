@@ -34,7 +34,8 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
         onPress={() => onOpen(item)}
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         style={({ pressed }) => [styles.row, pressed && { backgroundColor: tokens.bgHover },
-          focused && { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.fg2, outlineOffset: -2 }]}>
+          focused && { outlineWidth: 2, outlineStyle: 'solid', outlineColor: tokens.primary, outlineOffset: -3,
+            boxShadow: `inset 0 0 0 4px ${tokens.fg1}` }]}>
         <View testID="notification-dot-column" style={styles.dotColumn}>
           {!item.isRead ? <View testID="notification-unread-dot" style={[styles.dot, { backgroundColor: tokens.fg1 }]} /> : null}
         </View>

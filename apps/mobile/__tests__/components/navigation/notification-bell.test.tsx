@@ -133,6 +133,30 @@ function contrastOnSurface(foreground: string, layers: string[]): number {
 }
 
 describe('mobile alerts', () => {
+  it.each(['dark', 'light'].flatMap((mode) =>
+    ['row body', 'row timestamp', 'row target', 'detail body', 'detail metadata'].map((field) => ({ mode, field })),
+  ))('resolves rendered $field to fg2 in $mode', ({ mode, field }) => {
+    state.mode = mode
+    vi.setSystemTime(new Date('2026-09-06T12:00:00Z'))
+    state.notifications = [createMockNotification({ title: 'Reminder', body: 'Time for a walk',
+      url: '/calendar', isRead: false, createdAtUtc: '2026-09-06T11:55:00Z' })]
+    const tree = render()
+    const labels = { 'row body': 'Time for a walk', 'row timestamp': '5 min ago', 'row target': 'Calendar',
+      'detail body': 'Time for a walk', 'detail metadata': '5 min ago · Calendar' }
+    if (field.startsWith('detail')) press(tree, 'Reminder. unread. Calendar')
+    const matches = hosts(tree, 'Text').filter((node) =>
+      React.Children.toArray(node.props.children as React.ReactNode)
+        .filter((child) => typeof child === 'string' || typeof child === 'number').join('') === labels[field as keyof typeof labels],
+    )
+    const element = field.startsWith('detail') ? matches.at(-1)! : matches[0]!
+    const foreground = (StyleSheet.flatten(element.props.style) as { color: string }).color
+    const tokens = createTokensV2('purple', mode as 'dark' | 'light')
+    expect(foreground, field).toBe(tokens.fg2)
+    const surfaces = field.startsWith('detail') ? [[tokens.bgSheet]]
+      : [[tokens.bg], [tokens.bg, tokens.bgCard], [tokens.bg, tokens.bgCard, tokens.bgHover]]
+    for (const layers of surfaces) expect(contrastOnSurface(foreground, layers)).toBeGreaterThanOrEqual(4.5)
+  })
+
   it.each(['dark', 'light'] as const)('shows retry press feedback and restores its resting surface on release in %s', (mode) => {
     state.mode = mode
     state.isError = true
@@ -164,18 +188,24 @@ describe('mobile alerts', () => {
     }
     expect(rowStyle().outlineWidth).toBeUndefined()
     TestRenderer.act(() => row().props.onFocus?.())
-    expect(rowStyle()).toMatchObject({
-      outlineWidth: 2, outlineOffset: -2, outlineStyle: 'solid',
-    })
     const tokens = createTokensV2('purple', mode)
+    expect(rowStyle().outlineColor, 'Focus must retain the accent semantic').toBe(tokens.primary)
+    expect(rowStyle()).toMatchObject({
+      outlineWidth: 2, outlineOffset: -3, outlineStyle: 'solid',
+      boxShadow: `inset 0 0 0 4px ${tokens.fg1}`,
+    })
+    const companion = (rowStyle().boxShadow as string).split(' ').at(-1)!
+    expect(contrastOnSurface(rowStyle().outlineColor, [companion])).toBeGreaterThanOrEqual(3)
+    expect(contrastOnSurface(companion, [tokens.bg])).toBeGreaterThanOrEqual(3)
     for (const pressed of [false, true]) {
       const focusedStyle = rowStyle(pressed)
       const layers = [tokens.bg, tokens.bgCard]
       if (focusedStyle.backgroundColor) layers.push(focusedStyle.backgroundColor)
-      expect.soft(contrastOnSurface(focusedStyle.outlineColor, layers)).toBeGreaterThanOrEqual(3)
+      expect.soft(contrastOnSurface(companion, layers)).toBeGreaterThanOrEqual(3)
     }
     TestRenderer.act(() => row().props.onBlur?.())
     expect(rowStyle().outlineWidth).toBeUndefined()
+    expect(rowStyle().boxShadow).toBeUndefined()
   })
 
   it.each([

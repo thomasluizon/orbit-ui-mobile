@@ -101,9 +101,26 @@ These are calculations from the resolved production tokens and component layer c
 not browser or device measurements: the worker work order forbids opening either.
 Thomas confirms or overrides the deviation at the whole redesign review; work proceeds now.
 
-The same sweep measured the inset notification-row focus ring at 2.7564:1 when the dark unread
-row is hovered or pressed. The local ring also uses existing `fg2` on both platforms, retaining
-its 2px inset geometry and clearing 7.6305:1 on that pair. The global `primary` token is unchanged.
+The text decision does not authorize a neutral focus ring. Review round 2 restores the existing
+`primary` accent on both platforms, with a 2px outline at offset -3px over a zero-blur 4px inset
+`fg1` contour. The contour separates both edges of the accent from the row surface. This retains
+the current-position semantic without changing or adding a global token. The earlier plain accent
+ring measured 2.7564:1 against the dark unread hover or press surface.
+
+The accent against its adjacent contour measures 4.1638:1 dark and 3.7963:1 light in every state.
+The contour against the adjacent row surfaces measures:
+
+| Row state | Web dark | Android dark | Web light | Android light |
+|---|---|---|---|---|
+| Resting read | 18.1120:1 | 18.1120:1 | 16.6356:1 | 16.6356:1 |
+| Resting unread | 16.8934:1 | 16.8934:1 | 17.3637:1 | 17.3637:1 |
+| Hovered unread | 11.4772:1 | 16.8934:1 | 15.2365:1 | 17.3637:1 |
+| Pressed unread | 11.4772:1 | 11.4772:1 | 15.2365:1 | 15.2365:1 |
+
+Android has no row hover fill, so hovering retains the resting unread surface. Web pointer press
+retains its hover fill; a keyboard or touch press without hover retains the resting surface.
+Read hover or press measures 12.8770:1 dark and 14.6979:1 light. These are source-composited
+measurements, with Vitest checks on the actual focus styles, not browser or device pixel samples.
 
 ### Entrar lockout recovery (ORB-63, ticket 69)
 
