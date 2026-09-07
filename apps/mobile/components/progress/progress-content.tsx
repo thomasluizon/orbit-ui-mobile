@@ -254,11 +254,11 @@ function ProgressLoading({ label }: Readonly<{ label: string }>) {
   const { width } = useWindowDimensions()
   const columns = width >= 768 ? 4 : 2
   return (
-    <View style={styles.loading} accessibilityState={{ busy: true }}>
-      <View style={styles.loadingSettings}>
+    <View style={styles.loading} accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }}>
+      <View style={styles.loadingSettings} importantForAccessibility="no-hide-descendants">
         {Array.from({ length: 2 }, (_, index) => <Skeleton key={index} variant="settings" label={label} />)}
       </View>
-      <View style={styles.loadingRows}>
+      <View style={styles.loadingRows} importantForAccessibility="no-hide-descendants">
         {Array.from({ length: 4 / columns }, (_, row) => (
           <View key={row} style={styles.loadingTileRow}>
             {Array.from({ length: columns }, (_, column) => (
@@ -267,7 +267,7 @@ function ProgressLoading({ label }: Readonly<{ label: string }>) {
           </View>
         ))}
       </View>
-      <View style={styles.loadingRows}>
+      <View style={styles.loadingRows} importantForAccessibility="no-hide-descendants">
         {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} variant="habit-row" label={label} />)}
       </View>
     </View>
@@ -294,6 +294,7 @@ export function ProgressContent() {
   }
   return (
     <NestableScrollContainer style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <Text accessible accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.title')}</Text>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
       {empty ? <View style={styles.empty}><EmptyState title={t('progressScreen.empty')} action={<PillButton variant="ghost" size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></View> : null}
@@ -303,6 +304,7 @@ export function ProgressContent() {
 }
 
 const styles = StyleSheet.create({
+  screenReaderTitle: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },
   root: { flex: 1 }, content: { gap: 32, paddingBottom: 48, paddingHorizontal: 16, paddingTop: 16 },
   loading: { gap: 32 }, loadingRows: { gap: 12 }, loadingSettings: { gap: 12, width: '100%', maxWidth: 560 },
   loadingTileRow: { flexDirection: 'row', gap: 12 }, loadingTile: { flex: 1, minWidth: 0 },

@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet, type ViewStyle } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
@@ -9,6 +10,7 @@ const TestRenderer = require('react-test-renderer')
 type TestNode = {
   type: unknown
   props: Record<string, unknown>
+  parent: TestNode | null
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
 
@@ -154,6 +156,15 @@ function findPill(root: TestNode, label: string): TestNode {
   return root.findAll((node) => node.type === 'PillButton' && node.props.children === label)[0]!
 }
 
+function isAccessibilityHidden(node: TestNode): boolean {
+  for (let ancestor: TestNode | null = node; ancestor; ancestor = ancestor.parent) {
+    if (ancestor.props.importantForAccessibility === 'no-hide-descendants') return true
+    const style = ancestor.props.style as ViewStyle | undefined
+    if (style && StyleSheet.flatten(style).display === 'none') return true
+  }
+  return false
+}
+
 describe('mobile ProgressContent', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -179,13 +190,28 @@ describe('mobile ProgressContent', () => {
   it.each(['account', 'goals', 'gamification'] as const)('renders the complete global skeleton while %s loads', async (query) => {
     mocks[query].isLoading = true
     const tree = await renderProgress()
-    const units = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar')
+    const announcements = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'progressbar' && !isAccessibilityHidden(node))
+    expect(announcements).toHaveLength(1)
+    expect(announcements[0]?.props).toMatchObject({ accessible: true, accessibilityLabel: 'progressScreen.loading', accessibilityState: { busy: true } })
+    const units = tree.root.findAll((node) => typeof node.type === 'string' && typeof node.props.testID === 'string' && node.props.testID.startsWith('skeleton-unit-'))
     expect(units.map((unit) => unit.props.testID)).toEqual([
       'skeleton-unit-settings', 'skeleton-unit-settings',
       'skeleton-unit-stat-tile', 'skeleton-unit-stat-tile', 'skeleton-unit-stat-tile', 'skeleton-unit-stat-tile',
       'skeleton-unit-habit-row', 'skeleton-unit-habit-row', 'skeleton-unit-habit-row',
     ])
     expect(tree.root.findAll((node) => node.type === 'PillButton')).toHaveLength(0)
+  })
+
+  it.each(['loading', 'error', 'empty', 'populated'])('exposes one screen heading in the %s state', async (state) => {
+    mocks.account.isLoading = state === 'loading'
+    mocks.account.isError = state === 'error'
+    if (state === 'empty') {
+      Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+      Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    }
+    const tree = await renderProgress()
+    const headings = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'header' && node.props.accessible === true && node.props.children === 'progressScreen.title' && !isAccessibilityHidden(node))
+    expect(headings).toHaveLength(1)
   })
 
   it.each(['account', 'goals', 'gamification'] as const)('retries a global %s error with one action', async (query) => {

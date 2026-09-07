@@ -14732,6 +14732,7 @@
           "progressScreen.streak.stripWindow",
           "progressScreen.streak.today",
           "progressScreen.streak.used",
+          "progressScreen.title",
           "progressScreen.window.activeDays",
           "progressScreen.window.completionRate",
           "progressScreen.window.lockedAction",

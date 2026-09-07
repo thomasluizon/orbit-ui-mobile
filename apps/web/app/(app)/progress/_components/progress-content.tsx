@@ -89,14 +89,14 @@ function LockedCard({ title, body, action }: Readonly<{ title: string; body: str
 
 function ProgressLoading({ label }: Readonly<{ label: string }>) {
   return (
-    <div className="flex flex-col gap-8" aria-busy="true">
-      <div className="flex w-full max-w-[560px] flex-col gap-3">
+    <div className="flex flex-col gap-8" role="progressbar" aria-label={label} aria-busy="true">
+      <div className="flex w-full max-w-[560px] flex-col gap-3" aria-hidden="true">
         {Array.from({ length: 2 }, (_, index) => <Skeleton key={index} variant="settings" label={label} />)}
       </div>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-hidden="true">
         {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" label={label} />)}
       </div>
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3" aria-hidden="true">
         {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} variant="habit-row" label={label} />)}
       </div>
     </div>

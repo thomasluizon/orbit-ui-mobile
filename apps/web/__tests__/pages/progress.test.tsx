@@ -151,12 +151,25 @@ describe('ProgressContent', () => {
 
   it.each(['account', 'goals', 'gamification'] as const)('renders the complete global skeleton while %s loads', (query) => {
     mocks[query].isLoading = true
-    render(<ProgressPage />)
-    expect(screen.getAllByRole('progressbar').map((unit) => unit.getAttribute('data-variant'))).toEqual([
+    const { container } = render(<ProgressPage />)
+    expect(screen.getAllByRole('progressbar')).toHaveLength(1)
+    expect(screen.getByRole('progressbar', { name: 'progressScreen.loading' })).toHaveAttribute('aria-busy', 'true')
+    expect(Array.from(container.querySelectorAll('[data-variant]')).map((unit) => unit.getAttribute('data-variant'))).toEqual([
       'settings', 'settings', 'stat-tile', 'stat-tile', 'stat-tile', 'stat-tile', 'habit-row', 'habit-row', 'habit-row',
     ])
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument()
+  })
+
+  it.each(['loading', 'error', 'empty', 'populated'])('exposes one screen heading in the %s state', (state) => {
+    mocks.account.isLoading = state === 'loading'
+    mocks.account.isError = state === 'error'
+    if (state === 'empty') {
+      Object.assign(mocks.account.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+      Object.assign(mocks.gamification.profile, { currentStreak: 0, longestStreak: 0, totalXp: 0 })
+    }
+    render(<ProgressPage />)
+    expect(screen.getAllByRole('heading', { name: 'progressScreen.title', level: 1 })).toHaveLength(1)
   })
 
   it.each(['account', 'goals', 'gamification'] as const)('retries a global %s error with one action', (query) => {
