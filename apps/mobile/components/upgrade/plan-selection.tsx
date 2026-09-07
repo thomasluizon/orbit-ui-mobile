@@ -322,10 +322,10 @@ function TierCard({
         ) : null}
       </View>
       <Text style={[styles.tierPrice, { color: tokens.fg1 }]}>
-        {tier.price}<Text style={[styles.tierPeriod, { color: tokens.fg3 }]}>{tier.period}</Text>
+        {tier.price}<Text style={[styles.tierPeriod, { color: selected ? tokens.fg2 : tokens.fg3 }]}>{tier.period}</Text>
       </Text>
       {tier.heroLine ? <Text style={[styles.tierHero, { color: tokens.fg2 }]}>{tier.heroLine}</Text> : null}
-      {tier.secondLine ? <Text style={[styles.tierSecond, { color: tokens.fg3 }]}>{tier.secondLine}</Text> : null}
+      {tier.secondLine ? <Text style={[styles.tierSecond, { color: selected ? tokens.fg2 : tokens.fg3 }]}>{tier.secondLine}</Text> : null}
       {tier.couponLine ? <Text style={[styles.tierCoupon, { color: tokens.fg2 }]}>{tier.couponLine}</Text> : null}
       <View style={styles.tierAction}>
         <PillButton

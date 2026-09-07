@@ -80,7 +80,7 @@ function PaymentMethodSection({ method, state, onPortal, t, tokens }: Readonly<{
   const handoffUnavailable = ['portal-failed', 'portal-opening', 'offline'].includes(state)
   return (
     <View style={{ gap: 8 }}>
-      <Text accessibilityRole="header" style={[styles.billingSecondary, { color: tokens.fg2 }]}>{t('upgrade.billing.payment.title')}</Text>
+      <Text accessibilityRole="header" style={[styles.billingSectionHeading, { color: tokens.fg2 }]}>{t('upgrade.billing.payment.title')}</Text>
       <View style={[styles.billingWell, { backgroundColor: tokens.bgWell }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <Icon name="credit-card" size={20} color={tokens.fg3} />
@@ -133,8 +133,8 @@ function InvoiceHistory({ invoices, locale, state, t, tokens }: Readonly<{
 }>) {
   if (!invoices?.length) return null
   return (
-    <View style={[styles.billingCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
-      <Text accessibilityRole="header" style={[styles.billingSecondary, { color: tokens.fg2 }]}>{t('upgrade.billing.invoices.title')}</Text>
+    <View style={{ gap: 4 }}>
+      <Text accessibilityRole="header" style={[styles.billingSectionHeading, { color: tokens.fg2 }]}>{t('upgrade.billing.invoices.title')}</Text>
       <View style={{ gap: 4 }}>
         {invoices.map((invoice) => (
           <InvoiceRow

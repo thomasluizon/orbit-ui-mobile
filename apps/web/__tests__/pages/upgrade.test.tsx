@@ -198,6 +198,9 @@ describe('UpgradePage', () => {
     }))).toEqual([
       { level: 1, name: 'upgrade.title' },
       { level: 2, name: trialActive ? 'upgrade.convert.trialHeading' : 'upgrade.convert.freeHeading' },
+      { level: 3, name: 'upgrade.outcomes.calendar.title' },
+      { level: 3, name: 'upgrade.outcomes.retrospective.title' },
+      { level: 3, name: 'upgrade.outcomes.noticing.title' },
       { level: 3, name: 'upgrade.plans.yearly.name' },
       { level: 3, name: 'upgrade.plans.monthly.name' },
       { level: 2, name: 'upgrade.billing.usage.title' },

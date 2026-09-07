@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, Text, View, useWindowDimensions } from 'react-native'
+import { useEffect, useRef } from 'react'
+import { AccessibilityInfo, ActivityIndicator, Pressable, Text, View, useWindowDimensions } from 'react-native'
 import { responsiveTypeStyle } from '@/lib/theme'
 import { Calendar, Eye, FileText } from '@/components/ui/icons'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
@@ -16,6 +17,7 @@ const OUTCOMES = [
 
 // react-doctor-disable-next-line no-many-boolean-props -- Deliberate presentational section aggregator: each boolean is an independent upgrade-screen UI-state flag (plans loading/error, online, ...) owned by the upgrade screen; an options-object rewrite would churn the caller and the web parity mirror for no runtime benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function PricingSection({
+  focusOnMount = false,
   profile,
   plans,
   isLoadingPlans,
@@ -39,6 +41,7 @@ export function PricingSection({
   t,
   tokens,
 }: Readonly<{
+  focusOnMount?: boolean
   profile: { isTrialActive?: boolean } | null
   plans: SubscriptionPlans | null | undefined
   isLoadingPlans: boolean
@@ -62,6 +65,12 @@ export function PricingSection({
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
+  const headingRef = useRef<Text>(null)
+  useEffect(() => {
+    if (focusOnMount && headingRef.current) {
+      AccessibilityInfo.sendAccessibilityEvent(headingRef.current, 'focus')
+    }
+  }, [focusOnMount])
   const trialActive = !!profile?.isTrialActive
   const { width } = useWindowDimensions()
   const trialEyebrow =
@@ -77,7 +86,7 @@ export function PricingSection({
     <View style={styles.pricingSections}>
       <View style={styles.convertHeader}>
         <Text style={[styles.convertEyebrow, { color: tokens.fg3 }]}>{eyebrow}</Text>
-        <Text accessibilityRole="header" style={[responsiveTypeStyle('displayHeading', width), { color: tokens.fg1 }]}>{heading}</Text>
+        <Text ref={headingRef} accessibilityRole="header" style={[responsiveTypeStyle('displayHeading', width), { color: tokens.fg1 }]}>{heading}</Text>
         <Text style={[styles.convertPromise, { color: tokens.fg2 }]}>{t('upgrade.convert.promise')}</Text>
         {!trialActive ? (
           <Text style={[styles.convertTrust, { color: tokens.fg3 }]}>{t('upgrade.convert.trustLine')}</Text>
@@ -98,7 +107,7 @@ export function PricingSection({
         <Text style={[styles.allowanceNote, { color: tokens.fg3 }]}>{t('upgrade.convert.allowanceNote')}</Text>
       </View>
 
-      <View accessible accessibilityLabel={t('upgrade.outcomes.label')} style={styles.outcomes}>
+      <View style={styles.outcomes}>
         {OUTCOMES.map(({ key, Icon }) => (
           <View key={key} style={styles.outcomeRow}>
             <View
@@ -146,19 +155,19 @@ export function PricingSection({
               accessibilityRole="button"
               onPress={onRestore}
               disabled={isRestoring || !isOnline}
-              accessibilityState={{ disabled: isRestoring || !isOnline }}
+              accessibilityState={{ disabled: isRestoring || !isOnline, busy: isRestoring }}
               hitSlop={{ top: 6, bottom: 6 }}
               style={({ pressed }) => [
                 styles.restoreAction,
+                { flexDirection: 'row', alignItems: 'center', gap: 8 },
                 isRestoring || !isOnline ? styles.disabledAction : null,
                 pressed ? styles.pressedScale : null,
               ]}
             >
               {isRestoring ? (
                 <ActivityIndicator size="small" color={tokens.fg3} />
-              ) : (
-                <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>{t('upgrade.restorePurchase')}</Text>
-              )}
+              ) : null}
+              <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>{t('upgrade.restorePurchase')}</Text>
             </Pressable>
           ) : null}
         </View>

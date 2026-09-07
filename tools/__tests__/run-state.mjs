@@ -59,22 +59,22 @@ export const cases = () => {
   writeRunState({ sessionId: "s2", sleep: true, remaining: ["ORB-9"], pullRequests: [] }, repoRoot)
   T(`${TOOL}: a new session starts with a fresh readiness ledger`, readRunState(repoRoot)?.readinessLedger?.length === 0, JSON.stringify(readRunState(repoRoot)))
 
-  registerWakeSource({ pid: 4242, what: "worker ORB-1" }, repoRoot)
-  registerWakeSource({ pid: 4343, what: "worker ORB-2" }, repoRoot)
+  registerWakeSource({ pid: process.pid, what: "worker ORB-1" }, repoRoot)
+  registerWakeSource({ pid: process.ppid, what: "worker ORB-2" }, repoRoot)
   T(
     `${TOOL}: each wake source is its OWN file, so three parallel launchers cannot lose each other`,
-    readWakeSources(repoRoot).map((source) => source.pid).sort().join(",") === "4242,4343" && existsSync(join(wakeSourceDirectory(repoRoot), "4242.json")),
+    readWakeSources(repoRoot).map((source) => source.pid).sort().join(",") === [process.pid, process.ppid].sort().join(",") && existsSync(join(wakeSourceDirectory(repoRoot), `${process.pid}.json`)),
     JSON.stringify(readWakeSources(repoRoot)),
   )
 
-  clearWakeSource(4242, repoRoot)
-  T(`${TOOL}: a finished launcher removes only its own entry`, readWakeSources(repoRoot).map((source) => source.pid).join(",") === "4343", JSON.stringify(readWakeSources(repoRoot)))
-  clearWakeSource(4242, repoRoot)
+  clearWakeSource(process.pid, repoRoot)
+  T(`${TOOL}: a finished launcher removes only its own entry`, readWakeSources(repoRoot).map((source) => source.pid).join(",") === String(process.ppid), JSON.stringify(readWakeSources(repoRoot)))
+  clearWakeSource(process.pid, repoRoot)
   T(`${TOOL}: clearing an entry that is already gone is not an error`, readWakeSources(repoRoot).length === 1)
 
-  /** A crashed launcher leaks its file. It must not break the read; liveness is the caller's job. */
+  /** A crashed launcher leaks its file. It must not break the read; unreadable records supply no identity evidence. */
   writeFileSync(join(wakeSourceDirectory(repoRoot), "corrupt.json"), "{not json")
-  T(`${TOOL}: an unreadable entry is skipped rather than masking the readable ones`, readWakeSources(repoRoot).map((source) => source.pid).join(",") === "4343", JSON.stringify(readWakeSources(repoRoot)))
+  T(`${TOOL}: an unreadable entry is skipped rather than masking the readable ones`, readWakeSources(repoRoot).map((source) => source.pid).join(",") === String(process.ppid), JSON.stringify(readWakeSources(repoRoot)))
 
   /**
    * A linked worktree carries a `.git` FILE, not a directory. Following its `gitdir:` line keeps the
@@ -86,10 +86,10 @@ export const cases = () => {
   mkdirSync(linked, { recursive: true })
   mkdirSync(linkedGitDir, { recursive: true })
   writeFileSync(join(linked, ".git"), `gitdir: ${linkedGitDir}\n`)
-  registerWakeSource({ pid: 6161, what: "worker ORB-7" }, linked)
+  registerWakeSource({ pid: process.pid, what: "worker ORB-7" }, linked)
   T(
     `${TOOL}: a linked worktree keeps its own state, never the main checkout's`,
-    readWakeSources(linked).map((source) => source.pid).join(",") === "6161" && !readWakeSources(repoRoot).some((source) => source.pid === 6161),
+    readWakeSources(linked).map((source) => source.pid).join(",") === String(process.pid) && !readWakeSources(repoRoot).some((source) => source.pid === process.pid),
     JSON.stringify({ linked: readWakeSources(linked), main: readWakeSources(repoRoot) }),
   )
 

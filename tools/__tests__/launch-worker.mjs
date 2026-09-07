@@ -263,6 +263,32 @@ export const cases = () => {
   )
   discardLog(quiet.stdout)
 
+  const wakeObservation = stage("launch-worker/wake-observation.json", "")
+  const wakeObserver = stage("launch-worker/wake-observer.cjs", "")
+  const observedLaunch = launch("wake-cleanup", launchConfig({ ...stubEngine(wakeObserver) }))
+  writeFileSync(wakeObserver, `const { existsSync, readFileSync, writeFileSync } = require("node:fs")
+const { join } = require("node:path")
+const recordPath = join(${JSON.stringify(observedLaunch.base)}, ".git", "orbit-wake-sources", process.ppid + ".json")
+const deadline = setTimeout(() => process.exit(1), 10000)
+const poll = setInterval(() => {
+  if (!existsSync(recordPath)) return
+  writeFileSync(${JSON.stringify(wakeObservation)}, JSON.stringify({ recordPath, source: JSON.parse(readFileSync(recordPath, "utf8")) }))
+  clearTimeout(deadline)
+  clearInterval(poll)
+}, 50)
+`)
+  const observed = check(
+    TOOL,
+    "a real launcher registers its identity while its worker runs and exits normally",
+    ["--issue", "ORB-201", "--worktree", observedLaunch.worktree, "--prompt", observedLaunch.prompt],
+    { status: 0, stdout: /"exitCode": 0/ },
+    { path: observedLaunch.path, env: githubAuthEnv() },
+  )
+  discardLog(observed.stdout)
+  const observation = JSON.parse(readFileSync(wakeObservation, "utf8"))
+  T(`${TOOL}: the running launcher record includes its OS start identity`, typeof observation.source.processStartIdentity === "string")
+  T(`${TOOL}: after a real launch exits its observed wake record is gone`, !existsSync(observation.recordPath), observation.recordPath)
+
   const ceiling = launch("ceiling", launchConfig({ ...stubEngine(SLEEPER), timeouts: { hardCeilingMinutes: 0.02, noProgressMinutes: 5, pollSeconds: 0.2 } }))
   const killed = check(
     TOOL,
