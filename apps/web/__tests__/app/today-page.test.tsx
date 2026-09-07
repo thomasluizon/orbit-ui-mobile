@@ -200,10 +200,25 @@ describe('Hoje date control', () => {
     motionTestState.renderedStyles.clear()
   })
 
-  it('orders accented habit names with the active pt-BR locale', () => {
-    expect(buildSelectionRefreshKey(new Set(['Zebra', 'Água']), false, 'pt-BR')).toBe(
-      'Água,Zebra:some',
+  it('keeps the same selection key under en and pt-BR', () => {
+    expect(buildSelectionRefreshKey).toHaveLength(2)
+
+    const selectedHabitIds = new Set(['habit-2', 'habit-1'])
+    const keysByLocale = [
+      ['en', buildSelectionRefreshKey(selectedHabitIds, false)],
+      ['pt-BR', buildSelectionRefreshKey(selectedHabitIds, false)],
+    ]
+
+    expect(new Set(keysByLocale.map(([, key]) => key))).toEqual(
+      new Set(['habit-1,habit-2:some']),
     )
+  })
+
+  it('uses a different selection key for a different selection', () => {
+    const firstKey = buildSelectionRefreshKey(new Set(['habit-1']), false)
+    const secondKey = buildSelectionRefreshKey(new Set(['habit-2']), false)
+
+    expect(firstKey).not.toBe(secondKey)
   })
 
   it('shows the day name over the numeric date', () => {

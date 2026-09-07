@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef } from 'react'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
 // react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* across components/**); a partial per-file swap yields no bundle benefit and risks unprovided motion components. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -28,10 +28,13 @@ const ConfirmSheet = dynamic(
 export function buildSelectionRefreshKey(
   selectedHabitIds: ReadonlySet<string>,
   allSelected: boolean,
-  locale: string,
 ): string {
   const selectedKey = Array.from(selectedHabitIds)
-    .sort((left, right) => left.localeCompare(right, locale))
+    .sort((left, right) => {
+      if (left < right) return -1
+      if (left > right) return 1
+      return 0
+    })
     .join(',')
   return `${selectedKey}:${allSelected ? 'all' : 'some'}`
 }
@@ -161,7 +164,6 @@ export function TodayHabitsPanel({ view }: Readonly<{ view: TodayView }>) {
 
 export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
   const t = useTranslations()
-  const locale = useLocale()
   const pathname = usePathname()
   const count = view.selectedHabitIds.size
 
@@ -179,7 +181,7 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
         onCancel={view.toggleSelectMode}
       />
     ),
-    buildSelectionRefreshKey(view.selectedHabitIds, view.selection.allSelected, locale),
+    buildSelectionRefreshKey(view.selectedHabitIds, view.selection.allSelected),
   )
 
   return (
