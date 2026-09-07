@@ -64,7 +64,7 @@ class ProseRenderer extends Renderer {
   }
 
   override image(image: Tokens.Image): string {
-    return escapeHtml(getMarkdownImageLabel(image))
+    return escapeHtml(getMarkdownImageLabel(image)).replaceAll('\n', '<br>')
   }
 
   override hr(): string {

@@ -5,7 +5,19 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { Markdown } from '@/components/ui/markdown'
 
 describe('Markdown server rendering', () => {
+  it.each(['bare', 'linked'])('preserves hard breaks in an inline %s image label', (context) => {
+    const image = '![first  \nsecond](image.png)'
+    const content = `before ${context === 'linked' ? `[${image}](https://example.com/path)` : image} after`
+    const markup = renderToStaticMarkup(<Markdown content={content} />)
+    expect(markup).toContain('first<br>second')
+    expect(markup).toContain('<p>before ')
+    expect(markup).toContain(' after</p>')
+    expect(markup).not.toContain('<img')
+  })
+
   it.each([
+    ['![outer ![](inner.png "inner title") after](outer.png)', 'outer inner title after'],
+    ['![![](inner.png)](outer.png "outer title")', 'outer title'],
     ['![outer [inner][ref]](image.png)\n\n[ref]: https://example.com', 'outer inner'],
     ['![outer [inner][ref]][picture]\n\n[ref]: https://example.com\n[picture]: image.png', 'outer inner'],
     ['![](image.png "**literal**")', '**literal**'],

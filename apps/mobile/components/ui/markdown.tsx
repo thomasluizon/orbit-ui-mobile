@@ -1,5 +1,5 @@
 import { Children, cloneElement, isValidElement, useMemo, useState, type ReactNode } from 'react'
-import { Linking, Text, type ImageStyle, type StyleProp, type TextStyle } from 'react-native'
+import { Linking, Text, type ImageStyle, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 import RNMarkdown, {
   MarkedTokenizer,
   Renderer,
@@ -93,6 +93,10 @@ class ImageLabelTokenizer extends MarkedTokenizer {
 class SafeLinkRenderer extends Renderer implements RendererInterface {
   constructor(private readonly colors: ProseColors, private readonly textStyles?: TextStyle) {
     super()
+  }
+
+  override paragraph(children: ReactNode[], styles?: ViewStyle): ReactNode {
+    return super.paragraph([this.text(children, this.textStyles)], styles)
   }
 
   override link(

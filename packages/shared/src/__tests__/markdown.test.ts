@@ -4,6 +4,8 @@ import { getMarkdownImageLabel, stripInlineMarkdown } from '../utils/markdown'
 
 describe('semantic image labels', () => {
   it.each([
+    ['![outer ![](inner.png "inner title") after](outer.png)', 'outer inner title after'],
+    ['![![](inner.png)](outer.png "outer title")', 'outer title'],
     ['![outer [inner][ref]](image.png)\n\n[ref]: https://example.com', 'outer inner'],
     ['![](image.png "**literal**")', '**literal**'],
   ])('preserves document context and literal titles: %s', (source, label) => {

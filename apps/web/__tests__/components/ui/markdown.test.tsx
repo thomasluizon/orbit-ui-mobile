@@ -4,7 +4,21 @@ import { render } from '@testing-library/react'
 import { Markdown } from '@/components/ui/markdown'
 
 describe('Markdown', () => {
+  it.each(['bare', 'linked'])('preserves hard breaks in an inline %s image label', (context) => {
+    const image = '![first  \nsecond](image.png)'
+    const content = `before ${context === 'linked' ? `[${image}](https://example.com/path)` : image} after`
+    const { container } = render(<Markdown content={content} />)
+    const paragraph = container.querySelector('p')!
+    expect(paragraph.querySelectorAll('br')).toHaveLength(1)
+    expect(paragraph.innerHTML).toContain('first<br>second')
+    expect(paragraph.textContent).toBe('before firstsecond after')
+    expect(container.querySelectorAll('p')).toHaveLength(1)
+    expect(container.querySelector('img')).toBeNull()
+  })
+
   it.each([
+    ['![outer ![](inner.png "inner title") after](outer.png)', 'outer inner title after'],
+    ['![![](inner.png)](outer.png "outer title")', 'outer title'],
     ['![outer [inner][ref]](image.png)\n\n[ref]: https://example.com', 'outer inner'],
     ['![outer [inner][ref]][picture]\n\n[ref]: https://example.com\n[picture]: image.png', 'outer inner'],
     ['![](image.png "**literal**")', '**literal**'],

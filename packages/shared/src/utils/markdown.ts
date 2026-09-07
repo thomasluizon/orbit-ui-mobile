@@ -6,6 +6,7 @@ type ImageLabelToken = Tokens.Br | Tokens.Codespan | Tokens.Del | Tokens.Em | To
 
 function imageLabelText(tokens: Token[]): string {
   return (tokens as ImageLabelToken[]).map((token) => {
+    if (token.type === 'image') return getMarkdownImageLabel(token)
     if ('tokens' in token && token.tokens) return imageLabelText(token.tokens)
     if (token.type === 'br') return '\n'
     if (token.type === 'text' && !token.escaped) return decode(token.text, { scope: 'strict' })
@@ -13,8 +14,8 @@ function imageLabelText(tokens: Token[]): string {
   }).join('')
 }
 
-export function getMarkdownImageLabel({ text, title, tokens }: Pick<Tokens.Image, 'text' | 'title' | 'tokens'>): string {
-  return text ? imageLabelText(tokens) : title || ''
+export function getMarkdownImageLabel({ title, tokens }: Pick<Tokens.Image, 'text' | 'title' | 'tokens'>): string {
+  return imageLabelText(tokens) || title || ''
 }
 
 /**

@@ -89,7 +89,29 @@ function renderParsedMarkdown(content: string) {
 }
 
 describe('mobile Markdown wrapper', () => {
+  describe.each([false, true])('inline image labels with linked=%s', (linked) => {
+    it.each(['alt', 'first  \nsecond'])('keeps the label in one inline sentence: %s', (source) => {
+      const image = `![${source}](image.png)`
+      const content = `before ${linked ? `[${image}](https://example.com/path)` : image} after`
+      const tree = renderParsedMarkdown(content)
+      const paragraphs = tree.root.findAllByType('View')
+      const paragraph = paragraphs[0]
+      expect(paragraph.children, 'paragraph must have one inline text flow').toHaveLength(1)
+      expect(paragraph.children[0].type).toBe('Text')
+      const leaves = paragraph.findAllByType('Text').flatMap((node: { children: unknown[] }) => node.children.filter((child) => typeof child === 'string'))
+      expect(leaves.join('')).toBe(`before ${source.replace('  \n', '\n')} after`)
+      expect(tree.root.findAllByType('Image')).toHaveLength(0)
+      if (linked) {
+        const link = paragraph.findAllByType('Text').find((node: { props: NativeLinkProps }) => node.props.accessibilityRole === 'link')
+        link.props.onPress()
+        expect(openURL).toHaveBeenCalledExactlyOnceWith('https://example.com/path')
+      }
+    })
+  })
+
   it.each([
+    ['![outer ![](inner.png "inner title") after](outer.png)', 'outer inner title after'],
+    ['![![](inner.png)](outer.png "outer title")', 'outer title'],
     ['![outer [inner][ref]](image.png)\n\n[ref]: https://example.com', 'outer inner'],
     ['![outer [inner][ref]][picture]\n\n[ref]: https://example.com\n[picture]: image.png', 'outer inner'],
     ['![](image.png "**literal**")', '**literal**'],
