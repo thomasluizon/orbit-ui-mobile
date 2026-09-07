@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { T, check as harnessCheck, orcaEnv, realOrchestratorConfig, root, stage, stageWithConfig } from "./_harness.mjs"
@@ -7,19 +7,23 @@ import { T, check as harnessCheck, orcaEnv, realOrchestratorConfig, root, stage,
 const TOOL = "teardown-worktree.mjs"
 const BRANCH = "feature/orb-124-teardown"
 let stagedToolPath
+let stagedConfigPath
 const check = (file, name, argv, expect, options = {}) => harnessCheck(file, name, [...argv, "--repo", "ui"], expect, { ...options, path: stagedToolPath })
 
 /** A linked child checkout is the smallest real Git fixture that can prove teardown verification. */
-const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, localFollowUp = false, retainBranch = false } = {}) => {
+const stageTeardownWorktree = (label, { base = "main", dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, localFollowUp = false, contractSwitch = false } = {}) => {
   const primary = join(root, "teardown", label, "primary")
-  const child = join(root, "teardown", label, "child")
+  const hasTicketName = !["no-ticket-name", "unlinked-refusal"].includes(label)
+  const child = join(root, "teardown", label, hasTicketName ? `ticket-124-${label}` : "child")
   const remote = join(root, "teardown", label, "remote.git")
   mkdirSync(primary, { recursive: true })
   const git = (cwd, args) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
   if (git(primary, ["init", "-q", "--bare", remote]).status !== 0) return null
-  for (const args of [["init", "-q", "--initial-branch=main"], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"], ["remote", "add", "origin", remote], ["push", "-q", "-u", "origin", "main"], ["worktree", "add", "-q", "-b", BRANCH, child]]) {
+  const initialBranch = contractSwitch ? "orca/ticket-124-teardown" : BRANCH
+  for (const args of [["init", "-q", `--initial-branch=${base}`], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"], ["remote", "add", "origin", remote], ["push", "-q", "-u", "origin", base], ["worktree", "add", "-q", "-b", initialBranch, child]]) {
     if (git(primary, args).status !== 0) return null
   }
+  if (contractSwitch && git(child, ["switch", "-q", "-c", BRANCH]).status !== 0) return null
   let mergeCommit
   if (changed) {
     writeFileSync(join(child, "captured.txt"), "not in main\n")
@@ -31,7 +35,7 @@ const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMe
     }
     if (fastForwardMerged && git(primary, ["merge", "--ff-only", BRANCH]).status !== 0) return null
     mergeCommit = git(primary, ["rev-parse", "HEAD"]).stdout.trim()
-    if ((squashMerged || fastForwardMerged) && git(primary, ["push", "-q", "origin", "main"]).status !== 0) return null
+    if ((squashMerged || fastForwardMerged) && git(primary, ["push", "-q", "origin", base]).status !== 0) return null
   }
   const headCommit = git(child, ["rev-parse", "HEAD"]).stdout.trim()
   if (localFollowUp) {
@@ -39,31 +43,28 @@ const stageTeardownWorktree = (label, { dirty = false, changed = false, squashMe
     if (git(child, ["add", "follow-up.txt"]).status !== 0 || git(child, ["commit", "-q", "-m", "local follow-up"]).status !== 0) return null
   }
   if (dirty) writeFileSync(join(child, "dirty.txt"), "uncommitted\n")
-  if (retainBranch) {
-    /** Recreates the branch the moment git deletes it, which is the only way to drive the
-     * post-deletion verification without pretending git failed. */
-    const hook = join(primary, ".git", "hooks", "reference-transaction")
-    const head = git(primary, ["rev-parse", "main"]).stdout.trim()
-    writeFileSync(hook, `#!/bin/sh\nmarker="$GIT_DIR/teardown-branch-recreated"\nif [ "$1" = "committed" ] && [ ! -f "$marker" ]; then\n  while read old new ref; do\n    if [ "$ref" = "refs/heads/${BRANCH}" ] && [ "$new" = "0000000000000000000000000000000000000000" ]; then\n      touch "$marker"\n      git update-ref "refs/heads/${BRANCH}" "${head}"\n    fi\n  done\nfi\n`)
-    chmodSync(hook, 0o755)
-  }
-  return { primary, child, headCommit, mergeCommit: mergeCommit ?? git(primary, ["rev-parse", "HEAD"]).stdout.trim() }
+  return { primary, child, headCommit, baseRefName: base, mergeCommit: mergeCommit ?? git(primary, ["rev-parse", "HEAD"]).stdout.trim() }
 }
 
-const ORCA_TICKET_LINK_FIELD = ["linked", "Lin", "earIssue"].join("")
-const worktreeRecord = (fixture) => ({ path: fixture.child, isMainWorktree: false, isArchived: false, [ORCA_TICKET_LINK_FIELD]: "ORB-124", branch: `refs/heads/${BRANCH}`, baseRef: "main" })
+const mergedPullRequest = (fixture) => ({ number: 124, mergedAt: "2026-07-28T12:00:00Z", mergeCommit: { oid: fixture.mergeCommit }, headRefOid: fixture.headCommit, baseRefName: fixture.baseRefName })
 
-const mergedPullRequest = (fixture) => ({ number: 124, mergedAt: "2026-07-28T12:00:00Z", mergeCommit: { oid: fixture.mergeCommit }, headRefOid: fixture.headCommit })
+const pointConfigAt = (fixture) => {
+  const config = realOrchestratorConfig()
+  config.repos.ui = fixture.primary
+  writeFileSync(stagedConfigPath, `${JSON.stringify(config, null, 2)}\n`)
+}
 
-const teardownPlan = (fixture, { pullRequests = [mergedPullRequest(fixture)], pullRequestOutput, pullRequestExit = 0, removePath, removal = JSON.stringify({ ok: true, result: {} }), removalExit = 0, worktrees = [worktreeRecord(fixture)] } = {}) => [
-  { match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees } }) },
+const teardownPlan = (fixture, { pullRequests = [mergedPullRequest(fixture)], pullRequestOutput, pullRequestExit = 0 } = {}) => {
+  pointConfigAt(fixture)
+  return [
   { match: `pr list --head ${BRANCH}`, stdout: pullRequestOutput ?? JSON.stringify(pullRequests), exit: pullRequestExit },
-  { match: "worktree rm", stdout: removal, exit: removalExit, ...(removePath ? { removePath } : {}) },
-]
+  ]
+}
 
 export const cases = () => {
   const staged = stageWithConfig("teardown-worktree", TOOL, realOrchestratorConfig())
   stagedToolPath = staged.path
+  stagedConfigPath = staged.configPath
   stage(
     "staged/teardown-worktree/tools/lib/github-issues.mjs",
     `export const resolveTicket = (reference) => {
@@ -92,16 +93,9 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   check(TOOL, "refuses a valueless worktree selector", ["--worktree"], { status: 2, stderr: /selector flags require a value/ })
   check(TOOL, "refuses a valueless base", ["--issue", "ORB-124", "--base"], { status: 2, stderr: /selector flags require a value/ })
   check(TOOL, "refuses an unknown option before reading anything", ["--issue", "ORB-124", "--force"], { status: 2, stderr: /unknown option\(s\): --force/ })
-  check(TOOL, "refuses an issue with no active worktree", ["--issue", "ORB-124"], { status: 1, stderr: /no active Orca worktree is linked to ORB-124/ }, { env: orcaEnv([{ match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [] } }) }]) })
-
-  const numeric = stageTeardownWorktree("numeric-ticket", { changed: true })
-  check(
-    TOOL,
-    "a post-migration #N selector resolves the Orca worktree by issue number",
-    ["--issue", "#9001"],
-    { status: 1, stderr: /no merged pull request with merge and head commits was found/ },
-    { env: orcaEnv(teardownPlan(numeric, { pullRequests: [], worktrees: [{ ...worktreeRecord(numeric), [ORCA_TICKET_LINK_FIELD]: "#9001" }] })) },
-  )
+  const absent = stageTeardownWorktree("no-ticket-name")
+  pointConfigAt(absent)
+  check(TOOL, "refuses an issue with no matching worktree name", ["--issue", "ORB-124"], { status: 1, stderr: /no active Git worktree name matches ticket 124/ }, { env: orcaEnv([]) })
 
   const allGood = stageTeardownWorktree("all-good", { changed: true, fastForwardMerged: true })
   if (!allGood) {
@@ -109,28 +103,54 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     return
   }
 
+  const switched = stageTeardownWorktree("ticket-124-contract-switch", { changed: true, fastForwardMerged: true, contractSwitch: true })
+  pointConfigAt(switched)
+  const switchedResult = check(
+    TOOL,
+    "an issue selector finds and removes a worktree after the contract branch switch",
+    ["--issue", "ORB-124"],
+    { status: 0, stdout: /REMOVED worktree[\s\S]*RETAINED local branch/ },
+    { env: orcaEnv(teardownPlan(switched)) },
+  )
+  T(`${TOOL}: contract-switch removal actually deleted the fixture`, !existsSync(switched.child), switchedResult.stderr)
+
+  const redesign = stageTeardownWorktree("redesign-base", { base: "redesign/main", changed: true, squashMerged: true, contractSwitch: true })
+  const redesignResult = check(
+    TOOL,
+    "without --base a branch merged into redesign/main is removed",
+    ["--issue", "ORB-124"],
+    { status: 0, stdout: /REMOVED worktree/ },
+    { env: orcaEnv([
+      { match: `pr list --head ${BRANCH} --base main`, stdout: "[]" },
+      ...teardownPlan(redesign),
+    ]) },
+  )
+  T(`${TOOL}: redesign-base removal actually deleted the fixture`, !existsSync(redesign.child), redesignResult.stderr)
+
   const primaryRefusal = stageTeardownWorktree("primary-refusal")
+  pointConfigAt(primaryRefusal)
   check(
     TOOL,
     "refuses a primary checkout",
     ["--worktree", `path:${primaryRefusal.primary}`],
     { status: 1, stderr: /refusing to remove a primary checkout/ },
-    { env: orcaEnv([{ match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [{ ...worktreeRecord(primaryRefusal), path: primaryRefusal.primary, isMainWorktree: true }] } }) }]) },
+    { env: orcaEnv([]) },
   )
   const unlinked = stageTeardownWorktree("unlinked-refusal")
+  pointConfigAt(unlinked)
   check(
     TOOL,
-    "refuses a worktree without a linked ticket",
+    "refuses a worktree whose name has no ticket number",
     ["--worktree", `path:${unlinked.child}`],
-    { status: 1, stderr: /refusing a worktree without a linked ticket/ },
-    { env: orcaEnv([{ match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [{ ...worktreeRecord(unlinked), [ORCA_TICKET_LINK_FIELD]: null }] } }) }]) },
+    { status: 1, stderr: /directory name has no ticket-<number>/ },
+    { env: orcaEnv([]) },
   )
   check(
     TOOL,
     "refuses a path selector matching no active worktree",
     ["--worktree", `path:${join(root, "teardown", "never-existed")}`],
-    { status: 1, stderr: /no active Orca worktree matches/ },
-    { env: orcaEnv([{ match: "worktree list", stdout: JSON.stringify({ ok: true, result: { worktrees: [worktreeRecord(unlinked)] } }) }]) },
+    { status: 1, stderr: /no active Git worktree matches/ },
+    { env: orcaEnv([]) },
   )
 
   const unmerged = stageTeardownWorktree("unmerged", { changed: true })
@@ -152,27 +172,17 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const followUp = stageTeardownWorktree("local-follow-up", { changed: true, fastForwardMerged: true, localFollowUp: true })
   check(TOOL, "a local commit absent from the pull request head is refused as work loss", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET local-tip-in-pull-request-head: local tip .* is not contained in pull request #124 head .*; local commits would be lost/ }, { env: orcaEnv(teardownPlan(followUp, { removePath: followUp.child })) })
 
+  const dirty = stageTeardownWorktree("dirty", { changed: true, fastForwardMerged: true, dirty: true })
+  check(TOOL, "a dirty worktree is refused as work loss", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: (?:\?\? )?dirty\.txt/ }, { env: orcaEnv(teardownPlan(dirty)) })
+  T(`${TOOL}: the dirty refusal leaves the tree in place`, existsSync(dirty.child), "the dirty fixture was removed")
+
   const notDone = stageTeardownWorktree("not-done", { changed: true, fastForwardMerged: true, dirty: true })
   check(TOOL, "every independent refusal is reported in one pass", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: (?:\?\? )?dirty\.txt[\s\S]*UNMET ticket-done: ticket is OPEN with board status In Review, expected CLOSED and Done/ }, { env: { ...orcaEnv(teardownPlan(notDone, { state: "In Review", removePath: notDone.child })), ORBIT_TICKET_STATUS: "In Review", ORBIT_TICKET_STATE: "OPEN" } })
 
-  const removed = check(TOOL, "a merged, clean, Done worktree is removed and verified", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree[\s\S]*REMOVED local branch feature\/orb-124-teardown/ }, { env: orcaEnv(teardownPlan(allGood, { removePath: allGood.child })) })
+  const removed = check(TOOL, "a merged, clean, Done worktree is removed and verified", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree[\s\S]*RETAINED local branch feature\/orb-124-teardown/ }, { env: orcaEnv(teardownPlan(allGood, { removePath: allGood.child })) })
   T(`${TOOL}: verified removal actually deleted the fixture`, !existsSync(allGood.child), removed.stderr)
-
-  const unavailable = stageTeardownWorktree("runtime-unavailable", { changed: true, fastForwardMerged: true })
-  check(
-    TOOL,
-    "a dropped orca runtime is success when the filesystem and git prove removal",
-    ["--issue", "ORB-124"],
-    { status: 0, stdout: /REMOVED worktree/ },
-    { env: orcaEnv(teardownPlan(unavailable, { removePath: unavailable.child, removal: JSON.stringify({ ok: false, code: "runtime_unavailable", message: "connection closed" }), removalExit: 1 })) },
-  )
-
-  const survives = stageTeardownWorktree("survives", { changed: true, fastForwardMerged: true })
-  check(TOOL, "an ok removal response is failure when the directory survives", ["--issue", "ORB-124"], { status: 1, stderr: /removal verification failed/ }, { env: orcaEnv(teardownPlan(survives)) })
 
   const selector = stageTeardownWorktree("selector", { changed: true, squashMerged: true })
   check(TOOL, "a path selector accepts a squash-merged tree without ancestry", ["--worktree", `path:${selector.child}`], { status: 0, stdout: /REMOVED worktree/ }, { env: orcaEnv(teardownPlan(selector, { removePath: selector.child })) })
 
-  const retained = stageTeardownWorktree("branch-retained", { changed: true, fastForwardMerged: true, retainBranch: true })
-  check(TOOL, "a local branch that survives deletion is reported after the worktree is removed", ["--issue", "ORB-124"], { status: 1, stderr: /removed worktree but local branch feature\/orb-124-teardown still exists/ }, { env: orcaEnv(teardownPlan(retained, { removePath: retained.child })) })
 }
