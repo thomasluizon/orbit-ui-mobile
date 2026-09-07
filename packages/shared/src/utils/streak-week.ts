@@ -14,14 +14,18 @@ interface StreakWeekDay {
 function getAccountToday(now: Date, timeZone?: string | null): Date {
   let accountDate: string
   try {
-    accountDate = new Intl.DateTimeFormat('en-CA', {
+    const accountDateParts = new Intl.DateTimeFormat('en-CA', {
       timeZone: timeZone || 'UTC',
       calendar: 'iso8601',
       numberingSystem: 'latn',
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
-    }).format(now)
+    }).formatToParts(now)
+    const year = accountDateParts.find((part) => part.type === 'year')?.value
+    const month = accountDateParts.find((part) => part.type === 'month')?.value
+    const day = accountDateParts.find((part) => part.type === 'day')?.value
+    accountDate = `${year}-${month}-${day}`
   } catch (error) {
     if (!(error instanceof RangeError)) throw error
     accountDate = now.toISOString().slice(0, 10)
