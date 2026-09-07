@@ -22,3 +22,4 @@ export {
 } from './options'
 
 export type { HabitListKey, HabitListSnapshots } from './keys'
+export { attachNotificationPolling } from './notification-polling'

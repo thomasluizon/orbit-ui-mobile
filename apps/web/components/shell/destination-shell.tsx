@@ -237,7 +237,7 @@ function DestinationShellContent({
           paletteLabel={t('command.title')}
           paletteHint="Ctrl K"
           notice={notice}
-          composer={composer}
+          composer={pathname === '/notifications' ? undefined : composer}
         >
           <div id="orbit-main">{children}</div>
         </ShellWide>
@@ -272,7 +272,7 @@ function DestinationShellContent({
           ) : undefined
         }
         notice={notice}
-        composer={composer}
+        composer={pathname === '/notifications' ? undefined : composer}
       >
         {children}
       </Shell412>

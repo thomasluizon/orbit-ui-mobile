@@ -18,6 +18,7 @@ export {
   IconChartLine as ChartLine,
   IconCheck as Check,
   IconChecks as CheckCheck,
+  IconCircleDot as CircleDot,
   IconCircleCheck as CheckCircle,
   IconCircleCheck as CheckCircle2,
   IconChevronDown as ChevronDown,

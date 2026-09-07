@@ -50,10 +50,12 @@ export const CLOUD_FINISHING_CONTRACT = `## Cloud finishing contract
 
 **Commit the implementation. Without a commit there is no diff and the work is lost.**
 
+- Before committing, if your change alters routes, endpoints, or module structure, run \`node tools/arch-map.mjs\`. Stage \`architecture.json\` and \`architecture.html\` only if the generator changed them; include the changed artifacts in the same commit as the source change.
 - Edit the change, compile it and run focused tests in the container; then stage only named paths with \`git --literal-pathspecs add\` and \`git commit\` before broader verification.
 - Include \`.claude/cloud-handoff.json\` in the committed diff, updating it after broader verification. Its required fields are \`needsDecision\` (null or the blocking question with your recommended answer), \`assumptions\` (an array of strings naming each choice and rejected alternative), \`manualSteps\` (an array of strings naming each external action, exact key/location and proof), and \`testResults\` (a non-empty string). Use empty arrays when there are none. Record a blocking decision here before committing the safe work; terminal output alone is not delivered. This artifact is required even when there are no decisions or manual steps.
 - Never \`--no-verify\`. If a pre-commit hook rejects the commit, report the exact hook output and stop, leaving the changes in place. Never edit a hook or a gate baseline to get past it.
 - Never push, never create a branch, never open a pull request. Delivery happens outside the container.
+- The orchestrator carries the committed handoff's \`testResults\` verbatim into the PR body's \`## Test evidence\` section using the materializer's \`pullRequestBody\` output.
 - Report the commit and test results, then stop. Do not wait on CI or poll GitHub Actions; the orchestrator owns CI waiting.`
 
 export const cloudOrder = (order, emptyRetryOf = null) => {

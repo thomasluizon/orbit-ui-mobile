@@ -196,9 +196,25 @@ it uncovered rather than starting a browser.
 CLI, API, or library you did not write by reading the real response or the installed source. Not
 memory, not --help, not what it should obviously be. Never write the fixture that agrees with a
 guess. Two measured failures in this repository were a worker inventing a field while the same
-commit added a mock that agreed with the guess, so the harness stayed green over a defect.`
+commit added a mock that agreed with the guess, so the harness stayed green over a defect.
+
+**Prove the regression test catches the defect.** When a round fixes a defect that an existing test did not catch:
+1. Before changing the test or implementation, run that existing test unchanged and report whether it passes with the defect present.
+2. Then strengthen the test to exercise the real failing path and run it with the defect still present. Observe it fail for the intended reason before fixing the implementation.
+3. After the fix, rerun it and confirm it passes.
+
+Drive the production path: advance replay timers, enter the affected mode, assert accepted destinations as well as rejected ones, mount the owning composition, and derive fixtures from the real producer where applicable.
+
+Both observations must reach the pull request body: unchanged test with the defect present, and strengthened test failing before the fix. Name the test, exact commands, and observed outcomes, including the passing result after the fix. If either observation cannot be obtained, report why; never claim an unobserved result.
+${cloud
+  ? "Record both observations in the committed handoff's `testResults` for the orchestrator to carry into the PR body's `## Test evidence` section."
+  : "Put both observations in the PR body's `## Test evidence` section."}`
 
 const finishing = `## Finishing contract
+
+Before committing, if your change alters routes, endpoints, or module structure,
+run \`node tools/arch-map.mjs\`. Stage \`architecture.json\` and \`architecture.html\` only if the generator changed them;
+include the changed artifacts in the same commit as the source change.
 
 **Commit as soon as the code compiles and the focused tests pass. Run the broader suite after.**
 

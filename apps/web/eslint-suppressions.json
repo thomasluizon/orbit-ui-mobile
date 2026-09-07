@@ -584,22 +584,8 @@
     }
   },
   "components/navigation/notification-bell.tsx": {
-    "local/icon-size-grid": {
-      "count": 4
-    },
-    "local/no-space-x-y": {
-      "count": 1
-    },
-    "local/no-sparkle-ai-marker": {
-      "count": 1
-    },
     "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "components/navigation/notification-detail-modal.tsx": {
-    "local/spacing-scale": {
-      "count": 5
+      "count": 1
     }
   },
   "components/onboarding/feature-guide-drawer.tsx": {

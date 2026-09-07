@@ -4,7 +4,7 @@ import { RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
 import { RingMotif } from '@/components/gamification/ring-motif'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 import { styles, type Tokens } from '@/app/wrapped-styles'
 
 interface WrappedCoverProps {
@@ -85,7 +85,7 @@ export function WrappedCover({
 
         {!isLoading && !isError && isEmpty ? (
           <View style={styles.emptyState}>
-            <SatelliteGlyph />
+            <OrbitMark size={96} />
             <Text style={[styles.stateText, { color: tokens.fg3 }]}>{t('wrapped.empty')}</Text>
           </View>
         ) : null}

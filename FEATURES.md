@@ -228,6 +228,10 @@ XP/gamification is **Free**, enabled by a feature flag (migration `EnableGamific
 |---|---|---|---|---|
 | Notification bell | In-app notification center with unread indicator | Free | Both | — |
 | Manage notifications | Mark read, delete, bulk actions | Free | Both | — |
+| Alerts screen | Dedicated authenticated `/notifications` screen with back navigation, unread count, and empty, loading, and retry states | Free | Both | Alerts (en), Avisos (pt-BR) |
+| Alert details | Open an alert's full message, mark it read, delete it, or view its destination when available | Free | Both | Localized relative time and destination label |
+| Alert destination navigation | Open the resolved habit or screen, including legacy alert routes and Astra over Today | Free | Both | Localized destination labels (en + pt-BR) |
+| Queued-delete undo notice | Undo an individual alert's queued deletion from the shell notice before it completes | Free | Both | Localized notice and undo action (en + pt-BR) |
 | Configure reminders | Per-habit reminder times (at-time, minutes/hours, up to 1 day before) | Free | Both | — |
 | Push notifications | Toggle push; test button; reminders delivered as push | Free | Both | Max 5 push subscriptions/user |
 

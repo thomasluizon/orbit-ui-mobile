@@ -85,6 +85,7 @@ export {
   deleteNotificationFromList,
   formatNotificationRelativeTime,
   getNotificationDetailActionVisibility,
+  getNotificationDestination,
   invalidateNotificationList,
   markAllNotificationsReadInList,
   markNotificationReadInList,

@@ -13,7 +13,7 @@ import { useShareCard } from '@/hooks/use-share-card'
 import { Sheet } from '@/components/ui/sheet'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { OrbitMark } from '@/components/ui/orbit-mark'
 import { ShareCard } from './share-card'
 
 interface ShareCardPanelProps {
@@ -86,7 +86,7 @@ export function ShareCardPanel({ open, onOpenChange, displayName }: Readonly<Sha
 
         {!isLoading && !isError && recap && isEmpty && (
           <div className="flex flex-col items-center" style={{ gap: 12, padding: '24px 0' }}>
-            <SatelliteGlyph />
+            <OrbitMark size={96} />
             <p style={{ margin: 0, textAlign: 'center', fontSize: 14, color: 'var(--fg-3)' }}>
               {t('shareCard.empty')}
             </p>

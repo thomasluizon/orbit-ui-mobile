@@ -66,20 +66,20 @@
     "version": "v{previous} → v{next}"
   },
   "notifications": {
-    "title": "Notificações",
-    "bell": "Notificações",
-    "bellWithCount": "{count} notificação não lida | {count} notificações não lidas",
-    "empty": "Nenhuma notificação por aqui",
+    "title": "Avisos",
+    "bell": "Avisos",
+    "bellWithCount": "Avisos, {count} sem ler",
+    "empty": "Nada para ver aqui",
     "loadError": "Não foi possível carregar as notificações",
     "markAllRead": "Marcar todas como lidas",
     "markAsRead": "Marcar como lida",
-    "deleteAll": "Excluir todas",
-    "deleteAllConfirmTitle": "Excluir todas as notificações?",
-    "deleteAllConfirmDescription": "Isso remove todas as notificações da sua caixa de entrada.",
-    "delete": "Excluir",
-    "deleteNotification": "Excluir notificação",
+    "deleteAll": "Limpar tudo",
+    "deleteAllConfirmTitle": "Apagar todos os avisos?",
+    "deleteAllConfirmDescription": "Todos os avisos saem da lista. Não há como desfazer.",
+    "delete": "Apagar",
+    "deleteNotification": "Apagar: {title}",
     "deleteUndo": "Desfazer",
-    "deleteQueued": "A notificação será excluída",
+    "deleteQueued": "O aviso saiu da lista.",
     "view": "Ver",
     "now": "Agora",
     "minutesAgo": "há {n} min",
@@ -87,7 +87,11 @@
     "daysAgo": "há {n}d",
     "channel": {
       "default": "Padrão"
-    }
+    },
+    "read": "lido",
+    "unread": "sem ler",
+    "habit": "Hábito",
+    "openIn": "Abrir em {target}"
   },
   "persistentReminder": {
     "label": "Lembrete fixo",

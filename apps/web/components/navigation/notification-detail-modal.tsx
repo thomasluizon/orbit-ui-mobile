@@ -5,10 +5,13 @@ import { useTranslations } from 'next-intl'
 import {
   formatNotificationRelativeTime,
   getNotificationDetailActionVisibility,
-  isViewableNotificationUrl,
-  resolveNotificationUrl,
+  getNotificationTargetKey,
+  getNotificationDestination,
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
+import { Button } from '@/components/ui/pill-button'
+import { useUIStore } from '@/stores/ui-store'
+import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 
 interface NotificationDetailModalProps {
@@ -19,7 +22,6 @@ interface NotificationDetailModalProps {
   onDelete: (id: string) => void
 }
 
-/** Sheet chrome with a mono timestamp eyebrow, body copy, and quiet text-button actions. */
 export function NotificationDetailModal({
   open,
   onOpenChange,
@@ -28,16 +30,20 @@ export function NotificationDetailModal({
   onDelete,
 }: Readonly<NotificationDetailModalProps>) {
   const t = useTranslations()
+  const wide = useIsWideDesktop()
+  const targetKey = getNotificationTargetKey(notification.url, notification.habitId)
   const router = useRouter()
+  const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const { canView, canMarkAsRead } = getNotificationDetailActionVisibility(notification)
   const { sheetRef, closeSheet } = useSheetHost()
 
   function handleView() {
-    const url = notification.url
-    if (!url || !isViewableNotificationUrl(url)) return
+    const destination = getNotificationDestination(notification.url, notification.habitId)
+    if (!destination) return
     closeSheet(() => {
       onOpenChange(false)
-      router.push(resolveNotificationUrl(url))
+      router.push(destination.url)
+      if (destination.opensAstra) setAstraConversationOpen(true)
     })
   }
 
@@ -53,45 +59,45 @@ export function NotificationDetailModal({
       onClose={() => onOpenChange(false)}
       title={notification.title}
       actions={
-        <div className="flex flex-wrap items-center justify-end" style={{ gap: 10 }}>
+        <div className="flex flex-wrap items-center justify-end" style={{ gap: 8 }}>
           {canView && (
-            <QuietLink primary onClick={handleView}>
-              {t('notifications.view')}
-            </QuietLink>
+            <Button variant={wide ? 'secondary' : 'primary'} size="sm" onClick={handleView}>
+              {targetKey ? t('notifications.openIn', { target: t(targetKey) }) : t('notifications.view')}
+            </Button>
           )}
           {canMarkAsRead && (
-            <QuietLink onClick={() => onMarkAsRead(notification.id)}>
+            <Button variant="ghost" size="sm" onClick={() => onMarkAsRead(notification.id)}>
               {t('notifications.markAsRead')}
-            </QuietLink>
+            </Button>
           )}
-          <QuietLink destructive onClick={handleDelete}>
+          <Button variant="destructive" size="sm" onClick={handleDelete}>
             {t('notifications.delete')}
-          </QuietLink>
+          </Button>
         </div>
       }
     >
-      <div className="overlay-bleed">
-        <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--hairline)' }}>
+      <div className="flex flex-col gap-3 pb-2">
+        <div>
           <p
             style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 12,
-              color: 'var(--fg-3)',
-              letterSpacing: '0.02em',
+              color: 'var(--fg-4)',
               fontVariantNumeric: 'tabular-nums',
             }}
           >
             {formatNotificationRelativeTime(notification.createdAtUtc, (key, values) =>
               t(`notifications.${key}`, values),
             )}
+            {targetKey ? ` · ${t(targetKey)}` : null}
           </p>
         </div>
-        <div style={{ padding: '14px 20px' }}>
+        <div>
           <p
             className="whitespace-pre-wrap"
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 15,
+              fontSize: 17,
               color: 'var(--fg-2)',
               lineHeight: 1.55,
             }}
@@ -101,30 +107,5 @@ export function NotificationDetailModal({
         </div>
       </div>
     </Sheet>) : null
-  )
-}
-
-interface QuietLinkProps {
-  children: React.ReactNode
-  onClick: () => void
-  destructive?: boolean
-  primary?: boolean
-}
-
-function QuietLink({
-  children,
-  onClick,
-  destructive = false,
-  primary = false,
-}: Readonly<QuietLinkProps>) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={primary ? 'chip chip-ai' : 'chip'}
-      style={destructive ? { color: 'var(--status-bad)' } : undefined}
-    >
-      {children}
-    </button>
   )
 }
