@@ -5,6 +5,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import type { Goal } from '@orbit/shared/types/goal'
 import { getFriendlyErrorMessage, getProgressGoalLabelKey } from '@orbit/shared/utils'
+import { plural } from '@/lib/plural'
 import { Badge } from '@/components/ui/badge'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProgressRing } from '@/components/ui/progress-ring'
@@ -23,7 +24,9 @@ function GoalDerivedProgress({ goal }: Readonly<{ goal: Goal }>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   if (goal.status === 'Abandoned' || !goal.isProgressDerived) return null
-  return <Text style={[styles.body, { color: tokens.fg2 }]}>{t(goal.type === 'Streak' ? 'goals.detail.derivedStreak' : 'goals.detail.derivedHabits', { count: goal.linkedHabits.length })}</Text>
+  const count = goal.linkedHabits.length
+  const explanation = t(goal.type === 'Streak' ? 'goals.detail.derivedStreak' : 'goals.detail.derivedHabits', { count })
+  return <Text style={[styles.body, { color: tokens.fg2 }]}>{plural(explanation, count)}</Text>
 }
 
 interface GoalProgressBlockProps {
@@ -90,9 +93,9 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
         </View>
       </View> : null}
       <Text accessibilityLiveRegion="polite" style={error ? [styles.body, { color: tokens.fg2 }] : styles.screenReader}>{error}</Text>
-      {active && done ? <View style={styles.completion}>
+      {active && derived && done ? <View style={styles.completion}>
         <PillButton variant="secondary" size="sm" accessibleName={t('goals.detail.markCompleted')} disabled={busy || isUpdatingStatus} onClick={onComplete}>{t('goals.detail.markCompleted')}</PillButton>
-        <Text style={[styles.body, { color: tokens.fg2 }]}>{t(derived ? 'goals.detail.completeWhyDerived' : 'goals.detail.completeWhy')}</Text>
+        <Text style={[styles.body, { color: tokens.fg2 }]}>{t('goals.detail.completeWhyDerived')}</Text>
       </View> : null}
     </View>
   )

@@ -55,7 +55,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, i
     }
   }
 
-  useGoalDrawerInitialAction({ open, initialAction, openEditModal: () => setEditing(true), openDeleteConfirm: () => setDeleting(true), openProgressForm: () => contentRef.current?.querySelector<HTMLButtonElement>('button')?.focus(), markCompleted: actions.markCompleted })
+  useGoalDrawerInitialAction({ open, initialAction, openEditModal: () => setEditing(true), openDeleteConfirm: () => setDeleting(true), openProgressForm: () => contentRef.current?.querySelector<HTMLButtonElement>('button')?.focus() })
 
   useEffect(() => {
     if (!open || !inline) return

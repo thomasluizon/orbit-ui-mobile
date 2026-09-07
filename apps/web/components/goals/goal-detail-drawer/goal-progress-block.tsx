@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { Goal } from '@orbit/shared/types/goal'
 import { getFriendlyErrorMessage, getProgressGoalLabelKey } from '@orbit/shared/utils'
+import { plural } from '@/lib/plural'
 import { Badge } from '@/components/ui/badge'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProgressRing } from '@/components/ui/progress-ring'
@@ -20,7 +21,9 @@ function GoalDetailIndicator({ goal, label }: Readonly<{ goal: Goal; label: stri
 function GoalDerivedProgress({ goal }: Readonly<{ goal: Goal }>) {
   const t = useTranslations()
   if (goal.status === 'Abandoned' || !goal.isProgressDerived) return null
-  return <p className="text-[14px] text-[var(--fg-2)]">{t(goal.type === 'Streak' ? 'goals.detail.derivedStreak' : 'goals.detail.derivedHabits', { count: goal.linkedHabits.length })}</p>
+  const count = goal.linkedHabits.length
+  const explanation = t(goal.type === 'Streak' ? 'goals.detail.derivedStreak' : 'goals.detail.derivedHabits', { count })
+  return <p className="text-[14px] text-[var(--fg-2)]">{plural(explanation, count)}</p>
 }
 
 interface GoalProgressBlockProps {
@@ -84,9 +87,9 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
         </div>
       </div> : null}
       <p role="alert" className={error ? 'text-[14px] text-[var(--fg-2)]' : 'sr-only'}>{error}</p>
-      {active && done ? <div className="flex flex-col items-start gap-2">
+      {active && derived && done ? <div className="flex flex-col items-start gap-2">
         <PillButton variant="secondary" size="sm" accessibleName={t('goals.detail.markCompleted')} disabled={busy || isUpdatingStatus} onClick={onComplete}>{t('goals.detail.markCompleted')}</PillButton>
-        <p className="text-[14px] text-[var(--fg-2)]">{t(derived ? 'goals.detail.completeWhyDerived' : 'goals.detail.completeWhy')}</p>
+        <p className="text-[14px] text-[var(--fg-2)]">{t('goals.detail.completeWhyDerived')}</p>
       </div> : null}
     </div>
   )

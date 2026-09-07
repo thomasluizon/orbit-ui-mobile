@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 
-export type GoalDrawerInitialAction = 'edit' | 'complete' | 'delete' | 'progress'
+export type GoalDrawerInitialAction = 'edit' | 'delete' | 'progress'
 
 interface GoalDrawerInitialActionInput {
   open: boolean
@@ -10,19 +10,15 @@ interface GoalDrawerInitialActionInput {
   openEditModal: () => void
   openDeleteConfirm: () => void
   openProgressForm: () => void
-  markCompleted: () => Promise<void>
 }
 
-/** Applies the drawer's deep-link action once per open: edit, delete, and
- *  progress open their surface once the drawer commits; complete fires the
- *  status mutation exactly once. */
+/** Applies the drawer's deep-link action once per open. */
 export function useGoalDrawerInitialAction({
   open,
   initialAction,
   openEditModal,
   openDeleteConfirm,
   openProgressForm,
-  markCompleted,
 }: GoalDrawerInitialActionInput) {
   const actionFiredRef = useRef(false)
   useEffect(() => {
@@ -36,10 +32,8 @@ export function useGoalDrawerInitialAction({
       openEditModal()
     } else if (initialAction === 'delete') {
       openDeleteConfirm()
-    } else if (initialAction === 'progress') {
-      openProgressForm()
     } else {
-      void markCompleted()
+      openProgressForm()
     }
   }, [
     open,
@@ -47,6 +41,5 @@ export function useGoalDrawerInitialAction({
     openEditModal,
     openDeleteConfirm,
     openProgressForm,
-    markCompleted,
   ])
 }

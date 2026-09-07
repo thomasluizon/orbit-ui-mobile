@@ -285,8 +285,7 @@
     "delete": "Delete",
     "duplicate": "Duplicate",
     "viewDetails": "View details",
-    "addSubHabit": "Add sub-habit",
-    "complete": "Complete"
+    "addSubHabit": "Add sub-habit"
   },
   "rail": {
     "todayProgress": "Today",
@@ -2366,13 +2365,12 @@
       "achieved": "Achieved"
     },
     "detail": {
-      "manualProgress": "Your progress",
+      "manualProgress": "Update progress. Reaching the target completes the goal.",
       "increase": "Increase progress",
       "decrease": "Decrease progress",
-      "derivedStreak": "It comes from the smallest current streak among the {count} linked habits, so it cannot be edited here.",
+      "derivedStreak": "Streak progress is calculated automatically, so it cannot be edited here. | It comes from the current streak of the linked habit, so it cannot be edited here. | It comes from the smallest current streak among the {count} linked habits, so it cannot be edited here.",
       "derivedHabits": "Progress comes from the logs of the linked habits, so it cannot be edited here.",
       "completeWhyDerived": "The goal reached its target and stays active until you complete it, because the number is recalculated on every read.",
-      "completeWhy": "The goal reached its target and stays active until you choose to complete it.",
       "linkedLimit": "{count} habits is the limit for one goal.",
       "deleteNamed": "The goal “{title}” leaves your list. The habits linked to it stay as they are.",
       "markCompleted": "Complete goal",

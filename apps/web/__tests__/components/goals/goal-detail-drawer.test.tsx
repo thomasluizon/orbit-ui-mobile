@@ -161,23 +161,6 @@ describe('GoalDetailDrawer', () => {
     expect(updateProgressMutateAsync).not.toHaveBeenCalled()
   })
 
-  it('marks the goal completed once for the complete initial action', () => {
-    render(
-      <GoalDetailDrawer
-        open={true}
-        onOpenChange={vi.fn()}
-        goalId="1"
-        initialAction="complete"
-      />,
-    )
-    expect(updateStatusMutateAsync).toHaveBeenCalledTimes(1)
-    expect(updateStatusMutateAsync).toHaveBeenCalledWith({
-      goalId: '1',
-      data: { status: 'Completed' },
-      goalName: 'Read 12 books',
-    })
-  })
-
   it('offers a retry action when the detail fetch fails', () => {
     detailLoadError = true
     render(
@@ -235,10 +218,10 @@ describe('GoalDetailDrawer', () => {
     expect(updateProgressMutateAsync).toHaveBeenCalledWith({ goalId: '1', data: { currentValue: 4 } })
   })
 
-  it('stage 5 completes only at target with a neutral action and explanation', () => {
-    detailGoal = { ...listGoal, currentValue: 12, progressPercentage: 100, progressHistory: [] }
+  it('stage 5 completes a target-reached derived goal with a neutral action and explanation', () => {
+    detailGoal = { ...listGoal, currentValue: 12, progressPercentage: 100, isProgressDerived: true, progressHistory: [] }
     render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
-    expect(document.body.textContent).toContain('goals.detail.completeWhy')
+    expect(document.body.textContent).toContain('goals.detail.completeWhyDerived')
     const label = 'goals.detail.markCompleted'
     const complete = screen.queryByRole('button', { name: label })
     expect(complete).toBeTruthy()
@@ -247,6 +230,27 @@ describe('GoalDetailDrawer', () => {
     expect(complete).toHaveAttribute("data-variant", "secondary")
     fireEvent.click(screen.getByRole('button', { name: label }))
     expect(updateStatusMutateAsync).toHaveBeenCalledWith({ goalId: '1', data: { status: 'Completed' }, goalName: listGoal.title })
+  })
+
+  it('stage 5 lets the progress write complete a manual goal at its target', async () => {
+    detailGoal = { ...listGoal, currentValue: 11, progressPercentage: 92, progressHistory: [] }
+    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'goals.detail.increase' }))
+
+    expect(updateProgressMutateAsync).toHaveBeenCalledWith({ goalId: '1', data: { currentValue: 12 } })
+    await waitFor(() => expect(refetchDetail).toHaveBeenCalled())
+    expect(screen.queryByRole('button', { name: 'goals.detail.markCompleted' })).toBeNull()
+    expect(updateStatusMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('stage 5 does not offer a second completion action for a manual goal at target', () => {
+    detailGoal = { ...listGoal, currentValue: 12, progressPercentage: 100, isProgressDerived: false, progressHistory: [] }
+    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+
+    expect(screen.queryByRole('button', { name: 'goals.detail.markCompleted' })).toBeNull()
+    expect(document.body.textContent).toContain('goals.detail.manualProgress')
+    expect(updateStatusMutateAsync).not.toHaveBeenCalled()
   })
 
   it.each(['Active', 'Completed'] as const)('stage 5 never reopens a %s goal', (status) => {
