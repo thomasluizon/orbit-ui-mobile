@@ -2407,9 +2407,10 @@
   "progressScreen": {
     "title": "Progresso",
     "loading": "Carregando seu progresso",
-    "error": "Não foi possível carregar seu progresso.",
+    "error": "Não foi possível carregar seu progresso. Verifique a conexão e tente de novo.",
     "retry": "Tentar novamente",
-    "empty": "Seu progresso começa com o próximo hábito que você praticar.",
+    "empty": "Nada para medir ainda",
+    "emptyAction": "Começar um hábito",
     "startHabit": "Ir para hábitos",
     "sections": {
       "streak": "Sequência",

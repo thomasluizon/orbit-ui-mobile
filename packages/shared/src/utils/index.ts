@@ -591,12 +591,14 @@ export {
   achievementGlyphKey,
   buildGoalMovePositions,
   buildProtectedDayLabels,
+  deriveProgressViewState,
   filterProgressGoals,
   getAvailableStreakRepairDate,
   getGoalDeadlinePresentation,
   getGamificationLevelTitleKey,
   PROGRESS_GOAL_FILTERS,
   visibleProgressAchievements,
+  isProgressEmpty,
 } from './progress'
 export type { AchievementGlyphKey, GoalDeadlineState, ProgressGoalFilter } from './progress'
 export {
