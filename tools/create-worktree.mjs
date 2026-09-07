@@ -184,8 +184,11 @@ const runLocked = async (lockPath, owner, command, commandArgs) => {
   let stdout = ""
   let stderr = ""
   const completion = new Promise((resolve) => {
+    child.stdout.setEncoding("utf8")
+    child.stderr.setEncoding("utf8")
     child.stdout.on("data", (chunk) => { stdout += chunk })
     child.stderr.on("data", (chunk) => { stderr += chunk })
+    child.stdin.on("error", (error) => { stderr += error.message })
     child.on("error", (error) => { stderr += error.message })
     child.on("close", (status) => resolve({ status, stdout, stderr }))
   })
