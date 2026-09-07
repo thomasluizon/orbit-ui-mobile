@@ -42,6 +42,36 @@ const cases: PhraseCase[] = [
 
 describe('readHabitPhrase', () => {
   it.each([
+    { locale: 'en', invalid: 'at 1.5pm', valid: 'at 1pm', dueTime: '13:00' },
+    { locale: 'en', invalid: 'at 13:30.5', valid: 'at 13:30', dueTime: '13:30' },
+    { locale: 'en', invalid: '1.5pm', valid: '1pm', dueTime: '13:00' },
+    { locale: 'en', invalid: '1.5:30', valid: '5:30', dueTime: '05:30' },
+    { locale: 'en', invalid: '13:30.5', valid: '13:30', dueTime: '13:30' },
+    { locale: 'en', invalid: '1.5h', valid: '5h', dueTime: '05:00' },
+    { locale: 'en', invalid: '13h.5', valid: '13h', dueTime: '13:00' },
+    { locale: 'en', invalid: '1pm.5', valid: '1pm', dueTime: '13:00' },
+    { locale: 'pt-BR', invalid: 'às 1,5h', valid: 'às 13h', dueTime: '13:00' },
+    { locale: 'pt-BR', invalid: 'às 13:30,5', valid: 'às 13:30', dueTime: '13:30' },
+    { locale: 'pt-BR', invalid: '1,5h', valid: '5h', dueTime: '05:00' },
+    { locale: 'pt-BR', invalid: '1,5:30', valid: '5:30', dueTime: '05:30' },
+    { locale: 'pt-BR', invalid: '13:30,5', valid: '13:30', dueTime: '13:30' },
+    { locale: 'pt-BR', invalid: '13h,5', valid: '13h', dueTime: '13:00' },
+  ] as const)('keeps decimal clock $invalid unresolved and valid clock $valid intact', ({ locale, invalid, valid, dueTime }) => {
+    for (const punctuation of ['', '.', ',']) {
+      const input = `${valid}${punctuation}`
+      const read = readHabitPhrase(input, locale)
+      expect(read.dueTime).toBe(dueTime)
+      expect(read.consumed).toEqual([{ start: 0, end: valid.length, kind: 'time' }])
+    }
+    for (const decimal of ['1.5 km', '1,5 km']) {
+      expect(readHabitPhrase(decimal, locale)).toMatchObject({ dueTime: null, consumed: [] })
+    }
+    const read = readHabitPhrase(invalid, locale)
+    expect(read).toMatchObject({ dueTime: null, consumed: [] })
+    expect(segmentHabitPhrase(invalid, read.consumed)).toEqual([{ text: invalid, consumed: false }])
+  })
+
+  it.each([
     ['Read every day at 8h30', '08:30'],
     ['Read every day 08h30', '08:30'],
     ['Read every day at 8h', '08:00'],
