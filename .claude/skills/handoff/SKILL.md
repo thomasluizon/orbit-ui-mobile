@@ -87,9 +87,19 @@ next session can re-run it. A count, a ticket state, a branch, a gate: check it.
 is expensive or slow, write the command instead of the answer; still read its cited source now.
 
 Check durability too. Before citing anything the next session needs that lives only in this session's
-scratchpad, write it to `<repo>/.git/orbit-handoff/` and cite that copy. It outlives the session, sits
-beside the run state, and is never committed because `.git` is outside the tree. In a linked worktree,
-use the main checkout's `.git` directory.
+scratchpad, write it to `<repo>/.git/orbit-handoff/` using the naming rule below and cite that copy.
+It outlives the session, sits beside the run state, and is never committed because `.git` is outside
+the tree. In a linked worktree,
+use the main checkout's `.git` directory: both resolve to the same shared handoff directory.
+
+**Durable naming rule (dependencies and final prompt).** Every saved file must be named
+`YYYYMMDDTHHmmssZ-<run-id>-<NNN>.<ext>`. Use the current UTC date and time to the second for the
+timestamp. Generate `run-id` once per handoff invocation with
+`node -p "require('node:crypto').randomUUID()"` and reuse it for every file in that handoff.
+Start `NNN` at `001` and increment for each file, padding to at least three digits. Keep the source
+extension for dependencies; use `md` for the prompt. Create each file exclusively, failing if the
+path already exists. On a collision, increment `NNN` and retry; never overwrite an existing file.
+The timestamp makes recency visible in a directory listing, and the run id groups files by run.
 
 **C. Separate what is settled from what is open.** Settled decisions travel as pointers and are not
 reopened. Open questions travel as questions, each with the reason it is still open and who has to
@@ -110,8 +120,9 @@ Reconcile the delta against the task list: every item is present as work or carr
 handover. A filed ticket is not a delivered ticket: each ticket this session filed belongs in the
 task list as work or as an explicit deferral with its reason.
 
-**E. Hand it over.** Save it under `<repo>/.git/orbit-handoff/` so it survives the session, print it in
-one fenced block so it can be copied whole, and say in one line what you deliberately left out and why.
+**E. Hand it over.** Save it under `<repo>/.git/orbit-handoff/` using the durable naming rule in step B
+so it survives the session, print it in one fenced block so it can be copied whole, and say in one
+line what you deliberately left out and why.
 Before handing it over, verify that the saved prompt contains all five standing-contract points and
 both file pointers before any task instructions.
 
