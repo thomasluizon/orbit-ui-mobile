@@ -25,6 +25,40 @@ type ExpectedOptions =
   | readonly [SegmentedControlOption<Value>, SegmentedControlOption<Value>, SegmentedControlOption<Value>]
   | readonly [SegmentedControlOption<Value>, SegmentedControlOption<Value>, SegmentedControlOption<Value>, SegmentedControlOption<Value>]
 
+declare function acceptInferred<TValue extends string>(props: SegmentedControlProps<TValue>): void
+
+acceptInferred({
+  options: [{ value: 'all', label: 'All' }, { value: 'active', label: 'Active' }],
+  value: 'all',
+  onChange: () => {},
+  label: 'View',
+})
+acceptInferred({
+  options: [{ value: 'all', label: 'All' }, { value: 'active', label: 'Active' }],
+  // @ts-expect-error the selected value must be inferred only from the options
+  value: 'unknown',
+  onChange: () => {},
+  label: 'View',
+})
+
+export const threeOptionsForString: SegmentedControlProps<string> = {
+  options: [{ value: 'all', label: 'All' }, { value: 'active', label: 'Active' }, { value: 'done', label: 'Done' }],
+  value: 'all',
+  onChange: () => {},
+  label: 'View',
+}
+export const fourOptionsForString: SegmentedControlProps<string> = {
+  options: [
+    { value: 'all', label: 'All' },
+    { value: 'active', label: 'Active' },
+    { value: 'done', label: 'Done' },
+    { value: 'archived', label: 'Archived' },
+  ],
+  value: 'all',
+  onChange: () => {},
+  label: 'View',
+}
+
 export type SegmentedControlTypeContract = [
   Assert<IsExactWidth<ConcreteProps['options'], ExpectedOptions>>,
   Assert<IsExactWidth<ConcreteProps['value'], Value>>,
@@ -49,6 +83,12 @@ export type SegmentedControlTypeContract = [
   Assert<IsExact<Omit<TwoOptions, 'options'> & { options: readonly [All] }, SegmentedControlProps<'all' | 'active'>>>,
   // @ts-expect-error five options exceed the view switcher contract
   Assert<IsExact<Omit<FourOptions, 'options'> & { options: readonly [All, Active, Done, Archived, All] }, SegmentedControlProps<Value>>>,
+  // @ts-expect-error a view switcher requires at least two options
+  Assert<IsExact<Omit<TwoOptions, 'options'> & { options: readonly [] }, SegmentedControlProps<'all' | 'active'>>>,
+  // @ts-expect-error an unbounded array cannot prove the option count
+  Assert<IsExact<Omit<TwoOptions, 'options'> & { options: readonly SegmentedControlOption<'all' | 'active'>[] }, SegmentedControlProps<'all' | 'active'>>>,
+  // @ts-expect-error undefined is not an optional third option
+  Assert<IsExact<Omit<TwoOptions, 'options'> & { options: readonly [All, Active, undefined] }, SegmentedControlProps<'all' | 'active'>>>,
   // @ts-expect-error the current value must belong to the option values
   Assert<IsExact<Omit<TwoOptions, 'value'> & { value: 'done' }, SegmentedControlProps<TwoOptions['options'][number]['value']>>>,
   // @ts-expect-error the handler must accept every option value
