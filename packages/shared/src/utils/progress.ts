@@ -166,7 +166,10 @@ export function buildProtectedDayLabels(
   accountTimeZone?: string | null,
 ): { id: string; dateLabel: string; isToday: boolean }[] {
   const accountToday = isFrozenToday ? getProtectedAccountToday(accountTimeZone) : null
-  const protectedDays = [...new Set(dates)].sort().reverse().flatMap((date) => {
+  const protectedDays = [...new Set(dates)].sort((leftDate, rightDate) => {
+    if (leftDate === rightDate) return 0
+    return leftDate < rightDate ? 1 : -1
+  }).flatMap((date) => {
     const parsed = startOfDay(parseISO(date))
     if (!isValid(parsed)) return []
     return [{
