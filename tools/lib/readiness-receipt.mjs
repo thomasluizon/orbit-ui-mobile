@@ -259,16 +259,29 @@ export const pullRequestStateFromGraphQl = (payload) => {
     statusCheckRollup.push(normalized)
   }
   /**
-   * `reviews` is NULLABLE, introspected rather than assumed: `PullRequest.reviews` is an OBJECT of
-   * `PullRequestReviewConnection`, not NON_NULL. An earlier comment here claimed the opposite and
-   * refused a null, which would have turned the whole read into an environment error on a response the
-   * schema permits. That is the same fail-shut shape as refusing a null `author`. So null reads as an
-   * empty list, exactly as `statusCheckRollup` above already does.
+   * THREE nullable layers on the review path, every one introspected rather than assumed, because
+   * this exact mistake has now been made twice here in opposite directions:
+   *
+   *   PullRequest.reviews                    OBJECT PullRequestReviewConnection   nullable
+   *   PullRequestReviewConnection.nodes      LIST(PullRequestReview)              nullable
+   *   the LIST's own elements                PullRequestReview                    nullable
+   *
+   * `nodes` is a bare LIST of a bare OBJECT: neither the list nor its elements is wrapped in
+   * NON_NULL, so `{ nodes: null }` and `[null]` are both responses the schema permits. Refusing
+   * either turned the WHOLE read into an environment error, which aborts both readers before they can
+   * use even a present, green approval check. That is the fail-shut shape again: a defensive read
+   * that is worse than the gap it guards.
+   *
+   * So a null connection and a null node list both read as no reviews, and a null ELEMENT is skipped
+   * as evidence that is simply not the reviewing app. A malformed but PRESENT review object is still
+   * refused, because that is a genuinely broken read rather than a shape the schema allows.
    */
-  const reviewNodes = pullRequest.reviews === null ? [] : pullRequest.reviews?.nodes
+  const reviewsConnection = pullRequest.reviews
+  const reviewNodes = reviewsConnection === null || reviewsConnection?.nodes === null ? [] : reviewsConnection?.nodes
   if (!Array.isArray(reviewNodes)) return null
   const reviews = []
   for (const node of reviewNodes) {
+    if (node === null) continue
     const normalized = normalizeReviewNode(node)
     if (!normalized) return null
     reviews.push(normalized)

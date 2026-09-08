@@ -15,7 +15,8 @@
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
     "test": "turbo run test",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "surfaces:manifest": "node tools/surface-manifest.mjs"
   },
   "devDependencies": {
     "@swc/helpers": "^0.5.15",

@@ -12,6 +12,30 @@ name: Redesign drift control
 # When the merge conflicts, the job fails loudly and stops. Resolving a conflict is a
 # human decision about two real changes, and a machine picking a side silently is how a
 # redesign quietly loses a fix that landed on main.
+#
+# THE TOKEN (thomasluizon/orbit-tickets#378). The default `GITHUB_TOKEN` can never push a
+# file under `.github/workflows/`: GitHub refuses the push with "refusing to allow a GitHub
+# App to create or update workflow ... without `workflows` permission", and the
+# `permissions:` block has no `workflows` key to grant, by design. That scope exists only on
+# a personal access token or a GitHub App installation token, so this is not a
+# misconfiguration a `permissions:` line can fix.
+#
+# The choice is a FINE-GRAINED PAT in the `REDESIGN_DRIFT_TOKEN` repository secret, not an
+# App installation token minted in the job. The reason: an App token needs an App id and a
+# private key as two more secrets plus a third-party minting action inside the trusted path,
+# to solve a single-repository push. A fine-grained PAT scoped to this one repository with
+# Contents: write and Workflows: write is one secret, adds no action, and is revocable in one
+# click. Create it as: GitHub > Settings > Developer settings > Fine-grained tokens, repository
+# access `thomasluizon/orbit-ui-mobile` only, Repository permissions Contents: read and write
+# plus Workflows: read and write. Store it as the repository secret `REDESIGN_DRIFT_TOKEN`.
+#
+# Without that secret the job still runs and still carries every non-workflow change. It
+# refuses BEFORE merging when the pending drift contains a workflow file, so the log never
+# shows a successful-looking merge above a raw git error.
+#
+# No ticket is filed automatically. Reaching `thomasluizon/orbit-tickets` would mean scoping
+# this token to a second repository, which widens its blast radius to buy a notification
+# GitHub's own workflow-failure mail already sends. The cause goes in the job summary instead.
 
 on:
   push:
@@ -28,11 +52,14 @@ concurrency:
 jobs:
   merge-main-into-redesign:
     runs-on: ubuntu-latest
+    env:
+      DRIFT_TOKEN: ${{ secrets.REDESIGN_DRIFT_TOKEN }}
     steps:
       - name: Check out the full history
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          token: ${{ secrets.REDESIGN_DRIFT_TOKEN || github.token }}
 
       - name: Skip when the integration branch does not exist
         id: exists
@@ -56,6 +83,79 @@ jobs:
             exit 1
           fi
 
+      - name: Refuse a workflow-file drift the default token cannot push
+        if: steps.exists.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          # This runs BEFORE the merge on purpose. The push is what GitHub refuses, and a refusal
+          # after a clean merge reads as success for ten lines and then dies on the last one.
+          git switch redesign/main
+          # Compute the PROSPECTIVE MERGE and diff that against HEAD. Nothing cheaper is correct, and
+          # two cheaper things were tried and are wrong:
+          #
+          #   `git diff HEAD origin/main`     compares the two TIPS, so a workflow file that only
+          #                                   redesign/main changed counts. Measured on the live refs:
+          #                                   7 files, every one a false positive.
+          #   `git diff HEAD...origin/main`   asks what origin/main changed since the merge base, which
+          #                                   still counts a change redesign/main landed INDEPENDENTLY
+          #                                   and identically, where the merge produces no net change.
+          #                                   Proven on a scratch repository: three-dot reports 1 file,
+          #                                   the merge produces 0.
+          #
+          # `merge-tree --write-tree` writes the merged tree without touching the index or the working
+          # tree and prints its OID, so `git diff HEAD <tree>` is exactly the set this merge would
+          # change. On the live refs it agrees with reality where both shortcuts did not.
+          # stdout and stderr are captured SEPARATELY, because the first line of stdout is used as a
+          # tree OID and folding stderr into it would feed a warning to `git diff`. Both response
+          # shapes were observed rather than assumed, on git 2.55.0:
+          #
+          #   success  rc 0, stdout is exactly one 40-character OID, stderr empty
+          #   conflict rc 1, stdout is the OID, then `100644 <blob> 1|2|3\t<path>` stage lines, a blank
+          #            line, then `Auto-merging ...` and `CONFLICT (content): ...`; stderr empty
+          #
+          # So rc is checked FIRST: on a conflict the OID is present and still must not be used, because
+          # the merge step below is the one that reports a conflict loudly.
+          set +e
+          merged_stdout=$(git merge-tree --write-tree HEAD origin/main 2>"$RUNNER_TEMP/merge-tree-stderr.txt")
+          merged_rc=$?
+          set -e
+          merged=$(printf '%s\n' "$merged_stdout" | head -1)
+          if [ "$merged_rc" -ne 0 ] || ! printf '%s' "$merged" | grep -qE '^([0-9a-f]{40}|[0-9a-f]{64})$'; then
+            # A conflict, a git too old for --write-tree (2.38+), or a first line that is not an object
+            # id. None is a signal this step can interpret, and refusing on an unknown would block every
+            # drift run. The merge step below fails loudly on a real conflict, and the push classifier
+            # names the cause if the refusal happens anyway, so an unknown degrades the message rather
+            # than the verdict. The OID shape is validated rather than trusted, which is the whole point
+            # of reading someone else's output.
+            echo "::warning::Could not compute the prospective merge (git merge-tree exited $merged_rc, first stdout line \"$merged\"), so the workflow-file preflight is skipped. The merge step below still reports a conflict, and a refused push still names its cause."
+            printf '%s\n' "$merged_stdout"
+            cat "$RUNNER_TEMP/merge-tree-stderr.txt" || true
+            exit 0
+          fi
+          pending=$(git diff --name-only HEAD "$merged" -- .github/workflows || true)
+          if [ -z "$pending" ]; then
+            echo "The pending drift carries no workflow file; the default token can push it."
+            exit 0
+          fi
+          if [ -n "${DRIFT_TOKEN:-}" ]; then
+            echo "The pending drift carries a workflow file and REDESIGN_DRIFT_TOKEN is set; proceeding."
+            exit 0
+          fi
+          {
+            echo "### Redesign drift refused before merging"
+            echo
+            echo "The pending drift from \`main\` changes a file under \`.github/workflows/\`, and the"
+            echo "default \`GITHUB_TOKEN\` has no \`workflows\` scope, so the push would be refused."
+            echo "Set the \`REDESIGN_DRIFT_TOKEN\` repository secret (see this workflow's header)."
+            echo
+            echo "Files:"
+            echo '```'
+            echo "$pending"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::Cause: the pending drift changes .github/workflows/** and REDESIGN_DRIFT_TOKEN is not set, so GitHub would refuse the push (GITHUB_TOKEN has no workflows scope). Nothing was merged."
+          exit 1
+
       - name: Merge main into redesign/main
         if: steps.exists.outputs.present == 'true'
         run: |
@@ -72,9 +172,45 @@ jobs:
 
           if ! git merge --no-ff --no-edit origin/main; then
             git merge --abort || true
-            echo "::error::main does not merge cleanly into redesign/main. Resolve it by hand; this job never picks a side."
+            {
+              echo "### Redesign drift conflicted"
+              echo
+              echo "\`main\` does not merge cleanly into \`redesign/main\`. Resolve it by hand."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Cause: main does not merge cleanly into redesign/main. Resolve it by hand; this job never picks a side."
             exit 1
           fi
 
-          git push origin redesign/main
-          echo "Merged main into redesign/main."
+          set +e
+          push=$(git push origin redesign/main 2>&1)
+          rc=$?
+          set -e
+          echo "$push"
+          if [ "$rc" -eq 0 ]; then
+            echo "Merged main into redesign/main."
+            exit 0
+          fi
+          # The pattern comes from a real refusal, not from a guess: run 32916617441 on 2026-08-26
+          # ended with `! [remote rejected] redesign/main -> redesign/main (refusing to allow a GitHub
+          # App to create or update workflow \`.github/workflows/guards.yml\` without \`workflows\`
+          # permission)`. The dots stand in for the backticks GitHub puts around `workflows`.
+          #
+          # This classifier only chooses the WORDING. It never decides the verdict: the push already
+          # failed, the job already exits 1, and the else branch below names the cause generically. So
+          # if GitHub reworks that sentence the worst outcome is a less specific message, never a
+          # refusal read as a success.
+          if printf '%s' "$push" | grep -q "without .workflows. permission"; then
+            echo "::error::Cause: GitHub refused the push because it carries a .github/workflows/** change and the pushing token has no workflows scope. Set REDESIGN_DRIFT_TOKEN (see this workflow's header). The merge commit was NOT published."
+          else
+            echo "::error::Cause: the push to redesign/main failed with status $rc. The merge commit was NOT published; the message above is git's own."
+          fi
+          {
+            echo "### Redesign drift push refused"
+            echo
+            echo "The merge succeeded locally and was never published, so \`redesign/main\` is unchanged."
+            echo
+            echo '```'
+            printf '%s\n' "$push"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1

@@ -224,6 +224,25 @@ export const cases = () => {
     data: { repository: { pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, reviews: null, statusCheckRollup: null } } },
   })
   T(`${TOOL}: a null reviews connection reads as an empty list, not a broken read`, Array.isArray(nullReviews?.reviews) && nullReviews.reviews.length === 0, JSON.stringify(nullReviews))
+  /**
+   * Three nullable layers, all introspected on 2026-09-08: `PullRequest.reviews` is a nullable OBJECT,
+   * `PullRequestReviewConnection.nodes` is a bare `LIST(PullRequestReview)`, and its ELEMENTS are bare
+   * objects. Neither the list nor its elements is NON_NULL, so both shapes below are responses the
+   * schema permits, and refusing either aborted the whole read before it could use a present green
+   * check. A null element is simply not the reviewing app, so it is skipped rather than fatal.
+   */
+  const nullNodeList = pullRequestStateFromGraphQl({
+    data: { repository: { pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, reviews: { nodes: null }, statusCheckRollup: null } } },
+  })
+  T(`${TOOL}: a null nodes LIST reads as an empty list, because the schema does not make it non-null`, Array.isArray(nullNodeList?.reviews) && nullNodeList.reviews.length === 0, JSON.stringify(nullNodeList))
+  const nullElement = pullRequestStateFromGraphQl({
+    data: { repository: { pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, reviews: { nodes: [null, { state: "APPROVED", submittedAt: "2026-09-08T10:00:00Z", author: { __typename: "Bot", login: "pullfrog" }, commit: { oid: HEAD_A } }] }, statusCheckRollup: null } } },
+  })
+  T(
+    `${TOOL}: a null review ELEMENT is skipped, and the real review beside it still counts`,
+    nullElement?.reviews?.length === 1 && nullElement.reviews[0].state === "APPROVED" && nullElement.reviews[0].isBot === true,
+    JSON.stringify(nullElement),
+  )
   T(
     `${TOOL}: a reviews object with a non-array nodes is still refused`,
     pullRequestStateFromGraphQl({

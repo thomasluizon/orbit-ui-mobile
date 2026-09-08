@@ -17,126 +17,151 @@
     ".claude/agents/Explore.md": {
       "model": "haiku",
       "effort": null,
+      "digest": "74e69f2e9ecb53a7",
       "verdict": "current: locates code and returns excerpts, never reviews it, so haiku is the right floor and effort is undeclared because breadth is passed in the prompt."
     },
     ".claude/agents/audit-readonly.md": {
       "model": "haiku",
       "effort": null,
+      "digest": "ccf83adcaf2a327b",
       "verdict": "current: a read-only fan-out finder over Read/Grep/Glob, so haiku is the right floor and no effort is declared because the work is enumeration rather than judgement."
     },
     ".claude/agents/completeness-critic.md": {
       "model": "sonnet",
       "effort": "high",
+      "digest": "18fa9e64efcdb3a1",
       "verdict": "current: its whole job is to falsify a completion claim across a surface inventory, which is judgement, so sonnet at high effort is right and must not fall to haiku."
     },
     ".claude/agents/design-reviewer.md": {
       "model": "sonnet",
       "effort": "medium",
+      "digest": "2948735644b388c8",
       "verdict": "current: judges a diff against DESIGN.md with the spec in front of it, so sonnet at medium effort is right; the rules are written down, which is what keeps it off high."
     },
     ".claude/agents/design-specialist.md": {
       "model": "inherit",
       "effort": "high",
+      "digest": "0238593f7564142c",
       "verdict": "current: shapes the UI half of a ticket and must refuse to improvise where the design system cannot meet a need, so it inherits the session model at high effort deliberately."
     },
     ".claude/agents/product-manager.md": {
       "model": "inherit",
       "effort": "high",
+      "digest": "06e63d937fc86cb1",
       "verdict": "current: runs the eight-category edge-case pass and decides how many tickets a request becomes, so it inherits the session model at high effort."
     },
     ".claude/agents/web-researcher.md": {
       "model": "sonnet",
       "effort": "medium",
+      "digest": "b0eba80af5cdd41f",
       "verdict": "current: verifies load-bearing facts against live pages for one narrow slice, so sonnet at medium effort is right; it has no Agent tool, which is the structural cap that matters more than the model."
     },
     ".claude/skills/android-generate/SKILL.md": {
       "model": null,
       "effort": "low",
+      "digest": "4aab9a05b8f27d13",
       "verdict": "current: a mechanical gradle build and emulator install, so low effort is right."
     },
     ".claude/skills/android-release/SKILL.md": {
       "model": null,
       "effort": "low",
+      "digest": "511b9e409e86a2d9",
       "verdict": "current: dispatches one workflow with computed version numbers, so low effort is right."
     },
     ".claude/skills/audit-code-quality/SKILL.md": {
       "model": null,
       "effort": null,
+      "digest": "2b278674dc8f8764",
       "verdict": "undeclared, inherits the session: a judgement-level debt audit that opens tickets, which argues for an explicit high. Left undeclared in this first pass because declaring it changes behaviour and cost, and eleven skills are in the same position; that is the follow-up this pass names rather than a change smuggled into the mechanism."
     },
     ".claude/skills/audit-performance/SKILL.md": {
       "model": null,
       "effort": null,
+      "digest": "97dae7a146ee0fc6",
       "verdict": "undeclared, inherits the session: same shape as audit-code-quality and the same follow-up."
     },
     ".claude/skills/audit-security/SKILL.md": {
       "model": null,
       "effort": null,
+      "digest": "e92ff1f4ff0b8b21",
       "verdict": "undeclared, inherits the session: same shape as audit-code-quality and the same follow-up. This is the one where an inherited low effort would cost the most, because a missed authz hole is not visible in the output."
     },
     ".claude/skills/audit-tests/SKILL.md": {
       "model": null,
       "effort": null,
+      "digest": "291bf85e61e31045",
       "verdict": "undeclared, inherits the session: same shape as audit-code-quality and the same follow-up."
     },
     ".claude/skills/deep-research/SKILL.md": {
       "model": null,
       "effort": null,
+      "digest": "a7bbf3c505b096e8",
       "verdict": "undeclared, inherits the session: it fans out web-researcher subagents that carry their own sonnet/medium tuning, so the orchestrating half inheriting the session is defensible today."
     },
     ".claude/skills/dev-server/SKILL.md": {
       "model": null,
       "effort": "low",
+      "digest": "b95013bea459e4fc",
       "verdict": "current: brings up Docker, the API and the web server in dependency order with readiness gates, which is mechanical, so low effort is right."
     },
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
+      "digest": "1f2a317d703d51be",
       "verdict": "current: high effort, and it earns it: it decides what a fresh session cannot rediscover, and under-thinking it is how a handoff loses the one fact written nowhere else."
     },
     ".claude/skills/investigate/SKILL.md": {
       "model": null,
       "effort": null,
+      "digest": "9e633595abd89253",
       "verdict": "undeclared, inherits the session: root-causing a production incident across Sentry, Render, Postgres and the LSP is judgement, so this is a follow-up candidate."
     },
     ".claude/skills/lesson/SKILL.md": {
       "model": null,
       "effort": null,
+      "digest": "f3af59784bce4557",
       "verdict": "undeclared, inherits the session: it graduates a correction into a rule, which is judgement, but it always runs with Thomas present, so an inherited effort is checked by a human in the moment."
     },
     ".claude/skills/merge-prs/SKILL.md": {
       "model": null,
       "effort": null,
+      "digest": "30a5ce2efa3fb3ea",
       "verdict": "undeclared, inherits the session: the dangerous half of this skill is mechanical (an exact-head preflight, an ordered admin squash), and its safety comes from the preflight rather than from reasoning depth."
     },
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
+      "digest": "4df860787a7b5091",
       "verdict": "current: high effort, and it earns it: it plans the queue, verifies delivery from artifacts and clears the review, and it is the entry point every other piece of work passes through."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,
       "effort": null,
+      "digest": "d9770f6cffd4fde1",
       "verdict": "undeclared, inherits the session: it consolidates four child audits into one honest launch verdict, which is judgement, so this is a follow-up candidate."
     },
     ".claude/skills/second-opinion/SKILL.md": {
       "model": null,
       "effort": null,
+      "digest": "8977e10e62d65f75",
       "verdict": "current with nothing to declare: the reasoning happens in the other model, by construction. Declaring an effort here would tune the wrong side of the call."
     },
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
+      "digest": "37b5e1a9a9ca119e",
       "verdict": "undeclared, inherits the session: it takes every decision alone overnight, which is the strongest argument for an explicit high in the follow-up, and the weakest place to guess it in this pass."
     },
     ".claude/skills/ticket/SKILL.md": {
       "model": null,
       "effort": "high",
+      "digest": "ce7376bb28eca9c8",
       "verdict": "current: high effort, and it earns it: a ticket is the prompt (D2), so a shallow ticket is a shallow implementation, and the cost lands on whoever executes it."
     },
     ".claude/skills/validate/SKILL.md": {
       "model": null,
       "effort": "low",
+      "digest": "e1ef5a36050d37f1",
       "verdict": "current: runs lint, type-check and tests across both repos, so low effort is right."
     }
   }

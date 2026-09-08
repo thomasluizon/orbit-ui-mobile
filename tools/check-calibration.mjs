@@ -35,6 +35,7 @@
  * failure wearing a different hat.
  */
 
+import { createHash } from "node:crypto"
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -53,7 +54,9 @@ const USAGE = `usage: check-calibration.mjs [--root <path>]
 
     1. every .claude/agents/*.md and .claude/skills/*/SKILL.md has a stamp entry
     2. no stamp entry names a file that no longer exists
-    3. each entry's recorded model and effort match what the file declares today
+    3. each entry's recorded model and effort match what the file declares today, AND its recorded
+       digest matches the file's complete normalized content, so rewriting a prompt body invalidates
+       the verdict that was written about the old text
     4. the stamp's workerModel and workerArgs match the invocation launch-worker.mjs actually
        resolves, taken from resolveWorkerInvocation itself rather than rebuilt here, so workerArgs is
        the WHOLE argument vector: engine-level args, then the models.default profile args, then the
@@ -171,6 +174,22 @@ const declaredTuning = (relativePath) => {
   return tuning
 }
 
+/**
+ * A digest of the file's COMPLETE normalized content, not just its two tuning scalars.
+ *
+ * The verdict in the stamp is a judgement about what the file ASKS THE MODEL TO DO. Rewriting a
+ * skill's body makes it materially more or less demanding while `model:` and `effort:` never move, so
+ * a tuning-only comparison kept blessing a verdict that was reconsidered for different text. PR #640
+ * proved that miss and fixed it with full-content fingerprints; the #188 re-derivation dropped them,
+ * which is how the same hole reopened. The 90-day age assertion is not a substitute: it would let a
+ * rewritten prompt ride an old verdict for up to three months.
+ *
+ * Line endings are normalized so a CRLF checkout is not a false mismatch, and the digest is truncated
+ * to 16 hex characters, which is 64 bits and far past what an accidental collision needs.
+ */
+const contentDigest = (relativePath) =>
+  createHash("sha256").update(readFileSync(join(repositoryRoot, relativePath), "utf8").replace(/\r\n/g, "\n")).digest("hex").slice(0, 16)
+
 const problems = []
 
 const files = calibratedFiles()
@@ -187,6 +206,17 @@ for (const relativePath of files) {
     if ((entry[field] ?? null) !== (declared[field] ?? null)) {
       problems.push(`${relativePath} declares ${field} ${JSON.stringify(declared[field])} but the stamp recorded ${JSON.stringify(entry[field] ?? null)}`)
     }
+  }
+  /**
+   * The verdict is a judgement about what this file asks the model to do, so ANY content change
+   * invalidates it, not only a change to the two tuning scalars. Without this, a rewritten prompt rode
+   * its old verdict until the 90-day age backstop expired.
+   */
+  const digest = contentDigest(relativePath)
+  if (typeof entry.digest !== "string" || entry.digest === "") {
+    problems.push(`${relativePath} has no recorded digest, so its verdict cannot be tied to the text it was written about`)
+  } else if (entry.digest !== digest) {
+    problems.push(`${relativePath} changed since it was calibrated (content ${digest}, stamp ${entry.digest}); reconsider its verdict and reseed, because model and effort alone cannot see a rewritten prompt`)
   }
 }
 

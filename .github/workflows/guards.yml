@@ -13,6 +13,7 @@ name: Guards
 #   expo-pin - apps/mobile/package.json changes must keep the Expo SDK pin resolution intact
 #   performance-workflow - generated measured-performance logic matches its canonical module
 #   calibration - the per-agent and per-skill tuning stamp is current against the running worker model
+#   review-harness - a UI pull request on redesign/main states what the review skills found
 
 on:
   pull_request:
@@ -193,6 +194,33 @@ jobs:
       - name: Expo-pinned versions still resolve to the SDK set
         working-directory: apps/mobile
         run: CI=1 npx expo install --check
+
+  review-harness:
+    name: Redesign Review Harness
+    runs-on: ubuntu-latest
+    # Only a pull request has a body and a base to read. On a push to main there is nothing to check,
+    # and the checker itself exits 0 for any base that is not redesign/main.
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: A UI pull request on redesign/main records what the review skills found
+        env:
+          # Through the environment, never argv: a body is untrusted text and interpolating it into a
+          # run block is a shell injection. The same reason check-dashes.mjs reads the title this way.
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
+          git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD > "$RUNNER_TEMP/changed.txt"
+          node tools/check-review-harness.mjs \
+            --base '${{ github.base_ref }}' \
+            --body-file "$RUNNER_TEMP/pr-body.md" \
+            --changed-files-file "$RUNNER_TEMP/changed.txt"
 
   performance-workflow:
     name: Performance Workflow Drift

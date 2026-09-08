@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto"
 import { mkdirSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
@@ -9,6 +10,8 @@ const AGENT = ["---", "name: design-reviewer", "tools: Glob, Grep, Read", "model
 const SKILL = ["---", "name: ticket", "effort: high", "---", "", "body", ""].join("\n")
 /** A skill that declares no tuning at all, which eleven of the eighteen live ones do not. */
 const UNTUNED_SKILL = ["---", "name: lesson", "---", "", "body", ""].join("\n")
+
+const digestOf = (body) => createHash("sha256").update(body.replace(/\r\n/g, "\n")).digest("hex").slice(0, 16)
 
 const write = (path, body) => {
   mkdirSync(dirname(path), { recursive: true })
@@ -50,9 +53,9 @@ const currentStamp = (overrides = {}) => ({
   workerArgs: ["exec", "-c", 'model_reasoning_effort="high"', "--model", "gpt-5.6-sol"],
   workerModelSource: "resolveWorkerInvocation(config.worker, ..., default) in tools/lib/orchestrator-config.mjs",
   entries: {
-    ".claude/agents/design-reviewer.md": { model: "sonnet", effort: "medium", verdict: "current" },
-    ".claude/skills/lesson/SKILL.md": { model: null, effort: null, verdict: "undeclared, inherits the session" },
-    ".claude/skills/ticket/SKILL.md": { model: null, effort: "high", verdict: "current" },
+    ".claude/agents/design-reviewer.md": { model: "sonnet", effort: "medium", digest: digestOf(AGENT), verdict: "current" },
+    ".claude/skills/lesson/SKILL.md": { model: null, effort: null, digest: digestOf(UNTUNED_SKILL), verdict: "undeclared, inherits the session" },
+    ".claude/skills/ticket/SKILL.md": { model: null, effort: "high", digest: digestOf(SKILL), verdict: "current" },
   },
   ...overrides,
 })
@@ -133,6 +136,39 @@ export const cases = () => {
       }),
     ],
     { status: 1, stderr: /lesson\/SKILL\.md declares effort null but the stamp recorded "high"/ },
+  )
+
+  /**
+   * THE BODY-ONLY EDIT, which PR #640 proved once and the #188 re-derivation lost. A verdict is a
+   * judgement about what the file ASKS THE MODEL TO DO, so rewriting the prompt invalidates it even
+   * though `model:` and `effort:` never move. Without a content digest this exited 0 and the stale
+   * verdict rode the 90-day age backstop.
+   */
+  check(
+    TOOL,
+    "rewriting a skill's BODY with its model and effort unchanged exits 1",
+    [
+      "--root",
+      stageHarness("body-rewritten", {
+        stamp: currentStamp(),
+        extraFiles: { ".claude/skills/ticket/SKILL.md": SKILL.replace("body", "a materially more demanding body") },
+      }),
+    ],
+    { status: 1, stderr: /ticket\/SKILL\.md changed since it was calibrated/ },
+  )
+  /** An entry with no digest at all cannot tie its verdict to any text, so it is stale by construction. */
+  check(
+    TOOL,
+    "an entry carrying no digest exits 1",
+    [
+      "--root",
+      stageHarness("digest-missing", {
+        stamp: withEntries((entries) => {
+          delete entries[".claude/skills/ticket/SKILL.md"].digest
+        }),
+      }),
+    ],
+    { status: 1, stderr: /ticket\/SKILL\.md has no recorded digest/ },
   )
 
   /**
