@@ -104,7 +104,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key}:${JSON.stringify(values)}` : key,
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => mocks.router }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: ({ goalId, inline, onOpenChange }: { goalId: string; inline?: boolean; onOpenChange: (open: boolean) => void }) => <div role={inline ? 'region' : 'dialog'} aria-label="goal-detail">{goalId}<button onClick={() => onOpenChange(false)}>Back to goals</button></div> }))
@@ -372,7 +373,7 @@ describe('ProgressContent', () => {
 
     render(<ProgressContent />)
 
-    expect(screen.getByText('progressScreen.streak.currentLabel')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.streak.currentLabel:{"count":4}')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
     expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.lockedBody')).not.toBeInTheDocument()
@@ -417,13 +418,23 @@ describe('ProgressContent', () => {
 
     const earned = document.querySelector('[data-achievement-id="first_orbit"]')
     const progressive = document.querySelector('[data-achievement-id="week_warrior"]')
+    const completedProgress = document.querySelector('[data-achievement-id="dedicated"]')
     expect(earned).not.toBeNull()
     expect(progressive).not.toBeNull()
+    expect(completedProgress).not.toBeNull()
     expect(within(earned as HTMLElement).queryByRole('progressbar')).not.toBeInTheDocument()
     expect(within(progressive as HTMLElement).getByRole('progressbar')).toBeInTheDocument()
-    expect(within(earned as HTMLElement).getByRole('img')).toHaveAttribute('data-state', 'earned')
-    expect(within(earned as HTMLElement).getByRole('img')).toHaveStyle({ background: 'var(--status-done)' })
-    expect(within(progressive as HTMLElement).getByRole('img')).toHaveAttribute('data-state', 'unearned')
+    expect(within(completedProgress as HTMLElement).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '30')
+    expect(within(completedProgress as HTMLElement).getByRole('progressbar')).toHaveAttribute('data-complete', 'true')
+    const earnedMark = within(earned as HTMLElement).getByRole('img', {
+      name: 'progressScreen.achievements.earnedState:{"name":"gamification.achievements.first_orbit.name"}',
+    })
+    const unearnedMark = within(progressive as HTMLElement).getByRole('img', {
+      name: 'progressScreen.achievements.unearnedState:{"name":"gamification.achievements.week_warrior.name"}',
+    })
+    expect(earnedMark).toHaveAttribute('data-state', 'earned')
+    expect(earnedMark).toHaveStyle({ background: 'var(--status-done)' })
+    expect(unearnedMark).toHaveAttribute('data-state', 'unearned')
     expect(within(earned as HTMLElement).getByText('progressScreen.achievements.earnedLabel')).toBeInTheDocument()
     expect(screen.queryByText('gamification.achievements.first_friend.name')).not.toBeInTheDocument()
   })

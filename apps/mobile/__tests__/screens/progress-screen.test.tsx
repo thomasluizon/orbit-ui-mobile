@@ -114,7 +114,11 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
+  useTranslation: () => ({
+    t: (key: string, values?: Record<string, unknown>) =>
+      values ? `${key}:${JSON.stringify(values)}` : key,
+    i18n: { language: 'en' },
+  }),
 }))
 vi.mock('expo-router', () => ({ useRouter: () => mocks.router }))
 vi.mock('react-native-draggable-flatlist', () => ({
@@ -421,7 +425,7 @@ describe('mobile ProgressContent', () => {
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
 
     expect(text).toEqual(expect.arrayContaining([
-      'progressScreen.streak.currentLabel',
+      'progressScreen.streak.currentLabel:{"count":4}',
       'progressScreen.sections.goals',
       'progressScreen.window.lockedBody',
     ]))
@@ -468,12 +472,18 @@ describe('mobile ProgressContent', () => {
 
     const earned = tree.root.findAll((node) => node.props.testID === 'achievement-tile-first_orbit')[0]!
     const progressive = tree.root.findAll((node) => node.props.testID === 'achievement-tile-week_warrior')[0]!
+    const completedProgress = tree.root.findAll((node) => node.props.testID === 'achievement-tile-dedicated')[0]!
     expect(StyleSheet.flatten(earned.props.style as ViewStyle).width).toBe('48%')
     expect(earned.findAll((node) => node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
     expect(progressive.findAll((node) => node.props.accessibilityRole === 'progressbar').length).toBeGreaterThan(0)
+    const completedProgressBar = completedProgress.findAll((node) => node.props.accessibilityRole === 'progressbar')[0]!
+    expect(completedProgressBar.props.accessibilityValue).toEqual({ min: 0, max: 30, now: 30 })
+    expect(completedProgressBar.props.testID).toBe('progress-bar-complete')
     const earnedMark = earned.findAll((node) => node.props.testID === 'achievement-mark-earned')[0]!
+    const unearnedMark = progressive.findAll((node) => node.props.testID === 'achievement-mark-unearned')[0]!
+    expect(earnedMark.props.accessibilityLabel).toBe('progressScreen.achievements.earnedState:{"name":"gamification.achievements.first_orbit.name"}')
+    expect(unearnedMark.props.accessibilityLabel).toBe('progressScreen.achievements.unearnedState:{"name":"gamification.achievements.week_warrior.name"}')
     expect(StyleSheet.flatten(earnedMark.props.style as ViewStyle).backgroundColor).toBe('#status-done')
-    expect(progressive.findAll((node) => node.props.testID === 'achievement-mark-unearned').length).toBeGreaterThan(0)
     expect(earned.findAll((node) => node.props.children === 'progressScreen.achievements.earnedLabel').length).toBeGreaterThan(0)
     expect(tree.root.findAll((node) => node.props.children === 'gamification.achievements.first_friend.name')).toHaveLength(0)
 
