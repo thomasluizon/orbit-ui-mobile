@@ -260,6 +260,10 @@ describe('Android widget launcher geometry', () => {
     )
 
     expect(provider).toContain('onAppWidgetOptionsChanged')
+    expect(provider).toContain('AppWidgetManager.OPTION_APPWIDGET_SIZES')
+    expect(provider).toContain('RemoteViews(sizedViews)')
+    expect(provider).not.toContain('AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH')
+    expect(provider).not.toContain('AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT')
     expect(provider).toContain('EXTRA_WIDGET_HEIGHT_DP')
     expect(provider).toContain('EXTRA_WIDGET_WIDTH_DP')
     expect(service).toContain('internal fun calculateWidgetRows(')
@@ -286,7 +290,7 @@ describe('Android widget launcher geometry', () => {
       widget_remainder: 'mais %1$d',
     })
     expect(remainder.get('widget_remainder_text')).toMatchObject({
-      'android:layout_height': '24dp',
+      'android:layout_height': '48dp',
       'android:maxLines': '1',
       'android:textColor': '@color/widget_fg_3',
     })

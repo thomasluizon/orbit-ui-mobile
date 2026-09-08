@@ -5,7 +5,9 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
 import androidx.work.Constraints
@@ -18,6 +20,16 @@ import androidx.work.WorkManager
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
+internal data class WidgetGeometry(
+    val widthDp: Int,
+    val heightDp: Int
+)
+
+internal fun selectWidgetGeometries(
+    reportedSizes: List<WidgetGeometry>,
+    fallback: WidgetGeometry
+): List<WidgetGeometry> = reportedSizes.ifEmpty { listOf(fallback) }
+
 class OrbitWidgetProvider : AppWidgetProvider() {
 
     companion object {
@@ -27,8 +39,8 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         private const val WIDGET_REFRESH_TIMEOUT_MS = 12_000L
         internal const val EXTRA_WIDGET_HEIGHT_DP = "widget_height_dp"
         internal const val EXTRA_WIDGET_WIDTH_DP = "widget_width_dp"
-        private const val DEFAULT_WIDGET_HEIGHT_DP = 192
-        private const val DEFAULT_WIDGET_WIDTH_DP = 336
+        private const val MIN_WIDGET_HEIGHT_DP = 96
+        private const val MIN_WIDGET_WIDTH_DP = 160
 
         fun updateWidgetLayout(
             context: Context,
@@ -52,20 +64,61 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
+            val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+            val reportedSizes = readReportedSizes(options)
+            val fallback = WidgetGeometry(
+                widthDp = positiveOption(
+                    options,
+                    AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH,
+                    MIN_WIDGET_WIDTH_DP
+                ),
+                heightDp = positiveOption(
+                    options,
+                    AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT,
+                    MIN_WIDGET_HEIGHT_DP
+                )
+            )
+            val geometries = selectWidgetGeometries(
+                reportedSizes.map { WidgetGeometry(it.width.toInt(), it.height.toInt()) },
+                fallback
+            )
+            val views = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && reportedSizes.isNotEmpty()) {
+                val sizedViews = linkedMapOf<SizeF, RemoteViews>()
+                reportedSizes.zip(geometries).forEach { (size, geometry) ->
+                    sizedViews[size] = buildWidgetViews(context, appWidgetId, geometry)
+                }
+                RemoteViews(sizedViews)
+            } else {
+                buildWidgetViews(context, appWidgetId, geometries.single())
+            }
+            appWidgetManager.updateAppWidget(appWidgetId, views)
+        }
+
+        @Suppress("DEPRECATION")
+        private fun readReportedSizes(options: Bundle): List<SizeF> {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return emptyList()
+            return options.getParcelableArrayList<SizeF>(
+                AppWidgetManager.OPTION_APPWIDGET_SIZES
+            ).orEmpty().filter { it.width > 0f && it.height > 0f }.distinct()
+        }
+
+        private fun positiveOption(options: Bundle, key: String, fallback: Int): Int =
+            options.getInt(key, fallback).takeIf { it > 0 } ?: fallback
+
+        private fun buildWidgetViews(
+            context: Context,
+            appWidgetId: Int,
+            geometry: WidgetGeometry
+        ): RemoteViews {
             val views = RemoteViews(context.packageName, R.layout.widget_layout)
             val colorModes = OrbitWidgetFactory.getThemeColorModes(context)
             val density = context.resources.displayMetrics.density
 
             // Widget background: flat surface with a hairline border (lift, not gradient).
             val displayMetrics = context.resources.displayMetrics
-            val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
-            val maxWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0)
-            val maxHeightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
-            val widgetWidthDp = maxWidthDp.takeIf { it > 0 } ?: DEFAULT_WIDGET_WIDTH_DP
-            val widgetHeightDp = maxHeightDp.takeIf { it > 0 } ?: DEFAULT_WIDGET_HEIGHT_DP
-            val bgWidth = (widgetWidthDp * density).toInt()
+            val bgWidth = (geometry.widthDp * density).toInt()
                 .coerceIn(1, displayMetrics.widthPixels)
-            val bgHeight = (widgetHeightDp * density).toInt()
+            val bgHeight = (geometry.heightDp * density).toInt()
                 .coerceIn(1, displayMetrics.heightPixels / 2)
             val lightBackground = OrbitWidgetFactory.createRoundedBitmap(
                 bgWidth, bgHeight, colorModes.light.background,
@@ -151,8 +204,8 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             // Set up the RemoteViews adapter for the list
             val serviceIntent = Intent(context, OrbitWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
-                putExtra(EXTRA_WIDGET_HEIGHT_DP, widgetHeightDp)
-                putExtra(EXTRA_WIDGET_WIDTH_DP, widgetWidthDp)
+                putExtra(EXTRA_WIDGET_HEIGHT_DP, geometry.heightDp)
+                putExtra(EXTRA_WIDGET_WIDTH_DP, geometry.widthDp)
                 data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
             }
             views.setRemoteAdapter(R.id.widget_list, serviceIntent)
@@ -184,7 +237,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             views.setOnClickPendingIntent(R.id.widget_empty, openAppPendingIntent)
             views.setOnClickPendingIntent(R.id.widget_loading, openAppPendingIntent)
 
-            appWidgetManager.updateAppWidget(appWidgetId, views)
+            return views
         }
     }
 

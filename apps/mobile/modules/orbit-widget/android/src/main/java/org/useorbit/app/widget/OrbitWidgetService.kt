@@ -36,7 +36,7 @@ class OrbitWidgetService : RemoteViewsService() {
 
 private const val WIDGET_HEADER_HEIGHT_DP = 48
 private const val WIDGET_ROW_HEIGHT_DP = 48
-private const val WIDGET_REMAINDER_HEIGHT_DP = 24
+private const val WIDGET_REMAINDER_HEIGHT_DP = 48
 private const val WIDGET_NARROW_WIDTH_DP = 160
 
 internal data class WidgetRowPlan(
