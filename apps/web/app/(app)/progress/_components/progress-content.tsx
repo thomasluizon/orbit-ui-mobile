@@ -5,10 +5,12 @@ import {
   useMemo,
   useState,
   type ComponentType,
-  type DragEvent,
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
+import { DndContext, closestCenter } from '@dnd-kit/core'
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { Achievement } from '@orbit/shared/types/gamification'
@@ -21,14 +23,15 @@ import {
   extractBackendErrorCode,
   filterProgressGoals,
   getAvailableStreakRepairDate,
-  getGoalMetricsStatusPresentation,
-  getGoalDeadlinePresentation,
+  getProgressGoalLabelKey,
   getGamificationLevelTitleKey,
   getStreakTierLabelKey,
   deriveProgressViewState,
   visibleProgressAchievements,
   type ProgressGoalFilter,
 } from '@orbit/shared/utils'
+import { Badge } from '@/components/ui/badge'
+import { useGoalDrag } from './use-goal-drag'
 import { DayStrip } from '@/components/dates/day-strip'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -57,7 +60,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
 import { StatusRing } from '@/components/ui/status-ring'
 import { useGamificationProfile, useRepairStreak, useStreakFreeze } from '@/hooks/use-gamification'
-import { useGoals, useReorderGoals, useUpdateGoalStatus } from '@/hooks/use-goals'
+import { useGoals, useReorderGoals } from '@/hooks/use-goals'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useProfile } from '@/hooks/use-profile'
 import { useProgressRetrospective } from '@/hooks/use-retrospective'
@@ -214,83 +217,48 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
   )
 }
 
-function GoalIndicator({ goal, achieved }: Readonly<{ goal: Goal; achieved: boolean }>) {
+function GoalIndicator({ goal }: Readonly<{ goal: Goal }>) {
   const t = useTranslations()
-  if (goal.status === 'Completed') {
-    return <StatusRing status="done" size={48} label={t('goals.status.completed')} />
-  }
-  if (goal.status !== 'Active') return null
-  return <ProgressRing value={achieved ? 100 : goal.progressPercentage} size={48} label={t('goals.progressPercentage', { pct: Math.round(goal.progressPercentage) })} />
+  if (goal.status === 'Abandoned') return null
+  const label = t('goals.progressPercentage', { pct: Math.round(goal.progressPercentage) })
+  if (goal.status === 'Completed' || goal.progressPercentage >= 100) return <StatusRing status="done" size={30} label={label} />
+  return <ProgressRing value={goal.progressPercentage} size={44} label={label} />
 }
 
-function GoalDeadlineLine({ deadline }: Readonly<{ deadline: ReturnType<typeof getGoalDeadlinePresentation> }>) {
-  const t = useTranslations()
-  if (!deadline) return null
-  const color = deadline.state === 'overdue'
-    ? 'var(--status-bad-text)'
-    : deadline.state === 'dueToday' || deadline.state === 'soon'
-      ? 'var(--status-overdue-text)'
-      : 'var(--fg-3)'
-  const copy = deadline.state === 'dueToday'
-    ? t('progressScreen.goals.dueToday')
-    : deadline.state === 'overdue'
-      ? t('progressScreen.goals.daysOverdue', { count: deadline.days })
-      : t('progressScreen.goals.daysLeft', { count: deadline.days })
-  return <p className="text-[12px]" style={{ color }}>{copy}</p>
-}
-
-function FinishGoalAction({ goal }: Readonly<{ goal: Goal }>) {
-  const t = useTranslations()
-  const updateStatus = useUpdateGoalStatus()
-  return (
-    <div className="flex flex-col items-start gap-2">
-      <p className="text-[12px] text-[var(--fg-3)]">{t('progressScreen.goals.finishReason')}</p>
-      <PillButton variant="secondary" size="sm" loading={updateStatus.isPending} onClick={() => updateStatus.mutate({ goalId: goal.id, goalName: goal.title, data: { status: 'Completed' } })}>{t('progressScreen.goals.finish')}</PillButton>
-    </div>
-  )
-}
-
-function GoalCard({ goal, index, allGoals, canReorder, onDragStart, onDragOver, onDrop, onOpen }: Readonly<{
+function GoalCard({ goal, index, canReorder, onMove, onOpen }: Readonly<{
   goal: Goal
   index: number
-  allGoals: readonly Goal[]
   canReorder: boolean
-  onDragStart: () => void
-  onDragOver: (event: DragEvent<HTMLButtonElement>) => void
-  onDrop: () => void
+  onMove: (goalId: string, target: number) => void
   onOpen: () => void
 }>) {
   const t = useTranslations()
-  const reorder = useReorderGoals()
-  const tracking = getGoalMetricsStatusPresentation(goal.trackingStatus)
-  const achieved = goal.status === 'Active' && goal.progressPercentage >= 100
-  const deadline = getGoalDeadlinePresentation(goal.deadline, goal.status)
-  const commitMove = (target: number) => {
-    const positions = buildGoalMovePositions(allGoals, goal.id, target)
-    if (positions) reorder.mutate(positions)
-  }
+  const { setNodeRef, listeners, transform, isDragging } = useSortable({ id: goal.id, disabled: !canReorder })
+  const labelKey = getProgressGoalLabelKey(goal)
+  const abandoned = goal.status === 'Abandoned'
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
     event.preventDefault()
-    commitMove(index + (event.key === 'ArrowUp' ? -1 : 1))
+    onMove(goal.id, index + (event.key === 'ArrowUp' ? -1 : 1))
   }
-
   return (
-    <article className="flex flex-col gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
-      <button type="button" draggable={canReorder} aria-label={goal.title} aria-roledescription={canReorder ? t('goals.dragItem') : undefined} aria-keyshortcuts={canReorder ? 'Alt+ArrowUp Alt+ArrowDown' : undefined} onKeyDown={canReorder ? handleKeyDown : undefined} onDragStart={canReorder ? onDragStart : undefined} onDragOver={canReorder ? onDragOver : undefined} onDrop={canReorder ? onDrop : undefined} onClick={onOpen} className="flex w-full cursor-pointer flex-col gap-3 rounded-[12px] text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
-        <div className="flex items-center gap-4">
-          <GoalIndicator goal={goal} achieved={achieved} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[16px] font-medium text-[var(--fg-1)]">{goal.title}</p>
-            {goal.status !== 'Abandoned' ? <p className="text-[12px] tabular-nums text-[var(--fg-3)]">{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</p> : null}
-          </div>
-          <span className="text-[12px] text-[var(--fg-3)]">{achieved ? t('goals.status.achieved') : t(`goals.status.${goal.status.toLowerCase()}`)}</span>
-        </div>
-        {goal.status === 'Active' && tracking ? <p className="text-[12px] text-[var(--fg-3)]">{t(tracking.labelKey)}</p> : null}
-        <GoalDeadlineLine deadline={deadline} />
-      </button>
-      {achieved ? <FinishGoalAction goal={goal} /> : null}
-    </article>
+    <button type="button" aria-label={goal.title} data-goal-id={goal.id} data-dragging={isDragging}
+      ref={setNodeRef} {...listeners}
+      style={{ transform: CSS.Transform.toString(transform) }}
+      aria-roledescription={canReorder ? t('goals.dragItem') : undefined}
+      aria-keyshortcuts={canReorder ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
+      onKeyDown={canReorder ? handleKeyDown : undefined}
+      onClick={onOpen}
+      className="flex w-full cursor-pointer select-none items-center gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 text-left shadow-[inset_0_0_0_1px_var(--hairline-ghost)] hover:bg-[var(--bg-hover)] data-[dragging=true]:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className={`text-[17px] font-medium ${abandoned ? 'text-[var(--fg-3)]' : 'text-[var(--fg-1)]'}`}>{goal.title}</span>
+        <span className="flex flex-wrap items-center gap-2">
+          {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
+          {!abandoned ? <span className="font-[var(--font-mono)] text-[12px] tabular-nums text-[var(--fg-3)]">{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</span> : null}
+        </span>
+      </span>
+      <GoalIndicator goal={goal} />
+    </button>
   )
 }
 
@@ -299,28 +267,33 @@ function GoalsSection({ goals }: Readonly<{ goals: readonly Goal[] }>) {
   const router = useRouter()
   const reorder = useReorderGoals()
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
-  const [draggedId, setDraggedId] = useState<string | null>(null)
   const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
+  const drag = useGoalDrag(goals, filter === 'all' && !reorder.isPending, reorder.mutate)
   const filtered = filterProgressGoals(goals, filter)
+  const move = (goalId: string, target: number) => {
+    const positions = buildGoalMovePositions(goals, goalId, target)
+    if (positions) reorder.mutate(positions)
+  }
   const options = [
     { value: 'all', label: t('progressScreen.goals.all') }, { value: 'active', label: t('progressScreen.goals.active') },
     { value: 'completed', label: t('progressScreen.goals.completed') }, { value: 'abandoned', label: t('progressScreen.goals.abandoned') },
   ] as const
   return (
-    <Section title={t('progressScreen.sections.goals')}>
+    <section aria-label={t('progressScreen.sections.goals')} className="flex flex-col gap-3"><h2 className="text-[20px] font-medium text-[var(--fg-1)]">{t('progressScreen.sections.goals')}</h2>
       {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={(id) => setFilter(id)} label={t('progressScreen.goals.views')} /> : null}
       {goals.length === 0 ? <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant="ghost" onClick={() => router.push('/')}>{t('progressScreen.startHabit')}</PillButton>} /> : null}
       {goals.length > 0 && filtered.length === 0 ? <div className="flex flex-col items-start gap-3 py-6"><p className="text-[14px] text-[var(--fg-3)]">{t('progressScreen.goals.filterEmpty')}</p><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></div> : null}
       {filtered.length > 0 ? (
-        <div className="flex flex-col gap-3">
+        <DndContext sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
           {filtered.map((goal) => {
             const index = goals.findIndex((item) => item.id === goal.id)
-            return <GoalCard key={goal.id} goal={goal} index={index} allGoals={goals} canReorder={filter === 'all'} onDragStart={() => setDraggedId(goal.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (!draggedId) return; const positions = buildGoalMovePositions(goals, draggedId, index); if (positions) reorder.mutate(positions); setDraggedId(null) }} onOpen={() => setDetailGoalId(goal.id)} />
+            return <GoalCard key={goal.id} goal={goal} index={index} canReorder={filter === 'all' && !reorder.isPending} onMove={move} onOpen={() => setDetailGoalId(goal.id)} />
           })}
-        </div>
+        </div></SortableContext></DndContext>
       ) : null}
+      {reorder.isError ? <p role="alert" className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.reorderError')}</p> : null}
       {detailGoalId ? <GoalDetailDrawer open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /> : null}
-    </Section>
+    </section>
   )
 }
 

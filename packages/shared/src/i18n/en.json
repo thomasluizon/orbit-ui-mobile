@@ -2469,6 +2469,8 @@
     },
     "goals": {
       "views": "Goal views",
+      "targetReached": "Target reached",
+      "reorderError": "Could not save the new order. Try dragging again.",
       "all": "All",
       "active": "Active",
       "completed": "Completed",
@@ -2476,7 +2478,7 @@
       "empty": "No goals yet. A habit is the next useful step.",
       "filterEmpty": "No goals match this view.",
       "clearFilter": "Show all goals",
-      "progress": "{current} of {target} {unit}",
+      "progress": "{current} / {target} {unit}",
       "dueToday": "Due today",
       "daysLeft": "{count, plural, one {# day left} other {# days left}}",
       "daysOverdue": "{count, plural, one {# day overdue} other {# days overdue}}",
@@ -2484,7 +2486,7 @@
       "finish": "Finish goal",
       "moveUp": "Move up",
       "moveDown": "Move down",
-      "reorderHint": "Use Alt and the arrow keys to reorder"
+      "reorderHint": "Hold and drag to reorder, or use the move actions"
     },
     "window": {
       "completionRate": "Completion rate",
