@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "a41113b892e7278d3bc9a3965e16599da25ebffb",
+  "generatedFrom": "8cb6bb1866485fe6dd37e03cbb209cb99b847385",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -14,8 +14,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 202,
-  "cellCount": 864,
+  "surfaceCount": 194,
+  "cellCount": 832,
   "cells": [
     {
       "surfaceId": "route-about",
@@ -1109,11 +1109,12 @@
       "href": "/progress",
       "ownedFiles": [
         "apps/web/app/(app)/progress/_components/progress-content.tsx",
+        "apps/web/app/(app)/progress/_components/use-goal-drag.ts",
         "apps/web/app/(app)/progress/page.tsx",
         "apps/web/components/ui/freeze-bank.tsx",
         "apps/web/hooks/use-retrospective.ts"
       ],
-      "closureSize": 273,
+      "closureSize": 262,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -1126,11 +1127,12 @@
       "href": "/progress",
       "ownedFiles": [
         "apps/web/app/(app)/progress/_components/progress-content.tsx",
+        "apps/web/app/(app)/progress/_components/use-goal-drag.ts",
         "apps/web/app/(app)/progress/page.tsx",
         "apps/web/components/ui/freeze-bank.tsx",
         "apps/web/hooks/use-retrospective.ts"
       ],
-      "closureSize": 273,
+      "closureSize": 262,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -1143,11 +1145,12 @@
       "href": "/progress",
       "ownedFiles": [
         "apps/web/app/(app)/progress/_components/progress-content.tsx",
+        "apps/web/app/(app)/progress/_components/use-goal-drag.ts",
         "apps/web/app/(app)/progress/page.tsx",
         "apps/web/components/ui/freeze-bank.tsx",
         "apps/web/hooks/use-retrospective.ts"
       ],
-      "closureSize": 273,
+      "closureSize": 262,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -1160,11 +1163,12 @@
       "href": "/progress",
       "ownedFiles": [
         "apps/web/app/(app)/progress/_components/progress-content.tsx",
+        "apps/web/app/(app)/progress/_components/use-goal-drag.ts",
         "apps/web/app/(app)/progress/page.tsx",
         "apps/web/components/ui/freeze-bank.tsx",
         "apps/web/hooks/use-retrospective.ts"
       ],
-      "closureSize": 273,
+      "closureSize": 262,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -1177,11 +1181,12 @@
       "href": "/progress",
       "ownedFiles": [
         "apps/web/app/(app)/progress/_components/progress-content.tsx",
+        "apps/web/app/(app)/progress/_components/use-goal-drag.ts",
         "apps/web/app/(app)/progress/page.tsx",
         "apps/web/components/ui/freeze-bank.tsx",
         "apps/web/hooks/use-retrospective.ts"
       ],
-      "closureSize": 273,
+      "closureSize": 262,
       "state": "empty",
       "theme": "light",
       "locale": "en"
@@ -1194,11 +1199,12 @@
       "href": "/progress",
       "ownedFiles": [
         "apps/web/app/(app)/progress/_components/progress-content.tsx",
+        "apps/web/app/(app)/progress/_components/use-goal-drag.ts",
         "apps/web/app/(app)/progress/page.tsx",
         "apps/web/components/ui/freeze-bank.tsx",
         "apps/web/hooks/use-retrospective.ts"
       ],
-      "closureSize": 273,
+      "closureSize": 262,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR"
@@ -1211,11 +1217,12 @@
       "href": "/progress",
       "ownedFiles": [
         "apps/web/app/(app)/progress/_components/progress-content.tsx",
+        "apps/web/app/(app)/progress/_components/use-goal-drag.ts",
         "apps/web/app/(app)/progress/page.tsx",
         "apps/web/components/ui/freeze-bank.tsx",
         "apps/web/hooks/use-retrospective.ts"
       ],
-      "closureSize": 273,
+      "closureSize": 262,
       "state": "empty",
       "theme": "dark",
       "locale": "en"
@@ -1228,11 +1235,12 @@
       "href": "/progress",
       "ownedFiles": [
         "apps/web/app/(app)/progress/_components/progress-content.tsx",
+        "apps/web/app/(app)/progress/_components/use-goal-drag.ts",
         "apps/web/app/(app)/progress/page.tsx",
         "apps/web/components/ui/freeze-bank.tsx",
         "apps/web/hooks/use-retrospective.ts"
       ],
-      "closureSize": 273,
+      "closureSize": 262,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
@@ -1533,6 +1541,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
+        "apps/web/components/gamification/ring-motif.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
       "closureSize": 194,
@@ -1552,6 +1561,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
+        "apps/web/components/gamification/ring-motif.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
       "closureSize": 194,
@@ -1571,6 +1581,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
+        "apps/web/components/gamification/ring-motif.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
       "closureSize": 194,
@@ -1590,6 +1601,7 @@
         "apps/web/app/(app)/wrapped/_components/wrapped-slide.tsx",
         "apps/web/app/(app)/wrapped/_components/wrapped-styles.ts",
         "apps/web/app/(app)/wrapped/page.tsx",
+        "apps/web/components/gamification/ring-motif.tsx",
         "apps/web/hooks/use-wrapped.ts"
       ],
       "closureSize": 194,
@@ -2699,7 +2711,7 @@
       "ownedFiles": [
         "apps/web/components/chat/conversation.tsx"
       ],
-      "closureSize": 308,
+      "closureSize": 301,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -2714,7 +2726,7 @@
       "ownedFiles": [
         "apps/web/components/chat/conversation.tsx"
       ],
-      "closureSize": 308,
+      "closureSize": 301,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -2729,7 +2741,7 @@
       "ownedFiles": [
         "apps/web/components/chat/conversation.tsx"
       ],
-      "closureSize": 308,
+      "closureSize": 301,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -2744,7 +2756,7 @@
       "ownedFiles": [
         "apps/web/components/chat/conversation.tsx"
       ],
-      "closureSize": 308,
+      "closureSize": 301,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -2759,7 +2771,7 @@
       "ownedFiles": [
         "apps/web/components/chat/conversation.tsx"
       ],
-      "closureSize": 308,
+      "closureSize": 301,
       "state": "empty",
       "theme": "light",
       "locale": "en"
@@ -2774,7 +2786,7 @@
       "ownedFiles": [
         "apps/web/components/chat/conversation.tsx"
       ],
-      "closureSize": 308,
+      "closureSize": 301,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR"
@@ -2789,7 +2801,7 @@
       "ownedFiles": [
         "apps/web/components/chat/conversation.tsx"
       ],
-      "closureSize": 308,
+      "closureSize": 301,
       "state": "empty",
       "theme": "dark",
       "locale": "en"
@@ -2804,7 +2816,7 @@
       "ownedFiles": [
         "apps/web/components/chat/conversation.tsx"
       ],
-      "closureSize": 308,
+      "closureSize": 301,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
@@ -3295,6 +3307,7 @@
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
+        "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -3311,7 +3324,7 @@
         "apps/web/hooks/use-tour-mock-data.ts",
         "apps/web/lib/api-fetch-i18n-provider.tsx"
       ],
-      "closureSize": 440,
+      "closureSize": 430,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -3326,6 +3339,7 @@
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
+        "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -3342,7 +3356,7 @@
         "apps/web/hooks/use-tour-mock-data.ts",
         "apps/web/lib/api-fetch-i18n-provider.tsx"
       ],
-      "closureSize": 440,
+      "closureSize": 430,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -3357,6 +3371,7 @@
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
+        "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -3373,7 +3388,7 @@
         "apps/web/hooks/use-tour-mock-data.ts",
         "apps/web/lib/api-fetch-i18n-provider.tsx"
       ],
-      "closureSize": 440,
+      "closureSize": 430,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -3388,6 +3403,7 @@
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
+        "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -3404,7 +3420,7 @@
         "apps/web/hooks/use-tour-mock-data.ts",
         "apps/web/lib/api-fetch-i18n-provider.tsx"
       ],
-      "closureSize": 440,
+      "closureSize": 430,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -3419,6 +3435,7 @@
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
+        "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -3435,7 +3452,7 @@
         "apps/web/hooks/use-tour-mock-data.ts",
         "apps/web/lib/api-fetch-i18n-provider.tsx"
       ],
-      "closureSize": 440,
+      "closureSize": 430,
       "state": "empty",
       "theme": "light",
       "locale": "en"
@@ -3450,6 +3467,7 @@
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
+        "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -3466,7 +3484,7 @@
         "apps/web/hooks/use-tour-mock-data.ts",
         "apps/web/lib/api-fetch-i18n-provider.tsx"
       ],
-      "closureSize": 440,
+      "closureSize": 430,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR"
@@ -3481,6 +3499,7 @@
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
+        "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -3497,7 +3516,7 @@
         "apps/web/hooks/use-tour-mock-data.ts",
         "apps/web/lib/api-fetch-i18n-provider.tsx"
       ],
-      "closureSize": 440,
+      "closureSize": 430,
       "state": "empty",
       "theme": "dark",
       "locale": "en"
@@ -3512,6 +3531,7 @@
         "apps/web/app/(app)/layout.tsx",
         "apps/web/app/(app)/onboarding-overlay-state.ts",
         "apps/web/app/actions/onboarding.ts",
+        "apps/web/components/gamification/celebration-panel.tsx",
         "apps/web/components/motion/route-transition-shell.tsx",
         "apps/web/components/navigation/notification-delete-notice.tsx",
         "apps/web/components/onboarding/retained-onboarding-overlay.tsx",
@@ -3528,7 +3548,7 @@
         "apps/web/hooks/use-tour-mock-data.ts",
         "apps/web/lib/api-fetch-i18n-provider.tsx"
       ],
-      "closureSize": 440,
+      "closureSize": 430,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
@@ -4038,230 +4058,6 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "overlay-gamification-all-done-celebration",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/gamification/all-done-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/gamification/all-done-celebration.tsx"
-      ],
-      "closureSize": 26,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-gamification-all-done-celebration",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/gamification/all-done-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/gamification/all-done-celebration.tsx"
-      ],
-      "closureSize": 26,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-gamification-all-done-celebration",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/gamification/all-done-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/gamification/all-done-celebration.tsx"
-      ],
-      "closureSize": 26,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-gamification-all-done-celebration",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/gamification/all-done-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/gamification/all-done-celebration.tsx"
-      ],
-      "closureSize": 26,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-gamification-goal-completed-celebration",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/gamification/goal-completed-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/gamification/goal-completed-celebration.tsx"
-      ],
-      "closureSize": 39,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-gamification-goal-completed-celebration",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/gamification/goal-completed-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/gamification/goal-completed-celebration.tsx"
-      ],
-      "closureSize": 39,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-gamification-goal-completed-celebration",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/gamification/goal-completed-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/gamification/goal-completed-celebration.tsx"
-      ],
-      "closureSize": 39,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-gamification-goal-completed-celebration",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/gamification/goal-completed-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/gamification/goal-completed-celebration.tsx"
-      ],
-      "closureSize": 39,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-gamification-level-up-overlay",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/gamification/level-up-overlay.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/gamification/level-up-overlay.tsx"
-      ],
-      "closureSize": 28,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-gamification-level-up-overlay",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/gamification/level-up-overlay.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/gamification/level-up-overlay.tsx"
-      ],
-      "closureSize": 28,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-gamification-level-up-overlay",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/gamification/level-up-overlay.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/gamification/level-up-overlay.tsx"
-      ],
-      "closureSize": 28,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-gamification-level-up-overlay",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/gamification/level-up-overlay.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/gamification/level-up-overlay.tsx"
-      ],
-      "closureSize": 28,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-gamification-streak-celebration",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/gamification/streak-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/gamification/streak-celebration.tsx"
-      ],
-      "closureSize": 28,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-gamification-streak-celebration",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/gamification/streak-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/gamification/streak-celebration.tsx"
-      ],
-      "closureSize": 28,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-gamification-streak-celebration",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/gamification/streak-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/gamification/streak-celebration.tsx"
-      ],
-      "closureSize": 28,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-gamification-streak-celebration",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/gamification/streak-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/gamification/streak-celebration.tsx"
-      ],
-      "closureSize": 28,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
       "surfaceId": "overlay-goals-create-goal-modal",
       "platform": "web",
       "kind": "overlay",
@@ -4495,7 +4291,7 @@
         "apps/web/components/goals/goal-card.tsx",
         "apps/web/components/goals/goal-status-badge.tsx"
       ],
-      "closureSize": 259,
+      "closureSize": 252,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -4510,7 +4306,7 @@
         "apps/web/components/goals/goal-card.tsx",
         "apps/web/components/goals/goal-status-badge.tsx"
       ],
-      "closureSize": 259,
+      "closureSize": 252,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -4525,7 +4321,7 @@
         "apps/web/components/goals/goal-card.tsx",
         "apps/web/components/goals/goal-status-badge.tsx"
       ],
-      "closureSize": 259,
+      "closureSize": 252,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -4540,7 +4336,7 @@
         "apps/web/components/goals/goal-card.tsx",
         "apps/web/components/goals/goal-status-badge.tsx"
       ],
-      "closureSize": 259,
+      "closureSize": 252,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -4554,7 +4350,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goal-detail-drawer.tsx"
       ],
-      "closureSize": 250,
+      "closureSize": 238,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -4568,7 +4364,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goal-detail-drawer.tsx"
       ],
-      "closureSize": 250,
+      "closureSize": 238,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -4582,7 +4378,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goal-detail-drawer.tsx"
       ],
-      "closureSize": 250,
+      "closureSize": 238,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -4596,7 +4392,7 @@
       "ownedFiles": [
         "apps/web/components/goals/goal-detail-drawer.tsx"
       ],
-      "closureSize": 250,
+      "closureSize": 238,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -6847,6 +6643,7 @@
         "apps/mobile/components/shell/shell-composer-slot.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/trial-banner.tsx",
+        "apps/mobile/hooks/use-ad-mob.ts",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
@@ -6879,6 +6676,7 @@
         "apps/mobile/components/shell/shell-composer-slot.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/trial-banner.tsx",
+        "apps/mobile/hooks/use-ad-mob.ts",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
@@ -6911,6 +6709,7 @@
         "apps/mobile/components/shell/shell-composer-slot.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/trial-banner.tsx",
+        "apps/mobile/hooks/use-ad-mob.ts",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
@@ -6943,6 +6742,7 @@
         "apps/mobile/components/shell/shell-composer-slot.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/trial-banner.tsx",
+        "apps/mobile/hooks/use-ad-mob.ts",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
@@ -6975,6 +6775,7 @@
         "apps/mobile/components/shell/shell-composer-slot.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/trial-banner.tsx",
+        "apps/mobile/hooks/use-ad-mob.ts",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
@@ -7007,6 +6808,7 @@
         "apps/mobile/components/shell/shell-composer-slot.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/trial-banner.tsx",
+        "apps/mobile/hooks/use-ad-mob.ts",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
@@ -7039,6 +6841,7 @@
         "apps/mobile/components/shell/shell-composer-slot.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/trial-banner.tsx",
+        "apps/mobile/hooks/use-ad-mob.ts",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
@@ -7071,6 +6874,7 @@
         "apps/mobile/components/shell/shell-composer-slot.tsx",
         "apps/mobile/components/today/today-astra.tsx",
         "apps/mobile/components/ui/trial-banner.tsx",
+        "apps/mobile/hooks/use-ad-mob.ts",
         "apps/mobile/hooks/use-bulk-actions.ts",
         "apps/mobile/hooks/use-drill-navigation.ts",
         "apps/mobile/hooks/use-habit-visibility.ts",
@@ -7206,10 +7010,12 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/progress.tsx",
         "apps/mobile/components/progress/progress-content.tsx",
+        "apps/mobile/components/progress/use-goal-drag.ts",
         "apps/mobile/components/ui/freeze-bank.tsx",
-        "apps/mobile/hooks/use-retrospective.ts"
+        "apps/mobile/hooks/use-retrospective.ts",
+        "packages/shared/src/utils/goal-drag.ts"
       ],
-      "closureSize": 288,
+      "closureSize": 286,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -7223,10 +7029,12 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/progress.tsx",
         "apps/mobile/components/progress/progress-content.tsx",
+        "apps/mobile/components/progress/use-goal-drag.ts",
         "apps/mobile/components/ui/freeze-bank.tsx",
-        "apps/mobile/hooks/use-retrospective.ts"
+        "apps/mobile/hooks/use-retrospective.ts",
+        "packages/shared/src/utils/goal-drag.ts"
       ],
-      "closureSize": 288,
+      "closureSize": 286,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -7240,10 +7048,12 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/progress.tsx",
         "apps/mobile/components/progress/progress-content.tsx",
+        "apps/mobile/components/progress/use-goal-drag.ts",
         "apps/mobile/components/ui/freeze-bank.tsx",
-        "apps/mobile/hooks/use-retrospective.ts"
+        "apps/mobile/hooks/use-retrospective.ts",
+        "packages/shared/src/utils/goal-drag.ts"
       ],
-      "closureSize": 288,
+      "closureSize": 286,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -7257,10 +7067,12 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/progress.tsx",
         "apps/mobile/components/progress/progress-content.tsx",
+        "apps/mobile/components/progress/use-goal-drag.ts",
         "apps/mobile/components/ui/freeze-bank.tsx",
-        "apps/mobile/hooks/use-retrospective.ts"
+        "apps/mobile/hooks/use-retrospective.ts",
+        "packages/shared/src/utils/goal-drag.ts"
       ],
-      "closureSize": 288,
+      "closureSize": 286,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -7274,10 +7086,12 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/progress.tsx",
         "apps/mobile/components/progress/progress-content.tsx",
+        "apps/mobile/components/progress/use-goal-drag.ts",
         "apps/mobile/components/ui/freeze-bank.tsx",
-        "apps/mobile/hooks/use-retrospective.ts"
+        "apps/mobile/hooks/use-retrospective.ts",
+        "packages/shared/src/utils/goal-drag.ts"
       ],
-      "closureSize": 288,
+      "closureSize": 286,
       "state": "empty",
       "theme": "light",
       "locale": "en"
@@ -7291,10 +7105,12 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/progress.tsx",
         "apps/mobile/components/progress/progress-content.tsx",
+        "apps/mobile/components/progress/use-goal-drag.ts",
         "apps/mobile/components/ui/freeze-bank.tsx",
-        "apps/mobile/hooks/use-retrospective.ts"
+        "apps/mobile/hooks/use-retrospective.ts",
+        "packages/shared/src/utils/goal-drag.ts"
       ],
-      "closureSize": 288,
+      "closureSize": 286,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR"
@@ -7308,10 +7124,12 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/progress.tsx",
         "apps/mobile/components/progress/progress-content.tsx",
+        "apps/mobile/components/progress/use-goal-drag.ts",
         "apps/mobile/components/ui/freeze-bank.tsx",
-        "apps/mobile/hooks/use-retrospective.ts"
+        "apps/mobile/hooks/use-retrospective.ts",
+        "packages/shared/src/utils/goal-drag.ts"
       ],
-      "closureSize": 288,
+      "closureSize": 286,
       "state": "empty",
       "theme": "dark",
       "locale": "en"
@@ -7325,10 +7143,12 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/progress.tsx",
         "apps/mobile/components/progress/progress-content.tsx",
+        "apps/mobile/components/progress/use-goal-drag.ts",
         "apps/mobile/components/ui/freeze-bank.tsx",
-        "apps/mobile/hooks/use-retrospective.ts"
+        "apps/mobile/hooks/use-retrospective.ts",
+        "packages/shared/src/utils/goal-drag.ts"
       ],
-      "closureSize": 288,
+      "closureSize": 286,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
@@ -8626,6 +8446,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
+        "apps/mobile/components/gamification/ring-motif.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx",
@@ -8645,6 +8466,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
+        "apps/mobile/components/gamification/ring-motif.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx",
@@ -8664,6 +8486,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
+        "apps/mobile/components/gamification/ring-motif.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx",
@@ -8683,6 +8506,7 @@
       "ownedFiles": [
         "apps/mobile/app/wrapped-styles.ts",
         "apps/mobile/app/wrapped.tsx",
+        "apps/mobile/components/gamification/ring-motif.tsx",
         "apps/mobile/components/wrapped/wrapped-cover.tsx",
         "apps/mobile/components/wrapped/wrapped-player.tsx",
         "apps/mobile/components/wrapped/wrapped-slide.tsx",
@@ -9175,11 +8999,12 @@
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
+        "apps/mobile/hooks/use-overlay-back.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
         "apps/mobile/lib/chat-stream.ts"
       ],
-      "closureSize": 332,
+      "closureSize": 325,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -9194,11 +9019,12 @@
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
+        "apps/mobile/hooks/use-overlay-back.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
         "apps/mobile/lib/chat-stream.ts"
       ],
-      "closureSize": 332,
+      "closureSize": 325,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -9213,11 +9039,12 @@
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
+        "apps/mobile/hooks/use-overlay-back.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
         "apps/mobile/lib/chat-stream.ts"
       ],
-      "closureSize": 332,
+      "closureSize": 325,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -9232,11 +9059,12 @@
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
+        "apps/mobile/hooks/use-overlay-back.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
         "apps/mobile/lib/chat-stream.ts"
       ],
-      "closureSize": 332,
+      "closureSize": 325,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -9251,11 +9079,12 @@
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
+        "apps/mobile/hooks/use-overlay-back.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
         "apps/mobile/lib/chat-stream.ts"
       ],
-      "closureSize": 332,
+      "closureSize": 325,
       "state": "empty",
       "theme": "light",
       "locale": "en"
@@ -9270,11 +9099,12 @@
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
+        "apps/mobile/hooks/use-overlay-back.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
         "apps/mobile/lib/chat-stream.ts"
       ],
-      "closureSize": 332,
+      "closureSize": 325,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR"
@@ -9289,11 +9119,12 @@
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
+        "apps/mobile/hooks/use-overlay-back.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
         "apps/mobile/lib/chat-stream.ts"
       ],
-      "closureSize": 332,
+      "closureSize": 325,
       "state": "empty",
       "theme": "dark",
       "locale": "en"
@@ -9308,11 +9139,12 @@
       "ownedFiles": [
         "apps/mobile/components/chat/conversation.tsx",
         "apps/mobile/hooks/use-chat-composer.ts",
+        "apps/mobile/hooks/use-overlay-back.ts",
         "apps/mobile/hooks/use-pending-operation-execution.ts",
         "apps/mobile/hooks/use-speech-to-text.ts",
         "apps/mobile/lib/chat-stream.ts"
       ],
-      "closureSize": 332,
+      "closureSize": 325,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
@@ -10074,230 +9906,6 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "m-overlay-gamification-all-done-celebration",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/gamification/all-done-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/gamification/all-done-celebration.tsx"
-      ],
-      "closureSize": 175,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-gamification-all-done-celebration",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/gamification/all-done-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/gamification/all-done-celebration.tsx"
-      ],
-      "closureSize": 175,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-gamification-all-done-celebration",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/gamification/all-done-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/gamification/all-done-celebration.tsx"
-      ],
-      "closureSize": 175,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-gamification-all-done-celebration",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/gamification/all-done-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/gamification/all-done-celebration.tsx"
-      ],
-      "closureSize": 175,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-gamification-goal-completed-celebration",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/gamification/goal-completed-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/gamification/goal-completed-celebration.tsx"
-      ],
-      "closureSize": 179,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-gamification-goal-completed-celebration",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/gamification/goal-completed-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/gamification/goal-completed-celebration.tsx"
-      ],
-      "closureSize": 179,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-gamification-goal-completed-celebration",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/gamification/goal-completed-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/gamification/goal-completed-celebration.tsx"
-      ],
-      "closureSize": 179,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-gamification-goal-completed-celebration",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/gamification/goal-completed-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/gamification/goal-completed-celebration.tsx"
-      ],
-      "closureSize": 179,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-gamification-level-up-overlay",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/gamification/level-up-overlay.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/gamification/level-up-overlay.tsx"
-      ],
-      "closureSize": 176,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-gamification-level-up-overlay",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/gamification/level-up-overlay.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/gamification/level-up-overlay.tsx"
-      ],
-      "closureSize": 176,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-gamification-level-up-overlay",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/gamification/level-up-overlay.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/gamification/level-up-overlay.tsx"
-      ],
-      "closureSize": 176,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-gamification-level-up-overlay",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/gamification/level-up-overlay.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/gamification/level-up-overlay.tsx"
-      ],
-      "closureSize": 176,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-gamification-streak-celebration",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/gamification/streak-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/gamification/streak-celebration.tsx"
-      ],
-      "closureSize": 176,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-gamification-streak-celebration",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/gamification/streak-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/gamification/streak-celebration.tsx"
-      ],
-      "closureSize": 176,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-gamification-streak-celebration",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/gamification/streak-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/gamification/streak-celebration.tsx"
-      ],
-      "closureSize": 176,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-gamification-streak-celebration",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/gamification/streak-celebration.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/gamification/streak-celebration.tsx"
-      ],
-      "closureSize": 176,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
       "surfaceId": "m-overlay-goals-create-goal-modal",
       "platform": "mobile",
       "kind": "overlay",
@@ -10538,7 +10146,7 @@
       "ownedFiles": [
         "apps/mobile/components/goals/goal-detail-drawer.tsx"
       ],
-      "closureSize": 266,
+      "closureSize": 263,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -10552,7 +10160,7 @@
       "ownedFiles": [
         "apps/mobile/components/goals/goal-detail-drawer.tsx"
       ],
-      "closureSize": 266,
+      "closureSize": 263,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -10566,7 +10174,7 @@
       "ownedFiles": [
         "apps/mobile/components/goals/goal-detail-drawer.tsx"
       ],
-      "closureSize": 266,
+      "closureSize": 263,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -10580,7 +10188,7 @@
       "ownedFiles": [
         "apps/mobile/components/goals/goal-detail-drawer.tsx"
       ],
-      "closureSize": 266,
+      "closureSize": 263,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
