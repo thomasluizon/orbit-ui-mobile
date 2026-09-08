@@ -3,9 +3,6 @@
 import { useState, useMemo } from 'react'
 import { Repeat, type Icon } from '@/components/ui/icons'
 import type { Goal } from '@orbit/shared/types/goal'
-import { Input } from '@/components/ui/input'
-import { PillButton } from '@/components/ui/pill-button'
-import { SectionLabel } from '@/components/ui/section-label'
 
 interface GoalProgressHistoryEntry {
   createdAtUtc: string
@@ -39,7 +36,7 @@ export function GoalProgressHistorySection({
 
   const visibleEntries = useMemo(
     () =>
-      showAllHistory ? entries : entries.slice(-HISTORY_PREVIEW_COUNT),
+      showAllHistory ? entries : entries.slice(0, HISTORY_PREVIEW_COUNT),
     [entries, showAllHistory],
   )
 
@@ -49,15 +46,14 @@ export function GoalProgressHistorySection({
 
   return (
     <div>
-      <SectionLabel>{title}</SectionLabel>
+      <h3 className="text-[14px] font-medium text-[var(--fg-2)]">{title}</h3>
       {visibleEntries.map((entry) => (
         <div
           key={`${entry.createdAtUtc}-${entry.value}`}
           className="flex flex-col"
           style={{
-            padding: '10px 20px',
-            borderBottom: '1px solid var(--hairline)',
-            gap: 4,
+            padding: '8px 0',
+                        gap: 4,
           }}
         >
           <div className="flex items-center justify-between">
@@ -97,7 +93,7 @@ export function GoalProgressHistorySection({
         </div>
       ))}
       {entries.length > HISTORY_PREVIEW_COUNT && (
-        <div style={{ padding: '2px 20px' }}>
+        <div style={{ padding: '4px 0' }}>
           <button
             type="button"
             className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"
@@ -108,99 +104,13 @@ export function GoalProgressHistorySection({
               minHeight: 44,
               padding: 0,
             }}
+            aria-expanded={showAllHistory}
             onClick={() => setShowAllHistory((prev) => !prev)}
           >
             {showAllHistory ? showLessLabel : showAllLabel}
           </button>
         </div>
       )}
-    </div>
-  )
-}
-
-interface GoalProgressFormProps {
-  progressValue: number | null
-  progressNote: string
-  isUpdating: boolean
-  progressExceedsTarget: boolean
-  onProgressValueChange: (value: number | null) => void
-  onProgressNoteChange: (note: string) => void
-  onSubmit: () => void
-  onCancel: () => void
-  labelValue: string
-  labelNote: string
-  labelSave: string
-  labelCancel: string
-  labelExceedsTarget: string
-}
-
-/** Inline progress-update form rendered in-place inside the GoalDetailDrawer.
- *  Kit field wells with a pill footer. */
-export function GoalProgressForm({
-  progressValue,
-  progressNote,
-  isUpdating,
-  progressExceedsTarget,
-  onProgressValueChange,
-  onProgressNoteChange,
-  onSubmit,
-  onCancel,
-  labelValue,
-  labelNote,
-  labelSave,
-  labelCancel,
-  labelExceedsTarget,
-}: Readonly<GoalProgressFormProps>) {
-  return (
-    <div
-      className="flex flex-col"
-      style={{
-        padding: '12px 20px 16px',
-        borderBottom: '1px solid var(--hairline)',
-        gap: 14,
-      }}
-    >
-      <Input
-        label={labelValue}
-        kind="number"
-        inputMode="decimal"
-        mono
-        value={progressValue === null ? '' : String(progressValue)}
-        onChange={(raw) =>
-          onProgressValueChange(raw === '' ? null : Number(raw))
-        }
-      />
-      {progressExceedsTarget && (
-        <p
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            color: 'var(--status-overdue-text)',
-          }}
-        >
-          {labelExceedsTarget}
-        </p>
-      )}
-      <Input
-        label={labelNote}
-        value={progressNote}
-        onChange={onProgressNoteChange}
-        placeholder={labelNote}
-        maxLength={500}
-      />
-      <div className="flex items-center" style={{ gap: 12, marginTop: 2 }}>
-        <PillButton variant="ghost"  onClick={onCancel}>
-          {labelCancel}
-        </PillButton>
-        <PillButton
-
-          disabled={progressValue === null || isUpdating}
-          loading={isUpdating}
-          onClick={onSubmit}
-        >
-          {labelSave}
-        </PillButton>
-      </div>
     </div>
   )
 }
@@ -218,8 +128,8 @@ export function GoalLinkedHabitsSection({
   linkedHabits,
 }: Readonly<GoalLinkedHabitsSectionProps>) {
   return (
-    <div data-tour="tour-goal-link">
-      <SectionLabel>{title}</SectionLabel>
+    <div data-tour="tour-goal-link" className="flex flex-col gap-3">
+      <h3 className="text-[20px] font-medium text-[var(--fg-1)]">{title}</h3>
       {linkedHabits.length === 0 ? (
         <p className="text-[14px] text-[var(--fg-3)]">{emptyLabel}</p>
       ) : <ul className="list-none" style={{ margin: 0, padding: 0 }}>
@@ -228,9 +138,8 @@ export function GoalLinkedHabitsSection({
             key={habit.id}
             className="flex items-center"
             style={{
-              padding: '10px 20px',
-              borderBottom: '1px solid var(--hairline)',
-              gap: 14,
+              padding: '8px 0',
+                            gap: 12,
             }}
           >
             <span
@@ -238,7 +147,7 @@ export function GoalLinkedHabitsSection({
               style={{ width: 36, height: 36, boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
               aria-hidden="true"
             >
-              <Repeat size={18} strokeWidth={1.8} color="var(--fg-2)" />
+              <Repeat size={24} strokeWidth={1.5} color="var(--fg-2)" />
             </span>
             <span
               className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis"
@@ -281,14 +190,14 @@ export function GoalActionRow({
       disabled={disabled}
       className="appearance-none w-full bg-transparent cursor-pointer text-left flex items-center transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.99] disabled:opacity-50 disabled:cursor-default disabled:hover:bg-transparent"
       style={{
-        padding: '12px 20px',
+        padding: '12px 0',
         gap: 12,
         border: 0,
       }}
     >
       <Icon
-        size={18}
-        strokeWidth={1.8}
+        size={24}
+        strokeWidth={1.5}
         color={destructive ? 'var(--status-bad)' : 'var(--fg-3)'}
         aria-hidden="true"
         className="shrink-0"

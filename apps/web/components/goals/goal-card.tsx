@@ -111,20 +111,13 @@ export function GoalCard({ goal, onOpenDetail }: Readonly<GoalCardProps>) {
           label: t('contextMenu.edit'),
           onRun: () => onOpenDetail(goal.id, 'edit'),
         },
-        goal.status === 'Active'
-          ? {
-              id: 'complete',
-              label: t('contextMenu.complete'),
-              onRun: () => onOpenDetail(goal.id, 'complete'),
-            }
-          : null,
         {
           id: 'delete',
           label: t('contextMenu.delete'),
           onRun: () => onOpenDetail(goal.id, 'delete'),
           destructive: true,
         },
-  ].filter((item): item is Exclude<typeof item, null> => item !== null)
+  ]
 
   const [contextOpen, setContextOpen] = useState(false)
   const cardRef = useRef<HTMLButtonElement>(null)

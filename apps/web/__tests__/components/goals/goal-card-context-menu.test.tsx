@@ -80,7 +80,7 @@ describe('GoalCard context menu', () => {
       { name: 'contextMenu.viewDetails' },
     )).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'contextMenu.edit' })).toBeInTheDocument()
-    expect(screen.getByRole('menuitem', { name: 'contextMenu.complete' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'contextMenu.complete' })).toBeNull()
     expect(screen.getByRole('menuitem', { name: 'contextMenu.delete' })).toBeInTheDocument()
   })
 
@@ -105,15 +105,4 @@ describe('GoalCard context menu', () => {
     expect(onOpenDetail).toHaveBeenCalledWith('1', null)
   })
 
-  it('omits complete for a non-active goal', async () => {
-    renderCard(makeGoal({ status: 'Completed' }))
-
-    fireEvent.contextMenu(screen.getByText('Read 12 books'))
-
-    expect(await screen.findByRole(
-      'menuitem',
-      { name: 'contextMenu.delete' },
-    )).toBeInTheDocument()
-    expect(screen.queryByRole('menuitem', { name: 'contextMenu.complete' })).toBeNull()
-  })
 })
