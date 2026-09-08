@@ -400,7 +400,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             views.setTextViewText(R.id.widget_header, headerLabel)
             views.setTextColor(R.id.widget_header, colors.textPrimary)
             views.setTextViewText(R.id.widget_subtitle, subtitleText)
-            views.setTextColor(R.id.widget_subtitle, colors.statusEmpty)
+            views.setTextColor(R.id.widget_subtitle, colors.textMuted)
             views.setTextViewText(R.id.widget_streak, "$streak")
             views.setTextColor(R.id.widget_streak, colors.streak)
             views.setImageViewBitmap(R.id.widget_flame, flameBitmap)
@@ -658,7 +658,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             views.setTextViewText(R.id.item_time, formattedTime)
             views.setViewVisibility(R.id.item_time, android.view.View.VISIBLE)
             when {
-                habit.isCompleted -> views.setTextColor(R.id.item_time, colors.statusEmpty)
+                habit.isCompleted -> views.setTextColor(R.id.item_time, colors.textMuted)
                 habit.isOverdue -> views.setTextColor(R.id.item_time, colors.overdue)
                 else -> views.setTextColor(R.id.item_time, colors.textMuted)
             }

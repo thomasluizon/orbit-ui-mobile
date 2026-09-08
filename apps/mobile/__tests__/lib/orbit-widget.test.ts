@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { schemes } from '@orbit/shared/theme'
 import type { ColorScheme } from '@orbit/shared/theme'
@@ -8,6 +9,10 @@ import { toWidgetColors, toWidgetThemePreferences } from '@/lib/orbit-widget'
 const OPAQUE_HEX = /^#[0-9a-fA-F]{6}$/
 const colorSchemes = Object.keys(schemes) as ColorScheme[]
 const modes: ThemeMode[] = ['dark', 'light']
+
+function readWidgetSource(relativePath: string) {
+  return readFileSync(`modules/orbit-widget/android/src/main/${relativePath}`, 'utf8')
+}
 
 describe('toWidgetColors', () => {
   it('returns defined, non-empty colors for every scheme and mode', () => {
@@ -80,5 +85,23 @@ describe('toWidgetColors', () => {
     expect(preferences.light_background).toBe('#FFFFFF')
     expect(preferences.light_surface).toBe('#F1F1F2')
     expect(Object.keys(preferences)).toHaveLength(22)
+  })
+
+  it('uses the muted text role for native progress and completed due-time text', () => {
+    const widgetProviderSource = readWidgetSource(
+      'java/org/useorbit/app/widget/OrbitWidgetProvider.kt',
+    )
+    const widgetServiceSource = readWidgetSource(
+      'java/org/useorbit/app/widget/OrbitWidgetService.kt',
+    )
+    expect(widgetProviderSource).toContain(
+      'setTextColor(R.id.widget_subtitle, colors.textMuted)',
+    )
+    expect(widgetServiceSource).toContain(
+      'setTextColor(R.id.widget_subtitle, colors.textMuted)',
+    )
+    expect(widgetServiceSource).toContain(
+      'habit.isCompleted -> views.setTextColor(R.id.item_time, colors.textMuted)',
+    )
   })
 })

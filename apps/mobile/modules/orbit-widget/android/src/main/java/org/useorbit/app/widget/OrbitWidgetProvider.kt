@@ -78,7 +78,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
 
             // Apply dynamic text colors
             views.setTextColor(R.id.widget_header, colors.textPrimary)
-            views.setTextColor(R.id.widget_subtitle, colors.statusEmpty)
+            views.setTextColor(R.id.widget_subtitle, colors.textMuted)
             views.setTextColor(R.id.widget_empty_text, colors.textPrimary)
 
             // Header dot color
