@@ -39,6 +39,8 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
+import { resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
+
 const USAGE = `usage: check-calibration.mjs [--root <path>]
 
   Fails when .claude/calibration.json has gone stale against the harness it stamps.
@@ -52,8 +54,10 @@ const USAGE = `usage: check-calibration.mjs [--root <path>]
     1. every .claude/agents/*.md and .claude/skills/*/SKILL.md has a stamp entry
     2. no stamp entry names a file that no longer exists
     3. each entry's recorded model and effort match what the file declares today
-    4. the stamp's workerModel and workerArgs match the profile launch-worker.mjs actually resolves,
-       which is workers.<config.worker>.models.default, engine included rather than assumed
+    4. the stamp's workerModel and workerArgs match the invocation launch-worker.mjs actually
+       resolves, taken from resolveWorkerInvocation itself rather than rebuilt here, so workerArgs is
+       the WHOLE argument vector: engine-level args, then the models.default profile args, then the
+       model. Comparing the profile half alone let engine-level tuning move without reseeding
     5. the stamp's calibratedAt is a real date, is not in the future, and is at most 90 days old, the
        backstop for a model alias whose target moved without its declared string changing
 
@@ -80,9 +84,14 @@ const MAX_AGE_DAYS = 90
  * `config.workers[engineName]`). Naming `codex` here would have compared the wrong profile the moment
  * the engine switched, and read a path that no longer exists.
  *
- * The stamp records the profile's `args` alongside its `model`, because the reasoning effort lives in
- * the args (`model_reasoning_effort="high"`), so a model string that never moves can still have its
- * tuning changed underneath. An args-only edit has to go red too.
+ * The stamp records the RESOLVED argument vector alongside its `model`, because the reasoning effort
+ * lives in the args (`model_reasoning_effort="high"`), so a model string that never moves can still
+ * have its tuning changed underneath. An args-only edit has to go red too.
+ *
+ * The whole vector, not the profile half: `resolveWorkerInvocation` launches
+ * `[...engine.args, ...profile.args, "--model", model]`, so tuning declared at the ENGINE level is
+ * just as load-bearing as tuning declared in the profile. Stamping only `models.default.args` left
+ * engine-level effort outside the gate entirely.
  */
 const AUTHORITATIVE_TIER = "default"
 
@@ -111,7 +120,7 @@ if (typeof stamp.calibratedAt !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(stamp.
 if (typeof stamp.workerModel !== "string" || stamp.workerModel === "") fail(2, "check-calibration: workerModel must be a non-empty string")
 if (typeof stamp.workerEngine !== "string" || stamp.workerEngine === "") fail(2, "check-calibration: workerEngine must be a non-empty string")
 if (!Array.isArray(stamp.workerArgs) || stamp.workerArgs.some((argument) => typeof argument !== "string")) {
-  fail(2, "check-calibration: workerArgs must be an array of strings, because the reasoning effort lives there")
+  fail(2, "check-calibration: workerArgs must be an array of strings, because it is the resolved launch vector and the reasoning effort lives in it")
 }
 if (stamp.entries === null || typeof stamp.entries !== "object" || Array.isArray(stamp.entries)) {
   fail(2, "check-calibration: entries must be an object keyed by repository-relative path")
@@ -190,15 +199,21 @@ const configuredEngine = orchestrator?.worker
 if (typeof configuredEngine !== "string" || configuredEngine === "") {
   fail(2, "check-calibration: .claude/orchestrator.json declares no `worker`, so there is no engine to resolve the implementer profile from")
 }
-const configuredProfile = orchestrator?.workers?.[configuredEngine]?.models?.[AUTHORITATIVE_TIER]
-if (typeof configuredProfile?.model !== "string" || configuredProfile.model === "") {
-  fail(
-    2,
-    `check-calibration: .claude/orchestrator.json declares no workers.${configuredEngine}.models.${AUTHORITATIVE_TIER}.model, so the model-match assertion has nothing to compare against`,
-  )
+/**
+ * Resolved by the CANONICAL resolver, never rebuilt here. `resolveWorkerInvocation` prepends the
+ * engine's own args before the profile's, so reading `models.default.args` alone stamped half of what
+ * launches: an engine-level `-c model_reasoning_effort="low"` beside an empty profile args array left
+ * this gate green while every worker launched at low effort. A gate that cannot see the tuning it
+ * exists to pin is the gate-that-cannot-fail this tool was written to undo.
+ */
+let configuredInvocation
+try {
+  configuredInvocation = resolveWorkerInvocation(configuredEngine, orchestrator?.workers?.[configuredEngine], AUTHORITATIVE_TIER)
+} catch (error) {
+  fail(2, `check-calibration: ${error.message}, so the model-match assertion has nothing to compare against`)
 }
-const configuredModel = configuredProfile.model
-const configuredArgs = Array.isArray(configuredProfile.args) ? configuredProfile.args : []
+const configuredModel = configuredInvocation.model
+const configuredArgs = configuredInvocation.args
 if (stamp.workerEngine !== configuredEngine) {
   problems.push(`the worker engine is ${configuredEngine} and the stamp was taken against ${stamp.workerEngine}; a different engine is a different implementer, so recalibrate`)
 }
@@ -207,7 +222,7 @@ if (stamp.workerModel !== configuredModel) {
 }
 if (JSON.stringify(stamp.workerArgs) !== JSON.stringify(configuredArgs)) {
   problems.push(
-    `the worker args are ${JSON.stringify(configuredArgs)} and the stamp was taken against ${JSON.stringify(stamp.workerArgs)}; the reasoning effort lives here, so an args-only change decays the tuning exactly like a model change`,
+    `the worker args are ${JSON.stringify(configuredArgs)} and the stamp was taken against ${JSON.stringify(stamp.workerArgs)}; this is the whole resolved launch vector, engine args included, so an args-only change decays the tuning exactly like a model change`,
   )
 }
 

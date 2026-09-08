@@ -26,7 +26,7 @@ const daysAgo = (days) => new Date(Date.now() - days * 86400000).toISOString().s
  * A fixture harness: two agents' worth of shape in three files, plus whatever stamp the case wants.
  * `stamp === null` writes no stamp at all, which is the unreadable case.
  */
-const stageHarness = (label, { stamp, model = "gpt-5.6-sol", engine = "codex", args = ['-c', 'model_reasoning_effort="high"'], extraFiles = {} } = {}) => {
+const stageHarness = (label, { stamp, model = "gpt-5.6-sol", engine = "codex", args = ['-c', 'model_reasoning_effort="high"'], engineArgs = ["exec"], extraFiles = {} } = {}) => {
   const fixture = join(root, "check-calibration", label)
   write(join(fixture, ".claude", "agents", "design-reviewer.md"), AGENT)
   write(join(fixture, ".claude", "skills", "ticket", "SKILL.md"), SKILL)
@@ -36,7 +36,7 @@ const stageHarness = (label, { stamp, model = "gpt-5.6-sol", engine = "codex", a
   for (const [relativePath, body] of Object.entries(extraFiles)) write(join(fixture, relativePath), body)
   write(
     join(fixture, ".claude", "orchestrator.json"),
-    `${JSON.stringify({ caps: { parallelTickets: 3 }, worker: engine, workers: { [engine]: { models: { default: { model, args } } } } }, null, 2)}\n`,
+    `${JSON.stringify({ caps: { parallelTickets: 3 }, worker: engine, workers: { [engine]: { args: engineArgs, models: { default: { model, args } } } } }, null, 2)}\n`,
   )
   if (stamp !== null) write(join(fixture, ".claude", "calibration.json"), `${JSON.stringify(stamp, null, 2)}\n`)
   return fixture
@@ -46,8 +46,9 @@ const currentStamp = (overrides = {}) => ({
   calibratedAt: today(),
   workerEngine: "codex",
   workerModel: "gpt-5.6-sol",
-  workerArgs: ['-c', 'model_reasoning_effort="high"'],
-  workerModelSource: "workers.<worker>.models.default in .claude/orchestrator.json, the tier launch-worker.mjs resolves",
+  // The RESOLVED vector launch-worker.mjs launches: engine args, then profile args, then the model.
+  workerArgs: ["exec", "-c", 'model_reasoning_effort="high"', "--model", "gpt-5.6-sol"],
+  workerModelSource: "resolveWorkerInvocation(config.worker, ..., default) in tools/lib/orchestrator-config.mjs",
   entries: {
     ".claude/agents/design-reviewer.md": { model: "sonnet", effort: "medium", verdict: "current" },
     ".claude/skills/lesson/SKILL.md": { model: null, effort: null, verdict: "undeclared, inherits the session" },
@@ -65,7 +66,7 @@ const withEntries = (mutate) => {
 export const cases = () => {
   check(TOOL, "a stamp covering every agent and skill file exits 0", ["--root", stageHarness("clean", { stamp: currentStamp() })], {
     status: 0,
-    stdout: /3 calibrated file\(s\) stamped .* against codex gpt-5\.6-sol \["-c","model_reasoning_effort=\\"high\\""\]/,
+    stdout: /3 calibrated file\(s\) stamped .* against codex gpt-5\.6-sol \["exec","-c","model_reasoning_effort=\\"high\\"","--model","gpt-5\.6-sol"\]/,
   })
 
   // The denominator is a glob, so a file added without a verdict is the case that catches the failure
@@ -153,12 +154,12 @@ export const cases = () => {
         const fixture = stageHarness("engine-missing", { stamp: currentStamp() })
         write(
           join(fixture, ".claude", "orchestrator.json"),
-          `${JSON.stringify({ worker: "nonexistent", workers: { codex: { models: { default: { model: "gpt-5.6-sol", args: [] } } } } }, null, 2)}\n`,
+          `${JSON.stringify({ worker: "nonexistent", workers: { codex: { args: ["exec"], models: { default: { model: "gpt-5.6-sol", args: [] } } } } }, null, 2)}\n`,
         )
         return fixture
       })(),
     ],
-    { status: 2, stderr: /declares no workers\.nonexistent\.models\.default\.model/ },
+    { status: 2, stderr: /worker engine "nonexistent" is missing from \.claude\/orchestrator\.json/ },
   )
 
   /**
@@ -169,7 +170,39 @@ export const cases = () => {
     TOOL,
     "changing only the reasoning effort in the profile args exits 1",
     ["--root", stageHarness("args-changed", { stamp: currentStamp(), args: ["-c", 'model_reasoning_effort="low"'] })],
-    { status: 1, stderr: /the reasoning effort lives here/ },
+    { status: 1, stderr: /this is the whole resolved launch vector, engine args included/ },
+  )
+  /**
+   * The half this gate could not see. `resolveWorkerInvocation` prepends `engine.args` to every launch,
+   * so tuning declared at the ENGINE level moves the effective effort exactly like profile tuning does.
+   * Reading `models.default.args` alone exited 0 on this configuration while every worker launched at
+   * low effort, which is the gate-that-cannot-fail shape this tool exists to undo.
+   */
+  check(
+    TOOL,
+    "changing only the reasoning effort in the ENGINE args exits 1",
+    [
+      "--root",
+      stageHarness("engine-args-changed", { stamp: currentStamp(), args: [], engineArgs: ["exec", "-c", 'model_reasoning_effort="low"'] }),
+    ],
+    { status: 1, stderr: /this is the whole resolved launch vector, engine args included/ },
+  )
+  /**
+   * And the same configuration with the stamp reseeded against it passes, so the case above proves the
+   * gate reads engine args rather than merely that this fixture is unusual.
+   */
+  check(
+    TOOL,
+    "the same engine-level tuning passes once the stamp records the resolved vector",
+    [
+      "--root",
+      stageHarness("engine-args-reseeded", {
+        stamp: currentStamp({ workerArgs: ["exec", "-c", 'model_reasoning_effort="low"', "--model", "gpt-5.6-sol"] }),
+        args: [],
+        engineArgs: ["exec", "-c", 'model_reasoning_effort="low"'],
+      }),
+    ],
+    { status: 0 },
   )
 
   // The alias backstop. A model alias can move without its declared string changing, so age is the
