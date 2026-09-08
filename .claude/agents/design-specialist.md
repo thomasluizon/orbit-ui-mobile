@@ -21,8 +21,9 @@ Return, per proposed surface:
    which purpose in the closed list; delight budget only for earned moments.
 3. **Copy register**: the strings the surface needs, in Orbit's voice (plain, no
    cliches, natural case, EN + pt-BR keys named).
-4. **Evidence contract**: what the D7 screenshots must show and the critique artifact
-   must evaluate for the acceptance criteria to be checkable.
+4. **Evidence contract**: what a reviewer must be able to measure on the running
+   surface for the acceptance criteria to be checkable. Never a screenshot; Orbit has
+   no screenshot requirement.
 5. **System gaps**: anything the ask needs that DESIGN.md lacks (a token, a pattern, a
    component). NEVER improvise an addition: name the gap, its role, and why the
    current system cannot do the job, as a question for Thomas (core.md rule 5).

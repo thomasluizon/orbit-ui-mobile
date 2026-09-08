@@ -33,9 +33,9 @@ Cite the DESIGN.md section for every finding. If a rule is not in DESIGN.md and 
 
 **Staged gates.** `local/no-decorative-glow` and `local/no-raw-gradient` ship at `warn` pending bundle 5's cleanup, so the existing violations are known debt — do not report them as new findings. A **newly introduced** glow or raw gradient in this diff is still a Blocker: the token is deleted and the ban is settled.
 
-## Screenshot critique
+## Rendered critique
 
-Visual verification needs the chrome-devtools MCP, which the calling session has and this read-only subagent does not. If the orchestrator supplies screenshots (or observations) of the changed surface at 1440 + 390 px, factor the visible token violations and slop tells into your findings; otherwise review from the diff and note that a screenshot pass is still owed.
+Visual verification needs a live browser, which the calling session has and this read-only subagent does not. If the orchestrator supplies measured observations of the changed surface at 1440 and 390 px, such as computed styles or a described render, factor the visible token violations and slop tells into your findings. Otherwise review from the diff and state the limits of that evidence. **Never ask for a screenshot**: Orbit has no screenshot requirement, and human inspection is Thomas looking at the surface running (`.claude/rules/visual-delivery.md` rule 4).
 
 ## Output
 

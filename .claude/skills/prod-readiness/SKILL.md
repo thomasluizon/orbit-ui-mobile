@@ -284,8 +284,8 @@ gate.
 ## Phase 2c — Architecture-drift sweep (session-run, edits code)
 
 The map is the finder: regenerate it, then FIX what it reports, deleting stale code rather than
-ticketing it. `tools/arch-map.mjs` derives `architecture.json` + `architecture.html` from the
-tree; after the 2026-08-13 honesty fixes its signals are trustworthy (endpoint usage scans all
+ticketing it. `tools/arch-map.mjs` derives `architecture.json`, `architecture.html` and
+`architecture.mmd` from the tree, none of them committed (#470); after the 2026-08-13 honesty fixes its signals are trustworthy (endpoint usage scans all
 of `apps/web`, i18n ownership walks the symbol-filtered import closure, and pairing refuses to
 guess). This sweep is `repo:ui` only; never touch `orbit-api` from it.
 
@@ -347,10 +347,10 @@ endpoints, unpaired web routes with no mobile screen) is a finding for the Phase
 set, not sweep-deletable code.
 
 **Prove it, then ship it.** After the edits: `npm run type-check && npm run lint && npm test &&
-npm run build`, then regenerate the map twice (byte-identical) and commit the regenerated
-`architecture.json` + `architecture.html` in the same branch (the `Architecture map drift` CI
-check fails otherwise; if `tools/arch-map.mjs` itself was edited, also run
-`node tools/test-tools.mjs`). Open at most ONE `chore(arch)` PR, opened never merged, reviewed
+npm run build`, then regenerate the map twice and confirm the two runs are
+byte-identical, which is what the `Architecture map drift` CI check asserts. Commit NOTHING from
+the map: its three artifacts are gitignored (#470). If `tools/arch-map.mjs` itself was edited, also
+run `node tools/test-tools.mjs`. Open at most ONE `chore(arch)` PR, opened never merged, reviewed
 by Pullfrog like everything else.
 
 **Holdback rule, same as Phase 2b.** Anything that cannot land (ambiguous liveness, a move that

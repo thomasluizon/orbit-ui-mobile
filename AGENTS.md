@@ -6,9 +6,9 @@ before you write code. Your launch prompt already carries the objective, scope, 
 contract, and the merge and push prohibitions; this file holds only what neither of those does.
 
 Beyond the gates `CLAUDE.md` names: `eslint-suppressions.json` and the dash and copy baselines
-may only shrink, and any change to routes, endpoints, or module structure needs
-`node tools/arch-map.mjs` re-run and its artifacts committed. Never edit a gate baseline to
-admit a new violation; fix the violation.
+may only shrink. The architecture map is generated and NOT committed (#470): run
+`node tools/arch-map.mjs` when you want to read it, and never commit its three artifacts. Never
+edit a gate baseline to admit a new violation; fix the violation.
 
 ### Never assume an external interface. Check it, then use it.
 

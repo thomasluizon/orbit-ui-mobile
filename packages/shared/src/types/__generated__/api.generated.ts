@@ -923,6 +923,8 @@ export const postApiHabitsBodyReminderTimesItemRegExpTwo = new RegExp('^-?(?:0|[
 export const postApiHabitsBodySlipAlertEnabledDefault = false;
 export const postApiHabitsBodyIsGeneralDefault = false;
 export const postApiHabitsBodyIsFlexibleDefault = false;
+export const postApiHabitsBodyIntervalWeeksRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
 
 export const PostApiHabitsBody = zod.object({
   "title": zod.string(),
@@ -951,7 +953,8 @@ export const PostApiHabitsBody = zod.object({
   "endDate": zod.iso.date().nullish(),
   "isFlexible": zod.boolean().default(postApiHabitsBodyIsFlexibleDefault),
   "goalIds": zod.array(zod.uuid()).nullish(),
-  "emoji": zod.string().nullish()
+  "emoji": zod.string().nullish(),
+  "intervalWeeks": zod.union([zod.number(),zod.stringFormat('int32', postApiHabitsBodyIntervalWeeksRegExpTwo)]).nullish()
 })
 
 export const PostApiHabitsResponse = zod.void()
@@ -1008,6 +1011,7 @@ export const PutApiHabitsIdParams = zod.object({
 export const putApiHabitsIdBodyFrequencyQuantityRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 export const putApiHabitsIdBodyIsBadHabitDefault = false;
 export const putApiHabitsIdBodyReminderTimesItemRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const putApiHabitsIdBodyIntervalWeeksRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
 
 
 export const PutApiHabitsIdBody = zod.object({
@@ -1036,7 +1040,8 @@ export const PutApiHabitsIdBody = zod.object({
   "clearEndDate": zod.boolean().nullish(),
   "isFlexible": zod.boolean().nullish(),
   "goalIds": zod.array(zod.uuid()).nullish(),
-  "emoji": zod.string().nullish()
+  "emoji": zod.string().nullish(),
+  "intervalWeeks": zod.union([zod.number(),zod.stringFormat('int32', putApiHabitsIdBodyIntervalWeeksRegExpTwo)]).nullish()
 })
 
 export const PutApiHabitsIdResponse = zod.void()

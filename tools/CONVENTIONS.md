@@ -24,11 +24,11 @@ A tool here is something an agent invokes without reading its source. That only 
 
 A tool whose job is to answer "is this work done?" obeys one extra rule: **the verdict is computed from artifacts on disk, never read from a status field.** A checklist an agent can edit is not a gate, it is a suggestion, and #539 proved it (five "done" reports over ~20% of the surfaces, every lint gate green).
 
-The pattern, as implemented by `surface-manifest.mjs` + `capture-surfaces.mjs`:
+The pattern, as implemented by `surface-manifest.mjs` + `redesign-coverage.mjs`:
 
 - **Derive the expected inventory from the codebase**, not from a hand-written list. A hand-written list omits what the author forgot; a glob does not.
-- **Store the expectation, compute the completion.** The manifest is the denominator. The numerator comes from `statSync` on the evidence.
-- **Make the evidence hard to fake by accident.** Existence alone is weak: also assert a minimum size (a blank/error render is tiny) and freshness against the source file's mtime (a screenshot older than the code it depicts proves nothing).
+- **Store the expectation, compute the completion.** The manifest is the denominator. The numerator is computed from committed artifacts, never read from a status field a run can set.
+- **Make the evidence hard to fake by accident.** Presence alone is weak: assert the relationship both ways, so an inventory entry with no assignment AND an assignment naming nothing in the inventory each fail. A one-sided check passes a manifest that has silently drifted.
 - **Report the shortfall precisely** — every unverified item with its reason — so the ratio is the output, not a boolean an agent can round up.
 
 ## POSIX vs PowerShell

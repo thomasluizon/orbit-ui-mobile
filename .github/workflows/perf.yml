@@ -37,7 +37,7 @@ jobs:
       - name: Start mock orbit-api and wait for health
         run: |
           set -euo pipefail
-          npx tsx apps/web/e2e/visual/mock-api/server.ts &
+          npx tsx apps/web/test-support/hermetic/mock-api/server.ts &
           echo "MOCK_PID=$!" >> "$GITHUB_ENV"
           for _ in $(seq 1 30); do
             if curl -sf http://127.0.0.1:5099/health >/dev/null 2>&1; then
