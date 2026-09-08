@@ -60,7 +60,13 @@ export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchD
     setBusy(true)
     setError('')
     try {
-      await update.mutateAsync({ goalId: goal.id, data: { currentValue: value } })
+      await update.mutateAsync({
+        goalId: goal.id,
+        data: { currentValue: value },
+        goalName: goal.title,
+        goalCount: goal.targetValue,
+        goalUnit: goal.unit,
+      })
       await refetchDetail()
     } catch (failure: unknown) {
       setError(getFriendlyErrorMessage(failure, t, 'goals.errors.progress', 'goalProgress'))

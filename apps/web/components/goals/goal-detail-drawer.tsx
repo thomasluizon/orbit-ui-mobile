@@ -43,7 +43,13 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onOpenChange, i
     if (inline) onClose()
     else closeSheet(onClose)
   }, [inline, closeSheet, onClose])
-  const actions = useGoalStatusActions({ goalId, goalName: goal?.title, refetchDetail: refetch })
+  const actions = useGoalStatusActions({
+    goalId,
+    goalName: goal?.title,
+    goalCount: goal?.targetValue,
+    goalUnit: goal?.unit,
+    refetchDetail: refetch,
+  })
   const formatDate = (date: string) => formatLocaleDateTime(date, locale, { year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit' })
 
   async function confirmDelete() {

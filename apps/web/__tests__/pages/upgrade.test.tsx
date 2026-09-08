@@ -522,4 +522,5 @@ describe('UpgradePage', () => {
         })[0],
       ).not.toBeDisabled()
     })
-  })})
+  })
+})
