@@ -339,9 +339,10 @@ describe('useRestoreGoal', () => {
 describe('useUpdateGoalProgress', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    mockSetGoalCompleted.mockReset()
   })
 
-  it('calls updateGoalProgress action', async () => {
+  it('calls the progress action and enqueues one target completion', async () => {
     const { updateGoalProgress } = await import('@/app/actions/goals')
     const mockedUpdateProgress = vi.mocked(updateGoalProgress)
     mockedUpdateProgress.mockResolvedValue(undefined as any)
@@ -353,6 +354,9 @@ describe('useUpdateGoalProgress', () => {
       await result.current.mutateAsync({
         goalId: 'g-1',
         data: { currentValue: 5, note: 'Halfway' },
+        goalName: 'Ship Orbit',
+        goalCount: 5,
+        goalUnit: 'releases',
       })
     })
 
@@ -360,6 +364,12 @@ describe('useUpdateGoalProgress', () => {
       currentValue: 5,
       note: 'Halfway',
     })
+    expect(mockSetGoalCompleted).toHaveBeenCalledWith({
+      name: 'Ship Orbit',
+      count: 5,
+      unit: 'releases',
+    })
+    expect(mockSetGoalCompleted).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -393,6 +403,7 @@ describe('useUpdateGoalStatus', () => {
       count: 12,
       unit: 'releases',
     })
+    expect(mockSetGoalCompleted).toHaveBeenCalledTimes(1)
   })
 })
 

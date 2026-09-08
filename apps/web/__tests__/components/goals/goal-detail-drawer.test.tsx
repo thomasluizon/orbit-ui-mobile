@@ -215,7 +215,13 @@ describe('GoalDetailDrawer', () => {
     expect(document.body.textContent).toContain('goals.detail.manualProgress')
     const label = 'goals.detail.increase'
     fireEvent.click(screen.getByRole('button', { name: label }))
-    expect(updateProgressMutateAsync).toHaveBeenCalledWith({ goalId: '1', data: { currentValue: 4 } })
+    expect(updateProgressMutateAsync).toHaveBeenCalledWith({
+      goalId: '1',
+      data: { currentValue: 4 },
+      goalName: listGoal.title,
+      goalCount: listGoal.targetValue,
+      goalUnit: listGoal.unit,
+    })
   })
 
   it('stage 5 completes a target-reached derived goal with a neutral action and explanation', () => {
@@ -236,6 +242,7 @@ describe('GoalDetailDrawer', () => {
       goalCount: listGoal.targetValue,
       goalUnit: listGoal.unit,
     })
+    expect(updateStatusMutateAsync).toHaveBeenCalledTimes(1)
   })
 
   it('stage 5 lets the progress write complete a manual goal at its target', async () => {
@@ -244,7 +251,14 @@ describe('GoalDetailDrawer', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'goals.detail.increase' }))
 
-    expect(updateProgressMutateAsync).toHaveBeenCalledWith({ goalId: '1', data: { currentValue: 12 } })
+    expect(updateProgressMutateAsync).toHaveBeenCalledWith({
+      goalId: '1',
+      data: { currentValue: 12 },
+      goalName: listGoal.title,
+      goalCount: listGoal.targetValue,
+      goalUnit: listGoal.unit,
+    })
+    expect(updateProgressMutateAsync).toHaveBeenCalledTimes(1)
     await waitFor(() => expect(refetchDetail).toHaveBeenCalled())
     expect(screen.queryByRole('button', { name: 'goals.detail.markCompleted' })).toBeNull()
     expect(updateStatusMutateAsync).not.toHaveBeenCalled()

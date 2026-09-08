@@ -126,6 +126,7 @@ export function useDeleteGoal() {
 
 export function useUpdateGoalProgress() {
   const queryClient = useQueryClient()
+  const { setGoalCompletedCelebration } = useUIStore.getState()
 
   return useMutation({
     mutationFn: ({
@@ -134,7 +135,20 @@ export function useUpdateGoalProgress() {
     }: {
       goalId: string
       data: UpdateGoalProgressRequest
+      goalName?: string
+      goalCount?: number
+      goalUnit?: string
     }) => updateGoalProgressAction(goalId, data),
+
+    onSuccess: (_data, { data, goalName, goalCount, goalUnit }) => {
+      if (
+        data.currentValue === goalCount &&
+        goalName &&
+        goalUnit !== undefined
+      ) {
+        setGoalCompletedCelebration({ name: goalName, count: goalCount, unit: goalUnit })
+      }
+    },
 
     onSettled: (_data, _err, { goalId }) => {
       void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })

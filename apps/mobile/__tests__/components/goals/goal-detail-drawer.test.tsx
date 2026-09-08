@@ -456,7 +456,13 @@ describe('GoalDetailDrawer', () => {
     expect(collectText(tree.toJSON())).toContain('goals.detail.manualProgress')
     const label = 'goals.detail.increase'
     press(tree, label)
-    expect(updateProgressMutateAsync).toHaveBeenCalledWith({ goalId: '1', data: { currentValue: 4 } })
+    expect(updateProgressMutateAsync).toHaveBeenCalledWith({
+      goalId: '1',
+      data: { currentValue: 4 },
+      goalName: listGoal.title,
+      goalCount: listGoal.targetValue,
+      goalUnit: listGoal.unit,
+    })
   })
 
   it('stage 5 completes a target-reached derived goal with a neutral action and explanation', () => {
@@ -477,6 +483,7 @@ describe('GoalDetailDrawer', () => {
       goalCount: listGoal.targetValue,
       goalUnit: listGoal.unit,
     })
+    expect(mockStatusMutateAsync).toHaveBeenCalledTimes(1)
   })
 
   it('stage 5 lets the progress write complete a manual goal at its target', async () => {
@@ -488,7 +495,14 @@ describe('GoalDetailDrawer', () => {
       await Promise.resolve()
     })
 
-    expect(updateProgressMutateAsync).toHaveBeenCalledWith({ goalId: '1', data: { currentValue: 12 } })
+    expect(updateProgressMutateAsync).toHaveBeenCalledWith({
+      goalId: '1',
+      data: { currentValue: 12 },
+      goalName: listGoal.title,
+      goalCount: listGoal.targetValue,
+      goalUnit: listGoal.unit,
+    })
+    expect(updateProgressMutateAsync).toHaveBeenCalledTimes(1)
     expect(refetchDetail).toHaveBeenCalled()
     expect(tree.root.findAll((node: any) => node.props.accessibilityLabel === 'goals.detail.markCompleted')).toHaveLength(0)
     expect(mockStatusMutateAsync).not.toHaveBeenCalled()
