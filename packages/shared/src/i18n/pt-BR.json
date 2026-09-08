@@ -2491,9 +2491,12 @@
     "achievements": {
       "empty": "Ainda não há conquistas disponíveis.",
       "xp": "{current} / {next} XP",
-      "next": "Próximo: nível {level}, {title}. Faltam {xp} XP.",
-      "earned": "Conquistada em {date}",
+      "xpProgress": "Progresso até o próximo nível",
+      "earnedLabel": "Conquistada",
+      "earnedState": "{name}, conquistada",
+      "unearnedState": "{name}, ainda não conquistada",
       "progress": "{current} de {target}",
+      "progressLabel": "Progresso de {name}: {current} de {target}",
       "level": "Nível {level} · {title}",
       "levelTitles": {
         "starter": "Iniciante",
@@ -2506,10 +2509,7 @@
         "admiral": "Almirante",
         "elite": "Elite",
         "legend": "Lenda"
-      },
-      "lockedTitle": "Conquistas",
-      "lockedBody": "O Orbit Pro acompanha conquistas e XP.",
-      "lockedAction": "Ver o Orbit Pro"
+      }
     }
   },
   "gamification": {
