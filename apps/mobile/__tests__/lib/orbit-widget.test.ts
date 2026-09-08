@@ -181,4 +181,28 @@ describe('toWidgetColors', () => {
     expect(lightResources).toContain('<color name="widget_bg">#FAFAFA</color>')
     expect(darkResources).toContain('<color name="widget_bg">#09090B</color>')
   })
+
+  it('reapplies the full widget palette before refreshing collection rows', () => {
+    const widgetProviderSource = readWidgetSource(
+      'java/org/useorbit/app/widget/OrbitWidgetProvider.kt',
+    )
+    const refreshHandler = widgetProviderSource.slice(
+      widgetProviderSource.indexOf('override fun onReceive'),
+      widgetProviderSource.indexOf('override fun onEnabled'),
+    )
+
+    const fullUpdateIndex = refreshHandler.indexOf(
+      'updateWidgetLayout(context, appWidgetManager, id)',
+    )
+    const loadingUpdateIndex = refreshHandler.indexOf(
+      'appWidgetManager.partiallyUpdateAppWidget(id, loadingViews)',
+    )
+    const collectionRefreshIndex = refreshHandler.indexOf(
+      'appWidgetManager.notifyAppWidgetViewDataChanged',
+    )
+
+    expect(fullUpdateIndex).toBeGreaterThanOrEqual(0)
+    expect(loadingUpdateIndex).toBeGreaterThan(fullUpdateIndex)
+    expect(collectionRefreshIndex).toBeGreaterThan(loadingUpdateIndex)
+  })
 })
