@@ -29,7 +29,7 @@ const daysAgo = (days) => new Date(Date.now() - days * 86400000).toISOString().s
  * A fixture harness: two agents' worth of shape in three files, plus whatever stamp the case wants.
  * `stamp === null` writes no stamp at all, which is the unreadable case.
  */
-const stageHarness = (label, { stamp, model = "gpt-5.6-sol", engine = "codex", args = ['-c', 'model_reasoning_effort="high"'], engineArgs = ["exec"], extraFiles = {} } = {}) => {
+const stageHarness = (label, { stamp, model = "gpt-5.6-sol", engine = "codex", command = "codex", args = ['-c', 'model_reasoning_effort="high"'], engineArgs = ["exec"], extraFiles = {} } = {}) => {
   const fixture = join(root, "check-calibration", label)
   write(join(fixture, ".claude", "agents", "design-reviewer.md"), AGENT)
   write(join(fixture, ".claude", "skills", "ticket", "SKILL.md"), SKILL)
@@ -39,7 +39,7 @@ const stageHarness = (label, { stamp, model = "gpt-5.6-sol", engine = "codex", a
   for (const [relativePath, body] of Object.entries(extraFiles)) write(join(fixture, relativePath), body)
   write(
     join(fixture, ".claude", "orchestrator.json"),
-    `${JSON.stringify({ caps: { parallelTickets: 3 }, worker: engine, workers: { [engine]: { args: engineArgs, models: { default: { model, args } } } } }, null, 2)}\n`,
+    `${JSON.stringify({ caps: { parallelTickets: 3 }, worker: engine, workers: { [engine]: { command, args: engineArgs, models: { default: { model, args } } } } }, null, 2)}\n`,
   )
   if (stamp !== null) write(join(fixture, ".claude", "calibration.json"), `${JSON.stringify(stamp, null, 2)}\n`)
   return fixture
@@ -48,6 +48,7 @@ const stageHarness = (label, { stamp, model = "gpt-5.6-sol", engine = "codex", a
 const currentStamp = (overrides = {}) => ({
   calibratedAt: today(),
   workerEngine: "codex",
+  workerCommand: "codex",
   workerModel: "gpt-5.6-sol",
   // The RESOLVED vector launch-worker.mjs launches: engine args, then profile args, then the model.
   workerArgs: ["exec", "-c", 'model_reasoning_effort="high"', "--model", "gpt-5.6-sol"],
@@ -172,6 +173,18 @@ export const cases = () => {
   )
 
   /**
+   * The EXECUTABLE is what actually runs the work, and resolveWorkerInvocation never returns it, so it
+   * has to be stamped separately. Swapping `command` while the engine key, model and args all stay put
+   * replaces the implementer entirely and left this gate green across the substitution.
+   */
+  check(
+    TOOL,
+    "swapping the worker executable while the key, model and args stay put exits 1",
+    ["--root", stageHarness("command-swapped", { stamp: currentStamp(), command: "some-other-agent" })],
+    { status: 1, stderr: /the worker command is "some-other-agent" and the stamp was taken against "codex"/ },
+  )
+
+  /**
    * The engine is resolved from `config.worker`, the same key launch-worker.mjs:115 reads, and not
    * hardcoded. Switching the engine has to go red, or this gate compares a profile nobody runs.
    */
@@ -190,7 +203,7 @@ export const cases = () => {
         const fixture = stageHarness("engine-missing", { stamp: currentStamp() })
         write(
           join(fixture, ".claude", "orchestrator.json"),
-          `${JSON.stringify({ worker: "nonexistent", workers: { codex: { args: ["exec"], models: { default: { model: "gpt-5.6-sol", args: [] } } } } }, null, 2)}\n`,
+          `${JSON.stringify({ worker: "nonexistent", workers: { codex: { command: "codex", args: ["exec"], models: { default: { model: "gpt-5.6-sol", args: [] } } } } }, null, 2)}\n`,
         )
         return fixture
       })(),
@@ -332,11 +345,11 @@ export const cases = () => {
   mkdirSync(join(emptyTree, ".claude", "skills"), { recursive: true })
   write(
     join(emptyTree, ".claude", "orchestrator.json"),
-    `${JSON.stringify({ worker: "codex", workers: { codex: { models: { default: { model: "gpt-5.6-sol", args: [] } } } } }, null, 2)}\n`,
+    `${JSON.stringify({ worker: "codex", workers: { codex: { command: "codex", args: [], models: { default: { model: "gpt-5.6-sol", args: [] } } } } }, null, 2)}\n`,
   )
   write(
     join(emptyTree, ".claude", "calibration.json"),
-    `${JSON.stringify({ calibratedAt: today(), workerEngine: "codex", workerModel: "gpt-5.6-sol", workerArgs: [], entries: {} }, null, 2)}\n`,
+    `${JSON.stringify({ calibratedAt: today(), workerEngine: "codex", workerCommand: "codex", workerModel: "gpt-5.6-sol", workerArgs: ["--model", "gpt-5.6-sol"], entries: {} }, null, 2)}\n`,
   )
   check(TOOL, "a tree with no agent and no skill exits 2 rather than reporting a vacuous green", ["--root", emptyTree], {
     status: 2,

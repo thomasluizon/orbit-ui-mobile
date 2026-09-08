@@ -36,7 +36,7 @@
  */
 
 import { createHash } from "node:crypto"
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
+import { existsSync, readFileSync, readdirSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -57,7 +57,7 @@ const USAGE = `usage: check-calibration.mjs [--root <path>]
     3. each entry's recorded model and effort match what the file declares today, AND its recorded
        digest matches the file's complete normalized content, so rewriting a prompt body invalidates
        the verdict that was written about the old text
-    4. the stamp's workerModel and workerArgs match the invocation launch-worker.mjs actually
+    4. the stamp's workerCommand, workerModel and workerArgs match what launch-worker.mjs actually
        resolves, taken from resolveWorkerInvocation itself rather than rebuilt here, so workerArgs is
        the WHOLE argument vector: engine-level args, then the models.default profile args, then the
        model. Comparing the profile half alone let engine-level tuning move without reseeding
@@ -122,6 +122,9 @@ if (typeof stamp.calibratedAt !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(stamp.
 }
 if (typeof stamp.workerModel !== "string" || stamp.workerModel === "") fail(2, "check-calibration: workerModel must be a non-empty string")
 if (typeof stamp.workerEngine !== "string" || stamp.workerEngine === "") fail(2, "check-calibration: workerEngine must be a non-empty string")
+if (typeof stamp.workerCommand !== "string" || stamp.workerCommand === "") {
+  fail(2, "check-calibration: workerCommand must be a non-empty string, because the executable is what actually runs the work")
+}
 if (!Array.isArray(stamp.workerArgs) || stamp.workerArgs.some((argument) => typeof argument !== "string")) {
   fail(2, "check-calibration: workerArgs must be an array of strings, because it is the resolved launch vector and the reasoning effort lives in it")
 }
@@ -244,8 +247,18 @@ try {
 }
 const configuredModel = configuredInvocation.model
 const configuredArgs = configuredInvocation.args
+/**
+ * The EXECUTABLE, which `resolveWorkerInvocation` does not return: `launch-worker.mjs:194` spawns
+ * `engine.command` and the invocation only describes what is passed TO it. Swapping that command while
+ * the engine key, model and args all stay put replaces the implementer entirely, and a stamp blind to
+ * it stayed green across the substitution.
+ */
+const configuredCommand = orchestrator?.workers?.[configuredEngine]?.command
 if (stamp.workerEngine !== configuredEngine) {
   problems.push(`the worker engine is ${configuredEngine} and the stamp was taken against ${stamp.workerEngine}; a different engine is a different implementer, so recalibrate`)
+}
+if (stamp.workerCommand !== configuredCommand) {
+  problems.push(`the worker command is ${JSON.stringify(configuredCommand ?? null)} and the stamp was taken against ${JSON.stringify(stamp.workerCommand)}; a different executable is a different implementer, so recalibrate`)
 }
 if (stamp.workerModel !== configuredModel) {
   problems.push(`the worker model is ${configuredModel} and the stamp was taken against ${stamp.workerModel}; recalibrate in the same pull request that moved it`)

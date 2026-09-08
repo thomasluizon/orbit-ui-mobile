@@ -1,6 +1,7 @@
 {
   "calibratedAt": "2026-09-08",
   "workerEngine": "codex",
+  "workerCommand": "codex",
   "workerModel": "gpt-5.6-sol",
   "workerArgs": [
     "exec",
