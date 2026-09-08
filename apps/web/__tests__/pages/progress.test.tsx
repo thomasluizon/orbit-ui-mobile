@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
 const mocks = vi.hoisted(() => ({
@@ -107,7 +107,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => mocks.router }))
-vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
+vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: ({ goalId }: { goalId: string }) => <div role="dialog">{goalId}</div> }))
 vi.mock('@/components/ui/pro-badge', () => ({ ProBadge: () => <span>PRO</span> }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => mocks.account }))
 vi.mock('@/hooks/use-goals', () => ({
@@ -137,6 +137,101 @@ import ProgressPage from '@/app/(app)/progress/page'
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
 
 describe('ProgressContent', () => {
+  it.each(['on_track', 'at_risk', 'behind', 'no_deadline'])('renders one neutral tracking badge for %s and no extra status or deadline', (trackingStatus) => {
+    mocks.goals.data.allGoals = [createMockGoal({ trackingStatus, deadline: '2026-08-01' })]
+    render(<ProgressPage />)
+    const card = screen.getByRole('button', { name: 'Read 12 Books' })
+    expect(within(card).queryByText('goals.status.active')).not.toBeInTheDocument()
+    expect(card.querySelectorAll('[data-variant="solid"]')).toHaveLength(1)
+    expect(within(card).queryByText('progressScreen.goals.daysOverdue')).not.toBeInTheDocument()
+    expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '25')
+  })
+
+  it('keeps reached targets active with a done disc and opens detail from the whole card', () => {
+    mocks.goals.data.allGoals = [createMockGoal({ progressPercentage: 100, currentValue: 12, trackingStatus: 'no_deadline' })]
+    render(<ProgressPage />)
+    const card = screen.getByRole('button', { name: 'Read 12 Books' })
+    expect(within(card).queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(card.querySelector('[data-status="done"]')).toBeInTheDocument()
+    expect(within(card).getByText('progressScreen.goals.targetReached')).toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.goals.finish')).not.toBeInTheDocument()
+    fireEvent.click(card)
+    expect(screen.getByRole('dialog')).toHaveTextContent('goal-1')
+    expect(mocks.updateStatus.mutate).not.toHaveBeenCalled()
+  })
+
+  it('shows an abandoned outline badge without progress and clears a distinct empty filter', () => {
+    mocks.goals.data.allGoals = [createMockGoal({ status: 'Abandoned', progressPercentage: 100, trackingStatus: 'behind' })]
+    render(<ProgressPage />)
+    const card = screen.getByRole('button', { name: 'Read 12 Books' })
+    expect(card.querySelector('[data-variant="outline"]')).toHaveTextContent('goals.status.abandoned')
+    expect(within(card).queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(within(card).queryByText('progressScreen.goals.progress')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.completed' }))
+    expect(screen.getByText('progressScreen.goals.filterEmpty')).toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.empty')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'progressScreen.goals.clearFilter' }))
+    expect(screen.getByRole('button', { name: 'Read 12 Books' })).toBeInTheDocument()
+  })
+
+  it.each(['mouse', 'touch'])('activates %s dragging after the threshold and writes only on release', async (pointerType) => {
+    vi.useFakeTimers()
+    mocks.goals.data.allGoals = [createMockGoal(), createMockGoal({ id: 'goal-2', title: 'Second', position: 1 })]
+    render(<ProgressPage />)
+    const card = screen.getByRole('button', { name: 'Read 12 Books' })
+    const second = screen.getByRole('button', { name: 'Second' })
+    vi.spyOn(card, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 200, 80))
+    vi.spyOn(second, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 100, 200, 80))
+    const touch = (clientX: number, clientY: number) => ({ touches: [{ identifier: 1, clientX, clientY }], changedTouches: [{ identifier: 1, clientX, clientY }] })
+    if (pointerType === 'touch') {
+      fireEvent.touchStart(card, touch(0, 0))
+      await act(() => vi.advanceTimersByTime(299))
+      expect(card).not.toHaveAttribute('data-dragging', 'true')
+      fireEvent.touchMove(card, touch(5, 0))
+      await act(() => vi.advanceTimersByTime(1))
+      fireEvent.touchMove(card, touch(0, 100))
+    } else {
+      fireEvent.mouseDown(card, { clientX: 0, clientY: 0, button: 0 })
+      fireEvent.mouseMove(document, { clientX: 5, clientY: 0 })
+      expect(card).not.toHaveAttribute('data-dragging', 'true')
+      fireEvent.mouseMove(document, { clientX: 6, clientY: 0 })
+      fireEvent.mouseMove(document, { clientX: 0, clientY: 100 })
+    }
+    expect(card).toHaveAttribute('data-dragging', 'true')
+    expect(mocks.reorder.mutate).not.toHaveBeenCalled()
+    if (pointerType === 'touch') fireEvent.touchEnd(card, touch(0, 100))
+    else fireEvent.mouseUp(document)
+    expect(mocks.reorder.mutate).toHaveBeenCalledExactlyOnceWith([{ id: 'goal-2', position: 0 }, { id: 'goal-1', position: 1 }])
+    fireEvent.click(card, { detail: 1 })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await act(() => vi.advanceTimersByTime(50))
+  })
+
+  it('cancels touch drift, Escape and filtered reorders', async () => {
+    vi.useFakeTimers()
+    mocks.goals.data.allGoals = [createMockGoal(), createMockGoal({ id: 'goal-2', title: 'Second', position: 1 })]
+    render(<ProgressPage />)
+    const card = screen.getByRole('button', { name: 'Read 12 Books' })
+    fireEvent.touchStart(card, { touches: [{ clientX: 0, clientY: 0 }] })
+    fireEvent.touchMove(card, { touches: [{ clientX: 6, clientY: 0 }] })
+    await act(() => vi.advanceTimersByTime(300))
+    expect(card).not.toHaveAttribute('data-dragging', 'true')
+    fireEvent.touchEnd(card)
+    expect(mocks.reorder.mutate).not.toHaveBeenCalled()
+    fireEvent.mouseDown(card, { clientX: 0, clientY: 0, button: 0 })
+    fireEvent.mouseMove(document, { clientX: 0, clientY: 100 })
+    expect(card).toHaveAttribute('data-dragging', 'true')
+    fireEvent.keyDown(document, { code: 'Escape' })
+    expect(mocks.reorder.mutate).not.toHaveBeenCalled()
+    await act(() => vi.advanceTimersByTime(50))
+    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.active' }))
+    fireEvent.mouseDown(card, { clientX: 0, clientY: 0, button: 0 })
+    fireEvent.mouseMove(document, { clientX: 0, clientY: 100 })
+    fireEvent.mouseUp(document)
+    fireEvent.keyDown(card, { altKey: true, key: 'ArrowDown' })
+    expect(mocks.reorder.mutate).not.toHaveBeenCalled()
+  })
+
   afterEach(() => { vi.useRealTimers() })
   beforeEach(() => {
     mocks.account.profile.timeZone = 'America/Sao_Paulo'
@@ -284,7 +379,7 @@ describe('ProgressContent', () => {
     expect(screen.queryByText('progressScreen.achievements.lockedBody')).not.toBeInTheDocument()
   })
 
-  it('offers the one day repair and the explicit finish write', () => {
+  it('offers the one day repair', () => {
     mocks.freeze.streakInfo.isRepairAvailable = true
     mocks.freeze.streakInfo.repairDate = '2026-08-27'
     mocks.goals.data.allGoals = [{
@@ -305,13 +400,7 @@ describe('ProgressContent', () => {
     render(<ProgressContent />)
 
     fireEvent.click(screen.getByText('progressScreen.streak.repairAction'))
-    fireEvent.click(screen.getByText('progressScreen.goals.finish'))
     expect(mocks.repair.mutate).toHaveBeenCalledTimes(1)
-    expect(mocks.updateStatus.mutate).toHaveBeenCalledWith({
-      goalId: 'goal-1',
-      goalName: 'Read 10 books',
-      data: { status: 'Completed' },
-    })
   })
 
   it('keeps the page open when the Pro figures report no habits', () => {
