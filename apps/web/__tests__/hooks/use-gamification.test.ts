@@ -273,6 +273,21 @@ describe('useStreakInfo', () => {
     expect(result.current.data!.isFrozenToday).toBe(false)
   })
 
+  it('loads UTC-fallback streak info when the persisted timezone is null', async () => {
+    const streakInfo = makeStreakInfo()
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(streakInfo),
+    })
+
+    const { result } = renderHook(() => useStreakInfo(null), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.currentStreak).toBe(7)
+  })
+
   it('does not fetch streak info when disabled', () => {
     const { result } = renderHook(() => useStreakInfo('America/Sao_Paulo', false), {
       wrapper: createWrapper(),

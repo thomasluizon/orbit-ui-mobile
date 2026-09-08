@@ -104,7 +104,7 @@ export function useStreakInfo(timeZone: string | null, enabled = true) {
     queryKey: gamificationKeys.streak(timeZone),
     queryFn: () => apiClient<StreakInfo>(API.gamification.streak, undefined, streakInfoSchema),
     staleTime: QUERY_STALE_TIMES.gamification,
-    enabled: enabled && timeZone !== null,
+    enabled,
   })
 }
 

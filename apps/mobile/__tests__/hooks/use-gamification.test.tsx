@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockGamificationProfile } from '@orbit/shared/__tests__/factories'
 import { API } from '@orbit/shared/api'
+import { gamificationKeys } from '@orbit/shared/query'
 import type { StreakInfo } from '@orbit/shared/types/gamification'
 import { streakInfoSchema } from '@orbit/shared/types/gamification'
 
@@ -35,7 +36,18 @@ const mocks = vi.hoisted(() => {
   return {
     state,
     queryClient,
-    useQuery: vi.fn(({ queryKey }: { queryKey: readonly unknown[] }) => {
+    useQuery: vi.fn(({ queryKey, enabled = true }: {
+      queryKey: readonly unknown[]
+      enabled?: boolean
+    }) => {
+      if (!enabled) {
+        return {
+          data: undefined,
+          isLoading: false,
+          isError: false,
+          error: null,
+        }
+      }
       const keyText = JSON.stringify(queryKey)
       if (keyText.includes('streak')) {
         return {
@@ -202,6 +214,18 @@ describe('mobile useStreakInfo and streak freeze', () => {
 
     expect(hook.value.data?.currentStreak).toBe(7)
     expect(hook.value.data?.freezesAvailable).toBe(2)
+  })
+
+  it('loads UTC-fallback streak info when the persisted timezone is null', async () => {
+    const hook = await renderHookValue(() => useStreakInfo(null))
+
+    expect(mocks.useQuery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: gamificationKeys.streak(null),
+        enabled: true,
+      }),
+    )
+    expect(hook.value.data?.currentStreak).toBe(7)
   })
 
   it('passes enabled false to the streak query when disabled', async () => {
