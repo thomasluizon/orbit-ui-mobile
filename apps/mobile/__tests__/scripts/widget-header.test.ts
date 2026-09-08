@@ -174,6 +174,17 @@ describe('Android widget habit rows', () => {
     })
   })
 
+  it('mutes completed titles through the pre-31 enabled-state path', () => {
+    const service = readFileSync(
+      resolve(widgetSourceRoot, 'OrbitWidgetService.kt'),
+      'utf8',
+    )
+
+    expect(service).toContain(
+      'views.setBoolean(R.id.item_title, "setEnabled", !habit.isCompleted)',
+    )
+  })
+
   it('draws done, overdue, and pending as vector status marks', () => {
     const done = drawable('widget_status_done.xml')
     const overdue = drawable('widget_status_overdue.xml')

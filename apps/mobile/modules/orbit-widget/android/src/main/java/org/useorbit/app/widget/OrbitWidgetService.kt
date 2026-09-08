@@ -652,6 +652,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             views.setViewPadding(R.id.widget_item_content, dpToPx(12), 0, dpToPx(12), 0)
         }
         views.setTextViewText(R.id.item_title, habit.title)
+        views.setBoolean(R.id.item_title, "setEnabled", !habit.isCompleted)
         if (habit.isCompleted) {
             views.setModeAwareColor(R.id.item_title, "setTextColor", colorModes) { it.textMuted }
         } else {
