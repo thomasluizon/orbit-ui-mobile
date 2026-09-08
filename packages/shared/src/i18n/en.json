@@ -2486,9 +2486,12 @@
     "achievements": {
       "empty": "No achievements are available yet.",
       "xp": "{current} / {next} XP",
-      "next": "Next: level {level}, {title}. {xp} XP to go.",
-      "earned": "Earned {date}",
+      "xpProgress": "Progress to the next level",
+      "earnedLabel": "Earned",
+      "earnedState": "{name}, earned",
+      "unearnedState": "{name}, not earned yet",
       "progress": "{current} of {target}",
+      "progressLabel": "Progress for {name}: {current} of {target}",
       "level": "Level {level} · {title}",
       "levelTitles": {
         "starter": "Starter",
@@ -2501,10 +2504,7 @@
         "admiral": "Admiral",
         "elite": "Elite",
         "legend": "Legend"
-      },
-      "lockedTitle": "Achievements",
-      "lockedBody": "Orbit Pro tracks achievements and XP.",
-      "lockedAction": "See Orbit Pro"
+      }
     }
   },
   "gamification": {
