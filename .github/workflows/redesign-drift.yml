@@ -105,17 +105,31 @@ jobs:
           # `merge-tree --write-tree` writes the merged tree without touching the index or the working
           # tree and prints its OID, so `git diff HEAD <tree>` is exactly the set this merge would
           # change. On the live refs it agrees with reality where both shortcuts did not.
+          # stdout and stderr are captured SEPARATELY, because the first line of stdout is used as a
+          # tree OID and folding stderr into it would feed a warning to `git diff`. Both response
+          # shapes were observed rather than assumed, on git 2.55.0:
+          #
+          #   success  rc 0, stdout is exactly one 40-character OID, stderr empty
+          #   conflict rc 1, stdout is the OID, then `100644 <blob> 1|2|3\t<path>` stage lines, a blank
+          #            line, then `Auto-merging ...` and `CONFLICT (content): ...`; stderr empty
+          #
+          # So rc is checked FIRST: on a conflict the OID is present and still must not be used, because
+          # the merge step below is the one that reports a conflict loudly.
           set +e
-          merged=$(git merge-tree --write-tree HEAD origin/main 2>&1)
+          merged_stdout=$(git merge-tree --write-tree HEAD origin/main 2>"$RUNNER_TEMP/merge-tree-stderr.txt")
           merged_rc=$?
           set -e
-          if [ "$merged_rc" -ne 0 ]; then
-            # A conflict, or a git too old for --write-tree (2.38+). Either way this step cannot
-            # determine the change set, and refusing on an unknown would block every drift run. The
-            # merge step below fails loudly on a real conflict, and the push classifier names the cause
-            # if the refusal happens anyway, so proceeding degrades the message rather than the verdict.
-            echo "::warning::Could not compute the prospective merge (git merge-tree exited $merged_rc), so the workflow-file preflight is skipped. The merge step below still reports a conflict, and a refused push still names its cause."
-            echo "$merged"
+          merged=$(printf '%s\n' "$merged_stdout" | head -1)
+          if [ "$merged_rc" -ne 0 ] || ! printf '%s' "$merged" | grep -qE '^([0-9a-f]{40}|[0-9a-f]{64})$'; then
+            # A conflict, a git too old for --write-tree (2.38+), or a first line that is not an object
+            # id. None is a signal this step can interpret, and refusing on an unknown would block every
+            # drift run. The merge step below fails loudly on a real conflict, and the push classifier
+            # names the cause if the refusal happens anyway, so an unknown degrades the message rather
+            # than the verdict. The OID shape is validated rather than trusted, which is the whole point
+            # of reading someone else's output.
+            echo "::warning::Could not compute the prospective merge (git merge-tree exited $merged_rc, first stdout line \"$merged\"), so the workflow-file preflight is skipped. The merge step below still reports a conflict, and a refused push still names its cause."
+            printf '%s\n' "$merged_stdout"
+            cat "$RUNNER_TEMP/merge-tree-stderr.txt" || true
             exit 0
           fi
           pending=$(git diff --name-only HEAD "$merged" -- .github/workflows || true)
