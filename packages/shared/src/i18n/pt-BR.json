@@ -285,8 +285,7 @@
     "delete": "Excluir",
     "duplicate": "Duplicar",
     "viewDetails": "Ver detalhes",
-    "addSubHabit": "Adicionar sub-hábito",
-    "complete": "Concluir"
+    "addSubHabit": "Adicionar sub-hábito"
   },
   "rail": {
     "todayProgress": "Hoje",
@@ -2375,9 +2374,17 @@
       "achieved": "Alcançada"
     },
     "detail": {
-      "markCompleted": "Marcar como concluída",
-      "markAbandoned": "Abandonar meta",
-      "reactivate": "Reativar",
+      "manualProgress": "Atualize o progresso. Ao alcançar o alvo, a meta é concluída.",
+      "increase": "Aumentar progresso",
+      "decrease": "Diminuir progresso",
+      "derivedStreak": "O progresso da sequência é calculado automaticamente, então não pode ser editado aqui. | Vem da sequência atual do hábito ligado a esta meta, então não pode ser editado aqui. | Vem da menor sequência atual entre os {count} hábitos ligados a esta meta, então não pode ser editado aqui.",
+      "derivedHabits": "O progresso vem dos registros dos hábitos ligados a esta meta, então não é editável aqui.",
+      "completeWhyDerived": "A meta chegou ao alvo e continua ativa até você concluir, porque o número é recalculado a cada leitura.",
+      "linkedLimit": "{count} hábitos é o limite por meta.",
+      "deleteNamed": "A meta “{title}” sai da sua lista. Os hábitos ligados a ela continuam como estão.",
+      "markCompleted": "Concluir meta",
+      "markAbandoned": "Marcar abandonada",
+      "reactivate": "Reabrir meta",
       "delete": "Excluir meta",
       "deleteConfirm": "Quer mesmo excluir esta meta? Não dá para desfazer.",
       "edit": "Editar meta",

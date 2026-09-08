@@ -107,7 +107,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => mocks.router }))
-vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: ({ goalId }: { goalId: string }) => <div role="dialog">{goalId}</div> }))
+vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: ({ goalId, inline, onOpenChange }: { goalId: string; inline?: boolean; onOpenChange: (open: boolean) => void }) => <div role={inline ? 'region' : 'dialog'} aria-label="goal-detail">{goalId}<button onClick={() => onOpenChange(false)}>Back to goals</button></div> }))
 vi.mock('@/components/ui/pro-badge', () => ({ ProBadge: () => <span>PRO</span> }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => mocks.account }))
 vi.mock('@/hooks/use-goals', () => ({
@@ -156,7 +156,7 @@ describe('ProgressContent', () => {
     expect(within(card).getByText('progressScreen.goals.targetReached')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.goals.finish')).not.toBeInTheDocument()
     fireEvent.click(card)
-    expect(screen.getByRole('dialog')).toHaveTextContent('goal-1')
+    expect(screen.getByLabelText('goal-detail')).toHaveTextContent('goal-1')
     expect(mocks.updateStatus.mutate).not.toHaveBeenCalled()
   })
 
@@ -508,6 +508,19 @@ describe('ProgressContent', () => {
     rerender(<ProgressPage />)
     expect(screen.queryByText('progressScreen.streak.frozenToday')).not.toBeInTheDocument()
     expect(strip.lastElementChild).toHaveAttribute('data-state', 'today')
+  })
+
+  it('stage 5 opens inline detail and restores the filtered list on back', () => {
+    mocks.goals.data.allGoals = [createMockGoal()]
+    render(<ProgressPage />)
+    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.active' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Read 12 Books' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'progressScreen.sections.streak' })).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'goal-detail' })).toHaveTextContent('goal-1')
+    fireEvent.click(screen.getByRole('button', { name: 'Back to goals' }))
+    expect(screen.getByRole('radio', { name: 'progressScreen.goals.active' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('button', { name: 'Read 12 Books' })).toBeInTheDocument()
   })
 
   it('keeps the frozen banner, strip and protected-today marker on one timezone snapshot', async () => {

@@ -35,7 +35,7 @@ export function GoalProgressHistorySection({
   const [showAllHistory, setShowAllHistory] = useState(false)
 
   const visibleEntries = useMemo(
-    () => (showAllHistory ? entries : entries.slice(-HISTORY_PREVIEW_COUNT)),
+    () => (showAllHistory ? entries : entries.slice(0, HISTORY_PREVIEW_COUNT)),
     [entries, showAllHistory],
   )
 
@@ -69,6 +69,7 @@ export function GoalProgressHistorySection({
           ]}
           accessibilityRole="button"
           accessibilityLabel={showAllHistory ? showLessLabel : showAllLabel}
+          accessibilityState={{ expanded: showAllHistory }}
         >
           <Text style={styles.toggleAllText}>
             {showAllHistory ? showLessLabel : showAllLabel}
@@ -105,7 +106,7 @@ export function GoalLinkedHabitsSection({
       ) : linkedHabits.map((habit) => (
         <View key={habit.id} style={styles.linkedRow}>
           <View style={styles.linkedWell}>
-            <Repeat size={18} strokeWidth={1.8} color={tokens.fg2} />
+            <Repeat size={24} strokeWidth={1.5} color={tokens.fg2} />
           </View>
           <Text style={styles.linkedTitle} numberOfLines={1}>
             {habit.title}
@@ -119,10 +120,8 @@ export function GoalLinkedHabitsSection({
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     historyEntry: {
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: tokens.hairline,
+      paddingHorizontal: 0,
+      paddingVertical: 8,
       gap: 4,
     },
     historyEntryHeader: {
@@ -133,7 +132,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     historyDate: {
       fontFamily: 'GeistMono_400Regular',
-      fontSize: 11,
+      fontSize: 12,
       color: tokens.fg3,
       fontVariant: ['tabular-nums'],
     },
@@ -149,8 +148,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg2,
     },
     toggleAll: {
-      paddingHorizontal: 20,
-      paddingVertical: 10,
+      paddingHorizontal: 0,
+      paddingVertical: 8,
     },
     toggleAllText: {
       fontFamily: 'Geist_500Medium',
@@ -164,17 +163,15 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 20,
-      paddingHorizontal: 16,
+      paddingHorizontal: 0,
       paddingVertical: 8,
     },
     linkedRow: {
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: tokens.hairline,
+      paddingHorizontal: 0,
+      paddingVertical: 8,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 14,
+      gap: 12,
     },
     linkedWell: {
       width: 36,

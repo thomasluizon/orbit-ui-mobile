@@ -2,7 +2,6 @@
 
 import {
   ArchiveX,
-  CheckCircle2,
   PencilLine,
   RotateCw,
   Trash2,
@@ -12,8 +11,8 @@ import { GoalActionRow } from '../goal-detail-sections'
 
 interface GoalActionFooterProps {
   isActive: boolean
+  isAbandoned: boolean
   isUpdatingStatus: boolean
-  onMarkCompleted: () => void
   onMarkAbandoned: () => void
   onReactivate: () => void
   onEdit: () => void
@@ -24,8 +23,8 @@ interface GoalActionFooterProps {
  *  current goal state plus edit and delete rows. */
 export function GoalActionFooter({
   isActive,
+  isAbandoned,
   isUpdatingStatus,
-  onMarkCompleted,
   onMarkAbandoned,
   onReactivate,
   onEdit,
@@ -34,35 +33,28 @@ export function GoalActionFooter({
   const t = useTranslations()
 
   return (
-    <div style={{ marginTop: 16, paddingBottom: 4 }}>
-      {isActive ? (
-        <>
-          <GoalActionRow
-            label={t('goals.detail.markCompleted')}
-            icon={CheckCircle2}
-            onClick={onMarkCompleted}
-            disabled={isUpdatingStatus}
-          />
-          <GoalActionRow
-            label={t('goals.detail.markAbandoned')}
-            icon={ArchiveX}
-            onClick={onMarkAbandoned}
-            disabled={isUpdatingStatus}
-          />
-        </>
-      ) : (
+    <div style={{ paddingBottom: 4 }}>
+      <GoalActionRow
+        label={t('goals.detail.edit')}
+        icon={PencilLine}
+        onClick={onEdit}
+      />
+      {isAbandoned ? (
         <GoalActionRow
           label={t('goals.detail.reactivate')}
           icon={RotateCw}
           onClick={onReactivate}
           disabled={isUpdatingStatus}
         />
-      )}
-      <GoalActionRow
-        label={t('goals.detail.edit')}
-        icon={PencilLine}
-        onClick={onEdit}
-      />
+      ) : null}
+      {isActive ? (
+          <GoalActionRow
+            label={t('goals.detail.markAbandoned')}
+            icon={ArchiveX}
+            onClick={onMarkAbandoned}
+            disabled={isUpdatingStatus}
+          />
+      ) : null}
       <GoalActionRow
         label={t('goals.detail.delete')}
         icon={Trash2}

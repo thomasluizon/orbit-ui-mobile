@@ -153,7 +153,7 @@ vi.mock('@/lib/theme', async (importOriginal) => {
   const tokens = new Proxy({}, { get: () => '#111111' })
   return { ...actual, createTokensV2: () => tokens }
 })
-vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
+vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: (props: { goalId: string; inline?: boolean; onClose: () => void }) => React.createElement('GoalDetail', props) }))
 vi.mock('@/components/ui/pro-badge', () => ({
   ProBadge: () => React.createElement('ProBadge'),
 }))
@@ -617,6 +617,20 @@ describe('mobile ProgressContent', () => {
     mocks.freeze.isFrozenToday = false
     const open = await renderProgress()
     expect(open.root.findAll((node) => node.props.children === 'progressScreen.streak.frozenToday')).toHaveLength(0)
+  })
+
+  it('stage 5 opens inline detail and returns to its goal list', async () => {
+    mocks.goals.data.allGoals = [createMockGoal()]
+    const tree = await renderProgress()
+    const card = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'Read 12 Books')[0]
+    if (!card) throw new Error('Goal card missing')
+    TestRenderer.act(() => (card.props.onPress as () => void)())
+    const detail = tree.root.findAll((node) => node.type === 'GoalDetail')[0]
+    if (!detail) throw new Error('Goal detail missing')
+    expect(detail.props.inline).toBe(true)
+    TestRenderer.act(() => (detail.props.onClose as () => void)())
+    expect(tree.root.findAll((node) => node.type === 'GoalDetail')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'Read 12 Books')).toHaveLength(1)
   })
 
   it('keeps the frozen banner, strip and protected-today marker on one timezone snapshot', async () => {
