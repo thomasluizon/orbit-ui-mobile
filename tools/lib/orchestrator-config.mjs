@@ -148,8 +148,8 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
 /**
  * `tier` is a plain string, not a label array. The tier:cheap / tier:deep label machinery is gone
  * with the wave planner that set it: one ticket, one worker, one model. D21 fixes the implementer
- * at one model @ high, gpt-6-astra since 2026-09-04, so "default" is the only tier any launch resolves. The harness no longer
- * runs a reviewer of its own: Pullfrog reviews in GitHub Actions and publishes the
+ * at one model @ high, gpt-5.6-sol since 2026-09-07, so "default" is the only tier any launch resolves.
+ * The harness no longer runs a reviewer of its own: Pullfrog reviews in GitHub Actions and publishes the
  * `pullfrog-approval` required check, so there is no second tier to declare.
  */
 export const resolveWorkerInvocation = (engineName, engine, tier = "default") => {

@@ -32,15 +32,6 @@ vi.mock('@/app/actions/profile', () => ({
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
-vi.mock('@/components/ui/fresh-start-animation', () => ({
-  FreshStartAnimation: ({ onComplete }: { onComplete: () => void }) => (
-    <div data-testid="fresh-start-animation">
-      <button data-testid="animation-complete" onClick={onComplete}>
-        Complete
-      </button>
-    </div>
-  ),
-}))
 
 
 import { FreshStartModal } from '@/app/(app)/profile/_components/fresh-start-modal'
@@ -166,7 +157,7 @@ describe('FreshStartModal', () => {
     })
   })
 
-  it('closes modal and shows animation after successful reset', async () => {
+  it('closes the sheet, clears queries and navigates after successful reset', async () => {
     const onOpenChange = vi.fn()
     render(<FreshStartModal open={true} onOpenChange={onOpenChange} />)
 
@@ -182,7 +173,9 @@ describe('FreshStartModal', () => {
     })
 
     await waitFor(() => {
-      expect(screen.getByTestId('fresh-start-animation')).toBeInTheDocument()
+      expect(mockQueryClientClear).toHaveBeenCalledTimes(1)
+      expect(mockRouterPush).toHaveBeenCalledWith('/')
+      expect(mockRouterRefresh).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -202,6 +195,8 @@ describe('FreshStartModal', () => {
       expect(screen.getByText('profile.freshStart.errorGeneric')).toBeInTheDocument()
     })
     expect(screen.queryByText('Server error')).not.toBeInTheDocument()
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockQueryClientClear).not.toHaveBeenCalled()
   })
 
   it('submits the reset on Enter once ORBIT is typed', async () => {

@@ -387,7 +387,7 @@ describe('mobile tag hooks', () => {
 
     const renamedTag = mocks.state.tags[0]?.value.find((tag) => tag.id === 'tag-1')
     expect(renamedTag).toEqual({ id: 'tag-1', name: 'Wellbeing', color: '#123456' })
-    const habitTag = mocks.state.habits[0]?.value[0]?.tags?.find((tag) => tag.id === 'tag-1')
+    const habitTag = mocks.state.habits[0]?.value[0]?.tags.find((tag) => tag.id === 'tag-1')
     expect(habitTag).toMatchObject({ name: 'Wellbeing', color: '#123456' })
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
   })

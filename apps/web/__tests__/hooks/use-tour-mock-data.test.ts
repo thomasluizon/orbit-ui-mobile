@@ -3,7 +3,7 @@ import { renderHook, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useTourMockData } from '@/hooks/use-tour-mock-data'
-import { habitKeys, goalKeys, tagKeys, gamificationKeys } from '@orbit/shared/query'
+import { habitKeys, goalKeys, tagKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -90,13 +90,14 @@ describe('useTourMockData', () => {
 
   it('injects mock streak data when no existing streak', () => {
     const { wrapper, queryClient } = createWrapper()
+    queryClient.setQueryData(profileKeys.detail(), { timeZone: 'America/Sao_Paulo' })
     const { result } = renderHook(() => useTourMockData(), { wrapper })
 
     act(() => {
       result.current.inject()
     })
 
-    const streakData = queryClient.getQueryData(gamificationKeys.streak())
+    const streakData = queryClient.getQueryData(gamificationKeys.streak('America/Sao_Paulo'))
     expect(streakData).toBeDefined()
     expect((streakData as { currentStreak: number }).currentStreak).toBe(1)
   })

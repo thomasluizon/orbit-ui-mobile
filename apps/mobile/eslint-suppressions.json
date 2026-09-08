@@ -14,7 +14,7 @@
       "count": 1
     },
     "local/spacing-scale": {
-      "count": 5
+      "count": 2
     }
   },
   "app/(tabs)/calendar/_components/calendar-range-view.tsx": {
@@ -37,7 +37,7 @@
   },
   "app/(tabs)/calendar/_components/calendar-time-grid.tsx": {
     "local/spacing-scale": {
-      "count": 8
+      "count": 6
     }
   },
   "app/(tabs)/calendar/_components/calendar-week-view.tsx": {
@@ -76,7 +76,7 @@
       "count": 2
     },
     "local/spacing-scale": {
-      "count": 5
+      "count": 4
     }
   },
   "app/(tabs)/profile/_components/profile-action-button.tsx": {
@@ -99,7 +99,7 @@
   },
   "app/advanced-styles.ts": {
     "local/spacing-scale": {
-      "count": 24
+      "count": 22
     }
   },
   "app/advanced.tsx": {
@@ -114,7 +114,7 @@
   },
   "app/calendar-sync-styles.ts": {
     "local/spacing-scale": {
-      "count": 23
+      "count": 18
     }
   },
   "app/calendar-sync.tsx": {
@@ -124,7 +124,7 @@
   },
   "app/preferences-styles.ts": {
     "local/spacing-scale": {
-      "count": 6
+      "count": 5
     }
   },
   "app/privacy.tsx": {
@@ -173,17 +173,6 @@
       "count": 3
     }
   },
-  "components/gamification/achievement-toast.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/gamification/all-done-celebration.tsx": {
     "local/no-arbitrary-zindex": {
       "count": 1
@@ -199,35 +188,14 @@
       "count": 1
     }
   },
-  "components/gamification/streak-badge.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "components/gamification/streak-celebration.tsx": {
     "local/no-arbitrary-zindex": {
       "count": 1
     }
   },
-  "components/gamification/streak-freeze-celebration.tsx": {
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    }
-  },
-  "components/gamification/welcome-back-toast.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/goal-card.tsx": {
     "local/spacing-scale": {
-      "count": 4
+      "count": 3
     }
   },
   "components/goals/create-goal-modal/goal-deadline-field.tsx": {
@@ -306,7 +274,7 @@
       "count": 3
     },
     "local/spacing-scale": {
-      "count": 4
+      "count": 3
     }
   },
   "components/habits/habit-form-fields/habit-tag-chip.tsx": {
@@ -356,7 +324,7 @@
   },
   "components/onboarding/onboarding-complete-habit.tsx": {
     "local/spacing-scale": {
-      "count": 3
+      "count": 2
     }
   },
   "components/onboarding/onboarding-complete.tsx": {
@@ -364,7 +332,7 @@
       "count": 1
     },
     "local/spacing-scale": {
-      "count": 5
+      "count": 4
     }
   },
   "components/onboarding/onboarding-create-goal.tsx": {
@@ -385,12 +353,12 @@
   },
   "components/onboarding/onboarding-features.tsx": {
     "local/spacing-scale": {
-      "count": 5
+      "count": 4
     }
   },
   "components/onboarding/onboarding-meet-astra.tsx": {
     "local/spacing-scale": {
-      "count": 3
+      "count": 2
     }
   },
   "components/onboarding/onboarding-template-packs.tsx": {
@@ -398,7 +366,7 @@
       "count": 2
     },
     "local/spacing-scale": {
-      "count": 5
+      "count": 4
     }
   },
   "components/onboarding/onboarding-welcome.tsx": {
@@ -455,17 +423,12 @@
   },
   "components/ui/app-text-input.tsx": {
     "local/spacing-scale": {
-      "count": 5
+      "count": 1
     }
   },
   "components/ui/bottom-sheet-app-text-input.tsx": {
     "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "components/ui/chip.tsx": {
-    "local/spacing-scale": {
-      "count": 2
+      "count": 1
     }
   },
   "components/ui/create-api-key-modal.styles.ts": {
@@ -479,14 +442,6 @@
     },
     "local/spacing-scale": {
       "count": 4
-    }
-  },
-  "components/ui/fresh-start-animation.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 1
     }
   },
   "components/ui/highlight-text.tsx": {
@@ -512,7 +467,7 @@
       "count": 1
     },
     "local/spacing-scale": {
-      "count": 4
+      "count": 3
     }
   },
   "components/ui/settings-description.tsx": {
@@ -525,7 +480,7 @@
       "count": 1
     },
     "local/spacing-scale": {
-      "count": 5
+      "count": 4
     }
   },
   "components/ui/settings-row.tsx": {
@@ -533,7 +488,7 @@
       "count": 2
     },
     "local/spacing-scale": {
-      "count": 4
+      "count": 3
     }
   },
   "components/ui/year-picker.tsx": {

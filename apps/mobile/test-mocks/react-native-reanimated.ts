@@ -124,7 +124,6 @@ export const ZoomIn = makeChainableEntering()
 export const LinearTransition = makeChainableEntering()
 
 export class Keyframe {
-  constructor(_definition: Record<string, unknown>) {}
   duration(): this {
     return this
   }

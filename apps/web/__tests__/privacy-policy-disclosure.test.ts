@@ -58,7 +58,10 @@ describe('privacy policy disclosures', () => {
   })
 
   it('keeps the complete privacy key set identical across locales', () => {
-    expect(flattenKeys(ptBR.privacy).sort()).toEqual(flattenKeys(en.privacy).sort())
+    const compareKeys = (left: string, right: string) => left.localeCompare(right)
+    expect(flattenKeys(ptBR.privacy).sort(compareKeys)).toEqual(
+      flattenKeys(en.privacy).sort(compareKeys),
+    )
   })
 
   it('keeps every processor and retention disclosure owned by both privacy routes', () => {

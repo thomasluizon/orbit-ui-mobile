@@ -172,9 +172,6 @@ vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
   KeyboardAwareScrollView: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))
 
-vi.mock('@/components/ui/fresh-start-animation', () => ({
-  FreshStartAnimation: () => null,
-}))
 
 vi.mock('@/components/tour/tour-replay-modal', () => ({
   TourReplayModal: ({ visible }: { visible: boolean }) =>

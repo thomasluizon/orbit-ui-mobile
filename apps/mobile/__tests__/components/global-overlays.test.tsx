@@ -42,9 +42,6 @@ vi.mock('@/components/onboarding/calendar-import-prompt', () => ({
 vi.mock('@/components/onboarding/astra-import-prompt', () => ({
   AstraImportPrompt: 'AstraImportPrompt',
 }))
-vi.mock('@/components/gamification/achievement-toast', () => ({
-  AchievementToast: 'AchievementToast',
-}))
 vi.mock('@/components/gamification/all-done-celebration', () => ({
   AllDoneCelebration: 'AllDoneCelebration',
 }))
@@ -71,12 +68,6 @@ vi.mock('@/components/review-moment/review-moment-sheet', () => ({
 }))
 vi.mock('@/components/gamification/streak-celebration', () => ({
   StreakCelebration: 'StreakCelebration',
-}))
-vi.mock('@/components/gamification/streak-freeze-celebration', () => ({
-  StreakFreezeCelebration: 'StreakFreezeCelebration',
-}))
-vi.mock('@/components/gamification/welcome-back-toast', () => ({
-  WelcomeBackToast: 'WelcomeBackToast',
 }))
 vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: 'ExpiryWarning' }))
 vi.mock('@/components/ui/trial-expired-modal', () => ({
@@ -115,7 +106,6 @@ function buildProps(
     leveledUp: false,
     newLevel: null,
     onClearLevelUp: () => {},
-    streakFreezeRef: () => {},
     ...overrides,
   }
 }
@@ -137,7 +127,6 @@ function isMounted(instance: TestInstance, overlayType: string): boolean {
 const ALWAYS_MOUNTED = [
   'ExpiryWarning',
   'TrialExpiredModal',
-  'StreakFreezeCelebration',
   'VersionUpdateDrawer',
   'TourProvider',
   'TourOverlay',
@@ -150,7 +139,6 @@ const GAMIFICATION_OVERLAYS = [
   'StreakCelebration',
   'AllDoneCelebration',
   'GoalCompletedCelebration',
-  'WelcomeBackToast',
   'MarketingConsentPrompt',
   'ReferralPrompt',
   'MilestoneSharePrompt',
@@ -212,20 +200,6 @@ describe('OverlayLayer mount matrix', () => {
 
     expect(isMounted(preOnboarding, 'PushPrompt')).toBe(false)
     expect(isMounted(postOnboarding, 'PushPrompt')).toBe(true)
-  })
-
-  it('gates the achievement toast on pro access', async () => {
-    const withoutPro = await renderLayer({
-      hasCompletedOnboarding: true,
-      hasProAccess: false,
-    })
-    const withPro = await renderLayer({
-      hasCompletedOnboarding: true,
-      hasProAccess: true,
-    })
-
-    expect(isMounted(withoutPro, 'AchievementToast')).toBe(false)
-    expect(isMounted(withPro, 'AchievementToast')).toBe(true)
   })
 
   it('gates the level-up overlay on gamification visibility', async () => {

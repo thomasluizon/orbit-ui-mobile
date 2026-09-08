@@ -31,7 +31,10 @@ vi.mock('@/components/ui/confirm-sheet', async (importOriginal) => {
   await chunks.confirmation.promise
   return importOriginal<typeof import('@/components/ui/confirm-sheet')>()
 })
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
+  useTranslations: () => (key: string) => key,
+}))
 vi.mock('next/navigation', () => ({
   usePathname: () => '/',
   useRouter: () => ({ push: vi.fn() }),

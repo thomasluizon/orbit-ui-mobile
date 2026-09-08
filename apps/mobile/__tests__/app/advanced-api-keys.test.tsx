@@ -34,14 +34,17 @@ const mocks = vi.hoisted(() => {
       return next
     }),
   }
+  const queryConfigs: { queryKey: readonly unknown[]; queryFn: () => unknown }[] = []
+  const apiKeysResult: QueryResult = { data: [] }
+  const capabilitiesResult: QueryResult = { data: [], isLoading: false, error: null }
   return {
     store,
     queryClient,
-    queryConfigs: [] as Array<{ queryKey: readonly unknown[]; queryFn: () => unknown }>,
-    apiKeysResult: { data: [] } as QueryResult,
-    capabilitiesResult: { data: [], isLoading: false, error: null } as QueryResult,
+    queryConfigs,
+    apiKeysResult,
+    capabilitiesResult,
     apiClient: vi.fn(),
-    performQueuedApiMutation: vi.fn(async () => undefined),
+    performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
   }
 })
 
@@ -98,12 +101,12 @@ function renderApiKeys(
 }
 
 function currentKeys(): ApiKey[] {
-  return (mocks.store.get(JSON.stringify(apiKeyKeys.lists())) as ApiKey[]) ?? []
+  return (mocks.store.get(JSON.stringify(apiKeyKeys.lists())) as ApiKey[] | undefined) ?? []
 }
 
 interface CapturedMutation {
   mutationFn: (variables: unknown) => Promise<unknown>
-  onMutate?: (variables: unknown) => Promise<unknown> | unknown
+  onMutate?: (variables: unknown) => unknown
   onError?: (error: unknown, variables: unknown, context: unknown) => void
   onSettled?: (
     data: unknown,

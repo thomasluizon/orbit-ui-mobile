@@ -46,7 +46,7 @@ describe('StatusDot', () => {
   it('dims a disabled non-interactive dot', () => {
     const tree = render(<StatusDot state="bad" disabled />)
     const image = nodeWithRole(tree, 'image')
-    expect((image!.props.style as { opacity?: number }).opacity).toBe(0.4)
+    expect((image!.props.style as { opacity?: number }).opacity).toBeCloseTo(0.4)
   })
 
   it('renders an interactive button that toggles on press', () => {

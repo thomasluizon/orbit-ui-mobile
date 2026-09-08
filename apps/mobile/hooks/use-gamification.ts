@@ -26,7 +26,6 @@ import {
 } from '@orbit/shared/utils'
 import { STREAK_CROSSING_MILESTONES } from '@orbit/shared/stores'
 import { apiClient } from '@/lib/api-client'
-import { useUIStore } from '@/stores/ui-store'
 
 export function useGamificationProfile(enabled = true) {
   const queryClient = useQueryClient()
@@ -100,17 +99,21 @@ export function useGamificationProfile(enabled = true) {
   }
 }
 
-export function useStreakInfo(enabled = true) {
+export function useStreakInfo(timeZone: string | null, enabled = true) {
   return useQuery({
-    queryKey: gamificationKeys.streak(),
+    queryKey: gamificationKeys.streak(timeZone),
     queryFn: () => apiClient<StreakInfo>(API.gamification.streak, undefined, streakInfoSchema),
     staleTime: QUERY_STALE_TIMES.gamification,
     enabled,
   })
 }
 
-export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; currentStreak?: number } | null, enabled = true) {
-  const streakQuery = useStreakInfo(enabled)
+export function useStreakFreeze(
+  profile: { streakFreezesAvailable?: number; currentStreak?: number } | null | undefined,
+  timeZone: string | null,
+  enabled = true,
+) {
+  const streakQuery = useStreakInfo(timeZone, enabled)
   const streakInfo = streakQuery.data ?? null
 
   const state = useMemo(
@@ -125,7 +128,7 @@ export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; cur
   }
 }
 
-export function useRepairStreak() {
+export function useRepairStreak(timeZone: string | null) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () =>
@@ -135,7 +138,7 @@ export function useRepairStreak() {
         streakInfoSchema,
       ),
     onSuccess: (streakInfo) => {
-      queryClient.setQueryData(gamificationKeys.streak(), streakInfo)
+      queryClient.setQueryData(gamificationKeys.streak(timeZone), streakInfo)
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.profile() })
     },
   })
@@ -143,12 +146,10 @@ export function useRepairStreak() {
 
 /**
  * Reports a whitelisted client gamification event (a shared card or a viewed Wrapped) to the backend,
- * which idempotently grants the mapped achievement. On success it celebrates each granted achievement
- * through the shared celebration queue and refreshes the gamification profile.
+ * which idempotently grants the mapped achievement and refreshes the gamification profile.
  */
 export function useReportEvent() {
   const queryClient = useQueryClient()
-  const enqueueCelebration = useUIStore((s) => s.enqueueCelebration)
 
   return useMutation({
     mutationFn: (eventKey: AchievementEventKey) =>
@@ -160,13 +161,7 @@ export function useReportEvent() {
         },
         reportEventResponseSchema,
       ),
-    onSuccess: (response) => {
-      for (const achievement of response.granted) {
-        enqueueCelebration('achievement', {
-          achievementId: achievement.id,
-          xpReward: achievement.xpReward,
-        })
-      }
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
     },
   })

@@ -16,14 +16,14 @@ describe('notification cache helpers', () => {
       setQueryData: vi.fn(),
     } as const
 
-    const snapshot = snapshotNotificationList(queryClient as never)
+    const snapshot = snapshotNotificationList(queryClient)
 
     expect(snapshot).toEqual({
       items: [{ id: 'n-1', isRead: false }],
       unreadCount: 1,
     })
 
-    restoreNotificationList(queryClient as never, snapshot)
+    restoreNotificationList(queryClient, snapshot)
 
     expect(queryClient.setQueryData).toHaveBeenCalledWith(notificationKeys.lists(), snapshot)
   })
@@ -33,7 +33,7 @@ describe('notification cache helpers', () => {
       setQueryData: vi.fn(),
     } as const
 
-    restoreNotificationList(queryClient as never, undefined)
+    restoreNotificationList(queryClient, undefined)
 
     expect(queryClient.setQueryData).not.toHaveBeenCalled()
   })
@@ -43,7 +43,7 @@ describe('notification cache helpers', () => {
       invalidateQueries: vi.fn(async () => {}),
     } as const
 
-    await invalidateNotificationList(queryClient as never)
+    await invalidateNotificationList(queryClient)
 
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: notificationKeys.lists(),
