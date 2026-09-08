@@ -144,7 +144,7 @@ describe('ProgressContent', () => {
     const card = screen.getByRole('button', { name: 'Read 12 Books' })
     expect(within(card).queryByText('goals.status.active')).not.toBeInTheDocument()
     expect(card.querySelectorAll('[data-variant="solid"]')).toHaveLength(1)
-    expect(within(card).queryByText('progressScreen.goals.daysOverdue')).not.toBeInTheDocument()
+    expect(within(card).queryByText(/^progressScreen\.goals\.daysOverdue(?::|$)/)).not.toBeInTheDocument()
     expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '25')
   })
 
@@ -410,7 +410,7 @@ describe('ProgressContent', () => {
     const achievementsHeading = screen.getByRole('heading', { name: 'progressScreen.sections.achievements' })
     expect(xpSummary.compareDocumentPosition(achievementsHeading) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
     expect(within(xpSummary).getAllByRole('progressbar')).toHaveLength(1)
-    expect(screen.queryByText('progressScreen.achievements.next')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^progressScreen\.achievements\.next(?::|$)/)).not.toBeInTheDocument()
     expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
       'gamification.categories.GettingStarted',
       'gamification.categories.Consistency',

@@ -197,7 +197,7 @@ describe('mobile ProgressContent', () => {
     const card = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'Read 12 Books')[0]!
     expect(card.findAll((node) => node.props.children === 'goals.status.active')).toHaveLength(0)
     expect(card.findAll((node) => typeof node.type === 'string' && node.props.testID === 'badge-solid')).toHaveLength(1)
-    expect(card.findAll((node) => node.props.children === 'progressScreen.goals.daysOverdue')).toHaveLength(0)
+    expect(card.findAll((node) => typeof node.props.children === 'string' && node.props.children.startsWith('progressScreen.goals.daysOverdue'))).toHaveLength(0)
   })
 
   it('renders a reached target as a done disc with one badge and no finish entry', async () => {
@@ -464,11 +464,13 @@ describe('mobile ProgressContent', () => {
     const achievementsHeading = hosts.findIndex((node) => node.props.accessibilityRole === 'header' && node.props.children === 'progressScreen.sections.achievements')
     expect(xpSummary).toBeGreaterThanOrEqual(0)
     expect(xpSummary).toBeLessThan(achievementsHeading)
-    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.achievements.next')).toHaveLength(0)
-    expect([...new Set(tree.root.findAll((node) => node.props.testID === 'achievement-category').map((node) => node.props.children))]).toEqual([
+    expect(tree.root.findAll((node) => typeof node.props.children === 'string' && node.props.children.startsWith('progressScreen.achievements.next'))).toHaveLength(0)
+    const categoryHeadings = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'achievement-category')
+    expect(categoryHeadings.map((node) => node.props.children)).toEqual([
       'gamification.categories.GettingStarted',
       'gamification.categories.Consistency',
     ])
+    expect(categoryHeadings.every((node) => node.props.accessibilityRole === 'header')).toBe(true)
 
     const earned = tree.root.findAll((node) => node.props.testID === 'achievement-tile-first_orbit')[0]!
     const progressive = tree.root.findAll((node) => node.props.testID === 'achievement-tile-week_warrior')[0]!
