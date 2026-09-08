@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useUIStore } from '@/stores/ui-store'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
@@ -79,14 +79,13 @@ describe('CelebrationPanel', () => {
     expect(screen.getByRole('button', { name: 'Log habit' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Open Astra' })).toBeEnabled()
 
-    screen.getByRole('button', { name: 'close:{}' }).focus()
-    await user.tab()
-    expect(screen.getByRole('button', { name: 'Open Astra' })).toHaveFocus()
-
-    fireEvent.click(screen.getByRole('button', { name: 'close:{}' }))
+    const closeButton = screen.getByRole('button', { name: 'close:{}' })
+    closeButton.focus()
+    await user.keyboard('{Enter}')
     expect(useUIStore.getState().activeCelebration?.kind).toBe('level-up')
     const promotedPanel = container.querySelector('[data-celebration-panel]')
     expect(promotedPanel).not.toBe(panel)
+    expect(screen.getByRole('button', { name: 'close:{}' })).toHaveFocus()
     expect(promotedPanel).toHaveStyle({
       animation: 'celebration-rise 280ms var(--ease-out) both',
     })

@@ -1,5 +1,6 @@
 'use client'
 
+import { useLayoutEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { useReducedMotion } from 'motion/react'
 import { X } from '@/components/ui/icons'
@@ -54,10 +55,19 @@ export function CelebrationPanel() {
   const reducedMotion = Boolean(useReducedMotion())
   const active = useUIStore((state) => state.activeCelebration)
   const complete = useUIStore((state) => state.completeActiveCelebration)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const restoreCloseFocus = useRef(false)
+
+  useLayoutEffect(() => {
+    if (!restoreCloseFocus.current) return
+    restoreCloseFocus.current = false
+    closeButtonRef.current?.focus()
+  }, [active?.id])
 
   if (!active) return null
   if (active.kind === 'streak' && !STREAK_MILESTONES.has(active.payload.streak)) return null
 
+  const activeId = active.id
   const { eyebrowKey, lineKey, values, pluralCount } = getCelebrationCopy(active)
   const translatedLine = t(lineKey, values)
   const line = pluralCount === undefined
@@ -65,7 +75,8 @@ export function CelebrationPanel() {
     : plural(translatedLine, pluralCount)
 
   function dismiss() {
-    complete(active?.id)
+    restoreCloseFocus.current = document.activeElement === closeButtonRef.current
+    complete(activeId)
   }
 
   return (
@@ -97,7 +108,7 @@ export function CelebrationPanel() {
         <p className="font-mono text-xs uppercase tracking-[0.06em] text-[var(--fg-3)]">{t(eyebrowKey)}</p>
         <p className="text-base leading-[1.45] text-[var(--fg-1)]">{line}</p>
       </div>
-      <button type="button" aria-label={t('close')} className="flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-well)]" onClick={dismiss}>
+      <button ref={closeButtonRef} type="button" aria-label={t('close')} className="flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--fg-2)] hover:bg-[var(--bg-well)]" onClick={dismiss}>
         <X aria-hidden="true" size={20} />
       </button>
     </section>
