@@ -1,7 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
-import { profileKeys } from '@orbit/shared/query'
+import { gamificationKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => {
 
   const queryClient = {
     getQueryData: vi.fn(() => state.profile),
+    invalidateQueries: vi.fn(async () => {}),
     setQueryData: vi.fn((
       _queryKey: readonly unknown[],
       updater: Profile | ((old: Profile | undefined) => Profile | undefined),
@@ -44,7 +45,7 @@ const mocks = vi.hoisted(() => {
     appState,
     appStateListeners,
     useQueryClient: vi.fn(() => queryClient),
-    performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
+    performQueuedApiMutation: vi.fn((): Promise<unknown> => Promise.resolve(undefined)),
   }
 })
 
@@ -58,6 +59,8 @@ vi.mock('react-native', () => ({
 
 vi.mock('@/lib/queued-api-mutation', () => ({
   performQueuedApiMutation: mocks.performQueuedApiMutation,
+  isQueuedResult: (value: unknown) =>
+    typeof value === 'object' && value !== null && 'queued' in value && value.queued === true,
 }))
 
 function renderHookHarness(profile: Profile | undefined) {
@@ -90,8 +93,10 @@ describe('mobile useTimezoneAutoSync', () => {
     mocks.state.profile = createMockProfile()
     mocks.queryClient.getQueryData.mockClear()
     mocks.queryClient.setQueryData.mockClear()
+    mocks.queryClient.invalidateQueries.mockClear()
     mocks.useQueryClient.mockClear()
-    mocks.performQueuedApiMutation.mockClear()
+    mocks.performQueuedApiMutation.mockReset()
+    mocks.performQueuedApiMutation.mockResolvedValue(undefined)
     mocks.appState.addEventListener.mockClear()
     mocks.appStateListeners.length = 0
   })
@@ -118,6 +123,27 @@ describe('mobile useTimezoneAutoSync', () => {
       expect.any(Function),
     )
     expect(mocks.state.profile.timeZone).toBe('America/Sao_Paulo')
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: gamificationKeys.all,
+      refetchType: 'none',
+    })
+  })
+
+  it('keeps the persisted timezone while its update is queued', async () => {
+    mocks.state.profile = createMockProfile({ timeZone: 'UTC' })
+    mocks.performQueuedApiMutation.mockResolvedValue({
+      queued: true,
+      queuedMutationId: 'offline-mutation-1',
+    })
+
+    await withDetectedTimezone('Pacific/Kiritimati', async () => {
+      await renderHookHarness(mocks.state.profile)
+      await Promise.resolve()
+    })
+
+    expect(mocks.state.profile.timeZone).toBe('UTC')
+    expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
   })
 
   it('does not queue an update when the stored timezone already matches the device', async () => {

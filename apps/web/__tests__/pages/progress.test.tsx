@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
 const mocks = vi.hoisted(() => ({
@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   reorder: { mutate: vi.fn() },
   updateStatus: { mutate: vi.fn(), isPending: false },
   account: {
-    profile: { canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9, totalXp: 150 },
+    profile: { timeZone: 'America/Sao_Paulo', canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9, totalXp: 150 },
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -99,6 +99,7 @@ const mocks = vi.hoisted(() => ({
     maxFreezesPerMonth: 3,
     daysUntilNextFreeze: 3,
   },
+  streakSnapshotZones: null as Set<string> | null,
 }))
 
 vi.mock('next-intl', () => ({
@@ -117,7 +118,16 @@ vi.mock('@/hooks/use-goals', () => ({
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: () => mocks.gamification,
   useRepairStreak: () => mocks.repair,
-  useStreakFreeze: () => mocks.freeze,
+  useStreakFreeze: (_profile: unknown, timeZone: unknown) => {
+    if (!mocks.streakSnapshotZones || typeof timeZone !== 'string') return mocks.freeze
+    if (mocks.streakSnapshotZones.has(timeZone)) return mocks.freeze
+    return {
+      ...mocks.freeze,
+      streakInfo: null,
+      isFrozenToday: false,
+      streakQuery: { ...mocks.freeze.streakQuery, isError: false },
+    }
+  },
 }))
 vi.mock('@/hooks/use-retrospective', () => ({
   useProgressRetrospective: () => mocks.retrospective,
@@ -127,7 +137,9 @@ import ProgressPage from '@/app/(app)/progress/page'
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
 
 describe('ProgressContent', () => {
+  afterEach(() => { vi.useRealTimers() })
   beforeEach(() => {
+    mocks.account.profile.timeZone = 'America/Sao_Paulo'
     vi.clearAllMocks()
     for (const query of [mocks.account, mocks.goals, mocks.gamification]) {
       query.isLoading = false
@@ -139,11 +151,14 @@ describe('ProgressContent', () => {
     mocks.account.profile.hasProAccess = true
     mocks.goals.data.allGoals = []
     mocks.gamification.profile.achievements = []
+    mocks.freeze.isFrozenToday = false
+    mocks.freeze.streakInfo.recentFreezeDates = []
     mocks.freeze.streakInfo.lastActiveDate = null
     mocks.freeze.streakInfo.isRepairAvailable = false
     mocks.freeze.streakInfo.repairDate = null
     mocks.freeze.streakQuery.isError = false
     mocks.freeze.freezesAvailable = 2
+    mocks.streakSnapshotZones = null
     mocks.retrospective.isLoading = false
     mocks.retrospective.isError = false
     mocks.retrospective.error = null
@@ -252,6 +267,8 @@ describe('ProgressContent', () => {
     expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
     expect(screen.getByText('progressScreen.achievements.lockedBody')).toBeInTheDocument()
     expect(screen.getAllByText('progressScreen.streak.lockedAction').length).toBeGreaterThan(0)
+    expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
+    expect(screen.getByText('streakDisplay.detail.tierTileLabel')).toBeInTheDocument()
   })
 
   it('keeps free gamification cohorts open while locking only the Pro figures', () => {
@@ -328,4 +345,109 @@ describe('ProgressContent', () => {
 
     mocks.freeze.streakInfo = streakInfo
   })
+
+  it('renders fourteen account days and exposes the bank on the owning page', () => {
+    const { container } = render(<ProgressPage />)
+    const strip = container.querySelector('[data-scope="account"]')!
+    expect(strip.querySelectorAll('[data-state]')).toHaveLength(14)
+    expect(strip.querySelector('[data-state="today"]')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.streak.banked')).toBeInTheDocument()
+    expect(screen.getByText('streakDisplay.detail.tierTileLabel')).toBeInTheDocument()
+  })
+
+  it('lets all fourteen account days share the visible row', () => {
+    const { container } = render(<ProgressPage />)
+    const strip = container.querySelector('[data-scope="account"]')!
+    const cells = strip.querySelectorAll('[data-state]')
+    expect(cells).toHaveLength(14)
+    expect(cells[13]).toHaveAttribute('aria-current', 'date')
+    expect(strip).toHaveStyle({ width: '100%', minWidth: '0px', justifyContent: 'space-between', gap: '4px' })
+    for (const cell of cells) expect(cell).toHaveStyle({ flexShrink: '1', minWidth: '0px' })
+  })
+
+  it.each([false, true])('stages a stable frozen status region when initially frozen is %s', async (initiallyFrozen) => {
+    mocks.freeze.isFrozenToday = initiallyFrozen
+    mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
+    const { rerender } = render(<ProgressPage />)
+    const region = screen.getByRole('status')
+    expect(region).toBeEmptyDOMElement()
+    expect(screen.queryByText('progressScreen.streak.frozenToday')).not.toBeInTheDocument()
+    mocks.freeze.isFrozenToday = true
+    rerender(<ProgressPage />)
+    await act(async () => { await Promise.resolve() })
+    expect(screen.getByRole('status')).toBe(region)
+    expect(region).toHaveTextContent('progressScreen.streak.frozenToday')
+    mocks.freeze.isFrozenToday = false
+    rerender(<ProgressPage />)
+    expect(screen.getByRole('status')).toBe(region)
+    expect(region).toBeEmptyDOMElement()
+  })
+
+  it.each([
+    ['2026-09-09', '2026-09-08'],
+    ['2026-09-08', '2026-09-07'],
+  ])('labels the exact account day in history %j after timezone changes', async (...dates) => {
+    vi.setSystemTime(new Date('2026-09-09T01:00:00Z'))
+    mocks.freeze.isFrozenToday = true
+    mocks.freeze.streakInfo.recentFreezeDates = dates
+    const { rerender } = render(<ProgressPage />)
+    await act(async () => { await Promise.resolve() })
+    expect.soft(screen.getByText('progressScreen.streak.protectedToday').parentElement).toHaveTextContent('Sep 8')
+    mocks.account.profile.timeZone = 'Pacific/Kiritimati'
+    rerender(<ProgressPage />)
+    if (dates.includes('2026-09-09')) {
+      expect(screen.getByText('progressScreen.streak.protectedToday').parentElement).toHaveTextContent('Sep 9')
+    } else {
+      expect(screen.queryByText('progressScreen.streak.protectedToday')).not.toBeInTheDocument()
+    }
+    expect(screen.getByText('Sep 8')).toBeInTheDocument()
+  })
+
+  it('announces frozen today above the strip and includes its protected date', async () => {
+    vi.setSystemTime(new Date('2026-09-07T12:00:00Z'))
+    mocks.freeze.isFrozenToday = true
+    mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
+    const { container, rerender } = render(<ProgressPage />)
+    await act(async () => { await Promise.resolve() })
+    const banner = screen.getByRole('status')
+    expect(banner).toHaveTextContent('progressScreen.streak.frozenToday')
+    const strip = container.querySelector('[data-scope="account"]')!
+    expect(banner.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(strip.lastElementChild).toHaveAttribute('data-state', 'frozen')
+    expect(screen.getByText('progressScreen.streak.protectedToday')).toBeInTheDocument()
+    mocks.freeze.isFrozenToday = false
+    rerender(<ProgressPage />)
+    expect(screen.queryByText('progressScreen.streak.frozenToday')).not.toBeInTheDocument()
+    expect(strip.lastElementChild).toHaveAttribute('data-state', 'today')
+  })
+
+  it('keeps the frozen banner, strip and protected-today marker on one timezone snapshot', async () => {
+    vi.setSystemTime(new Date('2026-09-09T01:00:00Z'))
+    mocks.freeze.isFrozenToday = true
+    mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-08']
+    mocks.streakSnapshotZones = new Set(['America/Sao_Paulo'])
+    const { container, rerender } = render(<ProgressPage />)
+    await act(async () => { await Promise.resolve() })
+
+    expect(screen.getByRole('status')).toHaveTextContent('progressScreen.streak.frozenToday')
+    expect(container.querySelector('[data-scope="account"]')?.lastElementChild).toHaveAttribute('data-state', 'frozen')
+    expect(screen.getByText('progressScreen.streak.protectedToday').parentElement).toHaveTextContent('Sep 8')
+
+    mocks.account.profile.timeZone = 'Pacific/Kiritimati'
+    rerender(<ProgressPage />)
+
+    expect(screen.queryByText('progressScreen.streak.frozenToday')).not.toBeInTheDocument()
+    expect(container.querySelector('[data-scope="account"]')).not.toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.streak.protectedToday')).not.toBeInTheDocument()
+
+    mocks.freeze.isFrozenToday = false
+    mocks.freeze.streakInfo.recentFreezeDates = []
+    mocks.streakSnapshotZones.add('Pacific/Kiritimati')
+    rerender(<ProgressPage />)
+
+    expect(screen.queryByText('progressScreen.streak.frozenToday')).not.toBeInTheDocument()
+    expect(container.querySelector('[data-scope="account"]')?.lastElementChild).toHaveAttribute('data-state', 'today')
+    expect(screen.queryByText('progressScreen.streak.protectedToday')).not.toBeInTheDocument()
+  })
+
 })

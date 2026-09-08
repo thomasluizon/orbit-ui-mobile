@@ -14,13 +14,14 @@ function cellStyle(state: StripValue) {
 
 export function DayStrip(props: Readonly<DayStripProps>) {
   const size = props.size ?? 20
+  const account = props.scope === 'account'
   const count = props.length === undefined ? props.days.length : Math.max(props.length, 0)
   const firstIndex = Math.max(props.days.length - count, 0)
   const days = props.days.slice(firstIndex)
   const labels = props.labels?.slice(firstIndex)
 
   return (
-    <div role="group" aria-label={props.label} data-scope={props.scope} className="flex items-center" style={{ gap: 8 }}>
+    <div role="group" aria-label={props.label} data-scope={props.scope} className="flex items-center" style={account ? { width: '100%', minWidth: 0, justifyContent: 'space-between', gap: 4 } : { gap: 8 }}>
       {days.map((state, index) => {
         const cellLabel = labels?.[index] ?? String(firstIndex + index + 1)
         return (
@@ -30,8 +31,8 @@ export function DayStrip(props: Readonly<DayStripProps>) {
             aria-label={`${cellLabel}, ${getDayStripStateWord(props, state)}`}
             aria-current={state === 'today' ? 'date' : undefined}
             data-state={state}
-            className="inline-flex shrink-0 items-center justify-center"
-            style={{ width: size, height: size, borderRadius: 8, ...cellStyle(state) }}
+            className="inline-flex items-center justify-center"
+            style={{ width: size, height: size, flexShrink: account ? 1 : 0, minWidth: 0, borderRadius: 8, ...cellStyle(state) }}
           >
             {state === 'frozen' ? (
               <Snowflake aria-hidden="true" size={16} strokeWidth={2} color="var(--bg)" />

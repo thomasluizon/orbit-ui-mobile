@@ -1,6 +1,8 @@
 import React from 'react'
+import * as ReactNative from 'react-native'
 import { StyleSheet, type ViewStyle } from 'react-native'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import Yoga from 'yoga-layout'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
 import ProgressScreen from '@/app/(tabs)/progress'
@@ -20,7 +22,7 @@ const mocks = vi.hoisted(() => ({
   reorder: { mutate: vi.fn() },
   updateStatus: { mutate: vi.fn(), isPending: false },
   account: {
-    profile: { canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9, totalXp: 150 },
+    profile: { timeZone: 'America/Sao_Paulo', canViewGamification: true, hasProAccess: true, currentStreak: 4, longestStreak: 9, totalXp: 150 },
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
@@ -106,6 +108,7 @@ const mocks = vi.hoisted(() => ({
     maxFreezesPerMonth: 3,
     daysUntilNextFreeze: 3,
   },
+  streakSnapshotZones: null as Set<string> | null,
 }))
 
 vi.mock('react-i18next', () => ({
@@ -121,7 +124,16 @@ vi.mock('@/hooks/use-goals', () => ({
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: () => mocks.gamification,
   useRepairStreak: () => mocks.repair,
-  useStreakFreeze: () => mocks.freeze,
+  useStreakFreeze: (_profile: unknown, timeZone: unknown) => {
+    if (!mocks.streakSnapshotZones || typeof timeZone !== 'string') return mocks.freeze
+    if (mocks.streakSnapshotZones.has(timeZone)) return mocks.freeze
+    return {
+      ...mocks.freeze,
+      streakInfo: null,
+      isFrozenToday: false,
+      streakQuery: { ...mocks.freeze.streakQuery, isError: false },
+    }
+  },
 }))
 vi.mock('@/hooks/use-retrospective', () => ({ useProgressRetrospective: () => mocks.retrospective }))
 vi.mock('@/lib/use-app-theme', () => ({
@@ -166,7 +178,9 @@ function isAccessibilityHidden(node: TestNode): boolean {
 }
 
 describe('mobile ProgressContent', () => {
+  afterEach(() => { vi.useRealTimers() })
   beforeEach(() => {
+    mocks.account.profile.timeZone = 'America/Sao_Paulo'
     vi.clearAllMocks()
     for (const query of [mocks.account, mocks.goals, mocks.gamification]) {
       query.isLoading = false
@@ -178,10 +192,13 @@ describe('mobile ProgressContent', () => {
     mocks.account.profile.hasProAccess = true
     mocks.goals.data.allGoals = []
     mocks.gamification.profile.achievements = []
+    mocks.freeze.isFrozenToday = false
+    mocks.freeze.streakInfo.recentFreezeDates = []
     mocks.freeze.streakInfo.lastActiveDate = null
     mocks.freeze.streakInfo.isRepairAvailable = false
     mocks.freeze.streakInfo.repairDate = null
     mocks.freeze.streakQuery.isError = false
+    mocks.streakSnapshotZones = null
     mocks.retrospective.isLoading = false
     mocks.retrospective.isError = false
     mocks.retrospective.error = null
@@ -300,6 +317,9 @@ describe('mobile ProgressContent', () => {
       'progressScreen.achievements.lockedBody',
     ]))
     expect(tree.root.findAll((node) => node.type === 'ProBadge')).toHaveLength(3)
+    const labels = tree.root.findAll((node) => node.type === 'StatTile').map((node) => node.props.label)
+    expect(labels).toContain('progressScreen.streak.longest')
+    expect(labels).toContain('streakDisplay.detail.tierTileLabel')
   })
 
   it('keeps free gamification cohorts open while locking only the Pro figures', async () => {
@@ -403,4 +423,143 @@ describe('mobile ProgressContent', () => {
       { id: 'goal-1', position: 1 },
     ])
   })
+
+  it('renders fourteen account days and exposes the bank on the owning screen', async () => {
+    const tree = await renderProgress()
+    const strip = tree.root.findAll((node) => node.props.testID === 'day-strip-account')[0]!
+    const cells = strip.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image')
+    expect(cells).toHaveLength(14)
+    expect(cells.at(-1)?.props.testID).toBe('day-strip-cell-today')
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.streak.banked').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.type === 'StatTile' && node.props.label === 'streakDisplay.detail.tierTileLabel')).toHaveLength(1)
+  })
+
+  it.each([320, 412, 1440])('keeps today inside the full visible account row at %ipx', async (width) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 892, scale: 1, fontScale: 1 })
+    const tree = await renderProgress()
+    const strip = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'day-strip-account')[0]!
+    const cells = strip.findAll((node) => typeof node.type === 'string' && node.props.accessibilityRole === 'image')
+    const rowStyle = StyleSheet.flatten(strip.props.style as ViewStyle)
+    const visibleWidth = Math.min(width - 32, 560)
+    const row = Yoga.Node.create()
+    row.setWidth(visibleWidth)
+    row.setFlexDirection(rowStyle.flexDirection === 'row' ? Yoga.FLEX_DIRECTION_ROW : Yoga.FLEX_DIRECTION_COLUMN)
+    row.setGap(Yoga.GUTTER_ALL, Number(rowStyle.gap ?? 0))
+    row.setJustifyContent(rowStyle.justifyContent === 'space-between' ? Yoga.JUSTIFY_SPACE_BETWEEN : Yoga.JUSTIFY_FLEX_START)
+    const dayNodes = cells.map((cell, index) => {
+      const style = StyleSheet.flatten(cell.props.style as ViewStyle)
+      const day = Yoga.Node.create()
+      day.setWidth(Number(style.width))
+      day.setHeight(Number(style.height))
+      day.setFlexShrink(style.flexShrink)
+      day.setMinWidth(typeof style.minWidth === 'number' ? style.minWidth : undefined)
+      row.insertChild(day, index)
+      return day
+    })
+    try {
+      row.calculateLayout(undefined, undefined)
+      expect(cells).toHaveLength(14)
+      expect(cells[13]?.props.testID).toBe('day-strip-cell-today')
+      const today = dayNodes[13]!
+      const right = today.getComputedLeft() + today.getComputedWidth()
+      expect(right, 'today must fit inside the visible row').toBeLessThanOrEqual(visibleWidth)
+      expect(right, 'the fourteen days must occupy the full row').toBe(visibleWidth)
+      for (const day of dayNodes) expect(day.getComputedWidth()).toBeGreaterThanOrEqual(16)
+      for (let ancestor = strip.parent; ancestor; ancestor = ancestor.parent) expect(ancestor.props.horizontal).not.toBe(true)
+    } finally {
+      row.freeRecursive()
+      dimensions.mockRestore()
+    }
+  })
+
+  it.each([false, true])('stages a stable frozen live region when initially frozen is %s', async (initiallyFrozen) => {
+    mocks.freeze.isFrozenToday = initiallyFrozen
+    mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
+    let tree: { root: TestNode; update: (element: React.ReactNode) => void; unmount: () => void } | undefined
+    TestRenderer.act(() => { tree = TestRenderer.create(<ProgressScreen />) })
+    const regions = tree!.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite')
+    expect(regions, 'the empty polite region must already be mounted').toHaveLength(1)
+    const region = regions[0]!
+    expect(region.props.accessibilityLabel ?? '').toBe('')
+    expect(region.findAll((node) => node.props.children === 'progressScreen.streak.frozenToday')).toHaveLength(0)
+    mocks.freeze.isFrozenToday = true
+    await TestRenderer.act(async () => {
+      tree!.update(<ProgressScreen />)
+      await Promise.resolve()
+    })
+    expect(tree!.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite')[0]).toBe(region)
+    expect(region.props.accessibilityLabel).toBe('progressScreen.streak.frozenToday')
+    expect(region.findAll((node) => node.props.children === 'progressScreen.streak.frozenToday').length).toBeGreaterThan(0)
+    mocks.freeze.isFrozenToday = false
+    TestRenderer.act(() => { tree!.update(<ProgressScreen />) })
+    expect(tree!.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLiveRegion === 'polite')[0]).toBe(region)
+    expect(region.props.accessibilityLabel ?? '').toBe('')
+    TestRenderer.act(() => { tree!.unmount() })
+  })
+
+  it.each([
+    ['2026-09-09', '2026-09-08'],
+    ['2026-09-08', '2026-09-07'],
+  ])('labels the exact account day in history %j after timezone changes', async (...dates) => {
+    vi.setSystemTime(new Date('2026-09-09T01:00:00Z'))
+    mocks.freeze.isFrozenToday = true
+    mocks.freeze.streakInfo.recentFreezeDates = dates
+    const tree = await renderProgress()
+    const todayLabel = tree.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'progressScreen.streak.protectedToday')[0]!
+    expect.soft(todayLabel.parent!.parent!.findAll((node) => node.props.children === 'Sep 8').length).toBeGreaterThan(0)
+    mocks.account.profile.timeZone = 'Pacific/Kiritimati'
+    const changed = await renderProgress()
+    const changedLabels = changed.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'progressScreen.streak.protectedToday')
+    if (dates.includes('2026-09-09')) {
+      expect(changedLabels[0]!.parent!.parent!.findAll((node) => node.props.children === 'Sep 9').length).toBeGreaterThan(0)
+    } else {
+      expect(changedLabels).toHaveLength(0)
+    }
+    expect(changed.root.findAll((node) => node.props.children === 'Sep 8').length).toBeGreaterThan(0)
+  })
+
+  it('announces frozen today above the strip and includes its protected date', async () => {
+    vi.setSystemTime(new Date('2026-09-07T12:00:00Z'))
+    mocks.freeze.isFrozenToday = true
+    mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-07']
+    const tree = await renderProgress()
+    const hosts = tree.root.findAll((node) => typeof node.type === 'string')
+    const banner = hosts.findIndex((node) => node.props.accessibilityLiveRegion === 'polite' && node.props.accessibilityLabel === 'progressScreen.streak.frozenToday')
+    expect(banner).toBeGreaterThanOrEqual(0)
+    expect(banner).toBeLessThan(hosts.findIndex((node) => node.props.testID === 'day-strip-account'))
+    expect(tree.root.findAll((node) => node.props.testID === 'day-strip-cell-frozen').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.streak.protectedToday').length).toBeGreaterThan(0)
+    mocks.freeze.isFrozenToday = false
+    const open = await renderProgress()
+    expect(open.root.findAll((node) => node.props.children === 'progressScreen.streak.frozenToday')).toHaveLength(0)
+  })
+
+  it('keeps the frozen banner, strip and protected-today marker on one timezone snapshot', async () => {
+    vi.setSystemTime(new Date('2026-09-09T01:00:00Z'))
+    mocks.freeze.isFrozenToday = true
+    mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-08']
+    mocks.streakSnapshotZones = new Set(['America/Sao_Paulo'])
+    const initial = await renderProgress()
+
+    expect(initial.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'progressScreen.streak.frozenToday')).toHaveLength(1)
+    expect(initial.root.findAll((node) => node.props.testID === 'day-strip-cell-frozen').at(-1)?.props.testID).toBe('day-strip-cell-frozen')
+    expect(initial.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'progressScreen.streak.protectedToday')).toHaveLength(1)
+
+    mocks.account.profile.timeZone = 'Pacific/Kiritimati'
+    const changing = await renderProgress()
+
+    expect(changing.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'progressScreen.streak.frozenToday')).toHaveLength(0)
+    expect(changing.root.findAll((node) => node.props.testID === 'day-strip-account')).toHaveLength(0)
+    expect(changing.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'progressScreen.streak.protectedToday')).toHaveLength(0)
+
+    mocks.freeze.isFrozenToday = false
+    mocks.freeze.streakInfo.recentFreezeDates = []
+    mocks.streakSnapshotZones.add('Pacific/Kiritimati')
+    const refreshed = await renderProgress()
+
+    expect(refreshed.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'progressScreen.streak.frozenToday')).toHaveLength(0)
+    expect(refreshed.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'day-strip-cell-today')).toHaveLength(1)
+    expect(refreshed.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'progressScreen.streak.protectedToday')).toHaveLength(0)
+  })
+
 })

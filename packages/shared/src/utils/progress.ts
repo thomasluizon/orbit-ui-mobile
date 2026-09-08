@@ -1,13 +1,14 @@
 import {
   differenceInCalendarDays,
   format,
-  isSameDay,
+  isValid,
   parseISO,
   startOfDay,
 } from 'date-fns'
 import type { Achievement, GamificationProfile } from '../types/gamification'
 import type { Goal, GoalPositionItem, GoalStatus } from '../types/goal'
 import type { Profile } from '../types/profile'
+import { nowDate } from './dates'
 
 type ProgressQueryState = { isLoading: boolean; isError: boolean }
 
@@ -137,17 +138,44 @@ export function getAvailableStreakRepairDate(
   return isRepairAvailable === true && repairDate ? repairDate : null
 }
 
+function getProtectedAccountToday(timeZone?: string | null): string {
+  const now = nowDate()
+  try {
+    const accountDateParts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timeZone || 'UTC',
+      calendar: 'iso8601',
+      numberingSystem: 'latn',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(now)
+    const year = accountDateParts.find((part) => part.type === 'year')?.value
+    const month = accountDateParts.find((part) => part.type === 'month')?.value
+    const day = accountDateParts.find((part) => part.type === 'day')?.value
+    return `${year}-${month}-${day}`
+  } catch (error) {
+    if (!(error instanceof RangeError)) throw error
+    return now.toISOString().slice(0, 10)
+  }
+}
+
 export function buildProtectedDayLabels(
   dates: readonly string[],
-  now: Date = new Date(),
+  locale?: string,
+  isFrozenToday = false,
+  accountTimeZone?: string | null,
 ): { id: string; dateLabel: string; isToday: boolean }[] {
-  const today = startOfDay(now)
-  return dates.map((date) => {
+  const accountToday = isFrozenToday ? getProtectedAccountToday(accountTimeZone) : null
+  const protectedDays = [...new Set(dates)].sort((leftDate, rightDate) => {
+    if (leftDate === rightDate) return 0
+    return leftDate < rightDate ? 1 : -1
+  }).flatMap((date) => {
     const parsed = startOfDay(parseISO(date))
-    return {
+    if (!isValid(parsed)) return []
+    return [{
       id: date,
-      dateLabel: format(parsed, 'yyyy-MM-dd'),
-      isToday: isSameDay(parsed, today),
-    }
+      dateLabel: locale ? new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(parsed) : format(parsed, 'yyyy-MM-dd'),
+    }]
   })
+  return protectedDays.map((day) => ({ ...day, isToday: isFrozenToday && day.id === accountToday }))
 }

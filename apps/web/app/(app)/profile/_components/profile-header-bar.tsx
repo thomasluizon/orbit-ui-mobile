@@ -16,7 +16,10 @@ interface ProfileHeaderBarProps {
 export function ProfileHeaderBar({ streak, error }: Readonly<ProfileHeaderBarProps>) {
   const t = useTranslations()
   const { profile } = useProfile()
-  const { data: streakInfo } = useStreakInfo(profile?.canViewGamification ?? false)
+  const { data: streakInfo } = useStreakInfo(
+    profile?.timeZone ?? null,
+    profile?.canViewGamification ?? false,
+  )
 
   return (
     <>

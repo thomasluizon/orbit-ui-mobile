@@ -8,14 +8,11 @@ export interface FreezeBankProtectedDay {
 
 export interface FreezeBankWords extends AccountDayWords {
   legendLabel: string
-  disclosureCollapsed: string
-  disclosureExpanded: string
   bankedLabel: string
   usedLabel: string
   nextLabel: string
   nextProgressLabel: string
-  nextFreezeInDays: string
-  capacityMessage: string
+  nextFreezeProgress: string
   protectedLabel: string
   protectedEmpty: string
   protectedDay: string
@@ -26,12 +23,12 @@ export interface FreezeBankProps {
   banked: number
   ceiling: number
   usedThisMonth: number
-  monthlyUseCeiling: number
   daysTowardNext: number
   earnRateDays: number
   tierValue: string
   tierLabel: string
+  longestValue: number
+  longestLabel: string
   protectedDays: readonly FreezeBankProtectedDay[]
   words: FreezeBankWords
-  defaultExpanded?: boolean
 }
