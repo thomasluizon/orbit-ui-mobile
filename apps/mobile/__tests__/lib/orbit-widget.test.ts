@@ -95,13 +95,54 @@ describe('toWidgetColors', () => {
       'java/org/useorbit/app/widget/OrbitWidgetService.kt',
     )
     expect(widgetProviderSource).toContain(
-      'setTextColor(R.id.widget_subtitle, colors.textMuted)',
+      'setModeAwareColor(R.id.widget_subtitle, "setTextColor", colorModes) { it.textMuted }',
     )
     expect(widgetServiceSource).toContain(
-      'setTextColor(R.id.widget_subtitle, colors.textMuted)',
+      'setModeAwareColor(R.id.widget_subtitle, "setTextColor", colorModes) { it.textMuted }',
     )
     expect(widgetServiceSource).toContain(
-      'habit.isCompleted -> views.setTextColor(R.id.item_time, colors.textMuted)',
+      'views.setModeAwareColor(R.id.item_title, "setTextColor", colorModes) { it.textMuted }',
     )
+    expect(widgetServiceSource).toContain(
+      'R.id.item_time, "setTextColor", colorModes',
+    )
+  })
+
+  it('carries both night modes through the full widget layout and collection rows', () => {
+    const widgetProviderSource = readWidgetSource(
+      'java/org/useorbit/app/widget/OrbitWidgetProvider.kt',
+    )
+    const widgetServiceSource = readWidgetSource(
+      'java/org/useorbit/app/widget/OrbitWidgetService.kt',
+    )
+    const widgetLayout = readWidgetSource('res/layout/widget_layout.xml')
+    const widgetItemLayout = readWidgetSource('res/layout/widget_item.xml')
+    const lightResources = readWidgetSource('res/values/widget_colors.xml')
+    const darkResources = readWidgetSource('res/values-night/widget_colors.xml')
+
+    expect(widgetProviderSource).toContain('getThemeColorModes(context)')
+    expect(widgetProviderSource).toContain(
+      'setModeAwareBitmap(R.id.widget_bg, lightBackground, darkBackground)',
+    )
+    expect(widgetProviderSource).toContain(
+      'setModeAwareColor(R.id.widget_subtitle, "setTextColor", colorModes) { it.textMuted }',
+    )
+    expect(widgetServiceSource).toContain('getThemeColorModes(context)')
+    expect(widgetServiceSource).toContain(
+      'setModeAwareBitmap(R.id.item_bg, lightBackground, darkBackground)',
+    )
+    expect(widgetServiceSource).toContain(
+      'R.id.item_time, "setTextColor", colorModes',
+    )
+    expect(widgetServiceSource).toContain(
+      'Build.VERSION.SDK_INT < Build.VERSION_CODES.S',
+    )
+    expect(widgetServiceSource).toContain(
+      'views.setImageViewResource(R.id.item_bg, backgroundResource)',
+    )
+    expect(widgetLayout).toContain('android:src="@drawable/widget_bg_fallback"')
+    expect(widgetItemLayout).toContain('android:textColor="@color/widget_item_title"')
+    expect(lightResources).toContain('<color name="widget_bg">#FAFAFA</color>')
+    expect(darkResources).toContain('<color name="widget_bg">#09090B</color>')
   })
 })

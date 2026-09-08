@@ -113,6 +113,7 @@ function generatedKotlin() {
 }
 
 const RESOURCE_ROLES = [
+  ['widget_bg', 'bg'],
   ['widget_card', 'card'],
   ['widget_well', 'well'],
   ['widget_hairline', 'hairline'],
