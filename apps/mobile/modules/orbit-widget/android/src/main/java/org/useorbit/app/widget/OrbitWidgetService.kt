@@ -71,7 +71,8 @@ internal enum class WidgetString(val resourceId: Int) {
     COMPLETED(R.string.widget_completed),
     ALL_CLEAR(R.string.widget_all_clear),
     SIGN_IN(R.string.widget_sign_in),
-    STREAK_UNIT(R.string.widget_streak_unit)
+    STREAK_UNIT(R.string.widget_streak_unit),
+    REFRESH(R.string.widget_refresh)
 }
 
 internal data class WidgetDayState(
@@ -87,11 +88,11 @@ internal fun prepareWidgetDay(apiHabits: List<ApiHabit>, dayOffset: Int): Widget
     var totalCount = 0
     var completedCount = 0
 
-    for (habit in habits.filter { it.depth == 0 && !it.isBadHabit }) {
+    for (habit in habits.filter { it.depth == 0 }) {
         if (habit.hasChildren) {
             totalCount += habit.childrenTotal
             completedCount += habit.childrenDone
-        } else {
+        } else if (!habit.isBadHabit) {
             totalCount += 1
             if (habit.isCompleted) completedCount += 1
         }
@@ -465,6 +466,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
 
         val colorModes = getThemeColorModes(context)
         val streakVisible = if (streak > 0) android.view.View.VISIBLE else android.view.View.GONE
+        val refreshDescription = tr(context, lang, WidgetString.REFRESH)
         updateWidgets { views ->
             views.setTextViewText(R.id.widget_header, headerLabel)
             views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textPrimary }
@@ -478,6 +480,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             )
             views.setModeAwareColor(R.id.widget_streak_unit, "setTextColor", colorModes) { it.textMuted }
             views.setViewVisibility(R.id.widget_streak_group, streakVisible)
+            views.setContentDescription(R.id.widget_refresh, refreshDescription)
             // Restore refresh button, hide loading spinner and skeleton
             views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
             views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)

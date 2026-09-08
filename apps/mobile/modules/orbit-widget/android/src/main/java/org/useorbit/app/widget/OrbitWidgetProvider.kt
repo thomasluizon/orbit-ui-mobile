@@ -93,6 +93,12 @@ class OrbitWidgetProvider : AppWidgetProvider() {
 
             // Refresh icon tint
             views.setModeAwareColor(R.id.widget_refresh, "setColorFilter", colorModes) { it.textMuted }
+            val refreshDescription = OrbitWidgetFactory.tr(
+                context,
+                lang,
+                WidgetString.REFRESH
+            )
+            views.setContentDescription(R.id.widget_refresh, refreshDescription)
 
             views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }
 

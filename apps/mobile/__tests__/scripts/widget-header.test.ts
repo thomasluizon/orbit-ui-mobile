@@ -7,6 +7,10 @@ const widgetRoot = resolve(
   process.cwd(),
   'modules/orbit-widget/android/src/main/res',
 )
+const widgetSourceRoot = resolve(
+  process.cwd(),
+  'modules/orbit-widget/android/src/main/java/org/useorbit/app/widget',
+)
 
 function resourceStrings(relativePath: string) {
   const strings = new Map<string, string>()
@@ -68,6 +72,7 @@ describe('Android widget header', () => {
       widget_completed: 'completed',
       widget_streak_unit: 'days',
       widget_all_clear: 'All clear',
+      widget_refresh: 'Refresh',
     })
     expect(Object.fromEntries(portuguese)).toMatchObject({
       widget_today: 'Hoje',
@@ -76,6 +81,7 @@ describe('Android widget header', () => {
       widget_completed: 'concluídos',
       widget_streak_unit: 'dias',
       widget_all_clear: 'Tudo feito',
+      widget_refresh: 'Atualizar',
     })
   })
 
@@ -114,5 +120,33 @@ describe('Android widget header', () => {
     ).toEqual(['widget_streak'])
     expect(views.has('widget_header_dot')).toBe(false)
     expect(views.has('widget_flame')).toBe(false)
+  })
+
+  it('keeps the static refresh name and replaces it through the widget language path', () => {
+    const views = layoutViews()
+    const provider = readFileSync(
+      resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'),
+      'utf8',
+    )
+    const service = readFileSync(
+      resolve(widgetSourceRoot, 'OrbitWidgetService.kt'),
+      'utf8',
+    )
+
+    expect(views.get('widget_refresh')).toMatchObject({
+      'android:contentDescription': '@string/widget_refresh',
+    })
+    expect(provider).toMatch(
+      /val refreshDescription = OrbitWidgetFactory\.tr\(\s*context,\s*lang,\s*WidgetString\.REFRESH\s*\)/,
+    )
+    expect(provider).toContain(
+      'views.setContentDescription(R.id.widget_refresh, refreshDescription)',
+    )
+    expect(service).toContain(
+      'val refreshDescription = tr(context, lang, WidgetString.REFRESH)',
+    )
+    expect(service).toContain(
+      'views.setContentDescription(R.id.widget_refresh, refreshDescription)',
+    )
   })
 })
