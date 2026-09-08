@@ -48,6 +48,52 @@ class OrbitWidgetDayStateTest {
         assertEquals(2, childRow.deeperCount)
     }
 
+    @Test
+    fun `derives habit and remainder rows from launcher height`() {
+        assertEquals(WidgetRowPlan(1, 0), calculateWidgetRows(96, 7))
+        assertEquals(WidgetRowPlan(2, 5), calculateWidgetRows(192, 7))
+        assertEquals(WidgetRowPlan(4, 3), calculateWidgetRows(288, 7))
+        assertEquals(WidgetRowPlan(3, 0), calculateWidgetRows(192, 3))
+    }
+
+    @Test
+    fun `drops times only at the narrow launcher width`() {
+        assertEquals(false, shouldShowWidgetTimes(160))
+        assertEquals(true, shouldShowWidgetTimes(336))
+    }
+
+    @Test
+    fun `keeps each host size paired when bounds come from different sizes`() {
+        val hostSizes = listOf(
+            WidgetGeometry(widthDp = 160, heightDp = 288),
+            WidgetGeometry(widthDp = 336, heightDp = 96)
+        )
+
+        val geometries = selectWidgetGeometries(
+            reportedSizes = hostSizes,
+            fallback = WidgetGeometry(widthDp = 336, heightDp = 288)
+        )
+
+        assertEquals(hostSizes, geometries)
+        assertEquals(
+            listOf(WidgetGeometry(widthDp = 160, heightDp = 96)),
+            selectWidgetGeometries(
+                reportedSizes = emptyList(),
+                fallback = WidgetGeometry(widthDp = 160, heightDp = 96)
+            )
+        )
+        assertEquals(
+            listOf(
+                WidgetRowPlan(visibleHabitCount = 4, remainderCount = 3) to false,
+                WidgetRowPlan(visibleHabitCount = 1, remainderCount = 0) to true
+            ),
+            geometries.map { geometry ->
+                calculateWidgetRows(geometry.heightDp, habitCount = 7) to
+                    shouldShowWidgetTimes(geometry.widthDp)
+            }
+        )
+    }
+
     private fun habit(
         id: String,
         isCompleted: Boolean = false,

@@ -11,4 +11,5 @@
   <string name="widget_refresh">Refresh</string>
   <string name="widget_checklist_badge">list %1$s</string>
   <string name="widget_deeper_count">+%1$d inside</string>
+  <string name="widget_remainder">%1$d more</string>
 </resources>
