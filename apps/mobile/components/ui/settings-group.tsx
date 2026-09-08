@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
   textBlock: {
     flex: 1,
     minWidth: 0,
-    gap: 3,
+    gap: 4,
   },
   titleRow: {
     flexDirection: 'row',

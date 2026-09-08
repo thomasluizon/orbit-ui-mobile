@@ -11,12 +11,14 @@ const asyncStorageState = vi.hoisted(() => ({
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
-    getItem: vi.fn(async (key: string) => asyncStorageState.data.get(key) ?? null),
-    setItem: vi.fn(async (key: string, value: string) => {
+    getItem: vi.fn((key: string) => Promise.resolve(asyncStorageState.data.get(key) ?? null)),
+    setItem: vi.fn((key: string, value: string) => {
       asyncStorageState.data.set(key, value)
+      return Promise.resolve()
     }),
-    removeItem: vi.fn(async (key: string) => {
+    removeItem: vi.fn((key: string) => {
       asyncStorageState.data.delete(key)
+      return Promise.resolve()
     }),
   },
 }))

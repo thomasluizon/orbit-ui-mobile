@@ -2,7 +2,6 @@ import { Pressable, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
   ArchiveX,
-  CheckCircle2,
   PencilLine,
   RotateCw,
   Trash2,
@@ -43,7 +42,7 @@ function GoalActionRow({
         disabled ? { opacity: 0.5 } : null,
       ]}
     >
-      <Icon size={18} strokeWidth={1.8} color={iconColor} />
+      <Icon size={20} strokeWidth={1.5} color={iconColor} />
       <Text
         style={destructive ? styles.actionRowTextDestructive : styles.actionRowText}
       >
@@ -55,10 +54,10 @@ function GoalActionRow({
 
 interface GoalActionFooterProps {
   isActive: boolean
+  isAbandoned: boolean
   isUpdatingStatus: boolean
   iconColor: string
   dangerColor: string
-  onMarkCompleted: () => void
   onMarkAbandoned: () => void
   onReactivate: () => void
   onEdit: () => void
@@ -68,10 +67,10 @@ interface GoalActionFooterProps {
 
 export function GoalActionFooter({
   isActive,
+  isAbandoned,
   isUpdatingStatus,
   iconColor,
   dangerColor,
-  onMarkCompleted,
   onMarkAbandoned,
   onReactivate,
   onEdit,
@@ -82,26 +81,14 @@ export function GoalActionFooter({
 
   return (
     <View style={styles.actions}>
-      {isActive ? (
-        <>
-          <GoalActionRow
-            label={t('goals.detail.markCompleted')}
-            icon={CheckCircle2}
-            iconColor={iconColor}
-            onPress={onMarkCompleted}
-            disabled={isUpdatingStatus}
-            styles={styles}
-          />
-          <GoalActionRow
-            label={t('goals.detail.markAbandoned')}
-            icon={ArchiveX}
-            iconColor={iconColor}
-            onPress={onMarkAbandoned}
-            disabled={isUpdatingStatus}
-            styles={styles}
-          />
-        </>
-      ) : (
+      <GoalActionRow
+        label={t('goals.detail.edit')}
+        icon={PencilLine}
+        iconColor={iconColor}
+        onPress={onEdit}
+        styles={styles}
+      />
+      {isAbandoned ? (
         <GoalActionRow
           label={t('goals.detail.reactivate')}
           icon={RotateCw}
@@ -110,14 +97,17 @@ export function GoalActionFooter({
           disabled={isUpdatingStatus}
           styles={styles}
         />
-      )}
-      <GoalActionRow
-        label={t('goals.detail.edit')}
-        icon={PencilLine}
-        iconColor={iconColor}
-        onPress={onEdit}
-        styles={styles}
-      />
+      ) : null}
+      {isActive ? (
+          <GoalActionRow
+            label={t('goals.detail.markAbandoned')}
+            icon={ArchiveX}
+            iconColor={iconColor}
+            onPress={onMarkAbandoned}
+            disabled={isUpdatingStatus}
+            styles={styles}
+          />
+      ) : null}
       <GoalActionRow
         label={t('goals.detail.delete')}
         icon={Trash2}

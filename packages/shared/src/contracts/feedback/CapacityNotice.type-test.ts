@@ -2,12 +2,21 @@ import type { ReactElement } from 'react'
 import type { CapacityNoticeProps } from './CapacityNotice'
 
 type IsExact<T, U> = T extends U ? Exclude<keyof T, keyof U> extends never ? true : false : false
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
 type Assert<T extends true> = T
 
 declare const _action: ReactElement
 declare const _actions: ReactElement[]
 
 export type CapacityNoticeTypeContract = [
+  Assert<IsExactWidth<CapacityNoticeProps['message'], string>>,
+  Assert<IsExactWidth<CapacityNoticeProps['body'], string | undefined>>,
+  Assert<IsExactWidth<CapacityNoticeProps['action'], ReactElement | undefined>>,
   Assert<IsExact<{ message: 'Limit reached' }, CapacityNoticeProps>>,
   Assert<IsExact<{ message: 'Limit reached'; body: 'Try tomorrow'; action: typeof _action }, CapacityNoticeProps>>,
   // @ts-expect-error capacity message is required

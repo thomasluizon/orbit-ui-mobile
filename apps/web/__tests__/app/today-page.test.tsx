@@ -3,7 +3,11 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
-import { TodayHabitsPanel, TodayHeaderRegion } from '@/app/(app)/today-page-view'
+import {
+  buildSelectionRefreshKey,
+  TodayHabitsPanel,
+  TodayHeaderRegion,
+} from '@/app/(app)/today-page-view'
 import { TodayDateControl } from '@/app/(app)/today-shell'
 import type { TodayView } from '@/app/(app)/use-today-page'
 import { useUIStore } from '@/stores/ui-store'
@@ -194,6 +198,27 @@ describe('Hoje date control', () => {
     motionTestState.completeAnimations = true
     motionTestState.reducedMotion = false
     motionTestState.renderedStyles.clear()
+  })
+
+  it('keeps the same selection key under en and pt-BR', () => {
+    expect(buildSelectionRefreshKey).toHaveLength(2)
+
+    const selectedHabitIds = new Set(['habit-2', 'habit-1'])
+    const keysByLocale = [
+      ['en', buildSelectionRefreshKey(selectedHabitIds, false)],
+      ['pt-BR', buildSelectionRefreshKey(selectedHabitIds, false)],
+    ]
+
+    expect(new Set(keysByLocale.map(([, key]) => key))).toEqual(
+      new Set(['habit-1,habit-2:some']),
+    )
+  })
+
+  it('uses a different selection key for a different selection', () => {
+    const firstKey = buildSelectionRefreshKey(new Set(['habit-1']), false)
+    const secondKey = buildSelectionRefreshKey(new Set(['habit-2']), false)
+
+    expect(firstKey).not.toBe(secondKey)
   })
 
   it('shows the day name over the numeric date', () => {

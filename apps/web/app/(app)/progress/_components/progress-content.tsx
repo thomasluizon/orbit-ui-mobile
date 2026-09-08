@@ -1,13 +1,16 @@
 'use client'
 
 import {
+  useEffect,
   useMemo,
   useState,
   type ComponentType,
-  type DragEvent,
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
+import { DndContext, closestCenter } from '@dnd-kit/core'
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { Achievement } from '@orbit/shared/types/gamification'
@@ -20,14 +23,15 @@ import {
   extractBackendErrorCode,
   filterProgressGoals,
   getAvailableStreakRepairDate,
-  getGoalMetricsStatusPresentation,
-  getGoalDeadlinePresentation,
+  getProgressGoalLabelKey,
   getGamificationLevelTitleKey,
   getStreakTierLabelKey,
   deriveProgressViewState,
   visibleProgressAchievements,
   type ProgressGoalFilter,
 } from '@orbit/shared/utils'
+import { Badge } from '@/components/ui/badge'
+import { useGoalDrag } from './use-goal-drag'
 import { DayStrip } from '@/components/dates/day-strip'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -39,6 +43,7 @@ import {
   Lock,
   Satellite,
   Shield,
+  Snowflake,
   Star,
   Sun,
   Target,
@@ -55,7 +60,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
 import { StatusRing } from '@/components/ui/status-ring'
 import { useGamificationProfile, useRepairStreak, useStreakFreeze } from '@/hooks/use-gamification'
-import { useGoals, useReorderGoals, useUpdateGoalStatus } from '@/hooks/use-goals'
+import { useGoals, useReorderGoals } from '@/hooks/use-goals'
+import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useProfile } from '@/hooks/use-profile'
 import { useProgressRetrospective } from '@/hooks/use-retrospective'
 
@@ -103,6 +109,22 @@ function ProgressLoading({ label }: Readonly<{ label: string }>) {
   )
 }
 
+function FrozenTodayStatus({ isFrozenToday }: Readonly<{ isFrozenToday: boolean }>) {
+  const t = useTranslations()
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    let active = true
+    void Promise.resolve().then(() => { if (active) setMounted(true) })
+    return () => { active = false }
+  }, [])
+  const showMessage = mounted && isFrozenToday
+  return (
+    <div role="status" className={showMessage ? 'flex items-center gap-3 rounded-[12px] bg-[var(--bg-well)] p-3 text-[14px] text-[var(--fg-2)]' : 'sr-only'}>
+      {showMessage ? <><Snowflake size={20} strokeWidth={2} color="var(--status-frozen)" aria-hidden="true" /><p>{t('progressScreen.streak.frozenToday')}</p></> : null}
+    </div>
+  )
+}
+
 function StreakSection({ accountProfile, canView, gamificationProfile }: Readonly<{
   accountProfile: ReturnType<typeof useProfile>['profile']
   canView: boolean
@@ -110,11 +132,13 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
 }>) {
   const t = useTranslations()
   const locale = useLocale()
-  const freeze = useStreakFreeze(accountProfile, canView)
-  const repair = useRepairStreak()
+  const isDesktop = useIsDesktop()
+  const timeZone = accountProfile?.timeZone ?? null
+  const freeze = useStreakFreeze(accountProfile, timeZone, canView)
+  const repair = useRepairStreak(timeZone)
   const currentStreak = freeze.streakInfo?.currentStreak ?? gamificationProfile?.currentStreak ?? accountProfile?.currentStreak ?? 0
   const longestStreak = freeze.streakInfo?.longestStreak ?? gamificationProfile?.longestStreak ?? accountProfile?.longestStreak ?? 0
-  const days = buildStreakWeekDays(freeze.streakInfo, currentStreak, freeze.isFrozenToday)
+  const days = buildStreakWeekDays(freeze.streakInfo, currentStreak, freeze.isFrozenToday, new Date(), 14, timeZone ?? undefined)
   const labels = useMemo(() => days.map((day) => new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(day.date)), [days, locale])
   const tier = t(getStreakTierLabelKey(currentStreak))
   const repairDate = getAvailableStreakRepairDate(
@@ -122,7 +146,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
     freeze.streakInfo?.repairDate,
   )
   const available = freeze.freezesAvailable
-  const canRepair = freeze.streakInfo?.isRepairAvailable === true && available > 0
+  const canRepair = available > 0
   const dayWords = {
     active: t('progressScreen.streak.active'),
     frozen: t('progressScreen.streak.frozen'),
@@ -132,33 +156,53 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
 
   if (canView && freeze.streakQuery.isError) {
     return (
-      <Section title={t('progressScreen.sections.streak')}>
+      <section aria-label={t('progressScreen.sections.streak')} className="flex w-full max-w-[560px] flex-col gap-3"><h2 className="sr-only">{t('progressScreen.sections.streak')}</h2>
         <ErrorState
           message={t('progressScreen.error')}
           action={<PillButton variant="ghost" onClick={() => void freeze.streakQuery.refetch()}>{t('progressScreen.retry')}</PillButton>}
         />
-      </Section>
+      </section>
     )
   }
 
   if (canView && !freeze.streakInfo) {
     return (
-      <Section title={t('progressScreen.sections.streak')}>
+      <section aria-label={t('progressScreen.sections.streak')} className="flex w-full max-w-[560px] flex-col gap-3"><h2 className="sr-only">{t('progressScreen.sections.streak')}</h2>
         <Skeleton variant="habit-row" label={t('progressScreen.loading')} />
-      </Section>
+      </section>
     )
   }
 
   return (
-    <Section title={t('progressScreen.sections.streak')}>
-      <div className="flex flex-col gap-1">
-        <p className="font-[var(--font-display)] text-[60px] font-medium leading-[64px] tabular-nums text-[var(--fg-1)]">{t('progressScreen.streak.current', { count: currentStreak })}</p>
-        <p className="text-[14px] text-[var(--fg-3)]">{t('progressScreen.streak.currentLabel')}</p>
+    <section aria-label={t('progressScreen.sections.streak')} className="flex w-full max-w-[560px] flex-col gap-3"><h2 className="sr-only">{t('progressScreen.sections.streak')}</h2>
+      <div className="flex items-baseline gap-3">
+        <p className="font-[var(--font-display)] text-[60px] font-semibold leading-none tracking-[-0.03em] tabular-nums text-[var(--fg-1)]">{new Intl.NumberFormat(locale).format(currentStreak)}</p>
+        <p className="text-[17px] text-[var(--fg-2)]">{t('progressScreen.streak.currentLabel', { count: currentStreak })}</p>
       </div>
-      {freeze.isFrozenToday ? <p className="rounded-[12px] bg-[var(--bg-field)] px-4 py-3 text-[14px] text-[var(--fg-2)]">{t('progressScreen.streak.frozenToday')}</p> : null}
-      <div className="max-w-full overflow-x-auto py-1">
-        <DayStrip scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
+      <FrozenTodayStatus isFrozenToday={freeze.isFrozenToday} />
+      <div className="min-w-0 w-full py-1">
+        <DayStrip size={isDesktop ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
       </div>
+      {canView && freeze.streakInfo ? (
+        <FreezeBank
+          banked={freeze.streakFreezesAccumulated}
+          ceiling={freeze.maxStreakFreezesAccumulated}
+          usedThisMonth={freeze.freezesUsedThisMonth}
+          longestValue={longestStreak} longestLabel={t('progressScreen.streak.longest')}
+          daysTowardNext={Math.max(0, 7 - freeze.daysUntilNextFreeze)}
+          earnRateDays={7}
+          tierValue={tier}
+          tierLabel={t('streakDisplay.detail.tierTileLabel')}
+          protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, locale, freeze.isFrozenToday, timeZone ?? undefined)}
+          words={{
+            ...dayWords,
+            legendLabel: t('progressScreen.streak.legend'),
+            bankedLabel: t('progressScreen.streak.banked'), usedLabel: t('progressScreen.streak.used'), nextLabel: t('progressScreen.streak.next'), nextProgressLabel: t('progressScreen.streak.nextProgress'),
+            nextFreezeProgress: t('progressScreen.streak.nextOf', { current: Math.max(0, 7 - freeze.daysUntilNextFreeze), total: 7 }),
+            protectedLabel: t('progressScreen.streak.protectedDays'), protectedEmpty: t('progressScreen.streak.protectedEmpty'), protectedDay: t('progressScreen.streak.protected'), protectedToday: t('progressScreen.streak.protectedToday'),
+          }}
+        />
+      ) : <><div className="grid grid-cols-2 gap-3"><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></div><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} /></>}
       {repairDate ? (
         <div className="flex flex-col items-start gap-3 rounded-[20px] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]">
           <div className="flex flex-col gap-1">
@@ -169,140 +213,85 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
           {repair.isError ? <p role="alert" className="text-[14px] text-[var(--status-bad)]">{t('progressScreen.streak.repairError')}</p> : null}
         </div>
       ) : null}
-      {canView && freeze.streakInfo ? (
-        <FreezeBank
-          banked={freeze.streakFreezesAccumulated}
-          ceiling={freeze.maxStreakFreezesAccumulated}
-          usedThisMonth={freeze.freezesUsedThisMonth}
-          monthlyUseCeiling={freeze.maxFreezesPerMonth}
-          daysTowardNext={Math.max(0, 7 - freeze.daysUntilNextFreeze)}
-          earnRateDays={7}
-          tierValue={tier}
-          tierLabel={t('streakDisplay.detail.tierTileLabel')}
-          protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates)}
-          words={{
-            ...dayWords,
-            legendLabel: t('progressScreen.streak.legend'), disclosureCollapsed: t('progressScreen.streak.showFreeze'), disclosureExpanded: t('progressScreen.streak.hideFreeze'),
-            bankedLabel: t('progressScreen.streak.banked'), usedLabel: t('progressScreen.streak.used'), nextLabel: t('progressScreen.streak.next'), nextProgressLabel: t('progressScreen.streak.nextProgress'),
-            nextFreezeInDays: t('progressScreen.streak.nextIn', { count: freeze.daysUntilNextFreeze }), capacityMessage: t('progressScreen.streak.capacity'),
-            protectedLabel: t('progressScreen.streak.protectedDays'), protectedEmpty: t('progressScreen.streak.protectedEmpty'), protectedDay: t('progressScreen.streak.protected'), protectedToday: t('progressScreen.streak.protectedToday'),
-          }}
-        />
-      ) : <LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} />}
-      <div className="grid grid-cols-2 gap-3">
-        <StatTile value={longestStreak} label={t('progressScreen.streak.longest')} />
-      </div>
-    </Section>
+    </section>
   )
 }
 
-function GoalIndicator({ goal, achieved }: Readonly<{ goal: Goal; achieved: boolean }>) {
+function GoalIndicator({ goal }: Readonly<{ goal: Goal }>) {
   const t = useTranslations()
-  if (goal.status === 'Completed') {
-    return <StatusRing status="done" size={48} label={t('goals.status.completed')} />
-  }
-  if (goal.status !== 'Active') return null
-  return <ProgressRing value={achieved ? 100 : goal.progressPercentage} size={48} label={t('goals.progressPercentage', { pct: Math.round(goal.progressPercentage) })} />
+  if (goal.status === 'Abandoned') return null
+  const label = t('goals.progressPercentage', { pct: Math.round(goal.progressPercentage) })
+  if (goal.status === 'Completed' || goal.progressPercentage >= 100) return <StatusRing status="done" size={30} label={label} />
+  return <ProgressRing value={goal.progressPercentage} size={44} label={label} />
 }
 
-function GoalDeadlineLine({ deadline }: Readonly<{ deadline: ReturnType<typeof getGoalDeadlinePresentation> }>) {
-  const t = useTranslations()
-  if (!deadline) return null
-  const color = deadline.state === 'overdue'
-    ? 'var(--status-bad-text)'
-    : deadline.state === 'dueToday' || deadline.state === 'soon'
-      ? 'var(--status-overdue-text)'
-      : 'var(--fg-3)'
-  const copy = deadline.state === 'dueToday'
-    ? t('progressScreen.goals.dueToday')
-    : deadline.state === 'overdue'
-      ? t('progressScreen.goals.daysOverdue', { count: deadline.days })
-      : t('progressScreen.goals.daysLeft', { count: deadline.days })
-  return <p className="text-[12px]" style={{ color }}>{copy}</p>
-}
-
-function FinishGoalAction({ goal }: Readonly<{ goal: Goal }>) {
-  const t = useTranslations()
-  const updateStatus = useUpdateGoalStatus()
-  return (
-    <div className="flex flex-col items-start gap-2">
-      <p className="text-[12px] text-[var(--fg-3)]">{t('progressScreen.goals.finishReason')}</p>
-      <PillButton variant="secondary" size="sm" loading={updateStatus.isPending} onClick={() => updateStatus.mutate({ goalId: goal.id, goalName: goal.title, data: { status: 'Completed' } })}>{t('progressScreen.goals.finish')}</PillButton>
-    </div>
-  )
-}
-
-function GoalCard({ goal, index, allGoals, canReorder, onDragStart, onDragOver, onDrop, onOpen }: Readonly<{
+function GoalCard({ goal, index, canReorder, onMove, onOpen }: Readonly<{
   goal: Goal
   index: number
-  allGoals: readonly Goal[]
   canReorder: boolean
-  onDragStart: () => void
-  onDragOver: (event: DragEvent<HTMLButtonElement>) => void
-  onDrop: () => void
+  onMove: (goalId: string, target: number) => void
   onOpen: () => void
 }>) {
   const t = useTranslations()
-  const reorder = useReorderGoals()
-  const tracking = getGoalMetricsStatusPresentation(goal.trackingStatus)
-  const achieved = goal.status === 'Active' && goal.progressPercentage >= 100
-  const deadline = getGoalDeadlinePresentation(goal.deadline, goal.status)
-  const commitMove = (target: number) => {
-    const positions = buildGoalMovePositions(allGoals, goal.id, target)
-    if (positions) reorder.mutate(positions)
-  }
+  const { setNodeRef, listeners, transform, isDragging } = useSortable({ id: goal.id, disabled: !canReorder })
+  const labelKey = getProgressGoalLabelKey(goal)
+  const abandoned = goal.status === 'Abandoned'
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
     event.preventDefault()
-    commitMove(index + (event.key === 'ArrowUp' ? -1 : 1))
+    onMove(goal.id, index + (event.key === 'ArrowUp' ? -1 : 1))
   }
-
   return (
-    <article className="flex flex-col gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
-      <button type="button" draggable={canReorder} aria-label={goal.title} aria-roledescription={canReorder ? t('goals.dragItem') : undefined} aria-keyshortcuts={canReorder ? 'Alt+ArrowUp Alt+ArrowDown' : undefined} onKeyDown={canReorder ? handleKeyDown : undefined} onDragStart={canReorder ? onDragStart : undefined} onDragOver={canReorder ? onDragOver : undefined} onDrop={canReorder ? onDrop : undefined} onClick={onOpen} className="flex w-full cursor-pointer flex-col gap-3 rounded-[12px] text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
-        <div className="flex items-center gap-4">
-          <GoalIndicator goal={goal} achieved={achieved} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[16px] font-medium text-[var(--fg-1)]">{goal.title}</p>
-            {goal.status !== 'Abandoned' ? <p className="text-[12px] tabular-nums text-[var(--fg-3)]">{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</p> : null}
-          </div>
-          <span className="text-[12px] text-[var(--fg-3)]">{achieved ? t('goals.status.achieved') : t(`goals.status.${goal.status.toLowerCase()}`)}</span>
-        </div>
-        {goal.status === 'Active' && tracking ? <p className="text-[12px] text-[var(--fg-3)]">{t(tracking.labelKey)}</p> : null}
-        <GoalDeadlineLine deadline={deadline} />
-      </button>
-      {achieved ? <FinishGoalAction goal={goal} /> : null}
-    </article>
+    <button type="button" aria-label={goal.title} data-goal-id={goal.id} data-dragging={isDragging}
+      ref={setNodeRef} {...listeners}
+      style={{ transform: CSS.Transform.toString(transform) }}
+      aria-roledescription={canReorder ? t('goals.dragItem') : undefined}
+      aria-keyshortcuts={canReorder ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
+      onKeyDown={canReorder ? handleKeyDown : undefined}
+      onClick={onOpen}
+      className="flex w-full cursor-pointer select-none items-center gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 text-left shadow-[inset_0_0_0_1px_var(--hairline-ghost)] hover:bg-[var(--bg-hover)] data-[dragging=true]:bg-[var(--bg-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className={`text-[17px] font-medium ${abandoned ? 'text-[var(--fg-3)]' : 'text-[var(--fg-1)]'}`}>{goal.title}</span>
+        <span className="flex flex-wrap items-center gap-2">
+          {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
+          {!abandoned ? <span className="font-[var(--font-mono)] text-[12px] tabular-nums text-[var(--fg-3)]">{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</span> : null}
+        </span>
+      </span>
+      <GoalIndicator goal={goal} />
+    </button>
   )
 }
 
-function GoalsSection({ goals }: Readonly<{ goals: readonly Goal[] }>) {
+function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; onOpenGoal: (goalId: string) => void }>) {
   const t = useTranslations()
   const router = useRouter()
   const reorder = useReorderGoals()
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
-  const [draggedId, setDraggedId] = useState<string | null>(null)
-  const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
+  const drag = useGoalDrag(goals, filter === 'all' && !reorder.isPending, reorder.mutate)
   const filtered = filterProgressGoals(goals, filter)
+  const move = (goalId: string, target: number) => {
+    const positions = buildGoalMovePositions(goals, goalId, target)
+    if (positions) reorder.mutate(positions)
+  }
   const options = [
     { value: 'all', label: t('progressScreen.goals.all') }, { value: 'active', label: t('progressScreen.goals.active') },
     { value: 'completed', label: t('progressScreen.goals.completed') }, { value: 'abandoned', label: t('progressScreen.goals.abandoned') },
   ] as const
   return (
-    <Section title={t('progressScreen.sections.goals')}>
+    <section aria-label={t('progressScreen.sections.goals')} className="flex flex-col gap-3"><h2 className="text-[20px] font-medium text-[var(--fg-1)]">{t('progressScreen.sections.goals')}</h2>
       {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={(id) => setFilter(id)} label={t('progressScreen.goals.views')} /> : null}
       {goals.length === 0 ? <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant="ghost" onClick={() => router.push('/')}>{t('progressScreen.startHabit')}</PillButton>} /> : null}
       {goals.length > 0 && filtered.length === 0 ? <div className="flex flex-col items-start gap-3 py-6"><p className="text-[14px] text-[var(--fg-3)]">{t('progressScreen.goals.filterEmpty')}</p><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></div> : null}
       {filtered.length > 0 ? (
-        <div className="flex flex-col gap-3">
+        <DndContext sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
           {filtered.map((goal) => {
             const index = goals.findIndex((item) => item.id === goal.id)
-            return <GoalCard key={goal.id} goal={goal} index={index} allGoals={goals} canReorder={filter === 'all'} onDragStart={() => setDraggedId(goal.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => { if (!draggedId) return; const positions = buildGoalMovePositions(goals, draggedId, index); if (positions) reorder.mutate(positions); setDraggedId(null) }} onOpen={() => setDetailGoalId(goal.id)} />
+            return <GoalCard key={goal.id} goal={goal} index={index} canReorder={filter === 'all' && !reorder.isPending} onMove={move} onOpen={() => onOpenGoal(goal.id)} />
           })}
-        </div>
+        </div></SortableContext></DndContext>
       ) : null}
-      {detailGoalId ? <GoalDetailDrawer open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /> : null}
-    </Section>
+      {reorder.isError ? <p role="alert" className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.reorderError')}</p> : null}
+    </section>
   )
 }
 
@@ -407,6 +396,7 @@ function AchievementsSection({ profile, canView, xpProgress }: Readonly<{ profil
 }
 
 export function ProgressContent() {
+  const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
   const t = useTranslations()
   const router = useRouter()
   const account = useProfile()
@@ -422,11 +412,14 @@ export function ProgressContent() {
   }
   return (
     <main className="flex w-full flex-col gap-8 px-4 py-4 md:px-0">
+      {detailGoalId ? <GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /> : null}
+      <div hidden={detailGoalId !== null} className="flex flex-col gap-8">
       <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {error ? <div className="w-full max-w-[620px]"><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
       {empty ? <div className="pt-12"><EmptyState title={t('progressScreen.empty')} action={<PillButton variant="ghost" size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></div> : null}
-      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} /><GoalsSection goals={allGoals} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} /><AchievementsSection profile={gamification.profile} canView={canView} xpProgress={gamification.xpProgress} /></> : null}
+      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} /><AchievementsSection profile={gamification.profile} canView={canView} xpProgress={gamification.xpProgress} /></> : null}
+      </div>
     </main>
   )
 }

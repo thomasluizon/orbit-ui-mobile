@@ -263,7 +263,7 @@ describe('useStreakInfo', () => {
       json: () => Promise.resolve(streakInfo),
     })
 
-    const { result } = renderHook(() => useStreakInfo(), {
+    const { result } = renderHook(() => useStreakInfo('America/Sao_Paulo'), {
       wrapper: createWrapper(),
     })
 
@@ -273,8 +273,23 @@ describe('useStreakInfo', () => {
     expect(result.current.data!.isFrozenToday).toBe(false)
   })
 
+  it('loads UTC-fallback streak info when the persisted timezone is null', async () => {
+    const streakInfo = makeStreakInfo()
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(streakInfo),
+    })
+
+    const { result } = renderHook(() => useStreakInfo(null), {
+      wrapper: createWrapper(),
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.currentStreak).toBe(7)
+  })
+
   it('does not fetch streak info when disabled', () => {
-    const { result } = renderHook(() => useStreakInfo(false), {
+    const { result } = renderHook(() => useStreakInfo('America/Sao_Paulo', false), {
       wrapper: createWrapper(),
     })
 
@@ -294,7 +309,7 @@ describe('useStreakFreeze', () => {
       json: () => Promise.resolve(makeStreakInfo({ lastActiveDate: '2025-01-14' })),
     })
 
-    const { result } = renderHook(() => useStreakFreeze(), {
+    const { result } = renderHook(() => useStreakFreeze(undefined, 'America/Sao_Paulo'), {
       wrapper: createWrapper(),
     })
 
@@ -308,7 +323,10 @@ describe('useStreakFreeze', () => {
     mockFetch.mockReturnValue(new Promise(() => {}))
 
     const { result } = renderHook(
-      () => useStreakFreeze({ streakFreezesAvailable: 1, currentStreak: 4 }),
+      () => useStreakFreeze(
+        { streakFreezesAvailable: 1, currentStreak: 4 },
+        'America/Sao_Paulo',
+      ),
       { wrapper: createWrapper() },
     )
 

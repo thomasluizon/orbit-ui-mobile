@@ -34,7 +34,7 @@ function makeExecution(summary: string): AgentExecuteOperationResponse {
       status: 'Succeeded',
       summary,
     },
-  } as AgentExecuteOperationResponse
+  }
 }
 
 async function renderExecution(

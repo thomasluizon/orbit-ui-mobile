@@ -9,13 +9,14 @@ export function DayStrip(props: Readonly<DayStripProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const size = props.size ?? 20
+  const account = props.scope === 'account'
   const count = props.length === undefined ? props.days.length : Math.max(props.length, 0)
   const firstIndex = Math.max(props.days.length - count, 0)
   const days = props.days.slice(firstIndex)
   const labels = props.labels?.slice(firstIndex)
 
   return (
-    <View accessibilityRole="summary" accessibilityLabel={props.label} testID={`day-strip-${props.scope}`} style={styles.row}>
+    <View accessibilityRole="summary" accessibilityLabel={props.label} testID={`day-strip-${props.scope}`} style={[styles.row, account && styles.accountRow]}>
       {days.map((state, index) => {
         const cellLabel = labels?.[index] ?? String(firstIndex + index + 1)
         const filled = state === 'done' || state === 'active'
@@ -28,7 +29,7 @@ export function DayStrip(props: Readonly<DayStripProps>) {
             accessibilityLabel={`${cellLabel}, ${getDayStripStateWord(props, state)}`}
             accessibilityState={{ selected: state === 'today' }}
             testID={`day-strip-cell-${state}`}
-            style={{ width: size, height: size, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor, borderColor, borderWidth: borderColor === 'transparent' ? 0 : state === 'today' ? 2 : 1 }}
+            style={[{ width: size, height: size, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor, borderColor, borderWidth: borderColor === 'transparent' ? 0 : state === 'today' ? 2 : 1 }, account && styles.accountCell]}
           >
             {state === 'frozen' ? <Snowflake size={16} strokeWidth={2} color={tokens.bg} /> : null}
           </View>
@@ -38,4 +39,8 @@ export function DayStrip(props: Readonly<DayStripProps>) {
   )
 }
 
-const styles = StyleSheet.create({ row: { flexDirection: 'row', alignItems: 'center', gap: 8 } })
+const styles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  accountRow: { width: '100%', minWidth: 0, justifyContent: 'space-between', gap: 4 },
+  accountCell: { flexShrink: 1, minWidth: 0 },
+})
