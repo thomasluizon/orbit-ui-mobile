@@ -7,15 +7,11 @@ import {
 } from '@/components/onboarding/onboarding-actions-context'
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
 import { AstraImportPrompt } from '@/components/onboarding/astra-import-prompt'
-import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
-import { GoalCompletedCelebration } from '@/components/gamification/goal-completed-celebration'
 import { CreateGoalModal } from '@/components/goals/create-goal-modal'
-import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
 import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
 import { ReviewMomentSheet } from '@/components/review-moment/review-moment-sheet'
-import { StreakCelebration } from '@/components/gamification/streak-celebration'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { VersionUpdateDrawer } from '@/components/version-update-drawer'
@@ -35,12 +31,8 @@ const PushPrompt = isExpoGo
 export interface OverlayLayerProps {
   hasCompletedOnboarding: boolean
   hasProAccess: boolean
-  canViewGamification: boolean
   showRetainedOnboarding: boolean
   onboardingActions: OnboardingActions
-  leveledUp: boolean
-  newLevel: number | null
-  onClearLevelUp: () => void
 }
 
 /**
@@ -56,12 +48,8 @@ export interface OverlayLayerProps {
 export function OverlayLayer({
   hasCompletedOnboarding,
   hasProAccess,
-  canViewGamification,
   showRetainedOnboarding,
   onboardingActions,
-  leveledUp,
-  newLevel,
-  onClearLevelUp,
 }: Readonly<OverlayLayerProps>) {
   const showCreateGoalModal = useUIStore((state) => state.showCreateGoalModal)
   const setShowCreateGoalModal = useUIStore((state) => state.setShowCreateGoalModal)
@@ -84,16 +72,6 @@ export function OverlayLayer({
       </Suspense>
       {hasCompletedOnboarding ? (
         <>
-          <StreakCelebration />
-          <AllDoneCelebration />
-          <GoalCompletedCelebration />
-          {canViewGamification ? (
-            <LevelUpOverlay
-              leveledUp={leveledUp}
-              newLevel={newLevel}
-              onClear={onClearLevelUp}
-            />
-          ) : null}
           <MarketingConsentPrompt />
           <ReferralPrompt />
           <MilestoneSharePrompt />

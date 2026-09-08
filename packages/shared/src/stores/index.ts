@@ -65,5 +65,9 @@ export {
   type TourUIState,
   type UIStoreState,
 } from './ui-store'
+export {
+  isStreakCelebrationMilestone,
+  STREAK_CELEBRATION_MILESTONES,
+} from './celebration-queue'
 
 export * from './throttle-store'

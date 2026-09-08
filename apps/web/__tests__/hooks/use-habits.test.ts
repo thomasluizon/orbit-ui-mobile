@@ -773,7 +773,7 @@ describe('useLogHabit onSuccess', () => {
     vi.mocked(logHabit).mockResolvedValue({
       logId: 'log-streak',
       isFirstCompletionToday,
-      currentStreak: 3,
+      currentStreak: 7,
     })
 
     const queryClient = createQueryClient()
@@ -788,13 +788,13 @@ describe('useLogHabit onSuccess', () => {
     })
 
     if (celebrates) {
-      expect(mockSetStreakCelebration).toHaveBeenCalledWith({ streak: 3 })
+      expect(mockSetStreakCelebration).toHaveBeenCalledWith({ streak: 7 })
     } else {
       expect(mockSetStreakCelebration).not.toHaveBeenCalled()
     }
     expect(
       queryClient.getQueryData<{ currentStreak: number }>(profileKeys.detail())?.currentStreak,
-    ).toBe(celebrates ? 3 : 1)
+    ).toBe(celebrates ? 7 : 1)
   })
 
   it('completes successfully with streak response', async () => {

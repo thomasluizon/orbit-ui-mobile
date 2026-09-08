@@ -113,9 +113,11 @@ describe('ui store', () => {
 
     it('sets and clears goal completed celebration', () => {
       const { setGoalCompletedCelebration } = useUIStore.getState()
-      setGoalCompletedCelebration({ name: 'Ship Orbit' })
+      setGoalCompletedCelebration({ name: 'Ship Orbit', count: 12, unit: 'releases' })
       expect(useUIStore.getState().goalCompletedCelebration).toEqual({
         name: 'Ship Orbit',
+        count: 12,
+        unit: 'releases',
       })
 
       setGoalCompletedCelebration(null)
