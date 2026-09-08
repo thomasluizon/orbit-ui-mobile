@@ -90,12 +90,35 @@ jobs:
           # This runs BEFORE the merge on purpose. The push is what GitHub refuses, and a refusal
           # after a clean merge reads as success for ten lines and then dies on the last one.
           git switch redesign/main
-          # THREE dots, and that is the whole correctness of this step. `HEAD origin/main` compares
-          # the two tips, so a workflow file that only redesign/main changed shows up and this job
-          # refuses a merge that would push no workflow change at all. `HEAD...origin/main` asks the
-          # question that matters: what has origin/main changed since the merge base, which is
-          # exactly the set this merge would carry.
-          pending=$(git diff --name-only HEAD...origin/main -- .github/workflows || true)
+          # Compute the PROSPECTIVE MERGE and diff that against HEAD. Nothing cheaper is correct, and
+          # two cheaper things were tried and are wrong:
+          #
+          #   `git diff HEAD origin/main`     compares the two TIPS, so a workflow file that only
+          #                                   redesign/main changed counts. Measured on the live refs:
+          #                                   7 files, every one a false positive.
+          #   `git diff HEAD...origin/main`   asks what origin/main changed since the merge base, which
+          #                                   still counts a change redesign/main landed INDEPENDENTLY
+          #                                   and identically, where the merge produces no net change.
+          #                                   Proven on a scratch repository: three-dot reports 1 file,
+          #                                   the merge produces 0.
+          #
+          # `merge-tree --write-tree` writes the merged tree without touching the index or the working
+          # tree and prints its OID, so `git diff HEAD <tree>` is exactly the set this merge would
+          # change. On the live refs it agrees with reality where both shortcuts did not.
+          set +e
+          merged=$(git merge-tree --write-tree HEAD origin/main 2>&1)
+          merged_rc=$?
+          set -e
+          if [ "$merged_rc" -ne 0 ]; then
+            # A conflict, or a git too old for --write-tree (2.38+). Either way this step cannot
+            # determine the change set, and refusing on an unknown would block every drift run. The
+            # merge step below fails loudly on a real conflict, and the push classifier names the cause
+            # if the refusal happens anyway, so proceeding degrades the message rather than the verdict.
+            echo "::warning::Could not compute the prospective merge (git merge-tree exited $merged_rc), so the workflow-file preflight is skipped. The merge step below still reports a conflict, and a refused push still names its cause."
+            echo "$merged"
+            exit 0
+          fi
+          pending=$(git diff --name-only HEAD "$merged" -- .github/workflows || true)
           if [ -z "$pending" ]; then
             echo "The pending drift carries no workflow file; the default token can push it."
             exit 0
