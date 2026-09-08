@@ -20,6 +20,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
         </>
       ) : (
         <span
+          className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap"
           style={{
             color: state === 'empty' ? 'var(--fg-4)' : 'var(--fg-1)',
             fontFamily: state === 'empty' ? 'var(--font-mono)' : 'var(--font-display)',

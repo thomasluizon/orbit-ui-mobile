@@ -71,7 +71,7 @@ const mocks = vi.hoisted(() => ({
         currentStreak: 4,
         bestStreak: 9,
         badHabitSlips: 0,
-        weeklyConsistency: [],
+        weeklyConsistency: [10, 20, 30, 80, 50, 60, 70],
         topHabits: [{ name: 'Read', emoji: null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }],
         needsAttention: [],
       },
@@ -293,6 +293,8 @@ describe('mobile ProgressContent', () => {
     mocks.retrospective.isLoading = false
     mocks.retrospective.isError = false
     mocks.retrospective.error = null
+    mocks.retrospective.data.metrics.weeklyConsistency = [10, 20, 30, 80, 50, 60, 70]
+    mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }]
   })
 
   it.each(['account', 'goals', 'gamification'] as const)('renders the complete global skeleton while %s loads', async (query) => {
@@ -393,8 +395,14 @@ describe('mobile ProgressContent', () => {
       'progressScreen.sections.window',
       'progressScreen.sections.achievements',
     ]))
-    const figures = tree.root.findAll((node) => node.type === 'StatTile').map((node) => node.props.value)
-    expect(figures).toEqual(expect.arrayContaining(['75%', '12 / 30', 'Read', 18]))
+    const figures = tree.root.findAll((node) => node.type === 'StatTile' && String(node.props.label).startsWith('progressScreen.window.'))
+      .map((node) => ({ label: node.props.label, value: node.props.value }))
+    expect(figures).toEqual([
+      { label: 'progressScreen.window.completionRate', value: '75%' },
+      { label: 'progressScreen.window.activeDays', value: 12 },
+      { label: 'progressScreen.window.bestWeekday', value: 'dates.daysLong.thursday' },
+      { label: 'progressScreen.window.topHabit', value: 'Read' },
+    ])
   })
 
   it('renders the three routed plan boundaries', async () => {
@@ -427,6 +435,33 @@ describe('mobile ProgressContent', () => {
     ]))
     expect(text).not.toContain('progressScreen.streak.lockedBody')
     expect(text).not.toContain('progressScreen.achievements.lockedBody')
+    const routes = tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.window.lockedAction')
+    expect(routes).toHaveLength(1)
+    await TestRenderer.act(() => {
+      ;(routes[0]!.props.onClick as () => void)()
+    })
+    expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith({ pathname: '/upgrade', params: { from: '/progress' } })
+  })
+
+  it('renders empty weekly and habit figures without substituting unrelated totals', async () => {
+    mocks.retrospective.data.metrics.weeklyConsistency = []
+    mocks.retrospective.data.metrics.topHabits = []
+
+    const tree = await renderProgress()
+    const emptyFigures = tree.root.findAll((node) => node.type === 'StatTile' && node.props.state === 'empty')
+    expect(emptyFigures).toHaveLength(2)
+    expect(tree.root.findAll((node) => node.type === 'StatTile' && node.props.value === 18)).toHaveLength(0)
+  })
+
+  it.each([[412, 2], [768, 4]] as const)('at %ipx lays out the figures in %i columns', async (width, columns) => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width, height: 892, scale: 1, fontScale: 1 })
+    const tree = await renderProgress()
+    const rows = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'progress-window-row')
+    expect(rows).toHaveLength(4 / columns)
+    for (const row of rows) {
+      expect(row.findAll((node) => node.type === 'StatTile')).toHaveLength(columns)
+    }
+    dimensions.mockRestore()
   })
 
   it('dispatches the explicit repair write', async () => {

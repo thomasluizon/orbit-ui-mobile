@@ -23,6 +23,7 @@ import {
   extractBackendErrorCode,
   filterProgressGoals,
   getAvailableStreakRepairDate,
+  getBestRetrospectiveWeekdayKey,
   getProgressGoalLabelKey,
   getGamificationLevelTitleKey,
   getStreakTierLabelKey,
@@ -71,6 +72,19 @@ function Section({ title, children, compact = false }: Readonly<{ title: string;
   return (
     <section className="flex flex-col gap-4" aria-label={title}>
       <h2 className={compact ? 'text-[14px] font-medium text-[var(--fg-2)]' : 'text-[20px] font-medium text-[var(--fg-1)]'}>{title}</h2>
+      {children}
+    </section>
+  )
+}
+
+function WindowFigureGrid({ children }: Readonly<{ children: ReactNode }>) {
+  return <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{children}</div>
+}
+
+function WindowFrame({ children, title }: Readonly<{ children: ReactNode; title: string }>) {
+  return (
+    <section className="flex flex-col gap-3" aria-label={title}>
+      <h2 className="text-[20px] font-medium text-[var(--fg-1)]">{title}</h2>
       {children}
     </section>
   )
@@ -300,31 +314,32 @@ function GoalsSection({ goals }: Readonly<{ goals: readonly Goal[] }>) {
 function WindowSection({ hasProAccess }: Readonly<{ hasProAccess: boolean }>) {
   const t = useTranslations()
   const retrospective = useProgressRetrospective(hasProAccess)
-  if (!hasProAccess) return <Section title={t('progressScreen.sections.window')}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} /></Section>
-  if (retrospective.isLoading) return <Section title={t('progressScreen.sections.window')}><Skeleton variant="stat-tile" label={t('progressScreen.loading')} /></Section>
+  if (!hasProAccess) return <WindowFrame title={t('progressScreen.sections.window')}><div className="max-w-[560px]"><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} /></div></WindowFrame>
+  if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')}><WindowFigureGrid>{Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" label={t('progressScreen.loading')} />)}</WindowFigureGrid></WindowFrame>
   const hasNoHabits = retrospective.isError && extractBackendErrorCode(retrospective.error) === NO_HABITS_FOR_PERIOD
   if (retrospective.isError && !hasNoHabits) {
     return (
-      <Section title={t('progressScreen.sections.window')}>
+      <WindowFrame title={t('progressScreen.sections.window')}>
         <ErrorState
           message={t('progressScreen.error')}
           action={<PillButton variant="ghost" onClick={() => void retrospective.refetch()}>{t('progressScreen.retry')}</PillButton>}
         />
-      </Section>
+      </WindowFrame>
     )
   }
-  if (!retrospective.data && !hasNoHabits) return <Section title={t('progressScreen.sections.window')}><Skeleton variant="stat-tile" label={t('progressScreen.loading')} /></Section>
+  if (!retrospective.data && !hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')}><WindowFigureGrid>{Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" label={t('progressScreen.loading')} />)}</WindowFigureGrid></WindowFrame>
   const metrics = retrospective.data?.metrics
+  const bestWeekday = getBestRetrospectiveWeekdayKey(metrics?.weeklyConsistency ?? [])
   const topHabit = metrics?.topHabits[0]
   return (
-    <Section title={t('progressScreen.sections.window')}>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <WindowFrame title={t('progressScreen.sections.window')}>
+      <WindowFigureGrid>
         <StatTile value={`${Math.round(metrics?.completionRate ?? 0)}%`} label={t('progressScreen.window.completionRate')} />
-        <StatTile value={metrics ? `${metrics.activeDays} / ${metrics.periodDays}` : '0'} label={t('progressScreen.window.activeDays', { days: metrics?.periodDays ?? 0 })} />
+        <StatTile value={metrics?.activeDays ?? 0} label={t('progressScreen.window.activeDays')} />
+        {bestWeekday ? <StatTile value={t(`dates.daysLong.${bestWeekday}`)} label={t('progressScreen.window.bestWeekday')} /> : <StatTile state="empty" emptyLabel={t('progressScreen.window.bestWeekdayEmpty')} label={t('progressScreen.window.bestWeekday')} />}
         {topHabit ? <StatTile value={topHabit.name} label={t('progressScreen.window.topHabit')} /> : <StatTile state="empty" emptyLabel={t('progressScreen.window.topHabitEmpty')} label={t('progressScreen.window.topHabit')} />}
-        <StatTile value={metrics?.totalCompletions ?? 0} label={t('progressScreen.window.totalCompletions')} />
-      </div>
-    </Section>
+      </WindowFigureGrid>
+    </WindowFrame>
   )
 }
 
