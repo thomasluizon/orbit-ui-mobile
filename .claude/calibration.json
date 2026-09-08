@@ -137,7 +137,7 @@
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "d9770f6cffd4fde1",
+      "digest": "24aa498f98faf0c3",
       "verdict": "undeclared, inherits the session: it consolidates four child audits into one honest launch verdict, which is judgement, so this is a follow-up candidate."
     },
     ".claude/skills/second-opinion/SKILL.md": {
