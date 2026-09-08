@@ -1796,3 +1796,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     opacity: 0.85;
   }
 }
+@keyframes celebration-rise {
+  from { transform: translateY(12px); }
+  to { transform: translateY(0); }
+}
+
+@keyframes celebration-ring-sweep {
+  from { stroke: var(--primary); stroke-dashoffset: 100; }
+  99% { stroke: var(--primary); }
+  to { stroke: var(--fg-1); stroke-dashoffset: 0; }
+}
+
+.celebration-ring { animation: celebration-ring-sweep 280ms var(--ease-out) both; }

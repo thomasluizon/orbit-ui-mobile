@@ -63,6 +63,7 @@ import { useTourTarget } from '@/hooks/use-tour-target'
 import { OverlayLayer } from '@/components/global-overlays'
 import * as Sentry from '@sentry/react-native'
 import { OfflineNotice } from '@/components/offline-notice'
+import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { AppToast } from '@/components/ui/app-toast'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
 import { AstraConversation } from '@/components/chat/conversation'
@@ -303,6 +304,7 @@ function RootLayoutNav() {
               />
             )}
             notice={<>
+              <CelebrationPanel />
               <NotificationDeleteNotice />
               <OfflineNotice />
             </>}
@@ -378,12 +380,19 @@ function GlobalOverlays({
   const hasProAccess = profile?.hasProAccess ?? false
   const canViewGamification = profile?.canViewGamification ?? false
   const gamification = useGamificationProfile(canViewGamification)
+  const { clearLevelUp, leveledUp, newLevel } = gamification
+  const enqueueCelebration = useUIStore((state) => state.enqueueCelebration)
   const armReferralPrompt = useReferralPromptStore((s) => s.armReferralPrompt)
   const armMilestoneSharePrompt = useReferralPromptStore(
     (s) => s.armMilestoneSharePrompt,
   )
   const armReviewPrompt = useReferralPromptStore((s) => s.armReviewPrompt)
   const armConsentPrompt = useReferralPromptStore((s) => s.armConsentPrompt)
+  useEffect(() => {
+    if (!leveledUp || newLevel === null) return
+    enqueueCelebration('level-up', { level: newLevel })
+    clearLevelUp()
+  }, [clearLevelUp, enqueueCelebration, leveledUp, newLevel])
   useEffect(() => {
     if (
       profile?.hasCompletedOnboarding &&
@@ -454,12 +463,8 @@ function GlobalOverlays({
     <OverlayLayer
       hasCompletedOnboarding={profile?.hasCompletedOnboarding ?? false}
       hasProAccess={hasProAccess}
-      canViewGamification={canViewGamification}
       showRetainedOnboarding={showRetainedOnboarding}
       onboardingActions={liveOnboardingActions}
-      leveledUp={gamification.leveledUp}
-      newLevel={gamification.newLevel}
-      onClearLevelUp={gamification.clearLevelUp}
     />
   )
 }
