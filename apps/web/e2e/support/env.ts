@@ -21,6 +21,3 @@ export const smokeEnv = {
 } as const
 
 export const STORAGE_STATE_PATH = 'e2e/.auth/smoke-user.json'
-
-/** Saved storage state for the hermetic visual suite (fake-JWT session, no prod). */
-export const VISUAL_STORAGE_STATE_PATH = 'e2e/.auth/visual-user.json'

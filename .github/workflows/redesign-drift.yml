@@ -12,6 +12,30 @@ name: Redesign drift control
 # When the merge conflicts, the job fails loudly and stops. Resolving a conflict is a
 # human decision about two real changes, and a machine picking a side silently is how a
 # redesign quietly loses a fix that landed on main.
+#
+# THE TOKEN (thomasluizon/orbit-tickets#378). The default `GITHUB_TOKEN` can never push a
+# file under `.github/workflows/`: GitHub refuses the push with "refusing to allow a GitHub
+# App to create or update workflow ... without `workflows` permission", and the
+# `permissions:` block has no `workflows` key to grant, by design. That scope exists only on
+# a personal access token or a GitHub App installation token, so this is not a
+# misconfiguration a `permissions:` line can fix.
+#
+# The choice is a FINE-GRAINED PAT in the `REDESIGN_DRIFT_TOKEN` repository secret, not an
+# App installation token minted in the job. The reason: an App token needs an App id and a
+# private key as two more secrets plus a third-party minting action inside the trusted path,
+# to solve a single-repository push. A fine-grained PAT scoped to this one repository with
+# Contents: write and Workflows: write is one secret, adds no action, and is revocable in one
+# click. Create it as: GitHub > Settings > Developer settings > Fine-grained tokens, repository
+# access `thomasluizon/orbit-ui-mobile` only, Repository permissions Contents: read and write
+# plus Workflows: read and write. Store it as the repository secret `REDESIGN_DRIFT_TOKEN`.
+#
+# Without that secret the job still runs and still carries every non-workflow change. It
+# refuses BEFORE merging when the pending drift contains a workflow file, so the log never
+# shows a successful-looking merge above a raw git error.
+#
+# No ticket is filed automatically. Reaching `thomasluizon/orbit-tickets` would mean scoping
+# this token to a second repository, which widens its blast radius to buy a notification
+# GitHub's own workflow-failure mail already sends. The cause goes in the job summary instead.
 
 on:
   push:
@@ -28,11 +52,14 @@ concurrency:
 jobs:
   merge-main-into-redesign:
     runs-on: ubuntu-latest
+    env:
+      DRIFT_TOKEN: ${{ secrets.REDESIGN_DRIFT_TOKEN }}
     steps:
       - name: Check out the full history
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          token: ${{ secrets.REDESIGN_DRIFT_TOKEN || github.token }}
 
       - name: Skip when the integration branch does not exist
         id: exists
@@ -56,6 +83,37 @@ jobs:
             exit 1
           fi
 
+      - name: Refuse a workflow-file drift the default token cannot push
+        if: steps.exists.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          # This runs BEFORE the merge on purpose. The push is what GitHub refuses, and a refusal
+          # after a clean merge reads as success for ten lines and then dies on the last one.
+          git switch redesign/main
+          pending=$(git diff --name-only HEAD origin/main -- .github/workflows || true)
+          if [ -z "$pending" ]; then
+            echo "The pending drift carries no workflow file; the default token can push it."
+            exit 0
+          fi
+          if [ -n "${DRIFT_TOKEN:-}" ]; then
+            echo "The pending drift carries a workflow file and REDESIGN_DRIFT_TOKEN is set; proceeding."
+            exit 0
+          fi
+          {
+            echo "### Redesign drift refused before merging"
+            echo
+            echo "The pending drift from \`main\` changes a file under \`.github/workflows/\`, and the"
+            echo "default \`GITHUB_TOKEN\` has no \`workflows\` scope, so the push would be refused."
+            echo "Set the \`REDESIGN_DRIFT_TOKEN\` repository secret (see this workflow's header)."
+            echo
+            echo "Files:"
+            echo '```'
+            echo "$pending"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::Cause: the pending drift changes .github/workflows/** and REDESIGN_DRIFT_TOKEN is not set, so GitHub would refuse the push (GITHUB_TOKEN has no workflows scope). Nothing was merged."
+          exit 1
+
       - name: Merge main into redesign/main
         if: steps.exists.outputs.present == 'true'
         run: |
@@ -72,9 +130,36 @@ jobs:
 
           if ! git merge --no-ff --no-edit origin/main; then
             git merge --abort || true
-            echo "::error::main does not merge cleanly into redesign/main. Resolve it by hand; this job never picks a side."
+            {
+              echo "### Redesign drift conflicted"
+              echo
+              echo "\`main\` does not merge cleanly into \`redesign/main\`. Resolve it by hand."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Cause: main does not merge cleanly into redesign/main. Resolve it by hand; this job never picks a side."
             exit 1
           fi
 
-          git push origin redesign/main
-          echo "Merged main into redesign/main."
+          set +e
+          push=$(git push origin redesign/main 2>&1)
+          rc=$?
+          set -e
+          echo "$push"
+          if [ "$rc" -eq 0 ]; then
+            echo "Merged main into redesign/main."
+            exit 0
+          fi
+          if printf '%s' "$push" | grep -q "without .workflows. permission"; then
+            echo "::error::Cause: GitHub refused the push because it carries a .github/workflows/** change and the pushing token has no workflows scope. Set REDESIGN_DRIFT_TOKEN (see this workflow's header). The merge commit was NOT published."
+          else
+            echo "::error::Cause: the push to redesign/main failed with status $rc. The merge commit was NOT published; the message above is git's own."
+          fi
+          {
+            echo "### Redesign drift push refused"
+            echo
+            echo "The merge succeeded locally and was never published, so \`redesign/main\` is unchanged."
+            echo
+            echo '```'
+            printf '%s\n' "$push"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1

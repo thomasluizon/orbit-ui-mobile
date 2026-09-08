@@ -15,8 +15,7 @@
     "type-check": "turbo run type-check",
     "test": "turbo run test",
     "clean": "turbo run clean",
-    "surfaces:manifest": "node tools/surface-manifest.mjs",
-    "surfaces:capture": "node tools/capture-surfaces.mjs"
+    "surfaces:manifest": "node tools/surface-manifest.mjs"
   },
   "devDependencies": {
     "@swc/helpers": "^0.5.15",

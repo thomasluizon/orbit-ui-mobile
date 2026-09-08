@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- LHCI require()s this file as a CommonJS puppeteerScript module, so require/module.exports are mandatory here */
-const { mintHermeticJwt, HERMETIC_SESSION_EXPIRES } = require('../e2e/visual/hermetic-session.cjs')
+const { mintHermeticJwt, HERMETIC_SESSION_EXPIRES } = require('../test-support/hermetic/hermetic-session.cjs')
 
 function sessionCookie(name, token) {
   return {
