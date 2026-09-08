@@ -60,6 +60,7 @@ describe('toWidgetColors', () => {
       borderMuted: '#2B2B2D',
       overdue: '#FE9A00',
       streak: '#C4530F',
+      streakText: '#F4F4F6',
       statusEmpty: '#5D5D60',
     })
     expect(toWidgetColors(createTokensV2('purple', 'light'), 'light')).toEqual({
@@ -73,6 +74,7 @@ describe('toWidgetColors', () => {
       borderMuted: '#E6E6E8',
       overdue: '#946A00',
       streak: '#C4530F',
+      streakText: '#1A1A1D',
       statusEmpty: '#89898D',
     })
   })
@@ -84,7 +86,9 @@ describe('toWidgetColors', () => {
     expect(preferences.dark_surface).toBe('#1D1D1F')
     expect(preferences.light_background).toBe('#FFFFFF')
     expect(preferences.light_surface).toBe('#F1F1F2')
-    expect(Object.keys(preferences)).toHaveLength(22)
+    expect(preferences.dark_streakText).toBe('#F4F4F6')
+    expect(preferences.light_streakText).toBe('#1A1A1D')
+    expect(Object.keys(preferences)).toHaveLength(24)
   })
 
   it('uses the muted text role for native progress and completed due-time text', () => {
@@ -105,6 +109,38 @@ describe('toWidgetColors', () => {
     )
     expect(widgetServiceSource).toContain(
       'R.id.item_time, "setTextColor", colorModes',
+    )
+  })
+
+  it('keeps the streak numeral on fg-1 while the flame retains the primary graphic role', () => {
+    const widgetProviderSource = readWidgetSource(
+      'java/org/useorbit/app/widget/OrbitWidgetProvider.kt',
+    )
+    const widgetServiceSource = readWidgetSource(
+      'java/org/useorbit/app/widget/OrbitWidgetService.kt',
+    )
+    const widgetLayout = readWidgetSource('res/layout/widget_layout.xml')
+    const lightResources = readWidgetSource('res/values/widget_colors.xml')
+    const darkResources = readWidgetSource('res/values-night/widget_colors.xml')
+
+    expect(widgetProviderSource).toContain(
+      'createFlameBitmap(density, colorModes.light.streak)',
+    )
+    expect(widgetServiceSource).toContain(
+      'createFlameBitmap(density, colorModes.light.streak)',
+    )
+    expect(widgetProviderSource).toContain(
+      'setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streakText }',
+    )
+    expect(widgetServiceSource).toContain(
+      'setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streakText }',
+    )
+    expect(widgetLayout).toContain('android:textColor="@color/widget_streak_text"')
+    expect(lightResources).toContain(
+      '<color name="widget_streak_text">#1A1A1D</color>',
+    )
+    expect(darkResources).toContain(
+      '<color name="widget_streak_text">#F4F4F6</color>',
     )
   })
 

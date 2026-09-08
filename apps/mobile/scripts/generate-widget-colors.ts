@@ -34,6 +34,7 @@ const COLOR_ROLES = [
   ['borderMuted', 'hairline'],
   ['overdue', 'overdue'],
   ['streak', 'primary'],
+  ['streakText', 'fg1'],
   ['statusEmpty', 'fg4'],
 ] as const satisfies readonly (readonly [string, PaletteKey])[]
 
@@ -122,6 +123,7 @@ const RESOURCE_ROLES = [
   ['widget_fg_3', 'fg3'],
   ['widget_fg_4', 'fg4'],
   ['widget_primary', 'primary'],
+  ['widget_streak_text', 'fg1'],
   ['widget_overdue', 'overdue'],
 ] as const satisfies readonly (readonly [string, PaletteKey])[]
 

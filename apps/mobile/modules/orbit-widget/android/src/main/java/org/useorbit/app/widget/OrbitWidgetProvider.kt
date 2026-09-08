@@ -93,7 +93,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             // Flame bitmap (programmatic, avoids vector inflation issues)
             val lightFlame = OrbitWidgetFactory.createFlameBitmap(density, colorModes.light.streak)
             val darkFlame = OrbitWidgetFactory.createFlameBitmap(density, colorModes.dark.streak)
-            views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }
+            views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streakText }
 
             if (isSignedOut) {
                 views.setTextViewText(R.id.widget_header, "Orbit")
