@@ -48,7 +48,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             appWidgetId: Int
         ) {
             val views = RemoteViews(context.packageName, R.layout.widget_layout)
-            val colors = OrbitWidgetFactory.getThemeColors(context)
+            val colorModes = OrbitWidgetFactory.getThemeColorModes(context)
             val density = context.resources.displayMetrics.density
 
             // Widget background: flat surface with a hairline border (lift, not gradient).
@@ -60,12 +60,15 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 .coerceIn(1, displayMetrics.widthPixels)
             val bgHeight = (if (maxHeightDp > 0) (maxHeightDp * density).toInt() else displayMetrics.heightPixels / 2)
                 .coerceIn(1, displayMetrics.heightPixels / 2)
-            val bgBitmap = OrbitWidgetFactory.createRoundedBitmap(
-                bgWidth, bgHeight,
-                colors.background,
-                24f * density, 1f * density, colors.border
+            val lightBackground = OrbitWidgetFactory.createRoundedBitmap(
+                bgWidth, bgHeight, colorModes.light.background,
+                24f * density, 1f * density, colorModes.light.border
             )
-            views.setImageViewBitmap(R.id.widget_bg, bgBitmap)
+            val darkBackground = OrbitWidgetFactory.createRoundedBitmap(
+                bgWidth, bgHeight, colorModes.dark.background,
+                24f * density, 1f * density, colorModes.dark.border
+            )
+            views.setModeAwareBitmap(R.id.widget_bg, lightBackground, darkBackground)
 
             // Read cached header from SharedPreferences
             val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
@@ -83,15 +86,15 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val syncedOnce = prefs.getLong("habits_updated_at", 0L) > 0L
 
             // Apply dynamic text colors
-            views.setTextColor(R.id.widget_header, colors.textMuted)
-            views.setTextColor(R.id.widget_subtitle, colors.statusEmpty)
-            views.setTextColor(R.id.widget_empty_text, colors.textPrimary)
-            views.setTextColor(R.id.widget_streak_unit, colors.textMuted)
+            views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textPrimary }
+            views.setModeAwareColor(R.id.widget_subtitle, "setTextColor", colorModes) { it.textMuted }
+            views.setModeAwareColor(R.id.widget_empty_text, "setTextColor", colorModes) { it.textPrimary }
+            views.setModeAwareColor(R.id.widget_streak_unit, "setTextColor", colorModes) { it.textMuted }
 
             // Refresh icon tint
-            views.setInt(R.id.widget_refresh, "setColorFilter", colors.textMuted)
+            views.setModeAwareColor(R.id.widget_refresh, "setColorFilter", colorModes) { it.textMuted }
 
-            views.setTextColor(R.id.widget_streak, colors.streak)
+            views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }
 
             if (isSignedOut) {
                 views.setTextViewText(R.id.widget_header, "Orbit")

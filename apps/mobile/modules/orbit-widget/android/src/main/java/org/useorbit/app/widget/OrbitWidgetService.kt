@@ -9,6 +9,8 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.Icon
+import android.os.Build
 import android.util.Log
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
@@ -164,12 +166,43 @@ data class WidgetColors(
     val statusEmpty: Int
 )
 
+data class WidgetColorModes(
+    val light: WidgetColors,
+    val dark: WidgetColors
+)
+
+internal fun RemoteViews.setModeAwareColor(
+    viewId: Int,
+    methodName: String,
+    colorModes: WidgetColorModes,
+    color: (WidgetColors) -> Int
+) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        setColorInt(viewId, methodName, color(colorModes.light), color(colorModes.dark))
+    }
+}
+
+internal fun RemoteViews.setModeAwareBitmap(
+    viewId: Int,
+    lightBitmap: Bitmap,
+    darkBitmap: Bitmap
+) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        setIcon(
+            viewId,
+            "setImageIcon",
+            Icon.createWithBitmap(lightBitmap),
+            Icon.createWithBitmap(darkBitmap)
+        )
+    }
+}
+
 class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.RemoteViewsFactory {
 
     private var habits: List<HabitItem> = emptyList()
     private var headerLabel: String = "Today"
     private var lang: String = "en"
-    private var colors: WidgetColors = defaultColors(context)
+    private var colorModes: WidgetColorModes = defaultColorModes()
     private val gson = Gson()
 
     companion object {
@@ -195,11 +228,6 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             return context.createConfigurationContext(configuration).getString(string.resourceId)
         }
 
-        private fun activeColorMode(context: Context): String {
-            val nightMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-            return if (nightMode == Configuration.UI_MODE_NIGHT_YES) "dark" else "light"
-        }
-
         private fun fallbackColors(mode: String): Map<String, String> =
             if (mode == "dark") WidgetColorFallbacks.dark else WidgetColorFallbacks.light
 
@@ -220,9 +248,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             return parseColor(value, value)
         }
 
-        /** Generated light/dark bootstrap colors for the first paint before JS syncs. */
-        fun defaultColors(context: Context): WidgetColors {
-            val mode = activeColorMode(context)
+        private fun defaultColors(mode: String): WidgetColors {
             return WidgetColors(
                 background = fallbackColor(mode, "background"),
                 surface = fallbackColor(mode, "surface"),
@@ -238,9 +264,16 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             )
         }
 
-        fun getThemeColors(context: Context): WidgetColors {
-            val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-            val mode = activeColorMode(context)
+        /** Generated light/dark bootstrap colors for the first paint before JS syncs. */
+        fun defaultColorModes(): WidgetColorModes = WidgetColorModes(
+            light = defaultColors("light"),
+            dark = defaultColors("dark")
+        )
+
+        private fun readColors(
+            prefs: android.content.SharedPreferences,
+            mode: String
+        ): WidgetColors {
             return WidgetColors(
                 background = readColor(prefs, mode, "background"),
                 surface = readColor(prefs, mode, "surface"),
@@ -253,6 +286,14 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                 overdue = readColor(prefs, mode, "overdue"),
                 streak = readColor(prefs, mode, "streak"),
                 statusEmpty = readColor(prefs, mode, "statusEmpty")
+            )
+        }
+
+        fun getThemeColorModes(context: Context): WidgetColorModes {
+            val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+            return WidgetColorModes(
+                light = readColors(prefs, "light"),
+                dark = readColors(prefs, "dark")
             )
         }
 
@@ -386,7 +427,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     }
 
     private fun loadWidgetData() {
-        colors = getThemeColors(context)
+        colorModes = getThemeColorModes(context)
         val token = OrbitWidgetModule.getToken(context)
         if (token == null) {
             renderPlaceholder(showSkeleton = false)
@@ -422,20 +463,20 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             .putString("lang", lang)
             .apply()
 
-        val colors = getThemeColors(context)
+        val colorModes = getThemeColorModes(context)
         val streakVisible = if (streak > 0) android.view.View.VISIBLE else android.view.View.GONE
         updateWidgets { views ->
             views.setTextViewText(R.id.widget_header, headerLabel)
-            views.setTextColor(R.id.widget_header, colors.textMuted)
+            views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textPrimary }
             views.setTextViewText(R.id.widget_subtitle, subtitleText)
-            views.setTextColor(R.id.widget_subtitle, colors.statusEmpty)
+            views.setModeAwareColor(R.id.widget_subtitle, "setTextColor", colorModes) { it.textMuted }
             views.setTextViewText(R.id.widget_streak, "$streak")
-            views.setTextColor(R.id.widget_streak, colors.streak)
+            views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }
             views.setTextViewText(
                 R.id.widget_streak_unit,
                 tr(context, lang, WidgetString.STREAK_UNIT)
             )
-            views.setTextColor(R.id.widget_streak_unit, colors.textMuted)
+            views.setModeAwareColor(R.id.widget_streak_unit, "setTextColor", colorModes) { it.textMuted }
             views.setViewVisibility(R.id.widget_streak_group, streakVisible)
             // Restore refresh button, hide loading spinner and skeleton
             views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
@@ -549,29 +590,33 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         val cornerRadius = 16f * density
         val strokeWidth = 1f * density
 
-        val bgBitmap = when {
+        fun createItemBackground(modeColors: WidgetColors): Bitmap = when {
             isChild -> createRoundedBitmap(
-                bgWidth, bgHeight.toInt(),
-                colors.surfaceGround,
-                12f * density
+                bgWidth, bgHeight.toInt(), modeColors.surfaceGround, 12f * density
             )
             habit.isCompleted -> createRoundedBitmap(
-                bgWidth, bgHeight.toInt(),
-                colors.surface,
-                cornerRadius
-            )
-            habit.isOverdue -> createRoundedBitmap(
-                bgWidth, bgHeight.toInt(),
-                colors.surface,
-                cornerRadius, strokeWidth, colors.borderMuted
+                bgWidth, bgHeight.toInt(), modeColors.surface, cornerRadius
             )
             else -> createRoundedBitmap(
-                bgWidth, bgHeight.toInt(),
-                colors.surface,
-                cornerRadius, strokeWidth, colors.borderMuted
+                bgWidth,
+                bgHeight.toInt(),
+                modeColors.surface,
+                cornerRadius,
+                strokeWidth,
+                modeColors.borderMuted
             )
         }
-        views.setImageViewBitmap(R.id.item_bg, bgBitmap)
+        val lightBackground = createItemBackground(colorModes.light)
+        val darkBackground = createItemBackground(colorModes.dark)
+        views.setModeAwareBitmap(R.id.item_bg, lightBackground, darkBackground)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            val backgroundResource = when {
+                isChild -> R.drawable.widget_item_bg_child
+                habit.isCompleted -> R.drawable.widget_item_bg_completed
+                else -> R.drawable.widget_item_bg_fallback
+            }
+            views.setImageViewResource(R.id.item_bg, backgroundResource)
+        }
 
         // Indent child items
         if (isChild) {
@@ -584,14 +629,15 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         val displayTitle = if (habit.hasDeeper) "${habit.title} ..." else habit.title
         views.setTextViewText(R.id.item_title, displayTitle)
         views.setFloat(R.id.item_title, "setTextSize", if (isChild) 12f else 14f)
+        views.setBoolean(R.id.item_title, "setEnabled", !habit.isCompleted)
 
         if (habit.isCompleted) {
             views.setInt(R.id.item_title, "setPaintFlags",
                 Paint.STRIKE_THRU_TEXT_FLAG or Paint.ANTI_ALIAS_FLAG)
-            views.setTextColor(R.id.item_title, colors.textMuted)
+            views.setModeAwareColor(R.id.item_title, "setTextColor", colorModes) { it.textMuted }
         } else {
             views.setInt(R.id.item_title, "setPaintFlags", Paint.ANTI_ALIAS_FLAG)
-            views.setTextColor(R.id.item_title, colors.textPrimary)
+            views.setModeAwareColor(R.id.item_title, "setTextColor", colorModes) { it.textPrimary }
         }
 
         // Status circle vs progress badge
@@ -599,7 +645,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             views.setViewVisibility(R.id.item_status_icon, android.view.View.INVISIBLE)
             views.setViewVisibility(R.id.item_progress_badge, android.view.View.VISIBLE)
             views.setTextViewText(R.id.item_progress_badge, "${habit.childrenDone}/${habit.childrenTotal}")
-            views.setTextColor(R.id.item_progress_badge, colors.textSecondary)
+            views.setModeAwareColor(R.id.item_progress_badge, "setTextColor", colorModes) { it.textSecondary }
         } else {
             views.setViewVisibility(R.id.item_status_icon, android.view.View.VISIBLE)
             views.setViewVisibility(R.id.item_progress_badge, android.view.View.GONE)
@@ -607,15 +653,15 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             when {
                 habit.isCompleted -> {
                     views.setImageViewResource(R.id.item_status_icon, R.drawable.widget_circle_filled)
-                    views.setInt(R.id.item_status_icon, "setColorFilter", colors.textPrimary)
+                    views.setModeAwareColor(R.id.item_status_icon, "setColorFilter", colorModes) { it.textPrimary }
                 }
                 habit.isOverdue -> {
                     views.setImageViewResource(R.id.item_status_icon, R.drawable.widget_circle_overdue)
-                    views.setInt(R.id.item_status_icon, "setColorFilter", colors.overdue)
+                    views.setModeAwareColor(R.id.item_status_icon, "setColorFilter", colorModes) { it.overdue }
                 }
                 else -> {
                     views.setImageViewResource(R.id.item_status_icon, R.drawable.widget_circle_empty)
-                    views.setInt(R.id.item_status_icon, "setColorFilter", colors.statusEmpty)
+                    views.setModeAwareColor(R.id.item_status_icon, "setColorFilter", colorModes) { it.statusEmpty }
                 }
             }
 
@@ -629,22 +675,32 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         // Due time (inline below title)
         if (!habit.dueTime.isNullOrEmpty()) {
             val formattedTime = formatTime(habit.dueTime)
-            views.setTextViewText(R.id.item_time, formattedTime)
-            views.setViewVisibility(R.id.item_time, android.view.View.VISIBLE)
-            when {
-                habit.isCompleted -> views.setTextColor(R.id.item_time, colors.statusEmpty)
-                habit.isOverdue -> views.setTextColor(R.id.item_time, colors.overdue)
-                else -> views.setTextColor(R.id.item_time, colors.textMuted)
+            val showOverdueTime = habit.isOverdue && !habit.isCompleted
+            if (showOverdueTime) {
+                views.setTextViewText(R.id.item_time_overdue, formattedTime)
+                views.setViewVisibility(R.id.item_time, android.view.View.GONE)
+                views.setViewVisibility(R.id.item_time_overdue, android.view.View.VISIBLE)
+                views.setModeAwareColor(
+                    R.id.item_time_overdue, "setTextColor", colorModes
+                ) { it.overdue }
+            } else {
+                views.setTextViewText(R.id.item_time, formattedTime)
+                views.setViewVisibility(R.id.item_time, android.view.View.VISIBLE)
+                views.setViewVisibility(R.id.item_time_overdue, android.view.View.GONE)
+                views.setModeAwareColor(
+                    R.id.item_time, "setTextColor", colorModes
+                ) { it.textMuted }
             }
         } else {
             views.setViewVisibility(R.id.item_time, android.view.View.GONE)
+            views.setViewVisibility(R.id.item_time_overdue, android.view.View.GONE)
         }
 
         // Checklist badge
         if (habit.checklistTotal > 0) {
             views.setTextViewText(R.id.item_checklist_badge, "${habit.checklistChecked}/${habit.checklistTotal}")
             views.setViewVisibility(R.id.item_checklist_badge, android.view.View.VISIBLE)
-            views.setTextColor(R.id.item_checklist_badge, colors.textSecondary)
+            views.setModeAwareColor(R.id.item_checklist_badge, "setTextColor", colorModes) { it.textSecondary }
         } else {
             views.setViewVisibility(R.id.item_checklist_badge, android.view.View.GONE)
         }

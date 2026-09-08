@@ -85,13 +85,13 @@ describe('Android widget header', () => {
     })
     expect(views.get('widget_header')).toMatchObject({
       'android:textAllCaps': 'true',
-      'android:textColor': '@color/widget_fg_3',
+      'android:textColor': '@color/widget_fg_1',
       'android:textSize': '13sp',
     })
     expect(views.get('widget_subtitle')).toMatchObject({
       'android:ellipsize': 'end',
       'android:maxLines': '1',
-      'android:textColor': '@color/widget_fg_4',
+      'android:textColor': '@color/widget_fg_3',
       'android:textSize': '11sp',
     })
     expect(views.get('widget_streak_group')).toMatchObject({
