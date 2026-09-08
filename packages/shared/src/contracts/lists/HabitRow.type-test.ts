@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { HabitRowProps, HabitStatus } from './HabitRow'
+import type { HabitRowProps } from './HabitRow'
 
 type IsExactWidth<T, U> =
   (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
@@ -9,6 +9,7 @@ type IsExactWidth<T, U> =
     : false
 type Assert<T extends true> = T
 type Fields<T> = { [TKey in keyof T]: T[TKey] }
+type ExpectedHabitStatus = 'empty' | 'done' | 'overdue' | 'bad'
 
 type ReplacementMenuVariant = Extract<HabitRowProps, { trailing: ReactNode; onMenu: () => void }>
 type ReplacementPlainVariant = Extract<HabitRowProps, { trailing: ReactNode; onMenu?: never }>
@@ -26,7 +27,7 @@ type ExpectedBase = {
   icon?: string
   title: string
   meta?: string
-  status?: HabitStatus
+  status?: ExpectedHabitStatus
   depth?: 0 | 1
   compact?: boolean
   onClick?: () => void
@@ -143,7 +144,7 @@ export type HabitRowTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<HabitRowProps['icon'], string | undefined>>,
   Assert<IsExactWidth<HabitRowProps['title'], string>>,
   Assert<IsExactWidth<HabitRowProps['meta'], string | undefined>>,
-  Assert<IsExactWidth<HabitRowProps['status'], HabitStatus | undefined>>,
+  Assert<IsExactWidth<HabitRowProps['status'], ExpectedHabitStatus | undefined>>,
   Assert<IsExactWidth<HabitRowProps['depth'], 0 | 1 | undefined>>,
   Assert<IsExactWidth<HabitRowProps['compact'], boolean | undefined>>,
   Assert<IsExactWidth<HabitRowProps['onClick'], (() => void) | undefined>>,

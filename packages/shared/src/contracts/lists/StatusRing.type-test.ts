@@ -1,4 +1,3 @@
-import type { HabitStatus } from './HabitRow'
 import type { StatusRingProps } from './StatusRing'
 
 type IsExactWidth<T, U> =
@@ -8,6 +7,7 @@ type IsExactWidth<T, U> =
       : false
     : false
 type Assert<T extends true> = T
+type ExpectedHabitStatus = 'empty' | 'done' | 'overdue' | 'bad'
 
 type Accepts<
   Actual extends Expected & Record<Exclude<keyof Actual, keyof Expected>, never>,
@@ -27,7 +27,7 @@ type Frozen = Accepts<{ label: 'frozen'; status: 'frozen' }, StatusRingProps>
 type Skipped = Accepts<{ label: 'skipped'; status: 'skip' }, StatusRingProps>
 
 export type StatusRingTypeAssertionsWidthAssertions = [
-  Assert<IsExactWidth<StatusRingProps['status'], HabitStatus | undefined>>,
+  Assert<IsExactWidth<StatusRingProps['status'], ExpectedHabitStatus | undefined>>,
   Assert<IsExactWidth<StatusRingProps['size'], number | undefined>>,
   Assert<IsExactWidth<StatusRingProps['label'], string>>,
 ]

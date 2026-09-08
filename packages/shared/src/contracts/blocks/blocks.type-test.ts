@@ -1,11 +1,8 @@
 import type { ReactNode } from 'react'
 import type {
   BlockFrameItem,
-  BlockFrameItemStatus,
   BlockFrameProps,
-  BlockFrameState,
   ProposedProps,
-  ProposedScope,
 } from './index'
 
 type IsExactWidth<T, U> =
@@ -16,6 +13,16 @@ type IsExactWidth<T, U> =
     : false
 type Assert<T extends true> = T
 type Fields<T> = { [TKey in keyof T]: T[TKey] }
+type ExpectedBlockFrameItem = {
+  readonly id: string
+  readonly label: ReactNode
+  readonly meta?: string
+  readonly status?: 'done' | 'acting' | 'failed'
+  readonly statusLabel?: string
+  readonly control?: ReactNode
+  readonly proposed?: boolean
+  readonly irreversible?: boolean
+}
 
 type StaleEditedVariant = Extract<
   BlockFrameProps,
@@ -28,7 +35,7 @@ type SettledPlainVariant = Extract<SettledVariant, { onEditItem?: never }>
 type ExpectedCommon = {
   readonly title: string
   readonly count?: ReactNode
-  readonly items: readonly BlockFrameItem[]
+  readonly items: readonly ExpectedBlockFrameItem[]
   readonly risk?: ReactNode
   readonly actions?: ReactNode
   readonly irreversibleLabel?: string
@@ -41,7 +48,7 @@ type ExpectedStale = {
   readonly onRefresh: () => void
 }
 type ExpectedSettled = {
-  readonly state: Exclude<BlockFrameState, 'stale'>
+  readonly state: 'loading' | 'resting' | 'acting' | 'partiallyFailed'
   readonly staleMessage?: never
   readonly onRefresh?: never
 }
@@ -62,26 +69,26 @@ export type BlockContractWidthAssertions = [
   Assert<IsExactWidth<BlockFrameItem['id'], string>>,
   Assert<IsExactWidth<BlockFrameItem['label'], ReactNode>>,
   Assert<IsExactWidth<BlockFrameItem['meta'], string | undefined>>,
-  Assert<IsExactWidth<BlockFrameItem['status'], BlockFrameItemStatus | undefined>>,
+  Assert<IsExactWidth<BlockFrameItem['status'], 'done' | 'acting' | 'failed' | undefined>>,
   Assert<IsExactWidth<BlockFrameItem['statusLabel'], string | undefined>>,
   Assert<IsExactWidth<BlockFrameItem['control'], ReactNode>>,
   Assert<IsExactWidth<BlockFrameItem['proposed'], boolean | undefined>>,
   Assert<IsExactWidth<BlockFrameItem['irreversible'], boolean | undefined>>,
   Assert<IsExactWidth<BlockFrameProps['title'], string>>,
   Assert<IsExactWidth<BlockFrameProps['count'], ReactNode>>,
-  Assert<IsExactWidth<BlockFrameProps['items'], readonly BlockFrameItem[]>>,
+  Assert<IsExactWidth<BlockFrameProps['items'], readonly ExpectedBlockFrameItem[]>>,
   Assert<IsExactWidth<BlockFrameProps['risk'], ReactNode>>,
   Assert<IsExactWidth<BlockFrameProps['actions'], ReactNode>>,
   Assert<IsExactWidth<BlockFrameProps['irreversibleLabel'], string | undefined>>,
   Assert<IsExactWidth<BlockFrameProps['confirmNote'], string | undefined>>,
   Assert<IsExactWidth<BlockFrameProps['proposedLabel'], string | undefined>>,
-  Assert<IsExactWidth<BlockFrameProps['state'], BlockFrameState>>,
+  Assert<IsExactWidth<BlockFrameProps['state'], 'loading' | 'resting' | 'acting' | 'partiallyFailed' | 'stale'>>,
   Assert<IsExactWidth<BlockFrameProps['staleMessage'], string | undefined>>,
   Assert<IsExactWidth<BlockFrameProps['onRefresh'], (() => void) | undefined>>,
   Assert<IsExactWidth<BlockFrameProps['onEditItem'], ((itemId: string) => void) | undefined>>,
   Assert<IsExactWidth<BlockFrameProps['editLabel'], string | undefined>>,
   Assert<IsExactWidth<ProposedProps['proposed'], boolean>>,
-  Assert<IsExactWidth<ProposedProps['scope'], ProposedScope>>,
+  Assert<IsExactWidth<ProposedProps['scope'], 'field' | 'row' | 'block'>>,
   Assert<IsExactWidth<ProposedProps['label'], string>>,
   Assert<IsExactWidth<ProposedProps['children'], ReactNode>>,
 ]

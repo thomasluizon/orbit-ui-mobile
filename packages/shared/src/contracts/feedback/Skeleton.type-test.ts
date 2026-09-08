@@ -9,6 +9,7 @@ type IsExactWidth<T, U> =
       : false
     : false
 type Assert<T extends true> = T
+type ExpectedSkeletonGap = 0 | 4 | 8 | 12 | 16 | 24 | 32 | 48 | 64 | 96
 
 type RowVariant = Extract<SkeletonProps, { rows?: never }>
 type GridVariant = Extract<SkeletonProps, { variant: 'grid' }>
@@ -26,7 +27,7 @@ type ExpectedGridVariant = {
   rows: number
   cols: number
   cell: number
-  gap: import('./Skeleton').SkeletonGap
+  gap: ExpectedSkeletonGap
 }
 
 export type SkeletonTypeContract = [
@@ -37,7 +38,7 @@ export type SkeletonTypeContract = [
   Assert<IsExactWidth<SkeletonProps['rows'], number | undefined>>,
   Assert<IsExactWidth<SkeletonProps['cols'], number | undefined>>,
   Assert<IsExactWidth<SkeletonProps['cell'], number | undefined>>,
-  Assert<IsExactWidth<SkeletonProps['gap'], import('./Skeleton').SkeletonGap | undefined>>,
+  Assert<IsExactWidth<SkeletonProps['gap'], ExpectedSkeletonGap | undefined>>,
   Assert<IsExact<{ variant: 'habit-row'; label: 'Loading habits' }, SkeletonProps>>,
   Assert<IsExact<{ variant: 'settings'; label: 'Loading settings' }, SkeletonProps>>,
   Assert<IsExact<{ variant: 'stat-tile'; label: 'Loading stats' }, SkeletonProps>>,

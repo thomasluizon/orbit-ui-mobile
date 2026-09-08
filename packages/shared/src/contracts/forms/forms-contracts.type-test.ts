@@ -6,7 +6,6 @@ import type {
   InputProps,
   OtpInputProps,
   SwitchProps,
-  Time24,
   TimeFieldProps,
 } from './index'
 
@@ -23,6 +22,10 @@ type IsExactWidth<T, U> =
     : false
 type Assert<T extends true> = T
 type Fields<T> = { [TKey in keyof T]: T[TKey] }
+type ExpectedDigit = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
+type ExpectedHour24 = `0${ExpectedDigit}` | `1${ExpectedDigit}` | `2${'0' | '1' | '2' | '3'}`
+type ExpectedMinute = `${'0' | '1' | '2' | '3' | '4' | '5'}${ExpectedDigit}`
+type ExpectedTime24 = `${ExpectedHour24}:${ExpectedMinute}`
 
 type SingleLineVariant = Extract<InputProps, { multiline?: never }>
 type MultilineVariant = Extract<InputProps, { multiline: true }>
@@ -109,7 +112,7 @@ type LoadingSwitch = Exact<SwitchBase & { loading: true }, SwitchProps>
 // @ts-expect-error reasons belong in visible surrounding text
 type SwitchWithReason = Exact<SwitchBase & { reason: 'Unavailable' }, SwitchProps>
 
-type TimeBase = { label: 'Time'; onChange: (value: Time24) => void }
+type TimeBase = { label: 'Time'; onChange: (value: ExpectedTime24) => void }
 type MorningTime = Exact<TimeBase & { value: '07:30' }, TimeFieldProps>
 type EveningTime = Exact<TimeBase & { value: '19:30'; hourCycle: 'h12' }, TimeFieldProps>
 // @ts-expect-error the wire value is zero-padded
@@ -188,8 +191,8 @@ export type FormContractAssertionsWidthAssertions = [
   Assert<IsExactWidth<SwitchProps['checked'], boolean>>,
   Assert<IsExactWidth<SwitchProps['onChange'], (checked: boolean) => void>>,
   Assert<IsExactWidth<TimeFieldProps['label'], string | undefined>>,
-  Assert<IsExactWidth<TimeFieldProps['value'], Time24 | ''>>,
-  Assert<IsExactWidth<TimeFieldProps['onChange'], (value: Time24) => void>>,
+  Assert<IsExactWidth<TimeFieldProps['value'], ExpectedTime24 | ''>>,
+  Assert<IsExactWidth<TimeFieldProps['onChange'], (value: ExpectedTime24) => void>>,
   Assert<IsExactWidth<TimeFieldProps['onClear'], (() => void) | undefined>>,
   Assert<IsExactWidth<TimeFieldProps['hourCycle'], 'h23' | 'h12' | undefined>>,
   Assert<IsExactWidth<TimeFieldProps['id'], string | undefined>>,
