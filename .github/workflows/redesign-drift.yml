@@ -90,7 +90,12 @@ jobs:
           # This runs BEFORE the merge on purpose. The push is what GitHub refuses, and a refusal
           # after a clean merge reads as success for ten lines and then dies on the last one.
           git switch redesign/main
-          pending=$(git diff --name-only HEAD origin/main -- .github/workflows || true)
+          # THREE dots, and that is the whole correctness of this step. `HEAD origin/main` compares
+          # the two tips, so a workflow file that only redesign/main changed shows up and this job
+          # refuses a merge that would push no workflow change at all. `HEAD...origin/main` asks the
+          # question that matters: what has origin/main changed since the merge base, which is
+          # exactly the set this merge would carry.
+          pending=$(git diff --name-only HEAD...origin/main -- .github/workflows || true)
           if [ -z "$pending" ]; then
             echo "The pending drift carries no workflow file; the default token can push it."
             exit 0
@@ -148,6 +153,15 @@ jobs:
             echo "Merged main into redesign/main."
             exit 0
           fi
+          # The pattern comes from a real refusal, not from a guess: run 32916617441 on 2026-08-26
+          # ended with `! [remote rejected] redesign/main -> redesign/main (refusing to allow a GitHub
+          # App to create or update workflow \`.github/workflows/guards.yml\` without \`workflows\`
+          # permission)`. The dots stand in for the backticks GitHub puts around `workflows`.
+          #
+          # This classifier only chooses the WORDING. It never decides the verdict: the push already
+          # failed, the job already exits 1, and the else branch below names the cause generically. So
+          # if GitHub reworks that sentence the worst outcome is a less specific message, never a
+          # refusal read as a success.
           if printf '%s' "$push" | grep -q "without .workflows. permission"; then
             echo "::error::Cause: GitHub refused the push because it carries a .github/workflows/** change and the pushing token has no workflows scope. Set REDESIGN_DRIFT_TOKEN (see this workflow's header). The merge commit was NOT published."
           else
