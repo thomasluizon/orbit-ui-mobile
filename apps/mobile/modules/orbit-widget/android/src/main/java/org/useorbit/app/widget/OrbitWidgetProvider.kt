@@ -14,6 +14,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 class OrbitWidgetProvider : AppWidgetProvider() {
@@ -68,49 +69,61 @@ class OrbitWidgetProvider : AppWidgetProvider() {
 
             // Read cached header from SharedPreferences
             val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-            val headerLabel = prefs.getString("header_label", "Today") ?: "Today"
+            val lang = prefs.getString("lang", null) ?: if (Locale.getDefault().language == "pt") {
+                "pt-BR"
+            } else {
+                "en"
+            }
+            val headerLabel = prefs.getString("header_label", null)
+                ?: OrbitWidgetFactory.tr(context, lang, WidgetString.TODAY)
             val habitCount = prefs.getInt("habit_count", 0)
             val completedCount = prefs.getInt("completed_count", 0)
             val streak = prefs.getInt("user_streak", 0)
             val isSignedOut = OrbitWidgetModule.getToken(context) == null
-            val lang = prefs.getString("lang", "en") ?: "en"
             val syncedOnce = prefs.getLong("habits_updated_at", 0L) > 0L
 
             // Apply dynamic text colors
-            views.setTextColor(R.id.widget_header, colors.textPrimary)
+            views.setTextColor(R.id.widget_header, colors.textMuted)
             views.setTextColor(R.id.widget_subtitle, colors.statusEmpty)
             views.setTextColor(R.id.widget_empty_text, colors.textPrimary)
-
-            // Header dot color
-            views.setInt(R.id.widget_header_dot, "setColorFilter", colors.textMuted)
+            views.setTextColor(R.id.widget_streak_unit, colors.textMuted)
 
             // Refresh icon tint
             views.setInt(R.id.widget_refresh, "setColorFilter", colors.textMuted)
 
-            // Flame bitmap (programmatic, avoids vector inflation issues)
-            val flameBitmap = OrbitWidgetFactory.createFlameBitmap(density, colors.streak)
             views.setTextColor(R.id.widget_streak, colors.streak)
 
             if (isSignedOut) {
                 views.setTextViewText(R.id.widget_header, "Orbit")
-                views.setTextViewText(R.id.widget_subtitle, OrbitWidgetFactory.tr(lang, "signIn"))
-                views.setViewVisibility(R.id.widget_flame, View.GONE)
-                views.setViewVisibility(R.id.widget_streak, View.GONE)
-                views.setTextViewText(R.id.widget_empty_text, OrbitWidgetFactory.tr(lang, "signIn"))
+                views.setTextViewText(
+                    R.id.widget_subtitle,
+                    OrbitWidgetFactory.tr(context, lang, WidgetString.SIGN_IN)
+                )
+                views.setViewVisibility(R.id.widget_streak_group, View.GONE)
+                views.setTextViewText(
+                    R.id.widget_empty_text,
+                    OrbitWidgetFactory.tr(context, lang, WidgetString.SIGN_IN)
+                )
             } else {
                 views.setTextViewText(R.id.widget_header, headerLabel)
                 val subtitleText = if (syncedOnce) {
-                    "$completedCount ${OrbitWidgetFactory.tr(lang, "of")} $habitCount ${OrbitWidgetFactory.tr(lang, "completed")}"
+                    "$completedCount ${OrbitWidgetFactory.tr(context, lang, WidgetString.OF)} " +
+                        "$habitCount ${OrbitWidgetFactory.tr(context, lang, WidgetString.COMPLETED)}"
                 } else {
                     ""
                 }
                 views.setTextViewText(R.id.widget_subtitle, subtitleText)
                 val streakVisible = if (streak > 0) View.VISIBLE else View.GONE
-                views.setImageViewBitmap(R.id.widget_flame, flameBitmap)
                 views.setTextViewText(R.id.widget_streak, "$streak")
-                views.setViewVisibility(R.id.widget_flame, streakVisible)
-                views.setViewVisibility(R.id.widget_streak, streakVisible)
-                views.setTextViewText(R.id.widget_empty_text, OrbitWidgetFactory.tr(lang, "allClear"))
+                views.setTextViewText(
+                    R.id.widget_streak_unit,
+                    OrbitWidgetFactory.tr(context, lang, WidgetString.STREAK_UNIT)
+                )
+                views.setViewVisibility(R.id.widget_streak_group, streakVisible)
+                views.setTextViewText(
+                    R.id.widget_empty_text,
+                    OrbitWidgetFactory.tr(context, lang, WidgetString.ALL_CLEAR)
+                )
             }
 
             // Show the loading skeleton until habits have synced at least once, so a

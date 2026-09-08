@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
   <string name="widget_description">See your habits for today</string>
+  <string name="widget_today">Today</string>
+  <string name="widget_tomorrow">Tomorrow</string>
+  <string name="widget_of">of</string>
+  <string name="widget_completed">completed</string>
+  <string name="widget_streak_unit">days</string>
+  <string name="widget_all_clear">All clear!</string>
+  <string name="widget_sign_in">Open Orbit to sign in</string>
+  <string name="widget_refresh">Refresh</string>
 </resources>

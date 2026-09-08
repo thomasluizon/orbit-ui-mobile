@@ -8,8 +8,6 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Path
-import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
 import android.util.Log
 import android.widget.RemoteViews
@@ -64,6 +62,93 @@ data class HabitWidgetResponse(
     val totalCount: Int?
 )
 
+internal enum class WidgetString(val resourceId: Int) {
+    TODAY(R.string.widget_today),
+    TOMORROW(R.string.widget_tomorrow),
+    OF(R.string.widget_of),
+    COMPLETED(R.string.widget_completed),
+    ALL_CLEAR(R.string.widget_all_clear),
+    SIGN_IN(R.string.widget_sign_in),
+    STREAK_UNIT(R.string.widget_streak_unit)
+}
+
+internal data class WidgetDayState(
+    val habits: List<HabitItem>,
+    val completedCount: Int,
+    val totalCount: Int,
+    val isTomorrow: Boolean
+)
+
+internal fun prepareWidgetDay(apiHabits: List<ApiHabit>, dayOffset: Int): WidgetDayState {
+    val isTomorrow = dayOffset == 1
+    val habits = flattenHabits(apiHabits, isTomorrow)
+    var totalCount = 0
+    var completedCount = 0
+
+    for (habit in habits.filter { it.depth == 0 && !it.isBadHabit }) {
+        if (habit.hasChildren) {
+            totalCount += habit.childrenTotal
+            completedCount += habit.childrenDone
+        } else {
+            totalCount += 1
+            if (habit.isCompleted) completedCount += 1
+        }
+    }
+
+    return WidgetDayState(habits, completedCount, totalCount, isTomorrow)
+}
+
+private fun flattenHabits(apiHabits: List<ApiHabit>, isTomorrow: Boolean): List<HabitItem> {
+    val result = mutableListOf<HabitItem>()
+    for (habit in apiHabits) {
+        val children = habit.children ?: emptyList()
+        val countingChildren = children.filter { !it.isBadHabit }
+        val allChildrenDone = !isTomorrow && countingChildren.isNotEmpty() &&
+            countingChildren.all { it.isCompleted }
+        val done = !isTomorrow && (habit.isCompleted || allChildrenDone)
+        val childrenDone = if (isTomorrow) 0 else countingChildren.count { it.isCompleted }
+        result.add(
+            HabitItem(
+                id = habit.id,
+                title = habit.title,
+                isCompleted = done,
+                isOverdue = !isTomorrow && !done && habit.isOverdue,
+                dueTime = habit.dueTime,
+                checklistChecked = habit.checklistChecked ?: 0,
+                checklistTotal = habit.checklistTotal ?: 0,
+                isBadHabit = habit.isBadHabit,
+                depth = 0,
+                hasChildren = children.isNotEmpty(),
+                childrenDone = childrenDone,
+                childrenTotal = countingChildren.size,
+                hasDeeper = false
+            )
+        )
+        for (child in children) {
+            val hasDeeper = (child.children?.isNotEmpty() == true) || (child.hasSubHabits == true)
+            val childDone = !isTomorrow && child.isCompleted
+            result.add(
+                HabitItem(
+                    id = child.id,
+                    title = child.title,
+                    isCompleted = childDone,
+                    isOverdue = !isTomorrow && !childDone && child.isOverdue,
+                    dueTime = child.dueTime,
+                    checklistChecked = child.checklistChecked ?: 0,
+                    checklistTotal = child.checklistTotal ?: 0,
+                    isBadHabit = child.isBadHabit,
+                    depth = 1,
+                    hasChildren = false,
+                    childrenDone = 0,
+                    childrenTotal = 0,
+                    hasDeeper = hasDeeper
+                )
+            )
+        }
+    }
+    return result
+}
+
 /** Resolved granted token colors for the active scheme + mode, synced from JS. */
 data class WidgetColors(
     val background: Int,
@@ -102,30 +187,12 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         /** WHY: --bg is the terminal fallback when a synced value is malformed. */
         private const val SAFE_FALLBACK = 0xFF09090B.toInt()
 
-        // i18n strings
-        private val STRINGS = mapOf(
-            "en" to mapOf(
-                "today" to "Today",
-                "tomorrow" to "Tomorrow",
-                "habits" to "habits",
-                "of" to "of",
-                "completed" to "completed",
-                "allClear" to "All clear!",
-                "signIn" to "Open Orbit to sign in"
-            ),
-            "pt-BR" to mapOf(
-                "today" to "Hoje",
-                "tomorrow" to "Amanh\u00e3",
-                "habits" to "h\u00e1bitos",
-                "of" to "de",
-                "completed" to "conclu\u00eddos",
-                "allClear" to "Tudo feito!",
-                "signIn" to "Abra o Orbit para entrar"
-            )
-        )
-
-        fun tr(lang: String, key: String): String {
-            return STRINGS[lang]?.get(key) ?: STRINGS["en"]?.get(key) ?: key
+        internal fun tr(context: Context, lang: String, string: WidgetString): String {
+            val localeTag = if (lang.startsWith("pt", ignoreCase = true)) "pt-BR" else "en"
+            val configuration = Configuration(context.resources.configuration).apply {
+                setLocale(Locale.forLanguageTag(localeTag))
+            }
+            return context.createConfigurationContext(configuration).getString(string.resourceId)
         }
 
         private fun activeColorMode(context: Context): String {
@@ -255,32 +322,6 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             return bitmap
         }
 
-        /** Create flame icon bitmap tinted with the streak token (flat, single tone). */
-        fun createFlameBitmap(density: Float, streakColor: Int): Bitmap {
-            val w = (14 * density).toInt().coerceAtLeast(1)
-            val h = (16 * density).toInt().coerceAtLeast(1)
-            val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(bitmap)
-            val sx = w / 16f
-            val sy = h / 20f
-            canvas.scale(sx, sy)
-
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = streakColor
-                style = Paint.Style.FILL
-            }
-
-            val outer = Path().apply {
-                moveTo(8f, 0f)
-                cubicTo(8f, 0f, 2f, 6.5f, 2f, 12f)
-                arcTo(RectF(2f, 6f, 14f, 18f), 180f, -180f, false)
-                cubicTo(14f, 6.5f, 8f, 0f, 8f, 0f)
-                close()
-            }
-            canvas.drawPath(outer, paint)
-
-            return bitmap
-        }
     }
 
     override fun onCreate() {}
@@ -310,7 +351,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     private fun renderPlaceholder(showSkeleton: Boolean) {
         habits = emptyList()
         lang = detectLanguage(null)
-        headerLabel = tr(lang, "today")
+        headerLabel = tr(context, lang, WidgetString.TODAY)
 
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
         prefs.edit()
@@ -360,52 +401,42 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
 
         lang = detectLanguage(widgetData.language)
         val streak = widgetData.currentStreak ?: 0
-        habits = flattenHabits(widgetData.items ?: emptyList())
-        headerLabel = if (widgetData.dayOffset == 1 && habits.isNotEmpty()) {
-            tr(lang, "tomorrow")
+        val dayState = prepareWidgetDay(widgetData.items ?: emptyList(), widgetData.dayOffset)
+        habits = dayState.habits
+        headerLabel = if (dayState.isTomorrow) {
+            tr(context, lang, WidgetString.TOMORROW)
         } else {
-            tr(lang, "today")
+            tr(context, lang, WidgetString.TODAY)
         }
-
-        // Count each sub-habit as its own item so the total matches the Today list.
-        // Bad (avoid) habits never count toward progress: a slip is not a completion.
-        var totalCount = 0
-        var completedCount = 0
-        for (habit in habits.filter { it.depth == 0 }) {
-            if (habit.hasChildren) {
-                totalCount += habit.childrenTotal
-                completedCount += habit.childrenDone
-            } else if (!habit.isBadHabit) {
-                totalCount += 1
-                if (habit.isCompleted) completedCount += 1
-            }
-        }
-        val subtitleText = "$completedCount ${tr(lang, "of")} $totalCount ${tr(lang, "completed")}"
+        val subtitleText = "${dayState.completedCount} " +
+            "${tr(context, lang, WidgetString.OF)} ${dayState.totalCount} " +
+            tr(context, lang, WidgetString.COMPLETED)
 
         // Cache header info for the provider to read
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
         prefs.edit()
             .putString("header_label", headerLabel)
-            .putInt("habit_count", totalCount)
-            .putInt("completed_count", completedCount)
+            .putInt("habit_count", dayState.totalCount)
+            .putInt("completed_count", dayState.completedCount)
             .putInt("user_streak", streak)
             .putString("lang", lang)
             .apply()
 
         val colors = getThemeColors(context)
-        val density = context.resources.displayMetrics.density
         val streakVisible = if (streak > 0) android.view.View.VISIBLE else android.view.View.GONE
-        val flameBitmap = createFlameBitmap(density, colors.streak)
         updateWidgets { views ->
             views.setTextViewText(R.id.widget_header, headerLabel)
-            views.setTextColor(R.id.widget_header, colors.textPrimary)
+            views.setTextColor(R.id.widget_header, colors.textMuted)
             views.setTextViewText(R.id.widget_subtitle, subtitleText)
             views.setTextColor(R.id.widget_subtitle, colors.statusEmpty)
             views.setTextViewText(R.id.widget_streak, "$streak")
             views.setTextColor(R.id.widget_streak, colors.streak)
-            views.setImageViewBitmap(R.id.widget_flame, flameBitmap)
-            views.setViewVisibility(R.id.widget_flame, streakVisible)
-            views.setViewVisibility(R.id.widget_streak, streakVisible)
+            views.setTextViewText(
+                R.id.widget_streak_unit,
+                tr(context, lang, WidgetString.STREAK_UNIT)
+            )
+            views.setTextColor(R.id.widget_streak_unit, colors.textMuted)
+            views.setViewVisibility(R.id.widget_streak_group, streakVisible)
             // Restore refresh button, hide loading spinner and skeleton
             views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
             views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)
@@ -488,63 +519,6 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             Log.w(TAG, "widget fetch error: ${e.javaClass.simpleName}: ${e.message}")
             null
         }
-    }
-
-    /** The widget endpoint precomputes completion for the selected day. */
-    private fun isDoneForRange(habit: ApiHabit): Boolean {
-        return habit.isCompleted
-    }
-
-    private fun flattenHabits(apiHabits: List<ApiHabit>): List<HabitItem> {
-        val result = mutableListOf<HabitItem>()
-        for (habit in apiHabits) {
-            val children = habit.children ?: emptyList()
-            // Bad (avoid) sub-habits never count toward the parent's progress badge
-            // or auto-completion: a slip is not a completion.
-            val countingChildren = children.filter { !it.isBadHabit }
-            val allChildrenDone = countingChildren.isNotEmpty() && countingChildren.all { isDoneForRange(it) }
-            val done = isDoneForRange(habit) || allChildrenDone
-            val childrenDone = countingChildren.count { isDoneForRange(it) }
-            result.add(
-                HabitItem(
-                    id = habit.id,
-                    title = habit.title,
-                    isCompleted = done,
-                    isOverdue = if (done) false else habit.isOverdue,
-                    dueTime = habit.dueTime,
-                    checklistChecked = habit.checklistChecked ?: 0,
-                    checklistTotal = habit.checklistTotal ?: 0,
-                    isBadHabit = habit.isBadHabit,
-                    depth = 0,
-                    hasChildren = children.isNotEmpty(),
-                    childrenDone = childrenDone,
-                    childrenTotal = countingChildren.size,
-                    hasDeeper = false
-                )
-            )
-            for (child in children) {
-                val hasDeeper = (child.children?.isNotEmpty() == true) || (child.hasSubHabits == true)
-                val childDone = isDoneForRange(child)
-                result.add(
-                    HabitItem(
-                        id = child.id,
-                        title = child.title,
-                        isCompleted = childDone,
-                        isOverdue = if (childDone) false else child.isOverdue,
-                        dueTime = child.dueTime,
-                        checklistChecked = child.checklistChecked ?: 0,
-                        checklistTotal = child.checklistTotal ?: 0,
-                        isBadHabit = child.isBadHabit,
-                        depth = 1,
-                        hasChildren = false,
-                        childrenDone = 0,
-                        childrenTotal = 0,
-                        hasDeeper = hasDeeper
-                    )
-                )
-            }
-        }
-        return result
     }
 
     override fun onDestroy() {
