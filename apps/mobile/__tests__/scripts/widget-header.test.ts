@@ -67,6 +67,7 @@ describe('Android widget header', () => {
       widget_of: 'of',
       widget_completed: 'completed',
       widget_streak_unit: 'days',
+      widget_all_clear: 'All clear',
     })
     expect(Object.fromEntries(portuguese)).toMatchObject({
       widget_today: 'Hoje',
@@ -74,6 +75,7 @@ describe('Android widget header', () => {
       widget_of: 'de',
       widget_completed: 'concluídos',
       widget_streak_unit: 'dias',
+      widget_all_clear: 'Tudo feito',
     })
   })
 

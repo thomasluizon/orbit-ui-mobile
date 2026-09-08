@@ -6,7 +6,7 @@
   <string name="widget_of">of</string>
   <string name="widget_completed">completed</string>
   <string name="widget_streak_unit">days</string>
-  <string name="widget_all_clear">All clear!</string>
+  <string name="widget_all_clear">All clear</string>
   <string name="widget_sign_in">Open Orbit to sign in</string>
   <string name="widget_refresh">Refresh</string>
 </resources>
