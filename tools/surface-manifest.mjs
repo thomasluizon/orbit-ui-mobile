@@ -28,8 +28,11 @@
 //    third surface's status with nobody editing it. Regenerating the manifest
 //    is a visible git diff; a silent recompute is not.
 //
-// There is deliberately no status field. Completion is derived by
-// tools/check-surface-coverage.mjs from evidence on disk.
+// There is deliberately no status field, and no field describing what evidence
+// a cell could carry. D13 retired the per-cell completion oracle and forbids
+// rebuilding one; #422 then deleted the last capture tooling. This file is an
+// INVENTORY of surfaces and their ownership, and nothing here records, implies,
+// or grants completion.
 
 import { execFileSync } from "node:child_process"
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"
@@ -508,21 +511,6 @@ function attachOwnershipAndStates(surfaces) {
   return surfaces
 }
 
-/**
- * Whether a screenshot of this cell is obtainable AT ALL. Recorded in the
- * manifest because the completion oracle must not demand evidence that cannot
- * exist: requiring a judge report for a mobile cell made `done` mathematically
- * unreachable for 348 of 804 cells, which is a silently unsatisfiable gate
- * rather than a strict one.
- * @returns {"web-capture" | "none"}
- */
-export function pixelEvidenceFor(surface, state) {
-  if (surface.platform !== "web") return "none"
-  if (state !== "default") return "none"
-  if (surface.surfaceId === "route-r-code") return "none"
-  return "web-capture"
-}
-
 function gitSha(ref) {
   try {
     return execFileSync("git", ["rev-parse", ref], { cwd: REPO_ROOT, encoding: "utf8" }).trim()
@@ -547,7 +535,7 @@ function buildManifest(baselineRef) {
       for (const theme of THEMES)
         for (const locale of LOCALES) {
           const { states, ownedFilesOverride, ...rest } = surface
-          cells.push({ ...rest, state, theme, locale, pixelEvidence: pixelEvidenceFor(surface, state) })
+          cells.push({ ...rest, state, theme, locale })
         }
 
   const resolvedBaseline = gitSha(baselineRef)

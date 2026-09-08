@@ -2,7 +2,6 @@
   ".claudeignore": 1,
   ".github/dependabot.yml": 1,
   ".github/workflows/dependabot-auto-merge.yml": 1,
-  ".github/workflows/visual.yml": 3,
   "FEATURES.md": 170,
   "TESTING.md": 7,
   "apps/mobile/CLAUDE.md": 12,

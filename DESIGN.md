@@ -414,7 +414,7 @@ Motion is governed on two axes: **whether** to animate, then **how**. The first 
 
 ### Scroll reveals
 
-- **A reveal never gates content visibility.** The pre-reveal state IS the visible state; the script only animates from it. Never ship CSS that hides content waiting on JS. A transition that never fires would otherwise ship a blank hero, which the hermetic screenshot gates would then bless.
+- **A reveal never gates content visibility.** The pre-reveal state IS the visible state; the script only animates from it. Never ship CSS that hides content waiting on JS. A transition that never fires would otherwise ship a blank hero, and no gate in this repository would catch it: the screenshot gates are deleted (#422), so this rule is the only thing standing between a broken transition and a blank page.
 - **A scroll reveal fires once per element** and is unobserved after firing. It never replays on scroll-back: a replaying reveal reads as a glitch, and live observers on every heading are a real cost.
 - **Whole-section fade-and-rise on scroll is an AI-slop tell, not choreography.** Reserve scroll-triggered motion for moments that earn it. Never add page-load choreography. This names the landing page's `reveal.ts` directly, where the reveal is currently the entire motion budget.
 
@@ -566,4 +566,4 @@ Everything else, and specifically: the 65ch measure, the spacing rhythm (tight w
 
 ### Not enforceable here
 
-`prefers-reduced-transparency` / `prefers-contrast` handling, the 200% zoom layout, keyboard traps, and screen-reader semantics need the **live rendered DOM**. They belong to the proposed a11y baseline-diff CI gate (reusing `visual.yml`'s hermetic mock-api plus `perf.yml`'s fake-JWT harness), which reports only diff-introduced violations. Note the baseline must be captured **without** `git stash` / `git checkout` while parallel agents share the current worktree.
+`prefers-reduced-transparency` / `prefers-contrast` handling, the 200% zoom layout, keyboard traps, and screen-reader semantics need the **live rendered DOM**. They belong to the proposed a11y baseline-diff CI gate, which would reuse the hermetic harness under `apps/web/test-support/hermetic/` (the mock orbit-api and the fake-JWT session `perf.yml` already runs on), and would report only diff-introduced violations. Note the baseline must be captured **without** `git stash` / `git checkout` while parallel agents share the current worktree.
