@@ -293,6 +293,8 @@ describe('ProgressContent', () => {
     expect(mocks.updateStatus.mutate).toHaveBeenCalledWith({
       goalId: 'goal-1',
       goalName: 'Read 10 books',
+      goalCount: 10,
+      goalUnit: 'books',
       data: { status: 'Completed' },
     })
   })

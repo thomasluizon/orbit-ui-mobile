@@ -139,7 +139,13 @@ describe("shared ui store", () => {
     const store = createStoreHarness();
 
     store.getState().setStreakCelebration({ streak: 7 });
-    store.getState().setGoalCompletedCelebration({ name: "Ship Orbit", count: 12 });
+    store
+      .getState()
+      .setGoalCompletedCelebration({
+        name: "Ship Orbit",
+        count: 12,
+        unit: "releases",
+      });
 
     expect(
       store.getState().queuedCelebrations.map((item) => item.kind),

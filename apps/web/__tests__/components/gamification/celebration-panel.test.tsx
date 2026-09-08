@@ -6,8 +6,10 @@ import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { Shell412 } from '@/components/shell/shell-412'
 
 const motion = vi.hoisted(() => ({ reduced: false }))
+const selectPlural = vi.hoisted(() => vi.fn((text: string) => `selected:${text}`))
 
 vi.mock('motion/react', () => ({ useReducedMotion: () => motion.reduced }))
+vi.mock('@/lib/plural', () => ({ plural: selectPlural }))
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) => `${key}:${JSON.stringify(values ?? {})}`,
 }))
@@ -15,6 +17,7 @@ vi.mock('next-intl', () => ({
 describe('CelebrationPanel', () => {
   beforeEach(() => {
     motion.reduced = false
+    selectPlural.mockClear()
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
   })
 
@@ -25,7 +28,33 @@ describe('CelebrationPanel', () => {
 
     expect(container.querySelector('[data-celebration-panel]')).not.toHaveAttribute('style')
     expect(container.querySelector('.celebration-ring')).toBeNull()
-    expect(container.textContent).toContain('day.line:{"count":1}')
+    expect(selectPlural).toHaveBeenCalledWith('day.line:{"count":1}', 1)
+    expect(container.textContent).toContain('selected:day.line:{"count":1}')
+  })
+
+  it('renders the goal unit and uses a complete sentence when the unit is empty', () => {
+    useUIStore.getState().enqueueCelebration('goal-completed', {
+      name: 'Distance',
+      count: 5,
+      unit: 'km',
+    })
+    const { container, rerender } = render(<CelebrationPanel />)
+
+    expect(container.textContent).toContain(
+      'goal.line:{"name":"Distance","count":5,"unit":"km"}',
+    )
+
+    useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+    useUIStore.getState().enqueueCelebration('goal-completed', {
+      name: 'Untitled target',
+      count: 1,
+      unit: '',
+    })
+    rerender(<CelebrationPanel />)
+
+    expect(container.textContent).toContain(
+      'goal.lineWithoutUnit:{"name":"Untitled target","count":1}',
+    )
   })
 
   it('keeps the screen and composer interactive, rests neutral, and promotes the queued fact when closed', async () => {
@@ -56,5 +85,10 @@ describe('CelebrationPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'close:{}' }))
     expect(useUIStore.getState().activeCelebration?.kind).toBe('level-up')
+    const promotedPanel = container.querySelector('[data-celebration-panel]')
+    expect(promotedPanel).not.toBe(panel)
+    expect(promotedPanel).toHaveStyle({
+      animation: 'celebration-rise 280ms var(--ease-out) both',
+    })
   })
 })

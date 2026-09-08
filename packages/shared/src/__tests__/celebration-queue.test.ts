@@ -30,7 +30,7 @@ describe('sortCelebrationQueue', () => {
       createCelebrationItem('level-up', { level: 2 }, 5),
       createCelebrationItem('streak', { streak: 3 }, 4),
       createCelebrationItem('all-done', { count: 1 }, 1),
-      createCelebrationItem('goal-completed', { name: 'Ship', count: 12 }, 0),
+      createCelebrationItem('goal-completed', { name: 'Ship', count: 12, unit: 'releases' }, 0),
     ]
 
     const sorted = sortCelebrationQueue(queue)
@@ -48,7 +48,7 @@ describe('sortCelebrationQueue', () => {
 describe('isDuplicateCelebration', () => {
   it('matches by kind-specific payload identity', () => {
     const active = createCelebrationItem('streak', { streak: 5 }, 0)
-    const queued = [createCelebrationItem('goal-completed', { name: 'Read', count: 12 }, 1)]
+    const queued = [createCelebrationItem('goal-completed', { name: 'Read', count: 12, unit: 'books' }, 1)]
 
     expect(
       isDuplicateCelebration(queued, active, createCelebrationItem('streak', { streak: 5 }, 2)),
@@ -57,10 +57,10 @@ describe('isDuplicateCelebration', () => {
       isDuplicateCelebration(queued, active, createCelebrationItem('streak', { streak: 9 }, 2)),
     ).toBe(false)
     expect(
-      isDuplicateCelebration(queued, active, createCelebrationItem('goal-completed', { name: 'Read', count: 12 }, 2)),
+      isDuplicateCelebration(queued, active, createCelebrationItem('goal-completed', { name: 'Read', count: 12, unit: 'books' }, 2)),
     ).toBe(true)
     expect(
-      isDuplicateCelebration(queued, active, createCelebrationItem('goal-completed', { name: 'Ship', count: 12 }, 2)),
+      isDuplicateCelebration(queued, active, createCelebrationItem('goal-completed', { name: 'Ship', count: 12, unit: 'releases' }, 2)),
     ).toBe(false)
   })
 
@@ -81,12 +81,12 @@ describe('isDuplicateCelebration', () => {
 
 describe('createCelebrationItem', () => {
   it('stamps a deterministic id and the kind priority', () => {
-    const item = createCelebrationItem('goal-completed', { name: 'Ship Orbit', count: 12 }, 7)
+    const item = createCelebrationItem('goal-completed', { name: 'Ship Orbit', count: 12, unit: 'releases' }, 7)
 
     expect(item).toEqual({
       id: 'goal-completed-7',
       kind: 'goal-completed',
-      payload: { name: 'Ship Orbit', count: 12 },
+      payload: { name: 'Ship Orbit', count: 12, unit: 'releases' },
       priority: 2,
       sequence: 7,
     })
@@ -119,8 +119,8 @@ describe('activateNextCelebration', () => {
   it('derives legacy all-done and goal-completed state', () => {
     expect(activateNextCelebration([createCelebrationItem('all-done', { count: 1 }, 0)]).allDoneCelebration).toBe(true)
     expect(
-      activateNextCelebration([createCelebrationItem('goal-completed', { name: 'Ship', count: 12 }, 0)]).goalCompletedCelebration,
-    ).toEqual({ name: 'Ship', count: 12 })
+      activateNextCelebration([createCelebrationItem('goal-completed', { name: 'Ship', count: 12, unit: 'releases' }, 0)]).goalCompletedCelebration,
+    ).toEqual({ name: 'Ship', count: 12, unit: 'releases' })
   })
 })
 
@@ -171,7 +171,7 @@ describe('clearCelebrationKind', () => {
     const state = {
       activeCelebration: createCelebrationItem('all-done', { count: 1 }, 0),
       queuedCelebrations: [
-        createCelebrationItem('goal-completed', { name: 'Ship', count: 12 }, 1),
+        createCelebrationItem('goal-completed', { name: 'Ship', count: 12, unit: 'releases' }, 1),
         createCelebrationItem('level-up', { level: 2 }, 2),
       ],
     }

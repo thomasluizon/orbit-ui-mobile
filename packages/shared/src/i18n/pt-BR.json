@@ -3238,7 +3238,8 @@
     },
     "goal": {
       "eyebrow": "Meta",
-      "line": "A meta {name} fechou em {count} livros."
+      "line": "A meta {name} fechou em {count} {unit}.",
+      "lineWithoutUnit": "A meta {name} fechou em {count}."
     },
     "level": {
       "eyebrow": "Nível",
@@ -3246,7 +3247,7 @@
     },
     "day": {
       "eyebrow": "Hoje",
-      "line": "Os {count} hábitos de hoje estão feitos."
+      "line": "O {count} hábito de hoje está feito. | Os {count} hábitos de hoje estão feitos."
     }
   }
 }

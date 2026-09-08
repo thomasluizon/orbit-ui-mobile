@@ -207,6 +207,8 @@ describe('GoalDetailDrawer', () => {
       goalId: '1',
       data: { status: 'Completed' },
       goalName: 'Read 12 books',
+      goalCount: 12,
+      goalUnit: 'books',
     })
   })
 

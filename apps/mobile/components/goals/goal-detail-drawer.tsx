@@ -201,7 +201,13 @@ export function GoalDetailDrawer({
   })
 
   const { markCompleted, markAbandoned, reactivate, isUpdatingStatus } =
-    useGoalStatusActions({ goalId, goalName: goal?.title, goalCount: goal?.targetValue, refetchDetail: () => void refetchDetail() })
+    useGoalStatusActions({
+      goalId,
+      goalName: goal?.title,
+      goalCount: goal?.targetValue,
+      goalUnit: goal?.unit,
+      refetchDetail: () => void refetchDetail(),
+    })
 
   const formatDate = useCallback(
     (dateStr: string) =>

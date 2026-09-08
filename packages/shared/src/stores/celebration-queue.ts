@@ -13,7 +13,7 @@ export function isStreakCelebrationMilestone(value: number): boolean {
 export interface CelebrationPayloadMap {
   streak: { streak: number };
   "all-done": { count: number };
-  "goal-completed": { name: string; count: number };
+  "goal-completed": { name: string; count: number; unit: string };
   "level-up": { level: number };
 }
 
@@ -52,7 +52,7 @@ export interface CelebrationState {
   queuedCelebrations: CelebrationQueueItem[];
   streakCelebration: { streak: number } | null;
   allDoneCelebration: boolean;
-  goalCompletedCelebration: { name: string; count: number } | null;
+  goalCompletedCelebration: { name: string; count: number; unit: string } | null;
 }
 
 export type ActiveCelebrationState = Pick<

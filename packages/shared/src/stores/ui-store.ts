@@ -88,10 +88,12 @@ export interface UIStoreState {
   streakCelebration: { streak: number } | null;
   allDoneCelebration: boolean;
   allDoneCelebratedDate: string;
-  goalCompletedCelebration: { name: string; count: number } | null;
+  goalCompletedCelebration: { name: string; count: number; unit: string } | null;
   setStreakCelebration: (data: { streak: number } | null) => void;
   setAllDoneCelebration: (value: boolean, count?: number) => void;
-  setGoalCompletedCelebration: (data: { name: string; count: number } | null) => void;
+  setGoalCompletedCelebration: (
+    data: { name: string; count: number; unit: string } | null,
+  ) => void;
   checkAllDoneCelebration: (
     habitsById: Map<string, { parentId: string | null; isCompleted: boolean }>,
   ) => void;

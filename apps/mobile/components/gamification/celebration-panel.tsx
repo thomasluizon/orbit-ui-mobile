@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next'
 import { X } from '@/components/ui/icons'
 import { createTokensV2, easings } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
+import { plural } from '@/lib/plural'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 
@@ -19,12 +20,44 @@ const STREAK_MILESTONES = new Set([7, 14, 30, 90, 100, 365])
 
 function getCelebrationCopy(
   active: NonNullable<ReturnType<typeof useUIStore.getState>['activeCelebration']>,
-): { key: string; values: Record<string, string | number> } {
+): {
+  eyebrowKey: string
+  lineKey: string
+  values: Record<string, string | number>
+  pluralCount?: number
+} {
   switch (active.kind) {
-    case 'streak': return { key: 'streak', values: { count: active.payload.streak } }
-    case 'goal-completed': return { key: 'goal', values: { name: active.payload.name, count: active.payload.count } }
-    case 'level-up': return { key: 'level', values: { level: active.payload.level } }
-    case 'all-done': return { key: 'day', values: { count: active.payload.count } }
+    case 'streak':
+      return {
+        eyebrowKey: 'celebration.streak.eyebrow',
+        lineKey: 'celebration.streak.line',
+        values: { count: active.payload.streak },
+      }
+    case 'goal-completed': {
+      const unit = active.payload.unit.trim()
+      return {
+        eyebrowKey: 'celebration.goal.eyebrow',
+        lineKey: unit
+          ? 'celebration.goal.line'
+          : 'celebration.goal.lineWithoutUnit',
+        values: unit
+          ? { name: active.payload.name, count: active.payload.count, unit }
+          : { name: active.payload.name, count: active.payload.count },
+      }
+    }
+    case 'level-up':
+      return {
+        eyebrowKey: 'celebration.level.eyebrow',
+        lineKey: 'celebration.level.line',
+        values: { level: active.payload.level },
+      }
+    case 'all-done':
+      return {
+        eyebrowKey: 'celebration.day.eyebrow',
+        lineKey: 'celebration.day.line',
+        values: { count: active.payload.count },
+        pluralCount: active.payload.count,
+      }
   }
 }
 
@@ -59,7 +92,11 @@ export function CelebrationPanel() {
   if (!active) return null
   if (active.kind === 'streak' && !STREAK_MILESTONES.has(active.payload.streak)) return null
 
-  const { key, values } = getCelebrationCopy(active)
+  const { eyebrowKey, lineKey, values, pluralCount } = getCelebrationCopy(active)
+  const translatedLine = t(lineKey, values)
+  const line = pluralCount === undefined
+    ? translatedLine
+    : plural(translatedLine, pluralCount)
 
   function dismiss() {
     complete(active?.id)
@@ -97,8 +134,8 @@ export function CelebrationPanel() {
         )}
       </View>
       <View style={styles.copy}>
-        <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>{t(`celebration.${key}.eyebrow`)}</Text>
-        <Text style={[styles.line, { color: tokens.fg1 }]}>{t(`celebration.${key}.line`, values)}</Text>
+        <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>{t(eyebrowKey)}</Text>
+        <Text style={[styles.line, { color: tokens.fg1 }]}>{line}</Text>
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel={t('celebration.close')} hitSlop={8} onPress={dismiss} style={styles.close}>
         <X aria-hidden size={20} color={tokens.fg2} />

@@ -25,6 +25,7 @@ vi.stubGlobal('fetch', mockFetch)
 const mockShowQueued = vi.fn()
 const mockShowSuccess = vi.fn()
 const mockShowError = vi.fn()
+const mockSetGoalCompleted = vi.hoisted(() => vi.fn())
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -55,11 +56,11 @@ vi.mock('@/app/actions/goals', () => ({
 vi.mock('@/stores/ui-store', () => ({
   useUIStore: Object.assign(
     () => ({
-      setGoalCompletedCelebration: vi.fn(),
+      setGoalCompletedCelebration: mockSetGoalCompleted,
     }),
     {
       getState: () => ({
-        setGoalCompletedCelebration: vi.fn(),
+        setGoalCompletedCelebration: mockSetGoalCompleted,
       }),
     },
   ),
@@ -365,6 +366,7 @@ describe('useUpdateGoalProgress', () => {
 describe('useUpdateGoalStatus', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    mockSetGoalCompleted.mockReset()
   })
 
   it('calls updateGoalStatus action', async () => {
@@ -381,10 +383,16 @@ describe('useUpdateGoalStatus', () => {
         data: { status: 'Completed' },
         goalName: 'Ship Orbit',
         goalCount: 12,
+        goalUnit: 'releases',
       })
     })
 
     expect(mockedUpdateStatus).toHaveBeenCalledWith('g-1', { status: 'Completed' })
+    expect(mockSetGoalCompleted).toHaveBeenCalledWith({
+      name: 'Ship Orbit',
+      count: 12,
+      unit: 'releases',
+    })
   })
 })
 

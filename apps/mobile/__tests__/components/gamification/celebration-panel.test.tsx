@@ -6,6 +6,7 @@ import { Shell412 } from '@/components/shell/shell-412'
 
 const TestRenderer = require('react-test-renderer')
 const motion = vi.hoisted(() => ({ reduced: true }))
+const selectPlural = vi.hoisted(() => vi.fn((text: string) => `selected:${text}`))
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string, values?: Record<string, unknown>) => `${key}:${JSON.stringify(values ?? {})}` }),
@@ -20,10 +21,12 @@ vi.mock('@/lib/motion', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/motion')>()),
   usePrefersReducedMotion: () => motion.reduced,
 }))
+vi.mock('@/lib/plural', () => ({ plural: selectPlural }))
 
 describe('CelebrationPanel mobile', () => {
   beforeEach(() => {
     motion.reduced = true
+    selectPlural.mockClear()
     useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
   })
 
@@ -49,6 +52,34 @@ describe('CelebrationPanel mobile', () => {
     expect(tree!.root.findByProps({ testID: 'shell-background' }).props.importantForAccessibility).toBe('auto')
     expect(tree!.root.findByProps({ testID: 'shell-scroller' }).findByProps({ testID: 'habit-list' })).toBeTruthy()
     expect(tree!.root.findByProps({ testID: 'shell-pinned-slot' }).findByProps({ testID: 'astra-composer' })).toBeTruthy()
-    expect(JSON.stringify(tree!.toJSON())).toContain('celebration.day.line')
+    expect(selectPlural).toHaveBeenCalledWith('celebration.day.line:{"count":1}', 1)
+    expect(JSON.stringify(tree!.toJSON())).toContain('selected:celebration.day.line')
+  })
+
+  it('renders the goal unit and uses a complete sentence when the unit is empty', () => {
+    useUIStore.getState().enqueueCelebration('goal-completed', {
+      name: 'Distance',
+      count: 5,
+      unit: 'km',
+    })
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CelebrationPanel />)
+    })
+    expect(JSON.stringify(tree!.toJSON())).toContain(
+      'celebration.goal.line:{\\"name\\":\\"Distance\\",\\"count\\":5,\\"unit\\":\\"km\\"}',
+    )
+
+    TestRenderer.act(() => {
+      useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
+      useUIStore.getState().enqueueCelebration('goal-completed', {
+        name: 'Untitled target',
+        count: 1,
+        unit: '',
+      })
+    })
+    expect(JSON.stringify(tree!.toJSON())).toContain(
+      'celebration.goal.lineWithoutUnit:{\\"name\\":\\"Untitled target\\",\\"count\\":1}',
+    )
   })
 })

@@ -3238,7 +3238,8 @@
     },
     "goal": {
       "eyebrow": "Goal",
-      "line": "The {name} goal closed at {count} books."
+      "line": "The {name} goal closed at {count} {unit}.",
+      "lineWithoutUnit": "The {name} goal closed at {count}."
     },
     "level": {
       "eyebrow": "Level",
@@ -3246,7 +3247,7 @@
     },
     "day": {
       "eyebrow": "Today",
-      "line": "All {count} habits for today are done."
+      "line": "All {count} habit for today is done. | All {count} habits for today are done."
     }
   }
 }

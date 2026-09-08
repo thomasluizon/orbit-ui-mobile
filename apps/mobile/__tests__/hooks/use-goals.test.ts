@@ -475,14 +475,14 @@ describe('mobile goal hooks', () => {
   it('marks a goal completed optimistically and celebrates only a named online completion', async () => {
     const mutation = useUpdateGoalStatus() as unknown as MutationConfig<
       undefined | { queued: true; queuedMutationId: string },
-      { goalId: string; data: { status: string }; goalName?: string },
+      { goalId: string; data: { status: string }; goalName?: string; goalCount?: number; goalUnit?: string },
       {
         previousLists: readonly (readonly [readonly unknown[], Goal[] | undefined])[]
         previousDetail: GoalDetailWithMetrics | undefined
       }
     >
 
-    const variables = { goalId: 'goal-1', data: { status: 'Completed' }, goalName: 'Read 12 Books', goalCount: 12 }
+    const variables = { goalId: 'goal-1', data: { status: 'Completed' }, goalName: 'Read 12 Books', goalCount: 12, goalUnit: 'books' }
     const context = await mutation.onMutate?.(variables)
 
     expect(mocks.state.lists[0]?.value[0]?.status).toBe('Completed')
@@ -490,7 +490,7 @@ describe('mobile goal hooks', () => {
     expect(mocks.state.details.get(JSON.stringify(goalKeys.detail('goal-1')))?.goal.status).toBe('Completed')
 
     mutation.onSuccess?.(undefined, variables, context)
-    expect(mocks.setGoalCompletedCelebration).toHaveBeenCalledWith({ name: 'Read 12 Books', count: 12 })
+    expect(mocks.setGoalCompletedCelebration).toHaveBeenCalledWith({ name: 'Read 12 Books', count: 12, unit: 'books' })
 
     mutation.onSuccess?.(
       { queued: true, queuedMutationId: 'mutation-1' },

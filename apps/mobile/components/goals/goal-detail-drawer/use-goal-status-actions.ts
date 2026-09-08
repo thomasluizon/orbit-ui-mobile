@@ -8,6 +8,7 @@ interface GoalStatusActionsInput {
   goalId: string
   goalName: string | undefined
   goalCount: number | undefined
+  goalUnit: string | undefined
   refetchDetail: () => void
 }
 
@@ -18,6 +19,7 @@ export function useGoalStatusActions({
   goalId,
   goalName,
   goalCount,
+  goalUnit,
   refetchDetail,
 }: GoalStatusActionsInput) {
   const { t } = useTranslation()
@@ -37,6 +39,7 @@ export function useGoalStatusActions({
         data: { status: 'Completed' },
         goalName,
         goalCount,
+        goalUnit,
       })
       refetchDetail()
     } catch (error: unknown) {
@@ -48,6 +51,7 @@ export function useGoalStatusActions({
     goalCount,
     goalId,
     goalName,
+    goalUnit,
     refetchDetail,
     showError,
     translate,
