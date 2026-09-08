@@ -380,6 +380,7 @@ export function useUpdateGoalStatus() {
       goalId: string
       data: UpdateGoalStatusRequest
       goalName?: string
+      goalCount?: number
     }) => {
       const mutation = buildQueuedMutation({
         type: 'updateGoalStatus',
@@ -401,9 +402,9 @@ export function useUpdateGoalStatus() {
       })
     },
 
-    onSuccess: (result, { data, goalName }) => {
-      if (!isQueuedResult(result) && data.status === 'Completed' && goalName) {
-        setGoalCompletedCelebration({ name: goalName })
+    onSuccess: (result, { data, goalName, goalCount }) => {
+      if (!isQueuedResult(result) && data.status === 'Completed' && goalName && goalCount !== undefined) {
+        setGoalCompletedCelebration({ name: goalName, count: goalCount })
       }
     },
 

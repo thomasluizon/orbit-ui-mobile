@@ -4,10 +4,16 @@ export type CelebrationKind =
   | "goal-completed"
   | "level-up";
 
+export const STREAK_CELEBRATION_MILESTONES = [7, 14, 30, 90, 100, 365] as const;
+
+export function isStreakCelebrationMilestone(value: number): boolean {
+  return (STREAK_CELEBRATION_MILESTONES as readonly number[]).includes(value);
+}
+
 export interface CelebrationPayloadMap {
   streak: { streak: number };
-  "all-done": Record<string, never>;
-  "goal-completed": { name: string };
+  "all-done": { count: number };
+  "goal-completed": { name: string; count: number };
   "level-up": { level: number };
 }
 
@@ -46,7 +52,7 @@ export interface CelebrationState {
   queuedCelebrations: CelebrationQueueItem[];
   streakCelebration: { streak: number } | null;
   allDoneCelebration: boolean;
-  goalCompletedCelebration: { name: string } | null;
+  goalCompletedCelebration: { name: string; count: number } | null;
 }
 
 export type ActiveCelebrationState = Pick<

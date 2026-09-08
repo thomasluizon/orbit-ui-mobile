@@ -451,8 +451,6 @@
     "emptyGeneral": "Nenhum hábito geral ainda",
     "allDoneToday": "Por hoje é isso",
     "allDoneHint": "Tudo que vencia hoje está feito.",
-    "allDoneCelebrationTitle": "Tudo feito",
-    "allDoneCelebrationSubtitle": "Você arrasou em todos os hábitos hoje.",
     "seeUpcoming": "Ver hábitos de amanhã",
     "noSubHabits": "Nenhum sub-hábito ainda",
     "moveParent": {
@@ -2302,9 +2300,6 @@
     "failedToStop": "Não foi possível parar a gravação."
   },
   "goals": {
-    "completedCelebrationTitle": "Meta alcançada",
-    "completedCelebrationLabel": "Meta · {name}",
-    "completedCelebrationFiled": "Arquivada.",
     "tab": "Metas",
     "empty": "Nenhuma meta ainda",
     "create": "Nova meta",
@@ -2702,10 +2697,6 @@
         "name": "Imbatível",
         "description": "Complete 2500 hábitos no total"
       }
-    },
-    "levelUp": {
-      "title": "Subiu de nível",
-      "steadyHand": "Mão firme."
     }
   },
   "toast": {
@@ -2721,12 +2712,6 @@
   "streakDisplay": {
     "title": "Sequência",
     "daysSuffix": "dia | dias",
-    "celebration": {
-      "eyebrow": "Sequência",
-      "subtitle": "{count} dia. | {count} dias.",
-      "milestone": "Marco alcançado",
-      "keepGoing": "Continue assim"
-    },
     "badge": {
       "tooltip": "Sequência de {count} dia | Sequência de {count} dias"
     },
@@ -3244,5 +3229,24 @@
     "reference": "ref {requestId}",
     "throttleTitle": "Muitos pedidos em pouco tempo",
     "throttleBody": "O servidor pediu para esperar antes do próximo pedido."
+  },
+  "celebration": {
+    "close": "Fechar",
+    "streak": {
+      "eyebrow": "Sequência",
+      "line": "A sua sequência chegou a {count} dias."
+    },
+    "goal": {
+      "eyebrow": "Meta",
+      "line": "A meta {name} fechou em {count} livros."
+    },
+    "level": {
+      "eyebrow": "Nível",
+      "line": "Você chegou ao nível {level}."
+    },
+    "day": {
+      "eyebrow": "Hoje",
+      "line": "Os {count} hábitos de hoje estão feitos."
+    }
   }
 }

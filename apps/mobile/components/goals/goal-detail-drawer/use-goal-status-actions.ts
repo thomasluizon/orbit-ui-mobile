@@ -7,6 +7,7 @@ import { useUpdateGoalStatus } from '@/hooks/use-goals'
 interface GoalStatusActionsInput {
   goalId: string
   goalName: string | undefined
+  goalCount: number | undefined
   refetchDetail: () => void
 }
 
@@ -16,6 +17,7 @@ interface GoalStatusActionsInput {
 export function useGoalStatusActions({
   goalId,
   goalName,
+  goalCount,
   refetchDetail,
 }: GoalStatusActionsInput) {
   const { t } = useTranslation()
@@ -34,6 +36,7 @@ export function useGoalStatusActions({
         goalId,
         data: { status: 'Completed' },
         goalName,
+        goalCount,
       })
       refetchDetail()
     } catch (error: unknown) {
@@ -42,6 +45,7 @@ export function useGoalStatusActions({
       )
     }
   }, [
+    goalCount,
     goalId,
     goalName,
     refetchDetail,

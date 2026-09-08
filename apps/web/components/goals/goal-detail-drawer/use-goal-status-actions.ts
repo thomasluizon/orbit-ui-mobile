@@ -9,6 +9,7 @@ import { useUpdateGoalStatus } from '@/hooks/use-goals'
 interface GoalStatusActionsInput {
   goalId: string
   goalName: string | undefined
+  goalCount: number | undefined
   refetchDetail: () => void | Promise<unknown>
 }
 
@@ -18,6 +19,7 @@ interface GoalStatusActionsInput {
 export function useGoalStatusActions({
   goalId,
   goalName,
+  goalCount,
   refetchDetail,
 }: GoalStatusActionsInput) {
   const t = useTranslations()
@@ -37,12 +39,13 @@ export function useGoalStatusActions({
         goalId,
         data: { status: 'Completed' },
         goalName,
+        goalCount,
       })
       void refetchDetail()
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
-  }, [goalId, goalName, refetchDetail, showError, translate, updateStatus])
+  }, [goalCount, goalId, goalName, refetchDetail, showError, translate, updateStatus])
 
   const markAbandoned = useCallback(async () => {
     if (updateStatus.isPending) return

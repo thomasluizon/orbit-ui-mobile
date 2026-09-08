@@ -29,8 +29,8 @@ describe('sortCelebrationQueue', () => {
     const queue: CelebrationQueueItem[] = [
       createCelebrationItem('level-up', { level: 2 }, 5),
       createCelebrationItem('streak', { streak: 3 }, 4),
-      createCelebrationItem('all-done', {}, 1),
-      createCelebrationItem('goal-completed', { name: 'Ship' }, 0),
+      createCelebrationItem('all-done', { count: 1 }, 1),
+      createCelebrationItem('goal-completed', { name: 'Ship', count: 12 }, 0),
     ]
 
     const sorted = sortCelebrationQueue(queue)
@@ -48,7 +48,7 @@ describe('sortCelebrationQueue', () => {
 describe('isDuplicateCelebration', () => {
   it('matches by kind-specific payload identity', () => {
     const active = createCelebrationItem('streak', { streak: 5 }, 0)
-    const queued = [createCelebrationItem('goal-completed', { name: 'Read' }, 1)]
+    const queued = [createCelebrationItem('goal-completed', { name: 'Read', count: 12 }, 1)]
 
     expect(
       isDuplicateCelebration(queued, active, createCelebrationItem('streak', { streak: 5 }, 2)),
@@ -57,17 +57,17 @@ describe('isDuplicateCelebration', () => {
       isDuplicateCelebration(queued, active, createCelebrationItem('streak', { streak: 9 }, 2)),
     ).toBe(false)
     expect(
-      isDuplicateCelebration(queued, active, createCelebrationItem('goal-completed', { name: 'Read' }, 2)),
+      isDuplicateCelebration(queued, active, createCelebrationItem('goal-completed', { name: 'Read', count: 12 }, 2)),
     ).toBe(true)
     expect(
-      isDuplicateCelebration(queued, active, createCelebrationItem('goal-completed', { name: 'Ship' }, 2)),
+      isDuplicateCelebration(queued, active, createCelebrationItem('goal-completed', { name: 'Ship', count: 12 }, 2)),
     ).toBe(false)
   })
 
   it('treats every all-done as a duplicate of an existing all-done', () => {
-    const queued = [createCelebrationItem('all-done', {}, 0)]
+    const queued = [createCelebrationItem('all-done', { count: 1 }, 0)]
 
-    expect(isDuplicateCelebration(queued, null, createCelebrationItem('all-done', {}, 1))).toBe(true)
+    expect(isDuplicateCelebration(queued, null, createCelebrationItem('all-done', { count: 1 }, 1))).toBe(true)
     expect(isDuplicateCelebration(queued, null, createCelebrationItem('level-up', { level: 4 }, 1))).toBe(false)
   })
 
@@ -81,12 +81,12 @@ describe('isDuplicateCelebration', () => {
 
 describe('createCelebrationItem', () => {
   it('stamps a deterministic id and the kind priority', () => {
-    const item = createCelebrationItem('goal-completed', { name: 'Ship Orbit' }, 7)
+    const item = createCelebrationItem('goal-completed', { name: 'Ship Orbit', count: 12 }, 7)
 
     expect(item).toEqual({
       id: 'goal-completed-7',
       kind: 'goal-completed',
-      payload: { name: 'Ship Orbit' },
+      payload: { name: 'Ship Orbit', count: 12 },
       priority: 2,
       sequence: 7,
     })
@@ -117,10 +117,10 @@ describe('activateNextCelebration', () => {
   })
 
   it('derives legacy all-done and goal-completed state', () => {
-    expect(activateNextCelebration([createCelebrationItem('all-done', {}, 0)]).allDoneCelebration).toBe(true)
+    expect(activateNextCelebration([createCelebrationItem('all-done', { count: 1 }, 0)]).allDoneCelebration).toBe(true)
     expect(
-      activateNextCelebration([createCelebrationItem('goal-completed', { name: 'Ship' }, 0)]).goalCompletedCelebration,
-    ).toEqual({ name: 'Ship' })
+      activateNextCelebration([createCelebrationItem('goal-completed', { name: 'Ship', count: 12 }, 0)]).goalCompletedCelebration,
+    ).toEqual({ name: 'Ship', count: 12 })
   })
 })
 
@@ -136,7 +136,7 @@ describe('enqueueCelebrationItem', () => {
 
   it('queues behind an active celebration in priority order', () => {
     const state = {
-      activeCelebration: createCelebrationItem('all-done', {}, 0),
+      activeCelebration: createCelebrationItem('all-done', { count: 1 }, 0),
       queuedCelebrations: [createCelebrationItem('level-up', { level: 2 }, 1)],
     }
 
@@ -169,9 +169,9 @@ describe('clearCelebrationKind', () => {
 
   it('only filters the queue when a different kind is active', () => {
     const state = {
-      activeCelebration: createCelebrationItem('all-done', {}, 0),
+      activeCelebration: createCelebrationItem('all-done', { count: 1 }, 0),
       queuedCelebrations: [
-        createCelebrationItem('goal-completed', { name: 'Ship' }, 1),
+        createCelebrationItem('goal-completed', { name: 'Ship', count: 12 }, 1),
         createCelebrationItem('level-up', { level: 2 }, 2),
       ],
     }

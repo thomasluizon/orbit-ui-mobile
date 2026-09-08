@@ -482,7 +482,7 @@ describe('mobile goal hooks', () => {
       }
     >
 
-    const variables = { goalId: 'goal-1', data: { status: 'Completed' }, goalName: 'Read 12 Books' }
+    const variables = { goalId: 'goal-1', data: { status: 'Completed' }, goalName: 'Read 12 Books', goalCount: 12 }
     const context = await mutation.onMutate?.(variables)
 
     expect(mocks.state.lists[0]?.value[0]?.status).toBe('Completed')
@@ -490,7 +490,7 @@ describe('mobile goal hooks', () => {
     expect(mocks.state.details.get(JSON.stringify(goalKeys.detail('goal-1')))?.goal.status).toBe('Completed')
 
     mutation.onSuccess?.(undefined, variables, context)
-    expect(mocks.setGoalCompletedCelebration).toHaveBeenCalledWith({ name: 'Read 12 Books' })
+    expect(mocks.setGoalCompletedCelebration).toHaveBeenCalledWith({ name: 'Read 12 Books', count: 12 })
 
     mutation.onSuccess?.(
       { queued: true, queuedMutationId: 'mutation-1' },

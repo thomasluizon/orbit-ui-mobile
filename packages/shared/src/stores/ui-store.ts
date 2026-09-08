@@ -6,6 +6,7 @@ import {
   clearCelebrationKind,
   createCelebrationItem,
   enqueueCelebrationItem,
+  isStreakCelebrationMilestone,
   type CelebrationKind,
   type CelebrationPayloadMap,
   type CelebrationQueueItem,
@@ -87,10 +88,10 @@ export interface UIStoreState {
   streakCelebration: { streak: number } | null;
   allDoneCelebration: boolean;
   allDoneCelebratedDate: string;
-  goalCompletedCelebration: { name: string } | null;
+  goalCompletedCelebration: { name: string; count: number } | null;
   setStreakCelebration: (data: { streak: number } | null) => void;
-  setAllDoneCelebration: (value: boolean) => void;
-  setGoalCompletedCelebration: (data: { name: string } | null) => void;
+  setAllDoneCelebration: (value: boolean, count?: number) => void;
+  setGoalCompletedCelebration: (data: { name: string; count: number } | null) => void;
   checkAllDoneCelebration: (
     habitsById: Map<string, { parentId: string | null; isCompleted: boolean }>,
   ) => void;
@@ -171,6 +172,14 @@ export function createUIStoreState(
     return (payload) =>
       set((state) => {
         if (payload) {
+          if (
+            kind === "streak" &&
+            !isStreakCelebrationMilestone(
+              (payload as CelebrationPayloadMap["streak"]).streak,
+            )
+          ) {
+            return {};
+          }
           return enqueueCelebrationItem(
             state,
             createCelebrationItem(kind, payload, nextCelebrationSequence()),
@@ -198,13 +207,22 @@ export function createUIStoreState(
     allDoneCelebratedDate: "",
     goalCompletedCelebration: null,
 
-    enqueueCelebration: (kind, payload) =>
+    enqueueCelebration: (kind, payload) => {
+      if (
+        kind === "streak" &&
+        !isStreakCelebrationMilestone(
+          (payload as CelebrationPayloadMap["streak"]).streak,
+        )
+      ) {
+        return;
+      }
       set((state) =>
         enqueueCelebrationItem(
           state,
           createCelebrationItem(kind, payload, nextCelebrationSequence()),
         ),
-      ),
+      );
+    },
 
     completeActiveCelebration: (id) =>
       set((state) => {
@@ -224,12 +242,12 @@ export function createUIStoreState(
       streakCelebration: null,
     }),
 
-    setAllDoneCelebration: (value) =>
+    setAllDoneCelebration: (value, count = 1) =>
       set((state) => {
         if (value) {
           return enqueueCelebrationItem(
             state,
-            createCelebrationItem("all-done", {}, nextCelebrationSequence()),
+            createCelebrationItem("all-done", { count }, nextCelebrationSequence()),
           );
         }
 
@@ -260,7 +278,7 @@ export function createUIStoreState(
 
       if (allDone && hasCompletion) {
         set({ allDoneCelebratedDate: today });
-        enqueueCelebration("all-done", {});
+        enqueueCelebration("all-done", { count: topLevel.length });
       }
     },
 

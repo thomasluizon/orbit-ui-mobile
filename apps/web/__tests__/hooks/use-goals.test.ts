@@ -380,6 +380,7 @@ describe('useUpdateGoalStatus', () => {
         goalId: 'g-1',
         data: { status: 'Completed' },
         goalName: 'Ship Orbit',
+        goalCount: 12,
       })
     })
 

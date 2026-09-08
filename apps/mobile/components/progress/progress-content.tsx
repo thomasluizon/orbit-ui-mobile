@@ -140,7 +140,7 @@ function GoalDeadlineLine({ deadline, tokens }: Readonly<{ deadline: ReturnType<
 function FinishGoalAction({ goal, tokens }: Readonly<{ goal: Goal; tokens: AppTokensV2 }>) {
   const { t } = useTranslation()
   const updateStatus = useUpdateGoalStatus()
-  return <View style={styles.copy}><Text style={[styles.meta, { color: tokens.fg3 }]}>{t('progressScreen.goals.finishReason')}</Text><View style={styles.actionStart}><PillButton variant="secondary" size="sm" loading={updateStatus.isPending} onClick={() => updateStatus.mutate({ goalId: goal.id, goalName: goal.title, data: { status: 'Completed' } })}>{t('progressScreen.goals.finish')}</PillButton></View></View>
+  return <View style={styles.copy}><Text style={[styles.meta, { color: tokens.fg3 }]}>{t('progressScreen.goals.finishReason')}</Text><View style={styles.actionStart}><PillButton variant="secondary" size="sm" loading={updateStatus.isPending} onClick={() => updateStatus.mutate({ goalId: goal.id, goalName: goal.title, goalCount: goal.targetValue, data: { status: 'Completed' } })}>{t('progressScreen.goals.finish')}</PillButton></View></View>
 }
 
 function GoalCard({ goal, index, allGoals, canReorder, onLongPress, onOpen, tokens }: Readonly<{ goal: Goal; index: number; allGoals: readonly Goal[]; canReorder: boolean; onLongPress?: () => void; onOpen: () => void; tokens: AppTokensV2 }>) {

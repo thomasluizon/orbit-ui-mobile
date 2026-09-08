@@ -284,26 +284,6 @@
       "count": 2
     }
   },
-  "components/gamification/all-done-celebration.tsx": {
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    }
-  },
-  "components/gamification/goal-completed-celebration.tsx": {
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    }
-  },
-  "components/gamification/level-up-overlay.tsx": {
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    }
-  },
-  "components/gamification/streak-celebration.tsx": {
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    }
-  },
   "components/goals/create-goal-modal.tsx": {
     "local/spacing-scale": {
       "count": 2

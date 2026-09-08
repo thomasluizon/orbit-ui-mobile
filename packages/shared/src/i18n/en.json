@@ -451,8 +451,6 @@
     "emptyGeneral": "No general habits yet",
     "allDoneToday": "That is it for today",
     "allDoneHint": "Everything due today is done.",
-    "allDoneCelebrationTitle": "All done",
-    "allDoneCelebrationSubtitle": "You crushed every habit today.",
     "seeUpcoming": "See tomorrow's habits",
     "noSubHabits": "No sub-habits yet",
     "moveParent": {
@@ -2302,9 +2300,6 @@
     "failedToStop": "Failed to stop recording."
   },
   "goals": {
-    "completedCelebrationTitle": "Goal achieved",
-    "completedCelebrationLabel": "Goal · {name}",
-    "completedCelebrationFiled": "Filed.",
     "tab": "Goals",
     "empty": "No goals yet",
     "create": "New Goal",
@@ -2702,10 +2697,6 @@
         "name": "Unstoppable",
         "description": "Complete 2500 habits total"
       }
-    },
-    "levelUp": {
-      "title": "Level up",
-      "steadyHand": "Steady hand."
     }
   },
   "toast": {
@@ -2721,12 +2712,6 @@
   "streakDisplay": {
     "title": "Streak",
     "daysSuffix": "day | days",
-    "celebration": {
-      "eyebrow": "Streak",
-      "subtitle": "1 day. | {count} days.",
-      "milestone": "Milestone reached",
-      "keepGoing": "Keep it going"
-    },
     "badge": {
       "tooltip": "1 day streak | {count} day streak"
     },
@@ -3244,5 +3229,24 @@
     "reference": "ref {requestId}",
     "throttleTitle": "Too many requests in a short time",
     "throttleBody": "The server asked us to wait before the next request."
+  },
+  "celebration": {
+    "close": "Close",
+    "streak": {
+      "eyebrow": "Streak",
+      "line": "Your streak reached {count} days."
+    },
+    "goal": {
+      "eyebrow": "Goal",
+      "line": "The {name} goal closed at {count} books."
+    },
+    "level": {
+      "eyebrow": "Level",
+      "line": "You reached level {level}."
+    },
+    "day": {
+      "eyebrow": "Today",
+      "line": "All {count} habits for today are done."
+    }
   }
 }

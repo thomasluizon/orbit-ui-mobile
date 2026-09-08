@@ -227,7 +227,7 @@ function FinishGoalAction({ goal }: Readonly<{ goal: Goal }>) {
   return (
     <div className="flex flex-col items-start gap-2">
       <p className="text-[12px] text-[var(--fg-3)]">{t('progressScreen.goals.finishReason')}</p>
-      <PillButton variant="secondary" size="sm" loading={updateStatus.isPending} onClick={() => updateStatus.mutate({ goalId: goal.id, goalName: goal.title, data: { status: 'Completed' } })}>{t('progressScreen.goals.finish')}</PillButton>
+      <PillButton variant="secondary" size="sm" loading={updateStatus.isPending} onClick={() => updateStatus.mutate({ goalId: goal.id, goalName: goal.title, goalCount: goal.targetValue, data: { status: 'Completed' } })}>{t('progressScreen.goals.finish')}</PillButton>
     </div>
   )
 }

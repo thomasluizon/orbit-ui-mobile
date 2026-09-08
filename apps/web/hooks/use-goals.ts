@@ -156,11 +156,12 @@ export function useUpdateGoalStatus() {
       goalId: string
       data: UpdateGoalStatusRequest
       goalName?: string
+      goalCount?: number
     }) => updateGoalStatusAction(goalId, data),
 
-    onSuccess: (_data, { data, goalName }) => {
-      if (data.status === 'Completed' && goalName) {
-        setGoalCompletedCelebration({ name: goalName })
+    onSuccess: (_data, { data, goalName, goalCount }) => {
+      if (data.status === 'Completed' && goalName && goalCount !== undefined) {
+        setGoalCompletedCelebration({ name: goalName, count: goalCount })
       }
     },
 

@@ -106,7 +106,7 @@ export function GoalDetailDrawer({
   }, [goal?.isProgressDerived, openProgressForm])
 
   const { markCompleted, markAbandoned, reactivate, isUpdatingStatus } =
-    useGoalStatusActions({ goalId, goalName: goal?.title, refetchDetail })
+    useGoalStatusActions({ goalId, goalName: goal?.title, goalCount: goal?.targetValue, refetchDetail })
 
   const { sheetRef, closeSheet } = useSheetHost()
 
