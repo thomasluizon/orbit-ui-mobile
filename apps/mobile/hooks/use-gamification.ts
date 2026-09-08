@@ -99,17 +99,21 @@ export function useGamificationProfile(enabled = true) {
   }
 }
 
-export function useStreakInfo(enabled = true) {
+export function useStreakInfo(timeZone: string | null, enabled = true) {
   return useQuery({
-    queryKey: gamificationKeys.streak(),
+    queryKey: gamificationKeys.streak(timeZone),
     queryFn: () => apiClient<StreakInfo>(API.gamification.streak, undefined, streakInfoSchema),
     staleTime: QUERY_STALE_TIMES.gamification,
     enabled,
   })
 }
 
-export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; currentStreak?: number } | null, enabled = true) {
-  const streakQuery = useStreakInfo(enabled)
+export function useStreakFreeze(
+  profile: { streakFreezesAvailable?: number; currentStreak?: number } | null | undefined,
+  timeZone: string | null,
+  enabled = true,
+) {
+  const streakQuery = useStreakInfo(timeZone, enabled)
   const streakInfo = streakQuery.data ?? null
 
   const state = useMemo(
@@ -124,7 +128,7 @@ export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; cur
   }
 }
 
-export function useRepairStreak() {
+export function useRepairStreak(timeZone: string | null) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () =>
@@ -134,7 +138,7 @@ export function useRepairStreak() {
         streakInfoSchema,
       ),
     onSuccess: (streakInfo) => {
-      queryClient.setQueryData(gamificationKeys.streak(), streakInfo)
+      queryClient.setQueryData(gamificationKeys.streak(timeZone), streakInfo)
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.profile() })
     },
   })

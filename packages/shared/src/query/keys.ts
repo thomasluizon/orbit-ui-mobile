@@ -60,7 +60,7 @@ export const gamificationKeys = {
   all: ['gamification'] as const,
   profile: () => [...gamificationKeys.all, 'profile'] as const,
   achievements: () => [...gamificationKeys.all, 'achievements'] as const,
-  streak: () => [...gamificationKeys.all, 'streak'] as const,
+  streak: (timeZone: string | null) => [...gamificationKeys.all, 'streak', timeZone] as const,
   recap: (period: string) => [...gamificationKeys.all, 'recap', period] as const,
   streakHistory: () => [...gamificationKeys.all, 'streak-history'] as const,
   xpHistory: (range: string) => [...gamificationKeys.all, 'xp-history', range] as const,

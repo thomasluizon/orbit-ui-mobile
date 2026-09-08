@@ -191,8 +191,12 @@ describe('gamificationKeys', () => {
     expect(gamificationKeys.achievements()).toEqual(['gamification', 'achievements'])
   })
 
-  it('streak returns streak key', () => {
-    expect(gamificationKeys.streak()).toEqual(['gamification', 'streak'])
+  it('streak includes the persisted timezone basis', () => {
+    expect(gamificationKeys.streak('America/Sao_Paulo')).toEqual([
+      'gamification',
+      'streak',
+      'America/Sao_Paulo',
+    ])
   })
 })
 

@@ -1,7 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
-import { profileKeys } from '@orbit/shared/query'
+import { gamificationKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 
 const TestRenderer = require('react-test-renderer')
@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => {
 
   const queryClient = {
     getQueryData: vi.fn(() => state.profile),
+    invalidateQueries: vi.fn(async () => {}),
     setQueryData: vi.fn((
       _queryKey: readonly unknown[],
       updater: Profile | ((old: Profile | undefined) => Profile | undefined),
@@ -65,6 +66,7 @@ describe('web useTimezoneAutoSync', () => {
     mocks.state.profile = createMockProfile()
     mocks.queryClient.getQueryData.mockClear()
     mocks.queryClient.setQueryData.mockClear()
+    mocks.queryClient.invalidateQueries.mockClear()
     mocks.useQueryClient.mockClear()
     mocks.updateTimezone.mockClear()
 
@@ -88,6 +90,10 @@ describe('web useTimezoneAutoSync', () => {
       expect.any(Function),
     )
     expect(mocks.state.profile.timeZone).toBe('America/Sao_Paulo')
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: gamificationKeys.all,
+      refetchType: 'none',
+    })
 
     await TestRenderer.act(async () => {
       renderer?.unmount()

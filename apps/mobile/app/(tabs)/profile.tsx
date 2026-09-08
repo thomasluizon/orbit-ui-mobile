@@ -64,7 +64,7 @@ export default function ProfileScreen() {
   const handleLogout = useLogout()
   const canViewGamification = profile?.canViewGamification ?? false
   const { profile: gamificationProfile } = useGamificationProfile(canViewGamification)
-  const { data: streakInfo } = useStreakInfo(canViewGamification)
+  const { data: streakInfo } = useStreakInfo(profile?.timeZone ?? null, canViewGamification)
   const nextRewardCarrot = deriveNextRewardCarrot(gamificationProfile, canViewGamification)
   const { isExporting, exportError, exportData } = useDataExport()
   const streak = profile?.currentStreak ?? 0
