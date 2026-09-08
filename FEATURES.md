@@ -206,7 +206,7 @@ XP/gamification is **Free**, enabled by a feature flag (migration `EnableGamific
 | Achievements & badges | Unlock badges for streaks, consistency, milestones | Free | Both | — |
 | Streaks | Current and best streak per habit | Free | Both | — |
 | Streak freeze | Shields a streak on a missed day; limited per month | Free | Both | — |
-| Celebration overlays | Milestone/achievement celebration animations | Free | Both | — |
+| Celebration overlays | Four triggers: streak, all-done, goal-completed, and level-up | Free | Both | — |
 | Orbit Wrapped | Shareable recap of best streaks, wins, and stats | Free | Both | — |
 
 ---
