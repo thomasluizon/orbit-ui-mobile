@@ -1,7 +1,17 @@
-import type { FreezeBankProps } from './FreezeBank'
+import type {
+  FreezeBankProps,
+  FreezeBankProtectedDay,
+  FreezeBankWords,
+} from './FreezeBank'
 
 type Keys<T> = T extends unknown ? keyof T : never
 type IsExact<T, U> = T extends U ? Exclude<keyof T, Keys<U>> extends never ? true : false : false
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
 type Assert<T extends true> = T
 
 type Words = {
@@ -22,6 +32,37 @@ type Words = {
 }
 
 export type FreezeBankTypeContract = [
+  Assert<IsExactWidth<FreezeBankProtectedDay['id'], string>>,
+  Assert<IsExactWidth<FreezeBankProtectedDay['dateLabel'], string>>,
+  Assert<IsExactWidth<FreezeBankProtectedDay['isToday'], boolean | undefined>>,
+  Assert<IsExactWidth<FreezeBankWords['active'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['frozen'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['missed'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['today'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['legendLabel'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['disclosureCollapsed'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['disclosureExpanded'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['bankedLabel'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['usedLabel'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['nextLabel'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['nextProgressLabel'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['nextFreezeInDays'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['capacityMessage'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['protectedLabel'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['protectedEmpty'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['protectedDay'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['protectedToday'], string>>,
+  Assert<IsExactWidth<FreezeBankProps['banked'], number>>,
+  Assert<IsExactWidth<FreezeBankProps['ceiling'], number>>,
+  Assert<IsExactWidth<FreezeBankProps['usedThisMonth'], number>>,
+  Assert<IsExactWidth<FreezeBankProps['monthlyUseCeiling'], number>>,
+  Assert<IsExactWidth<FreezeBankProps['daysTowardNext'], number>>,
+  Assert<IsExactWidth<FreezeBankProps['earnRateDays'], number>>,
+  Assert<IsExactWidth<FreezeBankProps['tierValue'], string>>,
+  Assert<IsExactWidth<FreezeBankProps['tierLabel'], string>>,
+  Assert<IsExactWidth<FreezeBankProps['protectedDays'], readonly FreezeBankProtectedDay[]>>,
+  Assert<IsExactWidth<FreezeBankProps['words'], FreezeBankWords>>,
+  Assert<IsExactWidth<FreezeBankProps['defaultExpanded'], boolean | undefined>>,
   Assert<
     IsExact<
       {

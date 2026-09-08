@@ -158,7 +158,9 @@ describe('PlanSelection', () => {
       opacity: 0,
       transition: expect.objectContaining({ duration: 0.165 }),
     }))
-    expect(Object.keys(loadedMotion.animate as object).sort()).toEqual(['opacity'])
+    expect(
+      Object.keys(loadedMotion.animate as object).sort((left, right) => left.localeCompare(right)),
+    ).toEqual(['opacity'])
     expect(Object.keys(loadingMotion.exit as object).filter((key) => key !== 'transition')).toEqual([
       'opacity',
     ])

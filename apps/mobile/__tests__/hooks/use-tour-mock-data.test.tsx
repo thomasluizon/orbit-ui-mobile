@@ -30,15 +30,16 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 
 function renderTourMockData(): { inject: () => void; restore: () => void } {
-  let api: { inject: () => void; restore: () => void } | null = null
+  const holder: { current: { inject: () => void; restore: () => void } | null } = { current: null }
   function Harness() {
-    api = useTourMockData()
+    holder.current = useTourMockData()
     return null
   }
   TestRenderer.act(() => {
     TestRenderer.create(<Harness />)
   })
-  return api!
+  if (!holder.current) throw new Error('hook did not return')
+  return holder.current
 }
 
 function findSetQueryDataCall(

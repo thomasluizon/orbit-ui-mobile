@@ -241,7 +241,7 @@ function createStyles(tokens: AppTokensV2) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingVertical: 11,
+      paddingVertical: 12,
       borderBottomWidth: 1,
       borderBottomColor: tokens.hairline,
     },

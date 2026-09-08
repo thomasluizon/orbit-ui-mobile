@@ -43,7 +43,7 @@ function renderForm(input: RenderInput = {}) {
       goalId: input.goalId ?? 'goal-1',
       goalCurrentValue: input.goalCurrentValue,
       goalTargetValue: input.goalTargetValue,
-      refetchDetail: input.refetchDetail ?? (async () => undefined),
+      refetchDetail: input.refetchDetail ?? (() => Promise.resolve(undefined)),
       onClose: input.onClose ?? vi.fn(),
     })
     return null

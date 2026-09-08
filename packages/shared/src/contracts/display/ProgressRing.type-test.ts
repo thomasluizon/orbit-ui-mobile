@@ -2,9 +2,18 @@ import type { ProgressRingProps } from './ProgressRing'
 
 type Keys<T> = T extends unknown ? keyof T : never
 type IsExact<T, U> = T extends U ? Exclude<keyof T, Keys<U>> extends never ? true : false : false
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
 type Assert<T extends true> = T
 
 export type ProgressRingTypeContract = [
+  Assert<IsExactWidth<ProgressRingProps['value'], number | undefined>>,
+  Assert<IsExactWidth<ProgressRingProps['size'], number | undefined>>,
+  Assert<IsExactWidth<ProgressRingProps['label'], string | undefined>>,
   Assert<IsExact<{ value: 50; size: 48; label: 'Half complete' }, ProgressRingProps>>,
   // @ts-expect-error the ring derives its own color
   Assert<IsExact<{ color: 'orange' }, ProgressRingProps>>,
