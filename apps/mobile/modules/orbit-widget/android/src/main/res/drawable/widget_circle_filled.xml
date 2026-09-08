@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Neutral --fg-1 circle, also tinted dynamically from the synced token. -->
+<!-- Neutral fg-1 circle, also tinted dynamically from the synced token. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
     <solid android:color="@color/widget_fg_1" />
