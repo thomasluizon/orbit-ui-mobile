@@ -3,14 +3,18 @@ import { existsSync } from "node:fs"
 import { T, stageRepo } from "./_harness.mjs"
 import {
   REVIEW_APP_CONTEXT,
+  newestChecks,
+  outOfBandKey,
   pullRequestStateArgv,
   pullRequestStateFromGraphQl,
   readReadinessReceipt,
   readinessCiIsGreen,
   readinessReceiptPath,
   readinessReport,
+  requiredCheckSatisfied,
   requiredChecksOf,
   reviewAppVerdictAtHead,
+  reviewSatisfiedOutOfBand,
   writeReadinessReceipt,
 } from "../lib/readiness-receipt.mjs"
 
@@ -210,9 +214,21 @@ export const cases = () => {
     pullRequestStateFromGraphQl({ data: { repository: { pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, reviews: { nodes: [] }, statusCheckRollup: { contexts: { nodes: [{ __typename: "SomethingNew" }] } } } } } }) === null,
   )
 
+  /**
+   * `PullRequest.reviews` is NULLABLE, introspected on 2026-09-08: an OBJECT of
+   * `PullRequestReviewConnection`, not NON_NULL. A null therefore reads as an empty list, exactly as a
+   * null `statusCheckRollup` does. An earlier revision refused it, which would have turned a response
+   * the schema permits into an environment error.
+   */
+  const nullReviews = pullRequestStateFromGraphQl({
+    data: { repository: { pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, reviews: null, statusCheckRollup: null } } },
+  })
+  T(`${TOOL}: a null reviews connection reads as an empty list, not a broken read`, Array.isArray(nullReviews?.reviews) && nullReviews.reviews.length === 0, JSON.stringify(nullReviews))
   T(
-    `${TOOL}: an absent reviews array is refused, because the schema makes it non-null`,
-    pullRequestStateFromGraphQl({ data: { repository: { pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, statusCheckRollup: null } } } }) === null,
+    `${TOOL}: a reviews object with a non-array nodes is still refused`,
+    pullRequestStateFromGraphQl({
+      data: { repository: { pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, reviews: { nodes: "nope" }, statusCheckRollup: null } } },
+    }) === null,
   )
 
   /**
@@ -300,7 +316,12 @@ export const cases = () => {
     ] } } } } },
   }).statusCheckRollup
   const bothRequired = [{ context: "Unit Tests", appId: 15368 }, { context: REVIEW_APP_CONTEXT, appId: 1768019 }]
-  const excused = new Set([REVIEW_APP_CONTEXT])
+  /**
+   * Built by the function BOTH readers call, not by hand. A hand-built set here would have kept
+   * passing while verify-delivery.mjs and record-readiness.mjs disagreed about the same rule, which is
+   * the defect this set now covers.
+   */
+  const excused = reviewSatisfiedOutOfBand({ state: "APPROVED", submittedAt: "2026-09-08T18:00:00Z", commitOid: HEAD_A })
 
   T(
     `${TOOL}: the check present and passing is green with no fallback needed`,
@@ -337,6 +358,61 @@ export const cases = () => {
   T(
     `${TOOL}: an approval context published by the WRONG app is not excused, because it is present`,
     readinessCiIsGreen(wrongAppApprovalRollup, bothRequired, excused) === false,
+  )
+  /**
+   * The excuse is keyed by context AND app pin. Keying it by context alone excused a requirement pinned
+   * to a DIFFERENT app, and a review by app 1768019 proves nothing about a check required from 15368.
+   * Reproduced returning true before the fix.
+   */
+  T(
+    `${TOOL}: an absent context required from ANOTHER app is not excused by this app's review`,
+    readinessCiIsGreen(greenRollupWithoutApproval, [{ context: "Unit Tests", appId: 15368 }, { context: REVIEW_APP_CONTEXT, appId: 15368 }], excused) === false,
+  )
+  T(
+    `${TOOL}: an absent context required from NO app is excused, because any producer satisfies it`,
+    readinessCiIsGreen(greenRollupWithoutApproval, [{ context: "Unit Tests", appId: 15368 }, { context: REVIEW_APP_CONTEXT, appId: null }], excused) === true,
+  )
+  /**
+   * Only an APPROVED verdict earns an excuse. Each of the other four review states is a real verdict
+   * GitHub returns, and none of them is evidence that the missing check would have passed.
+   */
+  for (const state of ["PENDING", "COMMENTED", "CHANGES_REQUESTED", "DISMISSED"]) {
+    T(
+      `${TOOL}: a ${state} review earns no out-of-band excuse`,
+      reviewSatisfiedOutOfBand({ state, submittedAt: "2026-09-08T18:00:00Z", commitOid: HEAD_A }).size === 0,
+    )
+  }
+  T(
+    `${TOOL}: an absent review verdict earns no out-of-band excuse`,
+    reviewSatisfiedOutOfBand(null).size === 0 && reviewSatisfiedOutOfBand(undefined).size === 0,
+  )
+  T(
+    `${TOOL}: an APPROVED review excuses the pinned pair and the unpinned one, and nothing else`,
+    excused.size === 2 && excused.has(outOfBandKey({ context: REVIEW_APP_CONTEXT, appId: 1768019 })) && excused.has(outOfBandKey({ context: REVIEW_APP_CONTEXT, appId: null })),
+    [...excused].join(" "),
+  )
+  /**
+   * The predicate itself, because verify-delivery.mjs calls it directly rather than through
+   * readinessCiIsGreen. A registered check is satisfied without consulting the excuse set at all, so
+   * the delivery reader's pending bucket and the readiness reader's pass rule cannot diverge.
+   */
+  const newestWithoutApproval = newestChecks(greenRollupWithoutApproval)
+  const newestWithApproval = newestChecks(greenRollupWithApproval)
+  T(
+    `${TOOL}: requiredCheckSatisfied excuses the absent pinned context under an APPROVED review`,
+    requiredCheckSatisfied(newestWithoutApproval, { context: REVIEW_APP_CONTEXT, appId: 1768019 }, excused) === true,
+  )
+  T(
+    `${TOOL}: requiredCheckSatisfied refuses the same absence with no excuse at all`,
+    requiredCheckSatisfied(newestWithoutApproval, { context: REVIEW_APP_CONTEXT, appId: 1768019 }) === false,
+  )
+  T(
+    `${TOOL}: requiredCheckSatisfied accepts a registered check without needing an excuse`,
+    requiredCheckSatisfied(newestWithApproval, { context: REVIEW_APP_CONTEXT, appId: 1768019 }) === true,
+  )
+  T(
+    `${TOOL}: requiredCheckSatisfied refuses an absence the excuse set does not speak to`,
+    requiredCheckSatisfied(newestWithoutApproval, { context: "Build", appId: 15368 }, excused) === false,
   )
 
   const argv = pullRequestStateArgv("thomasluizon/orbit-ui-mobile", 716)

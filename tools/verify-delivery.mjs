@@ -34,7 +34,7 @@ import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { PASSING_CONCLUSIONS, findRegisteredCheck, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, registrationFingerprint, requiredChecksFromResponse } from "./lib/readiness-receipt.mjs"
+import { PASSING_CONCLUSIONS, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, registrationFingerprint, requiredCheckSatisfied, requiredChecksFromResponse, reviewAppVerdictAtHead, reviewSatisfiedOutOfBand } from "./lib/readiness-receipt.mjs"
 
 const USAGE = `usage: verify-delivery.mjs --issue <ORB-N|#N|N> --worktree <path> --branch <name> [options]
 
@@ -436,11 +436,18 @@ const readRollup = () => {
   }
   /**
    * A required check the rollup does not carry UNDER ITS PINNED PRODUCER is pending, never green.
-   * That absence is the mechanism by which a missing `pullfrog-approval` blocks, and it is now also
-   * the mechanism by which a same-named success from another app fails to clear the review gate.
+   * That absence is the mechanism by which a missing `pullfrog-approval` blocks, and it is also the
+   * mechanism by which a same-named success from another app fails to clear the review gate.
+   *
+   * The one exception is the review fallback (#440), applied here through the SAME predicate
+   * record-readiness.mjs uses. It has to be applied here too: this tool's `ci.pass` is cached into the
+   * delivery artifact, and record-readiness.mjs honours that cached false as a veto, so recording an
+   * excused absence as pending kept the fallback from ever producing READY on a protected base.
    */
+  const reviewVerdict = reviewAppVerdictAtHead(pullRequestState.reviews, pullRequestState.headRefOid)
+  const satisfiedOutOfBand = reviewSatisfiedOutOfBand(reviewVerdict)
   for (const required of requiredChecks) {
-    if (findRegisteredCheck(newestByCheck, required)) continue
+    if (requiredCheckSatisfied(newestByCheck, required, satisfiedOutOfBand)) continue
     pending.push({ ...checkMetadata(required.context, { status: "NOT_REGISTERED", conclusion: null }), requiredAppId: required.appId })
   }
   for (const node of newestByCheck.values()) {
@@ -457,7 +464,10 @@ const readRollup = () => {
     }
     if (!PASSING_CONCLUSIONS.has(node.conclusion)) failing.push(checkMetadata(name, node))
   }
-  return { total: newestByCheck.size, failing, pending, registrationFingerprint: fingerprint }
+  // Which evidence carried the review axis, so an artifact that leaned on the fallback says so rather
+  // than reading like an ordinary green (#440). The receipt records the same three fields.
+  const review = { verdict: reviewVerdict?.state ?? null, submittedAt: reviewVerdict?.submittedAt ?? null, commitOid: reviewVerdict?.commitOid ?? null }
+  return { total: newestByCheck.size, failing, pending, registrationFingerprint: fingerprint, review }
 }
 
 // The same synchronous wait list-bot-threads.mjs uses, so the two tools poll the same way.
@@ -483,6 +493,7 @@ checks.ci = {
   pending: rollup.pending,
   requiredChecks,
   registrationFingerprint: rollup.registrationFingerprint,
+  review: rollup.review,
   waitedSeconds: waitCiSeconds,
 }
 if (rollup.failing.length > 0) emit("CI_FAILING")

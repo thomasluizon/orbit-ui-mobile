@@ -75,6 +75,18 @@ const checkRun = (name, { status = "COMPLETED", conclusion = "SUCCESS", startedA
 const statusContext = (context, state, createdAt = "2026-08-06T10:00:00Z") => ({ __typename: "StatusContext", context, state, createdAt, targetUrl: null })
 
 /**
+ * A review node exactly as the confirmed query returns one. GraphQL spells the reviewing app's login
+ * `pullfrog` with `__typename: "Bot"`, which is what the fallback matches on; REST's `pullfrog[bot]`
+ * spelling never reaches this tool.
+ */
+const review = (state, commitOid, { login = "pullfrog", typename = "Bot", submittedAt = "2026-08-06T10:20:00Z" } = {}) => ({
+  state,
+  submittedAt,
+  author: login === null ? null : { __typename: typename, login },
+  commit: commitOid === null ? null : { oid: commitOid },
+})
+
+/**
  * Branch protection pins each required context to the app that must provide it, so the default
  * required list here is derived from the fixture's own producers. `checks` is what the tool reads;
  * `contexts` is the same list with the producer erased and is present because GitHub returns both.
@@ -88,7 +100,7 @@ const prState = (nodes, headRefOid, isDraft = false, reviews = []) => ({
 
 const boardReadMarker = stage("verify-delivery/board-read", "must remain")
 
-const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null, { baseRefName = "main", protectionResponse, protectionExit = 0, states, sequenceFile } = {}) => {
+const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { behind_by: 0 }, requiredChecks = null, { baseRefName = "main", protectionResponse, protectionExit = 0, states, sequenceFile, reviews = [] } = {}) => {
   let headRefOid = "fixture-head"
   try {
     headRefOid = JSON.parse(stdout)?.[0]?.headRefOid ?? headRefOid
@@ -96,7 +108,7 @@ const ghPlan = (stdout, exit = 0, nodes = [checkRun("Lint")], comparison = { beh
     /* the malformed-output tests fail before this state is read */
   }
   const required = requiredChecks ?? requiredFrom(nodes)
-  const state = prState(nodes, headRefOid)
+  const state = prState(nodes, headRefOid, false, reviews)
   state.data.repository.pullRequest.baseRefName = baseRefName
   return orcaEnv([
     /**
@@ -379,6 +391,55 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
     { status: 0, stdout: /"verdict": "DELIVERED"/ },
     { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint"), approval], { behind_by: 0 }, requiredWithApproval) },
+  )
+
+  /**
+   * THE protected-base fallback path (#440), and the reason it lives in THIS tool too. The published
+   * `pullfrog-approval` check stopped appearing on the night of 2026-09-06 while the reviews stayed
+   * healthy. record-readiness.mjs already accepted an exact-head approval in its place, but this tool
+   * still recorded the absent context as pending and cached `ci.pass: false`, which record-readiness
+   * honours as a veto, so no receipt on a protected base could ever reach READY.
+   */
+  const approvedAtHead = { reviews: [review("APPROVED", pushed.head)] }
+  check(
+    TOOL,
+    "an absent pullfrog-approval on a PROTECTED base is DELIVERED when an APPROVED review sits at the exact head",
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 0, stdout: /"verdict": "DELIVERED"[\s\S]*"verdict": "APPROVED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, requiredWithApproval, approvedAtHead) },
+  )
+  /** The approval is evidence about ITS head alone, so a review of an older commit excuses nothing. */
+  check(
+    TOOL,
+    "an APPROVED review at a DIFFERENT commit does not excuse the absent approval context",
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 1, stdout: /"verdict": "CI_PENDING"[\s\S]*"name": "pullfrog-approval"[\s\S]*"status": "NOT_REGISTERED"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, requiredWithApproval, { reviews: [review("APPROVED", "some-older-commit")] }) },
+  )
+  for (const state of ["COMMENTED", "CHANGES_REQUESTED", "DISMISSED"]) {
+    check(
+      TOOL,
+      `a ${state} review at the head does not excuse the absent approval context`,
+      ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+      { status: 1, stdout: /"verdict": "CI_PENDING"/ },
+      { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, requiredWithApproval, { reviews: [review(state, pushed.head)] }) },
+    )
+  }
+  /** A human account spelled `pullfrog` is not the app, so its approval carries no excuse either. */
+  check(
+    TOOL,
+    "an APPROVED review by a non-Bot author named pullfrog does not excuse the absent approval context",
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 1, stdout: /"verdict": "CI_PENDING"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint")], { behind_by: 0 }, requiredWithApproval, { reviews: [review("APPROVED", pushed.head, { typename: "User" })] }) },
+  )
+  /** An excuse waives an ABSENCE, never a red check: a failing Lint still fails alongside the review. */
+  check(
+    TOOL,
+    "an exact-head approval never waives a different check that is actually failing",
+    ["--issue", "ORB-200", "--worktree", pushed.path, "--branch", BRANCH, "--repo", "ui"],
+    { status: 1, stdout: /"verdict": "CI_FAILING"/ },
+    { path: testedToolPath, env: ghPlan(JSON.stringify([pullRequest(pushed.head)]), 0, [checkRun("Lint", { conclusion: "FAILURE" })], { behind_by: 0 }, requiredWithApproval, approvedAtHead) },
   )
 
   /**

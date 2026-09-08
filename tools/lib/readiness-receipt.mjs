@@ -148,10 +148,53 @@ const normalizeRollupNode = (node) => {
  * REST `pulls/<n>/reviews` reports `user.login` as `pullfrog[bot]`, while GraphQL reports
  * `author.login` as `pullfrog` with `__typename: "Bot"`. Matching strips a trailing `[bot]` and
  * requires the Bot typename, so a human account named `pullfrog` could never satisfy the review axis.
+ *
+ * THE FIELDS THIS QUERY PARSES, introspected from the live schema on 2026-09-08 rather than inferred
+ * from one response, because nullability is what decides whether a missing value is a verdict or a
+ * broken read:
+ *
+ *   PullRequest.reviews  OBJECT PullRequestReviewConnection, NULLABLE
+ *   review.state         NON_NULL enum PullRequestReviewState
+ *   review.submittedAt   SCALAR DateTime, NULLABLE (a PENDING review has not been submitted)
+ *   review.author        INTERFACE Actor, NULLABLE (a deleted account)
+ *   review.commit        OBJECT Commit, NULLABLE
+ *
+ * The complete state enum is `PENDING`, `COMMENTED`, `APPROVED`, `CHANGES_REQUESTED`, `DISMISSED`.
+ * Only `APPROVED` satisfies the review axis, so each of the other four blocks by falling through, and
+ * two of them matter specifically. A `DISMISSED` review is a withdrawn approval and GitHub rewrites the
+ * review's own state, so taking the NEWEST review at the head sees `DISMISSED` rather than the approval
+ * it used to be. A `PENDING` review carries a null `submittedAt`, which sorts first rather than last
+ * and therefore cannot displace a submitted approval.
  */
 export const REVIEW_APP_LOGIN = "pullfrog"
 export const REVIEW_APP_CONTEXT = "pullfrog-approval"
 export const REVIEW_APP_ID = 1768019
+
+/**
+ * The key an out-of-band excuse is stored and looked up under: the required check's context AND its app
+ * pin. Both readers build it from the same function, so a caller cannot excuse a pair it did not mean
+ * to. `appId: null` on a protection entry means any producer may supply the check, so it is a distinct
+ * key from a pinned one rather than a wildcard.
+ */
+export const outOfBandKey = (required) => JSON.stringify([required.context, required.appId ?? null])
+
+/**
+ * The excuses an exact-head review earns, as the keys `requiredCheckSatisfied` looks up.
+ *
+ * Both readers of the review axis build the set HERE. The defect that produced this function was the
+ * two of them applying different halves of one rule: `record-readiness.mjs` honoured the fallback
+ * while `verify-delivery.mjs` still recorded the absent context as pending, and the delivery
+ * artifact's resulting `ci.pass: false` is a veto the receipt honours, so on a protected base the
+ * fallback could never reach READY however correct the live evaluation was.
+ *
+ * An APPROVED review by the reviewing app speaks to a requirement pinned to THAT app, and to one
+ * pinned to no app at all because any producer satisfies that. It says nothing about the same context
+ * required from some OTHER app, so that pair is deliberately absent from the set.
+ */
+export const reviewSatisfiedOutOfBand = (reviewVerdict) => {
+  if (reviewVerdict?.state !== "APPROVED") return new Set()
+  return new Set([outOfBandKey({ context: REVIEW_APP_CONTEXT, appId: REVIEW_APP_ID }), outOfBandKey({ context: REVIEW_APP_CONTEXT, appId: null })])
+}
 
 const normalizeReviewNode = (node) => {
   if (typeof node?.state !== "string" || node.state === "") return null
@@ -215,9 +258,14 @@ export const pullRequestStateFromGraphQl = (payload) => {
     if (!normalized || contextOf(normalized) === null) return null
     statusCheckRollup.push(normalized)
   }
-  // `reviews` is non-null in the schema and an unreviewed pull request returns an empty node list,
-  // so an absent array is a broken read rather than "no reviews yet".
-  const reviewNodes = pullRequest.reviews?.nodes
+  /**
+   * `reviews` is NULLABLE, introspected rather than assumed: `PullRequest.reviews` is an OBJECT of
+   * `PullRequestReviewConnection`, not NON_NULL. An earlier comment here claimed the opposite and
+   * refused a null, which would have turned the whole read into an environment error on a response the
+   * schema permits. That is the same fail-shut shape as refusing a null `author`. So null reads as an
+   * empty list, exactly as `statusCheckRollup` above already does.
+   */
+  const reviewNodes = pullRequest.reviews === null ? [] : pullRequest.reviews?.nodes
   if (!Array.isArray(reviewNodes)) return null
   const reviews = []
   for (const node of reviewNodes) {
@@ -304,6 +352,36 @@ export const findRegisteredCheck = (newest, required) => {
   return null
 }
 
+/**
+ * Whether a required check is registered under its pinned producer, or is absent from the rollup but
+ * proved by evidence the rollup does not carry (#440).
+ *
+ * ONE predicate, because the delivery reader and the readiness reader must answer this question
+ * identically. Answering it twice is how a fallback that worked in `record-readiness.mjs` still died
+ * on the `ci.pass: false` that `verify-delivery.mjs` had already written.
+ *
+ * `satisfiedOutOfBand` is keyed by the context AND ITS APP PIN through `outOfBandKey`. Keying it by
+ * context alone was a real hole: a requirement of `{ context: "pullfrog-approval", appId: 15368 }`
+ * would have been excused by a review from app 1768019, and a review by one app proves nothing about a
+ * check required from another.
+ *
+ * Three properties hold together, and each was a finding before it was a property:
+ *
+ *   - the context must be absent from the rollup ENTIRELY, under any producer. Excusing a context
+ *     that merely failed its app pin would waive a check published by the WRONG app, which is what
+ *     "unprotected review from the wrong app cannot reach READY" exists to catch;
+ *   - the requirement's own app pin must be one the evidence speaks to, which the key enforces;
+ *   - a check that IS registered is satisfied here and still faces its own pass rule in both readers,
+ *     so a red check can never be waived this way.
+ *
+ * Absence of a check is not absence of a requirement; it is a requirement proved by something else.
+ */
+export const requiredCheckSatisfied = (newest, required, satisfiedOutOfBand = new Set()) => {
+  if (findRegisteredCheck(newest, required)) return true
+  if (!satisfiedOutOfBand.has(outOfBandKey(required))) return false
+  return ![...newest.values()].some((node) => contextOf(node) === required.context)
+}
+
 /** The single pass rule. Delivery classifies a failure apart from a pending check, and its two
  * buckets are exactly the complement of this, so the two readings of CI cannot disagree. */
 const checkPasses = (node) => {
@@ -316,21 +394,7 @@ export const readinessCiIsGreen = (rollup, requiredChecks, satisfiedOutOfBand = 
   if (!requiredChecksAreValid(requiredChecks)) return false
   const newest = newestChecks(rollup)
   if (!newest) return false
-  /**
-   * `satisfiedOutOfBand` holds contexts whose requirement is met by evidence the rollup does not
-   * carry (#440). It excuses a context that is absent from the rollup ENTIRELY, under any producer,
-   * and nothing else. Two narrower readings were rejected:
-   *
-   *   - excusing a context that merely failed the app pin would let a check published by the WRONG
-   *     app be waived, which is what "unprotected review from the wrong app cannot reach READY"
-   *     exists to catch, so the absence test asks about the context and not about the pinned pair;
-   *   - a check that IS registered still has to pass the `checkPasses` loop below, so a red check
-   *     can never be waived this way.
-   *
-   * Absence of a check is not absence of a requirement; it is a requirement proved by something else.
-   */
-  const contextAbsentEntirely = (context) => ![...newest.values()].some((node) => contextOf(node) === context)
-  if (requiredChecks.some((required) => !findRegisteredCheck(newest, required) && !(satisfiedOutOfBand.has(required.context) && contextAbsentEntirely(required.context)))) return false
+  if (requiredChecks.some((required) => !requiredCheckSatisfied(newest, required, satisfiedOutOfBand))) return false
   for (const node of newest.values()) {
     if (!checkPasses(node)) return false
   }

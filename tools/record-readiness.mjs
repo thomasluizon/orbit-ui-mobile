@@ -34,7 +34,7 @@ import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-a
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { REVIEW_APP_CONTEXT, REVIEW_APP_ID, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, readinessCiIsGreen, readinessReport, registrationFingerprint, requiredChecksFromResponse, reviewAppVerdictAtHead, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
+import { REVIEW_APP_CONTEXT, REVIEW_APP_ID, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, readinessCiIsGreen, readinessReport, registrationFingerprint, requiredChecksFromResponse, reviewAppVerdictAtHead, reviewSatisfiedOutOfBand, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
 
 const USAGE = `usage: record-readiness.mjs --repo <ui|api|landing> --pr <number> --delivery <file> --ticket <file>
 
@@ -161,9 +161,9 @@ try {
    * COMMENTED or CHANGES_REQUESTED excuses nothing and the receipt stays not ready.
    */
   reviewVerdict = reviewAppVerdictAtHead(live.reviews, live.headRefOid)
-  const satisfiedOutOfBand = new Set()
-  if (reviewVerdict?.state === "APPROVED") satisfiedOutOfBand.add(REVIEW_APP_CONTEXT)
-  liveCiGreen = matchesDelivery && live.statusCheckRollup.length > 0 && readinessCiIsGreen(live.statusCheckRollup, reviewChecks, satisfiedOutOfBand)
+  // verify-delivery.mjs builds this set from the same function against the same verdict, so the
+  // cached `ci.pass` this tool honours below can never disagree with the live reading here.
+  liveCiGreen = matchesDelivery && live.statusCheckRollup.length > 0 && readinessCiIsGreen(live.statusCheckRollup, reviewChecks, reviewSatisfiedOutOfBand(reviewVerdict))
 
   const comparison = await runBounded(
     process.env.GH_BIN || "gh",
