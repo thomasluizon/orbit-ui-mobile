@@ -4,7 +4,6 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.net.Uri
 import android.view.View
 import android.widget.RemoteViews
@@ -79,18 +78,18 @@ class OrbitWidgetProvider : AppWidgetProvider() {
 
             // Apply dynamic text colors
             views.setTextColor(R.id.widget_header, colors.textPrimary)
-            views.setTextColor(R.id.widget_subtitle, Color.argb(0x99, Color.red(colors.textMuted), Color.green(colors.textMuted), Color.blue(colors.textMuted)))
-            views.setTextColor(R.id.widget_empty_text, Color.argb(0x99, Color.red(colors.textMuted), Color.green(colors.textMuted), Color.blue(colors.textMuted)))
+            views.setTextColor(R.id.widget_subtitle, colors.statusEmpty)
+            views.setTextColor(R.id.widget_empty_text, colors.textPrimary)
 
             // Header dot color
-            views.setInt(R.id.widget_header_dot, "setColorFilter", colors.primary)
+            views.setInt(R.id.widget_header_dot, "setColorFilter", colors.textMuted)
 
             // Refresh icon tint
-            views.setInt(R.id.widget_refresh, "setColorFilter", colors.primary)
+            views.setInt(R.id.widget_refresh, "setColorFilter", colors.textMuted)
 
             // Flame bitmap (programmatic, avoids vector inflation issues)
             val flameBitmap = OrbitWidgetFactory.createFlameBitmap(density, colors.streak)
-            views.setTextColor(R.id.widget_streak, colors.textPrimary)
+            views.setTextColor(R.id.widget_streak, colors.streak)
 
             if (isSignedOut) {
                 views.setTextViewText(R.id.widget_header, "Orbit")

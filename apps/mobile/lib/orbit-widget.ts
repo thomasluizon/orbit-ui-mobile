@@ -1,11 +1,15 @@
 import { Platform } from 'react-native'
 import { API } from '@orbit/shared/api'
+import type { ColorScheme } from '@orbit/shared/theme'
+import type { ThemeMode } from '@orbit/shared/types/profile'
 import type {
   OrbitWidgetModuleType,
   WidgetThemeColors,
+  WidgetThemePreferences,
 } from '../modules/orbit-widget/src/OrbitWidget.types'
 import { refreshPersistentReminder } from './persistent-reminder'
-import type { AppTokensV2 } from './theme'
+import { createTokensV2, type AppTokensV2 } from './theme'
+import { widgetColorPalette } from './widget-colors.generated'
 
 declare const require: (id: string) => unknown
 
@@ -44,47 +48,42 @@ export async function clearWidgetToken(): Promise<void> {
   await getOrbitWidgetModule()?.clearToken()
 }
 
-const RGB_PATTERN = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/
-
-function flattenColor(color: string, baseHex: string): string {
-  const match = RGB_PATTERN.exec(color)
-  if (!match) return color
-
-  const overlay = [match[1], match[2], match[3]].map(channel =>
-    Number.parseInt(channel ?? '0', 10),
-  )
-  const alphaGroup = match[4]
-  const overlayAlpha = alphaGroup === undefined ? 1 : Number.parseFloat(alphaGroup)
-  const base = baseHex.replace('#', '')
-  const blend = (index: number) => {
-    const baseChannel = Number.parseInt(base.slice(index * 2, index * 2 + 2), 16)
-    const merged = Math.round(
-      (overlay[index] ?? 0) * overlayAlpha + baseChannel * (1 - overlayAlpha),
-    )
-    return merged.toString(16).padStart(2, '0')
-  }
-
-  return `#${blend(0)}${blend(1)}${blend(2)}`
-}
-
-export function toWidgetColors(tokens: AppTokensV2): WidgetThemeColors {
+export function toWidgetColors(
+  tokens: AppTokensV2,
+  mode: ThemeMode,
+): WidgetThemeColors {
+  const generated = widgetColorPalette[mode]
   return {
-    primary: tokens.primary,
-    background: tokens.bg,
-    surface: flattenColor(tokens.bgElev, tokens.bg),
-    surfaceGround: flattenColor(tokens.bgSunk, tokens.bg),
+    background: generated.card,
+    surface: generated.well,
+    surfaceGround: tokens.bg,
     textPrimary: tokens.fg1,
+    textSecondary: tokens.fg2,
     textMuted: tokens.fg3,
-    border: flattenColor(tokens.hairline, tokens.bg),
-    borderMuted: flattenColor(tokens.hairlineStrong, tokens.bg),
+    border: generated.hairline,
+    borderMuted: generated.hairline,
     overdue: tokens.statusOverdue,
-    streak: tokens.statusOverdue,
-    statusEmpty: flattenColor(tokens.statusEmpty, tokens.bg),
+    streak: tokens.primary,
+    statusEmpty: tokens.fg4,
   }
 }
 
-export async function syncWidgetTheme(tokens: AppTokensV2): Promise<void> {
-  await getOrbitWidgetModule()?.syncTheme(toWidgetColors(tokens))
+export function toWidgetThemePreferences(
+  colorScheme: ColorScheme,
+): WidgetThemePreferences {
+  const modes: ThemeMode[] = ['dark', 'light']
+  const preferences = {} as WidgetThemePreferences
+  for (const mode of modes) {
+    const colors = toWidgetColors(createTokensV2(colorScheme, mode), mode)
+    for (const key of Object.keys(colors) as (keyof WidgetThemeColors)[]) {
+      preferences[`${mode}_${key}`] = colors[key]
+    }
+  }
+  return preferences
+}
+
+export async function syncWidgetTheme(colorScheme: ColorScheme): Promise<void> {
+  await getOrbitWidgetModule()?.syncTheme(toWidgetThemePreferences(colorScheme))
 }
 
 /**

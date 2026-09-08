@@ -1962,7 +1962,9 @@
           "apps/mobile/lib/orbit-widget.ts"
         ]
       },
-      "zodSchemas": []
+      "zodSchemas": [
+        "packages/shared/src/types/profile.ts"
+      ]
     },
     {
       "name": "notifications.delete",
@@ -2987,6 +2989,10 @@
       {
         "from": "apps/mobile/__tests__",
         "to": "apps/mobile/lib"
+      },
+      {
+        "from": "apps/mobile/__tests__",
+        "to": "apps/mobile/scripts"
       },
       {
         "from": "apps/mobile/__tests__",
@@ -27180,6 +27186,9 @@
       ],
       "apps/mobile/modules": [],
       "apps/mobile/plugins": [],
+      "apps/mobile/scripts": [
+        "apps/mobile/__tests__/scripts/widget-color-generator.test.ts"
+      ],
       "apps/mobile/stores": [
         "apps/mobile/__tests__/app/(tabs)/profile/_components/fresh-start-modal.test.tsx",
         "apps/mobile/__tests__/components/goals/goal-detail-drawer.test.tsx",

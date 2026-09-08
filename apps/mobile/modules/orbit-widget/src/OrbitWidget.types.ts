@@ -6,11 +6,11 @@ import type { StyleProp, ViewStyle } from 'react-native'
  * strings (`#rrggbb`, `#aarrggbb`, or `rgba(r, g, b, a)`) parsed natively.
  */
 export interface WidgetThemeColors {
-  primary: string
   background: string
   surface: string
   surfaceGround: string
   textPrimary: string
+  textSecondary: string
   textMuted: string
   border: string
   borderMuted: string
@@ -19,10 +19,14 @@ export interface WidgetThemeColors {
   statusEmpty: string
 }
 
+export type WidgetThemeMode = 'dark' | 'light'
+export type WidgetThemePreferenceKey = `${WidgetThemeMode}_${keyof WidgetThemeColors}`
+export type WidgetThemePreferences = Record<WidgetThemePreferenceKey, string>
+
 export interface OrbitWidgetModuleType {
   saveToken(token: string): Promise<void>
   clearToken(): Promise<void>
-  syncTheme(colors: WidgetThemeColors): Promise<void>
+  syncTheme(colors: WidgetThemePreferences): Promise<void>
   syncWidgetData(json: string): Promise<void>
 }
 

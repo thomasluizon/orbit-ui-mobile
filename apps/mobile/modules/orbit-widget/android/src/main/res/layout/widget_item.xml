@@ -96,7 +96,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textSize="14sp"
-                android:textColor="#FFF8FAFC"
+                android:textColor="@color/widget_fg_1"
                 android:maxLines="1"
                 android:ellipsize="end"
                 android:fontFamily="sans-serif-medium" />
@@ -107,7 +107,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="11sp"
-                android:textColor="#9990A1B9"
+                android:textColor="@color/widget_fg_3"
                 android:fontFamily="sans-serif"
                 android:letterSpacing="0.02"
                 android:fontFeatureSettings="tnum"
