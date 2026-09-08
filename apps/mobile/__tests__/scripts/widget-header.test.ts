@@ -38,7 +38,7 @@ function resourceStrings(relativePath: string) {
   return strings
 }
 
-function layoutViews() {
+function layoutViews(relativePath = 'layout/widget_layout.xml') {
   const views = new Map<string, Record<string, string>>()
   const parser = new SaxesParser()
 
@@ -54,10 +54,14 @@ function layoutViews() {
     }
   })
   parser
-    .write(readFileSync(resolve(widgetRoot, 'layout/widget_layout.xml'), 'utf8'))
+    .write(readFileSync(resolve(widgetRoot, relativePath), 'utf8'))
     .close()
 
   return views
+}
+
+function drawable(relativePath: string) {
+  return readFileSync(resolve(widgetRoot, `drawable/${relativePath}`), 'utf8')
 }
 
 describe('Android widget header', () => {
@@ -147,6 +151,67 @@ describe('Android widget header', () => {
     )
     expect(service).toContain(
       'views.setContentDescription(R.id.widget_refresh, refreshDescription)',
+    )
+  })
+})
+
+describe('Android widget habit rows', () => {
+  it('keeps every row at the 48dp widget touch minimum', () => {
+    const views = layoutViews('layout/widget_item.xml')
+
+    expect(views.get('widget_item_container')).toMatchObject({
+      'android:layout_height': '48dp',
+    })
+    expect(views.get('widget_item_content')).toMatchObject({
+      'android:layout_height': '48dp',
+    })
+    expect(views.get('item_title')).toMatchObject({
+      'android:textSize': '15sp',
+    })
+    expect(views.get('item_status_icon')).toMatchObject({
+      'android:layout_width': '20dp',
+      'android:layout_height': '20dp',
+    })
+  })
+
+  it('draws done, overdue, and pending as vector status marks', () => {
+    const done = drawable('widget_status_done.xml')
+    const overdue = drawable('widget_status_overdue.xml')
+    const pending = drawable('widget_status_pending.xml')
+
+    expect(done).toContain('<vector')
+    expect(done).toContain('android:fillType="evenOdd"')
+    expect(overdue).toContain('<vector')
+    expect(overdue).toContain('android:strokeColor="@color/widget_overdue"')
+    expect(pending).toContain('<vector')
+    expect(pending).toContain('android:strokeColor="@color/widget_fg_4"')
+  })
+
+  it('ships localized checklist and deeper-tree labels with the complete row vocabulary', () => {
+    const english = resourceStrings('values/widget_strings.xml')
+    const portuguese = resourceStrings('values-pt-rBR/widget_strings.xml')
+    const views = layoutViews('layout/widget_item.xml')
+    const service = readFileSync(
+      resolve(widgetSourceRoot, 'OrbitWidgetService.kt'),
+      'utf8',
+    )
+
+    expect(Object.fromEntries(english)).toMatchObject({
+      widget_checklist_badge: 'list %1$s',
+      widget_deeper_count: '+%1$d inside',
+    })
+    expect(Object.fromEntries(portuguese)).toMatchObject({
+      widget_checklist_badge: 'lista %1$s',
+      widget_deeper_count: '+%1$d dentro',
+    })
+    expect(views.has('item_children_badge')).toBe(true)
+    expect(views.has('item_checklist_badge')).toBe(true)
+    expect(views.get('item_deeper_count')).toMatchObject({
+      'android:textColor': '@color/widget_fg_3',
+    })
+    expect(service).toContain('deeperCount = countDescendants(child)')
+    expect(service).toContain(
+      'views.setViewPadding(R.id.widget_item_content, dpToPx(32), 0, dpToPx(12), 0)',
     )
   })
 })
