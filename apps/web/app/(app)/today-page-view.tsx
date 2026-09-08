@@ -25,6 +25,20 @@ const ConfirmSheet = dynamic(
   { loading: () => null },
 )
 
+export function buildSelectionRefreshKey(
+  selectedHabitIds: ReadonlySet<string>,
+  allSelected: boolean,
+): string {
+  const selectedKey = Array.from(selectedHabitIds)
+    .sort((left, right) => {
+      if (left < right) return -1
+      if (left > right) return 1
+      return 0
+    })
+    .join(',')
+  return `${selectedKey}:${allSelected ? 'all' : 'some'}`
+}
+
 function boundaryKey(boundary: ReturnType<typeof getTodayBoundary>): string | null {
   if (boundary === 'last-loggable') return 'habits.todayBoundary.lastLoggable'
   if (boundary === 'read-only') return 'habits.todayBoundary.readOnly'
@@ -167,7 +181,7 @@ export function TodayOverlays({ view }: Readonly<{ view: TodayView }>) {
         onCancel={view.toggleSelectMode}
       />
     ),
-    `${Array.from(view.selectedHabitIds).sort().join(',')}:${view.selection.allSelected ? 'all' : 'some'}`,
+    buildSelectionRefreshKey(view.selectedHabitIds, view.selection.allSelected),
   )
 
   return (

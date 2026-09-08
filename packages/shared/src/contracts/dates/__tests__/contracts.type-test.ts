@@ -1,16 +1,95 @@
+import type { ReactNode } from 'react'
 import type {
+  AccountDayStripProps,
   AccountDayWords,
+  AllDayEventRowProps,
+  DayCellWords,
   DayCellProps,
   DayStripProps,
   EventRowProps,
+  HabitDayStripProps,
   HabitDayWords,
+  LoggableDayCellProps,
   MonthGridProps,
+  ReadOnlyDayCellProps,
+  TimedEventRowProps,
 } from '..'
 
 type Accepts<
   Actual extends Expected & Record<Exclude<keyof Actual, keyof Expected>, never>,
   Expected,
 > = Actual
+
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
+type Assert<T extends true> = T
+type Fields<T> = { [TKey in keyof T]: T[TKey] }
+type ExpectedHabitDayValue = 'done' | 'missed' | 'not-scheduled'
+type ExpectedAccountDayValue = 'active' | 'frozen' | 'missed' | 'today'
+type ExpectedDayOutcome =
+  | 'none'
+  | 'partial'
+  | 'full'
+  | 'not-scheduled'
+  | 'future'
+  | 'unavailable'
+
+type ExpectedHabitStrip = {
+  scope: 'habit'
+  days: ExpectedHabitDayValue[]
+  words: HabitDayWords
+  length?: number
+  labels?: string[]
+  size?: number
+  label: string
+}
+type ExpectedAccountStrip = {
+  scope: 'account'
+  days: ExpectedAccountDayValue[]
+  words: AccountDayWords
+  length?: number
+  labels?: string[]
+  size?: number
+  label: string
+}
+type ExpectedDayCellBase = {
+  day: number
+  done?: number
+  scheduled?: number
+  size?: number
+  today?: boolean
+  selected?: boolean
+  outsideMonth?: boolean
+  label?: string
+  habitHistory?: boolean
+  words: DayCellWords
+}
+type ExpectedLoggableCell = ExpectedDayCellBase & {
+  loggable: true
+  outcome?: Exclude<ExpectedDayOutcome, 'future' | 'unavailable'>
+  onPress: () => void
+}
+type ExpectedReadOnlyCell = ExpectedDayCellBase & {
+  loggable?: false
+  outcome?: ExpectedDayOutcome
+  onPress?: never
+}
+type ExpectedTimedEvent = {
+  title: string
+  source?: string
+  time: string
+  allDayLabel?: never
+}
+type ExpectedAllDayEvent = {
+  title: string
+  source?: string
+  time?: never
+  allDayLabel: string
+}
 
 type HabitWords = {
   done: 'done'
@@ -112,6 +191,60 @@ type EventWithOnLog = Accepts<{ title: 'Standup'; time: '09:00'; onLog: () => vo
 type EventWithOnMenu = Accepts<{ title: 'Standup'; time: '09:00'; onMenu: () => void }, EventRowProps>
 // @ts-expect-error external events are read only
 type EventWithOnClick = Accepts<{ title: 'Standup'; time: '09:00'; onClick: () => void }, EventRowProps>
+
+export type DateContractTypeAssertionsWidthAssertions = [
+  Assert<IsExactWidth<HabitDayStripProps, ExpectedHabitStrip>>,
+  Assert<IsExactWidth<AccountDayStripProps, ExpectedAccountStrip>>,
+  Assert<IsExactWidth<Fields<LoggableDayCellProps>, Fields<ExpectedLoggableCell>>>,
+  Assert<IsExactWidth<Fields<ReadOnlyDayCellProps>, Fields<ExpectedReadOnlyCell>>>,
+  Assert<IsExactWidth<TimedEventRowProps, ExpectedTimedEvent>>,
+  Assert<IsExactWidth<AllDayEventRowProps, ExpectedAllDayEvent>>,
+  Assert<IsExactWidth<HabitDayWords['done'], string>>,
+  Assert<IsExactWidth<HabitDayWords['missed'], string>>,
+  Assert<IsExactWidth<HabitDayWords['notScheduled'], string>>,
+  Assert<IsExactWidth<AccountDayWords['active'], string>>,
+  Assert<IsExactWidth<AccountDayWords['frozen'], string>>,
+  Assert<IsExactWidth<AccountDayWords['missed'], string>>,
+  Assert<IsExactWidth<AccountDayWords['today'], string>>,
+  Assert<IsExactWidth<DayStripProps['scope'], 'habit' | 'account'>>,
+  Assert<IsExactWidth<DayStripProps['days'], ExpectedHabitDayValue[] | ExpectedAccountDayValue[]>>,
+  Assert<IsExactWidth<DayStripProps['words'], HabitDayWords | AccountDayWords>>,
+  Assert<IsExactWidth<DayStripProps['length'], number | undefined>>,
+  Assert<IsExactWidth<DayStripProps['labels'], string[] | undefined>>,
+  Assert<IsExactWidth<DayStripProps['size'], number | undefined>>,
+  Assert<IsExactWidth<DayStripProps['label'], string>>,
+  Assert<IsExactWidth<DayCellWords['none'], string>>,
+  Assert<IsExactWidth<DayCellWords['partial'], string>>,
+  Assert<IsExactWidth<DayCellWords['full'], string>>,
+  Assert<IsExactWidth<DayCellWords['notScheduled'], string>>,
+  Assert<IsExactWidth<DayCellWords['unavailable'], string | undefined>>,
+  Assert<IsExactWidth<DayCellWords['future'], string>>,
+  Assert<IsExactWidth<DayCellWords['of'], string>>,
+  Assert<IsExactWidth<DayCellWords['today'], string>>,
+  Assert<IsExactWidth<DayCellWords['selected'], string>>,
+  Assert<IsExactWidth<DayCellWords['readOnly'], string>>,
+  Assert<IsExactWidth<DayCellProps['day'], number>>,
+  Assert<IsExactWidth<DayCellProps['done'], number | undefined>>,
+  Assert<IsExactWidth<DayCellProps['scheduled'], number | undefined>>,
+  Assert<IsExactWidth<DayCellProps['size'], number | undefined>>,
+  Assert<IsExactWidth<DayCellProps['today'], boolean | undefined>>,
+  Assert<IsExactWidth<DayCellProps['selected'], boolean | undefined>>,
+  Assert<IsExactWidth<DayCellProps['outsideMonth'], boolean | undefined>>,
+  Assert<IsExactWidth<DayCellProps['label'], string | undefined>>,
+  Assert<IsExactWidth<DayCellProps['habitHistory'], boolean | undefined>>,
+  Assert<IsExactWidth<DayCellProps['words'], DayCellWords>>,
+  Assert<IsExactWidth<DayCellProps['loggable'], boolean | undefined>>,
+  Assert<IsExactWidth<DayCellProps['outcome'], ExpectedDayOutcome | undefined>>,
+  Assert<IsExactWidth<DayCellProps['onPress'], (() => void) | undefined>>,
+  Assert<IsExactWidth<MonthGridProps['weekdayLabels'], string[] | undefined>>,
+  Assert<IsExactWidth<MonthGridProps['children'], ReactNode>>,
+  Assert<IsExactWidth<MonthGridProps['gap'], string | number | undefined>>,
+  Assert<IsExactWidth<MonthGridProps['label'], string | undefined>>,
+  Assert<IsExactWidth<EventRowProps['title'], string>>,
+  Assert<IsExactWidth<EventRowProps['source'], string | undefined>>,
+  Assert<IsExactWidth<EventRowProps['time'], string | undefined>>,
+  Assert<IsExactWidth<EventRowProps['allDayLabel'], string | undefined>>,
+]
 
 export type DateContractTypeAssertions =
   | HabitStrip

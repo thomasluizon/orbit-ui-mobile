@@ -9,7 +9,7 @@ import { apiClient } from '@/lib/api-client'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
 import { clearStoredReferralCode, consumeStoredAuthReturnUrl, getSafeReturnUrl, getStoredReferralCode,
-  isSafeReturnUrl, isValidReferralCode, isValidVerificationCode, markReferralApplied,
+  isSafeReturnUrl, isValidReferralCode, isValidVerificationCode,
   storeAuthReturnUrl, storeReferralCode } from '@/lib/auth-flow'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { useOffline } from '@/hooks/use-offline'
@@ -108,7 +108,6 @@ export function useLoginFlow() {
   async function completeLogin(response: BackendLoginResponse, today = false) {
     await login(response.token, response.refreshToken, { userId: response.userId, name: response.name, email: response.email })
     if (await getStoredReferralCode()) {
-      await markReferralApplied()
       await clearStoredReferralCode()
       setShowReferralBanner(false)
     }

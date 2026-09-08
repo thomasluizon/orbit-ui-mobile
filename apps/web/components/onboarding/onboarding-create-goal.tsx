@@ -126,7 +126,7 @@ export function OnboardingCreateGoal({
             width: 56,
             height: 56,
             background: 'var(--primary)',
-            animation: 'fresh-start-orb 0.5s var(--ease-out) both',
+            animation: 'orb-entrance 0.5s var(--ease-out) both',
           }}
         >
           <Check

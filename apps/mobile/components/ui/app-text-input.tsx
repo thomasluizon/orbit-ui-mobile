@@ -106,14 +106,14 @@ function createStyles(tokens: AppTokens) {
     inputFocused: {
       borderWidth: 2,
       borderColor: tokens.primary,
-      paddingHorizontal: 15,
-      paddingVertical: 13,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
     },
     inputError: {
       borderWidth: 2,
       borderColor: tokens.statusBad,
-      paddingHorizontal: 15,
-      paddingVertical: 13,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
     },
     inputDisabled: {
       opacity: 0.6,

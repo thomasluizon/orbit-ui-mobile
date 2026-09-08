@@ -117,19 +117,16 @@ describe("shared ui store", () => {
       hasCelebrationInFlight,
     } = store.getState();
 
-    enqueueCelebration("achievement", {
-      achievementId: "achv-1",
-      xpReward: 10,
-    });
+    enqueueCelebration("streak", { streak: 7 });
     enqueueCelebration("level-up", { level: 2 });
     enqueueCelebration("level-up", { level: 2 });
 
     expect(hasCelebrationInFlight()).toBe(true);
-    expect(store.getState().activeCelebration?.kind).toBe("achievement");
+    expect(store.getState().activeCelebration?.kind).toBe("streak");
     expect(store.getState().queuedCelebrations).toHaveLength(1);
 
     completeActiveCelebration("different-id");
-    expect(store.getState().activeCelebration?.kind).toBe("achievement");
+    expect(store.getState().activeCelebration?.kind).toBe("streak");
 
     completeActiveCelebration(store.getState().activeCelebration?.id);
     expect(store.getState().activeCelebration?.kind).toBe("level-up");

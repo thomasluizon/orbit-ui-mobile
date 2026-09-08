@@ -24,7 +24,6 @@ import {
 import { STREAK_CROSSING_MILESTONES } from '@orbit/shared/stores'
 import { fetchJson } from '@/lib/api-fetch'
 import { repairStreak, reportAchievementEvent } from '@/app/actions/gamification'
-import { useUIStore } from '@/stores/ui-store'
 
 export function useGamificationProfile(enabled = true) {
   const queryClient = useQueryClient()
@@ -146,22 +145,14 @@ export function useRepairStreak() {
 
 /**
  * Reports a whitelisted client gamification event (a shared card or a viewed Wrapped) to the backend,
- * which idempotently grants the mapped achievement. On success it celebrates each granted achievement
- * through the shared celebration queue and refreshes the gamification profile.
+ * which idempotently grants the mapped achievement and refreshes the gamification profile.
  */
 export function useReportEvent() {
   const queryClient = useQueryClient()
-  const enqueueCelebration = useUIStore((s) => s.enqueueCelebration)
 
   return useMutation({
     mutationFn: (eventKey: AchievementEventKey) => reportAchievementEvent(eventKey),
-    onSuccess: (response) => {
-      for (const achievement of response.granted) {
-        enqueueCelebration('achievement', {
-          achievementId: achievement.id,
-          xpReward: achievement.xpReward,
-        })
-      }
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
     },
   })

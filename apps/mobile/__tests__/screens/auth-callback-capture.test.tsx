@@ -41,7 +41,6 @@ vi.mock('@/lib/auth-flow', () => ({
   consumeStoredAuthReturnUrl: vi.fn(() => Promise.resolve(null)),
   getSafeReturnUrl: () => '/',
   getStoredReferralCode: vi.fn(() => Promise.resolve(null)),
-  markReferralApplied: vi.fn(),
 }))
 
 vi.mock('@/lib/google-auth-callback', () => ({

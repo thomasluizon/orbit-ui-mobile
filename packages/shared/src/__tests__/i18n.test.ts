@@ -9,6 +9,8 @@ import ptBR from '../i18n/pt-BR.json'
 
 type JsonValue = string | { [key: string]: JsonValue }
 
+const compareStrings = (left: string, right: string) => left.localeCompare(right)
+
 function flatten(value: JsonValue, prefix = ''): Map<string, string> {
   const out = new Map<string, string>()
   if (typeof value === 'string') {
@@ -61,8 +63,8 @@ describe('i18n locale parity', () => {
     const enKeys = new Set(enFlat.keys())
     const ptKeys = new Set(ptFlat.keys())
 
-    const missingInPt = [...enKeys].filter((key) => !ptKeys.has(key)).sort()
-    const missingInEn = [...ptKeys].filter((key) => !enKeys.has(key)).sort()
+    const missingInPt = [...enKeys].filter((key) => !ptKeys.has(key)).sort(compareStrings)
+    const missingInEn = [...ptKeys].filter((key) => !enKeys.has(key)).sort(compareStrings)
 
     expect(missingInPt).toEqual([])
     expect(missingInEn).toEqual([])
@@ -74,8 +76,8 @@ describe('i18n locale parity', () => {
     for (const [key, enValue] of enFlat) {
       const ptValue = ptFlat.get(key)
       if (ptValue === undefined) continue
-      const enNames = [...placeholderNames(enValue)].sort()
-      const ptNames = [...placeholderNames(ptValue)].sort()
+      const enNames = [...placeholderNames(enValue)].sort(compareStrings)
+      const ptNames = [...placeholderNames(ptValue)].sort(compareStrings)
       if (enNames.join('|') !== ptNames.join('|')) {
         mismatches.push({ key, en: enNames, pt: ptNames })
       }

@@ -13,7 +13,6 @@ export interface AppStoreLookup {
  */
 export async function getAppStoreLookup(bundleId: string): Promise<AppStoreLookup | null> {
   try {
-    // Cache-bust because iTunes caches aggressively at the CDN layer.
     const url = `https://itunes.apple.com/lookup?bundleId=${encodeURIComponent(bundleId)}&_=${Date.now()}`
     const response = await fetch(url, {
       headers: { Accept: 'application/json' },

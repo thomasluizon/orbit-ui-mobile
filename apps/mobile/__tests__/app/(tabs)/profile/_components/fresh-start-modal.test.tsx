@@ -72,9 +72,6 @@ vi.mock('@/components/ui/app-text-input', () => ({
   AppTextInput: (props: Record<string, unknown>) => React.createElement('TextInput', props),
 }))
 
-vi.mock('@/components/ui/fresh-start-animation', () => ({
-  FreshStartAnimation: (props: Record<string, unknown>) => React.createElement('FreshStartAnimation', props),
-}))
 
 interface TestNode {
   type: unknown
@@ -160,7 +157,7 @@ await Promise.resolve()
     expect(buttonWithLabel(tree, 'profile.freshStart.confirmButton')!.props.disabled).toBe(false)
   })
 
-  it('resets the account online, clears caches and plays the animation', async () => {
+  it('resets the account online, clears caches and navigates after sheet dismissal', async () => {
     const onClose = vi.fn()
     const { apiClient } = await import('@/lib/api-client')
     const offlineQueue = await import('@/lib/offline-queue')
@@ -173,12 +170,6 @@ await Promise.resolve()
     expect(queryClientClear).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalledTimes(1)
 
-    const animation = tree.root.findAll((node) => node.type === 'FreshStartAnimation')[0]!
-    expect(animation).toBeTruthy()
-    await TestRenderer.act(async () => {
-await Promise.resolve()
-      ;(animation.props as { onComplete: () => void }).onComplete()
-    })
     expect(replace).toHaveBeenCalledWith('/')
   })
 
@@ -222,7 +213,7 @@ await Promise.resolve()
     const tree = await render(<FreshStartModal open onClose={onClose} />)
     await confirmReset(tree)
     expect(onClose).not.toHaveBeenCalled()
-    expect(tree.root.findAll((node) => node.type === 'FreshStartAnimation')).toHaveLength(0)
+    expect(replace).not.toHaveBeenCalled()
     const errorText = tree.root
       .findAll((node) => node.type === 'Text')
       .map((node) => node.props.children)

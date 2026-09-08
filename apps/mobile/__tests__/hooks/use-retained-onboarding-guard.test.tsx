@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types/profile'
 
+import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
+
 const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => {
@@ -13,7 +15,7 @@ const mocks = vi.hoisted(() => {
     patchProfile,
     useProfile: vi.fn(() => ({ patchProfile })),
     useHabitCountLoaded: vi.fn(() => habitCount),
-    performQueuedApiMutation: vi.fn(async () => undefined),
+    performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
   }
 })
 
@@ -24,8 +26,6 @@ vi.mock('@/hooks/use-habit-queries', () => ({
 vi.mock('@/lib/queued-api-mutation', () => ({
   performQueuedApiMutation: mocks.performQueuedApiMutation,
 }))
-
-import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 
 let lastResult: boolean | undefined
 

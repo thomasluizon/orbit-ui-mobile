@@ -43,7 +43,7 @@ describe('useReportEvent', () => {
     reportAchievementEvent.mockReset()
   })
 
-  it('celebrates each granted achievement and invalidates gamification on success', async () => {
+  it('records granted achievements and refreshes gamification without celebrating', async () => {
     reportAchievementEvent.mockResolvedValue({ granted: [makeGranted()] })
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -58,10 +58,7 @@ describe('useReportEvent', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(reportAchievementEvent).toHaveBeenCalledWith('card_shared')
-    expect(enqueueCelebration).toHaveBeenCalledWith('achievement', {
-      achievementId: 'show_off',
-      xpReward: 75,
-    })
+    expect(enqueueCelebration).not.toHaveBeenCalled()
     expect(invalidateSpy).toHaveBeenCalled()
   })
 

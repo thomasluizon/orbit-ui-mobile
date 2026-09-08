@@ -2,12 +2,21 @@ import type { ReactElement } from 'react'
 import type { EmptyStateProps } from './EmptyState'
 
 type IsExact<T, U> = T extends U ? Exclude<keyof T, keyof U> extends never ? true : false : false
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
 type Assert<T extends true> = T
 
 declare const _action: ReactElement
 declare const _actions: ReactElement[]
 
 export type EmptyStateTypeContract = [
+  Assert<IsExactWidth<EmptyStateProps['title'], string>>,
+  Assert<IsExactWidth<EmptyStateProps['mark'], 'orbit' | 'astra' | undefined>>,
+  Assert<IsExactWidth<EmptyStateProps['action'], ReactElement | undefined>>,
   Assert<IsExact<{ title: 'Nothing here' }, EmptyStateProps>>,
   Assert<IsExact<{ title: 'Ask Astra'; mark: 'astra'; action: typeof _action }, EmptyStateProps>>,
   // @ts-expect-error empty state title is required

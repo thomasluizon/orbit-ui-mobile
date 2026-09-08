@@ -165,7 +165,7 @@ function unresolvedReferences(files: ScannedSource[]): string[] {
   return [...references]
     .filter(([property]) => !declarations.has(property))
     .map(([property, paths]) => `${property}: ${paths.join(', ')}`)
-    .sort()
+    .sort((left, right) => left.localeCompare(right))
 }
 
 const productionSourceFiles = productionSources()

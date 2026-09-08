@@ -102,10 +102,6 @@
     "body": "{completed}/{total} done today",
     "bodyEmpty": "Nothing scheduled today"
   },
-  "welcome": {
-    "backMessage": "Your {streak}-day streak is still alive.",
-    "eyebrow": "Welcome back"
-  },
   "common": {
     "backToToday": "Back to today",
     "backToParentHabit": "Back to parent habit",
@@ -1415,8 +1411,6 @@
       "confirmPlaceholder": "ORBIT",
       "confirmButton": "Reset my account",
       "processing": "Resetting...",
-      "successTitle": "Your orbit has been reset",
-      "successSubtitle": "Time for a fresh start",
       "errorGeneric": "Something went wrong. Please try again."
     },
     "deleteAccount": {
@@ -1441,8 +1435,6 @@
     }
   },
   "referral": {
-    "applied": "Referral applied. You both got a discount.",
-    "eyebrow": "Referral applied",
     "card": {
       "title": "Invite friends",
       "hint": "Earn discount coupons for you and your friends",
@@ -2728,9 +2720,6 @@
         "description": "Complete 2500 habits total"
       }
     },
-    "toast": {
-      "achievementEyebrow": "Achievement · +{xp} XP"
-    },
     "levelUp": {
       "title": "Level up",
       "steadyHand": "Steady hand."
@@ -2770,9 +2759,6 @@
     "freeze": {
       "title": "Streak freeze",
       "activeToday": "Freeze active today",
-      "celebrationTitle": "Streak saved",
-      "celebrationSubtitle": "Your streak holds.",
-      "eyebrow": "Frozen · {date}",
       "auto": {
         "explainer": "If you miss a day, the freeze is used automatically to keep your streak alive."
       },
