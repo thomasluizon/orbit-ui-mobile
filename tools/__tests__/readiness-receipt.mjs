@@ -2,6 +2,7 @@ import { existsSync } from "node:fs"
 
 import { T, stageRepo } from "./_harness.mjs"
 import {
+  REVIEW_APP_AUTHOR_FILTER,
   REVIEW_APP_CONTEXT,
   newestChecks,
   outOfBandKey,
@@ -434,10 +435,35 @@ export const cases = () => {
     requiredCheckSatisfied(newestWithoutApproval, { context: "Build", appId: 15368 }, excused) === false,
   )
 
+  /**
+   * The bounded window is only safe because the query narrows to the reviewing app. Unfiltered, pull
+   * request 786 carries 174 reviews against a 50-node window, so an exact-head approval was evictable
+   * by unrelated reviews and read as no verdict. This fixture is that shape: fifty later reviews by
+   * other authors, with the app's approval at the head still present.
+   */
+  const crowdedNodes = []
+  for (let index = 0; index < 50; index += 1) {
+    crowdedNodes.push({ state: "COMMENTED", submittedAt: `2026-09-08T1${index % 10}:00:00Z`, author: { __typename: "User", login: `human-${index}` }, commit: { oid: HEAD_A } })
+  }
+  crowdedNodes.push({ state: "APPROVED", submittedAt: "2026-09-08T23:00:00Z", author: { __typename: "Bot", login: "pullfrog" }, commit: { oid: HEAD_A } })
+  const crowded = pullRequestStateFromGraphQl({
+    data: { repository: { pullRequest: { number: 786, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, reviews: { nodes: crowdedNodes }, statusCheckRollup: null } } },
+  })
+  T(
+    `${TOOL}: an exact-head approval survives fifty later reviews by other authors`,
+    reviewAppVerdictAtHead(crowded.reviews, HEAD_A)?.state === "APPROVED",
+  )
+  T(
+    `${TOOL}: a truncated review window is reported rather than passed off as complete`,
+    pullRequestStateFromGraphQl({
+      data: { repository: { pullRequest: { number: 786, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, reviews: { pageInfo: { hasPreviousPage: true }, nodes: [] }, statusCheckRollup: null } } },
+    })?.reviewsTruncated === true && crowded.reviewsTruncated === false,
+  )
+
   const argv = pullRequestStateArgv("thomasluizon/orbit-ui-mobile", 716)
   T(
     `${TOOL}: both readers send one GraphQL request naming the owner, repository and number`,
-    argv[0] === "api" && argv[1] === "graphql" && argv.includes("owner=thomasluizon") && argv.includes("name=orbit-ui-mobile") && argv.includes("number=716") && argv.at(-1).includes("checkSuite { app { databaseId }") && argv.at(-1).includes("reviews(last: 50)"),
+    argv[0] === "api" && argv[1] === "graphql" && argv.includes("owner=thomasluizon") && argv.includes("name=orbit-ui-mobile") && argv.includes("number=716") && argv.at(-1).includes("checkSuite { app { databaseId }") && argv.at(-1).includes('reviews(last: 50, author: "' + REVIEW_APP_AUTHOR_FILTER + '")'),
     argv.join(" "),
   )
   let rejectedSlug = null

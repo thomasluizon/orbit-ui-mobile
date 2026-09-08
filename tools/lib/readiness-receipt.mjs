@@ -66,7 +66,9 @@ const PULL_REQUEST_STATE_QUERY = `query PullRequestState($owner: String!, $name:
       baseRefOid
       headRefOid
       isDraft
-      reviews(last: 50) {
+      reviews(last: 50, author: "pullfrog[bot]") {
+        totalCount
+        pageInfo { hasPreviousPage }
         nodes {
           state
           submittedAt
@@ -169,6 +171,25 @@ const normalizeRollupNode = (node) => {
 export const REVIEW_APP_LOGIN = "pullfrog"
 export const REVIEW_APP_CONTEXT = "pullfrog-approval"
 export const REVIEW_APP_ID = 1768019
+
+/**
+ * The login the `reviews(author:)` FILTER accepts, which is NOT the login the same query REPORTS.
+ * Measured against pull request 786 on 2026-09-08, never assumed:
+ *
+ *   author: "pullfrog[bot]"  totalCount 112
+ *   author: "pullfrog"       totalCount 0
+ *   author: "app/pullfrog"   totalCount 0
+ *
+ * while every returned node reports `author.login` as `pullfrog`. Filtering on the spelling the
+ * response hands back therefore matches NOTHING and would have silently emptied the review axis,
+ * which is why this constant exists separately from REVIEW_APP_LOGIN instead of reusing it.
+ *
+ * The filter is what makes the bounded window safe. Unfiltered, pull request 786 carries 174 reviews
+ * against a 50-node window, so an exact-head approval could be evicted by unrelated reviews and read
+ * as no verdict at all. Narrowed to this app, the newest 50 of ITS reviews always contain the head's
+ * verdict when one exists, because no later review can arrive after the current head's.
+ */
+export const REVIEW_APP_AUTHOR_FILTER = "pullfrog[bot]"
 
 /**
  * The key an out-of-band excuse is stored and looked up under: the required check's context AND its app
@@ -286,7 +307,13 @@ export const pullRequestStateFromGraphQl = (payload) => {
     if (!normalized) return null
     reviews.push(normalized)
   }
-  return { number, baseRefName, baseRefOid, headRefOid, isDraft, statusCheckRollup, reviews }
+  /**
+   * Whether the window cut off older reviews BY THIS APP. It never hides the current head's verdict,
+   * because no review can be newer than the newest, but a reader comparing against an older head
+   * deserves to know its evidence is partial rather than complete.
+   */
+  const reviewsTruncated = reviewsConnection?.pageInfo?.hasPreviousPage === true
+  return { number, baseRefName, baseRefOid, headRefOid, isDraft, statusCheckRollup, reviews, reviewsTruncated }
 }
 
 /**
