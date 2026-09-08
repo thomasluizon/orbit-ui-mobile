@@ -130,11 +130,12 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
   const t = useTranslations()
   const locale = useLocale()
   const isDesktop = useIsDesktop()
-  const freeze = useStreakFreeze(accountProfile, canView)
-  const repair = useRepairStreak()
+  const timeZone = accountProfile?.timeZone ?? null
+  const freeze = useStreakFreeze(accountProfile, timeZone, canView)
+  const repair = useRepairStreak(timeZone)
   const currentStreak = freeze.streakInfo?.currentStreak ?? gamificationProfile?.currentStreak ?? accountProfile?.currentStreak ?? 0
   const longestStreak = freeze.streakInfo?.longestStreak ?? gamificationProfile?.longestStreak ?? accountProfile?.longestStreak ?? 0
-  const days = buildStreakWeekDays(freeze.streakInfo, currentStreak, freeze.isFrozenToday, new Date(), 14, accountProfile?.timeZone)
+  const days = buildStreakWeekDays(freeze.streakInfo, currentStreak, freeze.isFrozenToday, new Date(), 14, timeZone ?? undefined)
   const labels = useMemo(() => days.map((day) => new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(day.date)), [days, locale])
   const tier = t(getStreakTierLabelKey(currentStreak))
   const repairDate = getAvailableStreakRepairDate(
@@ -189,7 +190,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
           earnRateDays={7}
           tierValue={tier}
           tierLabel={t('streakDisplay.detail.tierTileLabel')}
-          protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, locale, freeze.isFrozenToday, accountProfile?.timeZone)}
+          protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, locale, freeze.isFrozenToday, timeZone ?? undefined)}
           words={{
             ...dayWords,
             legendLabel: t('progressScreen.streak.legend'),

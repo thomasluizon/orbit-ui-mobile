@@ -198,14 +198,14 @@ describe('mobile useStreakInfo and streak freeze', () => {
   })
 
   it('returns streak data from the cache', async () => {
-    const hook = await renderHookValue(() => useStreakInfo())
+    const hook = await renderHookValue(() => useStreakInfo('America/Sao_Paulo'))
 
     expect(hook.value.data?.currentStreak).toBe(7)
     expect(hook.value.data?.freezesAvailable).toBe(2)
   })
 
   it('passes enabled false to the streak query when disabled', async () => {
-    await renderHookValue(() => useStreakInfo(false))
+    await renderHookValue(() => useStreakInfo('America/Sao_Paulo', false))
 
     expect(mocks.useQuery).toHaveBeenCalledWith(
       expect.objectContaining({ enabled: false }),
@@ -214,7 +214,10 @@ describe('mobile useStreakInfo and streak freeze', () => {
 
   it('derives freeze state from provided profile data while streak loads', async () => {
     const hook = await renderHookValue(() =>
-      useStreakFreeze({ streakFreezesAvailable: 1, currentStreak: 4 }),
+      useStreakFreeze(
+        { streakFreezesAvailable: 1, currentStreak: 4 },
+        'America/Sao_Paulo',
+      ),
     )
 
     expect(hook.value.freezesAvailable).toBe(2)
@@ -232,7 +235,7 @@ describe('mobile useRepairStreak', () => {
 
   it('posts the confirmed empty repair body and validates the streak response', async () => {
     mocks.apiClient.mockResolvedValue(mocks.state.streakInfo)
-    await renderHookValue(() => useRepairStreak())
+    await renderHookValue(() => useRepairStreak('America/Sao_Paulo'))
     const options = mocks.useMutation.mock.calls[0]![0] as {
       mutationFn: () => Promise<StreakInfo>
     }

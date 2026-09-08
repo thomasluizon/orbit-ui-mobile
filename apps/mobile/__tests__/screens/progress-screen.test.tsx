@@ -108,6 +108,7 @@ const mocks = vi.hoisted(() => ({
     maxFreezesPerMonth: 3,
     daysUntilNextFreeze: 3,
   },
+  streakSnapshotZones: null as Set<string> | null,
 }))
 
 vi.mock('react-i18next', () => ({
@@ -123,7 +124,16 @@ vi.mock('@/hooks/use-goals', () => ({
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: () => mocks.gamification,
   useRepairStreak: () => mocks.repair,
-  useStreakFreeze: () => mocks.freeze,
+  useStreakFreeze: (_profile: unknown, timeZone: unknown) => {
+    if (!mocks.streakSnapshotZones || typeof timeZone !== 'string') return mocks.freeze
+    if (mocks.streakSnapshotZones.has(timeZone)) return mocks.freeze
+    return {
+      ...mocks.freeze,
+      streakInfo: null,
+      isFrozenToday: false,
+      streakQuery: { ...mocks.freeze.streakQuery, isError: false },
+    }
+  },
 }))
 vi.mock('@/hooks/use-retrospective', () => ({ useProgressRetrospective: () => mocks.retrospective }))
 vi.mock('@/lib/use-app-theme', () => ({
@@ -188,6 +198,7 @@ describe('mobile ProgressContent', () => {
     mocks.freeze.streakInfo.isRepairAvailable = false
     mocks.freeze.streakInfo.repairDate = null
     mocks.freeze.streakQuery.isError = false
+    mocks.streakSnapshotZones = null
     mocks.retrospective.isLoading = false
     mocks.retrospective.isError = false
     mocks.retrospective.error = null
@@ -521,6 +532,34 @@ describe('mobile ProgressContent', () => {
     mocks.freeze.isFrozenToday = false
     const open = await renderProgress()
     expect(open.root.findAll((node) => node.props.children === 'progressScreen.streak.frozenToday')).toHaveLength(0)
+  })
+
+  it('keeps the frozen banner, strip and protected-today marker on one timezone snapshot', async () => {
+    vi.setSystemTime(new Date('2026-09-09T01:00:00Z'))
+    mocks.freeze.isFrozenToday = true
+    mocks.freeze.streakInfo.recentFreezeDates = ['2026-09-08']
+    mocks.streakSnapshotZones = new Set(['America/Sao_Paulo'])
+    const initial = await renderProgress()
+
+    expect(initial.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'progressScreen.streak.frozenToday')).toHaveLength(1)
+    expect(initial.root.findAll((node) => node.props.testID === 'day-strip-cell-frozen').at(-1)?.props.testID).toBe('day-strip-cell-frozen')
+    expect(initial.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'progressScreen.streak.protectedToday')).toHaveLength(1)
+
+    mocks.account.profile.timeZone = 'Pacific/Kiritimati'
+    const changing = await renderProgress()
+
+    expect(changing.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'progressScreen.streak.frozenToday')).toHaveLength(0)
+    expect(changing.root.findAll((node) => node.props.testID === 'day-strip-account')).toHaveLength(0)
+    expect(changing.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'progressScreen.streak.protectedToday')).toHaveLength(0)
+
+    mocks.freeze.isFrozenToday = false
+    mocks.freeze.streakInfo.recentFreezeDates = []
+    mocks.streakSnapshotZones.add('Pacific/Kiritimati')
+    const refreshed = await renderProgress()
+
+    expect(refreshed.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'progressScreen.streak.frozenToday')).toHaveLength(0)
+    expect(refreshed.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'day-strip-cell-today')).toHaveLength(1)
+    expect(refreshed.root.findAll((node) => typeof node.type === 'string' && node.props.children === 'progressScreen.streak.protectedToday')).toHaveLength(0)
   })
 
 })

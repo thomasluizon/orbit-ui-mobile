@@ -7,6 +7,7 @@ import { useTourMockData } from '@/hooks/use-tour-mock-data'
 const TestRenderer = require('react-test-renderer')
 
 interface FakeQueryClient {
+  getQueryData: ReturnType<typeof vi.fn>
   setQueryDefaults: ReturnType<typeof vi.fn>
   setQueriesData: ReturnType<typeof vi.fn>
   setQueryData: ReturnType<typeof vi.fn>
@@ -15,6 +16,7 @@ interface FakeQueryClient {
 
 const mocks = vi.hoisted(() => {
   const queryClient = {
+    getQueryData: vi.fn(() => ({ timeZone: 'America/Sao_Paulo' })),
     setQueryDefaults: vi.fn(),
     setQueriesData: vi.fn(),
     setQueryData: vi.fn(),
@@ -36,8 +38,7 @@ function renderTourMockData(): { inject: () => void; restore: () => void } {
   TestRenderer.act(() => {
     TestRenderer.create(<Harness />)
   })
-  if (!api) throw new Error('hook did not return')
-  return api
+  return api!
 }
 
 function findSetQueryDataCall(
@@ -52,6 +53,7 @@ function findSetQueryDataCall(
 describe('mobile useTourMockData', () => {
   beforeEach(() => {
     mocks.queryClient.setQueryDefaults.mockClear()
+    mocks.queryClient.getQueryData.mockClear()
     mocks.queryClient.setQueriesData.mockClear()
     mocks.queryClient.setQueryData.mockClear()
     mocks.queryClient.invalidateQueries.mockClear()
@@ -79,7 +81,7 @@ describe('mobile useTourMockData', () => {
       (call) => JSON.stringify(call[0]) === JSON.stringify({ queryKey: habitKeys.lists() }),
     )
     expect(listCall).toBeDefined()
-    const updater = listCall?.[1] as () => Array<{ id: string }>
+    const updater = listCall?.[1] as () => { id: string }[]
     const habits = updater()
     expect(habits.length).toBeGreaterThan(0)
     expect(habits[0]?.id).toBe('tour-habit-1')
@@ -92,7 +94,7 @@ describe('mobile useTourMockData', () => {
       (call) => JSON.stringify(call[0]) === JSON.stringify({ queryKey: goalKeys.lists() }),
     )
     expect(goalCall).toBeDefined()
-    const updater = goalCall?.[1] as () => Array<{ id: string }>
+    const updater = goalCall?.[1] as () => { id: string }[]
     const goals = updater()
     expect(goals.length).toBeGreaterThan(0)
   })
@@ -100,7 +102,7 @@ describe('mobile useTourMockData', () => {
   it('seeds a fresh streak of 1 only when the user has no active streak', () => {
     renderTourMockData().inject()
 
-    const streakCall = findSetQueryDataCall(mocks.queryClient, gamificationKeys.streak())
+    const streakCall = findSetQueryDataCall(mocks.queryClient, gamificationKeys.streak('America/Sao_Paulo'))
     expect(streakCall).toBeDefined()
     const updater = streakCall?.[1] as (old: StreakInfo | undefined) => StreakInfo
 
@@ -112,7 +114,7 @@ describe('mobile useTourMockData', () => {
   it('keeps a real streak untouched when the user already has one', () => {
     renderTourMockData().inject()
 
-    const streakCall = findSetQueryDataCall(mocks.queryClient, gamificationKeys.streak())
+    const streakCall = findSetQueryDataCall(mocks.queryClient, gamificationKeys.streak('America/Sao_Paulo'))
     const updater = streakCall?.[1] as (old: StreakInfo | undefined) => StreakInfo
 
     const existing = { currentStreak: 12, longestStreak: 20 } as StreakInfo

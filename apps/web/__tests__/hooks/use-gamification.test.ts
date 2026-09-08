@@ -263,7 +263,7 @@ describe('useStreakInfo', () => {
       json: () => Promise.resolve(streakInfo),
     })
 
-    const { result } = renderHook(() => useStreakInfo(), {
+    const { result } = renderHook(() => useStreakInfo('America/Sao_Paulo'), {
       wrapper: createWrapper(),
     })
 
@@ -274,7 +274,7 @@ describe('useStreakInfo', () => {
   })
 
   it('does not fetch streak info when disabled', () => {
-    const { result } = renderHook(() => useStreakInfo(false), {
+    const { result } = renderHook(() => useStreakInfo('America/Sao_Paulo', false), {
       wrapper: createWrapper(),
     })
 
@@ -294,7 +294,7 @@ describe('useStreakFreeze', () => {
       json: () => Promise.resolve(makeStreakInfo({ lastActiveDate: '2025-01-14' })),
     })
 
-    const { result } = renderHook(() => useStreakFreeze(), {
+    const { result } = renderHook(() => useStreakFreeze(undefined, 'America/Sao_Paulo'), {
       wrapper: createWrapper(),
     })
 
@@ -308,7 +308,10 @@ describe('useStreakFreeze', () => {
     mockFetch.mockReturnValue(new Promise(() => {}))
 
     const { result } = renderHook(
-      () => useStreakFreeze({ streakFreezesAvailable: 1, currentStreak: 4 }),
+      () => useStreakFreeze(
+        { streakFreezesAvailable: 1, currentStreak: 4 },
+        'America/Sao_Paulo',
+      ),
       { wrapper: createWrapper() },
     )
 
