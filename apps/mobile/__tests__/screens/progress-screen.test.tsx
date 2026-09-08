@@ -1,14 +1,17 @@
 import React from 'react'
 import * as ReactNative from 'react-native'
-import { StyleSheet, type ViewStyle } from 'react-native'
+import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 import Yoga from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
 import ProgressScreen from '@/app/(tabs)/progress'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
+import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer = require('react-test-renderer')
+const theme = vi.hoisted((): { mode: 'dark' | 'light' } => ({ mode: 'dark' }))
 
 type TestNode = {
   type: unknown
@@ -146,13 +149,8 @@ vi.mock('@/hooks/use-gamification', () => ({
 }))
 vi.mock('@/hooks/use-retrospective', () => ({ useProgressRetrospective: () => mocks.retrospective }))
 vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: theme.mode }),
 }))
-vi.mock('@/lib/theme', async (importOriginal) => {
-  const actual = await importOriginal<Record<string, unknown>>()
-  const tokens = new Proxy({}, { get: () => '#111111' })
-  return { ...actual, createTokensV2: () => tokens }
-})
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: (props: { goalId: string; inline?: boolean; onClose: () => void }) => React.createElement('GoalDetail', props) }))
 vi.mock('@/components/ui/pro-badge', () => ({
   ProBadge: () => React.createElement('ProBadge'),
@@ -187,6 +185,23 @@ function isAccessibilityHidden(node: TestNode): boolean {
 }
 
 describe('mobile ProgressContent', () => {
+  it.each(['dark', 'light'] as const)('keeps goal metadata legible in resting and pressed states in %s', async (mode) => {
+    theme.mode = mode
+    mocks.goals.data.allGoals = [createMockGoal()]
+    const tree = await renderProgress()
+    const card = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'Read 12 Books')[0]!
+    const metadata = card.findAll((node) => node.type === 'Text' && node.props.children === 'progressScreen.goals.progress')[0]!
+    const foreground = StyleSheet.flatten(metadata.props.style as TextStyle).color as string
+    const tokens = createTokensV2('purple', mode)
+    const cardStyle = card.props.style as (state: { pressed: boolean }) => ViewStyle
+
+    for (const pressed of [false, true]) {
+      const surface = StyleSheet.flatten(cardStyle({ pressed })).backgroundColor as string
+      expect(contrastOnSurface(foreground, [tokens.bg, surface]), pressed ? 'pressed' : 'resting')
+        .toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
   it.each(['on_track', 'at_risk', 'behind', 'no_deadline'])('renders one neutral tracking badge for %s without status or deadline', async (trackingStatus) => {
     mocks.goals.data.allGoals = [createMockGoal({ trackingStatus, deadline: '2026-08-01' })]
     const tree = await renderProgress()
@@ -271,6 +286,7 @@ describe('mobile ProgressContent', () => {
 
   afterEach(() => { vi.useRealTimers() })
   beforeEach(() => {
+    theme.mode = 'dark'
     mocks.account.profile.timeZone = 'America/Sao_Paulo'
     vi.clearAllMocks()
     for (const query of [mocks.account, mocks.goals, mocks.gamification]) {

@@ -160,7 +160,7 @@ function GoalCard({ goal, index, canReorder, onDrag, onMove, onOpen, tokens }: R
         <Text style={[styles.goalTitle, { color: abandoned ? tokens.fg3 : tokens.fg1 }]}>{goal.title}</Text>
         <View style={styles.goalMeta}>
           {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
-          {!abandoned ? <Text style={[styles.meta, { color: tokens.fg3 }]}>{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</Text> : null}
+          {!abandoned ? <Text style={[styles.meta, { color: tokens.fg2 }]}>{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</Text> : null}
         </View>
       </View>
       <GoalIndicator goal={goal} />

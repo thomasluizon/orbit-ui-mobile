@@ -1,6 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import postcss from 'postcss'
+import tailwind from '@tailwindcss/postcss'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
@@ -137,6 +143,47 @@ import ProgressPage from '@/app/(app)/progress/page'
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
 
 describe('ProgressContent', () => {
+  let textStyles: string
+
+  beforeAll(async () => {
+    const source = resolve('app/globals.css')
+    const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
+    const rules: string[] = []
+    compiled.root.walkRules((rule) => {
+      if (rule.selector.startsWith('.text-')) {
+        rule.walkDecls('color', (declaration) => { rules.push(`${rule.selector} { color: ${declaration.value}; }`) })
+      }
+    })
+    textStyles = rules.join('\n')
+  })
+
+  it.each(['dark', 'light'] as const)('keeps goal metadata legible in every card state in %s', (mode) => {
+    mocks.goals.data.allGoals = [createMockGoal()]
+    render(<ProgressContent />)
+    const stylesheet = document.createElement('style')
+    stylesheet.textContent = textStyles
+    document.head.append(stylesheet)
+    try {
+      const card = screen.getByRole('button', { name: 'Read 12 Books' })
+      const metadata = within(card).getByText('progressScreen.goals.progress')
+      const renderedColor = getComputedStyle(metadata).color
+      const theme = resolveWebThemeVariables('purple', mode)
+      const foreground = theme[renderedColor.slice(4, -1) as `--${string}`]!
+      const surfaces = {
+        default: [theme['--bg']!, theme['--bg-card']!],
+        hover: [theme['--bg']!, theme['--bg-hover']!],
+        pressed: [theme['--bg']!, theme['--bg-hover']!],
+        dragged: [theme['--bg']!, theme['--bg-hover']!],
+      }
+
+      for (const [state, layers] of Object.entries(surfaces)) {
+        expect(contrastOnSurface(foreground, layers), state).toBeGreaterThanOrEqual(4.5)
+      }
+    } finally {
+      stylesheet.remove()
+    }
+  })
+
   it.each(['on_track', 'at_risk', 'behind', 'no_deadline'])('renders one neutral tracking badge for %s and no extra status or deadline', (trackingStatus) => {
     mocks.goals.data.allGoals = [createMockGoal({ trackingStatus, deadline: '2026-08-01' })]
     render(<ProgressPage />)
