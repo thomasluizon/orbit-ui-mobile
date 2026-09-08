@@ -66,6 +66,14 @@ const PULL_REQUEST_STATE_QUERY = `query PullRequestState($owner: String!, $name:
       baseRefOid
       headRefOid
       isDraft
+      reviews(last: 50) {
+        nodes {
+          state
+          submittedAt
+          author { __typename login }
+          commit { oid }
+        }
+      }
       statusCheckRollup {
         contexts(first: 100) {
           nodes {
@@ -134,6 +142,47 @@ const normalizeRollupNode = (node) => {
 }
 
 /**
+ * The GitHub App that reviews every pull request, and the context it publishes when it can.
+ *
+ * The two APIs spell the same actor differently, confirmed live on 2026-09-08 rather than assumed:
+ * REST `pulls/<n>/reviews` reports `user.login` as `pullfrog[bot]`, while GraphQL reports
+ * `author.login` as `pullfrog` with `__typename: "Bot"`. Matching strips a trailing `[bot]` and
+ * requires the Bot typename, so a human account named `pullfrog` could never satisfy the review axis.
+ */
+export const REVIEW_APP_LOGIN = "pullfrog"
+export const REVIEW_APP_CONTEXT = "pullfrog-approval"
+export const REVIEW_APP_ID = 1768019
+
+const normalizeReviewNode = (node) => {
+  if (typeof node?.state !== "string" || node.state === "") return null
+  const author = node.author
+  if (typeof author?.login !== "string" || typeof author?.__typename !== "string") return null
+  const commitOid = node.commit?.oid ?? null
+  if (commitOid !== null && typeof commitOid !== "string") return null
+  return {
+    state: node.state,
+    submittedAt: typeof node.submittedAt === "string" ? node.submittedAt : null,
+    login: author.login.replace(/\[bot\]$/, ""),
+    isBot: author.__typename === "Bot",
+    commitOid,
+  }
+}
+
+/**
+ * The reviewing app's NEWEST review at the exact head, or null when it has not reviewed that head.
+ *
+ * Newest, never first. Pullfrog often submits TWO reviews seconds apart, COMMENTED then APPROVED: on
+ * PR 832 they arrived at 05:44:04Z and 05:44:39Z. A reader that returns on the first one reports
+ * COMMENTED and hides a real approval, so this sorts by `submittedAt` and takes the last.
+ */
+export const reviewAppVerdictAtHead = (reviews, headOid) => {
+  if (!Array.isArray(reviews) || typeof headOid !== "string" || headOid === "") return null
+  const atHead = reviews.filter((review) => review.isBot && review.login === REVIEW_APP_LOGIN && review.commitOid === headOid)
+  if (atHead.length === 0) return null
+  return atHead.reduce((newest, review) => (String(review.submittedAt ?? "") >= String(newest.submittedAt ?? "") ? review : newest))
+}
+
+/**
  * The pull request state PULL_REQUEST_STATE_QUERY returns, or null when the response is not the
  * confirmed shape. Both callers turn null into a loud environment error rather than a verdict.
  *
@@ -155,7 +204,17 @@ export const pullRequestStateFromGraphQl = (payload) => {
     if (!normalized || contextOf(normalized) === null) return null
     statusCheckRollup.push(normalized)
   }
-  return { number, baseRefName, baseRefOid, headRefOid, isDraft, statusCheckRollup }
+  // `reviews` is non-null in the schema and an unreviewed pull request returns an empty node list,
+  // so an absent array is a broken read rather than "no reviews yet".
+  const reviewNodes = pullRequest.reviews?.nodes
+  if (!Array.isArray(reviewNodes)) return null
+  const reviews = []
+  for (const node of reviewNodes) {
+    const normalized = normalizeReviewNode(node)
+    if (!normalized) return null
+    reviews.push(normalized)
+  }
+  return { number, baseRefName, baseRefOid, headRefOid, isDraft, statusCheckRollup, reviews }
 }
 
 /**
@@ -242,11 +301,25 @@ const checkPasses = (node) => {
 }
 
 /** Same newest-rerun-wins CI reading as delivery, used by record-readiness's live evaluation. */
-export const readinessCiIsGreen = (rollup, requiredChecks) => {
+export const readinessCiIsGreen = (rollup, requiredChecks, satisfiedOutOfBand = new Set()) => {
   if (!requiredChecksAreValid(requiredChecks)) return false
   const newest = newestChecks(rollup)
   if (!newest) return false
-  if (requiredChecks.some((required) => !findRegisteredCheck(newest, required))) return false
+  /**
+   * `satisfiedOutOfBand` holds contexts whose requirement is met by evidence the rollup does not
+   * carry (#440). It excuses a context that is absent from the rollup ENTIRELY, under any producer,
+   * and nothing else. Two narrower readings were rejected:
+   *
+   *   - excusing a context that merely failed the app pin would let a check published by the WRONG
+   *     app be waived, which is what "unprotected review from the wrong app cannot reach READY"
+   *     exists to catch, so the absence test asks about the context and not about the pinned pair;
+   *   - a check that IS registered still has to pass the `checkPasses` loop below, so a red check
+   *     can never be waived this way.
+   *
+   * Absence of a check is not absence of a requirement; it is a requirement proved by something else.
+   */
+  const contextAbsentEntirely = (context) => ![...newest.values()].some((node) => contextOf(node) === context)
+  if (requiredChecks.some((required) => !findRegisteredCheck(newest, required) && !(satisfiedOutOfBand.has(required.context) && contextAbsentEntirely(required.context)))) return false
   for (const node of newest.values()) {
     if (!checkPasses(node)) return false
   }

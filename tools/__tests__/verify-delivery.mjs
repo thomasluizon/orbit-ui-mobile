@@ -82,8 +82,8 @@ const statusContext = (context, state, createdAt = "2026-08-06T10:00:00Z") => ({
 const requiredFrom = (nodes) => nodes.map((node) => ({ context: node.name ?? node.context, app_id: node.checkSuite?.app?.databaseId ?? null }))
 
 /** The envelope the confirmed GraphQL query returns, keyed exactly like the live #716 response. */
-const prState = (nodes, headRefOid, isDraft = false) => ({
-  data: { repository: { pullRequest: { number: 200, baseRefName: "main", baseRefOid: "base-sha", headRefOid, isDraft, statusCheckRollup: { contexts: { nodes } } } } },
+const prState = (nodes, headRefOid, isDraft = false, reviews = []) => ({
+  data: { repository: { pullRequest: { number: 200, baseRefName: "main", baseRefOid: "base-sha", headRefOid, isDraft, reviews: { nodes: reviews }, statusCheckRollup: { contexts: { nodes } } } } },
 })
 
 const boardReadMarker = stage("verify-delivery/board-read", "must remain")

@@ -83,10 +83,18 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
    * exists to pass here.
    */
   const approval = checkRun("pullfrog-approval", PULLFROG_APP, { startedAt: "2026-08-07T10:30:00Z", workflow: null })
+  /** The reviews the same query now selects (#440). GraphQL spells the reviewing bot `pullfrog`
+   * with `__typename: "Bot"`, confirmed live on 2026-09-08; REST spells the same actor
+   * `pullfrog[bot]`. */
+  const botReview = (state, oid, submittedAt = "2026-08-07T10:31:00Z") => ({
+    state, submittedAt, author: { __typename: "Bot", login: "pullfrog" }, commit: { oid },
+  })
+  const approvedAtHead = [botReview("APPROVED", HEAD)]
   const writeDelivery = (baseRefName = "main", nodes = [greenCheck, approval]) => {
     const evidence = JSON.parse(readFileSync(delivery, "utf8"))
     const observed = pullRequestStateFromGraphQl({ data: { repository: { pullRequest: {
       number: 700, baseRefName, baseRefOid: BASE, headRefOid: HEAD, isDraft: false,
+      reviews: { nodes: approvedAtHead },
       statusCheckRollup: { contexts: { nodes } },
     } } } })
     evidence.checks.pullRequestState.baseBranch = baseRefName
@@ -103,6 +111,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
         baseRefOid,
         headRefOid,
         isDraft: options.isDraft ?? false,
+        reviews: { nodes: options.reviews ?? approvedAtHead },
         statusCheckRollup: { contexts: { nodes: options.statusCheckRollup ?? [greenCheck, approval] } },
       } } } }) },
       /**
@@ -156,11 +165,51 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const emptyReceipt = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-pr-readiness", "ui-700.json"), "utf8"))
   T(`${TOOL}: no-check 404 writes a blocking receipt instead of leaving the previous READY receipt`,
     emptyReceipt.ci.green === false && emptyReceipt.ci.settled === false, JSON.stringify(emptyReceipt))
-  unprotectedCase("unprotected passing CI without independent review cannot reach READY", { statusCheckRollup: [greenCheck] })
+  // `reviews: []` is load-bearing here now (#440): with the check absent AND no review at the head,
+  // there is no review evidence of any kind, which is what this case has always been about.
+  unprotectedCase("unprotected passing CI without independent review cannot reach READY", { statusCheckRollup: [greenCheck], reviews: [] })
   unprotectedCase("unprotected review from the wrong app cannot reach READY", { statusCheckRollup: [greenCheck, checkRun("pullfrog-approval", GITHUB_ACTIONS_APP)] })
   unprotectedCase("unprotected failing CI cannot reach READY despite passing review", { statusCheckRollup: [{ ...greenCheck, conclusion: "FAILURE" }, approval] })
   unprotectedCase("unprotected pending CI cannot reach READY despite passing review", { statusCheckRollup: [{ ...greenCheck, status: "IN_PROGRESS", conclusion: null }, approval] })
   unprotectedCase("unprotected newest failed review rerun cannot reach READY", { statusCheckRollup: [greenCheck, approval, { ...approval, conclusion: "FAILURE", startedAt: "2026-08-07T11:00:00Z" }] })
+  /**
+   * The review fallback, end to end (#440). Pullfrog stopped publishing the `pullfrog-approval`
+   * CHECK during the night of 2026-09-06 while its reviews stayed healthy, so every receipt stalled
+   * short of READY and an unattended run could only ever end as BLOCKED. The check is a publication
+   * of the review, so an APPROVED review at the exact head stands in for it. Nothing weaker does.
+   */
+  unprotectedCase(
+    "the approval CHECK absent still reaches READY on an APPROVED review at the exact head",
+    { statusCheckRollup: [greenCheck], reviews: approvedAtHead },
+    { status: 0, stdout: /"verdict": "READY"/ },
+    HEAD,
+    [greenCheck],
+  )
+  const fallbackReceipt = JSON.parse(readFileSync(join(repo.path, ".git", "orbit-pr-readiness", "ui-700.json"), "utf8"))
+  T(`${TOOL}: a receipt carried by the review fallback records which verdict carried it`,
+    fallbackReceipt.ci.green === true && fallbackReceipt.ci.review?.verdict === "APPROVED" && fallbackReceipt.ci.review.commitOid === HEAD,
+    JSON.stringify(fallbackReceipt.ci.review))
+  unprotectedCase(
+    "the approval CHECK absent and only a COMMENTED review at the head cannot reach READY",
+    { statusCheckRollup: [greenCheck], reviews: [botReview("COMMENTED", HEAD)] },
+    { status: 1, stdout: /CI_STALE/ },
+    HEAD,
+    [greenCheck],
+  )
+  unprotectedCase(
+    "the approval CHECK absent and an approval of a DIFFERENT head cannot reach READY",
+    { statusCheckRollup: [greenCheck], reviews: [botReview("APPROVED", "cccccccccccccccccccccccccccccccccccccccc")] },
+    { status: 1, stdout: /CI_STALE/ },
+    HEAD,
+    [greenCheck],
+  )
+  unprotectedCase(
+    "a PRESENT approval check that is red is never waived by an APPROVED review at the head",
+    { statusCheckRollup: [greenCheck, { ...approval, conclusion: "FAILURE" }], reviews: approvedAtHead },
+    { status: 1, stdout: /CI_STALE/ },
+    HEAD,
+    [greenCheck, { ...approval, conclusion: "FAILURE" }],
+  )
   unprotectedCase("unprotected live head advance invalidates delivery evidence", {}, { status: 1, stdout: /CI_STALE/ }, "cccccccccccccccccccccccccccccccccccccccc")
   for (const [name, nodes] of [
     ["new green check", [greenCheck, approval, checkRun("Build", GITHUB_ACTIONS_APP)]],

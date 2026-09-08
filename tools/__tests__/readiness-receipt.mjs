@@ -2,6 +2,7 @@ import { existsSync } from "node:fs"
 
 import { T, stageRepo } from "./_harness.mjs"
 import {
+  REVIEW_APP_CONTEXT,
   pullRequestStateArgv,
   pullRequestStateFromGraphQl,
   readReadinessReceipt,
@@ -9,6 +10,7 @@ import {
   readinessReceiptPath,
   readinessReport,
   requiredChecksOf,
+  reviewAppVerdictAtHead,
   writeReadinessReceipt,
 } from "../lib/readiness-receipt.mjs"
 
@@ -22,7 +24,8 @@ const BASE_B = "2222222222222222222222222222222222222222"
  * The receipt carries exactly four axes: draft, behindBy, ci and ticket. Pullfrog reviews every
  * pull request in GitHub Actions and publishes `pullfrog-approval`, which is a required status
  * check on both `main` branches, so the review verdict arrives inside the CI axis through
- * readinessCiIsGreen's required contexts.
+ * readinessCiIsGreen's required contexts. When that check is absent the same verdict is read from
+ * the review it publishes instead (#440), which is what `reviewAppVerdictAtHead` resolves.
  */
 const ready = () => ({
   issue: "ORB-701",
@@ -169,6 +172,10 @@ export const cases = () => {
         { __typename: "CheckRun", name: "pullfrog-approval", status: "COMPLETED", conclusion: "FAILURE", startedAt: "2026-08-12T18:48:59Z", completedAt: "2026-08-12T18:48:59Z", detailsUrl: "https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/31628719044", checkSuite: { app: { databaseId: 1768019 }, workflowRun: null } },
         { __typename: "StatusContext", context: "Vercel", state: "SUCCESS", createdAt: "2026-08-12T18:38:39Z", targetUrl: "https://vercel.com/thomasluizons-projects/orbit-ui-mobile-web/GexwtKS5GCqc71mTkFugw6Zbnwji" },
       ] } },
+      reviews: { nodes: [
+        { state: "COMMENTED", submittedAt: "2026-08-12T18:48:04Z", author: { __typename: "Bot", login: "pullfrog" }, commit: { oid: "d9390ad0ce4a7d6b7cb3b2451a28f71693a1406e" } },
+        { state: "CHANGES_REQUESTED", submittedAt: "2026-08-12T18:48:59Z", author: { __typename: "Bot", login: "pullfrog" }, commit: { oid: "d9390ad0ce4a7d6b7cb3b2451a28f71693a1406e" } },
+      ] },
     } } },
   }
   const liveState = pullRequestStateFromGraphQl(liveEnvelope)
@@ -194,19 +201,125 @@ export const cases = () => {
    * 2026-08-12 against this repository's root commit 1100e15b. That is an empty rollup, not a
    * broken read, and it stays not green while a required check is missing from it.
    */
-  const emptyState = pullRequestStateFromGraphQl({ data: { repository: { pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, statusCheckRollup: null } } } })
+  const emptyState = pullRequestStateFromGraphQl({ data: { repository: { pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, reviews: { nodes: [] }, statusCheckRollup: null } } } })
   T(`${TOOL}: a head commit with no check at all reads as an empty rollup`, Array.isArray(emptyState?.statusCheckRollup) && emptyState.statusCheckRollup.length === 0, JSON.stringify(emptyState))
   T(`${TOOL}: an empty rollup is not green while a check is required`, readinessCiIsGreen(emptyState.statusCheckRollup, [requiredApproval]) === false)
   T(`${TOOL}: a response missing the pull request is refused`, pullRequestStateFromGraphQl({ data: { repository: { pullRequest: null } } }) === null)
   T(
     `${TOOL}: a rollup node of an unknown type is refused rather than read as passing`,
-    pullRequestStateFromGraphQl({ data: { repository: { pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, statusCheckRollup: { contexts: { nodes: [{ __typename: "SomethingNew" }] } } } } } }) === null,
+    pullRequestStateFromGraphQl({ data: { repository: { pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, reviews: { nodes: [] }, statusCheckRollup: { contexts: { nodes: [{ __typename: "SomethingNew" }] } } } } } }) === null,
+  )
+
+  T(
+    `${TOOL}: an absent reviews array is refused, because the schema makes it non-null`,
+    pullRequestStateFromGraphQl({ data: { repository: { pullRequest: { number: 716, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, statusCheckRollup: null } } } }) === null,
+  )
+
+  /**
+   * The review fallback (#440). Pullfrog stopped publishing the `pullfrog-approval` CHECK during the
+   * night of 2026-09-06 while its reviews stayed healthy, so no receipt could reach READY. The check
+   * is a publication of the review, so an APPROVED review at the exact head stands in for it.
+   */
+  const reviewsAtHead = (nodes) => pullRequestStateFromGraphQl({
+    data: { repository: { pullRequest: { number: 838, baseRefName: "redesign/main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, reviews: { nodes }, statusCheckRollup: null } } },
+  }).reviews
+  const botReview = (state, submittedAt, oid) => ({ state, submittedAt, author: { __typename: "Bot", login: "pullfrog" }, commit: { oid } })
+
+  /**
+   * The reading-order trap, kept as a case because it is the one that silently hides an approval.
+   * On PR 832 Pullfrog submitted COMMENTED at 05:44:04Z and APPROVED at 05:44:39Z, 35 seconds apart.
+   * A reader that returns on the first review reports COMMENTED.
+   */
+  T(
+    `${TOOL}: the NEWEST review at the head wins, so a COMMENTED-then-APPROVED pair reads as APPROVED`,
+    reviewAppVerdictAtHead(reviewsAtHead([botReview("COMMENTED", "2026-09-06T05:44:04Z", HEAD_A), botReview("APPROVED", "2026-09-06T05:44:39Z", HEAD_A)]), HEAD_A)?.state === "APPROVED",
+  )
+  T(
+    `${TOOL}: an APPROVED review followed by a COMMENTED one at the same head reads as COMMENTED`,
+    reviewAppVerdictAtHead(reviewsAtHead([botReview("APPROVED", "2026-09-06T05:44:04Z", HEAD_A), botReview("COMMENTED", "2026-09-06T05:44:39Z", HEAD_A)]), HEAD_A)?.state === "COMMENTED",
+  )
+  T(
+    `${TOOL}: an approval of a DIFFERENT head is not a verdict for this head`,
+    reviewAppVerdictAtHead(reviewsAtHead([botReview("APPROVED", "2026-09-06T05:44:39Z", HEAD_B)]), HEAD_A) === null,
+  )
+  T(
+    `${TOOL}: a human approval at the head is not the reviewing app's verdict`,
+    reviewAppVerdictAtHead(reviewsAtHead([{ state: "APPROVED", submittedAt: "2026-09-06T05:44:39Z", author: { __typename: "User", login: "thomasluizon" }, commit: { oid: HEAD_A } }]), HEAD_A) === null,
+  )
+  T(
+    `${TOOL}: a USER account spelled pullfrog is not the app, so the Bot typename is load-bearing`,
+    reviewAppVerdictAtHead(reviewsAtHead([{ state: "APPROVED", submittedAt: "2026-09-06T05:44:39Z", author: { __typename: "User", login: "pullfrog" }, commit: { oid: HEAD_A } }]), HEAD_A) === null,
+  )
+  T(
+    `${TOOL}: the REST spelling pullfrog[bot] resolves to the same app`,
+    reviewAppVerdictAtHead(reviewsAtHead([{ state: "APPROVED", submittedAt: "2026-09-06T05:44:39Z", author: { __typename: "Bot", login: "pullfrog[bot]" }, commit: { oid: HEAD_A } }]), HEAD_A)?.state === "APPROVED",
+  )
+
+  /**
+   * The three shapes the fallback has to get right, against a rollup where every OTHER check is
+   * green and only the approval check's presence changes.
+   */
+  const greenRollupWithoutApproval = pullRequestStateFromGraphQl({
+    data: { repository: { pullRequest: { number: 838, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, reviews: { nodes: [] }, statusCheckRollup: { contexts: { nodes: [
+      { __typename: "CheckRun", name: "Unit Tests", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-09-06T07:00:00Z", completedAt: "2026-09-06T07:10:00Z", detailsUrl: null, checkSuite: { app: { databaseId: 15368 }, workflowRun: { workflow: { name: "PR Tests" } } } },
+    ] } } } } },
+  }).statusCheckRollup
+  const greenRollupWithApproval = pullRequestStateFromGraphQl({
+    data: { repository: { pullRequest: { number: 838, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, reviews: { nodes: [] }, statusCheckRollup: { contexts: { nodes: [
+      { __typename: "CheckRun", name: "Unit Tests", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-09-06T07:00:00Z", completedAt: "2026-09-06T07:10:00Z", detailsUrl: null, checkSuite: { app: { databaseId: 15368 }, workflowRun: { workflow: { name: "PR Tests" } } } },
+      { __typename: "CheckRun", name: "pullfrog-approval", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-09-06T07:05:00Z", completedAt: "2026-09-06T07:05:00Z", detailsUrl: null, checkSuite: { app: { databaseId: 1768019 }, workflowRun: null } },
+    ] } } } } },
+  }).statusCheckRollup
+  const redApprovalRollup = pullRequestStateFromGraphQl({
+    data: { repository: { pullRequest: { number: 838, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, reviews: { nodes: [] }, statusCheckRollup: { contexts: { nodes: [
+      { __typename: "CheckRun", name: "Unit Tests", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-09-06T07:00:00Z", completedAt: "2026-09-06T07:10:00Z", detailsUrl: null, checkSuite: { app: { databaseId: 15368 }, workflowRun: { workflow: { name: "PR Tests" } } } },
+      { __typename: "CheckRun", name: "pullfrog-approval", status: "COMPLETED", conclusion: "FAILURE", startedAt: "2026-09-06T07:05:00Z", completedAt: "2026-09-06T07:05:00Z", detailsUrl: null, checkSuite: { app: { databaseId: 1768019 }, workflowRun: null } },
+    ] } } } } },
+  }).statusCheckRollup
+  const bothRequired = [{ context: "Unit Tests", appId: 15368 }, { context: REVIEW_APP_CONTEXT, appId: 1768019 }]
+  const excused = new Set([REVIEW_APP_CONTEXT])
+
+  T(
+    `${TOOL}: the check present and passing is green with no fallback needed`,
+    readinessCiIsGreen(greenRollupWithApproval, bothRequired) === true,
+  )
+  T(
+    `${TOOL}: the check absent is NOT green on its own, which is the bug that blocked every receipt`,
+    readinessCiIsGreen(greenRollupWithoutApproval, bothRequired) === false,
+  )
+  T(
+    `${TOOL}: the check absent is green when an APPROVED review at the head stands in for it`,
+    readinessCiIsGreen(greenRollupWithoutApproval, bothRequired, excused) === true,
+  )
+  T(
+    `${TOOL}: a PRESENT approval check that is red is never waived by the fallback`,
+    readinessCiIsGreen(redApprovalRollup, bothRequired, excused) === false,
+  )
+  T(
+    `${TOOL}: excusing the approval context does not excuse a different missing required check`,
+    readinessCiIsGreen(greenRollupWithoutApproval, [{ context: "Build", appId: 15368 }, { context: REVIEW_APP_CONTEXT, appId: 1768019 }], excused) === false,
+  )
+  /**
+   * The hole the first draft of this fallback opened, kept as a case. `findRegisteredCheck` returns
+   * null both for a context that is missing and for one published by the WRONG app, so excusing on
+   * that alone would let a `pullfrog-approval` check from GitHub Actions be waived by a review. The
+   * excuse therefore asks whether the CONTEXT is absent entirely, under any producer.
+   */
+  const wrongAppApprovalRollup = pullRequestStateFromGraphQl({
+    data: { repository: { pullRequest: { number: 838, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, reviews: { nodes: [] }, statusCheckRollup: { contexts: { nodes: [
+      { __typename: "CheckRun", name: "Unit Tests", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-09-06T07:00:00Z", completedAt: "2026-09-06T07:10:00Z", detailsUrl: null, checkSuite: { app: { databaseId: 15368 }, workflowRun: { workflow: { name: "PR Tests" } } } },
+      { __typename: "CheckRun", name: "pullfrog-approval", status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-09-06T07:05:00Z", completedAt: "2026-09-06T07:05:00Z", detailsUrl: null, checkSuite: { app: { databaseId: 15368 }, workflowRun: { workflow: { name: "PR Tests" } } } },
+    ] } } } } },
+  }).statusCheckRollup
+  T(
+    `${TOOL}: an approval context published by the WRONG app is not excused, because it is present`,
+    readinessCiIsGreen(wrongAppApprovalRollup, bothRequired, excused) === false,
   )
 
   const argv = pullRequestStateArgv("thomasluizon/orbit-ui-mobile", 716)
   T(
     `${TOOL}: both readers send one GraphQL request naming the owner, repository and number`,
-    argv[0] === "api" && argv[1] === "graphql" && argv.includes("owner=thomasluizon") && argv.includes("name=orbit-ui-mobile") && argv.includes("number=716") && argv.at(-1).includes("checkSuite { app { databaseId }"),
+    argv[0] === "api" && argv[1] === "graphql" && argv.includes("owner=thomasluizon") && argv.includes("name=orbit-ui-mobile") && argv.includes("number=716") && argv.at(-1).includes("checkSuite { app { databaseId }") && argv.at(-1).includes("reviews(last: 50)"),
     argv.join(" "),
   )
   let rejectedSlug = null

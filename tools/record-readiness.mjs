@@ -11,11 +11,16 @@
  * by recording, so a receipt is at most minutes old, and the final verifier of live state is
  * Thomas, who tests and merges every pull request by hand.
  *
- * The code review is NOT an axis here. Pullfrog reviews every pull request in GitHub Actions and
- * publishes `pullfrog-approval`, a required status check on both `main` branches, so the review
- * verdict arrives through the checks this tool already reads. With no required inventory, this
- * tool still requires that app-pinned review check. A separate review artifact would be a weaker
- * copy of the same verdict.
+ * The code review arrives through the checks this tool already reads: Pullfrog reviews every pull
+ * request in GitHub Actions and publishes `pullfrog-approval`, a required status check on both `main`
+ * branches. With no required inventory, this tool still requires that app-pinned review check. A
+ * separate review artifact would be a weaker copy of the same verdict.
+ *
+ * ONE exception, and it is narrow (#440). When that check is absent from the rollup entirely, the
+ * tool reads the review it publishes instead: the NEWEST Pullfrog review at the exact head, and only
+ * an APPROVED one. That is stronger evidence than the check, not weaker, because the check is a
+ * publication of exactly that review. A newest review at the head that is not an approval excuses
+ * nothing, and a check that is present but red is never waived.
  *
  * The pull request read is one `gh api graphql` call because branch protection pins a required
  * check to a producing app and `gh pr view --json statusCheckRollup` drops that identity. Both
@@ -29,7 +34,7 @@ import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-a
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, readinessCiIsGreen, readinessReport, registrationFingerprint, requiredChecksFromResponse, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
+import { REVIEW_APP_CONTEXT, REVIEW_APP_ID, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, readinessCiIsGreen, readinessReport, registrationFingerprint, requiredChecksFromResponse, reviewAppVerdictAtHead, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
 
 const USAGE = `usage: record-readiness.mjs --repo <ui|api|landing> --pr <number> --delivery <file> --ticket <file>
 
@@ -38,7 +43,8 @@ and prints READY or every stale/blocking verdict. It never trusts a caller-autho
 
 An unprotected base has no required checks. READY still needs current-head delivery evidence,
 a nonempty passing live rollup matching delivery's registration fingerprint,
-and pullfrog-approval from the Pullfrog app. Changed or missing fingerprints are CI_STALE.
+and pullfrog-approval from the Pullfrog app, or, when that check is absent from the rollup, an
+APPROVED Pullfrog review at the exact head. Changed or missing fingerprints are CI_STALE.
 
 exit codes: 0 READY, 1 not ready, 2 usage or artifact error`
 
@@ -104,6 +110,7 @@ let live
 let liveComparison
 let liveTicket
 let liveCiGreen = false
+let reviewVerdict = null
 try {
   const repository = repositorySlug(repoRoot)
   const githubAuth = await githubEnvironment(repoRoot, { timeoutMs: 45000 })
@@ -140,9 +147,23 @@ try {
   /** Preserve the recorder's independent review contract when protection supplies no inventory
    * (#429). The Pullfrog context/app pair was reconfirmed against main protection on 2026-09-05.
    * Delivery owns registration observation; this single live snapshot revalidates its evidence. */
-  const reviewChecks = requiredChecks.length === 0 ? [{ context: "pullfrog-approval", appId: 1768019 }] : requiredChecks
+  const reviewChecks = requiredChecks.length === 0 ? [{ context: REVIEW_APP_CONTEXT, appId: REVIEW_APP_ID }] : requiredChecks
   const matchesDelivery = ci.registrationFingerprint === registrationFingerprint(live, newestChecks(live.statusCheckRollup))
-  liveCiGreen = matchesDelivery && live.statusCheckRollup.length > 0 && readinessCiIsGreen(live.statusCheckRollup, reviewChecks)
+  /**
+   * The published `pullfrog-approval` check run stopped appearing during the night of 2026-09-06
+   * while the reviews themselves stayed healthy, so no receipt could reach READY and an unattended
+   * run could never end as finished (#440). The check is a PUBLICATION of the review, so an APPROVED
+   * review at the exact head is the stronger evidence, not the weaker one, and it stands in when the
+   * publication is missing.
+   *
+   * It stands in only for that one context, only when the check is absent from the rollup entirely,
+   * and only for an APPROVED verdict at the CURRENT head. A newest review at the head that is
+   * COMMENTED or CHANGES_REQUESTED excuses nothing and the receipt stays not ready.
+   */
+  reviewVerdict = reviewAppVerdictAtHead(live.reviews, live.headRefOid)
+  const satisfiedOutOfBand = new Set()
+  if (reviewVerdict?.state === "APPROVED") satisfiedOutOfBand.add(REVIEW_APP_CONTEXT)
+  liveCiGreen = matchesDelivery && live.statusCheckRollup.length > 0 && readinessCiIsGreen(live.statusCheckRollup, reviewChecks, satisfiedOutOfBand)
 
   const comparison = await runBounded(
     process.env.GH_BIN || "gh",
@@ -173,7 +194,16 @@ const receipt = {
   baseBranch: live.baseRefName,
   currentBaseSha: live.baseRefOid,
   currentHeadSha: live.headRefOid,
-  ci: { settled: ci.pending.length === 0 && liveCiGreen, green: ci.pass === true && liveCiGreen, checks: ci, headSha: state.headSha, baseSha: state.baseSha },
+  ci: {
+    settled: ci.pending.length === 0 && liveCiGreen,
+    green: ci.pass === true && liveCiGreen,
+    checks: ci,
+    headSha: state.headSha,
+    baseSha: state.baseSha,
+    // Which evidence carried the review axis, so a receipt that leaned on the fallback says so
+    // rather than reading like an ordinary green (#440).
+    review: { verdict: reviewVerdict?.state ?? null, submittedAt: reviewVerdict?.submittedAt ?? null, commitOid: reviewVerdict?.commitOid ?? null },
+  },
   behindBy: liveComparison.behind_by,
   draft: live.isDraft,
   ticket: {
