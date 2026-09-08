@@ -27,6 +27,7 @@ function renderActions(refetchDetail = vi.fn()) {
     ref.current = useGoalStatusActions({
       goalId: 'goal-1',
       goalName: 'Read 12 books',
+      goalCount: 12,
       refetchDetail,
     })
     return null
@@ -62,6 +63,7 @@ describe('mobile useGoalStatusActions', () => {
       goalId: 'goal-1',
       data: { status: 'Completed' },
       goalName: 'Read 12 books',
+      goalCount: 12,
     })
     expect(refetchDetail).toHaveBeenCalledTimes(1)
   })

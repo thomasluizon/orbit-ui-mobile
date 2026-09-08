@@ -17,7 +17,9 @@ import { useUIStore } from '@/stores/ui-store'
 
 const STREAK_MILESTONES = new Set([7, 14, 30, 90, 100, 365])
 
-function getCelebrationCopy(active: NonNullable<ReturnType<typeof useUIStore.getState>['activeCelebration']>) {
+function getCelebrationCopy(
+  active: NonNullable<ReturnType<typeof useUIStore.getState>['activeCelebration']>,
+): { key: string; values: Record<string, string | number> } {
   switch (active.kind) {
     case 'streak': return { key: 'streak', values: { count: active.payload.streak } }
     case 'goal-completed': return { key: 'goal', values: { name: active.payload.name, count: active.payload.count } }
