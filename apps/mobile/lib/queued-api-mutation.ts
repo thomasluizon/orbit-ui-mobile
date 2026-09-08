@@ -1,4 +1,5 @@
 import {
+  isQueuedResult,
   runQueuedMutation,
   type QueuedMarker,
   type QueuedMutationBuildOptions,
@@ -6,6 +7,8 @@ import {
 import type { QueuedMutation } from '@orbit/shared/types/sync'
 import { apiClient } from './api-client'
 import { getMutationResponseSchema } from './mutation-response-schemas'
+
+export { isQueuedResult }
 
 export async function performQueuedApiMutation<
   TResult = void,

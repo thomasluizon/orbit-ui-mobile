@@ -1,366 +1,90 @@
-import { useState, useCallback, useMemo, type ComponentProps } from 'react'
-import { Text, View } from 'react-native'
+import { useState, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { BackHandler, StyleSheet, View } from 'react-native'
+import { formatLocaleDateTime, getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { AppBar } from '@/components/ui/app-bar'
+import { ConfirmSheet } from '@/components/ui/confirm-sheet'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
-import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
-
+import { Skeleton } from '@/components/ui/skeleton'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useGoals, useGoalDetail, useDeleteGoal } from '@/hooks/use-goals'
 import { EditGoalModal } from './edit-goal-modal'
-import { GoalMetricsPanel } from './goal-metrics-panel'
 import { GoalActionFooter } from './goal-detail-drawer/goal-action-footer'
-import { GoalAskAstraButton } from './goal-detail-drawer/goal-ask-astra-button'
 import { GoalDetailCollections } from './goal-detail-drawer/goal-detail-collections'
 import { GoalLoadError } from './goal-detail-drawer/goal-load-error'
 import { GoalProgressBlock } from './goal-detail-drawer/goal-progress-block'
-import { GoalProgressForm } from './goal-detail-drawer/goal-progress-form'
-import { createStyles } from './goal-detail-drawer/styles'
-import { useGoalProgressFormState } from './goal-detail-drawer/use-goal-progress-form-state'
 import { useGoalStatusActions } from './goal-detail-drawer/use-goal-status-actions'
-import {
-  formatLocaleDateTime,
-  getFriendlyErrorMessage,
-} from '@orbit/shared/utils'
-import { isStreakGoal } from '@orbit/shared/utils/goal-form'
-import { useGoals, useGoalDetail, useDeleteGoal } from '@/hooks/use-goals'
+import { createStyles } from './goal-detail-drawer/styles'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { PillButton } from '@/components/ui/pill-button'
-import { useChatStore } from '@/stores/chat-store'
-import { useUIStore } from '@/stores/ui-store'
 
 interface GoalDetailDrawerProps {
   open: boolean
-  onClose: () => void
+  inline?: boolean
   goalId: string
+  onClose: () => void
 }
 
-function formatGoalProgressText(
-  goal: { currentValue: number; targetValue: number; unit: string } | null,
-  isStreak: boolean,
-  translate: (key: string, values?: Record<string, unknown>) => string,
-): string {
-  if (!goal) return ''
-  return isStreak
-    ? translate('goals.streak.ofTarget', {
-        current: goal.currentValue,
-        target: goal.targetValue,
-      })
-    : translate('goals.progressOf', {
-        current: goal.currentValue,
-        target: goal.targetValue,
-        unit: goal.unit,
-      })
-}
-
-function DeleteGoalSheet({
-  open,
-  onClose,
-  onDelete,
-}: Readonly<{ open: boolean; onClose: () => void; onDelete: () => void }>) {
-  const { t } = useTranslation()
-  const { sheetRef, closeSheet } = useSheetHost()
-  if (!open) return null
-
-  return (
-    <Sheet
-      ref={sheetRef}
-      open
-      title={t('goals.detail.delete')}
-      onClose={onClose}
-      actions={
-        <>
-          <PillButton variant="ghost" onClick={() => closeSheet()}>{t('common.cancel')}</PillButton>
-          <PillButton variant="destructive" onClick={() => closeSheet(onDelete)}>
-            {t('common.delete')}
-          </PillButton>
-        </>
-      }
-    >
-      <Text>{t('goals.detail.deleteConfirm')}</Text>
-    </Sheet>
-  )
-}
-
-function ActiveGoalProgressForm({
-  show,
-  active,
-  derived,
-  ...props
-}: Readonly<
-  ComponentProps<typeof GoalProgressForm> & {
-    show: boolean
-    active: boolean
-    derived: boolean
-  }
->) {
-  if (!show || !active || derived) return null
-  return <GoalProgressForm {...props} />
-}
-
-function ActiveGoalMetricsPanel({
-  active,
-  ...props
-}: Readonly<ComponentProps<typeof GoalMetricsPanel> & { active: boolean }>) {
-  if (!active) return null
-  return <GoalMetricsPanel {...props} />
-}
-
-function OptionalGoalLoadError({
-  hasError,
-  ...props
-}: Readonly<ComponentProps<typeof GoalLoadError> & { hasError: boolean }>) {
-  if (!hasError) return null
-  return <GoalLoadError {...props} />
-}
-
-function GoalEditSheet({
-  goal,
-  ...props
-}: Readonly<
-  Omit<ComponentProps<typeof EditGoalModal>, 'goal'> & {
-    goal: ComponentProps<typeof EditGoalModal>['goal'] | null
-  }
->) {
-  if (!goal) return null
-  return <EditGoalModal goal={goal} {...props} />
-}
-
-/**
- * Goal Detail Drawer. Covers all 7 spec variants by status: on-track,
- * at-risk, behind, completed, abandoned, streak, update (active progress
- * form). Preserves: streak vs standard handling, progress mutation,
- * status mutation, delete mutation, edit modal, dismiss guard.
- * The Sheet renders even when `goal` is null: unmounting a
- * presented TrueSheet mid-dismissal wedges every subsequent RN Modal and
- * drops the onDidDismiss that runs the scheduled exit action - see
- * https://sheet.lodev09.com/guides/navigation. Hosts must likewise keep
- * this drawer mounted after onClose until the dismissal completes.
- */
-export function GoalDetailDrawer({
-  open,
-  onClose,
-  goalId,
-}: Readonly<GoalDetailDrawerProps>) {
+export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Readonly<GoalDetailDrawerProps>) {
   const { t, i18n } = useTranslation()
-  const translate = useCallback(
-    (key: string, values?: Record<string, unknown>) => t(key, values),
-    [t],
-  )
-  const { showError } = useAppToast()
+  const locale = i18n.language
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const insets = useSafeAreaInsets()
-  const styles = useMemo(
-    () => createStyles(tokens, insets.bottom),
-    [tokens, insets.bottom],
-  )
-
+  const styles = createStyles(tokens)
+  const { showError } = useAppToast()
   const { data: goalsData } = useGoals()
-  const {
-    data: detailData,
-    isLoading: isLoadingDetail,
-    isError: loadError,
-    refetch: refetchDetail,
-  } = useGoalDetail(open ? goalId : null)
-  const deleteGoalMut = useDeleteGoal()
-
-  const detail = detailData?.goal ?? null
-  const goal = detail ?? goalsData?.goalsById.get(goalId) ?? null
-  const metrics = detailData?.metrics ?? null
-
-  const isStreak = isStreakGoal(goal?.type)
-
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const { data: detailData, isLoading, isError, refetch } = useGoalDetail(open ? goalId : null)
+  const goal = detailData?.goal ?? goalsData?.goalsById.get(goalId) ?? null
+  const deleteGoal = useDeleteGoal()
+  const [editing, setEditing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const { sheetRef, closeSheet } = useSheetHost()
-  const closeDrawer = useCallback(() => closeSheet(onClose), [closeSheet, onClose])
-
-  const {
-    progressValue,
-    setProgressValue,
-    progressNote,
-    setProgressNote,
-    showProgressForm,
-    showProgressDiscardDialog,
-    isProgressDirty,
-    progressExceedsTarget,
-    isUpdatingProgress,
-    openProgressForm,
-    submitProgress,
-    requestProgressDismiss,
-    confirmProgressDismiss,
-    cancelProgressDismiss,
-  } = useGoalProgressFormState({
-    open,
+  const close = useCallback(() => {
+    if (inline) onClose()
+    else closeSheet(onClose)
+  }, [inline, closeSheet, onClose])
+  const actions = useGoalStatusActions({
     goalId,
-    goalCurrentValue: goal?.currentValue,
-    goalTargetValue: goal?.targetValue,
-    refetchDetail,
-    onClose: closeDrawer,
+    goalName: goal?.title,
+    goalCount: goal?.targetValue,
+    goalUnit: goal?.unit,
+    refetchDetail: () => void refetch(),
   })
+  const formatDate = (date: string) => formatLocaleDateTime(date, locale, { year: 'numeric', month: '2-digit', day: '2-digit', hour: 'numeric', minute: '2-digit' })
 
-  const { markCompleted, markAbandoned, reactivate, isUpdatingStatus } =
-    useGoalStatusActions({
-      goalId,
-      goalName: goal?.title,
-      goalCount: goal?.targetValue,
-      goalUnit: goal?.unit,
-      refetchDetail: () => void refetchDetail(),
-    })
-
-  const formatDate = useCallback(
-    (dateStr: string) =>
-      formatLocaleDateTime(dateStr, i18n.language, {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: 'numeric',
-        minute: '2-digit',
-      }),
-    [i18n.language],
-  )
-
-  const progressText = formatGoalProgressText(goal, isStreak, translate)
-
-  const confirmDelete = () => {
-    setShowDeleteConfirm(true)
+  async function confirmDelete() {
+    try {
+      await deleteGoal.mutateAsync(goalId)
+      close()
+    } catch (error: unknown) {
+      showError(getFriendlyErrorMessage(error, t, 'goals.errors.delete', 'goal'))
+    }
   }
 
-  const handleDeleteConfirm = useCallback(async () => {
-    try {
-      await deleteGoalMut.mutateAsync(goalId)
-      closeDrawer()
-    } catch (error: unknown) {
-      showError(
-        getFriendlyErrorMessage(error, translate, 'goals.errors.delete', 'goal'),
-      )
-    }
-  }, [closeDrawer, deleteGoalMut, goalId, showError, translate])
+  useEffect(() => {
+    if (!open || !inline || editing || deleting) return
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => { close(); return true })
+    return () => subscription.remove()
+  }, [open, inline, editing, deleting, close])
 
-  const handleAskAstra = useCallback(() => {
-    if (!goal) return
-    const seed = t('goals.detail.askAstraSeedDefault', { title: goal.title })
-    useChatStore.getState().setDraft(seed)
-    closeSheet(() => {
-      onClose()
-      useUIStore.getState().setAstraConversationOpen(true)
-    })
-  }, [closeSheet, goal, onClose, t])
-
-  const isActive = goal?.status === 'Active'
-
-  const progressFillColor = isStreak ? tokens.statusOverdue : tokens.primary
-  const progressPct = Math.min(goal?.progressPercentage ?? 0, 100)
-  const headerUnitSuffix = goal?.unit ? `  ·  ${goal.unit}` : ''
-  const headerLine = isStreak
-    ? t('goals.form.typeStreak')
-    : `${t('goals.form.typeStandard')}${headerUnitSuffix}`
+  const body = (
+    <View style={layout.body}>
+      {goal ? <>
+        <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} />
+        <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} entries={detailData?.goal.progressHistory ?? []} unit={goal.unit} formatDate={formatDate} />
+        <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} iconColor={tokens.fg3} dangerColor={tokens.statusBad} styles={styles} />
+      </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
+      {isError ? <GoalLoadError onRetry={() => void refetch()} styles={styles} /> : null}
+    </View>
+  )
 
   return (
     <>
-      {open ? (<Sheet
-        ref={sheetRef}
-        open
-        onClose={isProgressDirty ? undefined : onClose}
-        title={goal?.title}
-      >
-        {goal ? (
-          <View style={styles.scrollContent}>
-            <Text style={styles.headerLine}>{headerLine}</Text>
-
-            <GoalProgressBlock
-              progressPct={progressPct}
-              progressFillColor={progressFillColor}
-              progressText={progressText}
-              progressPercentage={goal.progressPercentage}
-              showEdit={isActive && !goal.isProgressDerived && !showProgressForm}
-              onEdit={openProgressForm}
-              styles={styles}
-              tokens={tokens}
-            />
-
-            <ActiveGoalProgressForm
-              show={showProgressForm}
-              active={isActive}
-              derived={goal.isProgressDerived ?? false}
-              isStreak={isStreak}
-              progressValue={progressValue}
-              onChangeValue={setProgressValue}
-              progressNote={progressNote}
-              onChangeNote={setProgressNote}
-              progressExceedsTarget={progressExceedsTarget}
-              isUpdatingProgress={isUpdatingProgress}
-              onCancel={() => requestProgressDismiss('form')}
-              onSubmit={() => void submitProgress()}
-              styles={styles}
-              tokens={tokens}
-            />
-
-            <ActiveGoalMetricsPanel
-              active={isActive}
-              metrics={metrics}
-              unit={goal.unit}
-              isLoading={isLoadingDetail}
-              isStreak={isStreak}
-            />
-
-            <GoalDetailCollections
-              isStreak={isStreak}
-              linkedHabits={goal.linkedHabits}
-              entries={detail?.progressHistory ?? []}
-              unit={goal.unit}
-              formatDate={formatDate}
-            />
-
-            <OptionalGoalLoadError
-              hasError={loadError}
-              onRetry={() => void refetchDetail()}
-              styles={styles}
-            />
-
-            <GoalActionFooter
-              isActive={isActive}
-              isUpdatingStatus={isUpdatingStatus}
-              iconColor={tokens.fg3}
-              dangerColor={tokens.statusBad}
-              onMarkCompleted={() => void markCompleted()}
-              onMarkAbandoned={() => void markAbandoned()}
-              onReactivate={() => void reactivate()}
-              onEdit={() => setShowEditModal(true)}
-              onDelete={confirmDelete}
-              styles={styles}
-            />
-
-            <GoalAskAstraButton
-              tokens={tokens}
-              styles={styles}
-              onPress={handleAskAstra}
-            />
-          </View>
-        ) : null}
-      </Sheet>) : null}
-
-      <GoalEditSheet
-        open={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        goal={goal}
-      />
-
-      <DiscardChangesSheet
-        open={showProgressDiscardDialog}
-        onKeepEditing={cancelProgressDismiss}
-        onDiscard={confirmProgressDismiss}
-      />
-
-      <DeleteGoalSheet
-        open={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        onDelete={() => {
-          setShowDeleteConfirm(false)
-          void handleDeleteConfirm()
-        }}
-      />
+      {open ? inline ? <><AppBar title={t('progressScreen.sections.goals')} onBack={close} backLabel={t('common.back')} />{body}</> : <Sheet ref={sheetRef} open onClose={onClose} title={t('progressScreen.sections.goals')}>{body}</Sheet> : null}
+      {goal ? <EditGoalModal open={editing} onClose={() => setEditing(false)} goal={goal} /> : null}
+      <ConfirmSheet open={deleting} title={t('goals.detail.delete')} message={t('goals.detail.deleteNamed', { title: goal?.title ?? '' })} confirmLabel={t('goals.detail.delete')} destructive onCancel={() => setDeleting(false)} onConfirm={() => { setDeleting(false); void confirmDelete() }} />
     </>
   )
 }
+
+const layout = StyleSheet.create({ body: { gap: 24 } })
