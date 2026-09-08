@@ -1,16 +1,13 @@
 import type { ReactNode } from 'react'
 import type {
   AccountDayStripProps,
-  AccountDayValue,
   AccountDayWords,
   AllDayEventRowProps,
   DayCellWords,
   DayCellProps,
-  DayOutcome,
   DayStripProps,
   EventRowProps,
   HabitDayStripProps,
-  HabitDayValue,
   HabitDayWords,
   LoggableDayCellProps,
   MonthGridProps,
@@ -31,10 +28,19 @@ type IsExactWidth<T, U> =
     : false
 type Assert<T extends true> = T
 type Fields<T> = { [TKey in keyof T]: T[TKey] }
+type ExpectedHabitDayValue = 'done' | 'missed' | 'not-scheduled'
+type ExpectedAccountDayValue = 'active' | 'frozen' | 'missed' | 'today'
+type ExpectedDayOutcome =
+  | 'none'
+  | 'partial'
+  | 'full'
+  | 'not-scheduled'
+  | 'future'
+  | 'unavailable'
 
 type ExpectedHabitStrip = {
   scope: 'habit'
-  days: HabitDayValue[]
+  days: ExpectedHabitDayValue[]
   words: HabitDayWords
   length?: number
   labels?: string[]
@@ -43,7 +49,7 @@ type ExpectedHabitStrip = {
 }
 type ExpectedAccountStrip = {
   scope: 'account'
-  days: AccountDayValue[]
+  days: ExpectedAccountDayValue[]
   words: AccountDayWords
   length?: number
   labels?: string[]
@@ -64,12 +70,12 @@ type ExpectedDayCellBase = {
 }
 type ExpectedLoggableCell = ExpectedDayCellBase & {
   loggable: true
-  outcome?: Exclude<DayOutcome, 'future' | 'unavailable'>
+  outcome?: Exclude<ExpectedDayOutcome, 'future' | 'unavailable'>
   onPress: () => void
 }
 type ExpectedReadOnlyCell = ExpectedDayCellBase & {
   loggable?: false
-  outcome?: DayOutcome
+  outcome?: ExpectedDayOutcome
   onPress?: never
 }
 type ExpectedTimedEvent = {
@@ -201,7 +207,7 @@ export type DateContractTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<AccountDayWords['missed'], string>>,
   Assert<IsExactWidth<AccountDayWords['today'], string>>,
   Assert<IsExactWidth<DayStripProps['scope'], 'habit' | 'account'>>,
-  Assert<IsExactWidth<DayStripProps['days'], HabitDayValue[] | AccountDayValue[]>>,
+  Assert<IsExactWidth<DayStripProps['days'], ExpectedHabitDayValue[] | ExpectedAccountDayValue[]>>,
   Assert<IsExactWidth<DayStripProps['words'], HabitDayWords | AccountDayWords>>,
   Assert<IsExactWidth<DayStripProps['length'], number | undefined>>,
   Assert<IsExactWidth<DayStripProps['labels'], string[] | undefined>>,
@@ -228,7 +234,7 @@ export type DateContractTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<DayCellProps['habitHistory'], boolean | undefined>>,
   Assert<IsExactWidth<DayCellProps['words'], DayCellWords>>,
   Assert<IsExactWidth<DayCellProps['loggable'], boolean | undefined>>,
-  Assert<IsExactWidth<DayCellProps['outcome'], DayOutcome | undefined>>,
+  Assert<IsExactWidth<DayCellProps['outcome'], ExpectedDayOutcome | undefined>>,
   Assert<IsExactWidth<DayCellProps['onPress'], (() => void) | undefined>>,
   Assert<IsExactWidth<MonthGridProps['weekdayLabels'], string[] | undefined>>,
   Assert<IsExactWidth<MonthGridProps['children'], ReactNode>>,

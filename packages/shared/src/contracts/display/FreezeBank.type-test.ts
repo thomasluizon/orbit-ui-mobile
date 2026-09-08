@@ -1,4 +1,3 @@
-import type { AccountDayWords } from '../dates/DayStrip'
 import type {
   FreezeBankProps,
   FreezeBankProtectedDay,
@@ -39,10 +38,10 @@ export type FreezeBankTypeContract = [
   Assert<IsExactWidth<FreezeBankProtectedDay['id'], string>>,
   Assert<IsExactWidth<FreezeBankProtectedDay['dateLabel'], string>>,
   Assert<IsExactWidth<FreezeBankProtectedDay['isToday'], boolean | undefined>>,
-  Assert<IsExactWidth<FreezeBankWords['active'], AccountDayWords['active']>>,
-  Assert<IsExactWidth<FreezeBankWords['frozen'], AccountDayWords['frozen']>>,
-  Assert<IsExactWidth<FreezeBankWords['missed'], AccountDayWords['missed']>>,
-  Assert<IsExactWidth<FreezeBankWords['today'], AccountDayWords['today']>>,
+  Assert<IsExactWidth<FreezeBankWords['active'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['frozen'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['missed'], string>>,
+  Assert<IsExactWidth<FreezeBankWords['today'], string>>,
   Assert<IsExactWidth<FreezeBankWords['legendLabel'], string>>,
   Assert<IsExactWidth<FreezeBankWords['disclosureCollapsed'], string>>,
   Assert<IsExactWidth<FreezeBankWords['disclosureExpanded'], string>>,
