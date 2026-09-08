@@ -1,10 +1,53 @@
+import type { ReactNode } from 'react'
 import type { ButtonProps } from './Button'
 
 type Keys<T> = T extends unknown ? keyof T : never
 type IsExact<T, U> = T extends U ? Exclude<keyof T, Keys<U>> extends never ? true : false : false
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
 type Assert<T extends true> = T
+type Fields<T> = { [TKey in keyof T]: T[TKey] }
+
+type LabelledVariant = Extract<ButtonProps, { iconOnly?: never }>
+type IconOnlyVariant = Extract<ButtonProps, { iconOnly: true }>
+type ExpectedButtonBase = {
+  variant?: 'primary' | 'ghost' | 'secondary' | 'destructive' | 'caution'
+  size?: 'md' | 'sm'
+  loading?: boolean
+  disabled?: boolean
+  onClick?: () => void
+  formId?: string
+}
+type ExpectedLabelledVariant = ExpectedButtonBase & {
+  children: string
+  accessibleName?: string
+  iconOnly?: never
+  label?: never
+}
+type ExpectedIconOnlyVariant = ExpectedButtonBase & {
+  children: ReactNode
+  iconOnly: true
+  label: string
+  accessibleName?: never
+}
 
 export type ButtonTypeContract = [
+  Assert<IsExactWidth<Fields<LabelledVariant>, Fields<ExpectedLabelledVariant>>>,
+  Assert<IsExactWidth<Fields<IconOnlyVariant>, Fields<ExpectedIconOnlyVariant>>>,
+  Assert<IsExactWidth<ButtonProps['variant'], ExpectedButtonBase['variant']>>,
+  Assert<IsExactWidth<ButtonProps['size'], ExpectedButtonBase['size']>>,
+  Assert<IsExactWidth<ButtonProps['loading'], boolean | undefined>>,
+  Assert<IsExactWidth<ButtonProps['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<ButtonProps['onClick'], (() => void) | undefined>>,
+  Assert<IsExactWidth<ButtonProps['formId'], string | undefined>>,
+  Assert<IsExactWidth<ButtonProps['children'], ReactNode>>,
+  Assert<IsExactWidth<ButtonProps['accessibleName'], string | undefined>>,
+  Assert<IsExactWidth<ButtonProps['iconOnly'], true | undefined>>,
+  Assert<IsExactWidth<ButtonProps['label'], string | undefined>>,
   Assert<IsExact<{ children: 'Continue'; variant: 'primary'; size: 'md' }, ButtonProps>>,
   Assert<IsExact<{ children: 'Continue'; variant: 'ghost'; size: 'sm' }, ButtonProps>>,
   Assert<IsExact<{ children: 'Continue'; variant: 'secondary' }, ButtonProps>>,

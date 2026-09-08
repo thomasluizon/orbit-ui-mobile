@@ -87,6 +87,7 @@ import {
   createMockSyncChangesV2Response,
 } from './factories'
 
+const compareStrings = (left: string, right: string) => left.localeCompare(right)
 
 describe('habit schemas', () => {
   describe('normalizedHabitSchema', () => {
@@ -766,7 +767,9 @@ describe('chat schemas', () => {
     })
 
     it('exposes exactly the expected options so a new status cannot be added without a handler branch', () => {
-      expect([...actionStatusSchema.options].sort()).toEqual([...expectedStatuses].sort())
+      expect([...actionStatusSchema.options].sort(compareStrings)).toEqual(
+        [...expectedStatuses].sort(compareStrings),
+      )
     })
 
     it('rejects a status outside the enum', () => {
@@ -1413,8 +1416,8 @@ describe('sync schemas', () => {
 
   describe('mutationEntityTypeSchema', () => {
     it('lists exactly the supported sync entity types', () => {
-      expect([...mutationEntityTypeSchema.options].sort()).toEqual(
-        ['apiKey', 'goal', 'habit', 'notification', 'profile', 'tag'].sort(),
+      expect([...mutationEntityTypeSchema.options].sort(compareStrings)).toEqual(
+        ['apiKey', 'goal', 'habit', 'notification', 'profile', 'tag'].sort(compareStrings),
       )
     })
 
@@ -1427,7 +1430,7 @@ describe('sync schemas', () => {
 
   describe('syncChangesV2ResponseSchema', () => {
     it('covers every entity collection so a new one cannot be added without a handler branch', () => {
-      expect(Object.keys(syncChangesV2ResponseSchema.shape).sort()).toEqual(
+      expect(Object.keys(syncChangesV2ResponseSchema.shape).sort(compareStrings)).toEqual(
         [
           'habits',
           'habitLogs',
@@ -1438,7 +1441,7 @@ describe('sync schemas', () => {
           'checklistTemplates',
           'serverTimestamp',
           'version',
-        ].sort(),
+        ].sort(compareStrings),
       )
     })
 

@@ -3,11 +3,82 @@ import type { ToastProps } from './Toast'
 
 type Keys<T> = T extends unknown ? keyof T : never
 type IsExact<T, U> = T extends U ? Exclude<keyof T, Keys<U>> extends never ? true : false : false
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
 type Assert<T extends true> = T
+
+type NeutralActionVariant = Extract<ToastProps, { kind: 'neutral'; actionLabel: string }>
+type NeutralPlainVariant = Extract<ToastProps, { kind: 'neutral'; actionLabel?: never }>
+type WorkingVariant = Extract<ToastProps, { kind: 'working' }>
+type DoneVariant = Extract<ToastProps, { kind: 'done' }>
+type LostVariant = Extract<ToastProps, { kind: 'lost' }>
+type ExpectedNeutralBase = {
+  kind: 'neutral'
+  message: string
+  icon?: ReactElement
+  detail?: never
+  doneAfterMs?: never
+  onDone?: never
+}
+type ExpectedNeutralActionVariant = ExpectedNeutralBase & {
+  actionLabel: string
+  onAction: () => void
+}
+type ExpectedNeutralPlainVariant = ExpectedNeutralBase & {
+  actionLabel?: never
+  onAction?: never
+}
+type ExpectedWorkingVariant = {
+  kind: 'working'
+  message: string
+  icon?: never
+  detail?: never
+  actionLabel?: never
+  onAction?: never
+  doneAfterMs?: never
+  onDone?: never
+}
+type ExpectedDoneVariant = {
+  kind: 'done'
+  message: string
+  icon?: ReactElement
+  doneAfterMs?: number
+  onDone: () => void
+  detail?: never
+  actionLabel?: never
+  onAction?: never
+}
+type ExpectedLostVariant = {
+  kind: 'lost'
+  message: string
+  detail: string
+  actionLabel: string
+  onAction: () => void
+  icon?: ReactElement
+  doneAfterMs?: never
+  onDone?: never
+}
 
 declare const _icon: ReactElement
 
 export type ToastTypeContract = [
+  Assert<IsExactWidth<NeutralActionVariant, ExpectedNeutralActionVariant>>,
+  Assert<IsExactWidth<NeutralPlainVariant, ExpectedNeutralPlainVariant>>,
+  Assert<IsExactWidth<WorkingVariant, ExpectedWorkingVariant>>,
+  Assert<IsExactWidth<DoneVariant, ExpectedDoneVariant>>,
+  Assert<IsExactWidth<LostVariant, ExpectedLostVariant>>,
+  Assert<IsExactWidth<ToastProps['kind'], 'neutral' | 'working' | 'done' | 'lost'>>,
+  Assert<IsExactWidth<ToastProps['message'], string>>,
+  Assert<IsExactWidth<ToastProps['icon'], ReactElement | undefined>>,
+  Assert<IsExactWidth<ToastProps['detail'], string | undefined>>,
+  Assert<IsExactWidth<ToastProps['actionLabel'], string | undefined>>,
+  Assert<IsExactWidth<ToastProps['onAction'], (() => void) | undefined>>,
+  Assert<IsExactWidth<ToastProps['doneAfterMs'], number | undefined>>,
+  Assert<IsExactWidth<ToastProps['onDone'], (() => void) | undefined>>,
   Assert<IsExact<{ kind: 'neutral'; message: 'Saved' }, ToastProps>>,
   Assert<IsExact<{ kind: 'neutral'; message: 'Saved'; actionLabel: 'Undo'; onAction: () => void }, ToastProps>>,
   Assert<IsExact<{ kind: 'working'; message: 'Saving' }, ToastProps>>,

@@ -34,10 +34,10 @@ const mocks = vi.hoisted(() => {
       error: null,
     })),
     useQueryClient: vi.fn(() => queryClient),
-    performQueuedApiMutation: vi.fn(async () => undefined),
+    performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
     i18n: {
       language: 'en',
-      changeLanguage: vi.fn(async () => undefined),
+      changeLanguage: vi.fn(() => Promise.resolve(undefined)),
     },
   }
 })

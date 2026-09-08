@@ -1,7 +1,7 @@
-export async function setStringAsync() {
-  return true
+export function setStringAsync(): Promise<boolean> {
+  return Promise.resolve(true)
 }
 
-export async function getStringAsync() {
-  return ''
+export function getStringAsync(): Promise<string> {
+  return Promise.resolve('')
 }

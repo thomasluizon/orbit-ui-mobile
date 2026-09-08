@@ -322,18 +322,22 @@ describe('habit detail flow model', () => {
     const slip = log('2026-08-28')
     const withSlip = buildHabitStripModel(badHabit, [slip], today, 'en')
     const slipHistory = buildHabitHistoryMonth(badHabit, [slip], today, today, 1)
+    const withSlipCompletionRate =
+      (withSlip.days.filter((outcome) => outcome === 'done').length / withSlip.days.length) * 100
 
     expect(withSlip.days.at(-1)).toBe('missed')
     expect(withSlip.days.filter((outcome) => outcome === 'done')).toHaveLength(29)
-    expect(Math.round((29 / 30) * 10_000) / 100).toBe(96.67)
+    expect(withSlipCompletionRate).toBeCloseTo(96.67, 2)
     expect(slipHistory.find((day) => day.dateStr === '2026-08-28')?.outcome).toBe('none')
     expect(isHabitCompletedOnDate(badHabit, [slip], '2026-08-28')).toBe(false)
 
     const clean = buildHabitStripModel(badHabit, [], today, 'en')
     const cleanHistory = buildHabitHistoryMonth(badHabit, [], today, today, 1)
+    const cleanCompletionRate =
+      (clean.days.filter((outcome) => outcome === 'done').length / clean.days.length) * 100
     expect(clean.days.at(-1)).toBe('done')
     expect(clean.days.filter((outcome) => outcome === 'done')).toHaveLength(30)
-    expect((30 / 30) * 100).toBe(100)
+    expect(cleanCompletionRate).toBeCloseTo(100)
     expect(cleanHistory.find((day) => day.dateStr === '2026-08-28')?.outcome).toBe('full')
     expect(isHabitCompletedOnDate(badHabit, [], '2026-08-28')).toBe(true)
   })

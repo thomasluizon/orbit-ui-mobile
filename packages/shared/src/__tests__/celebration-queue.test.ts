@@ -14,7 +14,6 @@ import {
 describe('getCelebrationPriority', () => {
   it('ranks kinds from streak (highest) to level-up (lowest)', () => {
     expect(getCelebrationPriority('streak')).toBe(0)
-    expect(getCelebrationPriority('achievement')).toBe(1)
     expect(getCelebrationPriority('goal-completed')).toBe(2)
     expect(getCelebrationPriority('all-done')).toBe(2)
     expect(getCelebrationPriority('level-up')).toBe(3)
@@ -49,7 +48,7 @@ describe('sortCelebrationQueue', () => {
 describe('isDuplicateCelebration', () => {
   it('matches by kind-specific payload identity', () => {
     const active = createCelebrationItem('streak', { streak: 5 }, 0)
-    const queued = [createCelebrationItem('achievement', { achievementId: 'a1', xpReward: 10 }, 1)]
+    const queued = [createCelebrationItem('goal-completed', { name: 'Read' }, 1)]
 
     expect(
       isDuplicateCelebration(queued, active, createCelebrationItem('streak', { streak: 5 }, 2)),
@@ -58,7 +57,7 @@ describe('isDuplicateCelebration', () => {
       isDuplicateCelebration(queued, active, createCelebrationItem('streak', { streak: 9 }, 2)),
     ).toBe(false)
     expect(
-      isDuplicateCelebration(queued, active, createCelebrationItem('achievement', { achievementId: 'a1', xpReward: 99 }, 2)),
+      isDuplicateCelebration(queued, active, createCelebrationItem('goal-completed', { name: 'Read' }, 2)),
     ).toBe(true)
     expect(
       isDuplicateCelebration(queued, active, createCelebrationItem('goal-completed', { name: 'Ship' }, 2)),
@@ -137,7 +136,7 @@ describe('enqueueCelebrationItem', () => {
 
   it('queues behind an active celebration in priority order', () => {
     const state = {
-      activeCelebration: createCelebrationItem('achievement', { achievementId: 'a', xpReward: 5 }, 0),
+      activeCelebration: createCelebrationItem('all-done', {}, 0),
       queuedCelebrations: [createCelebrationItem('level-up', { level: 2 }, 1)],
     }
 
@@ -170,7 +169,7 @@ describe('clearCelebrationKind', () => {
 
   it('only filters the queue when a different kind is active', () => {
     const state = {
-      activeCelebration: createCelebrationItem('achievement', { achievementId: 'a', xpReward: 5 }, 0),
+      activeCelebration: createCelebrationItem('all-done', {}, 0),
       queuedCelebrations: [
         createCelebrationItem('goal-completed', { name: 'Ship' }, 1),
         createCelebrationItem('level-up', { level: 2 }, 2),

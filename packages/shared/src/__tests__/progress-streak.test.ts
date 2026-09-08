@@ -5,7 +5,10 @@ import { buildProtectedDayLabels } from '../utils/progress'
 const now = new Date(2026, 8, 7, 12)
 
 describe('Progress streak history', () => {
-  afterEach(() => { vi.useRealTimers() })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
   it.each([
     ['2026-09-09', '2026-09-08'],
     ['2026-09-08', '2026-09-07'],
@@ -76,6 +79,66 @@ describe('Progress streak history', () => {
     expect(days[0]?.dateStr).toBe('2026-08-25')
     expect(days.slice(-5).map((day) => day.status)).toEqual(['active', 'frozen', 'active', 'active', 'today'])
     expect(new Set(days.map((day) => day.status))).toEqual(new Set(['missed', 'active', 'frozen', 'today']))
+  })
+
+  it.each([
+    [new Date('2026-09-09T01:00:00Z'), 'America/Sao_Paulo', '2026-09-08'],
+    [new Date('2026-09-07T23:30:00Z'), 'Pacific/Kiritimati', '2026-09-08'],
+  ] as const)('ends the timeline on account today across device midnight at %s', (deviceNow, timeZone, accountToday) => {
+    const days = buildStreakWeekDays(
+      { lastActiveDate: accountToday, recentFreezeDates: [accountToday] },
+      1,
+      true,
+      deviceNow,
+      14,
+      timeZone,
+    )
+
+    expect(days.at(-1)).toMatchObject({
+      dateStr: accountToday,
+      status: 'frozen',
+      isToday: true,
+    })
+    expect(days.filter((day) => day.isToday)).toHaveLength(1)
+  })
+
+  it('derives account dates independently of presentation order and separators', () => {
+    const deviceNow = new Date('2026-09-09T01:00:00Z')
+    const originalFormat = Object.getOwnPropertyDescriptor(Intl.DateTimeFormat.prototype, 'format')
+    if (!originalFormat) throw new Error('Intl.DateTimeFormat#format descriptor is unavailable')
+    Object.defineProperty(Intl.DateTimeFormat.prototype, 'format', {
+      configurable: true,
+      get: () => () => '09/08/2026',
+    })
+
+    try {
+      const days = buildStreakWeekDays(null, 0, false, deviceNow, 14, 'America/Sao_Paulo')
+      expect(days.at(-1)?.dateStr).toBe('2026-09-08')
+
+      vi.setSystemTime(deviceNow)
+      expect(buildProtectedDayLabels(['2026-09-08'], undefined, true, 'America/Sao_Paulo')).toEqual([
+        { id: '2026-09-08', dateLabel: '2026-09-08', isToday: true },
+      ])
+    } finally {
+      Object.defineProperty(Intl.DateTimeFormat.prototype, 'format', originalFormat)
+    }
+  })
+
+  it.each([undefined, null, 'unsupported/timezone', ''])('ends the timeline on UTC today without a usable account timezone (%j)', (timeZone) => {
+    const days = buildStreakWeekDays(
+      { lastActiveDate: '2026-09-09', recentFreezeDates: ['2026-09-09'] },
+      1,
+      true,
+      new Date('2026-09-09T01:00:00Z'),
+      14,
+      timeZone,
+    )
+
+    expect(days.at(-1)).toMatchObject({
+      dateStr: '2026-09-09',
+      status: 'frozen',
+      isToday: true,
+    })
   })
 
   it('includes protected today once and formats dates in the requested locale', () => {

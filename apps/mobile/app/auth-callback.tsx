@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
 import { clearStoredReferralCode, consumeStoredAuthReturnUrl, getSafeReturnUrl,
-  getStoredReferralCode, markReferralApplied } from '@/lib/auth-flow'
+  getStoredReferralCode } from '@/lib/auth-flow'
 import { AUTH_CALLBACK_URL, clearPendingGoogleAuthSession, extractGoogleAuthParams,
   resolveGoogleAuthCallbackUrl, usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { completeGoogleAuthFromUrl } from '@/lib/google-auth'
@@ -43,7 +43,7 @@ export default function AuthCallbackScreen() {
         const response = await completeGoogleAuthFromUrl(url, i18n.language, referral ?? undefined)
         if (response.wasReactivated) { setAccountBack(response); setState('account'); return }
         await login(response.token, response.refreshToken, { userId: response.userId, name: response.name, email: response.email })
-        if (referral) { await markReferralApplied(); await clearStoredReferralCode() }
+        if (referral) await clearStoredReferralCode()
         router.replace(getSafeReturnUrl(await consumeStoredAuthReturnUrl()))
       } catch { setState('failed') }
     }
@@ -61,7 +61,7 @@ export default function AuthCallbackScreen() {
     setLoading(true)
     try {
       await login(accountBack.token, accountBack.refreshToken, { userId: accountBack.userId, name: accountBack.name, email: accountBack.email })
-      if (await getStoredReferralCode()) { await markReferralApplied(); await clearStoredReferralCode() }
+      if (await getStoredReferralCode()) await clearStoredReferralCode()
       await consumeStoredAuthReturnUrl()
       router.replace('/')
     } catch { setState('failed') }

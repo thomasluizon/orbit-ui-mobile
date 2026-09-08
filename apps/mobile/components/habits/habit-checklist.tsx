@@ -547,7 +547,7 @@ function createStyles(tokens: AppTokens) {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    paddingVertical: 15,
+    paddingVertical: 16,
     paddingHorizontal: 18,
   },
   interactiveItemDivider: {
