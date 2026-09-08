@@ -1,7 +1,12 @@
 {
   "calibratedAt": "2026-09-08",
+  "workerEngine": "codex",
   "workerModel": "gpt-5.6-sol",
-  "workerModelSource": "workers.codex.models.default.model in .claude/orchestrator.json",
+  "workerArgs": [
+    "-c",
+    "model_reasoning_effort=\"high\""
+  ],
+  "workerModelSource": "workers.<worker>.models.default in .claude/orchestrator.json, the tier launch-worker.mjs resolves",
   "entries": {
     ".claude/agents/Explore.md": {
       "model": "haiku",

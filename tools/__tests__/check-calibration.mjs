@@ -26,7 +26,7 @@ const daysAgo = (days) => new Date(Date.now() - days * 86400000).toISOString().s
  * A fixture harness: two agents' worth of shape in three files, plus whatever stamp the case wants.
  * `stamp === null` writes no stamp at all, which is the unreadable case.
  */
-const stageHarness = (label, { stamp, model = "gpt-5.6-sol", extraFiles = {} } = {}) => {
+const stageHarness = (label, { stamp, model = "gpt-5.6-sol", engine = "codex", args = ['-c', 'model_reasoning_effort="high"'], extraFiles = {} } = {}) => {
   const fixture = join(root, "check-calibration", label)
   write(join(fixture, ".claude", "agents", "design-reviewer.md"), AGENT)
   write(join(fixture, ".claude", "skills", "ticket", "SKILL.md"), SKILL)
@@ -36,7 +36,7 @@ const stageHarness = (label, { stamp, model = "gpt-5.6-sol", extraFiles = {} } =
   for (const [relativePath, body] of Object.entries(extraFiles)) write(join(fixture, relativePath), body)
   write(
     join(fixture, ".claude", "orchestrator.json"),
-    `${JSON.stringify({ caps: { parallelTickets: 3 }, workers: { codex: { models: { default: { model } } } } }, null, 2)}\n`,
+    `${JSON.stringify({ caps: { parallelTickets: 3 }, worker: engine, workers: { [engine]: { models: { default: { model, args } } } } }, null, 2)}\n`,
   )
   if (stamp !== null) write(join(fixture, ".claude", "calibration.json"), `${JSON.stringify(stamp, null, 2)}\n`)
   return fixture
@@ -44,8 +44,10 @@ const stageHarness = (label, { stamp, model = "gpt-5.6-sol", extraFiles = {} } =
 
 const currentStamp = (overrides = {}) => ({
   calibratedAt: today(),
+  workerEngine: "codex",
   workerModel: "gpt-5.6-sol",
-  workerModelSource: "workers.codex.models.default.model in .claude/orchestrator.json",
+  workerArgs: ['-c', 'model_reasoning_effort="high"'],
+  workerModelSource: "workers.<worker>.models.default in .claude/orchestrator.json, the tier launch-worker.mjs resolves",
   entries: {
     ".claude/agents/design-reviewer.md": { model: "sonnet", effort: "medium", verdict: "current" },
     ".claude/skills/lesson/SKILL.md": { model: null, effort: null, verdict: "undeclared, inherits the session" },
@@ -63,7 +65,7 @@ const withEntries = (mutate) => {
 export const cases = () => {
   check(TOOL, "a stamp covering every agent and skill file exits 0", ["--root", stageHarness("clean", { stamp: currentStamp() })], {
     status: 0,
-    stdout: /3 calibrated file\(s\) stamped .* against gpt-5\.6-sol/,
+    stdout: /3 calibrated file\(s\) stamped .* against codex gpt-5\.6-sol \["-c","model_reasoning_effort=\\"high\\""\]/,
   })
 
   // The denominator is a glob, so a file added without a verdict is the case that catches the failure
@@ -132,6 +134,44 @@ export const cases = () => {
     { status: 1, stderr: /lesson\/SKILL\.md declares effort null but the stamp recorded "high"/ },
   )
 
+  /**
+   * The engine is resolved from `config.worker`, the same key launch-worker.mjs:115 reads, and not
+   * hardcoded. Switching the engine has to go red, or this gate compares a profile nobody runs.
+   */
+  check(
+    TOOL,
+    "switching the worker engine without a fresh stamp exits 1",
+    ["--root", stageHarness("engine-switched", { stamp: currentStamp(), engine: "claude" })],
+    { status: 1, stderr: /the worker engine is claude and the stamp was taken against codex/ },
+  )
+  check(
+    TOOL,
+    "a config whose declared worker names no such engine exits 2 rather than passing vacuously",
+    [
+      "--root",
+      (() => {
+        const fixture = stageHarness("engine-missing", { stamp: currentStamp() })
+        write(
+          join(fixture, ".claude", "orchestrator.json"),
+          `${JSON.stringify({ worker: "nonexistent", workers: { codex: { models: { default: { model: "gpt-5.6-sol", args: [] } } } } }, null, 2)}\n`,
+        )
+        return fixture
+      })(),
+    ],
+    { status: 2, stderr: /declares no workers\.nonexistent\.models\.default\.model/ },
+  )
+
+  /**
+   * The reasoning effort lives in the profile's args, so a model string that never moves can still have
+   * its tuning changed underneath. An args-only edit decays the calibration exactly like a model edit.
+   */
+  check(
+    TOOL,
+    "changing only the reasoning effort in the profile args exits 1",
+    ["--root", stageHarness("args-changed", { stamp: currentStamp(), args: ["-c", 'model_reasoning_effort="low"'] })],
+    { status: 1, stderr: /the reasoning effort lives here/ },
+  )
+
   // The alias backstop. A model alias can move without its declared string changing, so age is the
   // only signal left and it is not decoration.
   check(
@@ -166,6 +206,35 @@ export const cases = () => {
     { status: 2, stderr: /calibratedAt must be a YYYY-MM-DD date/ },
   )
 
+  /**
+   * `Date.UTC` NORMALIZES an impossible calendar date rather than refusing it, so the YYYY-MM-DD regex
+   * alone lets `2026-02-31` through as 2026-03-03. Only a round-trip refuses it.
+   */
+  check(
+    TOOL,
+    "a well-formed but impossible calendar date exits 2 instead of being normalized",
+    ["--root", stageHarness("impossible-date", { stamp: currentStamp({ calibratedAt: "2026-02-31" }) })],
+    { status: 2, stderr: /is not a real calendar date/ },
+  )
+
+  /**
+   * The one that turned the backstop OFF. A future stamp produced a finite NEGATIVE age, which sails
+   * past a `> MAX_AGE_DAYS` test: a 9999-12-31 stamp exited 0 at -2912192 days old. That is the
+   * gate-that-cannot-fail failure this whole ticket exists to undo, so it is a data error.
+   */
+  check(
+    TOOL,
+    "a stamp dated in the FUTURE exits 2 rather than disabling the max-age backstop",
+    ["--root", stageHarness("future-date", { stamp: currentStamp({ calibratedAt: "9999-12-31" }) })],
+    { status: 2, stderr: /day\(s\) in the FUTURE, which would disable the max-age backstop/ },
+  )
+  check(
+    TOOL,
+    "a stamp dated tomorrow is refused too, so the future check is not only about absurd years",
+    ["--root", stageHarness("tomorrow", { stamp: currentStamp({ calibratedAt: daysAgo(-1) }) })],
+    { status: 2, stderr: /1 day\(s\) in the FUTURE/ },
+  )
+
   check(
     TOOL,
     "an entry carrying no verdict exits 2, so a stamp cannot be filled in without deciding",
@@ -182,9 +251,9 @@ export const cases = () => {
 
   const noProfile = stageHarness("no-profile", { stamp: currentStamp() })
   write(join(noProfile, ".claude", "orchestrator.json"), `${JSON.stringify({ caps: { parallelTickets: 3 } }, null, 2)}\n`)
-  check(TOOL, "a config declaring no worker model exits 2 rather than passing vacuously", ["--root", noProfile], {
+  check(TOOL, "a config declaring no worker engine exits 2 rather than passing vacuously", ["--root", noProfile], {
     status: 2,
-    stderr: /declares no workers\.codex\.models\.default\.model/,
+    stderr: /declares no `worker`/,
   })
 
   // A tree with nothing to calibrate must fail loudly rather than report a green over zero files,
@@ -192,8 +261,14 @@ export const cases = () => {
   const emptyTree = join(root, "check-calibration", "empty")
   mkdirSync(join(emptyTree, ".claude", "agents"), { recursive: true })
   mkdirSync(join(emptyTree, ".claude", "skills"), { recursive: true })
-  write(join(emptyTree, ".claude", "orchestrator.json"), `${JSON.stringify({ workers: { codex: { models: { default: { model: "gpt-5.6-sol" } } } } }, null, 2)}\n`)
-  write(join(emptyTree, ".claude", "calibration.json"), `${JSON.stringify({ calibratedAt: today(), workerModel: "gpt-5.6-sol", entries: {} }, null, 2)}\n`)
+  write(
+    join(emptyTree, ".claude", "orchestrator.json"),
+    `${JSON.stringify({ worker: "codex", workers: { codex: { models: { default: { model: "gpt-5.6-sol", args: [] } } } } }, null, 2)}\n`,
+  )
+  write(
+    join(emptyTree, ".claude", "calibration.json"),
+    `${JSON.stringify({ calibratedAt: today(), workerEngine: "codex", workerModel: "gpt-5.6-sol", workerArgs: [], entries: {} }, null, 2)}\n`,
+  )
   check(TOOL, "a tree with no agent and no skill exits 2 rather than reporting a vacuous green", ["--root", emptyTree], {
     status: 2,
     stderr: /holds no \.claude\/agents/,

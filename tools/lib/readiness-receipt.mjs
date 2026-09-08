@@ -155,15 +155,26 @@ export const REVIEW_APP_ID = 1768019
 
 const normalizeReviewNode = (node) => {
   if (typeof node?.state !== "string" || node.state === "") return null
-  const author = node.author
-  if (typeof author?.login !== "string" || typeof author?.__typename !== "string") return null
   const commitOid = node.commit?.oid ?? null
   if (commitOid !== null && typeof commitOid !== "string") return null
+  /**
+   * `PullRequestReview.author` is NULLABLE in GitHub's schema: a review by a since-deleted account
+   * returns `author: null`. Refusing that node would return null from pullRequestStateFromGraphQl and
+   * turn the whole read into an environment error, so ONE unrelated deleted reviewer anywhere in the
+   * last 50 reviews would break every readiness read on that pull request. That is a fail-shut bug and
+   * it is worse than the gap it guards.
+   *
+   * An unidentifiable author is not the reviewing app, so it is kept as an ordinary non-app review:
+   * `login: null` and `isBot: false` can never match REVIEW_APP_LOGIN, so it can never satisfy the
+   * review axis, and it never poisons the read either.
+   */
+  const author = node.author
+  const identified = typeof author?.login === "string" && typeof author?.__typename === "string"
   return {
     state: node.state,
     submittedAt: typeof node.submittedAt === "string" ? node.submittedAt : null,
-    login: author.login.replace(/\[bot\]$/, ""),
-    isBot: author.__typename === "Bot",
+    login: identified ? author.login.replace(/\[bot\]$/, "") : null,
+    isBot: identified && author.__typename === "Bot",
     commitOid,
   }
 }

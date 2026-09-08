@@ -242,6 +242,29 @@ export const cases = () => {
     `${TOOL}: an approval of a DIFFERENT head is not a verdict for this head`,
     reviewAppVerdictAtHead(reviewsAtHead([botReview("APPROVED", "2026-09-06T05:44:39Z", HEAD_B)]), HEAD_A) === null,
   )
+  /**
+   * `PullRequestReview.author` is NULLABLE: a review by a since-deleted account returns `author: null`.
+   * Refusing that node would return null from the whole read, so ONE unrelated deleted reviewer would
+   * break every readiness read on the pull request. It is a non-app review, never a broken read.
+   */
+  T(
+    `${TOOL}: a review whose author is null does not poison the read`,
+    Array.isArray(reviewsAtHead([{ state: "APPROVED", submittedAt: "2026-09-06T05:44:39Z", author: null, commit: { oid: HEAD_A } }])),
+  )
+  T(
+    `${TOOL}: a null-author approval at the head never satisfies the review axis`,
+    reviewAppVerdictAtHead(reviewsAtHead([{ state: "APPROVED", submittedAt: "2026-09-06T05:44:39Z", author: null, commit: { oid: HEAD_A } }]), HEAD_A) === null,
+  )
+  T(
+    `${TOOL}: a null-author review beside a real approval leaves the approval readable`,
+    reviewAppVerdictAtHead(
+      reviewsAtHead([
+        { state: "CHANGES_REQUESTED", submittedAt: "2026-09-06T05:40:00Z", author: null, commit: { oid: HEAD_A } },
+        botReview("APPROVED", "2026-09-06T05:44:39Z", HEAD_A),
+      ]),
+      HEAD_A,
+    )?.state === "APPROVED",
+  )
   T(
     `${TOOL}: a human approval at the head is not the reviewing app's verdict`,
     reviewAppVerdictAtHead(reviewsAtHead([{ state: "APPROVED", submittedAt: "2026-09-06T05:44:39Z", author: { __typename: "User", login: "thomasluizon" }, commit: { oid: HEAD_A } }]), HEAD_A) === null,
