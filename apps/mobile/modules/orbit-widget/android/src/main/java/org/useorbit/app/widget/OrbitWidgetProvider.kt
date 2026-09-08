@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
 import androidx.work.Constraints
@@ -24,6 +25,10 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         private const val WORK_NAME = "orbit_widget_sync"
         private const val REFRESH_TIMEOUT_WORK_NAME = "orbit_widget_refresh_timeout"
         private const val WIDGET_REFRESH_TIMEOUT_MS = 12_000L
+        internal const val EXTRA_WIDGET_HEIGHT_DP = "widget_height_dp"
+        internal const val EXTRA_WIDGET_WIDTH_DP = "widget_width_dp"
+        private const val DEFAULT_WIDGET_HEIGHT_DP = 192
+        private const val DEFAULT_WIDGET_WIDTH_DP = 336
 
         fun updateWidgetLayout(
             context: Context,
@@ -56,9 +61,11 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
             val maxWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0)
             val maxHeightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
-            val bgWidth = (if (maxWidthDp > 0) (maxWidthDp * density).toInt() else displayMetrics.widthPixels)
+            val widgetWidthDp = maxWidthDp.takeIf { it > 0 } ?: DEFAULT_WIDGET_WIDTH_DP
+            val widgetHeightDp = maxHeightDp.takeIf { it > 0 } ?: DEFAULT_WIDGET_HEIGHT_DP
+            val bgWidth = (widgetWidthDp * density).toInt()
                 .coerceIn(1, displayMetrics.widthPixels)
-            val bgHeight = (if (maxHeightDp > 0) (maxHeightDp * density).toInt() else displayMetrics.heightPixels / 2)
+            val bgHeight = (widgetHeightDp * density).toInt()
                 .coerceIn(1, displayMetrics.heightPixels / 2)
             val lightBackground = OrbitWidgetFactory.createRoundedBitmap(
                 bgWidth, bgHeight, colorModes.light.background,
@@ -144,6 +151,8 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             // Set up the RemoteViews adapter for the list
             val serviceIntent = Intent(context, OrbitWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                putExtra(EXTRA_WIDGET_HEIGHT_DP, widgetHeightDp)
+                putExtra(EXTRA_WIDGET_WIDTH_DP, widgetWidthDp)
                 data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
             }
             views.setRemoteAdapter(R.id.widget_list, serviceIntent)
@@ -189,6 +198,16 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         }
         // Trigger data refresh (not just layout rebuild) on periodic updates
         appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_list)
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
+        updateWidgetLayout(context, appWidgetManager, appWidgetId)
+        appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_list)
     }
 
     override fun onReceive(context: Context, intent: Intent) {

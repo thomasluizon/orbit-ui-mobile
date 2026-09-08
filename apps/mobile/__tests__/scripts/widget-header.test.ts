@@ -226,3 +226,71 @@ describe('Android widget habit rows', () => {
     )
   })
 })
+
+describe('Android widget launcher geometry', () => {
+  it('supports the four launcher sizes from one full-height layout', () => {
+    const layout = layoutViews()
+    const providerInfo = readFileSync(
+      resolve(widgetRoot, 'xml/orbit_widget_info.xml'),
+      'utf8',
+    )
+
+    expect(providerInfo).toContain('android:minWidth="336dp"')
+    expect(providerInfo).toContain('android:minHeight="192dp"')
+    expect(providerInfo).toContain('android:minResizeWidth="160dp"')
+    expect(providerInfo).toContain('android:minResizeHeight="96dp"')
+    expect(providerInfo).toContain('android:maxResizeWidth="336dp"')
+    expect(providerInfo).toContain('android:maxResizeHeight="288dp"')
+    expect(providerInfo).toContain('android:targetCellWidth="4"')
+    expect(providerInfo).toContain('android:targetCellHeight="2"')
+    expect(layout.get('widget_root')).not.toHaveProperty('android:padding')
+    expect(layout.get('widget_list')).toMatchObject({
+      'android:dividerHeight': '0dp',
+    })
+  })
+
+  it('derives visible habits and the remainder from height geometry', () => {
+    const provider = readFileSync(
+      resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'),
+      'utf8',
+    )
+    const service = readFileSync(
+      resolve(widgetSourceRoot, 'OrbitWidgetService.kt'),
+      'utf8',
+    )
+
+    expect(provider).toContain('onAppWidgetOptionsChanged')
+    expect(provider).toContain('EXTRA_WIDGET_HEIGHT_DP')
+    expect(provider).toContain('EXTRA_WIDGET_WIDTH_DP')
+    expect(service).toContain('internal fun calculateWidgetRows(')
+    expect(service).toContain('val availableHeightDp = widgetHeightDp - WIDGET_HEADER_HEIGHT_DP')
+    expect(service).toContain('visibleHabitCount = rowCapacity - 1')
+    expect(service).toContain('R.layout.widget_remainder')
+    expect(service).toContain('WidgetString.REMAINDER')
+    expect(service).toContain('override fun getViewTypeCount(): Int = 2')
+  })
+
+  it('drops only the time at the narrow width and keeps the remainder on one line', () => {
+    const english = resourceStrings('values/widget_strings.xml')
+    const portuguese = resourceStrings('values-pt-rBR/widget_strings.xml')
+    const remainder = layoutViews('layout/widget_remainder.xml')
+    const service = readFileSync(
+      resolve(widgetSourceRoot, 'OrbitWidgetService.kt'),
+      'utf8',
+    )
+
+    expect(Object.fromEntries(english)).toMatchObject({
+      widget_remainder: '%1$d more',
+    })
+    expect(Object.fromEntries(portuguese)).toMatchObject({
+      widget_remainder: 'mais %1$d',
+    })
+    expect(remainder.get('widget_remainder_text')).toMatchObject({
+      'android:layout_height': '24dp',
+      'android:maxLines': '1',
+      'android:textColor': '@color/widget_fg_3',
+    })
+    expect(service).toContain('internal fun shouldShowWidgetTimes(widgetWidthDp: Int)')
+    expect(service).toContain('applyDueTime(views, habit, showTimes)')
+  })
+})

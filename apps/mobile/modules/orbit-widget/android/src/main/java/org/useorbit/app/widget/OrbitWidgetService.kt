@@ -22,9 +22,48 @@ import java.util.Locale
 
 class OrbitWidgetService : RemoteViewsService() {
     override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
-        return OrbitWidgetFactory(applicationContext)
+        val widgetHeightDp = intent.getIntExtra(
+            OrbitWidgetProvider.EXTRA_WIDGET_HEIGHT_DP,
+            192
+        )
+        val widgetWidthDp = intent.getIntExtra(
+            OrbitWidgetProvider.EXTRA_WIDGET_WIDTH_DP,
+            336
+        )
+        return OrbitWidgetFactory(applicationContext, widgetHeightDp, widgetWidthDp)
     }
 }
+
+private const val WIDGET_HEADER_HEIGHT_DP = 48
+private const val WIDGET_ROW_HEIGHT_DP = 48
+private const val WIDGET_REMAINDER_HEIGHT_DP = 24
+private const val WIDGET_NARROW_WIDTH_DP = 160
+
+internal data class WidgetRowPlan(
+    val visibleHabitCount: Int,
+    val remainderCount: Int
+)
+
+internal fun calculateWidgetRows(widgetHeightDp: Int, habitCount: Int): WidgetRowPlan {
+    val availableHeightDp = widgetHeightDp - WIDGET_HEADER_HEIGHT_DP
+    val rowCapacity = (availableHeightDp / WIDGET_ROW_HEIGHT_DP).coerceAtLeast(1)
+    val remainderFits = habitCount > rowCapacity &&
+        rowCapacity >= 2 &&
+        availableHeightDp - (rowCapacity - 1) * WIDGET_ROW_HEIGHT_DP >=
+        WIDGET_REMAINDER_HEIGHT_DP
+
+    return if (remainderFits) {
+        WidgetRowPlan(
+            visibleHabitCount = rowCapacity - 1,
+            remainderCount = habitCount - (rowCapacity - 1)
+        )
+    } else {
+        WidgetRowPlan(visibleHabitCount = minOf(rowCapacity, habitCount), remainderCount = 0)
+    }
+}
+
+internal fun shouldShowWidgetTimes(widgetWidthDp: Int): Boolean =
+    widgetWidthDp > WIDGET_NARROW_WIDTH_DP
 
 data class HabitItem(
     val id: String,
@@ -71,7 +110,8 @@ internal enum class WidgetString(val resourceId: Int) {
     STREAK_UNIT(R.string.widget_streak_unit),
     REFRESH(R.string.widget_refresh),
     CHECKLIST_BADGE(R.string.widget_checklist_badge),
-    DEEPER_COUNT(R.string.widget_deeper_count)
+    DEEPER_COUNT(R.string.widget_deeper_count),
+    REMAINDER(R.string.widget_remainder)
 }
 
 internal data class WidgetDayState(
@@ -201,12 +241,18 @@ internal fun RemoteViews.setModeAwareBitmap(
     }
 }
 
-class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.RemoteViewsFactory {
+class OrbitWidgetFactory(
+    private val context: Context,
+    private val widgetHeightDp: Int = 192,
+    widgetWidthDp: Int = 336
+) : RemoteViewsService.RemoteViewsFactory {
 
     private var habits: List<HabitItem> = emptyList()
     private var headerLabel: String = "Today"
     private var lang: String = "en"
     private var colorModes: WidgetColorModes = defaultColorModes()
+    private var rowPlan = WidgetRowPlan(0, 0)
+    private val showTimes = shouldShowWidgetTimes(widgetWidthDp)
     private val gson = Gson()
 
     companion object {
@@ -401,6 +447,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
      */
     private fun renderPlaceholder(showSkeleton: Boolean) {
         habits = emptyList()
+        rowPlan = calculateWidgetRows(widgetHeightDp, habits.size)
         lang = detectLanguage(null)
         headerLabel = tr(context, lang, WidgetString.TODAY)
 
@@ -454,6 +501,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         val streak = widgetData.currentStreak ?: 0
         val dayState = prepareWidgetDay(widgetData.items ?: emptyList(), widgetData.dayOffset)
         habits = dayState.habits
+        rowPlan = calculateWidgetRows(widgetHeightDp, habits.size)
         headerLabel = if (dayState.isTomorrow) {
             tr(context, lang, WidgetString.TOMORROW)
         } else {
@@ -576,9 +624,12 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
 
     override fun onDestroy() {
         habits = emptyList()
+        rowPlan = WidgetRowPlan(0, 0)
     }
 
-    override fun getCount(): Int = runCatching { habits.size }.getOrDefault(0)
+    override fun getCount(): Int = runCatching {
+        rowPlan.visibleHabitCount + if (rowPlan.remainderCount > 0) 1 else 0
+    }.getOrDefault(0)
 
     override fun getViewAt(position: Int): RemoteViews {
         return try {
@@ -589,18 +640,36 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     }
 
     private fun buildItemView(position: Int): RemoteViews {
+        if (position == rowPlan.visibleHabitCount && rowPlan.remainderCount > 0) {
+            return buildRemainderView()
+        }
         val views = RemoteViews(context.packageName, R.layout.widget_item)
-        if (position >= habits.size) return views
+        if (position >= rowPlan.visibleHabitCount) return views
 
         val habit = habits[position]
         val isChild = habit.depth > 0
         applyItemBackground(views, habit, isChild)
         applyItemTitle(views, habit, isChild)
         applyStatusMark(views, habit)
-        applyDueTime(views, habit)
+        applyDueTime(views, habit, showTimes)
         applyBadges(views, habit)
 
         views.setOnClickFillInIntent(R.id.widget_item_container, Intent())
+        return views
+    }
+
+    private fun buildRemainderView(): RemoteViews {
+        val views = RemoteViews(context.packageName, R.layout.widget_remainder)
+        views.setTextViewText(
+            R.id.widget_remainder_text,
+            tr(context, lang, WidgetString.REMAINDER, rowPlan.remainderCount)
+        )
+        views.setModeAwareColor(
+            R.id.widget_remainder_text,
+            "setTextColor",
+            colorModes
+        ) { it.textMuted }
+        views.setOnClickFillInIntent(R.id.widget_remainder_text, Intent())
         return views
     }
 
@@ -720,9 +789,9 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         }
     }
 
-    private fun applyDueTime(views: RemoteViews, habit: HabitItem) {
+    private fun applyDueTime(views: RemoteViews, habit: HabitItem, showTimes: Boolean) {
         val dueTime = habit.dueTime
-        if (dueTime.isNullOrEmpty()) {
+        if (!showTimes || dueTime.isNullOrEmpty()) {
             views.setViewVisibility(R.id.item_time, android.view.View.GONE)
             views.setViewVisibility(R.id.item_time_overdue, android.view.View.GONE)
             return
@@ -758,7 +827,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
 
     override fun getLoadingView(): RemoteViews? = null
 
-    override fun getViewTypeCount(): Int = 1
+    override fun getViewTypeCount(): Int = 2
 
     override fun getItemId(position: Int): Long = position.toLong()
 

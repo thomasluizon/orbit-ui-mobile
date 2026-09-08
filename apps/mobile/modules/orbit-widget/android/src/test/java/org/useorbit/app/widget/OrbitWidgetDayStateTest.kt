@@ -48,6 +48,20 @@ class OrbitWidgetDayStateTest {
         assertEquals(2, childRow.deeperCount)
     }
 
+    @Test
+    fun `derives habit and remainder rows from launcher height`() {
+        assertEquals(WidgetRowPlan(1, 0), calculateWidgetRows(96, 7))
+        assertEquals(WidgetRowPlan(2, 5), calculateWidgetRows(192, 7))
+        assertEquals(WidgetRowPlan(4, 3), calculateWidgetRows(288, 7))
+        assertEquals(WidgetRowPlan(3, 0), calculateWidgetRows(192, 3))
+    }
+
+    @Test
+    fun `drops times only at the narrow launcher width`() {
+        assertEquals(false, shouldShowWidgetTimes(160))
+        assertEquals(true, shouldShowWidgetTimes(336))
+    }
+
     private fun habit(
         id: String,
         isCompleted: Boolean = false,
