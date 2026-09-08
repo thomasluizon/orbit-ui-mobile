@@ -11,7 +11,7 @@ describe('getAppStoreLookup', () => {
   })
 
   it('returns version and trackViewUrl from the iTunes response', async () => {
-    globalThis.fetch = fetchMock as unknown as typeof fetch
+    globalThis.fetch = fetchMock
     fetchMock.mockResolvedValue({
       ok: true,
       json: () =>
@@ -30,7 +30,7 @@ describe('getAppStoreLookup', () => {
   })
 
   it('returns null when no results are returned', async () => {
-    globalThis.fetch = fetchMock as unknown as typeof fetch
+    globalThis.fetch = fetchMock
     fetchMock.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ resultCount: 0, results: [] }),
@@ -39,19 +39,19 @@ describe('getAppStoreLookup', () => {
   })
 
   it('returns null when the response is not ok', async () => {
-    globalThis.fetch = fetchMock as unknown as typeof fetch
+    globalThis.fetch = fetchMock
     fetchMock.mockResolvedValue({ ok: false, json: () => Promise.resolve(null) })
     expect(await getAppStoreLookup('org.useorbit.app')).toBeNull()
   })
 
   it('returns null when fetch rejects', async () => {
-    globalThis.fetch = fetchMock as unknown as typeof fetch
+    globalThis.fetch = fetchMock
     fetchMock.mockRejectedValue(new Error('offline'))
     expect(await getAppStoreLookup('org.useorbit.app')).toBeNull()
   })
 
   it('tolerates a missing trackViewUrl by returning null storeUrl', async () => {
-    globalThis.fetch = fetchMock as unknown as typeof fetch
+    globalThis.fetch = fetchMock
     fetchMock.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ resultCount: 1, results: [{ version: '1.0.0' }] }),

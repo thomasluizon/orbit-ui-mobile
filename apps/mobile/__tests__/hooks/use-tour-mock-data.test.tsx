@@ -28,16 +28,16 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 
 function renderTourMockData(): { inject: () => void; restore: () => void } {
-  let api: { inject: () => void; restore: () => void } | null = null
+  const holder: { current: { inject: () => void; restore: () => void } | null } = { current: null }
   function Harness() {
-    api = useTourMockData()
+    holder.current = useTourMockData()
     return null
   }
   TestRenderer.act(() => {
     TestRenderer.create(<Harness />)
   })
-  if (!api) throw new Error('hook did not return')
-  return api
+  if (!holder.current) throw new Error('hook did not return')
+  return holder.current
 }
 
 function findSetQueryDataCall(
@@ -79,7 +79,7 @@ describe('mobile useTourMockData', () => {
       (call) => JSON.stringify(call[0]) === JSON.stringify({ queryKey: habitKeys.lists() }),
     )
     expect(listCall).toBeDefined()
-    const updater = listCall?.[1] as () => Array<{ id: string }>
+    const updater = listCall?.[1] as () => { id: string }[]
     const habits = updater()
     expect(habits.length).toBeGreaterThan(0)
     expect(habits[0]?.id).toBe('tour-habit-1')
@@ -92,7 +92,7 @@ describe('mobile useTourMockData', () => {
       (call) => JSON.stringify(call[0]) === JSON.stringify({ queryKey: goalKeys.lists() }),
     )
     expect(goalCall).toBeDefined()
-    const updater = goalCall?.[1] as () => Array<{ id: string }>
+    const updater = goalCall?.[1] as () => { id: string }[]
     const goals = updater()
     expect(goals.length).toBeGreaterThan(0)
   })

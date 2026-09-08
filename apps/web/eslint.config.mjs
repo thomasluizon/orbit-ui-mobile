@@ -52,6 +52,14 @@ export default [
     plugins: { sonarjs },
     rules: {
       "@typescript-eslint/no-unnecessary-condition": "error",
+      ...Object.fromEntries(
+        Object.keys(sonarjs.configs.recommended.rules ?? {})
+          .filter((full) => {
+            const rule = sonarjs.rules[full.replace("sonarjs/", "")]
+            return rule?.meta?.type === "problem" && rule?.meta?.docs?.recommended === true
+          })
+          .map((full) => [full, "error"]),
+      ),
       "sonarjs/cognitive-complexity": ["error", 15],
     },
   },
