@@ -37,4 +37,19 @@ describe('mobile i18n interpolation', () => {
     expect(plural(i18n.t('habits.frequency.everyNWeeks', { n: 2 }), 2)).toBe('Every 2 weeks')
     expect(plural(i18n.t('habits.breakdown.createdSuccess', { n: 2 }), 2)).toBe('Created 2 habits successfully')
   })
+
+  it.each([
+    { locale: 'en', count: 0, expected: 'Streak progress is calculated automatically, so it cannot be edited here.' },
+    { locale: 'en', count: 1, expected: 'It comes from the current streak of the linked habit, so it cannot be edited here.' },
+    { locale: 'en', count: 3, expected: 'It comes from the smallest current streak among the 3 linked habits, so it cannot be edited here.' },
+    { locale: 'pt-BR', count: 0, expected: 'O progresso da sequência é calculado automaticamente, então não pode ser editado aqui.' },
+    { locale: 'pt-BR', count: 1, expected: 'Vem da sequência atual do hábito ligado a esta meta, então não pode ser editado aqui.' },
+    { locale: 'pt-BR', count: 3, expected: 'Vem da menor sequência atual entre os 3 hábitos ligados a esta meta, então não pode ser editado aqui.' },
+  ])('renders derived streak copy in $locale at count $count', async ({ locale, count, expected }) => {
+    await i18n.changeLanguage(locale)
+
+    expect(plural(i18n.t('goals.detail.derivedStreak', { count }), count)).toBe(expected)
+
+    await i18n.changeLanguage('en')
+  })
 })

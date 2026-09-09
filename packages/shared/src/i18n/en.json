@@ -281,8 +281,7 @@
     "delete": "Delete",
     "duplicate": "Duplicate",
     "viewDetails": "View details",
-    "addSubHabit": "Add sub-habit",
-    "complete": "Complete"
+    "addSubHabit": "Add sub-habit"
   },
   "rail": {
     "todayProgress": "Today",
@@ -451,8 +450,6 @@
     "emptyGeneral": "No general habits yet",
     "allDoneToday": "That is it for today",
     "allDoneHint": "Everything due today is done.",
-    "allDoneCelebrationTitle": "All done",
-    "allDoneCelebrationSubtitle": "You crushed every habit today.",
     "seeUpcoming": "See tomorrow's habits",
     "noSubHabits": "No sub-habits yet",
     "moveParent": {
@@ -2302,9 +2299,6 @@
     "failedToStop": "Failed to stop recording."
   },
   "goals": {
-    "completedCelebrationTitle": "Goal achieved",
-    "completedCelebrationLabel": "Goal · {name}",
-    "completedCelebrationFiled": "Filed.",
     "tab": "Goals",
     "empty": "No goals yet",
     "create": "New Goal",
@@ -2358,12 +2352,20 @@
       "achieved": "Achieved"
     },
     "detail": {
-      "markCompleted": "Mark Completed",
-      "markAbandoned": "Abandon Goal",
-      "reactivate": "Reactivate",
-      "delete": "Delete Goal",
+      "manualProgress": "Update progress. Reaching the target completes the goal.",
+      "increase": "Increase progress",
+      "decrease": "Decrease progress",
+      "derivedStreak": "Streak progress is calculated automatically, so it cannot be edited here. | It comes from the current streak of the linked habit, so it cannot be edited here. | It comes from the smallest current streak among the {count} linked habits, so it cannot be edited here.",
+      "derivedHabits": "Progress comes from the logs of the linked habits, so it cannot be edited here.",
+      "completeWhyDerived": "The goal reached its target and stays active until you complete it, because the number is recalculated on every read.",
+      "linkedLimit": "{count} habits is the limit for one goal.",
+      "deleteNamed": "The goal “{title}” leaves your list. The habits linked to it stay as they are.",
+      "markCompleted": "Complete goal",
+      "markAbandoned": "Mark abandoned",
+      "reactivate": "Reopen goal",
+      "delete": "Delete goal",
       "deleteConfirm": "This deletes the goal. It cannot be undone.",
-      "edit": "Edit Goal",
+      "edit": "Edit goal",
       "loadError": "Could not load full details. Showing cached data.",
       "showAllHistory": "Show all ({count})",
       "showLessHistory": "Show less",
@@ -2485,9 +2487,12 @@
     "achievements": {
       "empty": "No achievements are available yet.",
       "xp": "{current} / {next} XP",
-      "next": "Next: level {level}, {title}. {xp} XP to go.",
-      "earned": "Earned {date}",
+      "xpProgress": "Progress to the next level",
+      "earnedLabel": "Earned",
+      "earnedState": "{name}, earned",
+      "unearnedState": "{name}, not earned yet",
       "progress": "{current} of {target}",
+      "progressLabel": "Progress for {name}: {current} of {target}",
       "level": "Level {level} · {title}",
       "levelTitles": {
         "starter": "Starter",
@@ -2500,10 +2505,7 @@
         "admiral": "Admiral",
         "elite": "Elite",
         "legend": "Legend"
-      },
-      "lockedTitle": "Achievements",
-      "lockedBody": "Orbit Pro tracks achievements and XP.",
-      "lockedAction": "See Orbit Pro"
+      }
     }
   },
   "gamification": {
@@ -2701,10 +2703,6 @@
         "name": "Unstoppable",
         "description": "Complete 2500 habits total"
       }
-    },
-    "levelUp": {
-      "title": "Level up",
-      "steadyHand": "Steady hand."
     }
   },
   "toast": {
@@ -2720,12 +2718,6 @@
   "streakDisplay": {
     "title": "Streak",
     "daysSuffix": "day | days",
-    "celebration": {
-      "eyebrow": "Streak",
-      "subtitle": "1 day. | {count} days.",
-      "milestone": "Milestone reached",
-      "keepGoing": "Keep it going"
-    },
     "badge": {
       "tooltip": "1 day streak | {count} day streak"
     },
@@ -3243,5 +3235,25 @@
     "reference": "ref {requestId}",
     "throttleTitle": "Too many requests in a short time",
     "throttleBody": "The server asked us to wait before the next request."
+  },
+  "celebration": {
+    "close": "Close",
+    "streak": {
+      "eyebrow": "Streak",
+      "line": "Your streak reached {count} days."
+    },
+    "goal": {
+      "eyebrow": "Goal",
+      "line": "The {name} goal closed at {count} {unit}.",
+      "lineWithoutUnit": "The {name} goal closed at {count}."
+    },
+    "level": {
+      "eyebrow": "Level",
+      "line": "You reached level {level}."
+    },
+    "day": {
+      "eyebrow": "Today",
+      "line": "All {count} habit for today is done. | All {count} habits for today are done."
+    }
   }
 }

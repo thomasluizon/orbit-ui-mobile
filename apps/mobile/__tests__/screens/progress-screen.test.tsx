@@ -114,7 +114,11 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
+  useTranslation: () => ({
+    t: (key: string, values?: Record<string, unknown>) =>
+      values ? `${key}:${JSON.stringify(values)}` : key,
+    i18n: { language: 'en' },
+  }),
 }))
 vi.mock('expo-router', () => ({ useRouter: () => mocks.router }))
 vi.mock('react-native-draggable-flatlist', () => ({
@@ -150,10 +154,10 @@ vi.mock('@/lib/use-app-theme', () => ({
 }))
 vi.mock('@/lib/theme', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
-  const tokens = new Proxy({}, { get: () => '#111111' })
+  const tokens = new Proxy({}, { get: (_target, property) => property === 'statusDone' ? '#status-done' : property === 'fg1' ? '#fg-1' : '#111111' })
   return { ...actual, createTokensV2: () => tokens }
 })
-vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: () => null }))
+vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: (props: { goalId: string; inline?: boolean; onClose: () => void }) => React.createElement('GoalDetail', props) }))
 vi.mock('@/components/ui/pro-badge', () => ({
   ProBadge: () => React.createElement('ProBadge'),
 }))
@@ -193,7 +197,7 @@ describe('mobile ProgressContent', () => {
     const card = tree.root.findAll((node) => typeof node.type === 'string' && node.props.accessibilityLabel === 'Read 12 Books')[0]!
     expect(card.findAll((node) => node.props.children === 'goals.status.active')).toHaveLength(0)
     expect(card.findAll((node) => typeof node.type === 'string' && node.props.testID === 'badge-solid')).toHaveLength(1)
-    expect(card.findAll((node) => node.props.children === 'progressScreen.goals.daysOverdue')).toHaveLength(0)
+    expect(card.findAll((node) => typeof node.props.children === 'string' && node.props.children.startsWith('progressScreen.goals.daysOverdue'))).toHaveLength(0)
   })
 
   it('renders a reached target as a done disc with one badge and no finish entry', async () => {
@@ -405,7 +409,7 @@ describe('mobile ProgressContent', () => {
     ])
   })
 
-  it('renders the three routed plan boundaries', async () => {
+  it('renders the remaining routed plan boundaries', async () => {
     mocks.account.profile.canViewGamification = false
     mocks.account.profile.hasProAccess = false
     const tree = await renderProgress()
@@ -413,9 +417,9 @@ describe('mobile ProgressContent', () => {
     expect(text).toEqual(expect.arrayContaining([
       'progressScreen.streak.lockedBody',
       'progressScreen.window.lockedBody',
-      'progressScreen.achievements.lockedBody',
     ]))
-    expect(tree.root.findAll((node) => node.type === 'ProBadge')).toHaveLength(3)
+    expect(text).not.toContain('progressScreen.achievements.lockedBody')
+    expect(tree.root.findAll((node) => node.type === 'ProBadge')).toHaveLength(2)
     const labels = tree.root.findAll((node) => node.type === 'StatTile').map((node) => node.props.label)
     expect(labels).toContain('progressScreen.streak.longest')
     expect(labels).toContain('streakDisplay.detail.tierTileLabel')
@@ -429,7 +433,7 @@ describe('mobile ProgressContent', () => {
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
 
     expect(text).toEqual(expect.arrayContaining([
-      'progressScreen.streak.currentLabel',
+      'progressScreen.streak.currentLabel:{"count":4}',
       'progressScreen.sections.goals',
       'progressScreen.window.lockedBody',
     ]))
@@ -461,6 +465,69 @@ describe('mobile ProgressContent', () => {
     for (const row of rows) {
       expect(row.findAll((node) => node.type === 'StatTile')).toHaveLength(columns)
     }
+    dimensions.mockRestore()
+  })
+
+  it('draws the XP row before grouped achievements and distinguishes earned shapes from progress', async () => {
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width: 800, height: 892, scale: 1, fontScale: 1 })
+    mocks.gamification.profile.achievements = [
+      {
+        id: 'first_orbit', name: 'First orbit', description: 'Started', category: 'GettingStarted',
+        rarity: 'Common', xpReward: 10, iconKey: 'first_orbit', isEarned: true,
+        earnedAtUtc: '2026-08-01T00:00:00Z', progressCurrent: null, progressTarget: null,
+      },
+      {
+        id: 'week_warrior', name: 'Week warrior', description: 'Seven days', category: 'GettingStarted',
+        rarity: 'Common', xpReward: 20, iconKey: 'week_warrior', isEarned: false,
+        earnedAtUtc: null, progressCurrent: 4, progressTarget: 7,
+      },
+      {
+        id: 'dedicated', name: 'Dedicated', description: 'Keep going', category: 'Consistency',
+        rarity: 'Rare', xpReward: 30, iconKey: 'dedicated', isEarned: true,
+        earnedAtUtc: '2026-08-02T00:00:00Z', progressCurrent: 30, progressTarget: 30,
+      },
+      {
+        id: 'first_friend', name: 'First friend', description: 'Social', category: 'Social',
+        rarity: 'Common', xpReward: 10, iconKey: 'first_friend', isEarned: false,
+        earnedAtUtc: null, progressCurrent: 0, progressTarget: 1,
+      },
+    ]
+
+    const tree = await renderProgress()
+    const hosts = tree.root.findAll((node) => typeof node.type === 'string')
+    const xpSummary = hosts.findIndex((node) => node.props.testID === 'progress-xp-summary')
+    const achievementsHeading = hosts.findIndex((node) => node.props.accessibilityRole === 'header' && node.props.children === 'progressScreen.sections.achievements')
+    expect(xpSummary).toBeGreaterThanOrEqual(0)
+    expect(xpSummary).toBeLessThan(achievementsHeading)
+    expect(tree.root.findAll((node) => typeof node.props.children === 'string' && node.props.children.startsWith('progressScreen.achievements.next'))).toHaveLength(0)
+    const categoryHeadings = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'achievement-category')
+    expect(categoryHeadings.map((node) => node.props.children)).toEqual([
+      'gamification.categories.GettingStarted',
+      'gamification.categories.Consistency',
+    ])
+    expect(categoryHeadings.every((node) => node.props.accessibilityRole === 'header')).toBe(true)
+
+    const earned = tree.root.findAll((node) => node.props.testID === 'achievement-tile-first_orbit')[0]!
+    const progressive = tree.root.findAll((node) => node.props.testID === 'achievement-tile-week_warrior')[0]!
+    const completedProgress = tree.root.findAll((node) => node.props.testID === 'achievement-tile-dedicated')[0]!
+    expect(StyleSheet.flatten(earned.props.style as ViewStyle).width).toBe('48%')
+    expect(earned.findAll((node) => node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
+    expect(progressive.findAll((node) => node.props.accessibilityRole === 'progressbar').length).toBeGreaterThan(0)
+    const completedProgressBar = completedProgress.findAll((node) => node.props.accessibilityRole === 'progressbar')[0]!
+    expect(completedProgressBar.props.accessibilityValue).toEqual({ min: 0, max: 30, now: 30 })
+    expect(completedProgressBar.props.testID).toBe('progress-bar-complete')
+    const earnedMark = earned.findAll((node) => node.props.testID === 'achievement-mark-earned')[0]!
+    const unearnedMark = progressive.findAll((node) => node.props.testID === 'achievement-mark-unearned')[0]!
+    expect(earnedMark.props.accessibilityLabel).toBe('progressScreen.achievements.earnedState:{"name":"gamification.achievements.first_orbit.name"}')
+    expect(unearnedMark.props.accessibilityLabel).toBe('progressScreen.achievements.unearnedState:{"name":"gamification.achievements.week_warrior.name"}')
+    expect(StyleSheet.flatten(earnedMark.props.style as ViewStyle).backgroundColor).toBe('#status-done')
+    expect(earned.findAll((node) => node.props.children === 'progressScreen.achievements.earnedLabel').length).toBeGreaterThan(0)
+    expect(tree.root.findAll((node) => node.props.children === 'gamification.achievements.first_friend.name')).toHaveLength(0)
+
+    dimensions.mockReturnValue({ width: 412, height: 892, scale: 1, fontScale: 1 })
+    const compactTree = await renderProgress()
+    const compactTile = compactTree.root.findAll((node) => node.props.testID === 'achievement-tile-first_orbit')[0]!
+    expect(StyleSheet.flatten(compactTile.props.style as ViewStyle).width).toBe('100%')
     dimensions.mockRestore()
   })
 
@@ -652,6 +719,20 @@ describe('mobile ProgressContent', () => {
     mocks.freeze.isFrozenToday = false
     const open = await renderProgress()
     expect(open.root.findAll((node) => node.props.children === 'progressScreen.streak.frozenToday')).toHaveLength(0)
+  })
+
+  it('stage 5 opens inline detail and returns to its goal list', async () => {
+    mocks.goals.data.allGoals = [createMockGoal()]
+    const tree = await renderProgress()
+    const card = tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'Read 12 Books')[0]
+    if (!card) throw new Error('Goal card missing')
+    TestRenderer.act(() => (card.props.onPress as () => void)())
+    const detail = tree.root.findAll((node) => node.type === 'GoalDetail')[0]
+    if (!detail) throw new Error('Goal detail missing')
+    expect(detail.props.inline).toBe(true)
+    TestRenderer.act(() => (detail.props.onClose as () => void)())
+    expect(tree.root.findAll((node) => node.type === 'GoalDetail')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'Read 12 Books')).toHaveLength(1)
   })
 
   it('keeps the frozen banner, strip and protected-today marker on one timezone snapshot', async () => {

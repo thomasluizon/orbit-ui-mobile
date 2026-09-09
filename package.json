@@ -15,7 +15,8 @@
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
     "test": "turbo run test",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "surfaces:manifest": "node tools/surface-manifest.mjs"
   },
   "devDependencies": {
     "@swc/helpers": "^0.5.15",
@@ -32,7 +33,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-test-renderer": "19.2.7",
-    "sharp": "^0.35.0",
+    "sharp": "^0.35.4",
     "turbo": "^2.9.18",
     "typescript": "^6.0.2"
   },
@@ -52,7 +53,7 @@
     "@orval/zod": "8.20.0",
     "orval": "8.20.0",
     "postcss": "^8.5.18",
-    "sharp": "^0.35.0",
+    "sharp": "^0.35.4",
     "tmp": "^0.2.6",
     "qs": "^6.15.2",
     "uuid": "^11.1.1",

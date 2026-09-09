@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest'
+import { createTranslator } from 'next-intl'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { plural } from '@/lib/plural'
 
 describe('plural', () => {
@@ -61,5 +64,18 @@ describe('plural', () => {
     it('handles strings with more than 3 pipe-separated forms', () => {
       expect(plural('a | b | c | d', 1)).toBe('a | b | c | d')
     })
+  })
+
+  it.each([
+    { locale: 'en', messages: en, count: 0, expected: 'Streak progress is calculated automatically, so it cannot be edited here.' },
+    { locale: 'en', messages: en, count: 1, expected: 'It comes from the current streak of the linked habit, so it cannot be edited here.' },
+    { locale: 'en', messages: en, count: 3, expected: 'It comes from the smallest current streak among the 3 linked habits, so it cannot be edited here.' },
+    { locale: 'pt-BR', messages: ptBR, count: 0, expected: 'O progresso da sequência é calculado automaticamente, então não pode ser editado aqui.' },
+    { locale: 'pt-BR', messages: ptBR, count: 1, expected: 'Vem da sequência atual do hábito ligado a esta meta, então não pode ser editado aqui.' },
+    { locale: 'pt-BR', messages: ptBR, count: 3, expected: 'Vem da menor sequência atual entre os 3 hábitos ligados a esta meta, então não pode ser editado aqui.' },
+  ] as const)('renders derived streak copy in $locale at count $count', ({ locale, messages, count, expected }) => {
+    const t = createTranslator({ locale, messages })
+
+    expect(plural(t('goals.detail.derivedStreak', { count }), count)).toBe(expected)
   })
 })

@@ -138,8 +138,14 @@ describe("shared ui store", () => {
   it("removes queued goal celebrations when they are cleared before becoming active", () => {
     const store = createStoreHarness();
 
-    store.getState().setStreakCelebration({ streak: 5 });
-    store.getState().setGoalCompletedCelebration({ name: "Ship Orbit" });
+    store.getState().setStreakCelebration({ streak: 7 });
+    store
+      .getState()
+      .setGoalCompletedCelebration({
+        name: "Ship Orbit",
+        count: 12,
+        unit: "releases",
+      });
 
     expect(
       store.getState().queuedCelebrations.map((item) => item.kind),
@@ -149,7 +155,7 @@ describe("shared ui store", () => {
 
     expect(store.getState().queuedCelebrations).toEqual([]);
     expect(store.getState().goalCompletedCelebration).toBeNull();
-    expect(store.getState().streakCelebration).toEqual({ streak: 5 });
+    expect(store.getState().streakCelebration).toEqual({ streak: 7 });
   });
 
   it("creates a canonical tour ui state with no filters", () => {

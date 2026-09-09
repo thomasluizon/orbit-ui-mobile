@@ -140,7 +140,6 @@ describe('Progress streak history', () => {
       isToday: true,
     })
   })
-
   it('includes protected today once and formats dates in the requested locale', () => {
     vi.setSystemTime(new Date('2026-09-07T12:00:00Z'))
     const dates = ['2026-09-04', '2026-09-07', '2026-09-07']

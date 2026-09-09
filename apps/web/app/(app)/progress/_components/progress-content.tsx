@@ -70,7 +70,7 @@ const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
 
 function Section({ title, children, compact = false }: Readonly<{ title: string; children: ReactNode; compact?: boolean }>) {
   return (
-    <section className="flex flex-col gap-4" aria-label={title}>
+    <section className={`flex flex-col ${compact ? 'gap-3' : 'gap-4'}`} aria-label={title}>
       <h2 className={compact ? 'text-[14px] font-medium text-[var(--fg-2)]' : 'text-[20px] font-medium text-[var(--fg-1)]'}>{title}</h2>
       {children}
     </section>
@@ -276,12 +276,11 @@ function GoalCard({ goal, index, canReorder, onMove, onOpen }: Readonly<{
   )
 }
 
-function GoalsSection({ goals }: Readonly<{ goals: readonly Goal[] }>) {
+function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; onOpenGoal: (goalId: string) => void }>) {
   const t = useTranslations()
   const router = useRouter()
   const reorder = useReorderGoals()
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
-  const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
   const drag = useGoalDrag(goals, filter === 'all' && !reorder.isPending, reorder.mutate)
   const filtered = filterProgressGoals(goals, filter)
   const move = (goalId: string, target: number) => {
@@ -301,12 +300,11 @@ function GoalsSection({ goals }: Readonly<{ goals: readonly Goal[] }>) {
         <DndContext sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
           {filtered.map((goal) => {
             const index = goals.findIndex((item) => item.id === goal.id)
-            return <GoalCard key={goal.id} goal={goal} index={index} canReorder={filter === 'all' && !reorder.isPending} onMove={move} onOpen={() => setDetailGoalId(goal.id)} />
+            return <GoalCard key={goal.id} goal={goal} index={index} canReorder={filter === 'all' && !reorder.isPending} onMove={move} onOpen={() => onOpenGoal(goal.id)} />
           })}
         </div></SortableContext></DndContext>
       ) : null}
       {reorder.isError ? <p role="alert" className="text-[14px] text-[var(--fg-2)]">{t('progressScreen.goals.reorderError')}</p> : null}
-      {detailGoalId ? <GoalDetailDrawer open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /> : null}
     </section>
   )
 }
@@ -358,17 +356,19 @@ const ACHIEVEMENT_GLYPHS: Record<
   zap: Zap,
 }
 
-function AchievementMark({ achievement }: Readonly<{ achievement: Achievement }>) {
+function AchievementMark({ achievement, name }: Readonly<{ achievement: Achievement; name: string }>) {
   const t = useTranslations()
   const Glyph = ACHIEVEMENT_GLYPHS[achievementGlyphKey(achievement.iconKey)]
   return (
     <span
       role="img"
-      aria-label={achievement.isEarned ? t('goals.status.completed') : t('goals.status.active')}
-      className={`inline-flex size-[30px] items-center justify-center rounded-full ${achievement.isEarned ? 'bg-[var(--fg-1)]' : 'shadow-[inset_0_0_0_1px_var(--hairline-strong)]'}`}
+      aria-label={t(achievement.isEarned ? 'progressScreen.achievements.earnedState' : 'progressScreen.achievements.unearnedState', { name })}
+      className="inline-flex size-8 shrink-0 items-center justify-center rounded-full"
+      data-state={achievement.isEarned ? 'earned' : 'unearned'}
+      style={achievement.isEarned ? { background: 'var(--status-done)' } : { boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)' }}
     >
       <Glyph
-        size={16}
+        size={20}
         strokeWidth={2}
         color={achievement.isEarned ? 'var(--bg)' : 'var(--fg-3)'}
       />
@@ -378,41 +378,54 @@ function AchievementMark({ achievement }: Readonly<{ achievement: Achievement }>
 
 function AchievementTile({ achievement }: Readonly<{ achievement: Achievement }>) {
   const t = useTranslations()
-  const locale = useLocale()
   const current = achievement.progressCurrent
   const target = achievement.progressTarget
-  const date = achievement.earnedAtUtc ? new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(achievement.earnedAtUtc)) : null
+  const hasProgress = current != null && target != null
+  const name = t(`gamification.achievements.${achievement.id}.name`)
   return (
-    <div className="flex min-h-[156px] flex-col gap-2 rounded-[16px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
-      <AchievementMark achievement={achievement} />
-      <p className="text-[12px] font-medium text-[var(--fg-1)]">{t(`gamification.achievements.${achievement.id}.name`)}</p>
-      <p className="text-[11px] leading-[16px] text-[var(--fg-3)]">{t(`gamification.achievements.${achievement.id}.description`)}</p>
-      {current != null && target != null ? <ProgressBar value={current} max={target} label={t('progressScreen.achievements.progress', { current, target })} /> : null}
-      {date ? <p className="mt-auto text-[11px] tabular-nums text-[var(--fg-4)]">{t('progressScreen.achievements.earned', { date })}</p> : null}
+    <div className="flex flex-col gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline-ghost)]" data-achievement-id={achievement.id}>
+      <div className="flex items-center gap-3">
+        <AchievementMark achievement={achievement} name={name} />
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <p className={`text-[14px] font-medium leading-[19px] ${achievement.isEarned ? 'text-[var(--fg-1)]' : 'text-[var(--fg-2)]'}`}>{name}</p>
+          <p className="text-pretty text-[12px] leading-[17px] text-[var(--fg-3)]">{t(`gamification.achievements.${achievement.id}.description`)}</p>
+        </div>
+        {achievement.isEarned ? <Badge>{t('progressScreen.achievements.earnedLabel')}</Badge> : null}
+      </div>
+      {hasProgress ? (
+        <div className="flex flex-col gap-1">
+          <ProgressBar value={current} max={target} label={t('progressScreen.achievements.progressLabel', { name, current, target })} />
+          <p className="font-[var(--font-mono)] text-[12px] leading-[17px] tabular-nums text-[var(--fg-3)]">{t('progressScreen.achievements.progress', { current, target })}</p>
+        </div>
+      ) : null}
     </div>
   )
 }
 
-function AchievementsSection({ profile, canView, xpProgress }: Readonly<{ profile: ReturnType<typeof useGamificationProfile>['profile']; canView: boolean; xpProgress: number }>) {
+function AchievementsSection({ profile, xpProgress }: Readonly<{ profile: ReturnType<typeof useGamificationProfile>['profile']; xpProgress: number }>) {
   const t = useTranslations()
-  if (!canView || !profile) return <Section compact title={t('progressScreen.sections.achievements')}><LockedCard title={t('progressScreen.achievements.lockedTitle')} body={t('progressScreen.achievements.lockedBody')} action={t('progressScreen.achievements.lockedAction')} /></Section>
+  if (!profile) return null
   const achievements = visibleProgressAchievements(profile.achievements)
   const categories = Array.from(new Set(achievements.map((achievement) => achievement.category)))
   const levelTitle = t(getGamificationLevelTitleKey(profile.level))
-  const nextLevelTitle = t(getGamificationLevelTitleKey(profile.nextReward.nextLevel))
   return (
-    <Section compact title={t('progressScreen.sections.achievements')}>
-      <div className="flex flex-col gap-2 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
-        <div className="flex items-baseline justify-between gap-3"><p className="text-[14px] font-medium text-[var(--fg-1)]">{t('progressScreen.achievements.level', { level: profile.level, title: levelTitle })}</p><p className="text-[12px] tabular-nums text-[var(--fg-3)]">{t('progressScreen.achievements.xp', { current: profile.totalXp, next: profile.xpForNextLevel })}</p></div>
-        <ProgressBar value={xpProgress} max={100} label={t('progressScreen.achievements.xp', { current: profile.totalXp, next: profile.xpForNextLevel })} />
-        <p className="text-[11px] text-[var(--fg-3)]">{t('progressScreen.achievements.next', { level: profile.nextReward.nextLevel, title: nextLevelTitle, xp: profile.nextReward.xpToNextLevel })}</p>
+    <>
+      <div className="flex w-full max-w-[560px] flex-col gap-3" data-testid="progress-xp-summary">
+        <div className="flex items-baseline gap-3">
+          <p className="min-w-0 flex-1 text-[17px] font-medium leading-[22px] text-[var(--fg-1)]">{t('progressScreen.achievements.level', { level: profile.level, title: levelTitle })}</p>
+          <p className="font-[var(--font-mono)] text-[12px] leading-[17px] tabular-nums text-[var(--fg-3)]">{t('progressScreen.achievements.xp', { current: profile.totalXp, next: profile.xpForNextLevel })}</p>
+        </div>
+        <ProgressBar value={xpProgress} max={100} label={t('progressScreen.achievements.xpProgress')} />
       </div>
-      {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <div key={category} className="flex flex-col gap-3"><h3 className="text-[12px] font-medium text-[var(--fg-2)]">{t(`gamification.categories.${category}`)}</h3><div className="grid grid-cols-1 gap-3 md:grid-cols-2">{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} />)}</div></div>)}
-    </Section>
+      <Section compact title={t('progressScreen.sections.achievements')}>
+        {achievements.length === 0 ? <EmptyState title={t('progressScreen.achievements.empty')} /> : categories.map((category) => <div key={category} className="flex flex-col gap-3"><h3 className="pt-1 text-[14px] font-medium leading-5 text-[var(--fg-2)]">{t(`gamification.categories.${category}`)}</h3><div className="grid grid-cols-1 gap-3 md:grid-cols-2">{achievements.filter((achievement) => achievement.category === category).map((achievement) => <AchievementTile key={achievement.id} achievement={achievement} />)}</div></div>)}
+      </Section>
+    </>
   )
 }
 
 export function ProgressContent() {
+  const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
   const t = useTranslations()
   const router = useRouter()
   const account = useProfile()
@@ -428,11 +441,14 @@ export function ProgressContent() {
   }
   return (
     <main className="flex w-full flex-col gap-8 px-4 py-4 md:px-0">
+      {detailGoalId ? <GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /> : null}
+      <div hidden={detailGoalId !== null} className="flex flex-col gap-8">
       <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {error ? <div className="w-full max-w-[620px]"><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
       {empty ? <div className="pt-12"><EmptyState title={t('progressScreen.empty')} action={<PillButton variant="ghost" size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></div> : null}
-      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} /><GoalsSection goals={allGoals} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} /><AchievementsSection profile={gamification.profile} canView={canView} xpProgress={gamification.xpProgress} /></> : null}
+      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} /><AchievementsSection profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
+      </div>
     </main>
   )
 }

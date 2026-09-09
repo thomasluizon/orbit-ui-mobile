@@ -281,8 +281,7 @@
     "delete": "Excluir",
     "duplicate": "Duplicar",
     "viewDetails": "Ver detalhes",
-    "addSubHabit": "Adicionar sub-hábito",
-    "complete": "Concluir"
+    "addSubHabit": "Adicionar sub-hábito"
   },
   "rail": {
     "todayProgress": "Hoje",
@@ -451,8 +450,6 @@
     "emptyGeneral": "Nenhum hábito geral ainda",
     "allDoneToday": "Por hoje é isso",
     "allDoneHint": "Tudo que vencia hoje está feito.",
-    "allDoneCelebrationTitle": "Tudo feito",
-    "allDoneCelebrationSubtitle": "Você arrasou em todos os hábitos hoje.",
     "seeUpcoming": "Ver hábitos de amanhã",
     "noSubHabits": "Nenhum sub-hábito ainda",
     "moveParent": {
@@ -2302,9 +2299,6 @@
     "failedToStop": "Não foi possível parar a gravação."
   },
   "goals": {
-    "completedCelebrationTitle": "Meta alcançada",
-    "completedCelebrationLabel": "Meta · {name}",
-    "completedCelebrationFiled": "Arquivada.",
     "tab": "Metas",
     "empty": "Nenhuma meta ainda",
     "create": "Nova meta",
@@ -2358,9 +2352,17 @@
       "achieved": "Alcançada"
     },
     "detail": {
-      "markCompleted": "Marcar como concluída",
-      "markAbandoned": "Abandonar meta",
-      "reactivate": "Reativar",
+      "manualProgress": "Atualize o progresso. Ao alcançar o alvo, a meta é concluída.",
+      "increase": "Aumentar progresso",
+      "decrease": "Diminuir progresso",
+      "derivedStreak": "O progresso da sequência é calculado automaticamente, então não pode ser editado aqui. | Vem da sequência atual do hábito ligado a esta meta, então não pode ser editado aqui. | Vem da menor sequência atual entre os {count} hábitos ligados a esta meta, então não pode ser editado aqui.",
+      "derivedHabits": "O progresso vem dos registros dos hábitos ligados a esta meta, então não é editável aqui.",
+      "completeWhyDerived": "A meta chegou ao alvo e continua ativa até você concluir, porque o número é recalculado a cada leitura.",
+      "linkedLimit": "{count} hábitos é o limite por meta.",
+      "deleteNamed": "A meta “{title}” sai da sua lista. Os hábitos ligados a ela continuam como estão.",
+      "markCompleted": "Concluir meta",
+      "markAbandoned": "Marcar abandonada",
+      "reactivate": "Reabrir meta",
       "delete": "Excluir meta",
       "deleteConfirm": "Quer mesmo excluir esta meta? Não dá para desfazer.",
       "edit": "Editar meta",
@@ -2485,9 +2487,12 @@
     "achievements": {
       "empty": "Ainda não há conquistas disponíveis.",
       "xp": "{current} / {next} XP",
-      "next": "Próximo: nível {level}, {title}. Faltam {xp} XP.",
-      "earned": "Conquistada em {date}",
+      "xpProgress": "Progresso até o próximo nível",
+      "earnedLabel": "Conquistada",
+      "earnedState": "{name}, conquistada",
+      "unearnedState": "{name}, ainda não conquistada",
       "progress": "{current} de {target}",
+      "progressLabel": "Progresso de {name}: {current} de {target}",
       "level": "Nível {level} · {title}",
       "levelTitles": {
         "starter": "Iniciante",
@@ -2500,10 +2505,7 @@
         "admiral": "Almirante",
         "elite": "Elite",
         "legend": "Lenda"
-      },
-      "lockedTitle": "Conquistas",
-      "lockedBody": "O Orbit Pro acompanha conquistas e XP.",
-      "lockedAction": "Ver o Orbit Pro"
+      }
     }
   },
   "gamification": {
@@ -2701,10 +2703,6 @@
         "name": "Imbatível",
         "description": "Complete 2500 hábitos no total"
       }
-    },
-    "levelUp": {
-      "title": "Subiu de nível",
-      "steadyHand": "Mão firme."
     }
   },
   "toast": {
@@ -2720,12 +2718,6 @@
   "streakDisplay": {
     "title": "Sequência",
     "daysSuffix": "dia | dias",
-    "celebration": {
-      "eyebrow": "Sequência",
-      "subtitle": "{count} dia. | {count} dias.",
-      "milestone": "Marco alcançado",
-      "keepGoing": "Continue assim"
-    },
     "badge": {
       "tooltip": "Sequência de {count} dia | Sequência de {count} dias"
     },
@@ -3243,5 +3235,25 @@
     "reference": "ref {requestId}",
     "throttleTitle": "Muitos pedidos em pouco tempo",
     "throttleBody": "O servidor pediu para esperar antes do próximo pedido."
+  },
+  "celebration": {
+    "close": "Fechar",
+    "streak": {
+      "eyebrow": "Sequência",
+      "line": "A sua sequência chegou a {count} dias."
+    },
+    "goal": {
+      "eyebrow": "Meta",
+      "line": "A meta {name} fechou em {count} {unit}.",
+      "lineWithoutUnit": "A meta {name} fechou em {count}."
+    },
+    "level": {
+      "eyebrow": "Nível",
+      "line": "Você chegou ao nível {level}."
+    },
+    "day": {
+      "eyebrow": "Hoje",
+      "line": "O {count} hábito de hoje está feito. | Os {count} hábitos de hoje estão feitos."
+    }
   }
 }
