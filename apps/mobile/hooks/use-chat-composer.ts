@@ -461,6 +461,9 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       );
 
       const invalidations = selectActionInvalidations(response.actions);
+      if (invalidations.habits || invalidations.tags) {
+        void queryClient.invalidateQueries({ queryKey: habitKeys.searches() });
+      }
       if (invalidations.habits) {
         void queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
       }
@@ -849,6 +852,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
   const handleBreakdownConfirmed = useCallback(() => {
     void queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
+    void queryClient.invalidateQueries({ queryKey: habitKeys.searches() });
   }, [queryClient]);
 
   return {

@@ -254,16 +254,16 @@
     "offlineLog": "Saved on this device. Orbit will sync it when you reconnect."
   },
   "command": {
-    "title": "Commands",
-    "placeholder": "Type a command or search...",
-    "empty": "No results found",
+    "title": "What do you want to do",
+    "placeholder": "Search or run",
+    "empty": "Nothing by that name.",
     "logHabit": "Log a habit",
     "skipHabit": "Skip a habit",
     "createHabit": "Create habit",
     "groups": {
       "create": "Create",
       "actions": "Actions",
-      "destinations": "Destinations",
+      "destinations": "Go to",
       "navigate": "Navigate",
       "search": "Habits"
     },
@@ -272,6 +272,10 @@
       "select": "Select",
       "back": "Back",
       "close": "Close"
+    },
+    "page": {
+      "log": "Log",
+      "skip": "Skip"
     }
   },
   "contextMenu": {
@@ -417,9 +421,22 @@
       "scheduledOn": "scheduled {date}"
     },
     "search": {
-      "matchTag": "tag: {value}",
-      "matchChild": "sub-habit: {value}",
-      "matchDescription": "in description"
+      "matchTitle": "in the name",
+      "matchDescription": "in the description",
+      "matchTag": "in the tag",
+      "matchChild": "inside",
+      "title": "Search habits",
+      "searching": "Searching",
+      "emptyTitle": "Nothing found for <queryText>“{query}”</queryText>",
+      "emptyBody": "No habit with that name, that description or that tag.",
+      "create": "Create with that name",
+      "count": "{count, plural, one {# habit} other {# habits}}",
+      "count_one": "{count} habit",
+      "count_other": "{count} habits",
+      "open": "Open {name}",
+      "next": "Next",
+      "previous": "Previous",
+      "loadError": "Could not load habits."
     },
     "createHabit": "Create Habit",
     "askAstra": "Ask Astra",

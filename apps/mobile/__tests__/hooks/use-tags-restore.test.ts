@@ -6,6 +6,8 @@ import { useDeleteTag, useRestoreTag } from '@/hooks/use-tags'
 
 const mocks = vi.hoisted(() => ({
   queryClient: {
+    getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
     invalidateQueries: vi.fn(async () => {}),
     cancelQueries: vi.fn(async () => {}),
     getQueriesData: vi.fn(() => []),

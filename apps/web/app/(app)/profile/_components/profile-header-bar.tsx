@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { SearchHeaderAction } from '@/components/search/search-header-action'
 import { AppBar } from '@/components/ui/app-bar'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
@@ -23,7 +24,7 @@ export function ProfileHeaderBar({ streak, error }: Readonly<ProfileHeaderBarPro
 
   return (
     <>
-      <AppBar title={t('nav.profile')} />
+      <AppBar title={t('nav.profile')} action={<SearchHeaderAction />} />
       <div data-testid="profile-header-actions" className="flex shrink-0 items-center justify-end gap-3 px-4 pb-3">
         <ThemeToggle />
         <span data-tour="tour-streak-badge">

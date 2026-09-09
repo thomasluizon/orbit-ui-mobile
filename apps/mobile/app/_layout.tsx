@@ -55,6 +55,7 @@ import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
+import { SearchHeader } from '@/components/search/search-header-action'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Fab } from '@/components/ui/fab'
 import { Plus } from '@/components/ui/icons'
@@ -137,6 +138,7 @@ function RootStackScreens({
 
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="search" />
         <Stack.Screen name="notifications" />
         <Stack.Screen
           name="chat"
@@ -295,6 +297,8 @@ function RootLayoutNav() {
       <View style={{ flex: 1 }}>
         {showBottomNav ? (
           <Shell412
+            header={<SearchHeader pathname={pathname} />}
+            safeAreaTop={['/', '/calendar', '/progress', '/profile', '/search'].includes(pathname)}
             {...conversation}
             composer={pathname === '/notifications' ? undefined : (
               <Composer
@@ -318,7 +322,11 @@ function RootLayoutNav() {
             />
           </Shell412>
         ) : (
-          <Shell412 nav={false} notice={isAuthenticated ? <OfflineNotice /> : undefined}>
+          <Shell412
+            nav={false}
+            safeAreaTop={pathname === '/search'}
+            notice={isAuthenticated ? <OfflineNotice /> : undefined}
+          >
             <RootStackScreens
               screenBackgroundColor={surfaces.screen.backgroundColor}
             />

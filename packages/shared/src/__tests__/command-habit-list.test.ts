@@ -1,0 +1,122 @@
+import { describe, expect, it } from 'vitest'
+import type { NormalizedHabit } from '../types/habit'
+import { buildCommandHabitList } from '../utils/command-habit-list'
+import { formatAPIDate } from '../utils/dates'
+import { createMockHabit } from './factories'
+
+function buildInput(habits: NormalizedHabit[]) {
+  const childrenByParent = new Map<string, string[]>()
+  for (const habit of habits) {
+    if (habit.parentId === null) continue
+    const siblings = childrenByParent.get(habit.parentId) ?? []
+    siblings.push(habit.id)
+    childrenByParent.set(habit.parentId, siblings)
+  }
+  return {
+    habitsById: new Map(habits.map((habit) => [habit.id, habit])),
+    childrenByParent,
+    topLevelHabits: habits.filter((habit) => habit.parentId === null),
+  }
+}
+
+function scheduledHabit(id: string, overrides: Partial<NormalizedHabit> = {}) {
+  return createMockHabit({
+    id,
+    title: id,
+    dueDate: '2099-01-01',
+    scheduledDates: ['2099-01-01'],
+    ...overrides,
+  })
+}
+
+describe('buildCommandHabitList', () => {
+  it('returns no choices for an empty collection', () => {
+    expect(buildCommandHabitList(buildInput([]))).toEqual([])
+  })
+
+  it.each(['title', 'description', 'tag'] as const)('offers only habits with their own %s match on a searched action page', (field) => {
+    const parent = scheduledHabit('parent', { hasSubHabits: true, searchMatches: [{ field: 'child', value: 'walk' }] })
+    const unrelated = scheduledHabit('unrelated', { parentId: parent.id })
+    const target = scheduledHabit('target', { parentId: parent.id, searchMatches: [{ field, value: field === 'tag' ? 'walk' : null }] })
+    const finished = scheduledHabit('finished', { parentId: parent.id, frequencyUnit: null, isCompleted: true, searchMatches: [{ field: 'title', value: null }] })
+
+    expect(buildCommandHabitList(buildInput([parent, unrelated, target, finished]), 'walk')).toEqual([
+      { habit: target, parentTitle: parent.title },
+    ])
+  })
+
+  /**
+   * The producer reports a descendant match as `child` on EVERY ancestor above it, at any depth,
+   * and keeps `description` and `tag` on the habit whose own field matched. A picker that offered
+   * an ancestor would log or skip the wrong habit.
+   */
+  it.each(['description', 'tag'] as const)('offers only the matching grandchild when a %s match reaches two ancestors', (field) => {
+    const grandparent = scheduledHabit('grandparent', { hasSubHabits: true, searchMatches: [{ field: 'child', value: 'walk' }] })
+    const parent = scheduledHabit('parent', { parentId: grandparent.id, hasSubHabits: true, searchMatches: [{ field: 'child', value: 'walk' }] })
+    const grandchild = scheduledHabit('grandchild', { parentId: parent.id, searchMatches: [{ field, value: field === 'tag' ? 'walk' : null }] })
+
+    expect(buildCommandHabitList(buildInput([grandparent, parent, grandchild]), 'walk')).toEqual([
+      { habit: grandchild, parentTitle: parent.title },
+    ])
+  })
+
+  it('retains a parent that also matches in its own field', () => {
+    const parent = scheduledHabit('parent', { searchMatches: [{ field: 'child', value: 'walk' }, { field: 'description', value: null }] })
+    const unrelated = scheduledHabit('unrelated')
+
+    expect(buildCommandHabitList(buildInput([parent, unrelated]), 'walk')).toEqual([
+      { habit: parent, parentTitle: null },
+    ])
+  })
+
+  it('puts Today choices before the All remainder without repeating either', () => {
+    const today = formatAPIDate(new Date())
+    const later = scheduledHabit('later')
+    const due = scheduledHabit('due', { dueDate: today, scheduledDates: [today] })
+    const overdue = scheduledHabit('overdue', { isOverdue: true })
+    const general = scheduledHabit('general', { isGeneral: true })
+
+    expect(buildCommandHabitList(buildInput([later, due, overdue, general]))).toEqual([
+      { habit: due, parentTitle: null },
+      { habit: overdue, parentTitle: null },
+      { habit: general, parentTitle: null },
+      { habit: later, parentTitle: null },
+    ])
+  })
+
+  it('omits finished one-time choices but keeps completed recurring habits for later use', () => {
+    const finished = scheduledHabit('finished', { frequencyUnit: null, isCompleted: true })
+    const recurring = scheduledHabit('recurring', { isCompleted: true, isLoggedInRange: true })
+
+    expect(buildCommandHabitList(buildInput([finished, recurring]))).toEqual([
+      { habit: recurring, parentTitle: null },
+    ])
+  })
+
+  it('walks nested choices in position order and names each immediate parent', () => {
+    const parent = scheduledHabit('parent', { hasSubHabits: true })
+    const last = scheduledHabit('last', { parentId: parent.id, position: 2 })
+    const first = scheduledHabit('first', { parentId: parent.id, position: 1, hasSubHabits: true })
+    const grandchild = scheduledHabit('grandchild', { parentId: first.id })
+    const finished = scheduledHabit('finished', { parentId: parent.id, frequencyUnit: null, isCompleted: true })
+
+    expect(buildCommandHabitList(buildInput([parent, last, first, grandchild, finished]))).toEqual([
+      { habit: parent, parentTitle: null },
+      { habit: first, parentTitle: parent.title },
+      { habit: grandchild, parentTitle: first.title },
+      { habit: last, parentTitle: parent.title },
+    ])
+  })
+
+  it('adds future children after Today choices without repeating the parent or active child', () => {
+    const parent = scheduledHabit('parent', { hasSubHabits: true })
+    const future = scheduledHabit('future', { parentId: parent.id, position: 0 })
+    const active = scheduledHabit('active', { parentId: parent.id, isOverdue: true, position: 1 })
+
+    expect(buildCommandHabitList(buildInput([parent, future, active]))).toEqual([
+      { habit: parent, parentTitle: null },
+      { habit: active, parentTitle: parent.title },
+      { habit: future, parentTitle: parent.title },
+    ])
+  })
+})

@@ -1,3 +1,4 @@
+import type { HabitListKey, HabitListSnapshots } from '@orbit/shared/query'
 import type { QueryClient } from '@tanstack/react-query'
 import {
   gamificationKeys,
@@ -25,15 +26,15 @@ interface CachedTag {
   color: string
 }
 
-export function snapshotHabitLists(queryClient: QueryClient) {
+export function snapshotHabitLists(queryClient: QueryClient): HabitListSnapshots {
   return queryClient.getQueriesData<HabitScheduleItem[]>({
     queryKey: habitKeys.lists(),
-  })
+  }).filter((entry): entry is [HabitListKey, HabitScheduleItem[] | undefined] => entry[0][0] === 'habits' && entry[0][1] === 'list')
 }
 
 export function restoreHabitLists(
   queryClient: QueryClient,
-  snapshots: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[],
+  snapshots: HabitListSnapshots,
 ): void {
   for (const [key, data] of snapshots) {
     if (data) {
@@ -44,7 +45,7 @@ export function restoreHabitLists(
 
 export function restoreHabitCompletionForIds(
   queryClient: QueryClient,
-  snapshots: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[],
+  snapshots: HabitListSnapshots,
   habitIds: ReadonlySet<string>,
 ): void {
   for (const [key, snapshot] of snapshots) {
@@ -69,7 +70,7 @@ export function updateHabitLists(
   queryClient: QueryClient,
   updater: (items: HabitScheduleItem[]) => HabitScheduleItem[],
 ): void {
-  queryClient.setQueriesData<HabitScheduleItem[]>(
+  queryClient.setQueriesData<HabitScheduleItem[], { queryKey: HabitListKey }>(
     { queryKey: habitKeys.lists() },
     (old) => (old ? updater(old) : old),
   )
@@ -696,6 +697,7 @@ export function invalidateHabitMutationQueries(
 ): void {
   const invalidations: Promise<unknown>[] = [
     queryClient.invalidateQueries({ queryKey: habitKeys.lists() }),
+    queryClient.invalidateQueries({ queryKey: habitKeys.searches() }),
     queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() }),
     /**
      * The mounted summary MUST refetch, so this cannot narrow to `refetchType: 'none'`. `useSummary`
@@ -739,6 +741,12 @@ export function invalidateHabitMutationQueries(
   runBackgroundInvalidations(invalidations)
 }
 
+export function discardCachedHabitSearches(queryClient: QueryClient): void {
+  const filters = { queryKey: habitKeys.searches() }
+  for (const query of queryClient.getQueryCache().findAll(filters)) query.reset()
+  queryClient.removeQueries(filters)
+}
+
 export function finalizeHabitMutation(
   queryClient: QueryClient,
   data: unknown,
@@ -746,6 +754,7 @@ export function finalizeHabitMutation(
   options?: HabitInvalidationOptions,
 ): void {
   if (isQueuedResult(data)) {
+    discardCachedHabitSearches(queryClient)
     return
   }
 

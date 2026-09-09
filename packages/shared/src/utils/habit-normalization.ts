@@ -4,6 +4,7 @@ import type {
   HabitScheduleItem,
   LinkedGoalUpdate,
   NormalizedHabit,
+  PaginatedResponse,
 } from '../types/habit'
 import type { Goal } from '../types/goal'
 import { formatAPIDate } from './dates'
@@ -128,6 +129,7 @@ export function buildChildrenIndex(
 
 export function normalizeHabitQueryData(
   items: HabitScheduleItem[],
+  pagination?: Pick<PaginatedResponse<HabitScheduleItem>, 'totalCount' | 'totalPages' | 'page'>,
 ): NormalizedHabitQueryData {
   const habitsById = normalizeHabits(items)
   const childrenByParent = buildChildrenIndex(habitsById)
@@ -139,9 +141,9 @@ export function normalizeHabitQueryData(
     habitsById,
     childrenByParent,
     topLevelHabits,
-    totalCount: items.length,
-    totalPages: 1,
-    currentPage: 1,
+    totalCount: pagination?.totalCount ?? items.length,
+    totalPages: pagination?.totalPages ?? 1,
+    currentPage: pagination?.page ?? 1,
   }
 }
 
