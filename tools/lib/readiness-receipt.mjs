@@ -287,6 +287,24 @@ const REVIEW_PAGE_QUERY = `query ReviewPage($owner: String!, $name: String!, $nu
   }
 }`
 
+/**
+ * The truncation flag of a review connection, or null when the response is not the confirmed shape.
+ *
+ * `PageInfo` is NON_NULL and `PageInfo.hasPreviousPage` is NON_NULL `Boolean` (introspected
+ * 2026-09-09), so an absent, null or non-boolean value is a BROKEN response and never `false`.
+ * Reading it as `=== true` coerced exactly that case into "nothing older remains", which
+ * `resolveReviewVerdict` then reported as a PROVEN absence. That is the fail-shut inversion this
+ * file keeps warning about, one layer further down: a malformed page could hide a real exact-head
+ * approval and be recorded as evidence that none exists.
+ *
+ * `startCursor` stays NULLABLE by contract, so a missing cursor is not a broken read; it simply ends
+ * the walk as incomplete.
+ */
+const truncationOf = (connection) => {
+  const hasPreviousPage = connection?.pageInfo?.hasPreviousPage
+  return typeof hasPreviousPage === "boolean" ? hasPreviousPage : null
+}
+
 /** The one argv both readers send for an older review page, for the same reason they share the
  * state argv: two spellings of the same walk is how the two readers drift apart. */
 export const reviewPageArgv = (repository, prNumber, before) => {
@@ -313,10 +331,13 @@ export const reviewPageFromGraphQl = (payload) => {
     if (!normalized) return null
     reviews.push(normalized)
   }
+  if (connection === null) return { reviews, truncated: false, startCursor: null }
+  const truncated = truncationOf(connection)
+  if (truncated === null) return null
   return {
     reviews,
-    truncated: connection?.pageInfo?.hasPreviousPage === true,
-    startCursor: typeof connection?.pageInfo?.startCursor === "string" ? connection.pageInfo.startCursor : null,
+    truncated,
+    startCursor: typeof connection.pageInfo.startCursor === "string" ? connection.pageInfo.startCursor : null,
   }
 }
 
@@ -434,11 +455,12 @@ export const pullRequestStateFromGraphQl = (payload) => {
    * `totalCount: 112` with `hasPreviousPage: true`, and one commit there carried fourteen reviews
    * inside thirty minutes, so the window is a real bound and not a theoretical one.
    *
-   * `pageInfo` is NON_NULL and `hasPreviousPage` is NON_NULL Boolean, but `startCursor` is a
-   * NULLABLE String (introspected 2026-09-09), so an absent cursor reads as no cursor rather than a
-   * broken response.
+   * `pageInfo` is NON_NULL and `hasPreviousPage` is NON_NULL Boolean (introspected 2026-09-09), so a
+   * missing or non-boolean flag is a broken read and is refused by `truncationOf` rather than
+   * silently becoming `false`. `startCursor` is NULLABLE, so an absent cursor reads as no cursor.
    */
-  const reviewsTruncated = reviewsConnection?.pageInfo?.hasPreviousPage === true
+  const reviewsTruncated = reviewsConnection === null || reviewsConnection === undefined ? false : truncationOf(reviewsConnection)
+  if (reviewsTruncated === null) return null
   const reviewsStartCursor = typeof reviewsConnection?.pageInfo?.startCursor === "string" ? reviewsConnection.pageInfo.startCursor : null
   return { number, baseRefName, baseRefOid, headRefOid, isDraft, statusCheckRollup, reviews, reviewsTruncated, reviewsStartCursor }
 }

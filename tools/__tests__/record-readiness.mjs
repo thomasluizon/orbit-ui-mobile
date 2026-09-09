@@ -94,7 +94,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     const evidence = JSON.parse(readFileSync(delivery, "utf8"))
     const observed = pullRequestStateFromGraphQl({ data: { repository: { pullRequest: {
       number: 700, baseRefName, baseRefOid: BASE, headRefOid: HEAD, isDraft: false,
-      reviews: { nodes: approvedAtHead },
+      reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: approvedAtHead },
       statusCheckRollup: { contexts: { nodes } },
     } } } })
     evidence.checks.pullRequestState.baseBranch = baseRefName
@@ -111,7 +111,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
         baseRefOid,
         headRefOid,
         isDraft: options.isDraft ?? false,
-        reviews: { nodes: options.reviews ?? approvedAtHead },
+        reviews: { pageInfo: { hasPreviousPage: false, startCursor: null }, nodes: options.reviews ?? approvedAtHead },
         statusCheckRollup: { contexts: { nodes: options.statusCheckRollup ?? [greenCheck, approval] } },
       } } } }) },
       /**
