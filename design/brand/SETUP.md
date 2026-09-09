@@ -185,7 +185,7 @@ ORBIT DESIGN SYSTEM. Dark is primary and light is mandatory. Two variants, never
 
 ACCENT: exactly ONE, #C4530F, a dark fill with #FFFFFF text on it. I may adjust this byte on the canvas. The accent takes FOUR roles and nothing outside them: (1) the next action, meaning the primary button, the floating action button, and an empty state invitation arc; (2) current position, meaning the active tab, active nav item, a selected card or option including its tint and ring, and a focused field ring; (3) progress toward something UNFINISHED; (4) one single element inside the logo mark. It NEVER marks completion: a progress ring at 100% goes neutral and a completed row is neutral. It is never decorative on a card, a row, a border, a heading, a static badge or chip, or an icon that is not communicating state. Fill exactly one action per view. Put the colour on the background, not on the label.
 
-CANVAS AND SURFACES, dark: background #09090B, near black and never pure black. Surfaces are white alpha over that canvas, never lighter hex values: card rgba(250,250,250,0.04), field 0.06, well 0.08, second elevation 0.12, hover 0.14. The overlay panel is OPAQUE #1C1C1E, because it sits over arbitrary content. Hairline rgba(255,255,255,0.08), strong hairline 0.16. Scrim rgba(0,0,0,0.55).
+CANVAS AND SURFACES, dark: background #09090B, near black and never pure black. Surfaces are white alpha over that canvas, never lighter hex values: card rgba(250,250,250,0.04), field 0.06, well 0.08, second elevation 0.12, hover 0.13. The overlay panel is OPAQUE #1C1C1E, because it sits over arbitrary content. Hairline rgba(255,255,255,0.08), strong hairline 0.16. Scrim rgba(0,0,0,0.55).
 FOREGROUND, dark: #F4F4F6, #C9C9CC, #8F8F93, #5D5D60.
 LIGHT MODE: background #FAFAFA, cards opaque #FFFFFF, foreground #1A1A1D, #424247, #68686D, #89898D. Light is not dark reversed. Remeasure every pair.
 
@@ -244,7 +244,7 @@ Compare the answer against these rows. A miss is a re-import, not a note to self
 | number of modes | **2**, dark and light | same |
 | foreground ramp, dark | `#F4F4F6` `#C9C9CC` `#8F8F93` `#5D5D60` | Dark mode block |
 | foreground ramp, light | `#1A1A1D` `#424247` `#68686D` `#89898D` | Light mode block |
-| surface ladder, dark | alpha `0.04 / 0.06 / 0.08 / 0.12`, hover `0.14` | `## Surface rules` |
+| surface ladder, dark | alpha `0.04 / 0.06 / 0.08 / 0.12`, hover `0.13` | `## Surface rules` |
 | overlay panel | opaque `#1C1C1E`, never an alpha value | `## Overlay`, Anatomy |
 | accent count | exactly **1** | `### The accent` |
 | `--status-done` | an `--fg-1` disc, **not** the accent | Dark mode block, and `## Habit list` |

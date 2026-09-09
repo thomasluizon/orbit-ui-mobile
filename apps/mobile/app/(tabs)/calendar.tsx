@@ -421,7 +421,7 @@ export default function CalendarScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
       <SectionHeadTabs tabs={viewTabs} active={view} onChange={setView} />
       {view !== "week" ? (
         <CalendarHeader

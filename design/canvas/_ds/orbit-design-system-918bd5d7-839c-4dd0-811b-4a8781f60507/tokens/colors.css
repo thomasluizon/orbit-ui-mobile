@@ -8,7 +8,7 @@
   --p-well:rgba(250,250,250,0.08);
   --p-elev:#1C1C1E;               /* overlay panel: OPAQUE, sits over arbitrary content */
   --p-elev2:rgba(250,250,250,0.12);
-  --p-hover:rgba(250,250,250,0.14);
+  --p-hover:rgba(250,250,250,0.13);   /* amended 2026-09-09: 0.14 left fg-3 at 4.39, under the 4.5 text floor */
   --p-sunk:rgba(0,0,0,0.28);
   --p-hair:rgba(255,255,255,0.08);
   --p-hair-ghost:rgba(255,255,255,0.10);
