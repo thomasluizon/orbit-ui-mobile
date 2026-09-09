@@ -10,6 +10,8 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.Icon
+import android.os.Build
 import android.util.Log
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
@@ -63,27 +65,59 @@ data class HabitWidgetResponse(
     val totalCount: Int?
 )
 
-/** Resolved v8 token colors for the active scheme + mode, synced from JS. */
+/** Resolved granted token colors for the active scheme + mode, synced from JS. */
 data class WidgetColors(
-    val primary: Int,
     val background: Int,
     val surface: Int,
     val surfaceGround: Int,
     val textPrimary: Int,
+    val textSecondary: Int,
     val textMuted: Int,
     val border: Int,
     val borderMuted: Int,
     val overdue: Int,
     val streak: Int,
+    val streakText: Int,
     val statusEmpty: Int
 )
+
+data class WidgetColorModes(
+    val light: WidgetColors,
+    val dark: WidgetColors
+)
+
+internal fun RemoteViews.setModeAwareColor(
+    viewId: Int,
+    methodName: String,
+    colorModes: WidgetColorModes,
+    color: (WidgetColors) -> Int
+) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        setColorInt(viewId, methodName, color(colorModes.light), color(colorModes.dark))
+    }
+}
+
+internal fun RemoteViews.setModeAwareBitmap(
+    viewId: Int,
+    lightBitmap: Bitmap,
+    darkBitmap: Bitmap
+) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        setIcon(
+            viewId,
+            "setImageIcon",
+            Icon.createWithBitmap(lightBitmap),
+            Icon.createWithBitmap(darkBitmap)
+        )
+    }
+}
 
 class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.RemoteViewsFactory {
 
     private var habits: List<HabitItem> = emptyList()
     private var headerLabel: String = "Today"
     private var lang: String = "en"
-    private var colors: WidgetColors = defaultColors()
+    private var colorModes: WidgetColorModes = defaultColorModes()
     private val gson = Gson()
 
     companion object {
@@ -98,26 +132,8 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         // capped bitmap upscales to fill with the radius/stroke scaled to match.
         private const val MAX_BITMAP_DIMENSION = 512
 
-        /** Terminal color fallback (navy-dark surface) when a value is blank or malformed. */
-        private const val SAFE_FALLBACK = 0xFF020618.toInt()
-
-        // Bootstrap fallback for the first paint before JS syncs the
-        // active scheme into SharedPreferences. The full per-scheme palette lives
-        // in the app's createTokensV2 and arrives via OrbitWidgetModule.syncTheme;
-        // alpha tokens arrive pre-flattened over the canvas, mirrored here.
-        private val FALLBACK_COLORS = mapOf(
-            "primary" to "#C4530F",
-            "background" to "#020618",
-            "surface" to "#111526",
-            "surfaceGround" to "#010411",
-            "textPrimary" to "#f8fafc",
-            "textMuted" to "#90a1b9",
-            "border" to "#1b1e2f",
-            "borderMuted" to "#2e3241",
-            "overdue" to "#fe9a00",
-            "streak" to "#fe9a00",
-            "statusEmpty" to "#383c4a"
-        )
+        /** WHY: --bg is the terminal fallback when a synced value is malformed. */
+        private const val SAFE_FALLBACK = 0xFF09090B.toInt()
 
         // i18n strings
         private val STRINGS = mapOf(
@@ -145,47 +161,74 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             return STRINGS[lang]?.get(key) ?: STRINGS["en"]?.get(key) ?: key
         }
 
-        /** Resolves a synced token color (or its purple-dark fallback) to an ARGB int. */
-        private fun readColor(prefs: android.content.SharedPreferences, token: String): Int {
-            val fallback = FALLBACK_COLORS.getValue(token)
-            val value = prefs.getString(OrbitWidgetModule.COLOR_KEY_PREFIX + token, fallback) ?: fallback
+        private fun fallbackColors(mode: String): Map<String, String> =
+            if (mode == "dark") WidgetColorFallbacks.dark else WidgetColorFallbacks.light
+
+        /** Resolves a mode-qualified synced token color to an ARGB int. */
+        private fun readColor(
+            prefs: android.content.SharedPreferences,
+            mode: String,
+            token: String
+        ): Int {
+            val fallback = fallbackColors(mode).getValue(token)
+            val preferenceKey = "${OrbitWidgetModule.COLOR_KEY_PREFIX}${mode}_$token"
+            val value = prefs.getString(preferenceKey, fallback) ?: fallback
             return parseColor(value, fallback)
         }
 
-        private fun fallbackColor(token: String): Int {
-            val value = FALLBACK_COLORS.getValue(token)
+        private fun fallbackColor(mode: String, token: String): Int {
+            val value = fallbackColors(mode).getValue(token)
             return parseColor(value, value)
         }
 
-        /** Purple-dark bootstrap colors for the first paint before JS syncs the active scheme. */
-        fun defaultColors(): WidgetColors = WidgetColors(
-            primary = fallbackColor("primary"),
-            background = fallbackColor("background"),
-            surface = fallbackColor("surface"),
-            surfaceGround = fallbackColor("surfaceGround"),
-            textPrimary = fallbackColor("textPrimary"),
-            textMuted = fallbackColor("textMuted"),
-            border = fallbackColor("border"),
-            borderMuted = fallbackColor("borderMuted"),
-            overdue = fallbackColor("overdue"),
-            streak = fallbackColor("streak"),
-            statusEmpty = fallbackColor("statusEmpty")
+        private fun defaultColors(mode: String): WidgetColors {
+            return WidgetColors(
+                background = fallbackColor(mode, "background"),
+                surface = fallbackColor(mode, "surface"),
+                surfaceGround = fallbackColor(mode, "surfaceGround"),
+                textPrimary = fallbackColor(mode, "textPrimary"),
+                textSecondary = fallbackColor(mode, "textSecondary"),
+                textMuted = fallbackColor(mode, "textMuted"),
+                border = fallbackColor(mode, "border"),
+                borderMuted = fallbackColor(mode, "borderMuted"),
+                overdue = fallbackColor(mode, "overdue"),
+                streak = fallbackColor(mode, "streak"),
+                streakText = fallbackColor(mode, "streakText"),
+                statusEmpty = fallbackColor(mode, "statusEmpty")
+            )
+        }
+
+        /** Generated light/dark bootstrap colors for the first paint before JS syncs. */
+        fun defaultColorModes(): WidgetColorModes = WidgetColorModes(
+            light = defaultColors("light"),
+            dark = defaultColors("dark")
         )
 
-        fun getThemeColors(context: Context): WidgetColors {
-            val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+        private fun readColors(
+            prefs: android.content.SharedPreferences,
+            mode: String
+        ): WidgetColors {
             return WidgetColors(
-                primary = readColor(prefs, "primary"),
-                background = readColor(prefs, "background"),
-                surface = readColor(prefs, "surface"),
-                surfaceGround = readColor(prefs, "surfaceGround"),
-                textPrimary = readColor(prefs, "textPrimary"),
-                textMuted = readColor(prefs, "textMuted"),
-                border = readColor(prefs, "border"),
-                borderMuted = readColor(prefs, "borderMuted"),
-                overdue = readColor(prefs, "overdue"),
-                streak = readColor(prefs, "streak"),
-                statusEmpty = readColor(prefs, "statusEmpty")
+                background = readColor(prefs, mode, "background"),
+                surface = readColor(prefs, mode, "surface"),
+                surfaceGround = readColor(prefs, mode, "surfaceGround"),
+                textPrimary = readColor(prefs, mode, "textPrimary"),
+                textSecondary = readColor(prefs, mode, "textSecondary"),
+                textMuted = readColor(prefs, mode, "textMuted"),
+                border = readColor(prefs, mode, "border"),
+                borderMuted = readColor(prefs, mode, "borderMuted"),
+                overdue = readColor(prefs, mode, "overdue"),
+                streak = readColor(prefs, mode, "streak"),
+                streakText = readColor(prefs, mode, "streakText"),
+                statusEmpty = readColor(prefs, mode, "statusEmpty")
+            )
+        }
+
+        fun getThemeColorModes(context: Context): WidgetColorModes {
+            val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+            return WidgetColorModes(
+                light = readColors(prefs, "light"),
+                dark = readColors(prefs, "dark")
             )
         }
 
@@ -254,10 +297,6 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             drawable.draw(canvas)
             return bitmap
         }
-
-        /** Hairline border tint for overdue rows: the overdue token at 20% alpha. */
-        fun overdueBorder(overdue: Int): Int =
-            Color.argb(0x33, Color.red(overdue), Color.green(overdue), Color.blue(overdue))
 
         /** Create flame icon bitmap tinted with the streak token (flat, single tone). */
         fun createFlameBitmap(density: Float, streakColor: Int): Bitmap {
@@ -349,7 +388,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     }
 
     private fun loadWidgetData() {
-        colors = getThemeColors(context)
+        colorModes = getThemeColorModes(context)
         val token = OrbitWidgetModule.getToken(context)
         if (token == null) {
             renderPlaceholder(showSkeleton = false)
@@ -396,18 +435,19 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             .putString("lang", lang)
             .apply()
 
-        val colors = getThemeColors(context)
+        val colorModes = getThemeColorModes(context)
         val density = context.resources.displayMetrics.density
         val streakVisible = if (streak > 0) android.view.View.VISIBLE else android.view.View.GONE
-        val flameBitmap = createFlameBitmap(density, colors.streak)
+        val lightFlame = createFlameBitmap(density, colorModes.light.streak)
+        val darkFlame = createFlameBitmap(density, colorModes.dark.streak)
         updateWidgets { views ->
             views.setTextViewText(R.id.widget_header, headerLabel)
-            views.setTextColor(R.id.widget_header, colors.textPrimary)
+            views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textPrimary }
             views.setTextViewText(R.id.widget_subtitle, subtitleText)
-            views.setTextColor(R.id.widget_subtitle, Color.argb(0x99, Color.red(colors.textMuted), Color.green(colors.textMuted), Color.blue(colors.textMuted)))
+            views.setModeAwareColor(R.id.widget_subtitle, "setTextColor", colorModes) { it.textMuted }
             views.setTextViewText(R.id.widget_streak, "$streak")
-            views.setTextColor(R.id.widget_streak, colors.textPrimary)
-            views.setImageViewBitmap(R.id.widget_flame, flameBitmap)
+            views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streakText }
+            views.setModeAwareBitmap(R.id.widget_flame, lightFlame, darkFlame)
             views.setViewVisibility(R.id.widget_flame, streakVisible)
             views.setViewVisibility(R.id.widget_streak, streakVisible)
             // Restore refresh button, hide loading spinner and skeleton
@@ -579,30 +619,33 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         val cornerRadius = 16f * density
         val strokeWidth = 1f * density
 
-        val baseSurface = Color.argb(0xDD, Color.red(colors.surface), Color.green(colors.surface), Color.blue(colors.surface))
-        val bgBitmap = when {
+        fun createItemBackground(modeColors: WidgetColors): Bitmap = when {
             isChild -> createRoundedBitmap(
-                bgWidth, bgHeight.toInt(),
-                colors.surfaceGround,
-                12f * density
+                bgWidth, bgHeight.toInt(), modeColors.surfaceGround, 12f * density
             )
             habit.isCompleted -> createRoundedBitmap(
-                bgWidth, bgHeight.toInt(),
-                Color.argb(0x55, Color.red(colors.surface), Color.green(colors.surface), Color.blue(colors.surface)),
-                cornerRadius
-            )
-            habit.isOverdue -> createRoundedBitmap(
-                bgWidth, bgHeight.toInt(),
-                baseSurface,
-                cornerRadius, strokeWidth, overdueBorder(colors.overdue)
+                bgWidth, bgHeight.toInt(), modeColors.surface, cornerRadius
             )
             else -> createRoundedBitmap(
-                bgWidth, bgHeight.toInt(),
-                baseSurface,
-                cornerRadius, strokeWidth, colors.borderMuted
+                bgWidth,
+                bgHeight.toInt(),
+                modeColors.surface,
+                cornerRadius,
+                strokeWidth,
+                modeColors.borderMuted
             )
         }
-        views.setImageViewBitmap(R.id.item_bg, bgBitmap)
+        val lightBackground = createItemBackground(colorModes.light)
+        val darkBackground = createItemBackground(colorModes.dark)
+        views.setModeAwareBitmap(R.id.item_bg, lightBackground, darkBackground)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            val backgroundResource = when {
+                isChild -> R.drawable.widget_item_bg_child
+                habit.isCompleted -> R.drawable.widget_item_bg_completed
+                else -> R.drawable.widget_item_bg_fallback
+            }
+            views.setImageViewResource(R.id.item_bg, backgroundResource)
+        }
 
         // Indent child items
         if (isChild) {
@@ -615,15 +658,15 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         val displayTitle = if (habit.hasDeeper) "${habit.title} ..." else habit.title
         views.setTextViewText(R.id.item_title, displayTitle)
         views.setFloat(R.id.item_title, "setTextSize", if (isChild) 12f else 14f)
+        views.setBoolean(R.id.item_title, "setEnabled", !habit.isCompleted)
 
         if (habit.isCompleted) {
             views.setInt(R.id.item_title, "setPaintFlags",
                 Paint.STRIKE_THRU_TEXT_FLAG or Paint.ANTI_ALIAS_FLAG)
-            val dimAlpha = 0x99
-            views.setTextColor(R.id.item_title, Color.argb(dimAlpha, Color.red(colors.textPrimary), Color.green(colors.textPrimary), Color.blue(colors.textPrimary)))
+            views.setModeAwareColor(R.id.item_title, "setTextColor", colorModes) { it.textMuted }
         } else {
             views.setInt(R.id.item_title, "setPaintFlags", Paint.ANTI_ALIAS_FLAG)
-            views.setTextColor(R.id.item_title, colors.textPrimary)
+            views.setModeAwareColor(R.id.item_title, "setTextColor", colorModes) { it.textPrimary }
         }
 
         // Status circle vs progress badge
@@ -631,7 +674,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             views.setViewVisibility(R.id.item_status_icon, android.view.View.INVISIBLE)
             views.setViewVisibility(R.id.item_progress_badge, android.view.View.VISIBLE)
             views.setTextViewText(R.id.item_progress_badge, "${habit.childrenDone}/${habit.childrenTotal}")
-            views.setTextColor(R.id.item_progress_badge, colors.textMuted)
+            views.setModeAwareColor(R.id.item_progress_badge, "setTextColor", colorModes) { it.textSecondary }
         } else {
             views.setViewVisibility(R.id.item_status_icon, android.view.View.VISIBLE)
             views.setViewVisibility(R.id.item_progress_badge, android.view.View.GONE)
@@ -639,15 +682,15 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             when {
                 habit.isCompleted -> {
                     views.setImageViewResource(R.id.item_status_icon, R.drawable.widget_circle_filled)
-                    views.setInt(R.id.item_status_icon, "setColorFilter", colors.primary)
+                    views.setModeAwareColor(R.id.item_status_icon, "setColorFilter", colorModes) { it.textPrimary }
                 }
                 habit.isOverdue -> {
                     views.setImageViewResource(R.id.item_status_icon, R.drawable.widget_circle_overdue)
-                    views.setInt(R.id.item_status_icon, "setColorFilter", colors.overdue)
+                    views.setModeAwareColor(R.id.item_status_icon, "setColorFilter", colorModes) { it.overdue }
                 }
                 else -> {
                     views.setImageViewResource(R.id.item_status_icon, R.drawable.widget_circle_empty)
-                    views.setInt(R.id.item_status_icon, "setColorFilter", colors.statusEmpty)
+                    views.setModeAwareColor(R.id.item_status_icon, "setColorFilter", colorModes) { it.statusEmpty }
                 }
             }
 
@@ -661,26 +704,32 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         // Due time (inline below title)
         if (!habit.dueTime.isNullOrEmpty()) {
             val formattedTime = formatTime(habit.dueTime)
-            views.setTextViewText(R.id.item_time, formattedTime)
-            views.setViewVisibility(R.id.item_time, android.view.View.VISIBLE)
-            when {
-                habit.isCompleted -> views.setTextColor(R.id.item_time, Color.argb(0x44, Color.red(colors.textMuted), Color.green(colors.textMuted), Color.blue(colors.textMuted)))
-                habit.isOverdue -> views.setTextColor(R.id.item_time, Color.argb(0xCC, Color.red(colors.overdue), Color.green(colors.overdue), Color.blue(colors.overdue)))
-                else -> views.setTextColor(R.id.item_time, Color.argb(0x80, Color.red(colors.textMuted), Color.green(colors.textMuted), Color.blue(colors.textMuted)))
+            val showOverdueTime = habit.isOverdue && !habit.isCompleted
+            if (showOverdueTime) {
+                views.setTextViewText(R.id.item_time_overdue, formattedTime)
+                views.setViewVisibility(R.id.item_time, android.view.View.GONE)
+                views.setViewVisibility(R.id.item_time_overdue, android.view.View.VISIBLE)
+                views.setModeAwareColor(
+                    R.id.item_time_overdue, "setTextColor", colorModes
+                ) { it.overdue }
+            } else {
+                views.setTextViewText(R.id.item_time, formattedTime)
+                views.setViewVisibility(R.id.item_time, android.view.View.VISIBLE)
+                views.setViewVisibility(R.id.item_time_overdue, android.view.View.GONE)
+                views.setModeAwareColor(
+                    R.id.item_time, "setTextColor", colorModes
+                ) { it.textMuted }
             }
         } else {
             views.setViewVisibility(R.id.item_time, android.view.View.GONE)
+            views.setViewVisibility(R.id.item_time_overdue, android.view.View.GONE)
         }
 
         // Checklist badge
         if (habit.checklistTotal > 0) {
             views.setTextViewText(R.id.item_checklist_badge, "${habit.checklistChecked}/${habit.checklistTotal}")
             views.setViewVisibility(R.id.item_checklist_badge, android.view.View.VISIBLE)
-            if (habit.isCompleted) {
-                views.setTextColor(R.id.item_checklist_badge, Color.argb(0x55, Color.red(colors.primary), Color.green(colors.primary), Color.blue(colors.primary)))
-            } else {
-                views.setTextColor(R.id.item_checklist_badge, colors.primary)
-            }
+            views.setModeAwareColor(R.id.item_checklist_badge, "setTextColor", colorModes) { it.textSecondary }
         } else {
             views.setViewVisibility(R.id.item_checklist_badge, android.view.View.GONE)
         }

@@ -58,7 +58,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Today"
-                        android:textColor="#FFF8FAFC"
+                        android:textColor="@color/widget_fg_1"
                         android:textSize="20sp"
                         android:fontFamily="sans-serif-medium"
                         android:letterSpacing="-0.01" />
@@ -67,7 +67,7 @@
                         android:id="@+id/widget_subtitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:textColor="#9990A1B9"
+                        android:textColor="@color/widget_fg_3"
                         android:textSize="12sp"
                         android:fontFamily="sans-serif"
                         android:letterSpacing="0.02"
@@ -85,11 +85,12 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <!-- Flame icon (set programmatically, no android:src) -->
+                <!-- Resource fallback supports API 24 through 30; paired bitmaps apply on API 31+. -->
                 <ImageView
                     android:id="@+id/widget_flame"
                     android:layout_width="14dp"
                     android:layout_height="16dp"
+                    android:src="@drawable/widget_flame"
                     android:contentDescription="@null"
                     android:visibility="gone" />
 
@@ -98,7 +99,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="2dp"
-                    android:textColor="#FFF8FAFC"
+                    android:textColor="@color/widget_streak_text"
                     android:textSize="14sp"
                     android:fontFamily="sans-serif-medium"
                     android:fontFeatureSettings="tnum"
@@ -121,7 +122,7 @@
                     android:layout_width="36dp"
                     android:layout_height="36dp"
                     android:layout_marginStart="6dp"
-                    android:indeterminateTint="#AAF8FAFC"
+                    android:indeterminateTint="@color/widget_fg_3"
                     android:visibility="gone" />
             </LinearLayout>
         </RelativeLayout>
@@ -166,7 +167,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="All clear!"
-                    android:textColor="#9990A1B9"
+                    android:textColor="@color/widget_fg_1"
                     android:textSize="14sp"
                     android:fontFamily="sans-serif" />
             </LinearLayout>
