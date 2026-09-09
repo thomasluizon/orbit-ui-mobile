@@ -68,7 +68,7 @@ const PULL_REQUEST_STATE_QUERY = `query PullRequestState($owner: String!, $name:
       isDraft
       reviews(last: 50, author: "pullfrog[bot]") {
         totalCount
-        pageInfo { hasPreviousPage }
+        pageInfo { hasPreviousPage startCursor }
         nodes {
           state
           submittedAt
@@ -258,6 +258,122 @@ export const reviewAppVerdictAtHead = (reviews, headOid) => {
 }
 
 /**
+ * ONE older page of the SAME filtered review connection, used only when the newest page did not
+ * carry the current head's verdict AND reported more records behind it.
+ *
+ * It selects exactly the fields the newest page selects, so `reviewPageFromGraphQl` and
+ * `pullRequestStateFromGraphQl` normalise identical nodes and the walk cannot see a different shape
+ * on page two than it saw on page one.
+ *
+ * `before` is a nullable String argument on `PullRequest.reviews`, confirmed by introspection on
+ * 2026-09-09 alongside `after`, `first`, `last`, `states` and `author`. Paging with `last` plus
+ * `before` walks from the newest record towards the oldest, which is the direction a newest-wins
+ * verdict has to be searched in.
+ */
+const REVIEW_PAGE_QUERY = `query ReviewPage($owner: String!, $name: String!, $number: Int!, $before: String!) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      reviews(last: 50, before: $before, author: "pullfrog[bot]") {
+        totalCount
+        pageInfo { hasPreviousPage startCursor }
+        nodes {
+          state
+          submittedAt
+          author { __typename login }
+          commit { oid }
+        }
+      }
+    }
+  }
+}`
+
+/** The one argv both readers send for an older review page, for the same reason they share the
+ * state argv: two spellings of the same walk is how the two readers drift apart. */
+export const reviewPageArgv = (repository, prNumber, before) => {
+  const [owner, name, ...rest] = String(repository).split("/")
+  if (!owner || !name || rest.length > 0) throw new Error(`"${repository}" is not an owner/name GitHub repository`)
+  if (typeof before !== "string" || before === "") throw new Error("an older review page needs the cursor the previous page reported")
+  return ["api", "graphql", "-F", `owner=${owner}`, "-F", `name=${name}`, "-F", `number=${prNumber}`, "-F", `before=${before}`, "-f", `query=${REVIEW_PAGE_QUERY}`]
+}
+
+/**
+ * One older review page, or null when the response is not the confirmed shape. Nullability matches
+ * the newest page exactly: a null connection and a null node list both read as no reviews, a null
+ * ELEMENT is skipped, and a malformed but PRESENT review object is refused.
+ */
+export const reviewPageFromGraphQl = (payload) => {
+  const connection = payload?.data?.repository?.pullRequest?.reviews
+  if (connection === undefined) return null
+  const nodes = connection === null || connection?.nodes === null ? [] : connection?.nodes
+  if (!Array.isArray(nodes)) return null
+  const reviews = []
+  for (const node of nodes) {
+    if (node === null) continue
+    const normalized = normalizeReviewNode(node)
+    if (!normalized) return null
+    reviews.push(normalized)
+  }
+  return {
+    reviews,
+    truncated: connection?.pageInfo?.hasPreviousPage === true,
+    startCursor: typeof connection?.pageInfo?.startCursor === "string" ? connection.pageInfo.startCursor : null,
+  }
+}
+
+/**
+ * How many older pages the walk will read before it gives up and reports an INCOMPLETE read.
+ *
+ * A bound rather than an unbounded loop, because the per-user GraphQL budget that stalled a run on
+ * 2026-08-09 is the reason this file reads once in the common case. Four extra pages cover 250
+ * filtered reviews, which is past the largest history this repository has (112 on pull request 786,
+ * read 2026-09-09). Past the bound the answer is "not proven", never "absent".
+ */
+export const MAX_REVIEW_PAGES = 4
+
+/**
+ * The reviewing app's newest APPROVED-or-otherwise verdict at the exact head, and whether that
+ * answer is PROVEN.
+ *
+ * `reviewAppVerdictAtHead` alone cannot tell "this app never reviewed this head" from "the window
+ * did not reach far enough to see it". Both come back as null, and both readers turned that null
+ * into a blocked receipt, which is the false BLOCKED this pull request exists to remove. So the
+ * walk goes backwards while the connection says more records remain, and stops the moment a verdict
+ * appears.
+ *
+ * Newest-first is what makes stopping early correct: an at-head review found on page N is the
+ * newest at-head review, because every newer record was already read on pages 1..N-1.
+ *
+ * `complete` is false ONLY when no verdict was found and older records provably remain. A caller
+ * must not read that as an absence: it is a read that did not finish.
+ *
+ * `fetchOlderPage(cursor)` returns the parsed page, or null when the request failed. A failed page
+ * ends the walk as INCOMPLETE rather than as an absence, for the same reason.
+ */
+export const resolveReviewVerdict = async (state, fetchOlderPage) => {
+  const verdict = reviewAppVerdictAtHead(state?.reviews, state?.headRefOid)
+  if (verdict) return { verdict, complete: true, pagesRead: 0 }
+  let truncated = state?.reviewsTruncated === true
+  let cursor = state?.reviewsStartCursor ?? null
+  let pagesRead = 0
+  while (truncated && cursor !== null && pagesRead < MAX_REVIEW_PAGES) {
+    const page = await fetchOlderPage(cursor)
+    pagesRead += 1
+    if (!page) return { verdict: null, complete: false, pagesRead }
+    const found = reviewAppVerdictAtHead(page.reviews, state?.headRefOid)
+    if (found) return { verdict: found, complete: true, pagesRead }
+    truncated = page.truncated
+    cursor = page.startCursor
+  }
+  /**
+   * `!truncated` and nothing else. A null cursor beside `hasPreviousPage: true` means older records
+   * remain and there is no way to reach them, which is a read that could not finish, not a proof that
+   * the verdict is absent. Treating an exhausted cursor as an absence would reintroduce the exact
+   * silent false negative this walk exists to remove.
+   */
+  return { verdict: null, complete: !truncated, pagesRead }
+}
+
+/**
  * The pull request state PULL_REQUEST_STATE_QUERY returns, or null when the response is not the
  * confirmed shape. Both callers turn null into a loud environment error rather than a verdict.
  *
@@ -308,12 +424,23 @@ export const pullRequestStateFromGraphQl = (payload) => {
     reviews.push(normalized)
   }
   /**
-   * Whether the window cut off older reviews BY THIS APP. It never hides the current head's verdict,
-   * because no review can be newer than the newest, but a reader comparing against an older head
-   * deserves to know its evidence is partial rather than complete.
+   * Whether the window cut off older reviews BY THIS APP, and the cursor to walk back through them.
+   *
+   * An earlier comment here claimed truncation could never hide the current head's verdict, because
+   * no review can be newer than the newest. That is wrong, and GitHub documents why: `commit_id` on
+   * create-review may name a NON-latest pull request commit, so a review submitted later can be
+   * pinned to an older commit. Fifty such records after an at-head approval evict it from this
+   * window. Measured on 2026-09-09 against pull request 786, the filtered connection returns
+   * `totalCount: 112` with `hasPreviousPage: true`, and one commit there carried fourteen reviews
+   * inside thirty minutes, so the window is a real bound and not a theoretical one.
+   *
+   * `pageInfo` is NON_NULL and `hasPreviousPage` is NON_NULL Boolean, but `startCursor` is a
+   * NULLABLE String (introspected 2026-09-09), so an absent cursor reads as no cursor rather than a
+   * broken response.
    */
   const reviewsTruncated = reviewsConnection?.pageInfo?.hasPreviousPage === true
-  return { number, baseRefName, baseRefOid, headRefOid, isDraft, statusCheckRollup, reviews, reviewsTruncated }
+  const reviewsStartCursor = typeof reviewsConnection?.pageInfo?.startCursor === "string" ? reviewsConnection.pageInfo.startCursor : null
+  return { number, baseRefName, baseRefOid, headRefOid, isDraft, statusCheckRollup, reviews, reviewsTruncated, reviewsStartCursor }
 }
 
 /**

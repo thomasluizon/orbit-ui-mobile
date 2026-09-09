@@ -34,7 +34,7 @@ import { githubEnvironment, redactSecrets, repositorySlug } from "./lib/github-a
 import { runBounded } from "./lib/bounded-process.mjs"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
-import { REVIEW_APP_CONTEXT, REVIEW_APP_ID, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, readinessCiIsGreen, readinessReport, registrationFingerprint, requiredChecksFromResponse, reviewAppVerdictAtHead, reviewSatisfiedOutOfBand, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
+import { REVIEW_APP_CONTEXT, REVIEW_APP_ID, newestChecks, pullRequestStateArgv, pullRequestStateFromGraphQl, readinessCiIsGreen, readinessReport, registrationFingerprint, requiredChecksFromResponse, resolveReviewVerdict, reviewPageArgv, reviewPageFromGraphQl, reviewSatisfiedOutOfBand, writeReadinessReceipt } from "./lib/readiness-receipt.mjs"
 
 const USAGE = `usage: record-readiness.mjs --repo <ui|api|landing> --pr <number> --delivery <file> --ticket <file>
 
@@ -111,6 +111,7 @@ let liveComparison
 let liveTicket
 let liveCiGreen = false
 let reviewVerdict = null
+let reviewComplete = true
 try {
   const repository = repositorySlug(repoRoot)
   const githubAuth = await githubEnvironment(repoRoot, { timeoutMs: 45000 })
@@ -160,7 +161,21 @@ try {
    * and only for an APPROVED verdict at the CURRENT head. A newest review at the head that is
    * COMMENTED or CHANGES_REQUESTED excuses nothing and the receipt stays not ready.
    */
-  reviewVerdict = reviewAppVerdictAtHead(live.reviews, live.headRefOid)
+  const resolved = await resolveReviewVerdict(live, async (cursor) => {
+    const page = await runBounded(
+      process.env.GH_BIN || "gh",
+      reviewPageArgv(repository, prNumber, cursor),
+      { cwd: repoRoot, env: githubAuth.environment, timeoutMs: 45000 },
+    )
+    if (page.timedOut || page.error || page.status !== 0) return null
+    try {
+      return reviewPageFromGraphQl(JSON.parse(page.stdout))
+    } catch {
+      return null
+    }
+  })
+  reviewVerdict = resolved.verdict
+  reviewComplete = resolved.complete
   // verify-delivery.mjs builds this set from the same function against the same verdict, so the
   // cached `ci.pass` this tool honours below can never disagree with the live reading here.
   liveCiGreen = matchesDelivery && live.statusCheckRollup.length > 0 && readinessCiIsGreen(live.statusCheckRollup, reviewChecks, reviewSatisfiedOutOfBand(reviewVerdict))
@@ -200,9 +215,12 @@ const receipt = {
     checks: ci,
     headSha: state.headSha,
     baseSha: state.baseSha,
+    // `complete` says whether the review walk PROVED its answer. False means older records remained
+    // unread, so an absent verdict is a read that did not finish rather than an approval that is not
+    // there, and the receipt says which.
     // Which evidence carried the review axis, so a receipt that leaned on the fallback says so
     // rather than reading like an ordinary green (#440).
-    review: { verdict: reviewVerdict?.state ?? null, submittedAt: reviewVerdict?.submittedAt ?? null, commitOid: reviewVerdict?.commitOid ?? null },
+    review: { verdict: reviewVerdict?.state ?? null, submittedAt: reviewVerdict?.submittedAt ?? null, commitOid: reviewVerdict?.commitOid ?? null, complete: reviewComplete },
   },
   behindBy: liveComparison.behind_by,
   draft: live.isDraft,

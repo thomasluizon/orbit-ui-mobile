@@ -14,7 +14,11 @@ import {
   readinessReport,
   requiredCheckSatisfied,
   requiredChecksOf,
+  MAX_REVIEW_PAGES,
+  resolveReviewVerdict,
   reviewAppVerdictAtHead,
+  reviewPageArgv,
+  reviewPageFromGraphQl,
   reviewSatisfiedOutOfBand,
   writeReadinessReceipt,
 } from "../lib/readiness-receipt.mjs"
@@ -45,7 +49,7 @@ const ready = () => ({
   ticket: { status: "In Review", targetStatus: "In Review", lastSynchronizationResult: "SUCCESS", lastPostedState: "ready", headSha: HEAD_A, baseSha: BASE_A },
 })
 
-export const cases = () => {
+export const cases = async () => {
   const fixture = stageRepo("readiness-receipt")
   if (!fixture) {
     T(`${TOOL}: a git fixture is available`, false, "could not stage repository")
@@ -460,10 +464,118 @@ export const cases = () => {
     })?.reviewsTruncated === true && crowded.reviewsTruncated === false,
   )
 
+  /**
+   * The walk. `reviewAppVerdictAtHead` alone returns null both for "this app never reviewed this
+   * head" and for "the window did not reach far enough to see it", and both readers turned that null
+   * into a blocked receipt. That is the false BLOCKED #440 exists to remove, so the two answers are
+   * now told apart: an absence is only PROVEN when the connection says nothing older remains.
+   *
+   * GitHub permits a review's `commit_id` to name a NON-latest pull request commit, so later records
+   * can be pinned to older commits and evict an at-head verdict from a bounded window. Measured on
+   * 2026-09-09: the filtered connection on pull request 786 returns `totalCount: 112` with
+   * `hasPreviousPage: true`, and one commit there carried fourteen reviews inside thirty minutes.
+   */
+  const pageOf = (nodes, { hasPreviousPage = false, startCursor = null } = {}) => ({
+    data: { repository: { pullRequest: { reviews: { totalCount: nodes.length, pageInfo: { hasPreviousPage, startCursor }, nodes } } } },
+  })
+  const stateWith = (nodes, pageInfo) =>
+    pullRequestStateFromGraphQl({
+      data: {
+        repository: {
+          pullRequest: { number: 786, baseRefName: "main", baseRefOid: BASE_A, headRefOid: HEAD_A, isDraft: false, reviews: { totalCount: nodes.length, pageInfo, nodes }, statusCheckRollup: null },
+        },
+      },
+    })
+
+  const staleHeadNodes = []
+  for (let index = 0; index < 50; index += 1) {
+    staleHeadNodes.push({ state: "COMMENTED", submittedAt: `2026-09-09T0${index % 10}:00:00Z`, author: { __typename: "Bot", login: "pullfrog" }, commit: { oid: HEAD_B } })
+  }
+
+  const complete = await resolveReviewVerdict(stateWith([botReview("APPROVED", "2026-09-08T23:00:00Z", HEAD_A)], { hasPreviousPage: false, startCursor: null }), async () => {
+    throw new Error("the walk must not fetch a page when the verdict is already in hand")
+  })
+  T(`${TOOL}: a verdict on the newest page costs no extra request`, complete.verdict?.state === "APPROVED" && complete.complete === true && complete.pagesRead === 0)
+
+  const provenAbsent = await resolveReviewVerdict(stateWith(staleHeadNodes, { hasPreviousPage: false, startCursor: null }), async () => {
+    throw new Error("nothing older remains, so there is nothing to walk")
+  })
+  T(`${TOOL}: an untruncated window with no head record is a PROVEN absence`, provenAbsent.verdict === null && provenAbsent.complete === true)
+
+  const truncatedState = stateWith(staleHeadNodes, { hasPreviousPage: true, startCursor: "cursor-1" })
+  T(`${TOOL}: the parser carries the cursor a truncated window needs`, truncatedState.reviewsTruncated === true && truncatedState.reviewsStartCursor === "cursor-1")
+
+  const walked = await resolveReviewVerdict(truncatedState, async (cursor) =>
+    cursor === "cursor-1" ? reviewPageFromGraphQl(pageOf([botReview("APPROVED", "2026-09-07T10:00:00Z", HEAD_A)])) : null,
+  )
+  T(
+    `${TOOL}: an at-head approval evicted from the newest window is FOUND on the older page`,
+    walked.verdict?.state === "APPROVED" && walked.complete === true && walked.pagesRead === 1,
+    JSON.stringify(walked),
+  )
+
+  const exhausted = await resolveReviewVerdict(truncatedState, async () => reviewPageFromGraphQl(pageOf(staleHeadNodes, { hasPreviousPage: false })))
+  T(`${TOOL}: walking to the end of the connection proves the absence`, exhausted.verdict === null && exhausted.complete === true)
+
+  let requested = 0
+  const bounded = await resolveReviewVerdict(truncatedState, async () => {
+    requested += 1
+    return reviewPageFromGraphQl(pageOf(staleHeadNodes, { hasPreviousPage: true, startCursor: `cursor-${requested + 1}` }))
+  })
+  T(
+    `${TOOL}: past the page bound the answer is NOT PROVEN, never a silent absence`,
+    bounded.verdict === null && bounded.complete === false && requested === MAX_REVIEW_PAGES,
+    `read ${requested} page(s), complete ${bounded.complete}`,
+  )
+
+  T(
+    `${TOOL}: older records with NO cursor to reach them is incomplete, never a proven absence`,
+    (await resolveReviewVerdict(stateWith(staleHeadNodes, { hasPreviousPage: true, startCursor: null }), async () => {
+      throw new Error("there is no cursor to walk with")
+    })).complete === false,
+  )
+
+  const failedPage = await resolveReviewVerdict(truncatedState, async () => null)
+  T(`${TOOL}: a failed older page is an incomplete read, never a proven absence`, failedPage.verdict === null && failedPage.complete === false)
+
+  T(
+    `${TOOL}: a newer at-head verdict on an earlier page wins over an older one further back`,
+    (await resolveReviewVerdict(stateWith([botReview("COMMENTED", "2026-09-08T23:00:00Z", HEAD_A)], { hasPreviousPage: true, startCursor: "cursor-1" }), async () =>
+      reviewPageFromGraphQl(pageOf([botReview("APPROVED", "2026-09-01T10:00:00Z", HEAD_A)])),
+    )).verdict?.state === "COMMENTED",
+  )
+
+  T(
+    `${TOOL}: a null review connection on an older page reads as no reviews rather than a broken response`,
+    reviewPageFromGraphQl({ data: { repository: { pullRequest: { reviews: null } } } })?.reviews.length === 0,
+  )
+  T(
+    `${TOOL}: a response carrying no reviews connection at all is refused`,
+    reviewPageFromGraphQl({ data: { repository: { pullRequest: {} } } }) === null,
+  )
+  T(
+    `${TOOL}: a malformed but PRESENT review on an older page is refused`,
+    reviewPageFromGraphQl(pageOf([{ state: "APPROVED", submittedAt: "2026-09-01T10:00:00Z", author: { __typename: "Bot", login: "pullfrog" }, commit: { oid: 12 } }])) === null,
+  )
+
+  const pageArgv = reviewPageArgv("thomasluizon/orbit-ui-mobile", 786, "cursor-1")
+  T(
+    `${TOOL}: the older-page request is the SAME filtered connection, one page further back`,
+    pageArgv.includes("before=cursor-1") && pageArgv.at(-1).includes(`reviews(last: 50, before: $before, author: "${REVIEW_APP_AUTHOR_FILTER}")`),
+    pageArgv.join(" "),
+  )
+  let rejectedCursor = null
+  try {
+    reviewPageArgv("thomasluizon/orbit-ui-mobile", 786, "")
+  } catch (error) {
+    rejectedCursor = error.message
+  }
+  T(`${TOOL}: an older page without a cursor is refused rather than re-reading the newest one`, /needs the cursor/.test(rejectedCursor ?? ""), String(rejectedCursor))
+
   const argv = pullRequestStateArgv("thomasluizon/orbit-ui-mobile", 716)
   T(
     `${TOOL}: both readers send one GraphQL request naming the owner, repository and number`,
-    argv[0] === "api" && argv[1] === "graphql" && argv.includes("owner=thomasluizon") && argv.includes("name=orbit-ui-mobile") && argv.includes("number=716") && argv.at(-1).includes("checkSuite { app { databaseId }") && argv.at(-1).includes('reviews(last: 50, author: "' + REVIEW_APP_AUTHOR_FILTER + '")'),
+    argv[0] === "api" && argv[1] === "graphql" && argv.includes("owner=thomasluizon") && argv.includes("name=orbit-ui-mobile") && argv.includes("number=716") && argv.at(-1).includes("checkSuite { app { databaseId }") && argv.at(-1).includes('reviews(last: 50, author: "' + REVIEW_APP_AUTHOR_FILTER + '")') && argv.at(-1).includes("pageInfo { hasPreviousPage startCursor }"),
     argv.join(" "),
   )
   let rejectedSlug = null

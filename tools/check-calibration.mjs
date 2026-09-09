@@ -52,7 +52,9 @@ const USAGE = `usage: check-calibration.mjs [--root <path>]
   Five assertions, all blocking. There is deliberately no --report-only flag and no way to make this
   tool pass on drift; the escape hatch is the calibration:reseed label on the guards.yml job.
 
-    1. every .claude/agents/*.md and .claude/skills/*/SKILL.md has a stamp entry
+    1. every .claude/agents/*.md, .claude/skills/*/SKILL.md and .agents/skills/*/SKILL.md has a
+       stamp entry. Both skill roots, because .claude holds the canonical definitions and .agents
+       holds the entrypoints the Codex host discovers
     2. no stamp entry names a file that no longer exists
     3. each entry's recorded model and effort match what the file declares today, AND its recorded
        digest matches the file's complete normalized content, so rewriting a prompt body invalidates
@@ -61,8 +63,13 @@ const USAGE = `usage: check-calibration.mjs [--root <path>]
        resolves, taken from resolveWorkerInvocation itself rather than rebuilt here, so workerArgs is
        the WHOLE argument vector: engine-level args, then the models.default profile args, then the
        model. Comparing the profile half alone let engine-level tuning move without reseeding
-    5. the stamp's calibratedAt is a real date, is not in the future, and is at most 90 days old, the
-       backstop for a model alias whose target moved without its declared string changing
+    5. EVERY entry's own calibratedAt is a real date, is not in the future, is no older than the
+       stamp date, and is at most 90 days old, the backstop for a model alias whose target moved
+       without its declared string changing. Per entry rather than stamp-wide, because one date for
+       the whole file meant reseeding one changed prompt renewed every untouched verdict beside it
+
+  Reseed with: node tools/reseed-calibration.mjs, which carries an unchanged verdict's date
+  forward rather than renewing it.
 
 exit codes: 0 the stamp is current, 1 the stamp is stale, 2 usage error or an unreadable stamp`
 
@@ -134,6 +141,9 @@ if (stamp.entries === null || typeof stamp.entries !== "object" || Array.isArray
 for (const [path, entry] of Object.entries(stamp.entries)) {
   if (entry === null || typeof entry !== "object" || Array.isArray(entry)) fail(2, `check-calibration: entry ${path} must be an object`)
   if (typeof entry.verdict !== "string" || entry.verdict === "") fail(2, `check-calibration: entry ${path} carries no verdict`)
+  if (typeof entry.calibratedAt !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(entry.calibratedAt)) {
+    fail(2, `check-calibration: entry ${path} must carry its own calibratedAt YYYY-MM-DD date, got ${JSON.stringify(entry.calibratedAt)}`)
+  }
   for (const field of ["model", "effort"]) {
     if (entry[field] !== null && typeof entry[field] !== "string") fail(2, `check-calibration: entry ${path} declares a non-string ${field}`)
   }
@@ -151,11 +161,21 @@ const calibratedFiles = () => {
       if (name.endsWith(".md")) found.push(`.claude/agents/${name}`)
     }
   }
-  const skillsDirectory = join(repositoryRoot, ".claude", "skills")
-  if (existsSync(skillsDirectory)) {
-    for (const entry of readdirSync(skillsDirectory, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+  /**
+   * BOTH skill roots, because both are read by a host at runtime. `.claude/skills/**` holds the
+   * canonical definitions and `.agents/skills/**` holds the entrypoints Codex discovers, each one a
+   * pointer whose frontmatter carries the name and description the host lists the skill by and whose
+   * body names the canonical file. Changing an entrypoint changes which prompt runs, or stops the
+   * skill being discovered at all, while every `.claude` digest stays untouched and this gate stayed
+   * green. A pointer declares no `model:` and no `effort:`, so its verdict is a judgement about the
+   * pointer itself and its digest is what pins it.
+   */
+  for (const root of [join(repositoryRoot, ".claude", "skills"), join(repositoryRoot, ".agents", "skills")]) {
+    if (!existsSync(root)) continue
+    const relativeRoot = root === join(repositoryRoot, ".claude", "skills") ? ".claude/skills" : ".agents/skills"
+    for (const entry of readdirSync(root, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
       if (!entry.isDirectory()) continue
-      if (existsSync(join(skillsDirectory, entry.name, "SKILL.md"))) found.push(`.claude/skills/${entry.name}/SKILL.md`)
+      if (existsSync(join(root, entry.name, "SKILL.md"))) found.push(`${relativeRoot}/${entry.name}/SKILL.md`)
     }
   }
   return found
@@ -196,7 +216,7 @@ const contentDigest = (relativePath) =>
 const problems = []
 
 const files = calibratedFiles()
-if (files.length === 0) fail(2, `check-calibration: ${repositoryRoot} holds no .claude/agents/*.md and no .claude/skills/*/SKILL.md, so this gate would prove nothing`)
+if (files.length === 0) fail(2, `check-calibration: ${repositoryRoot} holds no .claude/agents/*.md, no .claude/skills/*/SKILL.md and no .agents/skills/*/SKILL.md, so this gate would prove nothing`)
 
 for (const relativePath of files) {
   const entry = stamp.entries[relativePath]
@@ -272,7 +292,23 @@ if (JSON.stringify(stamp.workerArgs) !== JSON.stringify(configuredArgs)) {
 /**
  * Whole days, from dates rather than a clock, so the verdict cannot change inside one CI run and a
  * stamp taken today is never 0.99 days old.
+ *
+ * Parsed and refused HERE for every date in the file, entry dates included, because a date this
+ * function accepts is a date the backstop trusts.
  */
+const ageInDays = (date, label) => {
+  const [year, month, day] = date.split("-").map(Number)
+  const at = Date.UTC(year, month - 1, day)
+  if (!Number.isFinite(at) || new Date(at).toISOString().slice(0, 10) !== date) {
+    fail(2, `check-calibration: ${label} ${date} is not a real calendar date`)
+  }
+  const now = new Date()
+  const age = Math.floor((Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - at) / 86400000)
+  if (age < 0) {
+    fail(2, `check-calibration: ${label} ${date} is ${-age} day(s) in the FUTURE, which would disable the max-age backstop rather than satisfy it`)
+  }
+  return age
+}
 /**
  * `Date.UTC` NORMALIZES an impossible calendar date rather than refusing it, so `2026-02-31` silently
  * becomes 2026-03-03 and the regex above cannot tell. Round-tripping the parsed date back to the
@@ -283,18 +319,30 @@ if (JSON.stringify(stamp.workerArgs) !== JSON.stringify(configuredArgs)) {
  * precisely the gate-that-cannot-fail this ticket exists to undo, so a stamp dated in the future is a
  * data error rather than a fresh stamp.
  */
-const [stampYear, stampMonth, stampDay] = stamp.calibratedAt.split("-").map(Number)
-const stampedAt = Date.UTC(stampYear, stampMonth - 1, stampDay)
-if (!Number.isFinite(stampedAt) || new Date(stampedAt).toISOString().slice(0, 10) !== stamp.calibratedAt) {
-  fail(2, `check-calibration: calibratedAt ${stamp.calibratedAt} is not a real calendar date`)
-}
-const today = new Date()
-const ageDays = Math.floor((Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()) - stampedAt) / 86400000)
-if (ageDays < 0) {
-  fail(2, `check-calibration: calibratedAt ${stamp.calibratedAt} is ${-ageDays} day(s) in the FUTURE, which would disable the max-age backstop rather than satisfy it`)
-}
-if (ageDays > MAX_AGE_DAYS) {
-  problems.push(`the stamp is ${ageDays} days old, past the ${MAX_AGE_DAYS} day backstop; a model alias can move without changing its declared string, so age is the only signal left`)
+const ageDays = ageInDays(stamp.calibratedAt, "calibratedAt")
+
+/**
+ * The backstop is PER VERDICT, never stamp-wide.
+ *
+ * One date for the whole file meant recalibrating a single changed prompt and advancing that date
+ * renewed every untouched verdict beside it. Ordinary prompt churn therefore held the whole stamp
+ * permanently under 90 days, which is exactly the case the backstop exists for: a model alias moves
+ * while every declared string stays put, and age is the only signal left. A verdict is a judgement
+ * about ONE file against the model of the day, so only re-reading THAT file may renew it.
+ *
+ * The stamp-wide date stays, and it is the date of the last pass rather than a verdict of its own. A
+ * verdict is OLDER than it whenever that verdict was carried forward, which is the ordinary case and
+ * the whole point. What cannot happen is a verdict dated AFTER the pass that wrote it, so that is the
+ * direction this refuses.
+ */
+for (const relativePath of Object.keys(stamp.entries).sort()) {
+  const entryAge = ageInDays(stamp.entries[relativePath].calibratedAt, `entry ${relativePath} calibratedAt`)
+  if (entryAge < ageDays) {
+    problems.push(`${relativePath} is stamped ${stamp.entries[relativePath].calibratedAt}, NEWER than the ${stamp.calibratedAt} pass that wrote it; a verdict cannot be decided after its own pass, so one of the two dates is wrong`)
+  }
+  if (entryAge > MAX_AGE_DAYS) {
+    problems.push(`${relativePath} was calibrated ${entryAge} days ago, past the ${MAX_AGE_DAYS} day backstop; a model alias can move without changing its declared string, so age is the only signal left, and reseeding a different entry does not renew this one`)
+  }
 }
 
 if (problems.length > 0) {
@@ -304,6 +352,7 @@ if (problems.length > 0) {
   process.exit(1)
 }
 
+const oldestVerdictAge = Object.values(stamp.entries).reduce((oldest, entry) => Math.max(oldest, ageInDays(entry.calibratedAt, "entry calibratedAt")), 0)
 console.log(
-  `check-calibration: ${files.length} calibrated file(s) stamped ${stamp.calibratedAt} against ${configuredEngine} ${configuredModel} ${JSON.stringify(configuredArgs)}, ${ageDays} day(s) old.`,
+  `check-calibration: ${files.length} calibrated file(s) stamped ${stamp.calibratedAt} against ${configuredEngine} ${configuredModel} ${JSON.stringify(configuredArgs)}, oldest verdict ${oldestVerdictAge} day(s) old.`,
 )

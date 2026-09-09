@@ -45,21 +45,26 @@ const stageHarness = (label, { stamp, model = "gpt-5.6-sol", engine = "codex", c
   return fixture
 }
 
-const currentStamp = (overrides = {}) => ({
-  calibratedAt: today(),
-  workerEngine: "codex",
-  workerCommand: "codex",
-  workerModel: "gpt-5.6-sol",
-  // The RESOLVED vector launch-worker.mjs launches: engine args, then profile args, then the model.
-  workerArgs: ["exec", "-c", 'model_reasoning_effort="high"', "--model", "gpt-5.6-sol"],
-  workerModelSource: "resolveWorkerInvocation(config.worker, ..., default) in tools/lib/orchestrator-config.mjs",
-  entries: {
-    ".claude/agents/design-reviewer.md": { model: "sonnet", effort: "medium", digest: digestOf(AGENT), verdict: "current" },
-    ".claude/skills/lesson/SKILL.md": { model: null, effort: null, digest: digestOf(UNTUNED_SKILL), verdict: "undeclared, inherits the session" },
-    ".claude/skills/ticket/SKILL.md": { model: null, effort: "high", digest: digestOf(SKILL), verdict: "current" },
-  },
-  ...overrides,
-})
+const currentStamp = (overrides = {}) => {
+  /** Entry dates follow the stamp date unless a case overrides one, so ageing a fixture ages the
+   * verdicts inside it rather than leaving them fresh under an old header. */
+  const calibratedAt = overrides.calibratedAt ?? today()
+  return {
+    calibratedAt,
+    workerEngine: "codex",
+    workerCommand: "codex",
+    workerModel: "gpt-5.6-sol",
+    // The RESOLVED vector launch-worker.mjs launches: engine args, then profile args, then the model.
+    workerArgs: ["exec", "-c", 'model_reasoning_effort="high"', "--model", "gpt-5.6-sol"],
+    workerModelSource: "resolveWorkerInvocation(config.worker, ..., default) in tools/lib/orchestrator-config.mjs",
+    entries: {
+      ".claude/agents/design-reviewer.md": { model: "sonnet", effort: "medium", digest: digestOf(AGENT), calibratedAt, verdict: "current" },
+      ".claude/skills/lesson/SKILL.md": { model: null, effort: null, digest: digestOf(UNTUNED_SKILL), calibratedAt, verdict: "undeclared, inherits the session" },
+      ".claude/skills/ticket/SKILL.md": { model: null, effort: "high", digest: digestOf(SKILL), calibratedAt, verdict: "current" },
+    },
+    ...overrides,
+  }
+}
 
 const withEntries = (mutate) => {
   const stamp = currentStamp()
@@ -96,7 +101,7 @@ export const cases = () => {
       "--root",
       stageHarness("stale-entry", {
         stamp: withEntries((entries) => {
-          entries[".claude/skills/deleted/SKILL.md"] = { model: null, effort: "high", verdict: "current" }
+          entries[".claude/skills/deleted/SKILL.md"] = { model: null, effort: "high", calibratedAt: today(), digest: digestOf(SKILL), verdict: "current" }
         }),
       }),
     ],
@@ -258,9 +263,136 @@ export const cases = () => {
   // only signal left and it is not decoration.
   check(
     TOOL,
-    "a stamp 91 days old exits 1 on the alias backstop",
+    "a stamp 91 days old exits 1 on the alias backstop, naming the verdict rather than the file as a whole",
     ["--root", stageHarness("too-old", { stamp: currentStamp({ calibratedAt: daysAgo(91) }) })],
-    { status: 1, stderr: /the stamp is 91 days old, past the 90 day backstop/ },
+    { status: 1, stderr: /\.claude\/agents\/design-reviewer\.md was calibrated 91 days ago, past the 90 day backstop/ },
+  )
+
+  /**
+   * The hole the stamp-wide date left. Recalibrating ONE changed prompt and advancing the header
+   * renewed every untouched verdict beside it, so ordinary prompt churn held the whole file
+   * permanently under 90 days and the alias backstop never fired. Each verdict now ages on its own.
+   */
+  check(
+    TOOL,
+    "recalibrating one entry does NOT renew an untouched verdict beside it",
+    [
+      "--root",
+      stageHarness("partial-refresh", {
+        stamp: withEntries((entries) => {
+          entries[".claude/skills/ticket/SKILL.md"].calibratedAt = daysAgo(120)
+        }),
+      }),
+    ],
+    { status: 1, stderr: /\.claude\/skills\/ticket\/SKILL\.md was calibrated 120 days ago, past the 90 day backstop/ },
+  )
+
+  /**
+   * The ordinary shape of a partial reseed, and the one an inverted comparison broke: the pass runs
+   * today, one verdict is re-read, and every untouched verdict keeps its OLDER date. That is the
+   * carry-forward this whole change exists to produce, so it has to pass.
+   */
+  check(
+    TOOL,
+    "a verdict carried forward from an earlier pass is normal and passes",
+    [
+      "--root",
+      stageHarness("carried-forward", {
+        stamp: withEntries((entries) => {
+          entries[".claude/skills/ticket/SKILL.md"].calibratedAt = daysAgo(30)
+          entries[".claude/skills/lesson/SKILL.md"].calibratedAt = daysAgo(30)
+        }),
+      }),
+    ],
+    { status: 0, stdout: /oldest verdict 30 day\(s\) old/ },
+  )
+
+  /** The direction that cannot happen: a verdict decided AFTER the pass that supposedly wrote it. */
+  check(
+    TOOL,
+    "a verdict dated after its own pass is refused",
+    [
+      "--root",
+      stageHarness("verdict-after-pass", {
+        stamp: {
+          ...currentStamp({ calibratedAt: daysAgo(30) }),
+          entries: currentStamp().entries,
+        },
+      }),
+    ],
+    { status: 1, stderr: /NEWER than the .* pass that wrote it/ },
+  )
+
+  check(
+    TOOL,
+    "an entry carrying no calibratedAt exits 2, so a verdict cannot dodge the backstop by omitting its date",
+    [
+      "--root",
+      stageHarness("entry-no-date", {
+        stamp: withEntries((entries) => {
+          delete entries[".claude/skills/ticket/SKILL.md"].calibratedAt
+        }),
+      }),
+    ],
+    { status: 2, stderr: /entry \.claude\/skills\/ticket\/SKILL\.md must carry its own calibratedAt YYYY-MM-DD date/ },
+  )
+
+  check(
+    TOOL,
+    "an entry dated in the FUTURE exits 2, exactly like a future stamp",
+    [
+      "--root",
+      stageHarness("entry-future-date", {
+        stamp: withEntries((entries) => {
+          entries[".claude/skills/ticket/SKILL.md"].calibratedAt = daysAgo(-1)
+        }),
+      }),
+    ],
+    { status: 2, stderr: /day\(s\) in the FUTURE/ },
+  )
+
+  /**
+   * The host entrypoints Codex discovers. They carry no behaviour, but their frontmatter decides
+   * whether a skill is found at all and their body names the canonical definition, so a change there
+   * changes which prompt runs while every `.claude` digest stays untouched.
+   */
+  const POINTER = ["---", "name: ticket", "description: pointer", "---", "", "The canonical definition is `.claude/skills/ticket/SKILL.md`.", ""].join("\n")
+
+  check(
+    TOOL,
+    "a .agents host entrypoint added with no stamp entry exits 1 and names it",
+    ["--root", stageHarness("added-pointer", { stamp: currentStamp(), extraFiles: { ".agents/skills/ticket/SKILL.md": POINTER } })],
+    { status: 1, stderr: /no calibration entry for \.agents\/skills\/ticket\/SKILL\.md/ },
+  )
+
+  check(
+    TOOL,
+    "a stamped .agents host entrypoint that CHANGED cannot leave calibration green",
+    [
+      "--root",
+      stageHarness("pointer-changed", {
+        stamp: withEntries((entries) => {
+          entries[".agents/skills/ticket/SKILL.md"] = { model: null, effort: null, digest: digestOf("a different pointer\n"), calibratedAt: today(), verdict: "current" }
+        }),
+        extraFiles: { ".agents/skills/ticket/SKILL.md": POINTER },
+      }),
+    ],
+    { status: 1, stderr: /\.agents\/skills\/ticket\/SKILL\.md changed since it was calibrated/ },
+  )
+
+  check(
+    TOOL,
+    "a stamped and unchanged .agents host entrypoint passes",
+    [
+      "--root",
+      stageHarness("pointer-clean", {
+        stamp: withEntries((entries) => {
+          entries[".agents/skills/ticket/SKILL.md"] = { model: null, effort: null, digest: digestOf(POINTER), calibratedAt: today(), verdict: "current" }
+        }),
+        extraFiles: { ".agents/skills/ticket/SKILL.md": POINTER },
+      }),
+    ],
+    { status: 0 },
   )
 
   check(

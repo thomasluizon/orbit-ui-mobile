@@ -1,6 +1,6 @@
 ---
 name: ticket
-description: Anything needing work in, 1..N executable Linear tickets out. Writes no code.
+description: Anything needing work in, 1..N executable GitHub tickets out. Writes no code.
 ---
 
 # ticket
