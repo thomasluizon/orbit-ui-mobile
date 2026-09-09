@@ -4,7 +4,6 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
-import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
@@ -28,6 +27,16 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         private const val WIDGET_REFRESH_TIMEOUT_MS = 12_000L
         private const val NARROW_WIDGET_MAX_DP = 200
 
+        // Every region that opens the app. The whole card is one tap target, per the drawing's
+        // touch note, and only the refresh is its own.
+        private val OPEN_APP_TARGETS = intArrayOf(
+            R.id.widget_root,
+            R.id.widget_header_container,
+            R.id.widget_header,
+            R.id.widget_empty,
+            R.id.widget_loading
+        )
+
         fun updateWidgetLayout(
             context: Context,
             appWidgetManager: AppWidgetManager,
@@ -38,6 +47,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             } catch (_: Exception) {
                 runCatching {
                     val fallback = RemoteViews(context.packageName, R.layout.widget_layout)
+                    applyOpenAppActions(context, fallback)
                     if (isSignedOut(context)) {
                         applySignedOutCard(context, fallback)
                     } else {
@@ -48,25 +58,25 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             }
         }
 
-        // The width this instance is CURRENTLY rendered at. OPTION_APPWIDGET_MIN_WIDTH is a lower
-        // bound, not live geometry: AppWidgetHostView derives it by taking the minimum across the
-        // host's possible sizes, so a widget spanning 160dp portrait and 300dp landscape reports 160
-        // in both. The pair (MIN_WIDTH, MAX_WIDTH) is (portrait, landscape), so the configuration
-        // picks which one is real. https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/core/java/android/appwidget/AppWidgetHostView.java
-        fun activeWidthDp(context: Context, options: Bundle): Int {
-            val portrait = context.resources.configuration.orientation !=
-                Configuration.ORIENTATION_LANDSCAPE
-            val key = if (portrait) {
-                AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH
-            } else {
-                AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH
-            }
-            return options.getInt(key, 0)
-        }
+        // The WIDEST width this instance can ever be rendered at.
+        //
+        // A provider cannot read its live width. AppWidgetHostView.updateAppWidgetSize reduces the
+        // whole list of possible SizeF values into two global extrema, and that list is not two
+        // entries with a known orientation each: a foldable contributes outer and inner screen
+        // sizes too. So neither MIN_WIDTH nor an orientation branch identifies the rendered size.
+        // https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/core/java/android/appwidget/AppWidgetHostView.java
+        //
+        // MAX_WIDTH is the one bound that supports a SAFE decision. Hiding the unit only when the
+        // instance can never exceed 200dp means a wide rendering never loses information, and the
+        // narrow rendering of a variable-width instance keeps the unit and ellipsizes instead. The
+        // opposite error, dropping the unit from a 300dp widget, is the one a person actually sees.
+        // Reading the live size needs size-keyed RemoteViews on API 31 and later: ticket #489.
+        fun widestWidthDp(options: Bundle): Int =
+            options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0)
 
-        /** GONE at 200dp and below, matching the 2x2 drawing. An unknown width keeps the unit. */
-        fun streakUnitVisibility(activeWidthDp: Int): Int =
-            if (activeWidthDp in 1..NARROW_WIDGET_MAX_DP) View.GONE else View.VISIBLE
+        /** GONE only on an instance that is never wider than 200dp. An unknown width keeps the unit. */
+        fun streakUnitVisibility(widestWidthDp: Int): Int =
+            if (widestWidthDp in 1..NARROW_WIDGET_MAX_DP) View.GONE else View.VISIBLE
 
         /** Signed out: no refresh and no spinner. Every signed-out path goes through here. */
         fun hideRefresh(views: RemoteViews) {
@@ -85,6 +95,22 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         // The WHOLE signed-out card. A fresh RemoteViews starts on the layout's own defaults, which
         // are the signed-in widget_today and widget_all_clear strings, so a render that fails after
         // sign-out would otherwise paint a control-free card that still reads as signed in.
+        // updateAppWidget submits a COMPLETE representation and the host may inflate it rather than
+        // reapply it over the last one, so a card that only mutates text inherits no actions and no
+        // empty view. Every full submission goes through here.
+        // https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/core/java/android/appwidget/AppWidgetManager.java
+        fun applyOpenAppActions(context: Context, views: RemoteViews) {
+            val openAppIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                ?: Intent(Intent.ACTION_VIEW, Uri.parse("https://app.useorbit.org"))
+            val openApp = PendingIntent.getActivity(
+                context, 0, openAppIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            views.setEmptyView(R.id.widget_list, R.id.widget_empty)
+            views.setPendingIntentTemplate(R.id.widget_list, openApp)
+            for (target in OPEN_APP_TARGETS) views.setOnClickPendingIntent(target, openApp)
+        }
+
         fun applySignedOutCard(context: Context, views: RemoteViews) {
             val lang = cachedLanguage(context)
             views.setTextViewText(R.id.widget_header, "Orbit")
@@ -98,6 +124,8 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             )
             views.setViewVisibility(R.id.widget_streak_group, View.GONE)
             views.setViewVisibility(R.id.widget_loading, View.GONE)
+            // The list is empty when signed out, so the empty view is what the card actually shows.
+            views.setViewVisibility(R.id.widget_empty, View.VISIBLE)
             hideRefresh(views)
         }
 
@@ -120,7 +148,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val displayMetrics = context.resources.displayMetrics
             val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
             val maxWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0)
-            val activeWidthDp = activeWidthDp(context, options)
+            val widestWidthDp = widestWidthDp(options)
             val maxHeightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
             val bgWidth = (if (maxWidthDp > 0) (maxWidthDp * density).toInt() else displayMetrics.widthPixels)
                 .coerceIn(1, displayMetrics.widthPixels)
@@ -169,7 +197,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }
             // The 2x2 drawing keeps the streak numeral and drops its localized unit at 200dp and
             // below, where the unit would eat the day and progress column.
-            views.setViewVisibility(R.id.widget_streak_unit, streakUnitVisibility(activeWidthDp))
+            views.setViewVisibility(R.id.widget_streak_unit, streakUnitVisibility(widestWidthDp))
 
             if (isSignedOut) {
                 // The drawn signed-out card carries no control at all: its one action is the whole
@@ -210,16 +238,9 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
             }
             views.setRemoteAdapter(R.id.widget_list, serviceIntent)
-            views.setEmptyView(R.id.widget_list, R.id.widget_empty)
 
-            // Tap on any item opens the app
-            val openAppIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-                ?: Intent(Intent.ACTION_VIEW, Uri.parse("https://app.useorbit.org"))
-            val openAppPendingIntent = PendingIntent.getActivity(
-                context, 0, openAppIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setPendingIntentTemplate(R.id.widget_list, openAppPendingIntent)
+            // The empty-view relation and every open-app target, shared with the render fallback.
+            applyOpenAppActions(context, views)
 
             // Refresh button triggers data reload
             val refreshIntent = Intent(context, OrbitWidgetProvider::class.java).apply {
@@ -230,13 +251,6 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setOnClickPendingIntent(R.id.widget_refresh, refreshPendingIntent)
-
-            // Tap anywhere else also opens app
-            views.setOnClickPendingIntent(R.id.widget_root, openAppPendingIntent)
-            views.setOnClickPendingIntent(R.id.widget_header_container, openAppPendingIntent)
-            views.setOnClickPendingIntent(R.id.widget_header, openAppPendingIntent)
-            views.setOnClickPendingIntent(R.id.widget_empty, openAppPendingIntent)
-            views.setOnClickPendingIntent(R.id.widget_loading, openAppPendingIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }

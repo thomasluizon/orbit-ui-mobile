@@ -383,11 +383,10 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         )
         for (id in widgetIds) {
             val views = RemoteViews(context.packageName, R.layout.widget_layout)
-            val activeWidthDp = OrbitWidgetProvider.activeWidthDp(
-                context,
+            val widestWidthDp = OrbitWidgetProvider.widestWidthDp(
                 appWidgetManager.getAppWidgetOptions(id)
             )
-            mutate(views, activeWidthDp)
+            mutate(views, widestWidthDp)
             appWidgetManager.partiallyUpdateAppWidget(id, views)
         }
     }
@@ -481,7 +480,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         val colorModes = getThemeColorModes(context)
         val streakVisible = if (streak > 0) android.view.View.VISIBLE else android.view.View.GONE
         val refreshDescription = tr(context, lang, WidgetString.REFRESH)
-        updateWidgets { views, activeWidthDp ->
+        updateWidgets { views, widestWidthDp ->
             views.setTextViewText(R.id.widget_header, headerLabel)
             views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textMuted }
             views.setTextViewText(R.id.widget_subtitle, subtitleText)
@@ -496,7 +495,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             views.setViewVisibility(R.id.widget_streak_group, streakVisible)
             views.setViewVisibility(
                 R.id.widget_streak_unit,
-                OrbitWidgetProvider.streakUnitVisibility(activeWidthDp)
+                OrbitWidgetProvider.streakUnitVisibility(widestWidthDp)
             )
             views.setContentDescription(R.id.widget_refresh, refreshDescription)
             // Restore refresh button, hide loading spinner and skeleton

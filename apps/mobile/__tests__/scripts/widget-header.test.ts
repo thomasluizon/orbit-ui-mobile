@@ -157,17 +157,18 @@ describe('Android widget header', () => {
 
     expect(provider).toContain('private const val NARROW_WIDGET_MAX_DP = 200')
     expect(provider).toMatch(
-      /fun streakUnitVisibility\(activeWidthDp: Int\): Int =\s*if \(activeWidthDp in 1\.\.NARROW_WIDGET_MAX_DP\) View\.GONE else View\.VISIBLE/,
+      /fun streakUnitVisibility\(widestWidthDp: Int\): Int =\s*if \(widestWidthDp in 1\.\.NARROW_WIDGET_MAX_DP\) View\.GONE else View\.VISIBLE/,
     )
     expect(provider).toContain(
-      'views.setViewVisibility(R.id.widget_streak_unit, streakUnitVisibility(activeWidthDp))',
+      'views.setViewVisibility(R.id.widget_streak_unit, streakUnitVisibility(widestWidthDp))',
     )
-    expect(provider).toContain('Configuration.ORIENTATION_LANDSCAPE')
-    expect(provider).toContain('AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH')
-    expect(provider).toContain('AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH')
+    expect(provider).toContain(
+      'options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0)',
+    )
+    expect(provider).not.toContain('OPTION_APPWIDGET_MIN_WIDTH')
     expect(provider).toContain('override fun onAppWidgetOptionsChanged(')
-    expect(service).toContain('OrbitWidgetProvider.activeWidthDp(')
-    expect(service).toContain('OrbitWidgetProvider.streakUnitVisibility(activeWidthDp)')
+    expect(service).toContain('OrbitWidgetProvider.widestWidthDp(')
+    expect(service).toContain('OrbitWidgetProvider.streakUnitVisibility(widestWidthDp)')
     expect(service).not.toContain(
       'views.setViewVisibility(R.id.widget_streak_unit, android.view.View.VISIBLE)',
     )
@@ -178,6 +179,27 @@ describe('Android widget header', () => {
    * sign anyone in. Three paths could put the refresh back: the full render, the placeholder the
    * token-null branch draws, and the refresh timeout worker.
    */
+  /**
+   * updateAppWidget submits a complete representation and the host may inflate it rather than
+   * reapply it, so a fallback that only sets text would render a card with no empty view and no
+   * open-app action. Both full submissions install them from the same helper.
+   */
+  it('gives every full render the empty view and the open-app targets', () => {
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+
+    expect(provider).toMatch(
+      /fun applyOpenAppActions\(context: Context, views: RemoteViews\)[\s\S]*?setEmptyView\(R\.id\.widget_list, R\.id\.widget_empty\)[\s\S]*?setPendingIntentTemplate\(R\.id\.widget_list, openApp\)[\s\S]*?for \(target in OPEN_APP_TARGETS\) views\.setOnClickPendingIntent\(target, openApp\)/,
+    )
+    for (const target of ['widget_root', 'widget_header_container', 'widget_header', 'widget_empty', 'widget_loading']) {
+      expect(provider).toContain(`R.id.${target},`)
+    }
+    expect(provider).toMatch(
+      /val fallback = RemoteViews\(context\.packageName, R\.layout\.widget_layout\)\s*applyOpenAppActions\(context, fallback\)/,
+    )
+    expect(provider).toContain('applyOpenAppActions(context, views)')
+    expect(provider).toContain('views.setViewVisibility(R.id.widget_empty, View.VISIBLE)')
+  })
+
   it('carries no refresh control on any signed-out path', () => {
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
