@@ -598,6 +598,7 @@ export {
   buildProtectedDayLabels,
   deriveProgressViewState,
   filterProgressGoals,
+  getProgressGoalLabelKey,
   getAvailableStreakRepairDate,
   getGoalDeadlinePresentation,
   getGamificationLevelTitleKey,
@@ -649,4 +650,9 @@ export {
   type ProposedTintElementProps,
 } from './proposed-tint'
 
+export { searchCommands, type SearchCommandPage, type SearchCommandId } from './search-commands'
+export { buildCommandHabitList, type CommandHabitEntry } from './command-habit-list'
+
 export * from './error-surface'
+
+export { buildSearchEntries, buildSearchMatchLines, type SearchMatchLine } from './search-presentation'

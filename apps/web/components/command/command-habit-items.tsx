@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import { Circle } from '@/components/ui/icons'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { HabitMatchLine } from '@/components/search/habit-match-line'
 import { CommandRow } from './command-row'
 import type { CommandHabitEntry } from './build-command-habit-list'
 
@@ -18,19 +19,23 @@ function habitLeading(emoji: string | null | undefined): ReactNode {
 }
 
 interface CommandHabitItemsProps {
+  disabled?: boolean
+  query?: string
   entries: readonly CommandHabitEntry[]
   onSelectHabit: (habit: NormalizedHabit) => void
 }
 
 /** Renders the habit rows shared by the search/jump, log, and skip palette pages.
  *  Sub-habits show a "Parent · Child" label so they read distinctly in the flat list. */
-export function CommandHabitItems({ entries, onSelectHabit }: Readonly<CommandHabitItemsProps>) {
+export function CommandHabitItems({ entries, onSelectHabit, query = '', disabled = false }: Readonly<CommandHabitItemsProps>) {
   return (
     <>
       {entries.map(({ habit, parentTitle }) => (
         <CommandRow
           key={habit.id}
+          disabled={disabled}
           leading={habitLeading(habit.emoji)}
+          description={<HabitMatchLine habit={habit} query={query} />}
           label={parentTitle ? `${parentTitle} · ${habit.title}` : habit.title}
           value={
             parentTitle

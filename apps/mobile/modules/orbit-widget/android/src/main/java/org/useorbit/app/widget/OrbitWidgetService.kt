@@ -167,6 +167,7 @@ data class WidgetColors(
     val borderMuted: Int,
     val overdue: Int,
     val streak: Int,
+    val streakText: Int,
     val statusEmpty: Int
 )
 
@@ -270,6 +271,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                 borderMuted = fallbackColor(mode, "borderMuted"),
                 overdue = fallbackColor(mode, "overdue"),
                 streak = fallbackColor(mode, "streak"),
+                streakText = fallbackColor(mode, "streakText"),
                 statusEmpty = fallbackColor(mode, "statusEmpty")
             )
         }
@@ -295,6 +297,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                 borderMuted = readColor(prefs, mode, "borderMuted"),
                 overdue = readColor(prefs, mode, "overdue"),
                 streak = readColor(prefs, mode, "streak"),
+                streakText = readColor(prefs, mode, "streakText"),
                 statusEmpty = readColor(prefs, mode, "statusEmpty")
             )
         }
@@ -399,7 +402,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
      * loading skeleton stays up (signed in, no data yet) so the widget never paints
      * blank; with false it yields to the empty/sign-in view (signed out).
      */
-    private fun renderPlaceholder(showSkeleton: Boolean) {
+    private fun renderPlaceholder(showSkeleton: Boolean, signedOut: Boolean) {
         habits = emptyList()
         lang = detectLanguage(null)
         headerLabel = tr(context, lang, WidgetString.TODAY)
@@ -414,12 +417,18 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             .apply()
 
         updateWidgets { views ->
-            views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
-            views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)
-            views.setViewVisibility(
-                R.id.widget_loading,
-                if (showSkeleton) android.view.View.VISIBLE else android.view.View.GONE
-            )
+            if (signedOut) {
+                // The WHOLE card, not just its controls: a stale load can have left a signed-in
+                // header, subtitle and streak behind, and hiding the refresh alone would leave
+                // those on screen.
+                OrbitWidgetProvider.applySignedOutCard(context, views)
+            } else {
+                OrbitWidgetProvider.showRefresh(views)
+                views.setViewVisibility(
+                    R.id.widget_loading,
+                    if (showSkeleton) android.view.View.VISIBLE else android.view.View.GONE
+                )
+            }
         }
     }
 
@@ -428,9 +437,13 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             loadWidgetData()
         } catch (_: Exception) {
             runCatching {
+                val signedOut = OrbitWidgetProvider.isSignedOut(context)
                 updateWidgets { views ->
-                    views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
-                    views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)
+                    if (signedOut) {
+                        OrbitWidgetProvider.hideRefresh(views)
+                    } else {
+                        OrbitWidgetProvider.showRefresh(views)
+                    }
                 }
             }
         }
@@ -440,13 +453,44 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         colorModes = getThemeColorModes(context)
         val token = OrbitWidgetModule.getToken(context)
         if (token == null) {
-            renderPlaceholder(showSkeleton = false)
+            renderPlaceholder(showSkeleton = false, signedOut = true)
             return
         }
 
         val widgetData = resolveWidgetData(token)
+
+        // resolveWidgetData can block for seconds, and everything below repopulates the cache and
+        // the signed-in header, so a load must prove it still owns the session before it lands.
+        // The three ways it can stop owning it are NOT the same:
+        //
+        //  - the token is gone: a sign-out happened, and a load started under the old session would
+        //    put a logged-out person's habits back on their home screen. The sign-out wins.
+        //  - a DIFFERENT ACCOUNT is signed in: returning here would leave `habits` holding the rows
+        //    the previous load put there, and getViewAt would keep serving one account's habits to
+        //    the next one until their own load finished. Clearing the list is the point; the
+        //    skeleton is what their own load replaces.
+        //  - the token changed but names the SAME account: an access-token rotation, and the person
+        //    is still signed in. auth-store.ts calls saveWidgetToken after every refresh, and
+        //    OrbitWidgetModule.saveToken refreshes the widgets, so a NEWER load already owns the
+        //    render. This one drops silently rather than blanking a signed-in widget, and it must
+        //    keep the rows on screen because they are still that person's rows.
+        val currentToken = OrbitWidgetModule.getToken(context)
+        if (currentToken == null) {
+            renderPlaceholder(showSkeleton = false, signedOut = true)
+            return
+        }
+        if (OrbitWidgetModule.sessionKey(currentToken) != OrbitWidgetModule.sessionKey(token)) {
+            renderPlaceholder(showSkeleton = true, signedOut = false)
+            return
+        }
+        if (currentToken != token) {
+            return
+        }
+        // The cache is account-scoped, so even a write that landed before this check is unreadable
+        // by another account. These returns only avoid rendering a result somebody else supersedes.
+
         if (widgetData == null) {
-            renderPlaceholder(showSkeleton = true)
+            renderPlaceholder(showSkeleton = true, signedOut = false)
             return
         }
 
@@ -478,7 +522,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         val refreshDescription = tr(context, lang, WidgetString.REFRESH)
         updateWidgets { views ->
             views.setTextViewText(R.id.widget_header, headerLabel)
-            views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textPrimary }
+            views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textMuted }
             views.setTextViewText(R.id.widget_subtitle, subtitleText)
             views.setModeAwareColor(R.id.widget_subtitle, "setTextColor", colorModes) { it.textMuted }
             views.setTextViewText(R.id.widget_streak, "$streak")
@@ -491,8 +535,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             views.setViewVisibility(R.id.widget_streak_group, streakVisible)
             views.setContentDescription(R.id.widget_refresh, refreshDescription)
             // Restore refresh button, hide loading spinner and skeleton
-            views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
-            views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)
+            OrbitWidgetProvider.showRefresh(views)
             views.setViewVisibility(R.id.widget_loading, android.view.View.GONE)
         }
     }
@@ -512,14 +555,34 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     }
 
     /**
-     * Returns parsed widget data, preferring a recent app-pushed cache, then a
-     * live fetch, then the last cached payload. Only the network fetch can fail,
-     * so a blip or a blocked binder-thread request degrades to stale data instead
-     * of a blank list. A successful fetch is cached for the next cold start.
+     * Returns parsed widget data, preferring a recent app-pushed cache, then a live fetch, then the
+     * last cached payload. Only the network fetch can fail, so a blip or a blocked binder-thread
+     * request degrades to stale data instead of a blank list. A successful fetch is cached for the
+     * next cold start.
+     *
+     * The payload cache belongs to ONE session and says so.
+     *
+     * Without that, a fetch still in flight at logout writes its response back after the cache is
+     * cleared, and the next account to sign in reads it as fresh and renders another person's
+     * habits without ever making a request under its own token. Ordering the write against the
+     * logout does not fix it either: `onDataSetChanged` is synchronized, so the replacement
+     * callback simply runs after the old one has already landed.
+     *
+     * So ownership is recorded rather than inferred. A payload is only readable by the account that
+     * produced it, whatever order the callbacks finish in. The key names the ACCOUNT rather than the
+     * access token, so a silent refresh keeps the cache it just filled.
+     *
+     * `OrbitWidgetModule.syncWidgetData` tags its app-pushed payload with the same key, so the two
+     * writers stay readable by one account and a fresh sign-in keeps the data the app already has.
      */
     private fun resolveWidgetData(token: String): HabitWidgetResponse? {
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-        val cachedData = parseWidgetResponse(prefs.getString("habits_json", null))
+        val session = OrbitWidgetModule.sessionKey(token)
+        val cachedData = if (prefs.getString("habits_session", null) == session) {
+            parseWidgetResponse(prefs.getString("habits_json", null))
+        } else {
+            null
+        }
         val cacheAge = System.currentTimeMillis() - prefs.getLong("habits_updated_at", 0L)
         if (cachedData != null && cacheAge in 0L..FRESH_WINDOW_MS) {
             return cachedData
@@ -530,6 +593,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         if (freshData != null && freshJson != null) {
             prefs.edit()
                 .putString("habits_json", freshJson)
+                .putString("habits_session", session)
                 .putLong("habits_updated_at", System.currentTimeMillis())
                 .apply()
             return freshData

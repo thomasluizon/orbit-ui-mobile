@@ -1,9 +1,11 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { habitKeys } from '@orbit/shared/query'
 
 import {
   useHabits,
+  useSearchHabits,
   useHabitDetail,
   useHabitMetrics,
   useHabitLogs,
@@ -238,4 +240,15 @@ describe('useHabitCountLoaded (mobile)', () => {
     })
     expect(loaded).toEqual({ count: 0, isLoaded: false })
   })
+})
+
+it('loads only the requested search page and preserves its totals', async () => {
+  const response = { items: [{ ...createMockHabit({ id: 'last' }), children: [], linkedGoals: [] }], page: 2, pageSize: 20, totalCount: 21, totalPages: 2 }
+  mocks.apiClient.mockResolvedValue(response)
+  renderHookCapture(() => useSearchHabits({ search: 'walk', page: 2, pageSize: 20 }))
+  const query = lastQuery()
+  const page = await query.queryFn()
+  expect(query.select?.(page)).toMatchObject({ totalCount: 21, totalPages: 2, currentPage: 2 })
+  expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+  expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits?search=walk&page=2&pageSize=20')
 })

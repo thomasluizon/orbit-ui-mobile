@@ -6,12 +6,14 @@ import { useDeleteTag, useRestoreTag } from '@/hooks/use-tags'
 
 const mocks = vi.hoisted(() => ({
   queryClient: {
+    getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
     invalidateQueries: vi.fn(async () => {}),
     cancelQueries: vi.fn(async () => {}),
     getQueriesData: vi.fn(() => []),
     setQueriesData: vi.fn(),
   },
-  apiClient: vi.fn(async () => undefined),
+  apiClient: vi.fn(() => Promise.resolve(undefined)),
   buildQueuedMutation: vi.fn((options: Record<string, unknown>) => ({ id: 'mutation-1', ...options })),
   createQueuedAck: vi.fn((id: string) => ({ queued: true as const, queuedMutationId: id })),
   isQueuedResult: vi.fn((value: unknown) => (

@@ -334,6 +334,9 @@ export function useChatComposer() {
     )
 
     const invalidations = selectActionInvalidations(response.actions)
+    if (invalidations.habits || invalidations.tags) {
+      void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
+    }
     if (invalidations.habits) {
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
     }
@@ -723,6 +726,7 @@ export function useChatComposer() {
 
   function handleBreakdownConfirmed() {
     void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+    void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
   }
 
   return {

@@ -1,4 +1,5 @@
 import React from 'react'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { StyleSheet } from 'react-native'
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
@@ -114,24 +115,6 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-function contrastOnSurface(foreground: string, layers: string[]): number {
-  const channels = (color: string) => color.startsWith('#')
-    ? [1, 3, 5].map((offset) => Number.parseInt(color.slice(offset, offset + 2), 16))
-    : color.match(/[\d.]+/g)!.map(Number)
-  const background = layers.reduce((below, layer) => {
-    const [red, green, blue, alpha = 1] = channels(layer)
-    return [red!, green!, blue!].map((value, index) => Math.round(value * alpha + below[index]! * (1 - alpha)))
-  }, [0, 0, 0])
-  const luminance = (rgb: number[]) => rgb.slice(0, 3).reduce((sum, value, index) => {
-    const normalized = value / 255
-    const linear = normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
-    return sum + linear * [0.2126, 0.7152, 0.0722][index]!
-  }, 0)
-  const front = luminance(channels(foreground))
-  const back = luminance(background)
-  return (Math.max(front, back) + 0.05) / (Math.min(front, back) + 0.05)
-}
-
 describe('mobile alerts', () => {
   it.each(['dark', 'light'].flatMap((mode) =>
     ['row body', 'row timestamp', 'row target', 'detail body', 'detail metadata'].map((field) => ({ mode, field })),
@@ -225,7 +208,7 @@ describe('mobile alerts', () => {
     const row = hosts(tree, 'Pressable').find((node) => node.props.accessibilityLabel?.startsWith('Reminder. unread.'))!
     const icons = row.findAll((node) => node.type === glyph)
     expect(icons).toHaveLength(1)
-    expect(icons[0]!.props).toMatchObject({ size: 16, color: createTokensV2('purple', 'dark').fg4 })
+    expect(icons[0]!.props).toMatchObject({ size: 16, color: createTokensV2('purple', 'dark').fg3 })
   })
 
   it('uses canonical ghost list and read actions and a destructive detail delete', () => {

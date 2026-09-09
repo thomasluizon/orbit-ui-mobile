@@ -18,10 +18,7 @@ import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { CreateGoalModal } from '@/components/goals/create-goal-modal'
 import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onboarding-overlay'
-import { StreakCelebration } from '@/components/gamification/streak-celebration'
-import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
-import { GoalCompletedCelebration } from '@/components/gamification/goal-completed-celebration'
-import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
+import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
 import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
@@ -242,6 +239,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         conversationLabel={t('todayAstra.openConversation')}
         notice={(
           <>
+            <CelebrationPanel />
             {isOnline ? null : (
               <Toast
                 kind="neutral"
@@ -344,6 +342,13 @@ function GlobalOverlays({
 }>) {
   const t = useTranslations()
   const gamification = useGamificationProfile(canViewGamification)
+  const { clearLevelUp, leveledUp, newLevel } = gamification
+
+  useEffect(() => {
+    if (!leveledUp || newLevel === null) return
+    useUIStore.getState().enqueueCelebration('level-up', { level: newLevel })
+    clearLevelUp()
+  }, [clearLevelUp, leveledUp, newLevel])
   const armReferralPrompt = useReferralPromptStore((s) => s.armReferralPrompt)
   const armMilestoneSharePrompt = useReferralPromptStore(
     (s) => s.armMilestoneSharePrompt,
@@ -401,16 +406,6 @@ function GlobalOverlays({
       <TrialExpiredModal />
       {profile?.hasCompletedOnboarding && <PushPrompt />}
       {showRetainedOnboarding && <RetainedOnboardingOverlay />}
-      <StreakCelebration />
-      <AllDoneCelebration />
-      <GoalCompletedCelebration />
-      {canViewGamification && (
-        <LevelUpOverlay
-          leveledUp={gamification.leveledUp}
-          newLevel={gamification.newLevel}
-          onClear={gamification.clearLevelUp}
-        />
-      )}
       {profile?.hasCompletedOnboarding && <MarketingConsentPrompt />}
       {profile?.hasCompletedOnboarding && <ReferralPrompt />}
       {profile?.hasCompletedOnboarding && <MilestoneSharePrompt />}

@@ -141,7 +141,7 @@ function createStyles(tokens: AppTokensV2) {
       borderBottomLeftRadius: 18,
       borderBottomRightRadius: 18,
       paddingVertical: 12,
-      paddingHorizontal: 15,
+      paddingHorizontal: 16,
     },
     bubbleText: {
       fontFamily: 'Geist_400Regular',

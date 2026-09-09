@@ -34,6 +34,7 @@ const COLOR_ROLES = [
   ['borderMuted', 'hairline'],
   ['overdue', 'overdue'],
   ['streak', 'primary'],
+  ['streakText', 'fg1'],
   ['statusEmpty', 'fg4'],
 ] as const satisfies readonly (readonly [string, PaletteKey])[]
 
@@ -64,27 +65,6 @@ const PALETTES = {
     overdue: ['#946A00', '--status-overdue'],
   },
 } as const satisfies Record<'dark' | 'light', Palette>
-
-const RGB_PATTERN = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/
-
-export function flattenColor(color: string, baseHex: string): string {
-  const match = RGB_PATTERN.exec(color)
-  if (!match) return color.toUpperCase()
-
-  const overlay = [match[1], match[2], match[3]].map(channel =>
-    Number.parseInt(channel ?? '0', 10),
-  ) as [number, number, number]
-  const alpha = match[4] === undefined ? 1 : Number.parseFloat(match[4])
-  const base = baseHex.replace('#', '')
-  const blend = (index: 0 | 1 | 2) => {
-    const baseChannel = Number.parseInt(base.slice(index * 2, index * 2 + 2), 16)
-    return Math.round(overlay[index] * alpha + baseChannel * (1 - alpha))
-      .toString(16)
-      .padStart(2, '0')
-  }
-
-  return `#${blend(0)}${blend(1)}${blend(2)}`.toUpperCase()
-}
 
 function generatedTypeScript() {
   const modes = Object.entries(PALETTES).map(([mode, palette]) => {
@@ -122,6 +102,7 @@ const RESOURCE_ROLES = [
   ['widget_fg_3', 'fg3'],
   ['widget_fg_4', 'fg4'],
   ['widget_primary', 'primary'],
+  ['widget_streak_text', 'fg1'],
   ['widget_overdue', 'overdue'],
 ] as const satisfies readonly (readonly [string, PaletteKey])[]
 

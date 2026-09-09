@@ -3,10 +3,48 @@ import { renderHook, waitFor, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
+import { useSearchHabits } from '@/hooks/use-habit-queries'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import type { HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
 const mockFetch = vi.fn()
+
+describe('search cache settlement', () => {
+  it('refreshes cached empty search pages after creating a habit', async () => {
+    const { createHabit } = await import('@/app/actions/habits')
+    vi.mocked(createHabit).mockResolvedValue({ id: 'created' })
+    const queryClient = createQueryClient()
+    const keys = [habitKeys.search({ search: 'walk', page: 1 }), habitKeys.search({ search: 'walk', page: 2 }), habitKeys.search({ search: 'other', page: 1 })]
+    const response = { items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 }
+    for (const key of keys) queryClient.setQueryData(key, response)
+    const { result } = renderHook(() => useCreateHabit(), { wrapper: createWrapper(queryClient) })
+    await act(() => result.current.mutateAsync({ title: 'Walk' }))
+    for (const key of keys) {
+      expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
+      expect(queryClient.getQueryData(key)).toEqual(response)
+    }
+    queryClient.clear()
+  })
+
+  it('keeps paginated search responses intact during optimistic edits and invalidates on settlement', async () => {
+    const { updateHabit } = await import('@/app/actions/habits')
+    let finish!: () => void
+    vi.mocked(updateHabit).mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
+    const queryClient = createQueryClient()
+    const key = habitKeys.search({ search: 'Exercise', page: 2 })
+    const response = { items: [makeScheduleItem()], page: 2, pageSize: 20, totalCount: 21, totalPages: 2 }
+    queryClient.setQueryData(key, response)
+    queryClient.setQueryData(habitKeys.list({}), response.items)
+    const { result } = renderHook(() => useUpdateHabit(), { wrapper: createWrapper(queryClient) })
+    act(() => result.current.mutate({ habitId: 'h-1', data: { title: 'Renamed', isBadHabit: false } }))
+    await waitFor(() => expect(queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.[0]?.title).toBe('Renamed'))
+    expect(queryClient.getQueryData(key)).toEqual(response)
+    await act(async () => { finish() })
+    await waitFor(() => expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true))
+    expect(queryClient.getQueryData(key)).toEqual(response)
+    queryClient.clear()
+  })
+})
 vi.stubGlobal('fetch', mockFetch)
 
 const mockShowError = vi.fn()
@@ -773,7 +811,7 @@ describe('useLogHabit onSuccess', () => {
     vi.mocked(logHabit).mockResolvedValue({
       logId: 'log-streak',
       isFirstCompletionToday,
-      currentStreak: 3,
+      currentStreak: 7,
     })
 
     const queryClient = createQueryClient()
@@ -788,13 +826,13 @@ describe('useLogHabit onSuccess', () => {
     })
 
     if (celebrates) {
-      expect(mockSetStreakCelebration).toHaveBeenCalledWith({ streak: 3 })
+      expect(mockSetStreakCelebration).toHaveBeenCalledWith({ streak: 7 })
     } else {
       expect(mockSetStreakCelebration).not.toHaveBeenCalled()
     }
     expect(
       queryClient.getQueryData<{ currentStreak: number }>(profileKeys.detail())?.currentStreak,
-    ).toBe(celebrates ? 3 : 1)
+    ).toBe(celebrates ? 7 : 1)
   })
 
   it('completes successfully with streak response', async () => {
@@ -1537,4 +1575,15 @@ describe('useBulkSkipHabits', () => {
     expect(children?.find((habit) => habit.id === 'child-accepted')?.isCompleted).toBe(true)
     expect(children?.find((habit) => habit.id === 'child-rejected')?.isCompleted).toBe(false)
   })
+})
+
+it('loads only the requested search page and preserves its totals', async () => {
+  const response = { items: [makeScheduleItem({ id: 'last', title: 'Walk' })], page: 2, pageSize: 20, totalCount: 21, totalPages: 2 }
+  mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(response) })
+  const { result } = renderHook(() => useSearchHabits({ search: 'walk', page: 2, pageSize: 20 }), { wrapper: createWrapper() })
+  await waitFor(() => expect(result.current.isSuccess).toBe(true))
+  expect(result.current.data).toMatchObject({ totalCount: 21, totalPages: 2, currentPage: 2 })
+  expect(result.current.data?.topLevelHabits.map((habit) => habit.id)).toEqual(['last'])
+  expect(mockFetch).toHaveBeenCalledTimes(1)
+  expect(mockFetch.mock.calls[0]?.[0]).toBe('/api/habits?search=walk&page=2&pageSize=20')
 })

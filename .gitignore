@@ -110,3 +110,11 @@ error.log
 .session-*
 .orca-*
 .agent-scratch-*
+
+# Generated architecture map (thomasluizon/orbit-tickets#470). Committing a whole-file
+# regeneration and gating on its exact bytes made the pair conflict on every pair of parallel
+# branches; PR 842 alone paid three base merges and three review cycles for it. Produce them with
+# `node tools/arch-map.mjs`, which is the path CLAUDE.md names, or take the CI build artifact.
+/architecture.json
+/architecture.html
+/architecture.mmd

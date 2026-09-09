@@ -5,6 +5,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
 import androidx.work.Constraints
@@ -24,6 +25,15 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         private const val WORK_NAME = "orbit_widget_sync"
         private const val REFRESH_TIMEOUT_WORK_NAME = "orbit_widget_refresh_timeout"
         private const val WIDGET_REFRESH_TIMEOUT_MS = 12_000L
+        // Every region that opens the app. The whole card is one tap target, per the drawing's
+        // touch note, and only the refresh is its own.
+        private val OPEN_APP_TARGETS = intArrayOf(
+            R.id.widget_root,
+            R.id.widget_header_container,
+            R.id.widget_header,
+            R.id.widget_empty,
+            R.id.widget_loading
+        )
 
         fun updateWidgetLayout(
             context: Context,
@@ -35,11 +45,72 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             } catch (_: Exception) {
                 runCatching {
                     val fallback = RemoteViews(context.packageName, R.layout.widget_layout)
-                    fallback.setViewVisibility(R.id.widget_refresh, View.VISIBLE)
-                    fallback.setViewVisibility(R.id.widget_refresh_loading, View.GONE)
+                    applyOpenAppActions(context, fallback)
+                    if (isSignedOut(context)) {
+                        applySignedOutCard(context, fallback)
+                    } else {
+                        showRefresh(fallback)
+                    }
                     appWidgetManager.updateAppWidget(appWidgetId, fallback)
                 }
             }
+        }
+
+        /** Signed out: no refresh and no spinner. Every signed-out path goes through here. */
+        fun hideRefresh(views: RemoteViews) {
+            views.setViewVisibility(R.id.widget_refresh, View.GONE)
+            views.setViewVisibility(R.id.widget_refresh_loading, View.GONE)
+        }
+
+        /** Signed in and idle: the refresh returns and its spinner goes. */
+        fun showRefresh(views: RemoteViews) {
+            views.setViewVisibility(R.id.widget_refresh, View.VISIBLE)
+            views.setViewVisibility(R.id.widget_refresh_loading, View.GONE)
+        }
+
+        fun isSignedOut(context: Context): Boolean = OrbitWidgetModule.getToken(context) == null
+
+        // The WHOLE signed-out card. A fresh RemoteViews starts on the layout's own defaults, which
+        // are the signed-in widget_today and widget_all_clear strings, so a render that fails after
+        // sign-out would otherwise paint a control-free card that still reads as signed in.
+        // updateAppWidget submits a COMPLETE representation and the host may inflate it rather than
+        // reapply it over the last one, so a card that only mutates text inherits no actions and no
+        // empty view. Every full submission goes through here.
+        // https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/core/java/android/appwidget/AppWidgetManager.java
+        fun applyOpenAppActions(context: Context, views: RemoteViews) {
+            val openAppIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                ?: Intent(Intent.ACTION_VIEW, Uri.parse("https://app.useorbit.org"))
+            val openApp = PendingIntent.getActivity(
+                context, 0, openAppIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            views.setEmptyView(R.id.widget_list, R.id.widget_empty)
+            views.setPendingIntentTemplate(R.id.widget_list, openApp)
+            for (target in OPEN_APP_TARGETS) views.setOnClickPendingIntent(target, openApp)
+        }
+
+        fun applySignedOutCard(context: Context, views: RemoteViews) {
+            val lang = cachedLanguage(context)
+            views.setTextViewText(R.id.widget_header, "Orbit")
+            views.setTextViewText(
+                R.id.widget_subtitle,
+                OrbitWidgetFactory.tr(context, lang, WidgetString.SIGN_IN)
+            )
+            views.setTextViewText(
+                R.id.widget_empty_text,
+                OrbitWidgetFactory.tr(context, lang, WidgetString.SIGN_IN)
+            )
+            views.setViewVisibility(R.id.widget_streak_group, View.GONE)
+            views.setViewVisibility(R.id.widget_loading, View.GONE)
+            // The list is empty when signed out, so the empty view is what the card actually shows.
+            views.setViewVisibility(R.id.widget_empty, View.VISIBLE)
+            hideRefresh(views)
+        }
+
+        fun cachedLanguage(context: Context): String {
+            val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+            return prefs.getString("lang", null)
+                ?: if (Locale.getDefault().language == "pt") "pt-BR" else "en"
         }
 
         private fun renderWidget(
@@ -72,21 +143,21 @@ class OrbitWidgetProvider : AppWidgetProvider() {
 
             // Read cached header from SharedPreferences
             val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-            val lang = prefs.getString("lang", null) ?: if (Locale.getDefault().language == "pt") {
-                "pt-BR"
-            } else {
-                "en"
-            }
+            val lang = cachedLanguage(context)
             val headerLabel = prefs.getString("header_label", null)
                 ?: OrbitWidgetFactory.tr(context, lang, WidgetString.TODAY)
             val habitCount = prefs.getInt("habit_count", 0)
             val completedCount = prefs.getInt("completed_count", 0)
             val streak = prefs.getInt("user_streak", 0)
-            val isSignedOut = OrbitWidgetModule.getToken(context) == null
+            val isSignedOut = isSignedOut(context)
             val syncedOnce = prefs.getLong("habits_updated_at", 0L) > 0L
 
             // Apply dynamic text colors
-            views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textPrimary }
+            // The drawing renders the day label in fg-3 and the subtitle below it in fg-4. fg-4
+            // measures 2.83 dark and 3.48 light as 11sp text against a 4.5 floor, so the subtitle
+            // stays on fg-3: the drawn step survives as size and weight, which is how this system
+            // separates a label from its value on a raised surface.
+            views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textMuted }
             views.setModeAwareColor(R.id.widget_subtitle, "setTextColor", colorModes) { it.textMuted }
             views.setModeAwareColor(R.id.widget_empty_text, "setTextColor", colorModes) { it.textPrimary }
             views.setModeAwareColor(R.id.widget_streak_unit, "setTextColor", colorModes) { it.textMuted }
@@ -101,18 +172,10 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             views.setContentDescription(R.id.widget_refresh, refreshDescription)
 
             views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }
-
             if (isSignedOut) {
-                views.setTextViewText(R.id.widget_header, "Orbit")
-                views.setTextViewText(
-                    R.id.widget_subtitle,
-                    OrbitWidgetFactory.tr(context, lang, WidgetString.SIGN_IN)
-                )
-                views.setViewVisibility(R.id.widget_streak_group, View.GONE)
-                views.setTextViewText(
-                    R.id.widget_empty_text,
-                    OrbitWidgetFactory.tr(context, lang, WidgetString.SIGN_IN)
-                )
+                // The drawn signed-out card carries no control at all: its one action is the whole
+                // card, and a refresh that cannot sign anyone in is a control that does not work.
+                applySignedOutCard(context, views)
             } else {
                 views.setTextViewText(R.id.widget_header, headerLabel)
                 val subtitleText = if (syncedOnce) {
@@ -133,6 +196,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                     R.id.widget_empty_text,
                     OrbitWidgetFactory.tr(context, lang, WidgetString.ALL_CLEAR)
                 )
+                showRefresh(views)
             }
 
             // Show the loading skeleton until habits have synced at least once, so a
@@ -147,16 +211,9 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
             }
             views.setRemoteAdapter(R.id.widget_list, serviceIntent)
-            views.setEmptyView(R.id.widget_list, R.id.widget_empty)
 
-            // Tap on any item opens the app
-            val openAppIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-                ?: Intent(Intent.ACTION_VIEW, Uri.parse("https://app.useorbit.org"))
-            val openAppPendingIntent = PendingIntent.getActivity(
-                context, 0, openAppIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setPendingIntentTemplate(R.id.widget_list, openAppPendingIntent)
+            // The empty-view relation and every open-app target, shared with the render fallback.
+            applyOpenAppActions(context, views)
 
             // Refresh button triggers data reload
             val refreshIntent = Intent(context, OrbitWidgetProvider::class.java).apply {
@@ -167,13 +224,6 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setOnClickPendingIntent(R.id.widget_refresh, refreshPendingIntent)
-
-            // Tap anywhere else also opens app
-            views.setOnClickPendingIntent(R.id.widget_root, openAppPendingIntent)
-            views.setOnClickPendingIntent(R.id.widget_header_container, openAppPendingIntent)
-            views.setOnClickPendingIntent(R.id.widget_header, openAppPendingIntent)
-            views.setOnClickPendingIntent(R.id.widget_empty, openAppPendingIntent)
-            views.setOnClickPendingIntent(R.id.widget_loading, openAppPendingIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
@@ -199,8 +249,15 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val appWidgetIds = appWidgetManager.getAppWidgetIds(
                 android.content.ComponentName(context, OrbitWidgetProvider::class.java)
             )
-            // Show loading spinner immediately
+            // Show loading spinner immediately, unless there is nothing to refresh
+            if (isSignedOut(context)) {
+                for (id in appWidgetIds) updateWidgetLayout(context, appWidgetManager, id)
+                return
+            }
             for (id in appWidgetIds) {
+                // AppWidgetHostView retains but does not reapply cached RemoteViews on a
+                // configuration change, so refresh must reapply the full mode-aware palette.
+                updateWidgetLayout(context, appWidgetManager, id)
                 val loadingViews = RemoteViews(context.packageName, R.layout.widget_layout)
                 loadingViews.setViewVisibility(R.id.widget_refresh, View.GONE)
                 loadingViews.setViewVisibility(R.id.widget_refresh_loading, View.VISIBLE)
@@ -210,6 +267,18 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_list)
             scheduleRefreshTimeout(context)
         }
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+        // A resize changes the background bitmap's pixel dimensions, and nothing else re-renders
+        // on resize, so the card would keep a bitmap cut for the old size.
+        updateWidgetLayout(context, appWidgetManager, appWidgetId)
     }
 
     override fun onEnabled(context: Context) {

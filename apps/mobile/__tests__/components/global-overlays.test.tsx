@@ -42,17 +42,8 @@ vi.mock('@/components/onboarding/calendar-import-prompt', () => ({
 vi.mock('@/components/onboarding/astra-import-prompt', () => ({
   AstraImportPrompt: 'AstraImportPrompt',
 }))
-vi.mock('@/components/gamification/all-done-celebration', () => ({
-  AllDoneCelebration: 'AllDoneCelebration',
-}))
-vi.mock('@/components/gamification/goal-completed-celebration', () => ({
-  GoalCompletedCelebration: 'GoalCompletedCelebration',
-}))
 vi.mock('@/components/goals/create-goal-modal', () => ({
   CreateGoalModal: 'CreateGoalModal',
-}))
-vi.mock('@/components/gamification/level-up-overlay', () => ({
-  LevelUpOverlay: 'LevelUpOverlay',
 }))
 vi.mock('@/components/referral/referral-prompt', () => ({
   ReferralPrompt: 'ReferralPrompt',
@@ -65,9 +56,6 @@ vi.mock('@/components/marketing-consent/marketing-consent-prompt', () => ({
 }))
 vi.mock('@/components/review-moment/review-moment-sheet', () => ({
   ReviewMomentSheet: 'ReviewMomentSheet',
-}))
-vi.mock('@/components/gamification/streak-celebration', () => ({
-  StreakCelebration: 'StreakCelebration',
 }))
 vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: 'ExpiryWarning' }))
 vi.mock('@/components/ui/trial-expired-modal', () => ({
@@ -100,12 +88,8 @@ function buildProps(
   return {
     hasCompletedOnboarding: false,
     hasProAccess: false,
-    canViewGamification: false,
     showRetainedOnboarding: false,
     onboardingActions: onboardingActionsStub,
-    leveledUp: false,
-    newLevel: null,
-    onClearLevelUp: () => {},
     ...overrides,
   }
 }
@@ -136,9 +120,6 @@ const ALWAYS_MOUNTED = [
 const ROUTES_WITH_GOAL_LINKING = ['Today', 'habit detail'] as const
 
 const GAMIFICATION_OVERLAYS = [
-  'StreakCelebration',
-  'AllDoneCelebration',
-  'GoalCompletedCelebration',
   'MarketingConsentPrompt',
   'ReferralPrompt',
   'MilestoneSharePrompt',
@@ -185,7 +166,6 @@ describe('OverlayLayer mount matrix', () => {
     const postOnboarding = await renderLayer({
       hasCompletedOnboarding: true,
       hasProAccess: true,
-      canViewGamification: true,
     })
 
     for (const overlay of GAMIFICATION_OVERLAYS) {
@@ -202,21 +182,7 @@ describe('OverlayLayer mount matrix', () => {
     expect(isMounted(postOnboarding, 'PushPrompt')).toBe(true)
   })
 
-  it('gates the level-up overlay on gamification visibility', async () => {
-    const hidden = await renderLayer({
-      hasCompletedOnboarding: true,
-      canViewGamification: false,
-    })
-    const visible = await renderLayer({
-      hasCompletedOnboarding: true,
-      canViewGamification: true,
-      leveledUp: true,
-      newLevel: 4,
-    })
 
-    expect(isMounted(hidden, 'LevelUpOverlay')).toBe(false)
-    expect(isMounted(visible, 'LevelUpOverlay')).toBe(true)
-  })
 
   it('gates the retained onboarding flow on the retention guard', async () => {
     const withoutRetention = await renderLayer({ showRetainedOnboarding: false })

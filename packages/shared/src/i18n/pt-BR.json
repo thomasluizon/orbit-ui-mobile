@@ -254,16 +254,16 @@
     "offlineLog": "Salvo neste dispositivo. O Orbit sincroniza quando você se reconectar."
   },
   "command": {
-    "title": "Comandos",
-    "placeholder": "Digite um comando ou busque...",
-    "empty": "Nenhum resultado encontrado",
+    "title": "O que você quer fazer",
+    "placeholder": "Buscar ou executar",
+    "empty": "Nada com esse nome.",
     "logHabit": "Registrar um hábito",
     "skipHabit": "Pular um hábito",
     "createHabit": "Criar hábito",
     "groups": {
       "create": "Criar",
       "actions": "Ações",
-      "destinations": "Destinos",
+      "destinations": "Ir para",
       "navigate": "Navegar",
       "search": "Hábitos"
     },
@@ -272,6 +272,10 @@
       "select": "Selecionar",
       "back": "Voltar",
       "close": "Fechar"
+    },
+    "page": {
+      "log": "Registrar",
+      "skip": "Pular"
     }
   },
   "contextMenu": {
@@ -281,8 +285,7 @@
     "delete": "Excluir",
     "duplicate": "Duplicar",
     "viewDetails": "Ver detalhes",
-    "addSubHabit": "Adicionar sub-hábito",
-    "complete": "Concluir"
+    "addSubHabit": "Adicionar sub-hábito"
   },
   "rail": {
     "todayProgress": "Hoje",
@@ -418,9 +421,22 @@
       "scheduledOn": "agendado para {date}"
     },
     "search": {
-      "matchTag": "tag: {value}",
-      "matchChild": "sub-hábito: {value}",
-      "matchDescription": "na descrição"
+      "matchTitle": "no nome",
+      "matchDescription": "na descrição",
+      "matchTag": "na etiqueta",
+      "matchChild": "dentro de",
+      "title": "Buscar hábitos",
+      "searching": "Buscando",
+      "emptyTitle": "Nada encontrado para <queryText>“{query}”</queryText>",
+      "emptyBody": "Nenhum hábito com esse nome, essa descrição ou essa etiqueta.",
+      "create": "Criar com esse nome",
+      "count": "{count, plural, one {# hábito} other {# hábitos}}",
+      "count_one": "{count} hábito",
+      "count_other": "{count} hábitos",
+      "open": "Abrir {name}",
+      "next": "Próxima",
+      "previous": "Anterior",
+      "loadError": "Não foi possível carregar os hábitos."
     },
     "createHabit": "Criar hábito",
     "askAstra": "Pedir à Astra",
@@ -451,8 +467,6 @@
     "emptyGeneral": "Nenhum hábito geral ainda",
     "allDoneToday": "Por hoje é isso",
     "allDoneHint": "Tudo que vencia hoje está feito.",
-    "allDoneCelebrationTitle": "Tudo feito",
-    "allDoneCelebrationSubtitle": "Você arrasou em todos os hábitos hoje.",
     "seeUpcoming": "Ver hábitos de amanhã",
     "noSubHabits": "Nenhum sub-hábito ainda",
     "moveParent": {
@@ -2302,9 +2316,6 @@
     "failedToStop": "Não foi possível parar a gravação."
   },
   "goals": {
-    "completedCelebrationTitle": "Meta alcançada",
-    "completedCelebrationLabel": "Meta · {name}",
-    "completedCelebrationFiled": "Arquivada.",
     "tab": "Metas",
     "empty": "Nenhuma meta ainda",
     "create": "Nova meta",
@@ -2358,9 +2369,17 @@
       "achieved": "Alcançada"
     },
     "detail": {
-      "markCompleted": "Marcar como concluída",
-      "markAbandoned": "Abandonar meta",
-      "reactivate": "Reativar",
+      "manualProgress": "Atualize o progresso. Ao alcançar o alvo, a meta é concluída.",
+      "increase": "Aumentar progresso",
+      "decrease": "Diminuir progresso",
+      "derivedStreak": "O progresso da sequência é calculado automaticamente, então não pode ser editado aqui. | Vem da sequência atual do hábito ligado a esta meta, então não pode ser editado aqui. | Vem da menor sequência atual entre os {count} hábitos ligados a esta meta, então não pode ser editado aqui.",
+      "derivedHabits": "O progresso vem dos registros dos hábitos ligados a esta meta, então não é editável aqui.",
+      "completeWhyDerived": "A meta chegou ao alvo e continua ativa até você concluir, porque o número é recalculado a cada leitura.",
+      "linkedLimit": "{count} hábitos é o limite por meta.",
+      "deleteNamed": "A meta “{title}” sai da sua lista. Os hábitos ligados a ela continuam como estão.",
+      "markCompleted": "Concluir meta",
+      "markAbandoned": "Marcar abandonada",
+      "reactivate": "Reabrir meta",
       "delete": "Excluir meta",
       "deleteConfirm": "Quer mesmo excluir esta meta? Não dá para desfazer.",
       "edit": "Editar meta",
@@ -2423,28 +2442,24 @@
       "achievements": "Conquistas"
     },
     "streak": {
-      "current": "{count, plural, one {# dia} other {# dias}}",
-      "currentLabel": "Sequência atual",
+      "currentLabel": "{count, plural, one {dia seguido} other {dias seguidos}}",
       "stripWindow": "Atividade nos últimos {count, plural, one {# dia} other {# dias}}",
-      "frozenToday": "Hoje está protegido por um congelamento.",
+      "frozenToday": "Hoje está congelado. A sequência não quebra hoje.",
       "longest": "Maior sequência",
-      "active": "Ativo",
-      "frozen": "Protegido",
-      "missed": "Perdido",
+      "active": "Dia ativo",
+      "frozen": "Dia congelado",
+      "missed": "Dia sem registro",
       "today": "Hoje",
       "legend": "Legenda dos dias da sequência",
-      "showFreeze": "Mostrar detalhes dos congelamentos",
-      "hideFreeze": "Ocultar detalhes dos congelamentos",
-      "banked": "Guardados",
+      "banked": "No banco",
       "used": "Usados neste mês",
       "next": "Próximo congelamento",
       "nextProgress": "Progresso até o próximo congelamento",
-      "nextIn": "Próximo congelamento em {count, plural, one {# dia} other {# dias}}",
-      "capacity": "Banco cheio com 3 congelamentos",
+      "nextOf": "{current} de {total} dias de sequência",
       "protectedDays": "Dias protegidos",
-      "protectedEmpty": "Nenhum dia protegido nesta janela",
+      "protectedEmpty": "Nenhum dia protegido ainda.",
       "protected": "Protegido",
-      "protectedToday": "Hoje protegido",
+      "protectedToday": "Protegido hoje",
       "lockedTitle": "Proteção por congelamento",
       "lockedBody": "O Orbit Pro mantém um banco de congelamentos para dias perdidos.",
       "lockedAction": "Ver o Orbit Pro",
@@ -2456,6 +2471,8 @@
     },
     "goals": {
       "views": "Visualizações das metas",
+      "targetReached": "Alvo alcançado",
+      "reorderError": "Não foi possível salvar a ordem. Tente arrastar de novo.",
       "all": "Todas",
       "active": "Ativas",
       "completed": "Concluídas",
@@ -2463,7 +2480,7 @@
       "empty": "Ainda não há metas. Um hábito é o próximo passo útil.",
       "filterEmpty": "Nenhuma meta corresponde a esta visualização.",
       "clearFilter": "Mostrar todas as metas",
-      "progress": "{current} de {target} {unit}",
+      "progress": "{current} / {target} {unit}",
       "dueToday": "Prazo hoje",
       "daysLeft": "{count, plural, one {Falta # dia} other {Faltam # dias}}",
       "daysOverdue": "{count, plural, one {Atrasada em # dia} other {Atrasada em # dias}}",
@@ -2471,7 +2488,7 @@
       "finish": "Finalizar meta",
       "moveUp": "Mover para cima",
       "moveDown": "Mover para baixo",
-      "reorderHint": "Use Alt e as setas para reordenar"
+      "reorderHint": "Segure e arraste para reordenar, ou use as ações de mover"
     },
     "window": {
       "completionRate": "Taxa de conclusão",
@@ -2486,9 +2503,12 @@
     "achievements": {
       "empty": "Ainda não há conquistas disponíveis.",
       "xp": "{current} / {next} XP",
-      "next": "Próximo: nível {level}, {title}. Faltam {xp} XP.",
-      "earned": "Conquistada em {date}",
+      "xpProgress": "Progresso até o próximo nível",
+      "earnedLabel": "Conquistada",
+      "earnedState": "{name}, conquistada",
+      "unearnedState": "{name}, ainda não conquistada",
       "progress": "{current} de {target}",
+      "progressLabel": "Progresso de {name}: {current} de {target}",
       "level": "Nível {level} · {title}",
       "levelTitles": {
         "starter": "Iniciante",
@@ -2501,10 +2521,7 @@
         "admiral": "Almirante",
         "elite": "Elite",
         "legend": "Lenda"
-      },
-      "lockedTitle": "Conquistas",
-      "lockedBody": "O Orbit Pro acompanha conquistas e XP.",
-      "lockedAction": "Ver o Orbit Pro"
+      }
     }
   },
   "gamification": {
@@ -2702,10 +2719,6 @@
         "name": "Imbatível",
         "description": "Complete 2500 hábitos no total"
       }
-    },
-    "levelUp": {
-      "title": "Subiu de nível",
-      "steadyHand": "Mão firme."
     }
   },
   "toast": {
@@ -2721,12 +2734,6 @@
   "streakDisplay": {
     "title": "Sequência",
     "daysSuffix": "dia | dias",
-    "celebration": {
-      "eyebrow": "Sequência",
-      "subtitle": "{count} dia. | {count} dias.",
-      "milestone": "Marco alcançado",
-      "keepGoing": "Continue assim"
-    },
     "badge": {
       "tooltip": "Sequência de {count} dia | Sequência de {count} dias"
     },
@@ -3244,5 +3251,25 @@
     "reference": "ref {requestId}",
     "throttleTitle": "Muitos pedidos em pouco tempo",
     "throttleBody": "O servidor pediu para esperar antes do próximo pedido."
+  },
+  "celebration": {
+    "close": "Fechar",
+    "streak": {
+      "eyebrow": "Sequência",
+      "line": "A sua sequência chegou a {count} dias."
+    },
+    "goal": {
+      "eyebrow": "Meta",
+      "line": "A meta {name} fechou em {count} {unit}.",
+      "lineWithoutUnit": "A meta {name} fechou em {count}."
+    },
+    "level": {
+      "eyebrow": "Nível",
+      "line": "Você chegou ao nível {level}."
+    },
+    "day": {
+      "eyebrow": "Hoje",
+      "line": "O {count} hábito de hoje está feito. | Os {count} hábitos de hoje estão feitos."
+    }
   }
 }

@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react'
 import type { ProgressRingProps } from '@orbit/shared/contracts/display'
 import Svg, { Circle } from 'react-native-svg'
 import { createTokensV2 } from '@/lib/theme'
@@ -11,10 +12,16 @@ export function ProgressRing({ value = 0, size = 64, label }: Readonly<ProgressR
   const complete = clamped === 100
   const strokeWidth = Math.max(2, size / 16)
   const radius = (size - strokeWidth) / 2
-  const circumference = 2 * Math.PI * radius
+  const circle = useRef<Circle>(null)
+  const [circumference, setCircumference] = useState(0)
+  const measure = () => {
+    const length = circle.current?.getTotalLength()
+    if (length !== undefined) setCircumference(length)
+  }
 
   return (
     <Svg
+      onLayout={measure}
       width={size}
       height={size}
       viewBox={`0 0 ${size} ${size}`}
@@ -25,6 +32,8 @@ export function ProgressRing({ value = 0, size = 64, label }: Readonly<ProgressR
     >
       <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={tokens.fg4} strokeWidth={strokeWidth} />
       <Circle
+        ref={circle}
+        opacity={circumference > 0 ? 1 : 0}
         cx={size / 2}
         cy={size / 2}
         r={radius}

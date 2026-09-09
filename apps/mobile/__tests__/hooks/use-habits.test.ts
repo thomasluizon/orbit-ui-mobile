@@ -39,6 +39,8 @@ const mocks = vi.hoisted(() => {
 
   const queryClient = {
     cancelQueries: vi.fn(async () => {}),
+    getQueryCache: () => ({ findAll: () => [] }),
+    removeQueries: vi.fn(),
     invalidateQueries: vi.fn(async () => {}),
     getQueriesData: vi.fn((filters: { queryKey: readonly unknown[] }) =>
       state.entries
@@ -1151,7 +1153,7 @@ describe('mobile habit hooks', () => {
 
     mutation.onSuccess?.(response, { habitId: 'habit-1', intent: 'log' }, undefined)
 
-    expect(mocks.setStreakCelebration).toHaveBeenCalledWith({ streak: 3 })
+    expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
     const profile = mocks.queryClient.getQueryData(profileKeys.detail()) as { currentStreak: number }
     expect(profile.currentStreak).toBe(3)
     const goal = (mocks.queryClient.getQueryData(goalKeys.lists()) as Goal[])[0]
@@ -1221,7 +1223,7 @@ describe('mobile habit hooks', () => {
     const response: LogHabitResponse = {
       logId: 'log-streak',
       isFirstCompletionToday: true,
-      currentStreak: 3,
+      currentStreak: 7,
       xpEarned: 0,
     }
 
@@ -1315,18 +1317,18 @@ describe('mobile habit hooks', () => {
     const response: LogHabitResponse = {
       logId: 'log-streak',
       isFirstCompletionToday,
-      currentStreak: 3,
+      currentStreak: 7,
     }
 
     mutation.onSuccess?.(response, { habitId, intent: 'log' }, undefined)
 
     if (celebrates) {
-      expect(mocks.setStreakCelebration).toHaveBeenCalledWith({ streak: 3 })
+      expect(mocks.setStreakCelebration).toHaveBeenCalledWith({ streak: 7 })
     } else {
       expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
     }
     const profile = mocks.queryClient.getQueryData(profileKeys.detail()) as { currentStreak: number }
-    expect(profile.currentStreak).toBe(celebrates ? 3 : 1)
+    expect(profile.currentStreak).toBe(celebrates ? 7 : 1)
   })
 
   it('skips all celebrations when a completion is queued offline', () => {
@@ -1868,4 +1870,22 @@ describe('mobile habit hooks', () => {
       activeDays: ['2026-08-28'],
     })
   })
+})
+
+ it('drops an empty search page after creating its named habit offline before reconnect', async () => {
+  const { QueryClient } = await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query')
+  const client = new QueryClient()
+  mocks.useQueryClient.mockReturnValueOnce(client as unknown as typeof mocks.queryClient)
+  const key = habitKeys.search({ search: 'yoga', page: 1 })
+  client.setQueryData(key, { items: [], page: 1, pageSize: 20, totalCount: 0, totalPages: 0 })
+  client.setQueryData(habitKeys.list({}), [])
+  const mutation = useCreateHabit() as unknown as MutationConfig<{ id: string; queued: true; queuedMutationId: string }, CreateHabitRequest, { previousLists: unknown; tempId: string }>
+  const request: CreateHabitRequest = { title: 'yoga', frequencyUnit: 'Day' }
+  const context = await mutation.onMutate?.(request)
+  const response = await mutation.mutationFn(request)
+  mutation.onSettled?.(response, null, request, context)
+  expect(client.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))?.map((habit) => habit.title)).toEqual(['yoga'])
+  expect(client.getQueryData(key)).toBeUndefined()
+  expect(client.isFetching()).toBe(0)
+  client.clear()
 })

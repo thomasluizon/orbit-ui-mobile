@@ -396,7 +396,7 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --bg-well         rgba(250,250,250,0.08)      /* emoji wells, icon squares -> #1C1C1E */
 --bg-elev         #1C1C1E                     /* OPAQUE. Overlay panel, menus, popovers */
 --bg-elev-2       rgba(250,250,250,0.12)      /* the highest inline step -> #262628 */
---bg-hover        rgba(250,250,250,0.14)      /* THE hover surface -> #2B2B2C. 1.31:1 against the resting card */
+--bg-hover        rgba(250,250,250,0.13)      /* THE hover surface -> #28282A. 1.26:1 against the resting card */
 --bg-sunk         rgba(0,0,0,0.28)            /* recessed wells -> #060608 */
 --hairline        rgba(255,255,255,0.08)      /* separator: divides content */
 --border-control  rgba(255,255,255,0.08)      /* border: encloses a control. Same value today, separate role */
@@ -473,18 +473,18 @@ dark-mode value `#261611`, a near-black wash painted onto a white card. That is 
 
 **`--fg-on-overdue` is `#FFFFFF` in light mode, not the dark mode `#020618`.** Nothing repointed it, so it inherits `#020618`, which measures **4.26:1** on `#B45B00` and misses the 4.5 text floor. That is a gap to close rather than authoritative, so the floor decides.
 
-### Measured contrast, and three limits that are open
+### Measured contrast, and two limits that are open
 
 Measured 2026-08-17 against every surface in the ladder, not just the canvas, because that is where
 the misses are. Two independent implementations agree on every number below.
 
 | on | canvas | card | field | well | elev-2 | hover | overlay |
 |---|---|---|---|---|---|---|---|
-| dark `--fg-1` | 18.11 | 16.95 | 16.23 | 15.44 | 13.77 | 12.91 | 15.49 |
-| dark `--fg-2` | 12.04 | 11.27 | 10.79 | 10.27 | 9.15 | 8.59 | 10.30 |
-| dark `--fg-3` | 6.18 | 5.78 | 5.53 | 5.27 | 4.69 | **4.40** | 5.28 |
-| dark `--fg-4` | 3.03 | **2.84** | **2.72** | **2.59** | **2.30** | **2.16** | **2.59** |
-| dark `--primary-soft` | 4.58 | **4.28** | **4.10** | **3.90** | **3.48** | **3.26** | **3.91** |
+| dark `--fg-1` | 18.11 | 16.95 | 16.23 | 15.44 | 13.77 | 13.40 | 15.49 |
+| dark `--fg-2` | 12.04 | 11.27 | 10.79 | 10.27 | 9.15 | 8.91 | 10.30 |
+| dark `--fg-3` | 6.18 | 5.78 | 5.53 | 5.27 | 4.69 | 4.57 | 5.28 |
+| dark `--fg-4` | 3.03 | **2.84** | **2.72** | **2.59** | **2.30** | **2.24** | **2.59** |
+| dark `--primary-soft` | 4.58 | **4.28** | **4.10** | **3.90** | **3.48** | **3.38** | **3.91** |
 | light `--fg-3` | 5.31 | 5.54 | | 4.88 | | 4.67 | |
 | light `--fg-4` | 3.34 | 3.48 | | 3.07 | | **2.94** | |
 | light `--primary-soft` | 4.52 | 4.72 | | 4.16 | | **3.98** | |
@@ -494,18 +494,47 @@ is already defined as accent TEXT on the canvas, so 4.28 on a card is the token 
 scope, not a colour that needs changing. **Accent text never appears on a card, a field, a well, an
 elevated panel or a hovered surface.** On a raised surface, emphasis is a weight step, not a hue.
 
-**Three limits are measured, open, and Thomas's call**, because each one trades against a rule set
+**Two limits are measured, open, and Thomas's call**, because each one trades against a rule set
 elsewhere in this document. They are written down with their numbers rather than left to be
-rediscovered:
+rediscovered. A third is now closed, and its record is kept below them.
 
-1. **`--fg-3` on a hovered row, dark: 4.40.** Meta text clears every resting surface and misses the
-   4.5 floor only while the row is hovered. Cheapest fix: take `--bg-hover` from alpha 0.14 to 0.12,
-   which moves the whole surface ladder.
-2. **`--fg-4` as a graphic above the canvas: 2.16 to 2.84 dark, 2.94 light on hover.** `--fg-4` is
+1. **`--fg-4` as a graphic above the canvas: 2.24 to 2.84 dark, 2.94 light on hover.** `--fg-4` is
    specified at exactly the 3:1 non-text floor and reaches it **on the canvas alone**. The empty
    `StatusRing` sits on a card, so it is under the floor everywhere it actually renders. Cheapest fix:
    the empty ring takes `--fg-3`, which collapses the four-step neutral status ranking to three.
-3. **Light `--fg-4` on hover: 2.94.** The same defect on the light side, and the same fix.
+2. **Light `--fg-4` on hover: 2.94.** The same defect on the light side, and the same fix.
+
+**Closed 2026-09-09: `--fg-3` on a hovered surface, dark.** It measured **4.40** and missed the 4.5
+text floor, and this document proposed taking `--bg-hover` from alpha 0.14 to 0.12 as the cheapest
+fix. **That proposal was wrong, and the value is now 0.13.** Two rules bound the alpha from opposite
+sides, and only one value satisfies both:
+
+| alpha | hover surface | step above `--bg-card` | `--fg-3` on it |
+|---|---|---|---|
+| 0.14 | `#2B2B2C` | 1.312 | **4.39**, under the 4.5 text floor |
+| **0.13** | **`#28282A`** | **1.261** | **4.57** |
+| 0.12 | `#262628` | **1.229**, under the 1.25 hover-step rule below | 4.69 |
+
+**Two hover stacks exist, and they measure differently. Read the paint order, not the token.**
+
+1. **Replacement, the normal case.** One element carries `--bg-card` at rest and `--bg-hover` on
+   hover. CSS `background-color` and React Native `backgroundColor` swap the value; neither
+   composites. The stack is `--bg` under `--bg-hover`, `#28282A`, and `--fg-3` measures **4.57**.
+2. **Child over parent, one shipped case.** A hover child painted inside a card wrapper composites:
+   `--bg` under `--bg-card` under `--bg-hover`, `#313133`. `--fg-3` measures **4.03** there and does
+   NOT clear the text floor. The unread notification row is that case, on both platforms: the
+   wrapper carries `--bg-card` and the inner control hovers.
+
+**On a hover child inside a card, text is `--fg-2` or lighter.** `--fg-2` measures 7.86 on that
+stack, `--fg-1` 11.82. The unread notification row already obeys this. Prefer replacement when you
+build a new hover surface; compositing costs a whole neutral step and buys nothing.
+
+0.12 was also the exact value of `--bg-elev-2`, which the hover rule below forbids on its own.
+
+**The granted canvas carries the same value.** `design/canvas/_ds/.../tokens/colors.css` holds the
+authoritative token, so it moved to 0.13 in the same change, its readme records limit 2 as closed,
+and `design/canvas/README.md` lists the amendment. A canvas token that disagrees with the shipped
+one is a trap, not an authority, so the two never move apart.
 
 **Dark is not light reversed.** Reversal is the starting point. Vividness comes down, the dark end needs more separation than the light end, and every pair is remeasured, because contrast is not symmetric.
 
@@ -988,7 +1017,7 @@ Motion is governed on two axes: **whether** to animate, then **how**. The first 
 | a control (button, chip, segmented control, icon button) | **240ms** | fill or label colour only |
 | a link | **380ms** | colour, plus an underline scaling from the leading edge |
 
-- **Hover is its own surface role and is never borrowed from the elevation ladder.** The ladder's steps are sized for stacking, not for being seen against one particular resting surface. Measured 2026-08-15: `--bg-elev` against a resting `--bg-card` is **1.09:1**, which reads as nothing on a near-black canvas; `--bg-hover` is **1.31:1**, which reads. **A hover step must clear 1.25:1 against the surface it replaces.** If a role has no token, add the token rather than borrowing one whose value looks right today.
+- **Hover is its own surface role and is never borrowed from the elevation ladder.** The ladder's steps are sized for stacking, not for being seen against one particular resting surface. Measured 2026-08-15: `--bg-elev` against a resting `--bg-card` is **1.09:1**, which reads as nothing on a near-black canvas; `--bg-hover` is **1.26:1** at its 2026-09-09 value, which reads. **A hover step must clear 1.25:1 against the surface it replaces.** If a role has no token, add the token rather than borrowing one whose value looks right today.
 - **Only an interactive surface gets a hover state.** A static card that lights up under the pointer advertises a click that does nothing. This is the "controls distinct from content" rule read in the other direction, and it is the more common half to get wrong.
 - **A container suppresses its own hover while the pointer is on an interactive descendant.** Otherwise a button inside a card lights both, and the pointer appears to be in two places at once. On web, `:hover:not(:has(button:hover, a:hover, [role="button"]:hover))`.
 - **Declare the transition on the base rule, never inside `:hover`.** A transition declared inside `:hover` applies on the way in and not on the way out, so the state arrives smoothly and snaps away. That single mistake is most of what makes an interface feel cheap.

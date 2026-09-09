@@ -3,9 +3,13 @@ import { StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
+import ProgressScreen from '@/app/(tabs)/progress'
+
+vi.mock('@/components/progress/progress-content', () => ({ ProgressContent: () => React.createElement('ProgressContent') }))
 
 vi.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 24, left: 0 }),
+  useSafeAreaInsets: () => ({ top: 24, right: 0, bottom: 24, left: 0 }),
+  SafeAreaView: (props: Record<string, unknown>) => React.createElement('SafeAreaView', props),
 }))
 vi.mock('@/lib/theme', () => ({
   createTokensV2: () => ({ bg: '#111111', hairline: '#222222' }),
@@ -24,6 +28,22 @@ function findByTestId(tree: ReactTestRenderer, testID: string) {
 }
 
 describe('Shell412 mobile', () => {
+  it('renders Progress below the shell inset without a second top safe area', async () => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => { tree = TestRenderer.create(<Shell412 tabBar={null}><ProgressScreen /></Shell412>) })
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && String(node.type) === 'SafeAreaView')).toHaveLength(0)
+    await TestRenderer.act(() => tree.update(<></>))
+  })
+  it.each([true, false])('owns the top inset above header and content with navigation=%s', async (nav) => {
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(<Shell412 {...(nav ? { tabBar: null } : { nav: false as const, safeAreaTop: true })} header={React.createElement('AppBar')}>{React.createElement('Screen')}</Shell412>)
+    })
+    const background = findByTestId(tree, 'shell-background')[0]
+    expect(StyleSheet.flatten(background?.props.style)).toMatchObject({ paddingTop: 24 })
+    expect(StyleSheet.flatten(findByTestId(tree, 'shell-scroller')[0]?.props.style)).not.toHaveProperty('paddingTop')
+    await TestRenderer.act(() => tree.update(<></>))
+  })
   it('accepts a destination-owned selection tray in the composer slot', async () => {
     function Screen() {
       useShellComposerSlot(true, React.createElement('SelectionTray'))

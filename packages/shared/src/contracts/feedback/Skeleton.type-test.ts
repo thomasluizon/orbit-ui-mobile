@@ -2,9 +2,43 @@ import type { SkeletonProps } from './Skeleton'
 
 type Keys<T> = T extends unknown ? keyof T : never
 type IsExact<T, U> = T extends U ? Exclude<keyof T, Keys<U>> extends never ? true : false : false
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
 type Assert<T extends true> = T
+type ExpectedSkeletonGap = 0 | 4 | 8 | 12 | 16 | 24 | 32 | 48 | 64 | 96
+
+type RowVariant = Extract<SkeletonProps, { rows?: never }>
+type GridVariant = Extract<SkeletonProps, { variant: 'grid' }>
+type ExpectedRowVariant = {
+  variant: 'habit-row' | 'settings' | 'stat-tile'
+  label: string
+  rows?: never
+  cols?: never
+  cell?: never
+  gap?: never
+}
+type ExpectedGridVariant = {
+  variant: 'grid'
+  label: string
+  rows: number
+  cols: number
+  cell: number
+  gap: ExpectedSkeletonGap
+}
 
 export type SkeletonTypeContract = [
+  Assert<IsExactWidth<RowVariant, ExpectedRowVariant>>,
+  Assert<IsExactWidth<GridVariant, ExpectedGridVariant>>,
+  Assert<IsExactWidth<SkeletonProps['variant'], ExpectedRowVariant['variant'] | 'grid'>>,
+  Assert<IsExactWidth<SkeletonProps['label'], string>>,
+  Assert<IsExactWidth<SkeletonProps['rows'], number | undefined>>,
+  Assert<IsExactWidth<SkeletonProps['cols'], number | undefined>>,
+  Assert<IsExactWidth<SkeletonProps['cell'], number | undefined>>,
+  Assert<IsExactWidth<SkeletonProps['gap'], ExpectedSkeletonGap | undefined>>,
   Assert<IsExact<{ variant: 'habit-row'; label: 'Loading habits' }, SkeletonProps>>,
   Assert<IsExact<{ variant: 'settings'; label: 'Loading settings' }, SkeletonProps>>,
   Assert<IsExact<{ variant: 'stat-tile'; label: 'Loading stats' }, SkeletonProps>>,

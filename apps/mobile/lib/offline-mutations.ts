@@ -15,6 +15,7 @@ import type {
   QueuedMutation,
 } from '@orbit/shared/types/sync'
 import { mutationTypeSchema } from '@orbit/shared/types/sync'
+import { updateTimezoneRequestSchema, type Profile } from '@orbit/shared/types/profile'
 import { apiClient } from './api-client'
 import { getMutationResponseSchema } from './mutation-response-schemas'
 import {
@@ -42,7 +43,7 @@ type InvalidationQueryKey = readonly unknown[]
 const SCOPE_QUERY_KEYS: Record<MutationScope, readonly InvalidationQueryKey[]> = {
   habits: [habitKeys.all, goalKeys.all, profileKeys.all, gamificationKeys.all],
   goals: [goalKeys.all, habitKeys.lists()],
-  tags: [tagKeys.all, habitKeys.lists()],
+  tags: [tagKeys.all, habitKeys.lists(), habitKeys.searches()],
   notifications: [notificationKeys.all],
   profile: [profileKeys.all],
   apiKeys: [apiKeyKeys.all],
@@ -467,7 +468,7 @@ async function markQueuedMutation(mutation: QueuedMutation): Promise<string> {
     await markOfflineTombstone(mutation.entityType, mutation.targetEntityId, true)
   }
 
-  await persistQueryCache()
+  await persistQueryCache({ discardHabitSearches: mutation.scope === 'habits' || mutation.scope === 'tags' })
   return queuedMutationId
 }
 
@@ -566,12 +567,21 @@ async function clearDeletedOfflineEntity(mutation: PersistedQueuedMutation): Pro
   await clearOfflineEntity(mutation.entityType, mutation.targetEntityId)
 }
 
+function applySuccessfulProfileMutation(mutation: PersistedQueuedMutation): void {
+  if (mutation.type !== 'setTimeZone') return
+  const { timeZone } = updateTimezoneRequestSchema.parse(mutation.payload)
+  queryClient.setQueryData<Profile>(profileKeys.detail(), (profile) =>
+    profile ? { ...profile, timeZone } : profile,
+  )
+}
+
 async function finalizeSuccessfulFlush(
   mutation: PersistedQueuedMutation,
   response: unknown,
   touchedScopes: Set<MutationScope>,
 ): Promise<void> {
   addTouchedScope(touchedScopes, mutation)
+  applySuccessfulProfileMutation(mutation)
   await clearCreatedOfflineEntity(mutation, response)
   await clearDeletedOfflineEntity(mutation)
   remove(mutation.id)
@@ -662,8 +672,14 @@ async function dropQueuedMutation(
 }
 
 async function invalidateTouchedScopes(scopes: Set<MutationScope>): Promise<void> {
+  if (scopes.has('profile')) {
+    await queryClient.invalidateQueries({ queryKey: profileKeys.all })
+    await queryClient.invalidateQueries({ queryKey: gamificationKeys.all, refetchType: 'none' })
+  }
+
   const invalidations: Promise<void>[] = []
   for (const scope of scopes) {
+    if (scope === 'profile') continue
     for (const queryKey of SCOPE_QUERY_KEYS[scope]) {
       invalidations.push(queryClient.invalidateQueries({ queryKey }))
     }

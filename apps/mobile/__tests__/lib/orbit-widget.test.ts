@@ -60,6 +60,7 @@ describe('toWidgetColors', () => {
       borderMuted: '#2B2B2D',
       overdue: '#FE9A00',
       streak: '#C4530F',
+      streakText: '#F4F4F6',
       statusEmpty: '#5D5D60',
     })
     expect(toWidgetColors(createTokensV2('purple', 'light'), 'light')).toEqual({
@@ -73,6 +74,7 @@ describe('toWidgetColors', () => {
       borderMuted: '#E6E6E8',
       overdue: '#946A00',
       streak: '#C4530F',
+      streakText: '#1A1A1D',
       statusEmpty: '#89898D',
     })
   })
@@ -84,7 +86,9 @@ describe('toWidgetColors', () => {
     expect(preferences.dark_surface).toBe('#1D1D1F')
     expect(preferences.light_background).toBe('#FFFFFF')
     expect(preferences.light_surface).toBe('#F1F1F2')
-    expect(Object.keys(preferences)).toHaveLength(22)
+    expect(preferences.dark_streakText).toBe('#F4F4F6')
+    expect(preferences.light_streakText).toBe('#1A1A1D')
+    expect(Object.keys(preferences)).toHaveLength(24)
   })
 
   it('uses the muted text role for native progress and completed due-time text', () => {
@@ -106,6 +110,45 @@ describe('toWidgetColors', () => {
     expect(widgetServiceSource).toContain(
       'R.id.item_time, "setTextColor", colorModes',
     )
+  })
+
+  /**
+   * Stage 2 replaces stage 1's flame bitmap with the figure the canvas actually draws.
+   *
+   * `design/canvas/Orbit Widget Android.dc.html` renders the streak as a 15sp 600-weight span in
+   * `c.primary` followed by an 11sp `c.fg3` unit, baseline aligned with a 3px gap, and there is no
+   * flame anywhere in it. Its own note reserves the accent for "one use only: the streak figure", so a
+   * primary-tinted flame graphic would be a second use of it. Under D42 the drawing outranks
+   * DESIGN.md prose, so this asserts the drawing.
+   */
+  it('paints the streak figure in the accent and its unit in fg-3, with no flame graphic', () => {
+    const widgetProviderSource = readWidgetSource(
+      'java/org/useorbit/app/widget/OrbitWidgetProvider.kt',
+    )
+    const widgetServiceSource = readWidgetSource(
+      'java/org/useorbit/app/widget/OrbitWidgetService.kt',
+    )
+    const widgetLayout = readWidgetSource('res/layout/widget_layout.xml')
+    const lightResources = readWidgetSource('res/values/widget_colors.xml')
+    const darkResources = readWidgetSource('res/values-night/widget_colors.xml')
+
+    for (const source of [widgetProviderSource, widgetServiceSource]) {
+      expect(source).toContain(
+        'setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }',
+      )
+      expect(source).toContain(
+        'setModeAwareColor(R.id.widget_streak_unit, "setTextColor", colorModes) { it.textMuted }',
+      )
+      expect(source).not.toContain('createFlameBitmap')
+      expect(source).not.toContain('widget_flame')
+    }
+
+    expect(widgetLayout).toContain('android:textColor="@color/widget_primary"')
+    expect(widgetLayout).toContain('android:textColor="@color/widget_fg_3"')
+    expect(widgetLayout).not.toContain('widget_flame')
+
+    expect(lightResources).toContain('<color name="widget_primary">#C4530F</color>')
+    expect(darkResources).toContain('<color name="widget_primary">#C4530F</color>')
   })
 
   it('carries both night modes through the full widget layout and collection rows', () => {
@@ -144,5 +187,29 @@ describe('toWidgetColors', () => {
     expect(widgetItemLayout).toContain('android:textColor="@color/widget_item_title"')
     expect(lightResources).toContain('<color name="widget_bg">#FAFAFA</color>')
     expect(darkResources).toContain('<color name="widget_bg">#09090B</color>')
+  })
+
+  it('reapplies the full widget palette before refreshing collection rows', () => {
+    const widgetProviderSource = readWidgetSource(
+      'java/org/useorbit/app/widget/OrbitWidgetProvider.kt',
+    )
+    const refreshHandler = widgetProviderSource.slice(
+      widgetProviderSource.indexOf('override fun onReceive'),
+      widgetProviderSource.indexOf('override fun onEnabled'),
+    )
+
+    const fullUpdateIndex = refreshHandler.indexOf(
+      'updateWidgetLayout(context, appWidgetManager, id)',
+    )
+    const loadingUpdateIndex = refreshHandler.indexOf(
+      'appWidgetManager.partiallyUpdateAppWidget(id, loadingViews)',
+    )
+    const collectionRefreshIndex = refreshHandler.indexOf(
+      'appWidgetManager.notifyAppWidgetViewDataChanged',
+    )
+
+    expect(fullUpdateIndex).toBeGreaterThanOrEqual(0)
+    expect(loadingUpdateIndex).toBeGreaterThan(fullUpdateIndex)
+    expect(collectionRefreshIndex).toBeGreaterThan(loadingUpdateIndex)
   })
 })

@@ -21,7 +21,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
       ) : (
         <span
           style={{
-            color: state === 'empty' ? 'var(--fg-4)' : 'var(--fg-1)',
+            color: state === 'empty' ? 'var(--fg-3)' : 'var(--fg-1)',
             fontFamily: state === 'empty' ? 'var(--font-mono)' : 'var(--font-display)',
             fontSize: state === 'empty' ? 12 : 24,
             fontWeight: state === 'empty' ? 500 : 600,

@@ -1,6 +1,13 @@
+import type { HabitScheduleItem } from '../types/habit'
+
+export type HabitListKey = readonly ['habits', 'list', ...unknown[]]
+export type HabitListSnapshots = readonly (readonly [HabitListKey, HabitScheduleItem[] | undefined])[]
+
 export const habitKeys = {
   all: ['habits'] as const,
   lists: () => [...habitKeys.all, 'list'] as const,
+  searches: () => [...habitKeys.all, 'search'] as const,
+  search: (filters: Record<string, unknown>) => [...habitKeys.searches(), filters] as const,
   list: (filters: Record<string, unknown>) => [...habitKeys.lists(), filters] as const,
   count: () => [...habitKeys.all, 'count'] as const,
   details: () => [...habitKeys.all, 'detail'] as const,
@@ -53,7 +60,7 @@ export const gamificationKeys = {
   all: ['gamification'] as const,
   profile: () => [...gamificationKeys.all, 'profile'] as const,
   achievements: () => [...gamificationKeys.all, 'achievements'] as const,
-  streak: () => [...gamificationKeys.all, 'streak'] as const,
+  streak: (timeZone: string | null) => [...gamificationKeys.all, 'streak', timeZone] as const,
   recap: (period: string) => [...gamificationKeys.all, 'recap', period] as const,
   streakHistory: () => [...gamificationKeys.all, 'streak-history'] as const,
   xpHistory: (range: string) => [...gamificationKeys.all, 'xp-history', range] as const,

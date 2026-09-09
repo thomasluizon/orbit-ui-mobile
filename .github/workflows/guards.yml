@@ -12,12 +12,14 @@ name: Guards
 #   parity  - a web-scope code change with zero mobile-scope change (or inverse) fails without the parity:exempt label
 #   expo-pin - apps/mobile/package.json changes must keep the Expo SDK pin resolution intact
 #   performance-workflow - generated measured-performance logic matches its canonical module
+#   calibration - the per-agent and per-skill tuning stamp is current against the running worker model
+#   review-harness - a UI pull request on redesign/main states what the review skills found
 
 on:
   pull_request:
     branches: [main, redesign/main]
-    # `labeled` and `unlabeled` are load-bearing, not tidiness. Two of these jobs carry a
-    # label escape hatch (ratchet:reseed, parity:exempt),
+    # `labeled` and `unlabeled` are load-bearing, not tidiness. Three of these jobs carry a
+    # label escape hatch (ratchet:reseed, parity:exempt, calibration:reseed),
     # and `edited` covers title, body and base but NOT labels. Without these
     # two the sequence "the check fails, apply the label, merge" fires no new run, the failing
     # check run stands, and every escape hatch is decorative unless the label was predicted and
@@ -137,6 +139,22 @@ jobs:
           node-version: 22
       - run: node tools/check-suppressions-ratchet.mjs
 
+  calibration:
+    name: Harness Calibration
+    runs-on: ubuntu-latest
+    # BLOCKING from the first merge, and there is deliberately no --report-only flag to pass. ORB-120
+    # shipped this capability report-only "through 2026-08-11" as a safety measure, and the measured
+    # result was a gate that was red on `main` and green in CI for days without anyone noticing,
+    # because the CI step passed --report-only and that flag exits 0 on drift by design. A gate that
+    # cannot fail is not a gate. The escape hatch is the label, which is visible on the pull request.
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'calibration:reseed')
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node tools/check-calibration.mjs
+
   parity:
     name: Cross-Platform Parity
     runs-on: ubuntu-latest
@@ -176,6 +194,33 @@ jobs:
       - name: Expo-pinned versions still resolve to the SDK set
         working-directory: apps/mobile
         run: CI=1 npx expo install --check
+
+  review-harness:
+    name: Redesign Review Harness
+    runs-on: ubuntu-latest
+    # Only a pull request has a body and a base to read. On a push to main there is nothing to check,
+    # and the checker itself exits 0 for any base that is not redesign/main.
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: A UI pull request on redesign/main records what the review skills found
+        env:
+          # Through the environment, never argv: a body is untrusted text and interpolating it into a
+          # run block is a shell injection. The same reason check-dashes.mjs reads the title this way.
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$PR_BODY" > "$RUNNER_TEMP/pr-body.md"
+          git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD > "$RUNNER_TEMP/changed.txt"
+          node tools/check-review-harness.mjs \
+            --base '${{ github.base_ref }}' \
+            --body-file "$RUNNER_TEMP/pr-body.md" \
+            --changed-files-file "$RUNNER_TEMP/changed.txt"
 
   performance-workflow:
     name: Performance Workflow Drift

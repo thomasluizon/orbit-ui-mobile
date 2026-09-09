@@ -6,7 +6,7 @@ import { PushPrompt } from '@/components/ui/push-prompt'
 const TestRenderer = require('react-test-renderer')
 
 const storage = new Map<string, string>()
-const requestPermission = vi.fn(async () => true)
+const requestPermission = vi.fn(() => Promise.resolve(true))
 
 const colorProxy = new Proxy(
   {},
@@ -21,9 +21,10 @@ const colorProxy = new Proxy(
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
-    getItem: vi.fn(async (key: string) => storage.get(key) ?? null),
-    setItem: vi.fn(async (key: string, value: string) => {
+    getItem: vi.fn((key: string) => Promise.resolve(storage.get(key) ?? null)),
+    setItem: vi.fn((key: string, value: string) => {
       storage.set(key, value)
+      return Promise.resolve()
     }),
   },
 }))
@@ -65,7 +66,7 @@ vi.mock('@/components/ui/icons', () => {
 })
 
 vi.mock('react-native', async (importOriginal) => {
-  const actual = await importOriginal() as typeof import('react-native')
+  const actual = await importOriginal<typeof import('react-native')>()
   const start = (callback?: () => void) => {
     callback?.()
   }
@@ -102,7 +103,7 @@ describe('PushPrompt (mobile)', () => {
   })
 
   it('does not auto-request notification permission on initial render', async () => {
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       TestRenderer.create(<PushPrompt />)
     })
 
@@ -112,13 +113,13 @@ describe('PushPrompt (mobile)', () => {
   it('requests permission only after tapping Enable', async () => {
     let tree: any
 
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(<PushPrompt />)
     })
 
     const enableButton = findPressableByText(tree.root, 'pushPrompt.enable')
 
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       enableButton.props.onPress()
     })
 
@@ -129,7 +130,7 @@ describe('PushPrompt (mobile)', () => {
     storage.set('orbit_push_prompted', '1')
 
     let tree: any
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(<PushPrompt />)
     })
 

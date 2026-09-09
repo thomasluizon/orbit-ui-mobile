@@ -1,3 +1,4 @@
+import type { HabitListSnapshots } from '@orbit/shared/query'
 import {
   useMutation,
   useQueryClient,
@@ -76,6 +77,7 @@ import {
 import {
   getMilestoneShareStreakKey,
   getReviewMomentStreakKey,
+  isStreakCelebrationMilestone,
 } from '@orbit/shared/stores'
 import {
   isReviewMomentEligible,
@@ -99,7 +101,6 @@ type CreateSubHabitMutationInput = {
   data: CreateSubHabitRequest
   __offlineTempId?: string
 }
-type HabitListSnapshots = readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
 type HabitDetailSnapshots = readonly (readonly [readonly unknown[], HabitDetail | undefined])[]
 type LogHabitSnapshot = {
   previousLists: HabitListSnapshots
@@ -125,6 +126,17 @@ export {
   useTotalHabitCount,
 } from './use-habit-queries'
 export { useCalendarData, useCalendarRange } from './use-calendar-data'
+
+function startsPositiveStreak(
+  countsTowardStreak: boolean,
+  response: Pick<LogHabitResponse, 'isFirstCompletionToday' | 'currentStreak'>,
+): boolean {
+  return countsTowardStreak && response.isFirstCompletionToday && response.currentStreak > 0
+}
+
+function shouldCelebrateStreak(startsStreak: boolean, streak: number): boolean {
+  return startsStreak && isStreakCelebrationMilestone(streak)
+}
 
 export function useLogHabit() {
   const queryClient = useQueryClient()
@@ -235,8 +247,11 @@ export function useLogHabit() {
        */
       const countsTowardStreak = loggedHabit !== null && !loggedHabit.isBadHabit
 
-      if (countsTowardStreak && response.isFirstCompletionToday && response.currentStreak > 0) {
+      const startsStreak = startsPositiveStreak(countsTowardStreak, response)
+      if (shouldCelebrateStreak(startsStreak, response.currentStreak)) {
         setStreakCelebration({ streak: response.currentStreak })
+      }
+      if (startsStreak) {
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, currentStreak: response.currentStreak } : old,
         )

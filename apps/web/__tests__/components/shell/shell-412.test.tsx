@@ -87,6 +87,37 @@ describe('Shell412', () => {
     expect(trigger).toHaveFocus()
   })
 
+  it('wraps focus when the conversation is mounted inside a shadow root', () => {
+    const host = document.createElement('div')
+    document.body.append(host)
+    const shadowRoot = host.attachShadow({ mode: 'open' })
+    const container = document.createElement('div')
+    shadowRoot.append(container)
+
+    const view = render(
+      <Shell412
+        tabBar={<div>Tabs</div>}
+        conversation={(
+          <div>
+            <button type="button">First shadow action</button>
+            <button type="button">Last shadow action</button>
+          </div>
+        )}
+        conversationLabel="Shadow conversation"
+      />,
+      { container },
+    )
+    const firstAction = shadowRoot.querySelector<HTMLButtonElement>('button')
+    const lastAction = shadowRoot.querySelectorAll<HTMLButtonElement>('button').item(1)
+
+    expect(shadowRoot.activeElement).toBe(firstAction)
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+    expect(shadowRoot.activeElement).toBe(lastAction)
+
+    view.unmount()
+    host.remove()
+  })
+
   it('keeps focus on an empty conversation dialog', () => {
     render(
       <Shell412

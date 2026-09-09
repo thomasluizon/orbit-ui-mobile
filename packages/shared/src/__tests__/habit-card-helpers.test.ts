@@ -72,20 +72,13 @@ describe('habit card helpers', () => {
     )
   })
 
-  it('builds search match badges for non-title matches only', () => {
-    const translator = createTranslator()
-    const habit = createMockHabit({
-      searchMatches: [
-        { field: 'tag', value: 'a very long tag value that should be truncated' },
-        { field: 'child', value: 'child habit' },
-        { field: 'title', value: 'ignored title match' },
-      ],
-    })
-
-    expect(computeHabitMatchBadges('habit', habit, translator)).toEqual([
-      { label: 'habits.search.matchTag({"value":"a very long tag valu..."})' },
-      { label: 'habits.search.matchChild({"value":"child habit"})' },
-    ])
+  it.each([
+    { field: 'title' as const, value: null },
+    { field: 'description' as const, value: null },
+    { field: 'tag' as const, value: 'a long tag value that stays intact' },
+    { field: 'child' as const, value: 'Walk to the shop' },
+  ])('preserves the structured $field match', (match) => {
+    expect(computeHabitMatchBadges('walk', createMockHabit({ searchMatches: [match] }))).toEqual([match])
   })
 
   it('marks optimistic habits as due today when only scheduledDates are present', () => {
@@ -257,21 +250,9 @@ describe('habit card helpers', () => {
     ).toBeNull()
   })
 
-  it('returns description match badges and no badges when search input is empty', () => {
-    const translator = createTranslator()
-
-    expect(
-      computeHabitMatchBadges(
-        'habit',
-        createMockHabit({
-          searchMatches: [{ field: 'description', value: 'deeper context' }],
-        }),
-        translator,
-      ),
-    ).toEqual([{ label: 'habits.search.matchDescription' }])
-    expect(
-      computeHabitMatchBadges('', createMockHabit({ searchMatches: null }), translator),
-    ).toEqual([])
+  it('omits match lines when there is no query or no metadata', () => {
+    expect(computeHabitMatchBadges('', createMockHabit({ searchMatches: [{ field: 'title', value: null }] }))).toEqual([])
+    expect(computeHabitMatchBadges('walk', createMockHabit({ searchMatches: null }))).toEqual([])
   })
 })
 

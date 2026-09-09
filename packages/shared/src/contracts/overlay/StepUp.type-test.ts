@@ -1,6 +1,14 @@
 import type { ReactNode } from 'react'
 import type { StepUpProps } from './StepUp'
 
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
+type Assert<T extends true> = T
+
 type Accepts<
   Actual extends Expected & Record<Exclude<keyof Actual, keyof Expected>, never>,
   Expected,
@@ -51,6 +59,13 @@ type NodeMessage = Accepts<{
   actionLabel: 'Sign in'
   onAction: () => void
 }, StepUpProps>
+
+export type StepUpTypeAssertionsWidthAssertions = [
+  Assert<IsExactWidth<StepUpProps['message'], string>>,
+  Assert<IsExactWidth<StepUpProps['actionLabel'], string>>,
+  Assert<IsExactWidth<StepUpProps['onAction'], () => void>>,
+  Assert<IsExactWidth<StepUpProps['busy'], boolean | undefined>>,
+]
 
 export type StepUpTypeAssertions =
   | ValidStepUp

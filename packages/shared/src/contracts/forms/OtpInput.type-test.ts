@@ -6,9 +6,26 @@ type IsExact<T, U> = T extends U
     ? true
     : false
   : false
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
 type Assert<T extends true> = T
 
 export type OtpInputTypeContract = [
+  Assert<IsExactWidth<OtpInputProps['length'], number | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['value'], string>>,
+  Assert<IsExactWidth<OtpInputProps['onChange'], (value: string) => void>>,
+  Assert<IsExactWidth<OtpInputProps['onComplete'], ((value: string) => void) | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['error'], string | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['hint'], string | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['disabled'], boolean | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['autoFocus'], boolean | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['label'], string>>,
+  Assert<IsExactWidth<OtpInputProps['id'], string | undefined>>,
+  Assert<IsExactWidth<OtpInputProps['name'], string | undefined>>,
   Assert<IsExact<{ value: ''; onChange: () => void; label: 'Code' }, OtpInputProps>>,
   Assert<IsExact<{
     value: '123'

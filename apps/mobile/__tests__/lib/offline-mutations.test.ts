@@ -5,6 +5,8 @@ import type {
   QueuedMutation,
 } from '@orbit/shared/types/sync'
 import { logHabitResponseSchema } from '@orbit/shared/types/habit'
+import { habitKeys } from '@orbit/shared/query'
+import { API } from '@orbit/shared/api'
 import { ApiClientError } from '@orbit/shared/utils'
 
 import {
@@ -113,6 +115,7 @@ const mocks = vi.hoisted(() => {
 
   const persistQueryCache = vi.fn(() => Promise.resolve())
   const invalidateQueries = vi.fn(() => Promise.resolve())
+  const setQueryData = vi.fn()
 
   const apiClient = vi.fn((endpoint: string): Promise<{ id: string } | null> => {
     if (endpoint === '/api/habits') {
@@ -146,6 +149,7 @@ const mocks = vi.hoisted(() => {
     getResolvedEntityId,
     persistQueryCache,
     invalidateQueries,
+    setQueryData,
     apiClient,
     getCurrentConnectivity,
   }
@@ -183,6 +187,7 @@ vi.mock('@/lib/query-client', () => ({
   persistQueryCache: mocks.persistQueryCache,
   queryClient: {
     invalidateQueries: mocks.invalidateQueries,
+    setQueryData: mocks.setQueryData,
     getQueriesData: vi.fn(() => []),
   },
 }))
@@ -209,6 +214,7 @@ describe('offline mutations', () => {
     mocks.getResolvedEntityId.mockClear()
     mocks.persistQueryCache.mockClear()
     mocks.invalidateQueries.mockClear()
+    mocks.setQueryData.mockClear()
     mocks.apiClient.mockReset()
     mocks.apiClient.mockImplementation((endpoint: string) =>
       Promise.resolve(endpoint === '/api/habits' ? { id: 'habit-1' } : null),
@@ -241,6 +247,15 @@ describe('offline mutations', () => {
     expect(mocks.queued[0]?.clientEntityId).toBe('offline-habit-1')
     expect(mocks.upsertOfflineEntity).toHaveBeenCalledTimes(1)
     expect(mocks.persistQueryCache).toHaveBeenCalledTimes(1)
+  })
+
+  it('invalidates search pages after replaying an offline tag rename', async () => {
+    const mutation = buildQueuedMutation({ type: 'updateTag', scope: 'tags', endpoint: API.tags.update('tag-1'), method: 'PUT', payload: { name: 'Focus', color: '#00ff00' } })
+    await queueOrExecute({ mutation, execute: vi.fn(), queuedResult: { queued: true as const } })
+    mocks.setOnline(true)
+    await flushQueuedMutations()
+    expect(mocks.queued).toHaveLength(0)
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.searches() })
   })
 
   it('builds the queued result from the retained durable mutation id', async () => {
@@ -809,6 +824,25 @@ describe('offline mutations', () => {
       remaining: 0,
       droppedMutations: [],
     })
+  })
+
+  it('refreshes the persisted profile before invalidating gamification after replay', async () => {
+    mocks.setOnline(true)
+    mocks.queued.push(buildQueuedMutation({
+      type: 'setTimeZone',
+      scope: 'profile',
+      endpoint: '/api/profile/timezone',
+      method: 'PUT',
+      payload: { timeZone: 'Pacific/Kiritimati' },
+    }))
+
+    await flushQueuedMutations()
+
+    expect(mocks.invalidateQueries.mock.calls).toEqual([
+      [{ queryKey: ['profile'] }],
+      [{ queryKey: ['gamification'], refetchType: 'none' }],
+    ])
+    expect(mocks.setQueryData).toHaveBeenCalledWith(['profile', 'detail'], expect.any(Function))
   })
 
   it('drops a rejected retired operation without classifying it as a current scope', async () => {

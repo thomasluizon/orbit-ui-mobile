@@ -55,6 +55,7 @@ import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import { NotificationDeleteNotice } from '@/components/navigation/notification-delete-notice'
 import { DestinationTabBar } from '@/components/navigation/destination-tab-bar'
+import { SearchHeader } from '@/components/search/search-header-action'
 import { Shell412 } from '@/components/shell/shell-412'
 import { Fab } from '@/components/ui/fab'
 import { Plus } from '@/components/ui/icons'
@@ -63,6 +64,7 @@ import { useTourTarget } from '@/hooks/use-tour-target'
 import { OverlayLayer } from '@/components/global-overlays'
 import * as Sentry from '@sentry/react-native'
 import { OfflineNotice } from '@/components/offline-notice'
+import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { AppToast } from '@/components/ui/app-toast'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
 import { AstraConversation } from '@/components/chat/conversation'
@@ -136,6 +138,7 @@ function RootStackScreens({
 
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="search" />
         <Stack.Screen name="notifications" />
         <Stack.Screen
           name="chat"
@@ -294,6 +297,8 @@ function RootLayoutNav() {
       <View style={{ flex: 1 }}>
         {showBottomNav ? (
           <Shell412
+            header={<SearchHeader pathname={pathname} />}
+            safeAreaTop={['/', '/calendar', '/progress', '/profile', '/search'].includes(pathname)}
             {...conversation}
             composer={pathname === '/notifications' ? undefined : (
               <Composer
@@ -303,6 +308,7 @@ function RootLayoutNav() {
               />
             )}
             notice={<>
+              <CelebrationPanel />
               <NotificationDeleteNotice />
               <OfflineNotice />
             </>}
@@ -316,7 +322,11 @@ function RootLayoutNav() {
             />
           </Shell412>
         ) : (
-          <Shell412 nav={false} notice={isAuthenticated ? <OfflineNotice /> : undefined}>
+          <Shell412
+            nav={false}
+            safeAreaTop={pathname === '/search'}
+            notice={isAuthenticated ? <OfflineNotice /> : undefined}
+          >
             <RootStackScreens
               screenBackgroundColor={surfaces.screen.backgroundColor}
             />
@@ -378,12 +388,19 @@ function GlobalOverlays({
   const hasProAccess = profile?.hasProAccess ?? false
   const canViewGamification = profile?.canViewGamification ?? false
   const gamification = useGamificationProfile(canViewGamification)
+  const { clearLevelUp, leveledUp, newLevel } = gamification
+  const enqueueCelebration = useUIStore((state) => state.enqueueCelebration)
   const armReferralPrompt = useReferralPromptStore((s) => s.armReferralPrompt)
   const armMilestoneSharePrompt = useReferralPromptStore(
     (s) => s.armMilestoneSharePrompt,
   )
   const armReviewPrompt = useReferralPromptStore((s) => s.armReviewPrompt)
   const armConsentPrompt = useReferralPromptStore((s) => s.armConsentPrompt)
+  useEffect(() => {
+    if (!leveledUp || newLevel === null) return
+    enqueueCelebration('level-up', { level: newLevel })
+    clearLevelUp()
+  }, [clearLevelUp, enqueueCelebration, leveledUp, newLevel])
   useEffect(() => {
     if (
       profile?.hasCompletedOnboarding &&
@@ -454,12 +471,8 @@ function GlobalOverlays({
     <OverlayLayer
       hasCompletedOnboarding={profile?.hasCompletedOnboarding ?? false}
       hasProAccess={hasProAccess}
-      canViewGamification={canViewGamification}
       showRetainedOnboarding={showRetainedOnboarding}
       onboardingActions={liveOnboardingActions}
-      leveledUp={gamification.leveledUp}
-      newLevel={gamification.newLevel}
-      onClearLevelUp={gamification.clearLevelUp}
     />
   )
 }

@@ -29,6 +29,27 @@ describe('habitKeys', () => {
     expect(habitKeys.list(filters)).toEqual(['habits', 'list', filters])
   })
 
+  it('groups every search page under one prefix outside array list caches', () => {
+    const prefix = habitKeys.searches()
+    expect(prefix.slice(0, habitKeys.all.length)).toEqual(habitKeys.all)
+    expect(prefix).not.toEqual(habitKeys.lists())
+    for (const page of [1, 2, 3]) {
+      const filters = { search: 'walk', page, pageSize: 20 }
+      const key = habitKeys.search(filters)
+      expect(key).toEqual([...prefix, filters])
+      expect(key.slice(0, habitKeys.lists().length)).not.toEqual(habitKeys.lists())
+    }
+  })
+
+  it('separates cached search queries, pages and page sizes', () => {
+    const filters = { search: 'walk', page: 1, pageSize: 20 }
+    const key = habitKeys.search(filters)
+    expect(habitKeys.search({ ...filters })).toEqual(key)
+    expect(habitKeys.search({ ...filters, search: 'read' })).not.toEqual(key)
+    expect(habitKeys.search({ ...filters, page: 2 })).not.toEqual(key)
+    expect(habitKeys.search({ ...filters, pageSize: 40 })).not.toEqual(key)
+  })
+
   it('count returns count key', () => {
     expect(habitKeys.count()).toEqual(['habits', 'count'])
   })
@@ -170,8 +191,12 @@ describe('gamificationKeys', () => {
     expect(gamificationKeys.achievements()).toEqual(['gamification', 'achievements'])
   })
 
-  it('streak returns streak key', () => {
-    expect(gamificationKeys.streak()).toEqual(['gamification', 'streak'])
+  it('streak includes the persisted timezone basis', () => {
+    expect(gamificationKeys.streak('America/Sao_Paulo')).toEqual([
+      'gamification',
+      'streak',
+      'America/Sao_Paulo',
+    ])
   })
 })
 

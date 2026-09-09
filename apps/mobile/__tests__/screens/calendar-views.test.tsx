@@ -4,6 +4,7 @@ import { formatAPIDate } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 
 import CalendarScreen from "@/app/(tabs)/calendar";
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 const TestRenderer = require("react-test-renderer");
 
@@ -160,6 +161,15 @@ describe("CalendarScreen views (mobile)", () => {
       ],
     ]);
   });
+  it('leaves the top safe area to the shell', () => {
+    let tree!: import('react-test-renderer').ReactTestRenderer
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />) })
+    const safeAreas = tree.root.findAll((node) => node.type === SafeAreaView)
+    expect(safeAreas.length).toBeGreaterThan(0)
+    for (const safeArea of safeAreas) expect(safeArea.props.edges).toEqual(['left', 'right', 'bottom'])
+    TestRenderer.act(() => tree.update(<></>))
+  })
+
 
   it("switches to the week time-grid when the week tab is selected", () => {
     let tree: Tree;

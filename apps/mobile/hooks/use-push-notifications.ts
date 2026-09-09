@@ -312,14 +312,16 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         return false
       }
 
-      if (!isAuthenticated || useAuthStore.getState().user?.userId !== userId) {
+      const currentUserId = useAuthStore.getState().user?.userId ?? null
+      if (!isAuthenticated || currentUserId !== userId) {
         setRegistrationStatus('idle')
         return false
       }
 
       try {
         await sendTokenToBackend(token)
-        if (useAuthStore.getState().user?.userId !== userId) {
+        const registeredUserId = useAuthStore.getState().user?.userId ?? null
+        if (registeredUserId !== userId) {
           setRegistrationStatus('idle')
           return false
         }

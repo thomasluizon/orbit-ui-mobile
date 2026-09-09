@@ -1,3 +1,6 @@
+'use client'
+
+import { useCallback, useState } from 'react'
 import type { ProgressRingProps } from '@orbit/shared/contracts/display'
 
 /** A circular progress sweep over a neutral track. */
@@ -6,7 +9,10 @@ export function ProgressRing({ value = 0, size = 64, label }: Readonly<ProgressR
   const complete = clamped === 100
   const strokeWidth = Math.max(2, size / 16)
   const radius = (size - strokeWidth) / 2
-  const circumference = 2 * Math.PI * radius
+  const [circumference, setCircumference] = useState(0)
+  const measure = useCallback((circle: SVGCircleElement | null) => {
+    if (circle) setCircumference(circle.getTotalLength())
+  }, [])
 
   return (
     <svg
@@ -22,6 +28,9 @@ export function ProgressRing({ value = 0, size = 64, label }: Readonly<ProgressR
     >
       <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--fg-4)" strokeWidth={strokeWidth} />
       <circle
+        ref={measure}
+        key={size}
+        visibility={circumference > 0 ? undefined : 'hidden'}
         cx={size / 2}
         cy={size / 2}
         r={radius}
