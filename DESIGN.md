@@ -515,11 +515,21 @@ sides, and only one value satisfies both:
 | **0.13** | **`#28282A`** | **1.261** | **4.57** |
 | 0.12 | `#262628` | **1.229**, under the 1.25 hover-step rule below | 4.69 |
 
-**Measure the hover surface as a REPLACEMENT, never as a layer on the resting one.** CSS
-`background-color` and React Native `backgroundColor` both swap the value; neither composites. A
-hovered card is `--bg` under `--bg-hover`, so it measures 4.57, not the 3.91 that compositing
-`--bg-card` and `--bg-hover` together would suggest. A stack that deep is not a surface this system
-paints. 0.12 was also the exact value of `--bg-elev-2`, which the hover rule below forbids on its own.
+**Two hover stacks exist, and they measure differently. Read the paint order, not the token.**
+
+1. **Replacement, the normal case.** One element carries `--bg-card` at rest and `--bg-hover` on
+   hover. CSS `background-color` and React Native `backgroundColor` swap the value; neither
+   composites. The stack is `--bg` under `--bg-hover`, `#28282A`, and `--fg-3` measures **4.57**.
+2. **Child over parent, one shipped case.** A hover child painted inside a card wrapper composites:
+   `--bg` under `--bg-card` under `--bg-hover`, `#313133`. `--fg-3` measures **4.03** there and does
+   NOT clear the text floor. The unread notification row is that case, on both platforms: the
+   wrapper carries `--bg-card` and the inner control hovers.
+
+**On a hover child inside a card, text is `--fg-2` or lighter.** `--fg-2` measures 7.86 on that
+stack, `--fg-1` 11.82. The unread notification row already obeys this. Prefer replacement when you
+build a new hover surface; compositing costs a whole neutral step and buys nothing.
+
+0.12 was also the exact value of `--bg-elev-2`, which the hover rule below forbids on its own.
 
 **The granted canvas carries the same value.** `design/canvas/_ds/.../tokens/colors.css` holds the
 authoritative token, so it moved to 0.13 in the same change, its readme records limit 2 as closed,
