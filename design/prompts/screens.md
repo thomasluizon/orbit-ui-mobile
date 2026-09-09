@@ -302,9 +302,12 @@ Sentence case everywhere. No exclamation mark on a success. No shame language on
 names the circumstance, never the person.
 Emoji only as a user-chosen habit icon inside a row well, and on a celebration hero. Never in UI copy
 and never as iconography.
-Three contrast limits are known, measured and deliberately left open: fg-3 on a hovered row at 4.40,
-fg-4 as a graphic above the canvas at 2.16 to 2.84, and light fg-4 on hover at 2.94. Do not "fix"
-them; they are Thomas's call and each one trades against another rule.
+Two contrast limits are known, measured and deliberately left open: fg-4 as a graphic above the
+canvas at 2.24 to 2.84, and light fg-4 on hover at 2.94. Do not "fix" them; they are Thomas's call
+and each one trades against another rule. A third, fg-3 on a hovered surface, was closed on
+2026-09-09 by taking the dark hover alpha from .14 to .13, which reads 4.57. Read the paint order
+though: a hover CHILD inside a card composites rather than replaces, and there fg-3 reads 4.03, so
+text on one is fg-2 or lighter.
 
 Reply with just the deletion result and one line confirming you have the brief. Do not build anything
 yet.

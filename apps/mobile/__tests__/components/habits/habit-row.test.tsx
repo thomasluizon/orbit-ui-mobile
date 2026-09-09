@@ -110,7 +110,7 @@ describe('HabitRow status control names (mobile)', () => {
       renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
     ) as Record<string, unknown>
     const restingRing = StyleSheet.flatten(ring.props.style({ pressed: false })) as Record<string, unknown>
-    expect(pressedCard.backgroundColor).toBe('rgba(250,250,250,0.14)')
+    expect(pressedCard.backgroundColor).toBe('rgba(250,250,250,0.13)')
     expect(pressedCard.borderColor).toBe('rgba(255,255,255,0.16)')
     expect(restingRing.backgroundColor).toBeUndefined()
 
@@ -120,7 +120,7 @@ describe('HabitRow status control names (mobile)', () => {
     ) as Record<string, unknown>
     const pressedRing = StyleSheet.flatten(ring.props.style({ pressed: true })) as Record<string, unknown>
     expect(restingCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
-    expect(pressedRing.backgroundColor).toBe('rgba(250,250,250,0.14)')
+    expect(pressedRing.backgroundColor).toBe('rgba(250,250,250,0.13)')
   })
 
   it('presses the disclosure control without painting the card', () => {
@@ -143,7 +143,7 @@ describe('HabitRow status control names (mobile)', () => {
       renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
     ) as Record<string, unknown>
 
-    expect(pressedDisclosure.backgroundColor).toBe('rgba(250,250,250,0.14)')
+    expect(pressedDisclosure.backgroundColor).toBe('rgba(250,250,250,0.13)')
     expect(restingCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
   })
 
@@ -170,7 +170,7 @@ describe('HabitRow status control names (mobile)', () => {
       renderer!.root.findByProps({ testID: 'habit-row' }).props.style,
     ) as Record<string, unknown>
 
-    expect(pressedSelection.backgroundColor).toBe('rgba(250,250,250,0.14)')
+    expect(pressedSelection.backgroundColor).toBe('rgba(250,250,250,0.13)')
     expect(restingCard.backgroundColor).toBe('rgba(250,250,250,0.04)')
   })
 
@@ -208,7 +208,7 @@ describe('HabitRow status control names (mobile)', () => {
       const pressedStyle = StyleSheet.flatten(
         control.props.style({ pressed: true }),
       ) as Record<string, unknown>
-      expect(pressedStyle.backgroundColor).not.toBe('rgba(250,250,250,0.14)')
+      expect(pressedStyle.backgroundColor).not.toBe('rgba(250,250,250,0.13)')
     }
   })
 

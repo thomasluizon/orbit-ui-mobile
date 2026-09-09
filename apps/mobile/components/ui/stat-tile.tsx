@@ -25,7 +25,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
         <Text
           style={[
             state === 'empty' ? styles.emptyValue : styles.value,
-            { color: state === 'empty' ? tokens.fg4 : tokens.fg1 },
+            { color: state === 'empty' ? tokens.fg3 : tokens.fg1 },
           ]}
         >
           {state === 'empty' ? props.emptyLabel : props.value}

@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, it, expect, vi } from 'vitest'
+import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { render, screen, fireEvent, act, cleanup, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -77,24 +78,6 @@ afterEach(() => {
   resetPendingNotificationDeletesForTests()
   vi.useRealTimers()
 })
-
-function contrastOnSurface(foreground: string, layers: string[]): number {
-  const channels = (color: string) => color.startsWith('#')
-    ? [1, 3, 5].map((offset) => Number.parseInt(color.slice(offset, offset + 2), 16))
-    : color.match(/[\d.]+/g)!.map(Number)
-  const background = layers.reduce((below, layer) => {
-    const [red, green, blue, alpha = 1] = channels(layer)
-    return [red!, green!, blue!].map((value, index) => Math.round(value * alpha + below[index]! * (1 - alpha)))
-  }, [0, 0, 0])
-  const luminance = (rgb: number[]) => rgb.slice(0, 3).reduce((sum, value, index) => {
-    const normalized = value / 255
-    const linear = normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4
-    return sum + linear * [0.2126, 0.7152, 0.0722][index]!
-  }, 0)
-  const front = luminance(channels(foreground))
-  const back = luminance(background)
-  return (Math.max(front, back) + 0.05) / (Math.min(front, back) + 0.05)
-}
 
 describe('alerts', () => {
   let textStyles: string

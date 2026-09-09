@@ -51,7 +51,7 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
           </View>
           <Text style={[styles.body, { color: tokens.fg2 }]}>{item.body}</Text>
           {targetKey && TargetIcon ? <View style={styles.target}>
-            <TargetIcon size={16} color={tokens.fg4} />
+            <TargetIcon size={16} color={tokens.fg3} />
             <Text style={[styles.meta, { color: tokens.fg2 }]}>{t(targetKey)}</Text>
           </View> : null}
         </View>
