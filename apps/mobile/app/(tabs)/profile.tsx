@@ -21,6 +21,7 @@ import {
 } from '@/hooks/use-profile'
 import { useLogout } from '@/hooks/use-logout'
 import { useGamificationProfile, useStreakInfo } from '@/hooks/use-gamification'
+import { SearchHeaderAction } from '@/components/search/search-header-action'
 import { AppBar } from '@/components/ui/app-bar'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
@@ -132,8 +133,8 @@ export default function ProfileScreen() {
       : profile?.email
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
-      <AppBar title={t('nav.profile')} />
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+      <AppBar title={t('nav.profile')} action={<SearchHeaderAction />} />
       <View testID="profile-header-actions" style={{ flexDirection: 'row', flexShrink: 0, alignItems: 'center', justifyContent: 'flex-end', gap: 12, paddingHorizontal: 16, paddingBottom: 12 }}>
         <ThemeToggle />
         <StreakBadge streak={profile?.currentStreak ?? 0} isFrozen={streakInfo?.isFrozenToday ?? false} />

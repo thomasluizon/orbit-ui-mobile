@@ -1,12 +1,11 @@
-import { StyleSheet } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { StyleSheet, View } from 'react-native'
 import { ProgressContent } from '@/components/progress/progress-content'
 
 export default function ProgressScreen() {
   return (
-    <SafeAreaView edges={['top']} style={styles.root}>
+    <View style={styles.root}>
       <ProgressContent />
-    </SafeAreaView>
+    </View>
   )
 }
 

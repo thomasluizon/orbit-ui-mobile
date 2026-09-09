@@ -57,7 +57,7 @@ function ShellBottomChrome({
   )
 }
 
-export function Shell412(props: Readonly<Shell412Props>) {
+export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean }>) {
   const registeredComposer = useShellComposerHost()
   const navigationEnabled = props.nav !== false
   const pinnedSlot = navigationEnabled ? (registeredComposer.content ?? props.composer) : props.action
@@ -77,7 +77,7 @@ export function Shell412(props: Readonly<Shell412Props>) {
     >
       <View
         testID="shell-background"
-        style={styles.background}
+        style={[styles.background, { paddingTop: (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0 }]}
         importantForAccessibility={conversationOpen ? 'no-hide-descendants' : 'auto'}
       >
         {props.header !== undefined ? (

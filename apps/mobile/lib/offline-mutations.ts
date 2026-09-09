@@ -43,7 +43,7 @@ type InvalidationQueryKey = readonly unknown[]
 const SCOPE_QUERY_KEYS: Record<MutationScope, readonly InvalidationQueryKey[]> = {
   habits: [habitKeys.all, goalKeys.all, profileKeys.all, gamificationKeys.all],
   goals: [goalKeys.all, habitKeys.lists()],
-  tags: [tagKeys.all, habitKeys.lists()],
+  tags: [tagKeys.all, habitKeys.lists(), habitKeys.searches()],
   notifications: [notificationKeys.all],
   profile: [profileKeys.all],
   apiKeys: [apiKeyKeys.all],
@@ -468,7 +468,7 @@ async function markQueuedMutation(mutation: QueuedMutation): Promise<string> {
     await markOfflineTombstone(mutation.entityType, mutation.targetEntityId, true)
   }
 
-  await persistQueryCache()
+  await persistQueryCache({ discardHabitSearches: mutation.scope === 'habits' || mutation.scope === 'tags' })
   return queuedMutationId
 }
 

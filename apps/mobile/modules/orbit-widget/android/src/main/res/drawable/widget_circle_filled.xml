@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Neutral white circle, tinted dynamically with primary color via setColorFilter -->
+<!-- Neutral fg-1 circle, also tinted dynamically from the synced token. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
-    <solid android:color="#FFFFFFFF" />
+    <solid android:color="@color/widget_fg_1" />
     <size android:width="22dp" android:height="22dp" />
 </shape>

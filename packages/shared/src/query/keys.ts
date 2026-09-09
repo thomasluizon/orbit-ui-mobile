@@ -1,6 +1,13 @@
+import type { HabitScheduleItem } from '../types/habit'
+
+export type HabitListKey = readonly ['habits', 'list', ...unknown[]]
+export type HabitListSnapshots = readonly (readonly [HabitListKey, HabitScheduleItem[] | undefined])[]
+
 export const habitKeys = {
   all: ['habits'] as const,
   lists: () => [...habitKeys.all, 'list'] as const,
+  searches: () => [...habitKeys.all, 'search'] as const,
+  search: (filters: Record<string, unknown>) => [...habitKeys.searches(), filters] as const,
   list: (filters: Record<string, unknown>) => [...habitKeys.lists(), filters] as const,
   count: () => [...habitKeys.all, 'count'] as const,
   details: () => [...habitKeys.all, 'detail'] as const,
