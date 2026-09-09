@@ -166,7 +166,7 @@ describe('ProgressContent', () => {
     document.head.append(stylesheet)
     try {
       const card = screen.getByRole('button', { name: 'Read 12 Books' })
-      const metadata = within(card).getByText('progressScreen.goals.progress')
+      const metadata = within(card).getByText((content) => content.startsWith('progressScreen.goals.progress'))
       const renderedColor = getComputedStyle(metadata).color
       const theme = resolveWebThemeVariables('purple', mode)
       const foreground = theme[renderedColor.slice(4, -1) as `--${string}`]!
@@ -214,7 +214,7 @@ describe('ProgressContent', () => {
     const card = screen.getByRole('button', { name: 'Read 12 Books' })
     expect(card.querySelector('[data-variant="outline"]')).toHaveTextContent('goals.status.abandoned')
     expect(within(card).queryByRole('progressbar')).not.toBeInTheDocument()
-    expect(within(card).queryByText('progressScreen.goals.progress')).not.toBeInTheDocument()
+    expect(within(card).queryByText((content) => content.startsWith('progressScreen.goals.progress'))).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.completed' }))
     expect(screen.getByText('progressScreen.goals.filterEmpty')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.empty')).not.toBeInTheDocument()
