@@ -71,7 +71,10 @@ internal enum class WidgetString(val resourceId: Int) {
     STREAK_UNIT(R.string.widget_streak_unit),
     REFRESH(R.string.widget_refresh),
     CHECKLIST_BADGE(R.string.widget_checklist_badge),
-    DEEPER_COUNT(R.string.widget_deeper_count)
+    DEEPER_COUNT(R.string.widget_deeper_count),
+    STATUS_DONE(R.string.widget_status_done),
+    STATUS_OVERDUE(R.string.widget_status_overdue),
+    STATUS_PENDING(R.string.widget_status_pending)
 }
 
 internal data class WidgetDayState(
@@ -724,20 +727,30 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         }
     }
 
+    /**
+     * The mark is the ONLY place a row says done, overdue or pending: the title and the due time
+     * never name the state. So it carries an accessible name beside the icon and the colour, or the
+     * state is readable by sight alone.
+     *
+     * The name comes through `tr()` like every other visible string, not from an `@string` in the
+     * layout, because the widget renders the account's language from the cached payload rather than
+     * the device's resource configuration.
+     */
     private fun applyStatusMark(views: RemoteViews, habit: HabitItem) {
+        val (icon, description) = when {
+            habit.isCompleted -> R.drawable.widget_status_done to WidgetString.STATUS_DONE
+            habit.isOverdue -> R.drawable.widget_status_overdue to WidgetString.STATUS_OVERDUE
+            else -> R.drawable.widget_status_pending to WidgetString.STATUS_PENDING
+        }
+        views.setImageViewResource(R.id.item_status_icon, icon)
+        views.setContentDescription(R.id.item_status_icon, tr(context, lang, description))
         when {
-            habit.isCompleted -> {
-                views.setImageViewResource(R.id.item_status_icon, R.drawable.widget_status_done)
+            habit.isCompleted ->
                 views.setModeAwareColor(R.id.item_status_icon, "setColorFilter", colorModes) { it.textPrimary }
-            }
-            habit.isOverdue -> {
-                views.setImageViewResource(R.id.item_status_icon, R.drawable.widget_status_overdue)
+            habit.isOverdue ->
                 views.setModeAwareColor(R.id.item_status_icon, "setColorFilter", colorModes) { it.overdue }
-            }
-            else -> {
-                views.setImageViewResource(R.id.item_status_icon, R.drawable.widget_status_pending)
+            else ->
                 views.setModeAwareColor(R.id.item_status_icon, "setColorFilter", colorModes) { it.statusEmpty }
-            }
         }
     }
 

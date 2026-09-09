@@ -373,6 +373,32 @@ describe('Android widget header', () => {
     ])
   })
 
+  /**
+   * The status mark is the only place a row states done, overdue or pending: the title and the due
+   * time never name it, and the icon plus its colour filter carry the whole meaning. Left at
+   * `@null` it is outside the accessibility tree, so the state is readable by sight alone. The name
+   * comes through `tr()` like every other visible string, because the widget renders the account's
+   * language from the cached payload rather than the device's resource configuration.
+   */
+  it('names the row status for a screen reader, in both locales', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+
+    expect(service).toMatch(
+      /habit\.isCompleted -> R\.drawable\.widget_status_done to WidgetString\.STATUS_DONE\s*habit\.isOverdue -> R\.drawable\.widget_status_overdue to WidgetString\.STATUS_OVERDUE\s*else -> R\.drawable\.widget_status_pending to WidgetString\.STATUS_PENDING/,
+    )
+    expect(service).toContain(
+      'views.setContentDescription(R.id.item_status_icon, tr(context, lang, description))',
+    )
+
+    const english = resourceStrings('values/widget_strings.xml')
+    const portuguese = resourceStrings('values-pt-rBR/widget_strings.xml')
+    for (const key of ['widget_status_done', 'widget_status_overdue', 'widget_status_pending']) {
+      expect(english.get(key), `en:${key}`).toBeTruthy()
+      expect(portuguese.get(key), `pt-BR:${key}`).toBeTruthy()
+      expect(portuguese.get(key), `pt-BR:${key}`).not.toBe(english.get(key))
+    }
+  })
+
   it('gives the refresh control the 48dp target the drawing specifies', () => {
     const views = layoutViews()
 
