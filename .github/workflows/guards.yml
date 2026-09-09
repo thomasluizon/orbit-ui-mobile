@@ -12,13 +12,14 @@ name: Guards
 #   parity  - a web-scope code change with zero mobile-scope change (or inverse) fails without the parity:exempt label
 #   expo-pin - apps/mobile/package.json changes must keep the Expo SDK pin resolution intact
 #   performance-workflow - generated measured-performance logic matches its canonical module
+#   calibration - the per-agent and per-skill tuning stamp is current against the running worker model
 #   review-harness - a UI pull request on redesign/main states what the review skills found
 
 on:
   pull_request:
     branches: [main, redesign/main]
-    # `labeled` and `unlabeled` are load-bearing, not tidiness. Two of these jobs carry a
-    # label escape hatch (ratchet:reseed, parity:exempt),
+    # `labeled` and `unlabeled` are load-bearing, not tidiness. Three of these jobs carry a
+    # label escape hatch (ratchet:reseed, parity:exempt, calibration:reseed),
     # and `edited` covers title, body and base but NOT labels. Without these
     # two the sequence "the check fails, apply the label, merge" fires no new run, the failing
     # check run stands, and every escape hatch is decorative unless the label was predicted and
@@ -137,6 +138,22 @@ jobs:
         with:
           node-version: 22
       - run: node tools/check-suppressions-ratchet.mjs
+
+  calibration:
+    name: Harness Calibration
+    runs-on: ubuntu-latest
+    # BLOCKING from the first merge, and there is deliberately no --report-only flag to pass. ORB-120
+    # shipped this capability report-only "through 2026-08-11" as a safety measure, and the measured
+    # result was a gate that was red on `main` and green in CI for days without anyone noticing,
+    # because the CI step passed --report-only and that flag exits 0 on drift by design. A gate that
+    # cannot fail is not a gate. The escape hatch is the label, which is visible on the pull request.
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'calibration:reseed')
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node tools/check-calibration.mjs
 
   parity:
     name: Cross-Platform Parity
