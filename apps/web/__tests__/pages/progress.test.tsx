@@ -110,7 +110,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key}:${JSON.stringify(values)}` : key,
 }))
 vi.mock('next/navigation', () => ({ useRouter: () => mocks.router }))
 vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: ({ goalId, inline, onOpenChange }: { goalId: string; inline?: boolean; onOpenChange: (open: boolean) => void }) => <div role={inline ? 'region' : 'dialog'} aria-label="goal-detail">{goalId}<button onClick={() => onOpenChange(false)}>Back to goals</button></div> }))
@@ -190,7 +191,7 @@ describe('ProgressContent', () => {
     const card = screen.getByRole('button', { name: 'Read 12 Books' })
     expect(within(card).queryByText('goals.status.active')).not.toBeInTheDocument()
     expect(card.querySelectorAll('[data-variant="solid"]')).toHaveLength(1)
-    expect(within(card).queryByText('progressScreen.goals.daysOverdue')).not.toBeInTheDocument()
+    expect(within(card).queryByText(/^progressScreen\.goals\.daysOverdue(?::|$)/)).not.toBeInTheDocument()
     expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '25')
   })
 
@@ -400,14 +401,14 @@ describe('ProgressContent', () => {
     expect(screen.getByText('18')).toBeInTheDocument()
   })
 
-  it('renders routed boundaries instead of blank gated regions', () => {
+  it('renders the remaining routed boundaries instead of blank gated regions', () => {
     mocks.account.profile.canViewGamification = false
     mocks.account.profile.hasProAccess = false
     render(<ProgressContent />)
 
     expect(screen.getByText('progressScreen.streak.lockedBody')).toBeInTheDocument()
     expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
-    expect(screen.getByText('progressScreen.achievements.lockedBody')).toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.achievements.lockedBody')).not.toBeInTheDocument()
     expect(screen.getAllByText('progressScreen.streak.lockedAction').length).toBeGreaterThan(0)
     expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
     expect(screen.getByText('streakDisplay.detail.tierTileLabel')).toBeInTheDocument()
@@ -419,11 +420,70 @@ describe('ProgressContent', () => {
 
     render(<ProgressContent />)
 
-    expect(screen.getByText('progressScreen.streak.currentLabel')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.streak.currentLabel:{"count":4}')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
     expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.lockedBody')).not.toBeInTheDocument()
     expect(screen.queryByText('progressScreen.achievements.lockedBody')).not.toBeInTheDocument()
+  })
+
+  it('draws the XP row before grouped achievements and distinguishes earned shapes from progress', () => {
+    mocks.gamification.profile.achievements = [
+      {
+        id: 'first_orbit', name: 'First orbit', description: 'Started', category: 'GettingStarted',
+        rarity: 'Common', xpReward: 10, iconKey: 'first_orbit', isEarned: true,
+        earnedAtUtc: '2026-08-01T00:00:00Z', progressCurrent: null, progressTarget: null,
+      },
+      {
+        id: 'week_warrior', name: 'Week warrior', description: 'Seven days', category: 'GettingStarted',
+        rarity: 'Common', xpReward: 20, iconKey: 'week_warrior', isEarned: false,
+        earnedAtUtc: null, progressCurrent: 4, progressTarget: 7,
+      },
+      {
+        id: 'dedicated', name: 'Dedicated', description: 'Keep going', category: 'Consistency',
+        rarity: 'Rare', xpReward: 30, iconKey: 'dedicated', isEarned: true,
+        earnedAtUtc: '2026-08-02T00:00:00Z', progressCurrent: 30, progressTarget: 30,
+      },
+      {
+        id: 'first_friend', name: 'First friend', description: 'Social', category: 'Social',
+        rarity: 'Common', xpReward: 10, iconKey: 'first_friend', isEarned: false,
+        earnedAtUtc: null, progressCurrent: 0, progressTarget: 1,
+      },
+    ]
+
+    render(<ProgressContent />)
+
+    const xpSummary = screen.getByTestId('progress-xp-summary')
+    const achievementsHeading = screen.getByRole('heading', { name: 'progressScreen.sections.achievements' })
+    expect(xpSummary.compareDocumentPosition(achievementsHeading) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+    expect(within(xpSummary).getAllByRole('progressbar')).toHaveLength(1)
+    expect(screen.queryByText(/^progressScreen\.achievements\.next(?::|$)/)).not.toBeInTheDocument()
+    expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
+      'gamification.categories.GettingStarted',
+      'gamification.categories.Consistency',
+    ])
+
+    const earned = document.querySelector('[data-achievement-id="first_orbit"]')
+    const progressive = document.querySelector('[data-achievement-id="week_warrior"]')
+    const completedProgress = document.querySelector('[data-achievement-id="dedicated"]')
+    expect(earned).not.toBeNull()
+    expect(progressive).not.toBeNull()
+    expect(completedProgress).not.toBeNull()
+    expect(within(earned as HTMLElement).queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(within(progressive as HTMLElement).getByRole('progressbar')).toBeInTheDocument()
+    expect(within(completedProgress as HTMLElement).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '30')
+    expect(within(completedProgress as HTMLElement).getByRole('progressbar')).toHaveAttribute('data-complete', 'true')
+    const earnedMark = within(earned as HTMLElement).getByRole('img', {
+      name: 'progressScreen.achievements.earnedState:{"name":"gamification.achievements.first_orbit.name"}',
+    })
+    const unearnedMark = within(progressive as HTMLElement).getByRole('img', {
+      name: 'progressScreen.achievements.unearnedState:{"name":"gamification.achievements.week_warrior.name"}',
+    })
+    expect(earnedMark).toHaveAttribute('data-state', 'earned')
+    expect(earnedMark).toHaveStyle({ background: 'var(--status-done)' })
+    expect(unearnedMark).toHaveAttribute('data-state', 'unearned')
+    expect(within(earned as HTMLElement).getByText('progressScreen.achievements.earnedLabel')).toBeInTheDocument()
+    expect(screen.queryByText('gamification.achievements.first_friend.name')).not.toBeInTheDocument()
   })
 
   it('offers the one day repair', () => {

@@ -28,8 +28,12 @@
 //    third surface's status with nobody editing it. Regenerating the manifest
 //    is a visible git diff; a silent recompute is not.
 //
-// There is deliberately no status field. tools/redesign-coverage.mjs validates
-// the group assignments; visual completion requires review of the running app.
+// There is deliberately no status field, and no field describing what evidence
+// a cell could carry. D13 retired the per-cell completion oracle and forbids
+// rebuilding one; #422 then deleted the last capture tooling. This file is an
+// INVENTORY of surfaces and their ownership, and nothing here records, implies,
+// or grants completion. tools/redesign-coverage.mjs validates the group
+// assignments; visual completion requires review of the running app.
 
 import { execFileSync } from "node:child_process"
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"

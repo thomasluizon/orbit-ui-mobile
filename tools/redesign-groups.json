@@ -42,15 +42,7 @@
     ],
     "R4-motion-celebration": [
       "overlay-components-fresh-start-modal",
-      "overlay-gamification-all-done-celebration",
-      "overlay-gamification-goal-completed-celebration",
-      "overlay-gamification-level-up-overlay",
-      "overlay-gamification-streak-celebration",
-      "m-overlay-components-fresh-start-modal",
-      "m-overlay-gamification-all-done-celebration",
-      "m-overlay-gamification-goal-completed-celebration",
-      "m-overlay-gamification-level-up-overlay",
-      "m-overlay-gamification-streak-celebration"
+      "m-overlay-components-fresh-start-modal"
     ],
     "R5-screen-today": [
       "m-overlay-today-today-modals",
@@ -243,8 +235,6 @@
   },
   "excluded": [],
   "notes": {
-    "overlay-gamification-streak-celebration": "First-rule-wins: R4 owns this streak celebration over R9.",
-    "m-overlay-gamification-streak-celebration": "First-rule-wins: R4 owns this streak celebration over R9.",
     "m-widget-orbit-widget": "D66 adds the Android widget to the manifest and assigns it to #76 (R21)."
   }
 }

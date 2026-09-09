@@ -1,7 +1,43 @@
 #!/usr/bin/env node
-// Generates architecture.json + architecture.html at the repo root: the
-// DERIVED architecture map (D12) an agent reads INSTEAD of
-// exploring the codebase, and the page Thomas reads instead of the JSON.
+// Generates architecture.json, architecture.html and architecture.mmd at the
+// repo root: the DERIVED architecture map (D12) an agent reads INSTEAD of
+// exploring the codebase, the page Thomas reads instead of the JSON, and the
+// Mermaid flowchart of the dependency graph.
+//
+// NONE OF THE THREE IS COMMITTED, and that is the whole of
+// thomasluizon/orbit-tickets#470, settled together with #232. Storing a
+// whole-file regeneration and gating on its exact bytes made the pair a
+// guaranteed conflict between any two branches that touch module structure.
+// Measured on one night, 2026-09-08: pull request 842 needed THREE base merges
+// whose only conflict was architecture.html, each one invalidating
+// pullfrog-approval and buying another forty-minute review cycle; 871 needed the
+// same; 865, 867 and 872 carried the pair inside larger conflict lists; 874 and
+// 875 went red on `Architecture map drift` alone. None of that was a defect in
+// anybody's code. It was the cost of the storage choice.
+//
+// The two alternatives were weighed and refused. A `.gitattributes` `merge=ours`
+// driver needs `git config merge.<name>.driver` set locally, which is not
+// committed, so it silently does not apply for anyone who did not configure it,
+// and where it does apply it turns a loud conflict into a quietly stale file.
+// Having CI regenerate and push the refresh onto the pull request branch
+// invalidates pullfrog-approval on every push, which automates the exact cost
+// measured above.
+//
+// So the map is generated on demand. `CLAUDE.md` still tells every agent to read
+// it instead of exploring the codebase; the path it names is one command,
+// `node tools/arch-map.mjs`, and CI publishes the three files as a build
+// artifact for anyone who does not want to run it.
+//
+// PROVENANCE (#232) is what makes an on-demand artifact trustworthy. The first
+// key of architecture.json is a provenance block whose `generatedFrom` is a
+// sha256 over every input path the generator actually read, concatenated with
+// that file's contents, truncated to 12 hex characters. No clock and no git SHA:
+// a wall-clock stamp changes on every run, and a HEAD SHA can never be the SHA
+// of the commit that will contain the file. The hash changes if and only if an
+// input the map depends on changes, so a reader holding a copy can tell whether
+// it came from the tree in front of them. The input list is the RECORDED read
+// set rather than a second glob, because a hand-kept list silently stops
+// covering new files, which is the class of defect #232 was filed against.
 //
 // Five sections, every one computed from the tree, none hand-maintained:
 //   1. routes        - web (Next App Router) + mobile (expo-router) routes,
@@ -42,12 +78,13 @@
 //                      plus the dirs no test touches.
 //
 // Deterministic by construction: every list is stably sorted with a
-// code-unit comparator, no timestamps, no git SHAs (a HEAD SHA can never
-// match the commit that contains it, so it would make the CI drift check
-// unsatisfiable). Running twice yields byte-identical output - that is what
-// .github/workflows/arch-map.yml asserts on every PR.
+// code-unit comparator, no timestamps, no git SHAs. Running twice yields
+// byte-identical output - that is what .github/workflows/arch-map.yml asserts,
+// by generating twice in one job and comparing the two runs to each other
+// rather than to a committed copy.
 
-import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"
+import { createHash } from "node:crypto"
+import { readFileSync as readFileSyncRaw, readdirSync, statSync, writeFileSync } from "node:fs"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -73,21 +110,45 @@ const HTTP_METHOD = /method:\s*['"](GET|POST|PUT|PATCH|DELETE)['"]/
 // /public-profile; aliasing it to /u/[slug] mispairs both (proven 2026-08-13).
 const MOBILE_ROUTE_ALIASES = new Map([["(onboarding)/index", "/onboarding"]])
 
-const USAGE = `arch-map - derive architecture.json + architecture.html at the repo root.
+const USAGE = `arch-map - derive architecture.json, architecture.html and architecture.mmd at the repo root.
 
 Usage:
   node tools/arch-map.mjs [--help]
 
-Writes architecture.json (routes + parity, endpoints, dependency edges,
-i18n ownership, test coverage) and architecture.html (self-contained viewer,
-embeds the JSON so file:// works). Both are committed; the arch-map CI job
-regenerates them and fails on drift.
+Writes architecture.json (a provenance block, then routes + parity, endpoints,
+dependency edges, i18n ownership, test coverage), architecture.html (a
+self-contained viewer that embeds the JSON so file:// works), and
+architecture.mmd (a Mermaid flowchart of the dependency graph).
+
+NONE of the three is committed (#470). Run this to produce them; the arch-map CI
+job generates twice, compares the two runs for determinism, and publishes them as
+a build artifact. architecture.json carries a provenance block whose
+generatedFrom is a sha256 over the paths and contents of every input read,
+truncated to 12 hex, so a copy can be checked against the tree in front of you.
 
 Exit codes:
-  0  both files written
-  1  derivation failed (missing tree, unparseable endpoints const)
+  0  all three files written
+  1  derivation failed (missing tree, unparseable endpoints const, node cap exceeded)
   2  usage error
 `
+
+/**
+ * Bumped by hand when the extraction logic changes what the five content keys mean, so a reader can
+ * tell a map produced by an older generator from a stale map produced by this one.
+ */
+const GENERATOR_VERSION = 1
+
+/**
+ * Every path the generator actually reads, recorded so the provenance hash covers the real input set
+ * (#232). Deliberately not a second glob: a hardcoded or re-derived list stops covering new files the
+ * moment the walk changes, and reads as coverage while it does.
+ */
+const inputFiles = new Map()
+const readFileSync = (path, encoding) => {
+  const body = readFileSyncRaw(path, encoding)
+  if (typeof body === "string") inputFiles.set(toPosix(path), body)
+  return body
+}
 
 const byCode = (a, b) => (a < b ? -1 : a > b ? 1 : 0)
 const toPosix = (absolutePath) => relative(REPO_ROOT, absolutePath).split("\\").join("/")
@@ -720,6 +781,93 @@ function buildMap() {
   return { map: { routes, endpoints, dependencies, i18nOwnership, testCoverage }, pairedWeb, pairedMobile }
 }
 
+/**
+ * The provenance block, computed AFTER the map is built so the recorded read set is complete. Field
+ * names and block position follow .claude/manifests/surfaces.json; `generatedFrom` is redefined as an
+ * input content hash because that file's git-based baseline fields cannot exist here (#232). The path
+ * is hashed alongside its contents, so moving a file changes the hash even when its bytes do not.
+ */
+function provenance() {
+  const paths = [...inputFiles.keys()].sort(byCode)
+  const hash = createHash("sha256")
+  for (const path of paths) {
+    hash.update(path, "utf8")
+    hash.update("\0")
+    hash.update(inputFiles.get(path), "utf8")
+    hash.update("\0")
+  }
+  return { generatedFrom: hash.digest("hex").slice(0, 12), inputFiles: paths.length, generatorVersion: GENERATOR_VERSION }
+}
+
+/**
+ * The ceiling the Mermaid emitter refuses to exceed. The graph is already aggregated to directory
+ * groups by buildDependencies, so the real node count is around 30, not the 184 an earlier reading of
+ * #321 assumed by counting EDGES (72 web, 75 mobile, 37 shared) as nodes. The cap guards against a
+ * future restructure quietly producing a diagram no renderer will draw.
+ */
+const MERMAID_NODE_CAP = 64
+
+/**
+ * A deterministic Mermaid id for a directory-group path. Mermaid ids cannot carry `/`, and Next route
+ * groups add `(` and `)`, so every unsafe character collapses to `_`. Collapsing can collide (`a/b`
+ * and `a-b` both become `a_b`), so a colliding id takes a `__2`, `__3` suffix in the caller's sorted
+ * order, which is stable across runs because the caller sorts first.
+ */
+function mermaidIds(paths) {
+  const ids = new Map()
+  const taken = new Map()
+  for (const path of paths) {
+    const base = `n_${path.replaceAll(/[^A-Za-z0-9]/g, "_")}`
+    const seen = taken.get(base) ?? 0
+    taken.set(base, seen + 1)
+    ids.set(path, seen === 0 ? base : `${base}__${seen + 1}`)
+  }
+  return ids
+}
+
+/**
+ * Serializes the SAME map object renderHtml receives into Mermaid `flowchart` source, so the two
+ * artifacts cannot disagree: the tree is never re-walked here (#321). One subgraph per workspace,
+ * nodes are the directory groups buildDependencies already aggregated to, edges deduped at that
+ * grain, LF endings so a cross-OS byte comparison cannot flake on line endings.
+ */
+function renderMermaid(map) {
+  const workspaceOfNode = (node) => WORKSPACES.find((workspace) => node === workspace || node.startsWith(`${workspace}/`)) ?? null
+  const nodesByWorkspace = new Map(WORKSPACES.map((workspace) => [workspace, new Set()]))
+  const orphanNodes = new Set()
+  const edges = new Set()
+  for (const workspace of Object.keys(map.dependencies).sort(byCode)) {
+    for (const edge of map.dependencies[workspace]) {
+      for (const node of [edge.from, edge.to]) {
+        const owner = workspaceOfNode(node)
+        if (owner) nodesByWorkspace.get(owner).add(node)
+        else orphanNodes.add(node)
+      }
+      edges.add(`${edge.from}${"\u0000"}${edge.to}`)
+    }
+  }
+  const allNodes = [...[...nodesByWorkspace.values()].flatMap((set) => [...set]), ...orphanNodes].sort(byCode)
+  if (allNodes.length > MERMAID_NODE_CAP) {
+    throw new Error(
+      `the dependency graph has ${allNodes.length} directory-group nodes, over the Mermaid cap of ${MERMAID_NODE_CAP}; aggregate further before raising the cap`,
+    )
+  }
+  const ids = mermaidIds(allNodes)
+  const lines = ["flowchart LR"]
+  for (const workspace of WORKSPACES) {
+    const nodes = [...nodesByWorkspace.get(workspace)].sort(byCode)
+    lines.push(`  subgraph ws_${workspace.replaceAll(/[^A-Za-z0-9]/g, "_")}["${workspace}"]`)
+    for (const node of nodes) lines.push(`    ${ids.get(node)}["${node}"]`)
+    lines.push("  end")
+  }
+  for (const node of [...orphanNodes].sort(byCode)) lines.push(`  ${ids.get(node)}["${node}"]`)
+  for (const edge of [...edges].sort(byCode)) {
+    const [from, to] = edge.split("\u0000")
+    lines.push(`  ${ids.get(from)} --> ${ids.get(to)}`)
+  }
+  return `${lines.join("\n")}${"\n"}`
+}
+
 function renderHtml(map) {
   const embedded = JSON.stringify(map).replace(/</g, "\\u003c")
   return `<!doctype html>
@@ -757,7 +905,7 @@ code{font:12px ui-monospace,monospace;color:var(--accent)}
 </head>
 <body>
 <h1>Orbit architecture map</h1>
-<p class="sub">Derived by <code>tools/arch-map.mjs</code>, CI-verified fresh. Unpaired routes, unowned keys and untested dirs are the signal, not noise.</p>
+<p class="sub">Derived by <code>tools/arch-map.mjs</code> from <code>${map.provenance.inputFiles}</code> input files, generator v<code>${map.provenance.generatorVersion}</code>, <code>generatedFrom ${map.provenance.generatedFrom}</code>. Not committed: regenerate to refresh. Unpaired routes, unowned keys and untested dirs are the signal, not noise.</p>
 <div class="cards" id="cards"></div>
 <h2>Routes &amp; parity</h2><div class="scroll" id="routes"></div>
 <h2>Endpoints</h2><div class="scroll" id="endpoints"></div>
@@ -828,17 +976,24 @@ function main() {
     return 2
   }
   let map
+  let mermaid
   try {
-    map = buildMap().map
+    const content = buildMap().map
+    // Computed here, after every input has been read, and placed FIRST so a reader sees which tree
+    // produced the map before reading a word of it.
+    map = { provenance: provenance(), ...content }
+    mermaid = renderMermaid(map)
   } catch (error) {
     process.stderr.write(`arch-map: ${error.message}\n`)
     return 1
   }
   writeFileSync(join(REPO_ROOT, "architecture.json"), JSON.stringify(map, null, 2) + "\n", "utf8")
   writeFileSync(join(REPO_ROOT, "architecture.html"), renderHtml(map), "utf8")
+  writeFileSync(join(REPO_ROOT, "architecture.mmd"), mermaid, "utf8")
 
   const edgeCount = Object.values(map.dependencies).reduce((total, edges) => total + edges.length, 0)
-  process.stdout.write("wrote architecture.json + architecture.html\n")
+  process.stdout.write("wrote architecture.json + architecture.html + architecture.mmd\n")
+  process.stdout.write(`  provenance   generatedFrom ${map.provenance.generatedFrom} over ${map.provenance.inputFiles} input files, generator v${map.provenance.generatorVersion}\n`)
   process.stdout.write(`  routes       web ${map.routes.web.length} / mobile ${map.routes.mobile.length}\n`)
   process.stdout.write(`  parity       ${map.routes.parityPairs.length} pairs / ${map.routes.unpaired.web.length} web + ${map.routes.unpaired.mobile.length} mobile unpaired\n`)
   process.stdout.write(`  endpoints    ${map.endpoints.length}\n`)
