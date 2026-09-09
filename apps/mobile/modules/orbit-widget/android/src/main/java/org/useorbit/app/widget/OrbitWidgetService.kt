@@ -376,17 +376,14 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
      * updateWidgetLayout) on purpose: a full update recreates the RemoteAdapter and
      * resets the factory mid-load.
      */
-    private fun updateWidgets(mutate: (RemoteViews, Int) -> Unit) {
+    private fun updateWidgets(mutate: (RemoteViews) -> Unit) {
         val appWidgetManager = AppWidgetManager.getInstance(context)
         val widgetIds = appWidgetManager.getAppWidgetIds(
             ComponentName(context, OrbitWidgetProvider::class.java)
         )
         for (id in widgetIds) {
             val views = RemoteViews(context.packageName, R.layout.widget_layout)
-            val widestWidthDp = OrbitWidgetProvider.widestWidthDp(
-                appWidgetManager.getAppWidgetOptions(id)
-            )
-            mutate(views, widestWidthDp)
+            mutate(views)
             appWidgetManager.partiallyUpdateAppWidget(id, views)
         }
     }
@@ -410,7 +407,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             .putString("lang", lang)
             .apply()
 
-        updateWidgets { views, _ ->
+        updateWidgets { views ->
             if (signedOut) {
                 OrbitWidgetProvider.hideRefresh(views)
             } else {
@@ -429,7 +426,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         } catch (_: Exception) {
             runCatching {
                 val signedOut = OrbitWidgetProvider.isSignedOut(context)
-                updateWidgets { views, _ ->
+                updateWidgets { views ->
                     if (signedOut) {
                         OrbitWidgetProvider.hideRefresh(views)
                     } else {
@@ -480,7 +477,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         val colorModes = getThemeColorModes(context)
         val streakVisible = if (streak > 0) android.view.View.VISIBLE else android.view.View.GONE
         val refreshDescription = tr(context, lang, WidgetString.REFRESH)
-        updateWidgets { views, widestWidthDp ->
+        updateWidgets { views ->
             views.setTextViewText(R.id.widget_header, headerLabel)
             views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textMuted }
             views.setTextViewText(R.id.widget_subtitle, subtitleText)
@@ -493,10 +490,6 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             )
             views.setModeAwareColor(R.id.widget_streak_unit, "setTextColor", colorModes) { it.textMuted }
             views.setViewVisibility(R.id.widget_streak_group, streakVisible)
-            views.setViewVisibility(
-                R.id.widget_streak_unit,
-                OrbitWidgetProvider.streakUnitVisibility(widestWidthDp)
-            )
             views.setContentDescription(R.id.widget_refresh, refreshDescription)
             // Restore refresh button, hide loading spinner and skeleton
             OrbitWidgetProvider.showRefresh(views)

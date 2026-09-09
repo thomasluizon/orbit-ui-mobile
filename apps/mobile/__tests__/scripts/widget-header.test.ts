@@ -151,27 +151,25 @@ describe('Android widget header', () => {
   })
 
   /** The 2x2 drawing keeps the streak numeral and drops its unit at 200dp and below. */
-  it('hides only the streak unit on a narrow widget instance', () => {
+  it('lets the host pick the narrow variant instead of guessing the rendered width', () => {
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
 
-    expect(provider).toContain('private const val NARROW_WIDGET_MAX_DP = 200')
+    expect(provider).toContain('private const val NARROW_WIDGET_MAX_DP = 200f')
     expect(provider).toMatch(
-      /fun streakUnitVisibility\(widestWidthDp: Int\): Int =\s*if \(widestWidthDp in 1\.\.NARROW_WIDGET_MAX_DP\) View\.GONE else View\.VISIBLE/,
+      /SizeF\(MIN_WIDGET_WIDTH_DP, MIN_WIDGET_HEIGHT_DP\) to narrow,\s*SizeF\(NARROW_WIDGET_MAX_DP \+ 1f, MIN_WIDGET_HEIGHT_DP\) to wide/,
     )
-    expect(provider).toContain(
-      'views.setViewVisibility(R.id.widget_streak_unit, streakUnitVisibility(widestWidthDp))',
+    expect(provider).toContain('buildCard(context, appWidgetManager, appWidgetId, showStreakUnit = false)')
+    expect(provider).toContain('buildCard(context, appWidgetManager, appWidgetId, showStreakUnit = true)')
+    expect(provider).toMatch(
+      /views\.setViewVisibility\(\s*R\.id\.widget_streak_unit,\s*if \(showStreakUnit\) View\.VISIBLE else View\.GONE\s*\)/,
     )
-    expect(provider).toContain(
-      'options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0)',
-    )
-    expect(provider).not.toContain('OPTION_APPWIDGET_MIN_WIDTH')
+    expect(provider).toContain('if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S)')
     expect(provider).toContain('override fun onAppWidgetOptionsChanged(')
-    expect(service).toContain('OrbitWidgetProvider.widestWidthDp(')
-    expect(service).toContain('OrbitWidgetProvider.streakUnitVisibility(widestWidthDp)')
-    expect(service).not.toContain(
-      'views.setViewVisibility(R.id.widget_streak_unit, android.view.View.VISIBLE)',
-    )
+    expect(provider).not.toContain('OPTION_APPWIDGET_MIN_WIDTH')
+    expect(provider).not.toContain('fun widestWidthDp(')
+    expect(service).not.toContain('setViewVisibility(R.id.widget_streak_unit')
+    expect(service).not.toContain('streakUnitVisibility')
   })
 
   /**
