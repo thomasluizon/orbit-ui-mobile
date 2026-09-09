@@ -197,10 +197,6 @@ function RootLayoutNav() {
   const hasProAccess = useHasProAccess()
   const totalHabitCount = useTotalHabitCount()
   const { currentTheme, currentScheme, surfaces } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  )
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const todayFabHidden = useUIStore((s) => s.todayFabHidden)
   const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
@@ -263,8 +259,8 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (!isAuthenticated) return
-    syncWidgetTheme(tokens).catch(() => {})
-  }, [isAuthenticated, tokens])
+    syncWidgetTheme(currentScheme).catch(() => {})
+  }, [currentScheme, isAuthenticated])
 
   useEffect(() => {
     void initializeAdMob()
