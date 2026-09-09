@@ -208,7 +208,7 @@ describe('mobile alerts', () => {
     const row = hosts(tree, 'Pressable').find((node) => node.props.accessibilityLabel?.startsWith('Reminder. unread.'))!
     const icons = row.findAll((node) => node.type === glyph)
     expect(icons).toHaveLength(1)
-    expect(icons[0]!.props).toMatchObject({ size: 16, color: createTokensV2('purple', 'dark').fg4 })
+    expect(icons[0]!.props).toMatchObject({ size: 16, color: createTokensV2('purple', 'dark').fg3 })
   })
 
   it('uses canonical ghost list and read actions and a destructive detail delete', () => {
