@@ -8,6 +8,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.security.MessageDigest
 
 class OrbitWidgetModule : Module() {
   companion object {
@@ -48,6 +49,19 @@ class OrbitWidgetModule : Module() {
         null
       }
     }
+
+    /**
+     * A non-reversible name for the session that owns a cached payload. The token itself lives in
+     * encrypted preferences, so its digest goes into the plain widget cache rather than the token.
+     *
+     * Every writer of `habits_json` tags the payload with this key, and `OrbitWidgetService`
+     * reads a payload back only when the tag matches the current token. One derivation serves both
+     * writers, so an app-pushed payload and a natively fetched one are readable by the same session.
+     */
+    fun sessionKey(token: String): String =
+      MessageDigest.getInstance("SHA-256")
+        .digest(token.toByteArray(Charsets.UTF_8))
+        .joinToString("") { byte -> "%02x".format(byte) }
 
     fun clearWidgetCache(context: Context) {
       context.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE)
@@ -106,11 +120,19 @@ class OrbitWidgetModule : Module() {
 
     AsyncFunction("syncWidgetData") { json: String ->
       val context = moduleContext()
-      context.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE)
-        .edit()
-        .putString("habits_json", json)
-        .putLong("habits_updated_at", System.currentTimeMillis())
-        .apply()
+      // The payload carries the session that produced it, exactly like the native fetch does.
+      // Without the tag the widget cannot read this cache back, so it discards data the app has
+      // already fetched, repeats the request natively, and keeps no fallback when that request
+      // fails. A payload pushed with no token belongs to no session, so it is not written at all.
+      val token = getToken(context)
+      if (token != null) {
+        context.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE)
+          .edit()
+          .putString("habits_json", json)
+          .putString("habits_session", sessionKey(token))
+          .putLong("habits_updated_at", System.currentTimeMillis())
+          .apply()
+      }
       refreshWidgets(context)
     }
 

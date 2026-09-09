@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { SaxesParser } from 'saxes'
 import { describe, expect, it } from 'vitest'
@@ -36,6 +36,19 @@ function resourceStrings(relativePath: string) {
   parser.write(readFileSync(resolve(widgetRoot, relativePath), 'utf8')).close()
 
   return strings
+}
+
+function widgetKotlinSources() {
+  return readdirSync(widgetSourceRoot)
+    .filter(name => name.endsWith('.kt'))
+    .map(name => ({ name, source: readFileSync(resolve(widgetSourceRoot, name), 'utf8') }))
+}
+
+/** Every `SharedPreferences.edit() ... apply()` chain in one Kotlin source, as raw text. */
+function preferenceWriteChains(source: string) {
+  return [...source.matchAll(/\.edit\(\)[\s\S]*?\.(?:apply|commit)\(\)/g)].map(
+    match => match[0],
+  )
 }
 
 function layoutViews() {
@@ -237,17 +250,53 @@ describe('Android widget header', () => {
    */
   it('scopes the payload cache to the session that produced it', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const widgetModule = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetModule.kt'), 'utf8')
 
     expect(service).toMatch(
       /val cachedData = if \(prefs\.getString\("habits_session", null\) == session\) \{\s*parseWidgetResponse\(prefs\.getString\("habits_json", null\)\)\s*\} else \{\s*null\s*\}/,
     )
-    expect(service).toMatch(
-      /\.putString\("habits_json", freshJson\)\s*\.putString\("habits_session", session\)/,
+    expect(service).toContain('val session = OrbitWidgetModule.sessionKey(token)')
+    expect(widgetModule).toMatch(
+      /fun sessionKey\(token: String\): String =\s*MessageDigest\.getInstance\("SHA-256"\)/,
     )
-    expect(service).toMatch(
-      /private fun sessionKey\(token: String\): String =\s*MessageDigest\.getInstance\("SHA-256"\)/,
-    )
-    expect(service).not.toMatch(/putString\("habits_session", token\)/)
+    for (const { source } of widgetKotlinSources()) {
+      expect(source).not.toMatch(/putString\("habits_session", token\)/)
+    }
+  })
+
+  /**
+   * The reader accepts a payload only when `habits_session` names the current token, so a writer
+   * that omits the tag writes a cache nothing can read: the widget discards habits the app already
+   * fetched, repeats the request natively, and keeps no fallback when that request fails. The
+   * service writer and the app-pushed `syncWidgetData` writer are both bound by this, and so is any
+   * writer added later, which is why this sweeps every widget source rather than naming two. The
+   * per-file count assertion keeps the sweep honest: a writer placed outside an
+   * `edit() ... apply()` chain would otherwise slip past the tag check unseen.
+   */
+  it('tags every habits_json writer with the session that owns it', () => {
+    const writers: string[] = []
+
+    for (const { name, source } of widgetKotlinSources()) {
+      const chains = preferenceWriteChains(source)
+      const chainWrites = chains.filter(chain => chain.includes('putString("habits_json"')).length
+      const fileWrites = source.split('putString("habits_json"').length - 1
+
+      expect({ name, fileWrites }).toEqual({ name, fileWrites: chainWrites })
+
+      for (const chain of chains) {
+        if (!chain.includes('putString("habits_json"')) continue
+        writers.push(name)
+        expect({ name, tagged: chain.includes('putString("habits_session"') }).toEqual({
+          name,
+          tagged: true,
+        })
+      }
+    }
+
+    expect(writers.sort((left, right) => left.localeCompare(right))).toEqual([
+      'OrbitWidgetModule.kt',
+      'OrbitWidgetService.kt',
+    ])
   })
 
   it('gives the refresh control the 48dp target the drawing specifies', () => {
