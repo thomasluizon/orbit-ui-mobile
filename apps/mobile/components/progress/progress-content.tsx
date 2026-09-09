@@ -86,6 +86,17 @@ function WindowFigureGrid({ children }: Readonly<{ children: ReactNode[] }>) {
   )
 }
 
+/** Four tile-shaped placeholders, ONE busy region: the four stand for one wait, not four. */
+function WindowFigureLoading({ label }: Readonly<{ label: string }>) {
+  return (
+    <View accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }}>
+      <WindowFigureGrid>
+        {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
+      </WindowFigureGrid>
+    </View>
+  )
+}
+
 function WindowFrame({ children, title, tokens }: Readonly<{
   children: ReactNode
   title: string
@@ -239,10 +250,10 @@ function WindowSection({ hasProAccess, tokens }: Readonly<{ hasProAccess: boolea
   const { t } = useTranslation()
   const retrospective = useProgressRetrospective(hasProAccess)
   if (!hasProAccess) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><View style={styles.windowLock}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} tokens={tokens} /></View></WindowFrame>
-  if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureGrid>{Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" label={t('progressScreen.loading')} />)}</WindowFigureGrid></WindowFrame>
+  if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
   const hasNoHabits = retrospective.isError && extractBackendErrorCode(retrospective.error) === NO_HABITS_FOR_PERIOD
   if (retrospective.isError && !hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void retrospective.refetch()}>{t('progressScreen.retry')}</PillButton>} /></WindowFrame>
-  if (!retrospective.data && !hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureGrid>{Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" label={t('progressScreen.loading')} />)}</WindowFigureGrid></WindowFrame>
+  if (!retrospective.data && !hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
   const metrics = retrospective.data?.metrics
   const bestWeekday = getBestRetrospectiveWeekdayKey(metrics?.weeklyConsistency ?? [])
   const topHabit = metrics?.topHabits[0]

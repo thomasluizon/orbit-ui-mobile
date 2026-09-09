@@ -23,6 +23,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
         </>
       ) : (
         <Text
+          accessibilityLabel={state === 'empty' ? props.emptyLabel : String(props.value)}
           ellipsizeMode="tail"
           numberOfLines={1}
           style={[
