@@ -200,6 +200,43 @@ describe('Android widget header', () => {
     expect(provider).toContain('views.setViewVisibility(R.id.widget_empty, View.VISIBLE)')
   })
 
+  /**
+   * `resolveWidgetData` blocks for seconds. A sign-out inside that window renders the signed-out
+   * card, and everything after the fetch repopulates the cache and the signed-in header, so a load
+   * started under an older session would put a logged-out person's habits back on their home
+   * screen. The token is re-read after the fetch and the sign-out wins.
+   */
+  it('drops a load whose session ended while it was in flight', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+
+    expect(service).toMatch(
+      /val widgetData = resolveWidgetData\(token\)[\s\S]*?if \(OrbitWidgetModule\.getToken\(context\) != token\) \{\s*renderPlaceholder\(showSkeleton = false, signedOut = true\)\s*return\s*\}/,
+    )
+    const afterFetch = service.slice(service.indexOf('val widgetData = resolveWidgetData(token)'))
+    const guardAt = afterFetch.indexOf('OrbitWidgetModule.getToken(context) != token')
+    const cacheAt = afterFetch.indexOf('.putInt("user_streak"')
+    expect(guardAt).toBeGreaterThan(-1)
+    expect(cacheAt).toBeGreaterThan(guardAt)
+    expect(service).toContain('OrbitWidgetProvider.applySignedOutCard(context, views)')
+  })
+
+  /**
+   * The drawing's touch note: "Android's minimum is 48dp, not 44, so every tappable region here is
+   * 48 tall." The header around the refresh opens Orbit, so a short refresh does not merely miss the
+   * floor, it hands near-edge taps to a different action.
+   */
+  it('gives the refresh control the 48dp target the drawing specifies', () => {
+    const views = layoutViews()
+
+    for (const id of ['widget_refresh', 'widget_refresh_loading']) {
+      expect(views.get(id)).toMatchObject({
+        'android:layout_width': '48dp',
+        'android:layout_height': '48dp',
+      })
+    }
+    expect(views.get('widget_header_container')).toMatchObject({ 'android:layout_height': '48dp' })
+  })
+
   it('carries no refresh control on any signed-out path', () => {
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')

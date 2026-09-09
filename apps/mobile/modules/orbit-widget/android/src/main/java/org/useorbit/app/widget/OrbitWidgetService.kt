@@ -409,14 +409,17 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
 
         updateWidgets { views ->
             if (signedOut) {
-                OrbitWidgetProvider.hideRefresh(views)
+                // The WHOLE card, not just its controls: a stale load can have left a signed-in
+                // header, subtitle and streak behind, and hiding the refresh alone would leave
+                // those on screen.
+                OrbitWidgetProvider.applySignedOutCard(context, views)
             } else {
                 OrbitWidgetProvider.showRefresh(views)
+                views.setViewVisibility(
+                    R.id.widget_loading,
+                    if (showSkeleton) android.view.View.VISIBLE else android.view.View.GONE
+                )
             }
-            views.setViewVisibility(
-                R.id.widget_loading,
-                if (showSkeleton) android.view.View.VISIBLE else android.view.View.GONE
-            )
         }
     }
 
@@ -446,6 +449,16 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         }
 
         val widgetData = resolveWidgetData(token)
+
+        // resolveWidgetData can block for seconds, and a sign-out during that window renders the
+        // signed-out card. Everything below repopulates the cache and the signed-in header, so a
+        // load started under an older session would put a logged-out person's habits back on their
+        // home screen. The sign-out wins.
+        if (OrbitWidgetModule.getToken(context) != token) {
+            renderPlaceholder(showSkeleton = false, signedOut = true)
+            return
+        }
+
         if (widgetData == null) {
             renderPlaceholder(showSkeleton = true, signedOut = false)
             return
