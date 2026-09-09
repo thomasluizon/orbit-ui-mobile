@@ -473,7 +473,7 @@ dark-mode value `#261611`, a near-black wash painted onto a white card. That is 
 
 **`--fg-on-overdue` is `#FFFFFF` in light mode, not the dark mode `#020618`.** Nothing repointed it, so it inherits `#020618`, which measures **4.26:1** on `#B45B00` and misses the 4.5 text floor. That is a gap to close rather than authoritative, so the floor decides.
 
-### Measured contrast, and three limits that are open
+### Measured contrast, and two limits that are open
 
 Measured 2026-08-17 against every surface in the ladder, not just the canvas, because that is where
 the misses are. Two independent implementations agree on every number below.
