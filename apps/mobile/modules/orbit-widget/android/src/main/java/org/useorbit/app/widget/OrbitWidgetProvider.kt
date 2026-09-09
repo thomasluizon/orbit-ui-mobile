@@ -24,6 +24,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         private const val WORK_NAME = "orbit_widget_sync"
         private const val REFRESH_TIMEOUT_WORK_NAME = "orbit_widget_refresh_timeout"
         private const val WIDGET_REFRESH_TIMEOUT_MS = 12_000L
+        private const val NARROW_WIDGET_MAX_DP = 200
 
         fun updateWidgetLayout(
             context: Context,
@@ -35,12 +36,29 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             } catch (_: Exception) {
                 runCatching {
                     val fallback = RemoteViews(context.packageName, R.layout.widget_layout)
-                    fallback.setViewVisibility(R.id.widget_refresh, View.VISIBLE)
-                    fallback.setViewVisibility(R.id.widget_refresh_loading, View.GONE)
+                    if (isSignedOut(context)) hideRefresh(fallback) else showRefresh(fallback)
                     appWidgetManager.updateAppWidget(appWidgetId, fallback)
                 }
             }
         }
+
+        /** GONE at 200dp and below, matching the 2x2 drawing. An unknown width keeps the unit. */
+        fun streakUnitVisibility(minWidthDp: Int): Int =
+            if (minWidthDp in 1..NARROW_WIDGET_MAX_DP) View.GONE else View.VISIBLE
+
+        /** Signed out: no refresh and no spinner. Every signed-out path goes through here. */
+        fun hideRefresh(views: RemoteViews) {
+            views.setViewVisibility(R.id.widget_refresh, View.GONE)
+            views.setViewVisibility(R.id.widget_refresh_loading, View.GONE)
+        }
+
+        /** Signed in and idle: the refresh returns and its spinner goes. */
+        fun showRefresh(views: RemoteViews) {
+            views.setViewVisibility(R.id.widget_refresh, View.VISIBLE)
+            views.setViewVisibility(R.id.widget_refresh_loading, View.GONE)
+        }
+
+        fun isSignedOut(context: Context): Boolean = OrbitWidgetModule.getToken(context) == null
 
         private fun renderWidget(
             context: Context,
@@ -55,6 +73,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val displayMetrics = context.resources.displayMetrics
             val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
             val maxWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0)
+            val minWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
             val maxHeightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
             val bgWidth = (if (maxWidthDp > 0) (maxWidthDp * density).toInt() else displayMetrics.widthPixels)
                 .coerceIn(1, displayMetrics.widthPixels)
@@ -82,11 +101,15 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val habitCount = prefs.getInt("habit_count", 0)
             val completedCount = prefs.getInt("completed_count", 0)
             val streak = prefs.getInt("user_streak", 0)
-            val isSignedOut = OrbitWidgetModule.getToken(context) == null
+            val isSignedOut = isSignedOut(context)
             val syncedOnce = prefs.getLong("habits_updated_at", 0L) > 0L
 
             // Apply dynamic text colors
-            views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textPrimary }
+            // The drawing renders the day label in fg-3 and the subtitle below it in fg-4. fg-4
+            // measures 2.83 dark and 3.48 light as 11sp text against a 4.5 floor, so the subtitle
+            // stays on fg-3: the drawn step survives as size and weight, which is how this system
+            // separates a label from its value on a raised surface.
+            views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textMuted }
             views.setModeAwareColor(R.id.widget_subtitle, "setTextColor", colorModes) { it.textMuted }
             views.setModeAwareColor(R.id.widget_empty_text, "setTextColor", colorModes) { it.textPrimary }
             views.setModeAwareColor(R.id.widget_streak_unit, "setTextColor", colorModes) { it.textMuted }
@@ -101,6 +124,10 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             views.setContentDescription(R.id.widget_refresh, refreshDescription)
 
             views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }
+            // The 2x2 drawing keeps the streak numeral and drops its localized unit at 200dp and
+            // below, where the unit would eat the day and progress column. MIN_WIDTH is the
+            // portrait width, so a widget that is narrow in either orientation loses the unit.
+            views.setViewVisibility(R.id.widget_streak_unit, streakUnitVisibility(minWidthDp))
 
             if (isSignedOut) {
                 views.setTextViewText(R.id.widget_header, "Orbit")
@@ -113,6 +140,9 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                     R.id.widget_empty_text,
                     OrbitWidgetFactory.tr(context, lang, WidgetString.SIGN_IN)
                 )
+                // The drawn signed-out card carries no control at all: its one action is the whole
+                // card, and a refresh that cannot sign anyone in is a control that does not work.
+                hideRefresh(views)
             } else {
                 views.setTextViewText(R.id.widget_header, headerLabel)
                 val subtitleText = if (syncedOnce) {
@@ -133,6 +163,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                     R.id.widget_empty_text,
                     OrbitWidgetFactory.tr(context, lang, WidgetString.ALL_CLEAR)
                 )
+                showRefresh(views)
             }
 
             // Show the loading skeleton until habits have synced at least once, so a
@@ -199,7 +230,11 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val appWidgetIds = appWidgetManager.getAppWidgetIds(
                 android.content.ComponentName(context, OrbitWidgetProvider::class.java)
             )
-            // Show loading spinner immediately
+            // Show loading spinner immediately, unless there is nothing to refresh
+            if (isSignedOut(context)) {
+                for (id in appWidgetIds) updateWidgetLayout(context, appWidgetManager, id)
+                return
+            }
             for (id in appWidgetIds) {
                 // AppWidgetHostView retains but does not reapply cached RemoteViews on a
                 // configuration change, so refresh must reapply the full mode-aware palette.
@@ -213,6 +248,19 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_list)
             scheduleRefreshTimeout(context)
         }
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: android.os.Bundle
+    ) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
+        // A resize changes which side of the 200dp line this instance is on, and nothing else
+        // re-renders on resize, so the streak unit would keep its old visibility until the next
+        // sync.
+        updateWidgetLayout(context, appWidgetManager, appWidgetId)
     }
 
     override fun onEnabled(context: Context) {

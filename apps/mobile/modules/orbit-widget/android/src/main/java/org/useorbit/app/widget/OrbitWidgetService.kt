@@ -376,14 +376,16 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
      * updateWidgetLayout) on purpose: a full update recreates the RemoteAdapter and
      * resets the factory mid-load.
      */
-    private fun updateWidgets(mutate: (RemoteViews) -> Unit) {
+    private fun updateWidgets(mutate: (RemoteViews, Int) -> Unit) {
         val appWidgetManager = AppWidgetManager.getInstance(context)
         val widgetIds = appWidgetManager.getAppWidgetIds(
             ComponentName(context, OrbitWidgetProvider::class.java)
         )
         for (id in widgetIds) {
             val views = RemoteViews(context.packageName, R.layout.widget_layout)
-            mutate(views)
+            val minWidthDp = appWidgetManager.getAppWidgetOptions(id)
+                .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+            mutate(views, minWidthDp)
             appWidgetManager.partiallyUpdateAppWidget(id, views)
         }
     }
@@ -393,7 +395,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
      * loading skeleton stays up (signed in, no data yet) so the widget never paints
      * blank; with false it yields to the empty/sign-in view (signed out).
      */
-    private fun renderPlaceholder(showSkeleton: Boolean) {
+    private fun renderPlaceholder(showSkeleton: Boolean, signedOut: Boolean) {
         habits = emptyList()
         lang = detectLanguage(null)
         headerLabel = tr(context, lang, WidgetString.TODAY)
@@ -407,9 +409,12 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             .putString("lang", lang)
             .apply()
 
-        updateWidgets { views ->
-            views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
-            views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)
+        updateWidgets { views, _ ->
+            if (signedOut) {
+                OrbitWidgetProvider.hideRefresh(views)
+            } else {
+                OrbitWidgetProvider.showRefresh(views)
+            }
             views.setViewVisibility(
                 R.id.widget_loading,
                 if (showSkeleton) android.view.View.VISIBLE else android.view.View.GONE
@@ -422,9 +427,13 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             loadWidgetData()
         } catch (_: Exception) {
             runCatching {
-                updateWidgets { views ->
-                    views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
-                    views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)
+                val signedOut = OrbitWidgetProvider.isSignedOut(context)
+                updateWidgets { views, _ ->
+                    if (signedOut) {
+                        OrbitWidgetProvider.hideRefresh(views)
+                    } else {
+                        OrbitWidgetProvider.showRefresh(views)
+                    }
                 }
             }
         }
@@ -434,13 +443,13 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         colorModes = getThemeColorModes(context)
         val token = OrbitWidgetModule.getToken(context)
         if (token == null) {
-            renderPlaceholder(showSkeleton = false)
+            renderPlaceholder(showSkeleton = false, signedOut = true)
             return
         }
 
         val widgetData = resolveWidgetData(token)
         if (widgetData == null) {
-            renderPlaceholder(showSkeleton = true)
+            renderPlaceholder(showSkeleton = true, signedOut = false)
             return
         }
 
@@ -470,9 +479,9 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         val colorModes = getThemeColorModes(context)
         val streakVisible = if (streak > 0) android.view.View.VISIBLE else android.view.View.GONE
         val refreshDescription = tr(context, lang, WidgetString.REFRESH)
-        updateWidgets { views ->
+        updateWidgets { views, minWidthDp ->
             views.setTextViewText(R.id.widget_header, headerLabel)
-            views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textPrimary }
+            views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textMuted }
             views.setTextViewText(R.id.widget_subtitle, subtitleText)
             views.setModeAwareColor(R.id.widget_subtitle, "setTextColor", colorModes) { it.textMuted }
             views.setTextViewText(R.id.widget_streak, "$streak")
@@ -483,10 +492,13 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             )
             views.setModeAwareColor(R.id.widget_streak_unit, "setTextColor", colorModes) { it.textMuted }
             views.setViewVisibility(R.id.widget_streak_group, streakVisible)
+            views.setViewVisibility(
+                R.id.widget_streak_unit,
+                OrbitWidgetProvider.streakUnitVisibility(minWidthDp)
+            )
             views.setContentDescription(R.id.widget_refresh, refreshDescription)
             // Restore refresh button, hide loading spinner and skeleton
-            views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
-            views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)
+            OrbitWidgetProvider.showRefresh(views)
             views.setViewVisibility(R.id.widget_loading, android.view.View.GONE)
         }
     }

@@ -93,7 +93,7 @@ describe('Android widget header', () => {
     })
     expect(views.get('widget_header')).toMatchObject({
       'android:textAllCaps': 'true',
-      'android:textColor': '@color/widget_fg_1',
+      'android:textColor': '@color/widget_fg_3',
       'android:textSize': '13sp',
     })
     expect(views.get('widget_subtitle')).toMatchObject({
@@ -120,6 +120,86 @@ describe('Android widget header', () => {
     ).toEqual(['widget_streak'])
     expect(views.has('widget_header_dot')).toBe(false)
     expect(views.has('widget_flame')).toBe(false)
+  })
+
+  /**
+   * The drawing renders the day label in fg-3 and the subtitle in fg-4. fg-4 measures 2.83 dark
+   * and 3.48 light as 11sp text, both under the 4.5 floor, so the subtitle holds fg-3 and the
+   * drawn step survives as size and weight. Asserting BOTH halves keeps a later sweep from
+   * "restoring" the drawing into a contrast failure.
+   */
+  it('steps the day label down to fg-3 and keeps the subtitle off the unreadable fg-4', () => {
+    const views = layoutViews()
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+
+    expect(views.get('widget_header')?.['android:textColor']).toBe('@color/widget_fg_3')
+    expect(views.get('widget_subtitle')?.['android:textColor']).toBe('@color/widget_fg_3')
+    expect(
+      [...views.entries()].filter(([, attributes]) =>
+        Object.values(attributes).includes('@color/widget_fg_4'),
+      ),
+    ).toEqual([])
+    for (const source of [provider, service]) {
+      expect(source).toMatch(
+        /setModeAwareColor\(R\.id\.widget_header, "setTextColor", colorModes\) \{ it\.textMuted \}/,
+      )
+      expect(source).not.toContain(
+        'setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textPrimary }',
+      )
+    }
+  })
+
+  /** The 2x2 drawing keeps the streak numeral and drops its unit at 200dp and below. */
+  it('hides only the streak unit on a narrow widget instance', () => {
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+
+    expect(provider).toContain('private const val NARROW_WIDGET_MAX_DP = 200')
+    expect(provider).toMatch(
+      /fun streakUnitVisibility\(minWidthDp: Int\): Int =\s*if \(minWidthDp in 1\.\.NARROW_WIDGET_MAX_DP\) View\.GONE else View\.VISIBLE/,
+    )
+    expect(provider).toContain(
+      'views.setViewVisibility(R.id.widget_streak_unit, streakUnitVisibility(minWidthDp))',
+    )
+    expect(provider).toContain('OPTION_APPWIDGET_MIN_WIDTH')
+    expect(provider).toContain('override fun onAppWidgetOptionsChanged(')
+    expect(service).toContain('OPTION_APPWIDGET_MIN_WIDTH')
+    expect(service).toContain('OrbitWidgetProvider.streakUnitVisibility(minWidthDp)')
+    expect(service).not.toContain(
+      'views.setViewVisibility(R.id.widget_streak_unit, android.view.View.VISIBLE)',
+    )
+  })
+
+  /**
+   * The drawn signed-out card is one tap target with no control on it, because the widget cannot
+   * sign anyone in. Three paths could put the refresh back: the full render, the placeholder the
+   * token-null branch draws, and the refresh timeout worker.
+   */
+  it('carries no refresh control on any signed-out path', () => {
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const worker = readFileSync(
+      resolve(widgetSourceRoot, 'OrbitWidgetRefreshTimeoutWorker.kt'),
+      'utf8',
+    )
+
+    expect(provider).toMatch(
+      /fun hideRefresh\(views: RemoteViews\) \{\s*views\.setViewVisibility\(R\.id\.widget_refresh, View\.GONE\)\s*views\.setViewVisibility\(R\.id\.widget_refresh_loading, View\.GONE\)/,
+    )
+    expect(provider).toContain('hideRefresh(views)')
+    expect(provider).toContain('if (isSignedOut(context)) hideRefresh(fallback) else showRefresh(fallback)')
+    expect(provider).toMatch(/if \(isSignedOut\(context\)\) \{\s*for \(id in appWidgetIds\) updateWidgetLayout/)
+    expect(service).toContain('renderPlaceholder(showSkeleton = false, signedOut = true)')
+    expect(service).toContain('OrbitWidgetProvider.hideRefresh(views)')
+    expect(worker).toContain('OrbitWidgetProvider.hideRefresh(views)')
+    expect(provider).toContain(
+      'fun isSignedOut(context: Context): Boolean = OrbitWidgetModule.getToken(context) == null',
+    )
+    for (const source of [service, worker]) {
+      expect(source).toContain('OrbitWidgetProvider.isSignedOut(context)')
+      expect(source).not.toContain('OrbitWidgetModule.getToken(context) == null')
+    }
   })
 
   it('keeps the static refresh name and replaces it through the widget language path', () => {
