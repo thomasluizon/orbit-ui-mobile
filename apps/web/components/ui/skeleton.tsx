@@ -58,13 +58,14 @@ function GridSkeleton({ rows, cols, cell, gap }: Readonly<Extract<SkeletonProps,
   )
 }
 
-/** One accessible placeholder unit shaped like the content that replaces it. */
+/** One accessible placeholder unit shaped like the content that replaces it, or decoration inside a grouped one. */
 export function Skeleton(props: Readonly<SkeletonProps>) {
   return (
     <div
-      aria-busy="true"
+      aria-busy={props.grouped ? undefined : true}
       aria-label={props.label}
-      role="progressbar"
+      aria-hidden={props.grouped ? true : undefined}
+      role={props.grouped ? undefined : 'progressbar'}
       data-variant={props.variant}
       className="w-full"
     >

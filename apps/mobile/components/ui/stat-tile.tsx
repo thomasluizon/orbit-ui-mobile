@@ -23,6 +23,9 @@ export function StatTile(props: Readonly<StatTileProps>) {
         </>
       ) : (
         <Text
+          accessibilityLabel={state === 'empty' ? props.emptyLabel : String(props.value)}
+          ellipsizeMode="tail"
+          numberOfLines={1}
           style={[
             state === 'empty' ? styles.emptyValue : styles.value,
             { color: state === 'empty' ? tokens.fg3 : tokens.fg1 },
@@ -57,11 +60,13 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 24,
     fontVariant: ['tabular-nums'],
+    maxWidth: '100%',
   },
   emptyValue: {
     fontFamily: 'GeistMono_500Medium',
     fontSize: 12,
     lineHeight: 24,
+    maxWidth: '100%',
   },
   label: {
     fontFamily: 'Geist_400Regular',

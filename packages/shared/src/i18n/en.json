@@ -2492,10 +2492,11 @@
     },
     "window": {
       "completionRate": "Completion rate",
-      "activeDays": "Active days out of {days}",
-      "topHabit": "Top habit",
-      "topHabitEmpty": "No top habit yet",
-      "totalCompletions": "Total completions",
+      "activeDays": "Days logged",
+      "bestWeekday": "Best day of the week",
+      "bestWeekdayEmpty": "No best day yet",
+      "topHabit": "Most consistent habit",
+      "topHabitEmpty": "No consistent habit yet",
       "lockedTitle": "Thirty day figures",
       "lockedBody": "Orbit Pro shows your rolling thirty day figures.",
       "lockedAction": "See Orbit Pro"

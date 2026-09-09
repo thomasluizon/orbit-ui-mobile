@@ -522,6 +522,7 @@ export type {
 } from './habit-visibility'
 export {
   buildRetrospectiveRequestUrl,
+  getBestRetrospectiveWeekdayKey,
   getRetrospectiveCacheKey,
   RETROSPECTIVE_CACHE_PREFIX,
   RETROSPECTIVE_PERIODS,
@@ -529,6 +530,7 @@ export {
 export type {
   RetrospectivePeriod,
   RetrospectiveResponse,
+  RetrospectiveWeekdayKey,
 } from './retrospective'
 export {
   buildRecapRequestUrl,
