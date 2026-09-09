@@ -157,15 +157,17 @@ describe('Android widget header', () => {
 
     expect(provider).toContain('private const val NARROW_WIDGET_MAX_DP = 200')
     expect(provider).toMatch(
-      /fun streakUnitVisibility\(minWidthDp: Int\): Int =\s*if \(minWidthDp in 1\.\.NARROW_WIDGET_MAX_DP\) View\.GONE else View\.VISIBLE/,
+      /fun streakUnitVisibility\(activeWidthDp: Int\): Int =\s*if \(activeWidthDp in 1\.\.NARROW_WIDGET_MAX_DP\) View\.GONE else View\.VISIBLE/,
     )
     expect(provider).toContain(
-      'views.setViewVisibility(R.id.widget_streak_unit, streakUnitVisibility(minWidthDp))',
+      'views.setViewVisibility(R.id.widget_streak_unit, streakUnitVisibility(activeWidthDp))',
     )
-    expect(provider).toContain('OPTION_APPWIDGET_MIN_WIDTH')
+    expect(provider).toContain('Configuration.ORIENTATION_LANDSCAPE')
+    expect(provider).toContain('AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH')
+    expect(provider).toContain('AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH')
     expect(provider).toContain('override fun onAppWidgetOptionsChanged(')
-    expect(service).toContain('OPTION_APPWIDGET_MIN_WIDTH')
-    expect(service).toContain('OrbitWidgetProvider.streakUnitVisibility(minWidthDp)')
+    expect(service).toContain('OrbitWidgetProvider.activeWidthDp(')
+    expect(service).toContain('OrbitWidgetProvider.streakUnitVisibility(activeWidthDp)')
     expect(service).not.toContain(
       'views.setViewVisibility(R.id.widget_streak_unit, android.view.View.VISIBLE)',
     )
@@ -188,7 +190,10 @@ describe('Android widget header', () => {
       /fun hideRefresh\(views: RemoteViews\) \{\s*views\.setViewVisibility\(R\.id\.widget_refresh, View\.GONE\)\s*views\.setViewVisibility\(R\.id\.widget_refresh_loading, View\.GONE\)/,
     )
     expect(provider).toContain('hideRefresh(views)')
-    expect(provider).toContain('if (isSignedOut(context)) hideRefresh(fallback) else showRefresh(fallback)')
+    expect(provider).toContain('applySignedOutCard(context, fallback)')
+    expect(provider).toMatch(
+      /fun applySignedOutCard[\s\S]*?setTextViewText\(R\.id\.widget_header, "Orbit"\)[\s\S]*?R\.id\.widget_subtitle,\s*OrbitWidgetFactory\.tr\(context, lang, WidgetString\.SIGN_IN\)[\s\S]*?R\.id\.widget_empty_text,\s*OrbitWidgetFactory\.tr\(context, lang, WidgetString\.SIGN_IN\)[\s\S]*?hideRefresh\(views\)/,
+    )
     expect(provider).toMatch(/if \(isSignedOut\(context\)\) \{\s*for \(id in appWidgetIds\) updateWidgetLayout/)
     expect(service).toContain('renderPlaceholder(showSkeleton = false, signedOut = true)')
     expect(service).toContain('OrbitWidgetProvider.hideRefresh(views)')

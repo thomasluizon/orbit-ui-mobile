@@ -4,7 +4,9 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
+import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
 import androidx.work.Constraints
@@ -36,15 +38,35 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             } catch (_: Exception) {
                 runCatching {
                     val fallback = RemoteViews(context.packageName, R.layout.widget_layout)
-                    if (isSignedOut(context)) hideRefresh(fallback) else showRefresh(fallback)
+                    if (isSignedOut(context)) {
+                        applySignedOutCard(context, fallback)
+                    } else {
+                        showRefresh(fallback)
+                    }
                     appWidgetManager.updateAppWidget(appWidgetId, fallback)
                 }
             }
         }
 
+        // The width this instance is CURRENTLY rendered at. OPTION_APPWIDGET_MIN_WIDTH is a lower
+        // bound, not live geometry: AppWidgetHostView derives it by taking the minimum across the
+        // host's possible sizes, so a widget spanning 160dp portrait and 300dp landscape reports 160
+        // in both. The pair (MIN_WIDTH, MAX_WIDTH) is (portrait, landscape), so the configuration
+        // picks which one is real. https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/core/java/android/appwidget/AppWidgetHostView.java
+        fun activeWidthDp(context: Context, options: Bundle): Int {
+            val portrait = context.resources.configuration.orientation !=
+                Configuration.ORIENTATION_LANDSCAPE
+            val key = if (portrait) {
+                AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH
+            } else {
+                AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH
+            }
+            return options.getInt(key, 0)
+        }
+
         /** GONE at 200dp and below, matching the 2x2 drawing. An unknown width keeps the unit. */
-        fun streakUnitVisibility(minWidthDp: Int): Int =
-            if (minWidthDp in 1..NARROW_WIDGET_MAX_DP) View.GONE else View.VISIBLE
+        fun streakUnitVisibility(activeWidthDp: Int): Int =
+            if (activeWidthDp in 1..NARROW_WIDGET_MAX_DP) View.GONE else View.VISIBLE
 
         /** Signed out: no refresh and no spinner. Every signed-out path goes through here. */
         fun hideRefresh(views: RemoteViews) {
@@ -60,6 +82,31 @@ class OrbitWidgetProvider : AppWidgetProvider() {
 
         fun isSignedOut(context: Context): Boolean = OrbitWidgetModule.getToken(context) == null
 
+        // The WHOLE signed-out card. A fresh RemoteViews starts on the layout's own defaults, which
+        // are the signed-in widget_today and widget_all_clear strings, so a render that fails after
+        // sign-out would otherwise paint a control-free card that still reads as signed in.
+        fun applySignedOutCard(context: Context, views: RemoteViews) {
+            val lang = cachedLanguage(context)
+            views.setTextViewText(R.id.widget_header, "Orbit")
+            views.setTextViewText(
+                R.id.widget_subtitle,
+                OrbitWidgetFactory.tr(context, lang, WidgetString.SIGN_IN)
+            )
+            views.setTextViewText(
+                R.id.widget_empty_text,
+                OrbitWidgetFactory.tr(context, lang, WidgetString.SIGN_IN)
+            )
+            views.setViewVisibility(R.id.widget_streak_group, View.GONE)
+            views.setViewVisibility(R.id.widget_loading, View.GONE)
+            hideRefresh(views)
+        }
+
+        fun cachedLanguage(context: Context): String {
+            val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+            return prefs.getString("lang", null)
+                ?: if (Locale.getDefault().language == "pt") "pt-BR" else "en"
+        }
+
         private fun renderWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
@@ -73,7 +120,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val displayMetrics = context.resources.displayMetrics
             val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
             val maxWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0)
-            val minWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+            val activeWidthDp = activeWidthDp(context, options)
             val maxHeightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
             val bgWidth = (if (maxWidthDp > 0) (maxWidthDp * density).toInt() else displayMetrics.widthPixels)
                 .coerceIn(1, displayMetrics.widthPixels)
@@ -91,11 +138,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
 
             // Read cached header from SharedPreferences
             val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-            val lang = prefs.getString("lang", null) ?: if (Locale.getDefault().language == "pt") {
-                "pt-BR"
-            } else {
-                "en"
-            }
+            val lang = cachedLanguage(context)
             val headerLabel = prefs.getString("header_label", null)
                 ?: OrbitWidgetFactory.tr(context, lang, WidgetString.TODAY)
             val habitCount = prefs.getInt("habit_count", 0)
@@ -125,24 +168,13 @@ class OrbitWidgetProvider : AppWidgetProvider() {
 
             views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }
             // The 2x2 drawing keeps the streak numeral and drops its localized unit at 200dp and
-            // below, where the unit would eat the day and progress column. MIN_WIDTH is the
-            // portrait width, so a widget that is narrow in either orientation loses the unit.
-            views.setViewVisibility(R.id.widget_streak_unit, streakUnitVisibility(minWidthDp))
+            // below, where the unit would eat the day and progress column.
+            views.setViewVisibility(R.id.widget_streak_unit, streakUnitVisibility(activeWidthDp))
 
             if (isSignedOut) {
-                views.setTextViewText(R.id.widget_header, "Orbit")
-                views.setTextViewText(
-                    R.id.widget_subtitle,
-                    OrbitWidgetFactory.tr(context, lang, WidgetString.SIGN_IN)
-                )
-                views.setViewVisibility(R.id.widget_streak_group, View.GONE)
-                views.setTextViewText(
-                    R.id.widget_empty_text,
-                    OrbitWidgetFactory.tr(context, lang, WidgetString.SIGN_IN)
-                )
                 // The drawn signed-out card carries no control at all: its one action is the whole
                 // card, and a refresh that cannot sign anyone in is a control that does not work.
-                hideRefresh(views)
+                applySignedOutCard(context, views)
             } else {
                 views.setTextViewText(R.id.widget_header, headerLabel)
                 val subtitleText = if (syncedOnce) {
@@ -254,7 +286,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
-        newOptions: android.os.Bundle
+        newOptions: Bundle
     ) {
         super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
         // A resize changes which side of the 200dp line this instance is on, and nothing else
