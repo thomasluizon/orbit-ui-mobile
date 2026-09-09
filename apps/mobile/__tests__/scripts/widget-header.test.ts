@@ -217,15 +217,20 @@ describe('Android widget header', () => {
    * `resolveWidgetData` blocks for seconds, and everything after it repopulates the cache and the
    * signed-in header. A load must prove it still owns the session, and the two ways it can stop
    * owning it are not the same: a CLEARED token is a sign-out and the signed-out card wins, while a
-   * CHANGED token is an access-token rotation, the person is still signed in, and a newer load
-   * already owns the render, so this one drops silently rather than blanking a signed-in widget.
+   * CHANGED token naming the SAME account is an access-token rotation, the person is still signed
+   * in, and a newer load already owns the render, so this one drops silently rather than blanking a
+   * signed-in widget. A token naming a DIFFERENT account is neither: returning would leave `habits`
+   * holding the previous account's rows for `getViewAt` to keep serving, so it goes through
+   * `renderPlaceholder`, which is the thing that clears that list.
    */
-  it('drops a load whose session ended, and separately one whose token merely rotated', () => {
+  it('drops a load whose session ended, blanks one whose account changed, and keeps a rotation', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
 
     expect(service).toMatch(
-      /val currentToken = OrbitWidgetModule\.getToken\(context\)\s*if \(currentToken == null\) \{\s*renderPlaceholder\(showSkeleton = false, signedOut = true\)\s*return\s*\}\s*if \(currentToken != token\) \{\s*return\s*\}/,
+      /val currentToken = OrbitWidgetModule\.getToken\(context\)\s*if \(currentToken == null\) \{\s*renderPlaceholder\(showSkeleton = false, signedOut = true\)\s*return\s*\}\s*if \(OrbitWidgetModule\.sessionKey\(currentToken\) != OrbitWidgetModule\.sessionKey\(token\)\) \{\s*renderPlaceholder\(showSkeleton = true, signedOut = false\)\s*return\s*\}\s*if \(currentToken != token\) \{\s*return\s*\}/,
     )
+    expect(service).toMatch(/private fun renderPlaceholder\([^)]*\) \{\s*habits = emptyList\(\)/)
+
     const afterFetch = service.slice(service.indexOf('val widgetData = resolveWidgetData(token)'))
     const guardAt = afterFetch.indexOf('val currentToken = OrbitWidgetModule.getToken(context)')
     const cacheAt = afterFetch.indexOf('.putInt("user_streak"')

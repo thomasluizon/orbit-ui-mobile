@@ -452,24 +452,33 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
 
         // resolveWidgetData can block for seconds, and everything below repopulates the cache and
         // the signed-in header, so a load must prove it still owns the session before it lands.
-        // The two ways it can stop owning it are NOT the same:
+        // The three ways it can stop owning it are NOT the same:
         //
         //  - the token is gone: a sign-out happened, and a load started under the old session would
         //    put a logged-out person's habits back on their home screen. The sign-out wins.
-        //  - the token changed but is still present: an access-token rotation, and the person is
-        //    still signed in. auth-store.ts calls saveWidgetToken after every refresh, and
+        //  - a DIFFERENT ACCOUNT is signed in: returning here would leave `habits` holding the rows
+        //    the previous load put there, and getViewAt would keep serving one account's habits to
+        //    the next one until their own load finished. Clearing the list is the point; the
+        //    skeleton is what their own load replaces.
+        //  - the token changed but names the SAME account: an access-token rotation, and the person
+        //    is still signed in. auth-store.ts calls saveWidgetToken after every refresh, and
         //    OrbitWidgetModule.saveToken refreshes the widgets, so a NEWER load already owns the
-        //    render. This one drops silently rather than blanking a signed-in widget.
+        //    render. This one drops silently rather than blanking a signed-in widget, and it must
+        //    keep the rows on screen because they are still that person's rows.
         val currentToken = OrbitWidgetModule.getToken(context)
         if (currentToken == null) {
             renderPlaceholder(showSkeleton = false, signedOut = true)
             return
         }
+        if (OrbitWidgetModule.sessionKey(currentToken) != OrbitWidgetModule.sessionKey(token)) {
+            renderPlaceholder(showSkeleton = true, signedOut = false)
+            return
+        }
         if (currentToken != token) {
             return
         }
-        // The cache is session-scoped, so even a write that landed before this check is unreadable
-        // by another session. This return only avoids rendering a result the newer load supersedes.
+        // The cache is account-scoped, so even a write that landed before this check is unreadable
+        // by another account. These returns only avoid rendering a result somebody else supersedes.
 
         if (widgetData == null) {
             renderPlaceholder(showSkeleton = true, signedOut = false)
