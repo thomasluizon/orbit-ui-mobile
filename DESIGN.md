@@ -521,6 +521,11 @@ hovered card is `--bg` under `--bg-hover`, so it measures 4.57, not the 3.91 tha
 `--bg-card` and `--bg-hover` together would suggest. A stack that deep is not a surface this system
 paints. 0.12 was also the exact value of `--bg-elev-2`, which the hover rule below forbids on its own.
 
+**The granted canvas carries the same value.** `design/canvas/_ds/.../tokens/colors.css` holds the
+authoritative token, so it moved to 0.13 in the same change, its readme records limit 2 as closed,
+and `design/canvas/README.md` lists the amendment. A canvas token that disagrees with the shipped
+one is a trap, not an authority, so the two never move apart.
+
 **Dark is not light reversed.** Reversal is the starting point. Vividness comes down, the dark end needs more separation than the light end, and every pair is remeasured, because contrast is not symmetric.
 
 **One switching mechanism.** A class (or the mobile mode value) is the switch, and `prefers-color-scheme` only sets the initial value. Never let a media query own some tokens and a class own others.

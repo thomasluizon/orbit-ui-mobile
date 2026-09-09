@@ -10,6 +10,14 @@
 the grant in its D42 paragraph, and `CLAUDE.md` points here. Without that grant a canvas export
 carries nothing, and the eleven in `superseded/` still carry nothing.
 
+**Amendments since the grant, listed so no reader treats the export as byte-identical to it.** An
+amendment lands here and in the shipped tokens together, never in one alone, because a canvas token
+that disagrees with production is a trap rather than an authority.
+
+| date | what changed | why |
+|---|---|---|
+| 2026-09-09 | `--p-hover` dark, alpha `.14` to `.13` | `--fg-3` measured 4.39 on the hovered surface, under the 4.5 text floor. `.13` is the only value that also keeps the hover step above the 1.25:1 minimum. Closed limit 2 in the design-system readme. |
+
 **Precedence is a ladder, defined in `DESIGN.md` D42.** `## Information architecture` outranks every
 drawing on whether a surface should exist. `## Bans` outranks every drawing, so a granted export
 never authorises a banned value. **Below those two the drawing wins**, over `DESIGN.md` prose, a
