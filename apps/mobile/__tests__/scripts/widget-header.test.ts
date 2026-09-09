@@ -201,19 +201,20 @@ describe('Android widget header', () => {
   })
 
   /**
-   * `resolveWidgetData` blocks for seconds. A sign-out inside that window renders the signed-out
-   * card, and everything after the fetch repopulates the cache and the signed-in header, so a load
-   * started under an older session would put a logged-out person's habits back on their home
-   * screen. The token is re-read after the fetch and the sign-out wins.
+   * `resolveWidgetData` blocks for seconds, and everything after it repopulates the cache and the
+   * signed-in header. A load must prove it still owns the session, and the two ways it can stop
+   * owning it are not the same: a CLEARED token is a sign-out and the signed-out card wins, while a
+   * CHANGED token is an access-token rotation, the person is still signed in, and a newer load
+   * already owns the render, so this one drops silently rather than blanking a signed-in widget.
    */
-  it('drops a load whose session ended while it was in flight', () => {
+  it('drops a load whose session ended, and separately one whose token merely rotated', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
 
     expect(service).toMatch(
-      /val widgetData = resolveWidgetData\(token\)[\s\S]*?if \(OrbitWidgetModule\.getToken\(context\) != token\) \{\s*renderPlaceholder\(showSkeleton = false, signedOut = true\)\s*return\s*\}/,
+      /val currentToken = OrbitWidgetModule\.getToken\(context\)\s*if \(currentToken == null\) \{\s*renderPlaceholder\(showSkeleton = false, signedOut = true\)\s*return\s*\}\s*if \(currentToken != token\) \{\s*return\s*\}/,
     )
     const afterFetch = service.slice(service.indexOf('val widgetData = resolveWidgetData(token)'))
-    const guardAt = afterFetch.indexOf('OrbitWidgetModule.getToken(context) != token')
+    const guardAt = afterFetch.indexOf('val currentToken = OrbitWidgetModule.getToken(context)')
     const cacheAt = afterFetch.indexOf('.putInt("user_streak"')
     expect(guardAt).toBeGreaterThan(-1)
     expect(cacheAt).toBeGreaterThan(guardAt)

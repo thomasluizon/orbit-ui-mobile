@@ -450,12 +450,22 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
 
         val widgetData = resolveWidgetData(token)
 
-        // resolveWidgetData can block for seconds, and a sign-out during that window renders the
-        // signed-out card. Everything below repopulates the cache and the signed-in header, so a
-        // load started under an older session would put a logged-out person's habits back on their
-        // home screen. The sign-out wins.
-        if (OrbitWidgetModule.getToken(context) != token) {
+        // resolveWidgetData can block for seconds, and everything below repopulates the cache and
+        // the signed-in header, so a load must prove it still owns the session before it lands.
+        // The two ways it can stop owning it are NOT the same:
+        //
+        //  - the token is gone: a sign-out happened, and a load started under the old session would
+        //    put a logged-out person's habits back on their home screen. The sign-out wins.
+        //  - the token changed but is still present: an access-token rotation, and the person is
+        //    still signed in. auth-store.ts calls saveWidgetToken after every refresh, and
+        //    OrbitWidgetModule.saveToken refreshes the widgets, so a NEWER load already owns the
+        //    render. This one drops silently rather than blanking a signed-in widget.
+        val currentToken = OrbitWidgetModule.getToken(context)
+        if (currentToken == null) {
             renderPlaceholder(showSkeleton = false, signedOut = true)
+            return
+        }
+        if (currentToken != token) {
             return
         }
 
