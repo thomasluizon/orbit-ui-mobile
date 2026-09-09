@@ -12,6 +12,7 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.util.Log
+import java.security.MessageDigest
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import com.google.gson.Gson
@@ -468,6 +469,8 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         if (currentToken != token) {
             return
         }
+        // The cache is session-scoped, so even a write that landed before this check is unreadable
+        // by another session. This return only avoids rendering a result the newer load supersedes.
 
         if (widgetData == null) {
             renderPlaceholder(showSkeleton = true, signedOut = false)
@@ -540,9 +543,27 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
      * so a blip or a blocked binder-thread request degrades to stale data instead
      * of a blank list. A successful fetch is cached for the next cold start.
      */
+    /**
+     * The payload cache belongs to ONE session and says so.
+     *
+     * Without that, a fetch still in flight at logout writes its response back after the cache is
+     * cleared, and the next account to sign in reads it as fresh and renders another person's
+     * habits without ever making a request under its own token. Ordering the write against the
+     * logout does not fix it either: `onDataSetChanged` is synchronized, so the replacement
+     * callback simply runs after the old one has already landed.
+     *
+     * So ownership is recorded rather than inferred. A payload is only readable by the session that
+     * produced it, whatever order the callbacks finish in. A token rotation also changes the key and
+     * costs one extra fetch, which is the right price for not having to reason about the race.
+     */
     private fun resolveWidgetData(token: String): HabitWidgetResponse? {
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-        val cachedData = parseWidgetResponse(prefs.getString("habits_json", null))
+        val session = sessionKey(token)
+        val cachedData = if (prefs.getString("habits_session", null) == session) {
+            parseWidgetResponse(prefs.getString("habits_json", null))
+        } else {
+            null
+        }
         val cacheAge = System.currentTimeMillis() - prefs.getLong("habits_updated_at", 0L)
         if (cachedData != null && cacheAge in 0L..FRESH_WINDOW_MS) {
             return cachedData
@@ -553,6 +574,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         if (freshData != null && freshJson != null) {
             prefs.edit()
                 .putString("habits_json", freshJson)
+                .putString("habits_session", session)
                 .putLong("habits_updated_at", System.currentTimeMillis())
                 .apply()
             return freshData
@@ -560,6 +582,15 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
 
         return cachedData
     }
+
+    /**
+     * A non-reversible name for the session that owns a cached payload. The token itself lives in
+     * encrypted preferences, so its digest goes into the plain widget cache rather than the token.
+     */
+    private fun sessionKey(token: String): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest(token.toByteArray(Charsets.UTF_8))
+            .joinToString("") { byte -> "%02x".format(byte) }
 
     private fun parseWidgetResponse(json: String?): HabitWidgetResponse? {
         if (json.isNullOrBlank()) return null

@@ -226,6 +226,30 @@ describe('Android widget header', () => {
    * 48 tall." The header around the refresh opens Orbit, so a short refresh does not merely miss the
    * floor, it hands near-edge taps to a different action.
    */
+  /**
+   * The cross-account leak this closes: a fetch still in flight at logout writes its response back
+   * after the cache is cleared, and the NEXT account to sign in reads it as fresh and renders
+   * another person's habits without ever making a request under its own token. Ordering the write
+   * against the logout cannot fix it, because `onDataSetChanged` is synchronized and the
+   * replacement callback runs after the old one has already landed. So the payload records which
+   * session produced it and only that session can read it back. The key is the token's DIGEST, never
+   * the token, which lives in encrypted preferences and must not reach the plain widget cache.
+   */
+  it('scopes the payload cache to the session that produced it', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+
+    expect(service).toMatch(
+      /val cachedData = if \(prefs\.getString\("habits_session", null\) == session\) \{\s*parseWidgetResponse\(prefs\.getString\("habits_json", null\)\)\s*\} else \{\s*null\s*\}/,
+    )
+    expect(service).toMatch(
+      /\.putString\("habits_json", freshJson\)\s*\.putString\("habits_session", session\)/,
+    )
+    expect(service).toMatch(
+      /private fun sessionKey\(token: String\): String =\s*MessageDigest\.getInstance\("SHA-256"\)/,
+    )
+    expect(service).not.toMatch(/putString\("habits_session", token\)/)
+  })
+
   it('gives the refresh control the 48dp target the drawing specifies', () => {
     const views = layoutViews()
 
