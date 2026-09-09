@@ -101,7 +101,7 @@ function GridSkeleton({ props, tokens, opacity }: Readonly<{
   )
 }
 
-/** One accessible placeholder unit shaped like the content that replaces it. */
+/** One accessible placeholder unit shaped like the content that replaces it, or decoration inside a grouped one. */
 export function Skeleton(props: Readonly<SkeletonProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -112,10 +112,12 @@ export function Skeleton(props: Readonly<SkeletonProps>) {
 
   return (
     <View
-      accessible
+      accessible={!props.grouped}
+      accessibilityElementsHidden={props.grouped}
+      importantForAccessibility={props.grouped ? 'no-hide-descendants' : 'auto'}
       accessibilityLabel={props.label}
-      accessibilityRole="progressbar"
-      accessibilityState={{ busy: true }}
+      accessibilityRole={props.grouped ? undefined : 'progressbar'}
+      accessibilityState={props.grouped ? undefined : { busy: true }}
       style={styles.unit}
       testID={`skeleton-unit-${props.variant}`}
     >

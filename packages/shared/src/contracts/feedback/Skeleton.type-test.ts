@@ -11,11 +11,12 @@ type IsExactWidth<T, U> =
 type Assert<T extends true> = T
 type ExpectedSkeletonGap = 0 | 4 | 8 | 12 | 16 | 24 | 32 | 48 | 64 | 96
 
-type RowVariant = Extract<SkeletonProps, { rows?: never }>
-type GridVariant = Extract<SkeletonProps, { variant: 'grid' }>
+type RowVariant = Extract<SkeletonProps, { rows?: never; label: string; grouped?: never }>
+type GridVariant = Extract<SkeletonProps, { variant: 'grid'; label: string; grouped?: never }>
 type ExpectedRowVariant = {
   variant: 'habit-row' | 'settings' | 'stat-tile'
   label: string
+  grouped?: never
   rows?: never
   cols?: never
   cell?: never
@@ -24,6 +25,7 @@ type ExpectedRowVariant = {
 type ExpectedGridVariant = {
   variant: 'grid'
   label: string
+  grouped?: never
   rows: number
   cols: number
   cell: number
@@ -34,7 +36,8 @@ export type SkeletonTypeContract = [
   Assert<IsExactWidth<RowVariant, ExpectedRowVariant>>,
   Assert<IsExactWidth<GridVariant, ExpectedGridVariant>>,
   Assert<IsExactWidth<SkeletonProps['variant'], ExpectedRowVariant['variant'] | 'grid'>>,
-  Assert<IsExactWidth<SkeletonProps['label'], string>>,
+  Assert<IsExactWidth<SkeletonProps['label'], string | undefined>>,
+  Assert<IsExactWidth<SkeletonProps['grouped'], true | undefined>>,
   Assert<IsExactWidth<SkeletonProps['rows'], number | undefined>>,
   Assert<IsExactWidth<SkeletonProps['cols'], number | undefined>>,
   Assert<IsExactWidth<SkeletonProps['cell'], number | undefined>>,
@@ -43,7 +46,10 @@ export type SkeletonTypeContract = [
   Assert<IsExact<{ variant: 'settings'; label: 'Loading settings' }, SkeletonProps>>,
   Assert<IsExact<{ variant: 'stat-tile'; label: 'Loading stats' }, SkeletonProps>>,
   Assert<IsExact<{ variant: 'grid'; label: 'Loading calendar'; rows: 6; cols: 7; cell: 40; gap: 8 }, SkeletonProps>>,
-  // @ts-expect-error every skeleton requires an accessible label
+  Assert<IsExact<{ variant: 'stat-tile'; grouped: true }, SkeletonProps>>,
+  // @ts-expect-error a skeleton is named or grouped, never both
+  Assert<IsExact<{ variant: 'stat-tile'; label: 'Loading stats'; grouped: true }, SkeletonProps>>,
+  // @ts-expect-error every skeleton is either named or grouped
   Assert<IsExact<{ variant: 'settings' }, SkeletonProps>>,
   // @ts-expect-error variant is a closed four-value set
   Assert<IsExact<{ variant: 'card'; label: 'Loading' }, SkeletonProps>>,

@@ -2492,10 +2492,11 @@
     },
     "window": {
       "completionRate": "Taxa de conclusão",
-      "activeDays": "Dias ativos de {days}",
-      "topHabit": "Melhor hábito",
-      "topHabitEmpty": "Ainda não há melhor hábito",
-      "totalCompletions": "Total de conclusões",
+      "activeDays": "Dias com registro",
+      "bestWeekday": "Melhor dia da semana",
+      "bestWeekdayEmpty": "Ainda não há melhor dia",
+      "topHabit": "Hábito mais constante",
+      "topHabitEmpty": "Ainda não há hábito constante",
       "lockedTitle": "Números de trinta dias",
       "lockedBody": "O Orbit Pro mostra seus números dos últimos trinta dias.",
       "lockedAction": "Ver o Orbit Pro"

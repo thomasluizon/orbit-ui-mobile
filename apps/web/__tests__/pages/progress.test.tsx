@@ -66,7 +66,7 @@ const mocks = vi.hoisted(() => ({
         currentStreak: 4,
         bestStreak: 9,
         badHabitSlips: 0,
-        weeklyConsistency: [],
+        weeklyConsistency: [10, 20, 30, 80, 50, 60, 70],
         topHabits: [{ name: 'Read', emoji: null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }],
         needsAttention: [],
       },
@@ -305,6 +305,8 @@ describe('ProgressContent', () => {
     mocks.retrospective.isLoading = false
     mocks.retrospective.isError = false
     mocks.retrospective.error = null
+    mocks.retrospective.data.metrics.weeklyConsistency = [10, 20, 30, 80, 50, 60, 70]
+    mocks.retrospective.data.metrics.topHabits = [{ name: 'Read', emoji: null, completionRate: 90, completedCount: 9, scheduledCount: 10, isOneTime: false }]
   })
 
   it.each(['account', 'goals', 'gamification'] as const)('renders the complete global skeleton while %s loads', (query) => {
@@ -395,10 +397,14 @@ describe('ProgressContent', () => {
       'progressScreen.sections.window',
       'progressScreen.sections.achievements',
     ])
-    expect(screen.getByText('75%')).toBeInTheDocument()
-    expect(screen.getByText('12 / 30')).toBeInTheDocument()
-    expect(screen.getByText('Read')).toBeInTheDocument()
-    expect(screen.getByText('18')).toBeInTheDocument()
+    const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
+    const figures = Array.from(windowSection.querySelectorAll('[data-state]')).map((figure) => figure.textContent)
+    expect(figures).toEqual([
+      '75%progressScreen.window.completionRate',
+      '12progressScreen.window.activeDays',
+      'dates.daysLong.thursdayprogressScreen.window.bestWeekday',
+      'ReadprogressScreen.window.topHabit',
+    ])
   })
 
   it('renders the remaining routed boundaries instead of blank gated regions', () => {
@@ -425,6 +431,21 @@ describe('ProgressContent', () => {
     expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.lockedBody')).not.toBeInTheDocument()
     expect(screen.queryByText('progressScreen.achievements.lockedBody')).not.toBeInTheDocument()
+    const route = screen.getAllByRole('button', { name: 'progressScreen.window.lockedAction' })
+    expect(route).toHaveLength(1)
+    fireEvent.click(route[0]!)
+    expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/upgrade')
+  })
+
+  it('renders empty weekly and habit figures without substituting unrelated totals', () => {
+    mocks.retrospective.data.metrics.weeklyConsistency = []
+    mocks.retrospective.data.metrics.topHabits = []
+
+    render(<ProgressContent />)
+
+    const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
+    expect(windowSection.querySelectorAll('[data-state="empty"]')).toHaveLength(2)
+    expect(within(windowSection).queryByText('18')).not.toBeInTheDocument()
   })
 
   it('draws the XP row before grouped achievements and distinguishes earned shapes from progress', () => {

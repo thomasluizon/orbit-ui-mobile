@@ -18,6 +18,7 @@ import {
   extractBackendErrorCode,
   filterProgressGoals,
   getAvailableStreakRepairDate,
+  getBestRetrospectiveWeekdayKey,
   getProgressGoalLabelKey,
   getGamificationLevelTitleKey,
   getStreakTierLabelKey,
@@ -66,6 +67,47 @@ const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
 
 function Section({ title, children, tokens, compact = false }: Readonly<{ title: string; children: ReactNode; tokens: AppTokensV2; compact?: boolean }>) {
   return <View accessibilityLabel={title} style={[styles.section, compact ? styles.compactSection : undefined]}><Text accessibilityRole="header" style={[compact ? styles.compactTitle : styles.sectionTitle, { color: compact ? tokens.fg2 : tokens.fg1 }]}>{title}</Text>{children}</View>
+}
+
+function WindowFigureGrid({ children }: Readonly<{ children: ReactNode[] }>) {
+  const { width } = useWindowDimensions()
+  const columns = width >= 768 ? 4 : 2
+
+  return (
+    <View testID={`progress-window-grid-${columns}`} style={styles.windowGrid}>
+      {Array.from({ length: 4 / columns }, (_, rowIndex) => (
+        <View key={rowIndex} testID="progress-window-row" style={styles.windowRow}>
+          {children.slice(rowIndex * columns, (rowIndex + 1) * columns).map((child, columnIndex) => (
+            <View key={columnIndex} style={styles.windowTile}>{child}</View>
+          ))}
+        </View>
+      ))}
+    </View>
+  )
+}
+
+/** Four tile-shaped placeholders, ONE busy region: the four stand for one wait, not four. */
+function WindowFigureLoading({ label }: Readonly<{ label: string }>) {
+  return (
+    <View accessible accessibilityRole="progressbar" accessibilityLabel={label} accessibilityState={{ busy: true }}>
+      <WindowFigureGrid>
+        {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} variant="stat-tile" grouped />)}
+      </WindowFigureGrid>
+    </View>
+  )
+}
+
+function WindowFrame({ children, title, tokens }: Readonly<{
+  children: ReactNode
+  title: string
+  tokens: AppTokensV2
+}>) {
+  return (
+    <View accessibilityLabel={title} style={styles.windowSection}>
+      <Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{title}</Text>
+      {children}
+    </View>
+  )
 }
 
 function LockedCard({ title, body, action, tokens }: Readonly<{ title: string; body: string; action: string; tokens: AppTokensV2 }>) {
@@ -207,14 +249,28 @@ function GoalSeparator() {
 function WindowSection({ hasProAccess, tokens }: Readonly<{ hasProAccess: boolean; tokens: AppTokensV2 }>) {
   const { t } = useTranslation()
   const retrospective = useProgressRetrospective(hasProAccess)
-  if (!hasProAccess) return <Section title={t('progressScreen.sections.window')} tokens={tokens}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} tokens={tokens} /></Section>
-  if (retrospective.isLoading) return <Section title={t('progressScreen.sections.window')} tokens={tokens}><Skeleton variant="stat-tile" label={t('progressScreen.loading')} /></Section>
+  if (!hasProAccess) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><View style={styles.windowLock}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} tokens={tokens} /></View></WindowFrame>
+  if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
   const hasNoHabits = retrospective.isError && extractBackendErrorCode(retrospective.error) === NO_HABITS_FOR_PERIOD
-  if (retrospective.isError && !hasNoHabits) return <Section title={t('progressScreen.sections.window')} tokens={tokens}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void retrospective.refetch()}>{t('progressScreen.retry')}</PillButton>} /></Section>
-  if (!retrospective.data && !hasNoHabits) return <Section title={t('progressScreen.sections.window')} tokens={tokens}><Skeleton variant="stat-tile" label={t('progressScreen.loading')} /></Section>
+  if (retrospective.isError && !hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void retrospective.refetch()}>{t('progressScreen.retry')}</PillButton>} /></WindowFrame>
+  if (!retrospective.data && !hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
   const metrics = retrospective.data?.metrics
+  const bestWeekday = getBestRetrospectiveWeekdayKey(metrics?.weeklyConsistency ?? [])
   const topHabit = metrics?.topHabits[0]
-  return <Section title={t('progressScreen.sections.window')} tokens={tokens}><View style={styles.tileGrid}><View style={styles.half}><StatTile value={`${Math.round(metrics?.completionRate ?? 0)}%`} label={t('progressScreen.window.completionRate')} /></View><View style={styles.half}><StatTile value={metrics ? `${metrics.activeDays} / ${metrics.periodDays}` : '0'} label={t('progressScreen.window.activeDays', { days: metrics?.periodDays ?? 0 })} /></View><View style={styles.half}>{topHabit ? <StatTile value={topHabit.name} label={t('progressScreen.window.topHabit')} /> : <StatTile state="empty" emptyLabel={t('progressScreen.window.topHabitEmpty')} label={t('progressScreen.window.topHabit')} />}</View><View style={styles.half}><StatTile value={metrics?.totalCompletions ?? 0} label={t('progressScreen.window.totalCompletions')} /></View></View></Section>
+  return (
+    <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}>
+      <WindowFigureGrid>
+        <StatTile value={`${Math.round(metrics?.completionRate ?? 0)}%`} label={t('progressScreen.window.completionRate')} />
+        <StatTile value={metrics?.activeDays ?? 0} label={t('progressScreen.window.activeDays')} />
+        {bestWeekday
+          ? <StatTile value={t(`dates.daysLong.${bestWeekday}`)} label={t('progressScreen.window.bestWeekday')} />
+          : <StatTile state="empty" emptyLabel={t('progressScreen.window.bestWeekdayEmpty')} label={t('progressScreen.window.bestWeekday')} />}
+        {topHabit
+          ? <StatTile value={topHabit.name} label={t('progressScreen.window.topHabit')} />
+          : <StatTile state="empty" emptyLabel={t('progressScreen.window.topHabitEmpty')} label={t('progressScreen.window.topHabit')} />}
+      </WindowFigureGrid>
+    </WindowFrame>
+  )
 }
 
 const ACHIEVEMENT_GLYPHS: Record<
@@ -352,6 +408,7 @@ const styles = StyleSheet.create({
   notice: { borderRadius: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, paddingHorizontal: 16, paddingVertical: 12 },
   card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: 16 }, cardTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 }, actionStart: { alignSelf: 'flex-start' }, lockHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, half: { width: '48%' },
+  windowGrid: { gap: 12 }, windowLock: { maxWidth: 560 }, windowRow: { flexDirection: 'row', gap: 12 }, windowSection: { gap: 12 }, windowTile: { flex: 1, minWidth: 0 },
   goalsSection: { gap: 12 }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, borderWidth: 1 },
   goalTitle: { fontFamily: 'Geist_500Medium', fontSize: 17, lineHeight: 24 }, goalMeta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   goalCopy: { flex: 1, minWidth: 0, gap: 4 }, goalSeparator: { height: 12 },
