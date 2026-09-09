@@ -275,8 +275,9 @@ describe('Android widget header', () => {
    * would be discarded on the very path it exists to serve. The account claim answers both: it
    * survives a refresh and it changes when somebody else signs in.
    *
-   * The TypeScript half is held by the two-argument module type, which `type-check` gates, and
-   * `lib/orbit-widget.ts` passes the token it read before the fetch.
+   * The TypeScript half is held by the two-argument module type, which `type-check` gates, and by
+   * `lib/orbit-widget.ts` passing the token the API accepted rather than the one it read before the
+   * fetch. `api-client.test.ts` covers why those two differ.
    */
   it('takes cache ownership from the calling account, not the token current at write time', () => {
     const widgetModule = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetModule.kt'), 'utf8')
@@ -294,8 +295,11 @@ describe('Android widget header', () => {
     const caller = readFileSync(resolve(process.cwd(), 'lib/orbit-widget.ts'), 'utf8')
     const sync = caller.slice(caller.indexOf('export async function syncWidgetData'))
 
-    expect(sync).toContain('const token = await getToken()')
-    expect(sync).toContain('await widgetModule.syncWidgetData(JSON.stringify(data), token)')
+    expect(sync).toContain(
+      'const { data, authorizingToken } = await apiClientWithAuthorizingToken<unknown>(',
+    )
+    expect(sync).toContain('await widgetModule.syncWidgetData(JSON.stringify(data), authorizingToken)')
+    expect(sync).not.toMatch(/syncWidgetData\(JSON\.stringify\(data\), token\)/)
   })
 
   /**

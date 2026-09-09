@@ -93,9 +93,12 @@ export async function syncWidgetTheme(colorScheme: ColorScheme): Promise<void> {
  * app-fed data instead of relying on its own background network fetch. No-ops
  * when signed out or off Android.
  *
- * The token that authorised the fetch is handed to the native writer, which tags the payload with
- * it. A sign-out or an account switch can land while the request is in flight, and the widget must
- * never read one account's habits back under another account's session.
+ * The token the API ACCEPTED for this response is handed to the native writer, which tags the
+ * payload with the account it names. The pre-request token is not that token: `apiClient` reads the
+ * store again at request time and retries a 401 under a rotated or refreshed one, so a body can
+ * come back authorised by a different account than the caller last saw. Tagging with the caller's
+ * token would then label one account's habits with another's, and the widget must never read one
+ * account's habits back under another account's session.
  */
 export async function syncWidgetData(): Promise<void> {
   const widgetModule = getOrbitWidgetModule()
@@ -108,8 +111,10 @@ export async function syncWidgetData(): Promise<void> {
     return
   }
 
-  const { apiClient } = await import('./api-client')
-  const data = await apiClient<unknown>(API.habits.widget)
-  await widgetModule.syncWidgetData(JSON.stringify(data), token)
+  const { apiClientWithAuthorizingToken } = await import('./api-client')
+  const { data, authorizingToken } = await apiClientWithAuthorizingToken<unknown>(API.habits.widget)
+  if (authorizingToken) {
+    await widgetModule.syncWidgetData(JSON.stringify(data), authorizingToken)
+  }
   await refreshPersistentReminder(data)
 }

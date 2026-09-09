@@ -26,6 +26,19 @@ type RequestExecution = {
   tokenUsed: string | null
 }
 
+/**
+ * A parsed response together with the token the API accepted for it.
+ *
+ * The caller's own `getToken()` does not answer this. `executeRequest` reads the store again at
+ * request time, and the 401 path retries under a rotated or refreshed token, so the credential that
+ * authorised the body can differ from the one the caller last saw. Anything that records WHOSE data
+ * it received has to read it from here.
+ */
+export interface AuthorizedApiResponse<T> {
+  data: T
+  authorizingToken: string | null
+}
+
 function getResponseHeader(
   headers: { get?: (name: string) => string | null } | null | undefined,
   headerName: string,
@@ -168,12 +181,20 @@ async function handleUnauthorized<T>(
   requestId: string | null,
   tokenUsed: string | null,
   schema: ZodType<T> | undefined,
-): Promise<T> {
+): Promise<AuthorizedApiResponse<T>> {
   const latestToken = await getToken()
   if (latestToken && latestToken !== tokenUsed) {
     const retryWithLatest = await executeRequest(path, effectiveOptions, latestToken)
     if (retryWithLatest.response.status !== 401) {
-      return parseApiResponse<T>(retryWithLatest.response, retryWithLatest.requestId, path, schema)
+      return {
+        data: await parseApiResponse<T>(
+          retryWithLatest.response,
+          retryWithLatest.requestId,
+          path,
+          schema,
+        ),
+        authorizingToken: retryWithLatest.tokenUsed,
+      }
     }
   }
 
@@ -188,7 +209,10 @@ async function handleUnauthorized<T>(
   if (refreshOutcome.status === 'refreshed') {
     const retry = await executeRequest(path, effectiveOptions, refreshOutcome.token)
     if (retry.response.status !== 401) {
-      return parseApiResponse<T>(retry.response, retry.requestId, path, schema)
+      return {
+        data: await parseApiResponse<T>(retry.response, retry.requestId, path, schema),
+        authorizingToken: retry.tokenUsed,
+      }
     }
 
     if (!isAuthTransitionInFlight()) {
@@ -216,6 +240,21 @@ export async function apiClient<T = unknown>(
   options: ApiRequestOptions = {},
   schema?: ZodType<T>,
 ): Promise<T> {
+  return (await apiClientWithAuthorizingToken<T>(path, options, schema)).data
+}
+
+/**
+ * `apiClient`, plus the token the API accepted for this response.
+ *
+ * Use it only where the ANSWER has to be attributed to an account: the Android widget cache tags
+ * each payload with the account that produced it, and tagging with the caller's pre-request token
+ * would mislabel a body the 401 path fetched under a different one.
+ */
+export async function apiClientWithAuthorizingToken<T = unknown>(
+  path: string,
+  options: ApiRequestOptions = {},
+  schema?: ZodType<T>,
+): Promise<AuthorizedApiResponse<T>> {
   const idempotencyKey = options.idempotencyKey ?? consumePendingIdempotencyKey() ?? undefined
   const effectiveOptions: ApiRequestOptions =
     idempotencyKey === undefined ? options : { ...options, idempotencyKey }
@@ -223,7 +262,7 @@ export async function apiClient<T = unknown>(
   const { response, requestId, tokenUsed } = await executeRequest(path, effectiveOptions)
 
   if (response.status === 426) {
-    return handleUpgradeRequired<T>(response, requestId)
+    return handleUpgradeRequired<AuthorizedApiResponse<T>>(response, requestId)
   }
 
   if (response.status === 401 && path !== API.auth.refresh) {
@@ -235,5 +274,8 @@ export async function apiClient<T = unknown>(
     throw toUnauthorizedError(requestId)
   }
 
-  return parseApiResponse<T>(response, requestId, path, schema)
+  return {
+    data: await parseApiResponse<T>(response, requestId, path, schema),
+    authorizingToken: tokenUsed,
+  }
 }

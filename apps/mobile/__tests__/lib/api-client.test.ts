@@ -2,7 +2,7 @@ import { useThrottleStore } from '@/stores/throttle-store'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
-import { apiClient } from '@/lib/api-client'
+import { apiClient, apiClientWithAuthorizingToken } from '@/lib/api-client'
 import { API } from '@orbit/shared/api'
 import { setPendingIdempotencyKey } from '@/lib/idempotency-key'
 
@@ -204,6 +204,59 @@ describe('mobile apiClient', () => {
         }),
       }),
     )
+  })
+
+  /**
+   * Whatever records WHOSE data it received cannot use the token the caller last read. The Android
+   * widget tags each cached payload with the account that produced it, and a payload the 401 path
+   * fetched under a different credential, then tagged with the caller's stale one, is one account's
+   * habits filed under another account's name.
+   */
+  it('reports the refreshed token as the one that authorized the body', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    refreshSessionMock.mockResolvedValue({ status: 'refreshed', token: 'token-456' })
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 401 })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(JSON.stringify({ ok: true })),
+      })
+
+    await expect(apiClientWithAuthorizingToken('/secure')).resolves.toEqual({
+      data: { ok: true },
+      authorizingToken: 'token-456',
+    })
+  })
+
+  it('reports the rotated stored token, not the one the caller started with', async () => {
+    getTokenMock.mockResolvedValueOnce('stale-token').mockResolvedValue('fresh-token')
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 401 })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(JSON.stringify({ ok: true })),
+      })
+
+    await expect(apiClientWithAuthorizingToken('/secure')).resolves.toEqual({
+      data: { ok: true },
+      authorizingToken: 'fresh-token',
+    })
+  })
+
+  it('reports the request token when no retry was needed', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ ok: true })),
+    })
+
+    await expect(apiClientWithAuthorizingToken('/secure')).resolves.toEqual({
+      data: { ok: true },
+      authorizingToken: 'token-123',
+    })
   })
 
   it('clears auth state when refresh cannot recover a 401', async () => {
