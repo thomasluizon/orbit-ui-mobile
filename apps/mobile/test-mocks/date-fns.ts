@@ -1,3 +1,5 @@
+export { isValid } from 'date-fns/isValid'
+
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 function toDate(value: Date | number | string): Date {

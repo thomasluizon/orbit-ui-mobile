@@ -2,9 +2,25 @@ import type { Column, ColumnsProps } from './Columns'
 
 type Keys<T> = T extends unknown ? keyof T : never
 type IsExact<T, U> = T extends U ? Exclude<keyof T, Keys<U>> extends never ? true : false : false
+type IsExactWidth<T, U> =
+  (<TValue>() => TValue extends T ? 1 : 2) extends <TValue>() => TValue extends U ? 1 : 2
+    ? (<TValue>() => TValue extends U ? 1 : 2) extends <TValue>() => TValue extends T ? 1 : 2
+      ? true
+      : false
+    : false
 type Assert<T extends true> = T
 
 export type ColumnsTypeContract = [
+  Assert<IsExactWidth<Column['id'], string>>,
+  Assert<IsExactWidth<Column['label'], string>>,
+  Assert<IsExactWidth<Column['value'], number>>,
+  Assert<IsExactWidth<ColumnsProps['columns'], Column[] | undefined>>,
+  Assert<IsExactWidth<ColumnsProps['max'], number | undefined>>,
+  Assert<IsExactWidth<ColumnsProps['height'], number | undefined>>,
+  Assert<IsExactWidth<ColumnsProps['currentId'], string | undefined>>,
+  Assert<IsExactWidth<ColumnsProps['showValues'], boolean | undefined>>,
+  Assert<IsExactWidth<ColumnsProps['label'], string | undefined>>,
+  Assert<IsExactWidth<ColumnsProps['emptyLabel'], string>>,
   Assert<IsExact<{ id: 'one'; label: 'One'; value: 0 }, Column>>,
   Assert<IsExact<{ columns: []; emptyLabel: 'No data' }, ColumnsProps>>,
   Assert<IsExact<{ columns: []; emptyLabel: 'No data'; currentId: 'one'; max: 10 }, ColumnsProps>>,

@@ -1,122 +1,121 @@
-import { Text, View } from 'react-native'
-import Svg, { Circle } from 'react-native-svg'
-import Animated, {
-  Easing,
-  ReduceMotion,
-  useAnimatedProps,
-  withTiming,
-} from 'react-native-reanimated'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { createTokensV2 } from '@/lib/theme'
+import type { Goal } from '@orbit/shared/types/goal'
+import { getFriendlyErrorMessage, getProgressGoalLabelKey } from '@orbit/shared/utils'
+import { plural } from '@/lib/plural'
+import { Badge } from '@/components/ui/badge'
 import { PillButton } from '@/components/ui/pill-button'
-import { SectionLabel } from '@/components/ui/section-label'
-import type { AppTokens, createStyles } from './styles'
+import { ProgressRing } from '@/components/ui/progress-ring'
+import { StatusRing } from '@/components/ui/status-ring'
+import { Minus, Plus } from '@/components/ui/icons'
+import { useUpdateGoalProgress } from '@/hooks/use-goals'
 
-type GoalDetailStyles = ReturnType<typeof createStyles>
+function GoalDetailIndicator({ goal, label }: Readonly<{ goal: Goal; label: string }>) {
+  if (goal.status === 'Abandoned') return null
+  if (goal.status === 'Completed' || goal.progressPercentage >= 100) return <StatusRing status="done" size={60} label={label} />
+  return <ProgressRing value={goal.progressPercentage} size={60} label={label} />
+}
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle)
-
-const RING_SIZE = 180
-const RING_RADIUS = 70
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
-
-function ringTrackColor(tokens: AppTokens): string {
-  const normalized = tokens.fg1.replace('#', '')
-  const r = Number.parseInt(normalized.slice(0, 2), 16)
-  const g = Number.parseInt(normalized.slice(2, 4), 16)
-  const b = Number.parseInt(normalized.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, 0.08)`
+function GoalDerivedProgress({ goal }: Readonly<{ goal: Goal }>) {
+  const { t } = useTranslation()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  if (goal.status === 'Abandoned' || !goal.isProgressDerived) return null
+  const count = goal.linkedHabits.length
+  const explanation = t(goal.type === 'Streak' ? 'goals.detail.derivedStreak' : 'goals.detail.derivedHabits', { count })
+  return <Text style={[styles.body, { color: tokens.fg2 }]}>{plural(explanation, count)}</Text>
 }
 
 interface GoalProgressBlockProps {
-  progressPct: number
-  progressFillColor: string
-  progressText: string
-  progressPercentage: number
-  showEdit: boolean
-  onEdit: () => void
-  styles: GoalDetailStyles
-  tokens: AppTokens
+  goal: Goal
+  isUpdatingStatus: boolean
+  onComplete: () => void
+  refetchDetail: () => Promise<unknown>
 }
 
-export function GoalProgressBlock({
-  progressPct,
-  progressFillColor,
-  progressText,
-  progressPercentage,
-  showEdit,
-  onEdit,
-  styles,
-  tokens,
-}: Readonly<GoalProgressBlockProps>) {
+export function GoalProgressBlock({ goal, isUpdatingStatus, onComplete, refetchDetail }: Readonly<GoalProgressBlockProps>) {
   const { t } = useTranslation()
-  const clamped = Math.min(100, Math.max(0, progressPct))
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const { width } = useWindowDimensions()
+  const update = useUpdateGoalProgress()
+  const pending = useRef(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const abandoned = goal.status === 'Abandoned'
+  const active = goal.status === 'Active'
+  const derived = goal.isProgressDerived === true
+  const done = goal.status === 'Completed' || goal.progressPercentage >= 100
+  const labelKey = getProgressGoalLabelKey(goal)
+  const ringLabel = t('goals.progressPercentage', { pct: Math.round(goal.progressPercentage) })
 
-  const arcProps = useAnimatedProps(() => ({
-    strokeDashoffset: withTiming(RING_CIRCUMFERENCE * (1 - clamped / 100), {
-      duration: 280,
-      easing: Easing.bezier(0.16, 1, 0.3, 1),
-      reduceMotion: ReduceMotion.System,
-    }),
-  }))
-
-  const percentLabel = t('goals.progressPercentage', {
-    pct: Math.round(progressPercentage),
-  })
+  async function step(change: number) {
+    if (pending.current || !active || derived) return
+    const value = Math.min(goal.targetValue, Math.max(0, goal.currentValue + change))
+    if (value === goal.currentValue) return
+    pending.current = true
+    setBusy(true)
+    setError('')
+    try {
+      await update.mutateAsync({
+        goalId: goal.id,
+        data: { currentValue: value },
+        goalName: goal.title,
+        goalCount: goal.targetValue,
+        goalUnit: goal.unit,
+      })
+      await refetchDetail()
+    } catch (failure: unknown) {
+      setError(getFriendlyErrorMessage(failure, t, 'goals.errors.progress', 'goalProgress'))
+    } finally {
+      pending.current = false
+      setBusy(false)
+    }
+  }
 
   return (
-    <View>
-      <SectionLabel>
-        {t('goals.progress')}
-      </SectionLabel>
-      <View style={styles.progressBlock}>
-        <View
-          style={styles.ringWrap}
-          accessibilityRole="progressbar"
-          accessibilityLabel={percentLabel}
-          accessibilityValue={{ min: 0, max: 100, now: Math.round(clamped) }}
-        >
-          <Svg
-            width={RING_SIZE}
-            height={RING_SIZE}
-            style={{ transform: [{ rotate: '-90deg' }] }}
-          >
-            <Circle
-              cx={RING_SIZE / 2}
-              cy={RING_SIZE / 2}
-              r={RING_RADIUS}
-              fill="none"
-              stroke={ringTrackColor(tokens)}
-              strokeWidth={12}
-            />
-            <AnimatedCircle
-              cx={RING_SIZE / 2}
-              cy={RING_SIZE / 2}
-              r={RING_RADIUS}
-              fill="none"
-              stroke={progressFillColor}
-              strokeWidth={12}
-              strokeLinecap="round"
-              strokeDasharray={`${RING_CIRCUMFERENCE}`}
-              animatedProps={arcProps}
-            />
-          </Svg>
-          <View style={styles.ringCenter}>
-            <Text style={styles.ringValue}>{Math.round(clamped)}%</Text>
-            <Text style={styles.ringMeta}>{progressText}</Text>
+    <View style={styles.section}>
+      <View style={styles.header}>
+        <View style={styles.heading}>
+          <Text accessibilityRole="header" style={[styles.title, { fontSize: width >= 768 ? 28 : 22, color: abandoned ? tokens.fg3 : tokens.fg1 }]}>{goal.title}</Text>
+          <View style={styles.meta}>
+            {labelKey ? <Badge variant={abandoned ? 'outline' : 'solid'}>{t(labelKey)}</Badge> : null}
+            {!abandoned ? <Text style={[styles.figure, { color: tokens.fg3 }]}>{t('progressScreen.goals.progress', { current: goal.currentValue, target: goal.targetValue, unit: goal.unit })}</Text> : null}
           </View>
         </View>
-        {showEdit ? (
-          <PillButton
-
-
-            onClick={onEdit}
-
-
-          >
-            {t('goals.updateProgress')}
-          </PillButton>
-        ) : null}
+        <GoalDetailIndicator goal={goal} label={ringLabel} />
       </View>
+      <GoalDerivedProgress goal={goal} />
+      {active && !derived ? <View style={styles.manual} accessibilityState={{ busy }}>
+        <Text style={[styles.body, { color: tokens.fg2 }]}>{t('goals.detail.manualProgress')}</Text>
+        <View style={styles.stepper}>
+        <PillButton variant="ghost" size="sm" iconOnly label={t('goals.detail.decrease')} disabled={busy || goal.currentValue <= 0} onClick={() => void step(-1)}><Minus size={16} color={tokens.fg1} /></PillButton>
+        <Text style={[styles.value, { color: tokens.fg1 }]}>{goal.currentValue}</Text>
+        <PillButton variant="ghost" size="sm" iconOnly label={t('goals.detail.increase')} disabled={busy || goal.currentValue >= goal.targetValue} onClick={() => void step(1)}><Plus size={16} color={tokens.fg1} /></PillButton>
+        <Text style={[styles.body, { color: tokens.fg3 }]}>{goal.unit}</Text>
+        </View>
+      </View> : null}
+      <Text accessibilityLiveRegion="polite" style={error ? [styles.body, { color: tokens.fg2 }] : styles.screenReader}>{error}</Text>
+      {active && derived && done ? <View style={styles.completion}>
+        <PillButton variant="secondary" size="sm" accessibleName={t('goals.detail.markCompleted')} disabled={busy || isUpdatingStatus} onClick={onComplete}>{t('goals.detail.markCompleted')}</PillButton>
+        <Text style={[styles.body, { color: tokens.fg2 }]}>{t('goals.detail.completeWhyDerived')}</Text>
+      </View> : null}
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  section: { gap: 24 }, header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  heading: { flex: 1, minWidth: 0, gap: 8 }, title: { fontFamily: 'SpaceGrotesk_500Medium' },
+  meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  figure: { fontFamily: 'GeistMono_400Regular', fontSize: 12, fontVariant: ['tabular-nums'] },
+  body: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 },
+  value: { minWidth: 32, textAlign: 'center', fontFamily: 'GeistMono_400Regular', fontSize: 20, fontVariant: ['tabular-nums'] },
+  manual: { gap: 8 },
+  stepper: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  completion: { alignItems: 'flex-start', gap: 8 },
+  screenReader: { position: 'absolute', width: 1, height: 1, overflow: 'hidden' },
+})

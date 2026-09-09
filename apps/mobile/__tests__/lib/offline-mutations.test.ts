@@ -113,6 +113,7 @@ const mocks = vi.hoisted(() => {
 
   const persistQueryCache = vi.fn(() => Promise.resolve())
   const invalidateQueries = vi.fn(() => Promise.resolve())
+  const setQueryData = vi.fn()
 
   const apiClient = vi.fn((endpoint: string): Promise<{ id: string } | null> => {
     if (endpoint === '/api/habits') {
@@ -146,6 +147,7 @@ const mocks = vi.hoisted(() => {
     getResolvedEntityId,
     persistQueryCache,
     invalidateQueries,
+    setQueryData,
     apiClient,
     getCurrentConnectivity,
   }
@@ -183,6 +185,7 @@ vi.mock('@/lib/query-client', () => ({
   persistQueryCache: mocks.persistQueryCache,
   queryClient: {
     invalidateQueries: mocks.invalidateQueries,
+    setQueryData: mocks.setQueryData,
     getQueriesData: vi.fn(() => []),
   },
 }))
@@ -209,6 +212,7 @@ describe('offline mutations', () => {
     mocks.getResolvedEntityId.mockClear()
     mocks.persistQueryCache.mockClear()
     mocks.invalidateQueries.mockClear()
+    mocks.setQueryData.mockClear()
     mocks.apiClient.mockReset()
     mocks.apiClient.mockImplementation((endpoint: string) =>
       Promise.resolve(endpoint === '/api/habits' ? { id: 'habit-1' } : null),
@@ -809,6 +813,25 @@ describe('offline mutations', () => {
       remaining: 0,
       droppedMutations: [],
     })
+  })
+
+  it('refreshes the persisted profile before invalidating gamification after replay', async () => {
+    mocks.setOnline(true)
+    mocks.queued.push(buildQueuedMutation({
+      type: 'setTimeZone',
+      scope: 'profile',
+      endpoint: '/api/profile/timezone',
+      method: 'PUT',
+      payload: { timeZone: 'Pacific/Kiritimati' },
+    }))
+
+    await flushQueuedMutations()
+
+    expect(mocks.invalidateQueries.mock.calls).toEqual([
+      [{ queryKey: ['profile'] }],
+      [{ queryKey: ['gamification'], refetchType: 'none' }],
+    ])
+    expect(mocks.setQueryData).toHaveBeenCalledWith(['profile', 'detail'], expect.any(Function))
   })
 
   it('drops a rejected retired operation without classifying it as a current scope', async () => {

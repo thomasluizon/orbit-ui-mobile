@@ -1,7 +1,9 @@
+import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import React from 'react'
 import { render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
-import architecture from '../../../architecture.json'
 import en from '../../../packages/shared/src/i18n/en.json'
 import ptBR from '../../../packages/shared/src/i18n/pt-BR.json'
 import PrivacyPage from '@/app/(public)/privacy/page'
@@ -15,6 +17,30 @@ const TestIntlProvider = NextIntlClientProvider as React.ComponentType<{
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({
   useGoBackOrFallback: () => vi.fn(),
 }))
+
+/**
+ * The architecture map is GENERATED and no longer committed (thomasluizon/orbit-tickets#470), so this
+ * file generates its own input instead of importing a checked-in artifact. It regenerates on every run
+ * rather than reusing whatever is on disk: this test asserts i18n OWNERSHIP, and asserting ownership
+ * against a map that predates the routes it describes is the staleness the provenance block exists to
+ * expose. The generator takes a few seconds and is deterministic.
+ *
+ * Only the two fields this file reads are typed. A wider type would be a second, hand-kept copy of the
+ * generator's output shape, which is the thing that goes stale.
+ */
+const REPO_ROOT = join(__dirname, '..', '..', '..')
+
+type ArchitectureMap = {
+  i18nOwnership: {
+    byRoute: { sourceFile: string; keys: string[] }[]
+    unowned: string[]
+  }
+}
+
+const architecture: ArchitectureMap = (() => {
+  execFileSync(process.execPath, [join(REPO_ROOT, 'tools', 'arch-map.mjs')], { cwd: REPO_ROOT, stdio: 'ignore' })
+  return JSON.parse(readFileSync(join(REPO_ROOT, 'architecture.json'), 'utf8')) as ArchitectureMap
+})()
 
 const SECTION_METADATA_KEYS = new Set(['title', 'intro'])
 
@@ -58,7 +84,10 @@ describe('privacy policy disclosures', () => {
   })
 
   it('keeps the complete privacy key set identical across locales', () => {
-    expect(flattenKeys(ptBR.privacy).sort()).toEqual(flattenKeys(en.privacy).sort())
+    const compareKeys = (left: string, right: string) => left.localeCompare(right)
+    expect(flattenKeys(ptBR.privacy).sort(compareKeys)).toEqual(
+      flattenKeys(en.privacy).sort(compareKeys),
+    )
   })
 
   it('keeps every processor and retention disclosure owned by both privacy routes', () => {

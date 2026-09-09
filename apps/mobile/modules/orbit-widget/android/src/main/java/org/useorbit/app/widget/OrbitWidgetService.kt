@@ -164,6 +164,7 @@ data class WidgetColors(
     val borderMuted: Int,
     val overdue: Int,
     val streak: Int,
+    val streakText: Int,
     val statusEmpty: Int
 )
 
@@ -261,6 +262,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                 borderMuted = fallbackColor(mode, "borderMuted"),
                 overdue = fallbackColor(mode, "overdue"),
                 streak = fallbackColor(mode, "streak"),
+                streakText = fallbackColor(mode, "streakText"),
                 statusEmpty = fallbackColor(mode, "statusEmpty")
             )
         }
@@ -286,6 +288,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                 borderMuted = readColor(prefs, mode, "borderMuted"),
                 overdue = readColor(prefs, mode, "overdue"),
                 streak = readColor(prefs, mode, "streak"),
+                streakText = readColor(prefs, mode, "streakText"),
                 statusEmpty = readColor(prefs, mode, "statusEmpty")
             )
         }

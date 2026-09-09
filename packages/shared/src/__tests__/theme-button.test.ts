@@ -5,7 +5,10 @@ const SIZES: ButtonSize[] = ['sm', 'md']
 
 describe('button geometry', () => {
   it('exposes the sm/md size scale', () => {
-    expect(Object.keys(BUTTON_SIZES).sort()).toEqual(['md', 'sm'])
+    expect(Object.keys(BUTTON_SIZES).sort((left, right) => left.localeCompare(right))).toEqual([
+      'md',
+      'sm',
+    ])
   })
 
   it('keeps the medium pill geometry with an allowed icon size', () => {

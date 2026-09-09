@@ -25,6 +25,7 @@ vi.stubGlobal('fetch', mockFetch)
 const mockShowQueued = vi.fn()
 const mockShowSuccess = vi.fn()
 const mockShowError = vi.fn()
+const mockSetGoalCompleted = vi.hoisted(() => vi.fn())
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -55,11 +56,11 @@ vi.mock('@/app/actions/goals', () => ({
 vi.mock('@/stores/ui-store', () => ({
   useUIStore: Object.assign(
     () => ({
-      setGoalCompletedCelebration: vi.fn(),
+      setGoalCompletedCelebration: mockSetGoalCompleted,
     }),
     {
       getState: () => ({
-        setGoalCompletedCelebration: vi.fn(),
+        setGoalCompletedCelebration: mockSetGoalCompleted,
       }),
     },
   ),
@@ -338,9 +339,10 @@ describe('useRestoreGoal', () => {
 describe('useUpdateGoalProgress', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    mockSetGoalCompleted.mockReset()
   })
 
-  it('calls updateGoalProgress action', async () => {
+  it('calls the progress action and enqueues one target completion', async () => {
     const { updateGoalProgress } = await import('@/app/actions/goals')
     const mockedUpdateProgress = vi.mocked(updateGoalProgress)
     mockedUpdateProgress.mockResolvedValue(undefined as any)
@@ -352,6 +354,9 @@ describe('useUpdateGoalProgress', () => {
       await result.current.mutateAsync({
         goalId: 'g-1',
         data: { currentValue: 5, note: 'Halfway' },
+        goalName: 'Ship Orbit',
+        goalCount: 5,
+        goalUnit: 'releases',
       })
     })
 
@@ -359,12 +364,19 @@ describe('useUpdateGoalProgress', () => {
       currentValue: 5,
       note: 'Halfway',
     })
+    expect(mockSetGoalCompleted).toHaveBeenCalledWith({
+      name: 'Ship Orbit',
+      count: 5,
+      unit: 'releases',
+    })
+    expect(mockSetGoalCompleted).toHaveBeenCalledTimes(1)
   })
 })
 
 describe('useUpdateGoalStatus', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    mockSetGoalCompleted.mockReset()
   })
 
   it('calls updateGoalStatus action', async () => {
@@ -380,10 +392,18 @@ describe('useUpdateGoalStatus', () => {
         goalId: 'g-1',
         data: { status: 'Completed' },
         goalName: 'Ship Orbit',
+        goalCount: 12,
+        goalUnit: 'releases',
       })
     })
 
     expect(mockedUpdateStatus).toHaveBeenCalledWith('g-1', { status: 'Completed' })
+    expect(mockSetGoalCompleted).toHaveBeenCalledWith({
+      name: 'Ship Orbit',
+      count: 12,
+      unit: 'releases',
+    })
+    expect(mockSetGoalCompleted).toHaveBeenCalledTimes(1)
   })
 })
 

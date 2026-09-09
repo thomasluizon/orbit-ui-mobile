@@ -85,7 +85,7 @@ describe('GoalCard', () => {
     })
     expect(StyleSheet.flatten(badgeText.parent?.props.style)).toMatchObject({
       borderRadius: 8,
-      paddingHorizontal: 9,
+      paddingHorizontal: 8,
       paddingVertical: 2,
     })
   })

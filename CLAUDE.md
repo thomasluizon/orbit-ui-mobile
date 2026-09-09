@@ -60,7 +60,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `.claude/skills/pr-review/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |
 | `FEATURES.md` | The Free/Trial/Pro/Yearly gating the arch map lacks. |
 | `TESTING.md` | Unit, smoke, hermetic layout guard and performance, mutation, and harness suite catalog; authoring rules including producer-derived fixtures and observed regression failures in PR evidence, Chrome prerequisite for target geometry tests, and local Lighthouse commands and report location. |
-| `architecture.json` | Generated map. Read it INSTEAD of exploring the codebase. |
+| `architecture.json` | Generated map, NOT committed (#470). Run `node tools/arch-map.mjs` once, then read it INSTEAD of exploring the codebase; it also writes `architecture.html` and the `architecture.mmd` diagram. Its first key is a `provenance` block whose `generatedFrom` hashes every input the generator read, so a copy can be checked against the tree in front of you. |
 | `.claude/rules/core.md` | Always-loaded judgement and D89/D90 operating-contract pointers. |
 | `.claude/skills/ticket/SKILL.md` | GitHub ticket creation, labels, relations, and milestone rules. |
 | `.claude/skills/orchestrate/SKILL.md` | Ticket queue, worker, review and readiness contract; D89 caps, terminal Cloud handoff failures with staged work preserved, and Cloud test results carried into the PR body's Test evidence section. |

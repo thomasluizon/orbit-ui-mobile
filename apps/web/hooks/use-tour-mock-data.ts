@@ -3,10 +3,10 @@
 import { useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { habitKeys, goalKeys, tagKeys, gamificationKeys } from '@orbit/shared/query'
+import { habitKeys, goalKeys, tagKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import { createTourMockHabits, createTourMockGoals, createTourMockTags } from '@orbit/shared/tour'
 import { formatAPIDate } from '@orbit/shared/utils'
-import type { HabitScheduleItem, Goal, StreakInfo } from '@orbit/shared/types'
+import type { HabitScheduleItem, Goal, Profile, StreakInfo } from '@orbit/shared/types'
 
 /**
  * Injects/restores mock data into TanStack Query cache during the tour.
@@ -43,7 +43,8 @@ export function useTourMockData() {
     queryClient.setQueryData(tagKeys.lists(), mockTags)
 
     queryClient.setQueryDefaults(gamificationKeys.all, { staleTime: Infinity })
-    queryClient.setQueryData(gamificationKeys.streak(), (old: StreakInfo | undefined) => {
+    const timeZone = queryClient.getQueryData<Profile>(profileKeys.detail())?.timeZone ?? null
+    queryClient.setQueryData(gamificationKeys.streak(timeZone), (old: StreakInfo | undefined) => {
       if (old && old.currentStreak > 0) return old
       return {
         currentStreak: 1,

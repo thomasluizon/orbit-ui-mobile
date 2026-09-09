@@ -19,6 +19,8 @@
     <color name="widget_fg_4">#5D5D60</color>
     <!-- WHY: primary. -->
     <color name="widget_primary">#C4530F</color>
+    <!-- WHY: fg-1. -->
+    <color name="widget_streak_text">#F4F4F6</color>
     <!-- WHY: status-overdue. -->
     <color name="widget_overdue">#FE9A00</color>
 </resources>

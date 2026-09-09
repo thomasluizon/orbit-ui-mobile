@@ -20,16 +20,16 @@ vi.mock('@/stores/onboarding-draft-store', () => ({
 }))
 
 function renderApply(): () => Promise<ApplyOnboardingResponse> {
-  let applyFn: (() => Promise<ApplyOnboardingResponse>) | null = null
+  const holder: { current: (() => Promise<ApplyOnboardingResponse>) | null } = { current: null }
   function Harness() {
-    applyFn = useApplyOnboarding()
+    holder.current = useApplyOnboarding()
     return null
   }
   TestRenderer.act(() => {
     TestRenderer.create(<Harness />)
   })
-  if (!applyFn) throw new Error('hook did not return an apply function')
-  return applyFn
+  if (!holder.current) throw new Error('hook did not return an apply function')
+  return holder.current
 }
 
 const validResponse: ApplyOnboardingResponse = {

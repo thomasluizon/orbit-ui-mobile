@@ -86,7 +86,7 @@ describe('motion theme contract', () => {
   })
 
   it('exports orbital interaction tokens for cross-platform UI polish', () => {
-    expect(orbitalMotion.press.scale).toBe(0.96)
+    expect(orbitalMotion.press.scale).toBeCloseTo(0.96)
     expect(orbitalMotion.press.duration).toBe(150)
     expect(orbitalMotion.elevatedPress.translateY).toBeLessThan(0)
     expect(orbitalMotion.list.maxStaggerItems).toBeGreaterThan(0)

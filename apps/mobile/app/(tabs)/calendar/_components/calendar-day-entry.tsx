@@ -40,7 +40,7 @@ function createStyles(tokens: Tokens) {
       flexDirection: "row",
       alignItems: "center",
       paddingHorizontal: 18,
-      paddingVertical: 15,
+      paddingVertical: 16,
       gap: 12,
     },
     statusCircle: {
@@ -80,8 +80,8 @@ function createStyles(tokens: Tokens) {
     },
     statusPill: {
       flexShrink: 0,
-      paddingVertical: 3,
-      paddingHorizontal: 9,
+      paddingVertical: 4,
+      paddingHorizontal: 8,
       borderRadius: 999,
       borderWidth: 1,
       borderColor: tokens.hairline,

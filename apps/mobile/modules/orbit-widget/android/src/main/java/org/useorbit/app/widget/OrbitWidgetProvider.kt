@@ -201,6 +201,9 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             )
             // Show loading spinner immediately
             for (id in appWidgetIds) {
+                // AppWidgetHostView retains but does not reapply cached RemoteViews on a
+                // configuration change, so refresh must reapply the full mode-aware palette.
+                updateWidgetLayout(context, appWidgetManager, id)
                 val loadingViews = RemoteViews(context.packageName, R.layout.widget_layout)
                 loadingViews.setViewVisibility(R.id.widget_refresh, View.GONE)
                 loadingViews.setViewVisibility(R.id.widget_refresh_loading, View.VISIBLE)

@@ -230,7 +230,7 @@ describe('mobile Markdown wrapper', () => {
     const props = renderMarkdown({ children: 'x' })
     const renderer = props.renderer as CapturedRenderer
 
-    for (const href of ['https://orbit.app', 'http://x', 'mailto:a@b.com']) {
+    for (const href of ['https://orbit.app', 'http://example.com', 'mailto:a@b.com']) {
       const element = renderer.link(['label'], href)
       expect(isValidElement(element)).toBe(true)
       const link = renderLink(element)

@@ -8,7 +8,6 @@ async function fetchConfig(): Promise<AppConfig> {
   try {
     return await apiClient<AppConfig>(API.config.get)
   } catch {
-    // Silently fall back to defaults on error
     return DEFAULT_CONFIG
   }
 }
@@ -17,7 +16,7 @@ export function useConfig() {
   const query = useQuery({
     queryKey: configKeys.detail(),
     queryFn: fetchConfig,
-    staleTime: 30 * 60 * 1000, // 30 minutes -- config rarely changes
+    staleTime: 30 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
     placeholderData: DEFAULT_CONFIG,
   })

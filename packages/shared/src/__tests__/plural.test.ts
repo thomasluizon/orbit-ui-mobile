@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import en from '../i18n/en.json'
+import ptBR from '../i18n/pt-BR.json'
 import { plural } from '../utils/plural'
 
 describe('plural', () => {
@@ -15,5 +17,20 @@ describe('plural', () => {
     expect(plural('none | one | many', 0)).toBe('none')
     expect(plural('none | one | many', 1)).toBe('one')
     expect(plural('none | one | many', 7)).toBe('many')
+  })
+
+  it('selects the singular and plural day celebration copy in both locales', () => {
+    expect(plural(en.celebration.day.line.replace('{count}', '1'), 1)).toBe(
+      'All 1 habit for today is done.',
+    )
+    expect(plural(en.celebration.day.line.replaceAll('{count}', '2'), 2)).toBe(
+      'All 2 habits for today are done.',
+    )
+    expect(plural(ptBR.celebration.day.line.replace('{count}', '1'), 1)).toBe(
+      'O 1 hábito de hoje está feito.',
+    )
+    expect(plural(ptBR.celebration.day.line.replaceAll('{count}', '2'), 2)).toBe(
+      'Os 2 hábitos de hoje estão feitos.',
+    )
   })
 })

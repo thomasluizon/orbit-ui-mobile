@@ -2,9 +2,9 @@ import { useEffect } from 'react'
 import { AppState } from 'react-native'
 import { useQueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
-import { habitKeys, profileKeys } from '@orbit/shared/query'
+import { gamificationKeys, habitKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
-import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import { isQueuedResult, performQueuedApiMutation } from '@/lib/queued-api-mutation'
 
 async function queueTimezoneSyncIfNeeded(
   queryClient: ReturnType<typeof useQueryClient>,
@@ -16,7 +16,7 @@ async function queueTimezoneSyncIfNeeded(
   if (!detected || detected === 'UTC' || current.timeZone === detected) return
 
   try {
-    await performQueuedApiMutation({
+    const result = await performQueuedApiMutation({
       type: 'setTimeZone',
       scope: 'profile',
       endpoint: API.profile.timezone,
@@ -24,9 +24,11 @@ async function queueTimezoneSyncIfNeeded(
       payload: { timeZone: detected },
       dedupeKey: 'profile-timezone-auto',
     })
+    if (isQueuedResult(result)) return
     queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
       old ? { ...old, timeZone: detected } : old,
     )
+    void queryClient.invalidateQueries({ queryKey: gamificationKeys.all, refetchType: 'none' })
     void queryClient.invalidateQueries({ queryKey: habitKeys.all })
   } catch {
   }
