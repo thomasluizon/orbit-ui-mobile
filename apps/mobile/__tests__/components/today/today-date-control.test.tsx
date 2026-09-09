@@ -56,13 +56,13 @@ describe('Today date control feedback (mobile)', () => {
       const idle = StyleSheet.flatten(control.props.style({ pressed: false })) as Record<string, unknown>
       const pressed = StyleSheet.flatten(control.props.style({ pressed: true })) as Record<string, unknown>
       expect(idle.backgroundColor).toBeUndefined()
-      expect(pressed.backgroundColor).toBe('rgba(250,250,250,0.14)')
+      expect(pressed.backgroundColor).toBe('rgba(250,250,250,0.13)')
     }
 
     const today = renderer.root.findAllByType(Pressable)[1]
     if (!today) throw new Error('Today control did not render')
     const pressedToday = StyleSheet.flatten(today.props.style({ pressed: true })) as Record<string, unknown>
-    expect(pressedToday.backgroundColor).toBe('rgba(250,250,250,0.14)')
+    expect(pressedToday.backgroundColor).toBe('rgba(250,250,250,0.13)')
     TestRenderer.act(() => today.props.onPress())
     expect(callbacks.onGoToToday).toHaveBeenCalledOnce()
   })
