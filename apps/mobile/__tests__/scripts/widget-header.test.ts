@@ -265,23 +265,30 @@ describe('Android widget header', () => {
   })
 
   /**
-   * Ownership belongs to the session that FETCHED the payload, never to whichever token happens to
-   * be current when the bridge call lands. A sign-out, an account switch or a token rotation can
-   * complete while the app's request is in flight, and labelling that response with the current
-   * token would put one account's habits on the next account's home screen: the exact leak the
-   * session tag exists to close. So the caller hands its token across the bridge, the writer tags
-   * from that token, and a payload whose owner is no longer signed in is dropped rather than
-   * relabelled. The TypeScript side is held by the two-argument module type, which `type-check`
-   * gates, and `lib/orbit-widget.ts` passes the token it read before the fetch.
+   * Ownership belongs to the ACCOUNT that fetched the payload, never to whichever token happens to
+   * be current when the bridge call lands, and never to the token bytes.
+   *
+   * Two failures meet here. Labelling the response with the current token puts one account's habits
+   * on the next account's home screen when a sign-out or an account switch lands mid-flight. Keying
+   * on the token instead of the account throws the cache away on every silent refresh, and
+   * `apiClient` refreshes and retries on a 401 as a matter of routine, so the app-pushed write
+   * would be discarded on the very path it exists to serve. The account claim answers both: it
+   * survives a refresh and it changes when somebody else signs in.
+   *
+   * The TypeScript half is held by the two-argument module type, which `type-check` gates, and
+   * `lib/orbit-widget.ts` passes the token it read before the fetch.
    */
-  it('takes cache ownership from the caller, not from the token current at write time', () => {
+  it('takes cache ownership from the calling account, not the token current at write time', () => {
     const widgetModule = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetModule.kt'), 'utf8')
 
     expect(widgetModule).toMatch(
       /AsyncFunction\("syncWidgetData"\) \{ json: String, token: String ->/,
     )
     expect(widgetModule).toMatch(
-      /if \(getToken\(context\) == token\) \{\s*context\.getSharedPreferences\(CACHE_PREFS_NAME, Context\.MODE_PRIVATE\)\s*\.edit\(\)\s*\.putString\("habits_json", json\)\s*\.putString\("habits_session", sessionKey\(token\)\)/,
+      /val session = sessionKey\(token\)\s*if \(getToken\(context\)\?\.let \{ sessionKey\(it\) \} == session\) \{\s*context\.getSharedPreferences\(CACHE_PREFS_NAME, Context\.MODE_PRIVATE\)\s*\.edit\(\)\s*\.putString\("habits_json", json\)\s*\.putString\("habits_session", session\)/,
+    )
+    expect(widgetModule).toMatch(
+      /\.digest\(\(accountId\(token\) \?: token\)\.toByteArray\(Charsets\.UTF_8\)\)/,
     )
 
     const caller = readFileSync(resolve(process.cwd(), 'lib/orbit-widget.ts'), 'utf8')
@@ -289,6 +296,33 @@ describe('Android widget header', () => {
 
     expect(sync).toContain('const token = await getToken()')
     expect(sync).toContain('await widgetModule.syncWidgetData(JSON.stringify(data), token)')
+  })
+
+  /**
+   * The widget derives the account from the same JWT the app does, so the two must read the same
+   * claims in the same order. Let them drift and the widget names a different account than the app
+   * signed in, which either strands a valid cache or, in the other direction, reads one the account
+   * does not own. `auth-store.ts` is the producer here: it is what actually authenticates.
+   */
+  it('reads the account claims the app reads, in the same order', () => {
+    const authStore = readFileSync(resolve(process.cwd(), 'stores/auth-store.ts'), 'utf8')
+    const userIdBlock = authStore.slice(
+      authStore.indexOf('const userId ='),
+      authStore.indexOf('const email ='),
+    )
+    const appClaims = [...userIdBlock.matchAll(/payload(?:\['([^']+)'\]|\.(\w+))/g)].map(
+      match => match[1] ?? match[2],
+    )
+
+    const widgetModule = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetModule.kt'), 'utf8')
+    const kotlinList = widgetModule.slice(
+      widgetModule.indexOf('NAME_IDENTIFIER_CLAIMS = listOf('),
+      widgetModule.indexOf('fun getEncryptedPrefs'),
+    )
+    const widgetClaims = [...kotlinList.matchAll(/"([^"]+)"/g)].map(match => match[1])
+
+    expect(appClaims).toHaveLength(3)
+    expect(widgetClaims).toEqual(appClaims)
   })
 
   /**

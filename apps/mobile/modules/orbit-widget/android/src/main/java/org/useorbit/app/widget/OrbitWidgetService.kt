@@ -550,12 +550,12 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
      * logout does not fix it either: `onDataSetChanged` is synchronized, so the replacement
      * callback simply runs after the old one has already landed.
      *
-     * So ownership is recorded rather than inferred. A payload is only readable by the session that
-     * produced it, whatever order the callbacks finish in. A token rotation also changes the key and
-     * costs one extra fetch, which is the right price for not having to reason about the race.
+     * So ownership is recorded rather than inferred. A payload is only readable by the account that
+     * produced it, whatever order the callbacks finish in. The key names the ACCOUNT rather than the
+     * access token, so a silent refresh keeps the cache it just filled.
      *
      * `OrbitWidgetModule.syncWidgetData` tags its app-pushed payload with the same key, so the two
-     * writers stay readable by one session and a fresh sign-in keeps the data the app already has.
+     * writers stay readable by one account and a fresh sign-in keeps the data the app already has.
      */
     private fun resolveWidgetData(token: String): HabitWidgetResponse? {
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
