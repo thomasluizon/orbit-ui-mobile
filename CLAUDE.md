@@ -62,6 +62,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `TESTING.md` | Unit, smoke, hermetic layout guard and performance, mutation, and harness suite catalog; authoring rules including producer-derived fixtures and observed regression failures in PR evidence, Chrome prerequisite for target geometry tests, and local Lighthouse commands and report location. |
 | `architecture.json` | Generated map, NOT committed (#470). Run `node tools/arch-map.mjs` once, then read it INSTEAD of exploring the codebase; it also writes `architecture.html` and the `architecture.mmd` diagram. Its first key is a `provenance` block whose `generatedFrom` hashes every input the generator read, so a copy can be checked against the tree in front of you. |
 | `.claude/rules/core.md` | Always-loaded judgement and D89/D90 operating-contract pointers. |
+| `.claude/calibration.json` | The per-agent and per-skill `model`/`effort` stamp, one verdict per file, with the worker model it was taken against. `Harness Calibration` fails on drift or at 90 days; recalibrate in the pull request that moves a model. |
 | `.claude/skills/ticket/SKILL.md` | GitHub ticket creation, labels, relations, and milestone rules. |
 | `.claude/skills/orchestrate/SKILL.md` | Ticket queue, worker, review and readiness contract; D89 caps, terminal Cloud handoff failures with staged work preserved, and Cloud test results carried into the PR body's Test evidence section. |
 | `.claude/skills/handoff/SKILL.md` | Handoff prompts with the required standing-contract block before the task. |
