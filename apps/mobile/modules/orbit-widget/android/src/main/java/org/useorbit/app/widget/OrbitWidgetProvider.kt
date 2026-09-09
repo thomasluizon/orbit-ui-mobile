@@ -5,9 +5,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
 import androidx.work.Constraints
@@ -27,12 +25,6 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         private const val WORK_NAME = "orbit_widget_sync"
         private const val REFRESH_TIMEOUT_WORK_NAME = "orbit_widget_refresh_timeout"
         private const val WIDGET_REFRESH_TIMEOUT_MS = 12_000L
-        private const val NARROW_WIDGET_MAX_DP = 200f
-
-        // The floor of a size key. A host never measures a widget at zero, and SizeF rejects it.
-        private const val MIN_WIDGET_WIDTH_DP = 1f
-        private const val MIN_WIDGET_HEIGHT_DP = 1f
-
         // Every region that opens the app. The whole card is one tap target, per the drawing's
         // touch note, and only the refresh is its own.
         private val OPEN_APP_TARGETS = intArrayOf(
@@ -62,36 +54,6 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                     appWidgetManager.updateAppWidget(appWidgetId, fallback)
                 }
             }
-        }
-
-        // A provider CANNOT read the width it is being rendered at, and three attempts at deriving
-        // it were all wrong. AppWidgetHostView.updateAppWidgetSize reduces the host's whole list of
-        // possible SizeF values into two global extrema, so MIN_WIDTH under-reports a widget that is
-        // sometimes wide, MAX_WIDTH over-reports one that is usually narrow, and no orientation
-        // branch separates them once a foldable adds its inner and outer sizes to the same list.
-        // https://android.googlesource.com/platform/frameworks/base/+/refs/heads/main/core/java/android/appwidget/AppWidgetHostView.java
-        //
-        // So the HOST decides. On API 31 and later a size-keyed RemoteViews carries one variant per
-        // breakpoint and the host applies the one matching its measured SizeF, which is the live
-        // width the drawing's `size.w > 200` branch means. Below 31 no live size exists at all, so
-        // the unit stays: keeping it and ellipsizing loses less than dropping it from a wide widget.
-        // https://developer.android.com/develop/ui/views/appwidgets/layouts#coding-different-remoteviews
-        private fun sizeKeyedCard(
-            context: Context,
-            appWidgetManager: AppWidgetManager,
-            appWidgetId: Int
-        ): RemoteViews {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-                return buildCard(context, appWidgetManager, appWidgetId, showStreakUnit = true)
-            }
-            val narrow = buildCard(context, appWidgetManager, appWidgetId, showStreakUnit = false)
-            val wide = buildCard(context, appWidgetManager, appWidgetId, showStreakUnit = true)
-            return RemoteViews(
-                mapOf(
-                    SizeF(MIN_WIDGET_WIDTH_DP, MIN_WIDGET_HEIGHT_DP) to narrow,
-                    SizeF(NARROW_WIDGET_MAX_DP + 1f, MIN_WIDGET_HEIGHT_DP) to wide
-                )
-            )
         }
 
         /** Signed out: no refresh and no spinner. Every signed-out path goes through here. */
@@ -156,20 +118,6 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
-            appWidgetManager.updateAppWidget(
-                appWidgetId,
-                sizeKeyedCard(context, appWidgetManager, appWidgetId)
-            )
-        }
-
-        // One complete card. Called once per size variant, so everything a variant needs, the
-        // adapter, the empty-view relation and every intent, is installed here rather than after.
-        private fun buildCard(
-            context: Context,
-            appWidgetManager: AppWidgetManager,
-            appWidgetId: Int,
-            showStreakUnit: Boolean
-        ): RemoteViews {
             val views = RemoteViews(context.packageName, R.layout.widget_layout)
             val colorModes = OrbitWidgetFactory.getThemeColorModes(context)
             val density = context.resources.displayMetrics.density
@@ -224,14 +172,6 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             views.setContentDescription(R.id.widget_refresh, refreshDescription)
 
             views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }
-            // The 2x2 drawing keeps the streak numeral and drops its localized unit at 200dp and
-            // below, where the unit would eat the day and progress column. Which variant this is
-            // was decided by sizeKeyedCard; the host picks between them.
-            views.setViewVisibility(
-                R.id.widget_streak_unit,
-                if (showStreakUnit) View.VISIBLE else View.GONE
-            )
-
             if (isSignedOut) {
                 // The drawn signed-out card carries no control at all: its one action is the whole
                 // card, and a refresh that cannot sign anyone in is a control that does not work.
@@ -285,7 +225,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             )
             views.setOnClickPendingIntent(R.id.widget_refresh, refreshPendingIntent)
 
-            return views
+            appWidgetManager.updateAppWidget(appWidgetId, views)
         }
     }
 
@@ -336,9 +276,8 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         newOptions: Bundle
     ) {
         super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
-        // A resize changes which side of the 200dp line this instance is on, and nothing else
-        // re-renders on resize, so the streak unit would keep its old visibility until the next
-        // sync.
+        // A resize changes the background bitmap's pixel dimensions, and nothing else re-renders
+        // on resize, so the card would keep a bitmap cut for the old size.
         updateWidgetLayout(context, appWidgetManager, appWidgetId)
     }
 

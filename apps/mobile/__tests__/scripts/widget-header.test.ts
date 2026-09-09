@@ -150,26 +150,28 @@ describe('Android widget header', () => {
     }
   })
 
-  /** The 2x2 drawing keeps the streak numeral and drops its unit at 200dp and below. */
-  it('lets the host pick the narrow variant instead of guessing the rendered width', () => {
+  /**
+   * The 2x2 drawing drops the streak unit at 200dp and below, and this widget does NOT, on purpose.
+   * A provider cannot read the width it is rendered at: OPTION_APPWIDGET_MIN_WIDTH and MAX_WIDTH are
+   * global extrema across every possible host size, and size-keyed RemoteViews, which would let the
+   * host choose, break `partiallyUpdateAppWidget` because `mergeRemoteViews` does not descend into
+   * sized children, so the post-sync header would go stale on API 31 and later. Ticket #490 carries
+   * both halves and needs a device. Until then the unit stays and ellipsizes, which loses less than
+   * a stale header. This test exists so a fourth attempt is deliberate rather than accidental.
+   */
+  it('decides the streak unit in the layout, never from a width the provider cannot read', () => {
+    const views = layoutViews()
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
 
-    expect(provider).toContain('private const val NARROW_WIDGET_MAX_DP = 200f')
-    expect(provider).toMatch(
-      /SizeF\(MIN_WIDGET_WIDTH_DP, MIN_WIDGET_HEIGHT_DP\) to narrow,\s*SizeF\(NARROW_WIDGET_MAX_DP \+ 1f, MIN_WIDGET_HEIGHT_DP\) to wide/,
-    )
-    expect(provider).toContain('buildCard(context, appWidgetManager, appWidgetId, showStreakUnit = false)')
-    expect(provider).toContain('buildCard(context, appWidgetManager, appWidgetId, showStreakUnit = true)')
-    expect(provider).toMatch(
-      /views\.setViewVisibility\(\s*R\.id\.widget_streak_unit,\s*if \(showStreakUnit\) View\.VISIBLE else View\.GONE\s*\)/,
-    )
-    expect(provider).toContain('if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S)')
-    expect(provider).toContain('override fun onAppWidgetOptionsChanged(')
-    expect(provider).not.toContain('OPTION_APPWIDGET_MIN_WIDTH')
-    expect(provider).not.toContain('fun widestWidthDp(')
-    expect(service).not.toContain('setViewVisibility(R.id.widget_streak_unit')
-    expect(service).not.toContain('streakUnitVisibility')
+    expect(views.get('widget_streak_unit')).toBeDefined()
+    for (const source of [provider, service]) {
+      expect(source).not.toContain('setViewVisibility(R.id.widget_streak_unit')
+      expect(source).not.toContain('OPTION_APPWIDGET_MIN_WIDTH')
+      expect(source).not.toContain('SizeF')
+    }
+    expect(provider).toContain('appWidgetManager.updateAppWidget(appWidgetId, views)')
+    expect(service).toContain('appWidgetManager.partiallyUpdateAppWidget(id, views)')
   })
 
   /**
