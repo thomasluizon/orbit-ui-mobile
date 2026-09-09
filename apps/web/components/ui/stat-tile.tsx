@@ -26,7 +26,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
           className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap"
           title={shownValue}
           style={{
-            color: isEmpty ? 'var(--fg-4)' : 'var(--fg-1)',
+            color: isEmpty ? 'var(--fg-3)' : 'var(--fg-1)',
             fontFamily: isEmpty ? 'var(--font-mono)' : 'var(--font-display)',
             fontSize: isEmpty ? 12 : 24,
             fontWeight: isEmpty ? 500 : 600,

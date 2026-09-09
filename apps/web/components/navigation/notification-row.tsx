@@ -41,7 +41,7 @@ export function NotificationRow({ item, onOpen, onDelete }: Readonly<{
           </span>
           <span className="text-sm text-[var(--fg-2)]" style={{ lineHeight: 1.5, overflowWrap: 'anywhere' }}>{item.body}</span>
           {targetKey && TargetIcon ? <span className="flex items-center gap-2 font-mono text-xs text-[var(--fg-2)]">
-            <TargetIcon size={16} className="text-[var(--fg-4)]" aria-hidden="true" />{t(targetKey)}
+            <TargetIcon size={16} className="text-[var(--fg-3)]" aria-hidden="true" />{t(targetKey)}
           </span> : null}
         </span>
       </button>

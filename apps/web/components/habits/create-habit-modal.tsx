@@ -76,6 +76,7 @@ function hasCreateHabitChanges(
 interface CreateHabitModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  initialTitle?: string
   initialDate?: string | null
   parentHabit?: NormalizedHabit | null
 }
@@ -85,6 +86,7 @@ export function CreateHabitModal({
   open,
   onOpenChange,
   initialDate,
+  initialTitle = '',
   parentHabit,
 }: Readonly<CreateHabitModalProps>) {
   const t = useTranslations()
@@ -167,21 +169,21 @@ export function CreateHabitModal({
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
   }, [])
 
-  const resetOnOpenRef = useRef({ initialDate, parentHabit, activeView, formHelpers, tags })
+  const resetOnOpenRef = useRef({ initialDate, initialTitle, parentHabit, activeView, formHelpers, tags })
   useEffect(() => {
-    resetOnOpenRef.current = { initialDate, parentHabit, activeView, formHelpers, tags }
+    resetOnOpenRef.current = { initialDate, initialTitle, parentHabit, activeView, formHelpers, tags }
   })
 
   useEffect(() => {
     if (!open) return
 
     void Promise.resolve().then(() => {
-      const { initialDate, parentHabit, activeView, formHelpers, tags } = resetOnOpenRef.current
+      const { initialDate, initialTitle, parentHabit, activeView, formHelpers, tags } = resetOnOpenRef.current
       const fallbackDate = initialDate ?? formatAPIDate(new Date())
 
       setReminderWasManuallyToggled(false)
       setExpandAdvancedSignal(0)
-      formHelpers.form.reset(buildEmptyHabitFormValues(fallbackDate))
+      formHelpers.form.reset({ ...buildEmptyHabitFormValues(fallbackDate), title: initialTitle })
       tags.resetTags()
       setSelectedGoalIds([])
       replaceSubHabits([])

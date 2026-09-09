@@ -26,6 +26,7 @@ export function useResolveClarification() {
       if (response.operation.status !== 'Succeeded') return
 
       void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.searches() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.count() })
       void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },

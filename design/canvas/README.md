@@ -10,6 +10,15 @@
 the grant in its D42 paragraph, and `CLAUDE.md` points here. Without that grant a canvas export
 carries nothing, and the eleven in `superseded/` still carry nothing.
 
+**Amendments since the grant, listed so no reader treats the export as byte-identical to it.** An
+amendment lands here and in the shipped tokens together, never in one alone, because a canvas token
+that disagrees with production is a trap rather than an authority.
+
+| date | what changed | why |
+|---|---|---|
+| 2026-09-09 | `--p-hover` dark, alpha `.14` to `.13` | `--fg-3` measured 4.39 on the hovered surface, under the 4.5 text floor. `.13` is the only value that also keeps the hover step above the 1.25:1 minimum. Closed limit 2 in the design-system readme. |
+| 2026-09-09 | `Orbit Avisos`: unread-row body, timestamp and target from `fg-3`/`fg-4` to `fg-2`, and the target icon to `fg-3` | The unread row is a hover CHILD inside a card, so its hover surface composites to `#313133`. There `fg-3` measures 4.03 and `fg-4` 1.98, under the 4.5 text and 3.0 graphic floors. `fg-2` measures 7.86. Both platforms already shipped `fg-2` text; the drawing had not moved with them. |
+
 **Precedence is a ladder, defined in `DESIGN.md` D42.** `## Information architecture` outranks every
 drawing on whether a surface should exist. `## Bans` outranks every drawing, so a granted export
 never authorises a banned value. **Below those two the drawing wins**, over `DESIGN.md` prose, a

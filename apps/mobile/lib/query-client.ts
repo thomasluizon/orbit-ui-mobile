@@ -1,4 +1,5 @@
 import { extractBackendStatus } from '@orbit/shared/utils'
+import { habitKeys } from '@orbit/shared/query'
 import { QueryClient, focusManager, onlineManager } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppState, type AppStateStatus } from 'react-native'
@@ -73,7 +74,12 @@ export async function setQueryCacheScope(userId: string | null): Promise<void> {
   } catch {}
 }
 
-export async function persistQueryCache(): Promise<void> {
+export async function persistQueryCache({ discardHabitSearches = false } = {}): Promise<void> {
+  if (discardHabitSearches) {
+    const filters = { queryKey: habitKeys.searches() }
+    for (const query of queryClient.getQueryCache().findAll(filters)) query.reset()
+    queryClient.removeQueries(filters)
+  }
   const key = getCacheKey()
   if (!key) return
   try {

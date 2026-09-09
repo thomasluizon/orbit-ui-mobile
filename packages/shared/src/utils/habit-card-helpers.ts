@@ -11,9 +11,7 @@ export type HabitCardTranslationAdapter = (
   params?: Record<string, string | number | Date>,
 ) => string
 
-export interface HabitCardMatchBadge {
-  label: string
-}
+export type HabitCardMatchBadge = NonNullable<NormalizedHabit['searchMatches']>[number]
 
 function plural(text: string, count: number): string {
   if (!text.includes(' | ')) return text
@@ -27,10 +25,6 @@ function plural(text: string, count: number): string {
     return forms[2] ?? text
   }
   return text
-}
-
-function truncate(value: string, max = 20): string {
-  return value.length > max ? `${value.slice(0, max)}...` : value
 }
 
 export function computeHabitCardStatus(
@@ -156,19 +150,7 @@ export function computeHabitFlexibleProgressLabel(
 export function computeHabitMatchBadges(
   searchQuery: string,
   habit: Pick<NormalizedHabit, 'searchMatches'>,
-  t: HabitCardTranslationAdapter,
 ): HabitCardMatchBadge[] {
   if (!searchQuery || !habit.searchMatches) return []
-  return habit.searchMatches.flatMap((match) => {
-    if (match.field === 'title') {
-      return []
-    }
-    if (match.field === 'tag') {
-      return [{ label: t('habits.search.matchTag', { value: truncate(match.value ?? '') }) }]
-    }
-    if (match.field === 'child') {
-      return [{ label: t('habits.search.matchChild', { value: truncate(match.value ?? '') }) }]
-    }
-    return [{ label: t('habits.search.matchDescription') }]
-  })
+  return habit.searchMatches.map(({ field, value }) => ({ field, value }))
 }

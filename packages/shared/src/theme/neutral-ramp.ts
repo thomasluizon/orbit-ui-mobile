@@ -29,7 +29,7 @@ export const neutralColors: Record<SchemeMode, NeutralColors> = {
     bgWell: 'rgba(250,250,250,0.08)',
     bgElev: '#1C1C1E',
     bgElev2: 'rgba(250,250,250,0.12)',
-    bgHover: 'rgba(250,250,250,0.14)',
+    bgHover: 'rgba(250,250,250,0.13)',
     bgSunk: 'rgba(0,0,0,0.28)',
     hairline: 'rgba(255,255,255,0.08)',
     borderControl: 'rgba(255,255,255,0.08)',

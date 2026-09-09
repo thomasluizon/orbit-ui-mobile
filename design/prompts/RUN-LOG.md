@@ -179,7 +179,7 @@ Opus 5 entry in its picker and the only alternative is Fable 5.
 
 ### Measured and left open, because each one is Thomas's call
 
-The full table is in `DESIGN.md` under `### Measured contrast, and three limits that are open`.
+The full table is in `DESIGN.md` under `### Measured contrast, and two limits that are open`.
 `--primary-soft` was closed by scoping it to the canvas rather than by changing the colour. The other
 three trade against rules Thomas set: fixing the hovered-row miss moves the surface ladder, and
 fixing the empty ring collapses the four-step neutral status ranking to three.

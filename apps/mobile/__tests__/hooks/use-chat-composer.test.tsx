@@ -1220,6 +1220,8 @@ describe('mobile useChatComposer', () => {
 
     composer.current.handleBreakdownConfirmed()
 
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.searches() })
+
     expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.lists(),
     })
