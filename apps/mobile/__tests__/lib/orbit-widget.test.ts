@@ -112,7 +112,16 @@ describe('toWidgetColors', () => {
     )
   })
 
-  it('keeps the streak numeral on fg-1 while the flame retains the primary graphic role', () => {
+  /**
+   * Stage 2 replaces stage 1's flame bitmap with the figure the canvas actually draws.
+   *
+   * `design/canvas/Orbit Widget Android.dc.html` renders the streak as a 15sp 600-weight span in
+   * `c.primary` followed by an 11sp `c.fg3` unit, baseline aligned with a 3px gap, and there is no
+   * flame anywhere in it. Its own note reserves the accent for "one use only: the streak figure", so a
+   * primary-tinted flame graphic would be a second use of it. Under D42 the drawing outranks
+   * DESIGN.md prose, so this asserts the drawing.
+   */
+  it('paints the streak figure in the accent and its unit in fg-3, with no flame graphic', () => {
     const widgetProviderSource = readWidgetSource(
       'java/org/useorbit/app/widget/OrbitWidgetProvider.kt',
     )
@@ -123,25 +132,23 @@ describe('toWidgetColors', () => {
     const lightResources = readWidgetSource('res/values/widget_colors.xml')
     const darkResources = readWidgetSource('res/values-night/widget_colors.xml')
 
-    expect(widgetProviderSource).toContain(
-      'createFlameBitmap(density, colorModes.light.streak)',
-    )
-    expect(widgetServiceSource).toContain(
-      'createFlameBitmap(density, colorModes.light.streak)',
-    )
-    expect(widgetProviderSource).toContain(
-      'setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streakText }',
-    )
-    expect(widgetServiceSource).toContain(
-      'setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streakText }',
-    )
-    expect(widgetLayout).toContain('android:textColor="@color/widget_streak_text"')
-    expect(lightResources).toContain(
-      '<color name="widget_streak_text">#1A1A1D</color>',
-    )
-    expect(darkResources).toContain(
-      '<color name="widget_streak_text">#F4F4F6</color>',
-    )
+    for (const source of [widgetProviderSource, widgetServiceSource]) {
+      expect(source).toContain(
+        'setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }',
+      )
+      expect(source).toContain(
+        'setModeAwareColor(R.id.widget_streak_unit, "setTextColor", colorModes) { it.textMuted }',
+      )
+      expect(source).not.toContain('createFlameBitmap')
+      expect(source).not.toContain('widget_flame')
+    }
+
+    expect(widgetLayout).toContain('android:textColor="@color/widget_primary"')
+    expect(widgetLayout).toContain('android:textColor="@color/widget_fg_3"')
+    expect(widgetLayout).not.toContain('widget_flame')
+
+    expect(lightResources).toContain('<color name="widget_primary">#C4530F</color>')
+    expect(darkResources).toContain('<color name="widget_primary">#C4530F</color>')
   })
 
   it('carries both night modes through the full widget layout and collection rows', () => {

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="widget_description">Veja seus hábitos de hoje</string>
+  <string name="widget_today">Hoje</string>
+  <string name="widget_tomorrow">Amanhã</string>
+  <string name="widget_of">de</string>
+  <string name="widget_completed">concluídos</string>
+  <string name="widget_streak_unit">dias</string>
+  <string name="widget_all_clear">Tudo feito</string>
+  <string name="widget_sign_in">Abra o Orbit para entrar</string>
+  <string name="widget_refresh">Atualizar</string>
+</resources>

@@ -3,12 +3,11 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Path
-import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.Icon
 import android.os.Build
@@ -64,6 +63,94 @@ data class HabitWidgetResponse(
     val items: List<ApiHabit>?,
     val totalCount: Int?
 )
+
+internal enum class WidgetString(val resourceId: Int) {
+    TODAY(R.string.widget_today),
+    TOMORROW(R.string.widget_tomorrow),
+    OF(R.string.widget_of),
+    COMPLETED(R.string.widget_completed),
+    ALL_CLEAR(R.string.widget_all_clear),
+    SIGN_IN(R.string.widget_sign_in),
+    STREAK_UNIT(R.string.widget_streak_unit),
+    REFRESH(R.string.widget_refresh)
+}
+
+internal data class WidgetDayState(
+    val habits: List<HabitItem>,
+    val completedCount: Int,
+    val totalCount: Int,
+    val isTomorrow: Boolean
+)
+
+internal fun prepareWidgetDay(apiHabits: List<ApiHabit>, dayOffset: Int): WidgetDayState {
+    val isTomorrow = dayOffset == 1
+    val habits = flattenHabits(apiHabits, isTomorrow)
+    var totalCount = 0
+    var completedCount = 0
+
+    for (habit in habits.filter { it.depth == 0 }) {
+        if (habit.hasChildren) {
+            totalCount += habit.childrenTotal
+            completedCount += habit.childrenDone
+        } else if (!habit.isBadHabit) {
+            totalCount += 1
+            if (habit.isCompleted) completedCount += 1
+        }
+    }
+
+    return WidgetDayState(habits, completedCount, totalCount, isTomorrow)
+}
+
+private fun flattenHabits(apiHabits: List<ApiHabit>, isTomorrow: Boolean): List<HabitItem> {
+    val result = mutableListOf<HabitItem>()
+    for (habit in apiHabits) {
+        val children = habit.children ?: emptyList()
+        val countingChildren = children.filter { !it.isBadHabit }
+        val allChildrenDone = !isTomorrow && countingChildren.isNotEmpty() &&
+            countingChildren.all { it.isCompleted }
+        val done = !isTomorrow && (habit.isCompleted || allChildrenDone)
+        val childrenDone = if (isTomorrow) 0 else countingChildren.count { it.isCompleted }
+        result.add(
+            HabitItem(
+                id = habit.id,
+                title = habit.title,
+                isCompleted = done,
+                isOverdue = !isTomorrow && !done && habit.isOverdue,
+                dueTime = habit.dueTime,
+                checklistChecked = habit.checklistChecked ?: 0,
+                checklistTotal = habit.checklistTotal ?: 0,
+                isBadHabit = habit.isBadHabit,
+                depth = 0,
+                hasChildren = children.isNotEmpty(),
+                childrenDone = childrenDone,
+                childrenTotal = countingChildren.size,
+                hasDeeper = false
+            )
+        )
+        for (child in children) {
+            val hasDeeper = (child.children?.isNotEmpty() == true) || (child.hasSubHabits == true)
+            val childDone = !isTomorrow && child.isCompleted
+            result.add(
+                HabitItem(
+                    id = child.id,
+                    title = child.title,
+                    isCompleted = childDone,
+                    isOverdue = !isTomorrow && !childDone && child.isOverdue,
+                    dueTime = child.dueTime,
+                    checklistChecked = child.checklistChecked ?: 0,
+                    checklistTotal = child.checklistTotal ?: 0,
+                    isBadHabit = child.isBadHabit,
+                    depth = 1,
+                    hasChildren = false,
+                    childrenDone = 0,
+                    childrenTotal = 0,
+                    hasDeeper = hasDeeper
+                )
+            )
+        }
+    }
+    return result
+}
 
 /** Resolved granted token colors for the active scheme + mode, synced from JS. */
 data class WidgetColors(
@@ -135,30 +222,12 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         /** WHY: --bg is the terminal fallback when a synced value is malformed. */
         private const val SAFE_FALLBACK = 0xFF09090B.toInt()
 
-        // i18n strings
-        private val STRINGS = mapOf(
-            "en" to mapOf(
-                "today" to "Today",
-                "tomorrow" to "Tomorrow",
-                "habits" to "habits",
-                "of" to "of",
-                "completed" to "completed",
-                "allClear" to "All clear!",
-                "signIn" to "Open Orbit to sign in"
-            ),
-            "pt-BR" to mapOf(
-                "today" to "Hoje",
-                "tomorrow" to "Amanh\u00e3",
-                "habits" to "h\u00e1bitos",
-                "of" to "de",
-                "completed" to "conclu\u00eddos",
-                "allClear" to "Tudo feito!",
-                "signIn" to "Abra o Orbit para entrar"
-            )
-        )
-
-        fun tr(lang: String, key: String): String {
-            return STRINGS[lang]?.get(key) ?: STRINGS["en"]?.get(key) ?: key
+        internal fun tr(context: Context, lang: String, string: WidgetString): String {
+            val localeTag = if (lang.startsWith("pt", ignoreCase = true)) "pt-BR" else "en"
+            val configuration = Configuration(context.resources.configuration).apply {
+                setLocale(Locale.forLanguageTag(localeTag))
+            }
+            return context.createConfigurationContext(configuration).getString(string.resourceId)
         }
 
         private fun fallbackColors(mode: String): Map<String, String> =
@@ -298,32 +367,6 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             return bitmap
         }
 
-        /** Create flame icon bitmap tinted with the streak token (flat, single tone). */
-        fun createFlameBitmap(density: Float, streakColor: Int): Bitmap {
-            val w = (14 * density).toInt().coerceAtLeast(1)
-            val h = (16 * density).toInt().coerceAtLeast(1)
-            val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(bitmap)
-            val sx = w / 16f
-            val sy = h / 20f
-            canvas.scale(sx, sy)
-
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = streakColor
-                style = Paint.Style.FILL
-            }
-
-            val outer = Path().apply {
-                moveTo(8f, 0f)
-                cubicTo(8f, 0f, 2f, 6.5f, 2f, 12f)
-                arcTo(RectF(2f, 6f, 14f, 18f), 180f, -180f, false)
-                cubicTo(14f, 6.5f, 8f, 0f, 8f, 0f)
-                close()
-            }
-            canvas.drawPath(outer, paint)
-
-            return bitmap
-        }
     }
 
     override fun onCreate() {}
@@ -350,10 +393,10 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
      * loading skeleton stays up (signed in, no data yet) so the widget never paints
      * blank; with false it yields to the empty/sign-in view (signed out).
      */
-    private fun renderPlaceholder(showSkeleton: Boolean) {
+    private fun renderPlaceholder(showSkeleton: Boolean, signedOut: Boolean) {
         habits = emptyList()
         lang = detectLanguage(null)
-        headerLabel = tr(lang, "today")
+        headerLabel = tr(context, lang, WidgetString.TODAY)
 
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
         prefs.edit()
@@ -365,12 +408,18 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             .apply()
 
         updateWidgets { views ->
-            views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
-            views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)
-            views.setViewVisibility(
-                R.id.widget_loading,
-                if (showSkeleton) android.view.View.VISIBLE else android.view.View.GONE
-            )
+            if (signedOut) {
+                // The WHOLE card, not just its controls: a stale load can have left a signed-in
+                // header, subtitle and streak behind, and hiding the refresh alone would leave
+                // those on screen.
+                OrbitWidgetProvider.applySignedOutCard(context, views)
+            } else {
+                OrbitWidgetProvider.showRefresh(views)
+                views.setViewVisibility(
+                    R.id.widget_loading,
+                    if (showSkeleton) android.view.View.VISIBLE else android.view.View.GONE
+                )
+            }
         }
     }
 
@@ -379,9 +428,13 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             loadWidgetData()
         } catch (_: Exception) {
             runCatching {
+                val signedOut = OrbitWidgetProvider.isSignedOut(context)
                 updateWidgets { views ->
-                    views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
-                    views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)
+                    if (signedOut) {
+                        OrbitWidgetProvider.hideRefresh(views)
+                    } else {
+                        OrbitWidgetProvider.showRefresh(views)
+                    }
                 }
             }
         }
@@ -391,68 +444,89 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         colorModes = getThemeColorModes(context)
         val token = OrbitWidgetModule.getToken(context)
         if (token == null) {
-            renderPlaceholder(showSkeleton = false)
+            renderPlaceholder(showSkeleton = false, signedOut = true)
             return
         }
 
         val widgetData = resolveWidgetData(token)
+
+        // resolveWidgetData can block for seconds, and everything below repopulates the cache and
+        // the signed-in header, so a load must prove it still owns the session before it lands.
+        // The three ways it can stop owning it are NOT the same:
+        //
+        //  - the token is gone: a sign-out happened, and a load started under the old session would
+        //    put a logged-out person's habits back on their home screen. The sign-out wins.
+        //  - a DIFFERENT ACCOUNT is signed in: returning here would leave `habits` holding the rows
+        //    the previous load put there, and getViewAt would keep serving one account's habits to
+        //    the next one until their own load finished. Clearing the list is the point; the
+        //    skeleton is what their own load replaces.
+        //  - the token changed but names the SAME account: an access-token rotation, and the person
+        //    is still signed in. auth-store.ts calls saveWidgetToken after every refresh, and
+        //    OrbitWidgetModule.saveToken refreshes the widgets, so a NEWER load already owns the
+        //    render. This one drops silently rather than blanking a signed-in widget, and it must
+        //    keep the rows on screen because they are still that person's rows.
+        val currentToken = OrbitWidgetModule.getToken(context)
+        if (currentToken == null) {
+            renderPlaceholder(showSkeleton = false, signedOut = true)
+            return
+        }
+        if (OrbitWidgetModule.sessionKey(currentToken) != OrbitWidgetModule.sessionKey(token)) {
+            renderPlaceholder(showSkeleton = true, signedOut = false)
+            return
+        }
+        if (currentToken != token) {
+            return
+        }
+        // The cache is account-scoped, so even a write that landed before this check is unreadable
+        // by another account. These returns only avoid rendering a result somebody else supersedes.
+
         if (widgetData == null) {
-            renderPlaceholder(showSkeleton = true)
+            renderPlaceholder(showSkeleton = true, signedOut = false)
             return
         }
 
         lang = detectLanguage(widgetData.language)
         val streak = widgetData.currentStreak ?: 0
-        habits = flattenHabits(widgetData.items ?: emptyList())
-        headerLabel = if (widgetData.dayOffset == 1 && habits.isNotEmpty()) {
-            tr(lang, "tomorrow")
+        val dayState = prepareWidgetDay(widgetData.items ?: emptyList(), widgetData.dayOffset)
+        habits = dayState.habits
+        headerLabel = if (dayState.isTomorrow) {
+            tr(context, lang, WidgetString.TOMORROW)
         } else {
-            tr(lang, "today")
+            tr(context, lang, WidgetString.TODAY)
         }
-
-        // Count each sub-habit as its own item so the total matches the Today list.
-        // Bad (avoid) habits never count toward progress: a slip is not a completion.
-        var totalCount = 0
-        var completedCount = 0
-        for (habit in habits.filter { it.depth == 0 }) {
-            if (habit.hasChildren) {
-                totalCount += habit.childrenTotal
-                completedCount += habit.childrenDone
-            } else if (!habit.isBadHabit) {
-                totalCount += 1
-                if (habit.isCompleted) completedCount += 1
-            }
-        }
-        val subtitleText = "$completedCount ${tr(lang, "of")} $totalCount ${tr(lang, "completed")}"
+        val subtitleText = "${dayState.completedCount} " +
+            "${tr(context, lang, WidgetString.OF)} ${dayState.totalCount} " +
+            tr(context, lang, WidgetString.COMPLETED)
 
         // Cache header info for the provider to read
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
         prefs.edit()
             .putString("header_label", headerLabel)
-            .putInt("habit_count", totalCount)
-            .putInt("completed_count", completedCount)
+            .putInt("habit_count", dayState.totalCount)
+            .putInt("completed_count", dayState.completedCount)
             .putInt("user_streak", streak)
             .putString("lang", lang)
             .apply()
 
         val colorModes = getThemeColorModes(context)
-        val density = context.resources.displayMetrics.density
         val streakVisible = if (streak > 0) android.view.View.VISIBLE else android.view.View.GONE
-        val lightFlame = createFlameBitmap(density, colorModes.light.streak)
-        val darkFlame = createFlameBitmap(density, colorModes.dark.streak)
+        val refreshDescription = tr(context, lang, WidgetString.REFRESH)
         updateWidgets { views ->
             views.setTextViewText(R.id.widget_header, headerLabel)
-            views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textPrimary }
+            views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textMuted }
             views.setTextViewText(R.id.widget_subtitle, subtitleText)
             views.setModeAwareColor(R.id.widget_subtitle, "setTextColor", colorModes) { it.textMuted }
             views.setTextViewText(R.id.widget_streak, "$streak")
-            views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streakText }
-            views.setModeAwareBitmap(R.id.widget_flame, lightFlame, darkFlame)
-            views.setViewVisibility(R.id.widget_flame, streakVisible)
-            views.setViewVisibility(R.id.widget_streak, streakVisible)
+            views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }
+            views.setTextViewText(
+                R.id.widget_streak_unit,
+                tr(context, lang, WidgetString.STREAK_UNIT)
+            )
+            views.setModeAwareColor(R.id.widget_streak_unit, "setTextColor", colorModes) { it.textMuted }
+            views.setViewVisibility(R.id.widget_streak_group, streakVisible)
+            views.setContentDescription(R.id.widget_refresh, refreshDescription)
             // Restore refresh button, hide loading spinner and skeleton
-            views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
-            views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)
+            OrbitWidgetProvider.showRefresh(views)
             views.setViewVisibility(R.id.widget_loading, android.view.View.GONE)
         }
     }
@@ -472,14 +546,34 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     }
 
     /**
-     * Returns parsed widget data, preferring a recent app-pushed cache, then a
-     * live fetch, then the last cached payload. Only the network fetch can fail,
-     * so a blip or a blocked binder-thread request degrades to stale data instead
-     * of a blank list. A successful fetch is cached for the next cold start.
+     * Returns parsed widget data, preferring a recent app-pushed cache, then a live fetch, then the
+     * last cached payload. Only the network fetch can fail, so a blip or a blocked binder-thread
+     * request degrades to stale data instead of a blank list. A successful fetch is cached for the
+     * next cold start.
+     *
+     * The payload cache belongs to ONE session and says so.
+     *
+     * Without that, a fetch still in flight at logout writes its response back after the cache is
+     * cleared, and the next account to sign in reads it as fresh and renders another person's
+     * habits without ever making a request under its own token. Ordering the write against the
+     * logout does not fix it either: `onDataSetChanged` is synchronized, so the replacement
+     * callback simply runs after the old one has already landed.
+     *
+     * So ownership is recorded rather than inferred. A payload is only readable by the account that
+     * produced it, whatever order the callbacks finish in. The key names the ACCOUNT rather than the
+     * access token, so a silent refresh keeps the cache it just filled.
+     *
+     * `OrbitWidgetModule.syncWidgetData` tags its app-pushed payload with the same key, so the two
+     * writers stay readable by one account and a fresh sign-in keeps the data the app already has.
      */
     private fun resolveWidgetData(token: String): HabitWidgetResponse? {
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-        val cachedData = parseWidgetResponse(prefs.getString("habits_json", null))
+        val session = OrbitWidgetModule.sessionKey(token)
+        val cachedData = if (prefs.getString("habits_session", null) == session) {
+            parseWidgetResponse(prefs.getString("habits_json", null))
+        } else {
+            null
+        }
         val cacheAge = System.currentTimeMillis() - prefs.getLong("habits_updated_at", 0L)
         if (cachedData != null && cacheAge in 0L..FRESH_WINDOW_MS) {
             return cachedData
@@ -490,6 +584,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         if (freshData != null && freshJson != null) {
             prefs.edit()
                 .putString("habits_json", freshJson)
+                .putString("habits_session", session)
                 .putLong("habits_updated_at", System.currentTimeMillis())
                 .apply()
             return freshData
@@ -532,63 +627,6 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             Log.w(TAG, "widget fetch error: ${e.javaClass.simpleName}: ${e.message}")
             null
         }
-    }
-
-    /** The widget endpoint precomputes completion for the selected day. */
-    private fun isDoneForRange(habit: ApiHabit): Boolean {
-        return habit.isCompleted
-    }
-
-    private fun flattenHabits(apiHabits: List<ApiHabit>): List<HabitItem> {
-        val result = mutableListOf<HabitItem>()
-        for (habit in apiHabits) {
-            val children = habit.children ?: emptyList()
-            // Bad (avoid) sub-habits never count toward the parent's progress badge
-            // or auto-completion: a slip is not a completion.
-            val countingChildren = children.filter { !it.isBadHabit }
-            val allChildrenDone = countingChildren.isNotEmpty() && countingChildren.all { isDoneForRange(it) }
-            val done = isDoneForRange(habit) || allChildrenDone
-            val childrenDone = countingChildren.count { isDoneForRange(it) }
-            result.add(
-                HabitItem(
-                    id = habit.id,
-                    title = habit.title,
-                    isCompleted = done,
-                    isOverdue = if (done) false else habit.isOverdue,
-                    dueTime = habit.dueTime,
-                    checklistChecked = habit.checklistChecked ?: 0,
-                    checklistTotal = habit.checklistTotal ?: 0,
-                    isBadHabit = habit.isBadHabit,
-                    depth = 0,
-                    hasChildren = children.isNotEmpty(),
-                    childrenDone = childrenDone,
-                    childrenTotal = countingChildren.size,
-                    hasDeeper = false
-                )
-            )
-            for (child in children) {
-                val hasDeeper = (child.children?.isNotEmpty() == true) || (child.hasSubHabits == true)
-                val childDone = isDoneForRange(child)
-                result.add(
-                    HabitItem(
-                        id = child.id,
-                        title = child.title,
-                        isCompleted = childDone,
-                        isOverdue = if (childDone) false else child.isOverdue,
-                        dueTime = child.dueTime,
-                        checklistChecked = child.checklistChecked ?: 0,
-                        checklistTotal = child.checklistTotal ?: 0,
-                        isBadHabit = child.isBadHabit,
-                        depth = 1,
-                        hasChildren = false,
-                        childrenDone = 0,
-                        childrenTotal = 0,
-                        hasDeeper = hasDeeper
-                    )
-                )
-            }
-        }
-        return result
     }
 
     override fun onDestroy() {

@@ -250,7 +250,10 @@ class Component extends DCLogic {
           overflow: 'hidden', textOverflow: 'ellipsis' } }, o.title || t.today),
         /* The subtitle (OrbitWidgetProvider.kt:102-107): the only progress figure on the surface,
            EMPTY until the widget has synced at least once (:104). */
-        o.sub ? H('span', { style: { fontFamily: SYS, fontSize: 11, lineHeight: 1.3, color: c.fg4,
+        /* Amended 2026-09-09: drawn in fg-4, shipped in fg-3. fg-4 measures 2.83 dark and 3.48
+           light as 11sp text, both under the 4.5 floor, so the step down from the day label is
+           carried by size and weight instead of by a second neutral. */
+        o.sub ? H('span', { style: { fontFamily: SYS, fontSize: 11, lineHeight: 1.3, color: c.fg3,
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, o.sub) : null),
       /* The streak hides at zero rather than rendering a nought. */
       o.streak ? H('span', { style: { flex: '0 0 auto', display: 'flex', alignItems: 'baseline', gap: 3 } },

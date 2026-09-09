@@ -19,13 +19,17 @@ class OrbitWidgetRefreshTimeoutWorker(
         )
 
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-        val isSignedOut = OrbitWidgetModule.getToken(context) == null
+        val isSignedOut = OrbitWidgetProvider.isSignedOut(context)
         val showSkeleton = !isSignedOut && prefs.getLong("habits_updated_at", 0L) <= 0L
 
         for (id in appWidgetIds) {
             val views = RemoteViews(context.packageName, R.layout.widget_layout)
-            views.setViewVisibility(R.id.widget_refresh, View.VISIBLE)
-            views.setViewVisibility(R.id.widget_refresh_loading, View.GONE)
+            // A timeout must not resurrect a control the signed-out card does not have.
+            if (isSignedOut) {
+                OrbitWidgetProvider.hideRefresh(views)
+            } else {
+                OrbitWidgetProvider.showRefresh(views)
+            }
             views.setViewVisibility(
                 R.id.widget_loading,
                 if (showSkeleton) View.VISIBLE else View.GONE
