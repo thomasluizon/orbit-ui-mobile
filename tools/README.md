@@ -67,7 +67,7 @@ These back required CI checks. They fail a merge.
 
 | Tool | What it does | Usage |
 |---|---|---|
-| `arch-map.mjs` | Generates `architecture.json` and `architecture.html`, what an agent reads INSTEAD of exploring the codebase. Kept current by `arch-map.yml` in both repos; without that workflow it rots silently. | `node tools/arch-map.mjs` |
+| `arch-map.mjs` | Generates `architecture.json`, `architecture.html` and the `architecture.mmd` diagram: what an agent reads INSTEAD of exploring the codebase. None of the three is committed (#470), so run it before reading one. `architecture.json` opens with a `provenance` block hashing its input set. `arch-map.yml` proves the generator runs and is deterministic, and publishes the three as a build artifact. | `node tools/arch-map.mjs` |
 | `surface-manifest.mjs` | Derives the visual-surface inventory into `.claude/manifests/surfaces.json`, one cell per surface x theme x locale. Emits no status field on purpose. | `npm run surfaces:manifest` |
 | `redesign-coverage.mjs` | Validates the committed one-to-one mapping from every manifest surface to its redesign group or written exclusion, then prints the exact R-group lists cited by the redesign tickets. | `node tools/redesign-coverage.mjs` (`--json`) |
 | `orca-web-port.mjs` | Assigns a deterministic web port in the 3100-4099 window per Orca worktree and records it in the ignored `.orca/web-port`. Root stays on 3000; the database and API stay shared on 5432 and 5000. | `node tools/orca-web-port.mjs` (`--setup`) |

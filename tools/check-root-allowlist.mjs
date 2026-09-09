@@ -10,12 +10,19 @@
  * Both halves are closed on purpose. Gating files alone left the same scratch one level down, so
  * `.artifacts/transcript.mjs` walked past a gate written to stop exactly that.
  *
- * Two classes of declared entry are not committed content and are declared anyway, because they
+ * Three classes of declared entry are not committed content and are declared anyway, because they
  * legitimately appear on a real checkout and a gate that fires on them would block every commit:
  *   - generated directories (`node_modules`, `.turbo`), observed after an install and a test run
  *   - local environment files (`.env`, `.env.local`), which `.gitignore` already blesses at the root
+ *   - runtime state written by a tool that runs here (`.orca`, `.lighthouseci`, `.maestro`)
  * Any further local variant (`.env.production.local`) is a deliberate one-line addition here. That
  * friction is the feature: a new root entry is a real architectural addition and should not be silent.
+ *
+ * Declaring the third class is why this gate does NOT filter the root listing through
+ * `git check-ignore` (thomasluizon/orbit-tickets#256). Every scratch entry the closed set exists to
+ * catch is gitignored too: `.tmp-extract.mjs` and `.agent-scratch-extract.mjs` both match a
+ * `.gitignore` pattern, so skipping ignored entries would delete the gate's own reason to exist.
+ * A tool's runtime directory earns an allowlist line, not an exemption class nobody can see.
  */
 
 import { readdirSync, readFileSync } from "node:fs"
