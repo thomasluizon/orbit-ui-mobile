@@ -265,6 +265,33 @@ describe('Android widget header', () => {
   })
 
   /**
+   * Ownership belongs to the session that FETCHED the payload, never to whichever token happens to
+   * be current when the bridge call lands. A sign-out, an account switch or a token rotation can
+   * complete while the app's request is in flight, and labelling that response with the current
+   * token would put one account's habits on the next account's home screen: the exact leak the
+   * session tag exists to close. So the caller hands its token across the bridge, the writer tags
+   * from that token, and a payload whose owner is no longer signed in is dropped rather than
+   * relabelled. The TypeScript side is held by the two-argument module type, which `type-check`
+   * gates, and `lib/orbit-widget.ts` passes the token it read before the fetch.
+   */
+  it('takes cache ownership from the caller, not from the token current at write time', () => {
+    const widgetModule = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetModule.kt'), 'utf8')
+
+    expect(widgetModule).toMatch(
+      /AsyncFunction\("syncWidgetData"\) \{ json: String, token: String ->/,
+    )
+    expect(widgetModule).toMatch(
+      /if \(getToken\(context\) == token\) \{\s*context\.getSharedPreferences\(CACHE_PREFS_NAME, Context\.MODE_PRIVATE\)\s*\.edit\(\)\s*\.putString\("habits_json", json\)\s*\.putString\("habits_session", sessionKey\(token\)\)/,
+    )
+
+    const caller = readFileSync(resolve(process.cwd(), 'lib/orbit-widget.ts'), 'utf8')
+    const sync = caller.slice(caller.indexOf('export async function syncWidgetData'))
+
+    expect(sync).toContain('const token = await getToken()')
+    expect(sync).toContain('await widgetModule.syncWidgetData(JSON.stringify(data), token)')
+  })
+
+  /**
    * The reader accepts a payload only when `habits_session` names the current token, so a writer
    * that omits the tag writes a cache nothing can read: the widget discards habits the app already
    * fetched, repeats the request natively, and keeps no fallback when that request fails. The

@@ -92,6 +92,10 @@ export async function syncWidgetTheme(colorScheme: ColorScheme): Promise<void> {
  * them into the native widget cache, so the home-screen widget renders from
  * app-fed data instead of relying on its own background network fetch. No-ops
  * when signed out or off Android.
+ *
+ * The token that authorised the fetch is handed to the native writer, which tags the payload with
+ * it. A sign-out or an account switch can land while the request is in flight, and the widget must
+ * never read one account's habits back under another account's session.
  */
 export async function syncWidgetData(): Promise<void> {
   const widgetModule = getOrbitWidgetModule()
@@ -106,6 +110,6 @@ export async function syncWidgetData(): Promise<void> {
 
   const { apiClient } = await import('./api-client')
   const data = await apiClient<unknown>(API.habits.widget)
-  await widgetModule.syncWidgetData(JSON.stringify(data))
+  await widgetModule.syncWidgetData(JSON.stringify(data), token)
   await refreshPersistentReminder(data)
 }

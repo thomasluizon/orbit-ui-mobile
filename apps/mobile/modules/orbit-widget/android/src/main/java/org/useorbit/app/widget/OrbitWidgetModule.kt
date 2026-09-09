@@ -118,14 +118,19 @@ class OrbitWidgetModule : Module() {
       refreshWidgets(context)
     }
 
-    AsyncFunction("syncWidgetData") { json: String ->
+    AsyncFunction("syncWidgetData") { json: String, token: String ->
       val context = moduleContext()
       // The payload carries the session that produced it, exactly like the native fetch does.
       // Without the tag the widget cannot read this cache back, so it discards data the app has
       // already fetched, repeats the request natively, and keeps no fallback when that request
-      // fails. A payload pushed with no token belongs to no session, so it is not written at all.
-      val token = getToken(context)
-      if (token != null) {
+      // fails.
+      //
+      // OWNERSHIP COMES FROM THE CALLER, never from whichever token is current when this bridge
+      // call runs. The app fetched under `token`, and a sign-out, an account switch or a rotation
+      // can land while that request is in flight. Reading the current token here would label one
+      // account's habits with the next account's session and put them on their home screen. So a
+      // payload whose owner is no longer signed in is dropped rather than written or relabelled.
+      if (getToken(context) == token) {
         context.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE)
           .edit()
           .putString("habits_json", json)
