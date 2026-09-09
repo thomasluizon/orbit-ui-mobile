@@ -173,26 +173,6 @@
       "count": 3
     }
   },
-  "components/gamification/all-done-celebration.tsx": {
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    }
-  },
-  "components/gamification/goal-completed-celebration.tsx": {
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    }
-  },
-  "components/gamification/level-up-overlay.tsx": {
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    }
-  },
-  "components/gamification/streak-celebration.tsx": {
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    }
-  },
   "components/goal-card.tsx": {
     "local/spacing-scale": {
       "count": 3

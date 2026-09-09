@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
+import { isStreakCelebrationMilestone } from '@orbit/shared/stores'
 import {
   applyLinkedGoalUpdates,
   appendHabitDetailChild,
@@ -178,8 +179,13 @@ export function useLogHabit() {
        */
       const countsTowardStreak = loggedHabit !== null && !loggedHabit.isBadHabit
 
-      if (countsTowardStreak && response.isFirstCompletionToday && response.currentStreak > 0) {
+      const startsStreak = countsTowardStreak
+        && response.isFirstCompletionToday
+        && response.currentStreak > 0
+      if (startsStreak && isStreakCelebrationMilestone(response.currentStreak)) {
         setStreakCelebration({ streak: response.currentStreak })
+      }
+      if (startsStreak) {
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, currentStreak: response.currentStreak } : old,
         )

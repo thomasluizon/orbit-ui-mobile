@@ -1153,7 +1153,7 @@ describe('mobile habit hooks', () => {
 
     mutation.onSuccess?.(response, { habitId: 'habit-1', intent: 'log' }, undefined)
 
-    expect(mocks.setStreakCelebration).toHaveBeenCalledWith({ streak: 3 })
+    expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
     const profile = mocks.queryClient.getQueryData(profileKeys.detail()) as { currentStreak: number }
     expect(profile.currentStreak).toBe(3)
     const goal = (mocks.queryClient.getQueryData(goalKeys.lists()) as Goal[])[0]
@@ -1223,7 +1223,7 @@ describe('mobile habit hooks', () => {
     const response: LogHabitResponse = {
       logId: 'log-streak',
       isFirstCompletionToday: true,
-      currentStreak: 3,
+      currentStreak: 7,
       xpEarned: 0,
     }
 
@@ -1317,18 +1317,18 @@ describe('mobile habit hooks', () => {
     const response: LogHabitResponse = {
       logId: 'log-streak',
       isFirstCompletionToday,
-      currentStreak: 3,
+      currentStreak: 7,
     }
 
     mutation.onSuccess?.(response, { habitId, intent: 'log' }, undefined)
 
     if (celebrates) {
-      expect(mocks.setStreakCelebration).toHaveBeenCalledWith({ streak: 3 })
+      expect(mocks.setStreakCelebration).toHaveBeenCalledWith({ streak: 7 })
     } else {
       expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
     }
     const profile = mocks.queryClient.getQueryData(profileKeys.detail()) as { currentStreak: number }
-    expect(profile.currentStreak).toBe(celebrates ? 3 : 1)
+    expect(profile.currentStreak).toBe(celebrates ? 7 : 1)
   })
 
   it('skips all celebrations when a completion is queued offline', () => {
