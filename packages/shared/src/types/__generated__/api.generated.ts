@@ -1604,6 +1604,45 @@ export const GetApiReferralsStatsResponse = zod.unknown()
 export const GetApiReferralsDashboardResponse = zod.unknown()
 
 
+export const PostApiGamificationStreakRepairGapBody = zod.object({
+  "dates": zod.array(zod.iso.date())
+})
+
+export const postApiGamificationStreakRepairGapResponseCurrentStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiGamificationStreakRepairGapResponseLongestStreakRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiGamificationStreakRepairGapResponseFreezesUsedThisMonthRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiGamificationStreakRepairGapResponseFreezesAvailableRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiGamificationStreakRepairGapResponseMaxFreezesPerMonthRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiGamificationStreakRepairGapResponseStreakFreezesAccumulatedRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiGamificationStreakRepairGapResponseMaxStreakFreezesAccumulatedRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiGamificationStreakRepairGapResponseDaysUntilNextFreezeRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiGamificationStreakRepairGapResponseFreezesAvailableToUseRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiGamificationStreakRepairGapResponseRepairsRemainingThisMonthRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+export const postApiGamificationStreakRepairGapResponseFreezeBankRemainingRegExpTwo = new RegExp('^-?(?:0|[1-9]\\d*)$');
+
+
+export const PostApiGamificationStreakRepairGapResponse = zod.object({
+  "currentStreak": zod.union([zod.number(),zod.stringFormat('int32', postApiGamificationStreakRepairGapResponseCurrentStreakRegExpTwo)]),
+  "longestStreak": zod.union([zod.number(),zod.stringFormat('int32', postApiGamificationStreakRepairGapResponseLongestStreakRegExpTwo)]),
+  "lastActiveDate": zod.iso.date().nullable(),
+  "freezesUsedThisMonth": zod.union([zod.number(),zod.stringFormat('int32', postApiGamificationStreakRepairGapResponseFreezesUsedThisMonthRegExpTwo)]),
+  "freezesAvailable": zod.union([zod.number(),zod.stringFormat('int32', postApiGamificationStreakRepairGapResponseFreezesAvailableRegExpTwo)]),
+  "maxFreezesPerMonth": zod.union([zod.number(),zod.stringFormat('int32', postApiGamificationStreakRepairGapResponseMaxFreezesPerMonthRegExpTwo)]),
+  "isFrozenToday": zod.boolean(),
+  "recentFreezeDates": zod.array(zod.iso.date()),
+  "streakFreezesAccumulated": zod.union([zod.number(),zod.stringFormat('int32', postApiGamificationStreakRepairGapResponseStreakFreezesAccumulatedRegExpTwo)]),
+  "maxStreakFreezesAccumulated": zod.union([zod.number(),zod.stringFormat('int32', postApiGamificationStreakRepairGapResponseMaxStreakFreezesAccumulatedRegExpTwo)]),
+  "daysUntilNextFreeze": zod.union([zod.number(),zod.stringFormat('int32', postApiGamificationStreakRepairGapResponseDaysUntilNextFreezeRegExpTwo)]),
+  "freezesAvailableToUse": zod.union([zod.number(),zod.stringFormat('int32', postApiGamificationStreakRepairGapResponseFreezesAvailableToUseRegExpTwo)]),
+  "canEarnMore": zod.boolean(),
+  "isRepairAvailable": zod.boolean(),
+  "repairDate": zod.iso.date().nullable(),
+  "repairsRemainingThisMonth": zod.union([zod.number(),zod.stringFormat('int32', postApiGamificationStreakRepairGapResponseRepairsRemainingThisMonthRegExpTwo)]),
+  "lastFreezeCoveredDate": zod.iso.date().nullish(),
+  "freezeBankRemaining": zod.union([zod.number(),zod.stringFormat('int32', postApiGamificationStreakRepairGapResponseFreezeBankRemainingRegExpTwo)]).nullish()
+})
+
+
 export const PostApiSubscriptionsCheckoutBody = zod.object({
   "interval": zod.string()
 })
