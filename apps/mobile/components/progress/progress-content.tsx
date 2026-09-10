@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type ComponentType, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -66,8 +66,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
 
 function Section({ title, children, tokens, compact = false }: Readonly<{ title: string; children: ReactNode; tokens: AppTokensV2; compact?: boolean }>) {
-  const headingId = useId()
-  return <View accessible accessibilityLabelledBy={headingId} style={[styles.section, compact ? styles.compactSection : undefined]}><Text nativeID={headingId} accessibilityRole="header" style={[compact ? styles.compactTitle : styles.sectionTitle, { color: compact ? tokens.fg2 : tokens.fg1 }]}>{title}</Text>{children}</View>
+  return <View style={[styles.section, compact ? styles.compactSection : undefined]}><Text accessibilityRole="header" style={[compact ? styles.compactTitle : styles.sectionTitle, { color: compact ? tokens.fg2 : tokens.fg1 }]}>{title}</Text>{children}</View>
 }
 
 function WindowFigureGrid({ children }: Readonly<{ children: ReactNode[] }>) {
@@ -103,10 +102,9 @@ function WindowFrame({ children, title, tokens }: Readonly<{
   title: string
   tokens: AppTokensV2
 }>) {
-  const headingId = useId()
   return (
-    <View accessible accessibilityLabelledBy={headingId} style={styles.windowSection}>
-      <Text nativeID={headingId} accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{title}</Text>
+    <View style={styles.windowSection}>
+      <Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{title}</Text>
       {children}
     </View>
   )
@@ -142,7 +140,6 @@ function FrozenTodayStatus({ isFrozenToday, tokens }: Readonly<{ isFrozenToday: 
 function StreakSection({ accountProfile, canView, gamificationProfile, tokens }: Readonly<{
   accountProfile: ReturnType<typeof useProfile>['profile']; canView: boolean; gamificationProfile: ReturnType<typeof useGamificationProfile>['profile']; tokens: AppTokensV2
 }>) {
-  const headingId = useId()
   const { t, i18n } = useTranslation()
   const { width } = useWindowDimensions()
   const timeZone = accountProfile?.timeZone ?? null
@@ -160,13 +157,13 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens }:
   const canRepair = freeze.freezesAvailable > 0
   const dayWords = { active: t('progressScreen.streak.active'), frozen: t('progressScreen.streak.frozen'), missed: t('progressScreen.streak.missed'), today: t('progressScreen.streak.today') }
   if (canView && freeze.streakQuery.isError) {
-    return <View accessible accessibilityLabelledBy={headingId} style={styles.streakSection}><Text nativeID={headingId} accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void freeze.streakQuery.refetch()}>{t('progressScreen.retry')}</PillButton>} /></View>
+    return <View style={styles.streakSection}><Text accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void freeze.streakQuery.refetch()}>{t('progressScreen.retry')}</PillButton>} /></View>
   }
   if (canView && !freeze.streakInfo) {
-    return <View accessible accessibilityLabelledBy={headingId} style={styles.streakSection}><Text nativeID={headingId} accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text><Skeleton variant="habit-row" label={t('progressScreen.loading')} /></View>
+    return <View style={styles.streakSection}><Text accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text><Skeleton variant="habit-row" label={t('progressScreen.loading')} /></View>
   }
   return (
-    <View accessible accessibilityLabelledBy={headingId} style={styles.streakSection}><Text nativeID={headingId} accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text>
+    <View style={styles.streakSection}><Text accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text>
       <View style={styles.streakFigure}><Text style={[styles.streak, { color: tokens.fg1 }]}>{new Intl.NumberFormat(i18n.language).format(currentStreak)}</Text><Text style={[styles.streakLabel, { color: tokens.fg2 }]}>{t('progressScreen.streak.currentLabel', { count: currentStreak })}</Text></View>
       <FrozenTodayStatus isFrozenToday={freeze.isFrozenToday} tokens={tokens} />
       <DayStrip size={width >= 768 ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
@@ -214,7 +211,6 @@ function GoalCard({ goal, index, canReorder, onDrag, onMove, onOpen, tokens }: R
 }
 
 function GoalsSection({ goals, tokens, onOpenGoal }: Readonly<{ goals: readonly Goal[]; tokens: AppTokensV2; onOpenGoal: (goalId: string) => void }>) {
-  const headingId = useId()
   const { t } = useTranslation()
   const router = useRouter()
   const reorder = useReorderGoals()
@@ -235,7 +231,7 @@ function GoalsSection({ goals, tokens, onOpenGoal }: Readonly<{ goals: readonly 
     return <GoalCard goal={item} index={index} canReorder={filter === 'all' && !reorder.isPending} onDrag={drag} onMove={move} onOpen={() => onOpenGoal(item.id)} tokens={tokens} />
   }
   return (
-    <View accessible accessibilityLabelledBy={headingId} style={styles.goalsSection}><Text nativeID={headingId} accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
+    <View style={styles.goalsSection}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
       {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={setFilter} label={t('progressScreen.goals.views')} /> : null}
       {goals.length === 0 ? <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant="ghost" onClick={() => router.push('/')}>{t('progressScreen.startHabit')}</PillButton>} /> : null}
       {goals.length > 0 && filtered.length === 0 ? <View style={styles.emptyLine}><Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.goals.filterEmpty')}</Text><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></View> : null}

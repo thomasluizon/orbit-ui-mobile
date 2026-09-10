@@ -415,14 +415,23 @@ describe('mobile ProgressContent', () => {
       'progressScreen.sections.achievements',
     ]
     for (const label of labels) {
+      /**
+       * Android has no region or landmark role and no way to name a container a screen reader does
+       * not stop on, so the HEADING is the section name. Verified in the installed React Native
+       * 0.86.3: ReactAccessibilityDelegate.setDelegate (:594-603) installs only for accessibility_role,
+       * accessibility_state, accessibility_actions, react_test_id, accessibility_collection_item,
+       * accessibility_links or role, and R.id.labelled_by is not among them, so setLabeledBy (:95) is
+       * unreachable on a container carrying only accessible + accessibilityLabelledBy.
+       */
       const headings = tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === label)
       expect(headings, label).toHaveLength(1)
       const heading = headings[0]!
-      expect(heading.props.nativeID, label).toEqual(expect.any(String))
-      let region = heading.parent
-      while (region && region.props.accessibilityLabelledBy !== heading.props.nativeID) region = region.parent
-      expect(region?.props.accessible, label).toBe(true)
-      expect(region?.props.accessibilityLabel, label).toBeUndefined()
+
+      /** No ancestor re-names the section, which is the "named twice" half of the defect. */
+      for (let ancestor = heading.parent; ancestor; ancestor = ancestor.parent) {
+        expect(ancestor.props.accessibilityLabel, label).not.toBe(label)
+        expect(ancestor.props.accessibilityLabelledBy, label).toBeUndefined()
+      }
     }
     const figures = tree.root.findAll((node) => node.type === 'StatTile' && String(node.props.label).startsWith('progressScreen.window.'))
       .map((node) => ({ label: node.props.label, value: node.props.value }))
