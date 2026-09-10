@@ -34,6 +34,8 @@ const T = (name, got, want) => {
 const blocks = (verdict) => !!verdict?.block
 const NV = "--no-" + "verify"
 const ADMIN = "--" + "admin"
+/** A Bash backslash followed by a PowerShell backtick: even together, odd for PowerShell alone. */
+const MIXED_ESCAPE = String.fromCharCode(92, 96)
 
 // One unique fixture root per run, removed best-effort on exit: a leaked tmp dir
 // is garbage, never a verdict.
@@ -204,8 +206,12 @@ T("engine: a bare ampersand after a redirection operator still blocks", blocks(e
 // commands. Treating it as a redirection hid the second command from every rule reading segmentsOf.
 T("engine: a Bash-escaped greater-than does not hide the next command", blocks(engine(String.raw`printf \> & codex exec`)), true)
 T("engine: a PowerShell-escaped greater-than does not hide the next command", blocks(engine("Write-Output before `> & codex exec")), true)
+// A backslash then a backtick is EVEN when the two grammars are counted together, while PowerShell
+// still escapes the arrow and runs the second command. Each grammar is counted on its own run.
+T("engine: a mixed escape run does not hide the next command", blocks(engine(`Write-Output before ${MIXED_ESCAPE}> & codex exec`)), true)
 T("admin-merge: a Bash-escaped greater-than does not hide an admin merge", blocks(checkAdminMerge(String.raw`printf \> & gh pr merge 667 --squash ${ADMIN}`)), true)
 T("admin-merge: a PowerShell-escaped greater-than does not hide an admin merge", blocks(checkAdminMerge(`Write-Output before \`> & gh pr merge 667 --squash ${ADMIN}`)), true)
+T("admin-merge: a mixed escape run does not hide an admin merge", blocks(checkAdminMerge(`Write-Output before ${MIXED_ESCAPE}> & gh pr merge 667 --squash ${ADMIN}`)), true)
 T("engine: the refusal names the cloud submitter", engine("codex cloud exec")?.message.includes("tools/submit-cloud-worker.mjs"), true)
 // The launcher exports its marker into every worker it spawns; that is the
 // discriminator, and it is read from the ENVIRONMENT only.
@@ -242,6 +248,7 @@ const workerStaging = (command) => checkBroadStaging(command, { cwd: stagingWork
 // from it either. Bash `printf \> & git add -A` starts a real `git add -A`.
 T("staging: a Bash-escaped greater-than does not hide a broad stage", blocks(workerStaging(String.raw`printf \> & git add -A`)), true)
 T("staging: a PowerShell-escaped greater-than does not hide a broad stage", blocks(workerStaging("Write-Output before `> & git add -A")), true)
+T("staging: a mixed escape run does not hide a broad stage", blocks(workerStaging(`Write-Output before ${MIXED_ESCAPE}> & git add -A`)), true)
 for (const command of [
   "git add -A",
   "git add --all",

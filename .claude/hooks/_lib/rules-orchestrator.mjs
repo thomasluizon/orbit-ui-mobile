@@ -126,21 +126,32 @@ export function invokedBinary(segment) {
  * second segment beginning `codex' .`, whose invoked binary resolved to `codex` and blocked a
  * read-only search. A search PATTERN is data, never an invocation.
  */
+/** The length of the run of one character ending at the end of the text. */
+function trailingRunLength(text, character) {
+  let run = 0
+  for (let index = text.length - 1; index >= 0; index -= 1) {
+    if (text[index] !== character) break
+    run += 1
+  }
+  return run
+}
+
 /**
- * Whether a segment ends in a `>` the shell would really read as a redirection. An ESCAPED one is a
- * literal character, so the ampersand after it still separates commands: Bash `printf \> & codex exec`
- * and PowerShell ``Write-Output before `> & codex exec`` both start a second command, and treating
- * either as one segment hid the guarded invocation from every rule that reads segmentsOf.
+ * Whether a segment ends in a `>` BOTH supported shells would read as a redirection. An escaped one
+ * is a literal character, so the ampersand after it still separates commands, and one segment
+ * beginning with a harmless binary hides the guarded invocation from every rule reading segmentsOf.
+ *
+ * The two grammars escape with different characters and a run of one is not a run of the other, so
+ * they are counted independently. A backslash followed by a backtick is even when counted together
+ * while PowerShell still escapes the arrow, which is how a second command stayed hidden.
  */
 function endsWithRedirectionArrow(segment) {
   const trimmed = segment.replace(/\s+$/, "")
   if (!trimmed.endsWith(">")) return false
-  let escapes = 0
-  for (let index = trimmed.length - 2; index >= 0; index -= 1) {
-    if (trimmed[index] !== "\\" && trimmed[index] !== "`") break
-    escapes += 1
-  }
-  return escapes % 2 === 0
+  const before = trimmed.slice(0, -1)
+  const bashEscaped = trailingRunLength(before, "\\") % 2 === 1
+  const powerShellEscaped = trailingRunLength(before, "`") % 2 === 1
+  return !bashEscaped && !powerShellEscaped
 }
 
 export function segmentsOf(command) {
