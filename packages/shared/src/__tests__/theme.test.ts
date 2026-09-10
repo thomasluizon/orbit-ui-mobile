@@ -96,7 +96,7 @@ describe('byte-exact mode colors', () => {
       badText: '#FB2C36', fgOnBad: '#020618', fgOnOverdue: '#020618',
     })
     expect(statusConstants.light).toEqual({
-      overdue: '#8C6400', bad: '#E7000B', overdueText: '#8C6400',
+      overdue: '#886100', bad: '#E7000B', overdueText: '#886100',
       badText: '#E7000B', fgOnBad: '#FFFFFF', fgOnOverdue: '#FFFFFF',
     })
     expect(selectionAlpha).toEqual({ dark: 0.32, light: 0.18 })
@@ -107,6 +107,10 @@ describe('byte-exact mode colors', () => {
     ['card', [neutralColors.light.bg, neutralColors.light.bgCard]],
     ['well', [neutralColors.light.bg, neutralColors.light.bgWell]],
     ['hover', [neutralColors.light.bg, neutralColors.light.bgHover]],
+    ['session-expiry warning tint', [
+      neutralColors.light.bg,
+      `rgba(136,97,0,0.10)`,
+    ]],
   ] as const)('keeps light overdue text AA on the %s surface', (_surface, layers) => {
     expect(contrastOnSurface(statusConstants.light.overdueText, layers))
       .toBeGreaterThanOrEqual(4.5)
