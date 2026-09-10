@@ -38,6 +38,58 @@ function resourceStrings(relativePath: string) {
   return strings
 }
 
+/**
+ * RemoteViews.findBestFitLayout keeps every key that fits and then takes the SMALLEST squared
+ * distance, so a key on the breakpoint beats the key just above it. Transcribed from
+ * android/widget/RemoteViews.java: fitsIn is `ceil(host) + 1 > key` and the comparison is strict.
+ */
+function fitsIn(keyDp: number, hostDp: number) {
+  return Math.ceil(hostDp) + 1 > keyDp
+}
+
+function selectedKeyDp(keysDp: readonly number[], hostDp: number) {
+  let selected: number | null = null
+  let smallestSquareDistance = Number.POSITIVE_INFINITY
+
+  for (const keyDp of keysDp) {
+    if (!fitsIn(keyDp, hostDp)) continue
+    const squareDistance = (keyDp - hostDp) ** 2
+    if (selected === null || squareDistance < smallestSquareDistance) {
+      selected = keyDp
+      smallestSquareDistance = squareDistance
+    }
+  }
+
+  return selected ?? Math.min(...keysDp)
+}
+
+/**
+ * The body of one Kotlin function, by brace matching. A file-wide `toContain` is satisfied by any
+ * other call site: `renderWidgets()` also appears in `renderPlaceholder` and in the exception path,
+ * so deleting the successful sync's own render left every widget test green.
+ */
+function kotlinFunctionBody(source: string, name: string) {
+  const declaration = source.indexOf(`private fun ${name}(`)
+  if (declaration < 0) throw new Error(`Missing Kotlin function: ${name}`)
+
+  const open = source.indexOf('{', declaration)
+  let depth = 0
+  for (let index = open; index < source.length; index += 1) {
+    if (source[index] === '{') depth += 1
+    else if (source[index] === '}') {
+      depth -= 1
+      if (depth === 0) return source.slice(open + 1, index)
+    }
+  }
+  throw new Error(`Unbalanced braces in Kotlin function: ${name}`)
+}
+
+function kotlinFloatConstant(source: string, name: string) {
+  const value = source.match(new RegExp(`(?:private|internal) const val ${name} = ([\\d.]+)f`))?.[1]
+  if (value === undefined) throw new Error(`Missing Kotlin constant: ${name}`)
+  return Number(value)
+}
+
 function widgetKotlinSources() {
   return readdirSync(widgetSourceRoot)
     .filter(name => name.endsWith('.kt'))
@@ -148,7 +200,6 @@ describe('Android widget header', () => {
   it('steps the day label down to fg-3 and keeps the subtitle off the unreadable fg-4', () => {
     const views = layoutViews()
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
-    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
 
     expect(views.get('widget_header')?.['android:textColor']).toBe('@color/widget_fg_3')
     expect(views.get('widget_subtitle')?.['android:textColor']).toBe('@color/widget_fg_3')
@@ -157,38 +208,128 @@ describe('Android widget header', () => {
         Object.values(attributes).includes('@color/widget_fg_4'),
       ),
     ).toEqual([])
-    for (const source of [provider, service]) {
-      expect(source).toMatch(
-        /setModeAwareColor\(R\.id\.widget_header, "setTextColor", colorModes\) \{ it\.textMuted \}/,
-      )
-      expect(source).not.toContain(
-        'setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textPrimary }',
-      )
-    }
+    expect(provider).toMatch(
+      /setModeAwareColor\(R\.id\.widget_header, "setTextColor", colorModes\) \{ it\.textMuted \}/,
+    )
+    expect(provider).not.toContain(
+      'setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textPrimary }',
+    )
   })
 
   /**
-   * The 2x2 drawing drops the streak unit at 200dp and below, and this widget does NOT, on purpose.
-   * A provider cannot read the width it is rendered at: OPTION_APPWIDGET_MIN_WIDTH and MAX_WIDTH are
-   * global extrema across every possible host size, and size-keyed RemoteViews, which would let the
-   * host choose, break `partiallyUpdateAppWidget` because `mergeRemoteViews` does not descend into
-   * sized children, so the post-sync header would go stale on API 31 and later. Ticket #490 carries
-   * both halves and needs a device. Until then the unit stays and ellipsizes, which loses less than
-   * a stale header. This test exists so a fourth attempt is deliberate rather than accidental.
+   * Ticket #490 is the deliberate replacement for the old SizeF guard. The host can select a
+   * size-keyed child safely only after every update becomes a full update: Android's partial merge
+   * mutates the parent actions but renders a child, which leaves the selected variant stale.
+   *
+   * Both children are keyed at 1dp tall, so `ceil(height) + 1 > 1` always holds and width alone
+   * decides. Every sampled width above the breakpoint is one a host can really produce, because
+   * AppWidgetHostView divides its laid out pixel span by the display density: 526px at density
+   * 2.625 arrives as 200.38dp.
    */
-  it('decides the streak unit in the layout, never from a width the provider cannot read', () => {
+  /**
+   * RemoteViews inflates only classes annotated @RemoteView, and android.view.View is not one of
+   * them. A bare <View> makes RemoteViews.apply throw and the host substitutes its own error view,
+   * which no source-text guard and no unit test can see. Proven on an API 35 emulator: the hairline
+   * that pull request 873 added as a <View> failed with
+   * `Class not allowed to be inflated android.view.View`.
+   */
+  it('builds every widget layout from RemoteViews-inflatable classes only', () => {
+    const inflatable = new Set([
+      'AdapterViewFlipper', 'AnalogClock', 'Button', 'Chronometer', 'FrameLayout', 'GridLayout',
+      'GridView', 'ImageButton', 'ImageView', 'LinearLayout', 'ListView', 'ProgressBar',
+      'RelativeLayout', 'StackView', 'TextClock', 'TextView', 'ViewFlipper',
+    ])
+    const layoutDirectory = resolve(widgetRoot, 'layout')
+
+    for (const name of readdirSync(layoutDirectory).filter(file => file.endsWith('.xml'))) {
+      const tags: string[] = []
+      const parser = new SaxesParser()
+      parser.on('opentag', tag => tags.push(tag.name))
+      parser.write(readFileSync(resolve(layoutDirectory, name), 'utf8')).close()
+
+      for (const tag of tags) {
+        expect(inflatable.has(tag), `${name} inflates <${tag}>`).toBe(true)
+      }
+    }
+  })
+
+  it('lets the host select the streak unit without any partial widget updates', () => {
     const views = layoutViews()
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
-    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
 
     expect(views.get('widget_streak_unit')).toBeDefined()
-    for (const source of [provider, service]) {
-      expect(source).not.toContain('setViewVisibility(R.id.widget_streak_unit')
+    for (const { source } of widgetKotlinSources()) {
+      expect(source).not.toContain('partiallyUpdateAppWidget')
       expect(source).not.toContain('OPTION_APPWIDGET_MIN_WIDTH')
-      expect(source).not.toContain('SizeF')
     }
-    expect(provider).toContain('appWidgetManager.updateAppWidget(appWidgetId, views)')
-    expect(service).toContain('appWidgetManager.partiallyUpdateAppWidget(id, views)')
+    expect(provider).toContain('SizeF(COMPACT_IDEAL_WIDTH_DP, 1f) to compactViews')
+    expect(provider).toContain('SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, 1f) to expandedViews')
+
+    const breakpointDp = kotlinFloatConstant(provider, 'STREAK_UNIT_BREAKPOINT_DP')
+    const compactKeyDp = kotlinFloatConstant(provider, 'COMPACT_IDEAL_WIDTH_DP')
+    const expandedKeyDp = breakpointDp + 1
+    const keysDp = [compactKeyDp, expandedKeyDp]
+
+    expect(breakpointDp).toBe(200)
+    for (const hostDp of [110, 160, 199, 199.5, 199.9, 200]) {
+      expect(selectedKeyDp(keysDp, hostDp), `${hostDp}dp`).toBe(compactKeyDp)
+    }
+    for (const hostDp of [200.1, 200.38, 200.5, 201, 250, 400]) {
+      expect(selectedKeyDp(keysDp, hostDp), `${hostDp}dp`).toBe(expandedKeyDp)
+    }
+    expect(provider).toMatch(
+      /if \(Build\.VERSION\.SDK_INT < Build\.VERSION_CODES\.S\) \{\s*return buildWidgetViews\([\s\S]*?View\.VISIBLE\s*\)\s*\}/,
+    )
+    expect(provider).toMatch(
+      /val compactViews = buildWidgetViews\([\s\S]*?View\.GONE\s*\)[\s\S]*?val expandedViews = buildWidgetViews\([\s\S]*?View\.VISIBLE\s*\)/,
+    )
+  })
+
+  it('routes every post-sync header and loading mutation through the full provider render', () => {
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const worker = readFileSync(
+      resolve(widgetSourceRoot, 'OrbitWidgetRefreshTimeoutWorker.kt'),
+      'utf8',
+    )
+
+    for (const key of [
+      'header_label',
+      'habit_count',
+      'completed_count',
+      'user_streak',
+      'lang',
+    ]) {
+      expect(provider).toContain(`"${key}"`)
+      expect(service).toContain(`"${key}"`)
+    }
+    for (const key of ['CACHE_REFRESHING', 'CACHE_LOADING_SKELETON']) {
+      expect(provider).toContain(`getBoolean(${key}`)
+      expect(service).toContain(`putBoolean(OrbitWidgetProvider.${key}`)
+      expect(worker).toContain(`putBoolean(OrbitWidgetProvider.${key}`)
+    }
+    for (const view of [
+      'widget_header',
+      'widget_subtitle',
+      'widget_streak',
+      'widget_streak_group',
+      'widget_refresh',
+      'widget_refresh_loading',
+      'widget_loading',
+    ]) {
+      expect(provider).toContain(`R.id.${view}`)
+    }
+    expect(provider).toContain(
+      'views.setContentDescription(R.id.widget_refresh, refreshDescription)',
+    )
+    /**
+     * The successful sync must persist the complete header and loading state and only then issue
+     * one full render, so the size-keyed child the host selects is never left stale.
+     */
+    expect(kotlinFunctionBody(service, 'loadWidgetData')).toMatch(
+      /\.putBoolean\(OrbitWidgetProvider\.CACHE_LOADING_SKELETON, false\)\s*\.apply\(\)\s*renderWidgets\(\)\s*$/,
+    )
+    expect(worker).toContain('OrbitWidgetProvider.updateWidgetLayout(context, appWidgetManager, id)')
   })
 
   /**
@@ -240,7 +381,9 @@ describe('Android widget header', () => {
     const cacheAt = afterFetch.indexOf('.putInt("user_streak"')
     expect(guardAt).toBeGreaterThan(-1)
     expect(cacheAt).toBeGreaterThan(guardAt)
-    expect(service).toContain('OrbitWidgetProvider.applySignedOutCard(context, views)')
+    expect(service).toMatch(
+      /private fun renderPlaceholder[\s\S]*?putBoolean\(OrbitWidgetProvider\.CACHE_LOADING_SKELETON, showSkeleton && !signedOut\)[\s\S]*?renderWidgets\(\)/,
+    )
   })
 
   /**
@@ -429,8 +572,8 @@ describe('Android widget header', () => {
     )
     expect(provider).toMatch(/if \(isSignedOut\(context\)\) \{\s*for \(id in appWidgetIds\) updateWidgetLayout/)
     expect(service).toContain('renderPlaceholder(showSkeleton = false, signedOut = true)')
-    expect(service).toContain('OrbitWidgetProvider.hideRefresh(views)')
-    expect(worker).toContain('OrbitWidgetProvider.hideRefresh(views)')
+    expect(service).toContain('OrbitWidgetProvider.updateWidgetLayout(context, appWidgetManager, id)')
+    expect(worker).toContain('OrbitWidgetProvider.updateWidgetLayout(context, appWidgetManager, id)')
     expect(provider).toContain(
       'fun isSignedOut(context: Context): Boolean = OrbitWidgetModule.getToken(context) == null',
     )
@@ -446,10 +589,6 @@ describe('Android widget header', () => {
       resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'),
       'utf8',
     )
-    const service = readFileSync(
-      resolve(widgetSourceRoot, 'OrbitWidgetService.kt'),
-      'utf8',
-    )
 
     expect(views.get('widget_refresh')).toMatchObject({
       'android:contentDescription': '@string/widget_refresh',
@@ -460,50 +599,21 @@ describe('Android widget header', () => {
     expect(provider).toContain(
       'views.setContentDescription(R.id.widget_refresh, refreshDescription)',
     )
-    expect(service).toContain(
-      'val refreshDescription = tr(context, lang, WidgetString.REFRESH)',
-    )
-    expect(service).toContain(
-      'views.setContentDescription(R.id.widget_refresh, refreshDescription)',
-    )
   })
 
   it('names every visible refresh spinner through the widget language path', () => {
-    const provider = readFileSync(
-      resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'),
-      'utf8',
-    )
-    const service = readFileSync(
-      resolve(widgetSourceRoot, 'OrbitWidgetService.kt'),
-      'utf8',
-    )
+    const makesSpinnerVisible =
+      /setViewVisibility\(R\.id\.widget_refresh_loading, (?:android\.view\.)?View\.VISIBLE\)/
+    const namesSpinner =
+      /setContentDescription\(\s*R\.id\.widget_refresh_loading,[\s\S]{0,160}?WidgetString\.REFRESHING/
 
-    for (const { name, source } of widgetKotlinSources()) {
-      const visibleSpinnerCalls = [
-        ...source.matchAll(
-          /(\w+)\.setViewVisibility\(R\.id\.widget_refresh_loading, (?:android\.view\.)?View\.VISIBLE\)/g,
-        ),
-      ]
-      const namedVisibleSpinnerCalls = [
-        ...source.matchAll(
-          /(\w+)\.setContentDescription\(R\.id\.widget_refresh_loading, refreshingDescription\)\s*\1\.setViewVisibility\(R\.id\.widget_refresh_loading, (?:android\.view\.)?View\.VISIBLE\)/g,
-        ),
-      ]
-      expect(namedVisibleSpinnerCalls.length, name).toBe(visibleSpinnerCalls.length)
+    const namingSources = widgetKotlinSources().filter(({ source }) =>
+      makesSpinnerVisible.test(source),
+    )
+    expect(namingSources.length).toBeGreaterThan(0)
+    for (const { name, source } of namingSources) {
+      expect(source, name).toMatch(namesSpinner)
     }
-
-    expect(provider).toMatch(
-      /val refreshingDescription = OrbitWidgetFactory\.tr\(\s*context,\s*lang,\s*WidgetString\.REFRESHING\s*\)/,
-    )
-    expect(provider).toContain(
-      'views.setContentDescription(R.id.widget_refresh_loading, refreshingDescription)',
-    )
-    expect(service).toContain(
-      'val refreshingDescription = tr(context, lang, WidgetString.REFRESHING)',
-    )
-    expect(service).toContain(
-      'views.setContentDescription(R.id.widget_refresh_loading, refreshingDescription)',
-    )
 
     expect(resourceStrings('values/widget_strings.xml').get('widget_refreshing')).toBe(
       'Refreshing',

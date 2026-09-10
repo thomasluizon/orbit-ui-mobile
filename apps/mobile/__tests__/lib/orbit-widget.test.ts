@@ -102,9 +102,6 @@ describe('toWidgetColors', () => {
       'setModeAwareColor(R.id.widget_subtitle, "setTextColor", colorModes) { it.textMuted }',
     )
     expect(widgetServiceSource).toContain(
-      'setModeAwareColor(R.id.widget_subtitle, "setTextColor", colorModes) { it.textMuted }',
-    )
-    expect(widgetServiceSource).toContain(
       'views.setModeAwareColor(R.id.item_title, "setTextColor", colorModes) { it.textMuted }',
     )
     expect(widgetServiceSource).toContain(
@@ -132,13 +129,13 @@ describe('toWidgetColors', () => {
     const lightResources = readWidgetSource('res/values/widget_colors.xml')
     const darkResources = readWidgetSource('res/values-night/widget_colors.xml')
 
+    expect(widgetProviderSource).toContain(
+      'setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }',
+    )
+    expect(widgetProviderSource).toContain(
+      'setModeAwareColor(R.id.widget_streak_unit, "setTextColor", colorModes) { it.textMuted }',
+    )
     for (const source of [widgetProviderSource, widgetServiceSource]) {
-      expect(source).toContain(
-        'setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }',
-      )
-      expect(source).toContain(
-        'setModeAwareColor(R.id.widget_streak_unit, "setTextColor", colorModes) { it.textMuted }',
-      )
       expect(source).not.toContain('createFlameBitmap')
       expect(source).not.toContain('widget_flame')
     }
@@ -189,7 +186,7 @@ describe('toWidgetColors', () => {
     expect(darkResources).toContain('<color name="widget_bg">#09090B</color>')
   })
 
-  it('reapplies the full widget palette before refreshing collection rows', () => {
+  it('renders the cached loading state before refreshing collection rows', () => {
     const widgetProviderSource = readWidgetSource(
       'java/org/useorbit/app/widget/OrbitWidgetProvider.kt',
     )
@@ -198,18 +195,19 @@ describe('toWidgetColors', () => {
       widgetProviderSource.indexOf('override fun onEnabled'),
     )
 
+    const loadingStateIndex = refreshHandler.indexOf(
+      '.putBoolean(CACHE_REFRESHING, true)',
+    )
     const fullUpdateIndex = refreshHandler.indexOf(
       'updateWidgetLayout(context, appWidgetManager, id)',
-    )
-    const loadingUpdateIndex = refreshHandler.indexOf(
-      'appWidgetManager.partiallyUpdateAppWidget(id, loadingViews)',
+      loadingStateIndex,
     )
     const collectionRefreshIndex = refreshHandler.indexOf(
       'appWidgetManager.notifyAppWidgetViewDataChanged',
     )
 
-    expect(fullUpdateIndex).toBeGreaterThanOrEqual(0)
-    expect(loadingUpdateIndex).toBeGreaterThan(fullUpdateIndex)
-    expect(collectionRefreshIndex).toBeGreaterThan(loadingUpdateIndex)
+    expect(loadingStateIndex).toBeGreaterThanOrEqual(0)
+    expect(fullUpdateIndex).toBeGreaterThan(loadingStateIndex)
+    expect(collectionRefreshIndex).toBeGreaterThan(fullUpdateIndex)
   })
 })

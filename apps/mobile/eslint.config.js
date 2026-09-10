@@ -280,6 +280,13 @@ module.exports = defineConfig([
     },
   },
   {
-    ignores: ["dist/**", ".expo/**", "android/**", "ios/**", "eslint.config.js"],
+    ignores: [
+      "dist/**",
+      ".expo/**",
+      "android/**",
+      "ios/**",
+      "modules/*/android/build/**",
+      "eslint.config.js",
+    ],
   },
 ])

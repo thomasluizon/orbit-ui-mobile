@@ -2,8 +2,6 @@ package org.useorbit.app.widget
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
-import android.view.View
-import android.widget.RemoteViews
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 
@@ -21,20 +19,14 @@ class OrbitWidgetRefreshTimeoutWorker(
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
         val isSignedOut = OrbitWidgetProvider.isSignedOut(context)
         val showSkeleton = !isSignedOut && prefs.getLong("habits_updated_at", 0L) <= 0L
+        prefs.edit()
+            .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
+            .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, showSkeleton)
+            .apply()
 
         for (id in appWidgetIds) {
-            val views = RemoteViews(context.packageName, R.layout.widget_layout)
-            // A timeout must not resurrect a control the signed-out card does not have.
-            if (isSignedOut) {
-                OrbitWidgetProvider.hideRefresh(views)
-            } else {
-                OrbitWidgetProvider.showRefresh(views)
-            }
-            views.setViewVisibility(
-                R.id.widget_loading,
-                if (showSkeleton) View.VISIBLE else View.GONE
-            )
-            appWidgetManager.partiallyUpdateAppWidget(id, views)
+            // A full provider render keeps both size variants current and preserves signed-out UI.
+            OrbitWidgetProvider.updateWidgetLayout(context, appWidgetManager, id)
         }
 
         return Result.success()

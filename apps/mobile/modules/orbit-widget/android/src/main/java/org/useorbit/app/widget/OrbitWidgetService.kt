@@ -385,19 +385,16 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     override fun onCreate() {}
 
     /**
-     * Applies a partial RemoteViews update to every mounted widget. Partial (not full
-     * updateWidgetLayout) on purpose: a full update recreates the RemoteAdapter and
-     * resets the factory mid-load.
+     * Renders after a load has resolved. Recreating the RemoteAdapter during a load would reset the
+     * factory, but a full render here keeps every size-keyed child current without interrupting it.
      */
-    private fun updateWidgets(mutate: (RemoteViews) -> Unit) {
+    private fun renderWidgets() {
         val appWidgetManager = AppWidgetManager.getInstance(context)
         val widgetIds = appWidgetManager.getAppWidgetIds(
             ComponentName(context, OrbitWidgetProvider::class.java)
         )
         for (id in widgetIds) {
-            val views = RemoteViews(context.packageName, R.layout.widget_layout)
-            mutate(views)
-            appWidgetManager.partiallyUpdateAppWidget(id, views)
+            OrbitWidgetProvider.updateWidgetLayout(context, appWidgetManager, id)
         }
     }
 
@@ -418,22 +415,12 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             .putInt("completed_count", 0)
             .putInt("user_streak", 0)
             .putString("lang", lang)
+            .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
+            .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, showSkeleton && !signedOut)
             .apply()
 
-        updateWidgets { views ->
-            if (signedOut) {
-                // The WHOLE card, not just its controls: a stale load can have left a signed-in
-                // header, subtitle and streak behind, and hiding the refresh alone would leave
-                // those on screen.
-                OrbitWidgetProvider.applySignedOutCard(context, views)
-            } else {
-                OrbitWidgetProvider.showRefresh(views)
-                views.setViewVisibility(
-                    R.id.widget_loading,
-                    if (showSkeleton) android.view.View.VISIBLE else android.view.View.GONE
-                )
-            }
-        }
+        // The provider owns the whole card, including signed-out copy, controls and skeleton.
+        renderWidgets()
     }
 
     override fun onDataSetChanged() {
@@ -442,13 +429,13 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         } catch (_: Exception) {
             runCatching {
                 val signedOut = OrbitWidgetProvider.isSignedOut(context)
-                updateWidgets { views ->
-                    if (signedOut) {
-                        OrbitWidgetProvider.hideRefresh(views)
-                    } else {
-                        OrbitWidgetProvider.showRefresh(views)
-                    }
-                }
+                val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+                val showSkeleton = !signedOut && prefs.getLong("habits_updated_at", 0L) <= 0L
+                prefs.edit()
+                    .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
+                    .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, showSkeleton)
+                    .apply()
+                renderWidgets()
             }
         }
     }
@@ -507,10 +494,6 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         } else {
             tr(context, lang, WidgetString.TODAY)
         }
-        val subtitleText = "${dayState.completedCount} " +
-            "${tr(context, lang, WidgetString.OF)} ${dayState.totalCount} " +
-            tr(context, lang, WidgetString.COMPLETED)
-
         // Cache header info for the provider to read
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
         prefs.edit()
@@ -519,31 +502,11 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             .putInt("completed_count", dayState.completedCount)
             .putInt("user_streak", streak)
             .putString("lang", lang)
+            .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
+            .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, false)
             .apply()
 
-        val colorModes = getThemeColorModes(context)
-        val streakVisible = if (streak > 0) android.view.View.VISIBLE else android.view.View.GONE
-        val refreshDescription = tr(context, lang, WidgetString.REFRESH)
-        val refreshingDescription = tr(context, lang, WidgetString.REFRESHING)
-        updateWidgets { views ->
-            views.setTextViewText(R.id.widget_header, headerLabel)
-            views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textMuted }
-            views.setTextViewText(R.id.widget_subtitle, subtitleText)
-            views.setModeAwareColor(R.id.widget_subtitle, "setTextColor", colorModes) { it.textMuted }
-            views.setTextViewText(R.id.widget_streak, "$streak")
-            views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }
-            views.setTextViewText(
-                R.id.widget_streak_unit,
-                tr(context, lang, WidgetString.STREAK_UNIT)
-            )
-            views.setModeAwareColor(R.id.widget_streak_unit, "setTextColor", colorModes) { it.textMuted }
-            views.setViewVisibility(R.id.widget_streak_group, streakVisible)
-            views.setContentDescription(R.id.widget_refresh, refreshDescription)
-            views.setContentDescription(R.id.widget_refresh_loading, refreshingDescription)
-            // Restore refresh button, hide loading spinner and skeleton
-            OrbitWidgetProvider.showRefresh(views)
-            views.setViewVisibility(R.id.widget_loading, android.view.View.GONE)
-        }
+        renderWidgets()
     }
 
     private fun detectLanguage(language: String?): String {
