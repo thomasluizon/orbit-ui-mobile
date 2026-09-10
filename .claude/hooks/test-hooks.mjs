@@ -185,6 +185,21 @@ T("engine: codex cloud exec blocks", blocks(engine('codex cloud exec --env env_1
 T("engine: codex cloud apply blocks", blocks(engine("codex cloud apply task_123")), true)
 T('engine: "list" inside a prompt exempts nothing', blocks(engine('codex exec "cloud list things"')), true)
 T("engine: the cloud allowance is codex-only", blocks(engine("claude cloud list")), true)
+// #496: a redirection is punctuation, not an argument. `2>&1` used to split the segment on its
+// own ampersand and leave a phantom `2>` word, which failed the safe-argument test and refused a
+// permitted read. Every prohibited segment still refuses the whole command.
+T("engine: a piped cloud read allows", engine("codex cloud list --env env_1 | head -20"), null)
+T("engine: a cloud read with merged stderr allows", engine("codex cloud list --env env_1 2>&1 | head -20"), null)
+T("engine: a cloud read redirected to a file allows", engine("codex cloud diff task_123 > diff.txt"), null)
+T("engine: a cloud read with a numbered redirection allows", engine("codex cloud status task_123 2> err.log"), null)
+T("engine: a cloud read with an ampersand redirection allows", engine("codex cloud list &> out.log"), null)
+T("engine: a zero-cost query with merged stderr allows", engine("codex --version 2>&1 | cat"), null)
+T("engine: a piped worker start still blocks", blocks(engine("codex exec | tee log")), true)
+T("engine: a worker start with merged stderr still blocks", blocks(engine("codex exec 2>&1 | tee log")), true)
+T("engine: a worker start redirected to a file still blocks", blocks(engine("codex exec &> out.log")), true)
+T("engine: a chained worker start after a cloud read with merged stderr still blocks", blocks(engine("codex cloud list 2>&1 && codex exec")), true)
+T("engine: a spaced process substitution after a redirection operator still blocks", blocks(engine("codex cloud list > (codex exec)")), true)
+T("engine: a bare ampersand after a redirection operator still blocks", blocks(engine("codex cloud list > & codex exec")), true)
 T("engine: the refusal names the cloud submitter", engine("codex cloud exec")?.message.includes("tools/submit-cloud-worker.mjs"), true)
 // The launcher exports its marker into every worker it spawns; that is the
 // discriminator, and it is read from the ENVIRONMENT only.

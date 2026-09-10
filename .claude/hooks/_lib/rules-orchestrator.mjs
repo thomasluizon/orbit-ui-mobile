@@ -30,6 +30,9 @@ const ZERO_COST_FLAGS = new Set(["--version", "-v", "--help", "-h", "help", "who
 const CLOUD_READ_SUBCOMMANDS = new Set(["list", "status", "diff"])
 const SAFE_ENGINE_BINARY = /^(?:claude|codex)(?:\.(?:exe|cmd|bat|ps1))?$/i
 const SAFE_ENGINE_ARGUMENT = /^[A-Za-z0-9_./:+=-]+$/
+const REDIRECTION_OPERATOR = /^(?:\d*(?:>>|>|<)|&>>?)$/
+const REDIRECTION_WITH_DESCRIPTOR = /^(?:\d*(?:>>|>)|&>>?)&\d*$/
+const REDIRECTION_WITH_PLAIN_TARGET = /^(?:\d*(?:>>|>|<)|&>>?)[A-Za-z0-9_./:+=-]+$/
 const LEADING_ENV_ASSIGNMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)(?:\s+|$)/
 const LEADING_TOKEN = /^\s*("[^"]*"|'[^']*'|\S+)/
 const PR_MERGE = /(?:^|\s)pr\s+merge(?:\s|$)/
@@ -128,7 +131,8 @@ export function segmentsOf(command) {
   const segments = []
   let current = ""
   let quote = ""
-  for (const character of source) {
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index]
     if (quote) {
       if (character === quote) quote = ""
       current += character
@@ -136,6 +140,12 @@ export function segmentsOf(command) {
     }
     if (character === '"' || character === "'") {
       quote = character
+      current += character
+      continue
+    }
+    if (character === "&" && (/>\s*$/.test(current) || source[index + 1] === ">")) {
+      // `2>&1` and `&>log` are one redirection token. Splitting them left a phantom segment
+      // ending in `2>`, which failed the safe-argument test and refused a permitted cloud read.
       current += character
       continue
     }
@@ -150,8 +160,35 @@ export function segmentsOf(command) {
   return segments
 }
 
+/**
+ * Drop stream redirections, which are punctuation rather than arguments: `codex cloud list 2>&1`
+ * reads exactly what `codex cloud list` reads. Only unambiguous shapes go, never a process
+ * substitution: `>(codex exec ...)` keeps its parenthesis, fails the safe-argument test, and the
+ * cloud read exemption is refused as before.
+ */
+const withoutRedirections = (words) => {
+  const kept = []
+  let dropTarget = false
+  for (const word of words) {
+    if (dropTarget) {
+      dropTarget = false
+      if (SAFE_ENGINE_ARGUMENT.test(word)) continue
+      kept.push(word)
+      continue
+    }
+    if (REDIRECTION_WITH_DESCRIPTOR.test(word)) continue
+    if (REDIRECTION_WITH_PLAIN_TARGET.test(word)) continue
+    if (REDIRECTION_OPERATOR.test(word)) {
+      dropTarget = true
+      continue
+    }
+    kept.push(word)
+  }
+  return kept
+}
+
 const safeEngineWords = (segment) => {
-  const words = segment.trim().split(/\s+/)
+  const words = withoutRedirections(segment.trim().split(/\s+/))
   return SAFE_ENGINE_BINARY.test(words[0] ?? "") && words.every((word) => SAFE_ENGINE_ARGUMENT.test(word))
     ? words
     : null
