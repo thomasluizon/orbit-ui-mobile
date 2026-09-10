@@ -22,5 +22,5 @@
     <!-- WHY: fg-1. -->
     <color name="widget_streak_text">#1A1A1D</color>
     <!-- WHY: status-overdue. -->
-    <color name="widget_overdue">#946A00</color>
+    <color name="widget_overdue">#8C6400</color>
 </resources>

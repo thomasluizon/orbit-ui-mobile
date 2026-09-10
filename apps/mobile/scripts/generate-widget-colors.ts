@@ -62,7 +62,7 @@ const PALETTES = {
     fg3: ['#68686D', '--fg-3'],
     fg4: ['#89898D', '--fg-4'],
     primary: ['#C4530F', '--primary'],
-    overdue: ['#946A00', '--status-overdue'],
+    overdue: ['#8C6400', '--status-overdue'],
   },
 } as const satisfies Record<'dark' | 'light', Palette>
 
@@ -139,5 +139,5 @@ export async function generateWidgetColors() {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  await generateWidgetColors()
+  void generateWidgetColors()
 }

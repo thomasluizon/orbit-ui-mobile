@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { contrastOnSurface } from './contrast'
 import { schemes } from '../theme/color-schemes'
 import {
   neutralColors,
@@ -95,10 +96,20 @@ describe('byte-exact mode colors', () => {
       badText: '#FB2C36', fgOnBad: '#020618', fgOnOverdue: '#020618',
     })
     expect(statusConstants.light).toEqual({
-      overdue: '#946A00', bad: '#E7000B', overdueText: '#946A00',
+      overdue: '#8C6400', bad: '#E7000B', overdueText: '#8C6400',
       badText: '#E7000B', fgOnBad: '#FFFFFF', fgOnOverdue: '#FFFFFF',
     })
     expect(selectionAlpha).toEqual({ dark: 0.32, light: 0.18 })
+  })
+
+  it.each([
+    ['canvas', [neutralColors.light.bg]],
+    ['card', [neutralColors.light.bg, neutralColors.light.bgCard]],
+    ['well', [neutralColors.light.bg, neutralColors.light.bgWell]],
+    ['hover', [neutralColors.light.bg, neutralColors.light.bgHover]],
+  ] as const)('keeps light overdue text AA on the %s surface', (_surface, layers) => {
+    expect(contrastOnSurface(statusConstants.light.overdueText, layers))
+      .toBeGreaterThanOrEqual(4.5)
   })
 })
 

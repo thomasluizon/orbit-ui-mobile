@@ -42,6 +42,6 @@ export const widgetColorPalette = {
     /** WHY: --primary. */
     primary: '#C4530F',
     /** WHY: --status-overdue. */
-    overdue: '#946A00',
+    overdue: '#8C6400',
   },
 } as const

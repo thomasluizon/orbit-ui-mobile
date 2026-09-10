@@ -29,7 +29,7 @@
 
   /* primitives: status. Five of seven states are neutral; only these two carry a hue. */
   --p-overdue:#FE9A00; --p-bad:#FB2C36; --p-on-status:#020618;
-  --p-l-overdue:#946A00; /* hue 81.2, 36.4deg from the accent; 4.66:1 on #FAFAFA, white on it 4.86:1 */ --p-l-bad:#E7000B; --p-l-on-bad:#FFFFFF;
+  --p-l-overdue:#8C6400; /* hue 81.1, 36.3deg from the accent; 5.11:1 on #FAFAFA, white on it 5.33:1 */ --p-l-bad:#E7000B; --p-l-on-bad:#FFFFFF;
 
   /* The habit colour palette was deleted 2026-08-16. Colour-as-data (D30) and the tinted
      monochrome emoji (D31) are both reversed: the accent is rationed to four roles and every
