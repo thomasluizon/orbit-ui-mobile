@@ -181,6 +181,8 @@ class OrbitWidgetModule : Module() {
           .putString("habits_json", json)
           .putString("habits_session", session)
           .putLong("habits_updated_at", System.currentTimeMillis())
+          .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
+          .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, false)
           .apply()
       }
       refreshWidgets(context)

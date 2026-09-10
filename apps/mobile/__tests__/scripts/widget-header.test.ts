@@ -148,7 +148,6 @@ describe('Android widget header', () => {
   it('steps the day label down to fg-3 and keeps the subtitle off the unreadable fg-4', () => {
     const views = layoutViews()
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
-    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
 
     expect(views.get('widget_header')?.['android:textColor']).toBe('@color/widget_fg_3')
     expect(views.get('widget_subtitle')?.['android:textColor']).toBe('@color/widget_fg_3')
@@ -157,38 +156,78 @@ describe('Android widget header', () => {
         Object.values(attributes).includes('@color/widget_fg_4'),
       ),
     ).toEqual([])
-    for (const source of [provider, service]) {
-      expect(source).toMatch(
-        /setModeAwareColor\(R\.id\.widget_header, "setTextColor", colorModes\) \{ it\.textMuted \}/,
-      )
-      expect(source).not.toContain(
-        'setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textPrimary }',
-      )
-    }
+    expect(provider).toMatch(
+      /setModeAwareColor\(R\.id\.widget_header, "setTextColor", colorModes\) \{ it\.textMuted \}/,
+    )
+    expect(provider).not.toContain(
+      'setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textPrimary }',
+    )
   })
 
   /**
-   * The 2x2 drawing drops the streak unit at 200dp and below, and this widget does NOT, on purpose.
-   * A provider cannot read the width it is rendered at: OPTION_APPWIDGET_MIN_WIDTH and MAX_WIDTH are
-   * global extrema across every possible host size, and size-keyed RemoteViews, which would let the
-   * host choose, break `partiallyUpdateAppWidget` because `mergeRemoteViews` does not descend into
-   * sized children, so the post-sync header would go stale on API 31 and later. Ticket #490 carries
-   * both halves and needs a device. Until then the unit stays and ellipsizes, which loses less than
-   * a stale header. This test exists so a fourth attempt is deliberate rather than accidental.
+   * Ticket #490 is the deliberate replacement for the old SizeF guard. The host can select a
+   * size-keyed child safely only after every update becomes a full update: Android's partial merge
+   * mutates the parent actions but renders a child, which leaves the selected variant stale.
    */
-  it('decides the streak unit in the layout, never from a width the provider cannot read', () => {
+  it('lets the host select the streak unit without any partial widget updates', () => {
     const views = layoutViews()
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
-    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
 
     expect(views.get('widget_streak_unit')).toBeDefined()
-    for (const source of [provider, service]) {
-      expect(source).not.toContain('setViewVisibility(R.id.widget_streak_unit')
+    for (const { source } of widgetKotlinSources()) {
+      expect(source).not.toContain('partiallyUpdateAppWidget')
       expect(source).not.toContain('OPTION_APPWIDGET_MIN_WIDTH')
-      expect(source).not.toContain('SizeF')
     }
-    expect(provider).toContain('appWidgetManager.updateAppWidget(appWidgetId, views)')
-    expect(service).toContain('appWidgetManager.partiallyUpdateAppWidget(id, views)')
+    expect(provider).toContain('private const val STREAK_UNIT_BREAKPOINT_DP = 200f')
+    expect(provider).toContain('SizeF(STREAK_UNIT_BREAKPOINT_DP, 1f) to compactViews')
+    expect(provider).toContain('SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, 1f) to expandedViews')
+    expect(provider).toMatch(
+      /if \(Build\.VERSION\.SDK_INT < Build\.VERSION_CODES\.S\) \{\s*return buildWidgetViews\([\s\S]*?View\.VISIBLE\s*\)\s*\}/,
+    )
+    expect(provider).toMatch(
+      /val compactViews = buildWidgetViews\([\s\S]*?View\.GONE\s*\)[\s\S]*?val expandedViews = buildWidgetViews\([\s\S]*?View\.VISIBLE\s*\)/,
+    )
+  })
+
+  it('routes every post-sync header and loading mutation through the full provider render', () => {
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const worker = readFileSync(
+      resolve(widgetSourceRoot, 'OrbitWidgetRefreshTimeoutWorker.kt'),
+      'utf8',
+    )
+
+    for (const key of [
+      'header_label',
+      'habit_count',
+      'completed_count',
+      'user_streak',
+      'lang',
+    ]) {
+      expect(provider).toContain(`"${key}"`)
+      expect(service).toContain(`"${key}"`)
+    }
+    for (const key of ['CACHE_REFRESHING', 'CACHE_LOADING_SKELETON']) {
+      expect(provider).toContain(`getBoolean(${key}`)
+      expect(service).toContain(`putBoolean(OrbitWidgetProvider.${key}`)
+      expect(worker).toContain(`putBoolean(OrbitWidgetProvider.${key}`)
+    }
+    for (const view of [
+      'widget_header',
+      'widget_subtitle',
+      'widget_streak',
+      'widget_streak_group',
+      'widget_refresh',
+      'widget_refresh_loading',
+      'widget_loading',
+    ]) {
+      expect(provider).toContain(`R.id.${view}`)
+    }
+    expect(provider).toContain(
+      'views.setContentDescription(R.id.widget_refresh, refreshDescription)',
+    )
+    expect(service).toContain('renderWidgets()')
+    expect(worker).toContain('OrbitWidgetProvider.updateWidgetLayout(context, appWidgetManager, id)')
   })
 
   /**
@@ -240,7 +279,9 @@ describe('Android widget header', () => {
     const cacheAt = afterFetch.indexOf('.putInt("user_streak"')
     expect(guardAt).toBeGreaterThan(-1)
     expect(cacheAt).toBeGreaterThan(guardAt)
-    expect(service).toContain('OrbitWidgetProvider.applySignedOutCard(context, views)')
+    expect(service).toMatch(
+      /private fun renderPlaceholder[\s\S]*?putBoolean\(OrbitWidgetProvider\.CACHE_LOADING_SKELETON, showSkeleton && !signedOut\)[\s\S]*?renderWidgets\(\)/,
+    )
   })
 
   /**
@@ -429,8 +470,8 @@ describe('Android widget header', () => {
     )
     expect(provider).toMatch(/if \(isSignedOut\(context\)\) \{\s*for \(id in appWidgetIds\) updateWidgetLayout/)
     expect(service).toContain('renderPlaceholder(showSkeleton = false, signedOut = true)')
-    expect(service).toContain('OrbitWidgetProvider.hideRefresh(views)')
-    expect(worker).toContain('OrbitWidgetProvider.hideRefresh(views)')
+    expect(service).toContain('OrbitWidgetProvider.updateWidgetLayout(context, appWidgetManager, id)')
+    expect(worker).toContain('OrbitWidgetProvider.updateWidgetLayout(context, appWidgetManager, id)')
     expect(provider).toContain(
       'fun isSignedOut(context: Context): Boolean = OrbitWidgetModule.getToken(context) == null',
     )
@@ -446,10 +487,6 @@ describe('Android widget header', () => {
       resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'),
       'utf8',
     )
-    const service = readFileSync(
-      resolve(widgetSourceRoot, 'OrbitWidgetService.kt'),
-      'utf8',
-    )
 
     expect(views.get('widget_refresh')).toMatchObject({
       'android:contentDescription': '@string/widget_refresh',
@@ -458,12 +495,6 @@ describe('Android widget header', () => {
       /val refreshDescription = OrbitWidgetFactory\.tr\(\s*context,\s*lang,\s*WidgetString\.REFRESH\s*\)/,
     )
     expect(provider).toContain(
-      'views.setContentDescription(R.id.widget_refresh, refreshDescription)',
-    )
-    expect(service).toContain(
-      'val refreshDescription = tr(context, lang, WidgetString.REFRESH)',
-    )
-    expect(service).toContain(
       'views.setContentDescription(R.id.widget_refresh, refreshDescription)',
     )
   })

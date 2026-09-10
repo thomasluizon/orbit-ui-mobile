@@ -1,0 +1,117 @@
+package org.useorbit.app.widget
+
+import android.appwidget.AppWidgetHost
+import android.appwidget.AppWidgetHostView
+import android.appwidget.AppWidgetManager
+import android.content.Context
+import android.os.Bundle
+import android.view.View
+import android.widget.TextView
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.SdkSuppress
+import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+@SdkSuppress(minSdkVersion = 31)
+class OrbitWidgetResponsiveRemoteViewsTest {
+    private val context = ApplicationProvider.getApplicationContext<Context>()
+    private val appWidgetHost = AppWidgetHost(context, HOST_ID)
+    private lateinit var hostView: AppWidgetHostView
+    private var appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID
+
+    @Before
+    fun setUp() {
+        val providerInfo = AppWidgetManager.getInstance(context)
+            .installedProviders
+            .first { it.provider.className == OrbitWidgetProvider::class.java.name }
+        appWidgetId = appWidgetHost.allocateAppWidgetId()
+        hostView = AppWidgetHostView(context)
+        hostView.setAppWidget(appWidgetId, providerInfo)
+
+        context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+            .edit()
+            .putString("header_label", "Today")
+            .putInt("habit_count", 7)
+            .putInt("completed_count", 3)
+            .putInt("user_streak", 12)
+            .putString("lang", "en")
+            .putLong("habits_updated_at", 1L)
+            .putBoolean(OrbitWidgetProvider.CACHE_REFRESHING, false)
+            .putBoolean(OrbitWidgetProvider.CACHE_LOADING_SKELETON, false)
+            .commit()
+    }
+
+    @After
+    fun tearDown() {
+        context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
+        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            appWidgetHost.deleteAppWidgetId(appWidgetId)
+        }
+    }
+
+    @Test
+    fun hostSelectsCompactAndExpandedHeaderVariants() {
+        val density = context.resources.displayMetrics.density
+        val views = OrbitWidgetProvider.buildWidgetRemoteViews(
+            context,
+            appWidgetId,
+            (EXPANDED_WIDTH_DP * density).toInt(),
+            (HEIGHT_DP * density).toInt(),
+            signedOut = false
+        )
+
+        assertHeaderAtWidth(views, COMPACT_WIDTH_DP, View.GONE)
+        assertHeaderAtWidth(views, EXPANDED_WIDTH_DP, View.VISIBLE)
+    }
+
+    private fun assertHeaderAtWidth(
+        views: android.widget.RemoteViews,
+        widthDp: Int,
+        expectedUnitVisibility: Int
+    ) {
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            hostView.updateAppWidgetSize(Bundle(), widthDp, HEIGHT_DP, widthDp, HEIGHT_DP)
+            val widthPx = (widthDp * context.resources.displayMetrics.density).toInt()
+            val heightPx = (HEIGHT_DP * context.resources.displayMetrics.density).toInt()
+            hostView.measure(
+                View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(heightPx, View.MeasureSpec.EXACTLY)
+            )
+            hostView.layout(0, 0, widthPx, heightPx)
+            hostView.updateAppWidget(views)
+            hostView.measure(
+                View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(heightPx, View.MeasureSpec.EXACTLY)
+            )
+            hostView.layout(0, 0, widthPx, heightPx)
+
+            assertEquals(
+                expectedUnitVisibility,
+                hostView.findViewById<View>(R.id.widget_streak_unit).visibility
+            )
+            assertEquals("Today", text(R.id.widget_header))
+            assertEquals("3 of 7 completed", text(R.id.widget_subtitle))
+            assertEquals("12", text(R.id.widget_streak))
+        }
+    }
+
+    private fun text(viewId: Int): String {
+        return hostView.findViewById<TextView>(viewId).text.toString()
+    }
+
+    companion object {
+        private const val HOST_ID = 490
+        private const val COMPACT_WIDTH_DP = 160
+        private const val EXPANDED_WIDTH_DP = 250
+        private const val HEIGHT_DP = 192
+    }
+}
