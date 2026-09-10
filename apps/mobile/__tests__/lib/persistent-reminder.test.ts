@@ -36,12 +36,17 @@ interface ScheduledRequest {
   trigger: { channelId: string } | null
 }
 
-function tokenFor(accountId: string): string {
-  const payload = btoa(JSON.stringify({ sub: accountId, email: `${accountId}@example.com` }))
+/** Compact JWS, exactly as the API emits it: base64url, padding stripped. */
+function tokenFor(accountId: string, email = `${accountId}@example.com`): string {
+  const payload = btoa(JSON.stringify({ sub: accountId, email }))
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replace(/=+$/, '')
   return `header.${payload}.signature`
 }
 
 const OWNER_TOKEN = tokenFor('owner-account')
+const PERSISTENT_REMINDER_IDENTIFIER = 'orbit-persistent-reminder'
 
 function lastScheduledRequest(): ScheduledRequest {
   const calls = scheduleNotificationAsync.mock.calls
@@ -185,6 +190,44 @@ describe('persistent reminder', () => {
       )
 
       expect(scheduleNotificationAsync).not.toHaveBeenCalled()
+    })
+
+    it('reads an account from a payload whose base64url carries - or _', async () => {
+      usePersistentReminderStore.setState({ enabled: true })
+      const authorizingToken = tokenFor('first-account', 'abc?@example.com')
+      expect(authorizingToken.split('.')[1]).toMatch(/[-_]/)
+      secureStoreMocks.getToken.mockResolvedValue(authorizingToken)
+
+      await refreshPersistentReminder(
+        { currentStreak: 8, items: [{ isCompleted: true }] },
+        authorizingToken,
+      )
+
+      expect(scheduleNotificationAsync).toHaveBeenCalledTimes(1)
+    })
+
+    it('dismisses again when cancellation starts while native scheduling is in flight', async () => {
+      usePersistentReminderStore.setState({ enabled: true })
+      const authorizingToken = tokenFor('first-account')
+      secureStoreMocks.getToken.mockResolvedValue(authorizingToken)
+
+      let releaseSchedule: () => void = () => {}
+      const schedulePending = new Promise<string>((resolve) => {
+        releaseSchedule = () => resolve(PERSISTENT_REMINDER_IDENTIFIER)
+      })
+      scheduleNotificationAsync.mockImplementationOnce(() => schedulePending)
+
+      const refreshing = refreshPersistentReminder(
+        { currentStreak: 8, items: [{ isCompleted: true }] },
+        authorizingToken,
+      )
+      await vi.waitFor(() => expect(scheduleNotificationAsync).toHaveBeenCalled())
+
+      await cancelPersistentReminder()
+      releaseSchedule()
+      await refreshing
+
+      expect(dismissNotificationAsync).toHaveBeenCalledTimes(2)
     })
 
     it('does not post when the payload carries no account to attribute it to', async () => {

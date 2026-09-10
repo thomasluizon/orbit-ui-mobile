@@ -149,6 +149,8 @@ export function buildReminderContent(
   return { title, body }
 }
 
+let presentationGeneration = 0
+
 async function ensureChannel(
   activeModule: PersistentReminderNotificationsModule,
 ): Promise<void> {
@@ -187,6 +189,8 @@ async function postReminder(
   await ensureChannel(activeModule)
   const { title, body } = buildReminderContent(feed, (key, params) => i18n.t(key, params))
   if (!(await stillSignedInAs(authorizingToken))) return
+
+  const generation = presentationGeneration
   await activeModule.scheduleNotificationAsync({
     identifier: PERSISTENT_REMINDER_ID,
     content: {
@@ -199,6 +203,10 @@ async function postReminder(
     },
     trigger: { channelId: PERSISTENT_REMINDER_CHANNEL_ID },
   })
+
+  if (generation !== presentationGeneration) {
+    await activeModule.dismissNotificationAsync(PERSISTENT_REMINDER_ID)
+  }
 }
 
 /** True when the ongoing reminder can run on this device (Android + module present). */
@@ -230,8 +238,15 @@ export async function requestPersistentReminderPermission(): Promise<boolean> {
   }
 }
 
-/** Removes the ongoing reminder from the tray. */
+/**
+ * Removes the ongoing reminder from the tray.
+ *
+ * Bumping the generation first is what stops a refresh that already crossed the native boundary from
+ * winning. `expo-notifications` handles schedule and dismiss on separate threads, so invocation order
+ * is not completion order, and the in-flight refresh reconciles by dismissing again once it returns.
+ */
 export async function cancelPersistentReminder(): Promise<void> {
+  presentationGeneration += 1
   const activeModule = notificationsModule
   if (!activeModule || Platform.OS !== 'android') return
   await activeModule.dismissNotificationAsync(PERSISTENT_REMINDER_ID)
