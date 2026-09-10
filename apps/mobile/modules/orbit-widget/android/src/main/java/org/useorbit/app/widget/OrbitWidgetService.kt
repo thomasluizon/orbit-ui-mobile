@@ -70,6 +70,7 @@ internal enum class WidgetString(val resourceId: Int) {
     SIGN_IN(R.string.widget_sign_in),
     STREAK_UNIT(R.string.widget_streak_unit),
     REFRESH(R.string.widget_refresh),
+    REFRESHING(R.string.widget_refreshing),
     CHECKLIST_BADGE(R.string.widget_checklist_badge),
     DEEPER_COUNT(R.string.widget_deeper_count),
     STATUS_DONE(R.string.widget_status_done),
@@ -523,6 +524,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         val colorModes = getThemeColorModes(context)
         val streakVisible = if (streak > 0) android.view.View.VISIBLE else android.view.View.GONE
         val refreshDescription = tr(context, lang, WidgetString.REFRESH)
+        val refreshingDescription = tr(context, lang, WidgetString.REFRESHING)
         updateWidgets { views ->
             views.setTextViewText(R.id.widget_header, headerLabel)
             views.setModeAwareColor(R.id.widget_header, "setTextColor", colorModes) { it.textMuted }
@@ -537,6 +539,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             views.setModeAwareColor(R.id.widget_streak_unit, "setTextColor", colorModes) { it.textMuted }
             views.setViewVisibility(R.id.widget_streak_group, streakVisible)
             views.setContentDescription(R.id.widget_refresh, refreshDescription)
+            views.setContentDescription(R.id.widget_refresh_loading, refreshingDescription)
             // Restore refresh button, hide loading spinner and skeleton
             OrbitWidgetProvider.showRefresh(views)
             views.setViewVisibility(R.id.widget_loading, android.view.View.GONE)
