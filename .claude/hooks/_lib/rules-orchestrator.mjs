@@ -126,41 +126,12 @@ export function invokedBinary(segment) {
  * second segment beginning `codex' .`, whose invoked binary resolved to `codex` and blocked a
  * read-only search. A search PATTERN is data, never an invocation.
  */
-/** The length of the run of one character ending at the end of the text. */
-function trailingRunLength(text, character) {
-  let run = 0
-  for (let index = text.length - 1; index >= 0; index -= 1) {
-    if (text[index] !== character) break
-    run += 1
-  }
-  return run
-}
-
-/**
- * Whether a segment ends in a `>` BOTH supported shells would read as a redirection. An escaped one
- * is a literal character, so the ampersand after it still separates commands, and one segment
- * beginning with a harmless binary hides the guarded invocation from every rule reading segmentsOf.
- *
- * The two grammars escape with different characters and a run of one is not a run of the other, so
- * they are counted independently. A backslash followed by a backtick is even when counted together
- * while PowerShell still escapes the arrow, which is how a second command stayed hidden.
- */
-function endsWithRedirectionArrow(segment) {
-  const trimmed = segment.replace(/\s+$/, "")
-  if (!trimmed.endsWith(">")) return false
-  const before = trimmed.slice(0, -1)
-  const bashEscaped = trailingRunLength(before, "\\") % 2 === 1
-  const powerShellEscaped = trailingRunLength(before, "`") % 2 === 1
-  return !bashEscaped && !powerShellEscaped
-}
-
 export function segmentsOf(command) {
   const source = stripHeredocBodies(command)
   const segments = []
   let current = ""
   let quote = ""
-  for (let index = 0; index < source.length; index += 1) {
-    const character = source[index]
+  for (const character of source) {
     if (quote) {
       if (character === quote) quote = ""
       current += character
@@ -168,12 +139,6 @@ export function segmentsOf(command) {
     }
     if (character === '"' || character === "'") {
       quote = character
-      current += character
-      continue
-    }
-    if (character === "&" && (endsWithRedirectionArrow(current) || source[index + 1] === ">")) {
-      // `2>&1` and `&>log` are one redirection token. Splitting them left a phantom segment
-      // ending in `2>`, which failed the safe-argument test and refused a permitted cloud read.
       current += character
       continue
     }
