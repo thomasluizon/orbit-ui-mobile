@@ -447,7 +447,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --bg-sunk rgba(9,9,11,0.04)
 --bg-hover rgba(9,9,11,0.06)
 --status-done var(--fg-1) · empty var(--fg-4) · frozen var(--fg-2)   /* the neutral statuses resolve through the fg ramp in BOTH variants */
---status-overdue #886100   /* 5.28:1 on #FAFAFA, hue 81.3. White on it 5.51:1 */
+--status-overdue #886100   /* 5.36:1 on #FAFAFA, hue 81.1. White on it 5.59:1 */
 --status-bad     #E7000B   /* 4.57:1 on #FAFAFA, hue 28.5 */
 --fg-on-bad      #FFFFFF   /* 4.77:1 on the fill */
 --fg-on-overdue  #FFFFFF   /* 5.33:1 on the fill */
@@ -469,7 +469,7 @@ different in kind: it is a mix **with the canvas**, so leaving it unrepointed ga
 dark-mode value `#261611`, a near-black wash painted onto a white card. That is what a selected
 `PlanCard` rendered in light until 2026-08-17.
 
-**The two status hues move in light mode, and it forced `--status-overdue` off its first value.** Both darken to clear the floor on `#FAFAFA`. `--status-bad` goes from hue 25.4 up to 28.5. `--status-overdue` was first taken to `#B45B00` at hue 54.5, and that was **wrong**: it sits only **9.8 degrees** from the hue-45 accent, inside the 15-degree band derivation rule 6 forbids. Its next value, `#946A00`, cleared the canvas but missed the 4.5 text floor on the light well, on hover, and on the 10 percent overdue tint both `ExpiryWarning` mirrors paint session-expiry text on. That tint is DERIVED FROM THIS TOKEN, so it darkens with it and has to be solved together rather than measured once. It is now `#886100` at **hue 81.3**, which clears the accent by **36.5 degrees**, measures 5.28:1 on `#FAFAFA`, and carries white at 5.51:1. **Derivation rule 6 is tighter in light mode than in dark and must be measured there too.**
+**The two status hues move in light mode, and it forced `--status-overdue` off its first value.** Both darken to clear the floor on `#FAFAFA`. `--status-bad` goes from hue 25.4 up to 28.5. `--status-overdue` was first taken to `#B45B00` at hue 54.5, and that was **wrong**: it sits only **9.8 degrees** from the hue-45 accent, inside the 15-degree band derivation rule 6 forbids. Its next value, `#946A00`, cleared the canvas but missed the 4.5 text floor on the light well, on hover, and on the 10 percent overdue tint both `ExpiryWarning` mirrors paint session-expiry text on. That tint is DERIVED FROM THIS TOKEN, so it darkens with it and has to be solved together rather than measured once. It is now `#886100` at **hue 81.1**, which clears the accent by **36.3 degrees**, measures 5.36:1 on `#FAFAFA`, and carries white at 5.59:1. **Derivation rule 6 is tighter in light mode than in dark and must be measured there too.**
 
 **`--fg-on-overdue` is `#FFFFFF` in light mode, not the dark mode `#020618`.** The first light
 overdue attempt inherited `#020618`, which measured **4.26:1** on `#B45B00` and missed the 4.5 text
@@ -498,7 +498,7 @@ elevated panel or a hovered surface.** On a raised surface, emphasis is a weight
 
 **Closed 2026-09-10: light `--status-overdue` text on the well and hover surfaces.** `#946A00`
 measured 4.26:1 on the well and 4.11:1 on hover, below the 4.5 text floor. Thomas moved it along
-constant OKLCH hue to `#886100`. It now measures 5.28 on the canvas, 5.51 on the card, 4.84 on the
+constant OKLCH hue to `#886100`. It now measures 5.36 on the canvas, 5.59 on the card, 4.91 on the
 well, 4.51 on hover, and 4.72 on the widget well. White on the fill is 5.33, and the 36.3 degree
 separation from the accent still clears derivation rule 6.
 
