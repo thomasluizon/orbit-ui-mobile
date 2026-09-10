@@ -200,6 +200,12 @@ T("engine: a worker start redirected to a file still blocks", blocks(engine("cod
 T("engine: a chained worker start after a cloud read with merged stderr still blocks", blocks(engine("codex cloud list 2>&1 && codex exec")), true)
 T("engine: a spaced process substitution after a redirection operator still blocks", blocks(engine("codex cloud list > (codex exec)")), true)
 T("engine: a bare ampersand after a redirection operator still blocks", blocks(engine("codex cloud list > & codex exec")), true)
+// An ESCAPED greater-than is a literal character, so the ampersand after it still separates
+// commands. Treating it as a redirection hid the second command from every rule reading segmentsOf.
+T("engine: a Bash-escaped greater-than does not hide the next command", blocks(engine(String.raw`printf \> & codex exec`)), true)
+T("engine: a PowerShell-escaped greater-than does not hide the next command", blocks(engine("Write-Output before `> & codex exec")), true)
+T("admin-merge: a Bash-escaped greater-than does not hide an admin merge", blocks(checkAdminMerge(String.raw`printf \> & gh pr merge 667 --squash ${ADMIN}`)), true)
+T("admin-merge: a PowerShell-escaped greater-than does not hide an admin merge", blocks(checkAdminMerge(`Write-Output before \`> & gh pr merge 667 --squash ${ADMIN}`)), true)
 T("engine: the refusal names the cloud submitter", engine("codex cloud exec")?.message.includes("tools/submit-cloud-worker.mjs"), true)
 // The launcher exports its marker into every worker it spawns; that is the
 // discriminator, and it is read from the ENVIRONMENT only.
@@ -232,6 +238,10 @@ T("staging: real linked worktree initializes", stagingGit(["worktree", "add", "-
 mkdirSync(join(stagingWorktree, "named-dir"), { recursive: true })
 rmSync(join(stagingWorktree, ".claude"), { recursive: true })
 const workerStaging = (command) => checkBroadStaging(command, { cwd: stagingWorktree, repoRoots: [stagingMain] })
+// #496: segmentsOf feeds this rule too, so an escaped greater-than must not hide the second command
+// from it either. Bash `printf \> & git add -A` starts a real `git add -A`.
+T("staging: a Bash-escaped greater-than does not hide a broad stage", blocks(workerStaging(String.raw`printf \> & git add -A`)), true)
+T("staging: a PowerShell-escaped greater-than does not hide a broad stage", blocks(workerStaging("Write-Output before `> & git add -A")), true)
 for (const command of [
   "git add -A",
   "git add --all",

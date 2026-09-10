@@ -126,6 +126,23 @@ export function invokedBinary(segment) {
  * second segment beginning `codex' .`, whose invoked binary resolved to `codex` and blocked a
  * read-only search. A search PATTERN is data, never an invocation.
  */
+/**
+ * Whether a segment ends in a `>` the shell would really read as a redirection. An ESCAPED one is a
+ * literal character, so the ampersand after it still separates commands: Bash `printf \> & codex exec`
+ * and PowerShell ``Write-Output before `> & codex exec`` both start a second command, and treating
+ * either as one segment hid the guarded invocation from every rule that reads segmentsOf.
+ */
+function endsWithRedirectionArrow(segment) {
+  const trimmed = segment.replace(/\s+$/, "")
+  if (!trimmed.endsWith(">")) return false
+  let escapes = 0
+  for (let index = trimmed.length - 2; index >= 0; index -= 1) {
+    if (trimmed[index] !== "\\" && trimmed[index] !== "`") break
+    escapes += 1
+  }
+  return escapes % 2 === 0
+}
+
 export function segmentsOf(command) {
   const source = stripHeredocBodies(command)
   const segments = []
@@ -143,7 +160,7 @@ export function segmentsOf(command) {
       current += character
       continue
     }
-    if (character === "&" && (/>\s*$/.test(current) || source[index + 1] === ">")) {
+    if (character === "&" && (endsWithRedirectionArrow(current) || source[index + 1] === ">")) {
       // `2>&1` and `&>log` are one redirection token. Splitting them left a phantom segment
       // ending in `2>`, which failed the safe-argument test and refused a permitted cloud read.
       current += character
