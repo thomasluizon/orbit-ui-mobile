@@ -39,6 +39,11 @@ function luminance(channels: Rgb): number {
   return 0.2126 * linear[0]! + 0.7152 * linear[1]! + 0.0722 * linear[2]!
 }
 
+export function withAlpha(color: string, alpha: number): string {
+  const { channels } = parseColor(color)
+  return `rgba(${channels.join(',')},${alpha})`
+}
+
 export function contrastOnSurface(foreground: string, layers: readonly string[]): number {
   const background = layers.reduce<Rgb>((below, layer) => composite(layer, below), [0, 0, 0])
   const foregroundLuminance = luminance(composite(foreground, background))

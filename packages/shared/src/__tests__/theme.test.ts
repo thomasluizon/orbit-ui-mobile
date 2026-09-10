@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { contrastOnSurface, withAlpha } from './contrast'
 import { schemes } from '../theme/color-schemes'
 import {
   neutralColors,
@@ -9,6 +10,9 @@ import { resolveResponsiveTypeRole, responsiveTypeRoles, typeRoles } from '../th
 import type { ColorScheme } from '../theme/types'
 
 const ALL_SCHEMES: ColorScheme[] = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan']
+
+/** WHY: both ExpiryWarning mirrors paint their text on the overdue token at this alpha over --bg. */
+const EXPIRY_TINT_ALPHA = 0.1
 
 const GRANTED_ACCENTS = {
   dark: {
@@ -95,10 +99,24 @@ describe('byte-exact mode colors', () => {
       badText: '#FB2C36', fgOnBad: '#020618', fgOnOverdue: '#020618',
     })
     expect(statusConstants.light).toEqual({
-      overdue: '#946A00', bad: '#E7000B', overdueText: '#946A00',
+      overdue: '#886100', bad: '#E7000B', overdueText: '#886100',
       badText: '#E7000B', fgOnBad: '#FFFFFF', fgOnOverdue: '#FFFFFF',
     })
     expect(selectionAlpha).toEqual({ dark: 0.32, light: 0.18 })
+  })
+
+  it.each([
+    ['canvas', [neutralColors.light.bg]],
+    ['card', [neutralColors.light.bg, neutralColors.light.bgCard]],
+    ['well', [neutralColors.light.bg, neutralColors.light.bgWell]],
+    ['hover', [neutralColors.light.bg, neutralColors.light.bgHover]],
+    ['session-expiry warning tint', [
+      neutralColors.light.bg,
+      withAlpha(statusConstants.light.overdue, EXPIRY_TINT_ALPHA),
+    ]],
+  ] as const)('keeps light overdue text AA on the %s surface', (_surface, layers) => {
+    expect(contrastOnSurface(statusConstants.light.overdueText, layers))
+      .toBeGreaterThanOrEqual(4.5)
   })
 })
 

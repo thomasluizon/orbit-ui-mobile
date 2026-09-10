@@ -447,10 +447,10 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --bg-sunk rgba(9,9,11,0.04)
 --bg-hover rgba(9,9,11,0.06)
 --status-done var(--fg-1) · empty var(--fg-4) · frozen var(--fg-2)   /* the neutral statuses resolve through the fg ramp in BOTH variants */
---status-overdue #946A00   /* 4.66:1 on #FAFAFA, hue 81.2. White on it 4.86:1 */
+--status-overdue #886100   /* 5.36:1 on #FAFAFA, hue 81.1. White on it 5.59:1 */
 --status-bad     #E7000B   /* 4.57:1 on #FAFAFA, hue 28.5 */
 --fg-on-bad      #FFFFFF   /* 4.77:1 on the fill */
---fg-on-overdue  #FFFFFF   /* 4.73:1 on the fill */
+--fg-on-overdue  #FFFFFF   /* 5.59:1 on the fill */
 --hairline rgba(9,9,11,0.08) · --border-control rgba(9,9,11,0.08)
 --hairline-ghost rgba(9,9,11,0.10) · --hairline-strong rgba(9,9,11,0.16)
 --fg-1 #1A1A1D  /* 16.64:1 */   --fg-2 #424247  /*  9.57:1 */
@@ -469,9 +469,11 @@ different in kind: it is a mix **with the canvas**, so leaving it unrepointed ga
 dark-mode value `#261611`, a near-black wash painted onto a white card. That is what a selected
 `PlanCard` rendered in light until 2026-08-17.
 
-**The two status hues move in light mode, and it forced `--status-overdue` off its first value.** Both darken to clear the floor on `#FAFAFA`. `--status-bad` goes from hue 25.4 up to 28.5. `--status-overdue` was first taken to `#B45B00` at hue 54.5, and that was **wrong**: it sits only **9.8 degrees** from the hue-45 accent, inside the 15-degree band derivation rule 6 forbids. It is now `#946A00` at **hue 81.2**, which clears the accent by **36.4 degrees**, measures 4.66:1 on `#FAFAFA` and carries white at 4.86:1. **Derivation rule 6 is tighter in light mode than in dark and must be measured there too.**
+**The two status hues move in light mode, and it forced `--status-overdue` off its first value.** Both darken to clear the floor on `#FAFAFA`. `--status-bad` goes from hue 25.4 up to 28.5. `--status-overdue` was first taken to `#B45B00` at hue 54.5, and that was **wrong**: it sits only **9.8 degrees** from the hue-45 accent, inside the 15-degree band derivation rule 6 forbids. Its next value, `#946A00`, cleared the canvas but missed the 4.5 text floor on the light well, on hover, and on the 10 percent overdue tint both `ExpiryWarning` mirrors paint session-expiry text on. That tint is DERIVED FROM THIS TOKEN, so it darkens with it and has to be solved together rather than measured once. It is now `#886100` at **hue 81.1**, which clears the accent by **36.3 degrees**, measures 5.36:1 on `#FAFAFA`, and carries white at 5.59:1. **Derivation rule 6 is tighter in light mode than in dark and must be measured there too.**
 
-**`--fg-on-overdue` is `#FFFFFF` in light mode, not the dark mode `#020618`.** Nothing repointed it, so it inherits `#020618`, which measures **4.26:1** on `#B45B00` and misses the 4.5 text floor. That is a gap to close rather than authoritative, so the floor decides.
+**`--fg-on-overdue` is `#FFFFFF` in light mode, not the dark mode `#020618`.** The first light
+overdue attempt inherited `#020618`, which measured **4.26:1** on `#B45B00` and missed the 4.5 text
+floor. The explicit white override measures 5.59:1 on the current fill.
 
 ### Measured contrast, and two limits that are open
 
@@ -493,6 +495,13 @@ the misses are. Two independent implementations agree on every number below.
 is already defined as accent TEXT on the canvas, so 4.28 on a card is the token used outside its own
 scope, not a colour that needs changing. **Accent text never appears on a card, a field, a well, an
 elevated panel or a hovered surface.** On a raised surface, emphasis is a weight step, not a hue.
+
+**Closed 2026-09-10: light `--status-overdue` text on the well and hover surfaces.** `#946A00`
+measured 4.26:1 on the well, 4.11:1 on hover, 4.31:1 on the widget well and 4.12:1 on the 10
+percent overdue tint, all below the 4.5 text floor. Thomas moved it along constant OKLCH hue to
+`#886100`. It now measures 5.36 on the canvas, 5.59 on the card, 4.91 on the well, 4.73 on hover,
+4.95 on the widget well and 4.70 on that tint. White on the fill is 5.59, and the 36.3 degree
+separation from the accent still clears derivation rule 6.
 
 **Two limits are measured, open, and Thomas's call**, because each one trades against a rule set
 elsewhere in this document. They are written down with their numbers rather than left to be

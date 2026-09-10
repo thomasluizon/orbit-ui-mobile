@@ -81,9 +81,9 @@ export const statusConstants: Record<SchemeMode, StatusConstants> = {
     fgOnOverdue: '#020618',
   },
   light: {
-    overdue: '#946A00',
+    overdue: '#886100',
     bad: '#E7000B',
-    overdueText: '#946A00',
+    overdueText: '#886100',
     badText: '#E7000B',
     fgOnBad: '#FFFFFF',
     fgOnOverdue: '#FFFFFF',

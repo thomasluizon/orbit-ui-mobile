@@ -62,7 +62,7 @@ const PALETTES = {
     fg3: ['#68686D', '--fg-3'],
     fg4: ['#89898D', '--fg-4'],
     primary: ['#C4530F', '--primary'],
-    overdue: ['#946A00', '--status-overdue'],
+    overdue: ['#886100', '--status-overdue'],
   },
 } as const satisfies Record<'dark' | 'light', Palette>
 
@@ -138,6 +138,14 @@ export async function generateWidgetColors() {
   }
 }
 
+/**
+ * WHY: no package above this file declares `"type": "module"`, so tsx transforms it to CommonJS and
+ * esbuild refuses a top-level await outright. Handling the promise keeps the command runnable while
+ * still failing loudly and nonzero, which `void` alone leaves to a default flag.
+ */
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  await generateWidgetColors()
+  generateWidgetColors().catch((error: unknown) => {
+    process.exitCode = 1
+    throw error
+  })
 }
