@@ -20,6 +20,11 @@ import { cancelScheduledFlush } from '@/lib/offline-mutations'
 import { clearOfflineState } from '@/lib/offline-state'
 import { clearPersistedQueryCache, queryClient, setQueryCacheScope } from '@/lib/query-client'
 import { i18n } from '@/lib/i18n'
+import {
+  decodeJwtPayload,
+  getAccountIdFromPayload,
+  type JwtSessionPayload,
+} from '@/lib/jwt-session'
 import { setRuntimeTheme } from '@/lib/theme'
 import { useChatStore } from './chat-store'
 import { useReviewReminderStore } from './review-reminder-store'
@@ -63,25 +68,6 @@ interface AuthState {
   initialize: () => Promise<void>
 }
 
-interface JwtSessionPayload {
-  exp?: number
-  email?: string
-  'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'?: string
-  sub?: string
-  nameid?: string
-  'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'?: string
-}
-
-function decodeJwtPayload(token: string): JwtSessionPayload | null {
-  try {
-    const payload = token.split('.')[1]
-    if (!payload) return null
-    return JSON.parse(atob(payload)) as JwtSessionPayload
-  } catch {
-    return null
-  }
-}
-
 function getExpiresAtFromPayload(payload: JwtSessionPayload | null): number | null {
   return typeof payload?.exp === 'number' ? payload.exp * 1000 : null
 }
@@ -89,10 +75,7 @@ function getExpiresAtFromPayload(payload: JwtSessionPayload | null): number | nu
 function getUserFromPayload(payload: JwtSessionPayload | null, name?: string): User | null {
   if (!payload) return null
 
-  const userId =
-    payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier']
-    ?? payload.nameid
-    ?? payload.sub
+  const userId = getAccountIdFromPayload(payload)
   const email =
     payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress']
     ?? payload.email

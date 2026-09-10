@@ -359,10 +359,10 @@ describe('Android widget header', () => {
    * does not own. `auth-store.ts` is the producer here: it is what actually authenticates.
    */
   it('reads the account claims the app reads, in the same order', () => {
-    const authStore = readFileSync(resolve(process.cwd(), 'stores/auth-store.ts'), 'utf8')
-    const userIdBlock = authStore.slice(
-      authStore.indexOf('const userId ='),
-      authStore.indexOf('const email ='),
+    const jwtSession = readFileSync(resolve(process.cwd(), 'lib/jwt-session.ts'), 'utf8')
+    const userIdBlock = jwtSession.slice(
+      jwtSession.indexOf('export function getAccountIdFromPayload'),
+      jwtSession.indexOf('export function getAccountIdFromToken'),
     )
     const appClaims = [...userIdBlock.matchAll(/payload(?:\['([^']+)'\]|\.(\w+))/g)].map(
       match => match[1] ?? match[2],
