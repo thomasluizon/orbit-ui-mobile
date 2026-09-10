@@ -63,6 +63,27 @@ function selectedKeyDp(keysDp: readonly number[], hostDp: number) {
   return selected ?? Math.min(...keysDp)
 }
 
+/**
+ * The body of one Kotlin function, by brace matching. A file-wide `toContain` is satisfied by any
+ * other call site: `renderWidgets()` also appears in `renderPlaceholder` and in the exception path,
+ * so deleting the successful sync's own render left every widget test green.
+ */
+function kotlinFunctionBody(source: string, name: string) {
+  const declaration = source.indexOf(`private fun ${name}(`)
+  if (declaration < 0) throw new Error(`Missing Kotlin function: ${name}`)
+
+  const open = source.indexOf('{', declaration)
+  let depth = 0
+  for (let index = open; index < source.length; index += 1) {
+    if (source[index] === '{') depth += 1
+    else if (source[index] === '}') {
+      depth -= 1
+      if (depth === 0) return source.slice(open + 1, index)
+    }
+  }
+  throw new Error(`Unbalanced braces in Kotlin function: ${name}`)
+}
+
 function kotlinFloatConstant(source: string, name: string) {
   const value = source.match(new RegExp(`(?:private|internal) const val ${name} = ([\\d.]+)f`))?.[1]
   if (value === undefined) throw new Error(`Missing Kotlin constant: ${name}`)
@@ -301,7 +322,13 @@ describe('Android widget header', () => {
     expect(provider).toContain(
       'views.setContentDescription(R.id.widget_refresh, refreshDescription)',
     )
-    expect(service).toContain('renderWidgets()')
+    /**
+     * The successful sync must persist the complete header and loading state and only then issue
+     * one full render, so the size-keyed child the host selects is never left stale.
+     */
+    expect(kotlinFunctionBody(service, 'loadWidgetData')).toMatch(
+      /\.putBoolean\(OrbitWidgetProvider\.CACHE_LOADING_SKELETON, false\)\s*\.apply\(\)\s*renderWidgets\(\)\s*$/,
+    )
     expect(worker).toContain('OrbitWidgetProvider.updateWidgetLayout(context, appWidgetManager, id)')
   })
 
