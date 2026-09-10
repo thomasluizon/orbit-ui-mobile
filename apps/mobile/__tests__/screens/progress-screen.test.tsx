@@ -406,15 +406,24 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.sections.streak').length).toBeGreaterThan(0)
   })
 
-  it('renders the API window figures and all four section labels', async () => {
+  it('renders the API figures and names every region from its heading once', async () => {
     const tree = await renderProgress()
-    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
-    expect(text).toEqual(expect.arrayContaining([
+    const labels = [
       'progressScreen.sections.streak',
       'progressScreen.sections.goals',
       'progressScreen.sections.window',
       'progressScreen.sections.achievements',
-    ]))
+    ]
+    for (const label of labels) {
+      const headings = tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header' && node.props.children === label)
+      expect(headings, label).toHaveLength(1)
+      const heading = headings[0]!
+      expect(heading.props.nativeID, label).toEqual(expect.any(String))
+      let region = heading.parent
+      while (region && region.props.accessibilityLabelledBy !== heading.props.nativeID) region = region.parent
+      expect(region?.props.accessible, label).toBe(true)
+      expect(region?.props.accessibilityLabel, label).toBeUndefined()
+    }
     const figures = tree.root.findAll((node) => node.type === 'StatTile' && String(node.props.label).startsWith('progressScreen.window.'))
       .map((node) => ({ label: node.props.label, value: node.props.value }))
     expect(figures).toEqual([
