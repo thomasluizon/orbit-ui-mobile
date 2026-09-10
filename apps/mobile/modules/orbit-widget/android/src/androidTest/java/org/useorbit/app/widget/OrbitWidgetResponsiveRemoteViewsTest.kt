@@ -48,8 +48,8 @@ class OrbitWidgetResponsiveRemoteViewsTest {
         val bound = appWidgetManager.bindAppWidgetIdIfAllowed(appWidgetId, providerInfo.provider)
         assertTrue("could not bind an app widget id under the shell identity", bound)
 
-        hostView = AppWidgetHostView(context)
-        hostView.setAppWidget(appWidgetId, providerInfo)
+        appWidgetHost.startListening()
+        hostView = appWidgetHost.createView(context, appWidgetId, providerInfo)
 
         context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
             .edit()
@@ -71,6 +71,7 @@ class OrbitWidgetResponsiveRemoteViewsTest {
             .edit()
             .clear()
             .commit()
+        appWidgetHost.stopListening()
         if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
             appWidgetHost.deleteAppWidgetId(appWidgetId)
         }
