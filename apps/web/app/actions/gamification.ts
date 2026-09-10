@@ -22,10 +22,10 @@ export async function reportAchievementEvent(
   )
 }
 
-export async function repairStreak(): Promise<StreakInfo> {
+export async function repairStreakGap(dates: string[]): Promise<StreakInfo> {
   return serverAuthFetch(
-    API.gamification.repairStreak,
-    { method: 'POST', body: '{}' },
+    API.gamification.repairStreakGap,
+    { method: 'POST', body: JSON.stringify({ dates }) },
     streakInfoSchema,
   )
 }

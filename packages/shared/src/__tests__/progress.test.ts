@@ -5,7 +5,7 @@ import {
   achievementGlyphKey,
   buildGoalMovePositions,
   filterProgressGoals,
-  getAvailableStreakRepairDate,
+  getStreakRepairGapDates,
   getGoalDeadlinePresentation,
   getGamificationLevelTitleKey,
   visibleProgressAchievements,
@@ -61,10 +61,36 @@ describe('progress surface models', () => {
     ])
   })
 
-  it('trusts the repair offer and date returned by the API', () => {
-    expect(getAvailableStreakRepairDate(true, '2026-08-27')).toBe('2026-08-27')
-    expect(getAvailableStreakRepairDate(false, '2026-08-27')).toBeNull()
-    expect(getAvailableStreakRepairDate(true, null)).toBeNull()
+  it('derives the complete open gap ending on the account yesterday', () => {
+    const now = new Date('2026-08-28T15:00:00Z')
+    expect(getStreakRepairGapDates({
+      lastActiveDate: '2026-08-25',
+      recentFreezeDates: [],
+      isRepairAvailable: false,
+      repairDate: null,
+    }, now, 'America/Sao_Paulo')).toEqual(['2026-08-26', '2026-08-27'])
+    expect(getStreakRepairGapDates({
+      lastActiveDate: '2026-08-24',
+      recentFreezeDates: ['2026-08-26'],
+      isRepairAvailable: false,
+      repairDate: null,
+    }, now, 'America/Sao_Paulo')).toEqual(['2026-08-27'])
+  })
+
+  it('keeps the confirmed single-day offer and rejects ungrounded gaps', () => {
+    const now = new Date('2026-08-28T15:00:00Z')
+    expect(getStreakRepairGapDates({
+      lastActiveDate: null,
+      recentFreezeDates: [],
+      isRepairAvailable: true,
+      repairDate: '2026-08-27',
+    }, now, 'America/Sao_Paulo')).toEqual(['2026-08-27'])
+    expect(getStreakRepairGapDates({
+      lastActiveDate: null,
+      recentFreezeDates: [],
+      isRepairAvailable: false,
+      repairDate: null,
+    }, now, 'America/Sao_Paulo')).toEqual([])
   })
 
   it('hides the retired social achievement categories', () => {

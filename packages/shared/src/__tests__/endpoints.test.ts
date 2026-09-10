@@ -131,6 +131,7 @@ describe('API endpoints', () => {
       expect(API.gamification.profile).toBe('/api/gamification/profile')
       expect(API.gamification.achievements).toBe('/api/gamification/achievements')
       expect(API.gamification.streak).toBe('/api/gamification/streak')
+      expect(API.gamification.repairStreakGap).toBe('/api/gamification/streak/repair-gap')
     })
   })
 

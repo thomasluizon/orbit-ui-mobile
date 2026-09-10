@@ -15,9 +15,10 @@ import {
   buildGoalMovePositions,
   buildProtectedDayLabels,
   buildStreakWeekDays,
+  deriveStreakRepairState,
   extractBackendErrorCode,
+  extractBackendStatus,
   filterProgressGoals,
-  getAvailableStreakRepairDate,
   getBestRetrospectiveWeekdayKey,
   getProgressGoalLabelKey,
   getGamificationLevelTitleKey,
@@ -25,8 +26,10 @@ import {
   deriveProgressViewState,
   visibleProgressAchievements,
   type ProgressGoalFilter,
+  type StreakRepairState,
 } from '@orbit/shared/utils'
 import { Badge } from '@/components/ui/badge'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { useGoalDrag } from './use-goal-drag'
 import { DayStrip } from '@/components/dates/day-strip'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
@@ -137,6 +140,30 @@ function FrozenTodayStatus({ isFrozenToday, tokens }: Readonly<{ isFrozenToday: 
   )
 }
 
+function StreakRepairPanel({ state, daysUntilNextFreeze, ceiling, repair, tokens }: Readonly<{
+  state: StreakRepairState
+  daysUntilNextFreeze: number
+  ceiling: number
+  repair: ReturnType<typeof useRepairStreak>
+  tokens: AppTokensV2
+}>) {
+  const { t } = useTranslation()
+  const repairStatus = extractBackendStatus(repair.error)
+  if (state.showGap) {
+    return (
+      <View style={[styles.gapWell, { backgroundColor: tokens.bgWell }]}>
+        <Text style={[styles.gapBody, { color: tokens.fg1 }]}>{t('progressScreen.streak.gapBody', { count: state.count })}</Text>
+        {state.canRepair ? <View style={styles.actionStart}><PillButton loading={repair.isPending} onClick={() => repair.mutate(state.dates)}>{t('progressScreen.streak.repairAction', { count: state.count })}</PillButton></View> : null}
+        {!state.canRepair ? <Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.streak.repairEmpty', { count: daysUntilNextFreeze })}</Text> : null}
+        {repair.isError && repairStatus !== 409 ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.statusBad }]}>{t(repairStatus === 429 ? 'progressScreen.streak.repairRateLimited' : 'progressScreen.streak.repairError')}</Text> : null}
+      </View>
+    )
+  }
+  return state.bankFull
+    ? <CapacityNotice message={t('progressScreen.streak.bankFull', { count: ceiling })} />
+    : null
+}
+
 function StreakSection({ accountProfile, canView, gamificationProfile, tokens }: Readonly<{
   accountProfile: ReturnType<typeof useProfile>['profile']; canView: boolean; gamificationProfile: ReturnType<typeof useGamificationProfile>['profile']; tokens: AppTokensV2
 }>) {
@@ -150,11 +177,14 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens }:
   const days = buildStreakWeekDays(freeze.streakInfo, currentStreak, freeze.isFrozenToday, new Date(), 14, timeZone ?? undefined)
   const labels = useMemo(() => days.map((day) => new Intl.DateTimeFormat(i18n.language, { month: 'short', day: 'numeric' }).format(day.date)), [days, i18n.language])
   const tier = t(getStreakTierLabelKey(currentStreak))
-  const repairDate = getAvailableStreakRepairDate(
-    freeze.streakInfo?.isRepairAvailable,
-    freeze.streakInfo?.repairDate,
-  )
-  const canRepair = freeze.freezesAvailable > 0
+  const repairState = deriveStreakRepairState({
+    streak: freeze.streakInfo,
+    freezesAvailable: freeze.freezesAvailable,
+    banked: freeze.streakFreezesAccumulated,
+    ceiling: freeze.maxStreakFreezesAccumulated,
+    now: new Date(),
+    accountTimeZone: timeZone,
+  })
   const dayWords = { active: t('progressScreen.streak.active'), frozen: t('progressScreen.streak.frozen'), missed: t('progressScreen.streak.missed'), today: t('progressScreen.streak.today') }
   if (canView && freeze.streakQuery.isError) {
     return <View style={styles.streakSection}><Text accessible accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void freeze.streakQuery.refetch()}>{t('progressScreen.retry')}</PillButton>} /></View>
@@ -168,7 +198,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens }:
       <FrozenTodayStatus isFrozenToday={freeze.isFrozenToday} tokens={tokens} />
       <DayStrip size={width >= 768 ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
       {canView && freeze.streakInfo ? <FreezeBank banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} usedThisMonth={freeze.freezesUsedThisMonth} longestValue={longestStreak} longestLabel={t('progressScreen.streak.longest')} daysTowardNext={Math.max(0, 7 - freeze.daysUntilNextFreeze)} earnRateDays={7} tierValue={tier} tierLabel={t('streakDisplay.detail.tierTileLabel')} protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, i18n.language, freeze.isFrozenToday, timeZone ?? undefined)} words={{ ...dayWords, legendLabel: t('progressScreen.streak.legend'), bankedLabel: t('progressScreen.streak.banked'), usedLabel: t('progressScreen.streak.used'), nextLabel: t('progressScreen.streak.next'), nextProgressLabel: t('progressScreen.streak.nextProgress'), nextFreezeProgress: t('progressScreen.streak.nextOf', { current: Math.max(0, 7 - freeze.daysUntilNextFreeze), total: 7 }), protectedLabel: t('progressScreen.streak.protectedDays'), protectedEmpty: t('progressScreen.streak.protectedEmpty'), protectedDay: t('progressScreen.streak.protected'), protectedToday: t('progressScreen.streak.protectedToday') }} /> : <><View style={styles.tileGrid}><View style={styles.half}><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /></View><View style={styles.half}><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></View></View><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} tokens={tokens} /></>}
-      {repairDate ? <View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}><View style={styles.copy}><Text style={[styles.cardTitle, { color: tokens.fg1 }]}>{t('progressScreen.streak.repairTitle')}</Text><Text style={[styles.body, { color: tokens.fg3 }]}>{canRepair ? t('progressScreen.streak.repairBody', { count: freeze.freezesAvailable }) : t('progressScreen.streak.repairEmpty', { count: freeze.daysUntilNextFreeze })}</Text></View>{canRepair ? <View style={styles.actionStart}><PillButton loading={repair.isPending} onClick={() => repair.mutate()}>{t('progressScreen.streak.repairAction')}</PillButton></View> : null}{repair.isError ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.statusBad }]}>{t('progressScreen.streak.repairError')}</Text> : null}</View> : null}
+      <StreakRepairPanel state={repairState} daysUntilNextFreeze={freeze.daysUntilNextFreeze} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} tokens={tokens} />
     </View>
   )
 }
@@ -407,6 +437,7 @@ const styles = StyleSheet.create({
   copy: { gap: 4 }, body: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20 }, meta: { fontFamily: 'GeistMono_400Regular', fontSize: 12, lineHeight: 16 },
   notice: { borderRadius: 12, fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 20, paddingHorizontal: 16, paddingVertical: 12 },
   card: { borderRadius: 20, borderWidth: 1, gap: 12, padding: 16 }, cardTitle: { fontFamily: 'Geist_500Medium', fontSize: 16, lineHeight: 20 }, actionStart: { alignSelf: 'flex-start' }, lockHeader: { alignItems: 'center', flexDirection: 'row', gap: 12 },
+  gapWell: { borderRadius: 12, gap: 12, padding: 16 }, gapBody: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24 },
   tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, half: { width: '48%' },
   windowGrid: { gap: 12 }, windowLock: { maxWidth: 560 }, windowRow: { flexDirection: 'row', gap: 12 }, windowSection: { gap: 12 }, windowTile: { flex: 1, minWidth: 0 },
   goalsSection: { gap: 12 }, goalCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 20, borderWidth: 1 },

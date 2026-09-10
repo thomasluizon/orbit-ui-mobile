@@ -22,7 +22,7 @@ type TestNode = {
 
 const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
-  repair: { mutate: vi.fn(), isPending: false, isError: false },
+  repair: { mutate: vi.fn(), isPending: false, isError: false, error: null as { status: number } | null },
   reorder: { mutate: vi.fn() },
   drag: vi.fn(),
   updateStatus: { mutate: vi.fn(), isPending: false },
@@ -304,11 +304,23 @@ describe('mobile ProgressContent', () => {
     mocks.goals.data.allGoals = []
     mocks.gamification.profile.achievements = []
     mocks.freeze.isFrozenToday = false
-    mocks.freeze.streakInfo.recentFreezeDates = []
-    mocks.freeze.streakInfo.lastActiveDate = null
-    mocks.freeze.streakInfo.isRepairAvailable = false
-    mocks.freeze.streakInfo.repairDate = null
+    Object.assign(mocks.freeze.streakInfo, {
+      currentStreak: 4,
+      recentFreezeDates: [],
+      lastActiveDate: null,
+      isRepairAvailable: false,
+      repairDate: null,
+      streakFreezesAccumulated: 2,
+      maxStreakFreezesAccumulated: 3,
+      daysUntilNextFreeze: 3,
+    })
     mocks.freeze.streakQuery.isError = false
+    mocks.freeze.freezesAvailable = 2
+    mocks.freeze.streakFreezesAccumulated = 2
+    mocks.freeze.maxStreakFreezesAccumulated = 3
+    mocks.freeze.daysUntilNextFreeze = 3
+    mocks.repair.isError = false
+    mocks.repair.error = null
     mocks.streakSnapshotZones = null
     mocks.retrospective.isLoading = false
     mocks.retrospective.isError = false
@@ -547,9 +559,11 @@ describe('mobile ProgressContent', () => {
     dimensions.mockRestore()
   })
 
-  it('dispatches the explicit repair write', async () => {
-    mocks.freeze.streakInfo.isRepairAvailable = true
-    mocks.freeze.streakInfo.repairDate = '2026-08-27'
+  it('dispatches one atomic write for the complete gap', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.lastActiveDate = '2026-09-07'
     mocks.goals.data.allGoals = [{
       id: 'goal-1', title: 'Read 10 books', description: null, targetValue: 10,
       currentValue: 10, unit: 'books', status: 'Active', deadline: null, position: 0,
@@ -559,9 +573,68 @@ describe('mobile ProgressContent', () => {
     const tree = await renderProgress()
 
     await TestRenderer.act(() => {
-      ;(findPill(tree.root, 'progressScreen.streak.repairAction').props.onClick as () => void)()
+      ;(findPill(tree.root, 'progressScreen.streak.repairAction:{"count":2}').props.onClick as () => void)()
     })
-    expect(mocks.repair.mutate).toHaveBeenCalledTimes(1)
+    expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-08', '2026-09-09'])
+  })
+
+  it('shows the no-freeze gap without an action or blame', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.lastActiveDate = '2026-09-07'
+    mocks.freeze.streakInfo.streakFreezesAccumulated = 0
+    mocks.freeze.freezesAvailable = 0
+    mocks.freeze.streakFreezesAccumulated = 0
+
+    const tree = await renderProgress()
+    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+
+    expect(text).toContain('progressScreen.streak.gapBody:{"count":2}')
+    expect(text).toContain('progressScreen.streak.repairEmpty:{"count":3}')
+    expect(tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.streak.repairAction:{"count":2}')).toHaveLength(0)
+  })
+
+  it('shows the neutral bank limit and no next-freeze row', async () => {
+    mocks.freeze.streakInfo.streakFreezesAccumulated = 3
+    mocks.freeze.streakFreezesAccumulated = 3
+
+    const tree = await renderProgress()
+    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+
+    expect(text).toContain('progressScreen.streak.bankFull:{"count":3}')
+    expect(text).not.toContain('progressScreen.streak.next')
+  })
+
+  it.each([
+    [429, 'progressScreen.streak.repairRateLimited'],
+    [500, 'progressScreen.streak.repairError'],
+  ])('names repair failure status %i honestly', async (status, message) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.lastActiveDate = '2026-09-07'
+    mocks.repair.isError = true
+    mocks.repair.error = { status }
+
+    const tree = await renderProgress()
+    const alerts = tree.root.findAll((node) => node.props.accessibilityRole === 'alert')
+
+    expect(alerts.length).toBeGreaterThan(0)
+    expect(alerts.some((node) => node.props.children === message)).toBe(true)
+  })
+
+  it('does not render a failure after a repair conflict triggers read-back', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.lastActiveDate = '2026-09-07'
+    mocks.repair.isError = true
+    mocks.repair.error = { status: 409 }
+
+    const tree = await renderProgress()
+
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'alert')).toHaveLength(0)
   })
 
   it('keeps the other sections open when the Pro figures report no habits', async () => {

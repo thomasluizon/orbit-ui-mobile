@@ -1,11 +1,12 @@
 import {
+  addDays,
   differenceInCalendarDays,
   format,
   isValid,
   parseISO,
   startOfDay,
 } from 'date-fns'
-import type { Achievement, GamificationProfile } from '../types/gamification'
+import type { Achievement, GamificationProfile, StreakInfo } from '../types/gamification'
 import type { Goal, GoalPositionItem, GoalStatus } from '../types/goal'
 import type { Profile } from '../types/profile'
 import { nowDate } from './dates'
@@ -139,15 +140,81 @@ export function getGamificationLevelTitleKey(level: number): string {
   return `progressScreen.achievements.levelTitles.${GAMIFICATION_LEVEL_TITLE_KEYS[index]}`
 }
 
-export function getAvailableStreakRepairDate(
-  isRepairAvailable: boolean | undefined,
-  repairDate: string | null | undefined,
-): string | null {
-  return isRepairAvailable === true && repairDate ? repairDate : null
+type StreakRepairSource = Pick<StreakInfo, 'isRepairAvailable' | 'lastActiveDate' | 'recentFreezeDates' | 'repairDate'>
+
+export type StreakRepairState = {
+  dates: string[]
+  count: number
+  canRepair: boolean
+  showGap: boolean
+  bankFull: boolean
 }
 
-function getProtectedAccountToday(timeZone?: string | null): string {
-  const now = nowDate()
+const MAX_STREAK_REPAIR_LOOKBACK_DAYS = 365
+
+function isApiDate(value: string | null | undefined): value is string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const parsed = startOfDay(parseISO(value))
+  return isValid(parsed) && format(parsed, 'yyyy-MM-dd') === value
+}
+
+/** Dates the current streak snapshot establishes as the open calendar gap ending yesterday. */
+export function getStreakRepairGapDates(
+  streak: StreakRepairSource,
+  now = nowDate(),
+  accountTimeZone?: string | null,
+): string[] {
+  if (streak.isRepairAvailable === true && isApiDate(streak.repairDate)) {
+    return [streak.repairDate]
+  }
+
+  const accountToday = getAccountToday(accountTimeZone, now)
+  const protectedDates = [streak.lastActiveDate, ...streak.recentFreezeDates]
+    .filter(isApiDate)
+    .filter((date) => date < accountToday)
+    .sort((left, right) => left.localeCompare(right))
+  const lastProtectedDate = protectedDates.at(-1)
+  if (!lastProtectedDate) return []
+
+  const openDays = differenceInCalendarDays(
+    addDays(startOfDay(parseISO(accountToday)), -1),
+    startOfDay(parseISO(lastProtectedDate)),
+  )
+  if (openDays < 1 || openDays > MAX_STREAK_REPAIR_LOOKBACK_DAYS) return []
+
+  const boundary = startOfDay(parseISO(lastProtectedDate))
+  return Array.from({ length: openDays }, (_, index) =>
+    format(addDays(boundary, index + 1), 'yyyy-MM-dd'))
+}
+
+export function deriveStreakRepairState({
+  streak,
+  freezesAvailable,
+  banked,
+  ceiling,
+  now = nowDate(),
+  accountTimeZone,
+}: {
+  streak: StreakRepairSource | null | undefined
+  freezesAvailable: number
+  banked: number
+  ceiling: number
+  now?: Date
+  accountTimeZone?: string | null
+}): StreakRepairState {
+  const dates = streak ? getStreakRepairGapDates(streak, now, accountTimeZone) : []
+  const count = dates.length
+  const canRepair = count > 0 && freezesAvailable >= count
+  return {
+    dates,
+    count,
+    canRepair,
+    showGap: count > 0 && (canRepair || banked === 0),
+    bankFull: banked >= ceiling,
+  }
+}
+
+function getAccountToday(timeZone?: string | null, now = nowDate()): string {
   try {
     const accountDateParts = new Intl.DateTimeFormat('en-CA', {
       timeZone: timeZone || 'UTC',
@@ -173,7 +240,7 @@ export function buildProtectedDayLabels(
   isFrozenToday = false,
   accountTimeZone?: string | null,
 ): { id: string; dateLabel: string; isToday: boolean }[] {
-  const accountToday = isFrozenToday ? getProtectedAccountToday(accountTimeZone) : null
+  const accountToday = isFrozenToday ? getAccountToday(accountTimeZone) : null
   const protectedDays = [...new Set(dates)].sort((leftDate, rightDate) => {
     if (leftDate === rightDate) return 0
     return leftDate < rightDate ? 1 : -1

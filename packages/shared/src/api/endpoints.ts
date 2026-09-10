@@ -112,6 +112,7 @@ export const API = {
     achievements: '/api/gamification/achievements',
     streak: '/api/gamification/streak',
     repairStreak: '/api/gamification/streak/repair',
+    repairStreakGap: '/api/gamification/streak/repair-gap',
     recap: '/api/gamification/recap',
     streakHistory: '/api/gamification/streak-history',
     xpHistory: '/api/gamification/xp-history',

@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => {
 
   const queryClient = {
     invalidateQueries: vi.fn(async () => {}),
+    fetchQuery: vi.fn(() => Promise.resolve(state.streakInfo)),
   }
 
   return {
@@ -255,21 +256,38 @@ describe('mobile useRepairStreak', () => {
     mocks.apiClient.mockReset()
     mocks.useMutation.mockClear()
     mocks.queryClient.invalidateQueries.mockClear()
+    mocks.queryClient.fetchQuery.mockClear()
   })
 
-  it('posts the confirmed empty repair body and validates the streak response', async () => {
+  it('posts exactly the selected dates and validates the streak response', async () => {
     mocks.apiClient.mockResolvedValue(mocks.state.streakInfo)
     await renderHookValue(() => useRepairStreak('America/Sao_Paulo'))
     const options = mocks.useMutation.mock.calls[0]![0] as {
-      mutationFn: () => Promise<StreakInfo>
+      mutationFn: (dates: string[]) => Promise<StreakInfo>
     }
 
-    await options.mutationFn()
+    await options.mutationFn(['2026-09-04', '2026-09-05'])
 
     expect(mocks.apiClient).toHaveBeenCalledWith(
-      API.gamification.repairStreak,
-      { method: 'POST', body: '{}' },
+      API.gamification.repairStreakGap,
+      { method: 'POST', body: JSON.stringify({ dates: ['2026-09-04', '2026-09-05'] }) },
       streakInfoSchema,
     )
+  })
+
+  it('reads the streak back after a conflict instead of surfacing a stale failure', async () => {
+    await renderHookValue(() => useRepairStreak('America/Sao_Paulo'))
+    const options = mocks.useMutation.mock.calls[0]![0] as {
+      onError: (error: unknown) => Promise<void>
+    }
+
+    await options.onError({ status: 409 })
+
+    expect(mocks.queryClient.fetchQuery).toHaveBeenCalledWith(expect.objectContaining({
+      queryKey: gamificationKeys.streak('America/Sao_Paulo'),
+    }))
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: gamificationKeys.profile(),
+    })
   })
 })
