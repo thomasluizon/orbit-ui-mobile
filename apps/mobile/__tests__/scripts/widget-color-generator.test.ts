@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { SaxesParser } from 'saxes'
@@ -38,18 +38,24 @@ describe('widget color generator', () => {
    * other test passes. That happened on this branch.
    */
   it('runs as a direct command and rewrites the checked-in outputs unchanged', () => {
-    const before = GENERATED_OUTPUTS.map(file => readFileSync(resolve(repositoryRoot, file), 'utf8'))
+    const before = GENERATED_OUTPUTS.map(file => readFileSync(resolve(repositoryRoot, file)))
 
-    const run = spawnSync(
-      process.execPath,
-      [resolve(repositoryRoot, 'node_modules/tsx/dist/cli.mjs'), generatorPath],
-      { cwd: repositoryRoot, encoding: 'utf8' },
-    )
+    try {
+      const run = spawnSync(
+        process.execPath,
+        [resolve(repositoryRoot, 'node_modules/tsx/dist/cli.mjs'), generatorPath],
+        { cwd: repositoryRoot, encoding: 'utf8' },
+      )
 
-    expect(run.stderr).toBe('')
-    expect(run.status).toBe(0)
-    for (const [index, file] of GENERATED_OUTPUTS.entries()) {
-      expect(readFileSync(resolve(repositoryRoot, file), 'utf8'), file).toBe(before[index])
+      expect(run.stderr).toBe('')
+      expect(run.status).toBe(0)
+      for (const [index, file] of GENERATED_OUTPUTS.entries()) {
+        expect(readFileSync(resolve(repositoryRoot, file)), file).toEqual(before[index])
+      }
+    } finally {
+      for (const [index, file] of GENERATED_OUTPUTS.entries()) {
+        writeFileSync(resolve(repositoryRoot, file), before[index])
+      }
     }
   }, 60_000)
 
