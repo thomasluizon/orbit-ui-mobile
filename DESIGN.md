@@ -450,7 +450,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --status-overdue #886100   /* 5.36:1 on #FAFAFA, hue 81.1. White on it 5.59:1 */
 --status-bad     #E7000B   /* 4.57:1 on #FAFAFA, hue 28.5 */
 --fg-on-bad      #FFFFFF   /* 4.77:1 on the fill */
---fg-on-overdue  #FFFFFF   /* 5.33:1 on the fill */
+--fg-on-overdue  #FFFFFF   /* 5.59:1 on the fill */
 --hairline rgba(9,9,11,0.08) · --border-control rgba(9,9,11,0.08)
 --hairline-ghost rgba(9,9,11,0.10) · --hairline-strong rgba(9,9,11,0.16)
 --fg-1 #1A1A1D  /* 16.64:1 */   --fg-2 #424247  /*  9.57:1 */
@@ -473,7 +473,7 @@ dark-mode value `#261611`, a near-black wash painted onto a white card. That is 
 
 **`--fg-on-overdue` is `#FFFFFF` in light mode, not the dark mode `#020618`.** The first light
 overdue attempt inherited `#020618`, which measured **4.26:1** on `#B45B00` and missed the 4.5 text
-floor. The explicit white override measures 5.33:1 on the current fill.
+floor. The explicit white override measures 5.59:1 on the current fill.
 
 ### Measured contrast, and two limits that are open
 
@@ -497,9 +497,10 @@ scope, not a colour that needs changing. **Accent text never appears on a card, 
 elevated panel or a hovered surface.** On a raised surface, emphasis is a weight step, not a hue.
 
 **Closed 2026-09-10: light `--status-overdue` text on the well and hover surfaces.** `#946A00`
-measured 4.26:1 on the well and 4.11:1 on hover, below the 4.5 text floor. Thomas moved it along
-constant OKLCH hue to `#886100`. It now measures 5.36 on the canvas, 5.59 on the card, 4.91 on the
-well, 4.51 on hover, and 4.72 on the widget well. White on the fill is 5.33, and the 36.3 degree
+measured 4.26:1 on the well, 4.11:1 on hover, 4.31:1 on the widget well and 4.12:1 on the 10
+percent overdue tint, all below the 4.5 text floor. Thomas moved it along constant OKLCH hue to
+`#886100`. It now measures 5.36 on the canvas, 5.59 on the card, 4.91 on the well, 4.73 on hover,
+4.95 on the widget well and 4.70 on that tint. White on the fill is 5.59, and the 36.3 degree
 separation from the accent still clears derivation rule 6.
 
 **Two limits are measured, open, and Thomas's call**, because each one trades against a rule set
