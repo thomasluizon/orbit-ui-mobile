@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useId,
   useMemo,
   useState,
   type ComponentType,
@@ -69,9 +70,10 @@ import { useProgressRetrospective } from '@/hooks/use-retrospective'
 const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
 
 function Section({ title, children, compact = false }: Readonly<{ title: string; children: ReactNode; compact?: boolean }>) {
+  const headingId = useId()
   return (
-    <section className={`flex flex-col ${compact ? 'gap-3' : 'gap-4'}`} aria-label={title}>
-      <h2 className={compact ? 'text-[14px] font-medium text-[var(--fg-2)]' : 'text-[20px] font-medium text-[var(--fg-1)]'}>{title}</h2>
+    <section className={`flex flex-col ${compact ? 'gap-3' : 'gap-4'}`} aria-labelledby={headingId}>
+      <h2 id={headingId} className={compact ? 'text-[14px] font-medium text-[var(--fg-2)]' : 'text-[20px] font-medium text-[var(--fg-1)]'}>{title}</h2>
       {children}
     </section>
   )
@@ -93,9 +95,10 @@ function WindowFigureLoading({ label }: Readonly<{ label: string }>) {
 }
 
 function WindowFrame({ children, title }: Readonly<{ children: ReactNode; title: string }>) {
+  const headingId = useId()
   return (
-    <section className="flex flex-col gap-3" aria-label={title}>
-      <h2 className="text-[20px] font-medium text-[var(--fg-1)]">{title}</h2>
+    <section className="flex flex-col gap-3" aria-labelledby={headingId}>
+      <h2 id={headingId} className="text-[20px] font-medium text-[var(--fg-1)]">{title}</h2>
       {children}
     </section>
   )
@@ -155,6 +158,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
   canView: boolean
   gamificationProfile: ReturnType<typeof useGamificationProfile>['profile']
 }>) {
+  const headingId = useId()
   const t = useTranslations()
   const locale = useLocale()
   const isDesktop = useIsDesktop()
@@ -181,7 +185,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
 
   if (canView && freeze.streakQuery.isError) {
     return (
-      <section aria-label={t('progressScreen.sections.streak')} className="flex w-full max-w-[560px] flex-col gap-3"><h2 className="sr-only">{t('progressScreen.sections.streak')}</h2>
+      <section aria-labelledby={headingId} className="flex w-full max-w-[560px] flex-col gap-3"><h2 id={headingId} className="sr-only">{t('progressScreen.sections.streak')}</h2>
         <ErrorState
           message={t('progressScreen.error')}
           action={<PillButton variant="ghost" onClick={() => void freeze.streakQuery.refetch()}>{t('progressScreen.retry')}</PillButton>}
@@ -192,14 +196,14 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
 
   if (canView && !freeze.streakInfo) {
     return (
-      <section aria-label={t('progressScreen.sections.streak')} className="flex w-full max-w-[560px] flex-col gap-3"><h2 className="sr-only">{t('progressScreen.sections.streak')}</h2>
+      <section aria-labelledby={headingId} className="flex w-full max-w-[560px] flex-col gap-3"><h2 id={headingId} className="sr-only">{t('progressScreen.sections.streak')}</h2>
         <Skeleton variant="habit-row" label={t('progressScreen.loading')} />
       </section>
     )
   }
 
   return (
-    <section aria-label={t('progressScreen.sections.streak')} className="flex w-full max-w-[560px] flex-col gap-3"><h2 className="sr-only">{t('progressScreen.sections.streak')}</h2>
+    <section aria-labelledby={headingId} className="flex w-full max-w-[560px] flex-col gap-3"><h2 id={headingId} className="sr-only">{t('progressScreen.sections.streak')}</h2>
       <div className="flex items-baseline gap-3">
         <p className="font-[var(--font-display)] text-[60px] font-semibold leading-none tracking-[-0.03em] tabular-nums text-[var(--fg-1)]">{new Intl.NumberFormat(locale).format(currentStreak)}</p>
         <p className="text-[17px] text-[var(--fg-2)]">{t('progressScreen.streak.currentLabel', { count: currentStreak })}</p>
@@ -288,6 +292,7 @@ function GoalCard({ goal, index, canReorder, onMove, onOpen }: Readonly<{
 }
 
 function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; onOpenGoal: (goalId: string) => void }>) {
+  const headingId = useId()
   const t = useTranslations()
   const router = useRouter()
   const reorder = useReorderGoals()
@@ -303,7 +308,7 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
     { value: 'completed', label: t('progressScreen.goals.completed') }, { value: 'abandoned', label: t('progressScreen.goals.abandoned') },
   ] as const
   return (
-    <section aria-label={t('progressScreen.sections.goals')} className="flex flex-col gap-3"><h2 className="text-[20px] font-medium text-[var(--fg-1)]">{t('progressScreen.sections.goals')}</h2>
+    <section aria-labelledby={headingId} className="flex flex-col gap-3"><h2 id={headingId} className="text-[20px] font-medium text-[var(--fg-1)]">{t('progressScreen.sections.goals')}</h2>
       {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={(id) => setFilter(id)} label={t('progressScreen.goals.views')} /> : null}
       {goals.length === 0 ? <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant="ghost" onClick={() => router.push('/')}>{t('progressScreen.startHabit')}</PillButton>} /> : null}
       {goals.length > 0 && filtered.length === 0 ? <div className="flex flex-col items-start gap-3 py-6"><p className="text-[14px] text-[var(--fg-3)]">{t('progressScreen.goals.filterEmpty')}</p><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></div> : null}

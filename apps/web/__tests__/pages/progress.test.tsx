@@ -388,15 +388,24 @@ describe('ProgressContent', () => {
     expect(screen.getByRole('heading', { name: 'progressScreen.sections.streak' })).toBeInTheDocument()
   })
 
-  it('renders the four sections in the decided descending order and the API figures', () => {
+  it('renders the four regions in order, each named once by its heading', () => {
     render(<ProgressContent />)
 
-    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
+    const headings = screen.getAllByRole('heading', { level: 2 })
+    expect(headings.map((heading) => heading.textContent)).toEqual([
       'progressScreen.sections.streak',
       'progressScreen.sections.goals',
       'progressScreen.sections.window',
       'progressScreen.sections.achievements',
     ])
+    const regions = screen.getAllByRole('region')
+    expect(regions).toHaveLength(headings.length)
+    for (const [index, region] of regions.entries()) {
+      const heading = headings[index]!
+      expect(heading.id).not.toBe('')
+      expect(region).toHaveAttribute('aria-labelledby', heading.id)
+      expect(region).not.toHaveAttribute('aria-label')
+    }
     const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
     const figures = Array.from(windowSection.querySelectorAll('[data-state]')).map((figure) => figure.textContent)
     expect(figures).toEqual([
