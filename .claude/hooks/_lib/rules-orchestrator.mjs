@@ -33,6 +33,8 @@ const SAFE_ENGINE_ARGUMENT = /^[A-Za-z0-9_./:+=-]+$/
 const REDIRECTION_OPERATOR = /^(?:\d*(?:>>|>|<)|&>>?)$/
 const REDIRECTION_WITH_DESCRIPTOR = /^(?:\d*(?:>>|>)|&>>?)&\d*$/
 const REDIRECTION_WITH_PLAIN_TARGET = /^(?:\d*(?:>>|>|<)|&>>?)[A-Za-z0-9_./:+=-]+$/
+/** What may follow the ampersand of `>&`: a file descriptor number, or the closing `-`. Nothing that runs. */
+const INERT_DESCRIPTOR_TARGET = /^(?:\d+|-)\s*$/
 const LEADING_ENV_ASSIGNMENT = /^\s*[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)(?:\s+|$)/
 const LEADING_TOKEN = /^\s*("[^"]*"|'[^']*'|\S+)/
 const PR_MERGE = /(?:^|\s)pr\s+merge(?:\s|$)/
@@ -158,11 +160,17 @@ export function segmentsOf(command) {
  * reads exactly what `codex cloud list` reads. Only unambiguous shapes go, never a process
  * substitution: `>(codex exec ...)` keeps its parenthesis, fails the safe-argument test, and the
  * cloud read exemption is refused as before.
+ *
+ * A TRAILING bare operator is the remains of `>&<target>`, because segmentsOf split the ampersand
+ * out of it. Its target is therefore in the NEXT segment and cannot be seen from here, so it is
+ * dropped only when that segment proves inert. `2>&1` is a descriptor duplication and inert;
+ * `2>&$(codex exec ...)` runs a command substitution while Bash expands the target, so the operator
+ * stays a word, fails the safe-argument test, and the exemption is refused.
  */
-const withoutRedirections = (words) => {
+const withoutRedirections = (words, nextSegment) => {
   const kept = []
   let dropTarget = false
-  for (const word of words) {
+  for (const [index, word] of words.entries()) {
     if (dropTarget) {
       dropTarget = false
       if (SAFE_ENGINE_ARGUMENT.test(word)) continue
@@ -172,6 +180,10 @@ const withoutRedirections = (words) => {
     if (REDIRECTION_WITH_DESCRIPTOR.test(word)) continue
     if (REDIRECTION_WITH_PLAIN_TARGET.test(word)) continue
     if (REDIRECTION_OPERATOR.test(word)) {
+      if (index === words.length - 1 && !INERT_DESCRIPTOR_TARGET.test(nextSegment ?? "")) {
+        kept.push(word)
+        continue
+      }
       dropTarget = true
       continue
     }
@@ -180,8 +192,8 @@ const withoutRedirections = (words) => {
   return kept
 }
 
-const safeEngineWords = (segment) => {
-  const words = withoutRedirections(segment.trim().split(/\s+/))
+const safeEngineWords = (segment, nextSegment) => {
+  const words = withoutRedirections(segment.trim().split(/\s+/), nextSegment)
   return SAFE_ENGINE_BINARY.test(words[0] ?? "") && words.every((word) => SAFE_ENGINE_ARGUMENT.test(word))
     ? words
     : null
@@ -206,10 +218,11 @@ export function checkEngineInvocation(command, { env = {}, cwd = "", repoRoots =
   if (cwd && insideLinkedWorktree(cwd, repoRoots)) return null
 
   const heredocRunsCommand = unquotedHeredocRunsCommand(command)
-  for (const segment of segmentsOf(command)) {
+  const segments = segmentsOf(command)
+  for (const [index, segment] of segments.entries()) {
     const binary = invokedBinary(segment)
     if (!ENGINE_BINARIES.has(binary)) continue
-    const safeWords = safeEngineWords(segment)
+    const safeWords = safeEngineWords(segment, segments[index + 1])
     if (isSafeCloudRead(safeWords) && !heredocRunsCommand) continue
     if (isSafeZeroCostInvocation(safeWords) && !heredocRunsCommand) continue
     return blocked(

@@ -40,6 +40,8 @@ const MIXED_ESCAPE = String.fromCharCode(92, 96)
 const EVEN_BACKTICKS = String.fromCharCode(96, 96)
 /** Two backslashes, the Bash mirror of the case above. */
 const EVEN_BACKSLASHES = String.fromCharCode(92, 92)
+/** `2>&$(...)`: Bash RUNS the substitution while expanding the descriptor target, so it is not inert. */
+const EXECUTABLE_DESCRIPTOR = "codex cloud list 2>&" + String.fromCharCode(36) + "(codex exec do-work)"
 
 // One unique fixture root per run, removed best-effort on exit: a leaked tmp dir
 // is garbage, never a verdict.
@@ -217,6 +219,13 @@ T("engine: a mixed escape run does not hide the next command", blocks(engine(`Wr
 // follows even after an EVEN backtick run, so the ampersand always ends the segment.
 T("engine: an even backtick run does not hide the next command", blocks(engine(`Write-Output before ${EVEN_BACKTICKS}> & codex exec`)), true)
 T("engine: an even backslash run does not hide the next command", blocks(engine(`Write-Output before ${EVEN_BACKSLASHES}> & codex exec`)), true)
+// segmentsOf splits the ampersand out of `>&<target>`, so the dangling operator's target lives in
+// the NEXT segment. Dropping the operator without proving that target inert let a command
+// substitution start a worker while Bash expanded it.
+T("engine: an executable descriptor target blocks", blocks(engine(EXECUTABLE_DESCRIPTOR)), true)
+T("engine: a backtick descriptor target blocks", blocks(engine("codex cloud list 2>&" + String.fromCharCode(96) + "codex exec" + String.fromCharCode(96))), true)
+T("engine: descriptor duplication is still inert", engine("codex cloud list 2>&1"), null)
+T("engine: closing a descriptor is still inert", engine("codex cloud list 2>&-"), null)
 T("admin-merge: a Bash-escaped greater-than does not hide an admin merge", blocks(checkAdminMerge(String.raw`printf \> & gh pr merge 667 --squash ${ADMIN}`)), true)
 T("admin-merge: a PowerShell-escaped greater-than does not hide an admin merge", blocks(checkAdminMerge(`Write-Output before \`> & gh pr merge 667 --squash ${ADMIN}`)), true)
 T("admin-merge: a mixed escape run does not hide an admin merge", blocks(checkAdminMerge(`Write-Output before ${MIXED_ESCAPE}> & gh pr merge 667 --squash ${ADMIN}`)), true)
@@ -598,6 +607,8 @@ T("adapter orchestrator: gh pr merge --squash -> 0", runHook(ORCH, bash("gh pr m
 T("adapter orchestrator: codex --version -> 0", runHook(ORCH, bash("codex --version")), 0)
 T("adapter orchestrator: grep over a codex pattern -> 0", runHook(ORCH, bash("grep -rnE 'claude|codex' tools/")), 0)
 T("adapter orchestrator: the launcher marker -> 0", runHook(ORCH, bash("codex exec"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
+T("adapter orchestrator: an executable descriptor target -> 2", runHook(ORCH, bash(EXECUTABLE_DESCRIPTOR)), 2)
+T("adapter orchestrator: codex cloud list 2>&1 | head -20 -> 0", runHook(ORCH, bash("codex cloud list 2>&1 | head -20")), 0)
 T("adapter orchestrator: worker git add -A -> 2", runHook(ORCH, bash("git add -A"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter orchestrator: worker git add -u -> 2", runHook(ORCH, bash("git add -u"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter orchestrator: worker named git add -> 0", runHook(ORCH, bash("git add tools/verify-delivery.mjs", repoRoot), { ORBIT_LAUNCH_WORKER: "1" }), 0)
