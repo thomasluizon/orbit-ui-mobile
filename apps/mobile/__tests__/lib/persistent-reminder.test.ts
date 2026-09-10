@@ -41,6 +41,8 @@ function tokenFor(accountId: string): string {
   return `header.${payload}.signature`
 }
 
+const OWNER_TOKEN = tokenFor('owner-account')
+
 function lastScheduledRequest(): ScheduledRequest {
   const calls = scheduleNotificationAsync.mock.calls
   const lastCall = calls[calls.length - 1]
@@ -55,6 +57,7 @@ describe('persistent reminder', () => {
   beforeEach(async () => {
     resetExpoNotificationsMocks()
     secureStoreMocks.getToken.mockReset()
+    secureStoreMocks.getToken.mockResolvedValue(OWNER_TOKEN)
     __setPersistentReminderModuleForTests(expoNotificationsMock)
     usePersistentReminderStore.setState({ enabled: false })
     await i18n.changeLanguage('en')
@@ -100,23 +103,29 @@ describe('persistent reminder', () => {
 
   describe('refreshPersistentReminder', () => {
     it('posts nothing while the toggle is off', async () => {
-      await refreshPersistentReminder({ currentStreak: 5, items: [{ isCompleted: true }] })
+      await refreshPersistentReminder(
+        { currentStreak: 5, items: [{ isCompleted: true }] },
+        OWNER_TOKEN,
+      )
       expect(scheduleNotificationAsync).not.toHaveBeenCalled()
     })
 
     it('posts a quiet ongoing notification with the feed streak and progress when on', async () => {
       usePersistentReminderStore.setState({ enabled: true })
 
-      await refreshPersistentReminder({
-        currentStreak: 12,
-        items: [
-          { isCompleted: true },
-          { isCompleted: true },
-          { isCompleted: true },
-          { isCompleted: false },
-          { isCompleted: false },
-        ],
-      })
+      await refreshPersistentReminder(
+        {
+          currentStreak: 12,
+          items: [
+            { isCompleted: true },
+            { isCompleted: true },
+            { isCompleted: true },
+            { isCompleted: false },
+            { isCompleted: false },
+          ],
+        },
+        OWNER_TOKEN,
+      )
 
       expect(scheduleNotificationAsync).toHaveBeenCalledTimes(1)
       expect(setNotificationChannelAsync).toHaveBeenCalledWith(
@@ -137,8 +146,14 @@ describe('persistent reminder', () => {
     it('re-posts in place with the same identifier when the feed updates', async () => {
       usePersistentReminderStore.setState({ enabled: true })
 
-      await refreshPersistentReminder({ currentStreak: 1, items: [{ isCompleted: false }] })
-      await refreshPersistentReminder({ currentStreak: 2, items: [{ isCompleted: true }] })
+      await refreshPersistentReminder(
+        { currentStreak: 1, items: [{ isCompleted: false }] },
+        OWNER_TOKEN,
+      )
+      await refreshPersistentReminder(
+        { currentStreak: 2, items: [{ isCompleted: true }] },
+        OWNER_TOKEN,
+      )
 
       const calls = scheduleNotificationAsync.mock.calls
       expect(calls).toHaveLength(2)
@@ -153,7 +168,7 @@ describe('persistent reminder', () => {
     it('dismisses the notification when the feed is unavailable while enabled', async () => {
       usePersistentReminderStore.setState({ enabled: true })
 
-      await refreshPersistentReminder(null)
+      await refreshPersistentReminder(null, null)
 
       expect(dismissNotificationAsync).toHaveBeenCalledWith('orbit-persistent-reminder')
       expect(scheduleNotificationAsync).not.toHaveBeenCalled()
@@ -170,6 +185,44 @@ describe('persistent reminder', () => {
       )
 
       expect(scheduleNotificationAsync).not.toHaveBeenCalled()
+    })
+
+    it('does not post when the payload carries no account to attribute it to', async () => {
+      usePersistentReminderStore.setState({ enabled: true })
+
+      await refreshPersistentReminder({ currentStreak: 8, items: [{ isCompleted: true }] }, null)
+
+      expect(scheduleNotificationAsync).not.toHaveBeenCalled()
+    })
+
+    it('does not post when the account changes while channel setup is still pending', async () => {
+      usePersistentReminderStore.setState({ enabled: true })
+      const authorizingToken = tokenFor('first-account')
+      let signedInToken = authorizingToken
+      secureStoreMocks.getToken.mockImplementation(() => Promise.resolve(signedInToken))
+
+      let releaseChannel: () => void = () => {}
+      const channelPending = new Promise<void>((resolve) => {
+        releaseChannel = resolve
+      })
+      setNotificationChannelAsync.mockImplementationOnce(async () => {
+        await channelPending
+      })
+
+      const refreshing = refreshPersistentReminder(
+        { currentStreak: 8, items: [{ isCompleted: true }] },
+        authorizingToken,
+      )
+
+      await vi.waitFor(() => expect(setNotificationChannelAsync).toHaveBeenCalled())
+
+      signedInToken = tokenFor('second-account')
+      await cancelPersistentReminder()
+      releaseChannel()
+      await refreshing
+
+      expect(scheduleNotificationAsync).not.toHaveBeenCalled()
+      expect(dismissNotificationAsync).toHaveBeenCalledWith('orbit-persistent-reminder')
     })
   })
 

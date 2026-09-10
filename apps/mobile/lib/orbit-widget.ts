@@ -111,7 +111,7 @@ export async function syncWidgetData(): Promise<void> {
   const { getToken } = await import('./secure-store')
   const token = await getToken()
   if (!token) {
-    await refreshPersistentReminder(null)
+    await refreshPersistentReminder(null, null)
     return
   }
 
@@ -120,5 +120,5 @@ export async function syncWidgetData(): Promise<void> {
   if (authorizingToken) {
     await widgetModule.syncWidgetData(JSON.stringify(data), authorizingToken)
   }
-  await refreshPersistentReminder(data, authorizingToken ?? undefined)
+  await refreshPersistentReminder(data, authorizingToken)
 }

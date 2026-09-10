@@ -159,12 +159,34 @@ async function ensureChannel(
   })
 }
 
+/**
+ * Whether the account that authorised a payload is still the signed-in one.
+ *
+ * A null token means the payload could not be attributed to an account, which is never enough to
+ * post: the reminder shows one account's figures and nothing that identifies whose they are.
+ *
+ * Call this at the LAST boundary before scheduling, never at the top of a refresh. Every await
+ * between the check and the post is a window a sign-out can land in, and `ensureChannel` is one.
+ */
+async function stillSignedInAs(authorizingToken: string | null): Promise<boolean> {
+  if (!authorizingToken) return false
+  const authorizingAccount = getAccountIdFromToken(authorizingToken)
+  if (!authorizingAccount) return false
+
+  const { getToken } = await import('@/lib/secure-store')
+  const signedInToken = await getToken()
+  if (!signedInToken) return false
+  return getAccountIdFromToken(signedInToken) === authorizingAccount
+}
+
 async function postReminder(
   activeModule: PersistentReminderNotificationsModule,
   feed: ReminderFeed,
+  authorizingToken: string | null,
 ): Promise<void> {
   await ensureChannel(activeModule)
   const { title, body } = buildReminderContent(feed, (key, params) => i18n.t(key, params))
+  if (!(await stillSignedInAs(authorizingToken))) return
   await activeModule.scheduleNotificationAsync({
     identifier: PERSISTENT_REMINDER_ID,
     content: {
@@ -222,7 +244,7 @@ export async function cancelPersistentReminder(): Promise<void> {
  */
 export async function refreshPersistentReminder(
   data: unknown,
-  authorizingToken?: string,
+  authorizingToken: string | null,
 ): Promise<void> {
   if (!usePersistentReminderStore.getState().enabled) return
 
@@ -234,15 +256,7 @@ export async function refreshPersistentReminder(
     return
   }
 
-  if (authorizingToken) {
-    const { getToken } = await import('@/lib/secure-store')
-    const signedInToken = await getToken()
-    const authorizingAccount = getAccountIdFromToken(authorizingToken)
-    if (!signedInToken || !authorizingAccount) return
-    if (getAccountIdFromToken(signedInToken) !== authorizingAccount) return
-  }
-
   const feed = extractReminderFeed(data)
   if (!feed) return
-  await postReminder(activeModule, feed)
+  await postReminder(activeModule, feed, authorizingToken)
 }
