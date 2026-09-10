@@ -169,7 +169,13 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 lang,
                 WidgetString.REFRESH
             )
+            val refreshingDescription = OrbitWidgetFactory.tr(
+                context,
+                lang,
+                WidgetString.REFRESHING
+            )
             views.setContentDescription(R.id.widget_refresh, refreshDescription)
+            views.setContentDescription(R.id.widget_refresh_loading, refreshingDescription)
 
             views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }
             if (isSignedOut) {
@@ -254,12 +260,19 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 for (id in appWidgetIds) updateWidgetLayout(context, appWidgetManager, id)
                 return
             }
+            val lang = cachedLanguage(context)
+            val refreshingDescription = OrbitWidgetFactory.tr(
+                context,
+                lang,
+                WidgetString.REFRESHING
+            )
             for (id in appWidgetIds) {
                 // AppWidgetHostView retains but does not reapply cached RemoteViews on a
                 // configuration change, so refresh must reapply the full mode-aware palette.
                 updateWidgetLayout(context, appWidgetManager, id)
                 val loadingViews = RemoteViews(context.packageName, R.layout.widget_layout)
                 loadingViews.setViewVisibility(R.id.widget_refresh, View.GONE)
+                loadingViews.setContentDescription(R.id.widget_refresh_loading, refreshingDescription)
                 loadingViews.setViewVisibility(R.id.widget_refresh_loading, View.VISIBLE)
                 appWidgetManager.partiallyUpdateAppWidget(id, loadingViews)
             }

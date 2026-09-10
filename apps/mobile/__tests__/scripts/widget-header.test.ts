@@ -467,6 +467,51 @@ describe('Android widget header', () => {
       'views.setContentDescription(R.id.widget_refresh, refreshDescription)',
     )
   })
+
+  it('names every visible refresh spinner through the widget language path', () => {
+    const provider = readFileSync(
+      resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'),
+      'utf8',
+    )
+    const service = readFileSync(
+      resolve(widgetSourceRoot, 'OrbitWidgetService.kt'),
+      'utf8',
+    )
+
+    for (const { name, source } of widgetKotlinSources()) {
+      const visibleSpinnerCalls = [
+        ...source.matchAll(
+          /(\w+)\.setViewVisibility\(R\.id\.widget_refresh_loading, (?:android\.view\.)?View\.VISIBLE\)/g,
+        ),
+      ]
+      const namedVisibleSpinnerCalls = [
+        ...source.matchAll(
+          /(\w+)\.setContentDescription\(R\.id\.widget_refresh_loading, refreshingDescription\)\s*\1\.setViewVisibility\(R\.id\.widget_refresh_loading, (?:android\.view\.)?View\.VISIBLE\)/g,
+        ),
+      ]
+      expect(namedVisibleSpinnerCalls.length, name).toBe(visibleSpinnerCalls.length)
+    }
+
+    expect(provider).toMatch(
+      /val refreshingDescription = OrbitWidgetFactory\.tr\(\s*context,\s*lang,\s*WidgetString\.REFRESHING\s*\)/,
+    )
+    expect(provider).toContain(
+      'views.setContentDescription(R.id.widget_refresh_loading, refreshingDescription)',
+    )
+    expect(service).toContain(
+      'val refreshingDescription = tr(context, lang, WidgetString.REFRESHING)',
+    )
+    expect(service).toContain(
+      'views.setContentDescription(R.id.widget_refresh_loading, refreshingDescription)',
+    )
+
+    expect(resourceStrings('values/widget_strings.xml').get('widget_refreshing')).toBe(
+      'Refreshing',
+    )
+    expect(
+      resourceStrings('values-pt-rBR/widget_strings.xml').get('widget_refreshing'),
+    ).toBe('Atualizando')
+  })
 })
 
 describe('Android widget habit rows', () => {
