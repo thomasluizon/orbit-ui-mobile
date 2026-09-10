@@ -435,7 +435,7 @@ export default function CalendarScreen() {
           label={t("calendar.view.switchLabel")}
         />
       </View>
-      {view !== "week" ? (
+      {view === "month" || view === "range" ? (
         <CalendarHeader
           monthLabel={monthLabel}
           year={currentYear}

@@ -2,6 +2,7 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { formatAPIDate } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
+import { View } from "react-native";
 
 import CalendarScreen from "@/app/(tabs)/calendar";
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -81,7 +82,7 @@ vi.mock("@/components/ui/sheet", async () => await import("@/__tests__/support/s
 vi.mock("@/components/ui/section-label", () => ({ SectionLabel: () => null }));
 
 vi.mock("@/app/(tabs)/calendar/_components/calendar-shell", () => ({
-  CalendarHeader: () => null,
+  CalendarHeader: () => <View testID="calendar-header" />,
   CalendarWeekNav: () => null,
   CalendarLegend: () => null,
 }));
@@ -228,6 +229,13 @@ describe("CalendarScreen views (mobile)", () => {
     );
     expect(agendaSegment).toHaveLength(1);
     expect(agendaSegment[0]!.props.accessibilityState?.checked).toBe(true);
+    expect(
+      tree!.root.findAll(
+        (node) =>
+          typeof node.type === "string" &&
+          node.props.testID === "calendar-header",
+      ),
+    ).toHaveLength(0);
     expect(
       tree!.root.findAll(
         (node) =>
