@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
+import { formatAPIDate } from '@orbit/shared/utils'
 
-let isDesktopValue = true
 let isWideDesktopValue = false
+const calendarGridProps: { selectedDateStr?: string | null } = {}
 const monthQueryState: { error: string | null; refresh: ReturnType<typeof vi.fn> } = {
   error: null,
   refresh: vi.fn(),
@@ -15,7 +16,7 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/hooks/use-is-desktop', () => ({
-  useIsDesktop: () => isDesktopValue,
+  useIsDesktop: () => false,
   useIsWideDesktop: () => isWideDesktopValue,
 }))
 
@@ -66,13 +67,22 @@ vi.mock('@/app/(app)/calendar/_components/calendar-shell', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-grid', () => ({
-  CalendarGrid: ({ onSelectDay }: { onSelectDay?: (dateStr: string) => void }) => (
-    <button
-      type="button"
-      data-testid="month-view"
-      onClick={() => onSelectDay?.('2026-01-05')}
-    />
-  ),
+  CalendarGrid: ({
+    onSelectDay,
+    selectedDateStr,
+  }: {
+    onSelectDay?: (dateStr: string) => void
+    selectedDateStr?: string | null
+  }) => {
+    calendarGridProps.selectedDateStr = selectedDateStr
+    return (
+      <button
+        type="button"
+        data-testid="month-view"
+        onClick={() => onSelectDay?.('2026-01-05')}
+      />
+    )
+  },
 }))
 
 vi.mock('@/components/calendar/calendar-stats', () => ({
@@ -99,20 +109,20 @@ import CalendarPage from '@/app/(app)/calendar/page'
 
 describe('CalendarPage view switcher', () => {
   beforeEach(() => {
-    isDesktopValue = true
     isWideDesktopValue = false
+    calendarGridProps.selectedDateStr = undefined
     monthQueryState.error = null
     monthQueryState.refresh = vi.fn()
   })
 
-  it('offers the Agenda tab only on desktop', () => {
-    const { unmount } = render(<CalendarPage />)
-    expect(screen.getByRole('tab', { name: 'calendar.viewAgenda' })).toBeDefined()
-    unmount()
-
-    isDesktopValue = false
+  it('renders one four-option view switcher at phone width and opens the month on today', () => {
     render(<CalendarPage />)
-    expect(screen.queryByRole('tab', { name: 'calendar.viewAgenda' })).toBeNull()
+
+    expect(screen.getAllByRole('radiogroup', { name: 'calendar.view.switchLabel' })).toHaveLength(1)
+    expect(screen.getAllByRole('radio')).toHaveLength(4)
+    expect(screen.getByRole('radio', { name: 'calendar.view.month' }).getAttribute('aria-checked')).toBe('true')
+    expect(screen.getByRole('radio', { name: 'calendar.view.agenda' })).toBeDefined()
+    expect(calendarGridProps.selectedDateStr).toBe(formatAPIDate(new Date()))
   })
 
   it('switches from the month heat-map to the agenda planner and back', () => {
@@ -121,12 +131,12 @@ describe('CalendarPage view switcher', () => {
     expect(screen.getByTestId('month-view')).toBeDefined()
     expect(screen.queryByTestId('agenda-view')).toBeNull()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'calendar.viewAgenda' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
 
     expect(screen.getByTestId('agenda-view')).toBeDefined()
     expect(screen.queryByTestId('month-view')).toBeNull()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'calendar.view.month' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.month' }))
 
     expect(screen.getByTestId('month-view')).toBeDefined()
     expect(screen.queryByTestId('agenda-view')).toBeNull()
@@ -135,10 +145,10 @@ describe('CalendarPage view switcher', () => {
   it('switches to the week and range time-grid views', () => {
     render(<CalendarPage />)
 
-    fireEvent.click(screen.getByRole('tab', { name: 'calendar.view.week' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
     expect(screen.getByTestId('week-view')).toBeDefined()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'calendar.view.range' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
     expect(screen.getByTestId('range-view')).toBeDefined()
   })
 

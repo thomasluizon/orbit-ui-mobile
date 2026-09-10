@@ -54,7 +54,7 @@ import { Sheet, useSheetHost } from '@/components/ui/sheet';
 import { EmptyState } from "@/components/ui/empty-state";
 import { PillButton } from "@/components/ui/pill-button";
 import { SectionLabel } from "@/components/ui/section-label";
-import { SectionHeadTabs } from "@/components/ui/section-head-tabs";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   CalendarHeader,
   CalendarLegend,
@@ -68,7 +68,7 @@ import { CalendarRangeView } from "./calendar/_components/calendar-range-view";
 import type { TimeGridColumn } from "./calendar/_components/calendar-time-grid";
 
 type MonthSlide = "left" | "right" | null;
-type CalendarView = "month" | "week" | "range";
+type CalendarView = "month" | "week" | "range" | "agenda";
 
 const EMPTY_LIST: readonly CalendarDayEntry[] = [];
 
@@ -169,7 +169,11 @@ export default function CalendarScreen() {
     isFetching: rangeFetching,
     error: rangeError,
     refresh: rangeRefresh,
-  } = useCalendarRange(gridStartDate, gridEndDate, view !== "month");
+  } = useCalendarRange(
+    gridStartDate,
+    gridEndDate,
+    view === "week" || view === "range",
+  );
 
   const gridColumns = useMemo<TimeGridColumn[]>(() => {
     const days =
@@ -274,12 +278,13 @@ export default function CalendarScreen() {
     [awaitingEnd, rangeStart],
   );
 
-  const viewTabs = useMemo(
+  const viewOptions = useMemo(
     () => [
-      { id: "month" as const, label: t("calendar.view.month") },
-      { id: "week" as const, label: t("calendar.view.week") },
-      { id: "range" as const, label: t("calendar.view.range") },
-    ],
+      { value: "month" as const, label: t("calendar.view.month") },
+      { value: "week" as const, label: t("calendar.view.week") },
+      { value: "range" as const, label: t("calendar.view.range") },
+      { value: "agenda" as const, label: t("calendar.view.agenda") },
+    ] as const,
     [t],
   );
 
@@ -422,7 +427,14 @@ export default function CalendarScreen() {
 
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
-      <SectionHeadTabs tabs={viewTabs} active={view} onChange={setView} />
+      <View style={styles.viewSwitcher}>
+        <SegmentedControl<CalendarView>
+          options={viewOptions}
+          value={view}
+          onChange={setView}
+          label={t("calendar.view.switchLabel")}
+        />
+      </View>
       {view !== "week" ? (
         <CalendarHeader
           monthLabel={monthLabel}
@@ -509,7 +521,7 @@ export default function CalendarScreen() {
               t={t}
               tokens={tokens}
             />
-          ) : (
+          ) : view === "range" ? (
             <CalendarRangeView
               gridDays={gridDays}
               weekdayHeaders={weekdayHeaders}
@@ -537,7 +549,7 @@ export default function CalendarScreen() {
               t={t}
               tokens={tokens}
             />
-          )}
+          ) : null}
         </ScrollView>
       )}
 
@@ -571,6 +583,12 @@ function createStyles() {
     safeArea: { flex: 1 },
     container: { flex: 1 },
 
+    viewSwitcher: {
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 16,
+    },
+
     viewScrollContent: {
       paddingBottom: 24,
     },
@@ -580,14 +598,14 @@ function createStyles() {
     },
 
     errorWrap: {
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingVertical: 12,
     },
     errorCard: {
       alignItems: "center",
-      gap: 14,
-      paddingVertical: 28,
-      paddingHorizontal: 18,
+      gap: 12,
+      paddingVertical: 24,
+      paddingHorizontal: 16,
       borderRadius: 18,
       borderWidth: 1,
     },
@@ -601,7 +619,7 @@ function createStyles() {
       flex: 1,
     },
     sheetContent: {
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingTop: 4,
       paddingBottom: 24,
       gap: 12,

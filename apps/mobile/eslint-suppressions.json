@@ -1,9 +1,4 @@
 {
-  "app/(tabs)/calendar.tsx": {
-    "local/spacing-scale": {
-      "count": 5
-    }
-  },
   "app/(tabs)/calendar/_components/calendar-day-detail.tsx": {
     "local/spacing-scale": {
       "count": 1

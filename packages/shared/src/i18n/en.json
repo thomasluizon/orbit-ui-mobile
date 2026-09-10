@@ -927,7 +927,8 @@
       "switchLabel": "Calendar view",
       "month": "Month",
       "week": "Week",
-      "range": "Range"
+      "range": "Range",
+      "agenda": "Agenda"
     },
     "timeGrid": {
       "allDay": "All-day",

@@ -68,11 +68,6 @@
       "count": 8
     }
   },
-  "app/(app)/calendar/page.tsx": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
   "app/(app)/layout.tsx": {
     "local/spacing-scale": {
       "count": 2
