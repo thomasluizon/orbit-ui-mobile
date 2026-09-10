@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { T, check as harnessCheck, orcaEnv, realOrchestratorConfig, root, stage, stageWithConfig } from "./_harness.mjs"
@@ -11,7 +11,7 @@ let stagedConfigPath
 const check = (file, name, argv, expect, options = {}) => harnessCheck(file, name, [...argv, "--repo", "ui"], expect, { ...options, path: stagedToolPath })
 
 /** A linked child checkout is the smallest real Git fixture that can prove teardown verification. */
-const stageTeardownWorktree = (label, { base = "main", dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, localFollowUp = false, contractSwitch = false } = {}) => {
+const stageTeardownWorktree = (label, { base = "main", dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, localFollowUp = false, contractSwitch = false, linkedDependency = false } = {}) => {
   const primary = join(root, "teardown", label, "primary")
   const hasTicketName = !["no-ticket-name", "unlinked-refusal"].includes(label)
   const child = join(root, "teardown", label, hasTicketName ? `ticket-124-${label}` : "child")
@@ -20,10 +20,19 @@ const stageTeardownWorktree = (label, { base = "main", dirty = false, changed = 
   const git = (cwd, args) => spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
   if (git(primary, ["init", "-q", "--bare", remote]).status !== 0) return null
   const initialBranch = contractSwitch ? "orca/ticket-124-teardown" : BRANCH
-  for (const args of [["init", "-q", `--initial-branch=${base}`], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"], ["commit", "-q", "--allow-empty", "-m", "base"], ["remote", "add", "origin", remote], ["push", "-q", "-u", "origin", base], ["worktree", "add", "-q", "-b", initialBranch, child]]) {
+  for (const args of [["init", "-q", `--initial-branch=${base}`], ["config", "user.email", "gate@orbit.test"], ["config", "user.name", "Orbit Gate"]]) {
+    if (git(primary, args).status !== 0) return null
+  }
+  writeFileSync(join(primary, ".gitignore"), "node_modules/\n")
+  for (const args of [["add", ".gitignore"], ["commit", "-q", "-m", "base"], ["remote", "add", "origin", remote], ["push", "-q", "-u", "origin", base], ["worktree", "add", "-q", "-b", initialBranch, child]]) {
     if (git(primary, args).status !== 0) return null
   }
   if (contractSwitch && git(child, ["switch", "-q", "-c", BRANCH]).status !== 0) return null
+  if (linkedDependency) {
+    const dependencyDirectory = join(child, "node_modules", "@orbit")
+    mkdirSync(dependencyDirectory, { recursive: true })
+    symlinkSync(primary, join(dependencyDirectory, "web"), "junction")
+  }
   let mergeCommit
   if (changed) {
     writeFileSync(join(child, "captured.txt"), "not in main\n")
@@ -97,7 +106,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   pointConfigAt(absent)
   check(TOOL, "refuses an issue with no matching worktree name", ["--issue", "ORB-124"], { status: 1, stderr: /no active Git worktree name matches ticket 124/ }, { env: orcaEnv([]) })
 
-  const allGood = stageTeardownWorktree("all-good", { changed: true, fastForwardMerged: true })
+  const allGood = stageTeardownWorktree("all-good", { changed: true, fastForwardMerged: true, linkedDependency: true })
   if (!allGood) {
     T(`${TOOL}: real git fixture is available`, false, "could not create a linked Git worktree")
     return
@@ -181,6 +190,7 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
 
   const removed = check(TOOL, "a merged, clean, Done worktree is removed and verified", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree[\s\S]*RETAINED local branch feature\/orb-124-teardown/ }, { env: orcaEnv(teardownPlan(allGood, { removePath: allGood.child })) })
   T(`${TOOL}: verified removal actually deleted the fixture`, !existsSync(allGood.child), removed.stderr)
+  T(`${TOOL}: removing a linked dependency preserves its target`, existsSync(allGood.primary), "the linked dependency target was removed")
 
   const selector = stageTeardownWorktree("selector", { changed: true, squashMerged: true })
   check(TOOL, "a path selector accepts a squash-merged tree without ancestry", ["--worktree", `path:${selector.child}`], { status: 0, stdout: /REMOVED worktree/ }, { env: orcaEnv(teardownPlan(selector, { removePath: selector.child })) })

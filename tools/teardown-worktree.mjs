@@ -8,7 +8,7 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
-import { existsSync } from "node:fs"
+import { existsSync, renameSync, rmSync } from "node:fs"
 import { resolve } from "node:path"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
@@ -164,10 +164,43 @@ const gitCommon = (args) => {
   const result = spawnSync(GIT, [`--git-dir=${commonDir}`, ...args], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
   return result.status === 0 ? result.stdout.trim() : null
 }
-if (gitCommon(["worktree", "remove", path]) === null) fail(1, `git refused to remove worktree ${path}`)
+const isStillListed = () => (gitCommon(["worktree", "list", "--porcelain"]) ?? "").split("\n").some((line) => line.startsWith("worktree ") && normalize(line.slice("worktree ".length)) === normalize(path))
+const removalPath = `${path}.teardown-${process.pid}-${Date.now()}`
+
+/** Git for Windows can deregister a worktree before discovering a junction it leaves on disk.
+ * Moving the directory first makes refusal atomic: if Windows will not release it, Git still owns
+ * the original path. Once the moved directory is deleted, prune can only remove stale metadata. */
+process.chdir(repositoryPath)
+try {
+  renameSync(path, removalPath)
+} catch (error) {
+  fail(1, `filesystem refused to release worktree ${path}; git still holds this worktree: ${error.message}`)
+}
+
+try {
+  rmSync(removalPath, { recursive: true, force: true })
+} catch (error) {
+  try {
+    if (existsSync(removalPath) && !existsSync(path)) renameSync(removalPath, path)
+  } catch (restoreError) {
+    fail(1, `git still holds worktree ${path}, but its files remain at ${removalPath}: ${restoreError.message}`)
+  }
+  fail(1, `filesystem refused to remove worktree ${path}; git still holds this worktree: ${error.message}`)
+}
+
 gitCommon(["worktree", "prune"])
-const stillListed = (gitCommon(["worktree", "list", "--porcelain"]) ?? "").split("\n").some((line) => line.startsWith("worktree ") && normalize(line.slice("worktree ".length)) === normalize(path))
-if (existsSync(path) || stillListed) fail(1, `removal verification failed: filesystem=${existsSync(path) ? "present" : "gone"}, git-worktree-list=${stillListed ? "present" : "gone"}`)
+let stillListed = isStillListed()
+if (!stillListed && existsSync(path)) {
+  console.log(`Git has released worktree ${path}, but files remain; removing them`)
+  try {
+    rmSync(path, { recursive: true, force: true })
+  } catch (error) {
+    fail(1, `Git has released worktree ${path}, but files remain and filesystem removal failed: ${error.message}`)
+  }
+}
+stillListed = isStillListed()
+if (stillListed) fail(1, `filesystem removed worktree ${path}, but git still holds this worktree`)
+if (existsSync(path) || existsSync(removalPath)) fail(1, `Git has released worktree ${path}, but files remain`)
 
 console.log(`REMOVED worktree ${path}`)
 console.log(`RETAINED local branch ${branch} (it may be the base of a stacked pull request)`)
