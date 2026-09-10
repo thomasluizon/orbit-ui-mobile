@@ -245,6 +245,10 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 WidgetString.REFRESH
             )
             views.setContentDescription(R.id.widget_refresh, refreshDescription)
+            views.setContentDescription(
+                R.id.widget_refresh_loading,
+                OrbitWidgetFactory.tr(context, lang, WidgetString.REFRESHING)
+            )
 
             views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }
             if (signedOut) {

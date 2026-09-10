@@ -498,6 +498,28 @@ describe('Android widget header', () => {
       'views.setContentDescription(R.id.widget_refresh, refreshDescription)',
     )
   })
+
+  it('names every visible refresh spinner through the widget language path', () => {
+    const makesSpinnerVisible =
+      /setViewVisibility\(R\.id\.widget_refresh_loading, (?:android\.view\.)?View\.VISIBLE\)/
+    const namesSpinner =
+      /setContentDescription\(\s*R\.id\.widget_refresh_loading,[\s\S]{0,160}?WidgetString\.REFRESHING/
+
+    const namingSources = widgetKotlinSources().filter(({ source }) =>
+      makesSpinnerVisible.test(source),
+    )
+    expect(namingSources.length).toBeGreaterThan(0)
+    for (const { name, source } of namingSources) {
+      expect(source, name).toMatch(namesSpinner)
+    }
+
+    expect(resourceStrings('values/widget_strings.xml').get('widget_refreshing')).toBe(
+      'Refreshing',
+    )
+    expect(
+      resourceStrings('values-pt-rBR/widget_strings.xml').get('widget_refreshing'),
+    ).toBe('Atualizando')
+  })
 })
 
 describe('Android widget habit rows', () => {
