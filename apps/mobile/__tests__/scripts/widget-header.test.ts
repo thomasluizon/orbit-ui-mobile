@@ -38,6 +38,37 @@ function resourceStrings(relativePath: string) {
   return strings
 }
 
+/**
+ * RemoteViews.findBestFitLayout keeps every key that fits and then takes the SMALLEST squared
+ * distance, so a key on the breakpoint beats the key just above it. Transcribed from
+ * android/widget/RemoteViews.java: fitsIn is `ceil(host) + 1 > key` and the comparison is strict.
+ */
+function fitsIn(keyDp: number, hostDp: number) {
+  return Math.ceil(hostDp) + 1 > keyDp
+}
+
+function selectedKeyDp(keysDp: readonly number[], hostDp: number) {
+  let selected: number | null = null
+  let smallestSquareDistance = Number.POSITIVE_INFINITY
+
+  for (const keyDp of keysDp) {
+    if (!fitsIn(keyDp, hostDp)) continue
+    const squareDistance = (keyDp - hostDp) ** 2
+    if (selected === null || squareDistance < smallestSquareDistance) {
+      selected = keyDp
+      smallestSquareDistance = squareDistance
+    }
+  }
+
+  return selected ?? Math.min(...keysDp)
+}
+
+function kotlinFloatConstant(source: string, name: string) {
+  const value = source.match(new RegExp(`(?:private|internal) const val ${name} = ([\\d.]+)f`))?.[1]
+  if (value === undefined) throw new Error(`Missing Kotlin constant: ${name}`)
+  return Number(value)
+}
+
 function widgetKotlinSources() {
   return readdirSync(widgetSourceRoot)
     .filter(name => name.endsWith('.kt'))
@@ -168,7 +199,39 @@ describe('Android widget header', () => {
    * Ticket #490 is the deliberate replacement for the old SizeF guard. The host can select a
    * size-keyed child safely only after every update becomes a full update: Android's partial merge
    * mutates the parent actions but renders a child, which leaves the selected variant stale.
+   *
+   * Both children are keyed at 1dp tall, so `ceil(height) + 1 > 1` always holds and width alone
+   * decides. Every sampled width above the breakpoint is one a host can really produce, because
+   * AppWidgetHostView divides its laid out pixel span by the display density: 526px at density
+   * 2.625 arrives as 200.38dp.
    */
+  /**
+   * RemoteViews inflates only classes annotated @RemoteView, and android.view.View is not one of
+   * them. A bare <View> makes RemoteViews.apply throw and the host substitutes its own error view,
+   * which no source-text guard and no unit test can see. Proven on an API 35 emulator: the hairline
+   * that pull request 873 added as a <View> failed with
+   * `Class not allowed to be inflated android.view.View`.
+   */
+  it('builds every widget layout from RemoteViews-inflatable classes only', () => {
+    const inflatable = new Set([
+      'AdapterViewFlipper', 'AnalogClock', 'Button', 'Chronometer', 'FrameLayout', 'GridLayout',
+      'GridView', 'ImageButton', 'ImageView', 'LinearLayout', 'ListView', 'ProgressBar',
+      'RelativeLayout', 'StackView', 'TextClock', 'TextView', 'ViewFlipper',
+    ])
+    const layoutDirectory = resolve(widgetRoot, 'layout')
+
+    for (const name of readdirSync(layoutDirectory).filter(file => file.endsWith('.xml'))) {
+      const tags: string[] = []
+      const parser = new SaxesParser()
+      parser.on('opentag', tag => tags.push(tag.name))
+      parser.write(readFileSync(resolve(layoutDirectory, name), 'utf8')).close()
+
+      for (const tag of tags) {
+        expect(inflatable.has(tag), `${name} inflates <${tag}>`).toBe(true)
+      }
+    }
+  })
+
   it('lets the host select the streak unit without any partial widget updates', () => {
     const views = layoutViews()
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
@@ -178,9 +241,21 @@ describe('Android widget header', () => {
       expect(source).not.toContain('partiallyUpdateAppWidget')
       expect(source).not.toContain('OPTION_APPWIDGET_MIN_WIDTH')
     }
-    expect(provider).toContain('private const val STREAK_UNIT_BREAKPOINT_DP = 200f')
-    expect(provider).toContain('SizeF(STREAK_UNIT_BREAKPOINT_DP, 1f) to compactViews')
+    expect(provider).toContain('SizeF(COMPACT_IDEAL_WIDTH_DP, 1f) to compactViews')
     expect(provider).toContain('SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, 1f) to expandedViews')
+
+    const breakpointDp = kotlinFloatConstant(provider, 'STREAK_UNIT_BREAKPOINT_DP')
+    const compactKeyDp = kotlinFloatConstant(provider, 'COMPACT_IDEAL_WIDTH_DP')
+    const expandedKeyDp = breakpointDp + 1
+    const keysDp = [compactKeyDp, expandedKeyDp]
+
+    expect(breakpointDp).toBe(200)
+    for (const hostDp of [110, 160, 199, 199.5, 199.9, 200]) {
+      expect(selectedKeyDp(keysDp, hostDp), `${hostDp}dp`).toBe(compactKeyDp)
+    }
+    for (const hostDp of [200.1, 200.38, 200.5, 201, 250, 400]) {
+      expect(selectedKeyDp(keysDp, hostDp), `${hostDp}dp`).toBe(expandedKeyDp)
+    }
     expect(provider).toMatch(
       /if \(Build\.VERSION\.SDK_INT < Build\.VERSION_CODES\.S\) \{\s*return buildWidgetViews\([\s\S]*?View\.VISIBLE\s*\)\s*\}/,
     )

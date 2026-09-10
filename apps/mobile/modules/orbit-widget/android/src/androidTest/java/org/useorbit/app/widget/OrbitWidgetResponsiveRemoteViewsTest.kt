@@ -7,6 +7,7 @@ import android.content.Context
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
+import kotlin.math.floor
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
@@ -77,6 +78,12 @@ class OrbitWidgetResponsiveRemoteViewsTest {
         }
     }
 
+    /**
+     * The host reads its own width as laid out pixels divided by the display density, so the only
+     * widths that can occur are pixel derived. The transition is sampled at the last pixel that
+     * still measures at or below the breakpoint and at the first pixel above it, because
+     * RemoteViews.findBestFitLayout takes the nearest fitting key rather than the largest one.
+     */
     @Test
     fun hostSelectsCompactAndExpandedHeaderVariants() {
         val density = context.resources.displayMetrics.density
@@ -87,44 +94,59 @@ class OrbitWidgetResponsiveRemoteViewsTest {
             (HEIGHT_DP * density).toInt(),
             signedOut = false
         )
+        val breakpointPx = floor(OrbitWidgetProvider.STREAK_UNIT_BREAKPOINT_DP * density).toInt()
 
-        assertHeaderAtWidth(views, COMPACT_WIDTH_DP, View.GONE)
-        assertHeaderAtWidth(views, EXPANDED_WIDTH_DP, View.VISIBLE)
+        assertHeaderAtContentWidth(views, (COMPACT_WIDTH_DP * density).toInt(), View.GONE)
+        assertHeaderAtContentWidth(views, breakpointPx, View.GONE)
+        assertHeaderAtContentWidth(views, breakpointPx + 1, View.VISIBLE)
+        assertHeaderAtContentWidth(views, (EXPANDED_WIDTH_DP * density).toInt(), View.VISIBLE)
     }
 
-    private fun assertHeaderAtWidth(
+    private fun assertHeaderAtContentWidth(
         views: android.widget.RemoteViews,
-        widthDp: Int,
+        contentWidthPx: Int,
         expectedUnitVisibility: Int
     ) {
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val density = context.resources.displayMetrics.density
+            val contentHeightPx = (HEIGHT_DP * density).toInt()
+            val widthDp = (contentWidthPx / density).toInt()
+
             hostView.updateAppWidgetSize(Bundle(), widthDp, HEIGHT_DP, widthDp, HEIGHT_DP)
-            val widthPx = (widthDp * context.resources.displayMetrics.density).toInt()
-            val heightPx = (HEIGHT_DP * context.resources.displayMetrics.density).toInt()
-            hostView.measure(
-                View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY),
-                View.MeasureSpec.makeMeasureSpec(heightPx, View.MeasureSpec.EXACTLY)
-            )
-            hostView.layout(0, 0, widthPx, heightPx)
+            layoutHost(contentWidthPx, contentHeightPx)
             hostView.updateAppWidget(views)
-            hostView.measure(
-                View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY),
-                View.MeasureSpec.makeMeasureSpec(heightPx, View.MeasureSpec.EXACTLY)
-            )
-            hostView.layout(0, 0, widthPx, heightPx)
+            layoutHost(contentWidthPx, contentHeightPx)
 
             assertEquals(
+                "streak unit visibility at ${contentWidthPx}px, ${contentWidthPx / density}dp",
                 expectedUnitVisibility,
                 hostView.findViewById<View>(R.id.widget_streak_unit).visibility
             )
             assertEquals("Today", text(R.id.widget_header))
             assertEquals("3 of 7 completed", text(R.id.widget_subtitle))
             assertEquals("12", text(R.id.widget_streak))
+            assertEquals("Refresh", contentDescription(R.id.widget_refresh))
+            assertEquals("Refreshing", contentDescription(R.id.widget_refresh_loading))
         }
+    }
+
+    /** Pads the span so that the host's own width, which excludes its padding, is the one asked for. */
+    private fun layoutHost(contentWidthPx: Int, contentHeightPx: Int) {
+        val widthPx = contentWidthPx + hostView.paddingLeft + hostView.paddingRight
+        val heightPx = contentHeightPx + hostView.paddingTop + hostView.paddingBottom
+        hostView.measure(
+            View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(heightPx, View.MeasureSpec.EXACTLY)
+        )
+        hostView.layout(0, 0, widthPx, heightPx)
     }
 
     private fun text(viewId: Int): String {
         return hostView.findViewById<TextView>(viewId).text.toString()
+    }
+
+    private fun contentDescription(viewId: Int): String {
+        return hostView.findViewById<View>(viewId).contentDescription.toString()
     }
 
     companion object {

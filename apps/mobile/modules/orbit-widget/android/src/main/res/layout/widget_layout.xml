@@ -118,7 +118,9 @@
                     android:visibility="gone" />
             </LinearLayout>
 
-            <View
+            <!-- FrameLayout, not View: RemoteViews only inflates classes annotated @RemoteView,
+                 and android.view.View is not one of them. -->
+            <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_alignParentBottom="true"

@@ -27,7 +27,10 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         private const val WORK_NAME = "orbit_widget_sync"
         private const val REFRESH_TIMEOUT_WORK_NAME = "orbit_widget_refresh_timeout"
         private const val WIDGET_REFRESH_TIMEOUT_MS = 12_000L
-        private const val STREAK_UNIT_BREAKPOINT_DP = 200f
+        internal const val STREAK_UNIT_BREAKPOINT_DP = 200f
+        // The widget's own minResizeWidth. A compact key sitting on the breakpoint would
+        // win the nearest-distance tie just above it and hide the unit there.
+        private const val COMPACT_IDEAL_WIDTH_DP = 110f
         internal const val CACHE_REFRESHING = "refresh_loading"
         internal const val CACHE_LOADING_SKELETON = "loading_skeleton"
         // Every region that opens the app. The whole card is one tap target, per the drawing's
@@ -145,9 +148,13 @@ class OrbitWidgetProvider : AppWidgetProvider() {
 
         /**
          * API 31 lets the host choose a RemoteViews child for the size it is rendering. The 1dp
-         * height makes width the only meaningful threshold: at 200dp only the compact key fits,
-         * while any wider host also fits the 201dp key and selects that closer variant. Older hosts
-         * receive the existing single layout and deliberately keep the localized unit visible.
+         * height makes width the only meaningful threshold. RemoteViews.findBestFitLayout keeps
+         * every key whose width is below ceil(hostWidth) + 1 and then takes the SMALLEST squared
+         * distance, not the largest key that fits, so the compact key is the widget's own
+         * minResizeWidth rather than the breakpoint: at 200dp the 201dp key still does not fit and
+         * the unit stays hidden, and at every representable width above it the 201dp key both fits
+         * and is far nearer than 110dp. Older hosts receive the existing single layout and
+         * deliberately keep the localized unit visible.
          */
         internal fun buildWidgetRemoteViews(
             context: Context,
@@ -185,7 +192,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             )
             return RemoteViews(
                 mapOf(
-                    SizeF(STREAK_UNIT_BREAKPOINT_DP, 1f) to compactViews,
+                    SizeF(COMPACT_IDEAL_WIDTH_DP, 1f) to compactViews,
                     SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, 1f) to expandedViews
                 )
             )
