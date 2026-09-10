@@ -51,7 +51,7 @@ function preferenceWriteChains(source: string) {
   )
 }
 
-function layoutViews() {
+function layoutViews(relativePath = 'layout/widget_layout.xml') {
   const views = new Map<string, Record<string, string>>()
   const parser = new SaxesParser()
 
@@ -67,10 +67,14 @@ function layoutViews() {
     }
   })
   parser
-    .write(readFileSync(resolve(widgetRoot, 'layout/widget_layout.xml'), 'utf8'))
+    .write(readFileSync(resolve(widgetRoot, relativePath), 'utf8'))
     .close()
 
   return views
+}
+
+function drawable(relativePath: string) {
+  return readFileSync(resolve(widgetRoot, `drawable/${relativePath}`), 'utf8')
 }
 
 describe('Android widget header', () => {
@@ -369,6 +373,32 @@ describe('Android widget header', () => {
     ])
   })
 
+  /**
+   * The status mark is the only place a row states done, overdue or pending: the title and the due
+   * time never name it, and the icon plus its colour filter carry the whole meaning. Left at
+   * `@null` it is outside the accessibility tree, so the state is readable by sight alone. The name
+   * comes through `tr()` like every other visible string, because the widget renders the account's
+   * language from the cached payload rather than the device's resource configuration.
+   */
+  it('names the row status for a screen reader, in both locales', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+
+    expect(service).toMatch(
+      /habit\.isCompleted -> R\.drawable\.widget_status_done to WidgetString\.STATUS_DONE\s*habit\.isOverdue -> R\.drawable\.widget_status_overdue to WidgetString\.STATUS_OVERDUE\s*else -> R\.drawable\.widget_status_pending to WidgetString\.STATUS_PENDING/,
+    )
+    expect(service).toContain(
+      'views.setContentDescription(R.id.item_status_icon, tr(context, lang, description))',
+    )
+
+    const english = resourceStrings('values/widget_strings.xml')
+    const portuguese = resourceStrings('values-pt-rBR/widget_strings.xml')
+    for (const key of ['widget_status_done', 'widget_status_overdue', 'widget_status_pending']) {
+      expect(english.get(key), `en:${key}`).toBeTruthy()
+      expect(portuguese.get(key), `pt-BR:${key}`).toBeTruthy()
+      expect(portuguese.get(key), `pt-BR:${key}`).not.toBe(english.get(key))
+    }
+  })
+
   it('gives the refresh control the 48dp target the drawing specifies', () => {
     const views = layoutViews()
 
@@ -435,6 +465,78 @@ describe('Android widget header', () => {
     )
     expect(service).toContain(
       'views.setContentDescription(R.id.widget_refresh, refreshDescription)',
+    )
+  })
+})
+
+describe('Android widget habit rows', () => {
+  it('keeps every row at the 48dp widget touch minimum', () => {
+    const views = layoutViews('layout/widget_item.xml')
+
+    expect(views.get('widget_item_container')).toMatchObject({
+      'android:layout_height': '48dp',
+    })
+    expect(views.get('widget_item_content')).toMatchObject({
+      'android:layout_height': '48dp',
+    })
+    expect(views.get('item_title')).toMatchObject({
+      'android:textSize': '15sp',
+    })
+    expect(views.get('item_status_icon')).toMatchObject({
+      'android:layout_width': '20dp',
+      'android:layout_height': '20dp',
+    })
+  })
+
+  it('mutes completed titles through the pre-31 enabled-state path', () => {
+    const service = readFileSync(
+      resolve(widgetSourceRoot, 'OrbitWidgetService.kt'),
+      'utf8',
+    )
+
+    expect(service).toContain(
+      'views.setBoolean(R.id.item_title, "setEnabled", !habit.isCompleted)',
+    )
+  })
+
+  it('draws done, overdue, and pending as vector status marks', () => {
+    const done = drawable('widget_status_done.xml')
+    const overdue = drawable('widget_status_overdue.xml')
+    const pending = drawable('widget_status_pending.xml')
+
+    expect(done).toContain('<vector')
+    expect(done).toContain('android:fillType="evenOdd"')
+    expect(overdue).toContain('<vector')
+    expect(overdue).toContain('android:strokeColor="@color/widget_overdue"')
+    expect(pending).toContain('<vector')
+    expect(pending).toContain('android:strokeColor="@color/widget_fg_4"')
+  })
+
+  it('ships localized checklist and deeper-tree labels with the complete row vocabulary', () => {
+    const english = resourceStrings('values/widget_strings.xml')
+    const portuguese = resourceStrings('values-pt-rBR/widget_strings.xml')
+    const views = layoutViews('layout/widget_item.xml')
+    const service = readFileSync(
+      resolve(widgetSourceRoot, 'OrbitWidgetService.kt'),
+      'utf8',
+    )
+
+    expect(Object.fromEntries(english)).toMatchObject({
+      widget_checklist_badge: 'list %1$s',
+      widget_deeper_count: '+%1$d inside',
+    })
+    expect(Object.fromEntries(portuguese)).toMatchObject({
+      widget_checklist_badge: 'lista %1$s',
+      widget_deeper_count: '+%1$d dentro',
+    })
+    expect(views.has('item_children_badge')).toBe(true)
+    expect(views.has('item_checklist_badge')).toBe(true)
+    expect(views.get('item_deeper_count')).toMatchObject({
+      'android:textColor': '@color/widget_fg_3',
+    })
+    expect(service).toContain('deeperCount = countDescendants(child)')
+    expect(service).toContain(
+      'views.setViewPadding(R.id.widget_item_content, dpToPx(32), 0, dpToPx(12), 0)',
     )
   })
 })

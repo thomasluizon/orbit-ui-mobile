@@ -9,4 +9,9 @@
   <string name="widget_all_clear">Tudo feito</string>
   <string name="widget_sign_in">Abra o Orbit para entrar</string>
   <string name="widget_refresh">Atualizar</string>
+  <string name="widget_checklist_badge">lista %1$s</string>
+  <string name="widget_deeper_count">+%1$d dentro</string>
+  <string name="widget_status_done">Concluído</string>
+  <string name="widget_status_overdue">Atrasado</string>
+  <string name="widget_status_pending">Não concluído</string>
 </resources>

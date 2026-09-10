@@ -9,4 +9,9 @@
   <string name="widget_all_clear">All clear</string>
   <string name="widget_sign_in">Open Orbit to sign in</string>
   <string name="widget_refresh">Refresh</string>
+  <string name="widget_checklist_badge">list %1$s</string>
+  <string name="widget_deeper_count">+%1$d inside</string>
+  <string name="widget_status_done">Done</string>
+  <string name="widget_status_overdue">Overdue</string>
+  <string name="widget_status_pending">Not done</string>
 </resources>

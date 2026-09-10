@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-overdue triangle, tinted from the synced token. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="18dp"
+    android:height="18dp"
+    android:viewportWidth="20"
+    android:viewportHeight="20">
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M10,2.2L18,17H2Z"
+        android:strokeColor="@color/widget_overdue"
+        android:strokeLineJoin="round"
+        android:strokeWidth="1.7" />
+    <path
+        android:fillColor="@android:color/transparent"
+        android:pathData="M10,7L10,11"
+        android:strokeColor="@color/widget_overdue"
+        android:strokeLineCap="round"
+        android:strokeWidth="1.7" />
+    <path
+        android:fillColor="@color/widget_overdue"
+        android:pathData="M10,13m-1,0a1,1 0,1 0,2 0a1,1 0,1 0,-2 0" />
+</vector>

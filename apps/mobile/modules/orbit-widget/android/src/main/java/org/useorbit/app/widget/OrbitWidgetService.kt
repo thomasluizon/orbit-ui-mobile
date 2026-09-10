@@ -7,7 +7,6 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Paint
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.Icon
 import android.os.Build
@@ -40,7 +39,7 @@ data class HabitItem(
     val hasChildren: Boolean,
     val childrenDone: Int,
     val childrenTotal: Int,
-    val hasDeeper: Boolean
+    val deeperCount: Int
 )
 
 data class ApiHabit(
@@ -52,16 +51,14 @@ data class ApiHabit(
     val checklistChecked: Int?,
     val checklistTotal: Int?,
     val isBadHabit: Boolean,
-    val children: List<ApiHabit>?,
-    val hasSubHabits: Boolean?
+    val children: List<ApiHabit>?
 )
 
 data class HabitWidgetResponse(
     val dayOffset: Int,
     val language: String?,
     val currentStreak: Int?,
-    val items: List<ApiHabit>?,
-    val totalCount: Int?
+    val items: List<ApiHabit>?
 )
 
 internal enum class WidgetString(val resourceId: Int) {
@@ -72,7 +69,12 @@ internal enum class WidgetString(val resourceId: Int) {
     ALL_CLEAR(R.string.widget_all_clear),
     SIGN_IN(R.string.widget_sign_in),
     STREAK_UNIT(R.string.widget_streak_unit),
-    REFRESH(R.string.widget_refresh)
+    REFRESH(R.string.widget_refresh),
+    CHECKLIST_BADGE(R.string.widget_checklist_badge),
+    DEEPER_COUNT(R.string.widget_deeper_count),
+    STATUS_DONE(R.string.widget_status_done),
+    STATUS_OVERDUE(R.string.widget_status_overdue),
+    STATUS_PENDING(R.string.widget_status_pending)
 }
 
 internal data class WidgetDayState(
@@ -124,11 +126,10 @@ private fun flattenHabits(apiHabits: List<ApiHabit>, isTomorrow: Boolean): List<
                 hasChildren = children.isNotEmpty(),
                 childrenDone = childrenDone,
                 childrenTotal = countingChildren.size,
-                hasDeeper = false
+                deeperCount = 0
             )
         )
         for (child in children) {
-            val hasDeeper = (child.children?.isNotEmpty() == true) || (child.hasSubHabits == true)
             val childDone = !isTomorrow && child.isCompleted
             result.add(
                 HabitItem(
@@ -144,12 +145,17 @@ private fun flattenHabits(apiHabits: List<ApiHabit>, isTomorrow: Boolean): List<
                     hasChildren = false,
                     childrenDone = 0,
                     childrenTotal = 0,
-                    hasDeeper = hasDeeper
+                    deeperCount = countDescendants(child)
                 )
             )
         }
     }
     return result
+}
+
+private fun countDescendants(habit: ApiHabit): Int {
+    val children = habit.children.orEmpty()
+    return children.size + children.sumOf(::countDescendants)
 }
 
 /** Resolved granted token colors for the active scheme + mode, synced from JS. */
@@ -222,12 +228,18 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         /** WHY: --bg is the terminal fallback when a synced value is malformed. */
         private const val SAFE_FALLBACK = 0xFF09090B.toInt()
 
-        internal fun tr(context: Context, lang: String, string: WidgetString): String {
+        internal fun tr(
+            context: Context,
+            lang: String,
+            string: WidgetString,
+            vararg formatArgs: Any
+        ): String {
             val localeTag = if (lang.startsWith("pt", ignoreCase = true)) "pt-BR" else "en"
             val configuration = Configuration(context.resources.configuration).apply {
                 setLocale(Locale.forLanguageTag(localeTag))
             }
-            return context.createConfigurationContext(configuration).getString(string.resourceId)
+            return context.createConfigurationContext(configuration)
+                .getString(string.resourceId, *formatArgs)
         }
 
         private fun fallbackColors(mode: String): Map<String, String> =
@@ -649,32 +661,22 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
 
         val habit = habits[position]
         val isChild = habit.depth > 0
+        applyItemBackground(views, habit, isChild)
+        applyItemTitle(views, habit, isChild)
+        applyStatusMark(views, habit)
+        applyDueTime(views, habit)
+        applyBadges(views, habit)
+
+        views.setOnClickFillInIntent(R.id.widget_item_container, Intent())
+        return views
+    }
+
+    private fun applyItemBackground(views: RemoteViews, habit: HabitItem, isChild: Boolean) {
         val density = context.resources.displayMetrics.density
-
-        // Item background (programmatic rounded rect bitmap)
-        val bgWidth = (context.resources.displayMetrics.widthPixels * 0.9f).toInt()
-        val bgHeight = (if (isChild) 40 else 44) * density
-        val cornerRadius = 16f * density
-        val strokeWidth = 1f * density
-
-        fun createItemBackground(modeColors: WidgetColors): Bitmap = when {
-            isChild -> createRoundedBitmap(
-                bgWidth, bgHeight.toInt(), modeColors.surfaceGround, 12f * density
-            )
-            habit.isCompleted -> createRoundedBitmap(
-                bgWidth, bgHeight.toInt(), modeColors.surface, cornerRadius
-            )
-            else -> createRoundedBitmap(
-                bgWidth,
-                bgHeight.toInt(),
-                modeColors.surface,
-                cornerRadius,
-                strokeWidth,
-                modeColors.borderMuted
-            )
-        }
-        val lightBackground = createItemBackground(colorModes.light)
-        val darkBackground = createItemBackground(colorModes.dark)
+        val width = (context.resources.displayMetrics.widthPixels * 0.9f).toInt()
+        val height = (48 * density).toInt()
+        val lightBackground = createItemBackground(habit, isChild, colorModes.light, width, height)
+        val darkBackground = createItemBackground(habit, isChild, colorModes.dark, width, height)
         views.setModeAwareBitmap(R.id.item_bg, lightBackground, darkBackground)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             val backgroundResource = when {
@@ -684,99 +686,142 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             }
             views.setImageViewResource(R.id.item_bg, backgroundResource)
         }
+    }
 
-        // Indent child items
+    private fun createItemBackground(
+        habit: HabitItem,
+        isChild: Boolean,
+        modeColors: WidgetColors,
+        width: Int,
+        height: Int
+    ): Bitmap {
+        val density = context.resources.displayMetrics.density
         if (isChild) {
-            views.setViewPadding(R.id.widget_item_content, dpToPx(24), dpToPx(8), dpToPx(12), dpToPx(8))
-        } else {
-            views.setViewPadding(R.id.widget_item_content, dpToPx(12), dpToPx(11), dpToPx(12), dpToPx(11))
+            return createRoundedBitmap(width, height, modeColors.surfaceGround, 12f * density)
         }
-
-        // Title
-        val displayTitle = if (habit.hasDeeper) "${habit.title} ..." else habit.title
-        views.setTextViewText(R.id.item_title, displayTitle)
-        views.setFloat(R.id.item_title, "setTextSize", if (isChild) 12f else 14f)
-        views.setBoolean(R.id.item_title, "setEnabled", !habit.isCompleted)
-
         if (habit.isCompleted) {
-            views.setInt(R.id.item_title, "setPaintFlags",
-                Paint.STRIKE_THRU_TEXT_FLAG or Paint.ANTI_ALIAS_FLAG)
+            return createRoundedBitmap(width, height, modeColors.surface, 16f * density)
+        }
+        return createRoundedBitmap(
+            width,
+            height,
+            modeColors.surface,
+            16f * density,
+            1f * density,
+            modeColors.borderMuted
+        )
+    }
+
+    private fun applyItemTitle(views: RemoteViews, habit: HabitItem, isChild: Boolean) {
+        if (isChild) {
+            views.setViewPadding(R.id.widget_item_content, dpToPx(32), 0, dpToPx(12), 0)
+        } else {
+            views.setViewPadding(R.id.widget_item_content, dpToPx(12), 0, dpToPx(12), 0)
+        }
+        views.setTextViewText(R.id.item_title, habit.title)
+        views.setBoolean(R.id.item_title, "setEnabled", !habit.isCompleted)
+        if (habit.isCompleted) {
             views.setModeAwareColor(R.id.item_title, "setTextColor", colorModes) { it.textMuted }
         } else {
-            views.setInt(R.id.item_title, "setPaintFlags", Paint.ANTI_ALIAS_FLAG)
             views.setModeAwareColor(R.id.item_title, "setTextColor", colorModes) { it.textPrimary }
         }
+    }
 
-        // Status circle vs progress badge
-        if (habit.hasChildren && !habit.isCompleted) {
-            views.setViewVisibility(R.id.item_status_icon, android.view.View.INVISIBLE)
-            views.setViewVisibility(R.id.item_progress_badge, android.view.View.VISIBLE)
-            views.setTextViewText(R.id.item_progress_badge, "${habit.childrenDone}/${habit.childrenTotal}")
-            views.setModeAwareColor(R.id.item_progress_badge, "setTextColor", colorModes) { it.textSecondary }
-        } else {
-            views.setViewVisibility(R.id.item_status_icon, android.view.View.VISIBLE)
-            views.setViewVisibility(R.id.item_progress_badge, android.view.View.GONE)
-
-            when {
-                habit.isCompleted -> {
-                    views.setImageViewResource(R.id.item_status_icon, R.drawable.widget_circle_filled)
-                    views.setModeAwareColor(R.id.item_status_icon, "setColorFilter", colorModes) { it.textPrimary }
-                }
-                habit.isOverdue -> {
-                    views.setImageViewResource(R.id.item_status_icon, R.drawable.widget_circle_overdue)
-                    views.setModeAwareColor(R.id.item_status_icon, "setColorFilter", colorModes) { it.overdue }
-                }
-                else -> {
-                    views.setImageViewResource(R.id.item_status_icon, R.drawable.widget_circle_empty)
-                    views.setModeAwareColor(R.id.item_status_icon, "setColorFilter", colorModes) { it.statusEmpty }
-                }
-            }
-
-            if (isChild) {
-                views.setViewPadding(R.id.item_status_icon, dpToPx(3), dpToPx(3), dpToPx(3), dpToPx(3))
-            } else {
-                views.setViewPadding(R.id.item_status_icon, 0, 0, 0, 0)
-            }
+    /**
+     * The mark is the ONLY place a row says done, overdue or pending: the title and the due time
+     * never name the state. So it carries an accessible name beside the icon and the colour, or the
+     * state is readable by sight alone.
+     *
+     * The name comes through `tr()` like every other visible string, not from an `@string` in the
+     * layout, because the widget renders the account's language from the cached payload rather than
+     * the device's resource configuration.
+     */
+    private fun applyStatusMark(views: RemoteViews, habit: HabitItem) {
+        val (icon, description) = when {
+            habit.isCompleted -> R.drawable.widget_status_done to WidgetString.STATUS_DONE
+            habit.isOverdue -> R.drawable.widget_status_overdue to WidgetString.STATUS_OVERDUE
+            else -> R.drawable.widget_status_pending to WidgetString.STATUS_PENDING
         }
-
-        // Due time (inline below title)
-        if (!habit.dueTime.isNullOrEmpty()) {
-            val formattedTime = formatTime(habit.dueTime)
-            val showOverdueTime = habit.isOverdue && !habit.isCompleted
-            if (showOverdueTime) {
-                views.setTextViewText(R.id.item_time_overdue, formattedTime)
-                views.setViewVisibility(R.id.item_time, android.view.View.GONE)
-                views.setViewVisibility(R.id.item_time_overdue, android.view.View.VISIBLE)
-                views.setModeAwareColor(
-                    R.id.item_time_overdue, "setTextColor", colorModes
-                ) { it.overdue }
-            } else {
-                views.setTextViewText(R.id.item_time, formattedTime)
-                views.setViewVisibility(R.id.item_time, android.view.View.VISIBLE)
-                views.setViewVisibility(R.id.item_time_overdue, android.view.View.GONE)
-                views.setModeAwareColor(
-                    R.id.item_time, "setTextColor", colorModes
-                ) { it.textMuted }
-            }
-        } else {
-            views.setViewVisibility(R.id.item_time, android.view.View.GONE)
-            views.setViewVisibility(R.id.item_time_overdue, android.view.View.GONE)
+        views.setImageViewResource(R.id.item_status_icon, icon)
+        views.setContentDescription(R.id.item_status_icon, tr(context, lang, description))
+        when {
+            habit.isCompleted ->
+                views.setModeAwareColor(R.id.item_status_icon, "setColorFilter", colorModes) { it.textPrimary }
+            habit.isOverdue ->
+                views.setModeAwareColor(R.id.item_status_icon, "setColorFilter", colorModes) { it.overdue }
+            else ->
+                views.setModeAwareColor(R.id.item_status_icon, "setColorFilter", colorModes) { it.statusEmpty }
         }
+    }
 
-        // Checklist badge
+    private fun applyBadges(views: RemoteViews, habit: HabitItem) {
+        if (habit.hasChildren) {
+            views.setTextViewText(
+                R.id.item_children_badge,
+                "${habit.childrenDone}/${habit.childrenTotal}"
+            )
+            views.setViewVisibility(R.id.item_children_badge, android.view.View.VISIBLE)
+            views.setModeAwareColor(
+                R.id.item_children_badge,
+                "setTextColor",
+                colorModes
+            ) { it.textSecondary }
+        } else {
+            views.setViewVisibility(R.id.item_children_badge, android.view.View.GONE)
+        }
         if (habit.checklistTotal > 0) {
-            views.setTextViewText(R.id.item_checklist_badge, "${habit.checklistChecked}/${habit.checklistTotal}")
+            val checklistProgress = "${habit.checklistChecked}/${habit.checklistTotal}"
+            views.setTextViewText(
+                R.id.item_checklist_badge,
+                tr(context, lang, WidgetString.CHECKLIST_BADGE, checklistProgress)
+            )
             views.setViewVisibility(R.id.item_checklist_badge, android.view.View.VISIBLE)
             views.setModeAwareColor(R.id.item_checklist_badge, "setTextColor", colorModes) { it.textSecondary }
         } else {
             views.setViewVisibility(R.id.item_checklist_badge, android.view.View.GONE)
         }
 
-        // Tap opens app
-        val fillInIntent = Intent()
-        views.setOnClickFillInIntent(R.id.widget_item_container, fillInIntent)
+        if (habit.deeperCount > 0) {
+            views.setTextViewText(
+                R.id.item_deeper_count,
+                tr(context, lang, WidgetString.DEEPER_COUNT, habit.deeperCount)
+            )
+            views.setViewVisibility(R.id.item_deeper_count, android.view.View.VISIBLE)
+            views.setModeAwareColor(
+                R.id.item_deeper_count,
+                "setTextColor",
+                colorModes
+            ) { it.textMuted }
+        } else {
+            views.setViewVisibility(R.id.item_deeper_count, android.view.View.GONE)
+        }
+    }
 
-        return views
+    private fun applyDueTime(views: RemoteViews, habit: HabitItem) {
+        val dueTime = habit.dueTime
+        if (dueTime.isNullOrEmpty()) {
+            views.setViewVisibility(R.id.item_time, android.view.View.GONE)
+            views.setViewVisibility(R.id.item_time_overdue, android.view.View.GONE)
+            return
+        }
+
+        val formattedTime = formatTime(dueTime)
+        if (habit.isOverdue && !habit.isCompleted) {
+            views.setTextViewText(R.id.item_time_overdue, formattedTime)
+            views.setViewVisibility(R.id.item_time, android.view.View.GONE)
+            views.setViewVisibility(R.id.item_time_overdue, android.view.View.VISIBLE)
+            views.setModeAwareColor(
+                R.id.item_time_overdue,
+                "setTextColor",
+                colorModes
+            ) { it.overdue }
+            return
+        }
+
+        views.setTextViewText(R.id.item_time, formattedTime)
+        views.setViewVisibility(R.id.item_time, android.view.View.VISIBLE)
+        views.setViewVisibility(R.id.item_time_overdue, android.view.View.GONE)
+        views.setModeAwareColor(R.id.item_time, "setTextColor", colorModes) { it.textMuted }
     }
 
     private fun dpToPx(dp: Int): Int {
