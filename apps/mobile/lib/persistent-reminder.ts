@@ -185,12 +185,13 @@ async function postReminder(
   activeModule: PersistentReminderNotificationsModule,
   feed: ReminderFeed,
   authorizingToken: string | null,
+  generation: number,
 ): Promise<void> {
   await ensureChannel(activeModule)
   const { title, body } = buildReminderContent(feed, (key, params) => i18n.t(key, params))
   if (!(await stillSignedInAs(authorizingToken))) return
+  if (generation !== presentationGeneration) return
 
-  const generation = presentationGeneration
   await activeModule.scheduleNotificationAsync({
     identifier: PERSISTENT_REMINDER_ID,
     content: {
@@ -241,9 +242,11 @@ export async function requestPersistentReminderPermission(): Promise<boolean> {
 /**
  * Removes the ongoing reminder from the tray.
  *
- * Bumping the generation first is what stops a refresh that already crossed the native boundary from
- * winning. `expo-notifications` handles schedule and dismiss on separate threads, so invocation order
- * is not completion order, and the in-flight refresh reconciles by dismissing again once it returns.
+ * Bumping the generation FIRST is what invalidates every refresh already in flight. A refresh
+ * snapshots the value before its first await and rechecks it immediately before scheduling, so a
+ * cancellation during channel setup or the SecureStore read stops it. `expo-notifications` handles
+ * schedule and dismiss on separate threads, so invocation order is not completion order, and a
+ * refresh whose schedule was already pending reconciles by dismissing again once it returns.
  */
 export async function cancelPersistentReminder(): Promise<void> {
   presentationGeneration += 1
@@ -261,17 +264,19 @@ export async function refreshPersistentReminder(
   data: unknown,
   authorizingToken: string | null,
 ): Promise<void> {
+  const generation = presentationGeneration
   if (!usePersistentReminderStore.getState().enabled) return
 
   const activeModule = notificationsModule
   if (!activeModule || Platform.OS !== 'android') return
 
   if (data === null) {
+    presentationGeneration += 1
     await activeModule.dismissNotificationAsync(PERSISTENT_REMINDER_ID)
     return
   }
 
   const feed = extractReminderFeed(data)
   if (!feed) return
-  await postReminder(activeModule, feed, authorizingToken)
+  await postReminder(activeModule, feed, authorizingToken, generation)
 }

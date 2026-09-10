@@ -230,6 +230,31 @@ describe('persistent reminder', () => {
       expect(dismissNotificationAsync).toHaveBeenCalledTimes(2)
     })
 
+    it('does not post when the reminder is cancelled during channel setup, same account', async () => {
+      usePersistentReminderStore.setState({ enabled: true })
+      secureStoreMocks.getToken.mockResolvedValue(OWNER_TOKEN)
+
+      let releaseChannel: () => void = () => {}
+      const channelPending = new Promise<void>((resolve) => {
+        releaseChannel = resolve
+      })
+      setNotificationChannelAsync.mockImplementationOnce(async () => {
+        await channelPending
+      })
+
+      const refreshing = refreshPersistentReminder(
+        { currentStreak: 8, items: [{ isCompleted: true }] },
+        OWNER_TOKEN,
+      )
+      await vi.waitFor(() => expect(setNotificationChannelAsync).toHaveBeenCalled())
+
+      await cancelPersistentReminder()
+      releaseChannel()
+      await refreshing
+
+      expect(scheduleNotificationAsync).not.toHaveBeenCalled()
+    })
+
     it('does not post when the payload carries no account to attribute it to', async () => {
       usePersistentReminderStore.setState({ enabled: true })
 
