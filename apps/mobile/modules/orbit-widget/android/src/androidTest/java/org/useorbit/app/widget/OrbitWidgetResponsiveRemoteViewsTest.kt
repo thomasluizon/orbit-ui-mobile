@@ -13,6 +13,7 @@ import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,10 +28,26 @@ class OrbitWidgetResponsiveRemoteViewsTest {
 
     @Before
     fun setUp() {
-        val providerInfo = AppWidgetManager.getInstance(context)
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        // The instrumentation APK declares this provider too, and it is the one to bind. Binding the
+        // installed app's provider makes the host inflate app-package resources while the test builds
+        // RemoteViews from its own package, and the host silently falls back to its error view.
+        val providerInfo = appWidgetManager
             .installedProviders
-            .first { it.provider.className == OrbitWidgetProvider::class.java.name }
+            .first {
+                it.provider.className == OrbitWidgetProvider::class.java.name &&
+                    it.provider.packageName == context.packageName
+            }
         appWidgetId = appWidgetHost.allocateAppWidgetId()
+
+        // updateAppWidgetSize reaches the system service, which has no options Bundle for an
+        // unbound id and throws. Binding needs BIND_APPWIDGET, which is signature level and only
+        // the shell identity carries here.
+        val uiAutomation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        uiAutomation.adoptShellPermissionIdentity()
+        val bound = appWidgetManager.bindAppWidgetIdIfAllowed(appWidgetId, providerInfo.provider)
+        assertTrue("could not bind an app widget id under the shell identity", bound)
+
         hostView = AppWidgetHostView(context)
         hostView.setAppWidget(appWidgetId, providerInfo)
 
@@ -49,6 +66,7 @@ class OrbitWidgetResponsiveRemoteViewsTest {
 
     @After
     fun tearDown() {
+        InstrumentationRegistry.getInstrumentation().uiAutomation.dropShellPermissionIdentity()
         context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
             .edit()
             .clear()

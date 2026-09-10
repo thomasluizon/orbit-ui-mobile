@@ -70,6 +70,7 @@ internal enum class WidgetString(val resourceId: Int) {
     SIGN_IN(R.string.widget_sign_in),
     STREAK_UNIT(R.string.widget_streak_unit),
     REFRESH(R.string.widget_refresh),
+    REFRESHING(R.string.widget_refreshing),
     CHECKLIST_BADGE(R.string.widget_checklist_badge),
     DEEPER_COUNT(R.string.widget_deeper_count),
     STATUS_DONE(R.string.widget_status_done),
