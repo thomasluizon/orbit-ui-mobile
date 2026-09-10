@@ -1,6 +1,7 @@
 import { Platform } from 'react-native'
 import { schemes } from '@orbit/shared/theme'
 import { i18n } from '@/lib/i18n'
+import { getAccountIdFromToken } from '@/lib/jwt-session'
 import {
   normalizePermissionStatus,
   type NotificationPermissionsResponse,
@@ -219,7 +220,10 @@ export async function cancelPersistentReminder(): Promise<void> {
  * toggle is off; cancels when the feed is unavailable (signed out); otherwise
  * re-posts the notification in place with the current streak and progress.
  */
-export async function refreshPersistentReminder(data: unknown): Promise<void> {
+export async function refreshPersistentReminder(
+  data: unknown,
+  authorizingToken?: string,
+): Promise<void> {
   if (!usePersistentReminderStore.getState().enabled) return
 
   const activeModule = notificationsModule
@@ -228,6 +232,14 @@ export async function refreshPersistentReminder(data: unknown): Promise<void> {
   if (data === null) {
     await activeModule.dismissNotificationAsync(PERSISTENT_REMINDER_ID)
     return
+  }
+
+  if (authorizingToken) {
+    const { getToken } = await import('@/lib/secure-store')
+    const signedInToken = await getToken()
+    const authorizingAccount = getAccountIdFromToken(authorizingToken)
+    if (!signedInToken || !authorizingAccount) return
+    if (getAccountIdFromToken(signedInToken) !== authorizingAccount) return
   }
 
   const feed = extractReminderFeed(data)

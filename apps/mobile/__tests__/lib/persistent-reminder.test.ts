@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-
 import expoNotificationsMock, {
   AndroidImportance,
   dismissNotificationAsync,
@@ -21,6 +20,9 @@ import {
 } from '@/lib/persistent-reminder'
 import { usePersistentReminderStore } from '@/stores/persistent-reminder-store'
 
+const secureStoreMocks = vi.hoisted(() => ({ getToken: vi.fn() }))
+vi.mock('@/lib/secure-store', () => ({ getToken: secureStoreMocks.getToken }))
+
 interface ScheduledRequest {
   identifier?: string
   content: {
@@ -32,6 +34,11 @@ interface ScheduledRequest {
     data: { url: string }
   }
   trigger: { channelId: string } | null
+}
+
+function tokenFor(accountId: string): string {
+  const payload = btoa(JSON.stringify({ sub: accountId, email: `${accountId}@example.com` }))
+  return `header.${payload}.signature`
 }
 
 function lastScheduledRequest(): ScheduledRequest {
@@ -47,6 +54,7 @@ const fakeTranslate = (key: string, params?: Record<string, unknown>) =>
 describe('persistent reminder', () => {
   beforeEach(async () => {
     resetExpoNotificationsMocks()
+    secureStoreMocks.getToken.mockReset()
     __setPersistentReminderModuleForTests(expoNotificationsMock)
     usePersistentReminderStore.setState({ enabled: false })
     await i18n.changeLanguage('en')
@@ -148,6 +156,19 @@ describe('persistent reminder', () => {
       await refreshPersistentReminder(null)
 
       expect(dismissNotificationAsync).toHaveBeenCalledWith('orbit-persistent-reminder')
+      expect(scheduleNotificationAsync).not.toHaveBeenCalled()
+    })
+
+    it('does not update after the feed resolves under a different signed-in account', async () => {
+      usePersistentReminderStore.setState({ enabled: true })
+      const authorizingToken = tokenFor('first-account')
+      secureStoreMocks.getToken.mockResolvedValue(tokenFor('second-account'))
+
+      await refreshPersistentReminder(
+        { currentStreak: 8, items: [{ isCompleted: true }] },
+        authorizingToken,
+      )
+
       expect(scheduleNotificationAsync).not.toHaveBeenCalled()
     })
   })

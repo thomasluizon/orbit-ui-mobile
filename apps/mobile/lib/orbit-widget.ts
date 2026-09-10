@@ -15,6 +15,10 @@ declare const require: (id: string) => unknown
 
 let cachedModule: OrbitWidgetModuleType | null | undefined
 
+export function __setOrbitWidgetModuleForTests(nextModule: OrbitWidgetModuleType): void {
+  cachedModule = nextModule
+}
+
 function isOrbitWidgetModule(value: unknown): value is { default: OrbitWidgetModuleType } {
   if (typeof value !== 'object' || value === null) return false
   const candidate = (value as { default?: unknown }).default
@@ -116,5 +120,5 @@ export async function syncWidgetData(): Promise<void> {
   if (authorizingToken) {
     await widgetModule.syncWidgetData(JSON.stringify(data), authorizingToken)
   }
-  await refreshPersistentReminder(data)
+  await refreshPersistentReminder(data, authorizingToken ?? undefined)
 }
