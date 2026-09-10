@@ -884,7 +884,6 @@
     }
   },
   "calendar": {
-    "viewAgenda": "Agenda",
     "rescheduled": "Reagendado",
     "agenda": {
       "previousDay": "Dia anterior",

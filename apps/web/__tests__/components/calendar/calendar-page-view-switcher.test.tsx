@@ -16,7 +16,6 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/hooks/use-is-desktop', () => ({
-  useIsDesktop: () => false,
   useIsWideDesktop: () => isWideDesktopValue,
 }))
 
