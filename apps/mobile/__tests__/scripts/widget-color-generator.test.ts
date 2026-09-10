@@ -38,7 +38,10 @@ describe('widget color generator', () => {
    * other test passes. That happened on this branch.
    */
   it('runs as a direct command and rewrites the checked-in outputs unchanged', () => {
-    const before = GENERATED_OUTPUTS.map(file => readFileSync(resolve(repositoryRoot, file)))
+    const before = GENERATED_OUTPUTS.map(file => ({
+      file,
+      bytes: readFileSync(resolve(repositoryRoot, file)),
+    }))
 
     try {
       const run = spawnSync(
@@ -49,12 +52,12 @@ describe('widget color generator', () => {
 
       expect(run.stderr).toBe('')
       expect(run.status).toBe(0)
-      for (const [index, file] of GENERATED_OUTPUTS.entries()) {
-        expect(readFileSync(resolve(repositoryRoot, file)), file).toEqual(before[index])
+      for (const { file, bytes } of before) {
+        expect(readFileSync(resolve(repositoryRoot, file)), file).toEqual(bytes)
       }
     } finally {
-      for (const [index, file] of GENERATED_OUTPUTS.entries()) {
-        writeFileSync(resolve(repositoryRoot, file), before[index])
+      for (const { file, bytes } of before) {
+        writeFileSync(resolve(repositoryRoot, file), bytes)
       }
     }
   }, 60_000)
