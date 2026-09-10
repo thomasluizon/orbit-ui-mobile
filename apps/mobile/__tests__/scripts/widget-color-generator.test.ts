@@ -1,13 +1,26 @@
+import { spawnSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { SaxesParser } from 'saxes'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { generatedXml } from '../../scripts/generate-widget-colors'
+
+const repositoryRoot = resolve(process.cwd(), '../..')
+const generatorPath = 'apps/mobile/scripts/generate-widget-colors.ts'
 
 function generatedColor(xml: string, name: string) {
   const value = xml.match(new RegExp(`<color name="${name}">([^<]+)</color>`))?.[1]
   if (!value) throw new Error(`Missing generated color: ${name}`)
   return value
 }
+
+const GENERATED_OUTPUTS = [
+  'apps/mobile/lib/widget-colors.generated.ts',
+  'apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetColorFallbacks.generated.kt',
+  'apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_colors.xml',
+  'apps/mobile/modules/orbit-widget/android/src/main/res/values-night/widget_colors.xml',
+]
 
 describe('widget color generator', () => {
   it.each(['light', 'dark'] as const)('generates parseable %s XML', mode => {
@@ -17,6 +30,28 @@ describe('widget color generator', () => {
     expect(xml).not.toContain('<!-- WHY: --')
     expect(() => new SaxesParser().write(xml).close()).not.toThrow()
   })
+
+  /**
+   * Importing the module through Vitest does not exercise the command the pull request body cites
+   * as the provenance of the checked-in outputs. tsx transforms this file to CommonJS, where a
+   * top-level await is a hard esbuild error, so the direct entry point can be broken while every
+   * other test passes. That happened on this branch.
+   */
+  it('runs as a direct command and rewrites the checked-in outputs unchanged', () => {
+    const before = GENERATED_OUTPUTS.map(file => readFileSync(resolve(repositoryRoot, file), 'utf8'))
+
+    const run = spawnSync(
+      process.execPath,
+      [resolve(repositoryRoot, 'node_modules/tsx/dist/cli.mjs'), generatorPath],
+      { cwd: repositoryRoot, encoding: 'utf8' },
+    )
+
+    expect(run.stderr).toBe('')
+    expect(run.status).toBe(0)
+    for (const [index, file] of GENERATED_OUTPUTS.entries()) {
+      expect(readFileSync(resolve(repositoryRoot, file), 'utf8'), file).toBe(before[index])
+    }
+  }, 60_000)
 
   it('keeps light overdue text AA on the generated widget well', () => {
     const xml = generatedXml('light')
