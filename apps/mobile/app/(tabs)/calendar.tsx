@@ -38,13 +38,14 @@ import {
   clampRangeToMaxDays,
   filterRecurringEntries,
   formatAPIDate,
+  isCalendarDayLoggable,
   parseAPIDate,
   MAX_RANGE_DAYS,
   buildCalendarMonthModel,
 } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import type { Profile } from "@orbit/shared/types/profile";
-import { useCalendarData, useCalendarRange } from "@/hooks/use-habits";
+import { useCalendarData, useCalendarRange, useLogHabit } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
@@ -150,6 +151,7 @@ function CalendarScreenContent({
   const router = useRouter();
   const { displayTime } = useTimeFormat();
   const todayKey = useCurrentDate();
+  const logHabit = useLogHabit();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -402,6 +404,18 @@ function CalendarScreenContent({
     (entry: CalendarDayEntry) => entry.status === "completed",
   ).length;
 
+  const selectedDayLoggable = selectedDay !== null
+    && isCalendarDayLoggable(selectedDay, todayKey);
+
+  const changeSelectedEntry = (entry: CalendarDayEntry, checked: boolean) => {
+    if (!selectedDay || checked === (entry.status === "completed")) return;
+    logHabit.mutate({
+      habitId: entry.habitId,
+      date: selectedDay,
+      intent: checked ? "log" : "unlog",
+    });
+  };
+
   const { sheetRef, closeSheet } = useSheetHost();
 
   const goToSelectedDay = () => {
@@ -623,8 +637,10 @@ function CalendarScreenContent({
             selectedEntries={selectedEntries}
             filteredEntries={filteredEntries}
             completedCount={completedCount}
+            loggable={selectedDayLoggable}
             showRecurring={showRecurring}
             onShowRecurringChange={setShowRecurring}
+            onEntryChange={changeSelectedEntry}
             onGoToDay={goToSelectedDay}
             displayTime={displayTime}
             t={t}

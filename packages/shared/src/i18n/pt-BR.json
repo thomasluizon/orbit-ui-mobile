@@ -917,10 +917,11 @@
     "emptyMonth": "Nada registrado neste mês ainda. Seus dias vão aparecer aqui.",
     "loadError": "Não foi possível carregar o calendário. Tente de novo.",
     "dayDetail": {
-      "completionSummary": "{done} de {total} hábito concluído | {done} de {total} hábitos concluídos"
+      "completionSummary": "{done} de {total} registrados",
+      "nothingDue": "nada programado"
     },
-    "noHabitsScheduled": "Nenhum hábito agendado para este dia.",
-    "goToDay": "Ver este dia",
+    "noHabitsScheduled": "Nenhum hábito estava programado neste dia.",
+    "goToDay": "Abrir este dia no Hoje",
     "goToCurrentMonth": "Ir para o mês atual",
     "goToCurrentWeek": "Ir para a semana atual",
     "view": {
@@ -940,11 +941,11 @@
       "moreLabel": "mais {count}"
     },
     "status": {
-      "completed": "Concluído",
-      "missed": "Perdido",
+      "completed": "feito",
+      "missed": "sem registro",
       "upcoming": "Próximo",
-      "indulged": "Cedeu",
-      "resisted": "Resistiu"
+      "indulged": "cedeu",
+      "resisted": "resistiu"
     },
     "completionHistory": "Histórico de Conclusão",
     "showRecurring": "Mostrar recorrentes",

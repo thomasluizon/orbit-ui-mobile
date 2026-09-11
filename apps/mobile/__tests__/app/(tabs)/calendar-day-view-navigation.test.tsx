@@ -2,10 +2,13 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import CalendarScreen from '@/app/(tabs)/calendar'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 const mockPush = vi.fn()
 
 let calendarIsLoading = false
+let calendarDayMap = new Map<string, CalendarDayEntry[]>()
+const mockLogHabit = vi.fn()
 vi.mock('react-native', async () => {
   const ReactLib = require('react')
   const reactNative = await import('../../../test-mocks/react-native')
@@ -42,7 +45,7 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 
 vi.mock('@/hooks/use-habits', () => ({
   useCalendarData: () => ({
-    dayMap: new Map(),
+    dayMap: calendarDayMap,
     isLoading: calendarIsLoading,
     isFetching: false,
     error: null,
@@ -55,6 +58,7 @@ vi.mock('@/hooks/use-habits', () => ({
     error: null,
     refresh: vi.fn(),
   }),
+  useLogHabit: () => ({ mutate: mockLogHabit }),
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -114,6 +118,7 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     vi.setSystemTime(new Date(2026, 7, 15))
     vi.clearAllMocks()
     calendarIsLoading = false
+    calendarDayMap = new Map()
     sheetTestControls.defer(true)
   })
 
@@ -172,6 +177,40 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
       ;(olderDay.props.onPress as () => void)()
     })
     expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1)
+  })
+
+  it('logs a selected writable day with its selected date', () => {
+    calendarDayMap = new Map([
+      ['2026-08-15', [{
+        habitId: 'habit-1',
+        title: 'Read',
+        status: 'upcoming',
+        isBadHabit: false,
+        dueTime: null,
+        isOneTime: false,
+      }]],
+    ])
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />)
+    })
+
+    TestRenderer.act(() => {
+      ;(findGridDayCell(tree.root, '2026-08-15').props.onPress as () => void)()
+    })
+    const checkRow = tree.root.findAll(
+      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox',
+    )[0]
+    if (!checkRow) throw new Error('Writable day checkbox not found')
+    TestRenderer.act(() => {
+      ;(checkRow.props.onPress as () => void)()
+    })
+
+    expect(mockLogHabit).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      date: '2026-08-15',
+      intent: 'log',
+    })
   })
 
   it('allows a future day to become a range endpoint', () => {

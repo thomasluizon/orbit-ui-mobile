@@ -1,55 +1,105 @@
 'use client'
 
-import { useMemo, useCallback } from 'react'
+import { useMemo } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Check } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
-import { plural } from '@/lib/plural'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { parseAPIDate, filterRecurringEntries } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { StatusRingProps } from '@orbit/shared/contracts/lists'
+import { CheckRow } from '@/components/ui/check-row'
+import { ListRow } from '@/components/ui/list-row'
+import { StatusRing } from '@/components/ui/status-ring'
 import { ShowRecurringToggle } from '@/components/calendar/show-recurring-toggle'
 
 interface CalendarDayDetailProps {
   dateStr: string | null
   entries: CalendarDayEntry[]
+  loggable: boolean
   showRecurring: boolean
   onShowRecurringChange: (value: boolean) => void
-  /** Desktop side-panel mode: the entries list scrolls within the viewport, a
-   *  bottom fade hints at more content, and the go-to-day CTA stays pinned below. */
+  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => void
+  /** Desktop side-panel mode: the entries list scrolls within the viewport and
+   * the go-to-day row stays pinned below it. */
   fitViewport?: boolean
 }
 
-function statusBadgeColor(entry: CalendarDayEntry): string {
-  if (entry.isBadHabit) {
-    return entry.status === 'completed' ? 'var(--status-bad-text)' : 'var(--status-done)'
-  }
-  return entry.status === 'completed' ? 'var(--status-done)' : 'var(--status-overdue-text)'
+type EntryOutcome = {
+  label: string
+  status: NonNullable<StatusRingProps['status']>
 }
 
-function statusCircleStyle(entry: CalendarDayEntry): React.CSSProperties {
-  if (entry.status === 'completed') {
+function getEntryOutcome(
+  entry: CalendarDayEntry,
+  t: ReturnType<typeof useTranslations>,
+): EntryOutcome {
+  const completed = entry.status === 'completed'
+
+  if (entry.isBadHabit) {
     return {
-      background: entry.isBadHabit ? 'var(--status-bad)' : 'var(--status-done)',
+      label: t(completed ? 'calendar.status.indulged' : 'calendar.status.resisted'),
+      status: completed ? 'bad' : 'done',
     }
   }
-  if (entry.status === 'missed' && !entry.isBadHabit) {
-    return { boxShadow: 'inset 0 0 0 2px var(--status-overdue)' }
+
+  return {
+    label: t(completed ? 'calendar.status.completed' : 'calendar.status.missed'),
+    status: completed ? 'done' : 'empty',
   }
-  if (entry.status === 'missed' && entry.isBadHabit) {
-    return { boxShadow: 'inset 0 0 0 2px var(--status-done)' }
-  }
-  return { boxShadow: 'inset 0 0 0 2px var(--status-empty)' }
 }
 
-/** Inline selected-day section: the day's entries in a kit card with per-entry
- *  status rings, and the go-to-day ghost pill. */
+function CalendarDayRows({
+  entries,
+  loggable,
+  displayTime,
+  onEntryChange,
+  t,
+}: Readonly<{
+  entries: CalendarDayEntry[]
+  loggable: boolean
+  displayTime: (time: string) => string
+  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => void
+  t: ReturnType<typeof useTranslations>
+}>) {
+  return entries.map((entry) => {
+    const outcome = getEntryOutcome(entry, t)
+    const value = entry.dueTime
+      ? `${displayTime(entry.dueTime)} · ${outcome.label}`
+      : outcome.label
+
+    if (loggable) {
+      return (
+        <CheckRow
+          key={entry.habitId}
+          label={entry.title}
+          checked={entry.status === 'completed'}
+          value={value}
+          onChange={(checked) => onEntryChange(entry, checked)}
+        />
+      )
+    }
+
+    return (
+      <ListRow
+        key={entry.habitId}
+        title={entry.title}
+        value={value}
+        trailing={<StatusRing status={outcome.status} size={24} label={outcome.label} />}
+        chevron={false}
+        readOnly
+      />
+    )
+  })
+}
+
 export function CalendarDayDetail({
   dateStr,
   entries,
+  loggable,
   showRecurring,
   onShowRecurringChange,
+  onEntryChange,
   fitViewport = false,
 }: Readonly<CalendarDayDetailProps>) {
   const t = useTranslations()
@@ -58,8 +108,7 @@ export function CalendarDayDetail({
 
   const formattedDate = useMemo(() => {
     if (!dateStr) return ''
-    const date = parseAPIDate(dateStr)
-    return displayWeekdayDate(date)
+    return displayWeekdayDate(parseAPIDate(dateStr))
   }, [dateStr, displayWeekdayDate])
 
   const filteredEntries = useMemo(
@@ -67,191 +116,74 @@ export function CalendarDayDetail({
     [entries, showRecurring],
   )
 
-  const completedCount = filteredEntries.filter((e) => e.status === 'completed').length
-
-  const statusLabel = useCallback((entry: CalendarDayEntry): string | null => {
-    if (entry.isBadHabit) {
-      if (entry.status === 'completed') return t('calendar.status.indulged')
-      if (entry.status === 'missed') return t('calendar.status.resisted')
-      return null
-    }
-    if (entry.status === 'completed') return t('calendar.status.completed')
-    if (entry.status === 'missed') return t('calendar.status.missed')
-    return null
-  }, [t])
-
   if (!dateStr) return null
 
-  const recurringToggle = entries.length > 0 && (
+  const completedCount = filteredEntries.filter((entry) => entry.status === 'completed').length
+  const summary = filteredEntries.length > 0
+    ? t('calendar.dayDetail.completionSummary', {
+        done: completedCount,
+        total: filteredEntries.length,
+      })
+    : t('calendar.dayDetail.nothingDue')
+
+  const recurringToggle = entries.length > 0 ? (
     <div className="flex shrink-0 justify-end" style={{ marginBottom: 12 }}>
-      <ShowRecurringToggle
-        checked={showRecurring}
-        onChange={onShowRecurringChange}
-      />
+      <ShowRecurringToggle checked={showRecurring} onChange={onShowRecurringChange} />
+    </div>
+  ) : null
+
+  const body = (
+    <div className="flex flex-col" style={{ gap: 16 }}>
+      <p className="text-sm text-[var(--fg-3)]" style={{ margin: 0 }}>
+        {summary}
+      </p>
+      {filteredEntries.length === 0 ? (
+        <p className="text-center text-sm text-[var(--fg-3)]" style={{ margin: 0, paddingBlock: 24 }}>
+          {t('calendar.noHabitsScheduled')}
+        </p>
+      ) : (
+        <div style={{ marginInline: -16 }}>
+          <CalendarDayRows
+            entries={filteredEntries}
+            loggable={loggable}
+            displayTime={displayTime}
+            onEntryChange={onEntryChange}
+            t={t}
+          />
+        </div>
+      )}
     </div>
   )
 
-  const body = (
-    <>
-      {entries.length === 0 && (
-        <div
-          className="text-[var(--fg-3)] text-sm text-center"
-          style={{
-            padding: '24px 18px',
-            borderRadius: 18,
-            background: 'var(--bg-card)',
-            boxShadow: 'inset 0 0 0 1px var(--hairline)',
-          }}
-        >
-          {t('calendar.noHabitsScheduled')}
-        </div>
-      )}
-
-      {entries.length > 0 && (
-        <div className="flex flex-col" style={{ gap: 12 }}>
-          <p
-            className="text-sm text-[var(--fg-3)]"
-            style={{ margin: 0 }}
-          >
-            {plural(t('calendar.dayDetail.completionSummary', {
-              done: completedCount,
-              total: filteredEntries.length,
-            }), filteredEntries.length)}
-          </p>
-
-          {filteredEntries.length === 0 && (
-            <div
-              className="text-[var(--fg-3)] text-sm text-center"
-              style={{
-                padding: '24px 18px',
-                borderRadius: 18,
-                background: 'var(--bg-card)',
-                boxShadow: 'inset 0 0 0 1px var(--hairline)',
-              }}
-            >
-              {t('calendar.noHabitsScheduled')}
-            </div>
-          )}
-
-          {filteredEntries.length > 0 && (
-            <div
-              className="stagger-enter"
-              style={{
-                borderRadius: 18,
-                background: 'var(--bg-card)',
-                boxShadow: 'inset 0 0 0 1px var(--hairline)',
-                overflow: 'hidden',
-              }}
-            >
-              {filteredEntries.map((entry, i) => {
-                const label = statusLabel(entry)
-                return (
-                  <div
-                    key={entry.habitId}
-                    className="flex items-center gap-3"
-                    style={{
-                      padding: '15px 18px',
-                      borderBottom:
-                        i < filteredEntries.length - 1
-                          ? '1px solid var(--hairline)'
-                          : 'none',
-                    }}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="inline-flex size-6 shrink-0 items-center justify-center rounded-full"
-                      style={statusCircleStyle(entry)}
-                    >
-                      {entry.status === 'completed' && (
-                        <Check size={15} strokeWidth={2.5} color="var(--fg-on-primary)" />
-                      )}
-                    </span>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2">
-                        <span
-                          className={`truncate ${
-                            entry.status === 'completed'
-                              ? 'text-[var(--fg-3)] line-through'
-                              : 'text-[var(--fg-1)]'
-                          }`}
-                          style={{
-                            fontFamily: 'var(--font-sans)',
-                            fontSize: 15,
-                            fontWeight: 500,
-                          }}
-                        >
-                          {entry.title}
-                        </span>
-                        {entry.dueTime && (
-                          <span
-                            className="shrink-0 text-[var(--fg-3)]"
-                            style={{
-                              fontFamily: 'var(--font-mono)',
-                              fontSize: 12,
-                              fontVariantNumeric: 'tabular-nums',
-                            }}
-                          >
-                            {displayTime(entry.dueTime)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {label && (
-                      <span
-                        className="shrink-0 rounded-full uppercase"
-                        style={{
-                          padding: '4px 8px',
-                          fontFamily: 'var(--font-sans)',
-                          fontSize: 12,
-                          fontWeight: 600,
-                          letterSpacing: '0.06em',
-                          color: statusBadgeColor(entry),
-                          boxShadow: 'inset 0 0 0 1px var(--hairline)',
-                        }}
-                      >
-                        {label}
-                      </span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
-    </>
-  )
-
   const goToDay = (
-    <Link
-      href={`/?date=${dateStr}`}
-      className="flex w-full shrink-0 sm:max-w-[360px] sm:mx-auto items-center justify-center gap-2 rounded-full bg-transparent text-[var(--fg-1)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
-      style={{
-        marginTop: 16,
-        padding: '14px 26px',
-        fontFamily: 'var(--font-sans)',
-        fontSize: 16,
-        fontWeight: 500,
-        boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
-      }}
-    >
-      <ArrowRight size={18} strokeWidth={1.8} aria-hidden="true" />
-      {t('calendar.goToDay')}
-    </Link>
+    <div style={{ marginInline: -16 }}>
+      <Link
+        href={`/?date=${dateStr}`}
+        aria-label={t('calendar.goToDay')}
+        className="block"
+        style={{ color: 'inherit', textDecoration: 'none' }}
+      >
+        <ListRow
+          icon="external-link"
+          title={t('calendar.goToDay')}
+          chevron={false}
+          readOnly
+        />
+      </Link>
+    </div>
   )
 
   if (fitViewport) {
     return (
       <section
         aria-label={formattedDate}
-        className="flex min-h-0 flex-1 flex-col"
-        style={{ padding: '12px 20px 12px' }}
+        className="flex min-h-0 flex-1 flex-col rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline-ghost)]"
+        style={{ padding: 16 }}
       >
         {recurringToggle}
         <div className="relative min-h-0 flex-1">
           <div
+            data-calendar-day-scroll
             className="h-full overflow-y-auto overscroll-contain"
             style={{ paddingBottom: 8 }}
           >
@@ -264,7 +196,11 @@ export function CalendarDayDetail({
   }
 
   return (
-    <section aria-label={formattedDate} style={{ padding: '12px 20px 12px' }}>
+    <section
+      aria-label={formattedDate}
+      className="rounded-[var(--r-card)] bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline-ghost)]"
+      style={{ padding: 16 }}
+    >
       {recurringToggle}
       {body}
       {goToDay}

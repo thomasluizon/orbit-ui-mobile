@@ -67,6 +67,7 @@ vi.mock("@/hooks/use-habits", () => ({
     })
   },
   useCalendarRange: () => ({ dayMap: state.rangeMap }),
+  useLogHabit: () => ({ mutate: vi.fn() }),
 }));
 
 vi.mock("@/lib/use-app-theme", () => ({

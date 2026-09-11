@@ -22,10 +22,12 @@ import {
   parseAPIDate,
   capitalizeFirstLetter,
   filterRecurringEntries,
+  isCalendarDayLoggable,
   clampRangeToMaxDays,
   MAX_RANGE_DAYS,
 } from '@orbit/shared/utils'
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
+import { useLogHabit } from '@/hooks/use-habits'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
@@ -114,6 +116,7 @@ function CalendarPageContent({
   const isDesktop = useIsDesktop()
   const isWideDesktop = useIsWideDesktop()
   const todayKey = useToday()
+  const logHabit = useLogHabit()
 
   const [view, setView] = useState<CalendarView>('month')
   /** Agenda is desktop-width only until #56 stage 10 builds the mobile day groups. */
@@ -273,6 +276,14 @@ function CalendarPageContent({
     return activeDayMap.get(selectedDay) ?? []
   }, [selectedDay, activeDayMap])
 
+  const selectedDayLoggable = selectedDay !== null
+    && isCalendarDayLoggable(selectedDay, todayKey)
+
+  function changeSelectedEntry(entry: CalendarDayEntry, checked: boolean) {
+    if (!selectedDay || checked === (entry.status === 'completed')) return
+    logHabit.mutate({ habitId: entry.habitId, date: selectedDay })
+  }
+
   const dayDetailTitle = useMemo(() => {
     if (!selectedDay) return ''
     return capitalizeFirstLetter(displayWeekdayDate(parseAPIDate(selectedDay)))
@@ -429,8 +440,10 @@ function CalendarPageContent({
                     <CalendarDayDetail
                       dateStr={selectedDay}
                       entries={selectedEntries}
+                      loggable={selectedDayLoggable}
                       showRecurring={showRecurring}
                       onShowRecurringChange={setShowRecurring}
+                      onEntryChange={changeSelectedEntry}
                       fitViewport
                     />
                   </section>
@@ -508,8 +521,10 @@ function CalendarPageContent({
         <CalendarDayDetail
           dateStr={selectedDay}
           entries={selectedEntries}
+          loggable={selectedDayLoggable}
           showRecurring={showRecurring}
           onShowRecurringChange={setShowRecurring}
+          onEntryChange={changeSelectedEntry}
         />
       </Sheet>) : null}
     </div>

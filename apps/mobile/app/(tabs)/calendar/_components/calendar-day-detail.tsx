@@ -1,192 +1,172 @@
-import { useMemo } from "react";
-import { View, Text, StyleSheet } from "react-native";
-import Animated, {
-  FadeInDown,
-  ReduceMotion,
-} from "react-native-reanimated";
-import type { TFunction } from "i18next";
-import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
-import { plural } from "@/lib/plural";
-import { PillButton } from "@/components/ui/pill-button";
-import { createTokensV2 } from "@/lib/theme";
-import { CalendarDayEntryRow } from "./calendar-day-entry";
-import { ShowRecurringToggle } from "./show-recurring-toggle";
+import { useMemo } from 'react'
+import { StyleSheet, Text, View } from 'react-native'
+import type { TFunction } from 'i18next'
+import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { StatusRingProps } from '@orbit/shared/contracts/lists'
+import { CheckRow } from '@/components/ui/check-row'
+import { ListRow } from '@/components/ui/list-row'
+import { StatusRing } from '@/components/ui/status-ring'
+import { createTokensV2, radius } from '@/lib/theme'
+import { ShowRecurringToggle } from './show-recurring-toggle'
 
-type Tokens = ReturnType<typeof createTokensV2>;
+type Tokens = ReturnType<typeof createTokensV2>
 
 interface CalendarDayDetailProps {
-  selectedEntries: CalendarDayEntry[];
-  filteredEntries: CalendarDayEntry[];
-  completedCount: number;
-  showRecurring: boolean;
-  onShowRecurringChange: (value: boolean) => void;
-  onGoToDay: () => void;
-  displayTime: (time: string) => string;
-  t: TFunction;
-  tokens: Tokens;
+  selectedEntries: CalendarDayEntry[]
+  filteredEntries: CalendarDayEntry[]
+  completedCount: number
+  loggable: boolean
+  showRecurring: boolean
+  onShowRecurringChange: (value: boolean) => void
+  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => void
+  onGoToDay: () => void
+  displayTime: (time: string) => string
+  t: TFunction
+  tokens: Tokens
 }
 
-function statusBadge(
-  entry: CalendarDayEntry,
-  t: (key: string) => string,
-): string | null {
-  if (entry.isBadHabit) {
-    if (entry.status === "completed") return t("calendar.status.indulged").toUpperCase();
-    if (entry.status === "missed") return t("calendar.status.resisted").toUpperCase();
-    return null;
-  }
-  if (entry.status === "completed") return t("calendar.status.completed").toUpperCase();
-  if (entry.status === "missed") return t("calendar.status.missed").toUpperCase();
-  return null;
+type EntryOutcome = {
+  label: string
+  status: NonNullable<StatusRingProps['status']>
 }
 
-function statusBadgeColor(entry: CalendarDayEntry, tokens: Tokens): string {
+function getEntryOutcome(entry: CalendarDayEntry, t: TFunction): EntryOutcome {
+  const completed = entry.status === 'completed'
+
   if (entry.isBadHabit) {
-    return entry.status === "completed" ? tokens.statusBadText : tokens.statusDone;
+    return {
+      label: t(completed ? 'calendar.status.indulged' : 'calendar.status.resisted'),
+      status: completed ? 'bad' : 'done',
+    }
   }
-  return entry.status === "completed" ? tokens.statusDone : tokens.statusOverdueText;
+
+  return {
+    label: t(completed ? 'calendar.status.completed' : 'calendar.status.missed'),
+    status: completed ? 'done' : 'empty',
+  }
 }
 
 export function CalendarDayDetail({
   selectedEntries,
   filteredEntries,
   completedCount,
+  loggable,
   showRecurring,
   onShowRecurringChange,
+  onEntryChange,
   onGoToDay,
   displayTime,
   t,
   tokens,
 }: Readonly<CalendarDayDetailProps>) {
-  const styles = useMemo(() => createStyles(tokens), [tokens]);
-
-  const renderEntry = (item: CalendarDayEntry, index: number) => {
-    const badge = statusBadge(item, t);
-    const isFirst = index === 0;
-    const isLast = index === filteredEntries.length - 1;
-    return (
-      <Animated.View
-        key={item.habitId}
-        style={[
-          styles.entryRowFrame,
-          {
-            backgroundColor: tokens.bgCard,
-            borderColor: tokens.hairline,
-          },
-          isFirst && styles.entryRowFrameFirst,
-          isLast && styles.entryRowFrameLast,
-        ]}
-        entering={
-          index < 8
-            ? FadeInDown.duration(220)
-                .delay(index * 30)
-                .reduceMotion(ReduceMotion.System)
-            : undefined
-        }
-      >
-        <CalendarDayEntryRow
-          entry={item}
-          tokens={tokens}
-          statusText={badge}
-          statusColor={statusBadgeColor(item, tokens)}
-          statusAccessibilityLabel={badge ?? t("calendar.status.upcoming")}
-          displayTime={displayTime}
-          isLast={isLast}
-        />
-      </Animated.View>
-    );
-  };
+  const styles = useMemo(() => createStyles(tokens), [tokens])
+  const summary = filteredEntries.length > 0
+    ? t('calendar.dayDetail.completionSummary', {
+        done: completedCount,
+        total: filteredEntries.length,
+      })
+    : t('calendar.dayDetail.nothingDue')
 
   return (
-    <>
+    <View style={styles.container}>
       {selectedEntries.length > 0 ? (
         <View style={styles.recurringToggleRow}>
           <ShowRecurringToggle
             checked={showRecurring}
             onChange={onShowRecurringChange}
-            label={t("calendar.showRecurring")}
+            label={t('calendar.showRecurring')}
             tokens={tokens}
           />
         </View>
       ) : null}
 
-      {selectedEntries.length === 0 || filteredEntries.length === 0 ? (
-        <View style={styles.emptyDayCard}>
-          <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
-            {t("calendar.noHabitsScheduled")}
-          </Text>
-        </View>
+      <Text style={[styles.summaryText, { color: tokens.fg3 }]}>{summary}</Text>
+
+      {filteredEntries.length === 0 ? (
+        <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
+          {t('calendar.noHabitsScheduled')}
+        </Text>
       ) : (
-        <>
-          <Text style={[styles.summaryText, { color: tokens.fg3 }]}>
-            {plural(
-              t("calendar.dayDetail.completionSummary", {
-                done: completedCount,
-                total: filteredEntries.length,
-              }),
-              filteredEntries.length,
-            )}
-          </Text>
-          <View>
-            {filteredEntries.map((entry, index) => renderEntry(entry, index))}
-          </View>
-        </>
+        <View style={styles.rows}>
+          {filteredEntries.map((entry) => {
+            const outcome = getEntryOutcome(entry, t)
+            const value = entry.dueTime
+              ? `${displayTime(entry.dueTime)} · ${outcome.label}`
+              : outcome.label
+
+            if (loggable) {
+              return (
+                <CheckRow
+                  key={entry.habitId}
+                  label={entry.title}
+                  checked={entry.status === 'completed'}
+                  value={value}
+                  onChange={(checked) => onEntryChange(entry, checked)}
+                />
+              )
+            }
+
+            return (
+              <ListRow
+                key={entry.habitId}
+                title={entry.title}
+                value={value}
+                trailing={
+                  <StatusRing status={outcome.status} size={24} label={outcome.label} />
+                }
+                chevron={false}
+                readOnly
+              />
+            )
+          })}
+        </View>
       )}
 
-      <PillButton
-        variant="ghost"
-
-        onClick={onGoToDay}
-
-      >
-        {t("calendar.goToDay")}
-      </PillButton>
-    </>
-  );
+      <View style={styles.routeRow}>
+        <ListRow
+          icon="external-link"
+          title={t('calendar.goToDay')}
+          accessibilityLabel={t('calendar.goToDay')}
+          chevron={false}
+          onClick={onGoToDay}
+        />
+      </View>
+    </View>
+  )
 }
 
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
+    container: {
+      backgroundColor: tokens.bgCard,
+      borderColor: tokens.hairlineGhost,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      gap: 16,
+      padding: 16,
+    },
     recurringToggleRow: {
-      flexDirection: "row",
-      justifyContent: "flex-end",
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
     },
     summaryText: {
+      color: tokens.fg3,
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
-    },
-    emptyDayCard: {
-      alignItems: "center",
-      justifyContent: "center",
-      paddingVertical: 24,
-      paddingHorizontal: 18,
-      borderRadius: 18,
-      backgroundColor: tokens.bgCard,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
     },
     emptyDayText: {
+      color: tokens.fg3,
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
-      textAlign: "center",
+      lineHeight: 22,
+      paddingVertical: 24,
+      textAlign: 'center',
     },
-    entryRowFrame: {
-      borderLeftWidth: 1,
-      borderRightWidth: 1,
+    rows: {
+      marginHorizontal: -16,
     },
-    entryRowFrameFirst: {
-      borderTopWidth: 1,
-      borderTopLeftRadius: 18,
-      borderTopRightRadius: 18,
+    routeRow: {
+      marginHorizontal: -16,
     },
-    entryRowFrameLast: {
-      borderBottomWidth: 1,
-      borderBottomLeftRadius: 18,
-      borderBottomRightRadius: 18,
-    },
-    goToDayButton: {
-      marginTop: 4,
-      alignSelf: "stretch",
-    },
-  });
+  })
 }
