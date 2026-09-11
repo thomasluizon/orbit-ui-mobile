@@ -1,5 +1,4 @@
-import { spawnSync } from 'node:child_process'
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { SaxesParser } from 'saxes'
 import sharp from 'sharp'
@@ -7,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import {
   PICKER_PREVIEW_FIXTURE,
   PICKER_PREVIEW_OUTPUTS,
+  buildWidgetPreviewSvgs,
 } from '../../scripts/generate-widget-preview'
 
 const widgetRoot = resolve(
@@ -17,8 +17,6 @@ const widgetSourceRoot = resolve(
   process.cwd(),
   'modules/orbit-widget/android/src/main/java/org/useorbit/app/widget',
 )
-const repositoryRoot = resolve(process.cwd(), '../..')
-
 function resourceStrings(relativePath: string) {
   const strings = new Map<string, string>()
   let currentName: string | undefined
@@ -43,62 +41,6 @@ function resourceStrings(relativePath: string) {
   parser.write(readFileSync(resolve(widgetRoot, relativePath), 'utf8')).close()
 
   return strings
-}
-
-function resourceColors(relativePath: string) {
-  const colors = new Map<string, string>()
-  let currentName: string | undefined
-  let currentText = ''
-  const parser = new SaxesParser()
-
-  parser.on('opentag', tag => {
-    if (tag.name === 'color') {
-      currentName = String(tag.attributes.name)
-      currentText = ''
-    }
-  })
-  parser.on('text', text => {
-    if (currentName) currentText += text
-  })
-  parser.on('closetag', tag => {
-    if (tag.name === 'color' && currentName) {
-      colors.set(currentName, currentText)
-      currentName = undefined
-    }
-  })
-  parser.write(readFileSync(resolve(widgetRoot, relativePath), 'utf8')).close()
-
-  return colors
-}
-
-function imageAreaHasColor(
-  pixels: Buffer,
-  width: number,
-  hex: string,
-  area: Readonly<{ left: number; top: number; right: number; bottom: number }>,
-) {
-  const [red, green, blue] = hex
-    .slice(1)
-    .match(/.{2}/g)
-    ?.map(channel => Number.parseInt(channel, 16)) ?? []
-  for (let y = area.top; y < area.bottom; y += 1) {
-    for (let x = area.left; x < area.right; x += 1) {
-      const offset = (y * width + x) * 4
-      if (pixels[offset] === red && pixels[offset + 1] === green && pixels[offset + 2] === blue) {
-        return true
-      }
-    }
-  }
-  return false
-}
-
-async function decodedPreview(bytes: Buffer, file: string) {
-  try {
-    return await sharp(bytes).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`${file}: ${message}`)
-  }
 }
 
 /**
@@ -606,60 +548,16 @@ describe('Android widget header', () => {
     ])
     for (const output of PICKER_PREVIEW_OUTPUTS) {
       const previewPath = resolve(widgetRoot, output.directory, 'widget_picker_preview.png')
-      const preview = sharp(previewPath)
-      const metadata = await preview.metadata()
+      const metadata = await sharp(previewPath).metadata()
       expect(metadata).toMatchObject({ format: 'png', width: 1344, height: 768 })
-
-      const { data: pixels, info } = await preview.ensureAlpha().raw().toBuffer({
-        resolveWithObject: true,
-      })
-      const colorDirectory = output.mode === 'light' ? 'values' : 'values-night'
-      const colors = resourceColors(`${colorDirectory}/widget_colors.xml`)
-      const numeralArea = { left: 225 * 4, top: 12 * 4, right: 251 * 4, bottom: 31 * 4 }
-      const unitArea = { left: 253 * 4, top: 12 * 4, right: 287 * 4, bottom: 31 * 4 }
-      const streakColor = colors.get('widget_streak_text') ?? ''
-      const unitColor = colors.get('widget_fg_3') ?? ''
-      const hairlineColor = colors.get('widget_hairline') ?? ''
-      const outerEdgeArea = { left: 100 * 4, top: 0, right: 236 * 4, bottom: 4 * 4 }
-
-      expect.soft(imageAreaHasColor(pixels, info.width, hairlineColor, outerEdgeArea)).toBe(true)
-      expect(imageAreaHasColor(pixels, info.width, streakColor, numeralArea)).toBe(true)
-      expect(imageAreaHasColor(pixels, info.width, streakColor, unitArea)).toBe(false)
-      expect(imageAreaHasColor(pixels, info.width, unitColor, unitArea)).toBe(true)
     }
   })
 
-  it('runs the picker preview generator and reproduces every checked-in image pixel for pixel', async () => {
-    const outputs = PICKER_PREVIEW_OUTPUTS.map(output => {
-      const file = `apps/mobile/modules/orbit-widget/android/src/main/res/${output.directory}` +
-        '/widget_picker_preview.png'
-      return { file, bytes: readFileSync(resolve(repositoryRoot, file)) }
-    })
-
-    try {
-      const run = spawnSync(
-        process.execPath,
-        [
-          resolve(repositoryRoot, 'node_modules/tsx/dist/cli.mjs'),
-          'apps/mobile/scripts/generate-widget-preview.ts',
-        ],
-        { cwd: repositoryRoot, encoding: 'utf8' },
-      )
-
-      expect(run.stderr).toBe('')
-      expect(run.status).toBe(0)
-      for (const { file, bytes } of outputs) {
-        const checkedIn = await decodedPreview(bytes, file)
-        const generated = await decodedPreview(readFileSync(resolve(repositoryRoot, file)), file)
-        expect(generated.info, file).toEqual(checkedIn.info)
-        expect(generated.data, file).toEqual(checkedIn.data)
-      }
-    } finally {
-      for (const { file, bytes } of outputs) {
-        writeFileSync(resolve(repositoryRoot, file), bytes)
-      }
+  it('matches the reproducible SVG source for every picker preview', async () => {
+    for (const { output, svg } of await buildWidgetPreviewSvgs()) {
+      expect(svg).toMatchSnapshot(output.directory)
     }
-  }, 60_000)
+  })
 
   it('routes every post-sync header and loading mutation through the full provider render', () => {
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')

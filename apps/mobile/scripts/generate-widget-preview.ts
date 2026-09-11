@@ -160,7 +160,7 @@ function previewSvg(
       `letter-spacing="0.22">${row.time}</text>${extra}`
   }).join('')
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${fixture.width * 4}" ` +
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${fixture.width * 4}" ` +
     `height="${fixture.height * 4}" viewBox="0 0 ${fixture.width} ${fixture.height}">` +
     `<defs><style>${embeddedFonts}</style>` +
     '<clipPath id="card"><rect width="336" height="192" rx="24"/></clipPath></defs>' +
@@ -177,6 +177,8 @@ function previewSvg(
     `<path d="M319.7 16.4A8 8 0 1 0 321.8 26h-2.1a6 6 0 1 1-1.6-8.2L315 21h7v-7z" ` +
     `fill="${fg3}" transform="translate(-3 -1) scale(.82) translate(72 4)"/>` +
     `<rect y="47" width="336" height="1" fill="${hairline}"/>${rows}</g></svg>`
+
+  return svg.replaceAll('><', '>\n<')
 }
 
 async function loadEmbeddedFonts() {
@@ -188,7 +190,7 @@ async function loadEmbeddedFonts() {
     '@font-face{font-family:WidgetGeist;' +
     `src:url(data:font/ttf;base64,${font.bytes.toString('base64')}) format('truetype');` +
     `font-style:normal;font-weight:${font.weight}}`,
-  ).join('')
+  ).join('\n')
 }
 
 async function loadPreviewInputs(locale: 'en' | 'pt-rBR', mode: PreviewMode) {
@@ -205,12 +207,11 @@ async function loadPreviewInputs(locale: 'en' | 'pt-rBR', mode: PreviewMode) {
 }
 
 export async function generateWidgetPreview() {
-  const embeddedFonts = await loadEmbeddedFonts()
-  for (const output of PICKER_PREVIEW_OUTPUTS) {
-    const { strings, colors } = await loadPreviewInputs(output.locale, output.mode)
+  const previews = await buildWidgetPreviewSvgs()
+  for (const { output, svg } of previews) {
     const outputDirectory = path.join(widgetResourceDirectory, output.directory)
     await mkdir(outputDirectory, { recursive: true })
-    await sharp(Buffer.from(previewSvg(strings, colors, output.locale, embeddedFonts)))
+    await sharp(Buffer.from(svg))
       .png({
         progressive: false,
         compressionLevel: 9,
@@ -219,6 +220,17 @@ export async function generateWidgetPreview() {
       })
       .toFile(path.join(outputDirectory, 'widget_picker_preview.png'))
   }
+}
+
+export async function buildWidgetPreviewSvgs() {
+  const embeddedFonts = await loadEmbeddedFonts()
+  return await Promise.all(PICKER_PREVIEW_OUTPUTS.map(async output => {
+    const { strings, colors } = await loadPreviewInputs(output.locale, output.mode)
+    return {
+      output,
+      svg: previewSvg(strings, colors, output.locale, embeddedFonts),
+    }
+  }))
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
