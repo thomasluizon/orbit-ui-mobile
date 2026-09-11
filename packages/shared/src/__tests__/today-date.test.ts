@@ -23,9 +23,10 @@ describe('Hoje date boundaries', () => {
     expect(canNavigateToNextDay('2026-07-07', '2026-04-08')).toBe(false)
   })
 
-  it('limits calendar writes to today and the six preceding calendar days', () => {
+  it('matches the API write boundary at today and the seven preceding calendar days', () => {
     expect(isCalendarDayLoggable('2026-04-02', '2026-04-08')).toBe(true)
-    expect(isCalendarDayLoggable('2026-04-01', '2026-04-08')).toBe(false)
+    expect(isCalendarDayLoggable('2026-04-01', '2026-04-08')).toBe(true)
+    expect(isCalendarDayLoggable('2026-03-31', '2026-04-08')).toBe(false)
     expect(isCalendarDayLoggable('2026-04-09', '2026-04-08')).toBe(false)
   })
 })

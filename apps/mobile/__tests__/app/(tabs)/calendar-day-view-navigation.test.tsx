@@ -160,17 +160,18 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     expect(mockPush).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps an older current-month day read-only', () => {
+  it('opens an older current-month day through its read-only selection path', () => {
     let tree!: TestTree
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />)
     })
 
-    const olderDay = tree.root.findAll(
-      (candidate) => candidate.props.testID === 'calendar-day-slot-2026-08-01',
-    )[0]
-    expect(olderDay?.findAll((candidate) => candidate.type === 'Pressable')).toHaveLength(0)
-    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
+    const olderDay = findGridDayCell(tree.root, '2026-08-01')
+    expect(olderDay.props.accessibilityLabel).toContain('calendar.dayCell.readOnly')
+    TestRenderer.act(() => {
+      ;(olderDay.props.onPress as () => void)()
+    })
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1)
   })
 
   it('allows a future day to become a range endpoint', () => {
@@ -186,7 +187,10 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
       ;(findGridDayCell(tree.root, '2026-08-20').props.onPress as () => void)()
     })
     const selectedDates = tree.root.findAll(
-      (node) => node.type === 'Pressable' && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true,
+      (node) => node.type === 'Pressable' &&
+        typeof node.props.testID === 'string' &&
+        node.props.testID.startsWith('calendar-day-select-') &&
+        (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true,
     )
     expect(selectedDates).toHaveLength(1)
     expect(selectedDates[0]?.props.accessibilityLabel).toContain('20')

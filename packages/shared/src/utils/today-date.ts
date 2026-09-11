@@ -23,7 +23,7 @@ export function getTodayBoundary(date: string, today: string): TodayBoundary {
 
 export function isCalendarDayLoggable(date: string, today: string): boolean {
   const offset = getDayOffset(date, today)
-  return offset >= -6 && offset <= 0
+  return offset >= -7 && offset <= 0
 }
 
 export function canNavigateToNextDay(date: string, today: string): boolean {

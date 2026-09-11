@@ -35,6 +35,7 @@ interface CalendarRangeViewProps {
   showRecurring: boolean
   onShowRecurringChange: (value: boolean) => void
   weekStartsOn: 0 | 1
+  todayKey: string
 }
 
 /** Custom-range view: a mini-calendar to pick a contiguous range, then the same
@@ -62,6 +63,7 @@ export function CalendarRangeView({
   showRecurring,
   onShowRecurringChange,
   weekStartsOn,
+  todayKey,
 }: Readonly<CalendarRangeViewProps>) {
   let hintText: string
   if (isAwaitingEnd) {
@@ -81,6 +83,7 @@ export function CalendarRangeView({
         rangeStart={rangeStart}
         rangeEnd={rangeEnd}
         weekStartsOn={weekStartsOn}
+        todayKey={todayKey}
         interaction="range-picker"
       />
       <div

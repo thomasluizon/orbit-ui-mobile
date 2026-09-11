@@ -5,13 +5,12 @@ import { useTranslations } from 'next-intl'
 import {
   buildCalendarMonthModel,
   buildDayCellAccessibleName,
-  formatAPIDate,
   isCalendarDayLoggable,
   resolveDayCellOutcome,
   type CalendarMonthDay,
 } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import type { DayCellProps, DayCellWords } from '@orbit/shared/contracts/dates'
+import type { DayCellWords, ReadOnlyDayCellProps } from '@orbit/shared/contracts/dates'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { DayCell } from '@/components/dates/day-cell'
 import { MonthGrid } from '@/components/dates/month-grid'
@@ -25,6 +24,7 @@ interface CalendarGridProps {
   rangeEnd?: string | null
   isLoading?: boolean
   weekStartsOn: 0 | 1
+  todayKey: string
   interaction?: 'write-window' | 'range-picker'
 }
 
@@ -54,11 +54,7 @@ interface CalendarGridDayProps {
 type CalendarFutureDayProps = {
   accessibleName: string
   cell: CalendarMonthDay
-  selected: boolean
-} & (
-  | { interactive: true; onPress: () => void }
-  | { interactive?: false; onPress?: never }
-)
+}
 
 function CalendarFutureNumeral({ cell }: Readonly<Pick<CalendarFutureDayProps, 'cell'>>) {
   return (
@@ -77,19 +73,6 @@ function CalendarFutureNumeral({ cell }: Readonly<Pick<CalendarFutureDayProps, '
 }
 
 function CalendarFutureDay(props: Readonly<CalendarFutureDayProps>) {
-  if (props.interactive) {
-    return (
-      <button
-        type="button"
-        aria-label={props.accessibleName}
-        aria-pressed={props.selected}
-        onClick={props.onPress}
-        className="inline-flex size-11 items-center justify-center rounded-full border-0 bg-transparent p-0 cursor-pointer transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
-      >
-        <CalendarFutureNumeral cell={props.cell} />
-      </button>
-    )
-  }
   return (
     <span role="img" aria-label={props.accessibleName} className="inline-flex size-11 items-center justify-center">
       <CalendarFutureNumeral cell={props.cell} />
@@ -107,19 +90,19 @@ function CalendarGridDayBody({
   cell,
   dayCell,
   future,
-  interaction,
   isLoading,
   onSelectDay,
   selected,
+  today,
 }: Readonly<{
   accessibleName: string
   cell: CalendarMonthDay
-  dayCell: DayCellProps
+  dayCell: ReadOnlyDayCellProps
   future: boolean
-  interaction: 'write-window' | 'range-picker'
   isLoading: boolean
   onSelectDay: (dateStr: string) => void
   selected: boolean
+  today: boolean
 }>) {
   if (isLoading) {
     return (
@@ -130,13 +113,25 @@ function CalendarGridDayBody({
       />
     )
   }
-  if (future && cell.isCurrentMonth) {
-    if (interaction === 'range-picker') {
-      return <CalendarFutureDay accessibleName={accessibleName} cell={cell} selected={selected} interactive onPress={() => onSelectDay(cell.dateStr)} />
-    }
-    return <CalendarFutureDay accessibleName={accessibleName} cell={cell} selected={selected} />
-  }
-  return <DayCell {...dayCell} selected={selected} />
+  const contents = future && cell.isCurrentMonth
+    ? <CalendarFutureDay accessibleName={accessibleName} cell={cell} />
+    : <DayCell {...dayCell} selected={selected} />
+  return (
+    <>
+      <span aria-hidden="true">{contents}</span>
+      {cell.isCurrentMonth ? (
+        <button
+          type="button"
+          aria-current={today ? 'date' : undefined}
+          aria-label={accessibleName}
+          aria-pressed={selected}
+          data-testid={`calendar-day-select-${cell.dateStr}`}
+          onClick={() => onSelectDay(cell.dateStr)}
+          className="absolute inset-0 rounded-full border-0 bg-transparent p-0 cursor-pointer transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+        />
+      ) : null}
+    </>
+  )
 }
 
 function CalendarGridDay({
@@ -154,27 +149,26 @@ function CalendarGridDay({
   interaction,
   todayKey,
 }: Readonly<CalendarGridDayProps>) {
-  const interactive = cell.isCurrentMonth && (
-    interaction === 'range-picker' || isCalendarDayLoggable(cell.dateStr, todayKey)
-  )
+  const writable = interaction === 'write-window'
+    && cell.isCurrentMonth
+    && isCalendarDayLoggable(cell.dateStr, todayKey)
+  const today = cell.dateStr === todayKey
   const selectedLabel = selected ? `${label}, ${selectedWord}` : label
   const dayCellBase = {
     day: cell.day,
     done: cell.completedCount,
     scheduled: cell.totalCount,
-    today: cell.isToday,
+    today,
     outsideMonth: !cell.isCurrentMonth,
     label: selectedLabel,
     words,
   }
-  const dayCell: DayCellProps = interactive
-    ? { ...dayCellBase, loggable: true, onPress: () => onSelectDay(cell.dateStr) }
-    : dayCellBase
+  const dayCell: ReadOnlyDayCellProps = dayCellBase
   const resolvedOutcome = resolveDayCellOutcome(dayCell)
   const accessibleName = future
     ? `${selectedLabel}, ${futureWord}`
-    : buildDayCellAccessibleName(dayCell, resolvedOutcome)
-  const raised = interaction === 'write-window' && interactive
+    : buildDayCellAccessibleName(dayCell, resolvedOutcome, !writable)
+  const raised = writable
 
   return (
     <span
@@ -198,10 +192,10 @@ function CalendarGridDay({
         cell={cell}
         dayCell={dayCell}
         future={future}
-        interaction={interaction}
         isLoading={isLoading}
         onSelectDay={onSelectDay}
         selected={selected}
+        today={today}
       />
     </span>
   )
@@ -216,11 +210,11 @@ export function CalendarGrid({
   rangeEnd = null,
   isLoading = false,
   weekStartsOn,
+  todayKey,
   interaction = 'write-window',
 }: Readonly<CalendarGridProps>) {
   const t = useTranslations()
   const { displayWeekdayDate, displayMonthYear } = useDateFormat()
-  const todayKey = formatAPIDate(new Date())
 
   const weekdayLabels = useMemo(() => {
     const mondayFirst = [

@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import type { ComponentProps } from 'react'
 
+const todaySource = vi.hoisted(() => ({ value: '2025-06-15' }))
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
   useLocale: () => 'en',
@@ -19,11 +21,16 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { weekStartDay: 1 } }),
 }))
 
+vi.mock('@/app/(app)/today-provider', () => ({
+  useToday: () => todaySource.value,
+}))
+
 import { CalendarGrid as CalendarGridComponent } from '@/components/calendar/calendar-grid'
+import { useToday } from '@/app/(app)/today-provider'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
-function CalendarGrid(props: Omit<ComponentProps<typeof CalendarGridComponent>, 'weekStartsOn'>) {
-  return <CalendarGridComponent {...props} weekStartsOn={1} />
+function CalendarGrid(props: Omit<ComponentProps<typeof CalendarGridComponent>, 'todayKey' | 'weekStartsOn'>) {
+  return <CalendarGridComponent {...props} todayKey={useToday()} weekStartsOn={1} />
 }
 
 describe('CalendarGrid', () => {
@@ -33,6 +40,7 @@ describe('CalendarGrid', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2025, 5, 15))
+    todaySource.value = '2025-06-15'
   })
 
   afterEach(() => {
@@ -60,7 +68,7 @@ describe('CalendarGrid', () => {
       />,
     )
     expect(document.querySelectorAll('[data-outcome]')).toHaveLength(27)
-    expect(screen.getAllByRole('button')).toHaveLength(7)
+    expect(screen.getAllByRole('button')).toHaveLength(30)
   })
 
   it('calls onSelectDay when a day is clicked', () => {
@@ -78,7 +86,7 @@ describe('CalendarGrid', () => {
     expect(onSelectDay).toHaveBeenCalledWith('2025-06-15')
   })
 
-  it('rejects selections outside the seven day write window', () => {
+  it('keeps read-only dates selectable without making their DayCell writable', () => {
     const onSelectDay = vi.fn()
     render(
       <CalendarGrid
@@ -89,21 +97,40 @@ describe('CalendarGrid', () => {
       />,
     )
 
-    const oldDay = document.querySelector('[data-calendar-date="2025-06-08"]')!
-    const firstLoggableDay = document.querySelector('[data-calendar-date="2025-06-09"]')!
+    const oldDay = document.querySelector('[data-calendar-date="2025-06-07"]')!
     const futureDay = document.querySelector('[data-calendar-date="2025-06-20"]')!
 
-    expect(oldDay.querySelector('[role="img"]')).toHaveAccessibleName(
+    expect(oldDay.querySelector('[role="img"]')?.getAttribute('aria-label')).toContain(
+      'calendar.dayCell.readOnly',
+    )
+    expect(oldDay.querySelector('[role="img"]')).not.toHaveAttribute('data-loggable')
+    expect(oldDay.querySelector('button')).toHaveAccessibleName(
       expect.stringContaining('calendar.dayCell.readOnly'),
     )
-    expect(oldDay.querySelector('button')).not.toBeInTheDocument()
-    expect(futureDay.querySelector('button')).not.toBeInTheDocument()
-    fireEvent.click(oldDay)
-    fireEvent.click(futureDay)
-    expect(onSelectDay).not.toHaveBeenCalled()
+    fireEvent.click(oldDay.querySelector('button')!)
+    fireEvent.click(futureDay.querySelector('button')!)
+    expect(onSelectDay).toHaveBeenNthCalledWith(1, '2025-06-07')
+    expect(onSelectDay).toHaveBeenNthCalledWith(2, '2025-06-20')
+  })
 
-    fireEvent.click(firstLoggableDay.querySelector('button')!)
-    expect(onSelectDay).toHaveBeenCalledWith('2025-06-09')
+  it('moves the write window when the app today source advances', () => {
+    const { rerender } = render(
+      <CalendarGrid currentMonth={currentMonth} dayMap={emptyMap} onSelectDay={vi.fn()} />,
+    )
+
+    const oldBoundary = document.querySelector('[data-calendar-date="2025-06-08"]')
+    expect(oldBoundary).toHaveStyle({ background: 'var(--bg-well)' })
+
+    todaySource.value = '2025-06-16'
+    rerender(<CalendarGrid currentMonth={currentMonth} dayMap={emptyMap} onSelectDay={vi.fn()} />)
+
+    expect(oldBoundary).toHaveStyle({ background: 'transparent' })
+    const newBoundary = document.querySelector('[data-calendar-date="2025-06-16"]')
+    expect(newBoundary).toHaveStyle({
+      background: 'var(--bg-well)',
+    })
+    expect(oldBoundary?.querySelector('button')).not.toHaveAttribute('aria-current')
+    expect(newBoundary?.querySelector('button')).toHaveAttribute('aria-current', 'date')
   })
 
   it('keeps range picking free from the write window', () => {
@@ -121,6 +148,8 @@ describe('CalendarGrid', () => {
     const futureDay = document.querySelector('[data-calendar-date="2025-06-20"]')!
     const futureButton = futureDay.querySelector('button')!
     expect(futureButton).toHaveAttribute('aria-pressed', 'true')
+    expect(document.querySelector('[data-calendar-date="2025-06-15"] button'))
+      .toHaveAccessibleName(/calendar\.dayCell\.readOnly/)
     fireEvent.click(futureButton)
     expect(onSelectDay).toHaveBeenCalledWith('2025-06-20')
   })

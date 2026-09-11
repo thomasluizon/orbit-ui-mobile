@@ -46,6 +46,7 @@ import { SectionLabel } from '@/components/ui/section-label'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useIsDesktop, useIsWideDesktop } from '@/hooks/use-is-desktop'
+import { useToday } from '../today-provider'
 import {
   CalendarHeader,
   CalendarLegend,
@@ -112,6 +113,7 @@ function CalendarPageContent({
   const weekStartsOn = profile.weekStartDay
   const isDesktop = useIsDesktop()
   const isWideDesktop = useIsWideDesktop()
+  const todayKey = useToday()
 
   const [view, setView] = useState<CalendarView>('month')
   /** Agenda is desktop-width only until #56 stage 10 builds the mobile day groups. */
@@ -383,6 +385,7 @@ function CalendarPageContent({
                       selectedDateStr={selectedDay}
                       isLoading={isLoading}
                       weekStartsOn={weekStartsOn}
+                      todayKey={todayKey}
                     />
                   </div>
 
@@ -481,6 +484,7 @@ function CalendarPageContent({
                 showRecurring={showRecurring}
                 onShowRecurringChange={setShowRecurring}
                 weekStartsOn={weekStartsOn}
+                todayKey={todayKey}
               />
             )}
 
