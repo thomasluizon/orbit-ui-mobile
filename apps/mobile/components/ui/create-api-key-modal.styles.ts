@@ -111,7 +111,7 @@ export function createStyles(tokens: AppTokensV2, bottomInset: number) {
     errorText: {
       fontFamily: 'Geist_400Regular',
       fontSize: 13,
-      color: tokens.statusBad,
+      color: tokens.statusBadText,
     },
     footer: {
       flexDirection: 'row',

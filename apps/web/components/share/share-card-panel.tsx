@@ -75,7 +75,7 @@ export function ShareCardPanel({ open, onOpenChange, displayName }: Readonly<Sha
 
         {!isLoading && isError && (
           <div className="flex flex-col items-center" style={{ gap: 12, padding: '24px 0' }}>
-            <p role="alert" style={{ margin: 0, textAlign: 'center', fontSize: 14, color: 'var(--status-bad)' }}>
+            <p role="alert" style={{ margin: 0, textAlign: 'center', fontSize: 14, color: 'var(--status-bad-text)' }}>
               {t('shareCard.error')}
             </p>
             <PillButton variant="ghost" onClick={() => void refetch()}>
@@ -103,7 +103,7 @@ export function ShareCardPanel({ open, onOpenChange, displayName }: Readonly<Sha
               </div>
 
               {hasError && (
-                <p role="alert" style={{ margin: 0, textAlign: 'center', fontSize: 13, color: 'var(--status-bad)' }}>
+                <p role="alert" style={{ margin: 0, textAlign: 'center', fontSize: 13, color: 'var(--status-bad-text)' }}>
                   {t('shareCard.shareError')}
                 </p>
               )}

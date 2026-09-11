@@ -26,6 +26,10 @@ describe('ConflictWarning', () => {
       )
       const wrapper = container.firstElementChild
       expect(wrapper?.getAttribute('data-severity')).toBe(severity)
+      if (severity === 'HIGH') {
+        expect(wrapper).toHaveClass('text-[var(--status-bad-text)]')
+        expect(container.querySelector('svg')).toHaveClass('text-[var(--status-bad)]')
+      }
     },
   )
 
@@ -43,7 +47,9 @@ describe('ConflictWarning', () => {
   it('renders recommendation when present', () => {
     const warning = makeWarning({ recommendation: 'Consider adjusting schedule' })
     render(<ConflictWarning warning={warning} />)
-    expect(screen.getByText('Consider adjusting schedule')).toBeInTheDocument()
+    const recommendation = screen.getByText('Consider adjusting schedule')
+    expect(recommendation).toHaveClass('text-xs')
+    expect(recommendation).not.toHaveClass('opacity-80')
   })
 
   it('renders title', () => {

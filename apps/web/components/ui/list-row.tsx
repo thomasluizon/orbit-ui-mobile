@@ -6,16 +6,17 @@ import { ChevronRight } from '@/components/ui/icons'
 import { Icon } from '@/components/ui/icon'
 
 function RowBody({ title, description, icon, value, danger, trailing }: Readonly<Pick<ListRowProps, 'title' | 'description' | 'icon' | 'value' | 'danger' | 'trailing'>>) {
-  const color = danger ? 'var(--status-bad)' : 'var(--fg-1)'
+  const iconColor = danger ? 'var(--status-bad)' : 'var(--fg-1)'
+  const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
   return (
     <>
       {icon ? (
-        <span style={{ width: 28, flexShrink: 0, color }}>
-          {typeof icon === 'string' ? <Icon name={icon} size={24} color={color} /> : icon}
+        <span style={{ width: 28, flexShrink: 0, color: iconColor }}>
+          {typeof icon === 'string' ? <Icon name={icon} size={24} color={iconColor} /> : icon}
         </span>
       ) : null}
       <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 4 }}>
-        <span className="truncate" style={{ color, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 400, lineHeight: 1.25 }}>{title}</span>
+        <span className="truncate" style={{ color: titleColor, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 400, lineHeight: 1.25 }}>{title}</span>
         {description ? <span style={{ color: 'var(--fg-3)', fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.4 }}>{description}</span> : null}
       </span>
       {value ? <span className="max-w-[50%] shrink-0 truncate" style={{ color: 'var(--fg-3)', fontFamily: 'var(--font-mono)', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>{value}</span> : null}
