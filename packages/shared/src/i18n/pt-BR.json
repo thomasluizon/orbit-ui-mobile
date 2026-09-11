@@ -2736,62 +2736,15 @@
     }
   },
   "streakDisplay": {
-    "title": "Sequência",
-    "daysSuffix": "dia | dias",
     "badge": {
       "tooltip": "Sequência de {count} dia | Sequência de {count} dias"
     },
-    "profile": {
-      "currentStreak": "Sequência de {count} dia | Sequência de {count} dias",
-      "encouragement1": "Primeiro dia feito",
-      "encouragement7": "Uma semana",
-      "encouragement14": "Duas semanas",
-      "encouragement30": "Um mês inteiro",
-      "encouragement100": "Três dígitos",
-      "encouragement365": "Um ano inteiro"
-    },
-    "freeze": {
-      "title": "Congelamento de sequência",
-      "activeToday": "Congelamento ativo hoje",
-      "auto": {
-        "explainer": "Se você deixar um dia passar, o congelamento é usado automaticamente para manter sua sequência viva."
-      },
-      "banked": {
-        "label": "Guardados"
-      },
-      "usedThisMonth": {
-        "label": "Usados este mês"
-      },
-      "nextFreeze": {
-        "label": "Próximo congelamento",
-        "inDays": "em {days} dias",
-        "full": "Limite atingido"
-      },
-      "protected": {
-        "label": "Dias protegidos",
-        "empty": "Nenhum congelamento usado ainda.",
-        "today": "Hoje",
-        "todayValue": "Protegido"
-      },
-      "pro": {
-        "gate": "Os congelamentos de sequência fazem parte do Pro."
-      }
-    },
     "detail": {
-      "title": "Detalhes da Sequência",
-      "thisWeek": "Esta Semana",
-      "stats": "Estatísticas",
-      "currentStreak": "Atual",
-      "longestStreak": "Maior",
       "tierLegendary": "Lendário",
       "tierStrong": "Forte",
       "tierSteady": "Constante",
       "tierNormal": "Normal",
-      "tierTileLabel": "Rank",
-      "dayActive": "Ativo",
-      "dayFrozen": "Congelado",
-      "dayMissed": "Perdido",
-      "daysUnit": "dia | dias"
+      "tierTileLabel": "Rank"
     }
   },
   "stepUp": {

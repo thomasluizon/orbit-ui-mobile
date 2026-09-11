@@ -76,6 +76,7 @@ describe('mobile back navigation helpers', () => {
 
   it('leaves unknown routes to the native back behavior', () => {
     expect(getAndroidBackFallbackRoute('/login')).toBeNull()
+    expect(getAndroidBackFallbackRoute('/streak')).toBeNull()
     expect(getAndroidBackFallbackRoute('/unknown')).toBeNull()
   })
 })
