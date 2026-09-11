@@ -19,11 +19,43 @@ import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
+import kotlin.math.floor
 
 class OrbitWidgetService : RemoteViewsService() {
     override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
-        return OrbitWidgetFactory(applicationContext)
+        return OrbitWidgetFactory(
+            applicationContext,
+            intent.getFloatExtra(
+                OrbitWidgetProvider.EXTRA_WIDGET_HEIGHT_DP,
+                OrbitWidgetProvider.FOUR_BY_TWO_HEIGHT_DP
+            ),
+            intent.getBooleanExtra(OrbitWidgetProvider.EXTRA_SHOW_TIME, true)
+        )
     }
+}
+
+internal const val HEADER_HEIGHT_DP = 48f
+internal const val ROW_HEIGHT_DP = 48f
+internal const val REMAINDER_HEIGHT_DP = 48f
+
+internal data class WidgetGeometry(
+    val visibleRowCount: Int,
+    val remainderCount: Int,
+    val canStateRemainder: Boolean
+)
+
+internal fun calculateWidgetGeometry(heightDp: Float, totalRows: Int): WidgetGeometry {
+    val availableHeightDp = heightDp - HEADER_HEIGHT_DP
+    val fit = maxOf(1, floor(availableHeightDp / ROW_HEIGHT_DP).toInt())
+    val canStateRemainder = totalRows > fit &&
+        fit >= 2 &&
+        availableHeightDp - (fit - 1) * ROW_HEIGHT_DP >= REMAINDER_HEIGHT_DP
+    val visibleRowCount = if (canStateRemainder) maxOf(1, fit - 1) else minOf(fit, totalRows)
+    return WidgetGeometry(
+        visibleRowCount = visibleRowCount,
+        remainderCount = totalRows - visibleRowCount,
+        canStateRemainder = canStateRemainder
+    )
 }
 
 data class HabitItem(
@@ -75,7 +107,9 @@ internal enum class WidgetString(val resourceId: Int) {
     DEEPER_COUNT(R.string.widget_deeper_count),
     STATUS_DONE(R.string.widget_status_done),
     STATUS_OVERDUE(R.string.widget_status_overdue),
-    STATUS_PENDING(R.string.widget_status_pending)
+    STATUS_PENDING(R.string.widget_status_pending),
+    MORE(R.string.widget_more),
+    MORE_DESCRIPTION(R.string.widget_more_description)
 }
 
 internal data class WidgetDayState(
@@ -206,7 +240,11 @@ internal fun RemoteViews.setModeAwareBitmap(
     }
 }
 
-class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.RemoteViewsFactory {
+class OrbitWidgetFactory(
+    private val context: Context,
+    private val widgetHeightDp: Float,
+    private val showTime: Boolean
+) : RemoteViewsService.RemoteViewsFactory {
 
     private var habits: List<HabitItem> = emptyList()
     private var headerLabel: String = "Today"
@@ -611,7 +649,10 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         habits = emptyList()
     }
 
-    override fun getCount(): Int = runCatching { habits.size }.getOrDefault(0)
+    override fun getCount(): Int = runCatching {
+        val geometry = calculateWidgetGeometry(widgetHeightDp, habits.size)
+        geometry.visibleRowCount + if (geometry.canStateRemainder) 1 else 0
+    }.getOrDefault(0)
 
     override fun getViewAt(position: Int): RemoteViews {
         return try {
@@ -622,8 +663,12 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     }
 
     private fun buildItemView(position: Int): RemoteViews {
+        val geometry = calculateWidgetGeometry(widgetHeightDp, habits.size)
+        if (geometry.canStateRemainder && position == geometry.visibleRowCount) {
+            return buildRemainderView(geometry.remainderCount)
+        }
         val views = RemoteViews(context.packageName, R.layout.widget_item)
-        if (position >= habits.size) return views
+        if (position >= geometry.visibleRowCount) return views
 
         val habit = habits[position]
         val isChild = habit.depth > 0
@@ -634,6 +679,26 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         applyBadges(views, habit)
 
         views.setOnClickFillInIntent(R.id.widget_item_container, Intent())
+        return views
+    }
+
+    private fun buildRemainderView(remainderCount: Int): RemoteViews {
+        val views = RemoteViews(context.packageName, R.layout.widget_remainder)
+        val remainderText = tr(context, lang, WidgetString.MORE, remainderCount)
+        val remainderDescription = tr(
+            context,
+            lang,
+            WidgetString.MORE_DESCRIPTION,
+            remainderCount
+        )
+        views.setTextViewText(R.id.widget_remainder_text, remainderText)
+        views.setContentDescription(R.id.widget_remainder, remainderDescription)
+        views.setModeAwareColor(
+            R.id.widget_remainder_text,
+            "setTextColor",
+            colorModes
+        ) { it.textMuted }
+        views.setOnClickFillInIntent(R.id.widget_remainder, Intent())
         return views
     }
 
@@ -764,6 +829,11 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     }
 
     private fun applyDueTime(views: RemoteViews, habit: HabitItem) {
+        if (!showTime) {
+            views.setViewVisibility(R.id.item_time, android.view.View.GONE)
+            views.setViewVisibility(R.id.item_time_overdue, android.view.View.GONE)
+            return
+        }
         val dueTime = habit.dueTime
         if (dueTime.isNullOrEmpty()) {
             views.setViewVisibility(R.id.item_time, android.view.View.GONE)
@@ -801,7 +871,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
 
     override fun getLoadingView(): RemoteViews? = null
 
-    override fun getViewTypeCount(): Int = 1
+    override fun getViewTypeCount(): Int = 2
 
     override fun getItemId(position: Int): Long = position.toLong()
 

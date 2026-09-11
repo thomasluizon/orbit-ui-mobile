@@ -90,29 +90,39 @@ class OrbitWidgetResponsiveRemoteViewsTest {
         val views = OrbitWidgetProvider.buildWidgetRemoteViews(
             context,
             appWidgetId,
-            (EXPANDED_WIDTH_DP * density).toInt(),
-            (HEIGHT_DP * density).toInt(),
+            (WIDE_WIDTH_DP * density).toInt(),
+            (TALL_HEIGHT_DP * density).toInt(),
             signedOut = false
         )
         val breakpointPx = floor(OrbitWidgetProvider.STREAK_UNIT_BREAKPOINT_DP * density).toInt()
 
-        assertHeaderAtContentWidth(views, (COMPACT_WIDTH_DP * density).toInt(), View.GONE)
-        assertHeaderAtContentWidth(views, breakpointPx, View.GONE)
-        assertHeaderAtContentWidth(views, breakpointPx + 1, View.VISIBLE)
-        assertHeaderAtContentWidth(views, (EXPANDED_WIDTH_DP * density).toInt(), View.VISIBLE)
+        assertHeaderAtContentSize(views, WIDE_WIDTH_DP, SHORT_HEIGHT_DP, View.VISIBLE)
+        assertHeaderAtContentSize(views, WIDE_WIDTH_DP, DEFAULT_HEIGHT_DP, View.VISIBLE)
+        assertHeaderAtContentSize(views, WIDE_WIDTH_DP, TALL_HEIGHT_DP, View.VISIBLE)
+        assertHeaderAtContentSize(views, COMPACT_WIDTH_DP, DEFAULT_HEIGHT_DP, View.GONE)
+        assertHeaderAtContentSize(views, EXPANDED_WIDTH_DP, DEFAULT_HEIGHT_DP, View.VISIBLE)
+        assertHeaderAtContentSize(views, breakpointPx / density, DEFAULT_HEIGHT_DP, View.GONE)
+        assertHeaderAtContentSize(views, (breakpointPx + 1) / density, DEFAULT_HEIGHT_DP, View.VISIBLE)
     }
 
-    private fun assertHeaderAtContentWidth(
+    private fun assertHeaderAtContentSize(
         views: android.widget.RemoteViews,
-        contentWidthPx: Int,
+        widthDp: Float,
+        heightDp: Float,
         expectedUnitVisibility: Int
     ) {
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
             val density = context.resources.displayMetrics.density
-            val contentHeightPx = (HEIGHT_DP * density).toInt()
-            val widthDp = (contentWidthPx / density).toInt()
+            val contentWidthPx = (widthDp * density).toInt()
+            val contentHeightPx = (heightDp * density).toInt()
 
-            hostView.updateAppWidgetSize(Bundle(), widthDp, HEIGHT_DP, widthDp, HEIGHT_DP)
+            hostView.updateAppWidgetSize(
+                Bundle(),
+                widthDp.toInt(),
+                heightDp.toInt(),
+                widthDp.toInt(),
+                heightDp.toInt()
+            )
             layoutHost(contentWidthPx, contentHeightPx)
             hostView.updateAppWidget(views)
             layoutHost(contentWidthPx, contentHeightPx)
@@ -151,8 +161,11 @@ class OrbitWidgetResponsiveRemoteViewsTest {
 
     companion object {
         private const val HOST_ID = 490
-        private const val COMPACT_WIDTH_DP = 160
-        private const val EXPANDED_WIDTH_DP = 250
-        private const val HEIGHT_DP = 192
+        private const val COMPACT_WIDTH_DP = 160f
+        private const val EXPANDED_WIDTH_DP = 250f
+        private const val WIDE_WIDTH_DP = 336f
+        private const val SHORT_HEIGHT_DP = 96f
+        private const val DEFAULT_HEIGHT_DP = 192f
+        private const val TALL_HEIGHT_DP = 288f
     }
 }
