@@ -1,4 +1,5 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { chromium, type Browser } from '@playwright/test'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -144,11 +145,14 @@ import ProgressPage from '@/app/(app)/progress/page'
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
 
 describe('ProgressContent', () => {
+  let browser: Browser
+  let compiledStyles: string
   let textStyles: string
 
   beforeAll(async () => {
     const source = resolve('app/globals.css')
     const compiled = await postcss([tailwind()]).process(readFileSync(source, 'utf8'), { from: source })
+    compiledStyles = compiled.css
     const rules: string[] = []
     compiled.root.walkRules((rule) => {
       if (rule.selector.startsWith('.text-')) {
@@ -156,7 +160,10 @@ describe('ProgressContent', () => {
       }
     })
     textStyles = rules.join('\n')
+    browser = await chromium.launch({ channel: 'chrome' })
   })
+
+  afterAll(async () => { await browser.close() })
 
   it.each(['dark', 'light'] as const)('keeps goal metadata legible in every card state in %s', (mode) => {
     mocks.goals.data.allGoals = [createMockGoal()]
@@ -416,10 +423,10 @@ describe('ProgressContent', () => {
     ])
   })
 
-  it('renders the remaining routed boundaries instead of blank gated regions', () => {
+  it('renders the remaining routed boundaries with a 16px locked-card inset', async () => {
     mocks.account.profile.canViewGamification = false
     mocks.account.profile.hasProAccess = false
-    render(<ProgressContent />)
+    const { container, unmount } = render(<ProgressContent />)
 
     expect(screen.getByText('progressScreen.streak.lockedBody')).toBeInTheDocument()
     expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
@@ -427,6 +434,25 @@ describe('ProgressContent', () => {
     expect(screen.getAllByText('progressScreen.streak.lockedAction').length).toBeGreaterThan(0)
     expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
     expect(screen.getByText('streakDisplay.detail.tierTileLabel')).toBeInTheDocument()
+
+    const markup = container.innerHTML
+    unmount()
+    const page = await browser.newPage()
+    try {
+      await page.setContent(`<style>${compiledStyles}</style>${markup}`)
+      const insets = await page.locator('[data-testid="progress-locked-card"]').evaluateAll((cards) =>
+        cards.map((card) => {
+          const style = getComputedStyle(card)
+          return [style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft]
+        }),
+      )
+      expect(insets).toEqual([
+        ['16px', '16px', '16px', '16px'],
+        ['16px', '16px', '16px', '16px'],
+      ])
+    } finally {
+      await page.close()
+    }
   })
 
   it('keeps free gamification cohorts open while locking only the Pro figures', () => {
