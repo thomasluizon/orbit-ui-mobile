@@ -211,7 +211,12 @@ export async function generateWidgetPreview() {
     const outputDirectory = path.join(widgetResourceDirectory, output.directory)
     await mkdir(outputDirectory, { recursive: true })
     await sharp(Buffer.from(previewSvg(strings, colors, output.locale, embeddedFonts)))
-      .png()
+      .png({
+        progressive: false,
+        compressionLevel: 9,
+        adaptiveFiltering: false,
+        palette: false,
+      })
       .toFile(path.join(outputDirectory, 'widget_picker_preview.png'))
   }
 }

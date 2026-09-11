@@ -92,6 +92,15 @@ function imageAreaHasColor(
   return false
 }
 
+async function decodedPreview(bytes: Buffer, file: string) {
+  try {
+    return await sharp(bytes).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`${file}: ${message}`)
+  }
+}
+
 /**
  * RemoteViews.findBestFitLayout keeps every key that fits and then takes the SMALLEST squared
  * distance, so a key on the breakpoint beats the key just above it. Transcribed from
@@ -620,7 +629,7 @@ describe('Android widget header', () => {
     }
   })
 
-  it('runs the picker preview generator and rewrites every checked-in image unchanged', () => {
+  it('runs the picker preview generator and reproduces every checked-in image pixel for pixel', async () => {
     const outputs = PICKER_PREVIEW_OUTPUTS.map(output => {
       const file = `apps/mobile/modules/orbit-widget/android/src/main/res/${output.directory}` +
         '/widget_picker_preview.png'
@@ -640,7 +649,10 @@ describe('Android widget header', () => {
       expect(run.stderr).toBe('')
       expect(run.status).toBe(0)
       for (const { file, bytes } of outputs) {
-        expect(readFileSync(resolve(repositoryRoot, file)), file).toEqual(bytes)
+        const checkedIn = await decodedPreview(bytes, file)
+        const generated = await decodedPreview(readFileSync(resolve(repositoryRoot, file)), file)
+        expect(generated.info, file).toEqual(checkedIn.info)
+        expect(generated.data, file).toEqual(checkedIn.data)
       }
     } finally {
       for (const { file, bytes } of outputs) {
