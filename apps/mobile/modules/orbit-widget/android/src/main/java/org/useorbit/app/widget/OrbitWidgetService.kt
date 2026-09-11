@@ -205,7 +205,6 @@ data class WidgetColors(
     val border: Int,
     val borderMuted: Int,
     val overdue: Int,
-    val streak: Int,
     val streakText: Int,
     val statusEmpty: Int
 )
@@ -313,7 +312,6 @@ class OrbitWidgetFactory(
                 border = fallbackColor(mode, "border"),
                 borderMuted = fallbackColor(mode, "borderMuted"),
                 overdue = fallbackColor(mode, "overdue"),
-                streak = fallbackColor(mode, "streak"),
                 streakText = fallbackColor(mode, "streakText"),
                 statusEmpty = fallbackColor(mode, "statusEmpty")
             )
@@ -339,7 +337,6 @@ class OrbitWidgetFactory(
                 border = readColor(prefs, mode, "border"),
                 borderMuted = readColor(prefs, mode, "borderMuted"),
                 overdue = readColor(prefs, mode, "overdue"),
-                streak = readColor(prefs, mode, "streak"),
                 streakText = readColor(prefs, mode, "streakText"),
                 statusEmpty = readColor(prefs, mode, "statusEmpty")
             )

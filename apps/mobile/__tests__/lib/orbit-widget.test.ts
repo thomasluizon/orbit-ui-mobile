@@ -60,7 +60,6 @@ describe('toWidgetColors', () => {
       border: '#2B2B2D',
       borderMuted: '#2B2B2D',
       overdue: '#FE9A00',
-      streak: '#C4530F',
       streakText: '#E16D33',
       statusEmpty: '#7A7A7D',
     })
@@ -74,7 +73,6 @@ describe('toWidgetColors', () => {
       border: '#E6E6E8',
       borderMuted: '#E6E6E8',
       overdue: '#886100',
-      streak: '#C4530F',
       streakText: '#B64900',
       statusEmpty: '#7F7F83',
     })
@@ -103,7 +101,7 @@ describe('toWidgetColors', () => {
     expect(preferences.light_surface).toBe('#F1F1F2')
     expect(preferences.dark_streakText).toBe('#E16D33')
     expect(preferences.light_streakText).toBe('#B64900')
-    expect(Object.keys(preferences)).toHaveLength(24)
+    expect(Object.keys(preferences)).toHaveLength(22)
   })
 
   it('uses the muted text role for native progress and completed due-time text', () => {
@@ -159,8 +157,6 @@ describe('toWidgetColors', () => {
     expect(widgetLayout).toContain('android:textColor="@color/widget_fg_3"')
     expect(widgetLayout).not.toContain('widget_flame')
 
-    expect(lightResources).toContain('<color name="widget_primary">#C4530F</color>')
-    expect(darkResources).toContain('<color name="widget_primary">#C4530F</color>')
     expect(lightResources).toContain('<color name="widget_streak_text">#B64900</color>')
     expect(darkResources).toContain('<color name="widget_streak_text">#E16D33</color>')
   })
