@@ -154,29 +154,31 @@ describe('CalendarGrid', () => {
     expect(onSelectDay).toHaveBeenCalledWith('2025-06-20')
   })
 
-  it('renders same-size placeholders without completion outcomes while loading', () => {
+  it('uses the grid skeleton geometry and withholds weekdays while loading', () => {
     const { container } = render(
       <CalendarGrid currentMonth={currentMonth} dayMap={emptyMap} onSelectDay={vi.fn()} isLoading />,
     )
 
-    const skeletons = container.querySelectorAll('[data-testid="calendar-day-skeleton"]')
-    expect(skeletons.length).toBeGreaterThanOrEqual(35)
-    expect(skeletons[0]).toHaveStyle({ width: '44px', height: '44px' })
+    const skeleton = container.querySelector('[data-variant="grid"] > [data-cols="7"]')
+    expect(skeleton).toHaveAttribute('data-cell', '44')
+    expect(skeleton).toHaveAttribute('data-gap', '4')
+    expect(skeleton).toHaveAttribute('data-rows', '6')
+    expect(screen.queryByTestId('month-grid-header')).not.toBeInTheDocument()
     expect(container.querySelector('[data-outcome]')).not.toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
-  it('contains seven 44px targets at a 320px viewport', () => {
-    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 320 })
+  it('contains seven 44px targets with a 4px gap at the canvas phone width', () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 412 })
     render(<CalendarGrid currentMonth={currentMonth} dayMap={emptyMap} onSelectDay={vi.fn()} />)
 
     expect(screen.getByTestId('calendar-grid')).toHaveStyle({ paddingLeft: '4px', paddingRight: '4px' })
     expect(screen.getByTestId('calendar-grid-card')).toHaveStyle({ padding: '0px' })
-    expect(screen.getByTestId('month-grid-days')).toHaveStyle({ gap: '0px' })
+    expect(screen.getByTestId('month-grid-days')).toHaveStyle({ gap: '4px' })
     const firstRowTargets = [...document.querySelectorAll('[data-calendar-date]')].slice(0, 7)
     expect(firstRowTargets).toHaveLength(7)
     expect(firstRowTargets.every((target) => (target as HTMLElement).style.width === '44px')).toBe(true)
-    expect(7 * 44).toBeLessThanOrEqual(window.innerWidth - 8)
+    expect(7 * 44 + 6 * 4).toBeLessThanOrEqual(window.innerWidth - 8)
   })
 
   it('marks today with aria-current="date"', () => {

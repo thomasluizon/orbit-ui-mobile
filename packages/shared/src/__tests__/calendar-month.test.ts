@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { CalendarDayEntry } from '../types/calendar'
 import { buildCalendarMonthModel } from '../utils/calendar-month'
 import { formatAPIDate } from '../utils/dates'
+import { resolveCalendarMonthDisplayState } from '../utils/calendar-month-state'
 
 function entry(status: CalendarDayEntry['status'], habitId = 'h'): CalendarDayEntry {
   return { habitId, title: 't', status, isBadHabit: false, dueTime: null, isOneTime: false }
@@ -51,5 +52,40 @@ describe('buildCalendarMonthModel', () => {
 
     expect(model.gridDays[0]?.date.getDay()).toBe(0)
     expect(model.monthStats.hasEntries).toBe(false)
+  })
+})
+
+describe('resolveCalendarMonthDisplayState', () => {
+  const currentMonth = new Date(2026, 5, 1)
+  const today = '2026-06-15'
+
+  it('gives loading priority while data is unresolved', () => {
+    expect(resolveCalendarMonthDisplayState({
+      currentMonth,
+      today,
+      hasEntries: false,
+      isLoading: true,
+    })).toBe('loading')
+  })
+
+  it('separates empty, future, and ready months', () => {
+    expect(resolveCalendarMonthDisplayState({
+      currentMonth,
+      today,
+      hasEntries: false,
+      isLoading: false,
+    })).toBe('empty')
+    expect(resolveCalendarMonthDisplayState({
+      currentMonth: new Date(2026, 6, 1),
+      today,
+      hasEntries: false,
+      isLoading: false,
+    })).toBe('future')
+    expect(resolveCalendarMonthDisplayState({
+      currentMonth,
+      today,
+      hasEntries: true,
+      isLoading: false,
+    })).toBe('ready')
   })
 })

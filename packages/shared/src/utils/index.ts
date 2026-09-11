@@ -33,6 +33,11 @@ export {
 } from './habit-detail-flow'
 export { buildCalendarMonthModel } from './calendar-month'
 export {
+  CALENDAR_MONTH_GRID_GEOMETRY,
+  resolveCalendarMonthDisplayState,
+  type CalendarMonthDisplayState,
+} from './calendar-month-state'
+export {
   buildDayCellAccessibleName,
   getDayStripStateWord,
   resolveDayCellOutcome,

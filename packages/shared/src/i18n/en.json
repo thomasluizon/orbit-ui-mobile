@@ -914,7 +914,10 @@
     "bestStreak": "Best streak",
     "totalLogs": "Total logs",
     "missedCount": "Missed",
-    "emptyMonth": "Nothing logged this month yet. Your days will fill in here.",
+    "emptyMonth": "No habit was scheduled in this month.",
+    "futureMonth": "This month has not arrived yet.",
+    "emptyStat": "no data",
+    "loading": "Loading",
     "loadError": "Could not load the calendar. Please try again.",
     "dayDetail": {
       "completionSummary": "{done} of {total} habit completed | {done} of {total} habits completed"

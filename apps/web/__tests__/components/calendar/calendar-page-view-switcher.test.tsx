@@ -2,12 +2,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
 import { formatAPIDate } from '@orbit/shared/utils'
+import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 let isWideDesktopValue = false
 let isDesktopValue = false
-const calendarGridProps: { selectedDateStr?: string | null } = {}
-const monthQueryState: { error: string | null; refresh: ReturnType<typeof vi.fn> } = {
+const calendarGridProps: Record<string, unknown> = {}
+const calendarStatsProps: Record<string, unknown> = {}
+const monthQueryState: {
+  dayMap: Map<string, CalendarDayEntry[]>
+  error: string | null
+  isLoading: boolean
+  refresh: ReturnType<typeof vi.fn>
+} = {
+  dayMap: new Map(),
   error: null,
+  isLoading: false,
   refresh: vi.fn(),
 }
 const profileQueryState: {
@@ -35,8 +44,8 @@ vi.mock('@/hooks/use-calendar-data', () => ({
   useCalendarData: (month: Date) => {
     calendarDataCalls(month)
     return ({
-    dayMap: new Map(),
-    isLoading: false,
+    dayMap: monthQueryState.dayMap,
+    isLoading: monthQueryState.isLoading,
     isFetching: false,
     error: monthQueryState.error,
     refresh: monthQueryState.refresh,
@@ -76,38 +85,43 @@ vi.mock('@/components/ui/sheet', () => ({
 }))
 
 vi.mock('./_components/calendar-shell', () => ({
-  CalendarHeader: () => <div data-testid="calendar-header" />,
+  CalendarHeader: ({ onNextMonth }: { onNextMonth: () => void }) => (
+    <button type="button" data-testid="calendar-header" onClick={onNextMonth} />
+  ),
   CalendarLegend: () => <div data-testid="calendar-legend" />,
   CalendarWeekNav: () => <div data-testid="calendar-week-nav" />,
 }))
 
 vi.mock('@/app/(app)/calendar/_components/calendar-shell', () => ({
-  CalendarHeader: () => <div data-testid="calendar-header" />,
+  CalendarHeader: ({ onNextMonth }: { onNextMonth: () => void }) => (
+    <button type="button" data-testid="calendar-header" onClick={onNextMonth} />
+  ),
   CalendarLegend: () => <div data-testid="calendar-legend" />,
   CalendarWeekNav: () => <div data-testid="calendar-week-nav" />,
 }))
 
 vi.mock('@/components/calendar/calendar-grid', () => ({
-  CalendarGrid: ({
-    onSelectDay,
-    selectedDateStr,
-  }: {
+  CalendarGrid: (props: {
     onSelectDay?: (dateStr: string) => void
     selectedDateStr?: string | null
+    [key: string]: unknown
   }) => {
-    calendarGridProps.selectedDateStr = selectedDateStr
+    Object.assign(calendarGridProps, props)
     return (
       <button
         type="button"
         data-testid="month-view"
-        onClick={() => onSelectDay?.('2026-01-05')}
+        onClick={() => props.onSelectDay?.('2026-01-05')}
       />
     )
   },
 }))
 
 vi.mock('@/components/calendar/calendar-stats', () => ({
-  CalendarStats: () => <div data-testid="month-stats" />,
+  CalendarStats: (props: Record<string, unknown>) => {
+    Object.assign(calendarStatsProps, props)
+    return <div data-testid="month-stats" data-state={String(props.state)} />
+  },
 }))
 
 vi.mock('@/components/calendar/calendar-day-detail', () => ({
@@ -133,7 +147,10 @@ describe('CalendarPage view switcher', () => {
     isWideDesktopValue = false
     isDesktopValue = false
     calendarGridProps.selectedDateStr = undefined
+    calendarStatsProps.state = undefined
+    monthQueryState.dayMap = new Map()
     monthQueryState.error = null
+    monthQueryState.isLoading = false
     monthQueryState.refresh = vi.fn()
     profileQueryState.profile = { weekStartDay: 1 }
     profileQueryState.error = null
@@ -146,8 +163,8 @@ describe('CalendarPage view switcher', () => {
     render(<CalendarPage />)
 
     expect(calendarDataCalls).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('progressbar', { name: 'common.loading' })).toBeDefined()
-    expect(document.querySelector('[data-variant="grid"] > [data-cell="44"]')).toHaveAttribute('data-gap', '0')
+    expect(screen.getAllByRole('progressbar', { name: 'calendar.loading' })).toHaveLength(2)
+    expect(document.querySelector('[data-variant="grid"] > [data-cell="44"]')).toHaveAttribute('data-gap', '4')
   })
 
   it('shows a retryable error when the profile request fails', () => {
@@ -222,6 +239,53 @@ describe('CalendarPage view switcher', () => {
 
     fireEvent.click(screen.getByTestId('month-view'))
     expect(screen.getByTestId('day-detail')).toBeDefined()
+  })
+
+  it('keeps the calendar usable and offers habit creation for an empty current month', () => {
+    render(<CalendarPage />)
+
+    expect(screen.getByTestId('month-view')).toBeDefined()
+    expect(screen.getByTestId('calendar-header')).toBeDefined()
+    expect(screen.getByText('calendar.emptyMonth')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'habits.createHabit' })).toBeDefined()
+    expect(screen.queryByTestId('calendar-legend')).toBeNull()
+    expect(calendarStatsProps.state).toBe('empty')
+  })
+
+  it('keeps paging available but removes creation for a future month', () => {
+    render(<CalendarPage />)
+
+    fireEvent.click(screen.getByTestId('calendar-header'))
+
+    expect(screen.getByTestId('month-view')).toBeDefined()
+    expect(screen.getByText('calendar.futureMonth')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'habits.createHabit' })).toBeNull()
+    expect(calendarStatsProps.state).toBe('empty')
+  })
+
+  it('lets the grid, day panel, and each stat tile own their loading state', () => {
+    monthQueryState.isLoading = true
+    render(<CalendarPage />)
+
+    expect(calendarGridProps.isLoading).toBe(true)
+    expect(screen.getByTestId('calendar-day-loading')).toBeDefined()
+    expect(screen.queryByTestId('calendar-legend')).toBeNull()
+    expect(calendarStatsProps.state).toBe('loading')
+  })
+
+  it('shows the legend once the month has a scheduled entry', () => {
+    monthQueryState.dayMap = new Map([[formatAPIDate(new Date()), [{
+      habitId: 'habit-1',
+      title: 'Habit',
+      status: 'upcoming',
+      isBadHabit: false,
+      dueTime: '08:00',
+      isOneTime: false,
+    }]]])
+    render(<CalendarPage />)
+
+    expect(screen.getByTestId('calendar-legend')).toBeDefined()
+    expect(calendarStatsProps.state).toBe('default')
   })
 
   it('shows a retryable error card when the calendar query fails', () => {

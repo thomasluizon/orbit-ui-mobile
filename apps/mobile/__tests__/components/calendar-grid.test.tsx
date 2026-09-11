@@ -61,6 +61,41 @@ describe('CalendarGrid (mobile)', () => {
 
   afterEach(() => vi.useRealTimers())
 
+  it('uses the grid skeleton geometry and withholds weekdays while loading', () => {
+    const tokens = createTokensV2('purple', 'dark')
+    const days = Array.from({ length: 42 }, (_, index) =>
+      gridDay(`2026-09-${String((index % 28) + 1).padStart(2, '0')}`),
+    )
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <CalendarGrid
+          gridDays={days}
+          weekdayHeaders={[
+            { key: 'sun', label: 'S' },
+            { key: 'mon', label: 'M' },
+            { key: 'tue', label: 'T' },
+            { key: 'wed', label: 'W' },
+            { key: 'thu', label: 'T' },
+            { key: 'fri', label: 'F' },
+            { key: 'sat', label: 'S' },
+          ]}
+          selectedDay={null}
+          isLoading
+          onSelectDay={vi.fn()}
+          language="en"
+          t={(key) => key}
+          tokens={tokens}
+        />,
+      )
+    })
+
+    const shape = tree.root.findByProps({ testID: 'skeleton-grid-shape' })
+    expect(StyleSheet.flatten(shape.props.style)).toMatchObject({ width: 332, height: 284, gap: 4 })
+    expect(tree.root.findAll((node) => node.props.testID === 'month-grid-header')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.props.testID === 'calendar-day-skeleton')).toHaveLength(0)
+  })
+
   it('keeps selected and future presentation on the month-grid wrapper', () => {
     const tokens = createTokensV2('purple', 'dark')
     let tree!: TestTree
