@@ -77,11 +77,25 @@ vi.mock('@/hooks/use-offline', () => ({
   useOffline: () => ({ isOnline: true }),
 }))
 
+vi.mock('@/hooks/use-push-notifications', () => ({
+  usePushNotifications: () => ({
+    isEnabled: false,
+    isRegistered: false,
+    isLoading: false,
+    isSupported: false,
+    permissionStatus: null,
+    registrationStatus: 'unsupported',
+    disablePushNotifications: vi.fn(),
+    requestPermission: vi.fn(),
+  }),
+}))
+
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({
     colors: new Proxy({}, { get: () => '#111111' }),
     currentScheme: 'purple',
     currentTheme: 'dark',
+    applyTheme: vi.fn(),
   }),
 }))
 
@@ -170,6 +184,7 @@ vi.mock('@/components/ui/app-text-input', () => ({
 
 vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
   KeyboardAwareScrollView: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useKeyboardAwareInputReveal: () => null,
 }))
 
 
@@ -226,15 +241,18 @@ vi.mock('@/components/ui/list-row', () => ({
     description,
     onClick,
     accessibilityLabel,
+    chevron = true,
   }: {
     title: string
     description?: string
     onClick?: () => void
     accessibilityLabel?: string
+    chevron?: boolean
   }) => React.createElement('SettingsRowStub', {
     label: title,
     hint: description,
     onPress: onClick,
+    chevron,
     accessibilityRole: onClick ? 'button' : undefined,
     accessibilityLabel: accessibilityLabel ?? title,
   }),
@@ -289,6 +307,8 @@ interface SettingsRowStubNode {
     label?: string
     hint?: string
     onPress?: () => void
+    chevron?: boolean
+    accessibilityRole?: string
   }
 }
 
@@ -379,7 +399,7 @@ describe('ProfileScreen', () => {
     const accessibleNames = [
       'profile.settingsRows.editName',
       'profile.language.title',
-      'profile.settingsRows.timezone',
+      'profile.settingsRows.timezoneValue',
       'settings.weekStartDay.title',
       'preferences.themeMode',
       'profile.subscription.plan',
@@ -387,9 +407,6 @@ describe('ProfileScreen', () => {
       'profile.proactiveAstra.title',
       'profile.aiSummary.title',
       'profile.settingsRows.apiKeysMcp',
-      'profile.settingsRows.reminders',
-      'habits.form.slipAlert',
-      'profile.marketingEmails.title',
       'profile.wrappedTitle',
       'calendar.profileButton',
       'profile.sections.aboutHelp',
@@ -410,6 +427,53 @@ describe('ProfileScreen', () => {
         `missing accessible profile row: ${accessibilityLabel}`,
       ).toHaveLength(1)
     }
+  })
+
+  it('opens the timezone picker from the timezone row', async () => {
+    const tree = await renderProfileScreen()
+
+    await TestRenderer.act(async () => {
+      findRowByLabel(tree, 'profile.settingsRows.timezone').props.onPress?.()
+      await Promise.resolve()
+    })
+
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(
+      tree.root.findAll(
+        (node: { props: { accessibilityRole?: string; accessibilityState?: { checked?: boolean } } }) =>
+          node.props.accessibilityRole === 'radio' &&
+          node.props.accessibilityState?.checked === true,
+      ).length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('renders habit notification guidance without action semantics or chevrons', async () => {
+    const tree = await renderProfileScreen()
+
+    expect(
+      tree.root.findAll(
+        (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+          node.props.accessibilityRole === 'button' &&
+          ['profile.settingsRows.reminders', 'habits.form.slipAlert'].includes(
+            node.props.accessibilityLabel ?? '',
+          ),
+      ),
+    ).toHaveLength(0)
+
+    expect(
+      tree.root.findAll(
+        (node: { type: unknown; props: { label?: string } }) =>
+          node.type === 'SettingsRowStub' &&
+          node.props.label === 'profile.settingsRows.remindersNote',
+      ),
+    ).toHaveLength(0)
+    expect(
+      tree.root.findAll(
+        (node: { children: unknown[]; props: { accessibilityRole?: string } }) =>
+          node.children.includes('profile.settingsRows.remindersNote') &&
+          node.props.accessibilityRole == null,
+      ).length,
+    ).toBeGreaterThan(0)
   })
 
   it('redirects gated feature rows to upgrade for free users', async () => {

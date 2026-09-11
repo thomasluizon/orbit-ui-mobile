@@ -1,10 +1,11 @@
-import type { Ref } from 'react'
+import { useMemo, useState, type Ref } from 'react'
 import { View, Text, Pressable } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { Calendar, Languages, Moon } from '@/components/ui/icons'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import {
   getNativePushStatusPresentation,
+  getTimezoneList,
   LANGUAGE_OPTIONS,
   type NativePushRegistrationStatus,
 } from '@orbit/shared/utils'
@@ -14,10 +15,86 @@ import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { Switch } from '@/components/ui/switch'
 import { RadioRow } from '@/components/ui/select-check'
+import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
+import { PillButton } from '@/components/ui/pill-button'
+import { RowList } from '@/components/ui/row-list'
 import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
 import { styles, type Tokens } from '@/app/preferences-styles'
 
-export type PreferencePicker = 'language' | 'theme' | 'weekStart'
+export type PreferencePicker = 'language' | 'theme' | 'timeZone' | 'weekStart'
+
+const TIME_ZONE_OPTIONS = getTimezoneList()
+const TIME_ZONE_PAGE_SIZE = 20
+
+function TimeZoneOptions({
+  tokens,
+  selected,
+  searchLabel,
+  noResultsLabel,
+  showMoreLabel,
+  onSelect,
+}: Readonly<{
+  tokens: Tokens
+  selected?: string | null
+  searchLabel: string
+  noResultsLabel: string
+  showMoreLabel: string
+  onSelect: (timeZone: string) => void
+}>) {
+  const [query, setQuery] = useState('')
+  const [visibleCount, setVisibleCount] = useState(TIME_ZONE_PAGE_SIZE)
+  const filtered = useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase()
+    return normalized
+      ? TIME_ZONE_OPTIONS.filter((option) => option.toLocaleLowerCase().includes(normalized))
+      : TIME_ZONE_OPTIONS
+  }, [query])
+  const ordered = selected && filtered.includes(selected)
+    ? [selected, ...filtered.filter((option) => option !== selected)]
+    : filtered
+  const visible = ordered.slice(0, visibleCount)
+
+  return (
+    <View style={styles.timeZoneOptions}>
+      <Text style={[styles.timeZoneSearchLabel, { color: tokens.fg2 }]}>
+        {searchLabel}
+      </Text>
+      <BottomSheetAppTextInput
+        value={query}
+        onChangeText={(value) => {
+          setQuery(value)
+          setVisibleCount(TIME_ZONE_PAGE_SIZE)
+        }}
+        accessibilityLabel={searchLabel}
+        placeholder={searchLabel}
+        style={styles.timeZoneSearch}
+      />
+      {visible.map((option, index) => (
+        <RadioRow
+          key={option}
+          label={option}
+          selected={selected === option}
+          divider={index < visible.length - 1}
+          onPress={() => onSelect(option)}
+        />
+      ))}
+      {visible.length === 0 ? (
+        <Text style={[styles.timeZoneEmpty, { color: tokens.fg3 }]}>{noResultsLabel}</Text>
+      ) : null}
+      {visibleCount < ordered.length ? (
+        <View style={styles.timeZoneMore}>
+          <PillButton
+            size="sm"
+            variant="ghost"
+            onClick={() => setVisibleCount((count) => count + TIME_ZONE_PAGE_SIZE)}
+          >
+            {showMoreLabel}
+          </PillButton>
+        </View>
+      ) : null}
+    </View>
+  )
+}
 
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
 
@@ -38,6 +115,98 @@ interface PushNotificationSectionProps {
   registrationStatus: NativePushRegistrationStatus
   onToggle: () => void
   onOpenSettings: () => void
+  showSectionLabel?: boolean
+  deviceLabel?: string
+  deviceDescription?: string
+  contained?: boolean
+}
+
+function PushSectionLabel({
+  show,
+  t,
+}: Readonly<{ show: boolean; t: TranslationFn }>) {
+  return show ? (
+    <SectionLabel>{t('settings.notifications.title')}</SectionLabel>
+  ) : null
+}
+
+interface SupportedPushContentProps {
+  tokens: Tokens
+  t: TranslationFn
+  pushEnabled: boolean
+  pushLoading: boolean
+  permissionStatus: NotificationPermissionStatus | null
+  pushStatusColor: string
+  pushStatusText: string
+  switchLabel: string
+  deviceLabel?: string
+  deviceDescription?: string
+  onToggle: () => void
+  onOpenSettings: () => void
+}
+
+function SupportedPushContent({
+  tokens,
+  t,
+  pushEnabled,
+  pushLoading,
+  permissionStatus,
+  pushStatusColor,
+  pushStatusText,
+  switchLabel,
+  deviceLabel,
+  deviceDescription,
+  onToggle,
+  onOpenSettings,
+}: Readonly<SupportedPushContentProps>) {
+  return (
+    <>
+      <SettingsRow
+        label={deviceLabel ?? t('settings.notifications.allowed')}
+        desc={deviceDescription}
+        accessory="none"
+        divider={false}
+      >
+        <View
+          pointerEvents={pushLoading ? 'none' : 'auto'}
+          accessible={pushLoading}
+          accessibilityRole={pushLoading ? 'switch' : undefined}
+          accessibilityLabel={pushLoading ? switchLabel : undefined}
+          accessibilityState={pushLoading ? { checked: pushEnabled, disabled: true } : undefined}
+        >
+          <View
+            accessibilityElementsHidden={pushLoading}
+            importantForAccessibility={pushLoading ? 'no-hide-descendants' : 'auto'}
+          >
+            <Switch checked={pushEnabled} onChange={onToggle} label={switchLabel} />
+          </View>
+        </View>
+      </SettingsRow>
+      <View style={styles.statusBlock}>
+        <Text style={[styles.statusText, { color: pushStatusColor }]}>
+          {pushStatusText}
+        </Text>
+      </View>
+      {permissionStatus === 'denied' ? (
+        <Pressable
+          onPress={onOpenSettings}
+          accessibilityRole="button"
+          style={({ pressed }) => [
+            styles.linkChip,
+            {
+              backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+              borderColor: tokens.hairline,
+            },
+            pressed ? styles.linkChipPressed : null,
+          ]}
+        >
+          <Text style={[styles.linkText, { color: tokens.fg2 }]}>
+            {t('settings.notifications.openSettings')}
+          </Text>
+        </Pressable>
+      ) : null}
+    </>
+  )
 }
 
 export function PushNotificationSection({
@@ -51,6 +220,10 @@ export function PushNotificationSection({
   registrationStatus,
   onToggle,
   onOpenSettings,
+  showSectionLabel = true,
+  deviceLabel,
+  deviceDescription,
+  contained = false,
 }: Readonly<PushNotificationSectionProps>) {
   const pushStatusPresentation = getNativePushStatusPresentation({
     permissionStatus,
@@ -59,71 +232,38 @@ export function PushNotificationSection({
     isRegistered: pushRegistered,
   })
   const pushStatusText = t(pushStatusPresentation.messageKey)
+  const switchLabel = deviceLabel ?? t('settings.notifications.title')
   const accentStatusColor =
     pushStatusPresentation.tone === 'accent' ? tokens.primarySoft : tokens.fg3
   const pushStatusColor =
     pushStatusPresentation.tone === 'critical' ? tokens.statusBad : accentStatusColor
+  const content = pushSupported ? (
+    <SupportedPushContent
+      tokens={tokens}
+      t={t}
+      pushEnabled={pushEnabled}
+      pushLoading={pushLoading}
+      permissionStatus={permissionStatus}
+      pushStatusColor={pushStatusColor}
+      pushStatusText={pushStatusText}
+      switchLabel={switchLabel}
+      deviceLabel={deviceLabel}
+      deviceDescription={deviceDescription}
+      onToggle={onToggle}
+      onOpenSettings={onOpenSettings}
+    />
+  ) : (
+    <View style={styles.statusBlock}>
+      <Text style={[styles.statusText, { color: tokens.fg3 }]}>
+        {t('settings.notifications.unsupportedNative')}
+      </Text>
+    </View>
+  )
 
   return (
     <>
-      <SectionLabel>{t('settings.notifications.title')}</SectionLabel>
-      {pushSupported ? (
-        <>
-          <SettingsRow
-            label={t('settings.notifications.allowed')}
-            accessory="none"
-            divider={false}
-          >
-            <View
-              pointerEvents={pushLoading ? 'none' : 'auto'}
-              accessible={pushLoading}
-              accessibilityRole={pushLoading ? 'switch' : undefined}
-              accessibilityLabel={pushLoading ? t('settings.notifications.title') : undefined}
-              accessibilityState={pushLoading ? { checked: pushEnabled, disabled: true } : undefined}
-            >
-              <View
-                accessibilityElementsHidden={pushLoading}
-                importantForAccessibility={pushLoading ? 'no-hide-descendants' : 'auto'}
-              >
-                <Switch
-                  checked={pushEnabled}
-                  onChange={onToggle}
-                  label={t('settings.notifications.title')}
-                />
-              </View>
-            </View>
-          </SettingsRow>
-          <View style={styles.statusBlock}>
-            <Text style={[styles.statusText, { color: pushStatusColor }]}>
-              {pushStatusText}
-            </Text>
-          </View>
-          {permissionStatus === 'denied' ? (
-            <Pressable
-              onPress={onOpenSettings}
-              accessibilityRole="button"
-              style={({ pressed }) => [
-                styles.linkChip,
-                {
-                  backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-                  borderColor: tokens.hairline,
-                },
-                pressed ? styles.linkChipPressed : null,
-              ]}
-            >
-              <Text style={[styles.linkText, { color: tokens.fg2 }]}>
-                {t('settings.notifications.openSettings')}
-              </Text>
-            </Pressable>
-          ) : null}
-        </>
-      ) : (
-        <View style={styles.statusBlock}>
-          <Text style={[styles.statusText, { color: tokens.fg3 }]}>
-            {t('settings.notifications.unsupportedNative')}
-          </Text>
-        </View>
-      )}
+      <PushSectionLabel show={showSectionLabel} t={t} />
+      {contained ? <RowList>{content}</RowList> : content}
     </>
   )
 }
@@ -262,8 +402,12 @@ interface PreferencePickerSheetProps {
   activePicker: PreferencePicker | null
   pickerTitles: Record<PreferencePicker, string>
   pickerDescriptions: Partial<Record<PreferencePicker, string>>
+  timeZoneSearchLabel: string
+  timeZoneNoResultsLabel: string
+  timeZoneShowMoreLabel: string
   selectedLanguage: 'en' | 'pt-BR'
   currentTheme: ThemeMode
+  timeZone?: string | null
   weekStartDay?: number
   themeModeOptions: { value: ThemeMode; label: string }[]
   weekStartOptions: { value: 0 | 1; label: string }[]
@@ -272,6 +416,7 @@ interface PreferencePickerSheetProps {
   onHidden: () => void
   onLanguageChange: (locale: 'en' | 'pt-BR') => void
   onThemeModeChange: (mode: ThemeMode) => void
+  onTimeZoneChange: (timeZone: string) => void
   onWeekStartChange: (day: 0 | 1) => void
 }
 
@@ -280,8 +425,12 @@ export function PreferencePickerSheet({
   activePicker,
   pickerTitles,
   pickerDescriptions,
+  timeZoneSearchLabel,
+  timeZoneNoResultsLabel,
+  timeZoneShowMoreLabel,
   selectedLanguage,
   currentTheme,
+  timeZone,
   weekStartDay,
   themeModeOptions,
   weekStartOptions,
@@ -290,6 +439,7 @@ export function PreferencePickerSheet({
   onHidden,
   onLanguageChange,
   onThemeModeChange,
+  onTimeZoneChange,
   onWeekStartChange,
 }: Readonly<PreferencePickerSheetProps>) {
   const selectAndClose = (apply: () => void) =>
@@ -332,6 +482,16 @@ export function PreferencePickerSheet({
               onPress={() => selectAndClose(() => onThemeModeChange(mode.value))}
             />
           ))}
+        {activePicker === 'timeZone' ? (
+          <TimeZoneOptions
+            tokens={tokens}
+            selected={timeZone}
+            searchLabel={timeZoneSearchLabel}
+            noResultsLabel={timeZoneNoResultsLabel}
+            showMoreLabel={timeZoneShowMoreLabel}
+            onSelect={(option) => selectAndClose(() => onTimeZoneChange(option))}
+          />
+        ) : null}
         {activePicker === 'weekStart' &&
           weekStartOptions.map((option, index) => (
             <RadioRow

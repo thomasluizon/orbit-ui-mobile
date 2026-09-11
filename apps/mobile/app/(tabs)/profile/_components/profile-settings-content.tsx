@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
+import { Linking, StyleSheet, Text } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { Profile } from '@orbit/shared/types/profile'
+import { buildWeekStartOptions } from '@orbit/shared/utils'
 import {
   PROFILE_NAV_ITEMS,
   shouldRedirectProfileNavItem,
@@ -15,12 +17,10 @@ import {
   Languages,
   Lock,
   LogOut,
-  Mail,
   MessageSquare,
   Moon,
   RotateCcw,
   Satellite,
-  TriangleAlert,
   User,
   UserX,
   type Icon,
@@ -31,9 +31,17 @@ import { ShareCardEntryButton } from '@/components/share/share-card-entry-button
 import { ListRow } from '@/components/ui/list-row'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { useLogout } from '@/hooks/use-logout'
+import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { createTokensV2 } from '@/lib/theme'
-import { useAppTheme } from '@/lib/use-app-theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
+import { usePreferenceControls } from '@/app/use-preference-controls'
+import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
+import {
+  PreferencePickerSheet,
+  PushNotificationSection,
+  type PreferencePicker,
+} from '@/components/profile/preferences-sections'
+import { useSheetHost } from '@/components/ui/sheet'
 import { DeleteAccountModal } from './delete-account-modal'
 import { EditNameSheet } from './edit-name-sheet'
 import { FreshStartModal } from './fresh-start-modal'
@@ -62,17 +70,21 @@ const icon = (IconComponent: Icon, color: string) => (
 function buildYouRows(
   { profile, router, t, tokens }: RowContext,
   onEditName: () => void,
+  onOpenTimeZone: () => void,
 ) {
   const planLabel = profile?.isTrialActive
     ? t('profile.subscription.trial')
     : profile?.hasProAccess
       ? t('profile.subscription.pro')
       : t('profile.subscription.free')
+  const timeZoneLabel = profile?.timeZone
+    ? t('profile.settingsRows.timezoneValue', { timeZone: profile.timeZone })
+    : t('profile.settingsRows.timezone')
 
   return [
     <ListRow key="account" icon={icon(User, tokens.fg1)} title={profile?.name ?? t('profile.editName.title')} accessibilityLabel={t('profile.settingsRows.editName', { name: profile?.name ?? '', email: profile?.email ?? '' })} description={profile?.email} onClick={onEditName} />,
     <ListRow key="language" icon={icon(Languages, tokens.fg1)} title={t('profile.language.title')} onClick={() => router.push('/preferences')} />,
-    <ListRow key="timezone" icon={icon(Clock, tokens.fg1)} title={t('profile.settingsRows.timezone')} value={profile?.timeZone ?? undefined} onClick={() => router.push('/advanced')} />,
+    <ListRow key="timezone" icon={icon(Clock, tokens.fg1)} title={t('profile.settingsRows.timezone')} accessibilityLabel={timeZoneLabel} value={profile?.timeZone ?? undefined} onClick={onOpenTimeZone} />,
     <ListRow key="week-start" icon={icon(Calendar, tokens.fg1)} title={t('settings.weekStartDay.title')} onClick={() => router.push('/preferences')} />,
     <ListRow key="theme" icon={icon(Moon, tokens.fg1)} title={t('preferences.themeMode')} onClick={() => router.push('/preferences')} />,
     <ListRow key="plan" icon={icon(CreditCard, tokens.fg1)} title={t('profile.subscription.plan')} value={planLabel} onClick={() => router.push(buildUpgradeHref('/profile'))} />,
@@ -88,12 +100,108 @@ function buildAstraRows({ profile, router, t, tokens }: RowContext) {
   ]
 }
 
-function buildNotificationRows({ router, t, tokens }: RowContext) {
+async function togglePush(push: ReturnType<typeof usePushNotifications>) {
+  if (push.isEnabled) {
+    await push.disablePushNotifications()
+    return
+  }
+  if (push.permissionStatus === 'denied') {
+    await Linking.openSettings().catch(() => {})
+    return
+  }
+  await push.requestPermission()
+}
+
+function buildNotificationRows(
+  t: Translate,
+  tokens: Tokens,
+  push: ReturnType<typeof usePushNotifications>,
+) {
   return [
-    <ListRow key="reminders" icon={icon(BellRing, tokens.fg1)} title={t('profile.settingsRows.reminders')} onClick={() => router.push('/preferences')} />,
-    <ListRow key="slip-alerts" icon={icon(TriangleAlert, tokens.fg1)} title={t('habits.form.slipAlert')} onClick={() => router.push('/preferences')} />,
-    <ListRow key="product-email" icon={icon(Mail, tokens.fg1)} title={t('profile.marketingEmails.title')} onClick={() => router.push('/preferences')} />,
+    <MarketingConsentSection key="product-email" showSectionLabel={false} contained />,
+    <PushNotificationSection
+      key="push"
+      tokens={tokens}
+      t={t}
+      showSectionLabel={false}
+      contained
+      deviceLabel={t('profile.settingsRows.currentDevice')}
+      deviceDescription={t('profile.settingsRows.pushDeviceLimit')}
+      pushSupported={push.isSupported}
+      pushEnabled={push.isEnabled}
+      pushRegistered={push.isRegistered}
+      pushLoading={push.isLoading}
+      permissionStatus={push.permissionStatus}
+      registrationStatus={push.registrationStatus}
+      onToggle={() => void togglePush(push)}
+      onOpenSettings={() => void Linking.openSettings().catch(() => {})}
+    />,
+    <Text
+      key="habit-notifications"
+      style={[styles.notificationGuidance, { color: tokens.fg3 }]}
+    >
+      {t('profile.settingsRows.remindersNote')}
+    </Text>,
   ]
+}
+
+const styles = StyleSheet.create({
+  notificationGuidance: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 21.7,
+    paddingHorizontal: 4,
+  },
+})
+
+interface TimeZonePickerProps {
+  controls: ReturnType<typeof usePreferenceControls>
+  profile: Profile | undefined
+  t: Translate
+  tokens: Tokens
+}
+
+function TimeZonePicker({ controls, profile, t, tokens }: Readonly<TimeZonePickerProps>) {
+  const { sheetRef, closeSheet } = useSheetHost()
+  const weekStartOptions = buildWeekStartOptions(t)
+  const themeModeOptions = [
+    { value: 'dark' as const, label: t('preferences.themeModeDark') },
+    { value: 'light' as const, label: t('preferences.themeModeLight') },
+  ]
+  const pickerTitles: Record<PreferencePicker, string> = {
+    language: t('profile.language.title'),
+    theme: t('preferences.themeMode'),
+    timeZone: t('profile.settingsRows.timezone'),
+    weekStart: t('settings.weekStartDay.title'),
+  }
+
+  return (
+    <PreferencePickerSheet
+      tokens={tokens}
+      activePicker={controls.activePicker}
+      pickerTitles={pickerTitles}
+      pickerDescriptions={{
+        language: t('profile.language.description'),
+        weekStart: t('settings.weekStartDay.description'),
+      }}
+      timeZoneSearchLabel={t('profile.timezonePicker.search')}
+      timeZoneNoResultsLabel={t('profile.timezonePicker.noResults')}
+      timeZoneShowMoreLabel={t('profile.timezonePicker.showMore')}
+      selectedLanguage={controls.selectedLanguage}
+      currentTheme={controls.currentTheme}
+      timeZone={profile?.timeZone}
+      weekStartDay={profile?.weekStartDay}
+      themeModeOptions={themeModeOptions}
+      weekStartOptions={weekStartOptions}
+      sheetRef={sheetRef}
+      closePicker={closeSheet}
+      onHidden={() => controls.setActivePicker(null)}
+      onLanguageChange={(locale) => void controls.handleLanguageChange(locale)}
+      onThemeModeChange={controls.handleThemeModeChange}
+      onTimeZoneChange={(timeZone) => controls.timeZoneMutation.mutate(timeZone)}
+      onWeekStartChange={(day) => controls.weekStartMutation.mutate(day)}
+    />
+  )
 }
 
 function buildMoreRows({ profile, router, t, tokens }: RowContext) {
@@ -150,10 +258,11 @@ export function ProfileSettingsContent({
   const { t } = useTranslation()
   const router = useRouter()
   const logout = useLogout()
-  const { currentScheme, currentTheme } = useAppTheme()
+  const preferenceControls = usePreferenceControls()
+  const push = usePushNotifications()
   const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
+    () => createTokensV2(preferenceControls.currentScheme, preferenceControls.currentTheme),
+    [preferenceControls.currentScheme, preferenceControls.currentTheme],
   )
   const { isExporting, exportError, exportData } = useDataExport()
   const [showEditName, setShowEditName] = useState(false)
@@ -161,9 +270,13 @@ export function ProfileSettingsContent({
   const [showDeleteAccount, setShowDeleteAccount] = useState(false)
   const context = { profile, router, t, tokens }
   const rows = {
-    you: buildYouRows(context, () => setShowEditName(true)),
+    you: buildYouRows(
+      context,
+      () => setShowEditName(true),
+      () => preferenceControls.setActivePicker('timeZone'),
+    ),
     astra: buildAstraRows(context),
-    notifications: buildNotificationRows(context),
+    notifications: buildNotificationRows(t, tokens, push),
     more: buildMoreRows(context),
     ending: buildEndingRows({
       context,
@@ -189,10 +302,17 @@ export function ProfileSettingsContent({
           ending: t('profile.groups.ending'),
         }}
         rows={rows}
+        uncontainedGroups={['notifications']}
       />
       <EditNameSheet open={showEditName} onClose={() => setShowEditName(false)} />
       <FreshStartModal open={showFreshStart} onClose={() => setShowFreshStart(false)} />
       <DeleteAccountModal open={showDeleteAccount} onClose={() => setShowDeleteAccount(false)} profile={profile} />
+      <TimeZonePicker
+        controls={preferenceControls}
+        profile={profile}
+        t={t}
+        tokens={tokens}
+      />
     </>
   )
 }

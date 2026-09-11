@@ -1310,9 +1310,18 @@
     "settingsRows": {
       "editName": "Edit name: {name}, {email}",
       "timezone": "Timezone",
+      "timezoneValue": "Timezone: {timeZone}",
       "dailyAllowance": "Daily Astra allowance",
       "apiKeysMcp": "API keys and MCP",
-      "reminders": "Habit reminders"
+      "reminders": "Habit reminders",
+      "remindersNote": "Habit reminders and slip alerts are set on each habit.",
+      "currentDevice": "This device",
+      "pushDeviceLimit": "Up to 5 devices can receive alerts."
+    },
+    "timezonePicker": {
+      "search": "Search timezones",
+      "noResults": "No timezones found",
+      "showMore": "Show more timezones"
     },
     "loading": "Loading profile",
     "sections": {
@@ -1351,7 +1360,11 @@
     },
     "marketingEmails": {
       "title": "Product updates by email",
-      "description": "Get occasional emails about new Orbit features and improvements. No spam, unsubscribe anytime."
+      "description": "Get occasional emails about new Orbit features and improvements. No spam, unsubscribe anytime.",
+      "question": "May we email you about the product?",
+      "questionDescription": "What is new and what changed, once a month at most.",
+      "accept": "Yes, email me",
+      "decline": "No email"
     },
     "support": {
       "title": "Support",

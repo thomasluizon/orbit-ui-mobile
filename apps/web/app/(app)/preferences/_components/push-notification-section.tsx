@@ -10,6 +10,7 @@ import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { Switch } from '@/components/ui/switch'
+import { RowList } from '@/components/ui/row-list'
 
 export interface PushSectionState {
   supported: boolean
@@ -22,14 +23,24 @@ export interface PushSectionState {
 
 export function PushNotificationSection({
   push,
-}: Readonly<{ push: PushSectionState }>) {
+  showSectionLabel = true,
+  deviceLabel,
+  deviceDescription,
+  contained = false,
+}: Readonly<{
+  push: PushSectionState
+  showSectionLabel?: boolean
+  deviceLabel?: string
+  deviceDescription?: string
+  contained?: boolean
+}>) {
   const t = useTranslations()
-
-  return (
+  const switchLabel = deviceLabel ?? t('settings.notifications.title')
+  const content = (
     <>
-      <SectionLabel>{t('settings.notifications.title')}</SectionLabel>
       <SettingsRow
-        label={t('settings.notifications.allowed')}
+        label={deviceLabel ?? t('settings.notifications.allowed')}
+        desc={deviceDescription}
         accessory="none"
         divider={false}
       >
@@ -38,7 +49,7 @@ export function PushNotificationSection({
             <Switch
               checked={push.subscribed}
               onChange={push.onToggle}
-              label={t('settings.notifications.title')}
+              label={switchLabel}
             />
           </fieldset>
         )}
@@ -59,6 +70,15 @@ export function PushNotificationSection({
           ? t(getPushStatusMessageKey(push.status, push.permission))
           : t('settings.notifications.unsupported')}
       </div>
+    </>
+  )
+
+  return (
+    <>
+      {showSectionLabel ? (
+        <SectionLabel>{t('settings.notifications.title')}</SectionLabel>
+      ) : null}
+      {contained ? <RowList>{content}</RowList> : content}
     </>
   )
 }

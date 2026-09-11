@@ -58,10 +58,6 @@ export function getWebPushStatusTone(status: WebPushPreferenceStatus): PushStatu
     return 'critical'
   }
 
-  if (status === 'registered') {
-    return 'accent'
-  }
-
   return 'muted'
 }
 
@@ -103,10 +99,6 @@ export function getNativePushStatusTone(
     registrationStatus === 'token-missing'
   ) {
     return 'critical'
-  }
-
-  if (registrationStatus === 'registered') {
-    return 'accent'
   }
 
   return 'muted'

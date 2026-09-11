@@ -29,6 +29,7 @@ export default function PreferencesPage() {
     handleLanguageChange,
     handleThemeModeChange,
     toggleShowGeneral,
+    timeZoneMutation,
     weekStartMutation,
   } = usePreferenceControls()
 
@@ -60,6 +61,7 @@ export default function PreferencesPage() {
   const pickerTitles: Record<PreferencePicker, string> = {
     language: t('profile.language.title'),
     theme: t('preferences.themeMode'),
+    timeZone: t('profile.settingsRows.timezone'),
     weekStart: t('settings.weekStartDay.title'),
   }
 
@@ -103,14 +105,19 @@ export default function PreferencesPage() {
           mounted={mounted}
           selectedLanguage={selectedLanguage}
           currentTheme={currentTheme}
+          timeZone={profile?.timeZone}
           weekStartDay={profile?.weekStartDay}
           themeModeOptions={themeModeOptions}
           weekStartOptions={weekStartOptions}
           pickerTitles={pickerTitles}
           pickerDescriptions={pickerDescriptions}
+          timeZoneSearchLabel={t('profile.timezonePicker.search')}
+          timeZoneNoResultsLabel={t('profile.timezonePicker.noResults')}
+          timeZoneShowMoreLabel={t('profile.timezonePicker.showMore')}
           onClose={closePicker}
           onLanguageChange={(locale) => void handleLanguageChange(locale)}
           onThemeModeChange={handleThemeModeChange}
+          onTimeZoneChange={(timeZone) => timeZoneMutation.mutate(timeZone)}
           onWeekStartChange={(day) => weekStartMutation.mutate(day)}
         />
       </div>

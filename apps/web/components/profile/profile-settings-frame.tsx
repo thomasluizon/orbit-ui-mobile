@@ -16,6 +16,7 @@ interface ProfileSettingsFrameProps {
   loadingLabel: string
   labels: GroupLabels
   rows: GroupRows
+  uncontainedGroups?: readonly ProfileSettingsGroupId[]
 }
 
 interface ProfileValueRowProps {
@@ -49,6 +50,7 @@ export function ProfileSettingsFrame({
   loadingLabel,
   labels,
   rows,
+  uncontainedGroups = [],
 }: Readonly<ProfileSettingsFrameProps>) {
   if (isLoading) {
     return <Skeleton variant="settings" rows={8} label={loadingLabel} />
@@ -70,7 +72,11 @@ export function ProfileSettingsFrame({
           <h2 className="font-sans text-[20px] font-medium tracking-[-0.01em] text-[var(--fg-1)]">
             {labels[group.id]}
           </h2>
-          {rows[group.id] != null ? <RowList>{rows[group.id]}</RowList> : null}
+          {rows[group.id] == null
+            ? null
+            : uncontainedGroups.includes(group.id)
+              ? rows[group.id]
+              : <RowList>{rows[group.id]}</RowList>}
         </section>
       ))}
     </div>

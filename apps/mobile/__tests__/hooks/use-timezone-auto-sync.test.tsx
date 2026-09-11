@@ -101,8 +101,8 @@ describe('mobile useTimezoneAutoSync', () => {
     mocks.appStateListeners.length = 0
   })
 
-  it('queues a timezone update when the device timezone differs from the stored one', async () => {
-    mocks.state.profile = createMockProfile({ timeZone: 'UTC' })
+  it('queues a timezone update when the account has none', async () => {
+    mocks.state.profile = createMockProfile({ timeZone: null })
 
     await withDetectedTimezone('America/Sao_Paulo', async () => {
       await renderHookHarness(mocks.state.profile)
@@ -129,8 +129,8 @@ describe('mobile useTimezoneAutoSync', () => {
     })
   })
 
-  it('keeps the persisted timezone while its update is queued', async () => {
-    mocks.state.profile = createMockProfile({ timeZone: 'UTC' })
+  it('keeps the timezone empty while its first update is queued', async () => {
+    mocks.state.profile = createMockProfile({ timeZone: null })
     mocks.performQueuedApiMutation.mockResolvedValue({
       queued: true,
       queuedMutationId: 'offline-mutation-1',
@@ -141,22 +141,22 @@ describe('mobile useTimezoneAutoSync', () => {
       await Promise.resolve()
     })
 
-    expect(mocks.state.profile.timeZone).toBe('UTC')
+    expect(mocks.state.profile.timeZone).toBeNull()
     expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
   })
 
-  it('does not queue an update when the stored timezone already matches the device', async () => {
+  it('does not overwrite a saved timezone', async () => {
     mocks.state.profile = createMockProfile({ timeZone: 'Europe/London' })
 
-    await withDetectedTimezone('Europe/London', async () => {
+    await withDetectedTimezone('America/New_York', async () => {
       await renderHookHarness(mocks.state.profile)
     })
 
     expect(mocks.performQueuedApiMutation).not.toHaveBeenCalled()
   })
 
-  it('queues an update when the device moves to a new timezone (user traveled)', async () => {
+  it('preserves a saved timezone when the device moves', async () => {
     mocks.state.profile = createMockProfile({ timeZone: 'America/New_York' })
 
     await withDetectedTimezone('Europe/London', async () => {
@@ -164,11 +164,7 @@ describe('mobile useTimezoneAutoSync', () => {
       await Promise.resolve()
     })
 
-    expect(mocks.performQueuedApiMutation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        payload: { timeZone: 'Europe/London' },
-      }),
-    )
+    expect(mocks.performQueuedApiMutation).not.toHaveBeenCalled()
   })
 
   it('registers an AppState listener for resume events', async () => {

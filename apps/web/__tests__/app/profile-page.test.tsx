@@ -1,6 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
 const { mockUseGamificationProfile, mockProfileState } = vi.hoisted(() => ({
@@ -15,7 +15,12 @@ const { mockUseGamificationProfile, mockProfileState } = vi.hoisted(() => ({
 }))
 
 vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
   useTranslations: () => (key: string) => key,
+}))
+
+vi.mock('@/hooks/use-color-scheme', () => ({
+  useColorScheme: () => ({ currentTheme: 'dark', applyTheme: vi.fn() }),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -163,9 +168,6 @@ describe('ProfilePage', () => {
       'profile.proactiveAstra.title',
       'profile.aiSummary.title',
       'profile.settingsRows.apiKeysMcp',
-      'profile.settingsRows.reminders',
-      'habits.form.slipAlert',
-      'profile.marketingEmails.title',
       'profile.wrappedTitle',
       'calendar.profileButton',
       'profile.sections.aboutHelp',
@@ -179,6 +181,39 @@ describe('ProfilePage', () => {
     for (const name of accessibleNames) {
       expect(screen.getByRole('button', { name: new RegExp(name, 'i') })).toBeInTheDocument()
     }
+    expect(
+      screen.getByRole('button', { name: 'profile.marketingEmails.accept' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'profile.marketingEmails.decline' }),
+    ).toBeInTheDocument()
+  })
+
+  it('opens the timezone picker from the timezone row', () => {
+    render(<ProfilePage />)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /profile.settingsRows.timezone/ }),
+    )
+
+    expect(
+      screen.getByRole('dialog', { name: 'profile.settingsRows.timezone' }),
+    ).toBeInTheDocument()
+  })
+
+  it('renders habit notification guidance without action semantics or chevrons', () => {
+    render(<ProfilePage />)
+
+    expect(
+      screen.queryByRole('button', { name: 'profile.settingsRows.reminders' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'habits.form.slipAlert' }),
+    ).not.toBeInTheDocument()
+
+    const guidance = screen.getByText('profile.settingsRows.remindersNote')
+    expect(guidance.closest('button, a')).toBeNull()
+    expect(guidance.closest('[data-profile-notification-guidance]')?.querySelector('svg')).toBeNull()
   })
 
   it('shows one eight-row settings skeleton before the groups arrive', () => {
