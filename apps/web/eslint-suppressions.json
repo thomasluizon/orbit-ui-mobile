@@ -96,17 +96,6 @@
       "count": 5
     }
   },
-  "app/(app)/profile/_components/next-reward-carrot.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-sparkle-ai-marker": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
   "app/(app)/profile/_components/profile-account-actions.tsx": {
     "local/spacing-scale": {
       "count": 1
@@ -118,21 +107,6 @@
     },
     "local/spacing-scale": {
       "count": 2
-    }
-  },
-  "app/(app)/profile/_components/profile-feature-sections.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "app/(app)/profile/_components/profile-identity-header.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "app/(app)/profile/_components/profile-stat-tiles.tsx": {
-    "local/spacing-scale": {
-      "count": 6
     }
   },
   "app/(app)/profile/_components/profile-subscription-section.tsx": {

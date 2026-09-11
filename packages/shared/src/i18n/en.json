@@ -1300,6 +1300,14 @@
     }
   },
   "profile": {
+    "groups": {
+      "you": "You",
+      "astra": "Astra",
+      "notifications": "Notifications",
+      "more": "More of Orbit",
+      "ending": "Ending things"
+    },
+    "loading": "Loading profile",
     "sections": {
       "account": "Account",
       "preferences": "Preferences",

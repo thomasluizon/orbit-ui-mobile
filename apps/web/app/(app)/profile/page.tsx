@@ -1,92 +1,57 @@
 'use client'
 
-import { ReferralCard } from '@/components/referral/referral-card'
-import { ReferralDrawer } from '@/components/referral/referral-drawer'
-import { ProfileIdentityHeader } from './_components/profile-identity-header'
-import { ProfileStatTiles } from './_components/profile-stat-tiles'
-import { NextRewardCarrot } from './_components/next-reward-carrot'
-import { ProfileNavSections } from './_components/profile-nav-sections'
-import { ProfileFeatureSections } from './_components/profile-feature-sections'
-import { ProfileSubscriptionSection } from './_components/profile-subscription-section'
-import { ProfileAccountActions } from './_components/profile-account-actions'
-import { ProfileHeaderBar } from './_components/profile-header-bar'
-import { ProfileModals } from './_components/profile-modals'
-import { useProfileScreen } from './_components/use-profile-screen'
+import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
+import {
+  PROFILE_NAV_ITEMS,
+  shouldRedirectProfileNavItem,
+} from '@orbit/shared/utils/profile-navigation'
+import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
+import { ProfileSettingsFrame } from '@/components/profile/profile-settings-frame'
+import { ListRow } from '@/components/ui/list-row'
+import { ProBadge } from '@/components/ui/pro-badge'
+import { useProfile } from '@/hooks/use-profile'
 
 export default function ProfilePage() {
-  const screen = useProfileScreen()
+  const t = useTranslations()
+  const router = useRouter()
+  const { profile, isLoading, error } = useProfile()
+  const groupLabels = {
+    you: t('profile.groups.you'),
+    astra: t('profile.groups.astra'),
+    notifications: t('profile.groups.notifications'),
+    more: t('profile.groups.more'),
+    ending: t('profile.groups.ending'),
+  }
+
+  const moreRows = PROFILE_NAV_ITEMS.map((item) => (
+    <ListRow
+      key={item.id}
+      icon={<ProfileNavIcon iconKey={item.iconKey} />}
+      title={t(item.titleKey)}
+      description={t(item.hintKey)}
+      trailing={item.proBadge ? <ProBadge alwaysVisible /> : undefined}
+      onClick={() => {
+        router.push(shouldRedirectProfileNavItem(item, profile) ? '/upgrade' : item.route)
+      }}
+    />
+  ))
 
   return (
-    <div className="relative">
-      {!screen.isDesktop && (
-        <ProfileHeaderBar streak={screen.streak} error={screen.error} />
-      )}
-
-      <div className="stagger-enter">
-        <ProfileIdentityHeader
-          isLoading={screen.isLoading}
-          showPlanBadge={!!screen.showPlanBadge}
-          planBadgeLabel={screen.planBadgeLabel}
-          name={screen.profile?.name}
-          identityLine={screen.identityLine}
-          onEditName={() => screen.setShowEditName(true)}
-        />
-        <ProfileStatTiles
-          streak={screen.streak}
-          isLoading={screen.statsLoading}
-          onStreakClick={screen.handleStreakClick}
-        />
-        <ReferralCard onOpen={() => screen.setShowReferral(true)} />
-        <NextRewardCarrot carrot={screen.nextRewardCarrot} />
-        <ProfileNavSections
-          accountNavItems={screen.accountNavItems}
-          navTourMap={screen.navTourMap}
-          hasProAccess={screen.profile?.hasProAccess}
-          gamificationProfile={screen.gamificationProfile}
-          onNavClick={screen.handleNavClick}
-        />
-        {!screen.isDesktop && (
-          <ProfileFeatureSections
-            hasProAccess={screen.profile?.hasProAccess}
-            gamificationProfile={screen.gamificationProfile}
-            navTourMap={screen.navTourMap}
-            onNavClick={screen.handleNavClick}
-            onTourReplay={() => screen.setShowTourReplay(true)}
-          />
-        )}
-        <ProfileSubscriptionSection
-          profile={screen.profile}
-          trialDaysLeft={screen.trialDaysLeft}
-          trialExpired={screen.trialExpired}
-        />
-        <ProfileAccountActions
-          isExporting={screen.isExporting}
-          exportError={screen.exportError}
-          displayName={screen.profile?.name}
-          onExport={() => {
-            void screen.exportData()
-          }}
-          onFreshStart={() => screen.setShowResetModal(true)}
-          onDeleteAccount={() => screen.setShowDeleteModal(true)}
-          onLogout={() => void screen.logout()}
-        />
-      </div>
-
-      <div style={{ height: 24 }} />
-
-      <ProfileModals
-        profile={screen.profile}
-        showEditName={screen.showEditName}
-        showResetModal={screen.showResetModal}
-        showDeleteModal={screen.showDeleteModal}
-        showTourReplay={screen.showTourReplay}
-        onEditNameChange={screen.setShowEditName}
-        onResetChange={screen.setShowResetModal}
-        onDeleteChange={screen.setShowDeleteModal}
-        onTourReplayChange={screen.setShowTourReplay}
+    <div className="flex flex-col" style={{ gap: 12 }}>
+      {error ? (
+        <p className="px-4 text-center font-sans text-[14px] text-[var(--status-bad-text)]">
+          {process.env.NODE_ENV === 'development' && error instanceof Error
+            ? error.message
+            : t('errors.loadProfile')}
+        </p>
+      ) : null}
+      <ProfileSettingsFrame
+        isLoading={isLoading}
+        loadingLabel={t('profile.loading')}
+        labels={groupLabels}
+        rows={{ more: moreRows }}
       />
-
-      <ReferralDrawer open={screen.showReferral} onOpenChange={screen.setShowReferral} />
     </div>
   )
 }

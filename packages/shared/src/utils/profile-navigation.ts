@@ -7,6 +7,26 @@ import {
 
 export type ProfileNavSection = 'account' | 'features'
 
+export type ProfileSettingsGroupId =
+  | 'you'
+  | 'astra'
+  | 'notifications'
+  | 'more'
+  | 'ending'
+
+export interface ProfileSettingsGroupDefinition {
+  id: ProfileSettingsGroupId
+  labelKey: string
+}
+
+export const PROFILE_SETTINGS_GROUPS: readonly ProfileSettingsGroupDefinition[] = [
+  { id: 'you', labelKey: 'profile.groups.you' },
+  { id: 'astra', labelKey: 'profile.groups.astra' },
+  { id: 'notifications', labelKey: 'profile.groups.notifications' },
+  { id: 'more', labelKey: 'profile.groups.more' },
+  { id: 'ending', labelKey: 'profile.groups.ending' },
+]
+
 export type ProfileNavVariant = 'default' | 'primary'
 
 export type ProfileNavIconKey =
@@ -35,32 +55,6 @@ export interface ProfileNavItem {
 }
 
 export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
-  {
-    id: 'preferences',
-    section: 'account',
-    route: '/preferences',
-    iconKey: 'settings',
-    titleKey: 'profile.sections.preferences',
-    hintKey: 'profile.sections.preferencesHint',
-    variant: 'default',
-    proBadge: false,
-    hintMode: 'static',
-    entitlementRequirement: null,
-    entitlementMode: 'mixed',
-  },
-  {
-    id: 'ai-settings',
-    section: 'account',
-    route: '/ai-settings',
-    iconKey: 'orbit',
-    titleKey: 'profile.sections.aiFeatures',
-    hintKey: 'profile.sections.aiFeaturesHint',
-    variant: 'default',
-    proBadge: false,
-    hintMode: 'static',
-    entitlementRequirement: null,
-    entitlementMode: 'mixed',
-  },
   {
     id: 'wrapped',
     section: 'features',
@@ -99,19 +93,6 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     hintMode: 'static',
     entitlementRequirement: null,
     entitlementMode: null,
-  },
-  {
-    id: 'advanced',
-    section: 'features',
-    route: '/advanced',
-    iconKey: 'wrench',
-    titleKey: 'profile.sections.advanced',
-    hintKey: 'profile.sections.advancedHint',
-    variant: 'default',
-    proBadge: false,
-    hintMode: 'static',
-    entitlementRequirement: null,
-    entitlementMode: 'mixed',
   },
 ]
 

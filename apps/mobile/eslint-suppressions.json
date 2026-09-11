@@ -68,28 +68,12 @@
       "count": 2
     }
   },
-  "app/(tabs)/profile/_components/next-reward-carrot.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-sparkle-ai-marker": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
   "app/(tabs)/profile/_components/profile-action-button.tsx": {
     "local/icon-size-grid": {
       "count": 1
     },
     "local/spacing-scale": {
       "count": 2
-    }
-  },
-  "app/(tabs)/profile/_components/profile-styles.ts": {
-    "local/spacing-scale": {
-      "count": 10
     }
   },
   "app/about.tsx": {
@@ -370,11 +354,6 @@
     },
     "local/no-sparkle-ai-marker": {
       "count": 2
-    }
-  },
-  "components/profile/profile-sections.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
     }
   },
   "components/tour/tour-replay-modal.tsx": {

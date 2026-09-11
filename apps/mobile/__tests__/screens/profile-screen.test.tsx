@@ -216,6 +216,26 @@ vi.mock('@/components/ui/settings-group', () => ({
   }) => React.createElement('SettingsRowStub', { label, hint, onPress }),
 }))
 
+vi.mock('@/components/ui/row-list', () => ({
+  RowList: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}))
+
+vi.mock('@/components/ui/list-row', () => ({
+  ListRow: ({
+    title,
+    description,
+    onClick,
+  }: {
+    title: string
+    description?: string
+    onClick?: () => void
+  }) => React.createElement('SettingsRowStub', {
+    label: title,
+    hint: description,
+    onPress: onClick,
+  }),
+}))
+
 vi.mock('@/components/ui/icons', () => {
   const createIcon = (name: string) => () => React.createElement(name)
   return {
@@ -286,62 +306,29 @@ function findRowByLabel(
 }
 
 describe('ProfileScreen', () => {
-  it('keeps all three controls outside the centred header and before scrolling content', async () => {
-    const tree = await renderProfileScreen()
-    const header = tree.root.findByProps({ testID: 'nav-header-plain' })
-    const actions = tree.root.findByProps({ testID: 'profile-header-actions' })
-    for (const control of ['ThemeToggle', 'StreakBadge', 'NotificationBell']) {
-      expect(header.findAllByType(control)).toHaveLength(0)
-      expect(actions.findAllByType(control)).toHaveLength(1)
-    }
-    expect(actions.findAllByType('ScrollView')).toHaveLength(0)
-  })
-
   beforeEach(() => {
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()
   })
 
-  it('disables the gamification profile query for free users', async () => {
-    await TestRenderer.act(async () => {
-      TestRenderer.create(<ProfileScreen />)
-      await Promise.resolve()
-    })
-
-    expect(mockUseGamificationProfile).toHaveBeenCalledWith(false)
-  })
-
-  it('mounts the referral card on profile and opens the drawer when pressed', async () => {
-    let tree: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<ProfileScreen />)
-      await Promise.resolve()
-    })
-
-    const [card] = tree!.root.findAll(
-      (node: { type: unknown }) => node.type === 'ReferralCardStub',
-    )
-    expect(card).toBeTruthy()
-    expect(
-      tree!.root.findAll((node: { type: unknown }) => node.type === 'ReferralDrawerOpen'),
-    ).toHaveLength(0)
-
-    await TestRenderer.act(async () => {
-      card.props.onPress()
-      await Promise.resolve()
-    })
-
-    expect(
-      tree!.root.findAll((node: { type: unknown }) => node.type === 'ReferralDrawerOpen'),
-    ).toHaveLength(1)
-  })
-
   it('renders every feature destination as a grouped settings row with its hint', async () => {
     const tree = await renderProfileScreen()
 
-    expect(findRowByLabel(tree, 'tour.replay.title').props.hint).toBe(
-      'explore.tourHint',
-    )
+    const groupLabels = [
+      'profile.groups.you',
+      'profile.groups.astra',
+      'profile.groups.notifications',
+      'profile.groups.more',
+      'profile.groups.ending',
+    ]
+    for (const label of groupLabels) {
+      expect(
+        tree.root.findAll(
+          (node: { children?: unknown[] }) => node.children?.includes(label),
+        ).length,
+      ).toBeGreaterThan(0)
+    }
+
     expect(findRowByLabel(tree, 'profile.wrappedTitle').props.hint).toBe(
       'profile.wrappedHint',
     )
@@ -351,9 +338,19 @@ describe('ProfileScreen', () => {
     expect(findRowByLabel(tree, 'profile.sections.aboutHelp').props.hint).toBe(
       'profile.sections.aboutHelpHint',
     )
-    expect(findRowByLabel(tree, 'profile.sections.advanced').props.hint).toBe(
-      'profile.sections.advancedHint',
-    )
+
+    for (const movedLabel of [
+      'profile.sections.preferences',
+      'profile.sections.aiFeatures',
+      'profile.sections.advanced',
+    ]) {
+      expect(
+        tree.root.findAll(
+          (node: SettingsRowStubNode) =>
+            node.type === 'SettingsRowStub' && node.props.label === movedLabel,
+        ),
+      ).toHaveLength(0)
+    }
 
     const removedLabels = [
       ['so', 'cial.profileNav.title'].join(''),
@@ -367,23 +364,6 @@ describe('ProfileScreen', () => {
         ),
       ).toHaveLength(0)
     }
-  })
-
-  it('opens the tour replay modal from the discover row', async () => {
-    const tree = await renderProfileScreen()
-
-    expect(
-      tree.root.findAll((node: { type: unknown }) => node.type === 'TourReplayModalOpen'),
-    ).toHaveLength(0)
-
-    await TestRenderer.act(async () => {
-      findRowByLabel(tree, 'tour.replay.title').props.onPress?.()
-      await Promise.resolve()
-    })
-
-    expect(
-      tree.root.findAll((node: { type: unknown }) => node.type === 'TourReplayModalOpen'),
-    ).toHaveLength(1)
   })
 
   it('redirects gated feature rows to upgrade for free users', async () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   PROFILE_NAV_ITEMS,
+  PROFILE_SETTINGS_GROUPS,
   buildProfileNavSections,
   isProfileNavItemLocked,
   resolveProfileNavHint,
@@ -11,23 +12,27 @@ const translate = (key: string, values?: Record<string, string | number>) =>
   values ? `${key}:${JSON.stringify(values)}` : key
 
 describe('profile-navigation', () => {
-  it('keeps the web-aligned profile card order and routes', () => {
+  it('defines the five profile groups in display order', () => {
+    expect(PROFILE_SETTINGS_GROUPS).toEqual([
+      { id: 'you', labelKey: 'profile.groups.you' },
+      { id: 'astra', labelKey: 'profile.groups.astra' },
+      { id: 'notifications', labelKey: 'profile.groups.notifications' },
+      { id: 'more', labelKey: 'profile.groups.more' },
+      { id: 'ending', labelKey: 'profile.groups.ending' },
+    ])
+  })
+
+  it('keeps only the outbound rows that remain in the profile frame', () => {
     expect(PROFILE_NAV_ITEMS.map((item) => item.id)).toEqual([
-      'preferences',
-      'ai-settings',
       'wrapped',
       'calendar-sync',
       'about',
-      'advanced',
     ])
 
     expect(PROFILE_NAV_ITEMS.map((item) => item.route)).toEqual([
-      '/preferences',
-      '/ai-settings',
       '/wrapped',
       '/calendar-sync',
       '/about',
-      '/advanced',
     ])
   })
 
@@ -44,17 +49,17 @@ describe('profile-navigation', () => {
   it('splits nav items between account and feature sections', () => {
     const account = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
     const features = PROFILE_NAV_ITEMS.filter((item) => item.section === 'features')
-    expect(account).toHaveLength(2)
-    expect(features).toHaveLength(4)
+    expect(account).toHaveLength(0)
+    expect(features).toHaveLength(3)
   })
 
   it('marks locked destinations and mixed screens explicitly', () => {
     const calendar = PROFILE_NAV_ITEMS.find((item) => item.id === 'calendar-sync')
-    const preferences = PROFILE_NAV_ITEMS.find((item) => item.id === 'preferences')
+    const about = PROFILE_NAV_ITEMS.find((item) => item.id === 'about')
 
     expect(calendar?.proBadge).toBe(true)
     expect(calendar?.entitlementRequirement).toBe('pro')
-    expect(preferences?.entitlementMode).toBe('mixed')
+    expect(about?.entitlementMode).toBeNull()
   })
 
   it('expands section definitions into groups selecting matching nav items in id order', () => {
@@ -66,7 +71,7 @@ describe('profile-navigation', () => {
     expect(sections).toHaveLength(2)
     expect(sections[0]?.labelKey).toBe('explore.sections.progress')
     expect(sections[0]?.items.map((item) => item.id)).toEqual(['wrapped'])
-    expect(sections[1]?.items.map((item) => item.id)).toEqual(['about', 'advanced'])
+    expect(sections[1]?.items.map((item) => item.id)).toEqual(['about'])
   })
 
   it('yields an empty item list for a section whose ids match nothing', () => {
@@ -114,7 +119,7 @@ describe('profile-navigation', () => {
 
   it('uses the shared entitlement rules for redirect decisions', () => {
     const calendar = PROFILE_NAV_ITEMS.find((item) => item.id === 'calendar-sync')
-    const advanced = PROFILE_NAV_ITEMS.find((item) => item.id === 'advanced')
+    const about = PROFILE_NAV_ITEMS.find((item) => item.id === 'about')
 
     expect(
       shouldRedirectProfileNavItem(calendar!, {
@@ -133,7 +138,7 @@ describe('profile-navigation', () => {
     ).toBe(false)
 
     expect(
-      shouldRedirectProfileNavItem(advanced!, {
+      shouldRedirectProfileNavItem(about!, {
         hasProAccess: false,
         isLifetimePro: false,
         subscriptionInterval: null,

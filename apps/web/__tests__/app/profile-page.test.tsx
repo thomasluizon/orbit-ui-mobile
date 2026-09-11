@@ -1,10 +1,17 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
-const { mockUseGamificationProfile } = vi.hoisted(() => ({
+const { mockUseGamificationProfile, mockProfileState } = vi.hoisted(() => ({
   mockUseGamificationProfile: vi.fn(() => ({ profile: null })),
+  mockProfileState: {
+    current: {
+      profile: undefined as ReturnType<typeof createMockProfile> | undefined,
+      isLoading: false,
+      error: null as Error | null,
+    },
+  },
 }))
 
 vi.mock('next-intl', () => ({
@@ -33,11 +40,7 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({
-    profile: createMockProfile({ hasProAccess: false, currentStreak: 13 }),
-    isLoading: false,
-    error: null,
-  }),
+  useProfile: () => mockProfileState.current,
   useTrialDaysLeft: () => 0,
   useTrialExpired: () => true,
 }))
@@ -111,30 +114,29 @@ import ProfilePage from '@/app/(app)/profile/page'
 describe('ProfilePage', () => {
   beforeEach(() => {
     mockUseGamificationProfile.mockClear()
-  })
-
-  it('disables the gamification profile query for free users', () => {
-    render(<ProfilePage />)
-
-    expect(mockUseGamificationProfile).toHaveBeenCalledWith(false)
-  })
-
-  it('shows a free user their real streak (from profile, not the Pro-gated streak hook)', () => {
-    render(<ProfilePage />)
-
-    expect(document.body.textContent).toContain('13')
+    mockProfileState.current = {
+      profile: createMockProfile({ hasProAccess: false, currentStreak: 13 }),
+      isLoading: false,
+      error: null,
+    }
   })
 
   it('renders the remaining phone feature sections in order', () => {
     render(<ProfilePage />)
 
-    expect(screen.getByText('explore.sections.discover')).toBeInTheDocument()
-    expect(screen.getByText('explore.sections.progress')).toBeInTheDocument()
-    expect(screen.getByText('explore.sections.integrations')).toBeInTheDocument()
-    expect(screen.getByText('explore.sections.more')).toBeInTheDocument()
-
-    expect(screen.getByText('tour.replay.title')).toBeInTheDocument()
+    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
+      'profile.groups.you',
+      'profile.groups.astra',
+      'profile.groups.notifications',
+      'profile.groups.more',
+      'profile.groups.ending',
+    ])
     expect(screen.getByText('profile.wrappedTitle')).toBeInTheDocument()
+    expect(screen.getByText('calendar.profileButton')).toBeInTheDocument()
+    expect(screen.getByText('profile.sections.aboutHelp')).toBeInTheDocument()
+    expect(screen.queryByText('profile.sections.preferences')).not.toBeInTheDocument()
+    expect(screen.queryByText('profile.sections.aiFeatures')).not.toBeInTheDocument()
+    expect(screen.queryByText('profile.sections.advanced')).not.toBeInTheDocument()
     expect(screen.queryByText('profile.retrospectiveTitle')).not.toBeInTheDocument()
     expect(screen.queryByText('gamification.profileCard.title')).not.toBeInTheDocument()
 
@@ -147,15 +149,16 @@ describe('ProfilePage', () => {
     }
   })
 
-  it('mounts the referral card on profile and opens the drawer when tapped', () => {
+  it('shows one eight-row settings skeleton before the groups arrive', () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ hasProAccess: false }),
+      isLoading: true,
+      error: null,
+    }
     render(<ProfilePage />)
 
-    const card = screen.getByTestId('profile-referral-card')
-    expect(card).toBeInTheDocument()
-    expect(screen.queryByTestId('profile-referral-drawer')).toBeNull()
-
-    fireEvent.click(card)
-
-    expect(screen.getByTestId('profile-referral-drawer')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar', { name: 'profile.loading' })).toBeInTheDocument()
+    expect(document.querySelectorAll('[data-settings-skeleton-row]')).toHaveLength(8)
+    expect(screen.queryAllByRole('heading', { level: 2 })).toHaveLength(0)
   })
 })
