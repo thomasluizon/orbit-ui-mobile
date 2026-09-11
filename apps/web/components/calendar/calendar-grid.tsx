@@ -115,7 +115,7 @@ function CalendarGridDayBody({
   }
   const contents = future && cell.isCurrentMonth
     ? <CalendarFutureDay accessibleName={accessibleName} cell={cell} />
-    : <DayCell {...dayCell} selected={selected} />
+    : <DayCell {...dayCell} />
   return (
     <>
       <span aria-hidden="true">{contents}</span>

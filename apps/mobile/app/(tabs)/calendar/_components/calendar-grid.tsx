@@ -134,7 +134,7 @@ function CalendarGridDayBody({
   }
   const contents = future && cell.isCurrentMonth
     ? <CalendarFutureDay accessibleName={accessibleName} cell={cell} tokens={tokens} />
-    : <DayCell {...dayCell} accessibilityState={{ selected }} />
+    : <DayCell {...dayCell} />
   return (
     <>
       <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
