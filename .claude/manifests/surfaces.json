@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "b013fbbef87952a094b716128e6df30158f7d0e0",
+  "generatedFrom": "fa1f7d9431a282c6980c62e0d47ed5a8b7143d7a",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -14,8 +14,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 193,
-  "cellCount": 828,
+  "surfaceCount": 191,
+  "cellCount": 820,
   "cells": [
     {
       "surfaceId": "route-about",
@@ -978,7 +978,7 @@
         "apps/web/components/ui/freeze-bank.tsx",
         "apps/web/hooks/use-retrospective.ts"
       ],
-      "closureSize": 265,
+      "closureSize": 264,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -996,7 +996,7 @@
         "apps/web/components/ui/freeze-bank.tsx",
         "apps/web/hooks/use-retrospective.ts"
       ],
-      "closureSize": 265,
+      "closureSize": 264,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -1014,7 +1014,7 @@
         "apps/web/components/ui/freeze-bank.tsx",
         "apps/web/hooks/use-retrospective.ts"
       ],
-      "closureSize": 265,
+      "closureSize": 264,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -1032,7 +1032,7 @@
         "apps/web/components/ui/freeze-bank.tsx",
         "apps/web/hooks/use-retrospective.ts"
       ],
-      "closureSize": 265,
+      "closureSize": 264,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -1050,7 +1050,7 @@
         "apps/web/components/ui/freeze-bank.tsx",
         "apps/web/hooks/use-retrospective.ts"
       ],
-      "closureSize": 265,
+      "closureSize": 264,
       "state": "empty",
       "theme": "light",
       "locale": "en"
@@ -1068,7 +1068,7 @@
         "apps/web/components/ui/freeze-bank.tsx",
         "apps/web/hooks/use-retrospective.ts"
       ],
-      "closureSize": 265,
+      "closureSize": 264,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR"
@@ -1086,7 +1086,7 @@
         "apps/web/components/ui/freeze-bank.tsx",
         "apps/web/hooks/use-retrospective.ts"
       ],
-      "closureSize": 265,
+      "closureSize": 264,
       "state": "empty",
       "theme": "dark",
       "locale": "en"
@@ -1104,64 +1104,8 @@
         "apps/web/components/ui/freeze-bank.tsx",
         "apps/web/hooks/use-retrospective.ts"
       ],
-      "closureSize": 265,
+      "closureSize": 264,
       "state": "empty",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "route-retrospective",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/retrospective/page.tsx",
-      "href": "/retrospective",
-      "ownedFiles": [
-        "apps/web/app/(app)/retrospective/page.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "route-retrospective",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/retrospective/page.tsx",
-      "href": "/retrospective",
-      "ownedFiles": [
-        "apps/web/app/(app)/retrospective/page.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "route-retrospective",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/retrospective/page.tsx",
-      "href": "/retrospective",
-      "ownedFiles": [
-        "apps/web/app/(app)/retrospective/page.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "route-retrospective",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/retrospective/page.tsx",
-      "href": "/retrospective",
-      "ownedFiles": [
-        "apps/web/app/(app)/retrospective/page.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
     },
@@ -7773,62 +7717,6 @@
         "apps/mobile/app/r/[code].tsx"
       ],
       "closureSize": 172,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-route-retrospective",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/retrospective.tsx",
-      "href": "/retrospective",
-      "ownedFiles": [
-        "apps/mobile/app/retrospective.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-route-retrospective",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/retrospective.tsx",
-      "href": "/retrospective",
-      "ownedFiles": [
-        "apps/mobile/app/retrospective.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-route-retrospective",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/retrospective.tsx",
-      "href": "/retrospective",
-      "ownedFiles": [
-        "apps/mobile/app/retrospective.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-route-retrospective",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/retrospective.tsx",
-      "href": "/retrospective",
-      "ownedFiles": [
-        "apps/mobile/app/retrospective.tsx"
-      ],
-      "closureSize": 1,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"

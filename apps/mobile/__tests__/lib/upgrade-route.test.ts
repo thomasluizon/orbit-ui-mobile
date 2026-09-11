@@ -10,8 +10,8 @@ describe("upgrade route helpers", () => {
   });
 
   it("prefers the preserved source route when present", () => {
-    expect(getUpgradeFallbackRoute("/retrospective", "/profile")).toBe(
-      "/retrospective",
+    expect(getUpgradeFallbackRoute("/progress", "/profile")).toBe(
+      "/progress",
     );
     expect(
       getUpgradeFallbackRoute(["/progress", "/profile"], "/profile"),

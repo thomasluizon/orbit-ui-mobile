@@ -138,7 +138,6 @@ describe('ProfilePage', () => {
     expect(screen.queryByText('profile.sections.preferences')).not.toBeInTheDocument()
     expect(screen.queryByText('profile.sections.aiFeatures')).not.toBeInTheDocument()
     expect(screen.queryByText('profile.sections.advanced')).not.toBeInTheDocument()
-    expect(screen.queryByText('profile.retrospectiveTitle')).not.toBeInTheDocument()
     const retiredLabels = [
       ['so', 'cial.profileNav.title'].join(''),
       ['profile.public', 'Profile.title'].join(''),

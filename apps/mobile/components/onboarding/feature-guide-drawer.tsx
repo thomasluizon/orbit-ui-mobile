@@ -102,8 +102,6 @@ const sectionItems: Record<SectionKey, SectionItem[]> = {
     { titleKey: 'onboarding.featureGuide.rewardsSection.streakFreezeTitle', descKey: 'onboarding.featureGuide.rewardsSection.streakFreezeDesc' },
     { titleKey: 'onboarding.featureGuide.rewardsSection.wrappedTitle', descKey: 'onboarding.featureGuide.rewardsSection.wrappedDesc' },
     { titleKey: 'onboarding.featureGuide.rewardsSection.widgetTitle', descKey: 'onboarding.featureGuide.rewardsSection.widgetDesc' },
-    { titleKey: 'onboarding.featureGuide.rewardsSection.insightsTitle', descKey: 'onboarding.featureGuide.rewardsSection.insightsDesc' },
-    { titleKey: 'onboarding.featureGuide.rewardsSection.retrospectiveTitle', descKey: 'onboarding.featureGuide.rewardsSection.retrospectiveDesc' },
     { titleKey: 'onboarding.featureGuide.rewardsSection.milestoneShareTitle', descKey: 'onboarding.featureGuide.rewardsSection.milestoneShareDesc' },
     { titleKey: 'onboarding.featureGuide.rewardsSection.referralsTitle', descKey: 'onboarding.featureGuide.rewardsSection.referralsDesc' },
   ],

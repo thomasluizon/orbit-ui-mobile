@@ -142,9 +142,7 @@
     "R12-screen-insights": [
       "route-progress",
       "m-route-tabs-progress",
-      "route-retrospective",
       "route-wrapped",
-      "m-route-retrospective",
       "m-route-wrapped"
     ],
     "R13-screen-social": [],

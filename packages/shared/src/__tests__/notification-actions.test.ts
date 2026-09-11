@@ -78,6 +78,7 @@ describe('notification-actions', () => {
   it.each([
     '/streak',
     '/achievements?earned=latest',
+    '/insights?range=year',
     '/retrospective/year',
   ])('resolves the absorbed route %s to Progresso', (url) => {
     expect(resolveNotificationUrl(url)).toBe('/progress')

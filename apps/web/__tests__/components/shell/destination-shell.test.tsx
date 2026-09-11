@@ -317,20 +317,7 @@ describe('DestinationShell', () => {
     if (!wide) expect(screen.getByRole('button', { name: 'nav.today' })).toHaveAttribute('aria-current', 'page')
   })
 
-  it.each(['/retrospective'])(
-    'selects Progresso for an absorbed route %s',
-    (pathname) => {
-      mocks.pathname = pathname
-      render(<DestinationShell onCreate={() => {}}><h1>Progress flow</h1></DestinationShell>)
-
-      expect(screen.getByRole('button', { name: 'nav.progress' })).toHaveAttribute(
-        'aria-current',
-        'page',
-      )
-    },
-  )
-
-  it.each(['/streak', '/unknown'])(
+  it.each(['/streak', '/retrospective', '/unknown'])(
     'selects no destination for the removed or unknown route %s',
     (pathname) => {
       mocks.pathname = pathname
@@ -354,6 +341,7 @@ describe('DestinationShell', () => {
     '/profile',
     '/progress',
     '/retrospective',
+    '/streak',
     '/support',
     '/upgrade',
     '/wrapped',

@@ -212,7 +212,7 @@ function buildEndingRows({
 }: EndingRowsOptions) {
   return [
     <ListRow key="export" icon={icon(Download)} title={isExporting ? t('dataExport.preparing') : t('dataExport.button')} description={exportError ?? undefined} chevron={false} onClick={onExport} />,
-    <ShareCardEntryButton key="share" variant="row" displayName={profile?.name} />,
+    <ShareCardEntryButton key="share" displayName={profile?.name} />,
     <ListRow key="fresh-start" icon={icon(RotateCcw)} title={t('profile.freshStart.button')} chevron={false} onClick={onFreshStart} />,
     <ListRow key="logout" icon={icon(LogOut)} title={t('profile.logout')} chevron={false} onClick={onLogout} />,
     <ListRow key="delete" icon={icon(UserX)} title={t('profile.deleteAccount.button')} danger chevron={false} onClick={onDeleteAccount} />,

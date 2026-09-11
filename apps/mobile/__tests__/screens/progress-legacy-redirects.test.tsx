@@ -1,17 +1,10 @@
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { redirectSystemPath } from '@/app/+native-intent'
-import RetrospectiveRedirect from '@/app/retrospective'
-
-vi.mock('expo-router', () => ({ Redirect: () => null }))
 
 describe('legacy Progresso routes', () => {
-  it('redirects retrospective to Progresso', () => {
-    expect(RetrospectiveRedirect().props.href).toBe('/progress')
-  })
-
-  it.each(['streak', 'achievements'])(
+  it.each(['streak', 'achievements', 'insights', 'retrospective'])(
     'does not expose the removed %s route',
     (routeName) => {
       const route = resolve(process.cwd(), `app/${routeName}.tsx`)
