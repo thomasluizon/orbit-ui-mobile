@@ -197,6 +197,33 @@ describe('CalendarDayDetail', () => {
     expect(onEntryChange).toHaveBeenCalledTimes(1)
   })
 
+  it('shows the next day server state without carrying over a pending toggle', () => {
+    const pendingChange = new Promise<void>(() => {})
+    const dayAEntry = makeEntry({ title: 'Read', status: 'missed' })
+    const dayBEntry = makeEntry({ title: 'Read', status: 'missed' })
+    const onEntryChange = vi.fn(() => pendingChange)
+    const rendered = renderDetail({ entries: [dayAEntry], loggable: true, onEntryChange })
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Read' }))
+    rendered.rerender(
+      <CalendarDayDetail
+        dateStr="2025-06-16"
+        entries={[dayBEntry]}
+        loggable
+        showRecurring
+        onShowRecurringChange={() => {}}
+        onEntryChange={onEntryChange}
+      />,
+    )
+
+    const dayBRow = screen.getByRole('checkbox', { name: 'Read' })
+    expect(dayBRow).toHaveAttribute('aria-checked', 'false')
+    expect(dayBRow).toBeEnabled()
+    fireEvent.click(dayBRow)
+    expect(onEntryChange).toHaveBeenCalledTimes(2)
+    expect(onEntryChange).toHaveBeenLastCalledWith(dayBEntry, true)
+  })
+
   it('controls and serializes a row toggle, then rolls it back when the write fails', async () => {
     let rejectChange: ((reason?: unknown) => void) | undefined
     const pendingChange = new Promise<void>((_resolve, reject) => {

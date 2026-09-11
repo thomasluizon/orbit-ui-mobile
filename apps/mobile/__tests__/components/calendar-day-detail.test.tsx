@@ -235,6 +235,35 @@ describe('CalendarDayDetail (mobile)', () => {
     expect(onEntryChange).toHaveBeenCalledTimes(1)
   })
 
+  it('shows the next day server state without carrying over a pending toggle', () => {
+    const pendingChange = new Promise<void>(() => {})
+    const dayAEntry = makeEntry({ title: 'Read', status: 'missed' })
+    const dayBEntry = makeEntry({ title: 'Read', status: 'missed' })
+    const onEntryChange = vi.fn(() => pendingChange)
+    const tree = renderDetail({ entries: [dayAEntry], loggable: true, onEntryChange })
+
+    TestRenderer.act(() => {
+      const row = nodes(tree, 'CheckRowMock')[0]
+      ;(row?.props.onChange as (checked: boolean) => void)(true)
+    })
+    TestRenderer.act(() => {
+      tree.update(detailElement({
+        selectedDate: '2025-06-16',
+        entries: [dayBEntry],
+        loggable: true,
+        onEntryChange,
+      }))
+    })
+
+    const dayBRow = nodes(tree, 'CheckRowMock')[0]
+    expect(dayBRow?.props).toMatchObject({ checked: false, loading: false })
+    TestRenderer.act(() => {
+      ;(dayBRow?.props.onChange as (checked: boolean) => void)(true)
+    })
+    expect(onEntryChange).toHaveBeenCalledTimes(2)
+    expect(onEntryChange).toHaveBeenLastCalledWith(dayBEntry, true)
+  })
+
   it('controls and serializes a row toggle, then rolls it back when the write fails', async () => {
     let rejectChange: ((reason?: unknown) => void) | undefined
     const pendingChange = new Promise<void>((_resolve, reject) => {

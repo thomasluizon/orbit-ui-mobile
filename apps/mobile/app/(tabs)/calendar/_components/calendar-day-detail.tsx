@@ -170,7 +170,7 @@ export function CalendarDayDetail({
             if (loggable) {
               return (
                 <CalendarDayCheckRow
-                  key={entry.habitId}
+                  key={`${selectedDate}:${entry.habitId}`}
                   selectedDate={selectedDate}
                   entry={entry}
                   displayTime={displayTime}
@@ -182,7 +182,7 @@ export function CalendarDayDetail({
 
             return (
               <ListRow
-                key={entry.habitId}
+                key={`${selectedDate}:${entry.habitId}`}
                 title={entry.title}
                 value={value}
                 trailing={

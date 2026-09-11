@@ -143,7 +143,7 @@ function CalendarDayRows({
     if (loggable) {
       return (
         <CalendarDayCheckRow
-          key={entry.habitId}
+          key={`${dateStr}:${entry.habitId}`}
           dateStr={dateStr}
           entry={entry}
           displayTime={displayTime}
@@ -155,7 +155,7 @@ function CalendarDayRows({
 
     return (
       <ListRow
-        key={entry.habitId}
+        key={`${dateStr}:${entry.habitId}`}
         title={entry.title}
         value={value}
         trailing={<StatusRing status={outcome.status} size={24} label={outcome.label} />}
