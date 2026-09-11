@@ -209,6 +209,26 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   })()
   T(`${TOOL}: the lock refusal leaves the worktree and its ignored files intact`, lockedSentinel === LOCKED_SENTINEL, `a locked worktree lost its ignored files: ${lockedSentinel}`)
 
+  /** A pre-flight read cannot be the only guard: `git worktree lock` still succeeds against the
+   * ORIGINAL path after the staging rename, measured on Git 2.55.0.windows.3. The staged rename
+   * is reversible, so the tool must read the lock again between the two, and this asserts that
+   * ORDER. The interleaving itself is not driven here: the tool takes no injection point, and a
+   * poll-and-lock racer would be a flaky test in the harness that guards every other tool. */
+  const teardownSource = readFileSync(stagedToolPath, "utf8")
+  const renameIndex = teardownSource.indexOf("renameSync(path, removalPath)")
+  const stagedLockIndex = teardownSource.indexOf("const stagedLockReason = lockReasonOf()")
+  const removeIndex = teardownSource.indexOf("rmSync(removalPath")
+  T(
+    `${TOOL}: the lock is read again after the staging rename and before the removal`,
+    renameIndex > 0 && stagedLockIndex > renameIndex && removeIndex > stagedLockIndex,
+    `order was rename=${renameIndex} stagedLock=${stagedLockIndex} remove=${removeIndex}`,
+  )
+  T(
+    `${TOOL}: a lock found after the staging rename puts the worktree back`,
+    /renameSync\(removalPath, path\)[\s\S]{0,400}?LOCK_REFUSAL\(stagedLockReason\)/.test(teardownSource),
+    "the staged-lock branch refuses without restoring the worktree",
+  )
+
   const notDone = stageTeardownWorktree("not-done", { changed: true, fastForwardMerged: true, dirty: true })
   check(TOOL, "every independent refusal is reported in one pass", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: (?:\?\? )?dirty\.txt[\s\S]*UNMET ticket-done: ticket is OPEN with board status In Review, expected CLOSED and Done/ }, { env: { ...orcaEnv(teardownPlan(notDone, { state: "In Review", removePath: notDone.child })), ORBIT_TICKET_STATUS: "In Review", ORBIT_TICKET_STATE: "OPEN" } })
 

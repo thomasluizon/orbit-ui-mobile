@@ -194,8 +194,9 @@ const lockReasonOf = () => {
   return null
 }
 
+const LOCK_REFUSAL = (reason) => `worktree ${path} is LOCKED (${reason}); git refuses to remove or prune a locked worktree, and nothing was touched`
 const lockReason = lockReasonOf()
-if (lockReason !== null) fail(1, `worktree ${path} is LOCKED (${lockReason}); git refuses to remove or prune a locked worktree, and nothing was touched`)
+if (lockReason !== null) fail(1, LOCK_REFUSAL(lockReason))
 
 const removalPath = `${path}.teardown-${process.pid}-${Date.now()}`
 
@@ -207,6 +208,21 @@ try {
   renameSync(path, removalPath)
 } catch (error) {
   fail(1, `filesystem refused to release worktree ${path}; git still holds this worktree: ${error.message}`)
+}
+
+/** The lock read above is a snapshot, and `git worktree lock` still succeeds against the ORIGINAL
+ * path after the staging rename: measured on Git 2.55.0.windows.3, where porcelain then reports
+ * `locked <reason>` in place of `prunable`. Read it once more against the staged directory, while
+ * the rename is still reversible, so a lock taken during the check is answered by putting the
+ * worktree back rather than by deleting its ignored files. */
+const stagedLockReason = lockReasonOf()
+if (stagedLockReason !== null) {
+  try {
+    if (existsSync(removalPath) && !existsSync(path)) renameSync(removalPath, path)
+  } catch (restoreError) {
+    fail(1, `worktree ${path} was LOCKED (${stagedLockReason}) during teardown and its files remain at ${removalPath}: ${restoreError.message}`)
+  }
+  fail(1, LOCK_REFUSAL(stagedLockReason))
 }
 
 try {
