@@ -1,12 +1,13 @@
 import React from 'react'
 import { StyleSheet } from 'react-native'
+import type { StyleProp, ViewStyle } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { CalendarGrid, type GridDay } from '@/app/(tabs)/calendar/_components/calendar-grid'
 import { createTokensV2 } from '@/lib/theme'
 
 interface TestNode {
   type: unknown
-  props: Record<string, unknown>
+  props: Record<string, unknown> & { style?: StyleProp<ViewStyle> }
 }
 
 interface TestTree {
