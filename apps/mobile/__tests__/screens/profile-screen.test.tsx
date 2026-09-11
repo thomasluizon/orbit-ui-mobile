@@ -225,14 +225,18 @@ vi.mock('@/components/ui/list-row', () => ({
     title,
     description,
     onClick,
+    accessibilityLabel,
   }: {
     title: string
     description?: string
     onClick?: () => void
+    accessibilityLabel?: string
   }) => React.createElement('SettingsRowStub', {
     label: title,
     hint: description,
     onPress: onClick,
+    accessibilityRole: onClick ? 'button' : undefined,
+    accessibilityLabel: accessibilityLabel ?? title,
   }),
 }))
 
@@ -259,9 +263,13 @@ vi.mock('@/components/ui/icons', () => {
     Pencil: createIcon('Pencil'),
     UserX: createIcon('UserX'),
     TriangleAlert: createIcon('TriangleAlert'),
+    BellRing: createIcon('BellRing'),
     Calendar: createIcon('Calendar'),
     Languages: createIcon('Languages'),
+    Mail: createIcon('Mail'),
+    MessageSquare: createIcon('MessageSquare'),
     Moon: createIcon('Moon'),
+    Satellite: createIcon('Satellite'),
     Search: createIcon('Search'),
   }
 })
@@ -363,6 +371,44 @@ describe('ProfileScreen', () => {
             node.type === 'SettingsRowStub' && node.props.label === label,
         ),
       ).toHaveLength(0)
+    }
+  })
+
+  it('keeps every profile setting reachable by its accessible name', async () => {
+    const tree = await renderProfileScreen()
+    const accessibleNames = [
+      'profile.settingsRows.editName',
+      'profile.language.title',
+      'profile.settingsRows.timezone',
+      'settings.weekStartDay.title',
+      'preferences.themeMode',
+      'profile.subscription.plan',
+      'profile.settingsRows.dailyAllowance',
+      'profile.proactiveAstra.title',
+      'profile.aiSummary.title',
+      'profile.settingsRows.apiKeysMcp',
+      'profile.settingsRows.reminders',
+      'habits.form.slipAlert',
+      'profile.marketingEmails.title',
+      'profile.wrappedTitle',
+      'calendar.profileButton',
+      'profile.sections.aboutHelp',
+      'dataExport.button',
+      'shareCard.entry',
+      'profile.freshStart.button',
+      'profile.logout',
+      'profile.deleteAccount.button',
+    ]
+
+    for (const accessibilityLabel of accessibleNames) {
+      expect(
+        tree.root.findAll(
+          (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+            node.props.accessibilityRole === 'button' &&
+            node.props.accessibilityLabel === accessibilityLabel,
+        ),
+        `missing accessible profile row: ${accessibilityLabel}`,
+      ).toHaveLength(1)
     }
   })
 

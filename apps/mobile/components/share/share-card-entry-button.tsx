@@ -4,7 +4,7 @@ import { Share2 } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { ProfileActionButton } from '@/app/(tabs)/profile/_components/profile-action-button'
+import { ListRow } from '@/components/ui/list-row'
 import { ShareCardPanel } from './share-card-panel'
 
 interface ShareCardEntryButtonProps {
@@ -25,7 +25,12 @@ export function ShareCardEntryButton({
   return (
     <>
       {variant === 'row' ? (
-        <ProfileActionButton icon={Share2} onPress={() => setOpen(true)} label={t('shareCard.entry')} />
+        <ListRow
+          icon={<Share2 size={24} strokeWidth={1.8} color={tokens.fg1} />}
+          title={t('shareCard.entry')}
+          chevron={false}
+          onClick={() => setOpen(true)}
+        />
       ) : (
         <Pressable
           onPress={() => setOpen(true)}

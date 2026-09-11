@@ -1307,6 +1307,13 @@
       "more": "Mais do Orbit",
       "ending": "Encerrar"
     },
+    "settingsRows": {
+      "editName": "Editar nome: {name}, {email}",
+      "timezone": "Fuso horário",
+      "dailyAllowance": "Cota diária da Astra",
+      "apiKeysMcp": "Chaves de API e MCP",
+      "reminders": "Lembretes dos hábitos"
+    },
     "loading": "Carregando perfil",
     "sections": {
       "account": "Conta",

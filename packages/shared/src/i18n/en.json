@@ -1307,6 +1307,13 @@
       "more": "More of Orbit",
       "ending": "Ending things"
     },
+    "settingsRows": {
+      "editName": "Edit name: {name}, {email}",
+      "timezone": "Timezone",
+      "dailyAllowance": "Daily Astra allowance",
+      "apiKeysMcp": "API keys and MCP",
+      "reminders": "Habit reminders"
+    },
     "loading": "Loading profile",
     "sections": {
       "account": "Account",

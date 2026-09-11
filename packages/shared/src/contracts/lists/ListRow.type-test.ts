@@ -15,6 +15,7 @@ type ActionVariant = Extract<ListRowProps, { readOnly?: false }>
 type ExpectedBase = {
   icon?: ReactNode
   title: string
+  accessibilityLabel?: string
   description?: string
   value?: string
   trailing?: ReactNode
@@ -58,6 +59,7 @@ export type ListRowTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<ListRowAction['danger'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['icon'], ReactNode>>,
   Assert<IsExactWidth<ListRowProps['title'], string>>,
+  Assert<IsExactWidth<ListRowProps['accessibilityLabel'], string | undefined>>,
   Assert<IsExactWidth<ListRowProps['description'], string | undefined>>,
   Assert<IsExactWidth<ListRowProps['value'], string | undefined>>,
   Assert<IsExactWidth<ListRowProps['trailing'], ReactNode>>,

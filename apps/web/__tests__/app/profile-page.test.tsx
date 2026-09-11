@@ -149,6 +149,38 @@ describe('ProfilePage', () => {
     }
   })
 
+  it('keeps every profile setting reachable by its accessible name', () => {
+    render(<ProfilePage />)
+
+    const accessibleNames = [
+      'profile.settingsRows.editName',
+      'profile.language.title',
+      'profile.settingsRows.timezone',
+      'settings.weekStartDay.title',
+      'preferences.themeMode',
+      'profile.subscription.plan',
+      'profile.settingsRows.dailyAllowance',
+      'profile.proactiveAstra.title',
+      'profile.aiSummary.title',
+      'profile.settingsRows.apiKeysMcp',
+      'profile.settingsRows.reminders',
+      'habits.form.slipAlert',
+      'profile.marketingEmails.title',
+      'profile.wrappedTitle',
+      'calendar.profileButton',
+      'profile.sections.aboutHelp',
+      'dataExport.button',
+      'shareCard.entry',
+      'profile.freshStart.button',
+      'profile.logout',
+      'profile.deleteAccount.button',
+    ]
+
+    for (const name of accessibleNames) {
+      expect(screen.getByRole('button', { name: new RegExp(name, 'i') })).toBeInTheDocument()
+    }
+  })
+
   it('shows one eight-row settings skeleton before the groups arrive', () => {
     mockProfileState.current = {
       profile: createMockProfile({ hasProAccess: false }),
