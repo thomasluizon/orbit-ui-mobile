@@ -625,15 +625,16 @@ function CalendarScreenContent({
         </ScrollView>
       )}
 
-      {isDayDetailOpen ? (<Sheet
+      {isDayDetailOpen && selectedDay ? (<Sheet
         ref={sheetRef}
         open
         onClose={closeDayDetail}
         title={formattedSelectedDate}
-        key={selectedDay ?? undefined}
+        key={selectedDay}
       >
         <View style={styles.sheetContent}>
           <CalendarDayDetail
+            selectedDate={selectedDay}
             selectedEntries={selectedEntries}
             filteredEntries={filteredEntries}
             completedCount={completedCount}

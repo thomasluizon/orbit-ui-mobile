@@ -32,6 +32,7 @@ type Tree = {
   root: {
     findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
   }
+  update: (element: React.ReactElement) => void
 }
 
 const translations: Record<string, string> = {
@@ -64,35 +65,44 @@ function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry 
   }
 }
 
-function renderDetail({
-  entries = [],
-  loggable = false,
-  onEntryChange = async () => {},
-  onGoToDay = () => {},
-}: {
+interface RenderDetailProps {
+  selectedDate?: string
   entries?: CalendarDayEntry[]
   loggable?: boolean
   onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
   onGoToDay?: () => void
-} = {}): Tree {
+}
+
+function detailElement({
+  selectedDate = '2025-06-15',
+  entries = [],
+  loggable = false,
+  onEntryChange = async () => {},
+  onGoToDay = () => {},
+}: RenderDetailProps = {}): React.ReactElement {
   const tokens = createTokensV2('purple', 'dark')
+  return (
+    <CalendarDayDetail
+      selectedDate={selectedDate}
+      selectedEntries={entries}
+      filteredEntries={entries}
+      completedCount={entries.filter((entry) => entry.status === 'completed').length}
+      loggable={loggable}
+      showRecurring
+      onShowRecurringChange={() => {}}
+      onEntryChange={onEntryChange}
+      onGoToDay={onGoToDay}
+      displayTime={(time) => time}
+      t={translate}
+      tokens={tokens}
+    />
+  )
+}
+
+function renderDetail(props: RenderDetailProps = {}): Tree {
   let tree: Tree
   TestRenderer.act(() => {
-    tree = TestRenderer.create(
-      <CalendarDayDetail
-        selectedEntries={entries}
-        filteredEntries={entries}
-        completedCount={entries.filter((entry) => entry.status === 'completed').length}
-        loggable={loggable}
-        showRecurring
-        onShowRecurringChange={() => {}}
-        onEntryChange={onEntryChange}
-        onGoToDay={onGoToDay}
-        displayTime={(time) => time}
-        t={translate}
-        tokens={tokens}
-      />,
-    )
+    tree = TestRenderer.create(detailElement(props))
   })
   return tree!
 }
@@ -168,6 +178,61 @@ describe('CalendarDayDetail (mobile)', () => {
     expect(row?.props).toMatchObject({ label: 'Read', checked: true, value: '08:00 · done' })
     ;(row?.props.onChange as (checked: boolean) => void)(false)
     expect(onEntryChange).toHaveBeenCalledWith(entry, false)
+  })
+
+  it('keeps current-day unchecks upcoming before their writes settle', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-06-15T00:00:00Z'))
+    const pendingChange = new Promise<void>(() => {})
+
+    try {
+      const tree = renderDetail({
+        entries: [
+          makeEntry({ title: 'Read' }),
+          makeEntry({ habitId: '2', title: 'Sweets', isBadHabit: true }),
+        ],
+        loggable: true,
+        onEntryChange: () => pendingChange,
+      })
+
+      TestRenderer.act(() => {
+        for (const row of nodes(tree, 'CheckRowMock')) {
+          ;(row.props.onChange as (checked: boolean) => void)(false)
+        }
+      })
+
+      const values = nodes(tree, 'CheckRowMock').map((row) => row.props.value)
+      expect(values).toEqual(['08:00 · Upcoming', '08:00 · Upcoming'])
+      expect(values).not.toContain('08:00 · not logged')
+      expect(values).not.toContain('08:00 · resisted')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('refuses a second request when source reconciliation lands mid-toggle', () => {
+    const pendingChange = new Promise<void>(() => {})
+    const entry = makeEntry({ title: 'Read', status: 'missed' })
+    const onEntryChange = vi.fn(() => pendingChange)
+    const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
+
+    TestRenderer.act(() => {
+      const row = nodes(tree, 'CheckRowMock')[0]
+      ;(row?.props.onChange as (checked: boolean) => void)(true)
+    })
+    TestRenderer.act(() => {
+      tree.update(detailElement({
+        entries: [{ ...entry, status: 'completed' }],
+        loggable: true,
+        onEntryChange,
+      }))
+    })
+    TestRenderer.act(() => {
+      const row = nodes(tree, 'CheckRowMock')[0]
+      ;(row?.props.onChange as (checked: boolean) => void)(false)
+    })
+
+    expect(onEntryChange).toHaveBeenCalledTimes(1)
   })
 
   it('controls and serializes a row toggle, then rolls it back when the write fails', async () => {

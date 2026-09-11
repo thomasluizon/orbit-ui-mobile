@@ -149,6 +149,54 @@ describe('CalendarDayDetail', () => {
     expect(onEntryChange).toHaveBeenCalledWith(entry, false)
   })
 
+  it('keeps current-day unchecks upcoming before their writes settle', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-06-15T00:00:00Z'))
+    const pendingChange = new Promise<void>(() => {})
+
+    try {
+      renderDetail({
+        entries: [
+          makeEntry({ title: 'Read' }),
+          makeEntry({ habitId: '2', title: 'Sweets', isBadHabit: true }),
+        ],
+        loggable: true,
+        onEntryChange: () => pendingChange,
+      })
+
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Read' }))
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Sweets' }))
+
+      expect(screen.getAllByText('08:00 · Upcoming')).toHaveLength(2)
+      expect(screen.queryByText('08:00 · not logged')).not.toBeInTheDocument()
+      expect(screen.queryByText('08:00 · resisted')).not.toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('refuses a second request when source reconciliation lands mid-toggle', () => {
+    const pendingChange = new Promise<void>(() => {})
+    const entry = makeEntry({ title: 'Read', status: 'missed' })
+    const onEntryChange = vi.fn(() => pendingChange)
+    const rendered = renderDetail({ entries: [entry], loggable: true, onEntryChange })
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Read' }))
+    rendered.rerender(
+      <CalendarDayDetail
+        dateStr="2025-06-15"
+        entries={[{ ...entry, status: 'completed' }]}
+        loggable
+        showRecurring
+        onShowRecurringChange={() => {}}
+        onEntryChange={onEntryChange}
+      />,
+    )
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Read' }))
+
+    expect(onEntryChange).toHaveBeenCalledTimes(1)
+  })
+
   it('controls and serializes a row toggle, then rolls it back when the write fails', async () => {
     let rejectChange: ((reason?: unknown) => void) | undefined
     const pendingChange = new Promise<void>((_resolve, reject) => {

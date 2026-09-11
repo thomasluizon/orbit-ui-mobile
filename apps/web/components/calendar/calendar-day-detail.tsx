@@ -5,7 +5,11 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
-import { parseAPIDate, filterRecurringEntries } from '@orbit/shared/utils'
+import {
+  determineHabitDayStatus,
+  filterRecurringEntries,
+  parseAPIDate,
+} from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { StatusRingProps } from '@orbit/shared/contracts/lists'
 import { CheckRow } from '@/components/ui/check-row'
@@ -57,11 +61,13 @@ function getEntryOutcome(
 }
 
 function CalendarDayCheckRow({
+  dateStr,
   entry,
   displayTime,
   onEntryChange,
   t,
 }: Readonly<{
+  dateStr: string
   entry: CalendarDayEntry
   displayTime: (time: string) => string
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
@@ -71,10 +77,16 @@ function CalendarDayCheckRow({
   const inFlightRef = useRef(false)
   const [optimisticChecked, setOptimisticChecked] = useState<boolean | null>(null)
   const [isPending, setIsPending] = useState(false)
-  const checked = optimisticChecked ?? sourceChecked
-  const displayedEntry: CalendarDayEntry = optimisticChecked === null
+  const displayedChecked = optimisticChecked === sourceChecked ? null : optimisticChecked
+  const checked = displayedChecked ?? sourceChecked
+  const displayedEntry: CalendarDayEntry = displayedChecked === null
     ? entry
-    : { ...entry, status: optimisticChecked ? 'completed' : 'missed' }
+    : {
+        ...entry,
+        status: displayedChecked
+          ? 'completed'
+          : determineHabitDayStatus(parseAPIDate(dateStr), false),
+      }
   const outcome = getEntryOutcome(displayedEntry, t)
   const value = entry.dueTime
     ? `${displayTime(entry.dueTime)} · ${outcome.label}`
@@ -108,12 +120,14 @@ function CalendarDayCheckRow({
 }
 
 function CalendarDayRows({
+  dateStr,
   entries,
   loggable,
   displayTime,
   onEntryChange,
   t,
 }: Readonly<{
+  dateStr: string
   entries: CalendarDayEntry[]
   loggable: boolean
   displayTime: (time: string) => string
@@ -129,7 +143,8 @@ function CalendarDayRows({
     if (loggable) {
       return (
         <CalendarDayCheckRow
-          key={`${entry.habitId}:${entry.status}`}
+          key={entry.habitId}
+          dateStr={dateStr}
           entry={entry}
           displayTime={displayTime}
           onEntryChange={onEntryChange}
@@ -211,6 +226,7 @@ export function CalendarDayDetail({
       {filteredEntries.length > 0 ? (
         <div>
           <CalendarDayRows
+            dateStr={dateStr}
             entries={filteredEntries}
             loggable={loggable}
             displayTime={displayTime}
