@@ -3167,8 +3167,9 @@
     }
   },
   "dataExport": {
-    "button": "Download my data",
-    "preparing": "Preparing your export...",
+    "button": "Export my data",
+    "preparing": "Preparing",
+    "done": "Your data has been downloaded.",
     "error": "We couldn't prepare your export. Please try again.",
     "shareTitle": "Orbit data export"
   },
