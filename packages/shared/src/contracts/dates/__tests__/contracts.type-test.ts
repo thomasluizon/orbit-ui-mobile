@@ -30,13 +30,6 @@ type Assert<T extends true> = T
 type Fields<T> = { [TKey in keyof T]: T[TKey] }
 type ExpectedHabitDayValue = 'done' | 'missed' | 'not-scheduled'
 type ExpectedAccountDayValue = 'active' | 'frozen' | 'missed' | 'today'
-type ExpectedDayOutcome =
-  | 'none'
-  | 'partial'
-  | 'full'
-  | 'not-scheduled'
-  | 'future'
-  | 'unavailable'
 
 type ExpectedHabitStrip = {
   scope: 'habit'
@@ -62,8 +55,6 @@ type ExpectedDayCellBase = {
   scheduled?: number
   size?: number
   today?: boolean
-  selected?: boolean
-  selectionTintedByParent?: boolean
   outsideMonth?: boolean
   label?: string
   habitHistory?: boolean
@@ -71,12 +62,10 @@ type ExpectedDayCellBase = {
 }
 type ExpectedLoggableCell = ExpectedDayCellBase & {
   loggable: true
-  outcome?: Exclude<ExpectedDayOutcome, 'future' | 'unavailable'>
   onPress: () => void
 }
 type ExpectedReadOnlyCell = ExpectedDayCellBase & {
   loggable?: false
-  outcome?: ExpectedDayOutcome
   onPress?: never
 }
 type ExpectedTimedEvent = {
@@ -108,10 +97,8 @@ type CellWords = {
   partial: 'partial'
   full: 'full'
   notScheduled: 'not scheduled'
-  future: 'future'
   of: 'of'
   today: 'today'
-  selected: 'selected'
   readOnly: 'read only'
 }
 
@@ -148,14 +135,14 @@ type ZeroScheduleCell = Accepts<
 type LoggableWithoutHandler = Accepts<{ day: 12; loggable: true; words: CellWords }, DayCellProps>
 // @ts-expect-error a read-only cell rejects a handler
 type ReadOnlyWithHandler = Accepts<{ day: 12; loggable: false; words: CellWords; onPress: () => void }, DayCellProps>
-// @ts-expect-error a future cell is never loggable
-type LoggableFuture = Accepts<{ day: 12; loggable: true; outcome: 'future'; words: CellWords; onPress: () => void }, DayCellProps>
-// @ts-expect-error skipped is not a day outcome
-type SkippedCell = Accepts<{ day: 12; outcome: 'skipped'; words: CellWords }, DayCellProps>
+// @ts-expect-error callers pass raw counts, never a precomputed outcome
+type CellWithOutcome = Accepts<{ day: 12; outcome: 'full'; words: CellWords }, DayCellProps>
+// @ts-expect-error selected presentation belongs to the month-grid wrapper
+type SelectedCell = Accepts<{ day: 12; selected: true; words: CellWords }, DayCellProps>
 // @ts-expect-error words are required
 type CellWithoutWords = Accepts<{ day: 12 }, DayCellProps>
 // @ts-expect-error every cell word is required
-type CellWithMissingWord = Accepts<{ day: 12; words: Omit<CellWords, 'future'> }, DayCellProps>
+type CellWithMissingWord = Accepts<{ day: 12; words: Omit<CellWords, 'partial'> }, DayCellProps>
 
 type EmptyHeaderGrid = Accepts<{ weekdayLabels: []; children: 'day' }, MonthGridProps>
 // @ts-expect-error outcomes belong to DayCell
@@ -218,24 +205,19 @@ export type DateContractTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<DayCellWords['partial'], string>>,
   Assert<IsExactWidth<DayCellWords['full'], string>>,
   Assert<IsExactWidth<DayCellWords['notScheduled'], string>>,
-  Assert<IsExactWidth<DayCellWords['unavailable'], string | undefined>>,
-  Assert<IsExactWidth<DayCellWords['future'], string>>,
   Assert<IsExactWidth<DayCellWords['of'], string>>,
   Assert<IsExactWidth<DayCellWords['today'], string>>,
-  Assert<IsExactWidth<DayCellWords['selected'], string>>,
   Assert<IsExactWidth<DayCellWords['readOnly'], string>>,
   Assert<IsExactWidth<DayCellProps['day'], number>>,
   Assert<IsExactWidth<DayCellProps['done'], number | undefined>>,
   Assert<IsExactWidth<DayCellProps['scheduled'], number | undefined>>,
   Assert<IsExactWidth<DayCellProps['size'], number | undefined>>,
   Assert<IsExactWidth<DayCellProps['today'], boolean | undefined>>,
-  Assert<IsExactWidth<DayCellProps['selected'], boolean | undefined>>,
   Assert<IsExactWidth<DayCellProps['outsideMonth'], boolean | undefined>>,
   Assert<IsExactWidth<DayCellProps['label'], string | undefined>>,
   Assert<IsExactWidth<DayCellProps['habitHistory'], boolean | undefined>>,
   Assert<IsExactWidth<DayCellProps['words'], DayCellWords>>,
   Assert<IsExactWidth<DayCellProps['loggable'], boolean | undefined>>,
-  Assert<IsExactWidth<DayCellProps['outcome'], ExpectedDayOutcome | undefined>>,
   Assert<IsExactWidth<DayCellProps['onPress'], (() => void) | undefined>>,
   Assert<IsExactWidth<MonthGridProps['weekdayLabels'], string[] | undefined>>,
   Assert<IsExactWidth<MonthGridProps['children'], ReactNode>>,
@@ -260,8 +242,8 @@ export type DateContractTypeAssertions =
   | ZeroScheduleCell
   | LoggableWithoutHandler
   | ReadOnlyWithHandler
-  | LoggableFuture
-  | SkippedCell
+  | CellWithOutcome
+  | SelectedCell
   | CellWithoutWords
   | CellWithMissingWord
   | EmptyHeaderGrid

@@ -24,9 +24,11 @@
       "not-found-root",
       "overlay-app-layout",
       "overlay-command-command-palette",
+      "route-search",
       "route-step-up",
       "m-not-found-root",
       "m-error-root",
+      "m-route-search",
       "m-route-step-up",
       "m-overlay-components-throttle-screen",
       "m-overlay-components-upgrade-required-screen"

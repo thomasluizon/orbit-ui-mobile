@@ -10,6 +10,16 @@ const monthQueryState: { error: string | null; refresh: ReturnType<typeof vi.fn>
   error: null,
   refresh: vi.fn(),
 }
+const profileQueryState: {
+  profile: { weekStartDay: number } | undefined
+  error: Error | null
+  refetch: ReturnType<typeof vi.fn>
+} = {
+  profile: { weekStartDay: 1 },
+  error: null,
+  refetch: vi.fn(),
+}
+const calendarDataCalls = vi.fn()
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -22,13 +32,16 @@ vi.mock('@/hooks/use-is-desktop', () => ({
 }))
 
 vi.mock('@/hooks/use-calendar-data', () => ({
-  useCalendarData: () => ({
+  useCalendarData: (month: Date) => {
+    calendarDataCalls(month)
+    return ({
     dayMap: new Map(),
     isLoading: false,
     isFetching: false,
     error: monthQueryState.error,
     refresh: monthQueryState.refresh,
-  }),
+    })
+  },
   useCalendarRange: () => ({
     dayMap: new Map(),
     isLoading: false,
@@ -43,7 +56,7 @@ vi.mock('@/hooks/use-time-format', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { weekStartDay: 1 } }),
+  useProfile: () => profileQueryState,
 }))
 
 vi.mock('@/components/ui/section-label', () => ({
@@ -115,6 +128,29 @@ describe('CalendarPage view switcher', () => {
     calendarGridProps.selectedDateStr = undefined
     monthQueryState.error = null
     monthQueryState.refresh = vi.fn()
+    profileQueryState.profile = { weekStartDay: 1 }
+    profileQueryState.error = null
+    profileQueryState.refetch = vi.fn()
+    calendarDataCalls.mockClear()
+  })
+
+  it('loads calendar data concurrently while the profile resolves', () => {
+    profileQueryState.profile = undefined
+    render(<CalendarPage />)
+
+    expect(calendarDataCalls).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('progressbar', { name: 'common.loading' })).toBeDefined()
+    expect(document.querySelector('[data-variant="grid"] > [data-cell="44"]')).toHaveAttribute('data-gap', '0')
+  })
+
+  it('shows a retryable error when the profile request fails', () => {
+    profileQueryState.profile = undefined
+    profileQueryState.error = new Error('profile unavailable')
+    render(<CalendarPage />)
+
+    expect(screen.getByText('calendar.loadError')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(profileQueryState.refetch).toHaveBeenCalledTimes(1)
   })
 
   it('renders one three-option view switcher at phone width and opens the month on today', () => {
@@ -132,7 +168,7 @@ describe('CalendarPage view switcher', () => {
     render(<CalendarPage />)
 
     expect(screen.getAllByRole('radio')).toHaveLength(4)
-    expect(screen.getByRole('radio', { name: 'calendar.view.agenda' })).toBeDefined()
+    expect(screen.getAllByRole('radio', { name: 'calendar.view.agenda' })).toHaveLength(1)
   })
 
   it('switches from the month heat-map to the agenda planner and back', () => {

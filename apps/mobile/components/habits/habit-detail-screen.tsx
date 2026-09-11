@@ -119,7 +119,7 @@ function History({ habit, logs, today, locale, weekStartsOn, tokens }: Readonly<
   const days = buildHabitHistoryMonth(habit, loaded ? logs ?? [] : [], month, today, weekStartsOn)
   const label = formatLocaleDate(month, locale, { month: 'long', year: 'numeric' })
   const weekdayLabels = Array.from({ length: 7 }, (_, offset) => new Date(2025, 0, 5 + ((weekStartsOn + offset) % 7)).toLocaleDateString(locale, { weekday: 'narrow' }))
-  const words = { none: t('habits.detail.missedWord'), partial: t('habits.detail.missedWord'), full: t('habits.detail.doneWord'), notScheduled: t('habits.detail.notScheduledWord'), unavailable: t('habits.detail.unavailableWord'), future: t('habits.detail.futureWord'), of: t('habits.detail.ofWord'), today: t('habits.detail.todayWord'), selected: t('habits.detail.selectedWord'), readOnly: t('habits.detail.readOnlyWord') }
+  const words = { none: t('habits.detail.missedWord'), partial: t('habits.detail.missedWord'), full: t('habits.detail.doneWord'), notScheduled: t('habits.detail.notScheduledWord'), of: t('habits.detail.ofWord'), today: t('habits.detail.todayWord'), readOnly: t('habits.detail.readOnlyWord') }
   const changeMonth = (offset: number) => {
     monthOpacity.setValue(0)
     setMonth((value) => addMonths(value, offset))
@@ -136,7 +136,22 @@ function History({ habit, logs, today, locale, weekStartsOn, tokens }: Readonly<
               time: new Date(day.loggedAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' }),
             })
           : dateLabel
-        return <DayCell key={day.dateStr} day={day.day} outsideMonth={day.outsideMonth} today={day.today} outcome={day.outcome} label={cellLabel} words={words} habitHistory />
+        if (day.outcome === 'future' || day.outcome === 'unavailable') {
+          const outcomeWord = day.outcome === 'future' ? t('habits.detail.futureWord') : t('habits.detail.unavailableWord')
+          return (
+            <View
+              key={day.dateStr}
+              accessibilityRole="image"
+              accessibilityElementsHidden={day.outsideMonth}
+              importantForAccessibility={day.outsideMonth ? 'no-hide-descendants' : 'auto'}
+              accessibilityLabel={day.outsideMonth ? undefined : `${cellLabel}, ${outcomeWord}, ${t('habits.detail.readOnlyWord')}`}
+              style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', opacity: day.outsideMonth ? 0 : day.outcome === 'unavailable' ? 0.4 : 1 }}
+            >
+              <Text style={{ color: tokens.fg4, fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] }}>{day.day}</Text>
+            </View>
+          )
+        }
+        return <DayCell key={day.dateStr} day={day.day} done={day.outcome === 'full' ? 1 : 0} scheduled={day.outcome === 'not-scheduled' ? 0 : 1} outsideMonth={day.outsideMonth} today={day.today} label={cellLabel} words={words} habitHistory />
       })}</MonthGrid></Animated.View>
     </Surface>
   )

@@ -13,6 +13,10 @@ const state = vi.hoisted(() => ({
   rangeMap: new Map<string, CalendarDayEntry[]>(),
   monthError: null as string | null,
   monthRefresh: () => {},
+  profile: undefined as { weekStartDay: number } | undefined,
+  profileError: null as Error | null,
+  profileRefetch: vi.fn(),
+  calendarDataCalls: vi.fn(),
 }));
 
 const calendarGridProps = vi.hoisted(() => ({
@@ -30,7 +34,11 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("@/hooks/use-profile", () => ({
-  useProfile: () => ({ profile: { weekStartDay: 1 } }),
+  useProfile: () => ({
+    profile: state.profile,
+    error: state.profileError,
+    refetch: state.profileRefetch,
+  }),
 }));
 
 vi.mock("@/hooks/use-time-format", () => ({
@@ -48,13 +56,16 @@ vi.mock("@/hooks/use-horizontal-swipe", () => ({
 }));
 
 vi.mock("@/hooks/use-habits", () => ({
-  useCalendarData: () => ({
-    dayMap: new Map(),
-    isLoading: false,
-    isFetching: false,
-    error: state.monthError,
-    refresh: state.monthRefresh,
-  }),
+  useCalendarData: (month: Date) => {
+    state.calendarDataCalls(month)
+    return ({
+      dayMap: new Map(),
+      isLoading: false,
+      isFetching: false,
+      error: state.monthError,
+      refresh: state.monthRefresh,
+    })
+  },
   useCalendarRange: () => ({ dayMap: state.rangeMap }),
 }));
 
@@ -147,6 +158,10 @@ describe("CalendarScreen views (mobile)", () => {
     calendarGridProps.current = null;
     state.monthError = null;
     state.monthRefresh = () => {};
+    state.profile = { weekStartDay: 1 };
+    state.profileError = null;
+    state.profileRefetch = vi.fn();
+    state.calendarDataCalls.mockClear();
     const todayStr = formatAPIDate(new Date());
     state.rangeMap = new Map<string, CalendarDayEntry[]>([
       [
@@ -211,6 +226,38 @@ describe("CalendarScreen views (mobile)", () => {
     });
     expect(calendarGridProps.current?.selectedDay).toBe(formatAPIDate(new Date()));
     TestRenderer.act(() => headerTree.update(<></>));
+  });
+
+  it('loads calendar data concurrently while the profile resolves', () => {
+    state.profile = undefined;
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+
+    expect(state.calendarDataCalls).toHaveBeenCalledTimes(1);
+    expect(tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-unit-grid',
+    )).toHaveLength(1);
+    const gridShape = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-grid-shape',
+    )[0];
+    expect(gridShape?.props.style).toEqual(expect.arrayContaining([
+      expect.objectContaining({ width: 308, height: 264 }),
+    ]));
+  });
+
+  it('shows a retryable error when the profile request fails', () => {
+    state.profile = undefined;
+    state.profileError = new Error('profile unavailable');
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+
+    expect(hostTexts(tree)).toContain('calendar.loadError');
+    const retry = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button',
+    );
+    expect(retry).toHaveLength(1);
+    TestRenderer.act(() => { retry[0]!.props.onPress(); });
+    expect(state.profileRefetch).toHaveBeenCalledTimes(1);
   });
 
   it("switches to the week time-grid when the week tab is selected", () => {
