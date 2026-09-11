@@ -21,6 +21,7 @@ import {
   formatAPIDate,
   parseAPIDate,
   capitalizeFirstLetter,
+  CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO,
   CALENDAR_MONTH_SWIPE_THRESHOLD,
   filterRecurringDayMap,
   clampRangeToMaxDays,
@@ -303,7 +304,7 @@ function CalendarPageContent({
     const deltaX = touch.clientX - start.x
     const deltaY = touch.clientY - start.y
     if (Math.abs(deltaX) <= CALENDAR_MONTH_SWIPE_THRESHOLD) return
-    if (Math.abs(deltaX) < Math.abs(deltaY) * 1.5) return
+    if (Math.abs(deltaX) <= Math.abs(deltaY) * CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO) return
     if (deltaX < 0) {
       setCurrentMonth((m) => addMonths(m, 1))
     } else {
@@ -447,7 +448,7 @@ function CalendarPageContent({
             {view === 'range' && (
               <CalendarRangeView
                 currentMonth={currentMonth}
-                monthDayMap={dayMap}
+                monthDayMap={displayMonthDayMap}
                 rangeStart={rangeStart}
                 rangeEnd={rangeEnd}
                 onPickDay={handleRangePick}

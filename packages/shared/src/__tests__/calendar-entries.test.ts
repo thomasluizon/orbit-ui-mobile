@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO,
   CALENDAR_MONTH_SWIPE_THRESHOLD,
   filterRecurringDayMap,
   filterRecurringEntries,
@@ -40,6 +41,10 @@ describe('filterRecurringEntries', () => {
 describe('calendar month controls', () => {
   it('keeps the 60px swipe boundary readable by both platforms', () => {
     expect(CALENDAR_MONTH_SWIPE_THRESHOLD).toBe(60)
+  })
+
+  it('keeps the 1.2 horizontal direction ratio readable by both platforms', () => {
+    expect(CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO).toBeCloseTo(1.2)
   })
 
   it('filters every date before the month model derives rings and figures', () => {

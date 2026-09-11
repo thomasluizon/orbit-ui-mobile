@@ -62,7 +62,8 @@ vi.mock("@/hooks/use-horizontal-swipe", () => ({
     onSwipeRight: () => void;
     minDistance?: number;
   }) => ({
-    fire(deltaX: number) {
+    fire(deltaX: number, deltaY = 0) {
+      if (Math.abs(deltaX) <= Math.abs(deltaY) * 1.2) return;
       if (Math.abs(deltaX) <= minDistance) return;
       if (deltaX < 0) onSwipeLeft();
       else onSwipeRight();
@@ -377,7 +378,7 @@ describe("CalendarScreen views (mobile)", () => {
     expect(hostTexts(footerTree)).toContain("calendar.emptyMonth");
   });
 
-  it("pages only after a horizontal drag passes 60px, in both directions", () => {
+  it("matches web by paging a 61px by 45px drag after the 60px boundary", () => {
     let tree: Tree;
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />);
@@ -396,11 +397,11 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => swipeGesture.fire(-59));
     expect(state.calendarDataCalls).toHaveBeenCalledTimes(initialCallCount);
 
-    TestRenderer.act(() => swipeGesture.fire(-61));
+    TestRenderer.act(() => swipeGesture.fire(-61, 45));
     expect((state.calendarDataCalls.mock.calls.at(-1)?.[0] as Date).getMonth())
       .toBe((initialMonth.getMonth() + 1) % 12);
 
-    TestRenderer.act(() => swipeGesture.fire(61));
+    TestRenderer.act(() => swipeGesture.fire(61, 45));
     expect((state.calendarDataCalls.mock.calls.at(-1)?.[0] as Date).getMonth())
       .toBe(initialMonth.getMonth());
   });

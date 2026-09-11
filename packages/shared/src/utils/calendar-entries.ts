@@ -1,6 +1,7 @@
 import type { CalendarDayEntry } from '../types/calendar'
 
 export const CALENDAR_MONTH_SWIPE_THRESHOLD = 60
+export const CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO = 1.2
 
 /**
  * Filters a day's calendar entries by the "show recurring" toggle. When the

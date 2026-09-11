@@ -243,6 +243,7 @@ export {
 export type { DayPeriod, TimeParts } from './time-parts'
 export { buildYearRange } from './year-range'
 export {
+  CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO,
   CALENDAR_MONTH_SWIPE_THRESHOLD,
   filterRecurringDayMap,
   filterRecurringEntries,
