@@ -156,7 +156,7 @@ export function PlanSelection({
               </TierReservation>
             ))}
           </View>
-          <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.errorText, { color: tokens.statusBad }]}>{checkoutError}</Text>
+          <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.errorText, { color: tokens.statusBadText }]}>{checkoutError}</Text>
         </View>
       </PlanLoadMotion>
     )

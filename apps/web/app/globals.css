@@ -257,6 +257,10 @@
   color: var(--status-bad);
 }
 
+.orbit-menu-item[data-destructive] .orbit-menu-label {
+  color: var(--status-bad-text);
+}
+
 .orbit-menu-item:disabled {
   cursor: not-allowed;
   opacity: 0.4;

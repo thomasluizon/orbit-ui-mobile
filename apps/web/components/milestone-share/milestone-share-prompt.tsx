@@ -130,7 +130,7 @@ export function MilestoneSharePrompt() {
           </p>
 
           {hasError && (
-            <p role="alert" style={{ textAlign: 'center', fontSize: 14, color: 'var(--status-bad)' }}>
+            <p role="alert" style={{ textAlign: 'center', fontSize: 14, color: 'var(--status-bad-text)' }}>
               {t('milestoneShare.shareError')}
             </p>
           )}

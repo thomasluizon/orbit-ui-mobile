@@ -39,7 +39,7 @@ export function ProfileHeaderBar({ streak, error }: Readonly<ProfileHeaderBarPro
             padding: '12px 16px',
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            color: 'var(--status-bad)',
+            color: 'var(--status-bad-text)',
             textAlign: 'center',
           }}
         >

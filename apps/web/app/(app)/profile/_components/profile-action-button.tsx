@@ -12,7 +12,7 @@ interface ProfileActionButtonProps {
   showDivider?: boolean
 }
 
-/** Kit ListRow action — `tone="danger"` colors icon and label in status-bad. */
+/** Kit ListRow action: `tone="danger"` uses the graphic role for its icon and the text role for its label. */
 export function ProfileActionButton({
   label,
   onClick,
@@ -20,7 +20,8 @@ export function ProfileActionButton({
   tone = 'default',
   showDivider = true,
 }: Readonly<ProfileActionButtonProps>) {
-  const color = tone === 'danger' ? 'var(--status-bad)' : 'var(--fg-1)'
+  const iconColor = tone === 'danger' ? 'var(--status-bad)' : 'var(--fg-1)'
+  const labelColor = tone === 'danger' ? 'var(--status-bad-text)' : 'var(--fg-1)'
   return (
     <button
       type="button"
@@ -40,7 +41,7 @@ export function ProfileActionButton({
           className="inline-flex shrink-0 justify-center"
           style={{ width: 26 }}
         >
-          <LeadingIcon size={22} strokeWidth={1.8} color={color} />
+          <LeadingIcon size={22} strokeWidth={1.8} color={iconColor} />
         </span>
       )}
       <span
@@ -49,7 +50,7 @@ export function ProfileActionButton({
           fontSize: 18,
           fontWeight: 400,
           lineHeight: 1.25,
-          color,
+          color: labelColor,
         }}
       >
         {label}
