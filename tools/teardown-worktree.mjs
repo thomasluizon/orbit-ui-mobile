@@ -8,7 +8,7 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
-import { existsSync, renameSync, rmSync } from "node:fs"
+import { existsSync, lstatSync, renameSync, rmSync } from "node:fs"
 import { resolve } from "node:path"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
@@ -174,27 +174,68 @@ const listWorktrees = () => {
 }
 const isStillListed = () => listWorktrees().split("\n").some((line) => line.startsWith("worktree ") && normalize(line.slice("worktree ".length)) === normalize(path))
 
+/** A path can be replaced after Git releases the registration. Device, inode, and birth time are
+ * read before removal and again from the staged directory entry, so only the same filesystem object
+ * that passed the work-loss checks can be deleted. */
+const filesystemIdentityOf = (candidate) => {
+  const stat = lstatSync(candidate, { bigint: true })
+  return { device: stat.dev, inode: stat.ino, birthtime: stat.birthtimeNs }
+}
+const sameFilesystemIdentity = (left, right) => left.device === right.device
+  && left.inode === right.inode
+  && left.birthtime === right.birthtime
+
+let checkedIdentity
+try {
+  checkedIdentity = filesystemIdentityOf(path)
+} catch (error) {
+  fail(1, `worktree ${path} changed before Git could remove it: ${error.message}`)
+}
+
 const LOCK_REFUSAL = (reason) => `worktree ${path} is LOCKED (${reason}); git refuses to remove or prune a locked worktree, and nothing was touched`
 const removal = runGitCommon(["worktree", "remove", path])
-if (removal.status !== 0) {
-  const detail = (removal.stderr || removal.stdout || removal.error?.message || "unknown error").trim()
-  const lockReason = removal.status === 128
-    ? detail.match(/^fatal: cannot remove a locked working tree, lock reason: (.+)$/m)?.[1]
+const stillRegistered = isStillListed()
+const removalDetail = (removal.stderr || removal.stdout || removal.error?.message || "unknown error").trim()
+if (stillRegistered) {
+  const lockMatch = removal.status === 128
+    ? removalDetail.match(/^fatal: cannot remove a locked working tree(?:, lock reason: (.+)|;)$/m)
     : null
-  if (lockReason) fail(1, LOCK_REFUSAL(lockReason))
-  fail(3, `git worktree remove ${path} failed: ${detail}`)
+  if (lockMatch) fail(1, LOCK_REFUSAL(lockMatch[1] ?? "no reason given"))
+  if (removal.status !== 0) fail(3, `git worktree remove ${path} failed without deregistering it: ${removalDetail}`)
+  fail(1, `git worktree remove ${path} returned success but the worktree is still registered; nothing was touched`)
 }
 
 const removalPath = `${path}.teardown-${process.pid}-${Date.now()}`
 
 /** Git for Windows can leave junction residue after successfully deregistering a worktree. Stage
- * only that residue before deleting it, so a path recreated after the rename is never removed. */
+ * the directory entry first, then prove it is the object checked before Git ran. A recreated path
+ * is restored and refused, never deleted. */
 process.chdir(repositoryPath)
 if (existsSync(path)) {
   try {
     renameSync(path, removalPath)
   } catch (error) {
     fail(1, `Git released worktree ${path}, but the filesystem refused to stage its residue: ${error.message}`)
+  }
+  let stagedIdentity
+  try {
+    stagedIdentity = filesystemIdentityOf(removalPath)
+  } catch (error) {
+    try {
+      if (!existsSync(path)) renameSync(removalPath, path)
+    } catch (restoreError) {
+      fail(1, `Git released worktree ${path}, but the unreadable staged path remains at ${removalPath}: ${restoreError.message}`)
+    }
+    fail(1, `Git released worktree ${path}, but its staged residue could not be identified and was not removed: ${error.message}`)
+  }
+  if (!sameFilesystemIdentity(checkedIdentity, stagedIdentity)) {
+    try {
+      if (!existsSync(path)) renameSync(removalPath, path)
+    } catch (restoreError) {
+      fail(1, `Git released worktree ${path}, but unrelated content remains at ${removalPath}: ${restoreError.message}`)
+    }
+    if (existsSync(removalPath)) fail(1, `Git released worktree ${path}, but unrelated content remains at ${removalPath}; its files were NOT removed`)
+    fail(1, `${path} was replaced during teardown; its files were NOT removed`)
   }
   try {
     rmSync(removalPath, { recursive: true, force: true })

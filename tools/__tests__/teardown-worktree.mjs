@@ -13,7 +13,7 @@ let stagedConfigPath
 const check = (file, name, argv, expect, options = {}) => harnessCheck(file, name, [...argv, "--repo", "ui"], expect, { ...options, path: stagedToolPath })
 
 /** A linked child checkout is the smallest real Git fixture that can prove teardown verification. */
-const stageTeardownWorktree = (label, { base = "main", dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, localFollowUp = false, contractSwitch = false, linkedDependency = false, locked = false } = {}) => {
+const stageTeardownWorktree = (label, { base = "main", dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, localFollowUp = false, contractSwitch = false, linkedDependency = false, lockReason } = {}) => {
   const primary = join(root, "teardown", label, "primary")
   const hasTicketName = !["no-ticket-name", "unlinked-refusal"].includes(label)
   const child = join(root, "teardown", label, hasTicketName ? `ticket-124-${label}` : "child")
@@ -30,12 +30,15 @@ const stageTeardownWorktree = (label, { base = "main", dirty = false, changed = 
     if (git(primary, args).status !== 0) return null
   }
   if (contractSwitch && git(child, ["switch", "-q", "-c", BRANCH]).status !== 0) return null
-  if (locked) {
+  if (lockReason !== undefined) {
     /** node_modules is gitignored, so this file is invisible to every work-loss check the tool runs.
      * That is the point: a lock is the only thing protecting it, and teardown must honour it. */
     mkdirSync(join(child, "node_modules"), { recursive: true })
     writeFileSync(join(child, "node_modules", "locked-sentinel.txt"), LOCKED_SENTINEL)
-    if (git(primary, ["worktree", "lock", "--reason", "probe", child]).status !== 0) return null
+    const lockArgs = lockReason === null
+      ? ["worktree", "lock", child]
+      : ["worktree", "lock", "--reason", lockReason, child]
+    if (git(primary, lockArgs).status !== 0) return null
   }
   if (linkedDependency) {
     /** The sentinel is read back after teardown. Asserting only that the target DIRECTORY survives
@@ -81,6 +84,52 @@ const teardownPlan = (fixture, { pullRequests = [mergedPullRequest(fixture)], pu
   return [
   { match: `pr list --head ${BRANCH}`, stdout: pullRequestOutput ?? JSON.stringify(pullRequests), exit: pullRequestExit },
   ]
+}
+
+const gitInterleaveEnv = (environment, mode, target) => {
+  const preload = stage(
+    `teardown/git-interleave-${mode}.cjs`,
+    `const childProcess = require("node:child_process")
+const { existsSync, mkdirSync, renameSync, writeFileSync } = require("node:fs")
+const { resolve } = require("node:path")
+const { syncBuiltinESMExports } = require("node:module")
+
+const originalSpawnSync = childProcess.spawnSync
+const target = process.env.ORBIT_GIT_INTERLEAVE_TARGET
+const normalize = (value) => resolve(value).replaceAll("\\\\", "/").toLowerCase()
+childProcess.spawnSync = (command, args, options) => {
+  const worktreeIndex = args.indexOf("worktree")
+  const removesTarget = worktreeIndex !== -1
+    && args[worktreeIndex + 1] === "remove"
+    && normalize(args.at(-1)) === normalize(target)
+  if (!removesTarget) return originalSpawnSync(command, args, options)
+
+  if (process.env.ORBIT_GIT_INTERLEAVE_MODE === "fail-after-deregister") {
+    const heldPath = target + ".held-for-failed-remove"
+    renameSync(target, heldPath)
+    const result = originalSpawnSync(command, args, options)
+    renameSync(heldPath, target)
+    if (result.status !== 0) return result
+    return { ...result, status: 9, stderr: "simulated failure after Git deregistered the worktree\\n" }
+  }
+
+  const result = originalSpawnSync(command, args, options)
+  if (result.status === 0 && process.env.ORBIT_GIT_INTERLEAVE_MODE === "recreate-after-success") {
+    if (existsSync(target)) throw new Error("Git unexpectedly left the regular fixture path behind")
+    mkdirSync(target, { recursive: true })
+    writeFileSync(target + "/recreated-sentinel.txt", "recreated content must survive teardown\\n")
+  }
+  return result
+}
+syncBuiltinESMExports()
+`,
+  )
+  return {
+    ...environment,
+    NODE_OPTIONS: `${environment.NODE_OPTIONS} --require "${preload.replaceAll("\\", "/")}"`,
+    ORBIT_GIT_INTERLEAVE_MODE: mode,
+    ORBIT_GIT_INTERLEAVE_TARGET: target,
+  }
 }
 
 export const cases = () => {
@@ -209,7 +258,42 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   check(TOOL, "a dirty worktree is refused as work loss", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: (?:\?\? )?dirty\.txt/ }, { env: orcaEnv(teardownPlan(dirty)) })
   T(`${TOOL}: the dirty refusal leaves the tree in place`, existsSync(dirty.child), "the dirty fixture was removed")
 
-  const lockedTree = stageTeardownWorktree("ticket-124-locked", { changed: true, fastForwardMerged: true, locked: true })
+  const failedAfterDeregister = stageTeardownWorktree("failed-after-deregister", { changed: true, fastForwardMerged: true })
+  const failedAfterDeregisterResult = check(
+    TOOL,
+    "a failed remove that already deregistered the worktree completes residue cleanup",
+    ["--issue", "ORB-124"],
+    { status: 0, stdout: /REMOVED worktree/ },
+    { env: gitInterleaveEnv(orcaEnv(teardownPlan(failedAfterDeregister)), "fail-after-deregister", failedAfterDeregister.child) },
+  )
+  T(
+    `${TOOL}: post-deregistration failure residue is actually removed`,
+    !existsSync(failedAfterDeregister.child),
+    failedAfterDeregisterResult.stderr,
+  )
+
+  const recreatedAfterSuccess = stageTeardownWorktree("recreated-after-success", { changed: true, fastForwardMerged: true })
+  const recreatedAfterSuccessResult = check(
+    TOOL,
+    "a path recreated after Git succeeds is refused rather than deleted",
+    ["--issue", "ORB-124"],
+    { status: 1, stderr: /was replaced during teardown; its files were NOT removed/ },
+    { env: gitInterleaveEnv(orcaEnv(teardownPlan(recreatedAfterSuccess)), "recreate-after-success", recreatedAfterSuccess.child) },
+  )
+  const recreatedSentinel = (() => {
+    try {
+      return readFileSync(join(recreatedAfterSuccess.child, "recreated-sentinel.txt"), "utf8")
+    } catch (error) {
+      return `unreadable: ${error.code}`
+    }
+  })()
+  T(
+    `${TOOL}: the recreated path and its contents remain in place`,
+    recreatedSentinel === "recreated content must survive teardown\n",
+    `${recreatedAfterSuccessResult.stderr}\nrecreated sentinel: ${recreatedSentinel}`,
+  )
+
+  const lockedTree = stageTeardownWorktree("ticket-124-locked", { changed: true, fastForwardMerged: true, lockReason: "probe" })
   const lockedRemovalProbe = spawnSync("git", ["-C", lockedTree.primary, "worktree", "remove", lockedTree.child], { encoding: "utf8" })
   const lockedTrace = stage("teardown/ticket-124-locked/git-trace.log", "")
   check(TOOL, "a LOCKED worktree is refused before anything is deleted", ["--issue", "ORB-124"], { status: 1, stderr: /is LOCKED \(probe\); git refuses to remove or prune a locked worktree, and nothing was touched/ }, { env: { ...orcaEnv(teardownPlan(lockedTree)), GIT_TRACE: lockedTrace } })
@@ -229,6 +313,15 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
       && lockedTraceOutput.includes("built-in: git worktree remove")
       && lockedTraceOutput.includes(lockedTree.child.replaceAll("\\", "/").toLowerCase()),
     `probe exit=${lockedRemovalProbe.status}; tool trace=${lockedTraceOutput || "empty"}`,
+  )
+
+  const reasonlessLockedTree = stageTeardownWorktree("ticket-124-reasonless-lock", { changed: true, fastForwardMerged: true, lockReason: null })
+  check(
+    TOOL,
+    "a reasonless lock is reported as LOCKED with no reason given",
+    ["--issue", "ORB-124"],
+    { status: 1, stderr: /is LOCKED \(no reason given\); git refuses to remove or prune a locked worktree, and nothing was touched/ },
+    { env: orcaEnv(teardownPlan(reasonlessLockedTree)) },
   )
 
   const notDone = stageTeardownWorktree("not-done", { changed: true, fastForwardMerged: true, dirty: true })
