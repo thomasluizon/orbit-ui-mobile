@@ -57,7 +57,7 @@
 
 
   --primary:var(--p-orange-dark);
-  --primary-soft:var(--p-orange-text); /* @kind color */ /* accent TEXT, canvas only: 4.58:1 on canvas, 4.28:1 on a card. Never on a raised surface; there, emphasis is a weight step, not a hue */
+  --primary-soft:var(--p-orange-text); /* @kind color */ /* accent TEXT, canvas only: 4.58:1 on canvas, 4.28:1 on a card. On a raised surface use --primary-text; where accent is not deliberately rationed, emphasis on a raised surface stays a weight step rather than a hue */
   --primary-text:var(--p-orange-raised-text);
   --fg-on-primary:var(--p-on-fill);
   --primary-rgb:var(--p-orange-rgb); /* @kind color */
