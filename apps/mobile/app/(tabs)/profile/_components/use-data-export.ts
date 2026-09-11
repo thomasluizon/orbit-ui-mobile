@@ -12,6 +12,7 @@ export function useDataExport() {
   const { t } = useTranslation()
   const { isOnline } = useOffline()
   const [isExporting, setIsExporting] = useState(false)
+  const [exportDone, setExportDone] = useState(false)
   const [exportError, setExportError] = useState('')
 
   async function exportData() {
@@ -21,6 +22,7 @@ export function useDataExport() {
       return
     }
     setIsExporting(true)
+    setExportDone(false)
     setExportError('')
     try {
       const data = await apiClient<UserDataExport>(API.profile.export)
@@ -32,6 +34,7 @@ export function useDataExport() {
         title: t('dataExport.shareTitle'),
         url: file.uri,
       })
+      setExportDone(true)
     } catch {
       setExportError(t('dataExport.error'))
     } finally {
@@ -39,5 +42,11 @@ export function useDataExport() {
     }
   }
 
-  return { isExporting, exportError, exportData }
+  return {
+    isExporting,
+    exportDone,
+    exportError,
+    exportData,
+    clearExportDone: () => setExportDone(false),
+  }
 }

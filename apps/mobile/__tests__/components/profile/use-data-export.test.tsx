@@ -60,7 +60,11 @@ describe('mobile useDataExport', () => {
     expect(shareArg.url).toContain('orbit-data-export-')
     expect(shareArg.url).toContain('.json')
     expect(harness.current.isExporting).toBe(false)
+    expect(harness.current.exportDone).toBe(true)
     expect(harness.current.exportError).toBe('')
+
+    TestRenderer.act(() => harness.current.clearExportDone())
+    expect(harness.current.exportDone).toBe(false)
   })
 
   it('blocks the export and surfaces the offline error without hitting the API', async () => {
@@ -74,6 +78,7 @@ describe('mobile useDataExport', () => {
     expect(mocks.apiClient).not.toHaveBeenCalled()
     expect(mocks.share).not.toHaveBeenCalled()
     expect(harness.current.exportError).toBe('errors.offline')
+    expect(harness.current.exportDone).toBe(false)
     expect(harness.current.isExporting).toBe(false)
   })
 
@@ -87,6 +92,7 @@ describe('mobile useDataExport', () => {
 
     expect(mocks.share).not.toHaveBeenCalled()
     expect(harness.current.exportError).toBe('dataExport.error')
+    expect(harness.current.exportDone).toBe(false)
     expect(harness.current.isExporting).toBe(false)
   })
 })
