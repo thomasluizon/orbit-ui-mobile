@@ -41,7 +41,7 @@ export function createStyles(tokens: AppTokens) {
     actionRowTextDestructive: {
       fontFamily: 'Geist_400Regular',
       fontSize: 15,
-      color: tokens.statusBad,
+      color: tokens.statusBadText,
     },
   })
 }
