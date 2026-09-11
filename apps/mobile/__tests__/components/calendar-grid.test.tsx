@@ -32,7 +32,7 @@ describe('CalendarGrid (mobile)', () => {
 
   it('keeps selected and future presentation on the month-grid wrapper', () => {
     const tokens = createTokensV2('purple', 'dark')
-    let tree!: import('react-test-renderer').ReactTestRenderer
+    let tree!: ReturnType<typeof TestRenderer.create>
     TestRenderer.act(() => {
       tree = TestRenderer.create(
         <CalendarGrid
@@ -57,7 +57,7 @@ describe('CalendarGrid (mobile)', () => {
     })
 
     expect(tree.root.findByProps({ testID: 'calendar-future-day-2026-09-12' })).toBeTruthy()
-    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 12)).toHaveLength(1)
+    expect(tree.root.findAll((node: { type: unknown; props: { children?: unknown } }) => node.type === 'Text' && node.props.children === 12)).toHaveLength(1)
     const selectedSlot = tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-10' })
     expect(StyleSheet.flatten(selectedSlot.props.style as StyleProp<ViewStyle>)).toMatchObject({
       backgroundColor: tokens.primaryDim,
