@@ -8,7 +8,7 @@ const mockPush = vi.fn()
 
 let calendarIsLoading = false
 let calendarDayMap = new Map<string, CalendarDayEntry[]>()
-const mockLogHabit = vi.fn()
+const mockLogHabit = vi.fn(async () => {})
 vi.mock('react-native', async () => {
   const ReactLib = require('react')
   const reactNative = await import('../../../test-mocks/react-native')
@@ -58,7 +58,7 @@ vi.mock('@/hooks/use-habits', () => ({
     error: null,
     refresh: vi.fn(),
   }),
-  useLogHabit: () => ({ mutate: mockLogHabit }),
+  useLogHabit: () => ({ mutateAsync: mockLogHabit }),
 }))
 
 vi.mock('@/hooks/use-profile', () => ({

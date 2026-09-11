@@ -279,9 +279,9 @@ function CalendarPageContent({
   const selectedDayLoggable = selectedDay !== null
     && isCalendarDayLoggable(selectedDay, todayKey)
 
-  function changeSelectedEntry(entry: CalendarDayEntry, checked: boolean) {
-    if (!selectedDay || checked === (entry.status === 'completed')) return
-    logHabit.mutate({ habitId: entry.habitId, date: selectedDay })
+  async function changeSelectedEntry(entry: CalendarDayEntry) {
+    if (!selectedDay) return
+    await logHabit.mutateAsync({ habitId: entry.habitId, date: selectedDay })
   }
 
   const dayDetailTitle = useMemo(() => {

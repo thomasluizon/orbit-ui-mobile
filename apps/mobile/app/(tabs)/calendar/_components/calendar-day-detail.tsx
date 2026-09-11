@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
@@ -18,7 +18,7 @@ interface CalendarDayDetailProps {
   loggable: boolean
   showRecurring: boolean
   onShowRecurringChange: (value: boolean) => void
-  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => void
+  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
   onGoToDay: () => void
   displayTime: (time: string) => string
   t: TFunction
@@ -31,6 +31,13 @@ type EntryOutcome = {
 }
 
 function getEntryOutcome(entry: CalendarDayEntry, t: TFunction): EntryOutcome {
+  if (entry.status === 'upcoming') {
+    return {
+      label: t('calendar.status.upcoming'),
+      status: 'empty',
+    }
+  }
+
   const completed = entry.status === 'completed'
 
   if (entry.isBadHabit) {
@@ -44,6 +51,57 @@ function getEntryOutcome(entry: CalendarDayEntry, t: TFunction): EntryOutcome {
     label: t(completed ? 'calendar.status.completed' : 'calendar.status.missed'),
     status: completed ? 'done' : 'empty',
   }
+}
+
+function CalendarDayCheckRow({
+  entry,
+  displayTime,
+  onEntryChange,
+  t,
+}: Readonly<{
+  entry: CalendarDayEntry
+  displayTime: (time: string) => string
+  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
+  t: TFunction
+}>) {
+  const sourceChecked = entry.status === 'completed'
+  const inFlightRef = useRef(false)
+  const [optimisticChecked, setOptimisticChecked] = useState<boolean | null>(null)
+  const [isPending, setIsPending] = useState(false)
+  const checked = optimisticChecked ?? sourceChecked
+  const displayedEntry: CalendarDayEntry = optimisticChecked === null
+    ? entry
+    : { ...entry, status: optimisticChecked ? 'completed' : 'missed' }
+  const outcome = getEntryOutcome(displayedEntry, t)
+  const value = entry.dueTime
+    ? `${displayTime(entry.dueTime)} · ${outcome.label}`
+    : outcome.label
+
+  async function changeChecked(nextChecked: boolean) {
+    if (inFlightRef.current) return
+    inFlightRef.current = true
+    setOptimisticChecked(nextChecked)
+    setIsPending(true)
+
+    try {
+      await onEntryChange(entry, nextChecked)
+    } catch {
+      setOptimisticChecked(null)
+    } finally {
+      inFlightRef.current = false
+      setIsPending(false)
+    }
+  }
+
+  return (
+    <CheckRow
+      label={entry.title}
+      checked={checked}
+      value={value}
+      loading={isPending}
+      onChange={(nextChecked) => void changeChecked(nextChecked)}
+    />
+  )
 }
 
 export function CalendarDayDetail({
@@ -69,25 +127,29 @@ export function CalendarDayDetail({
 
   return (
     <View style={styles.container}>
-      {selectedEntries.length > 0 ? (
-        <View style={styles.recurringToggleRow}>
-          <ShowRecurringToggle
-            checked={showRecurring}
-            onChange={onShowRecurringChange}
-            label={t('calendar.showRecurring')}
-            tokens={tokens}
-          />
-        </View>
-      ) : null}
+      <View style={styles.copyBlock}>
+        {selectedEntries.length > 0 ? (
+          <View style={styles.recurringToggleRow}>
+            <ShowRecurringToggle
+              checked={showRecurring}
+              onChange={onShowRecurringChange}
+              label={t('calendar.showRecurring')}
+              tokens={tokens}
+            />
+          </View>
+        ) : null}
 
-      <Text style={[styles.summaryText, { color: tokens.fg3 }]}>{summary}</Text>
+        <Text style={[styles.summaryText, { color: tokens.fg3 }]}>{summary}</Text>
 
-      {filteredEntries.length === 0 ? (
-        <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
-          {t('calendar.noHabitsScheduled')}
-        </Text>
-      ) : (
-        <View style={styles.rows}>
+        {filteredEntries.length === 0 ? (
+          <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
+            {t('calendar.noHabitsScheduled')}
+          </Text>
+        ) : null}
+      </View>
+
+      {filteredEntries.length > 0 ? (
+        <View>
           {filteredEntries.map((entry) => {
             const outcome = getEntryOutcome(entry, t)
             const value = entry.dueTime
@@ -96,12 +158,12 @@ export function CalendarDayDetail({
 
             if (loggable) {
               return (
-                <CheckRow
-                  key={entry.habitId}
-                  label={entry.title}
-                  checked={entry.status === 'completed'}
-                  value={value}
-                  onChange={(checked) => onEntryChange(entry, checked)}
+                <CalendarDayCheckRow
+                  key={`${entry.habitId}:${entry.status}`}
+                  entry={entry}
+                  displayTime={displayTime}
+                  onEntryChange={onEntryChange}
+                  t={t}
                 />
               )
             }
@@ -120,17 +182,15 @@ export function CalendarDayDetail({
             )
           })}
         </View>
-      )}
+      ) : null}
 
-      <View style={styles.routeRow}>
-        <ListRow
-          icon="external-link"
-          title={t('calendar.goToDay')}
-          accessibilityLabel={t('calendar.goToDay')}
-          chevron={false}
-          onClick={onGoToDay}
-        />
-      </View>
+      <ListRow
+        icon="external-link"
+        title={t('calendar.goToDay')}
+        accessibilityLabel={t('calendar.goToDay')}
+        chevron={false}
+        onClick={onGoToDay}
+      />
     </View>
   )
 }
@@ -143,7 +203,11 @@ function createStyles(tokens: Tokens) {
       borderRadius: radius.xl,
       borderWidth: 1,
       gap: 16,
-      padding: 16,
+      paddingVertical: 16,
+    },
+    copyBlock: {
+      gap: 16,
+      paddingHorizontal: 16,
     },
     recurringToggleRow: {
       flexDirection: 'row',
@@ -161,12 +225,6 @@ function createStyles(tokens: Tokens) {
       lineHeight: 22,
       paddingVertical: 24,
       textAlign: 'center',
-    },
-    rows: {
-      marginHorizontal: -16,
-    },
-    routeRow: {
-      marginHorizontal: -16,
     },
   })
 }

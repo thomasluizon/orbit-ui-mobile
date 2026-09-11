@@ -21,10 +21,10 @@ const profileQueryState: {
   refetch: vi.fn(),
 }
 const calendarDataCalls = vi.fn()
-const logHabitMutate = vi.fn()
+const logHabitMutateAsync = vi.fn(async () => {})
 const calendarDayDetailProps: {
   loggable?: boolean
-  onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => void
+  onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
 } = {}
 
 vi.mock('next-intl', () => ({
@@ -58,7 +58,7 @@ vi.mock('@/hooks/use-calendar-data', () => ({
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
-  useLogHabit: () => ({ mutate: logHabitMutate }),
+  useLogHabit: () => ({ mutateAsync: logHabitMutateAsync }),
 }))
 
 vi.mock('@/hooks/use-time-format', () => ({
@@ -152,7 +152,7 @@ describe('CalendarPage view switcher', () => {
     profileQueryState.error = null
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()
-    logHabitMutate.mockClear()
+    logHabitMutateAsync.mockClear()
     delete calendarDayDetailProps.loggable
     delete calendarDayDetailProps.onEntryChange
   })
@@ -230,7 +230,7 @@ describe('CalendarPage view switcher', () => {
     expect(screen.getByTestId('day-detail')).toBeDefined()
   })
 
-  it('logs a selected writable day with its selected date', () => {
+  it('logs a selected writable day with its selected date', async () => {
     isWideDesktopValue = true
     render(<CalendarPage />)
 
@@ -242,10 +242,10 @@ describe('CalendarPage view switcher', () => {
       dueTime: null,
       isOneTime: false,
     }
-    calendarDayDetailProps.onEntryChange?.(entry, true)
+    await calendarDayDetailProps.onEntryChange?.(entry, true)
 
     expect(calendarDayDetailProps.loggable).toBe(true)
-    expect(logHabitMutate).toHaveBeenCalledWith({
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({
       habitId: 'habit-1',
       date: formatAPIDate(new Date()),
     })

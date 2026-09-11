@@ -407,9 +407,9 @@ function CalendarScreenContent({
   const selectedDayLoggable = selectedDay !== null
     && isCalendarDayLoggable(selectedDay, todayKey);
 
-  const changeSelectedEntry = (entry: CalendarDayEntry, checked: boolean) => {
-    if (!selectedDay || checked === (entry.status === "completed")) return;
-    logHabit.mutate({
+  const changeSelectedEntry = async (entry: CalendarDayEntry, checked: boolean) => {
+    if (!selectedDay) return;
+    await logHabit.mutateAsync({
       habitId: entry.habitId,
       date: selectedDay,
       intent: checked ? "log" : "unlog",

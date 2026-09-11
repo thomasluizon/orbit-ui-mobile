@@ -42,6 +42,7 @@ const translations: Record<string, string> = {
   'calendar.status.missed': 'not logged',
   'calendar.status.indulged': 'indulged',
   'calendar.status.resisted': 'resisted',
+  'calendar.status.upcoming': 'Upcoming',
 }
 
 const translate = ((key: string, params?: Record<string, unknown>) => {
@@ -66,12 +67,12 @@ function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry 
 function renderDetail({
   entries = [],
   loggable = false,
-  onEntryChange = () => {},
+  onEntryChange = async () => {},
   onGoToDay = () => {},
 }: {
   entries?: CalendarDayEntry[]
   loggable?: boolean
-  onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => void
+  onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
   onGoToDay?: () => void
 } = {}): Tree {
   const tokens = createTokensV2('purple', 'dark')
@@ -115,19 +116,20 @@ describe('CalendarDayDetail (mobile)', () => {
       borderColor: 'rgba(255,255,255,0.10)',
       borderRadius: 20,
       borderWidth: 1,
-      padding: 16,
+      paddingVertical: 16,
     })
   })
 
-  it('puts read-only outcomes in ListRow values and rings in the trailing slot', () => {
+  it('keeps ordinary upcoming rows distinct from completed and missed outcomes', () => {
     const tree = renderDetail({
       entries: [
         makeEntry({ title: 'Read' }),
         makeEntry({ habitId: '2', title: 'Walk', status: 'missed' }),
+        makeEntry({ habitId: '3', title: 'Swim', status: 'upcoming' }),
       ],
     })
     const rows = nodes(tree, 'ListRowMock')
-    expect(rows.slice(0, 2).map((row) => ({
+    expect(rows.slice(0, 3).map((row) => ({
       title: row.props.title,
       value: row.props.value,
       readOnly: row.props.readOnly,
@@ -135,34 +137,75 @@ describe('CalendarDayDetail (mobile)', () => {
     }))).toEqual([
       { title: 'Read', value: '08:00 · done', readOnly: true, ringStatus: 'done' },
       { title: 'Walk', value: '08:00 · not logged', readOnly: true, ringStatus: 'empty' },
+      { title: 'Swim', value: '08:00 · Upcoming', readOnly: true, ringStatus: 'empty' },
     ])
   })
 
-  it('uses avoid-habit vocabulary and ring meaning for completed and unlogged rows', () => {
+  it('keeps avoid-habit upcoming rows distinct from indulged and resisted outcomes', () => {
     const tree = renderDetail({
       entries: [
         makeEntry({ title: 'Sweets', isBadHabit: true }),
-        makeEntry({ habitId: '2', title: 'Smoking', isBadHabit: true, status: 'upcoming' }),
+        makeEntry({ habitId: '2', title: 'Smoking', isBadHabit: true, status: 'missed' }),
+        makeEntry({ habitId: '3', title: 'Beer', isBadHabit: true, status: 'upcoming' }),
       ],
     })
     const rows = nodes(tree, 'ListRowMock')
-    expect(rows.slice(0, 2).map((row) => ({
+    expect(rows.slice(0, 3).map((row) => ({
       value: row.props.value,
       ringStatus: (row.props.trailing as React.ReactElement<{ status: string }>).props.status,
     }))).toEqual([
       { value: '08:00 · indulged', ringStatus: 'bad' },
       { value: '08:00 · resisted', ringStatus: 'done' },
+      { value: '08:00 · Upcoming', ringStatus: 'empty' },
     ])
   })
 
   it('uses CheckRow on a loggable day and reports the requested state', () => {
     const entry = makeEntry({ title: 'Read' })
-    const onEntryChange = vi.fn()
+    const onEntryChange = vi.fn(async () => {})
     const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
     const row = nodes(tree, 'CheckRowMock')[0]
     expect(row?.props).toMatchObject({ label: 'Read', checked: true, value: '08:00 · done' })
     ;(row?.props.onChange as (checked: boolean) => void)(false)
     expect(onEntryChange).toHaveBeenCalledWith(entry, false)
+  })
+
+  it('controls and serializes a row toggle, then rolls it back when the write fails', async () => {
+    let rejectChange: ((reason?: unknown) => void) | undefined
+    const pendingChange = new Promise<void>((_resolve, reject) => {
+      rejectChange = reject
+    })
+    const entry = makeEntry({ title: 'Read', status: 'missed' })
+    const onEntryChange = vi.fn(() => pendingChange)
+    const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
+
+    TestRenderer.act(() => {
+      const row = nodes(tree, 'CheckRowMock')[0]
+      ;(row?.props.onChange as (checked: boolean) => void)(true)
+    })
+
+    let row = nodes(tree, 'CheckRowMock')[0]
+    expect(row?.props).toMatchObject({
+      checked: true,
+      loading: true,
+      value: '08:00 · done',
+    })
+    TestRenderer.act(() => {
+      ;(row?.props.onChange as (checked: boolean) => void)(false)
+    })
+    expect(onEntryChange).toHaveBeenCalledTimes(1)
+
+    await TestRenderer.act(async () => {
+      rejectChange?.(new Error('write failed'))
+      await pendingChange.catch(() => {})
+    })
+
+    row = nodes(tree, 'CheckRowMock')[0]
+    expect(row?.props).toMatchObject({
+      checked: false,
+      loading: false,
+      value: '08:00 · not logged',
+    })
   })
 
   it('routes the panel row through the supplied Today callback', () => {

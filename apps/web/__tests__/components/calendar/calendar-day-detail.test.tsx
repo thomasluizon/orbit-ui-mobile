@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 const translations: Record<string, string> = {
@@ -11,6 +11,7 @@ const translations: Record<string, string> = {
   'calendar.status.missed': 'not logged',
   'calendar.status.indulged': 'indulged',
   'calendar.status.resisted': 'resisted',
+  'calendar.status.upcoming': 'Upcoming',
 }
 
 vi.mock('next-intl', () => ({
@@ -55,7 +56,7 @@ interface RenderProps {
   entries?: CalendarDayEntry[]
   loggable?: boolean
   showRecurring?: boolean
-  onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => void
+  onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
   fitViewport?: boolean
 }
 
@@ -64,7 +65,7 @@ function renderDetail({
   entries = [],
   loggable = false,
   showRecurring = true,
-  onEntryChange = () => {},
+  onEntryChange = async () => {},
   fitViewport = false,
 }: RenderProps = {}) {
   return render(
@@ -102,44 +103,78 @@ describe('CalendarDayDetail', () => {
     )
   })
 
-  it('renders ordinary read-only outcomes beside the time and their rings in the row', () => {
+  it('keeps ordinary upcoming rows distinct from completed and missed outcomes', () => {
     renderDetail({
       entries: [
         makeEntry({ title: 'Read' }),
         makeEntry({ habitId: '2', title: 'Walk', dueTime: '09:00', status: 'missed' }),
+        makeEntry({ habitId: '3', title: 'Swim', dueTime: '10:00', status: 'upcoming' }),
       ],
     })
 
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     expect(screen.getByText('08:00 · done')).toBeInTheDocument()
     expect(screen.getByText('09:00 · not logged')).toBeInTheDocument()
+    expect(screen.getByText('10:00 · Upcoming')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'done' })).toHaveAttribute('data-status', 'done')
     expect(screen.getByRole('img', { name: 'not logged' })).toHaveAttribute('data-status', 'empty')
+    expect(screen.getByRole('img', { name: 'Upcoming' })).toHaveAttribute('data-status', 'empty')
   })
 
-  it('uses avoid-habit outcomes for both completed and unlogged rows', () => {
+  it('keeps avoid-habit upcoming rows distinct from indulged and resisted outcomes', () => {
     renderDetail({
       entries: [
         makeEntry({ title: 'Sweets', isBadHabit: true }),
-        makeEntry({ habitId: '2', title: 'Smoking', isBadHabit: true, status: 'upcoming' }),
+        makeEntry({ habitId: '2', title: 'Smoking', isBadHabit: true, status: 'missed' }),
+        makeEntry({ habitId: '3', title: 'Beer', isBadHabit: true, status: 'upcoming' }),
       ],
     })
 
     expect(screen.getByText('08:00 · indulged')).toBeInTheDocument()
     expect(screen.getByText('08:00 · resisted')).toBeInTheDocument()
+    expect(screen.getByText('08:00 · Upcoming')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'indulged' })).toHaveAttribute('data-status', 'bad')
     expect(screen.getByRole('img', { name: 'resisted' })).toHaveAttribute('data-status', 'done')
+    expect(screen.getByRole('img', { name: 'Upcoming' })).toHaveAttribute('data-status', 'empty')
   })
 
   it('uses check rows on loggable days and reports the requested state', () => {
     const entry = makeEntry({ title: 'Read' })
-    const onEntryChange = vi.fn()
+    const onEntryChange = vi.fn(async () => {})
     renderDetail({ entries: [entry], loggable: true, onEntryChange })
 
     const row = screen.getByRole('checkbox', { name: 'Read' })
     expect(within(row).getByText('08:00 · done')).toBeInTheDocument()
     fireEvent.click(row)
     expect(onEntryChange).toHaveBeenCalledWith(entry, false)
+  })
+
+  it('controls and serializes a row toggle, then rolls it back when the write fails', async () => {
+    let rejectChange: ((reason?: unknown) => void) | undefined
+    const pendingChange = new Promise<void>((_resolve, reject) => {
+      rejectChange = reject
+    })
+    const entry = makeEntry({ title: 'Read', status: 'missed' })
+    const onEntryChange = vi.fn(() => pendingChange)
+    renderDetail({ entries: [entry], loggable: true, onEntryChange })
+
+    const row = screen.getByRole('checkbox', { name: 'Read' })
+    fireEvent.click(row)
+
+    expect(row).toHaveAttribute('aria-checked', 'true')
+    expect(row).toBeDisabled()
+    expect(within(row).getByText('08:00 · done')).toBeInTheDocument()
+    fireEvent.click(row)
+    expect(onEntryChange).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      rejectChange?.(new Error('write failed'))
+      await pendingChange.catch(() => {})
+    })
+
+    expect(row).toHaveAttribute('aria-checked', 'false')
+    expect(row).toBeEnabled()
+    expect(within(row).getByText('08:00 · not logged')).toBeInTheDocument()
   })
 
   it('summarizes the filtered rows and keeps the no-habits line when recurring rows are hidden', () => {
