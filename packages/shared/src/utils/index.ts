@@ -421,7 +421,6 @@ export type { AgentOperationOutcome } from './agent-operation-outcomes'
 export {
   calculateXpProgress,
   deriveGamificationProfileState,
-  deriveNextRewardCarrot,
   detectCrossedStreakMilestones,
   detectGamificationMilestones,
   deriveStreakFreezeState,
@@ -435,7 +434,6 @@ export {
 export type {
   GamificationMilestoneState,
   GamificationProfileDerivedState,
-  NextRewardCarrotState,
   StreakFreezeDerivedState,
   StreakFreezeFallback,
 } from './gamification-selectors'

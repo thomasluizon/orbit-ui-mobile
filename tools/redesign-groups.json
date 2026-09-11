@@ -107,10 +107,7 @@
       "route-streak",
       "m-route-streak"
     ],
-    "R10-screen-achievements": [
-      "route-achievements",
-      "m-route-achievements"
-    ],
+    "R10-screen-achievements": [],
     "R11-screen-astra": [
       "route-ai-settings",
       "route-chat",

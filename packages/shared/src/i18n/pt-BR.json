@@ -2069,7 +2069,7 @@
         "xpLevelsTitle": "XP e níveis",
         "xpLevelsDesc": "Ganhe XP toda vez que conclui hábitos e metas e suba de nível conforme avança. Grátis para todo mundo -- sem precisar do Pro.",
         "achievementsTitle": "Conquistas e badges",
-        "achievementsDesc": "Ganhe badges de conquista por sequências, constância e marcos. Acompanhe tudo o que você ganhou na página de Conquistas, no seu Perfil.",
+        "achievementsDesc": "Ganhe badges de conquista por sequências, constância e marcos. Acompanhe tudo o que você ganhou na página Progresso.",
         "streaksTitle": "Sequências",
         "streaksDesc": "Cada hábito acompanha a sequência atual e a melhor sequência. Mantenha a corrente viva dia após dia e veja suas sequências crescerem.",
         "streakFreezeTitle": "Proteção de sequência",
@@ -2555,32 +2555,6 @@
     }
   },
   "gamification": {
-    "title": "Conquistas",
-    "profileCard": {
-      "title": "Conquistas & Nível",
-      "tileLabel": "Conquistas",
-      "hint": "Acompanhe seu progresso e ganhe conquistas",
-      "level": "Nível {level}",
-      "xp": "{current} / {next} XP",
-      "totalXp": "{total} XP",
-      "earned": "{count}/{total} conquistas"
-    },
-    "page": {
-      "lockedTitle": "Conquistas com o Pro",
-      "lockedDescription": "Assine o Pro para acompanhar seu progresso, ganhar XP e colecionar conquistas.",
-      "upgradeButton": "Assinar Pro"
-    },
-    "tile": {
-      "earned": "Conquistada · {date}"
-    },
-    "carrot": {
-      "title": "Próxima recompensa",
-      "toNextLevel": "{xp} XP para o Nível {level}",
-      "proTeaser": {
-        "title": "Incluído no Pro",
-        "achievements": "Conquistas e medalhas"
-      }
-    },
     "categories": {
       "GettingStarted": "Primeiros Passos",
       "Consistency": "Consistência",

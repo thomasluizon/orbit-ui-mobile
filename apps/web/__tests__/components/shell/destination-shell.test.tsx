@@ -317,7 +317,7 @@ describe('DestinationShell', () => {
     if (!wide) expect(screen.getByRole('button', { name: 'nav.today' })).toHaveAttribute('aria-current', 'page')
   })
 
-  it.each(['/achievements', '/retrospective', '/streak'])(
+  it.each(['/retrospective', '/streak'])(
     'selects Progresso for an absorbed route %s',
     (pathname) => {
       mocks.pathname = pathname
@@ -341,7 +341,6 @@ describe('DestinationShell', () => {
   it.each([
     '/',
     '/about',
-    '/achievements',
     '/advanced',
     '/ai-settings',
     '/calendar-sync',
