@@ -60,7 +60,7 @@ describe('CalendarGrid', () => {
       />,
     )
     expect(document.querySelectorAll('[data-outcome]')).toHaveLength(27)
-    expect(screen.getAllByRole('button')).toHaveLength(30)
+    expect(screen.getAllByRole('button')).toHaveLength(7)
   })
 
   it('calls onSelectDay when a day is clicked', () => {
@@ -74,11 +74,11 @@ describe('CalendarGrid', () => {
     )
     const juneDay = document.querySelector('[data-calendar-date="2025-06-15"]')
     expect(juneDay).toBeDefined()
-    fireEvent.click(juneDay!)
+    fireEvent.click(juneDay!.querySelector('button')!)
     expect(onSelectDay).toHaveBeenCalledWith('2025-06-15')
   })
 
-  it('keeps older days and future range endpoints selectable', () => {
+  it('rejects selections outside the seven day write window', () => {
     const onSelectDay = vi.fn()
     render(
       <CalendarGrid
@@ -89,10 +89,37 @@ describe('CalendarGrid', () => {
       />,
     )
 
-    fireEvent.click(document.querySelector('[data-calendar-date="2025-06-01"]')!)
-    fireEvent.click(document.querySelector('[data-calendar-date="2025-06-20"]')!)
-    expect(onSelectDay).toHaveBeenNthCalledWith(1, '2025-06-01')
-    expect(onSelectDay).toHaveBeenNthCalledWith(2, '2025-06-20')
+    const oldDay = document.querySelector('[data-calendar-date="2025-06-08"]')!
+    const firstLoggableDay = document.querySelector('[data-calendar-date="2025-06-09"]')!
+    const futureDay = document.querySelector('[data-calendar-date="2025-06-20"]')!
+
+    expect(oldDay.querySelector('[role="img"]')).toHaveAccessibleName(
+      expect.stringContaining('calendar.dayCell.readOnly'),
+    )
+    expect(oldDay.querySelector('button')).not.toBeInTheDocument()
+    expect(futureDay.querySelector('button')).not.toBeInTheDocument()
+    fireEvent.click(oldDay)
+    fireEvent.click(futureDay)
+    expect(onSelectDay).not.toHaveBeenCalled()
+
+    fireEvent.click(firstLoggableDay.querySelector('button')!)
+    expect(onSelectDay).toHaveBeenCalledWith('2025-06-09')
+  })
+
+  it('keeps range picking free from the write window', () => {
+    const onSelectDay = vi.fn()
+    render(
+      <CalendarGrid
+        currentMonth={currentMonth}
+        dayMap={emptyMap}
+        onSelectDay={onSelectDay}
+        interaction="range-picker"
+      />,
+    )
+
+    const futureDay = document.querySelector('[data-calendar-date="2025-06-20"]')!
+    fireEvent.click(futureDay.querySelector('button')!)
+    expect(onSelectDay).toHaveBeenCalledWith('2025-06-20')
   })
 
   it('renders same-size placeholders without completion outcomes while loading', () => {
@@ -116,7 +143,7 @@ describe('CalendarGrid', () => {
     expect(screen.getByTestId('month-grid-days')).toHaveStyle({ gap: '0px' })
     const firstRowTargets = [...document.querySelectorAll('[data-calendar-date]')].slice(0, 7)
     expect(firstRowTargets).toHaveLength(7)
-    expect(firstRowTargets.every((target) => target.parentElement?.style.width === '44px')).toBe(true)
+    expect(firstRowTargets.every((target) => (target as HTMLElement).style.width === '44px')).toBe(true)
     expect(7 * 44).toBeLessThanOrEqual(window.innerWidth - 8)
   })
 
@@ -144,15 +171,15 @@ describe('CalendarGrid', () => {
       />,
     )
 
-    const selectedButton = container.querySelector('[data-calendar-date="2025-06-15"]')
-    expect(selectedButton?.parentElement).toHaveStyle({
+    const selectedSlot = container.querySelector('[data-calendar-date="2025-06-15"]')
+    expect(selectedSlot).toHaveStyle({
       background: 'var(--selection-bg)',
       boxShadow: 'inset 0 0 0 2px var(--primary)',
     })
-    expect(selectedButton?.parentElement?.querySelector('[data-selected]')).not.toBeInTheDocument()
-    const futureSlot = container.querySelector('[data-calendar-date="2025-06-20"]')?.parentElement
+    expect(selectedSlot?.querySelector('[data-selected]')).not.toBeInTheDocument()
+    const futureSlot = container.querySelector('[data-calendar-date="2025-06-20"]')
     expect(futureSlot?.querySelector('[data-outcome]')).not.toBeInTheDocument()
-    expect(futureSlot?.querySelector('span[aria-hidden="true"] > span')).toHaveStyle({ color: 'var(--fg-2)' })
+    expect(futureSlot?.querySelector('[role="img"] > span')).toHaveStyle({ color: 'var(--fg-2)' })
   })
 
   it('derives the full outcome when all entries are complete', () => {
@@ -245,7 +272,7 @@ describe('CalendarGrid', () => {
         rangeEnd="2025-06-18"
       />,
     )
-    const endpoint = container.querySelector('[data-calendar-date="2025-06-16"]')?.parentElement
+    const endpoint = container.querySelector('[data-calendar-date="2025-06-16"]')
 
     expect(endpoint).toHaveStyle({
       background: 'var(--selection-bg)',

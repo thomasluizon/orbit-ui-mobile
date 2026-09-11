@@ -894,6 +894,7 @@
     },
     "legend": {
       "today": "Hoje",
+      "loggable": "Pode registrar",
       "done": "Feito",
       "partial": "Parcial",
       "missed": "Perdido"

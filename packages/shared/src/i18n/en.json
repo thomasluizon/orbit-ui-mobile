@@ -894,6 +894,7 @@
     },
     "legend": {
       "today": "Today",
+      "loggable": "Can log",
       "done": "Done",
       "partial": "Partial",
       "missed": "Missed"

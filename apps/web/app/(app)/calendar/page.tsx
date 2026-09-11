@@ -387,7 +387,7 @@ function CalendarPageContent({
                   </div>
 
                   <CalendarLegend
-                    todayLabel={t('calendar.legend.today')}
+                    loggableLabel={t('calendar.legend.loggable')}
                     fullLabel={t('calendar.dayCell.full')}
                     partialLabel={t('calendar.dayCell.partial')}
                     noneLabel={t('calendar.dayCell.none')}

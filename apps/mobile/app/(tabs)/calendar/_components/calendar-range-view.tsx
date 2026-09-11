@@ -86,6 +86,7 @@ export function CalendarRangeView({
         language={language}
         t={t}
         tokens={tokens}
+        interaction="range-picker"
       />
       <View style={styles.hintRow}>
         <Text

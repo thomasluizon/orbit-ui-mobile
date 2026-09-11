@@ -81,6 +81,7 @@ export function CalendarRangeView({
         rangeStart={rangeStart}
         rangeEnd={rangeEnd}
         weekStartsOn={weekStartsOn}
+        interaction="range-picker"
       />
       <div
         className="flex items-center justify-between"

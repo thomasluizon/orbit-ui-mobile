@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { canNavigateToNextDay, getDayOffset, getTodayBoundary } from '../utils/today-date'
+import {
+  canNavigateToNextDay,
+  getDayOffset,
+  getTodayBoundary,
+  isCalendarDayLoggable,
+} from '../utils/today-date'
 
 describe('Hoje date boundaries', () => {
   it('uses calendar days across month boundaries', () => {
@@ -16,5 +21,11 @@ describe('Hoje date boundaries', () => {
   it('allows the 90th day and stops after it', () => {
     expect(canNavigateToNextDay('2026-07-06', '2026-04-08')).toBe(true)
     expect(canNavigateToNextDay('2026-07-07', '2026-04-08')).toBe(false)
+  })
+
+  it('limits calendar writes to today and the six preceding calendar days', () => {
+    expect(isCalendarDayLoggable('2026-04-02', '2026-04-08')).toBe(true)
+    expect(isCalendarDayLoggable('2026-04-01', '2026-04-08')).toBe(false)
+    expect(isCalendarDayLoggable('2026-04-09', '2026-04-08')).toBe(false)
   })
 })

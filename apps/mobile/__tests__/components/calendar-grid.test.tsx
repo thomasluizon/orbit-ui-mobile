@@ -120,16 +120,91 @@ describe('CalendarGrid (mobile)', () => {
     })
 
     const tintedLayers = tree.root.findAll((node) => {
-      if (typeof node.type !== 'string' || node.props.style == null) return false
+      if (typeof node.type !== 'string' || node.props.style == null || typeof node.props.style === 'function') return false
       return StyleSheet.flatten(node.props.style).backgroundColor === tokens.selectionBg
     })
     const selectedRings = tree.root.findAll((node) => {
-      if (typeof node.type !== 'string' || node.props.style == null) return false
+      if (typeof node.type !== 'string' || node.props.style == null || typeof node.props.style === 'function') return false
       const style = StyleSheet.flatten(node.props.style)
       return style.borderColor === tokens.primary && style.borderWidth === 2
     })
 
     expect(tintedLayers).toHaveLength(1)
     expect(selectedRings).toHaveLength(1)
+  })
+
+  it('makes only the seven day write window actionable and raises its cells', () => {
+    const tokens = createTokensV2('purple', 'dark')
+    const onSelectDay = vi.fn()
+    const days = [
+      gridDay('2026-09-04'),
+      ...Array.from({ length: 7 }, (_, index) => gridDay(`2026-09-${String(index + 5).padStart(2, '0')}`)),
+      gridDay('2026-09-12'),
+    ]
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <CalendarGrid
+          gridDays={days}
+          weekdayHeaders={[{ key: 'friday', label: 'F' }]}
+          selectedDay={null}
+          isLoading={false}
+          onSelectDay={onSelectDay}
+          language="en"
+          t={(key) => key}
+          tokens={tokens}
+        />,
+      )
+    })
+
+    const buttons = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button',
+    )
+    expect(buttons).toHaveLength(7)
+    const loggableSlots = Array.from({ length: 7 }, (_, index) =>
+      tree.root.findByProps({ testID: `calendar-day-slot-2026-09-${String(index + 5).padStart(2, '0')}` }),
+    )
+    expect(loggableSlots.every((slot) => StyleSheet.flatten(slot.props.style).backgroundColor === tokens.bgWell)).toBe(true)
+
+    const readOnlyDay = tree.root.findAll(
+      (node) => node.props.testID === 'day-cell-none' &&
+        typeof node.props.accessibilityLabel === 'string' &&
+        node.props.accessibilityLabel.includes('2026-09-04'),
+    )[0]!
+    expect(readOnlyDay.props.accessibilityRole).toBe('image')
+    expect(readOnlyDay.props.accessibilityLabel).toContain('calendar.dayCell.readOnly')
+    expect(readOnlyDay.props).not.toHaveProperty('onPress')
+    expect(tree.root.findByProps({ testID: 'calendar-future-day-2026-09-12' }).props).not.toHaveProperty('onPress')
+
+    TestRenderer.act(() => buttons[0]!.props.onPress())
+    expect(onSelectDay).toHaveBeenCalledWith('2026-09-05')
+  })
+
+  it('keeps future range picks actionable without raising them as loggable days', () => {
+    const tokens = createTokensV2('purple', 'dark')
+    const onSelectDay = vi.fn()
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <CalendarGrid
+          gridDays={[gridDay('2026-09-12')]}
+          weekdayHeaders={[{ key: 'saturday', label: 'S' }]}
+          selectedDay={null}
+          isLoading={false}
+          onSelectDay={onSelectDay}
+          language="en"
+          t={(key) => key}
+          tokens={tokens}
+          interaction="range-picker"
+        />,
+      )
+    })
+
+    const button = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button',
+    )[0]!
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-12' }).props.style).backgroundColor).toBe('transparent')
+    TestRenderer.act(() => button.props.onPress())
+    expect(onSelectDay).toHaveBeenCalledWith('2026-09-12')
   })
 })
