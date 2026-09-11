@@ -1,7 +1,12 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { SaxesParser } from 'saxes'
+import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
+import {
+  PICKER_PREVIEW_FIXTURE,
+  PICKER_PREVIEW_OUTPUTS,
+} from '../../scripts/generate-widget-preview'
 
 const widgetRoot = resolve(
   process.cwd(),
@@ -36,6 +41,53 @@ function resourceStrings(relativePath: string) {
   parser.write(readFileSync(resolve(widgetRoot, relativePath), 'utf8')).close()
 
   return strings
+}
+
+function resourceColors(relativePath: string) {
+  const colors = new Map<string, string>()
+  let currentName: string | undefined
+  let currentText = ''
+  const parser = new SaxesParser()
+
+  parser.on('opentag', tag => {
+    if (tag.name === 'color') {
+      currentName = String(tag.attributes.name)
+      currentText = ''
+    }
+  })
+  parser.on('text', text => {
+    if (currentName) currentText += text
+  })
+  parser.on('closetag', tag => {
+    if (tag.name === 'color' && currentName) {
+      colors.set(currentName, currentText)
+      currentName = undefined
+    }
+  })
+  parser.write(readFileSync(resolve(widgetRoot, relativePath), 'utf8')).close()
+
+  return colors
+}
+
+function imageAreaHasColor(
+  pixels: Buffer,
+  width: number,
+  hex: string,
+  area: Readonly<{ left: number; top: number; right: number; bottom: number }>,
+) {
+  const [red, green, blue] = hex
+    .slice(1)
+    .match(/.{2}/g)
+    ?.map(channel => Number.parseInt(channel, 16)) ?? []
+  for (let y = area.top; y < area.bottom; y += 1) {
+    for (let x = area.left; x < area.right; x += 1) {
+      const offset = (y * width + x) * 4
+      if (pixels[offset] === red && pixels[offset + 1] === green && pixels[offset + 2] === blue) {
+        return true
+      }
+    }
+  }
+  return false
 }
 
 /**
@@ -507,6 +559,63 @@ describe('Android widget header', () => {
     expect.soft(provider['android:minResizeHeight']).toBe('96dp')
     expect.soft(provider['android:targetCellWidth']).toBe('4')
     expect.soft(provider['android:targetCellHeight']).toBe('2')
+  })
+
+  it('keeps a static picker preview on every supported Android version', async () => {
+    const provider = rootAttributes('xml/orbit_widget_info.xml')
+    const generator = readFileSync(resolve(process.cwd(), 'scripts/generate-widget-preview.ts'), 'utf8')
+
+    expect(provider['android:previewImage']).toBe('@drawable/widget_picker_preview')
+    expect(provider['android:previewLayout']).toBeUndefined()
+    expect(PICKER_PREVIEW_FIXTURE).toMatchObject({
+      width: 336,
+      height: 192,
+      rows: [
+        { nameKey: 'widget_preview_done_name', status: 'done' },
+        { nameKey: 'widget_preview_overdue_name', status: 'overdue' },
+        { nameKey: 'widget_preview_pending_name', status: 'pending' },
+      ],
+    })
+    expect.soft(generator).toContain('width="34" height="18" rx="8"')
+
+    const requiredCopy = PICKER_PREVIEW_FIXTURE.rows.map(row => row.nameKey)
+    for (const resourcePath of [
+      'values/widget_strings.xml',
+      'values-pt-rBR/widget_strings.xml',
+    ]) {
+      const strings = resourceStrings(resourcePath)
+      for (const name of requiredCopy) expect(strings.get(name), `${resourcePath}:${name}`).toBeTruthy()
+    }
+
+    expect(PICKER_PREVIEW_OUTPUTS.map(output => output.directory)).toEqual([
+      'drawable-xxxhdpi',
+      'drawable-night-xxxhdpi',
+      'drawable-pt-rBR-xxxhdpi',
+      'drawable-pt-rBR-night-xxxhdpi',
+    ])
+    for (const output of PICKER_PREVIEW_OUTPUTS) {
+      const previewPath = resolve(widgetRoot, output.directory, 'widget_picker_preview.png')
+      const preview = sharp(previewPath)
+      const metadata = await preview.metadata()
+      expect(metadata).toMatchObject({ format: 'png', width: 1344, height: 768 })
+
+      const { data: pixels, info } = await preview.ensureAlpha().raw().toBuffer({
+        resolveWithObject: true,
+      })
+      const colorDirectory = output.mode === 'light' ? 'values' : 'values-night'
+      const colors = resourceColors(`${colorDirectory}/widget_colors.xml`)
+      const numeralArea = { left: 225 * 4, top: 12 * 4, right: 251 * 4, bottom: 31 * 4 }
+      const unitArea = { left: 253 * 4, top: 12 * 4, right: 287 * 4, bottom: 31 * 4 }
+      const streakColor = colors.get('widget_streak_text') ?? ''
+      const unitColor = colors.get('widget_fg_3') ?? ''
+      const hairlineColor = colors.get('widget_hairline') ?? ''
+      const outerEdgeArea = { left: 100 * 4, top: 0, right: 236 * 4, bottom: 4 * 4 }
+
+      expect.soft(imageAreaHasColor(pixels, info.width, hairlineColor, outerEdgeArea)).toBe(true)
+      expect(imageAreaHasColor(pixels, info.width, streakColor, numeralArea)).toBe(true)
+      expect(imageAreaHasColor(pixels, info.width, streakColor, unitArea)).toBe(false)
+      expect(imageAreaHasColor(pixels, info.width, unitColor, unitArea)).toBe(true)
+    }
   })
 
   it('routes every post-sync header and loading mutation through the full provider render', () => {
