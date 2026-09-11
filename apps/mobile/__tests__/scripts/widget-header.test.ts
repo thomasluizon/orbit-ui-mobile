@@ -1,4 +1,5 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { SaxesParser } from 'saxes'
 import sharp from 'sharp'
@@ -16,6 +17,7 @@ const widgetSourceRoot = resolve(
   process.cwd(),
   'modules/orbit-widget/android/src/main/java/org/useorbit/app/widget',
 )
+const repositoryRoot = resolve(process.cwd(), '../..')
 
 function resourceStrings(relativePath: string) {
   const strings = new Map<string, string>()
@@ -617,6 +619,35 @@ describe('Android widget header', () => {
       expect(imageAreaHasColor(pixels, info.width, unitColor, unitArea)).toBe(true)
     }
   })
+
+  it('runs the picker preview generator and rewrites every checked-in image unchanged', () => {
+    const outputs = PICKER_PREVIEW_OUTPUTS.map(output => {
+      const file = `apps/mobile/modules/orbit-widget/android/src/main/res/${output.directory}` +
+        '/widget_picker_preview.png'
+      return { file, bytes: readFileSync(resolve(repositoryRoot, file)) }
+    })
+
+    try {
+      const run = spawnSync(
+        process.execPath,
+        [
+          resolve(repositoryRoot, 'node_modules/tsx/dist/cli.mjs'),
+          'apps/mobile/scripts/generate-widget-preview.ts',
+        ],
+        { cwd: repositoryRoot, encoding: 'utf8' },
+      )
+
+      expect(run.stderr).toBe('')
+      expect(run.status).toBe(0)
+      for (const { file, bytes } of outputs) {
+        expect(readFileSync(resolve(repositoryRoot, file)), file).toEqual(bytes)
+      }
+    } finally {
+      for (const { file, bytes } of outputs) {
+        writeFileSync(resolve(repositoryRoot, file), bytes)
+      }
+    }
+  }, 60_000)
 
   it('routes every post-sync header and loading mutation through the full provider render', () => {
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')

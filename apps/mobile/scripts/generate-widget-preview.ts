@@ -1,4 +1,5 @@
 import { mkdir, readFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
@@ -6,10 +7,22 @@ import { SaxesParser } from 'saxes'
 
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url))
 const mobileDirectory = path.resolve(scriptDirectory, '..')
+const require = createRequire(import.meta.url)
 const widgetResourceDirectory = path.join(
   mobileDirectory,
   'modules/orbit-widget/android/src/main/res',
 )
+
+const previewFontPaths = [
+  {
+    path: require.resolve('@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf'),
+    weight: 400,
+  },
+  {
+    path: require.resolve('@expo-google-fonts/geist/600SemiBold/Geist_600SemiBold.ttf'),
+    weight: 600,
+  },
+] as const
 
 type PreviewStatus = 'done' | 'overdue' | 'pending'
 type PreviewMode = 'light' | 'dark'
@@ -107,6 +120,7 @@ function previewSvg(
   strings: ReadonlyMap<string, string>,
   colors: ReadonlyMap<string, string>,
   locale: 'en' | 'pt-rBR',
+  embeddedFonts: string,
 ) {
   const fixture = PICKER_PREVIEW_FIXTURE
   const card = requiredResource(colors, 'widget_card')
@@ -148,8 +162,9 @@ function previewSvg(
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${fixture.width * 4}" ` +
     `height="${fixture.height * 4}" viewBox="0 0 ${fixture.width} ${fixture.height}">` +
-    '<defs><clipPath id="card"><rect width="336" height="192" rx="24"/></clipPath></defs>' +
-    '<g clip-path="url(#card)" font-family="Roboto,Arial,sans-serif">' +
+    `<defs><style>${embeddedFonts}</style>` +
+    '<clipPath id="card"><rect width="336" height="192" rx="24"/></clipPath></defs>' +
+    '<g clip-path="url(#card)" font-family="WidgetGeist">' +
     `<rect width="336" height="192" fill="${card}"/>` +
     `<rect x="0.5" y="0.5" width="335" height="191" rx="23.5" fill="none" ` +
     `stroke="${hairline}" stroke-width="1"/>` +
@@ -162,6 +177,18 @@ function previewSvg(
     `<path d="M319.7 16.4A8 8 0 1 0 321.8 26h-2.1a6 6 0 1 1-1.6-8.2L315 21h7v-7z" ` +
     `fill="${fg3}" transform="translate(-3 -1) scale(.82) translate(72 4)"/>` +
     `<rect y="47" width="336" height="1" fill="${hairline}"/>${rows}</g></svg>`
+}
+
+async function loadEmbeddedFonts() {
+  const faces = await Promise.all(previewFontPaths.map(async font => ({
+    bytes: await readFile(font.path),
+    weight: font.weight,
+  })))
+  return faces.map(font =>
+    '@font-face{font-family:WidgetGeist;' +
+    `src:url(data:font/ttf;base64,${font.bytes.toString('base64')}) format('truetype');` +
+    `font-style:normal;font-weight:${font.weight}}`,
+  ).join('')
 }
 
 async function loadPreviewInputs(locale: 'en' | 'pt-rBR', mode: PreviewMode) {
@@ -178,11 +205,12 @@ async function loadPreviewInputs(locale: 'en' | 'pt-rBR', mode: PreviewMode) {
 }
 
 export async function generateWidgetPreview() {
+  const embeddedFonts = await loadEmbeddedFonts()
   for (const output of PICKER_PREVIEW_OUTPUTS) {
     const { strings, colors } = await loadPreviewInputs(output.locale, output.mode)
     const outputDirectory = path.join(widgetResourceDirectory, output.directory)
     await mkdir(outputDirectory, { recursive: true })
-    await sharp(Buffer.from(previewSvg(strings, colors, output.locale)))
+    await sharp(Buffer.from(previewSvg(strings, colors, output.locale, embeddedFonts)))
       .png()
       .toFile(path.join(outputDirectory, 'widget_picker_preview.png'))
   }
