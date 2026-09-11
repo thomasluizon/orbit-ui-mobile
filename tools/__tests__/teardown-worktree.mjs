@@ -1,11 +1,12 @@
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { T, check as harnessCheck, orcaEnv, realOrchestratorConfig, root, stage, stageWithConfig } from "./_harness.mjs"
 
 const TOOL = "teardown-worktree.mjs"
 const BRANCH = "feature/orb-124-teardown"
+const JUNCTION_SENTINEL = "the junction target must survive teardown\n"
 let stagedToolPath
 let stagedConfigPath
 const check = (file, name, argv, expect, options = {}) => harnessCheck(file, name, [...argv, "--repo", "ui"], expect, { ...options, path: stagedToolPath })
@@ -29,6 +30,10 @@ const stageTeardownWorktree = (label, { base = "main", dirty = false, changed = 
   }
   if (contractSwitch && git(child, ["switch", "-q", "-c", BRANCH]).status !== 0) return null
   if (linkedDependency) {
+    /** The sentinel is read back after teardown. Asserting only that the target DIRECTORY survives
+     * passes even when removal follows the junction and empties it, which is the failure that
+     * matters: the target is the primary checkout. */
+    writeFileSync(join(primary, "junction-sentinel.txt"), JUNCTION_SENTINEL)
     const dependencyDirectory = join(child, "node_modules", "@orbit")
     mkdirSync(dependencyDirectory, { recursive: true })
     symlinkSync(primary, join(dependencyDirectory, "web"), "junction")
@@ -190,7 +195,14 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
 
   const removed = check(TOOL, "a merged, clean, Done worktree is removed and verified", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree[\s\S]*RETAINED local branch feature\/orb-124-teardown/ }, { env: orcaEnv(teardownPlan(allGood, { removePath: allGood.child })) })
   T(`${TOOL}: verified removal actually deleted the fixture`, !existsSync(allGood.child), removed.stderr)
-  T(`${TOOL}: removing a linked dependency preserves its target`, existsSync(allGood.primary), "the linked dependency target was removed")
+  const junctionSentinel = (() => {
+    try {
+      return readFileSync(join(allGood.primary, "junction-sentinel.txt"), "utf8")
+    } catch (error) {
+      return `unreadable: ${error.code}`
+    }
+  })()
+  T(`${TOOL}: removing a linked dependency preserves its target`, junctionSentinel === JUNCTION_SENTINEL, `the linked dependency target was emptied or removed: ${junctionSentinel}`)
 
   const selector = stageTeardownWorktree("selector", { changed: true, squashMerged: true })
   check(TOOL, "a path selector accepts a squash-merged tree without ancestry", ["--worktree", `path:${selector.child}`], { status: 0, stdout: /REMOVED worktree/ }, { env: orcaEnv(teardownPlan(selector, { removePath: selector.child })) })

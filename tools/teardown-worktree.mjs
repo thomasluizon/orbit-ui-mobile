@@ -164,7 +164,14 @@ const gitCommon = (args) => {
   const result = spawnSync(GIT, [`--git-dir=${commonDir}`, ...args], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
   return result.status === 0 ? result.stdout.trim() : null
 }
-const isStillListed = () => (gitCommon(["worktree", "list", "--porcelain"]) ?? "").split("\n").some((line) => line.startsWith("worktree ") && normalize(line.slice("worktree ".length)) === normalize(path))
+/** Distinguishes "git says it is gone" from "git could not be read". Collapsing the second into
+ * the first is how a teardown reports REMOVED over a registration that is still there. */
+const listWorktrees = () => {
+  const listing = gitCommon(["worktree", "list", "--porcelain"])
+  if (listing === null) fail(3, `git worktree list failed against ${commonDir}; refusing to guess whether ${path} is still registered`)
+  return listing
+}
+const isStillListed = () => listWorktrees().split("\n").some((line) => line.startsWith("worktree ") && normalize(line.slice("worktree ".length)) === normalize(path))
 const removalPath = `${path}.teardown-${process.pid}-${Date.now()}`
 
 /** Git for Windows can deregister a worktree before discovering a junction it leaves on disk.
@@ -188,19 +195,14 @@ try {
   fail(1, `filesystem refused to remove worktree ${path}; git still holds this worktree: ${error.message}`)
 }
 
-gitCommon(["worktree", "prune"])
-let stillListed = isStillListed()
-if (!stillListed && existsSync(path)) {
-  console.log(`Git has released worktree ${path}, but files remain; removing them`)
-  try {
-    rmSync(path, { recursive: true, force: true })
-  } catch (error) {
-    fail(1, `Git has released worktree ${path}, but files remain and filesystem removal failed: ${error.message}`)
-  }
-}
-stillListed = isStillListed()
-if (stillListed) fail(1, `filesystem removed worktree ${path}, but git still holds this worktree`)
-if (existsSync(path) || existsSync(removalPath)) fail(1, `Git has released worktree ${path}, but files remain`)
+if (gitCommon(["worktree", "prune"]) === null) fail(3, `git worktree prune failed against ${commonDir}; ${path} may still be registered`)
+
+/** Only the directory this run staged may be deleted. After the rename the original path is vacant,
+ * so anything standing there now was put there by something else, and removing it would destroy data
+ * this tool never checked. Report it and stop. */
+if (existsSync(path)) fail(1, `${path} was recreated during teardown; its files were NOT removed and git registration may be stale`)
+if (existsSync(removalPath)) fail(1, `Git has released worktree ${path}, but its staged files remain at ${removalPath}`)
+if (isStillListed()) fail(1, `filesystem removed worktree ${path}, but git still holds this worktree`)
 
 console.log(`REMOVED worktree ${path}`)
 console.log(`RETAINED local branch ${branch} (it may be the base of a stacked pull request)`)
