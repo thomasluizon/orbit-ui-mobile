@@ -34,27 +34,9 @@ export interface TodayDate {
   goToToday: () => void
 }
 
-export function useTodayDate(): TodayDate {
-  const { i18n } = useTranslation()
-  const router = useRouter()
-  const { date } = useLocalSearchParams<{ date?: string | string[] }>()
-  const dateParam = Array.isArray(date) ? date[0] : date
-  const pinnedDateStr = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : null
+/** The current local day as a `YYYY-MM-DD` string, advancing on day rollover. */
+export function useCurrentDate(): string {
   const [today, setToday] = useState(getTodayDate)
-  const selectedDateStr = pinnedDateStr ?? today
-  const selectedDate = useMemo(
-    () => new Date(`${selectedDateStr}T00:00:00`),
-    [selectedDateStr],
-  )
-
-  const goToPreviousDay = useCallback(() => {
-    router.push(`/?date=${formatAPIDate(subDays(selectedDate, 1))}`)
-  }, [router, selectedDate])
-  const goToNextDay = useCallback(() => {
-    if (!canNavigateToNextDay(selectedDateStr, today)) return
-    router.push(`/?date=${formatAPIDate(addDays(selectedDate, 1))}`)
-  }, [router, selectedDate, selectedDateStr, today])
-  const goToToday = useCallback(() => router.navigate('/'), [router])
 
   useEffect(() => {
     let rolloverTimer: ReturnType<typeof globalThis.setTimeout> | null = null
@@ -77,6 +59,31 @@ export function useTodayDate(): TodayDate {
       subscription.remove()
     }
   }, [])
+
+  return today
+}
+
+export function useTodayDate(): TodayDate {
+  const { i18n } = useTranslation()
+  const router = useRouter()
+  const { date } = useLocalSearchParams<{ date?: string | string[] }>()
+  const dateParam = Array.isArray(date) ? date[0] : date
+  const pinnedDateStr = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : null
+  const today = useCurrentDate()
+  const selectedDateStr = pinnedDateStr ?? today
+  const selectedDate = useMemo(
+    () => new Date(`${selectedDateStr}T00:00:00`),
+    [selectedDateStr],
+  )
+
+  const goToPreviousDay = useCallback(() => {
+    router.push(`/?date=${formatAPIDate(subDays(selectedDate, 1))}`)
+  }, [router, selectedDate])
+  const goToNextDay = useCallback(() => {
+    if (!canNavigateToNextDay(selectedDateStr, today)) return
+    router.push(`/?date=${formatAPIDate(addDays(selectedDate, 1))}`)
+  }, [router, selectedDate, selectedDateStr, today])
+  const goToToday = useCallback(() => router.navigate('/'), [router])
 
   return {
     pinnedDateStr,

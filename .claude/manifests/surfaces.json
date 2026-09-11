@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "57a3405f4ef34796dd6bd232351def58d520d8ba",
+  "generatedFrom": "66ee161d3ca74e7d67e9308843cfd3b9c2cbd054",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -14,8 +14,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 195,
-  "cellCount": 836,
+  "surfaceCount": 197,
+  "cellCount": 844,
   "cells": [
     {
       "surfaceId": "route-about",
@@ -74,6 +74,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "route-achievements",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/achievements/page.tsx",
+      "href": "/achievements",
+      "ownedFiles": [
+        "apps/web/app/(app)/achievements/page.tsx"
+      ],
+      "closureSize": 1,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-achievements",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/achievements/page.tsx",
+      "href": "/achievements",
+      "ownedFiles": [
+        "apps/web/app/(app)/achievements/page.tsx"
+      ],
+      "closureSize": 1,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "route-achievements",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/achievements/page.tsx",
+      "href": "/achievements",
+      "ownedFiles": [
+        "apps/web/app/(app)/achievements/page.tsx"
+      ],
+      "closureSize": 1,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "route-achievements",
+      "platform": "web",
+      "kind": "route",
+      "sourceFile": "apps/web/app/(app)/achievements/page.tsx",
+      "href": "/achievements",
+      "ownedFiles": [
+        "apps/web/app/(app)/achievements/page.tsx"
+      ],
+      "closureSize": 1,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "route-advanced",
       "platform": "web",
       "kind": "route",
@@ -594,7 +650,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/habits/[id]/page.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 322,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -608,7 +664,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/habits/[id]/page.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 322,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -622,7 +678,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/habits/[id]/page.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 322,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -636,7 +692,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/habits/[id]/page.tsx"
       ],
-      "closureSize": 313,
+      "closureSize": 322,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -708,7 +764,7 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
-      "closureSize": 361,
+      "closureSize": 370,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -724,7 +780,7 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
-      "closureSize": 361,
+      "closureSize": 370,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -740,7 +796,7 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
-      "closureSize": 361,
+      "closureSize": 370,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -756,7 +812,7 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
-      "closureSize": 361,
+      "closureSize": 370,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -772,7 +828,7 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
-      "closureSize": 361,
+      "closureSize": 370,
       "state": "empty",
       "theme": "light",
       "locale": "en"
@@ -788,7 +844,7 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
-      "closureSize": 361,
+      "closureSize": 370,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR"
@@ -804,7 +860,7 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
-      "closureSize": 361,
+      "closureSize": 370,
       "state": "empty",
       "theme": "dark",
       "locale": "en"
@@ -820,7 +876,7 @@
         "apps/web/app/(app)/today-page-client.tsx",
         "apps/web/components/today/today-astra.tsx"
       ],
-      "closureSize": 361,
+      "closureSize": 370,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
@@ -1174,7 +1230,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/search/page.tsx"
       ],
-      "closureSize": 299,
+      "closureSize": 308,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -1188,7 +1244,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/search/page.tsx"
       ],
-      "closureSize": 299,
+      "closureSize": 308,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -1202,7 +1258,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/search/page.tsx"
       ],
-      "closureSize": 299,
+      "closureSize": 308,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -1216,7 +1272,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/search/page.tsx"
       ],
-      "closureSize": 299,
+      "closureSize": 308,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -3706,7 +3762,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-page-view.tsx"
       ],
-      "closureSize": 355,
+      "closureSize": 364,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -3720,7 +3776,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-page-view.tsx"
       ],
-      "closureSize": 355,
+      "closureSize": 364,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -3734,7 +3790,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-page-view.tsx"
       ],
-      "closureSize": 355,
+      "closureSize": 364,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -3748,7 +3804,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-page-view.tsx"
       ],
-      "closureSize": 355,
+      "closureSize": 364,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -3762,7 +3818,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-page-view.tsx"
       ],
-      "closureSize": 355,
+      "closureSize": 364,
       "state": "empty",
       "theme": "light",
       "locale": "en"
@@ -3776,7 +3832,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-page-view.tsx"
       ],
-      "closureSize": 355,
+      "closureSize": 364,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR"
@@ -3790,7 +3846,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-page-view.tsx"
       ],
-      "closureSize": 355,
+      "closureSize": 364,
       "state": "empty",
       "theme": "dark",
       "locale": "en"
@@ -3804,7 +3860,7 @@
       "ownedFiles": [
         "apps/web/app/(app)/today-page-view.tsx"
       ],
-      "closureSize": 355,
+      "closureSize": 364,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
@@ -3973,62 +4029,6 @@
         "apps/web/components/command/command-palette.tsx"
       ],
       "closureSize": 188,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-goals-create-goal-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/create-goal-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/create-goal-modal.tsx"
-      ],
-      "closureSize": 200,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-goals-create-goal-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/create-goal-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/create-goal-modal.tsx"
-      ],
-      "closureSize": 200,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-goals-create-goal-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/create-goal-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/create-goal-modal.tsx"
-      ],
-      "closureSize": 200,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-goals-create-goal-modal",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/create-goal-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/create-goal-modal.tsx"
-      ],
-      "closureSize": 200,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -4374,6 +4374,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "overlay-habits-create-goal-from-habit-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-goal-from-habit-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-goal-from-habit-sheet.tsx"
+      ],
+      "closureSize": 200,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-create-goal-from-habit-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-goal-from-habit-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-goal-from-habit-sheet.tsx"
+      ],
+      "closureSize": 200,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-create-goal-from-habit-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-goal-from-habit-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-goal-from-habit-sheet.tsx"
+      ],
+      "closureSize": 200,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-create-goal-from-habit-sheet",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-goal-from-habit-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-goal-from-habit-sheet.tsx"
+      ],
+      "closureSize": 200,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "overlay-habits-create-habit-modal",
       "platform": "web",
       "kind": "overlay",
@@ -4382,7 +4438,7 @@
       "ownedFiles": [
         "apps/web/components/habits/create-habit-modal.tsx"
       ],
-      "closureSize": 281,
+      "closureSize": 290,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -4396,7 +4452,7 @@
       "ownedFiles": [
         "apps/web/components/habits/create-habit-modal.tsx"
       ],
-      "closureSize": 281,
+      "closureSize": 290,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -4410,7 +4466,7 @@
       "ownedFiles": [
         "apps/web/components/habits/create-habit-modal.tsx"
       ],
-      "closureSize": 281,
+      "closureSize": 290,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -4424,7 +4480,7 @@
       "ownedFiles": [
         "apps/web/components/habits/create-habit-modal.tsx"
       ],
-      "closureSize": 281,
+      "closureSize": 290,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -4494,7 +4550,7 @@
       "ownedFiles": [
         "apps/web/components/habits/edit-habit-modal.tsx"
       ],
-      "closureSize": 280,
+      "closureSize": 289,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -4508,7 +4564,7 @@
       "ownedFiles": [
         "apps/web/components/habits/edit-habit-modal.tsx"
       ],
-      "closureSize": 280,
+      "closureSize": 289,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -4522,7 +4578,7 @@
       "ownedFiles": [
         "apps/web/components/habits/edit-habit-modal.tsx"
       ],
-      "closureSize": 280,
+      "closureSize": 289,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -4536,191 +4592,219 @@
       "ownedFiles": [
         "apps/web/components/habits/edit-habit-modal.tsx"
       ],
+      "closureSize": 289,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-goal-linking-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/goal-linking-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/goal-linking-field.tsx"
+      ],
+      "closureSize": 216,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-goal-linking-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/goal-linking-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/goal-linking-field.tsx"
+      ],
+      "closureSize": 216,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-goal-linking-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/goal-linking-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/goal-linking-field.tsx"
+      ],
+      "closureSize": 216,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-goal-linking-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/goal-linking-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/goal-linking-field.tsx"
+      ],
+      "closureSize": 216,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-fields",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-fields.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-fields.tsx"
+      ],
+      "closureSize": 230,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-fields",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-fields.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-fields.tsx"
+      ],
+      "closureSize": 230,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-fields",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-fields.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-fields.tsx"
+      ],
+      "closureSize": 230,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-fields",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-fields.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-fields.tsx"
+      ],
+      "closureSize": 230,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-screen",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-screen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-screen.tsx"
+      ],
+      "closureSize": 321,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-screen",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-screen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-screen.tsx"
+      ],
+      "closureSize": 321,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-screen",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-screen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-screen.tsx"
+      ],
+      "closureSize": 321,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-detail-screen",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-detail-screen.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-detail-screen.tsx"
+      ],
+      "closureSize": 321,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-form-fields",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields.tsx"
+      ],
+      "closureSize": 280,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-form-fields",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields.tsx"
+      ],
+      "closureSize": 280,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-habits-habit-form-fields",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/habit-form-fields.tsx"
+      ],
       "closureSize": 280,
       "state": "default",
       "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-goal-linking-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/goal-linking-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/goal-linking-field.tsx"
-      ],
-      "closureSize": 170,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-goal-linking-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/goal-linking-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/goal-linking-field.tsx"
-      ],
-      "closureSize": 170,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-goal-linking-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/goal-linking-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/goal-linking-field.tsx"
-      ],
-      "closureSize": 170,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-goal-linking-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/goal-linking-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/goal-linking-field.tsx"
-      ],
-      "closureSize": 170,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-detail-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-detail-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-detail-fields.tsx"
-      ],
-      "closureSize": 215,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-detail-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-detail-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-detail-fields.tsx"
-      ],
-      "closureSize": 215,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-detail-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-detail-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-detail-fields.tsx"
-      ],
-      "closureSize": 215,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-detail-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-detail-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-detail-fields.tsx"
-      ],
-      "closureSize": 215,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-detail-screen",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-detail-screen.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-detail-screen.tsx"
-      ],
-      "closureSize": 312,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-detail-screen",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-detail-screen.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-detail-screen.tsx"
-      ],
-      "closureSize": 312,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-detail-screen",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-detail-screen.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-detail-screen.tsx"
-      ],
-      "closureSize": 312,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-detail-screen",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-detail-screen.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-detail-screen.tsx"
-      ],
-      "closureSize": 312,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-form-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields.tsx"
-      ],
-      "closureSize": 268,
-      "state": "default",
-      "theme": "light",
       "locale": "en"
     },
     {
@@ -4732,35 +4816,7 @@
       "ownedFiles": [
         "apps/web/components/habits/habit-form-fields.tsx"
       ],
-      "closureSize": 268,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-form-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields.tsx"
-      ],
-      "closureSize": 268,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-habits-habit-form-fields",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/habits/habit-form-fields.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/habits/habit-form-fields.tsx"
-      ],
-      "closureSize": 268,
+      "closureSize": 280,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -6561,7 +6617,7 @@
         "apps/mobile/hooks/use-habit-visibility.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
-      "closureSize": 364,
+      "closureSize": 372,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -6594,7 +6650,7 @@
         "apps/mobile/hooks/use-habit-visibility.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
-      "closureSize": 364,
+      "closureSize": 372,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -6627,7 +6683,7 @@
         "apps/mobile/hooks/use-habit-visibility.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
-      "closureSize": 364,
+      "closureSize": 372,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -6660,7 +6716,7 @@
         "apps/mobile/hooks/use-habit-visibility.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
-      "closureSize": 364,
+      "closureSize": 372,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -6693,7 +6749,7 @@
         "apps/mobile/hooks/use-habit-visibility.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
-      "closureSize": 364,
+      "closureSize": 372,
       "state": "empty",
       "theme": "light",
       "locale": "en"
@@ -6726,7 +6782,7 @@
         "apps/mobile/hooks/use-habit-visibility.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
-      "closureSize": 364,
+      "closureSize": 372,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR"
@@ -6759,7 +6815,7 @@
         "apps/mobile/hooks/use-habit-visibility.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
-      "closureSize": 364,
+      "closureSize": 372,
       "state": "empty",
       "theme": "dark",
       "locale": "en"
@@ -6792,7 +6848,7 @@
         "apps/mobile/hooks/use-habit-visibility.ts",
         "apps/mobile/lib/habit-selection-state.ts"
       ],
-      "closureSize": 364,
+      "closureSize": 372,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
@@ -7061,6 +7117,62 @@
         "apps/mobile/app/about.tsx"
       ],
       "closureSize": 209,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-achievements",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/achievements.tsx",
+      "href": "/achievements",
+      "ownedFiles": [
+        "apps/mobile/app/achievements.tsx"
+      ],
+      "closureSize": 1,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-achievements",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/achievements.tsx",
+      "href": "/achievements",
+      "ownedFiles": [
+        "apps/mobile/app/achievements.tsx"
+      ],
+      "closureSize": 1,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-route-achievements",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/achievements.tsx",
+      "href": "/achievements",
+      "ownedFiles": [
+        "apps/mobile/app/achievements.tsx"
+      ],
+      "closureSize": 1,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-route-achievements",
+      "platform": "mobile",
+      "kind": "route",
+      "sourceFile": "apps/mobile/app/achievements.tsx",
+      "href": "/achievements",
+      "ownedFiles": [
+        "apps/mobile/app/achievements.tsx"
+      ],
+      "closureSize": 1,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -7506,7 +7618,7 @@
       "ownedFiles": [
         "apps/mobile/app/habits/[id].tsx"
       ],
-      "closureSize": 331,
+      "closureSize": 339,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -7520,7 +7632,7 @@
       "ownedFiles": [
         "apps/mobile/app/habits/[id].tsx"
       ],
-      "closureSize": 331,
+      "closureSize": 339,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -7534,7 +7646,7 @@
       "ownedFiles": [
         "apps/mobile/app/habits/[id].tsx"
       ],
-      "closureSize": 331,
+      "closureSize": 339,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -7548,7 +7660,7 @@
       "ownedFiles": [
         "apps/mobile/app/habits/[id].tsx"
       ],
-      "closureSize": 331,
+      "closureSize": 339,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -7909,7 +8021,7 @@
         "apps/mobile/components/search/search-results.tsx",
         "apps/mobile/hooks/use-habit-search.ts"
       ],
-      "closureSize": 313,
+      "closureSize": 321,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -7926,7 +8038,7 @@
         "apps/mobile/components/search/search-results.tsx",
         "apps/mobile/hooks/use-habit-search.ts"
       ],
-      "closureSize": 313,
+      "closureSize": 321,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -7943,7 +8055,7 @@
         "apps/mobile/components/search/search-results.tsx",
         "apps/mobile/hooks/use-habit-search.ts"
       ],
-      "closureSize": 313,
+      "closureSize": 321,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -7960,7 +8072,7 @@
         "apps/mobile/components/search/search-results.tsx",
         "apps/mobile/hooks/use-habit-search.ts"
       ],
-      "closureSize": 313,
+      "closureSize": 321,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -9818,70 +9930,6 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "m-overlay-goals-create-goal-modal",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/goals/create-goal-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/goals/create-goal-modal.tsx",
-        "apps/mobile/components/goals/create-goal-modal/goal-target-fields.tsx",
-        "apps/mobile/components/goals/create-goal-modal/goal-type-selector.tsx"
-      ],
-      "closureSize": 233,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-goals-create-goal-modal",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/goals/create-goal-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/goals/create-goal-modal.tsx",
-        "apps/mobile/components/goals/create-goal-modal/goal-target-fields.tsx",
-        "apps/mobile/components/goals/create-goal-modal/goal-type-selector.tsx"
-      ],
-      "closureSize": 233,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-goals-create-goal-modal",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/goals/create-goal-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/goals/create-goal-modal.tsx",
-        "apps/mobile/components/goals/create-goal-modal/goal-target-fields.tsx",
-        "apps/mobile/components/goals/create-goal-modal/goal-type-selector.tsx"
-      ],
-      "closureSize": 233,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-goals-create-goal-modal",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/goals/create-goal-modal.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/goals/create-goal-modal.tsx",
-        "apps/mobile/components/goals/create-goal-modal/goal-target-fields.tsx",
-        "apps/mobile/components/goals/create-goal-modal/goal-type-selector.tsx"
-      ],
-      "closureSize": 233,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
       "surfaceId": "m-overlay-create-goal-modal-goal-deadline-field",
       "platform": "mobile",
       "kind": "overlay",
@@ -10274,6 +10322,62 @@
       "locale": "pt-BR"
     },
     {
+      "surfaceId": "m-overlay-habits-create-goal-from-habit-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/create-goal-from-habit-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/create-goal-from-habit-sheet.tsx"
+      ],
+      "closureSize": 233,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habits-create-goal-from-habit-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/create-goal-from-habit-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/create-goal-from-habit-sheet.tsx"
+      ],
+      "closureSize": 233,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-habits-create-goal-from-habit-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/create-goal-from-habit-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/create-goal-from-habit-sheet.tsx"
+      ],
+      "closureSize": 233,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-habits-create-goal-from-habit-sheet",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/create-goal-from-habit-sheet.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/create-goal-from-habit-sheet.tsx"
+      ],
+      "closureSize": 233,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
       "surfaceId": "m-overlay-habits-create-habit-modal",
       "platform": "mobile",
       "kind": "overlay",
@@ -10282,7 +10386,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/create-habit-modal.tsx"
       ],
-      "closureSize": 306,
+      "closureSize": 314,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -10296,7 +10400,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/create-habit-modal.tsx"
       ],
-      "closureSize": 306,
+      "closureSize": 314,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -10310,7 +10414,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/create-habit-modal.tsx"
       ],
-      "closureSize": 306,
+      "closureSize": 314,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -10324,7 +10428,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/create-habit-modal.tsx"
       ],
-      "closureSize": 306,
+      "closureSize": 314,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -10394,7 +10498,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/edit-habit-modal.tsx"
       ],
-      "closureSize": 305,
+      "closureSize": 313,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -10408,7 +10512,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/edit-habit-modal.tsx"
       ],
-      "closureSize": 305,
+      "closureSize": 313,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -10422,7 +10526,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/edit-habit-modal.tsx"
       ],
-      "closureSize": 305,
+      "closureSize": 313,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -10436,7 +10540,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/edit-habit-modal.tsx"
       ],
-      "closureSize": 305,
+      "closureSize": 313,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -10450,7 +10554,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/goal-linking-field.tsx"
       ],
-      "closureSize": 202,
+      "closureSize": 249,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -10464,7 +10568,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/goal-linking-field.tsx"
       ],
-      "closureSize": 202,
+      "closureSize": 249,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -10478,7 +10582,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/goal-linking-field.tsx"
       ],
-      "closureSize": 202,
+      "closureSize": 249,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -10492,7 +10596,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/goal-linking-field.tsx"
       ],
-      "closureSize": 202,
+      "closureSize": 249,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -10506,7 +10610,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-detail-fields.tsx"
       ],
-      "closureSize": 249,
+      "closureSize": 263,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -10520,7 +10624,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-detail-fields.tsx"
       ],
-      "closureSize": 249,
+      "closureSize": 263,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -10534,7 +10638,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-detail-fields.tsx"
       ],
-      "closureSize": 249,
+      "closureSize": 263,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -10548,7 +10652,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-detail-fields.tsx"
       ],
-      "closureSize": 249,
+      "closureSize": 263,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -10562,7 +10666,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-detail-screen.tsx"
       ],
-      "closureSize": 330,
+      "closureSize": 338,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -10576,7 +10680,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-detail-screen.tsx"
       ],
-      "closureSize": 330,
+      "closureSize": 338,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -10590,7 +10694,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-detail-screen.tsx"
       ],
-      "closureSize": 330,
+      "closureSize": 338,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -10604,7 +10708,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-detail-screen.tsx"
       ],
-      "closureSize": 330,
+      "closureSize": 338,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -10618,7 +10722,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-form-fields.tsx"
       ],
-      "closureSize": 293,
+      "closureSize": 304,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -10632,7 +10736,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-form-fields.tsx"
       ],
-      "closureSize": 293,
+      "closureSize": 304,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -10646,7 +10750,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-form-fields.tsx"
       ],
-      "closureSize": 293,
+      "closureSize": 304,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -10660,7 +10764,7 @@
       "ownedFiles": [
         "apps/mobile/components/habits/habit-form-fields.tsx"
       ],
-      "closureSize": 293,
+      "closureSize": 304,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -11914,7 +12018,7 @@
       "ownedFiles": [
         "apps/mobile/components/today/today-modals.tsx"
       ],
-      "closureSize": 314,
+      "closureSize": 322,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -11928,7 +12032,7 @@
       "ownedFiles": [
         "apps/mobile/components/today/today-modals.tsx"
       ],
-      "closureSize": 314,
+      "closureSize": 322,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -11942,7 +12046,7 @@
       "ownedFiles": [
         "apps/mobile/components/today/today-modals.tsx"
       ],
-      "closureSize": 314,
+      "closureSize": 322,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -11956,7 +12060,7 @@
       "ownedFiles": [
         "apps/mobile/components/today/today-modals.tsx"
       ],
-      "closureSize": 314,
+      "closureSize": 322,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"

@@ -68,6 +68,7 @@ import { CalendarStats } from "./calendar/_components/calendar-stats";
 import { CalendarWeekView } from "./calendar/_components/calendar-week-view";
 import { CalendarRangeView } from "./calendar/_components/calendar-range-view";
 import type { TimeGridColumn } from "./calendar/_components/calendar-time-grid";
+import { useCurrentDate } from "./use-today-date";
 
 type MonthSlide = "left" | "right" | null;
 type CalendarView = "month" | "week" | "range";
@@ -148,6 +149,7 @@ function CalendarScreenContent({
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { displayTime } = useTimeFormat();
+  const todayKey = useCurrentDate();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -452,10 +454,11 @@ function CalendarScreenContent({
         language={i18n.language}
         t={t}
         tokens={tokens}
+        todayKey={todayKey}
       />
 
       <CalendarLegend
-        todayLabel={t("calendar.legend.today")}
+        loggableLabel={t("calendar.legend.loggable")}
         fullLabel={t("calendar.dayCell.full")}
         partialLabel={t("calendar.dayCell.partial")}
         noneLabel={t("calendar.dayCell.none")}
@@ -602,6 +605,7 @@ function CalendarScreenContent({
               showRecurringLabel={t("calendar.showRecurring")}
               t={t}
               tokens={tokens}
+              todayKey={todayKey}
             />
           )}
         </ScrollView>

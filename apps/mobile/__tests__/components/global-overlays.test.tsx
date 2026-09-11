@@ -42,9 +42,6 @@ vi.mock('@/components/onboarding/calendar-import-prompt', () => ({
 vi.mock('@/components/onboarding/astra-import-prompt', () => ({
   AstraImportPrompt: 'AstraImportPrompt',
 }))
-vi.mock('@/components/goals/create-goal-modal', () => ({
-  CreateGoalModal: 'CreateGoalModal',
-}))
 vi.mock('@/components/referral/referral-prompt', () => ({
   ReferralPrompt: 'ReferralPrompt',
 }))
@@ -61,18 +58,14 @@ vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: 'ExpiryWarning
 vi.mock('@/components/ui/trial-expired-modal', () => ({
   TrialExpiredModal: 'TrialExpiredModal',
 }))
+vi.mock('@/components/goals/create-goal-modal', () => ({
+  CreateGoalModal: 'CreateGoalModal',
+}))
 vi.mock('@/components/version-update-drawer', () => ({
   VersionUpdateDrawer: 'VersionUpdateDrawer',
 }))
 vi.mock('@/components/tour/tour-provider', () => ({ TourProvider: 'TourProvider' }))
 vi.mock('@/components/tour/tour-overlay', () => ({ TourOverlay: 'TourOverlay' }))
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: Record<string, unknown>) => unknown) => selector({
-    showCreateGoalModal: false,
-    setShowCreateGoalModal: vi.fn(),
-  }),
-}))
-
 const onboardingActionsStub: OverlayLayerProps['onboardingActions'] = {
   createHabit: () => Promise.resolve({ id: '', title: '' }),
   createHabitsBulk: () => Promise.resolve(),
@@ -114,10 +107,7 @@ const ALWAYS_MOUNTED = [
   'VersionUpdateDrawer',
   'TourProvider',
   'TourOverlay',
-  'CreateGoalModal',
 ]
-
-const ROUTES_WITH_GOAL_LINKING = ['Today', 'habit detail'] as const
 
 const GAMIFICATION_OVERLAYS = [
   'MarketingConsentPrompt',
@@ -139,10 +129,10 @@ describe('OverlayLayer mount matrix', () => {
     }
   })
 
-  it.each(ROUTES_WITH_GOAL_LINKING)('keeps the create-goal host available from %s', async () => {
+  it('does not mount standalone goal creation in the global overlay layer', async () => {
     const instance = await renderLayer({ hasCompletedOnboarding: true })
 
-    expect(isMounted(instance, 'CreateGoalModal')).toBe(true)
+    expect(isMounted(instance, 'CreateGoalModal')).toBe(false)
   })
 
   it('does not mount post-onboarding prompts before onboarding completes', async () => {

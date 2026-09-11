@@ -61,6 +61,7 @@ function renderRange({ isClamped = false, isAwaitingEnd = false }: RenderOverrid
       showRecurring
       onShowRecurringChange={vi.fn()}
       weekStartsOn={1}
+      todayKey="2025-06-15"
     />,
   )
 }

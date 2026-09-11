@@ -57,12 +57,12 @@
     "R6-screen-goals": [
       "m-overlay-create-goal-modal-goal-deadline-field",
       "m-overlay-edit-goal-modal-edit-goal-deadline-field",
-      "m-overlay-goals-create-goal-modal",
+      "m-overlay-habits-create-goal-from-habit-sheet",
       "m-overlay-goals-edit-goal-modal",
       "m-overlay-goals-goal-detail-drawer",
       "overlay-create-goal-modal-goal-deadline-field",
       "overlay-edit-goal-modal-edit-goal-deadline-field",
-      "overlay-goals-create-goal-modal",
+      "overlay-habits-create-goal-from-habit-sheet",
       "overlay-goals-edit-goal-modal",
       "overlay-goals-goal-card",
       "overlay-goals-goal-detail-drawer"
@@ -191,6 +191,7 @@
       "m-route-advanced",
       "m-route-notifications",
       "m-route-preferences",
+      "m-overlay-components-profile-settings-content",
       "m-overlay-components-delete-account-modal",
       "m-overlay-components-edit-name-sheet",
       "m-overlay-components-profile-settings-content",

@@ -41,8 +41,6 @@ const mocks = vi.hoisted(() => ({
     selectedHabitIds: new Set(['habit-1']),
     showCreateModal: false,
     setShowCreateModal: vi.fn(),
-    showCreateGoalModal: false,
-    setShowCreateGoalModal: vi.fn(),
     toggleSelectMode: vi.fn(),
     selectAllHabits: vi.fn(),
     clearSelection: vi.fn(),

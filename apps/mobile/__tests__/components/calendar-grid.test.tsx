@@ -1,10 +1,17 @@
-import React from 'react'
+import React, { type ComponentProps } from 'react'
 import { StyleSheet } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CalendarMonthDay } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
-import { CalendarGrid } from '@/app/(tabs)/calendar/_components/calendar-grid'
+import { CalendarGrid as CalendarGridComponent } from '@/app/(tabs)/calendar/_components/calendar-grid'
+import { useCurrentDate } from '@/app/(tabs)/use-today-date'
+
+const todaySource = vi.hoisted(() => ({ value: '2026-09-11' }))
+
+vi.mock('@/app/(tabs)/use-today-date', () => ({
+  useCurrentDate: () => todaySource.value,
+}))
 
 interface TestNode {
   type: unknown
@@ -12,6 +19,7 @@ interface TestNode {
 }
 
 interface TestTree {
+  update(element: React.ReactNode): void
   root: {
     findByProps(props: Record<string, unknown>): TestNode
     findAll(predicate: (node: TestNode) => boolean): TestNode[]
@@ -24,6 +32,10 @@ interface TestRendererApi {
 }
 
 const TestRenderer: TestRendererApi = require('react-test-renderer')
+
+function CalendarGrid(props: Omit<ComponentProps<typeof CalendarGridComponent>, 'todayKey'>) {
+  return <CalendarGridComponent {...props} todayKey={useCurrentDate()} />
+}
 
 function gridDay(dateStr: string, completedCount = 0, totalCount = 1): CalendarMonthDay {
   const date = new Date(`${dateStr}T12:00:00`)
@@ -44,6 +56,7 @@ describe('CalendarGrid (mobile)', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-11T12:00:00'))
+    todaySource.value = '2026-09-11'
   })
 
   afterEach(() => vi.useRealTimers())
@@ -120,16 +133,158 @@ describe('CalendarGrid (mobile)', () => {
     })
 
     const tintedLayers = tree.root.findAll((node) => {
-      if (typeof node.type !== 'string' || node.props.style == null) return false
+      if (typeof node.type !== 'string' || node.props.style == null || typeof node.props.style === 'function') return false
       return StyleSheet.flatten(node.props.style).backgroundColor === tokens.selectionBg
     })
     const selectedRings = tree.root.findAll((node) => {
-      if (typeof node.type !== 'string' || node.props.style == null) return false
+      if (typeof node.type !== 'string' || node.props.style == null || typeof node.props.style === 'function') return false
       const style = StyleSheet.flatten(node.props.style)
       return style.borderColor === tokens.primary && style.borderWidth === 2
     })
 
     expect(tintedLayers).toHaveLength(1)
     expect(selectedRings).toHaveLength(1)
+  })
+
+  it('keeps read-only dates selectable without making their DayCell writable', () => {
+    const tokens = createTokensV2('purple', 'dark')
+    const onSelectDay = vi.fn()
+    const days = [
+      gridDay('2026-09-03'),
+      gridDay('2026-09-04'),
+      ...Array.from({ length: 7 }, (_, index) => gridDay(`2026-09-${String(index + 5).padStart(2, '0')}`)),
+      gridDay('2026-09-12'),
+    ]
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <CalendarGrid
+          gridDays={days}
+          weekdayHeaders={[{ key: 'friday', label: 'F' }]}
+          selectedDay={null}
+          isLoading={false}
+          onSelectDay={onSelectDay}
+          language="en"
+          t={(key) => key}
+          tokens={tokens}
+        />,
+      )
+    })
+
+    const selectionButtons = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button',
+    )
+    expect(selectionButtons).toHaveLength(days.length)
+
+    const readOnlyDay = tree.root.findAll(
+      (node) => node.props.testID === 'day-cell-none' &&
+        typeof node.props.accessibilityLabel === 'string' &&
+        node.props.accessibilityLabel.includes('2026-09-03'),
+    )[0]!
+    expect(readOnlyDay.props.accessibilityRole).toBe('image')
+    expect(readOnlyDay.props.accessibilityLabel).toContain('calendar.dayCell.readOnly')
+    expect(readOnlyDay.props).not.toHaveProperty('onPress')
+    expect(tree.root.findByProps({ testID: 'calendar-future-day-2026-09-12' }).props).not.toHaveProperty('onPress')
+
+    const oldDayPress = tree.root.findByProps({ testID: 'calendar-day-select-2026-09-03' }).props.onPress
+    const futureDayPress = tree.root.findByProps({ testID: 'calendar-day-select-2026-09-12' }).props.onPress
+    expect(tree.root.findByProps({ testID: 'calendar-day-select-2026-09-03' }).props.accessibilityLabel)
+      .toContain('calendar.dayCell.readOnly')
+    if (typeof oldDayPress !== 'function' || typeof futureDayPress !== 'function') {
+      throw new Error('Expected calendar selection controls')
+    }
+    TestRenderer.act(() => oldDayPress())
+    TestRenderer.act(() => futureDayPress())
+    expect(onSelectDay).toHaveBeenNthCalledWith(1, '2026-09-03')
+    expect(onSelectDay).toHaveBeenNthCalledWith(2, '2026-09-12')
+  })
+
+  it('moves the write window when the app today source advances', () => {
+    const tokens = createTokensV2('purple', 'dark')
+    const days = Array.from({ length: 9 }, (_, index) =>
+      gridDay(`2026-09-${String(index + 4).padStart(2, '0')}`),
+    )
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <CalendarGrid
+          gridDays={days}
+          weekdayHeaders={[{ key: 'friday', label: 'F' }]}
+          selectedDay={null}
+          isLoading={false}
+          onSelectDay={vi.fn()}
+          language="en"
+          t={(key) => key}
+          tokens={tokens}
+        />,
+      )
+    })
+
+    expect(StyleSheet.flatten(
+      tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-04' }).props.style,
+    ).backgroundColor).toBe(tokens.bgWell)
+
+    todaySource.value = '2026-09-12'
+    TestRenderer.act(() => {
+      tree.update(
+        <CalendarGrid
+          gridDays={days}
+          weekdayHeaders={[{ key: 'friday', label: 'F' }]}
+          selectedDay={null}
+          isLoading={false}
+          onSelectDay={vi.fn()}
+          language="en"
+          t={(key) => key}
+          tokens={tokens}
+        />,
+      )
+    })
+
+    expect(StyleSheet.flatten(
+      tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-04' }).props.style,
+    ).backgroundColor).toBe('transparent')
+    expect(StyleSheet.flatten(
+      tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-12' }).props.style,
+    ).backgroundColor).toBe(tokens.bgWell)
+    expect(tree.root.findByProps({ testID: 'calendar-day-select-2026-09-04' }).props.accessibilityLabel)
+      .not.toContain('calendar.dayCell.today')
+    expect(tree.root.findByProps({ testID: 'calendar-day-select-2026-09-12' }).props.accessibilityLabel)
+      .toContain('calendar.dayCell.today')
+  })
+
+  it('keeps future range picks actionable without raising them as loggable days', () => {
+    const tokens = createTokensV2('purple', 'dark')
+    const onSelectDay = vi.fn()
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <CalendarGrid
+          gridDays={[gridDay('2026-09-11'), gridDay('2026-09-12')]}
+          weekdayHeaders={[{ key: 'saturday', label: 'S' }]}
+          selectedDay={null}
+          rangeStart="2026-09-12"
+          isLoading={false}
+          onSelectDay={onSelectDay}
+          language="en"
+          t={(key) => key}
+          tokens={tokens}
+          interaction="range-picker"
+        />,
+      )
+    })
+
+    const button = tree.root.findByProps({ testID: 'calendar-day-select-2026-09-12' })
+    expect(button.props.accessibilityState).toEqual({ selected: true })
+    expect(tree.root.findByProps({ testID: 'calendar-day-select-2026-09-11' }).props.accessibilityLabel)
+      .toContain('calendar.dayCell.readOnly')
+    const selectedBackground = StyleSheet.flatten(
+      tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-12' }).props.style,
+    ).backgroundColor
+    expect(selectedBackground).toBe(tokens.selectionBg)
+    expect(selectedBackground).not.toBe(tokens.bgWell)
+    const onPress = button.props.onPress
+    if (typeof onPress !== 'function') throw new Error('Expected range endpoint button')
+    TestRenderer.act(() => onPress())
+    expect(onSelectDay).toHaveBeenCalledWith('2026-09-12')
   })
 })
