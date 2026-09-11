@@ -2440,17 +2440,10 @@
     "linkedHabits": "Hábitos Vinculados",
     "noLinkedHabits": "Nenhum hábito vinculado ainda",
     "metrics": {
-      "title": "Análise da Meta",
       "onTrack": "No Caminho",
       "atRisk": "Em Risco",
       "behind": "Atrasada",
-      "noDeadline": "Sem Prazo",
-      "projectedCompletion": "Conclusão Projetada",
-      "velocity": "Ritmo de Progresso",
-      "daysToDeadline": "Dias para o Prazo",
-      "habitAdherence": "Desempenho dos Hábitos Vinculados",
-      "noData": "Sem dados",
-      "perDay": "dia"
+      "noDeadline": "Sem Prazo"
     }
   },
   "progressScreen": {

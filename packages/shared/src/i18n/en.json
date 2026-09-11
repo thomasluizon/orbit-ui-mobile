@@ -2440,17 +2440,10 @@
     "linkedHabits": "Linked Habits",
     "noLinkedHabits": "No linked habits yet",
     "metrics": {
-      "title": "Goal Insights",
       "onTrack": "On Track",
       "atRisk": "At Risk",
       "behind": "Behind Schedule",
-      "noDeadline": "No Deadline",
-      "projectedCompletion": "Projected Completion",
-      "velocity": "Progress Rate",
-      "daysToDeadline": "Days to Deadline",
-      "habitAdherence": "Linked Habit Performance",
-      "noData": "No data",
-      "perDay": "day"
+      "noDeadline": "No Deadline"
     }
   },
   "progressScreen": {

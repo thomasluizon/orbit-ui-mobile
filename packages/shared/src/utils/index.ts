@@ -391,7 +391,6 @@ export {
 } from './goal-mutations'
 export {
   formatGoalMetricsDate,
-  getGoalHabitAdherenceTone,
   getGoalMetricsStatusPresentation,
 } from './goal-metrics'
 export { normalizeGoalQueryData } from './goal-query'
