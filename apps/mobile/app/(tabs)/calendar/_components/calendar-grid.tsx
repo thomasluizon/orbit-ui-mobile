@@ -157,7 +157,6 @@ function CalendarGridDay({
     done: cell.completedCount,
     scheduled: cell.totalCount,
     today: cell.isToday,
-    selectionTintedByParent: selected || inRange,
     outsideMonth: !cell.isCurrentMonth,
     label: format(cell.date, 'EEEE, MMM d', { locale }),
     words,
