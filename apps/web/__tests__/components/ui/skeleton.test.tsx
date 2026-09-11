@@ -67,4 +67,13 @@ describe('Skeleton', () => {
     expect(container.querySelectorAll('.skeleton-pulse').length).toBeGreaterThan(0)
     expect(container.innerHTML).not.toMatch(/gradient|shimmer|spinner/i)
   })
+
+  it('renders the requested number of settings rows as one busy region', () => {
+    const { container } = render(
+      <Skeleton variant="settings" label="Loading profile" rows={8} />,
+    )
+
+    expect(screen.getByRole('progressbar', { name: 'Loading profile' })).toBeInTheDocument()
+    expect(container.querySelectorAll('[data-settings-skeleton-row]')).toHaveLength(8)
+  })
 })

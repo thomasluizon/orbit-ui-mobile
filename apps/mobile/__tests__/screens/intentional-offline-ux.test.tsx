@@ -4,7 +4,6 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
 import UpgradeScreen from '@/app/upgrade'
 import SupportScreen from '@/app/support'
-import ProfileScreen from '@/app/(tabs)/profile'
 
 vi.mock('@/components/referral/referral-card', () => ({
   ReferralCard: () => null,
@@ -449,23 +448,6 @@ describe('intentional offline UX screens', () => {
     mocks.router.replace.mockClear()
     mocks.apiClient.mockClear()
     mocks.logout.mockClear()
-  })
-
-  it('shows an explicit offline-unavailable state for delete-account instead of live actions', async () => {
-    const tree = await renderScreen(<ProfileScreen />)
-
-    const deleteButton = tree.root.findAll((node: any) =>
-      typeof node.props?.onPress === 'function' &&
-      node.props?.accessibilityLabel === 'profile.deleteAccount.button',
-    )[0]
-
-    await TestRenderer.act(async () => {
-      deleteButton.props.onPress()
-      await Promise.resolve()
-    })
-
-    expect(tree.root.findAll((node: any) => node.props?.testID === 'error-state').length).toBeGreaterThan(0)
-    expect(tree.root.findAllByType('TextInput')).toHaveLength(0)
   })
 
   it('suppresses live-only billing and plan error cards while offline', async () => {

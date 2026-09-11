@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useRef } from 'react'
+import { useState, useMemo, useCallback, useRef, type Dispatch, type SetStateAction } from 'react'
 import {
   addMonths,
   subMonths,
@@ -31,6 +31,7 @@ import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
 import { buildCalendarMonthModel } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { Profile } from '@orbit/shared/types/profile'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 import { CalendarStats } from '@/components/calendar/calendar-stats'
@@ -43,6 +44,7 @@ import { Sheet } from '@/components/ui/sheet'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useIsDesktop, useIsWideDesktop } from '@/hooks/use-is-desktop'
 import {
   CalendarHeader,
@@ -60,22 +62,60 @@ function resolveMonthSlideClass(monthSlide: MonthSlide): string {
   return ''
 }
 
-// react-doctor-disable-next-line no-giant-component -- calendar shell hosting four distinct views (month/week/range/agenda); extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export default function CalendarPage() {
+  const t = useTranslations()
+  const { profile, error: profileError, refetch: refetchProfile } = useProfile()
+  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
+  const monthQuery = useCalendarData(currentMonth)
+
+  if (!profile) {
+    return (
+      <div style={{ padding: '16px 4px' }}>
+        {profileError ? (
+          <CalendarLoadError onRetry={() => void refetchProfile()} />
+        ) : (
+          <Skeleton variant="grid" rows={6} cols={7} cell={44} gap={0} label={t('common.loading')} />
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <CalendarPageContent
+      profile={profile}
+      currentMonth={currentMonth}
+      setCurrentMonth={setCurrentMonth}
+      monthQuery={monthQuery}
+    />
+  )
+}
+
+interface CalendarPageContentProps {
+  profile: Pick<Profile, 'weekStartDay'>
+  currentMonth: Date
+  setCurrentMonth: Dispatch<SetStateAction<Date>>
+  monthQuery: ReturnType<typeof useCalendarData>
+}
+
+// react-doctor-disable-next-line no-giant-component -- calendar shell hosting four distinct views (month/week/range/agenda); extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+function CalendarPageContent({
+  profile,
+  currentMonth,
+  setCurrentMonth,
+  monthQuery,
+}: Readonly<CalendarPageContentProps>) {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const { displayTime } = useTimeFormat()
   const { displayWeekdayDate } = useDateFormat()
-  const { profile } = useProfile()
-  const weekStartsOn: 0 | 1 = profile?.weekStartDay ?? 1
+  const weekStartsOn = profile.weekStartDay
   const isDesktop = useIsDesktop()
   const isWideDesktop = useIsWideDesktop()
 
   const [view, setView] = useState<CalendarView>('month')
   /** Agenda is desktop-width only until #56 stage 10 builds the mobile day groups. */
   const activeView: CalendarView = !isDesktop && view === 'agenda' ? 'month' : view
-  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
   const [weekAnchor, setWeekAnchor] = useState(() => new Date())
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null)
@@ -89,7 +129,7 @@ export default function CalendarPage() {
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false)
   const [showRecurring, setShowRecurring] = useState(true)
 
-  const { dayMap, isLoading, isFetching, error, refresh } = useCalendarData(currentMonth)
+  const { dayMap, isLoading, isFetching, error, refresh } = monthQuery
 
   const weekStart = useMemo(
     () => startOfWeek(weekAnchor, { weekStartsOn }),
@@ -171,22 +211,22 @@ export default function CalendarPage() {
   const prevMonth = useCallback(() => {
     setMonthSlide('left')
     setCurrentMonth((m) => subMonths(m, 1))
-  }, [])
+  }, [setCurrentMonth])
 
   const nextMonth = useCallback(() => {
     setMonthSlide('right')
     setCurrentMonth((m) => addMonths(m, 1))
-  }, [])
+  }, [setCurrentMonth])
 
   const selectYear = useCallback((year: number) => {
     setMonthSlide(null)
     setCurrentMonth((m) => startOfMonth(setYear(m, year)))
-  }, [])
+  }, [setCurrentMonth])
 
   const goToCurrentMonth = useCallback(() => {
     setMonthSlide(null)
     setCurrentMonth(startOfMonth(new Date()))
-  }, [])
+  }, [setCurrentMonth])
 
   const prevWeek = useCallback(() => {
     setWeekSlide('left')
@@ -237,8 +277,8 @@ export default function CalendarPage() {
   }, [selectedDay, displayWeekdayDate])
 
   const { monthStats } = useMemo(
-    () => buildCalendarMonthModel(currentMonth, dayMap),
-    [currentMonth, dayMap],
+    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn),
+    [currentMonth, dayMap, weekStartsOn],
   )
 
   const monthStatTiles = useMemo(
@@ -281,7 +321,7 @@ export default function CalendarPage() {
       setMonthSlide('left')
       setCurrentMonth((m) => subMonths(m, 1))
     }
-  }, [])
+  }, [setCurrentMonth])
 
   const monthSlideClass = resolveMonthSlideClass(monthSlide)
 
@@ -342,6 +382,7 @@ export default function CalendarPage() {
                       onSelectDay={openDay}
                       selectedDateStr={selectedDay}
                       isLoading={isLoading}
+                      weekStartsOn={weekStartsOn}
                     />
                   </div>
 
@@ -439,6 +480,7 @@ export default function CalendarPage() {
                 nowLabel={t('calendar.timeGrid.now')}
                 showRecurring={showRecurring}
                 onShowRecurringChange={setShowRecurring}
+                weekStartsOn={weekStartsOn}
               />
             )}
 

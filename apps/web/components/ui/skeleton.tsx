@@ -15,15 +15,23 @@ function HabitRowSkeleton() {
   )
 }
 
-function SettingsSkeleton() {
+function SettingsSkeleton({ rows = 1 }: Readonly<{ rows?: number }>) {
   return (
-    <div className="flex h-[52px] items-center gap-3 px-4">
-      <span className={`${blockClass} size-6 shrink-0`} />
-      <span className="flex flex-1 flex-col gap-2">
-        <span className={`${blockClass} h-4 w-1/2`} />
-        <span className={`${blockClass} h-3 w-2/3`} />
-      </span>
-      <span className={`${blockClass} h-4 w-12 shrink-0`} />
+    <div>
+      {Array.from({ length: rows }, (_, index) => (
+        <div
+          key={index}
+          data-settings-skeleton-row
+          className="flex h-[52px] items-center gap-3 px-4"
+        >
+          <span className={`${blockClass} size-6 shrink-0`} />
+          <span className="flex flex-1 flex-col gap-2">
+            <span className={`${blockClass} h-4 w-1/2`} />
+            <span className={`${blockClass} h-3 w-2/3`} />
+          </span>
+          <span className={`${blockClass} h-4 w-12 shrink-0`} />
+        </div>
+      ))}
     </div>
   )
 }
@@ -70,7 +78,7 @@ export function Skeleton(props: Readonly<SkeletonProps>) {
       className="w-full"
     >
       {props.variant === 'habit-row' ? <HabitRowSkeleton /> : null}
-      {props.variant === 'settings' ? <SettingsSkeleton /> : null}
+      {props.variant === 'settings' ? <SettingsSkeleton rows={props.rows} /> : null}
       {props.variant === 'stat-tile' ? <StatTileSkeleton /> : null}
       {props.variant === 'grid' ? <GridSkeleton {...props} /> : null}
     </div>

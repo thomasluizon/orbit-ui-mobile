@@ -15,4 +15,6 @@
   <string name="widget_status_done">Concluído</string>
   <string name="widget_status_overdue">Atrasado</string>
   <string name="widget_status_pending">Não concluído</string>
+  <string name="widget_more">mais %1$d</string>
+  <string name="widget_more_description">Mais %1$d hábitos não são exibidos.</string>
 </resources>

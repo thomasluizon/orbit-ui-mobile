@@ -174,7 +174,6 @@ export {
   FRESH_START_PRESERVED_ITEM_KEYS,
   buildSupportRequestBody,
   PROFILE_NAV_ITEMS,
-  isProfileNavItemLocked,
   shouldRedirectProfileNavItem,
   buildCalendarAutoSyncImportRequest,
   formatCalendarAutoSyncLastSynced,

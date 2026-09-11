@@ -1300,6 +1300,30 @@
     }
   },
   "profile": {
+    "groups": {
+      "you": "Você",
+      "astra": "Astra",
+      "notifications": "Notificações",
+      "more": "Mais do Orbit",
+      "ending": "Encerrar"
+    },
+    "settingsRows": {
+      "editName": "Editar nome: {name}, {email}",
+      "timezone": "Fuso horário",
+      "timezoneValue": "Fuso horário: {timeZone}",
+      "dailyAllowance": "Cota diária da Astra",
+      "apiKeysMcp": "Chaves de API e MCP",
+      "reminders": "Lembretes dos hábitos",
+      "remindersNote": "Lembretes e alertas de deslize são configurados em cada hábito.",
+      "currentDevice": "Este aparelho",
+      "pushDeviceLimit": "Até 5 aparelhos podem receber avisos."
+    },
+    "timezonePicker": {
+      "search": "Buscar fusos horários",
+      "noResults": "Nenhum fuso horário encontrado",
+      "showMore": "Mostrar mais fusos horários"
+    },
+    "loading": "Carregando perfil",
     "sections": {
       "account": "Conta",
       "preferences": "Preferências",
@@ -1336,7 +1360,11 @@
     },
     "marketingEmails": {
       "title": "Novidades do produto por e-mail",
-      "description": "Receba e-mails ocasionais sobre novos recursos e melhorias do Orbit. Sem spam, cancele quando quiser."
+      "description": "Receba e-mails ocasionais sobre novos recursos e melhorias do Orbit. Sem spam, cancele quando quiser.",
+      "question": "Podemos mandar e-mail sobre o produto?",
+      "questionDescription": "Novidades e mudanças, no máximo uma vez por mês.",
+      "accept": "Pode mandar",
+      "decline": "Não mandar"
     },
     "support": {
       "title": "Suporte",

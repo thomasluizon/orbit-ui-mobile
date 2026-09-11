@@ -10,6 +10,7 @@ export interface ListRowAction {
 export interface ListRowBase {
   icon?: string | ReactNode
   title: string
+  accessibilityLabel?: string
   description?: string
   value?: string
   trailing?: ReactNode

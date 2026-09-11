@@ -12,6 +12,12 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
+let uses24HourClock: boolean | undefined = true
+
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: uses24HourClock === undefined ? undefined : { uses24HourClock } }),
+}))
+
 async function renderUseTimeFormat(): Promise<ReturnType<typeof useTimeFormat>> {
   const latestValueHolder: { current: ReturnType<typeof useTimeFormat> | null } =
     { current: null }
@@ -34,10 +40,25 @@ async function renderUseTimeFormat(): Promise<ReturnType<typeof useTimeFormat>> 
 }
 
 describe('mobile useTimeFormat', () => {
-  it('formats time using the active locale', async () => {
+  it.each([
+    [true, 'h23'],
+    [false, 'h12'],
+  ] as const)('formats time using the server-resolved clock setting %s', async (uses24Hour, hourCycle) => {
+    uses24HourClock = uses24Hour
     const result = await renderUseTimeFormat()
 
-    expect(result.displayTime('14:30')).toBe(formatLocaleTime('14:30', 'en'))
+    expect(result.displayTime('14:30')).toBe(
+      formatLocaleTime('14:30', 'en', { hour: 'numeric', minute: '2-digit', hourCycle }),
+    )
+  })
+
+  it('uses locale formatting without deleting the time before the profile resolves', async () => {
+    uses24HourClock = undefined
+    const result = await renderUseTimeFormat()
+
+    expect(result.displayTime('14:30')).toBe(
+      formatLocaleTime('14:30', 'en', { hour: 'numeric', minute: '2-digit' }),
+    )
   })
 
   it('returns an empty string for missing values', async () => {

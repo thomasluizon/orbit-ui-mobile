@@ -116,7 +116,7 @@ export function RadioRow({
       <RadioGlyph selected={selected} size={24} tokens={tokens} />
       <Text
         style={[styles.radioLabel, { color: tokens.fg1 }]}
-        numberOfLines={1}
+        numberOfLines={2}
       >
         {label}
       </Text>

@@ -125,7 +125,7 @@ function HistorySection({ habit, logs, today, locale, weekStartsOn }: Readonly<{
     const base = new Date(2025, 0, 5 + sundayIndex)
     return base.toLocaleDateString(locale, { weekday: 'narrow' })
   })
-  const words = { none: t('missedWord'), partial: t('missedWord'), full: t('doneWord'), notScheduled: t('notScheduledWord'), unavailable: t('unavailableWord'), future: t('futureWord'), of: t('ofWord'), today: t('todayWord'), selected: t('selectedWord'), readOnly: t('readOnlyWord') }
+  const words = { none: t('missedWord'), partial: t('missedWord'), full: t('doneWord'), notScheduled: t('notScheduledWord'), of: t('ofWord'), today: t('todayWord'), readOnly: t('readOnlyWord') }
   const changeMonth = (offset: number) => {
     setMonth((value) => addMonths(value, offset))
     setMonthRevision((value) => value + 1)
@@ -148,7 +148,22 @@ function HistorySection({ habit, logs, today, locale, weekStartsOn }: Readonly<{
                 time: new Date(day.loggedAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' }),
               })
             : dateLabel
-          return <DayCell key={day.dateStr} day={day.day} outsideMonth={day.outsideMonth} today={day.today} outcome={day.outcome} label={label} words={words} habitHistory />
+          if (day.outcome === 'future' || day.outcome === 'unavailable') {
+            const outcomeWord = day.outcome === 'future' ? t('futureWord') : t('unavailableWord')
+            return (
+              <span
+                key={day.dateStr}
+                role="img"
+                aria-hidden={day.outsideMonth || undefined}
+                aria-label={day.outsideMonth ? undefined : `${label}, ${outcomeWord}, ${t('readOnlyWord')}`}
+                className="inline-flex h-11 w-11 items-center justify-center font-[var(--font-mono)] text-sm tabular-nums text-[var(--fg-4)]"
+                style={{ opacity: day.outsideMonth ? 0 : day.outcome === 'unavailable' ? 0.4 : 1 }}
+              >
+                {day.day}
+              </span>
+            )
+          }
+          return <DayCell key={day.dateStr} day={day.day} done={day.outcome === 'full' ? 1 : 0} scheduled={day.outcome === 'not-scheduled' ? 0 : 1} outsideMonth={day.outsideMonth} today={day.today} label={label} words={words} habitHistory />
         })}
       </MonthGrid></div>
     </Surface>

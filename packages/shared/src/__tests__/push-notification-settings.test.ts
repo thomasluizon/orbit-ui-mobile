@@ -14,7 +14,7 @@ describe('push notification settings presenters', () => {
   it('maps web push statuses to shared tone classes', () => {
     expect(getPushStatusToneClass(getWebPushStatusTone('denied'))).toBe('text-[var(--status-bad-text)]')
     expect(getPushStatusToneClass(getWebPushStatusTone('sync-failed'))).toBe('text-[var(--status-bad-text)]')
-    expect(getPushStatusToneClass(getWebPushStatusTone('registered'))).toBe('text-[var(--primary-soft)]')
+    expect(getPushStatusToneClass(getWebPushStatusTone('registered'))).toBe('text-[var(--fg-3)]')
     expect(getPushStatusToneClass(getWebPushStatusTone('not-registered'))).toBe('text-[var(--fg-3)]')
   })
 
@@ -40,7 +40,7 @@ describe('push notification settings presenters', () => {
   it('builds a complete web push presentation snapshot', () => {
     expect(getWebPushStatusPresentation('registered', 'granted')).toEqual({
       messageKey: 'settings.notifications.registered',
-      tone: 'accent',
+      tone: 'muted',
     })
   })
 

@@ -32,16 +32,6 @@ const BAD_TEXT_SOURCE_SITES = [
     pattern: /repair\.isError[\s\S]*?text-\[var\(--status-bad-text\)\]/,
   },
   {
-    name: 'web profile action label',
-    path: 'apps/web/app/(app)/profile/_components/profile-action-button.tsx',
-    pattern: /const labelColor = tone === 'danger' \? 'var\(--status-bad-text\)'/,
-  },
-  {
-    name: 'web profile header error',
-    path: 'apps/web/app/(app)/profile/_components/profile-header-bar.tsx',
-    pattern: /\{error && \([\s\S]*?color: 'var\(--status-bad-text\)'/,
-  },
-  {
     name: 'web failed block status label',
     path: 'apps/web/components/ui/block-frame.tsx',
     pattern: /const labelColor = status === 'failed' \? 'var\(--status-bad-text\)'/,
@@ -100,11 +90,6 @@ const BAD_TEXT_SOURCE_SITES = [
     name: 'web conversation send error',
     path: 'apps/web/components/chat/conversation.tsx',
     pattern: /sendError[\s\S]*?text-\[var\(--status-bad-text\)\]/,
-  },
-  {
-    name: 'mobile profile action label',
-    path: 'apps/mobile/app/(tabs)/profile/_components/profile-action-button.tsx',
-    pattern: /const labelColor = tone === 'danger' \? tokens\.statusBadText/,
   },
   {
     name: 'mobile conversation send error',
@@ -198,7 +183,6 @@ const BAD_FILL_SOURCE_COUNTS = {
   'apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx': 1,
   'apps/mobile/app/(tabs)/profile/_components/delete-account-modal.tsx': 2,
   'apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx': 1,
-  'apps/mobile/app/(tabs)/profile/_components/profile-action-button.tsx': 1,
   'apps/mobile/app/calendar-sync.tsx': 2,
   'apps/mobile/components/chat/conflict-warning.tsx': 3,
   'apps/mobile/components/goals/goal-detail-drawer.tsx': 1,
@@ -225,7 +209,6 @@ const BAD_FILL_SOURCE_COUNTS = {
   'apps/web/app/(app)/calendar-sync/page.tsx': 2,
   'apps/web/app/(app)/profile/_components/delete-account-modal.tsx': 2,
   'apps/web/app/(app)/profile/_components/fresh-start-modal.tsx': 1,
-  'apps/web/app/(app)/profile/_components/profile-action-button.tsx': 1,
   'apps/web/app/(app)/support/_components/support-field.tsx': 1,
   'apps/web/app/globals.css': 5,
   'apps/web/components/calendar/calendar-agenda-view.tsx': 1,

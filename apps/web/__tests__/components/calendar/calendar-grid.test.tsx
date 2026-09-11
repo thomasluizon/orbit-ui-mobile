@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import type { ComponentProps } from 'react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -18,8 +19,12 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { weekStartDay: 1 } }),
 }))
 
-import { CalendarGrid } from '@/components/calendar/calendar-grid'
+import { CalendarGrid as CalendarGridComponent } from '@/components/calendar/calendar-grid'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+
+function CalendarGrid(props: Omit<ComponentProps<typeof CalendarGridComponent>, 'weekStartsOn'>) {
+  return <CalendarGridComponent {...props} weekStartsOn={1} />
+}
 
 describe('CalendarGrid', () => {
   const currentMonth = new Date(2025, 5, 1)
@@ -54,7 +59,7 @@ describe('CalendarGrid', () => {
         onSelectDay={vi.fn()}
       />,
     )
-    expect(document.querySelectorAll('[data-outcome]').length).toBeGreaterThanOrEqual(28)
+    expect(document.querySelectorAll('[data-outcome]')).toHaveLength(27)
     expect(screen.getAllByRole('button')).toHaveLength(30)
   })
 
@@ -127,6 +132,27 @@ describe('CalendarGrid', () => {
     )
     const todayCell = document.querySelector('[aria-current="date"]')
     expect(todayCell).toBeInTheDocument()
+  })
+
+  it('keeps selected and future presentation on the month-grid wrapper', () => {
+    const { container } = render(
+      <CalendarGrid
+        currentMonth={currentMonth}
+        dayMap={emptyMap}
+        onSelectDay={vi.fn()}
+        selectedDateStr="2025-06-15"
+      />,
+    )
+
+    const selectedButton = container.querySelector('[data-calendar-date="2025-06-15"]')
+    expect(selectedButton?.parentElement).toHaveStyle({
+      background: 'var(--selection-bg)',
+      boxShadow: 'inset 0 0 0 2px var(--primary)',
+    })
+    expect(selectedButton?.parentElement?.querySelector('[data-selected]')).not.toBeInTheDocument()
+    const futureSlot = container.querySelector('[data-calendar-date="2025-06-20"]')?.parentElement
+    expect(futureSlot?.querySelector('[data-outcome]')).not.toBeInTheDocument()
+    expect(futureSlot?.querySelector('span[aria-hidden="true"] > span')).toHaveStyle({ color: 'var(--fg-2)' })
   })
 
   it('derives the full outcome when all entries are complete', () => {
@@ -220,12 +246,12 @@ describe('CalendarGrid', () => {
       />,
     )
     const endpoint = container.querySelector('[data-calendar-date="2025-06-16"]')?.parentElement
-    const selectedCell = endpoint?.querySelector('[data-selected]')
 
-    expect(endpoint).toHaveStyle({ background: 'var(--selection-bg)' })
-    expect(selectedCell).toHaveStyle({
-      background: 'transparent',
+    expect(endpoint).toHaveStyle({
+      background: 'var(--selection-bg)',
       boxShadow: 'inset 0 0 0 2px var(--primary)',
     })
+    expect(endpoint?.querySelector('[data-selected]')).not.toBeInTheDocument()
+    expect(endpoint?.querySelector('[style*="--selection-bg"]')).not.toBeInTheDocument()
   })
 })
