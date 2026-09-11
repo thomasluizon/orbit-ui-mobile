@@ -2054,8 +2054,6 @@
         "setupDesc": "Abra as Configurações de IA, crie uma chave de API e adicione o endpoint MCP do Orbit ao seu assistente. A conexão usa um handshake seguro por OAuth ou chave de API -- o passo a passo completo fica nas Configurações de IA."
       },
       "calendarSection": {
-        "colorsTitle": "Código de cores",
-        "colorsDesc": "Verde quer dizer todos os hábitos concluídos naquele dia. Laranja quer dizer que você deixou alguns passarem. Roxo quer dizer hábitos por vir (hoje ou no futuro). Todo dia com hábitos mostra um pontinho.",
         "dayDetailsTitle": "Detalhes do dia",
         "dayDetailsDesc": "Toque em qualquer dia do calendário para ver quais hábitos estavam agendados e como ficou a conclusão de cada um.",
         "navigationTitle": "Navegação",
@@ -2078,10 +2076,6 @@
         "wrappedDesc": "Um resumo compartilhável dos seus hábitos -- suas melhores sequências, maiores vitórias e estatísticas de destaque, embrulhados para você relembrar e compartilhar.",
         "widgetTitle": "Widget na tela inicial",
         "widgetDesc": "Só no Android. Adicione o widget do Orbit na tela inicial para ver seus hábitos num relance -- status de conclusão, horários e progresso do checklist. Quando não há nada agendado para hoje, ele mostra os hábitos de amanhã.",
-        "insightsTitle": "Insights e análises",
-        "insightsDesc": "Só na web, Pro. Um painel de análise completo com tendências de conclusão, ritmo das metas e gráficos de progresso em períodos personalizados.",
-        "retrospectiveTitle": "Retrospectiva com IA",
-        "retrospectiveDesc": "Orbit Pro. Gere retrospectivas com IA que analisam seus hábitos em qualquer período (semana, mês, trimestre, ano) -- destaques, oportunidades perdidas, tendências e sugestões práticas. Acessível pelo seu Perfil.",
         "milestoneShareTitle": "Compartilhar marcos",
         "milestoneShareDesc": "Quando você bate uma grande sequência ou conquista, compartilhe um cartão de marco com os amigos dentro do Orbit ou em qualquer outro lugar.",
         "referralsTitle": "Links de convite e indicações",

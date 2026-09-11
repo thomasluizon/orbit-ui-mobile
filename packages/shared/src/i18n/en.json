@@ -2054,8 +2054,6 @@
         "setupDesc": "Open AI Settings, create an API key, and add Orbit's MCP endpoint to your assistant. The connection uses a secure OAuth or API-key handshake -- full setup steps live in AI Settings."
       },
       "calendarSection": {
-        "colorsTitle": "Color Coding",
-        "colorsDesc": "Green means all habits completed for that day. Orange means you missed some habits. Purple means habits are upcoming (today or future). Each day with habits shows a small dot indicator.",
         "dayDetailsTitle": "Day Details",
         "dayDetailsDesc": "Tap any day on the calendar to see which habits were scheduled and their completion status.",
         "navigationTitle": "Navigation",
@@ -2078,10 +2076,6 @@
         "wrappedDesc": "A shareable recap of your habits -- your best streaks, biggest wins, and standout stats, wrapped up to look back on and share.",
         "widgetTitle": "Home Screen Widget",
         "widgetDesc": "Android only. Add the Orbit widget to your home screen to see today's habits at a glance -- completion status, due times, and checklist progress. When nothing is scheduled for today, it shows tomorrow's habits instead.",
-        "insightsTitle": "Insights & Analytics",
-        "insightsDesc": "Web only, Pro. A deep analytics dashboard with completion trends, goal velocity, and progress charts across custom time ranges.",
-        "retrospectiveTitle": "AI Retrospective",
-        "retrospectiveDesc": "Orbit Pro. Generate AI-powered retrospectives that analyze your habits over any period (week, month, quarter, year) -- highlights, missed opportunities, trends, and actionable suggestions. Accessible from your Profile.",
         "milestoneShareTitle": "Milestone Sharing",
         "milestoneShareDesc": "When you hit a big streak or achievement, share a milestone card with friends inside Orbit or anywhere else.",
         "referralsTitle": "Invite Links & Referrals",
