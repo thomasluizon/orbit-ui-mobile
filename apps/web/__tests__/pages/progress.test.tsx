@@ -423,6 +423,7 @@ describe('ProgressContent', () => {
 
     expect(screen.getByText('progressScreen.streak.lockedBody')).toBeInTheDocument()
     expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.streak.lockedBody').parentElement?.parentElement).toHaveClass('p-4')
     expect(screen.queryByText('progressScreen.achievements.lockedBody')).not.toBeInTheDocument()
     expect(screen.getAllByText('progressScreen.streak.lockedAction').length).toBeGreaterThan(0)
     expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
