@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 const TestRenderer = require("react-test-renderer");
 
 const state = vi.hoisted(() => ({
+  monthMap: new Map<string, CalendarDayEntry[]>(),
   rangeMap: new Map<string, CalendarDayEntry[]>(),
   monthError: null as string | null,
   monthRefresh: () => {},
@@ -52,14 +53,28 @@ vi.mock("@/hooks/use-tour-scroll-container", () => ({
 }));
 
 vi.mock("@/hooks/use-horizontal-swipe", () => ({
-  useHorizontalSwipe: () => ({}),
+  useHorizontalSwipe: ({
+    onSwipeLeft,
+    onSwipeRight,
+    minDistance = 50,
+  }: {
+    onSwipeLeft: () => void;
+    onSwipeRight: () => void;
+    minDistance?: number;
+  }) => ({
+    fire(deltaX: number) {
+      if (Math.abs(deltaX) <= minDistance) return;
+      if (deltaX < 0) onSwipeLeft();
+      else onSwipeRight();
+    },
+  }),
 }));
 
 vi.mock("@/hooks/use-habits", () => ({
   useCalendarData: (month: Date) => {
     state.calendarDataCalls(month)
     return ({
-      dayMap: new Map(),
+      dayMap: state.monthMap,
       isLoading: false,
       isFetching: false,
       error: state.monthError,
@@ -107,7 +122,18 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-stats", () => ({
   CalendarStats: () => null,
 }));
 vi.mock("@/app/(tabs)/calendar/_components/calendar-day-detail", () => ({
-  CalendarDayDetail: () => null,
+  CalendarDayDetail: ({
+    onShowRecurringChange,
+    showRecurring,
+  }: {
+    onShowRecurringChange: (value: boolean) => void;
+    showRecurring: boolean;
+  }) => React.createElement("Pressable", {
+    accessibilityRole: "switch",
+    accessibilityLabel: "calendar.showRecurring",
+    accessibilityState: { checked: showRecurring },
+    onPress: () => onShowRecurringChange(!showRecurring),
+  }),
 }));
 
 type TestNode = { type: unknown; props: Record<string, any> };
@@ -163,6 +189,7 @@ describe("CalendarScreen views (mobile)", () => {
     state.profileRefetch = vi.fn();
     state.calendarDataCalls.mockClear();
     const todayStr = formatAPIDate(new Date());
+    state.monthMap = new Map();
     state.rangeMap = new Map<string, CalendarDayEntry[]>([
       [
         todayStr,
@@ -308,6 +335,74 @@ describe("CalendarScreen views (mobile)", () => {
 
     expect(hostTexts(tree!)).not.toContain("Recurring");
     expect(hostTexts(tree!)).toContain("OneTime");
+  });
+
+  it("removes recurring habits from the month and shows its honest empty state", () => {
+    const todayStr = formatAPIDate(new Date());
+    state.monthMap = new Map([[todayStr, [
+      makeEntry({ habitId: "r", title: "Recurring", isOneTime: false }),
+    ]]]);
+    let tree: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />);
+    });
+    const flatList = tree!.root.findAll(
+      (node) => typeof node.type === "string" && node.type === "FlatList",
+    )[0]!;
+    let headerTree!: import("react-test-renderer").ReactTestRenderer;
+    TestRenderer.act(() => {
+      headerTree = TestRenderer.create(flatList.props.ListHeaderComponent);
+    });
+
+    TestRenderer.act(() => calendarGridProps.current?.onSelectDay(todayStr));
+    const switches = tree!.root.findAll(
+      (node) => typeof node.type === "string" && node.props.accessibilityRole === "switch",
+    );
+    expect(switches).toHaveLength(1);
+    TestRenderer.act(() => switches[0]!.props.onPress());
+
+    const updatedFlatList = tree!.root.findAll(
+      (node) => typeof node.type === "string" && node.type === "FlatList",
+    )[0]!;
+    TestRenderer.act(() => {
+      headerTree.update(updatedFlatList.props.ListHeaderComponent);
+    });
+    expect(calendarGridProps.current?.gridDays.find(
+      (day: { dateStr: string }) => day.dateStr === todayStr,
+    )?.totalCount).toBe(0);
+    let footerTree!: Tree;
+    TestRenderer.act(() => {
+      footerTree = TestRenderer.create(updatedFlatList.props.ListFooterComponent);
+    });
+    expect(hostTexts(footerTree)).toContain("calendar.emptyMonth");
+  });
+
+  it("pages only after a horizontal drag passes 60px, in both directions", () => {
+    let tree: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />);
+    });
+    const flatList = tree!.root.findAll(
+      (node) => typeof node.type === "string" && node.type === "FlatList",
+    )[0]!;
+    let headerTree!: import("react-test-renderer").ReactTestRenderer;
+    TestRenderer.act(() => {
+      headerTree = TestRenderer.create(flatList.props.ListHeaderComponent);
+    });
+    const initialMonth = state.calendarDataCalls.mock.calls.at(-1)?.[0] as Date;
+    const initialCallCount = state.calendarDataCalls.mock.calls.length;
+    const swipeGesture = calendarGridProps.current?.swipeGesture;
+
+    TestRenderer.act(() => swipeGesture.fire(-59));
+    expect(state.calendarDataCalls).toHaveBeenCalledTimes(initialCallCount);
+
+    TestRenderer.act(() => swipeGesture.fire(-61));
+    expect((state.calendarDataCalls.mock.calls.at(-1)?.[0] as Date).getMonth())
+      .toBe((initialMonth.getMonth() + 1) % 12);
+
+    TestRenderer.act(() => swipeGesture.fire(61));
+    expect((state.calendarDataCalls.mock.calls.at(-1)?.[0] as Date).getMonth())
+      .toBe(initialMonth.getMonth());
   });
 
   it("renders the interval clamp notice when a range is clamped", () => {

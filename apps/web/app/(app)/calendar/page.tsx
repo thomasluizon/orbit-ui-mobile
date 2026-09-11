@@ -21,7 +21,8 @@ import {
   formatAPIDate,
   parseAPIDate,
   capitalizeFirstLetter,
-  filterRecurringEntries,
+  CALENDAR_MONTH_SWIPE_THRESHOLD,
+  filterRecurringDayMap,
   clampRangeToMaxDays,
   MAX_RANGE_DAYS,
 } from '@orbit/shared/utils'
@@ -30,7 +31,6 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
 import { buildCalendarMonthModel } from '@orbit/shared/utils'
-import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { Profile } from '@orbit/shared/types/profile'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
@@ -52,16 +52,8 @@ import {
   CalendarLegend,
 } from './_components/calendar-shell'
 
-const SWIPE_THRESHOLD = 50
-
 type MonthSlide = 'left' | 'right' | null
 type CalendarView = 'month' | 'week' | 'range' | 'agenda'
-
-function resolveMonthSlideClass(monthSlide: MonthSlide): string {
-  if (monthSlide === 'right') return 'animate-slide-date-right'
-  if (monthSlide === 'left') return 'animate-slide-date-left'
-  return ''
-}
 
 export default function CalendarPage() {
   const t = useTranslations()
@@ -118,7 +110,6 @@ function CalendarPageContent({
   const [view, setView] = useState<CalendarView>('month')
   /** Agenda is desktop-width only until #56 stage 10 builds the mobile day groups. */
   const activeView: CalendarView = !isDesktop && view === 'agenda' ? 'month' : view
-  const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
   const [weekAnchor, setWeekAnchor] = useState(() => new Date())
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null)
   const [rangeStart, setRangeStart] = useState(() => formatAPIDate(new Date()))
@@ -178,14 +169,14 @@ function CalendarPageContent({
   )
   const currentYear = currentMonth.getFullYear()
 
-  const displayRangeDayMap = useMemo(() => {
-    if (showRecurring) return rangeDayMap
-    const filtered = new Map<string, CalendarDayEntry[]>()
-    for (const [key, entries] of rangeDayMap) {
-      filtered.set(key, filterRecurringEntries(entries, false))
-    }
-    return filtered
-  }, [rangeDayMap, showRecurring])
+  const displayMonthDayMap = useMemo(
+    () => filterRecurringDayMap(dayMap, showRecurring),
+    [dayMap, showRecurring],
+  )
+  const displayRangeDayMap = useMemo(
+    () => filterRecurringDayMap(rangeDayMap, showRecurring),
+    [rangeDayMap, showRecurring],
+  )
 
   const weekLabel = useMemo(() => {
     const startLabel = format(weekStart, 'MMM d', { locale: dateFnsLocale })
@@ -211,22 +202,18 @@ function CalendarPageContent({
         }
 
   const prevMonth = useCallback(() => {
-    setMonthSlide('left')
     setCurrentMonth((m) => subMonths(m, 1))
   }, [setCurrentMonth])
 
   const nextMonth = useCallback(() => {
-    setMonthSlide('right')
     setCurrentMonth((m) => addMonths(m, 1))
   }, [setCurrentMonth])
 
   const selectYear = useCallback((year: number) => {
-    setMonthSlide(null)
     setCurrentMonth((m) => startOfMonth(setYear(m, year)))
   }, [setCurrentMonth])
 
   const goToCurrentMonth = useCallback(() => {
-    setMonthSlide(null)
     setCurrentMonth(startOfMonth(new Date()))
   }, [setCurrentMonth])
 
@@ -279,8 +266,8 @@ function CalendarPageContent({
   }, [selectedDay, displayWeekdayDate])
 
   const { monthStats } = useMemo(
-    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn),
-    [currentMonth, dayMap, weekStartsOn],
+    () => buildCalendarMonthModel(currentMonth, displayMonthDayMap, weekStartsOn),
+    [currentMonth, displayMonthDayMap, weekStartsOn],
   )
 
   const monthStatTiles = useMemo(
@@ -310,22 +297,19 @@ function CalendarPageContent({
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     if (touchStart.current === null) return
     const touch = e.changedTouches[0]
-    if (!touch) return
-    const deltaX = touch.clientX - touchStart.current.x
-    const deltaY = touch.clientY - touchStart.current.y
+    const start = touchStart.current
     touchStart.current = null
-    if (Math.abs(deltaX) < SWIPE_THRESHOLD) return
-    if (Math.abs(deltaX) <= Math.abs(deltaY) * 1.2) return
+    if (!touch) return
+    const deltaX = touch.clientX - start.x
+    const deltaY = touch.clientY - start.y
+    if (Math.abs(deltaX) <= CALENDAR_MONTH_SWIPE_THRESHOLD) return
+    if (Math.abs(deltaX) < Math.abs(deltaY) * 1.5) return
     if (deltaX < 0) {
-      setMonthSlide('right')
       setCurrentMonth((m) => addMonths(m, 1))
     } else {
-      setMonthSlide('left')
       setCurrentMonth((m) => subMonths(m, 1))
     }
   }, [setCurrentMonth])
-
-  const monthSlideClass = resolveMonthSlideClass(monthSlide)
 
   const calendarHeader = (
     <CalendarHeader
@@ -373,14 +357,13 @@ function CalendarPageContent({
                 <div>
                   {calendarHeader}
                   <div
-                    key={format(currentMonth, 'yyyy-MM')}
-                    className={monthSlideClass}
                     onTouchStart={handleTouchStart}
                     onTouchEnd={handleTouchEnd}
+                    style={{ touchAction: 'pan-y' }}
                   >
                     <CalendarGrid
                       currentMonth={currentMonth}
-                      dayMap={dayMap}
+                      dayMap={displayMonthDayMap}
                       onSelectDay={openDay}
                       selectedDateStr={selectedDay}
                       isLoading={isLoading}

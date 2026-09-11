@@ -11,11 +11,6 @@ import {
   type NativeSyntheticEvent,
 } from "react-native";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
-import {
-  FadeInLeft,
-  FadeInRight,
-  ReduceMotion,
-} from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
 import {
@@ -35,7 +30,9 @@ import {
 import { enUS, ptBR } from "date-fns/locale";
 import {
   capitalizeFirstLetter,
+  CALENDAR_MONTH_SWIPE_THRESHOLD,
   clampRangeToMaxDays,
+  filterRecurringDayMap,
   filterRecurringEntries,
   formatAPIDate,
   parseAPIDate,
@@ -70,18 +67,9 @@ import { CalendarRangeView } from "./calendar/_components/calendar-range-view";
 import type { TimeGridColumn } from "./calendar/_components/calendar-time-grid";
 import { useCurrentDate } from "./use-today-date";
 
-type MonthSlide = "left" | "right" | null;
 type CalendarView = "month" | "week" | "range";
 
 const EMPTY_LIST: readonly CalendarDayEntry[] = [];
-
-function resolveMonthEntering(monthSlide: MonthSlide) {
-  if (monthSlide === "right")
-    return FadeInRight.duration(220).reduceMotion(ReduceMotion.System);
-  if (monthSlide === "left")
-    return FadeInLeft.duration(220).reduceMotion(ReduceMotion.System);
-  return undefined;
-}
 
 export default function CalendarScreen() {
   const { profile, error: profileError, refetch: refetchProfile } = useProfile();
@@ -188,9 +176,8 @@ function CalendarScreenContent({
     setScrollTopResetView(view);
     setShowScrollTop(false);
   }
-  const [monthSlide, setMonthSlide] = useState<MonthSlide>(null);
   const [weekAnchor, setWeekAnchor] = useState(() => new Date());
-  const [weekSlide, setWeekSlide] = useState<MonthSlide>(null);
+  const [weekSlide, setWeekSlide] = useState<"left" | "right" | null>(null);
   const [rangeStart, setRangeStart] = useState(() => formatAPIDate(new Date()));
   const [rangeEnd, setRangeEnd] = useState(() => formatAPIDate(new Date()));
   const [awaitingEnd, setAwaitingEnd] = useState(false);
@@ -244,14 +231,14 @@ function CalendarScreenContent({
     }));
   }, [view, weekStart, weekEnd, rangeBounds]);
 
-  const displayRangeDayMap = useMemo(() => {
-    if (showRecurring) return rangeDayMap;
-    const filtered = new Map<string, CalendarDayEntry[]>();
-    for (const [key, entries] of rangeDayMap) {
-      filtered.set(key, filterRecurringEntries(entries, false));
-    }
-    return filtered;
-  }, [rangeDayMap, showRecurring]);
+  const displayMonthDayMap = useMemo(
+    () => filterRecurringDayMap(dayMap, showRecurring),
+    [dayMap, showRecurring],
+  );
+  const displayRangeDayMap = useMemo(
+    () => filterRecurringDayMap(rangeDayMap, showRecurring),
+    [rangeDayMap, showRecurring],
+  );
 
   const monthLabel = useMemo(
     () =>
@@ -271,22 +258,18 @@ function CalendarScreenContent({
   }, [weekStart, weekEnd, dateFnsLocale]);
 
   const prevMonth = useCallback(() => {
-    setMonthSlide("left");
     setCurrentMonth((m) => subMonths(m, 1));
   }, [setCurrentMonth]);
 
   const nextMonth = useCallback(() => {
-    setMonthSlide("right");
     setCurrentMonth((m) => addMonths(m, 1));
   }, [setCurrentMonth]);
 
   const selectYear = useCallback((year: number) => {
-    setMonthSlide(null);
     setCurrentMonth((m) => startOfMonth(setYear(m, year)));
   }, [setCurrentMonth]);
 
   const goToCurrentMonth = useCallback(() => {
-    setMonthSlide(null);
     setCurrentMonth(startOfMonth(new Date()));
   }, [setCurrentMonth]);
 
@@ -306,6 +289,8 @@ function CalendarScreenContent({
   const swipeGesture = useHorizontalSwipe({
     onSwipeLeft: nextMonth,
     onSwipeRight: prevMonth,
+    minDistance: CALENDAR_MONTH_SWIPE_THRESHOLD,
+    minVelocity: 0,
   });
 
   const onSelectDay = useCallback((dateStr: string) => {
@@ -361,8 +346,8 @@ function CalendarScreenContent({
   }, [t, weekStartsOn]);
 
   const { gridDays, monthStats } = useMemo(
-    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn),
-    [currentMonth, dayMap, weekStartsOn],
+    () => buildCalendarMonthModel(currentMonth, displayMonthDayMap, weekStartsOn),
+    [currentMonth, displayMonthDayMap, weekStartsOn],
   );
 
   const {
@@ -436,8 +421,6 @@ function CalendarScreenContent({
     [monthStats, t],
   );
 
-  const monthEntering = resolveMonthEntering(monthSlide);
-
   const listHeader = (
     <>
       <CalendarGrid
@@ -445,8 +428,6 @@ function CalendarScreenContent({
         weekdayHeaders={weekdayHeaders}
         selectedDay={selectedDay}
         isLoading={isLoading}
-        monthKey={format(currentMonth, "yyyy-MM")}
-        monthEntering={monthEntering}
         swipeGesture={swipeGesture}
         gridRef={calendarGridRef}
         todayRef={calendarDayRef}

@@ -2,11 +2,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
 import { formatAPIDate } from '@orbit/shared/utils'
+import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 let isWideDesktopValue = false
 let isDesktopValue = false
-const calendarGridProps: { selectedDateStr?: string | null } = {}
-const monthQueryState: { error: string | null; refresh: ReturnType<typeof vi.fn> } = {
+const calendarGridProps: {
+  dayMap?: Map<string, CalendarDayEntry[]>
+  selectedDateStr?: string | null
+} = {}
+const monthQueryState: {
+  dayMap: Map<string, CalendarDayEntry[]>
+  error: string | null
+  refresh: ReturnType<typeof vi.fn>
+} = {
+  dayMap: new Map(),
   error: null,
   refresh: vi.fn(),
 }
@@ -35,7 +44,7 @@ vi.mock('@/hooks/use-calendar-data', () => ({
   useCalendarData: (month: Date) => {
     calendarDataCalls(month)
     return ({
-    dayMap: new Map(),
+    dayMap: monthQueryState.dayMap,
     isLoading: false,
     isFetching: false,
     error: monthQueryState.error,
@@ -89,12 +98,15 @@ vi.mock('@/app/(app)/calendar/_components/calendar-shell', () => ({
 
 vi.mock('@/components/calendar/calendar-grid', () => ({
   CalendarGrid: ({
+    dayMap,
     onSelectDay,
     selectedDateStr,
   }: {
+    dayMap?: Map<string, CalendarDayEntry[]>
     onSelectDay?: (dateStr: string) => void
     selectedDateStr?: string | null
   }) => {
+    calendarGridProps.dayMap = dayMap
     calendarGridProps.selectedDateStr = selectedDateStr
     return (
       <button
@@ -111,7 +123,23 @@ vi.mock('@/components/calendar/calendar-stats', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-day-detail', () => ({
-  CalendarDayDetail: () => <div data-testid="day-detail" />,
+  CalendarDayDetail: ({
+    onShowRecurringChange,
+    showRecurring,
+  }: {
+    onShowRecurringChange: (value: boolean) => void
+    showRecurring: boolean
+  }) => (
+    <div data-testid="day-detail">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={showRecurring}
+        aria-label="calendar.showRecurring"
+        onClick={() => onShowRecurringChange(!showRecurring)}
+      />
+    </div>
+  ),
 }))
 
 vi.mock('@/components/calendar/calendar-week-view', () => ({
@@ -133,6 +161,8 @@ describe('CalendarPage view switcher', () => {
     isWideDesktopValue = false
     isDesktopValue = false
     calendarGridProps.selectedDateStr = undefined
+    calendarGridProps.dayMap = undefined
+    monthQueryState.dayMap = new Map()
     monthQueryState.error = null
     monthQueryState.refresh = vi.fn()
     profileQueryState.profile = { weekStartDay: 1 }
@@ -233,5 +263,46 @@ describe('CalendarPage view switcher', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
     expect(monthQueryState.refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('removes recurring habits from the month and shows its honest empty state', () => {
+    isWideDesktopValue = true
+    const todayKey = formatAPIDate(new Date())
+    monthQueryState.dayMap = new Map([[todayKey, [{
+      habitId: 'recurring',
+      title: 'Recurring habit',
+      status: 'upcoming',
+      isBadHabit: false,
+      dueTime: '08:00',
+      isOneTime: false,
+    }]]])
+    render(<CalendarPage />)
+
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
+
+    expect(calendarGridProps.dayMap?.get(todayKey)).toEqual([])
+    expect(screen.getByText('calendar.emptyMonth')).toBeDefined()
+  })
+
+  it('pages only after a horizontal drag passes 60px, in both directions', () => {
+    render(<CalendarPage />)
+    const initialMonth = calendarDataCalls.mock.calls.at(-1)?.[0] as Date
+    const initialCallCount = calendarDataCalls.mock.calls.length
+    const drag = (deltaX: number) => {
+      const target = screen.getByTestId('month-view')
+      fireEvent.touchStart(target, { touches: [{ clientX: 100, clientY: 20 }] })
+      fireEvent.touchEnd(target, { changedTouches: [{ clientX: 100 + deltaX, clientY: 20 }] })
+    }
+
+    drag(-59)
+    expect(calendarDataCalls).toHaveBeenCalledTimes(initialCallCount)
+
+    drag(-61)
+    expect((calendarDataCalls.mock.calls.at(-1)?.[0] as Date).getMonth())
+      .toBe((initialMonth.getMonth() + 1) % 12)
+
+    drag(61)
+    expect((calendarDataCalls.mock.calls.at(-1)?.[0] as Date).getMonth())
+      .toBe(initialMonth.getMonth())
   })
 })

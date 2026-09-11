@@ -55,6 +55,8 @@ export {
   formatLocaleTime,
   splitMonthYear,
   buildYearRange,
+  CALENDAR_MONTH_SWIPE_THRESHOLD,
+  filterRecurringDayMap,
   filterRecurringEntries,
   clampRangeToMaxDays,
   MAX_RANGE_DAYS,

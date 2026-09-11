@@ -914,7 +914,7 @@
     "bestStreak": "Melhor sequência",
     "totalLogs": "Total de registros",
     "missedCount": "Perdidos",
-    "emptyMonth": "Nada registrado neste mês ainda. Seus dias vão aparecer aqui.",
+    "emptyMonth": "Nenhum hábito estava programado neste mês.",
     "loadError": "Não foi possível carregar o calendário. Tente de novo.",
     "dayDetail": {
       "completionSummary": "{done} de {total} hábito concluído | {done} de {total} hábitos concluídos"
@@ -947,7 +947,7 @@
       "resisted": "Resistiu"
     },
     "completionHistory": "Histórico de Conclusão",
-    "showRecurring": "Mostrar recorrentes",
+    "showRecurring": "Mostrar hábitos recorrentes",
     "title": "Google Calendar",
     "profileButton": "Google Calendar",
     "profileHint": "Importe eventos como hábitos",

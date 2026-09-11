@@ -914,7 +914,7 @@
     "bestStreak": "Best streak",
     "totalLogs": "Total logs",
     "missedCount": "Missed",
-    "emptyMonth": "Nothing logged this month yet. Your days will fill in here.",
+    "emptyMonth": "No habit was scheduled in this month.",
     "loadError": "Could not load the calendar. Please try again.",
     "dayDetail": {
       "completionSummary": "{done} of {total} habit completed | {done} of {total} habits completed"
@@ -947,7 +947,7 @@
       "resisted": "Resisted"
     },
     "completionHistory": "Completion History",
-    "showRecurring": "Show recurring",
+    "showRecurring": "Show recurring habits",
     "title": "Google Calendar",
     "profileButton": "Google Calendar",
     "profileHint": "Import events as habits",

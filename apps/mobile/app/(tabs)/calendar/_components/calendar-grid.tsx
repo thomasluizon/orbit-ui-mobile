@@ -1,6 +1,5 @@
 import type { RefObject } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import Animated, { type EntryOrExitLayoutType } from 'react-native-reanimated'
 import { format, type Locale } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import type { DayCellWords, ReadOnlyDayCellProps } from '@orbit/shared/contracts/dates'
@@ -29,8 +28,6 @@ interface CalendarGridProps {
   isLoading: boolean
   rangeStart?: string | null
   rangeEnd?: string | null
-  monthKey?: string
-  monthEntering?: EntryOrExitLayoutType
   swipeGesture?: PanGesture
   gridRef?: RefObject<View | null>
   todayRef?: RefObject<View | null>
@@ -232,8 +229,6 @@ export function CalendarGrid({
   isLoading,
   rangeStart = null,
   rangeEnd = null,
-  monthKey,
-  monthEntering,
   swipeGesture,
   gridRef,
   todayRef,
@@ -257,9 +252,7 @@ export function CalendarGrid({
 
   const grid = (
     <View ref={gridRef} collapsable={false} testID="calendar-grid" style={styles.calendarGrid}>
-      <Animated.View
-        key={monthKey}
-        entering={monthEntering}
+      <View
         testID="calendar-grid-card"
         style={[styles.gridCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}
       >
@@ -293,7 +286,7 @@ export function CalendarGrid({
             )
           })}
         </MonthGrid>
-      </Animated.View>
+      </View>
     </View>
   )
 
