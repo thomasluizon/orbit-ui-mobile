@@ -197,6 +197,20 @@
                     android:layout_height="48dp"
                     android:background="@drawable/widget_skeleton_bar"
                     android:contentDescription="@null" />
+
+                <ImageView
+                    android:id="@+id/widget_skeleton_4"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:background="@drawable/widget_skeleton_bar"
+                    android:contentDescription="@null" />
+
+                <ImageView
+                    android:id="@+id/widget_skeleton_5"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:background="@drawable/widget_skeleton_bar"
+                    android:contentDescription="@null" />
             </LinearLayout>
 
         </FrameLayout>

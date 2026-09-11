@@ -331,12 +331,16 @@ describe('Android widget header', () => {
 
   it('derives row capacity and remainder space from the drawing geometry', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const views = layoutViews()
 
     expect.soft(service).toContain('internal fun calculateWidgetGeometry(')
     expect.soft(service).toContain('val availableHeightDp = heightDp - HEADER_HEIGHT_DP')
     expect.soft(service).toContain('floor(availableHeightDp / ROW_HEIGHT_DP)')
     expect.soft(service).toContain('availableHeightDp - (fit - 1) * ROW_HEIGHT_DP >= REMAINDER_HEIGHT_DP')
     expect.soft(service).toContain('if (canStateRemainder) maxOf(1, fit - 1)')
+    for (const index of [1, 2, 3, 4, 5]) {
+      expect.soft(views.get(`widget_skeleton_${index}`)?.['android:layout_height']).toBe('48dp')
+    }
   })
 
   it('renders an accessible remainder item and hides only time on the narrow variant', () => {
