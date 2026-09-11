@@ -2,6 +2,7 @@ import { mkdir, readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { Resvg } from '@resvg/resvg-js'
 import sharp from 'sharp'
 import { SaxesParser } from 'saxes'
 
@@ -15,12 +16,12 @@ const widgetResourceDirectory = path.join(
 
 const previewFontPaths = [
   {
-    path: require.resolve('@expo-google-fonts/geist/400Regular/Geist_400Regular.ttf'),
+    path: require.resolve('@expo-google-fonts/roboto/400Regular/Roboto_400Regular.ttf'),
     weight: 400,
   },
   {
-    path: require.resolve('@expo-google-fonts/geist/600SemiBold/Geist_600SemiBold.ttf'),
-    weight: 600,
+    path: require.resolve('@expo-google-fonts/roboto/500Medium/Roboto_500Medium.ttf'),
+    weight: 500,
   },
 ] as const
 
@@ -164,15 +165,15 @@ function previewSvg(
     `height="${fixture.height * 4}" viewBox="0 0 ${fixture.width} ${fixture.height}">` +
     `<defs><style>${embeddedFonts}</style>` +
     '<clipPath id="card"><rect width="336" height="192" rx="24"/></clipPath></defs>' +
-    '<g clip-path="url(#card)" font-family="WidgetGeist">' +
+    '<g clip-path="url(#card)" font-family="Roboto">' +
     `<rect width="336" height="192" fill="${card}"/>` +
     `<rect x="0.5" y="0.5" width="335" height="191" rx="23.5" fill="none" ` +
     `stroke="${hairline}" stroke-width="1"/>` +
-    `<text x="12" y="18" fill="${fg3}" font-size="13" font-weight="600" ` +
+    `<text x="12" y="18" fill="${fg3}" font-size="13" font-weight="500" ` +
     `letter-spacing="0.52">${escaped(today)}</text>` +
     `<text x="12" y="35" fill="${fg3}" font-size="11">${escaped(subtitle)}</text>` +
     `<text x="250" y="28" text-anchor="end" fill="${streak}" font-size="15" ` +
-    `font-weight="600">${fixture.streak}</text>` +
+    `font-weight="500">${fixture.streak}</text>` +
     `<text x="253" y="28" fill="${fg3}" font-size="11">${escaped(streakUnit)}</text>` +
     `<path d="M319.7 16.4A8 8 0 1 0 321.8 26h-2.1a6 6 0 1 1-1.6-8.2L315 21h7v-7z" ` +
     `fill="${fg3}" transform="translate(-3 -1) scale(.82) translate(72 4)"/>` +
@@ -187,10 +188,29 @@ async function loadEmbeddedFonts() {
     weight: font.weight,
   })))
   return faces.map(font =>
-    '@font-face{font-family:WidgetGeist;' +
+    '@font-face{font-family:Roboto;' +
     `src:url(data:font/ttf;base64,${font.bytes.toString('base64')}) format('truetype');` +
     `font-style:normal;font-weight:${font.weight}}`,
   ).join('\n')
+}
+
+async function renderPreviewsWithBundledFonts(previews: Awaited<ReturnType<typeof buildWidgetPreviewSvgs>>) {
+  const fontFiles = previewFontPaths.map(font => font.path)
+  for (const { output, svg } of previews) {
+    const outputDirectory = path.join(widgetResourceDirectory, output.directory)
+    const rendered = new Resvg(svg, {
+      font: { defaultFontFamily: 'Roboto', fontFiles, loadSystemFonts: false },
+    }).render().asPng()
+    await mkdir(outputDirectory, { recursive: true })
+    await sharp(rendered)
+      .png({
+        progressive: false,
+        compressionLevel: 9,
+        adaptiveFiltering: false,
+        palette: false,
+      })
+      .toFile(path.join(outputDirectory, 'widget_picker_preview.png'))
+  }
 }
 
 async function loadPreviewInputs(locale: 'en' | 'pt-rBR', mode: PreviewMode) {
@@ -208,18 +228,7 @@ async function loadPreviewInputs(locale: 'en' | 'pt-rBR', mode: PreviewMode) {
 
 export async function generateWidgetPreview() {
   const previews = await buildWidgetPreviewSvgs()
-  for (const { output, svg } of previews) {
-    const outputDirectory = path.join(widgetResourceDirectory, output.directory)
-    await mkdir(outputDirectory, { recursive: true })
-    await sharp(Buffer.from(svg))
-      .png({
-        progressive: false,
-        compressionLevel: 9,
-        adaptiveFiltering: false,
-        palette: false,
-      })
-      .toFile(path.join(outputDirectory, 'widget_picker_preview.png'))
-  }
+  await renderPreviewsWithBundledFonts(previews)
 }
 
 export async function buildWidgetPreviewSvgs() {

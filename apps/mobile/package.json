@@ -94,6 +94,8 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@expo-google-fonts/roboto": "^0.4.3",
+    "@resvg/resvg-js": "^2.6.2",
     "@testing-library/react-native": "^14.0.1",
     "@types/node": "^24.5.2",
     "@types/react": "~19.2.14",
