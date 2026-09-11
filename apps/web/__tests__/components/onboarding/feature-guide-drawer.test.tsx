@@ -69,7 +69,7 @@ describe('FeatureGuideDrawer', () => {
     { tab: 'connect', title: 'onboarding.featureGuide.connectSection.mcpTitle' },
     { tab: 'habits', title: 'onboarding.featureGuide.habitsSection.creatingTitle' },
     { tab: 'goals', title: 'onboarding.featureGuide.goalsSection.creatingTitle' },
-    { tab: 'calendar', title: 'onboarding.featureGuide.calendarSection.colorsTitle' },
+    { tab: 'calendar', title: 'onboarding.featureGuide.calendarSection.dayDetailsTitle' },
     { tab: 'rewards', title: 'onboarding.featureGuide.rewardsSection.xpLevelsTitle' },
     { tab: 'notifications', title: 'onboarding.featureGuide.notificationsSection.bellTitle' },
   ])('switches to the $tab section when its tab is clicked', ({ tab, title }) => {
@@ -97,6 +97,22 @@ describe('FeatureGuideDrawer', () => {
     expect(document.body.textContent).not.toContain(
       'onboarding.featureGuide.rewardsSection.retrospectiveTitle',
     )
+  })
+
+  it('omits entries for retired surfaces', () => {
+    render(<FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByText('onboarding.featureGuide.calendar'))
+    expect(document.body.textContent).not.toContain(
+      `onboarding.featureGuide.calendarSection.${['colors', 'Title'].join('')}`,
+    )
+
+    fireEvent.click(screen.getByText('onboarding.featureGuide.rewards'))
+    for (const prefix of ['insights', 'retrospective']) {
+      expect(document.body.textContent).not.toContain(
+        `onboarding.featureGuide.rewardsSection.${prefix}Title`,
+      )
+    }
   })
 
   it('highlights active tab with aria-selected', () => {

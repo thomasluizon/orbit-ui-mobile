@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { Profile } from '@orbit/shared/types/profile'
+import { useShellNoticeSlot } from '@orbit/shared/hooks'
 import { buildWeekStartOptions } from '@orbit/shared/utils'
 import {
   PROFILE_NAV_ITEMS,
@@ -30,6 +31,7 @@ import { ProfileSettingsFrame } from '@/components/profile/profile-settings-fram
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { ListRow } from '@/components/ui/list-row'
 import { ProBadge } from '@/components/ui/pro-badge'
+import { Toast } from '@/components/ui/toast'
 import { useAuthStore } from '@/stores/auth-store'
 import { useIsClient } from '@/hooks/use-is-client'
 import { usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
@@ -62,7 +64,10 @@ const icon = (Icon: typeof User) => (
 
 function buildYouRows(
   { profile, router, t }: RowContext,
+  exportError: string | null,
+  isExporting: boolean,
   onEditName: () => void,
+  onExport: () => void,
   onOpenTimeZone: () => void,
 ) {
   const planLabel = profile?.isTrialActive
@@ -81,6 +86,7 @@ function buildYouRows(
     <ListRow key="week-start" icon={icon(Calendar)} title={t('settings.weekStartDay.title')} onClick={() => router.push('/preferences')} />,
     <ListRow key="theme" icon={icon(Moon)} title={t('preferences.themeMode')} onClick={() => router.push('/preferences')} />,
     <ListRow key="plan" icon={icon(CreditCard)} title={t('profile.subscription.plan')} value={planLabel} onClick={() => router.push('/upgrade')} />,
+    <ListRow key="export" icon={icon(Download)} title={t('dataExport.button')} value={isExporting ? t('dataExport.preparing') : undefined} description={exportError ?? undefined} chevron={false} onClick={onExport} />,
   ]
 }
 
@@ -193,26 +199,19 @@ function buildMoreRows({ profile, router, t }: RowContext) {
 
 interface EndingRowsOptions {
   context: RowContext
-  exportError: string | null
-  isExporting: boolean
   onDeleteAccount: () => void
-  onExport: () => void
   onFreshStart: () => void
   onLogout: () => void
 }
 
 function buildEndingRows({
   context: { profile, t },
-  exportError,
-  isExporting,
   onDeleteAccount,
-  onExport,
   onFreshStart,
   onLogout,
 }: EndingRowsOptions) {
   return [
-    <ListRow key="export" icon={icon(Download)} title={isExporting ? t('dataExport.preparing') : t('dataExport.button')} description={exportError ?? undefined} chevron={false} onClick={onExport} />,
-    <ShareCardEntryButton key="share" displayName={profile?.name} />,
+    <ShareCardEntryButton key="share" variant="row" displayName={profile?.name} />,
     <ListRow key="fresh-start" icon={icon(RotateCcw)} title={t('profile.freshStart.button')} chevron={false} onClick={onFreshStart} />,
     <ListRow key="logout" icon={icon(LogOut)} title={t('profile.logout')} chevron={false} onClick={onLogout} />,
     <ListRow key="delete" icon={icon(UserX)} title={t('profile.deleteAccount.button')} danger chevron={false} onClick={onDeleteAccount} />,
@@ -229,15 +228,35 @@ export function ProfileSettingsContent({
   const logout = useAuthStore((state) => state.logout)
   const preferenceControls = usePreferenceControls()
   const push = usePushNotificationPreferences()
-  const { isExporting, exportError, exportData } = useDataExport()
+  const {
+    isExporting,
+    exportDone,
+    exportError,
+    exportData,
+    clearExportDone,
+  } = useDataExport()
   const [showEditName, setShowEditName] = useState(false)
   const [showFreshStart, setShowFreshStart] = useState(false)
   const [showDeleteAccount, setShowDeleteAccount] = useState(false)
+  useShellNoticeSlot(
+    exportDone,
+    () => (
+      <Toast
+        kind="done"
+        message={t('dataExport.done')}
+        onDone={clearExportDone}
+      />
+    ),
+    exportDone ? 'export-done' : 'export-idle',
+  )
   const context = { profile, router, t }
   const rows = {
     you: buildYouRows(
       context,
+      exportError,
+      isExporting,
       () => setShowEditName(true),
+      () => void exportData(),
       () => preferenceControls.setActivePicker('timeZone'),
     ),
     astra: buildAstraRows(context),
@@ -245,10 +264,7 @@ export function ProfileSettingsContent({
     more: buildMoreRows(context),
     ending: buildEndingRows({
       context,
-      exportError,
-      isExporting,
       onDeleteAccount: () => setShowDeleteAccount(true),
-      onExport: () => void exportData(),
       onFreshStart: () => setShowFreshStart(true),
       onLogout: () => void logout(),
     }),

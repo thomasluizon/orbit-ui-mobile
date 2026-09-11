@@ -1974,8 +1974,6 @@
         "setupDesc": "Open AI Settings, create an API key, and add Orbit's MCP endpoint to your assistant. The connection uses a secure OAuth or API-key handshake -- full setup steps live in AI Settings."
       },
       "calendarSection": {
-        "colorsTitle": "Color Coding",
-        "colorsDesc": "Green means all habits completed for that day. Orange means you missed some habits. Purple means habits are upcoming (today or future). Each day with habits shows a small dot indicator.",
         "dayDetailsTitle": "Day Details",
         "dayDetailsDesc": "Tap any day on the calendar to see which habits were scheduled and their completion status.",
         "navigationTitle": "Navigation",
@@ -3085,8 +3083,9 @@
     }
   },
   "dataExport": {
-    "button": "Download my data",
-    "preparing": "Preparing your export...",
+    "button": "Export my data",
+    "preparing": "Preparing",
+    "done": "Your data has been downloaded.",
     "error": "We couldn't prepare your export. Please try again.",
     "shareTitle": "Orbit data export"
   },

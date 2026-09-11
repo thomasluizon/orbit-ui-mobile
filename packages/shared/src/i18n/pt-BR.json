@@ -1974,8 +1974,6 @@
         "setupDesc": "Abra as Configurações de IA, crie uma chave de API e adicione o endpoint MCP do Orbit ao seu assistente. A conexão usa um handshake seguro por OAuth ou chave de API -- o passo a passo completo fica nas Configurações de IA."
       },
       "calendarSection": {
-        "colorsTitle": "Código de cores",
-        "colorsDesc": "Verde quer dizer todos os hábitos concluídos naquele dia. Laranja quer dizer que você deixou alguns passarem. Roxo quer dizer hábitos por vir (hoje ou no futuro). Todo dia com hábitos mostra um pontinho.",
         "dayDetailsTitle": "Detalhes do dia",
         "dayDetailsDesc": "Toque em qualquer dia do calendário para ver quais hábitos estavam agendados e como ficou a conclusão de cada um.",
         "navigationTitle": "Navegação",
@@ -3085,8 +3083,9 @@
     }
   },
   "dataExport": {
-    "button": "Baixar meus dados",
-    "preparing": "Preparando sua exportação...",
+    "button": "Exportar os meus dados",
+    "preparing": "Preparando",
+    "done": "Os seus dados foram baixados.",
     "error": "Não foi possível preparar sua exportação. Tente de novo.",
     "shareTitle": "Exportação de dados do Orbit"
   },

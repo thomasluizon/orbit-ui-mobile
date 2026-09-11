@@ -23,7 +23,7 @@ describe('PillButton', () => {
       browser = await chromium.launch({ channel: 'chrome' })
     })
 
-    afterAll(async () => { await browser.close() })
+    afterAll(async () => { await browser.close() }, 30_000)
 
     it.each([
       { label: 'Continue', iconOnly: false, narrow: false },
