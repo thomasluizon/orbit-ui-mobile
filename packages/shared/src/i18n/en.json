@@ -910,9 +910,8 @@
       "selected": "Selected",
       "readOnly": "Read only"
     },
-    "thisMonth": "This month",
     "bestStreak": "Best streak",
-    "totalLogs": "Total logs",
+    "totalLogs": "Logs",
     "missedCount": "Missed",
     "emptyMonth": "Nothing logged this month yet. Your days will fill in here.",
     "loadError": "Could not load the calendar. Please try again.",

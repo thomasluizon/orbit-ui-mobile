@@ -42,7 +42,6 @@ import { CalendarLoadError } from '@/components/calendar/calendar-load-error'
 import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import { Sheet } from '@/components/ui/sheet'
 import { EmptyState } from '@/components/ui/empty-state'
-import { SectionLabel } from '@/components/ui/section-label'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useIsDesktop, useIsWideDesktop } from '@/hooks/use-is-desktop'
@@ -285,10 +284,10 @@ function CalendarPageContent({
 
   const monthStatTiles = useMemo(
     () => [
-      { key: 'bestStreak', emoji: '🔥', value: monthStats.bestStreak, label: t('calendar.bestStreak') },
-      { key: 'totalLogs', emoji: '✅', value: monthStats.totalLogs, label: t('calendar.totalLogs') },
-      { key: 'missed', emoji: '⚠️', value: monthStats.missed, label: t('calendar.missedCount') },
-    ],
+      { key: 'bestStreak', value: monthStats.bestStreak, label: t('calendar.bestStreak') },
+      { key: 'totalLogs', value: monthStats.totalLogs, label: t('calendar.totalLogs') },
+      { key: 'missed', value: monthStats.missed, label: t('calendar.missedCount') },
+    ] as const,
     [monthStats, t],
   )
 
@@ -399,10 +398,7 @@ function CalendarPageContent({
                   {!isLoading && !monthStats.hasEntries ? (
                     <EmptyState title={t('calendar.emptyMonth')} />
                   ) : (
-                    <>
-                      <SectionLabel>{t('calendar.thisMonth')}</SectionLabel>
-                      <CalendarStats stats={monthStatTiles} />
-                    </>
+                    <CalendarStats stats={monthStatTiles} />
                   )}
                 </div>
 
