@@ -884,7 +884,6 @@
     }
   },
   "calendar": {
-    "viewAgenda": "Agenda",
     "rescheduled": "Rescheduled",
     "agenda": {
       "previousDay": "Previous day",
@@ -927,7 +926,8 @@
       "switchLabel": "Calendar view",
       "month": "Month",
       "week": "Week",
-      "range": "Range"
+      "range": "Range",
+      "agenda": "Agenda"
     },
     "timeGrid": {
       "allDay": "All-day",

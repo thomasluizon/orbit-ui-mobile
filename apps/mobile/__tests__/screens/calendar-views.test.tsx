@@ -2,6 +2,7 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { formatAPIDate } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
+import { View } from "react-native";
 
 import CalendarScreen from "@/app/(tabs)/calendar";
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -81,7 +82,7 @@ vi.mock("@/components/ui/sheet", async () => await import("@/__tests__/support/s
 vi.mock("@/components/ui/section-label", () => ({ SectionLabel: () => null }));
 
 vi.mock("@/app/(tabs)/calendar/_components/calendar-shell", () => ({
-  CalendarHeader: () => null,
+  CalendarHeader: () => <View testID="calendar-header" />,
   CalendarWeekNav: () => null,
   CalendarLegend: () => null,
 }));
@@ -127,16 +128,17 @@ function hostTexts(tree: Tree): unknown[] {
     });
 }
 
-function pressTab(tree: Tree, label: string) {
-  const tabs = tree.root.findAll(
+function pressView(tree: Tree, view: string) {
+  const segments = tree.root.findAll(
     (node) =>
       typeof node.type === "string" &&
-      node.props.accessibilityRole === "tab" &&
-      node.props.accessibilityLabel === label,
+      node.props.accessibilityRole === "radio" &&
+      typeof node.props.testID === "string" &&
+      node.props.testID.startsWith(`segment-${view}-`),
   );
-  expect(tabs.length).toBeGreaterThan(0);
+  expect(segments.length).toBeGreaterThan(0);
   TestRenderer.act(() => {
-    tabs[0]!.props.onPress();
+    segments[0]!.props.onPress();
   });
 }
 
@@ -170,6 +172,46 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => tree.update(<></>))
   })
 
+  it("renders one three-option view switcher without agenda and opens the month on today", () => {
+    let tree: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />);
+    });
+
+    const switchers = tree!.root.findAll(
+      (node) =>
+        typeof node.type === "string" &&
+        node.props.accessibilityRole === "radiogroup" &&
+        node.props.accessibilityLabel === "calendar.view.switchLabel",
+    );
+    const segments = tree!.root.findAll(
+      (node) =>
+        typeof node.type === "string" && node.props.accessibilityRole === "radio",
+    );
+
+    expect(switchers).toHaveLength(1);
+    expect(segments).toHaveLength(3);
+    expect(
+      segments.find(
+        (segment) => segment.props.testID === "segment-month-selected-enabled",
+      )?.props.accessibilityState?.checked,
+    ).toBe(true);
+    expect(
+      segments.some(
+        (segment) => segment.props.testID === "segment-agenda-unselected-enabled",
+      ),
+    ).toBe(false);
+
+    const flatLists = tree!.root.findAll(
+      (node) => typeof node.type === "string" && node.type === "FlatList",
+    );
+    let headerTree!: import("react-test-renderer").ReactTestRenderer;
+    TestRenderer.act(() => {
+      headerTree = TestRenderer.create(flatLists[0]!.props.ListHeaderComponent);
+    });
+    expect(calendarGridProps.current?.selectedDay).toBe(formatAPIDate(new Date()));
+    TestRenderer.act(() => headerTree.update(<></>));
+  });
 
   it("switches to the week time-grid when the week tab is selected", () => {
     let tree: Tree;
@@ -185,7 +227,7 @@ describe("CalendarScreen views (mobile)", () => {
       ),
     ).toHaveLength(0);
 
-    pressTab(tree!, "calendar.view.week");
+    pressView(tree!, "week");
 
     expect(
       tree!.root.findAll(
@@ -204,7 +246,7 @@ describe("CalendarScreen views (mobile)", () => {
       tree = TestRenderer.create(<CalendarScreen />);
     });
 
-    pressTab(tree!, "calendar.view.week");
+    pressView(tree!, "week");
     expect(hostTexts(tree!)).toContain("Recurring");
 
     const switches = tree!.root.findAll(
@@ -227,7 +269,7 @@ describe("CalendarScreen views (mobile)", () => {
       tree = TestRenderer.create(<CalendarScreen />);
     });
 
-    pressTab(tree!, "calendar.view.range");
+    pressView(tree!, "range");
 
     expect(hostTexts(tree!)).toContain("calendar.timeGrid.pickRangeHint");
   });
@@ -238,7 +280,7 @@ describe("CalendarScreen views (mobile)", () => {
       tree = TestRenderer.create(<CalendarScreen />);
     });
 
-    pressTab(tree!, "calendar.view.range");
+    pressView(tree!, "range");
     expect(hostTexts(tree!)).toContain("calendar.timeGrid.pickRangeHint");
     expect(calendarGridProps.current).not.toBeNull();
 

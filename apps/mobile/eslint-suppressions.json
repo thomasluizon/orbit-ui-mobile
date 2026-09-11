@@ -1,9 +1,4 @@
 {
-  "app/(tabs)/calendar.tsx": {
-    "local/spacing-scale": {
-      "count": 5
-    }
-  },
   "app/(tabs)/calendar/_components/calendar-day-detail.tsx": {
     "local/spacing-scale": {
       "count": 1
@@ -440,14 +435,6 @@
   "components/ui/scroll-to-top-button.tsx": {
     "local/no-arbitrary-zindex": {
       "count": 1
-    }
-  },
-  "components/ui/section-head-tabs.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 3
     }
   },
   "components/ui/settings-description.tsx": {

@@ -42,7 +42,7 @@ import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import { Sheet } from '@/components/ui/sheet'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { useIsDesktop, useIsWideDesktop } from '@/hooks/use-is-desktop'
 import {
   CalendarHeader,
@@ -73,6 +73,7 @@ export default function CalendarPage() {
   const isWideDesktop = useIsWideDesktop()
 
   const [view, setView] = useState<CalendarView>('month')
+  /** Agenda is desktop-width only until #56 stage 10 builds the mobile day groups. */
   const activeView: CalendarView = !isDesktop && view === 'agenda' ? 'month' : view
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
@@ -249,14 +250,12 @@ export default function CalendarPage() {
     [monthStats, t],
   )
 
-  const viewTabs = useMemo<SectionHeadTabItem<CalendarView>[]>(() => {
-    const base: SectionHeadTabItem<CalendarView>[] = [
-      { id: 'month', label: t('calendar.view.month') },
-      { id: 'week', label: t('calendar.view.week') },
-      { id: 'range', label: t('calendar.view.range') },
-    ]
-    if (isDesktop) base.push({ id: 'agenda', label: t('calendar.viewAgenda') })
-    return base
+  const viewOptions = useMemo(() => {
+    const month = { value: 'month' as const, label: t('calendar.view.month') }
+    const week = { value: 'week' as const, label: t('calendar.view.week') }
+    const range = { value: 'range' as const, label: t('calendar.view.range') }
+    if (!isDesktop) return [month, week, range] as const
+    return [month, week, range, { value: 'agenda' as const, label: t('calendar.view.agenda') }] as const
   }, [t, isDesktop])
 
   const touchStart = useRef<{ x: number; y: number } | null>(null)
@@ -304,12 +303,14 @@ export default function CalendarPage() {
   return (
     <div className="relative">
       <div className="relative z-[1]">
-        <SectionHeadTabs<CalendarView>
-          tabs={viewTabs}
-          active={activeView}
-          onChange={setView}
-          ariaLabel={t('calendar.view.switchLabel')}
-        />
+        <div style={{ padding: '12px 16px 16px' }}>
+          <SegmentedControl<CalendarView>
+            options={viewOptions}
+            value={activeView}
+            onChange={setView}
+            label={t('calendar.view.switchLabel')}
+          />
+        </div>
 
         <div
           className={`loading-bar w-full transition-opacity duration-[var(--dur-slow)] ${
@@ -320,7 +321,7 @@ export default function CalendarPage() {
         {activeView === 'range' && calendarHeader}
 
         {activeError && activeView !== 'agenda' ? (
-          <div style={{ padding: '12px 20px 16px' }}>
+          <div style={{ padding: '12px 16px 16px' }}>
             <CalendarLoadError onRetry={() => void activeRefresh()} />
           </div>
         ) : (
@@ -365,8 +366,8 @@ export default function CalendarPage() {
                   <section
                     data-testid="calendar-day-panel"
                     aria-label={dayDetailTitle}
-                    className="sticky top-[72px] flex h-[calc(100dvh-84px)] flex-col"
-                    style={{ padding: '20px 0 10px 4px' }}
+                    className="sticky top-16 flex h-[calc(100dvh-84px)] flex-col"
+                    style={{ padding: '16px 0 8px 4px' }}
                   >
                     <h2
                       className="min-w-0 shrink-0 truncate"

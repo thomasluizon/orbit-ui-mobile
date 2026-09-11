@@ -68,11 +68,6 @@
       "count": 8
     }
   },
-  "app/(app)/calendar/page.tsx": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
   "app/(app)/layout.tsx": {
     "local/spacing-scale": {
       "count": 2
@@ -605,14 +600,6 @@
     }
   },
   "components/ui/quiet-link.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/ui/section-head-tabs.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 1
     }
