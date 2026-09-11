@@ -179,7 +179,6 @@ const BAD_GRAPHIC_SOURCE_SITES = [
 ] as const
 
 const BAD_FILL_SOURCE_COUNTS = {
-  'apps/mobile/app/(tabs)/calendar/_components/calendar-day-entry.tsx': 1,
   'apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx': 1,
   'apps/mobile/app/(tabs)/profile/_components/delete-account-modal.tsx': 2,
   'apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx': 1,
@@ -212,7 +211,6 @@ const BAD_FILL_SOURCE_COUNTS = {
   'apps/web/app/(app)/support/_components/support-field.tsx': 1,
   'apps/web/app/globals.css': 5,
   'apps/web/components/calendar/calendar-agenda-view.tsx': 1,
-  'apps/web/components/calendar/calendar-day-detail.tsx': 1,
   'apps/web/components/calendar/calendar-time-grid.tsx': 1,
   'apps/web/components/chat/conflict-warning.tsx': 3,
   'apps/web/components/goals/goal-detail-sections.tsx': 1,
