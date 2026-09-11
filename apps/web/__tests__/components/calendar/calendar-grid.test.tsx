@@ -114,11 +114,14 @@ describe('CalendarGrid', () => {
         dayMap={emptyMap}
         onSelectDay={onSelectDay}
         interaction="range-picker"
+        rangeStart="2025-06-20"
       />,
     )
 
     const futureDay = document.querySelector('[data-calendar-date="2025-06-20"]')!
-    fireEvent.click(futureDay.querySelector('button')!)
+    const futureButton = futureDay.querySelector('button')!
+    expect(futureButton).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(futureButton)
     expect(onSelectDay).toHaveBeenCalledWith('2025-06-20')
   })
 

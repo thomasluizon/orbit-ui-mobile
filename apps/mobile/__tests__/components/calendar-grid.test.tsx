@@ -176,7 +176,9 @@ describe('CalendarGrid (mobile)', () => {
     expect(readOnlyDay.props).not.toHaveProperty('onPress')
     expect(tree.root.findByProps({ testID: 'calendar-future-day-2026-09-12' }).props).not.toHaveProperty('onPress')
 
-    TestRenderer.act(() => buttons[0]!.props.onPress())
+    const onPress = buttons[0]!.props.onPress
+    if (typeof onPress !== 'function') throw new Error('Expected loggable calendar day button')
+    TestRenderer.act(() => onPress())
     expect(onSelectDay).toHaveBeenCalledWith('2026-09-05')
   })
 
@@ -190,6 +192,7 @@ describe('CalendarGrid (mobile)', () => {
           gridDays={[gridDay('2026-09-12')]}
           weekdayHeaders={[{ key: 'saturday', label: 'S' }]}
           selectedDay={null}
+          rangeStart="2026-09-12"
           isLoading={false}
           onSelectDay={onSelectDay}
           language="en"
@@ -203,8 +206,15 @@ describe('CalendarGrid (mobile)', () => {
     const button = tree.root.findAll(
       (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'button',
     )[0]!
-    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-12' }).props.style).backgroundColor).toBe('transparent')
-    TestRenderer.act(() => button.props.onPress())
+    expect(button.props.accessibilityState).toEqual({ selected: true })
+    const selectedBackground = StyleSheet.flatten(
+      tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-12' }).props.style,
+    ).backgroundColor
+    expect(selectedBackground).toBe(tokens.selectionBg)
+    expect(selectedBackground).not.toBe(tokens.bgWell)
+    const onPress = button.props.onPress
+    if (typeof onPress !== 'function') throw new Error('Expected range endpoint button')
+    TestRenderer.act(() => onPress())
     expect(onSelectDay).toHaveBeenCalledWith('2026-09-12')
   })
 })

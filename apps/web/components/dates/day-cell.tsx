@@ -77,7 +77,11 @@ function HabitHistoryContents({ props, outcome, size }: Readonly<{ props: DayCel
   )
 }
 
-export function DayCell(props: Readonly<DayCellProps>) {
+type WebDayCellProps = DayCellProps & {
+  selected?: boolean
+}
+
+export function DayCell(props: Readonly<WebDayCellProps>) {
   const outcome = resolveDayCellOutcome(props)
   const size = props.size ?? 44
   const commonProps = {
@@ -100,6 +104,7 @@ export function DayCell(props: Readonly<DayCellProps>) {
       <button
         {...commonProps}
         type="button"
+        aria-pressed={props.selected}
         onClick={props.onPress}
         className="inline-flex shrink-0 items-center justify-center rounded-full border-0 p-0 cursor-pointer transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
       >

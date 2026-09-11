@@ -69,6 +69,7 @@ interface CalendarGridDayProps {
 type CalendarFutureDayProps = {
   accessibleName: string
   cell: GridDay
+  selected: boolean
   tokens: AppTokensV2
 } & (
   | { interactive: true; onPress: () => void }
@@ -94,6 +95,7 @@ function CalendarFutureDay(props: Readonly<CalendarFutureDayProps>) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={props.accessibleName}
+        accessibilityState={{ selected: props.selected }}
         onPress={props.onPress}
         style={styles.futureControl}
       >
@@ -155,13 +157,14 @@ function CalendarGridDayBody({
         <CalendarFutureDay
           accessibleName={accessibleName}
           cell={cell}
+          selected={selected}
           tokens={tokens}
           interactive
           onPress={() => onSelectDay(cell.dateStr)}
         />
       )
     }
-    return <CalendarFutureDay accessibleName={accessibleName} cell={cell} tokens={tokens} />
+    return <CalendarFutureDay accessibleName={accessibleName} cell={cell} selected={selected} tokens={tokens} />
   }
   return <DayCell {...dayCell} accessibilityState={{ selected }} />
 }

@@ -54,6 +54,7 @@ interface CalendarGridDayProps {
 type CalendarFutureDayProps = {
   accessibleName: string
   cell: CalendarMonthDay
+  selected: boolean
 } & (
   | { interactive: true; onPress: () => void }
   | { interactive?: false; onPress?: never }
@@ -81,6 +82,7 @@ function CalendarFutureDay(props: Readonly<CalendarFutureDayProps>) {
       <button
         type="button"
         aria-label={props.accessibleName}
+        aria-pressed={props.selected}
         onClick={props.onPress}
         className="inline-flex size-11 items-center justify-center rounded-full border-0 bg-transparent p-0 cursor-pointer transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
       >
@@ -108,6 +110,7 @@ function CalendarGridDayBody({
   interaction,
   isLoading,
   onSelectDay,
+  selected,
 }: Readonly<{
   accessibleName: string
   cell: CalendarMonthDay
@@ -116,6 +119,7 @@ function CalendarGridDayBody({
   interaction: 'write-window' | 'range-picker'
   isLoading: boolean
   onSelectDay: (dateStr: string) => void
+  selected: boolean
 }>) {
   if (isLoading) {
     return (
@@ -128,11 +132,11 @@ function CalendarGridDayBody({
   }
   if (future && cell.isCurrentMonth) {
     if (interaction === 'range-picker') {
-      return <CalendarFutureDay accessibleName={accessibleName} cell={cell} interactive onPress={() => onSelectDay(cell.dateStr)} />
+      return <CalendarFutureDay accessibleName={accessibleName} cell={cell} selected={selected} interactive onPress={() => onSelectDay(cell.dateStr)} />
     }
-    return <CalendarFutureDay accessibleName={accessibleName} cell={cell} />
+    return <CalendarFutureDay accessibleName={accessibleName} cell={cell} selected={selected} />
   }
-  return <DayCell {...dayCell} />
+  return <DayCell {...dayCell} selected={selected} />
 }
 
 function CalendarGridDay({
@@ -197,6 +201,7 @@ function CalendarGridDay({
         interaction={interaction}
         isLoading={isLoading}
         onSelectDay={onSelectDay}
+        selected={selected}
       />
     </span>
   )
