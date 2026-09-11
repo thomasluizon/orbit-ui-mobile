@@ -43,24 +43,37 @@ function resourceStrings(relativePath: string) {
  * distance, so a key on the breakpoint beats the key just above it. Transcribed from
  * android/widget/RemoteViews.java: fitsIn is `ceil(host) + 1 > key` and the comparison is strict.
  */
-function fitsIn(keyDp: number, hostDp: number) {
-  return Math.ceil(hostDp) + 1 > keyDp
+type SizeDp = Readonly<{
+  width: number
+  height: number
+}>
+
+type NamedSizeDp = SizeDp & Readonly<{
+  viewName: string
+}>
+
+function fitsIn(keyDp: SizeDp, hostDp: SizeDp) {
+  return Math.ceil(hostDp.width) + 1 > keyDp.width
+    && Math.ceil(hostDp.height) + 1 > keyDp.height
 }
 
-function selectedKeyDp(keysDp: readonly number[], hostDp: number) {
-  let selected: number | null = null
+function selectedSizeKey(keysDp: readonly NamedSizeDp[], hostDp: SizeDp) {
+  let selected: NamedSizeDp | null = null
   let smallestSquareDistance = Number.POSITIVE_INFINITY
 
   for (const keyDp of keysDp) {
     if (!fitsIn(keyDp, hostDp)) continue
-    const squareDistance = (keyDp - hostDp) ** 2
+    const squareDistance = (keyDp.width - hostDp.width) ** 2
+      + (keyDp.height - hostDp.height) ** 2
     if (selected === null || squareDistance < smallestSquareDistance) {
       selected = keyDp
       smallestSquareDistance = squareDistance
     }
   }
 
-  return selected ?? Math.min(...keysDp)
+  return selected ?? keysDp.reduce((smallest, key) => (
+    key.width * key.height < smallest.width * smallest.height ? key : smallest
+  ))
 }
 
 /**
@@ -88,6 +101,37 @@ function kotlinFloatConstant(source: string, name: string) {
   const value = source.match(new RegExp(`(?:private|internal) const val ${name} = ([\\d.]+)f`))?.[1]
   if (value === undefined) throw new Error(`Missing Kotlin constant: ${name}`)
   return Number(value)
+}
+
+function kotlinFloatExpression(source: string, expression: string) {
+  const normalized = expression.trim()
+  const literal = normalized.match(/^([\d.]+)f$/)?.[1]
+  if (literal !== undefined) return Number(literal)
+
+  const addition = normalized.match(/^(\w+) \+ ([\d.]+)f$/)
+  if (addition) {
+    const [, constantName, addend] = addition
+    if (constantName === undefined || addend === undefined) {
+      throw new Error(`Malformed Kotlin float expression: ${expression}`)
+    }
+    return kotlinFloatConstant(source, constantName) + Number(addend)
+  }
+
+  return kotlinFloatConstant(source, normalized)
+}
+
+function remoteViewSizeKeys(source: string) {
+  return [...source.matchAll(/SizeF\(([^,]+), ([^)]+)\) to (\w+)/g)].map(match => {
+    const [, width, height, viewName] = match
+    if (width === undefined || height === undefined || viewName === undefined) {
+      throw new Error(`Malformed RemoteViews size key: ${match[0]}`)
+    }
+    return {
+      width: kotlinFloatExpression(source, width),
+      height: kotlinFloatExpression(source, height),
+      viewName,
+    }
+  })
 }
 
 function widgetKotlinSources() {
@@ -127,6 +171,21 @@ function layoutViews(relativePath = 'layout/widget_layout.xml') {
 
 function drawable(relativePath: string) {
   return readFileSync(resolve(widgetRoot, `drawable/${relativePath}`), 'utf8')
+}
+
+function rootAttributes(relativePath: string) {
+  let attributes: Record<string, string> | undefined
+  const parser = new SaxesParser()
+
+  parser.on('opentag', tag => {
+    if (attributes) return
+    attributes = Object.fromEntries(
+      Object.entries(tag.attributes).map(([name, value]) => [name, String(value)]),
+    )
+  })
+  parser.write(readFileSync(resolve(widgetRoot, relativePath), 'utf8')).close()
+
+  return attributes ?? {}
 }
 
 describe('Android widget header', () => {
@@ -262,27 +321,150 @@ describe('Android widget header', () => {
       expect(source).not.toContain('partiallyUpdateAppWidget')
       expect(source).not.toContain('OPTION_APPWIDGET_MIN_WIDTH')
     }
-    expect(provider).toContain('SizeF(COMPACT_IDEAL_WIDTH_DP, 1f) to compactViews')
-    expect(provider).toContain('SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, 1f) to expandedViews')
-
     const breakpointDp = kotlinFloatConstant(provider, 'STREAK_UNIT_BREAKPOINT_DP')
-    const compactKeyDp = kotlinFloatConstant(provider, 'COMPACT_IDEAL_WIDTH_DP')
-    const expandedKeyDp = breakpointDp + 1
-    const keysDp = [compactKeyDp, expandedKeyDp]
+    const keysDp = remoteViewSizeKeys(provider)
 
     expect(breakpointDp).toBe(200)
     for (const hostDp of [110, 160, 199, 199.5, 199.9, 200]) {
-      expect(selectedKeyDp(keysDp, hostDp), `${hostDp}dp`).toBe(compactKeyDp)
+      expect(
+        selectedSizeKey(keysDp, { width: hostDp, height: 96 }).width,
+        `${hostDp}dp`,
+      ).toBeLessThanOrEqual(breakpointDp)
     }
     for (const hostDp of [200.1, 200.38, 200.5, 201, 250, 400]) {
-      expect(selectedKeyDp(keysDp, hostDp), `${hostDp}dp`).toBe(expandedKeyDp)
+      expect(
+        selectedSizeKey(keysDp, { width: hostDp, height: 96 }).width,
+        `${hostDp}dp`,
+      ).toBe(breakpointDp + 1)
     }
     expect(provider).toMatch(
-      /if \(Build\.VERSION\.SDK_INT < Build\.VERSION_CODES\.S\) \{\s*return buildWidgetViews\([\s\S]*?View\.VISIBLE\s*\)\s*\}/,
+      /if \(Build\.VERSION\.SDK_INT < Build\.VERSION_CODES\.S\) \{\s*return buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_TWO_HEIGHT_DP,\s*true\s*\)\s*\}/,
     )
     expect(provider).toMatch(
-      /val compactViews = buildWidgetViews\([\s\S]*?View\.GONE\s*\)[\s\S]*?val expandedViews = buildWidgetViews\([\s\S]*?View\.VISIBLE\s*\)/,
+      /val compactViews = buildWidgetViews\([\s\S]*?View\.GONE,\s*TWO_BY_TWO_HEIGHT_DP,\s*false\s*\)/,
     )
+  })
+
+  it('offers the four launcher geometries as host-selected complete views', () => {
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    const breakpointKeyDp = kotlinFloatConstant(provider, 'STREAK_UNIT_BREAKPOINT_DP') + 1
+    const keysDp = remoteViewSizeKeys(provider)
+    const expectedSelections = [
+      { host: { width: 336, height: 96 }, viewName: 'fourByOneViews' },
+      { host: { width: 336, height: 192 }, viewName: 'fourByTwoViews' },
+      { host: { width: 336, height: 288 }, viewName: 'fourByThreeViews' },
+      { host: { width: 160, height: 192 }, viewName: 'twoByTwoViews' },
+      { host: { width: 250, height: 192 }, viewName: 'fourByTwoViews' },
+    ] as const
+
+    expect.soft(provider).toMatch(
+      /val fourByOneViews = buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_ONE_HEIGHT_DP,\s*true\s*\)/,
+    )
+    expect.soft(provider).toContain(
+      'SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_ONE_HEIGHT_DP) to fourByOneViews',
+    )
+    expect.soft(provider).toContain(
+      'SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_TWO_HEIGHT_DP) to fourByTwoViews',
+    )
+    expect.soft(provider).toMatch(
+      /val fourByThreeViews = buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_THREE_HEIGHT_DP,\s*true\s*\)/,
+    )
+    expect.soft(provider).toContain(
+      'SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_THREE_HEIGHT_DP) to fourByThreeViews',
+    )
+    expect.soft(provider).toMatch(
+      /val twoByTwoViews = buildWidgetViews\([\s\S]*?View\.GONE,\s*TWO_BY_TWO_HEIGHT_DP,\s*false\s*\)/,
+    )
+    expect.soft(provider).toContain(
+      'SizeF(NARROW_WIDTH_DP, TWO_BY_TWO_HEIGHT_DP) to twoByTwoViews',
+    )
+    expect.soft(provider).toMatch(
+      /putExtra\(EXTRA_WIDGET_HEIGHT_DP, widgetHeightDp\)\s*putExtra\(EXTRA_SHOW_TIME, showTime\)\s*data = Uri\.parse\(toUri\(Intent\.URI_INTENT_SCHEME\)\)/,
+    )
+    for (const { host, viewName } of expectedSelections) {
+      expect.soft(
+        selectedSizeKey(keysDp, host).viewName,
+        `${host.width} by ${host.height}dp`,
+      ).toBe(viewName)
+    }
+    for (const viewName of ['fourByOneViews', 'fourByTwoViews', 'fourByThreeViews']) {
+      expect.soft(keysDp.find(key => key.viewName === viewName)?.width).toBe(breakpointKeyDp)
+    }
+  })
+
+  it('derives row capacity and remainder space from the drawing geometry', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const views = layoutViews()
+
+    expect.soft(service).toContain('internal fun calculateWidgetGeometry(')
+    expect.soft(service).toContain('val availableHeightDp = heightDp - HEADER_HEIGHT_DP')
+    expect.soft(service).toContain('floor(availableHeightDp / ROW_HEIGHT_DP)')
+    expect.soft(service).toContain('availableHeightDp - (fit - 1) * ROW_HEIGHT_DP >= REMAINDER_HEIGHT_DP')
+    expect.soft(service).toContain('if (canStateRemainder) maxOf(1, fit - 1)')
+    for (const index of [1, 2, 3, 4, 5]) {
+      expect.soft(views.get(`widget_skeleton_${index}`)?.['android:layout_height']).toBe('48dp')
+    }
+  })
+
+  it('renders an accessible remainder item and hides only time on the narrow variant', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const remainder = layoutViews('layout/widget_remainder.xml')
+
+    expect.soft(kotlinFloatConstant(service, 'REMAINDER_HEIGHT_DP')).toBe(48)
+    expect.soft(remainder.get('widget_remainder')).toMatchObject({
+      'android:layout_height': '48dp',
+    })
+    expect.soft(remainder.get('widget_remainder_text')).toMatchObject({
+      'android:layout_height': '24dp',
+      'android:paddingStart': '12dp',
+      'android:paddingEnd': '12dp',
+      'android:textColor': '@color/widget_fg_3',
+      'android:textSize': '12sp',
+    })
+    expect.soft(service).toContain('R.layout.widget_remainder')
+    expect.soft(service).toContain(
+      'views.setTextViewText(R.id.widget_remainder_text, remainderText)',
+    )
+    expect.soft(service).toContain(
+      'views.setContentDescription(R.id.widget_remainder, remainderDescription)',
+    )
+    expect.soft(service).toContain(
+      'views.setOnClickFillInIntent(R.id.widget_remainder, Intent())',
+    )
+    expect.soft(service).toMatch(
+      /val remainderDescription = tr\(\s*context,\s*lang,\s*WidgetString\.MORE_DESCRIPTION,\s*remainderCount\s*\)/,
+    )
+    expect.soft(service).toMatch(/if \(!showTime\) \{[\s\S]*?R\.id\.item_time[\s\S]*?R\.id\.item_time_overdue/)
+    expect.soft(service).toContain('override fun getViewTypeCount(): Int = 2')
+  })
+
+  it('ships the one-count remainder format in both widget locales', () => {
+    const english = resourceStrings('values/widget_strings.xml')
+    const portuguese = resourceStrings('values-pt-rBR/widget_strings.xml')
+
+    expect.soft(english.get('widget_more')).toBe('%1$d more')
+    expect.soft(portuguese.get('widget_more')).toBe('mais %1$d')
+    expect.soft(english.get('widget_more_description')).toBe(
+      '%1$d more habits are not shown.',
+    )
+    expect.soft(portuguese.get('widget_more_description')).toBe(
+      'Mais %1$d hábitos não são exibidos.',
+    )
+    expect.soft(english.get('widget_more')?.match(/%1\$d/g)).toHaveLength(1)
+    expect.soft(portuguese.get('widget_more')?.match(/%1\$d/g)).toHaveLength(1)
+    expect.soft(english.get('widget_more_description')?.match(/%1\$d/g)).toHaveLength(1)
+    expect.soft(portuguese.get('widget_more_description')?.match(/%1\$d/g)).toHaveLength(1)
+  })
+
+  it('defaults to 4 by 2 and admits the supported resize floors', () => {
+    const provider = rootAttributes('xml/orbit_widget_info.xml')
+
+    expect.soft(provider['android:minWidth']).toBe('250dp')
+    expect.soft(provider['android:minHeight']).toBe('110dp')
+    expect.soft(provider['android:minResizeWidth']).toBe('160dp')
+    expect.soft(provider['android:minResizeHeight']).toBe('96dp')
+    expect.soft(provider['android:targetCellWidth']).toBe('4')
+    expect.soft(provider['android:targetCellHeight']).toBe('2')
   })
 
   it('routes every post-sync header and loading mutation through the full provider render', () => {
@@ -664,7 +846,7 @@ describe('Android widget habit rows', () => {
     expect(overdue).toContain('<vector')
     expect(overdue).toContain('android:strokeColor="@color/widget_overdue"')
     expect(pending).toContain('<vector')
-    expect(pending).toContain('android:strokeColor="@color/widget_fg_4"')
+    expect(pending).toContain('android:strokeColor="@color/widget_track_empty"')
   })
 
   it('ships localized checklist and deeper-tree labels with the complete row vocabulary', () => {

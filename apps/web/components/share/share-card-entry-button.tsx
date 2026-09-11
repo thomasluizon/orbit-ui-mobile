@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Share2 } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
-import { ProfileActionButton } from '@/app/(app)/profile/_components/profile-action-button'
+import { ListRow } from '@/components/ui/list-row'
 import { ShareCardPanel } from './share-card-panel'
 
 interface ShareCardEntryButtonProps {
@@ -22,7 +22,12 @@ export function ShareCardEntryButton({
   return (
     <>
       {variant === 'row' ? (
-        <ProfileActionButton icon={Share2} onClick={() => setOpen(true)} label={t('shareCard.entry')} />
+        <ListRow
+          icon={<Share2 size={24} strokeWidth={1.8} color="var(--fg-1)" />}
+          title={t('shareCard.entry')}
+          chevron={false}
+          onClick={() => setOpen(true)}
+        />
       ) : (
         <button
           type="button"

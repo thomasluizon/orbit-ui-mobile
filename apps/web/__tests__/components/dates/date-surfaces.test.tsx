@@ -36,6 +36,9 @@ describe('DayStrip', () => {
     ])
     expect(screen.getByRole('img', { name: 'Mon 1, complete' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Wed 3, rest' })).toBeInTheDocument()
+    expect(container.querySelector('[data-state="missed"]')).toHaveStyle({
+      boxShadow: 'inset 0 0 0 1px var(--status-empty)',
+    })
   })
 
   it('marks only the account today entry as current', () => {
@@ -85,6 +88,7 @@ describe('DayCell', () => {
     const { container, rerender } = render(
       <DayCell day={15} label="March 15" words={cellWords} scheduled={3} done={1} />,
     )
+    expect(container.querySelectorAll('circle')[0]).toHaveAttribute('stroke', 'var(--status-empty)')
     expect(container.querySelectorAll('circle')[1]).toHaveAttribute('stroke-dasharray', `${(1 / 3) * 100} 100`)
 
     rerender(<DayCell day={15} label="March 15" words={cellWords} scheduled={3} done={2} />)
@@ -99,7 +103,9 @@ describe('DayCell', () => {
     expect(container.querySelector('span[style*="width: 3px"]')).toBeNull()
 
     rerender(<DayCell day={16} label="March 16" words={cellWords} done={0} scheduled={1} habitHistory />)
-    expect(container.querySelector('span[style*="width: 3px"]')).toBeInTheDocument()
+    const missedDot = container.querySelector('span[style*="width: 3px"]')
+    expect(missedDot).toBeInTheDocument()
+    expect(missedDot?.className).toContain('bg-[var(--status-empty)]')
 
     rerender(<DayCell day={17} label="March 17" words={cellWords} done={0} scheduled={0} habitHistory />)
     expect(container.querySelector('[data-outcome="not-scheduled"] span')).toHaveStyle({ opacity: '0.4' })

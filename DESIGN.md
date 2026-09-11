@@ -18,7 +18,7 @@ It is authoritative for **both platforms** (`apps/web`, `apps/mobile`) and for t
 
 **D42, amended 2026-08-25: there are exactly two sources, this document and the granted canvas.**
 Thomas granted the twenty-one-screen Claude Design export on 2026-08-25. It is committed at
-`design/canvas/`, with the design system's 166 token values under
+`design/canvas/`, with the design system's 170 token values under
 `design/canvas/_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/`.
 
 **Precedence, in this order:**
@@ -404,6 +404,7 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --hairline-strong rgba(255,255,255,0.16)
 --fg-1 #F4F4F6   /* 18.11:1 */   --fg-2 #C9C9CC   /* 12.04:1 */
 --fg-3 #8F8F93   /*  6.18:1 */   --fg-4 #5D5D60   /*  3.03:1, clears the 3:1 non-text floor */
+--track-empty     #7A7A7D                     /* empty UI track. 3.03:1 on a card-child hover */
 --primary         #C4530F                     /* fill and graphic ONLY. hue 45. White on it clears 4.5 */
 --primary-soft    #C85716                     /* accent TEXT on the canvas */
 --primary-pressed #A24716                     /* the fill, 16% toward the canvas */
@@ -412,7 +413,7 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --primary-dim     #261611                     /* the fill at 18% over the canvas */
 --fg-on-primary   #FFFFFF                     /* always white: the fill is dark in both modes */
 --status-done     var(--fg-1)                 /* UNBOUND from the accent. The brightest neutral */
---status-empty    var(--fg-4)                 /* ring track. 3.03:1 */
+--status-empty    var(--track-empty)          /* ring track. 3.03:1 on the worst surface */
 --status-frozen   var(--fg-2)                 /* NEUTRAL. See the note below */
 --status-overdue  #FE9A00                     /* 9.32:1, hue 65.4 */
 --status-bad      #FB2C36                     /* 5.23:1, hue 25.4 */
@@ -435,7 +436,7 @@ step, and the measurement reversed its direction.
 
 **`--status-frozen` is retired as a hue.** Measured 2026-08-15: the old `#00D3F3` sits 12.0 degrees from the new accent, inside the 15-degree band where two hues read as one colour, so streak-freeze and done would have looked like the same state. **Frozen renders as a neutral chip plus the snowflake glyph, on a DAY and never on a habit.** This removes a colour from the system, and the no-colour-only rule already required the glyph.
 
-**`--status-done` is the second status neutralised, on the same precedent.** It was `var(--primary)`, so the brand colour and the completed state were one byte. Three rules in this document already forbade that: derivation rule 6's 15-degree separation, the accent note's "a static element rendered in the accent is as misleading as an interactive one rendered neutral", and "fill exactly one action per view", which a six-habit list with four done broke six times over. **Done now renders as an `--fg-1` disc with a filled check.** The neutral status ranking is done `--fg-1`, frozen `--fg-2`, skip `--fg-3`, empty `--fg-4`, so three neutral statuses can share one column and stay distinguishable.
+**`--status-done` is the second status neutralised, on the same precedent.** It was `var(--primary)`, so the brand colour and the completed state were one byte. Three rules in this document already forbade that: derivation rule 6's 15-degree separation, the accent note's "a static element rendered in the accent is as misleading as an interactive one rendered neutral", and "fill exactly one action per view", which a six-habit list with four done broke six times over. **Done now renders as an `--fg-1` disc with a filled check.** The neutral status ranking is done `--fg-1`, frozen `--fg-2`, skip `--fg-3`, empty `--track-empty`, so all four neutral statuses can share one column and stay distinguishable.
 
 ### Light mode (MANDATORY, ships with every surface)
 
@@ -446,7 +447,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --bg-field #FFFFFF · --bg-well rgba(9,9,11,0.04)
 --bg-sunk rgba(9,9,11,0.04)
 --bg-hover rgba(9,9,11,0.06)
---status-done var(--fg-1) · empty var(--fg-4) · frozen var(--fg-2)   /* the neutral statuses resolve through the fg ramp in BOTH variants */
+--status-done var(--fg-1) · empty var(--track-empty) · frozen var(--fg-2)
 --status-overdue #886100   /* 5.36:1 on #FAFAFA, hue 81.1. White on it 5.59:1 */
 --status-bad     #E7000B   /* 4.57:1 on #FAFAFA, hue 28.5 */
 --fg-on-bad      #FFFFFF   /* 4.77:1 on the fill */
@@ -455,6 +456,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --hairline-ghost rgba(9,9,11,0.10) · --hairline-strong rgba(9,9,11,0.16)
 --fg-1 #1A1A1D  /* 16.64:1 */   --fg-2 #424247  /*  9.57:1 */
 --fg-3 #68686D  /*  5.31:1 */   --fg-4 #89898D  /*  3.34:1 */
+--track-empty    #7F7F83   /* empty UI track. 3.01:1 on selection over the canvas */
 --primary        #C4530F   /* light mode takes the SAME dark fill, with white on it */
 --primary-soft   #C15109   /* derived against #FAFAFA, not against the canvas */
 --primary-dim    #F4DDD3   /* the fill at 18% over #FAFAFA. fg-1 on it 13.34:1, fg-2 7.67:1 */
@@ -475,7 +477,7 @@ dark-mode value `#261611`, a near-black wash painted onto a white card. That is 
 overdue attempt inherited `#020618`, which measured **4.26:1** on `#B45B00` and missed the 4.5 text
 floor. The explicit white override measures 5.59:1 on the current fill.
 
-### Measured contrast, and two limits that are open
+### Measured contrast, with the remaining limits closed
 
 Measured 2026-08-17 against every surface in the ladder, not just the canvas, because that is where
 the misses are. Two independent implementations agree on every number below.
@@ -486,9 +488,11 @@ the misses are. Two independent implementations agree on every number below.
 | dark `--fg-2` | 12.04 | 11.27 | 10.79 | 10.27 | 9.15 | 8.91 | 10.30 |
 | dark `--fg-3` | 6.18 | 5.78 | 5.53 | 5.27 | 4.69 | 4.57 | 5.28 |
 | dark `--fg-4` | 3.03 | **2.84** | **2.72** | **2.59** | **2.30** | **2.24** | **2.59** |
+| dark `--track-empty` | 4.649 | 4.336 | 4.184 | 3.976 | 3.530 | 3.439 | 3.976 |
 | dark `--primary-soft` | 4.58 | **4.28** | **4.10** | **3.90** | **3.48** | **3.38** | **3.91** |
 | light `--fg-3` | 5.31 | 5.54 | | 4.88 | | 4.67 | |
 | light `--fg-4` | 3.34 | 3.48 | | 3.07 | | **2.94** | |
+| light `--track-empty` | 3.821 | 3.988 | | 3.499 | | 3.376 | |
 | light `--primary-soft` | 4.52 | 4.72 | | 4.16 | | **3.98** | |
 
 **`--primary-soft` is canvas only, and that closes its row by rule rather than by pigment.** The token
@@ -503,15 +507,24 @@ percent overdue tint, all below the 4.5 text floor. Thomas moved it along consta
 4.95 on the widget well and 4.70 on that tint. White on the fill is 5.59, and the 36.3 degree
 separation from the accent still clears derivation rule 6.
 
-**Two limits are measured, open, and Thomas's call**, because each one trades against a rule set
-elsewhere in this document. They are written down with their numbers rather than left to be
-rediscovered. A third is now closed, and its record is kept below them.
+**Closed 2026-09-10, corrected 2026-09-10: `--fg-4` as an empty graphic above the canvas, dark and
+light.** `--fg-4` measured 2.24 to 2.84 across dark raised surfaces and 2.94 on light hover, below
+the 3.0 non-text floor. Thomas kept `--fg-4` unchanged and added the dedicated `--track-empty`
+neutral, derived at constant OKLCH hue and chroma from `--fg-4` in each mode. The first derivation
+measured only the flat canvas and replacement hover. The shipped consumers also reach a hover child
+inside a card and selection tint over both the canvas and a card. Range endpoints now apply that
+selection tint once, at the range slot, while the cell keeps its primary selected ring.
 
-1. **`--fg-4` as a graphic above the canvas: 2.24 to 2.84 dark, 2.94 light on hover.** `--fg-4` is
-   specified at exactly the 3:1 non-text floor and reaches it **on the canvas alone**. The empty
-   `StatusRing` sits on a card, so it is under the floor everywhere it actually renders. Cheapest fix:
-   the empty ring takes `--fg-3`, which collapses the four-step neutral status ranking to three.
-2. **Light `--fg-4` on hover: 2.94.** The same defect on the light side, and the same fix.
+Dark `#7A7A7D` measures 4.649 on canvas, 4.336 on card, 3.976 on well or overlay, 3.439 on a
+replacement hover, 3.034 on a hover child inside a card, 3.325 on selection over canvas, 3.054 on
+selection over card, 4.336 on the widget card and 3.933 on the widget well. Light `#7F7F83`
+measures 3.821 on canvas, 3.988 on card or overlay, 3.499 on well, 3.376 on replacement hover,
+3.499 on a hover child inside a card, 3.011 on selection over canvas, 3.126 on selection over card,
+3.988 on the widget card and 3.533 on the widget well. No empty-track consumer sits on `--bg-field`
+or `--bg-elev-2`, and none combines selection with a well, so those candidate stacks are
+unreachable rather than derivation inputs. `--status-empty` resolves through the corrected token.
+The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 4.34 and 2.83; light 17.36,
+9.99, 5.54, 3.99 and 3.48 for done, frozen, skip, empty and `--fg-4`.
 
 **Closed 2026-09-09: `--fg-3` on a hovered surface, dark.** It measured **4.40** and missed the 4.5
 text floor, and this document proposed taking `--bg-hover` from alpha 0.14 to 0.12 as the cheapest
@@ -723,8 +736,8 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | SectionTitle | Geist Sans 20/500 -0.01em, optional mono uppercase eyebrow, fixed scale spacing, no action slot | `ui/section-label.tsx` | `ui/section-label.tsx` |
 | ListRow | icon 24/1.5 in a 28px slot, title Geist Sans 17/400, desc 14 fg-3, value + trailing chevron 24 fg-4, **draws no rule of its own**, danger = status-bad | `ui/settings-row.tsx` | `ui/settings-row.tsx` |
 | SettingsGroup | the only owner of row separation: a hairline *between* adjacent rows, never after the last | `ui/settings-group.tsx` | `ui/settings-group.tsx` |
-| Switch | 48x28 pill, 22px thumb, on = primary / off = `rgba(fg,0.16)` | `ui/switch.tsx` | `ui/switch.tsx` |
-| Radio/RadioRow | 24px, selected = primary fill + 9px dot, else inset 2px fg-4 ring | `ui/select-check.tsx` | `ui/select-check.tsx` |
+| Switch | 48x28 pill, 22px thumb, on = primary / off = `--track-empty` | `ui/switch.tsx` | `ui/switch.tsx` |
+| Radio/RadioRow | 24px, selected = primary fill + 9px dot, else inset 2px `--track-empty` ring | `ui/select-check.tsx` | `ui/select-check.tsx` |
 | Badge | **radius 8 chip, never a pill**, Geist Mono 10.5/500 +0.06em UPPERCASE, `text-box` trimmed; variants solid / outline | `ui/badge.tsx` | same |
 | PillButton | pill CTA, radius 999, 5 variants x 2 sizes off shared `BUTTON_SIZES`. Full canon in **Buttons** | `ui/pill-button.tsx` | `ui/pill-button.tsx` |
 | StatTile | radius 20, `--bg-card` + inset hairline ring, value Space Grotesk 24/600 tabular held to one line, label 14/20 fg-2 clamped to 2 lines in a fixed reservation | `ui/stat-tile.tsx` | same |
@@ -744,8 +757,8 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | EmptyState | required title, one action; 96px real `OrbitMark`, `--fg-1`, no arc and no accent. An Astra-owned region takes `AstraGlyph` instead | `ui/empty-state.tsx` | same |
 | ErrorState | one caller-owned message and one optional text action; no code, severity or detail slot | `ui/error-state.tsx` | same |
 | CapacityNotice | neutral limit message, optional explanatory body and one action; never `--status-bad` | `ui/capacity-notice.tsx` | same |
-| ProgressBar | 8px pill track `--fg-4`, primary fill | `ui/progress-bar.tsx` | same |
-| ProgressRing | thin band, primary sweep on a `--fg-4` track | right rail / Today | same |
+| ProgressBar | 8px pill track `--track-empty`, primary fill | `ui/progress-bar.tsx` | same |
+| ProgressRing | thin band, primary sweep on a `--track-empty` track | right rail / Today | same |
 | DayStrip | compact horizontal history, habit and account scopes, caller-owned labels and words; done and active are neutral, frozen uses a neutral snowflake, missed is outlined, not scheduled is a well, and only today uses primary | `dates/day-strip.tsx` | `dates/day-strip.tsx` |
 | DayCell | 44px default target, tabular day number, read-only by default; `scheduled={0}` derives not scheduled, counts derive none, partial, or full, partial uses the exact fraction, full is neutral, and only today or selected uses primary position treatment | `dates/day-cell.tsx` | `dates/day-cell.tsx` |
 | MonthGrid | semantic month group with caller-owned weekday labels, column count derived from those labels, and no header when the label list is empty | `dates/month-grid.tsx` | `dates/month-grid.tsx` |
@@ -1083,7 +1096,7 @@ The floor is **WCAG 2.2 Level AA**, and **WCAG is the gate while APCA is the tie
 ### Perception
 
 - **Never encode state or meaning in colour alone.** Every status must also be carried by an icon, a shape, a text label, or a position.
-- **Non-text UI elements meet 3:1 against their adjacent surface.** `--fg-4` is derived to exactly this floor at 3.03:1.
+- **Non-text UI elements meet 3:1 against their adjacent surface.** `--track-empty` is derived to clear this floor on its worst permitted surface. `--fg-4` is canvas-only when used as a graphic.
 - **Measure the pair that actually renders**, not the page background, and remeasure in both modes. A pair that passes in light can fail in dark.
 - **Honour `prefers-reduced-transparency`** (raise surface opacity toward solid) and **`prefers-contrast: more`** (see derivation rule 9). The whole dark ladder is white-alpha translucency, so reduced-transparency is directly load-bearing.
 - **Never ship a full-viewport moving background, a slow oscillation near 0.2 Hz, or an abrupt light/dark brightness jump.**

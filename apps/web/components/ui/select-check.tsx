@@ -12,7 +12,7 @@ export function RadioGlyph({ selected, size }: Readonly<{ selected: boolean; siz
         width: size,
         height: size,
         background: selected ? 'var(--primary)' : 'transparent',
-        boxShadow: selected ? 'none' : 'inset 0 0 0 2px var(--fg-4)',
+        boxShadow: selected ? 'none' : 'inset 0 0 0 2px var(--track-empty)',
       }}
     >
       {selected && (
@@ -29,7 +29,7 @@ export function RadioGlyph({ selected, size }: Readonly<{ selected: boolean; siz
   )
 }
 
-/** Kit Radio: 24px circle, primary fill + white dot when selected, inset 2px fg-4 ring otherwise. */
+/** Kit Radio: 24px circle, primary fill + white dot when selected, inset 2px empty track otherwise. */
 interface SelectCheckProps {
   selected: boolean
   size?: number
@@ -106,7 +106,7 @@ export function RadioRow({
     >
       <RadioGlyph selected={selected} size={24} />
       <span
-        className="flex-1 min-w-0 overflow-hidden whitespace-nowrap text-ellipsis"
+        className="min-w-0 flex-1 break-words text-left"
         style={{
           fontFamily: 'var(--font-sans)',
           fontSize: 17,

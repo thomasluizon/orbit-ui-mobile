@@ -42,6 +42,7 @@ describe('redesign primitives on web', () => {
 
   it('draws unfinished ring progress in accent and completion in neutral', () => {
     const { container, rerender } = render(<ProgressRing value={40} label="Progress" />)
+    expect(container.querySelector('circle:first-child')).toHaveAttribute('stroke', 'var(--track-empty)')
     expect(container.querySelector('circle:last-child')).toHaveAttribute('stroke', 'var(--primary)')
 
     rerender(<ProgressRing value={100} label="Progress" />)

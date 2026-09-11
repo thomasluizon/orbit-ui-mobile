@@ -28,6 +28,13 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         private const val REFRESH_TIMEOUT_WORK_NAME = "orbit_widget_refresh_timeout"
         private const val WIDGET_REFRESH_TIMEOUT_MS = 12_000L
         internal const val STREAK_UNIT_BREAKPOINT_DP = 200f
+        internal const val NARROW_WIDTH_DP = 160f
+        internal const val FOUR_BY_ONE_HEIGHT_DP = 96f
+        internal const val FOUR_BY_TWO_HEIGHT_DP = 192f
+        internal const val FOUR_BY_THREE_HEIGHT_DP = 288f
+        internal const val TWO_BY_TWO_HEIGHT_DP = 192f
+        internal const val EXTRA_WIDGET_HEIGHT_DP = "widget_height_dp"
+        internal const val EXTRA_SHOW_TIME = "show_time"
         // The widget's own minResizeWidth. A compact key sitting on the breakpoint would
         // win the nearest-distance tie just above it and hide the unit there.
         private const val COMPACT_IDEAL_WIDTH_DP = 110f
@@ -147,14 +154,13 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         }
 
         /**
-         * API 31 lets the host choose a RemoteViews child for the size it is rendering. The 1dp
-         * height makes width the only meaningful threshold. RemoteViews.findBestFitLayout keeps
-         * every key whose width is below ceil(hostWidth) + 1 and then takes the SMALLEST squared
-         * distance, not the largest key that fits, so the compact key is the widget's own
-         * minResizeWidth rather than the breakpoint: at 200dp the 201dp key still does not fit and
-         * the unit stays hidden, and at every representable width above it the 201dp key both fits
-         * and is far nearer than 110dp. Older hosts receive the existing single layout and
-         * deliberately keep the localized unit visible.
+         * API 31 lets the host choose a complete RemoteViews child for the size it is rendering.
+         * Every wide height variant starts just above the #490 breakpoint. RemoteViews chooses the
+         * fitting key with the nearest two-dimensional distance, so keying those variants at the
+         * drawn 336dp width would let the height-matched narrow child beat them at intermediate
+         * widths such as 250 by 192dp. Each child carries its own height and time visibility into
+         * its collection factory, so resizing never depends on a runtime width read or a partial
+         * update. Older hosts receive the default 4 by 2 layout.
          */
         internal fun buildWidgetRemoteViews(
             context: Context,
@@ -170,7 +176,9 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                     bgWidth,
                     bgHeight,
                     signedOut,
-                    View.VISIBLE
+                    View.VISIBLE,
+                    FOUR_BY_TWO_HEIGHT_DP,
+                    true
                 )
             }
 
@@ -180,20 +188,57 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 bgWidth,
                 bgHeight,
                 signedOut,
-                View.GONE
+                View.GONE,
+                TWO_BY_TWO_HEIGHT_DP,
+                false
             )
-            val expandedViews = buildWidgetViews(
+            val fourByOneViews = buildWidgetViews(
                 context,
                 appWidgetId,
                 bgWidth,
                 bgHeight,
                 signedOut,
-                View.VISIBLE
+                View.VISIBLE,
+                FOUR_BY_ONE_HEIGHT_DP,
+                true
+            )
+            val fourByTwoViews = buildWidgetViews(
+                context,
+                appWidgetId,
+                bgWidth,
+                bgHeight,
+                signedOut,
+                View.VISIBLE,
+                FOUR_BY_TWO_HEIGHT_DP,
+                true
+            )
+            val fourByThreeViews = buildWidgetViews(
+                context,
+                appWidgetId,
+                bgWidth,
+                bgHeight,
+                signedOut,
+                View.VISIBLE,
+                FOUR_BY_THREE_HEIGHT_DP,
+                true
+            )
+            val twoByTwoViews = buildWidgetViews(
+                context,
+                appWidgetId,
+                bgWidth,
+                bgHeight,
+                signedOut,
+                View.GONE,
+                TWO_BY_TWO_HEIGHT_DP,
+                false
             )
             return RemoteViews(
                 mapOf(
                     SizeF(COMPACT_IDEAL_WIDTH_DP, 1f) to compactViews,
-                    SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, 1f) to expandedViews
+                    SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_ONE_HEIGHT_DP) to fourByOneViews,
+                    SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_TWO_HEIGHT_DP) to fourByTwoViews,
+                    SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_THREE_HEIGHT_DP) to fourByThreeViews,
+                    SizeF(NARROW_WIDTH_DP, TWO_BY_TWO_HEIGHT_DP) to twoByTwoViews
                 )
             )
         }
@@ -204,7 +249,9 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             bgWidth: Int,
             bgHeight: Int,
             signedOut: Boolean,
-            streakUnitVisibility: Int
+            streakUnitVisibility: Int,
+            widgetHeightDp: Float,
+            showTime: Boolean
         ): RemoteViews {
             val views = RemoteViews(context.packageName, R.layout.widget_layout)
             val colorModes = OrbitWidgetFactory.getThemeColorModes(context)
@@ -298,6 +345,8 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             // Set up the RemoteViews adapter for the list
             val serviceIntent = Intent(context, OrbitWidgetService::class.java).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+                putExtra(EXTRA_WIDGET_HEIGHT_DP, widgetHeightDp)
+                putExtra(EXTRA_SHOW_TIME, showTime)
                 data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
             }
             views.setRemoteAdapter(R.id.widget_list, serviceIntent)

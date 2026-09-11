@@ -16,6 +16,7 @@ that disagrees with production is a trap rather than an authority.
 
 | date | what changed | why |
 |---|---|---|
+| 2026-09-10 | Corrected dark `--track-empty` to `#7A7A7D` and light to `#7F7F83`, then kept `--status-empty` bound to it | The first values measured only canvas and replacement hover. These clear the reachable selection and card-child hover stacks after range endpoints were reduced to one tint, while preserving the neutral ramp. |
 | 2026-09-10 | Light `--p-l-overdue` from `#946A00` to `#886100` | The old value missed the 4.5 text floor on the light well, on hover, and on the 10 percent overdue tint the session-expiry warning paints text on. The new value measures 4.91, 4.73 and 4.70 on those, and 4.95 on the widget well, preserving the OKLCH hue and its 36.3 degree separation from the accent. |
 | 2026-09-09 | `--p-hover` dark, alpha `.14` to `.13` | `--fg-3` measured 4.39 on the hovered surface, under the 4.5 text floor. `.13` is the only value that also keeps the hover step above the 1.25:1 minimum. Closed limit 2 in the design-system readme. |
 | 2026-09-09 | `Orbit Avisos`: unread-row body, timestamp and target from `fg-3`/`fg-4` to `fg-2`, and the target icon to `fg-3` | The unread row is a hover CHILD inside a card, so its hover surface composites to `#313133`. There `fg-3` measures 4.03 and `fg-4` 1.98, under the 4.5 text and 3.0 graphic floors. `fg-2` measures 7.86. Both platforms already shipped `fg-2` text; the drawing had not moved with them. |
@@ -56,7 +57,7 @@ build.
 
 ## The design system, under `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/`
 
-`_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/` holds the **166 authoritative token values**. A number typed into a component that
+`_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/` holds the **170 authoritative token values**. A number typed into a component that
 disagrees with a token here is wrong, whatever any document says.
 
 | file | what it fixes |

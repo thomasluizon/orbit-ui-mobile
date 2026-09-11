@@ -44,4 +44,12 @@ describe('StatusRing', () => {
     expect(ring.props.accessibilityRole).toBe('image')
     expect(ring.props.accessibilityLabel).toBe(`${status} status`)
   })
+
+  it('uses the semantic empty-track token for an empty ring', () => {
+    const ring = renderStatus('empty')
+
+    expect(ring.props.style).toEqual(expect.arrayContaining([
+      expect.objectContaining({ borderColor: '#7A7A7D' }),
+    ]))
+  })
 })

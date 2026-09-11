@@ -6,6 +6,9 @@ describe('mobile i18n interpolation', () => {
   it('interpolates single-brace placeholders', () => {
     expect(i18n.t('gamification.profileCard.level', { level: 5 })).toBe('Level 5')
     expect(i18n.t('gamification.profileCard.totalXp', { total: 1200 })).toBe('1200 XP')
+    expect(
+      i18n.t('profile.settingsRows.timezoneValue', { timeZone: 'America/Sao_Paulo' }),
+    ).toBe('Timezone: America/Sao_Paulo')
   })
 
   it('works with the plural helper for pipe-separated forms', () => {

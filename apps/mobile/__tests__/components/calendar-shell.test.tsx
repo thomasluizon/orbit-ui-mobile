@@ -1,4 +1,5 @@
 import React from "react";
+import { StyleSheet } from "react-native";
 import { describe, it, expect, vi } from "vitest";
 
 import { createTokensV2 } from "@/lib/theme";
@@ -282,7 +283,15 @@ describe("CalendarLegend (mobile)", () => {
     const partialArc = tree!.root.findAll(
       (node) => node.type === "Circle" && node.props.stroke === tokens.primary,
     );
+    const partialTrack = tree!.root.findAll(
+      (node) => node.type === "Circle" && node.props.stroke === tokens.statusEmpty,
+    );
+    expect(partialTrack).toHaveLength(1);
     expect(partialArc).toHaveLength(1);
+    const noneMark = tree!.root.findAll(
+      (node) => node.type === "View" && node.props.testID === "calendar-legend-none",
+    )[0];
+    expect(StyleSheet.flatten(noneMark?.props.style).borderColor).toBe(tokens.statusEmpty);
   });
 });
 

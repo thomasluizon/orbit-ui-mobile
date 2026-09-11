@@ -6,6 +6,7 @@ describe('ProgressBar', () => {
   it('exposes progress through the progressbar role', () => {
     render(<ProgressBar value={0.5} max={1} label="Daily progress" />)
     const bar = screen.getByRole('progressbar', { name: 'Daily progress' })
+    expect(bar).toHaveClass('bg-[var(--track-empty)]')
     expect(bar).toHaveAttribute('aria-valuenow', '0.5')
     expect(bar).toHaveAttribute('aria-valuemin', '0')
     expect(bar).toHaveAttribute('aria-valuemax', '1')

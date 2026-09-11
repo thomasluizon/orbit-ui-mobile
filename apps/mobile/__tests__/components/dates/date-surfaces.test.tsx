@@ -64,7 +64,9 @@ describe('DayStrip', () => {
     expect(tree.root.findByProps({ accessibilityLabel: 'Mon 1, complete' })).toBeTruthy()
     expect(tree.root.findByProps({ accessibilityLabel: 'Wed 3, rest' })).toBeTruthy()
     expect(tree.root.findByProps({ testID: 'day-strip-cell-done' })).toBeTruthy()
-    expect(tree.root.findByProps({ testID: 'day-strip-cell-missed' })).toBeTruthy()
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'day-strip-cell-missed' }).props.style as StyleProp<ViewStyle>).borderColor).toBe(
+      createTokensV2('purple', 'dark').statusEmpty,
+    )
     expect(tree.root.findByProps({ testID: 'day-strip-cell-not-scheduled' })).toBeTruthy()
   })
 
@@ -120,6 +122,10 @@ describe('DayCell', () => {
     const oneThirdArc = oneThird.root.findAll(
       (node) => node.type === 'Circle' && Array.isArray(node.props.strokeDasharray),
     )[0]
+    const oneThirdTrack = oneThird.root.findAll(
+      (node) => node.type === 'Circle' && node.props.strokeDasharray === undefined,
+    )[0]
+    expect(oneThirdTrack?.props.stroke).toBe(createTokensV2('purple', 'dark').statusEmpty)
     expect(oneThirdArc?.props.strokeDasharray).toEqual([Math.PI * 42 / 3, Math.PI * 42])
 
     const twoThirds = render(<DayCell day={15} label="March 15" words={cellWords} scheduled={3} done={2} />)
@@ -136,7 +142,9 @@ describe('DayCell', () => {
     expect(StyleSheet.flatten(completedText?.props.style as StyleProp<TextStyle>).color).toBe(tokens.bg)
 
     const missed = render(<DayCell day={16} label="March 16" words={cellWords} done={0} scheduled={1} habitHistory />)
-    expect(missed.root.findAll((node) => node.type === 'View' && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 3)).toHaveLength(1)
+    const missedDots = missed.root.findAll((node) => node.type === 'View' && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 3)
+    expect(missedDots).toHaveLength(1)
+    expect(StyleSheet.flatten(missedDots[0]?.props.style as StyleProp<ViewStyle>).backgroundColor).toBe(tokens.statusEmpty)
 
     const unscheduled = render(<DayCell day={17} label="March 17" words={cellWords} done={0} scheduled={0} habitHistory />)
     const quietDisc = unscheduled.root

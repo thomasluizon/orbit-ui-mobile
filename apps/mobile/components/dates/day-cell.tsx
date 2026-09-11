@@ -15,14 +15,14 @@ function DayCellContents({ props, outcome, size, tokens }: Readonly<{ props: Day
   const fill = outcome === 'full'
     ? tokens.fg1
     : 'transparent'
-  const borderColor = outcome === 'none' ? tokens.fg4 : 'transparent'
+  const borderColor = outcome === 'none' ? tokens.statusEmpty : 'transparent'
   const textColor = outcome === 'full' ? tokens.bg : tokens.fg2
 
   return (
     <View style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: fill, borderColor, borderWidth: borderColor === 'transparent' ? 0 : 2 }]}>
       {outcome === 'partial' ? (
         <Svg width={size} height={size} style={styles.arc}>
-          <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={tokens.fg4} strokeWidth={stroke} />
+          <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={tokens.statusEmpty} strokeWidth={stroke} />
           <Circle
             cx={size / 2}
             cy={size / 2}
@@ -51,7 +51,7 @@ function HabitHistoryContents({ props, outcome, size, tokens }: Readonly<{ props
   return (
     <View style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: outcome === 'full' ? tokens.fg1 : 'transparent', opacity: dimmed ? 0.4 : 1 }]}>
       <Text style={[styles.numeral, { color: textColor, fontWeight: props.today ? '500' : '400' }]}>{props.day}</Text>
-      {missed ? <View style={[styles.missedDot, { backgroundColor: tokens.fg4 }]} /> : null}
+      {missed ? <View style={[styles.missedDot, { backgroundColor: tokens.statusEmpty }]} /> : null}
     </View>
   )
 }

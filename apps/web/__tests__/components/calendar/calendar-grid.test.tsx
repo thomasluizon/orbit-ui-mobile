@@ -146,7 +146,7 @@ describe('CalendarGrid', () => {
 
     const selectedButton = container.querySelector('[data-calendar-date="2025-06-15"]')
     expect(selectedButton?.parentElement).toHaveStyle({
-      background: 'var(--primary-dim)',
+      background: 'var(--selection-bg)',
       boxShadow: 'inset 0 0 0 2px var(--primary)',
     })
     expect(selectedButton?.parentElement?.querySelector('[data-selected]')).not.toBeInTheDocument()
@@ -233,5 +233,25 @@ describe('CalendarGrid', () => {
     )
     const inRange = container.querySelectorAll('[data-in-range="true"]')
     expect(inRange).toHaveLength(3)
+  })
+
+  it('paints a selected range endpoint with one selection tint and keeps its ring', () => {
+    const { container } = render(
+      <CalendarGrid
+        currentMonth={currentMonth}
+        dayMap={emptyMap}
+        onSelectDay={vi.fn()}
+        rangeStart="2025-06-16"
+        rangeEnd="2025-06-18"
+      />,
+    )
+    const endpoint = container.querySelector('[data-calendar-date="2025-06-16"]')?.parentElement
+
+    expect(endpoint).toHaveStyle({
+      background: 'var(--selection-bg)',
+      boxShadow: 'inset 0 0 0 2px var(--primary)',
+    })
+    expect(endpoint?.querySelector('[data-selected]')).not.toBeInTheDocument()
+    expect(endpoint?.querySelector('[style*="--selection-bg"]')).not.toBeInTheDocument()
   })
 })

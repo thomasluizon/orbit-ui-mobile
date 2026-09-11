@@ -17,7 +17,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
   const [bodyPressed, setBodyPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { icon, title, description, value, trailing, danger = false, action, chevron = true, onClick, readOnly = false } = props
+  const { accessibilityLabel, icon, title, description, value, trailing, danger = false, action, chevron = true, onClick, readOnly = false } = props
   const titleColor = danger ? tokens.statusBad : tokens.fg1
   const bodyStyle = [styles.body, action ? styles.bodyWithAction : null]
   const body: ReactNode = (
@@ -42,7 +42,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
       {readOnly || !onClick ? (
         <View style={bodyStyle}>{body}</View>
       ) : (
-        <Pressable accessibilityRole="button" onPress={onClick} onPressIn={() => setBodyPressed(true)} onPressOut={() => setBodyPressed(false)} style={bodyStyle}>{body}</Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onClick} onPressIn={() => setBodyPressed(true)} onPressOut={() => setBodyPressed(false)} style={bodyStyle}>{body}</Pressable>
       )}
       {action ? (
         <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={styles.action}>

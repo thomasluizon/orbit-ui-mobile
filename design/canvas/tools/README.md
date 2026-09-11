@@ -46,6 +46,12 @@ node design/canvas/tools/build-ds-bundle.mjs <project-copy-dir> <output-dir>
 Get `<project-copy-dir>` by downloading the project from claude.ai/design, then copying this
 session's newer sources over it. Then push the two files with `DesignSync` `write_files`.
 
+When only tracked token CSS changed, refresh the tracked manifest without a full project export:
+
+```
+node design/canvas/tools/build-ds-bundle.mjs <tracked-ds-dir> <tracked-ds-dir> --tokens-only
+```
+
 **Verify before pushing.** Execute the emitted bundle in a `vm` context with a stubbed `React` and
 `document`, and assert that `__errors` is empty and every expected component is a function. A bundle
 that throws inside one block fails silently in the browser and leaves that one card blank.

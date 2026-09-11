@@ -9,7 +9,7 @@ function cellStyle(state: StripValue) {
   if (state === 'frozen') return { background: 'var(--status-frozen)' }
   if (state === 'today') return { boxShadow: 'inset 0 0 0 2px var(--primary)' }
   if (state === 'not-scheduled') return { background: 'var(--bg-well)' }
-  return { boxShadow: 'inset 0 0 0 1px var(--fg-4)' }
+  return { boxShadow: 'inset 0 0 0 1px var(--status-empty)' }
 }
 
 export function DayStrip(props: Readonly<DayStripProps>) {

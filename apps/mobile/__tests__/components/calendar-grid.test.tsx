@@ -1,11 +1,29 @@
 import React from 'react'
-import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { StyleSheet } from 'react-native'
+import type { StyleProp, ViewStyle } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CalendarMonthDay } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { CalendarGrid } from '@/app/(tabs)/calendar/_components/calendar-grid'
 
-const TestRenderer = require('react-test-renderer')
+interface TestNode {
+  type: unknown
+  props: Record<string, unknown> & { children?: unknown; style?: StyleProp<ViewStyle> }
+}
+
+interface TestTree {
+  root: {
+    findByProps(props: Record<string, unknown>): TestNode
+    findAll(predicate: (node: TestNode) => boolean): TestNode[]
+  }
+}
+
+interface TestRendererApi {
+  create(element: React.ReactNode): TestTree
+  act(callback: () => void): void
+}
+
+const TestRenderer: TestRendererApi = require('react-test-renderer')
 
 function gridDay(dateStr: string, completedCount = 0, totalCount = 1): CalendarMonthDay {
   const date = new Date(`${dateStr}T12:00:00`)
@@ -32,7 +50,7 @@ describe('CalendarGrid (mobile)', () => {
 
   it('keeps selected and future presentation on the month-grid wrapper', () => {
     const tokens = createTokensV2('purple', 'dark')
-    let tree!: ReturnType<typeof TestRenderer.create>
+    let tree!: TestTree
     TestRenderer.act(() => {
       tree = TestRenderer.create(
         <CalendarGrid
@@ -57,28 +75,61 @@ describe('CalendarGrid (mobile)', () => {
     })
 
     const futureNumeral = tree.root.findByProps({ testID: 'calendar-future-day-2026-09-12' })
-    expect(StyleSheet.flatten(futureNumeral.props.style as StyleProp<ViewStyle>)).toMatchObject({
-      color: tokens.fg2,
-    })
-    expect(tree.root.findAll((node: { type: unknown; props: { children?: unknown } }) => node.type === 'Text' && node.props.children === 12)).toHaveLength(1)
+    expect(StyleSheet.flatten(futureNumeral.props.style)).toMatchObject({ color: tokens.fg2 })
+    expect(tree.root.findAll((node) => node.type === 'Text' && node.props.children === 12)).toHaveLength(1)
     const futureSlot = tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-12' })
-    expect(StyleSheet.flatten(futureSlot.props.style as StyleProp<ViewStyle>)).toMatchObject({
+    expect(StyleSheet.flatten(futureSlot.props.style)).toMatchObject({
       alignItems: 'center',
       justifyContent: 'center',
     })
     const selectedSlot = tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-10' })
-    expect(StyleSheet.flatten(selectedSlot.props.style as StyleProp<ViewStyle>)).toMatchObject({
+    expect(StyleSheet.flatten(selectedSlot.props.style)).toMatchObject({
       width: 44,
       height: 44,
-      backgroundColor: tokens.primaryDim,
+      backgroundColor: tokens.selectionBg,
     })
-    expect(StyleSheet.flatten(selectedSlot.props.style as StyleProp<ViewStyle>)).not.toHaveProperty('borderWidth')
+    expect(StyleSheet.flatten(selectedSlot.props.style)).not.toHaveProperty('borderWidth')
     const selectedRing = tree.root.findByProps({ testID: 'calendar-day-selection-2026-09-10' })
-    expect(StyleSheet.flatten(selectedRing.props.style as StyleProp<ViewStyle>)).toMatchObject({
+    expect(StyleSheet.flatten(selectedRing.props.style)).toMatchObject({
       position: 'absolute',
       inset: 0,
       borderColor: tokens.primary,
       borderWidth: 2,
     })
+  })
+
+  it('paints a range endpoint with one selection tint and one selected ring', () => {
+    const tokens = createTokensV2('purple', 'dark')
+    const endpoint = gridDay('2026-09-10')
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <CalendarGrid
+          gridDays={[endpoint]}
+          weekdayHeaders={[{ key: 'wednesday', label: 'W' }]}
+          selectedDay={null}
+          isLoading={false}
+          rangeStart={endpoint.dateStr}
+          rangeEnd={endpoint.dateStr}
+          onSelectDay={vi.fn()}
+          language="en"
+          t={(key) => key}
+          tokens={tokens}
+        />,
+      )
+    })
+
+    const tintedLayers = tree.root.findAll((node) => {
+      if (typeof node.type !== 'string' || node.props.style == null) return false
+      return StyleSheet.flatten(node.props.style).backgroundColor === tokens.selectionBg
+    })
+    const selectedRings = tree.root.findAll((node) => {
+      if (typeof node.type !== 'string' || node.props.style == null) return false
+      const style = StyleSheet.flatten(node.props.style)
+      return style.borderColor === tokens.primary && style.borderWidth === 2
+    })
+
+    expect(tintedLayers).toHaveLength(1)
+    expect(selectedRings).toHaveLength(1)
   })
 })

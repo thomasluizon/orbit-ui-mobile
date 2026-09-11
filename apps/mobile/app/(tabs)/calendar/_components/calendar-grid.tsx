@@ -157,6 +157,7 @@ function CalendarGridDay({
     done: cell.completedCount,
     scheduled: cell.totalCount,
     today: cell.isToday,
+    selectionTintedByParent: selected || inRange,
     outsideMonth: !cell.isCurrentMonth,
     label: format(cell.date, 'EEEE, MMM d', { locale }),
     words,
@@ -174,7 +175,7 @@ function CalendarGridDay({
       style={[
         styles.daySlot,
         {
-          backgroundColor: selected ? tokens.primaryDim : inRange ? tokens.selectionBg : 'transparent',
+          backgroundColor: selected || inRange ? tokens.selectionBg : 'transparent',
         },
       ]}
     >

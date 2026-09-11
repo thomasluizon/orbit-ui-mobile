@@ -1,9 +1,15 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import * as ExpoNotifications from 'expo-notifications'
 
 import ProfileScreen from '@/app/(tabs)/profile'
 import { PreferenceSettingsList } from '@/components/profile/preferences-sections'
+import { PushPrompt } from '@/components/ui/push-prompt'
+import {
+  __setNotificationsModuleForTests,
+  PushNotificationsProvider,
+} from '@/hooks/use-push-notifications'
 
 vi.mock('@/components/referral/referral-card', () => ({
   ReferralCard: ({ onOpen }: { onOpen: () => void; onDismiss?: () => void }) =>
@@ -20,9 +26,20 @@ vi.mock('@/components/referral/referral-drawer', () => ({
 
 const TestRenderer = require('react-test-renderer')
 
-const { mockUseGamificationProfile, mockRouterPush } = vi.hoisted(() => ({
+const { mockAuthState, mockUseGamificationProfile, mockRouterPush } = vi.hoisted(() => ({
+  mockAuthState: {
+    isAuthenticated: true,
+    user: { userId: 'user-1' },
+    logout: vi.fn(),
+  },
   mockUseGamificationProfile: vi.fn(() => ({ profile: null })),
   mockRouterPush: vi.fn(),
+}))
+
+vi.mock('expo-device', () => ({
+  __esModule: true,
+  default: { isDevice: true },
+  isDevice: true,
 }))
 
 vi.mock('expo-router', () => ({
@@ -34,6 +51,10 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: {
+    type: '3rdParty',
+    init: () => {},
+  },
   useTranslation: () => ({
     t: (key: string) => key,
     i18n: { language: 'en' },
@@ -68,9 +89,16 @@ vi.mock('@/hooks/use-gamification', () => ({
   useStreakInfo: () => ({ data: { currentStreak: 0, isFrozenToday: false } }),
 }))
 
-vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: (selector: (state: { logout: () => void }) => unknown) =>
-    selector({ logout: vi.fn() }),
+vi.mock('@/stores/auth-store', () => {
+  const useAuthStore = (selector: (state: typeof mockAuthState) => unknown) =>
+    selector(mockAuthState)
+  useAuthStore.getState = () => mockAuthState
+  return { useAuthStore }
+})
+
+vi.mock('@/stores/ui-store', () => ({
+  useUIStore: (selector: (state: { setAstraConversationOpen: () => void }) => unknown) =>
+    selector({ setAstraConversationOpen: vi.fn() }),
 }))
 
 vi.mock('@/hooks/use-offline', () => ({
@@ -82,6 +110,7 @@ vi.mock('@/lib/use-app-theme', () => ({
     colors: new Proxy({}, { get: () => '#111111' }),
     currentScheme: 'purple',
     currentTheme: 'dark',
+    applyTheme: vi.fn(),
   }),
 }))
 
@@ -170,6 +199,7 @@ vi.mock('@/components/ui/app-text-input', () => ({
 
 vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
   KeyboardAwareScrollView: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useKeyboardAwareInputReveal: () => null,
 }))
 
 
@@ -180,10 +210,6 @@ vi.mock('@/components/tour/tour-replay-modal', () => ({
 
 vi.mock('@/app/(tabs)/profile/_components/profile-nav-card', () => ({
   ProfileNavCard: () => null,
-}))
-
-vi.mock('@/app/(tabs)/profile/_components/profile-action-button', () => ({
-  ProfileActionButton: () => null,
 }))
 
 vi.mock('@/components/profile/profile-nav-icon', () => ({
@@ -216,6 +242,33 @@ vi.mock('@/components/ui/settings-group', () => ({
   }) => React.createElement('SettingsRowStub', { label, hint, onPress }),
 }))
 
+vi.mock('@/components/ui/row-list', () => ({
+  RowList: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}))
+
+vi.mock('@/components/ui/list-row', () => ({
+  ListRow: ({
+    title,
+    description,
+    onClick,
+    accessibilityLabel,
+    chevron = true,
+  }: {
+    title: string
+    description?: string
+    onClick?: () => void
+    accessibilityLabel?: string
+    chevron?: boolean
+  }) => React.createElement('SettingsRowStub', {
+    label: title,
+    hint: description,
+    onPress: onClick,
+    chevron,
+    accessibilityRole: onClick ? 'button' : undefined,
+    accessibilityLabel: accessibilityLabel ?? title,
+  }),
+}))
+
 vi.mock('@/components/ui/icons', () => {
   const createIcon = (name: string) => () => React.createElement(name)
   return {
@@ -239,9 +292,14 @@ vi.mock('@/components/ui/icons', () => {
     Pencil: createIcon('Pencil'),
     UserX: createIcon('UserX'),
     TriangleAlert: createIcon('TriangleAlert'),
+    BellRing: createIcon('BellRing'),
+    Bell: createIcon('Bell'),
     Calendar: createIcon('Calendar'),
     Languages: createIcon('Languages'),
+    Mail: createIcon('Mail'),
+    MessageSquare: createIcon('MessageSquare'),
     Moon: createIcon('Moon'),
+    Satellite: createIcon('Satellite'),
     Search: createIcon('Search'),
   }
 })
@@ -261,16 +319,43 @@ interface SettingsRowStubNode {
     label?: string
     hint?: string
     onPress?: () => void
+    chevron?: boolean
+    accessibilityRole?: string
   }
 }
 
 async function renderProfileScreen() {
   let tree: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(async () => {
-    tree = TestRenderer.create(<ProfileScreen />)
+    tree = TestRenderer.create(
+      <PushNotificationsProvider>
+        <ProfileScreen />
+      </PushNotificationsProvider>,
+    )
     await Promise.resolve()
   })
   return tree!
+}
+
+async function flushPushEffects() {
+  await TestRenderer.act(async () => {
+    for (let index = 0; index < 10; index += 1) await Promise.resolve()
+  })
+}
+
+function findButtonByText(
+  tree: ReturnType<typeof TestRenderer.create>,
+  text: string,
+) {
+  const [button] = tree.root.findAll(
+    (node: { props: { onPress?: () => void }; findAll: (predicate: (child: { type: unknown; props: { children?: unknown } }) => boolean) => unknown[] }) =>
+      typeof node.props.onPress === 'function' &&
+      node.findAll(
+        (child) => child.type === 'Text' && child.props.children === text,
+      ).length > 0,
+  )
+  if (!button) throw new Error(`No button with text "${text}"`)
+  return button
 }
 
 function findRowByLabel(
@@ -286,62 +371,51 @@ function findRowByLabel(
 }
 
 describe('ProfileScreen', () => {
-  it('keeps all three controls outside the centred header and before scrolling content', async () => {
-    const tree = await renderProfileScreen()
-    const header = tree.root.findByProps({ testID: 'nav-header-plain' })
-    const actions = tree.root.findByProps({ testID: 'profile-header-actions' })
-    for (const control of ['ThemeToggle', 'StreakBadge', 'NotificationBell']) {
-      expect(header.findAllByType(control)).toHaveLength(0)
-      expect(actions.findAllByType(control)).toHaveLength(1)
-    }
-    expect(actions.findAllByType('ScrollView')).toHaveLength(0)
-  })
-
   beforeEach(() => {
+    vi.mocked(ExpoNotifications.getPermissionsAsync).mockReset()
+    vi.mocked(ExpoNotifications.getPermissionsAsync).mockResolvedValue({
+      status: 'undetermined',
+      granted: false,
+      canAskAgain: true,
+    } as Awaited<ReturnType<typeof ExpoNotifications.getPermissionsAsync>>)
+    vi.mocked(ExpoNotifications.requestPermissionsAsync).mockReset()
+    const grantedPermission = {
+      status: 'granted',
+      granted: true,
+      canAskAgain: true,
+    } as Awaited<ReturnType<typeof ExpoNotifications.requestPermissionsAsync>>
+    vi.mocked(ExpoNotifications.requestPermissionsAsync).mockImplementation(() => {
+      vi.mocked(ExpoNotifications.getPermissionsAsync).mockResolvedValue(grantedPermission)
+      return Promise.resolve(grantedPermission)
+    })
+    vi.mocked(ExpoNotifications.getDevicePushTokenAsync).mockReset()
+    vi.mocked(ExpoNotifications.getDevicePushTokenAsync).mockResolvedValue({
+      type: 'fcm',
+      data: 'native-token',
+    })
+    __setNotificationsModuleForTests(ExpoNotifications)
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()
-  })
-
-  it('disables the gamification profile query for free users', async () => {
-    await TestRenderer.act(async () => {
-      TestRenderer.create(<ProfileScreen />)
-      await Promise.resolve()
-    })
-
-    expect(mockUseGamificationProfile).toHaveBeenCalledWith(false)
-  })
-
-  it('mounts the referral card on profile and opens the drawer when pressed', async () => {
-    let tree: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<ProfileScreen />)
-      await Promise.resolve()
-    })
-
-    const [card] = tree!.root.findAll(
-      (node: { type: unknown }) => node.type === 'ReferralCardStub',
-    )
-    expect(card).toBeTruthy()
-    expect(
-      tree!.root.findAll((node: { type: unknown }) => node.type === 'ReferralDrawerOpen'),
-    ).toHaveLength(0)
-
-    await TestRenderer.act(async () => {
-      card.props.onPress()
-      await Promise.resolve()
-    })
-
-    expect(
-      tree!.root.findAll((node: { type: unknown }) => node.type === 'ReferralDrawerOpen'),
-    ).toHaveLength(1)
   })
 
   it('renders every feature destination as a grouped settings row with its hint', async () => {
     const tree = await renderProfileScreen()
 
-    expect(findRowByLabel(tree, 'tour.replay.title').props.hint).toBe(
-      'explore.tourHint',
-    )
+    const groupLabels = [
+      'profile.groups.you',
+      'profile.groups.astra',
+      'profile.groups.notifications',
+      'profile.groups.more',
+      'profile.groups.ending',
+    ]
+    for (const label of groupLabels) {
+      expect(
+        tree.root.findAll(
+          (node: { children?: unknown[] }) => node.children?.includes(label),
+        ).length,
+      ).toBeGreaterThan(0)
+    }
+
     expect(findRowByLabel(tree, 'profile.wrappedTitle').props.hint).toBe(
       'profile.wrappedHint',
     )
@@ -351,9 +425,19 @@ describe('ProfileScreen', () => {
     expect(findRowByLabel(tree, 'profile.sections.aboutHelp').props.hint).toBe(
       'profile.sections.aboutHelpHint',
     )
-    expect(findRowByLabel(tree, 'profile.sections.advanced').props.hint).toBe(
-      'profile.sections.advancedHint',
-    )
+
+    for (const movedLabel of [
+      'profile.sections.preferences',
+      'profile.sections.aiFeatures',
+      'profile.sections.advanced',
+    ]) {
+      expect(
+        tree.root.findAll(
+          (node: SettingsRowStubNode) =>
+            node.type === 'SettingsRowStub' && node.props.label === movedLabel,
+        ),
+      ).toHaveLength(0)
+    }
 
     const removedLabels = [
       ['so', 'cial.profileNav.title'].join(''),
@@ -369,21 +453,116 @@ describe('ProfileScreen', () => {
     }
   })
 
-  it('opens the tour replay modal from the discover row', async () => {
+  it('keeps every profile setting reachable by its accessible name', async () => {
+    const tree = await renderProfileScreen()
+    const accessibleNames = [
+      'profile.settingsRows.editName',
+      'profile.language.title',
+      'profile.settingsRows.timezoneValue',
+      'settings.weekStartDay.title',
+      'preferences.themeMode',
+      'profile.subscription.plan',
+      'profile.settingsRows.dailyAllowance',
+      'profile.proactiveAstra.title',
+      'profile.aiSummary.title',
+      'profile.settingsRows.apiKeysMcp',
+      'profile.wrappedTitle',
+      'calendar.profileButton',
+      'profile.sections.aboutHelp',
+      'dataExport.button',
+      'shareCard.entry',
+      'profile.freshStart.button',
+      'profile.logout',
+      'profile.deleteAccount.button',
+    ]
+
+    for (const accessibilityLabel of accessibleNames) {
+      expect(
+        tree.root.findAll(
+          (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+            node.props.accessibilityRole === 'button' &&
+            node.props.accessibilityLabel === accessibilityLabel,
+        ),
+        `missing accessible profile row: ${accessibilityLabel}`,
+      ).toHaveLength(1)
+    }
+  })
+
+  it('opens the timezone picker from the timezone row', async () => {
     const tree = await renderProfileScreen()
 
-    expect(
-      tree.root.findAll((node: { type: unknown }) => node.type === 'TourReplayModalOpen'),
-    ).toHaveLength(0)
-
     await TestRenderer.act(async () => {
-      findRowByLabel(tree, 'tour.replay.title').props.onPress?.()
+      findRowByLabel(tree, 'profile.settingsRows.timezone').props.onPress?.()
       await Promise.resolve()
     })
 
+    expect(mockRouterPush).not.toHaveBeenCalled()
     expect(
-      tree.root.findAll((node: { type: unknown }) => node.type === 'TourReplayModalOpen'),
-    ).toHaveLength(1)
+      tree.root.findAll(
+        (node: { props: { accessibilityRole?: string; accessibilityState?: { checked?: boolean } } }) =>
+          node.props.accessibilityRole === 'radio' &&
+          node.props.accessibilityState?.checked === true,
+      ).length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('renders habit notification guidance without action semantics or chevrons', async () => {
+    const tree = await renderProfileScreen()
+
+    expect(
+      tree.root.findAll(
+        (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+          node.props.accessibilityRole === 'button' &&
+          ['profile.settingsRows.reminders', 'habits.form.slipAlert'].includes(
+            node.props.accessibilityLabel ?? '',
+          ),
+      ),
+    ).toHaveLength(0)
+
+    expect(
+      tree.root.findAll(
+        (node: { type: unknown; props: { label?: string } }) =>
+          node.type === 'SettingsRowStub' &&
+          node.props.label === 'profile.settingsRows.remindersNote',
+      ),
+    ).toHaveLength(0)
+    expect(
+      tree.root.findAll(
+        (node: { children: unknown[]; props: { accessibilityRole?: string } }) =>
+          node.children.includes('profile.settingsRows.remindersNote') &&
+          node.props.accessibilityRole == null,
+      ).length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('updates the mounted Profile switch when the global prompt registers push', async () => {
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <PushNotificationsProvider>
+          <ProfileScreen />
+          <PushPrompt />
+        </PushNotificationsProvider>,
+      )
+      await Promise.resolve()
+    })
+    await flushPushEffects()
+
+    const profileSwitch = () => tree.root.findByProps({
+      accessibilityRole: 'switch',
+      accessibilityLabel: 'profile.settingsRows.currentDevice',
+    })
+    expect(profileSwitch().props.accessibilityState.checked).toBe(false)
+
+    await TestRenderer.act(async () => {
+      findButtonByText(tree, 'pushPrompt.enable').props.onPress()
+      for (let index = 0; index < 10; index += 1) await Promise.resolve()
+    })
+    await flushPushEffects()
+
+    expect(ExpoNotifications.requestPermissionsAsync).toHaveBeenCalledTimes(1)
+    expect(ExpoNotifications.getDevicePushTokenAsync).toHaveBeenCalled()
+    expect(profileSwitch().props.accessibilityState.checked).toBe(true)
   })
 
   it('redirects gated feature rows to upgrade for free users', async () => {

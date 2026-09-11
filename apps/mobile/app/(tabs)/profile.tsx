@@ -1,246 +1,46 @@
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
-import { useTourTarget } from '@/hooks/use-tour-target'
-import { useTourScrollContainer } from '@/hooks/use-tour-scroll-container'
-import { View, Text, ScrollView } from 'react-native'
-import Animated from 'react-native-reanimated'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useMemo } from 'react'
+import { ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { useQueryClient } from '@tanstack/react-query'
-import { profileKeys } from '@orbit/shared/query'
-import {
-  PROFILE_NAV_ITEMS,
-  shouldRedirectProfileNavItem,
-  type ProfileNavItem,
-} from '@orbit/shared/utils/profile-navigation'
-import { deriveNextRewardCarrot } from '@orbit/shared/utils'
-import {
-  useProfile,
-  useTrialDaysLeft,
-  useTrialExpired,
-} from '@/hooks/use-profile'
-import { useLogout } from '@/hooks/use-logout'
-import { useGamificationProfile, useStreakInfo } from '@/hooks/use-gamification'
-import { SearchHeaderAction } from '@/components/search/search-header-action'
 import { AppBar } from '@/components/ui/app-bar'
-import { ThemeToggle } from '@/components/ui/theme-toggle'
-import { StreakBadge } from '@/components/gamification/streak-badge'
-import { NotificationBell } from '@/components/navigation/notification-bell'
-import { ReferralCard } from '@/components/referral/referral-card'
-import { ReferralDrawer } from '@/components/referral/referral-drawer'
-import { useAppTheme } from '@/lib/use-app-theme'
+import { useProfile } from '@/hooks/use-profile'
 import { createTokensV2 } from '@/lib/theme'
-import { buildUpgradeHref } from '@/lib/upgrade-route'
-import { plural } from '@/lib/plural'
-import { NextRewardCarrot } from './profile/_components/next-reward-carrot'
-import { ProfileAccountActions } from './profile/_components/profile-account-actions'
-import { EditNameSheet } from './profile/_components/edit-name-sheet'
-import { FreshStartModal } from './profile/_components/fresh-start-modal'
-import { DeleteAccountModal } from './profile/_components/delete-account-modal'
-import { useDataExport } from './profile/_components/use-data-export'
-import { TourReplayModal } from '@/components/tour/tour-replay-modal'
+import { useAppTheme } from '@/lib/use-app-theme'
 import { createProfileStyles } from './profile/_components/profile-styles'
-import { sectionEntrance } from '@/components/profile/profile-section-entrance'
-import { resolveProfileSubscriptionDisplay } from './profile/_components/profile-subscription-display'
-import { ProfileIdentity } from './profile/_components/profile-identity'
-import { ProfileStatRow } from './profile/_components/profile-stat-row'
-import { ProfileSections } from '@/components/profile/profile-sections'
+import { ProfileSettingsContent } from './profile/_components/profile-settings-content'
 
 export default function ProfileScreen() {
   const { t } = useTranslation()
+  const { profile, isLoading, error } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const router = useRouter()
-  const queryClient = useQueryClient()
-  const { subscription } = useLocalSearchParams<{
-    subscription?: string | string[]
-  }>()
-  const { profile, isLoading, error } = useProfile()
-  const trialDaysLeft = useTrialDaysLeft()
-  const trialExpired = useTrialExpired()
-  const handleLogout = useLogout()
-  const canViewGamification = profile?.canViewGamification ?? false
-  const { profile: gamificationProfile } = useGamificationProfile(canViewGamification)
-  const { data: streakInfo } = useStreakInfo(profile?.timeZone ?? null, canViewGamification)
-  const nextRewardCarrot = deriveNextRewardCarrot(gamificationProfile, canViewGamification)
-  const { isExporting, exportError, exportData } = useDataExport()
-  const streak = profile?.currentStreak ?? 0
-  const statsLoading = isLoading
-  const streakLabel = t('streakDisplay.title')
-  const streakValue = `${streak} ${plural(t('streakDisplay.daysSuffix'), streak)}`
-  const styles = useMemo(() => createProfileStyles(tokens), [tokens])
-
-  const subscriptionRef = useRef<View>(null)
-  const preferencesRef = useRef<View>(null)
-  const streakRef = useRef<View>(null)
-  useTourTarget('tour-profile-subscription', subscriptionRef)
-  useTourTarget('tour-profile-preferences', preferencesRef)
-  useTourTarget('tour-profile-streak', streakRef)
-
-  const profileScrollRef = useRef<ScrollView>(null)
-  const profileScrollTo = useCallback((y: number) => {
-    profileScrollRef.current?.scrollTo({ y, animated: true })
-  }, [])
-  const { onTourScroll: onProfileTourScroll } = useTourScrollContainer(
-    '/profile',
-    profileScrollTo,
-  )
-
-  const accountNavItems = PROFILE_NAV_ITEMS.filter(
-    (item) => item.section === 'account',
-  )
-  const [showResetModal, setShowResetModal] = useState(false)
-  const [showEditName, setShowEditName] = useState(false)
-  const [showTourReplay, setShowTourReplay] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [showReferral, setShowReferral] = useState(false)
-
-  useEffect(() => {
-    if (subscription === 'success') {
-      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
-    }
-  }, [queryClient, subscription])
-
-  const handleNavPress = useCallback(
-    (item: ProfileNavItem) => {
-      if (shouldRedirectProfileNavItem(item, profile)) {
-        router.push(buildUpgradeHref('/profile'))
-        return
-      }
-
-      router.push(item.route)
-    },
-    [profile, router],
-  )
-
-  const handleStreakPress = useCallback(() => {
-    router.push('/progress')
-  }, [router])
-
-  const subscriptionDisplay = resolveProfileSubscriptionDisplay(
-    profile,
-    trialExpired,
-    trialDaysLeft,
-    t,
-  )
-
-  const identityLine =
-    canViewGamification && gamificationProfile
-      ? t('gamification.profileCard.level', { level: gamificationProfile.level })
-      : profile?.email
+  const styles = useMemo(() => createProfileStyles(), [])
 
   return (
-    <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
-      <AppBar title={t('nav.profile')} action={<SearchHeaderAction />} />
-      <View testID="profile-header-actions" style={{ flexDirection: 'row', flexShrink: 0, alignItems: 'center', justifyContent: 'flex-end', gap: 12, paddingHorizontal: 16, paddingBottom: 12 }}>
-        <ThemeToggle />
-        <StreakBadge streak={profile?.currentStreak ?? 0} isFrozen={streakInfo?.isFrozenToday ?? false} />
-        <NotificationBell />
-      </View>
+    <SafeAreaView
+      edges={['left', 'right', 'bottom']}
+      style={[styles.safeArea, { backgroundColor: tokens.bg }]}
+    >
+      <AppBar title={t('nav.profile')} />
       <ScrollView
-        ref={profileScrollRef}
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        onScroll={onProfileTourScroll}
-        scrollEventThrottle={16}
       >
         {error ? (
-          <Text style={[styles.errorText, { color: tokens.statusBadText }]}>
-            {__DEV__ && error instanceof Error
-              ? error.message
-              : t('errors.loadProfile')}
-          </Text>
+          <View style={styles.errorBlock}>
+            <Text style={[styles.errorText, { color: tokens.statusBadText }]}>
+              {__DEV__ && error instanceof Error
+                ? error.message
+                : t('errors.loadProfile')}
+            </Text>
+          </View>
         ) : null}
-
-        <ProfileIdentity
-          isLoading={isLoading}
-          showBadge={subscriptionDisplay.showBadge}
-          badgeLabel={subscriptionDisplay.badgeLabel}
-          name={profile?.name}
-          identityLine={identityLine}
-          tokens={tokens}
-          styles={styles}
-          onEditName={() => setShowEditName(true)}
-        />
-
-        <ProfileStatRow
-          statsLoading={statsLoading}
-          streakValue={streakValue}
-          streakLabel={streakLabel}
-          styles={styles}
-          streakRef={streakRef}
-          onStreakPress={handleStreakPress}
-        />
-
-        <Animated.View entering={sectionEntrance(2)}>
-          <ReferralCard onOpen={() => setShowReferral(true)} />
-        </Animated.View>
-
-        <Animated.View entering={sectionEntrance(3)}>
-          <NextRewardCarrot
-            carrot={nextRewardCarrot}
-            onUpgrade={() => router.push(buildUpgradeHref('/profile'))}
-          />
-        </Animated.View>
-
-        <ProfileSections
-          accountNavItems={accountNavItems}
-          profile={profile}
-          gamificationProfile={gamificationProfile}
-          subscriptionLabel={subscriptionDisplay.label}
-          subscriptionHint={subscriptionDisplay.hint}
-          tokens={tokens}
-          styles={styles}
-          preferencesRef={preferencesRef}
-          subscriptionRef={subscriptionRef}
-          onNavPress={handleNavPress}
-          onUpgrade={() => router.push(buildUpgradeHref('/profile'))}
-          onShowTourReplay={() => setShowTourReplay(true)}
-        />
-
-        <Animated.View entering={sectionEntrance(11)}>
-          <ProfileAccountActions
-            isExporting={isExporting}
-            exportError={exportError}
-            displayName={profile?.name}
-            onExport={() => {
-              void exportData()
-            }}
-            onFreshStart={() => setShowResetModal(true)}
-            onDeleteAccount={() => setShowDeleteModal(true)}
-            onLogout={() => void handleLogout()}
-          />
-        </Animated.View>
-
-        <View style={{ height: 24 }} />
+        <ProfileSettingsContent profile={profile} isLoading={isLoading} />
       </ScrollView>
-
-      <FreshStartModal
-        open={showResetModal}
-        onClose={() => setShowResetModal(false)}
-      />
-
-      <EditNameSheet open={showEditName} onClose={() => setShowEditName(false)} />
-
-      <TourReplayModal
-        visible={showTourReplay}
-        onClose={() => setShowTourReplay(false)}
-      />
-
-      <DeleteAccountModal
-        open={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        profile={profile}
-      />
-
-      <ReferralDrawer
-        open={showReferral}
-        onClose={() => setShowReferral(false)}
-      />
     </SafeAreaView>
   )
 }

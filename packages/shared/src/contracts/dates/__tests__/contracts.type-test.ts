@@ -55,6 +55,7 @@ type ExpectedDayCellBase = {
   scheduled?: number
   size?: number
   today?: boolean
+  selectionTintedByParent?: boolean
   outsideMonth?: boolean
   label?: string
   habitHistory?: boolean
@@ -129,6 +130,10 @@ type LoggableCell = Accepts<
 >
 type ZeroScheduleCell = Accepts<
   { day: 12; scheduled: 0; words: CellWords },
+  DayCellProps
+>
+type ParentTintedCell = Accepts<
+  { day: 12; selectionTintedByParent: true; words: CellWords },
   DayCellProps
 >
 // @ts-expect-error a loggable cell requires its handler
@@ -213,6 +218,7 @@ export type DateContractTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<DayCellProps['scheduled'], number | undefined>>,
   Assert<IsExactWidth<DayCellProps['size'], number | undefined>>,
   Assert<IsExactWidth<DayCellProps['today'], boolean | undefined>>,
+  Assert<IsExactWidth<DayCellProps['selectionTintedByParent'], boolean | undefined>>,
   Assert<IsExactWidth<DayCellProps['outsideMonth'], boolean | undefined>>,
   Assert<IsExactWidth<DayCellProps['label'], string | undefined>>,
   Assert<IsExactWidth<DayCellProps['habitHistory'], boolean | undefined>>,
@@ -240,6 +246,7 @@ export type DateContractTypeAssertions =
   | StripWithoutLabel
   | LoggableCell
   | ZeroScheduleCell
+  | ParentTintedCell
   | LoggableWithoutHandler
   | ReadOnlyWithHandler
   | CellWithOutcome

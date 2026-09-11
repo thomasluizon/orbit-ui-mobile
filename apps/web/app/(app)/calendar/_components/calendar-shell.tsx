@@ -213,7 +213,7 @@ function LegendSwatch({ outcome }: Readonly<Pick<LegendItemProps, 'outcome'>>) {
   if (outcome === 'partial') {
     return (
       <svg aria-hidden="true" data-legend-outcome="partial" width="12" height="12" className="shrink-0 -rotate-90">
-        <circle cx="6" cy="6" r="5" fill="none" stroke="var(--fg-4)" strokeWidth="2" />
+        <circle cx="6" cy="6" r="5" fill="none" stroke="var(--status-empty)" strokeWidth="2" />
         <circle cx="6" cy="6" r="5" fill="none" pathLength="100" stroke="var(--primary)" strokeDasharray="50 100" strokeLinecap="round" strokeWidth="2" />
       </svg>
     )
@@ -221,7 +221,7 @@ function LegendSwatch({ outcome }: Readonly<Pick<LegendItemProps, 'outcome'>>) {
 
   const style = outcome === 'full'
     ? { background: 'var(--fg-1)' }
-    : { boxShadow: `inset 0 0 0 2px ${outcome === 'today' ? 'var(--primary)' : 'var(--fg-4)'}` }
+    : { boxShadow: `inset 0 0 0 2px ${outcome === 'today' ? 'var(--primary)' : 'var(--status-empty)'}` }
   return <span aria-hidden="true" data-legend-outcome={outcome} className="rounded-full shrink-0" style={{ width: 12, height: 12, ...style }} />
 }
 

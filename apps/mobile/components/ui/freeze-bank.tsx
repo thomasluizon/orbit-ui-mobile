@@ -13,7 +13,7 @@ function LegendMark({ state, tokens }: Readonly<{
   if (state === 'frozen') return <Snowflake size={16} strokeWidth={2} color={tokens.statusFrozen} />
   const style = state === 'active'
     ? { backgroundColor: tokens.fg1 }
-    : { borderWidth: 1, borderColor: tokens.fg4 }
+    : { borderWidth: 1, borderColor: tokens.statusEmpty }
   return <View style={[styles.legendMark, style]} />
 }
 

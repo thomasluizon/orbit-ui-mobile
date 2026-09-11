@@ -16,6 +16,8 @@ interface DayCellBase {
   scheduled?: number
   size?: number
   today?: boolean
+  /** The parent owns selection presentation; retained for composed-cell compatibility. */
+  selectionTintedByParent?: boolean
   outsideMonth?: boolean
   label?: string
   habitHistory?: boolean

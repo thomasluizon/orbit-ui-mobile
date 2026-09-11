@@ -611,17 +611,13 @@ export {
 export type { AchievementGlyphKey, GoalDeadlineState, ProgressGoalFilter } from './progress'
 export {
   PROFILE_NAV_ITEMS,
-  isProfileNavItemLocked,
-  resolveProfileNavHint,
   shouldRedirectProfileNavItem,
 } from './profile-navigation'
 export type {
-  ProfileNavHintContext,
   ProfileNavHintMode,
   ProfileNavIconKey,
   ProfileNavItem,
   ProfileNavSection,
-  ProfileNavTranslationAdapter,
   ProfileNavVariant,
 } from './profile-navigation'
 export * from './step-up'

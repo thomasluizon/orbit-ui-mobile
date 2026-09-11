@@ -16,7 +16,7 @@ export function RadioGlyph({
         { width: size, height: size },
         selected
           ? { backgroundColor: tokens.primary }
-          : { borderWidth: 2, borderColor: tokens.fg4 },
+          : { borderWidth: 2, borderColor: tokens.trackEmpty },
       ]}
     >
       {selected ? (
@@ -33,7 +33,7 @@ export function RadioGlyph({
   )
 }
 
-/** Kit Radio: 24px circle, primary fill + white dot when selected, inset 2px fg-4 ring otherwise. */
+/** Kit Radio: 24px circle, primary fill + white dot when selected, inset 2px empty track otherwise. */
 interface SelectCheckProps {
   selected: boolean
   /** Circle size in px (default 24 per kit spec). */
@@ -116,7 +116,7 @@ export function RadioRow({
       <RadioGlyph selected={selected} size={24} tokens={tokens} />
       <Text
         style={[styles.radioLabel, { color: tokens.fg1 }]}
-        numberOfLines={1}
+        numberOfLines={2}
       >
         {label}
       </Text>
