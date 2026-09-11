@@ -208,4 +208,24 @@ describe('CalendarGrid', () => {
     const inRange = container.querySelectorAll('[data-in-range="true"]')
     expect(inRange).toHaveLength(3)
   })
+
+  it('paints a selected range endpoint with one selection tint and keeps its ring', () => {
+    const { container } = render(
+      <CalendarGrid
+        currentMonth={currentMonth}
+        dayMap={emptyMap}
+        onSelectDay={vi.fn()}
+        rangeStart="2025-06-16"
+        rangeEnd="2025-06-18"
+      />,
+    )
+    const endpoint = container.querySelector('[data-calendar-date="2025-06-16"]')?.parentElement
+    const selectedCell = endpoint?.querySelector('[data-selected]')
+
+    expect(endpoint).toHaveStyle({ background: 'var(--selection-bg)' })
+    expect(selectedCell).toHaveStyle({
+      background: 'transparent',
+      boxShadow: 'inset 0 0 0 2px var(--primary)',
+    })
+  })
 })

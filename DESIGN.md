@@ -404,7 +404,7 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --hairline-strong rgba(255,255,255,0.16)
 --fg-1 #F4F4F6   /* 18.11:1 */   --fg-2 #C9C9CC   /* 12.04:1 */
 --fg-3 #8F8F93   /*  6.18:1 */   --fg-4 #5D5D60   /*  3.03:1, clears the 3:1 non-text floor */
---track-empty     #717174                     /* empty UI track. 3.02:1 on the worst surface */
+--track-empty     #7A7A7D                     /* empty UI track. 3.03:1 on a card-child hover */
 --primary         #C4530F                     /* fill and graphic ONLY. hue 45. White on it clears 4.5 */
 --primary-soft    #C85716                     /* accent TEXT on the canvas */
 --primary-pressed #A24716                     /* the fill, 16% toward the canvas */
@@ -413,7 +413,7 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --primary-dim     #261611                     /* the fill at 18% over the canvas */
 --fg-on-primary   #FFFFFF                     /* always white: the fill is dark in both modes */
 --status-done     var(--fg-1)                 /* UNBOUND from the accent. The brightest neutral */
---status-empty    var(--track-empty)          /* ring track. 3.02:1 on the worst surface */
+--status-empty    var(--track-empty)          /* ring track. 3.03:1 on the worst surface */
 --status-frozen   var(--fg-2)                 /* NEUTRAL. See the note below */
 --status-overdue  #FE9A00                     /* 9.32:1, hue 65.4 */
 --status-bad      #FB2C36                     /* 5.23:1, hue 25.4 */
@@ -456,7 +456,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --hairline-ghost rgba(9,9,11,0.10) · --hairline-strong rgba(9,9,11,0.16)
 --fg-1 #1A1A1D  /* 16.64:1 */   --fg-2 #424247  /*  9.57:1 */
 --fg-3 #68686D  /*  5.31:1 */   --fg-4 #89898D  /*  3.34:1 */
---track-empty    #87878B   /* empty UI track. 3.03:1 on the worst surface */
+--track-empty    #7F7F83   /* empty UI track. 3.01:1 on selection over the canvas */
 --primary        #C4530F   /* light mode takes the SAME dark fill, with white on it */
 --primary-soft   #C15109   /* derived against #FAFAFA, not against the canvas */
 --primary-dim    #F4DDD3   /* the fill at 18% over #FAFAFA. fg-1 on it 13.34:1, fg-2 7.67:1 */
@@ -488,11 +488,11 @@ the misses are. Two independent implementations agree on every number below.
 | dark `--fg-2` | 12.04 | 11.27 | 10.79 | 10.27 | 9.15 | 8.91 | 10.30 |
 | dark `--fg-3` | 6.18 | 5.78 | 5.53 | 5.27 | 4.69 | 4.57 | 5.28 |
 | dark `--fg-4` | 3.03 | **2.84** | **2.72** | **2.59** | **2.30** | **2.24** | **2.59** |
-| dark `--track-empty` | 4.089 | 3.814 | 3.680 | 3.497 | 3.105 | 3.024 | 3.497 |
+| dark `--track-empty` | 4.649 | 4.336 | 4.184 | 3.976 | 3.530 | 3.439 | 3.976 |
 | dark `--primary-soft` | 4.58 | **4.28** | **4.10** | **3.90** | **3.48** | **3.38** | **3.91** |
 | light `--fg-3` | 5.31 | 5.54 | | 4.88 | | 4.67 | |
 | light `--fg-4` | 3.34 | 3.48 | | 3.07 | | **2.94** | |
-| light `--track-empty` | 3.428 | 3.578 | | 3.140 | | 3.029 | |
+| light `--track-empty` | 3.821 | 3.988 | | 3.499 | | 3.376 | |
 | light `--primary-soft` | 4.52 | 4.72 | | 4.16 | | **3.98** | |
 
 **`--primary-soft` is canvas only, and that closes its row by rule rather than by pigment.** The token
@@ -507,15 +507,24 @@ percent overdue tint, all below the 4.5 text floor. Thomas moved it along consta
 4.95 on the widget well and 4.70 on that tint. White on the fill is 5.59, and the 36.3 degree
 separation from the accent still clears derivation rule 6.
 
-**Closed 2026-09-10: `--fg-4` as an empty graphic above the canvas, dark and light.** `--fg-4`
-measured 2.24 to 2.84 across dark raised surfaces and 2.94 on light hover, below the 3.0 non-text
-floor. Thomas kept `--fg-4` unchanged and added the dedicated `--track-empty` neutral, derived at
-constant OKLCH hue from `--fg-4` in each mode. Dark `#717174` measures 4.089 on canvas, 3.814 on
-card, 3.680 on field, 3.497 on well, 3.105 on elev-2, 3.024 on hover, 3.497 on overlay, 3.814 on
-the widget card and 3.459 on the widget well. Light `#87878B` measures 3.428 on canvas, 3.578 on
-card, 3.140 on well, 3.029 on hover, 3.578 on the widget card and 3.170 on the widget well.
-`--status-empty` now resolves through it. The four-step card ranking remains distinct: dark 16.89,
-11.23, 5.76 and 3.81; light 17.36, 9.99, 5.54 and 3.58 for done, frozen, skip and empty.
+**Closed 2026-09-10, corrected 2026-09-10: `--fg-4` as an empty graphic above the canvas, dark and
+light.** `--fg-4` measured 2.24 to 2.84 across dark raised surfaces and 2.94 on light hover, below
+the 3.0 non-text floor. Thomas kept `--fg-4` unchanged and added the dedicated `--track-empty`
+neutral, derived at constant OKLCH hue and chroma from `--fg-4` in each mode. The first derivation
+measured only the flat canvas and replacement hover. The shipped consumers also reach a hover child
+inside a card and selection tint over both the canvas and a card. Range endpoints now apply that
+selection tint once, at the range slot, while the cell keeps its primary selected ring.
+
+Dark `#7A7A7D` measures 4.649 on canvas, 4.336 on card, 3.976 on well or overlay, 3.439 on a
+replacement hover, 3.034 on a hover child inside a card, 3.325 on selection over canvas, 3.054 on
+selection over card, 4.336 on the widget card and 3.933 on the widget well. Light `#7F7F83`
+measures 3.821 on canvas, 3.988 on card or overlay, 3.499 on well, 3.376 on replacement hover,
+3.499 on a hover child inside a card, 3.011 on selection over canvas, 3.126 on selection over card,
+3.988 on the widget card and 3.533 on the widget well. No empty-track consumer sits on `--bg-field`
+or `--bg-elev-2`, and none combines selection with a well, so those candidate stacks are
+unreachable rather than derivation inputs. `--status-empty` resolves through the corrected token.
+The five-step card ranking remains distinct: dark 16.89, 11.23, 5.76, 4.34 and 2.83; light 17.36,
+9.99, 5.54, 3.99 and 3.48 for done, frozen, skip, empty and `--fg-4`.
 
 **Closed 2026-09-09: `--fg-3` on a hovered surface, dark.** It measured **4.40** and missed the 4.5
 text floor, and this document proposed taking `--bg-hover` from alpha 0.14 to 0.12 as the cheapest

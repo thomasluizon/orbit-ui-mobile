@@ -14,7 +14,7 @@ internal object WidgetColorFallbacks {
         "overdue" to "#FE9A00", // WHY: --status-overdue.
         "streak" to "#C4530F", // WHY: --primary.
         "streakText" to "#F4F4F6", // WHY: --fg-1.
-        "statusEmpty" to "#717174", // WHY: --track-empty.
+        "statusEmpty" to "#7A7A7D", // WHY: --track-empty.
     )
 
     val light = mapOf(
@@ -29,6 +29,6 @@ internal object WidgetColorFallbacks {
         "overdue" to "#886100", // WHY: --status-overdue.
         "streak" to "#C4530F", // WHY: --primary.
         "streakText" to "#1A1A1D", // WHY: --fg-1.
-        "statusEmpty" to "#87878B", // WHY: --track-empty.
+        "statusEmpty" to "#7F7F83", // WHY: --track-empty.
     )
 }

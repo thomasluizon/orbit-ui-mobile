@@ -102,6 +102,7 @@ export function CalendarGrid({
               scheduled: cell.totalCount,
               today: cell.isToday,
               selected,
+              selectionTintedByParent: inRange,
               outsideMonth: !cell.isCurrentMonth,
               outcome,
               label: format(cell.date, 'EEEE, MMM d', { locale }),

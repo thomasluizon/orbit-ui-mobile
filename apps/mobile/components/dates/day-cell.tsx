@@ -67,7 +67,7 @@ export function DayCell(props: Readonly<DayCellProps>) {
   const containerStyle = [
     styles.container,
     { width: size, height: size, borderRadius: size / 2 },
-    props.selected ? { backgroundColor: tokens.selectionBg } : null,
+    props.selected && !props.selectionTintedByParent ? { backgroundColor: tokens.selectionBg } : null,
     props.selected || props.today ? { borderColor: tokens.primary, borderWidth: 2 } : null,
     props.outsideMonth ? styles.outsideMonth : null,
   ]

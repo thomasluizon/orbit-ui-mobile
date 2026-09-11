@@ -92,7 +92,7 @@ export function DayCell(props: Readonly<DayCellProps>) {
     style: {
       width: size,
       height: size,
-      background: props.selected ? 'var(--selection-bg)' : 'transparent',
+      background: props.selected && !props.selectionTintedByParent ? 'var(--selection-bg)' : 'transparent',
       boxShadow: props.selected || props.today ? 'inset 0 0 0 2px var(--primary)' : 'none',
       opacity: props.outsideMonth ? 0 : 1,
     },
