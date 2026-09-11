@@ -1,4 +1,8 @@
 packages/shared/src/types/__generated__/*.generated.ts text eol=lf
+apps/mobile/lib/widget-colors.generated.ts text eol=lf
+apps/mobile/modules/orbit-widget/android/src/main/java/org/useorbit/app/widget/WidgetColorFallbacks.generated.kt text eol=lf
+apps/mobile/modules/orbit-widget/android/src/main/res/values/widget_colors.xml text eol=lf
+apps/mobile/modules/orbit-widget/android/src/main/res/values-night/widget_colors.xml text eol=lf
 .claude/workflows/*.mjs text eol=lf
 .claude/skills/**/*.mjs text eol=lf
 tools/*.sh text eol=lf
