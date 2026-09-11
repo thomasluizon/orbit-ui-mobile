@@ -172,7 +172,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => tree.update(<></>))
   })
 
-  it("renders one four-option view switcher and opens the month on today", () => {
+  it("renders one three-option view switcher without agenda and opens the month on today", () => {
     let tree: Tree;
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />);
@@ -190,7 +190,7 @@ describe("CalendarScreen views (mobile)", () => {
     );
 
     expect(switchers).toHaveLength(1);
-    expect(segments).toHaveLength(4);
+    expect(segments).toHaveLength(3);
     expect(
       segments.find(
         (segment) => segment.props.testID === "segment-month-selected-enabled",
@@ -200,7 +200,7 @@ describe("CalendarScreen views (mobile)", () => {
       segments.some(
         (segment) => segment.props.testID === "segment-agenda-unselected-enabled",
       ),
-    ).toBe(true);
+    ).toBe(false);
 
     const flatLists = tree!.root.findAll(
       (node) => typeof node.type === "string" && node.type === "FlatList",
@@ -212,39 +212,6 @@ describe("CalendarScreen views (mobile)", () => {
     expect(calendarGridProps.current?.selectedDay).toBe(formatAPIDate(new Date()));
     TestRenderer.act(() => headerTree.update(<></>));
   });
-
-  it("selects the agenda view at phone width", () => {
-    let tree: Tree;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<CalendarScreen />);
-    });
-
-    pressView(tree!, "agenda");
-
-    const agendaSegment = tree!.root.findAll(
-      (node) =>
-        typeof node.type === "string" &&
-        node.props.accessibilityRole === "radio" &&
-        node.props.testID === "segment-agenda-selected-enabled",
-    );
-    expect(agendaSegment).toHaveLength(1);
-    expect(agendaSegment[0]!.props.accessibilityState?.checked).toBe(true);
-    expect(
-      tree!.root.findAll(
-        (node) =>
-          typeof node.type === "string" &&
-          node.props.testID === "calendar-header",
-      ),
-    ).toHaveLength(0);
-    expect(
-      tree!.root.findAll(
-        (node) =>
-          typeof node.type === "string" &&
-          node.props.testID === "calendar-time-grid",
-      ),
-    ).toHaveLength(0);
-  });
-
 
   it("switches to the week time-grid when the week tab is selected", () => {
     let tree: Tree;

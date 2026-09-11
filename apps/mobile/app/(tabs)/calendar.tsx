@@ -68,7 +68,7 @@ import { CalendarRangeView } from "./calendar/_components/calendar-range-view";
 import type { TimeGridColumn } from "./calendar/_components/calendar-time-grid";
 
 type MonthSlide = "left" | "right" | null;
-type CalendarView = "month" | "week" | "range" | "agenda";
+type CalendarView = "month" | "week" | "range";
 
 const EMPTY_LIST: readonly CalendarDayEntry[] = [];
 
@@ -283,7 +283,6 @@ export default function CalendarScreen() {
       { value: "month" as const, label: t("calendar.view.month") },
       { value: "week" as const, label: t("calendar.view.week") },
       { value: "range" as const, label: t("calendar.view.range") },
-      { value: "agenda" as const, label: t("calendar.view.agenda") },
     ] as const,
     [t],
   );
@@ -521,7 +520,7 @@ export default function CalendarScreen() {
               t={t}
               tokens={tokens}
             />
-          ) : view === "range" ? (
+          ) : (
             <CalendarRangeView
               gridDays={gridDays}
               weekdayHeaders={weekdayHeaders}
@@ -549,7 +548,7 @@ export default function CalendarScreen() {
               t={t}
               tokens={tokens}
             />
-          ) : null}
+          )}
         </ScrollView>
       )}
 
