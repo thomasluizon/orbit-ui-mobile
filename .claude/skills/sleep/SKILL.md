@@ -17,9 +17,10 @@ call is unconscious.
 ## 1. Open the log and enter the canonical orchestrator
 
 Read the existing run record with `readRunState` before you act. Take the exact `sessionId` from the
-scratchpad directory in the system prompt. That path ends in `.../<session-id>/scratchpad`, and the
-directory name is the session id. This rule was verified on 2026-09-11 when the record id
-`79719f66-9e44-4f76-b8b2-30bcd6d279be` matched a sibling scratchpad directory with that name.
+parent directory of `scratchpad` in the system prompt's path. For example, a path ending in
+`.../79719f66-9e44-4f76-b8b2-30bcd6d279be/scratchpad` has the session id
+`79719f66-9e44-4f76-b8b2-30bcd6d279be`, never `scratchpad`. This rule was verified on 2026-09-11
+when the record id matched a sibling scratchpad directory whose parent had that name.
 
 Your first action must write the run state through `writeRunState` with this session id and
 `sleep: true`. Do this before queue work or log setup. A record with a different `sessionId` makes
