@@ -2463,11 +2463,13 @@
       "lockedTitle": "Proteção por congelamento",
       "lockedBody": "O Orbit Pro mantém um banco de congelamentos para dias perdidos.",
       "lockedAction": "Ver o Orbit Pro",
-      "repairTitle": "Ontem ainda está aberto",
-      "repairBody": "Um dia está aberto e há {count, plural, one {# congelamento disponível} other {# congelamentos disponíveis}}.",
-      "repairAction": "Usar 1 congelamento",
-      "repairEmpty": "Não há congelamento guardado. O próximo chega em {count, plural, one {# dia} other {# dias}}.",
-      "repairError": "Não foi possível reparar a sequência. Tente novamente."
+      "gapBody": "{count, plural, one {Um dia sem registro.} other {# dias sem registro.}} Os hábitos continuam como estavam.",
+      "gapUnavailable": "Um intervalo encerrou a sequência anterior. Hoje começa uma nova; os hábitos não mudaram.",
+      "repairAction": "Usar {count, plural, one {# congelamento} other {# congelamentos}}",
+      "repairEmpty": "Não há congelamento guardado. A sequência começa de novo hoje, e o próximo congelamento chega em {count, plural, one {# dia} other {# dias}}.",
+      "repairError": "Não foi possível reparar o intervalo. Tente novamente.",
+      "repairRateLimited": "Houve tentativas demais de reparo. Tente novamente em breve.",
+      "bankFull": "{count} congelamentos é o limite. O próximo chega depois que você usar um."
     },
     "goals": {
       "views": "Visualizações das metas",

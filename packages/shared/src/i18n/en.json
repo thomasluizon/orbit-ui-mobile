@@ -2463,11 +2463,13 @@
       "lockedTitle": "Freeze protection",
       "lockedBody": "Orbit Pro keeps a freeze bank for missed days.",
       "lockedAction": "See Orbit Pro",
-      "repairTitle": "Yesterday is still open",
-      "repairBody": "One day is open and {count, plural, one {# freeze is} other {# freezes are}} available.",
-      "repairAction": "Spend 1 freeze",
-      "repairEmpty": "No freeze is banked. The next freeze arrives in {count, plural, one {# day} other {# days}}.",
-      "repairError": "The streak could not be repaired. Try again."
+      "gapBody": "{count, plural, one {One day with nothing logged.} other {# days with nothing logged.}} The habits are as they were.",
+      "gapUnavailable": "A gap ended the previous streak. Today starts a new one; the habits are unchanged.",
+      "repairAction": "Spend {count, plural, one {# freeze} other {# freezes}}",
+      "repairEmpty": "No freeze is banked. The streak starts again today, and the next freeze arrives in {count, plural, one {# day} other {# days}}.",
+      "repairError": "The gap could not be repaired. Try again.",
+      "repairRateLimited": "There were too many repair attempts. Try again shortly.",
+      "bankFull": "{count} freezes is the limit. The next one arrives after you spend one."
     },
     "goals": {
       "views": "Goal views",

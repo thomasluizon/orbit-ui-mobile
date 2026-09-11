@@ -2,15 +2,24 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
+import { API } from '@orbit/shared/api'
+import { createApiClientError } from '@orbit/shared'
 import {
   useGamificationProfile,
+  useRepairStreak,
   useStreakInfo,
   useStreakFreeze,
 } from '@/hooks/use-gamification'
 import type { GamificationProfile, StreakInfo } from '@orbit/shared/types/gamification'
 
 const mockFetch = vi.fn()
+const repairStreakGap = vi.hoisted(() => vi.fn())
 vi.stubGlobal('fetch', mockFetch)
+
+vi.mock('@/app/actions/gamification', () => ({
+  repairStreakGap,
+  reportAchievementEvent: vi.fn(),
+}))
 
 vi.mock('@/lib/api-fetch', () => ({
   fetchJson: vi.fn((url: string) =>
@@ -333,6 +342,30 @@ describe('useStreakFreeze', () => {
     expect(result.current.freezesAvailable).toBe(1)
     expect(result.current.currentStreak).toBe(4)
     expect(result.current.canFreeze).toBe(true)
+  })
+})
+
+describe('useRepairStreak', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+    repairStreakGap.mockReset()
+  })
+
+  it('reads the streak back after a conflict instead of leaving stale gap state', async () => {
+    repairStreakGap.mockRejectedValue(createApiClientError(409, null, 'Conflict'))
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(makeStreakInfo()),
+    })
+    const { result } = renderHook(() => useRepairStreak('America/Sao_Paulo'), {
+      wrapper: createWrapper(),
+    })
+
+    await expect(result.current.mutateAsync(['2026-09-04', '2026-09-05'])).rejects.toMatchObject({
+      status: 409,
+    })
+
+    expect(mockFetch).toHaveBeenCalledWith(API.gamification.streak)
   })
 })
 

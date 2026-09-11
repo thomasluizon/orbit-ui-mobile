@@ -601,14 +601,20 @@ export {
   deriveProgressViewState,
   filterProgressGoals,
   getProgressGoalLabelKey,
-  getAvailableStreakRepairDate,
+  deriveStreakRepairState,
+  getStreakRepairErrorMessageKey,
   getGoalDeadlinePresentation,
   getGamificationLevelTitleKey,
   PROGRESS_GOAL_FILTERS,
   visibleProgressAchievements,
   isProgressEmpty,
 } from './progress'
-export type { AchievementGlyphKey, GoalDeadlineState, ProgressGoalFilter } from './progress'
+export type {
+  AchievementGlyphKey,
+  GoalDeadlineState,
+  ProgressGoalFilter,
+  StreakRepairState,
+} from './progress'
 export {
   PROFILE_NAV_ITEMS,
   isProfileNavItemLocked,
