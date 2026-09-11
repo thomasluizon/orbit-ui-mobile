@@ -13,6 +13,8 @@ const ALL_SCHEMES: ColorScheme[] = ['purple', 'blue', 'green', 'rose', 'orange',
 
 /** WHY: both ExpiryWarning mirrors paint their text on the overdue token at this alpha over --bg. */
 const EXPIRY_TINT_ALPHA = 0.1
+/** WHY: the native high-conflict warning paints bad status text on this status-bad tint inside a card. */
+const BAD_WARNING_TINT_ALPHA = 0x1A / 0xFF
 
 const GRANTED_ACCENTS = {
   dark: {
@@ -75,6 +77,51 @@ const EMPTY_TRACK_SURFACES = {
         neutralColors.light.bg,
         neutralColors.light.bgCard,
         withAlpha(schemes.orange.accent.light.primary, selectionAlpha.light),
+      ],
+    },
+  ],
+} as const
+
+const BAD_TEXT_SURFACES = {
+  dark: [
+    { name: 'canvas', layers: [neutralColors.dark.bg] },
+    { name: 'card', layers: [neutralColors.dark.bg, neutralColors.dark.bgCard] },
+    { name: 'field', layers: [neutralColors.dark.bg, neutralColors.dark.bgField] },
+    { name: 'well', layers: [neutralColors.dark.bg, neutralColors.dark.bgWell] },
+    { name: 'elevated sheet', layers: [neutralColors.dark.bg, neutralColors.dark.bgElev] },
+    { name: 'elevated inline step', layers: [neutralColors.dark.bg, neutralColors.dark.bgElev2] },
+    { name: 'canvas hover', layers: [neutralColors.dark.bg, neutralColors.dark.bgHover] },
+    {
+      name: 'elevated menu item hover',
+      layers: [neutralColors.dark.bg, neutralColors.dark.bgElev, neutralColors.dark.bgHover],
+    },
+    {
+      name: 'bad warning tint inside a card',
+      layers: [
+        neutralColors.dark.bg,
+        neutralColors.dark.bgCard,
+        withAlpha(statusConstants.dark.bad, BAD_WARNING_TINT_ALPHA),
+      ],
+    },
+  ],
+  light: [
+    { name: 'canvas', layers: [neutralColors.light.bg] },
+    {
+      name: 'card, field, or elevated sheet',
+      layers: [neutralColors.light.bg, neutralColors.light.bgCard],
+    },
+    { name: 'well', layers: [neutralColors.light.bg, neutralColors.light.bgWell] },
+    { name: 'canvas hover', layers: [neutralColors.light.bg, neutralColors.light.bgHover] },
+    {
+      name: 'elevated menu item hover',
+      layers: [neutralColors.light.bg, neutralColors.light.bgElev, neutralColors.light.bgHover],
+    },
+    {
+      name: 'bad warning tint inside a card',
+      layers: [
+        neutralColors.light.bg,
+        neutralColors.light.bgCard,
+        withAlpha(statusConstants.light.bad, BAD_WARNING_TINT_ALPHA),
       ],
     },
   ],
@@ -145,13 +192,31 @@ describe('byte-exact mode colors', () => {
   it('keeps the documented status and selection values', () => {
     expect(statusConstants.dark).toEqual({
       overdue: '#FE9A00', bad: '#FB2C36', overdueText: '#FE9A00',
-      badText: '#FB2C36', fgOnBad: '#020618', fgOnOverdue: '#020618',
+      badText: '#FF7970', fgOnBad: '#020618', fgOnOverdue: '#020618',
     })
     expect(statusConstants.light).toEqual({
       overdue: '#886100', bad: '#E7000B', overdueText: '#886100',
-      badText: '#E7000B', fgOnBad: '#FFFFFF', fgOnOverdue: '#FFFFFF',
+      badText: '#D70009', fgOnBad: '#FFFFFF', fgOnOverdue: '#FFFFFF',
     })
     expect(selectionAlpha).toEqual({ dark: 0.32, light: 0.18 })
+  })
+
+  for (const mode of ['dark', 'light'] as const) {
+    for (const surface of BAD_TEXT_SURFACES[mode]) {
+      it(`keeps the ${mode} bad status text at the text floor on ${surface.name}`, () => {
+        expect(contrastOnSurface(statusConstants[mode].badText, surface.layers))
+          .toBeGreaterThanOrEqual(4.5)
+      })
+    }
+  }
+
+  it.each([
+    ['dark', '#FB2C36', '#020618'],
+    ['light', '#E7000B', '#FFFFFF'],
+  ] as const)('keeps the %s destructive fill and its foreground unchanged', (mode, fill, foreground) => {
+    expect(statusConstants[mode].bad).toBe(fill)
+    expect(statusConstants[mode].fgOnBad).toBe(foreground)
+    expect(contrastOnSurface(foreground, [fill])).toBeGreaterThanOrEqual(4.5)
   })
 
   it.each([

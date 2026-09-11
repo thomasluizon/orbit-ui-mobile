@@ -417,6 +417,7 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --status-frozen   var(--fg-2)                 /* NEUTRAL. See the note below */
 --status-overdue  #FE9A00                     /* 9.32:1, hue 65.4 */
 --status-bad      #FB2C36                     /* 5.23:1, hue 25.4 */
+--status-bad-text #FF7970                     /* 4.51:1 on an elevated menu-item hover, hue 25.8 */
 --fg-on-bad       #020618      --fg-on-overdue #020618
 --selection-bg    the fill at alpha 0.32
 --scrim           rgba(0,0,0,0.55)            /* THE overlay backdrop. Theme-independent */
@@ -450,6 +451,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --status-done var(--fg-1) · empty var(--track-empty) · frozen var(--fg-2)
 --status-overdue #886100   /* 5.36:1 on #FAFAFA, hue 81.1. White on it 5.59:1 */
 --status-bad     #E7000B   /* 4.57:1 on #FAFAFA, hue 28.5 */
+--status-bad-text #D70009  /* 4.50:1 on a status-bad tint inside a card, hue 28.5 */
 --fg-on-bad      #FFFFFF   /* 4.77:1 on the fill */
 --fg-on-overdue  #FFFFFF   /* 5.59:1 on the fill */
 --hairline rgba(9,9,11,0.08) · --border-control rgba(9,9,11,0.08)
@@ -490,10 +492,12 @@ the misses are. Two independent implementations agree on every number below.
 | dark `--fg-4` | 3.03 | **2.84** | **2.72** | **2.59** | **2.30** | **2.24** | **2.59** |
 | dark `--track-empty` | 4.649 | 4.336 | 4.184 | 3.976 | 3.530 | 3.439 | 3.976 |
 | dark `--primary-soft` | 4.58 | **4.28** | **4.10** | **3.90** | **3.48** | **3.38** | **3.91** |
+| dark `--status-bad-text` | 7.788 | 7.264 | 7.008 | 6.661 | 5.913 | 5.760 | 6.661 |
 | light `--fg-3` | 5.31 | 5.54 | | 4.88 | | 4.67 | |
 | light `--fg-4` | 3.34 | 3.48 | | 3.07 | | **2.94** | |
 | light `--track-empty` | 3.821 | 3.988 | | 3.499 | | 3.376 | |
 | light `--primary-soft` | 4.52 | 4.72 | | 4.16 | | **3.98** | |
+| light `--status-bad-text` | 5.168 | 5.394 | 5.394 | 4.733 | 5.394 | 4.566 | 5.394 |
 
 **`--primary-soft` is canvas only, and that closes its row by rule rather than by pigment.** The token
 is already defined as accent TEXT on the canvas, so 4.28 on a card is the token used outside its own
@@ -506,6 +510,21 @@ percent overdue tint, all below the 4.5 text floor. Thomas moved it along consta
 `#886100`. It now measures 5.36 on the canvas, 5.59 on the card, 4.91 on the well, 4.73 on hover,
 4.95 on the widget well and 4.70 on that tint. White on the fill is 5.59, and the 36.3 degree
 separation from the accent still clears derivation rule 6.
+
+**Closed 2026-09-11: `--status-bad-text` on every surface its consumers reach.** The fill and
+graphic token `--status-bad` remains `#FB2C36` dark and `#E7000B` light. Its former duplicate text
+value missed the floor on wells, overlays and hover surfaces. The consumer sweep found text on the
+canvas, card, field, well, opaque overlay, elevated inline step, replacement hover, an elevated
+menu-item hover, and the 10.2 percent `--status-bad` warning tint inside a card. A hover child inside
+a card and a hover child inside a light well are unreachable. Card presses replace the card fill
+with `--bg-hover`, and no bad-text consumer nests a hovered control in a well.
+
+Dark `#FF7970` holds the original constant OKLCH hue at 25.8 and measures 4.511 on the worst real
+stack, the pressed destructive menu item over `--bg-elev`. Light `#D70009` holds hue 28.5 and is the
+first gamut-clamped byte that clears its worst real stack, 4.502 on the warning tint inside a card.
+The darker `#CD0008` candidate was not used because it paid for the unreachable light well-child
+hover. The closest status-text hue separation is 16.3 degrees from the 44.8-degree accent; overdue
+remains farther away in both modes.
 
 **Closed 2026-09-10, corrected 2026-09-10: `--fg-4` as an empty graphic above the canvas, dark and
 light.** `--fg-4` measured 2.24 to 2.84 across dark raised surfaces and 2.94 on light hover, below

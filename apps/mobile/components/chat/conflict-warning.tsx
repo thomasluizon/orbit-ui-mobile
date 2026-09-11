@@ -130,7 +130,6 @@ const styles = StyleSheet.create({
   },
   recommendation: {
     fontFamily: 'Geist_400Regular',
-    fontSize: 11,
-    opacity: 0.8,
+    fontSize: 12,
   },
 });

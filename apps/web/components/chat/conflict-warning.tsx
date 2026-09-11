@@ -15,7 +15,7 @@ function severityStyle(severity: ConflictWarningType['severity']): {
   switch (severity) {
     case 'HIGH':
       return {
-        className: 'bg-[var(--status-bad)]/10 text-[var(--status-bad)]',
+        className: 'bg-[var(--status-bad)]/10 text-[var(--status-bad-text)]',
         ring: 'color-mix(in srgb, var(--status-bad) 30%, transparent)',
       }
     case 'MEDIUM':
@@ -61,7 +61,7 @@ export function ConflictWarning({ warning }: Readonly<ConflictWarningProps>) {
         </ul>
       )}
       {warning.recommendation && (
-        <p className="opacity-80 text-[11px]">{warning.recommendation}</p>
+        <p className="text-xs">{warning.recommendation}</p>
       )}
     </div>
   )
