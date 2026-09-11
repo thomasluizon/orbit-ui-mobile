@@ -119,6 +119,17 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   pointConfigAt(absent)
   check(TOOL, "refuses an issue with no matching worktree name", ["--issue", "ORB-124"], { status: 1, stderr: /no active Git worktree name matches ticket 124/ }, { env: orcaEnv([]) })
 
+  const unreadableGitState = stageTeardownWorktree("unreadable-git-state")
+  pointConfigAt(unreadableGitState)
+  const malformedGitConfig = stage("teardown/unreadable-git-state/malformed.gitconfig", "[broken\n")
+  check(
+    TOOL,
+    "an unreadable Git worktree state is exit 3, never an absent worktree",
+    ["--issue", "ORB-124"],
+    { status: 3, stderr: /git worktree list --porcelain failed/ },
+    { env: { ...orcaEnv([]), GIT_CONFIG_GLOBAL: malformedGitConfig } },
+  )
+
   const allGood = stageTeardownWorktree("all-good", { changed: true, fastForwardMerged: true, linkedDependency: true })
   if (!allGood) {
     T(`${TOOL}: real git fixture is available`, false, "could not create a linked Git worktree")
@@ -199,7 +210,9 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   T(`${TOOL}: the dirty refusal leaves the tree in place`, existsSync(dirty.child), "the dirty fixture was removed")
 
   const lockedTree = stageTeardownWorktree("ticket-124-locked", { changed: true, fastForwardMerged: true, locked: true })
-  check(TOOL, "a LOCKED worktree is refused before anything is deleted", ["--issue", "ORB-124"], { status: 1, stderr: /is LOCKED \(probe\); git refuses to remove or prune a locked worktree, and nothing was touched/ }, { env: orcaEnv(teardownPlan(lockedTree, { removePath: lockedTree.child })) })
+  const lockedRemovalProbe = spawnSync("git", ["-C", lockedTree.primary, "worktree", "remove", lockedTree.child], { encoding: "utf8" })
+  const lockedTrace = stage("teardown/ticket-124-locked/git-trace.log", "")
+  check(TOOL, "a LOCKED worktree is refused before anything is deleted", ["--issue", "ORB-124"], { status: 1, stderr: /is LOCKED \(probe\); git refuses to remove or prune a locked worktree, and nothing was touched/ }, { env: { ...orcaEnv(teardownPlan(lockedTree)), GIT_TRACE: lockedTrace } })
   const lockedSentinel = (() => {
     try {
       return readFileSync(join(lockedTree.child, "node_modules", "locked-sentinel.txt"), "utf8")
@@ -208,32 +221,29 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
     }
   })()
   T(`${TOOL}: the lock refusal leaves the worktree and its ignored files intact`, lockedSentinel === LOCKED_SENTINEL, `a locked worktree lost its ignored files: ${lockedSentinel}`)
-
-  /** A pre-flight read cannot be the only guard: `git worktree lock` still succeeds against the
-   * ORIGINAL path after the staging rename, measured on Git 2.55.0.windows.3. The staged rename
-   * is reversible, so the tool must read the lock again between the two, and this asserts that
-   * ORDER. The interleaving itself is not driven here: the tool takes no injection point, and a
-   * poll-and-lock racer would be a flaky test in the harness that guards every other tool. */
-  const teardownSource = readFileSync(stagedToolPath, "utf8")
-  const renameIndex = teardownSource.indexOf("renameSync(path, removalPath)")
-  const stagedLockIndex = teardownSource.indexOf("const stagedLockReason = lockReasonOf()")
-  const removeIndex = teardownSource.indexOf("rmSync(removalPath")
+  const lockedTraceOutput = readFileSync(lockedTrace, "utf8").replaceAll("\\", "/").toLowerCase()
   T(
-    `${TOOL}: the lock is read again after the staging rename and before the removal`,
-    renameIndex > 0 && stagedLockIndex > renameIndex && removeIndex > stagedLockIndex,
-    `order was rename=${renameIndex} stagedLock=${stagedLockIndex} remove=${removeIndex}`,
-  )
-  T(
-    `${TOOL}: a lock found after the staging rename puts the worktree back`,
-    /renameSync\(removalPath, path\)[\s\S]{0,400}?LOCK_REFUSAL\(stagedLockReason\)/.test(teardownSource),
-    "the staged-lock branch refuses without restoring the worktree",
+    `${TOOL}: the lock refusal comes from Git's own exit 128`,
+    lockedRemovalProbe.status === 128
+      && /fatal: cannot remove a locked working tree, lock reason: probe/.test(lockedRemovalProbe.stderr)
+      && lockedTraceOutput.includes("built-in: git worktree remove")
+      && lockedTraceOutput.includes(lockedTree.child.replaceAll("\\", "/").toLowerCase()),
+    `probe exit=${lockedRemovalProbe.status}; tool trace=${lockedTraceOutput || "empty"}`,
   )
 
   const notDone = stageTeardownWorktree("not-done", { changed: true, fastForwardMerged: true, dirty: true })
   check(TOOL, "every independent refusal is reported in one pass", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: (?:\?\? )?dirty\.txt[\s\S]*UNMET ticket-done: ticket is OPEN with board status In Review, expected CLOSED and Done/ }, { env: { ...orcaEnv(teardownPlan(notDone, { state: "In Review", removePath: notDone.child })), ORBIT_TICKET_STATUS: "In Review", ORBIT_TICKET_STATE: "OPEN" } })
 
-  const removed = check(TOOL, "a merged, clean, Done worktree is removed and verified", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree[\s\S]*RETAINED local branch feature\/orb-124-teardown/ }, { env: orcaEnv(teardownPlan(allGood, { removePath: allGood.child })) })
+  const successfulRemovalTrace = stage("teardown/all-good/git-trace.log", "")
+  const removed = check(TOOL, "a merged, clean, Done worktree is removed and verified", ["--issue", "ORB-124"], { status: 0, stdout: /REMOVED worktree[\s\S]*RETAINED local branch feature\/orb-124-teardown/ }, { env: { ...orcaEnv(teardownPlan(allGood)), GIT_TRACE: successfulRemovalTrace } })
   T(`${TOOL}: verified removal actually deleted the fixture`, !existsSync(allGood.child), removed.stderr)
+  const successfulTraceOutput = readFileSync(successfulRemovalTrace, "utf8").replaceAll("\\", "/").toLowerCase()
+  T(
+    `${TOOL}: Git owns the successful registration removal before residue cleanup`,
+    successfulTraceOutput.includes("built-in: git worktree remove")
+      && successfulTraceOutput.includes(allGood.child.replaceAll("\\", "/").toLowerCase()),
+    successfulTraceOutput || "the Git trace was empty",
+  )
   const junctionSentinel = (() => {
     try {
       return readFileSync(join(allGood.primary, "junction-sentinel.txt"), "utf8")

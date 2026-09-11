@@ -160,8 +160,9 @@ if (unmet.length > 0) {
 }
 
 const commonDir = resolve(path, git(path, ["rev-parse", "--git-common-dir"]))
+const runGitCommon = (args) => spawnSync(GIT, [`--git-dir=${commonDir}`, ...args], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
 const gitCommon = (args) => {
-  const result = spawnSync(GIT, [`--git-dir=${commonDir}`, ...args], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+  const result = runGitCommon(args)
   return result.status === 0 ? result.stdout.trim() : null
 }
 /** Distinguishes "git says it is gone" from "git could not be read". Collapsing the second into
@@ -173,74 +174,42 @@ const listWorktrees = () => {
 }
 const isStillListed = () => listWorktrees().split("\n").some((line) => line.startsWith("worktree ") && normalize(line.slice("worktree ".length)) === normalize(path))
 
-/**
- * `git worktree lock` exists to say "do not move or delete this", and git honours it in
- * `worktree remove` AND in `worktree prune`. Removing the directory ourselves walks straight past
- * that guard: the ignored local files are gone irreversibly, and prune then REFUSES to drop the
- * registration, so the lock is discovered only after the damage. Read it before touching the disk.
- *
- * Porcelain emits one blank-line separated block per worktree, and a locked one carries a bare
- * `locked` line or `locked <reason>`.
- */
-const lockReasonOf = () => {
-  for (const block of listWorktrees().split(/\r?\n\r?\n/)) {
-    const lines = block.split(/\r?\n/)
-    const head = lines.find((line) => line.startsWith("worktree "))
-    if (!head || normalize(head.slice("worktree ".length)) !== normalize(path)) continue
-    const locked = lines.find((line) => line === "locked" || line.startsWith("locked "))
-    if (!locked) return null
-    return locked === "locked" ? "no reason given" : locked.slice("locked ".length)
-  }
-  return null
-}
-
 const LOCK_REFUSAL = (reason) => `worktree ${path} is LOCKED (${reason}); git refuses to remove or prune a locked worktree, and nothing was touched`
-const lockReason = lockReasonOf()
-if (lockReason !== null) fail(1, LOCK_REFUSAL(lockReason))
+const removal = runGitCommon(["worktree", "remove", path])
+if (removal.status !== 0) {
+  const detail = (removal.stderr || removal.stdout || removal.error?.message || "unknown error").trim()
+  const lockReason = removal.status === 128
+    ? detail.match(/^fatal: cannot remove a locked working tree, lock reason: (.+)$/m)?.[1]
+    : null
+  if (lockReason) fail(1, LOCK_REFUSAL(lockReason))
+  fail(3, `git worktree remove ${path} failed: ${detail}`)
+}
 
 const removalPath = `${path}.teardown-${process.pid}-${Date.now()}`
 
-/** Git for Windows can deregister a worktree before discovering a junction it leaves on disk.
- * Moving the directory first makes refusal atomic: if Windows will not release it, Git still owns
- * the original path. Once the moved directory is deleted, prune can only remove stale metadata. */
+/** Git for Windows can leave junction residue after successfully deregistering a worktree. Stage
+ * only that residue before deleting it, so a path recreated after the rename is never removed. */
 process.chdir(repositoryPath)
-try {
-  renameSync(path, removalPath)
-} catch (error) {
-  fail(1, `filesystem refused to release worktree ${path}; git still holds this worktree: ${error.message}`)
-}
-
-/** The lock read above is a snapshot, and `git worktree lock` still succeeds against the ORIGINAL
- * path after the staging rename: measured on Git 2.55.0.windows.3, where porcelain then reports
- * `locked <reason>` in place of `prunable`. Read it once more against the staged directory, while
- * the rename is still reversible, so a lock taken during the check is answered by putting the
- * worktree back rather than by deleting its ignored files. */
-const stagedLockReason = lockReasonOf()
-if (stagedLockReason !== null) {
+if (existsSync(path)) {
   try {
-    if (existsSync(removalPath) && !existsSync(path)) renameSync(removalPath, path)
-  } catch (restoreError) {
-    fail(1, `worktree ${path} was LOCKED (${stagedLockReason}) during teardown and its files remain at ${removalPath}: ${restoreError.message}`)
+    renameSync(path, removalPath)
+  } catch (error) {
+    fail(1, `Git released worktree ${path}, but the filesystem refused to stage its residue: ${error.message}`)
   }
-  fail(1, LOCK_REFUSAL(stagedLockReason))
-}
-
-try {
-  rmSync(removalPath, { recursive: true, force: true })
-} catch (error) {
   try {
-    if (existsSync(removalPath) && !existsSync(path)) renameSync(removalPath, path)
-  } catch (restoreError) {
-    fail(1, `git still holds worktree ${path}, but its files remain at ${removalPath}: ${restoreError.message}`)
+    rmSync(removalPath, { recursive: true, force: true })
+  } catch (error) {
+    try {
+      if (existsSync(removalPath) && !existsSync(path)) renameSync(removalPath, path)
+    } catch (restoreError) {
+      fail(1, `Git released worktree ${path}, but its files remain at ${removalPath}: ${restoreError.message}`)
+    }
+    fail(1, `Git released worktree ${path}, but the filesystem refused to remove its residue: ${error.message}`)
   }
-  fail(1, `filesystem refused to remove worktree ${path}; git still holds this worktree: ${error.message}`)
 }
 
-if (gitCommon(["worktree", "prune"]) === null) fail(3, `git worktree prune failed against ${commonDir}; ${path} may still be registered`)
-
-/** Only the directory this run staged may be deleted. After the rename the original path is vacant,
- * so anything standing there now was put there by something else, and removing it would destroy data
- * this tool never checked. Report it and stop. */
+/** Only the residue this run staged may be deleted. Anything at the original path afterward was put
+ * there by something else, and removing it would destroy data this tool never checked. */
 if (existsSync(path)) fail(1, `${path} was recreated during teardown; its files were NOT removed and git registration may be stale`)
 if (existsSync(removalPath)) fail(1, `Git has released worktree ${path}, but its staged files remain at ${removalPath}`)
 if (isStillListed()) fail(1, `filesystem removed worktree ${path}, but git still holds this worktree`)
