@@ -47,7 +47,7 @@ describe('determineHabitDayStatus', () => {
 })
 
 describe('buildCalendarDayMap', () => {
-  it('builds entries with statuses, due time, and one-time flag', () => {
+  it('builds top-level entries without counting a logged sub-habit', () => {
     const calendarMonth: CalendarMonthResponse = {
       habits: [
         {
@@ -75,8 +75,37 @@ describe('buildCalendarDayMap', () => {
           scheduledReminders: [],
           slipAlertEnabled: false,
           tags: [],
-          children: [],
-          hasSubHabits: false,
+          children: [
+            {
+              id: 'child-1',
+              title: 'Walk uphill',
+              description: null,
+              frequencyUnit: 'Day',
+              frequencyQuantity: 1,
+              isBadHabit: false,
+              isCompleted: false,
+              isGeneral: false,
+              isFlexible: false,
+              days: [],
+              dueDate: '2026-04-06',
+              dueTime: null,
+              dueEndTime: null,
+              endDate: null,
+              position: 0,
+              checklistItems: [],
+              scheduledDates: ['2026-04-06'],
+              isOverdue: false,
+              tags: [],
+              children: [],
+              hasSubHabits: false,
+              flexibleTarget: null,
+              flexibleCompleted: null,
+              isLoggedInRange: true,
+              instances: [],
+              searchMatches: null,
+            },
+          ],
+          hasSubHabits: true,
           flexibleTarget: null,
           flexibleCompleted: null,
           linkedGoals: [],
@@ -119,6 +148,7 @@ describe('buildCalendarDayMap', () => {
       ],
       logs: {
         'habit-1': [{ id: 'log-1', date: '2026-04-05', value: 1, createdAtUtc: '2026-04-05T08:00:00Z' }],
+        'child-1': [{ id: 'child-log', date: '2026-04-06', value: 1, createdAtUtc: '2026-04-06T08:00:00Z' }],
       },
     }
 
@@ -154,6 +184,82 @@ describe('buildCalendarDayMap', () => {
         isOneTime: true,
       },
     ])
+  })
+
+  it('excludes general habits even when the response carries scheduled dates', () => {
+    const calendarMonth: CalendarMonthResponse = {
+      habits: [
+        {
+          id: 'general-habit',
+          title: 'Read whenever',
+          description: null,
+          frequencyUnit: null,
+          frequencyQuantity: null,
+          isBadHabit: false,
+          isCompleted: false,
+          isGeneral: true,
+          isFlexible: false,
+          days: [],
+          dueDate: '2026-04-05',
+          dueTime: null,
+          dueEndTime: null,
+          endDate: null,
+          position: 0,
+          checklistItems: [],
+          createdAtUtc: '2026-04-01T00:00:00Z',
+          scheduledDates: ['2026-04-05'],
+          isOverdue: false,
+          reminderEnabled: false,
+          reminderTimes: [],
+          scheduledReminders: [],
+          slipAlertEnabled: false,
+          tags: [],
+          children: [
+            {
+              id: 'child-1',
+              title: 'Walk uphill',
+              description: null,
+              frequencyUnit: 'Day',
+              frequencyQuantity: 1,
+              isBadHabit: false,
+              isCompleted: false,
+              isGeneral: false,
+              isFlexible: false,
+              days: [],
+              dueDate: '2026-04-06',
+              dueTime: null,
+              dueEndTime: null,
+              endDate: null,
+              position: 0,
+              checklistItems: [],
+              scheduledDates: ['2026-04-06'],
+              isOverdue: false,
+              tags: [],
+              children: [],
+              hasSubHabits: false,
+              flexibleTarget: null,
+              flexibleCompleted: null,
+              isLoggedInRange: true,
+              instances: [],
+              searchMatches: null,
+            },
+          ],
+          hasSubHabits: true,
+          flexibleTarget: null,
+          flexibleCompleted: null,
+          linkedGoals: [],
+          instances: [],
+          searchMatches: null,
+        },
+      ],
+      logs: {
+        'general-habit': [
+          { id: 'general-log', date: '2026-04-05', value: 1, createdAtUtc: '2026-04-05T08:00:00Z' },
+        ],
+      },
+    }
+
+    expect(buildCalendarDayMap(calendarMonth, new Date('2026-04-05T12:00:00'))).toEqual(new Map())
   })
 })
 

@@ -31,6 +31,7 @@ import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
 import { buildCalendarMonthModel } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { Profile } from '@orbit/shared/types/profile'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 import { CalendarStats } from '@/components/calendar/calendar-stats'
@@ -60,15 +61,20 @@ function resolveMonthSlideClass(monthSlide: MonthSlide): string {
   return ''
 }
 
-// react-doctor-disable-next-line no-giant-component -- calendar shell hosting four distinct views (month/week/range/agenda); extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export default function CalendarPage() {
+  const { profile } = useProfile()
+  if (!profile) return null
+  return <CalendarPageContent profile={profile} />
+}
+
+// react-doctor-disable-next-line no-giant-component -- calendar shell hosting four distinct views (month/week/range/agenda); extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+function CalendarPageContent({ profile }: Readonly<{ profile: Pick<Profile, 'weekStartDay'> }>) {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const { displayTime } = useTimeFormat()
   const { displayWeekdayDate } = useDateFormat()
-  const { profile } = useProfile()
-  const weekStartsOn: 0 | 1 = profile?.weekStartDay ?? 1
+  const weekStartsOn = profile.weekStartDay
   const isDesktop = useIsDesktop()
   const isWideDesktop = useIsWideDesktop()
 
@@ -237,8 +243,8 @@ export default function CalendarPage() {
   }, [selectedDay, displayWeekdayDate])
 
   const { monthStats } = useMemo(
-    () => buildCalendarMonthModel(currentMonth, dayMap),
-    [currentMonth, dayMap],
+    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn),
+    [currentMonth, dayMap, weekStartsOn],
   )
 
   const monthStatTiles = useMemo(
@@ -342,6 +348,7 @@ export default function CalendarPage() {
                       onSelectDay={openDay}
                       selectedDateStr={selectedDay}
                       isLoading={isLoading}
+                      weekStartsOn={weekStartsOn}
                     />
                   </div>
 
@@ -439,6 +446,7 @@ export default function CalendarPage() {
                 nowLabel={t('calendar.timeGrid.now')}
                 showRecurring={showRecurring}
                 onShowRecurringChange={setShowRecurring}
+                weekStartsOn={weekStartsOn}
               />
             )}
 

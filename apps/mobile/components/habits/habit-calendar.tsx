@@ -116,10 +116,8 @@ export function HabitCalendar({
     partial: t('calendar.dayCell.partial'),
     full: t('calendar.dayCell.full'),
     notScheduled: t('calendar.dayCell.notScheduled'),
-    future: t('calendar.dayCell.future'),
     of: t('calendar.dayCell.of'),
     today: t('calendar.dayCell.today'),
-    selected: t('calendar.dayCell.selected'),
     readOnly: t('calendar.dayCell.readOnly'),
   }
 
@@ -170,31 +168,55 @@ export function HabitCalendar({
       </View>
 
       <MonthGrid weekdayLabels={weekdays.map((day) => day.label)} label={monthLabel} gap={4}>
-        {calendarDays.map((day) => (
-          <View key={day.dateStr}>
+        {calendarDays.map((day) => {
+          const selected = selectedDate === day.dateStr
+          const future = day.isCurrentMonth && !day.isPast && !day.isToday
+          const dateLabel = `${displayDate(day.date)}${selected ? `, ${t('calendar.dayCell.selected')}` : ''}`
+          return (
+          <View
+            key={day.dateStr}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 999,
+              backgroundColor: selected ? tokens.primaryDim : 'transparent',
+              borderColor: selected ? tokens.primary : 'transparent',
+              borderWidth: selected ? 2 : 0,
+            }}
+          >
             {day.isCurrentMonth && day.isCompleted ? (
               <DayCell
                 day={day.dayNum}
-                outcome="full"
+                done={1}
+                scheduled={1}
                 loggable
-                selected={selectedDate === day.dateStr}
                 today={day.isToday}
-                label={displayDate(day.date)}
+                label={dateLabel}
                 words={dayCellWords}
                 onPress={() => toggleDay(day.dateStr)}
               />
+            ) : future ? (
+              <View
+                accessibilityRole="image"
+                accessibilityLabel={`${dateLabel}, ${t('calendar.dayCell.future')}, ${t('calendar.dayCell.readOnly')}`}
+                style={styles.futureDay}
+              >
+                <Text style={styles.futureDayText}>{day.dayNum}</Text>
+              </View>
             ) : (
               <DayCell
                 day={day.dayNum}
-                outcome={day.isCurrentMonth && !day.isPast && !day.isToday ? 'future' : 'none'}
+                done={0}
+                scheduled={day.isCurrentMonth ? 1 : 0}
                 outsideMonth={!day.isCurrentMonth}
                 today={day.isToday}
-                label={displayDate(day.date)}
+                label={dateLabel}
                 words={dayCellWords}
               />
             )}
           </View>
-        ))}
+          )
+        })}
       </MonthGrid>
 
       {selectedDate && selectedDayLogs.length > 0 && (
@@ -278,6 +300,18 @@ function createStyles(tokens: AppTokens) {
       fontSize: 16,
       color: tokens.fg1,
       textTransform: "capitalize",
+    },
+    futureDay: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    futureDayText: {
+      color: tokens.fg4,
+      fontFamily: 'GeistMono_400Regular',
+      fontSize: 14,
+      fontVariant: ['tabular-nums'],
     },
     selectedLogs: {
       backgroundColor: tokens.bgField,

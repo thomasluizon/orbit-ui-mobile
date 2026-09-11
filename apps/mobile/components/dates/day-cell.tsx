@@ -14,14 +14,12 @@ function DayCellContents({ props, outcome, size, tokens }: Readonly<{ props: Day
   const fraction = props.scheduled && props.done !== undefined ? Math.max(0, Math.min(1, props.done / props.scheduled)) : 0.5
   const fill = outcome === 'full'
     ? tokens.fg1
-    : outcome === 'not-scheduled' || outcome === 'unavailable'
-      ? tokens.bgWell
-      : 'transparent'
-  const borderColor = outcome === 'future' ? tokens.hairlineStrong : outcome === 'none' ? tokens.fg4 : 'transparent'
+    : 'transparent'
+  const borderColor = outcome === 'none' ? tokens.fg4 : 'transparent'
   const textColor = outcome === 'full' ? tokens.bg : tokens.fg2
 
   return (
-    <View style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: fill, borderColor, borderWidth: borderColor === 'transparent' ? 0 : outcome === 'future' ? 1 : 2 }]}>
+    <View style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: fill, borderColor, borderWidth: borderColor === 'transparent' ? 0 : 2 }]}>
       {outcome === 'partial' ? (
         <Svg width={size} height={size} style={styles.arc}>
           <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={tokens.fg4} strokeWidth={stroke} />
@@ -46,10 +44,9 @@ function DayCellContents({ props, outcome, size, tokens }: Readonly<{ props: Day
 
 function HabitHistoryContents({ props, outcome, size, tokens }: Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number; tokens: Tokens }>) {
   const missed = outcome === 'none' || outcome === 'partial'
-  const dimmed = outcome === 'not-scheduled' || outcome === 'unavailable'
+  const dimmed = outcome === 'not-scheduled'
   let textColor = tokens.fg2
   if (outcome === 'full') textColor = tokens.bg
-  else if (outcome === 'future') textColor = tokens.fg4
   else if (missed) textColor = tokens.fg3
   return (
     <View style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: outcome === 'full' ? tokens.fg1 : 'transparent', opacity: dimmed ? 0.4 : 1 }]}>
@@ -67,11 +64,10 @@ export function DayCell(props: Readonly<DayCellProps>) {
   const containerStyle = [
     styles.container,
     { width: size, height: size, borderRadius: size / 2 },
-    props.selected ? { backgroundColor: tokens.selectionBg } : null,
-    props.selected || props.today ? { borderColor: tokens.primary, borderWidth: 2 } : null,
+    props.today ? { borderColor: tokens.primary, borderWidth: 2 } : null,
     props.outsideMonth ? styles.outsideMonth : null,
   ]
-  const state = { selected: Boolean(props.selected), disabled: !props.loggable }
+  const state = { disabled: !props.loggable }
   const testID = `day-cell-${outcome}${props.outsideMonth ? '-outside-month' : ''}`
 
   if (props.loggable && !props.outsideMonth) {

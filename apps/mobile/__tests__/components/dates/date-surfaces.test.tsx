@@ -35,11 +35,8 @@ const cellWords: DayCellWords = {
   partial: 'partial',
   full: 'full',
   notScheduled: 'not scheduled',
-  unavailable: 'not loaded',
-  future: 'upcoming',
   of: 'of',
   today: 'today',
-  selected: 'selected',
   readOnly: 'read only',
 }
 
@@ -102,21 +99,15 @@ describe('DayCell', () => {
     expect(onPress).toHaveBeenCalledTimes(1)
   })
 
-  it('renders read-only, selected, outside, and derived outcomes on the cell', () => {
-    const future = render(<DayCell day={13} label="March 13" words={cellWords} outcome="future" selected />)
-    const futureCell = future.root.findByProps({ testID: 'day-cell-future' })
-    expect(futureCell.props.accessibilityRole).toBe('image')
-    expect(futureCell.props.accessibilityLabel).toBe('March 13, upcoming, selected, read only')
-
-    const unavailable = render(<DayCell day={13} label="March 13" words={cellWords} outcome="unavailable" />)
-    expect(unavailable.root.findByProps({ testID: 'day-cell-unavailable' }).props.accessibilityLabel).toBe(
-      'March 13, not loaded, read only',
-    )
-
-    const unscheduled = render(<DayCell day={14} label="March 14" words={cellWords} scheduled={0} />)
+  it('renders read-only, unscheduled, and outside outcomes from counts', () => {
+    const unscheduled = render(<DayCell day={14} label="March 14" words={cellWords} done={0} scheduled={0} />)
     expect(unscheduled.root.findByProps({ testID: 'day-cell-not-scheduled' }).props.accessibilityLabel).toBe(
       'March 14, not scheduled, read only',
     )
+    const unscheduledDisc = unscheduled.root.findAll(
+      (node) => node.type === 'View' && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 44,
+    )[1]
+    expect(StyleSheet.flatten(unscheduledDisc?.props.style as StyleProp<ViewStyle>).backgroundColor).toBe('transparent')
 
     const outside = render(<DayCell day={30} label="April 30" words={cellWords} outsideMonth />)
     const outsideCell = outside.root.findByProps({ testID: 'day-cell-none-outside-month' })
@@ -125,31 +116,34 @@ describe('DayCell', () => {
   })
 
   it('draws the partial arc from the exact completion fraction', () => {
-    const quarter = render(<DayCell day={15} label="March 15" words={cellWords} scheduled={4} done={1} />)
-    const quarterArc = quarter.root.findAll(
+    const oneThird = render(<DayCell day={15} label="March 15" words={cellWords} scheduled={3} done={1} />)
+    const oneThirdArc = oneThird.root.findAll(
       (node) => node.type === 'Circle' && Array.isArray(node.props.strokeDasharray),
     )[0]
-    expect(quarterArc?.props.strokeDasharray).toEqual([Math.PI * 42 * 0.25, Math.PI * 42])
+    expect(oneThirdArc?.props.strokeDasharray).toEqual([Math.PI * 42 / 3, Math.PI * 42])
 
-    const threeQuarters = render(<DayCell day={15} label="March 15" words={cellWords} scheduled={4} done={3} />)
-    const threeQuarterArc = threeQuarters.root.findAll(
+    const twoThirds = render(<DayCell day={15} label="March 15" words={cellWords} scheduled={3} done={2} />)
+    const twoThirdsArc = twoThirds.root.findAll(
       (node) => node.type === 'Circle' && Array.isArray(node.props.strokeDasharray),
     )[0]
-    expect(threeQuarterArc?.props.strokeDasharray).toEqual([Math.PI * 42 * 0.75, Math.PI * 42])
+    expect(twoThirdsArc?.props.strokeDasharray).toEqual([Math.PI * 42 * 2 / 3, Math.PI * 42])
   })
 
-  it('uses the quiet habit-history treatment for completed, missed, and future days', () => {
+  it('uses the quiet habit-history treatment for completed, missed, and unscheduled days', () => {
     const tokens = createTokensV2('purple', 'dark')
-    const completed = render(<DayCell day={15} label="March 15" words={cellWords} outcome="full" habitHistory />)
+    const completed = render(<DayCell day={15} label="March 15" words={cellWords} done={1} scheduled={1} habitHistory />)
     const completedText = completed.root.findAll((node) => node.type === 'Text' && node.props.children === 15)[0]
     expect(StyleSheet.flatten(completedText?.props.style as StyleProp<TextStyle>).color).toBe(tokens.bg)
 
-    const missed = render(<DayCell day={16} label="March 16" words={cellWords} outcome="none" habitHistory />)
+    const missed = render(<DayCell day={16} label="March 16" words={cellWords} done={0} scheduled={1} habitHistory />)
     expect(missed.root.findAll((node) => node.type === 'View' && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 3)).toHaveLength(1)
 
-    const future = render(<DayCell day={17} label="March 17" words={cellWords} outcome="future" habitHistory />)
-    const futureText = future.root.findAll((node) => node.type === 'Text' && node.props.children === 17)[0]
-    expect(StyleSheet.flatten(futureText?.props.style as StyleProp<TextStyle>).color).toBe(tokens.fg4)
+    const unscheduled = render(<DayCell day={17} label="March 17" words={cellWords} done={0} scheduled={0} habitHistory />)
+    const quietDisc = unscheduled.root
+      .findAll((node) => node.type === 'View')
+      .map((node) => StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>))
+      .find((style) => style.opacity !== undefined)
+    expect(quietDisc?.opacity).toBeCloseTo(0.4)
   })
 })
 

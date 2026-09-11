@@ -43,6 +43,7 @@ import {
   buildCalendarMonthModel,
 } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
+import type { Profile } from "@orbit/shared/types/profile";
 import { useCalendarData, useCalendarRange } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
 import { useTimeFormat } from "@/hooks/use-time-format";
@@ -80,11 +81,16 @@ function resolveMonthEntering(monthSlide: MonthSlide) {
   return undefined;
 }
 
-// react-doctor-disable-next-line no-giant-component -- Screen orchestration is already decomposed into ./calendar/_components/*; the remaining hook wiring + JSX tree is inherently long, and further splitting is a regression-prone refactor with cross-platform parity cost. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export default function CalendarScreen() {
+  const { profile } = useProfile();
+  if (!profile) return null;
+  return <CalendarScreenContent profile={profile} />;
+}
+
+// react-doctor-disable-next-line no-giant-component -- Screen orchestration is already decomposed into ./calendar/_components/*; the remaining hook wiring + JSX tree is inherently long, and further splitting is a regression-prone refactor with cross-platform parity cost. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+function CalendarScreenContent({ profile }: Readonly<{ profile: Pick<Profile, 'weekStartDay'> }>) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const { profile } = useProfile();
   const { displayTime } = useTimeFormat();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
@@ -92,10 +98,7 @@ export default function CalendarScreen() {
     [currentScheme, currentTheme],
   );
   const dateFnsLocale = i18n.language === "pt-BR" ? ptBR : enUS;
-  const weekStartsOn = useMemo<0 | 1>(
-    () => profile?.weekStartDay ?? 1,
-    [profile?.weekStartDay],
-  );
+  const weekStartsOn = profile.weekStartDay;
   const styles = useMemo(() => createStyles(), []);
   const calendarGridRef = useRef<View>(null);
   const calendarDayRef = useRef<View>(null);

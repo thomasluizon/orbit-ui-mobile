@@ -6,15 +6,14 @@ import type {
   HabitDayValue,
 } from '../contracts/dates'
 
-export function resolveDayCellOutcome({ outcome, done, scheduled }: DayCellProps): DayOutcome {
-  if (outcome === 'future' || outcome === 'unavailable') return outcome
+export function resolveDayCellOutcome({ done, scheduled }: DayCellProps): DayOutcome {
   if (scheduled === 0) return 'not-scheduled'
   if (done !== undefined && scheduled !== undefined && scheduled > 0) {
     if (done <= 0) return 'none'
     if (done >= scheduled) return 'full'
     return 'partial'
   }
-  return outcome ?? 'none'
+  return 'none'
 }
 
 export function buildDayCellAccessibleName(
@@ -24,15 +23,12 @@ export function buildDayCellAccessibleName(
 ): string {
   const outcomeWord = outcome === 'not-scheduled'
     ? props.words.notScheduled
-    : outcome === 'unavailable'
-      ? props.words.unavailable ?? props.words.notScheduled
-      : props.words[outcome]
+    : props.words[outcome]
   const parts = [`${props.label ?? props.day}, ${outcomeWord}`]
   if (props.done !== undefined && props.scheduled !== undefined && props.scheduled > 0) {
     parts[0] += ` ${props.done} ${props.words.of} ${props.scheduled}`
   }
   if (props.today) parts.push(props.words.today)
-  if (props.selected) parts.push(props.words.selected)
   if (includeReadOnly) parts.push(props.words.readOnly)
   return parts.join(', ')
 }

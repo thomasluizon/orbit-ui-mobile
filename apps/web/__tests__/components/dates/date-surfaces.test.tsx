@@ -11,11 +11,8 @@ const cellWords: DayCellWords = {
   partial: 'partial',
   full: 'full',
   notScheduled: 'not scheduled',
-  unavailable: 'not loaded',
-  future: 'upcoming',
   of: 'of',
   today: 'today',
-  selected: 'selected',
   readOnly: 'read only',
 }
 
@@ -70,26 +67,14 @@ describe('DayCell', () => {
     expect(button).toHaveAttribute('data-outcome', 'partial')
   })
 
-  it('renders read-only, selected, outside, and derived outcomes on the cell itself', () => {
-    const { container, rerender } = render(
-      <DayCell day={13} label="March 13" words={cellWords} outcome="future" selected />,
-    )
-
-    const cell = screen.getByRole('img', { name: 'March 13, upcoming, selected, read only' })
-    expect(cell).toHaveAttribute('data-selected')
-    expect(cell.parentElement).toBe(container)
-
-    rerender(<DayCell day={13} label="March 13" words={cellWords} outcome="unavailable" />)
-    expect(screen.getByRole('img', { name: 'March 13, not loaded, read only' })).toHaveAttribute(
-      'data-outcome',
-      'unavailable',
-    )
-
-    rerender(<DayCell day={14} label="March 14" words={cellWords} scheduled={0} />)
-    expect(screen.getByRole('img', { name: 'March 14, not scheduled, read only' })).toHaveAttribute(
+  it('renders read-only, unscheduled, and outside outcomes from counts', () => {
+    const { container, rerender } = render(<DayCell day={14} label="March 14" words={cellWords} done={0} scheduled={0} />)
+    const unscheduled = screen.getByRole('img', { name: 'March 14, not scheduled, read only' })
+    expect(unscheduled).toHaveAttribute(
       'data-outcome',
       'not-scheduled',
     )
+    expect(unscheduled.firstElementChild).toHaveStyle({ background: 'transparent' })
 
     rerender(<DayCell day={30} label="April 30" words={cellWords} outsideMonth />)
     expect(container.firstElementChild).toHaveAttribute('aria-hidden', 'true')
@@ -98,26 +83,26 @@ describe('DayCell', () => {
 
   it('draws the partial arc from the exact completion fraction', () => {
     const { container, rerender } = render(
-      <DayCell day={15} label="March 15" words={cellWords} scheduled={4} done={1} />,
+      <DayCell day={15} label="March 15" words={cellWords} scheduled={3} done={1} />,
     )
-    expect(container.querySelectorAll('circle')[1]).toHaveAttribute('stroke-dasharray', '25 100')
+    expect(container.querySelectorAll('circle')[1]).toHaveAttribute('stroke-dasharray', `${(1 / 3) * 100} 100`)
 
-    rerender(<DayCell day={15} label="March 15" words={cellWords} scheduled={4} done={3} />)
-    expect(container.querySelectorAll('circle')[1]).toHaveAttribute('stroke-dasharray', '75 100')
+    rerender(<DayCell day={15} label="March 15" words={cellWords} scheduled={3} done={2} />)
+    expect(container.querySelectorAll('circle')[1]).toHaveAttribute('stroke-dasharray', `${(2 / 3) * 100} 100`)
   })
 
-  it('uses the quiet habit-history treatment for completed, missed, and future days', () => {
+  it('uses the quiet habit-history treatment for completed, missed, and unscheduled days', () => {
     const { container, rerender } = render(
-      <DayCell day={15} label="March 15" words={cellWords} outcome="full" habitHistory />,
+      <DayCell day={15} label="March 15" words={cellWords} done={1} scheduled={1} habitHistory />,
     )
     expect(container.querySelector('[data-outcome="full"] span span')).toHaveStyle({ color: 'var(--bg)' })
     expect(container.querySelector('span[style*="width: 3px"]')).toBeNull()
 
-    rerender(<DayCell day={16} label="March 16" words={cellWords} outcome="none" habitHistory />)
+    rerender(<DayCell day={16} label="March 16" words={cellWords} done={0} scheduled={1} habitHistory />)
     expect(container.querySelector('span[style*="width: 3px"]')).toBeInTheDocument()
 
-    rerender(<DayCell day={17} label="March 17" words={cellWords} outcome="future" habitHistory />)
-    expect(container.querySelector('[data-outcome="future"] span span')).toHaveStyle({ color: 'var(--fg-4)' })
+    rerender(<DayCell day={17} label="March 17" words={cellWords} done={0} scheduled={0} habitHistory />)
+    expect(container.querySelector('[data-outcome="not-scheduled"] span')).toHaveStyle({ opacity: '0.4' })
   })
 })
 

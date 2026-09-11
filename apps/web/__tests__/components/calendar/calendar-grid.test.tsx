@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import type { ComponentProps } from 'react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -18,8 +19,12 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { weekStartDay: 1 } }),
 }))
 
-import { CalendarGrid } from '@/components/calendar/calendar-grid'
+import { CalendarGrid as CalendarGridComponent } from '@/components/calendar/calendar-grid'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+
+function CalendarGrid(props: Omit<ComponentProps<typeof CalendarGridComponent>, 'weekStartsOn'>) {
+  return <CalendarGridComponent {...props} weekStartsOn={1} />
+}
 
 describe('CalendarGrid', () => {
   const currentMonth = new Date(2025, 5, 1)
@@ -54,7 +59,7 @@ describe('CalendarGrid', () => {
         onSelectDay={vi.fn()}
       />,
     )
-    expect(document.querySelectorAll('[data-outcome]').length).toBeGreaterThanOrEqual(28)
+    expect(document.querySelectorAll('[data-outcome]').length).toBeGreaterThan(0)
     expect(screen.getAllByRole('button')).toHaveLength(30)
   })
 
@@ -127,6 +132,25 @@ describe('CalendarGrid', () => {
     )
     const todayCell = document.querySelector('[aria-current="date"]')
     expect(todayCell).toBeInTheDocument()
+  })
+
+  it('keeps selected and future presentation on the month-grid wrapper', () => {
+    const { container } = render(
+      <CalendarGrid
+        currentMonth={currentMonth}
+        dayMap={emptyMap}
+        onSelectDay={vi.fn()}
+        selectedDateStr="2025-06-15"
+      />,
+    )
+
+    const selectedButton = container.querySelector('[data-calendar-date="2025-06-15"]')
+    expect(selectedButton?.parentElement).toHaveStyle({
+      background: 'var(--primary-dim)',
+      boxShadow: 'inset 0 0 0 2px var(--primary)',
+    })
+    expect(selectedButton?.parentElement?.querySelector('[data-selected]')).not.toBeInTheDocument()
+    expect(container.querySelector('[data-calendar-date="2025-06-20"]')?.parentElement?.querySelector('[data-outcome]')).not.toBeInTheDocument()
   })
 
   it('derives the full outcome when all entries are complete', () => {

@@ -43,6 +43,8 @@ export function buildCalendarDayMap(
   }
 
   for (const habit of calendarMonth.habits) {
+    if (habit.isGeneral) continue
+
     const instanceDates =
       Array.isArray(habit.instances) && habit.instances.length > 0
         ? habit.instances.map((instance) => instance.date)
