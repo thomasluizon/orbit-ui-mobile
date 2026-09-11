@@ -7,12 +7,13 @@ import { T, check as harnessCheck, orcaEnv, realOrchestratorConfig, root, stage,
 const TOOL = "teardown-worktree.mjs"
 const BRANCH = "feature/orb-124-teardown"
 const JUNCTION_SENTINEL = "the junction target must survive teardown\n"
+const LOCKED_SENTINEL = "a locked worktree must survive teardown\n"
 let stagedToolPath
 let stagedConfigPath
 const check = (file, name, argv, expect, options = {}) => harnessCheck(file, name, [...argv, "--repo", "ui"], expect, { ...options, path: stagedToolPath })
 
 /** A linked child checkout is the smallest real Git fixture that can prove teardown verification. */
-const stageTeardownWorktree = (label, { base = "main", dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, localFollowUp = false, contractSwitch = false, linkedDependency = false } = {}) => {
+const stageTeardownWorktree = (label, { base = "main", dirty = false, changed = false, squashMerged = false, fastForwardMerged = false, localFollowUp = false, contractSwitch = false, linkedDependency = false, locked = false } = {}) => {
   const primary = join(root, "teardown", label, "primary")
   const hasTicketName = !["no-ticket-name", "unlinked-refusal"].includes(label)
   const child = join(root, "teardown", label, hasTicketName ? `ticket-124-${label}` : "child")
@@ -29,6 +30,13 @@ const stageTeardownWorktree = (label, { base = "main", dirty = false, changed = 
     if (git(primary, args).status !== 0) return null
   }
   if (contractSwitch && git(child, ["switch", "-q", "-c", BRANCH]).status !== 0) return null
+  if (locked) {
+    /** node_modules is gitignored, so this file is invisible to every work-loss check the tool runs.
+     * That is the point: a lock is the only thing protecting it, and teardown must honour it. */
+    mkdirSync(join(child, "node_modules"), { recursive: true })
+    writeFileSync(join(child, "node_modules", "locked-sentinel.txt"), LOCKED_SENTINEL)
+    if (git(primary, ["worktree", "lock", "--reason", "probe", child]).status !== 0) return null
+  }
   if (linkedDependency) {
     /** The sentinel is read back after teardown. Asserting only that the target DIRECTORY survives
      * passes even when removal follows the junction and empties it, which is the failure that
@@ -189,6 +197,17 @@ export const assertRepositoryLabel = (ticket, repoKey) => {
   const dirty = stageTeardownWorktree("dirty", { changed: true, fastForwardMerged: true, dirty: true })
   check(TOOL, "a dirty worktree is refused as work loss", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: (?:\?\? )?dirty\.txt/ }, { env: orcaEnv(teardownPlan(dirty)) })
   T(`${TOOL}: the dirty refusal leaves the tree in place`, existsSync(dirty.child), "the dirty fixture was removed")
+
+  const lockedTree = stageTeardownWorktree("ticket-124-locked", { changed: true, fastForwardMerged: true, locked: true })
+  check(TOOL, "a LOCKED worktree is refused before anything is deleted", ["--issue", "ORB-124"], { status: 1, stderr: /is LOCKED \(probe\); git refuses to remove or prune a locked worktree, and nothing was touched/ }, { env: orcaEnv(teardownPlan(lockedTree, { removePath: lockedTree.child })) })
+  const lockedSentinel = (() => {
+    try {
+      return readFileSync(join(lockedTree.child, "node_modules", "locked-sentinel.txt"), "utf8")
+    } catch (error) {
+      return `unreadable: ${error.code}`
+    }
+  })()
+  T(`${TOOL}: the lock refusal leaves the worktree and its ignored files intact`, lockedSentinel === LOCKED_SENTINEL, `a locked worktree lost its ignored files: ${lockedSentinel}`)
 
   const notDone = stageTeardownWorktree("not-done", { changed: true, fastForwardMerged: true, dirty: true })
   check(TOOL, "every independent refusal is reported in one pass", ["--issue", "ORB-124"], { status: 1, stderr: /UNMET worktree-clean: uncommitted paths: (?:\?\? )?dirty\.txt[\s\S]*UNMET ticket-done: ticket is OPEN with board status In Review, expected CLOSED and Done/ }, { env: { ...orcaEnv(teardownPlan(notDone, { state: "In Review", removePath: notDone.child })), ORBIT_TICKET_STATUS: "In Review", ORBIT_TICKET_STATE: "OPEN" } })

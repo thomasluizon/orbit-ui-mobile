@@ -172,6 +172,31 @@ const listWorktrees = () => {
   return listing
 }
 const isStillListed = () => listWorktrees().split("\n").some((line) => line.startsWith("worktree ") && normalize(line.slice("worktree ".length)) === normalize(path))
+
+/**
+ * `git worktree lock` exists to say "do not move or delete this", and git honours it in
+ * `worktree remove` AND in `worktree prune`. Removing the directory ourselves walks straight past
+ * that guard: the ignored local files are gone irreversibly, and prune then REFUSES to drop the
+ * registration, so the lock is discovered only after the damage. Read it before touching the disk.
+ *
+ * Porcelain emits one blank-line separated block per worktree, and a locked one carries a bare
+ * `locked` line or `locked <reason>`.
+ */
+const lockReasonOf = () => {
+  for (const block of listWorktrees().split(/\r?\n\r?\n/)) {
+    const lines = block.split(/\r?\n/)
+    const head = lines.find((line) => line.startsWith("worktree "))
+    if (!head || normalize(head.slice("worktree ".length)) !== normalize(path)) continue
+    const locked = lines.find((line) => line === "locked" || line.startsWith("locked "))
+    if (!locked) return null
+    return locked === "locked" ? "no reason given" : locked.slice("locked ".length)
+  }
+  return null
+}
+
+const lockReason = lockReasonOf()
+if (lockReason !== null) fail(1, `worktree ${path} is LOCKED (${lockReason}); git refuses to remove or prune a locked worktree, and nothing was touched`)
+
 const removalPath = `${path}.teardown-${process.pid}-${Date.now()}`
 
 /** Git for Windows can deregister a worktree before discovering a junction it leaves on disk.
