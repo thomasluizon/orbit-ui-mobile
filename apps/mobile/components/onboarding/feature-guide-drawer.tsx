@@ -16,7 +16,7 @@ type SectionKey =
   | 'astra'
   | 'connect'
   | 'habits'
-  | 'goals'
+  | 'progress'
   | 'calendar'
   | 'rewards'
   | 'settings'
@@ -26,7 +26,7 @@ const tabs: { key: SectionKey; labelKey: string }[] = [
   { key: 'astra', labelKey: 'onboarding.featureGuide.astra' },
   { key: 'connect', labelKey: 'onboarding.featureGuide.connect' },
   { key: 'habits', labelKey: 'onboarding.featureGuide.habits' },
-  { key: 'goals', labelKey: 'onboarding.featureGuide.goals' },
+  { key: 'progress', labelKey: 'onboarding.featureGuide.progress' },
   { key: 'calendar', labelKey: 'onboarding.featureGuide.calendar' },
   { key: 'rewards', labelKey: 'onboarding.featureGuide.rewards' },
   { key: 'settings', labelKey: 'onboarding.featureGuide.settings' },
@@ -80,13 +80,12 @@ const sectionItems: Record<SectionKey, SectionItem[]> = {
     { titleKey: 'onboarding.featureGuide.habitsSection.generalTitle', descKey: 'onboarding.featureGuide.habitsSection.generalDesc' },
     { titleKey: 'onboarding.featureGuide.habitsSection.skipTitle', descKey: 'onboarding.featureGuide.habitsSection.skipDesc' },
   ],
-  goals: [
-    { titleKey: 'onboarding.featureGuide.goalsSection.creatingTitle', descKey: 'onboarding.featureGuide.goalsSection.creatingDesc' },
-    { titleKey: 'onboarding.featureGuide.goalsSection.trackingTitle', descKey: 'onboarding.featureGuide.goalsSection.trackingDesc' },
-    { titleKey: 'onboarding.featureGuide.goalsSection.linkingTitle', descKey: 'onboarding.featureGuide.goalsSection.linkingDesc' },
-    { titleKey: 'onboarding.featureGuide.goalsSection.dashboardTitle', descKey: 'onboarding.featureGuide.goalsSection.dashboardDesc' },
-    { titleKey: 'onboarding.featureGuide.goalsSection.aiReviewTitle', descKey: 'onboarding.featureGuide.goalsSection.aiReviewDesc' },
-    { titleKey: 'onboarding.featureGuide.goalsSection.statusTitle', descKey: 'onboarding.featureGuide.goalsSection.statusDesc' },
+  progress: [
+    { titleKey: 'onboarding.featureGuide.progressSection.goalsTitle', descKey: 'onboarding.featureGuide.progressSection.goalsDesc' },
+    { titleKey: 'onboarding.featureGuide.progressSection.trackingTitle', descKey: 'onboarding.featureGuide.progressSection.trackingDesc' },
+    { titleKey: 'onboarding.featureGuide.progressSection.linkingTitle', descKey: 'onboarding.featureGuide.progressSection.linkingDesc' },
+    { titleKey: 'onboarding.featureGuide.progressSection.aiReviewTitle', descKey: 'onboarding.featureGuide.progressSection.aiReviewDesc' },
+    { titleKey: 'onboarding.featureGuide.progressSection.statusTitle', descKey: 'onboarding.featureGuide.progressSection.statusDesc' },
   ],
   calendar: [
     { titleKey: 'onboarding.featureGuide.calendarSection.colorsTitle', descKey: 'onboarding.featureGuide.calendarSection.colorsDesc' },

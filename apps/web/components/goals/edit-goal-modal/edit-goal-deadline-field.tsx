@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { DateField } from '@/components/ui/date-field'
 import { formatAPIDate } from '@orbit/shared/utils/dates'
 import { isGoalDeadlinePast } from '@orbit/shared/utils/goal-form'
-import { GoalGroupLabel } from '../create-goal-modal/goal-group-label'
+import { GoalGroupLabel } from '../goal-group-label'
 
 interface EditGoalDeadlineFieldProps {
   deadline: string
@@ -63,11 +63,11 @@ export function EditGoalDeadlineField({
             fontWeight: 500,
             minHeight: 44,
             padding: 0,
-            gap: 6,
+            gap: 8,
           }}
           onClick={() => onChangeDeadline(formatAPIDate(new Date()))}
         >
-          <Plus size={14} strokeWidth={1.8} />
+          <Plus size={16} strokeWidth={1.8} />
           {t('goals.form.addDeadline')}
         </button>
       )}

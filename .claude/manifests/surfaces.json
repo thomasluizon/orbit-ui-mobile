@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "9f488b767b4f2cb8af9ecd74dd3eb2be39d89a9e",
+  "generatedFrom": "b013fbbef87952a094b716128e6df30158f7d0e0",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -14,8 +14,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 195,
-  "cellCount": 836,
+  "surfaceCount": 194,
+  "cellCount": 832,
   "cells": [
     {
       "surfaceId": "route-about",
@@ -3978,62 +3978,6 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "overlay-create-goal-modal-goal-deadline-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/create-goal-modal/goal-deadline-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/create-goal-modal/goal-deadline-field.tsx"
-      ],
-      "closureSize": 163,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-create-goal-modal-goal-deadline-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/create-goal-modal/goal-deadline-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/create-goal-modal/goal-deadline-field.tsx"
-      ],
-      "closureSize": 163,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-create-goal-modal-goal-deadline-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/create-goal-modal/goal-deadline-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/create-goal-modal/goal-deadline-field.tsx"
-      ],
-      "closureSize": 163,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-create-goal-modal-goal-deadline-field",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/create-goal-modal/goal-deadline-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/create-goal-modal/goal-deadline-field.tsx"
-      ],
-      "closureSize": 163,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
       "surfaceId": "overlay-goals-edit-goal-modal",
       "platform": "web",
       "kind": "overlay",
@@ -4141,66 +4085,6 @@
         "apps/web/components/goals/edit-goal-modal/edit-goal-deadline-field.tsx"
       ],
       "closureSize": 163,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-goals-goal-card",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/goal-card.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/goal-card.tsx",
-        "apps/web/components/goals/goal-status-badge.tsx"
-      ],
-      "closureSize": 255,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-goals-goal-card",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/goal-card.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/goal-card.tsx",
-        "apps/web/components/goals/goal-status-badge.tsx"
-      ],
-      "closureSize": 255,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "overlay-goals-goal-card",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/goal-card.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/goal-card.tsx",
-        "apps/web/components/goals/goal-status-badge.tsx"
-      ],
-      "closureSize": 255,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "overlay-goals-goal-card",
-      "platform": "web",
-      "kind": "overlay",
-      "sourceFile": "apps/web/components/goals/goal-card.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/web/components/goals/goal-card.tsx",
-        "apps/web/components/goals/goal-status-badge.tsx"
-      ],
-      "closureSize": 255,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -4369,6 +4253,62 @@
         "apps/web/components/habits/create-goal-from-habit-sheet.tsx"
       ],
       "closureSize": 200,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-create-goal-from-habit-goal-deadline-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
+      ],
+      "closureSize": 163,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-create-goal-from-habit-goal-deadline-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
+      ],
+      "closureSize": 163,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "overlay-create-goal-from-habit-goal-deadline-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
+      ],
+      "closureSize": 163,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "overlay-create-goal-from-habit-goal-deadline-field",
+      "platform": "web",
+      "kind": "overlay",
+      "sourceFile": "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/web/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
+      ],
+      "closureSize": 163,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -9810,62 +9750,6 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "m-overlay-create-goal-modal-goal-deadline-field",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/goals/create-goal-modal/goal-deadline-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/goals/create-goal-modal/goal-deadline-field.tsx"
-      ],
-      "closureSize": 189,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-create-goal-modal-goal-deadline-field",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/goals/create-goal-modal/goal-deadline-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/goals/create-goal-modal/goal-deadline-field.tsx"
-      ],
-      "closureSize": 189,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-overlay-create-goal-modal-goal-deadline-field",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/goals/create-goal-modal/goal-deadline-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/goals/create-goal-modal/goal-deadline-field.tsx"
-      ],
-      "closureSize": 189,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-overlay-create-goal-modal-goal-deadline-field",
-      "platform": "mobile",
-      "kind": "overlay",
-      "sourceFile": "apps/mobile/components/goals/create-goal-modal/goal-deadline-field.tsx",
-      "href": null,
-      "ownedFiles": [
-        "apps/mobile/components/goals/create-goal-modal/goal-deadline-field.tsx"
-      ],
-      "closureSize": 189,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
       "surfaceId": "m-overlay-goals-edit-goal-modal",
       "platform": "mobile",
       "kind": "overlay",
@@ -10253,6 +10137,62 @@
         "apps/mobile/components/habits/create-goal-from-habit-sheet.tsx"
       ],
       "closureSize": 233,
+      "state": "default",
+      "theme": "dark",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-create-goal-from-habit-goal-deadline-field",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/create-goal-from-habit/goal-deadline-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
+      ],
+      "closureSize": 189,
+      "state": "default",
+      "theme": "light",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-create-goal-from-habit-goal-deadline-field",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/create-goal-from-habit/goal-deadline-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
+      ],
+      "closureSize": 189,
+      "state": "default",
+      "theme": "light",
+      "locale": "pt-BR"
+    },
+    {
+      "surfaceId": "m-overlay-create-goal-from-habit-goal-deadline-field",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/create-goal-from-habit/goal-deadline-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
+      ],
+      "closureSize": 189,
+      "state": "default",
+      "theme": "dark",
+      "locale": "en"
+    },
+    {
+      "surfaceId": "m-overlay-create-goal-from-habit-goal-deadline-field",
+      "platform": "mobile",
+      "kind": "overlay",
+      "sourceFile": "apps/mobile/components/habits/create-goal-from-habit/goal-deadline-field.tsx",
+      "href": null,
+      "ownedFiles": [
+        "apps/mobile/components/habits/create-goal-from-habit/goal-deadline-field.tsx"
+      ],
+      "closureSize": 189,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -12832,6 +12772,7 @@
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_refresh_icon.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_scrollbar_thumb.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_skeleton_bar.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_skeleton_mark.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_done.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_overdue.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_pending.xml",
@@ -12882,6 +12823,7 @@
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_refresh_icon.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_scrollbar_thumb.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_skeleton_bar.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_skeleton_mark.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_done.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_overdue.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_pending.xml",
@@ -12932,6 +12874,7 @@
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_refresh_icon.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_scrollbar_thumb.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_skeleton_bar.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_skeleton_mark.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_done.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_overdue.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_pending.xml",
@@ -12982,6 +12925,7 @@
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_refresh_icon.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_scrollbar_thumb.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_skeleton_bar.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_skeleton_mark.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_done.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_overdue.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_pending.xml",
