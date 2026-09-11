@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 import { useTourTarget } from "@/hooks/use-tour-target";
 import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
 import {
@@ -56,6 +56,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { PillButton } from "@/components/ui/pill-button";
 import { SectionLabel } from "@/components/ui/section-label";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   CalendarHeader,
   CalendarLegend,
@@ -82,13 +83,68 @@ function resolveMonthEntering(monthSlide: MonthSlide) {
 }
 
 export default function CalendarScreen() {
-  const { profile } = useProfile();
-  if (!profile) return null;
-  return <CalendarScreenContent profile={profile} />;
+  const { profile, error: profileError, refetch: refetchProfile } = useProfile();
+  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
+  const monthQuery = useCalendarData(currentMonth);
+
+  if (!profile) {
+    return (
+      <CalendarProfileState
+        failed={Boolean(profileError)}
+        onRetry={() => void refetchProfile()}
+      />
+    );
+  }
+
+  return (
+    <CalendarScreenContent
+      profile={profile}
+      currentMonth={currentMonth}
+      setCurrentMonth={setCurrentMonth}
+      monthQuery={monthQuery}
+    />
+  );
+}
+
+function CalendarProfileState({ failed, onRetry }: Readonly<{ failed: boolean; onRetry: () => void }>) {
+  const { t } = useTranslation();
+  const { currentScheme, currentTheme } = useAppTheme();
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  );
+  const styles = useMemo(() => createStyles(), []);
+
+  return (
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+      <View style={styles.profileStateWrap}>
+        {failed ? (
+          <View style={[styles.errorCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
+            <Text style={[styles.errorText, { color: tokens.fg2 }]}>{t('calendar.loadError')}</Text>
+            <PillButton variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
+          </View>
+        ) : (
+          <Skeleton variant="grid" rows={6} cols={7} cell={44} gap={0} label={t('common.loading')} />
+        )}
+      </View>
+    </SafeAreaView>
+  );
+}
+
+interface CalendarScreenContentProps {
+  profile: Pick<Profile, 'weekStartDay'>;
+  currentMonth: Date;
+  setCurrentMonth: Dispatch<SetStateAction<Date>>;
+  monthQuery: ReturnType<typeof useCalendarData>;
 }
 
 // react-doctor-disable-next-line no-giant-component -- Screen orchestration is already decomposed into ./calendar/_components/*; the remaining hook wiring + JSX tree is inherently long, and further splitting is a regression-prone refactor with cross-platform parity cost. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-function CalendarScreenContent({ profile }: Readonly<{ profile: Pick<Profile, 'weekStartDay'> }>) {
+function CalendarScreenContent({
+  profile,
+  currentMonth,
+  setCurrentMonth,
+  monthQuery,
+}: Readonly<CalendarScreenContentProps>) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { displayTime } = useTimeFormat();
@@ -130,9 +186,6 @@ function CalendarScreenContent({ profile }: Readonly<{ profile: Pick<Profile, 'w
     setScrollTopResetView(view);
     setShowScrollTop(false);
   }
-  const [currentMonth, setCurrentMonth] = useState(() =>
-    startOfMonth(new Date()),
-  );
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null);
   const [weekAnchor, setWeekAnchor] = useState(() => new Date());
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null);
@@ -146,8 +199,7 @@ function CalendarScreenContent({ profile }: Readonly<{ profile: Pick<Profile, 'w
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
   const [showRecurring, setShowRecurring] = useState(true);
 
-  const { dayMap, isLoading, isFetching, error, refresh } =
-    useCalendarData(currentMonth);
+  const { dayMap, isLoading, isFetching, error, refresh } = monthQuery;
 
   const weekStart = useMemo(
     () => startOfWeek(weekAnchor, { weekStartsOn }),
@@ -219,22 +271,22 @@ function CalendarScreenContent({ profile }: Readonly<{ profile: Pick<Profile, 'w
   const prevMonth = useCallback(() => {
     setMonthSlide("left");
     setCurrentMonth((m) => subMonths(m, 1));
-  }, []);
+  }, [setCurrentMonth]);
 
   const nextMonth = useCallback(() => {
     setMonthSlide("right");
     setCurrentMonth((m) => addMonths(m, 1));
-  }, []);
+  }, [setCurrentMonth]);
 
   const selectYear = useCallback((year: number) => {
     setMonthSlide(null);
     setCurrentMonth((m) => startOfMonth(setYear(m, year)));
-  }, []);
+  }, [setCurrentMonth]);
 
   const goToCurrentMonth = useCallback(() => {
     setMonthSlide(null);
     setCurrentMonth(startOfMonth(new Date()));
-  }, []);
+  }, [setCurrentMonth]);
 
   const prevWeek = useCallback(() => {
     setWeekSlide("left");
@@ -601,6 +653,10 @@ function createStyles() {
 
     errorWrap: {
       paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    profileStateWrap: {
+      paddingHorizontal: 4,
       paddingVertical: 12,
     },
     errorCard: {

@@ -52,11 +52,13 @@ describe('mobile useTimeFormat', () => {
     )
   })
 
-  it('does not assume a clock setting before the profile resolves', async () => {
+  it('uses locale formatting without deleting the time before the profile resolves', async () => {
     uses24HourClock = undefined
     const result = await renderUseTimeFormat()
 
-    expect(result.displayTime('14:30')).toBe('')
+    expect(result.displayTime('14:30')).toBe(
+      formatLocaleTime('14:30', 'en', { hour: 'numeric', minute: '2-digit' }),
+    )
   })
 
   it('returns an empty string for missing values', async () => {

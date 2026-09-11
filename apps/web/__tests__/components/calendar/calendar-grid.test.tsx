@@ -59,7 +59,7 @@ describe('CalendarGrid', () => {
         onSelectDay={vi.fn()}
       />,
     )
-    expect(document.querySelectorAll('[data-outcome]').length).toBeGreaterThan(0)
+    expect(document.querySelectorAll('[data-outcome]')).toHaveLength(27)
     expect(screen.getAllByRole('button')).toHaveLength(30)
   })
 
@@ -150,7 +150,9 @@ describe('CalendarGrid', () => {
       boxShadow: 'inset 0 0 0 2px var(--primary)',
     })
     expect(selectedButton?.parentElement?.querySelector('[data-selected]')).not.toBeInTheDocument()
-    expect(container.querySelector('[data-calendar-date="2025-06-20"]')?.parentElement?.querySelector('[data-outcome]')).not.toBeInTheDocument()
+    const futureSlot = container.querySelector('[data-calendar-date="2025-06-20"]')?.parentElement
+    expect(futureSlot?.querySelector('[data-outcome]')).not.toBeInTheDocument()
+    expect(futureSlot?.querySelector('span[aria-hidden="true"] > span')).toHaveStyle({ color: 'var(--fg-2)' })
   })
 
   it('derives the full outcome when all entries are complete', () => {

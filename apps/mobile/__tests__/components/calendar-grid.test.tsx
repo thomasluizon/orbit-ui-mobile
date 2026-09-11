@@ -56,11 +56,27 @@ describe('CalendarGrid (mobile)', () => {
       )
     })
 
-    expect(tree.root.findByProps({ testID: 'calendar-future-day-2026-09-12' })).toBeTruthy()
+    const futureNumeral = tree.root.findByProps({ testID: 'calendar-future-day-2026-09-12' })
+    expect(StyleSheet.flatten(futureNumeral.props.style as StyleProp<ViewStyle>)).toMatchObject({
+      color: tokens.fg2,
+    })
     expect(tree.root.findAll((node: { type: unknown; props: { children?: unknown } }) => node.type === 'Text' && node.props.children === 12)).toHaveLength(1)
+    const futureSlot = tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-12' })
+    expect(StyleSheet.flatten(futureSlot.props.style as StyleProp<ViewStyle>)).toMatchObject({
+      alignItems: 'center',
+      justifyContent: 'center',
+    })
     const selectedSlot = tree.root.findByProps({ testID: 'calendar-day-slot-2026-09-10' })
     expect(StyleSheet.flatten(selectedSlot.props.style as StyleProp<ViewStyle>)).toMatchObject({
+      width: 44,
+      height: 44,
       backgroundColor: tokens.primaryDim,
+    })
+    expect(StyleSheet.flatten(selectedSlot.props.style as StyleProp<ViewStyle>)).not.toHaveProperty('borderWidth')
+    const selectedRing = tree.root.findByProps({ testID: 'calendar-day-selection-2026-09-10' })
+    expect(StyleSheet.flatten(selectedRing.props.style as StyleProp<ViewStyle>)).toMatchObject({
+      position: 'absolute',
+      inset: 0,
       borderColor: tokens.primary,
       borderWidth: 2,
     })

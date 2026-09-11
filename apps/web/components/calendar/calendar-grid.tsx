@@ -56,7 +56,7 @@ function CalendarDayVisual({ cell, dayCell, future }: Readonly<{
   return (
     <span
       style={{
-        color: 'var(--fg-4)',
+        color: 'var(--fg-2)',
         fontFamily: 'var(--font-mono)',
         fontSize: 14,
         fontVariantNumeric: 'tabular-nums',

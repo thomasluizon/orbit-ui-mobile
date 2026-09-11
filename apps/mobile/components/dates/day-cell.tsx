@@ -1,6 +1,6 @@
 import type { DayCellProps, DayOutcome } from '@orbit/shared/contracts/dates'
 import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared/utils'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View, type AccessibilityState } from 'react-native'
 import Svg, { Circle } from 'react-native-svg'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -56,7 +56,11 @@ function HabitHistoryContents({ props, outcome, size, tokens }: Readonly<{ props
   )
 }
 
-export function DayCell(props: Readonly<DayCellProps>) {
+type MobileDayCellProps = DayCellProps & {
+  accessibilityState?: AccessibilityState
+}
+
+export function DayCell(props: Readonly<MobileDayCellProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const outcome = resolveDayCellOutcome(props)
@@ -67,7 +71,7 @@ export function DayCell(props: Readonly<DayCellProps>) {
     props.today ? { borderColor: tokens.primary, borderWidth: 2 } : null,
     props.outsideMonth ? styles.outsideMonth : null,
   ]
-  const state = { disabled: !props.loggable }
+  const state = { ...props.accessibilityState, disabled: !props.loggable }
   const testID = `day-cell-${outcome}${props.outsideMonth ? '-outside-month' : ''}`
 
   if (props.loggable && !props.outsideMonth) {

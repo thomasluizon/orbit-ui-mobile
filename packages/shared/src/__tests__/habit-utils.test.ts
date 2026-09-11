@@ -47,7 +47,7 @@ describe('determineHabitDayStatus', () => {
 })
 
 describe('buildCalendarDayMap', () => {
-  it('builds top-level entries without counting a logged sub-habit', () => {
+  it('builds top-level entries without counting a skip or logged sub-habit as a completion', () => {
     const calendarMonth: CalendarMonthResponse = {
       habits: [
         {
@@ -68,7 +68,7 @@ describe('buildCalendarDayMap', () => {
           position: 0,
           checklistItems: [],
           createdAtUtc: '2026-04-01T00:00:00Z',
-          scheduledDates: ['2026-04-05', '2026-04-06'],
+          scheduledDates: ['2026-04-04', '2026-04-05', '2026-04-06'],
           isOverdue: false,
           reminderEnabled: false,
           reminderTimes: [],
@@ -147,7 +147,10 @@ describe('buildCalendarDayMap', () => {
         },
       ],
       logs: {
-        'habit-1': [{ id: 'log-1', date: '2026-04-05', value: 1, createdAtUtc: '2026-04-05T08:00:00Z' }],
+        'habit-1': [
+          { id: 'skip-1', date: '2026-04-04', value: 0, createdAtUtc: '2026-04-04T08:00:00Z' },
+          { id: 'log-1', date: '2026-04-05', value: 1, createdAtUtc: '2026-04-05T08:00:00Z' },
+        ],
         'child-1': [{ id: 'child-log', date: '2026-04-06', value: 1, createdAtUtc: '2026-04-06T08:00:00Z' }],
       },
     }
@@ -175,6 +178,14 @@ describe('buildCalendarDayMap', () => {
       },
     ])
     expect(dayMap.get('2026-04-04')).toEqual([
+      {
+        habitId: 'habit-1',
+        title: 'Morning walk',
+        status: 'missed',
+        isBadHabit: false,
+        dueTime: '08:00',
+        isOneTime: false,
+      },
       {
         habitId: 'habit-2',
         title: 'Passport renewal',

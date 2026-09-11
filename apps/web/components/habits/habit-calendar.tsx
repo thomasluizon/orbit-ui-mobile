@@ -173,7 +173,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
               <span
                 role="img"
                 aria-label={`${dateLabel}, ${t('calendar.dayCell.future')}, ${t('calendar.dayCell.readOnly')}`}
-                className="inline-flex h-11 w-11 items-center justify-center font-[var(--font-mono)] text-sm tabular-nums text-[var(--fg-4)]"
+                className="inline-flex h-11 w-11 items-center justify-center font-[var(--font-mono)] text-sm tabular-nums text-[var(--fg-2)]"
               >
                 {day.dayNum}
               </span>

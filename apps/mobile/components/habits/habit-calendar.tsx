@@ -175,14 +175,14 @@ export function HabitCalendar({
           return (
           <View
             key={day.dateStr}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 999,
-              backgroundColor: selected ? tokens.primaryDim : 'transparent',
-              borderColor: selected ? tokens.primary : 'transparent',
-              borderWidth: selected ? 2 : 0,
-            }}
+            style={[
+              styles.daySlot,
+              {
+                backgroundColor: selected ? tokens.primaryDim : 'transparent',
+                borderColor: selected ? tokens.primary : 'transparent',
+                borderWidth: selected ? 2 : 0,
+              },
+            ]}
           >
             {day.isCurrentMonth && day.isCompleted ? (
               <DayCell
@@ -190,6 +190,7 @@ export function HabitCalendar({
                 done={1}
                 scheduled={1}
                 loggable
+                accessibilityState={{ selected }}
                 today={day.isToday}
                 label={dateLabel}
                 words={dayCellWords}
@@ -301,6 +302,13 @@ function createStyles(tokens: AppTokens) {
       color: tokens.fg1,
       textTransform: "capitalize",
     },
+    daySlot: {
+      width: 44,
+      height: 44,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     futureDay: {
       width: 44,
       height: 44,
@@ -308,7 +316,7 @@ function createStyles(tokens: AppTokens) {
       justifyContent: 'center',
     },
     futureDayText: {
-      color: tokens.fg4,
+      color: tokens.fg2,
       fontFamily: 'GeistMono_400Regular',
       fontSize: 14,
       fontVariant: ['tabular-nums'],

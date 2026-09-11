@@ -11,7 +11,12 @@ export function useTimeFormat() {
   const displayTime = useCallback(
     (time: string | null | undefined): string => {
       if (!time) return ''
-      if (uses24HourClock === undefined) return ''
+      if (uses24HourClock === undefined) {
+        return formatLocaleTime(time, i18n.language, {
+          hour: 'numeric',
+          minute: '2-digit',
+        })
+      }
       return formatLocaleTime(time, i18n.language, {
         hour: 'numeric',
         minute: '2-digit',

@@ -70,7 +70,7 @@ function CalendarDayVisual({ cell, dayCell, future, tokens }: Readonly<{
 }>) {
   if (!future || !cell.isCurrentMonth) return <DayCell {...dayCell} />
   return (
-    <Text testID={`calendar-future-day-${cell.dateStr}`} style={[styles.futureNumeral, { color: tokens.fg4 }]}>
+    <Text testID={`calendar-future-day-${cell.dateStr}`} style={[styles.futureNumeral, { color: tokens.fg2 }]}>
       {cell.day}
     </Text>
   )
@@ -175,11 +175,16 @@ function CalendarGridDay({
         styles.daySlot,
         {
           backgroundColor: selected ? tokens.primaryDim : inRange ? tokens.selectionBg : 'transparent',
-          borderColor: selected ? tokens.primary : 'transparent',
-          borderWidth: selected ? 2 : 0,
         },
       ]}
     >
+      {selected ? (
+        <View
+          pointerEvents="none"
+          testID={`calendar-day-selection-${cell.dateStr}`}
+          style={[styles.selectionRing, { borderColor: tokens.primary }]}
+        />
+      ) : null}
       {isLoading ? (
         <View
           accessibilityElementsHidden
@@ -278,7 +283,15 @@ export function CalendarGrid({
 const styles = StyleSheet.create({
   calendarGrid: { paddingHorizontal: 4, paddingTop: 16, paddingBottom: 8 },
   gridCard: { borderRadius: 20, padding: 0, borderWidth: 1 },
-  daySlot: { position: 'relative', width: 44, height: 44, borderRadius: 999 },
+  daySlot: {
+    position: 'relative',
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectionRing: { position: 'absolute', inset: 0, borderRadius: 999, borderWidth: 2 },
   dayButton: { position: 'absolute', inset: 0, borderRadius: 999, backgroundColor: 'transparent' },
   skeleton: { width: 44, height: 44, borderRadius: 999 },
   futureNumeral: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },

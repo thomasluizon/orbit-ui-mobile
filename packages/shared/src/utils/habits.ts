@@ -37,7 +37,7 @@ export function buildCalendarDayMap(
   for (const [habitId, habitLogs] of Object.entries(calendarMonth.logs)) {
     const dateSet = new Set<string>()
     for (const log of habitLogs) {
-      dateSet.add(log.date)
+      if (log.value > 0) dateSet.add(log.date)
     }
     logsByHabit.set(habitId, dateSet)
   }

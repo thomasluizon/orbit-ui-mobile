@@ -26,11 +26,13 @@ describe('useTimeFormat', () => {
     )
   })
 
-  it('does not assume a clock setting before the profile resolves', () => {
+  it('uses locale formatting without deleting the time before the profile resolves', () => {
     uses24HourClock = undefined
     const { result } = renderHook(() => useTimeFormat())
 
-    expect(result.current.displayTime('14:30')).toBe('')
+    expect(result.current.displayTime('14:30')).toBe(
+      formatLocaleTime('14:30', 'en', { hour: 'numeric', minute: '2-digit' }),
+    )
   })
 
   it('returns an empty string for missing values', () => {
