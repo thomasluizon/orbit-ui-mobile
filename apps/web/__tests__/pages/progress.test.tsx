@@ -163,7 +163,7 @@ describe('ProgressContent', () => {
     browser = await chromium.launch({ channel: 'chrome' })
   })
 
-  afterAll(async () => { await browser.close() })
+  afterAll(async () => { await browser.close() }, 30_000)
 
   it.each(['dark', 'light'] as const)('keeps goal metadata legible in every card state in %s', (mode) => {
     mocks.goals.data.allGoals = [createMockGoal()]

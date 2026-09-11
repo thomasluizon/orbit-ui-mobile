@@ -29,13 +29,13 @@ const TestRenderer = require('react-test-renderer')
 const {
   mockApiClient,
   mockAuthState,
-  mockShare,
+  mockShareAsync,
   mockShellNoticeSlot,
   mockUseGamificationProfile,
   mockRouterPush,
 } = vi.hoisted(() => ({
   mockApiClient: vi.fn(),
-  mockShare: vi.fn(),
+  mockShareAsync: vi.fn(),
   mockAuthState: {
     isAuthenticated: true,
     user: { userId: 'user-1' },
@@ -46,9 +46,8 @@ const {
   mockRouterPush: vi.fn(),
 }))
 
-vi.mock('react-native', async () => {
-  const actual = await vi.importActual<Record<string, unknown>>('react-native')
-  return { ...actual, Share: { share: mockShare } }
+vi.mock('expo-sharing', () => {
+  return { shareAsync: mockShareAsync }
 })
 
 vi.mock('expo-device', () => ({
@@ -397,7 +396,7 @@ function findRowByLabel(
 describe('ProfileScreen', () => {
   beforeEach(() => {
     mockApiClient.mockReset()
-    mockShare.mockReset().mockResolvedValue({ action: 'sharedAction' })
+    mockShareAsync.mockReset().mockResolvedValue(undefined)
     mockShellNoticeSlot.mockReset()
     vi.mocked(ExpoNotifications.getPermissionsAsync).mockReset()
     vi.mocked(ExpoNotifications.getPermissionsAsync).mockResolvedValue({
