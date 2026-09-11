@@ -17,14 +17,14 @@ function DayCellContents({ props, outcome, size, tokens }: Readonly<{ props: Day
     : outcome === 'not-scheduled' || outcome === 'unavailable'
       ? tokens.bgWell
       : 'transparent'
-  const borderColor = outcome === 'future' ? tokens.hairlineStrong : outcome === 'none' ? tokens.fg4 : 'transparent'
+  const borderColor = outcome === 'future' ? tokens.hairlineStrong : outcome === 'none' ? tokens.statusEmpty : 'transparent'
   const textColor = outcome === 'full' ? tokens.bg : tokens.fg2
 
   return (
     <View style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: fill, borderColor, borderWidth: borderColor === 'transparent' ? 0 : outcome === 'future' ? 1 : 2 }]}>
       {outcome === 'partial' ? (
         <Svg width={size} height={size} style={styles.arc}>
-          <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={tokens.fg4} strokeWidth={stroke} />
+          <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={tokens.statusEmpty} strokeWidth={stroke} />
           <Circle
             cx={size / 2}
             cy={size / 2}

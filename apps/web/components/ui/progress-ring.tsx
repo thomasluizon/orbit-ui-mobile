@@ -26,7 +26,7 @@ export function ProgressRing({ value = 0, size = 64, label }: Readonly<ProgressR
       aria-valuenow={clamped}
       data-complete={complete || undefined}
     >
-      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--fg-4)" strokeWidth={strokeWidth} />
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--track-empty)" strokeWidth={strokeWidth} />
       <circle
         ref={measure}
         key={size}

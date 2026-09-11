@@ -67,7 +67,9 @@ describe('DayStrip', () => {
     expect(tree.root.findByProps({ accessibilityLabel: 'Mon 1, complete' })).toBeTruthy()
     expect(tree.root.findByProps({ accessibilityLabel: 'Wed 3, rest' })).toBeTruthy()
     expect(tree.root.findByProps({ testID: 'day-strip-cell-done' })).toBeTruthy()
-    expect(tree.root.findByProps({ testID: 'day-strip-cell-missed' })).toBeTruthy()
+    expect(StyleSheet.flatten(tree.root.findByProps({ testID: 'day-strip-cell-missed' }).props.style as StyleProp<ViewStyle>).borderColor).toBe(
+      createTokensV2('purple', 'dark').statusEmpty,
+    )
     expect(tree.root.findByProps({ testID: 'day-strip-cell-not-scheduled' })).toBeTruthy()
   })
 
@@ -129,6 +131,10 @@ describe('DayCell', () => {
     const quarterArc = quarter.root.findAll(
       (node) => node.type === 'Circle' && Array.isArray(node.props.strokeDasharray),
     )[0]
+    const quarterTrack = quarter.root.findAll(
+      (node) => node.type === 'Circle' && node.props.strokeDasharray === undefined,
+    )[0]
+    expect(quarterTrack?.props.stroke).toBe(createTokensV2('purple', 'dark').statusEmpty)
     expect(quarterArc?.props.strokeDasharray).toEqual([Math.PI * 42 * 0.25, Math.PI * 42])
 
     const threeQuarters = render(<DayCell day={15} label="March 15" words={cellWords} scheduled={4} done={3} />)

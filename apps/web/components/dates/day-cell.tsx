@@ -8,7 +8,7 @@ function ringStyle(outcome: DayOutcome): CSSProperties {
   if (outcome === 'full') return { background: 'var(--fg-1)' }
   if (outcome === 'not-scheduled' || outcome === 'unavailable') return { background: 'var(--bg-well)' }
   if (outcome === 'future') return { boxShadow: 'inset 0 0 0 1px var(--hairline-strong)' }
-  if (outcome === 'none') return { boxShadow: 'inset 0 0 0 2px var(--fg-4)' }
+  if (outcome === 'none') return { boxShadow: 'inset 0 0 0 2px var(--status-empty)' }
   return {}
 }
 
@@ -19,7 +19,7 @@ function PartialArc({ fraction, size }: Readonly<{ fraction: number; size: numbe
   const sweep = Math.max(0, Math.min(1, fraction)) * 100
   return (
     <svg aria-hidden="true" width={size} height={size} className="absolute inset-0 -rotate-90">
-      <circle cx={center} cy={center} r={radius} fill="none" stroke="var(--fg-4)" strokeWidth={stroke} />
+      <circle cx={center} cy={center} r={radius} fill="none" stroke="var(--status-empty)" strokeWidth={stroke} />
       <circle
         cx={center}
         cy={center}

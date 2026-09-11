@@ -39,6 +39,9 @@ describe('DayStrip', () => {
     ])
     expect(screen.getByRole('img', { name: 'Mon 1, complete' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Wed 3, rest' })).toBeInTheDocument()
+    expect(container.querySelector('[data-state="missed"]')).toHaveStyle({
+      boxShadow: 'inset 0 0 0 1px var(--status-empty)',
+    })
   })
 
   it('marks only the account today entry as current', () => {
@@ -100,6 +103,7 @@ describe('DayCell', () => {
     const { container, rerender } = render(
       <DayCell day={15} label="March 15" words={cellWords} scheduled={4} done={1} />,
     )
+    expect(container.querySelectorAll('circle')[0]).toHaveAttribute('stroke', 'var(--status-empty)')
     expect(container.querySelectorAll('circle')[1]).toHaveAttribute('stroke-dasharray', '25 100')
 
     rerender(<DayCell day={15} label="March 15" words={cellWords} scheduled={4} done={3} />)
