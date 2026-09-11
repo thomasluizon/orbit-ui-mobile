@@ -193,13 +193,19 @@
                         android:background="@drawable/widget_skeleton_mark"
                         android:contentDescription="@null" />
 
-                    <ImageView
+                    <FrameLayout
                         android:layout_width="0dp"
                         android:layout_height="12dp"
                         android:layout_marginStart="10dp"
-                        android:layout_weight="1"
-                        android:background="@drawable/widget_skeleton_bar"
-                        android:contentDescription="@null" />
+                        android:layout_weight="1">
+
+                        <ImageView
+                            android:id="@+id/widget_skeleton_bar_1"
+                            android:layout_width="150dp"
+                            android:layout_height="12dp"
+                            android:background="@drawable/widget_skeleton_bar"
+                            android:contentDescription="@null" />
+                    </FrameLayout>
                 </LinearLayout>
 
                 <LinearLayout
@@ -217,13 +223,19 @@
                         android:background="@drawable/widget_skeleton_mark"
                         android:contentDescription="@null" />
 
-                    <ImageView
+                    <FrameLayout
                         android:layout_width="0dp"
                         android:layout_height="12dp"
                         android:layout_marginStart="10dp"
-                        android:layout_weight="1"
-                        android:background="@drawable/widget_skeleton_bar"
-                        android:contentDescription="@null" />
+                        android:layout_weight="1">
+
+                        <ImageView
+                            android:id="@+id/widget_skeleton_bar_2"
+                            android:layout_width="126dp"
+                            android:layout_height="12dp"
+                            android:background="@drawable/widget_skeleton_bar"
+                            android:contentDescription="@null" />
+                    </FrameLayout>
                 </LinearLayout>
 
                 <LinearLayout
@@ -241,13 +253,19 @@
                         android:background="@drawable/widget_skeleton_mark"
                         android:contentDescription="@null" />
 
-                    <ImageView
+                    <FrameLayout
                         android:layout_width="0dp"
                         android:layout_height="12dp"
                         android:layout_marginStart="10dp"
-                        android:layout_weight="1"
-                        android:background="@drawable/widget_skeleton_bar"
-                        android:contentDescription="@null" />
+                        android:layout_weight="1">
+
+                        <ImageView
+                            android:id="@+id/widget_skeleton_bar_3"
+                            android:layout_width="102dp"
+                            android:layout_height="12dp"
+                            android:background="@drawable/widget_skeleton_bar"
+                            android:contentDescription="@null" />
+                    </FrameLayout>
                 </LinearLayout>
 
                 <LinearLayout
@@ -265,13 +283,19 @@
                         android:background="@drawable/widget_skeleton_mark"
                         android:contentDescription="@null" />
 
-                    <ImageView
+                    <FrameLayout
                         android:layout_width="0dp"
                         android:layout_height="12dp"
                         android:layout_marginStart="10dp"
-                        android:layout_weight="1"
-                        android:background="@drawable/widget_skeleton_bar"
-                        android:contentDescription="@null" />
+                        android:layout_weight="1">
+
+                        <ImageView
+                            android:id="@+id/widget_skeleton_bar_4"
+                            android:layout_width="78dp"
+                            android:layout_height="12dp"
+                            android:background="@drawable/widget_skeleton_bar"
+                            android:contentDescription="@null" />
+                    </FrameLayout>
                 </LinearLayout>
 
                 <LinearLayout
@@ -289,13 +313,19 @@
                         android:background="@drawable/widget_skeleton_mark"
                         android:contentDescription="@null" />
 
-                    <ImageView
+                    <FrameLayout
                         android:layout_width="0dp"
                         android:layout_height="12dp"
                         android:layout_marginStart="10dp"
-                        android:layout_weight="1"
-                        android:background="@drawable/widget_skeleton_bar"
-                        android:contentDescription="@null" />
+                        android:layout_weight="1">
+
+                        <ImageView
+                            android:id="@+id/widget_skeleton_bar_5"
+                            android:layout_width="54dp"
+                            android:layout_height="12dp"
+                            android:background="@drawable/widget_skeleton_bar"
+                            android:contentDescription="@null" />
+                    </FrameLayout>
                 </LinearLayout>
             </LinearLayout>
 

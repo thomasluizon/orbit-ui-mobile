@@ -412,12 +412,19 @@ describe('Android widget header', () => {
 
   it('draws each first-load row as a placeholder mark and name bar', () => {
     const layout = readFileSync(resolve(widgetRoot, 'layout/widget_layout.xml'), 'utf8')
+    const views = layoutViews()
     const mark = drawable('widget_skeleton_mark.xml')
     const nameBar = drawable('widget_skeleton_bar.xml')
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
 
     expect(layout.match(/@drawable\/widget_skeleton_mark/g)).toHaveLength(5)
     expect(layout.match(/@drawable\/widget_skeleton_bar/g)).toHaveLength(5)
+    for (const [index, width] of [150, 126, 102, 78, 54].entries()) {
+      expect(views.get(`widget_skeleton_bar_${index + 1}`)).toMatchObject({
+        'android:layout_width': `${width}dp`,
+        'android:layout_height': '12dp',
+      })
+    }
     expect(mark).toContain('android:shape="oval"')
     expect(mark).toContain('<solid android:color="@color/widget_well" />')
     expect(nameBar).toContain('<corners android:radius="6dp" />')
