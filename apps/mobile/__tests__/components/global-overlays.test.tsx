@@ -58,6 +58,9 @@ vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: 'ExpiryWarning
 vi.mock('@/components/ui/trial-expired-modal', () => ({
   TrialExpiredModal: 'TrialExpiredModal',
 }))
+vi.mock('@/components/goals/create-goal-modal', () => ({
+  CreateGoalModal: 'CreateGoalModal',
+}))
 vi.mock('@/components/version-update-drawer', () => ({
   VersionUpdateDrawer: 'VersionUpdateDrawer',
 }))
