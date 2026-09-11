@@ -129,6 +129,21 @@ function drawable(relativePath: string) {
   return readFileSync(resolve(widgetRoot, `drawable/${relativePath}`), 'utf8')
 }
 
+function rootAttributes(relativePath: string) {
+  let attributes: Record<string, string> | undefined
+  const parser = new SaxesParser()
+
+  parser.on('opentag', tag => {
+    if (attributes) return
+    attributes = Object.fromEntries(
+      Object.entries(tag.attributes).map(([name, value]) => [name, String(value)]),
+    )
+  })
+  parser.write(readFileSync(resolve(widgetRoot, relativePath), 'utf8')).close()
+
+  return attributes ?? {}
+}
+
 describe('Android widget header', () => {
   it('ships the complete header copy in English and Brazilian Portuguese', () => {
     const english = resourceStrings('values/widget_strings.xml')
@@ -278,11 +293,101 @@ describe('Android widget header', () => {
       expect(selectedKeyDp(keysDp, hostDp), `${hostDp}dp`).toBe(expandedKeyDp)
     }
     expect(provider).toMatch(
-      /if \(Build\.VERSION\.SDK_INT < Build\.VERSION_CODES\.S\) \{\s*return buildWidgetViews\([\s\S]*?View\.VISIBLE\s*\)\s*\}/,
+      /if \(Build\.VERSION\.SDK_INT < Build\.VERSION_CODES\.S\) \{\s*return buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_TWO_HEIGHT_DP,\s*true\s*\)\s*\}/,
     )
     expect(provider).toMatch(
-      /val compactViews = buildWidgetViews\([\s\S]*?View\.GONE\s*\)[\s\S]*?val expandedViews = buildWidgetViews\([\s\S]*?View\.VISIBLE\s*\)/,
+      /val compactViews = buildWidgetViews\([\s\S]*?View\.GONE,\s*TWO_BY_TWO_HEIGHT_DP,\s*false\s*\)[\s\S]*?val expandedViews = buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_TWO_HEIGHT_DP,\s*true\s*\)/,
     )
+  })
+
+  it('offers the four launcher geometries as host-selected complete views', () => {
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+
+    expect.soft(provider).toMatch(
+      /val fourByOneViews = buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_ONE_HEIGHT_DP,\s*true\s*\)/,
+    )
+    expect.soft(provider).toContain(
+      'SizeF(WIDE_WIDTH_DP, FOUR_BY_ONE_HEIGHT_DP) to fourByOneViews',
+    )
+    expect.soft(provider).toContain(
+      'SizeF(WIDE_WIDTH_DP, FOUR_BY_TWO_HEIGHT_DP) to fourByTwoViews',
+    )
+    expect.soft(provider).toMatch(
+      /val fourByThreeViews = buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_THREE_HEIGHT_DP,\s*true\s*\)/,
+    )
+    expect.soft(provider).toContain(
+      'SizeF(WIDE_WIDTH_DP, FOUR_BY_THREE_HEIGHT_DP) to fourByThreeViews',
+    )
+    expect.soft(provider).toMatch(
+      /val twoByTwoViews = buildWidgetViews\([\s\S]*?View\.GONE,\s*TWO_BY_TWO_HEIGHT_DP,\s*false\s*\)/,
+    )
+    expect.soft(provider).toContain(
+      'SizeF(NARROW_WIDTH_DP, TWO_BY_TWO_HEIGHT_DP) to twoByTwoViews',
+    )
+    expect.soft(provider).toMatch(
+      /putExtra\(EXTRA_WIDGET_HEIGHT_DP, widgetHeightDp\)\s*putExtra\(EXTRA_SHOW_TIME, showTime\)\s*data = Uri\.parse\(toUri\(Intent\.URI_INTENT_SCHEME\)\)/,
+    )
+  })
+
+  it('derives row capacity and remainder space from the drawing geometry', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+
+    expect.soft(service).toContain('internal fun calculateWidgetGeometry(')
+    expect.soft(service).toContain('val availableHeightDp = heightDp - HEADER_HEIGHT_DP')
+    expect.soft(service).toContain('floor(availableHeightDp / ROW_HEIGHT_DP)')
+    expect.soft(service).toContain('availableHeightDp - (fit - 1) * ROW_HEIGHT_DP >= REMAINDER_HEIGHT_DP')
+    expect.soft(service).toContain('if (canStateRemainder) maxOf(1, fit - 1)')
+  })
+
+  it('renders an accessible remainder item and hides only time on the narrow variant', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const remainder = layoutViews('layout/widget_remainder.xml')
+
+    expect.soft(remainder.get('widget_remainder')).toMatchObject({
+      'android:layout_height': '24dp',
+      'android:paddingStart': '12dp',
+      'android:paddingEnd': '12dp',
+      'android:textColor': '@color/widget_fg_3',
+      'android:textSize': '12sp',
+    })
+    expect.soft(service).toContain('R.layout.widget_remainder')
+    expect.soft(service).toContain(
+      'views.setContentDescription(R.id.widget_remainder, remainderDescription)',
+    )
+    expect.soft(service).toMatch(
+      /val remainderDescription = tr\(\s*context,\s*lang,\s*WidgetString\.MORE_DESCRIPTION,\s*remainderCount\s*\)/,
+    )
+    expect.soft(service).toMatch(/if \(!showTime\) \{[\s\S]*?R\.id\.item_time[\s\S]*?R\.id\.item_time_overdue/)
+    expect.soft(service).toContain('override fun getViewTypeCount(): Int = 2')
+  })
+
+  it('ships the one-count remainder format in both widget locales', () => {
+    const english = resourceStrings('values/widget_strings.xml')
+    const portuguese = resourceStrings('values-pt-rBR/widget_strings.xml')
+
+    expect.soft(english.get('widget_more')).toBe('%1$d more')
+    expect.soft(portuguese.get('widget_more')).toBe('mais %1$d')
+    expect.soft(english.get('widget_more_description')).toBe(
+      '%1$d more habits are not shown.',
+    )
+    expect.soft(portuguese.get('widget_more_description')).toBe(
+      'Mais %1$d hábitos não são exibidos.',
+    )
+    expect.soft(english.get('widget_more')?.match(/%1\$d/g)).toHaveLength(1)
+    expect.soft(portuguese.get('widget_more')?.match(/%1\$d/g)).toHaveLength(1)
+    expect.soft(english.get('widget_more_description')?.match(/%1\$d/g)).toHaveLength(1)
+    expect.soft(portuguese.get('widget_more_description')?.match(/%1\$d/g)).toHaveLength(1)
+  })
+
+  it('defaults to 4 by 2 and admits the supported resize floors', () => {
+    const provider = rootAttributes('xml/orbit_widget_info.xml')
+
+    expect.soft(provider['android:minWidth']).toBe('336dp')
+    expect.soft(provider['android:minHeight']).toBe('192dp')
+    expect.soft(provider['android:minResizeWidth']).toBe('160dp')
+    expect.soft(provider['android:minResizeHeight']).toBe('96dp')
+    expect.soft(provider['android:targetCellWidth']).toBe('4')
+    expect.soft(provider['android:targetCellHeight']).toBe('2')
   })
 
   it('routes every post-sync header and loading mutation through the full provider render', () => {

@@ -15,4 +15,6 @@
   <string name="widget_status_done">Done</string>
   <string name="widget_status_overdue">Overdue</string>
   <string name="widget_status_pending">Not done</string>
+  <string name="widget_more">%1$d more</string>
+  <string name="widget_more_description">%1$d more habits are not shown.</string>
 </resources>

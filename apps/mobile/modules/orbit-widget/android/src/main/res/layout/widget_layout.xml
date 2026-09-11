@@ -18,14 +18,15 @@
         android:id="@+id/widget_root"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:orientation="vertical">
 
         <!-- Header: a fixed two-line day summary with the streak on the right. -->
         <RelativeLayout
             android:id="@+id/widget_header_container"
             android:layout_width="match_parent"
-            android:layout_height="48dp">
+            android:layout_height="48dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
 
             <LinearLayout
                 android:id="@+id/widget_header_left"
@@ -127,11 +128,6 @@
                 android:background="@color/widget_hairline" />
         </RelativeLayout>
 
-        <!-- Spacer -->
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="10dp" />
-
         <!-- Content area: list, empty message, and loading skeleton overlap so the
              skeleton can cover the area during the cold/first-load window instead of
              leaving the widget blank. -->
@@ -146,7 +142,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:divider="@null"
-                android:dividerHeight="6dp"
+                android:dividerHeight="0dp"
                 android:scrollbars="vertical"
                 android:fadeScrollbars="true"
                 android:scrollbarThumbVertical="@drawable/widget_scrollbar_thumb"
@@ -184,23 +180,21 @@
                 <ImageView
                     android:id="@+id/widget_skeleton_1"
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginBottom="6dp"
+                    android:layout_height="48dp"
                     android:background="@drawable/widget_skeleton_bar"
                     android:contentDescription="@null" />
 
                 <ImageView
                     android:id="@+id/widget_skeleton_2"
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:layout_marginBottom="6dp"
+                    android:layout_height="48dp"
                     android:background="@drawable/widget_skeleton_bar"
                     android:contentDescription="@null" />
 
                 <ImageView
                     android:id="@+id/widget_skeleton_3"
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
+                    android:layout_height="48dp"
                     android:background="@drawable/widget_skeleton_bar"
                     android:contentDescription="@null" />
             </LinearLayout>
