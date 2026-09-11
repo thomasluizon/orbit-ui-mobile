@@ -54,7 +54,7 @@ function HabitHistoryContents({ props, outcome, size, tokens }: Readonly<{ props
   return (
     <View style={[styles.disc, { width: size, height: size, borderRadius: size / 2, backgroundColor: outcome === 'full' ? tokens.fg1 : 'transparent', opacity: dimmed ? 0.4 : 1 }]}>
       <Text style={[styles.numeral, { color: textColor, fontWeight: props.today ? '500' : '400' }]}>{props.day}</Text>
-      {missed ? <View style={[styles.missedDot, { backgroundColor: tokens.fg4 }]} /> : null}
+      {missed ? <View style={[styles.missedDot, { backgroundColor: tokens.statusEmpty }]} /> : null}
     </View>
   )
 }

@@ -151,7 +151,9 @@ describe('DayCell', () => {
     expect(StyleSheet.flatten(completedText?.props.style as StyleProp<TextStyle>).color).toBe(tokens.bg)
 
     const missed = render(<DayCell day={16} label="March 16" words={cellWords} outcome="none" habitHistory />)
-    expect(missed.root.findAll((node) => node.type === 'View' && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 3)).toHaveLength(1)
+    const missedDots = missed.root.findAll((node) => node.type === 'View' && StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>).width === 3)
+    expect(missedDots).toHaveLength(1)
+    expect(StyleSheet.flatten(missedDots[0]?.props.style as StyleProp<ViewStyle>).backgroundColor).toBe(tokens.statusEmpty)
 
     const future = render(<DayCell day={17} label="March 17" words={cellWords} outcome="future" habitHistory />)
     const futureText = future.root.findAll((node) => node.type === 'Text' && node.props.children === 17)[0]

@@ -118,7 +118,9 @@ describe('DayCell', () => {
     expect(container.querySelector('span[style*="width: 3px"]')).toBeNull()
 
     rerender(<DayCell day={16} label="March 16" words={cellWords} outcome="none" habitHistory />)
-    expect(container.querySelector('span[style*="width: 3px"]')).toBeInTheDocument()
+    const missedDot = container.querySelector('span[style*="width: 3px"]')
+    expect(missedDot).toBeInTheDocument()
+    expect(missedDot?.className).toContain('bg-[var(--status-empty)]')
 
     rerender(<DayCell day={17} label="March 17" words={cellWords} outcome="future" habitHistory />)
     expect(container.querySelector('[data-outcome="future"] span span')).toHaveStyle({ color: 'var(--fg-4)' })
