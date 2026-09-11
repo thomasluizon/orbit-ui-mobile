@@ -104,7 +104,7 @@ describe('list primitives on web', () => {
       />,
     )
     expect(screen.queryByText('Profile and security')).toBeNull()
-    expect(screen.getByText('Danger zone')).toHaveStyle({ color: 'var(--status-bad)' })
+    expect(screen.getByText('Danger zone')).toHaveStyle({ color: 'var(--status-bad-text)' })
 
     rerender(<ListRow title="Read only" readOnly />)
     expect(screen.queryByRole('button')).toBeNull()

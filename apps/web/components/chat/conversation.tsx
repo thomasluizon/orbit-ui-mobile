@@ -128,7 +128,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
 
       <div className="shrink-0">
         {sendError ? (
-          <div role="alert" aria-live="assertive" className="flex items-center justify-center gap-3 px-4 pt-3 text-sm text-[var(--status-bad)]">
+          <div role="alert" aria-live="assertive" className="flex items-center justify-center gap-3 px-4 pt-3 text-sm text-[var(--status-bad-text)]">
             <p className="m-0">{sendError}</p>
             {canRetryLastSend && isOnline ? (
               <button

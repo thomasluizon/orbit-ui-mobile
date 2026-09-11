@@ -239,7 +239,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
             <p className="text-[14px] text-[var(--fg-3)]">{canRepair ? t('progressScreen.streak.repairBody', { count: available }) : t('progressScreen.streak.repairEmpty', { count: freeze.daysUntilNextFreeze })}</p>
           </div>
           {canRepair ? <PillButton loading={repair.isPending} onClick={() => repair.mutate()}>{t('progressScreen.streak.repairAction')}</PillButton> : null}
-          {repair.isError ? <p role="alert" className="text-[14px] text-[var(--status-bad)]">{t('progressScreen.streak.repairError')}</p> : null}
+          {repair.isError ? <p role="alert" className="text-[14px] text-[var(--status-bad-text)]">{t('progressScreen.streak.repairError')}</p> : null}
         </div>
       ) : null}
     </section>

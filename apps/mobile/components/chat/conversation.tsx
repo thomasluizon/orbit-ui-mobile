@@ -207,7 +207,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
             >
               <Text
                 style={{
-                  color: tokens.statusBad,
+                  color: tokens.statusBadText,
                   fontFamily: "Geist_400Regular",
                   fontSize: 14,
                 }}
