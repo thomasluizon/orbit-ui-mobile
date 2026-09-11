@@ -100,9 +100,10 @@ function pressButton(root: TestNode, label: string) {
 }
 
 function findGridDayCell(root: TestNode, dateStr: string) {
-  const cell = root.findAll(
-    (candidate) => candidate.props.testID === `calendar-day-button-${dateStr}`,
+  const slot = root.findAll(
+    (candidate) => candidate.props.testID === `calendar-day-slot-${dateStr}`,
   )[0]
+  const cell = slot?.findAll((candidate) => candidate.type === 'Pressable')[0]
   if (!cell) throw new Error(`Day cell not found: ${dateStr}`)
   return cell
 }
@@ -159,16 +160,17 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     expect(mockPush).toHaveBeenCalledTimes(1)
   })
 
-  it('opens an older current-month day', () => {
+  it('keeps an older current-month day read-only', () => {
     let tree!: TestTree
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />)
     })
 
-    TestRenderer.act(() => {
-      ;(findGridDayCell(tree.root, '2026-08-01').props.onPress as () => void)()
-    })
-    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1)
+    const olderDay = tree.root.findAll(
+      (candidate) => candidate.props.testID === 'calendar-day-slot-2026-08-01',
+    )[0]
+    expect(olderDay?.findAll((candidate) => candidate.type === 'Pressable')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
   })
 
   it('allows a future day to become a range endpoint', () => {
@@ -185,8 +187,9 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     })
     const selectedDates = tree.root.findAll(
       (node) => node.type === 'Pressable' && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true,
-    ).map((node) => node.props.testID)
-    expect(selectedDates).toContain('calendar-day-button-2026-08-20')
+    )
+    expect(selectedDates).toHaveLength(1)
+    expect(selectedDates[0]?.props.accessibilityLabel).toContain('20')
   })
 
   it('shows only neutral same-size day placeholders while the month is loading', () => {
