@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { schemes } from '@orbit/shared/theme'
 import type { ColorScheme } from '@orbit/shared/theme'
@@ -79,6 +80,20 @@ describe('toWidgetColors', () => {
     })
   })
 
+  it('keeps the canvas primary text bytes aligned with the shipped theme', () => {
+    const canvasColors = readFileSync(resolve(
+      process.cwd(),
+      '../../design/canvas/_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css',
+    ), 'utf8')
+    const darkPrimaryText = canvasColors.match(/--p-orange-raised-text:(#[0-9A-F]{6});/)?.[1]
+    const lightPrimaryText = canvasColors.match(/--p-orange-lm-raised-text:(#[0-9A-F]{6});/)?.[1]
+
+    expect(canvasColors).toContain('--primary-text:var(--p-orange-raised-text);')
+    expect(canvasColors).toContain('--primary-text:var(--p-orange-lm-raised-text);')
+    expect(darkPrimaryText).toBe(createTokensV2('purple', 'dark').primaryText)
+    expect(lightPrimaryText).toBe(createTokensV2('purple', 'light').primaryText)
+  })
+
   it('qualifies every preference by mode under the native color prefix', () => {
     const preferences = toWidgetThemePreferences('purple')
 
@@ -113,7 +128,7 @@ describe('toWidgetColors', () => {
    * Stage 2 replaces stage 1's flame bitmap with the figure the canvas actually draws.
    *
    * `design/canvas/Orbit Widget Android.dc.html` renders the streak as a 15sp 600-weight span in
-   * `c.primary` followed by an 11sp `c.fg3` unit, baseline aligned with a 3px gap, and there is no
+   * `c.primaryText` followed by an 11sp `c.fg3` unit, baseline aligned with a 3px gap, and there is no
    * flame anywhere in it. Its own note reserves the accent for "one use only: the streak figure", so a
    * primary-tinted flame graphic would be a second use of it. Under D42 the drawing outranks
    * DESIGN.md prose, so this asserts the drawing.

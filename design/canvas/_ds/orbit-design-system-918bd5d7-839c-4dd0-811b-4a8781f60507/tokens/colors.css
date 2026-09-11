@@ -24,7 +24,8 @@
 
   /* primitives: THE accent, warm orange, the only one. Granted by Thomas 2026-08-16.
      Rose is retired. Treatment is always a dark fill with #FFFFFF on it. */
-  --p-orange-dark:#C4530F; --p-orange-text:#C85716; --p-orange-rgb:196,83,15; /* @kind color */ --p-orange-lmtext:#C15109;
+  --p-orange-dark:#C4530F; --p-orange-text:#C85716; --p-orange-raised-text:#E16D33; --p-orange-rgb:196,83,15; /* @kind color */
+  --p-orange-lmtext:#C15109; --p-orange-lm-raised-text:#B64900;
   --p-on-fill:#FFFFFF;
 
   /* primitives: status. Five of seven states are neutral; only these two carry a hue. */
@@ -57,6 +58,7 @@
 
   --primary:var(--p-orange-dark);
   --primary-soft:var(--p-orange-text); /* @kind color */ /* accent TEXT, canvas only: 4.58:1 on canvas, 4.28:1 on a card. Never on a raised surface; there, emphasis is a weight step, not a hue */
+  --primary-text:var(--p-orange-raised-text);
   --fg-on-primary:var(--p-on-fill);
   --primary-rgb:var(--p-orange-rgb); /* @kind color */
   --primary-pressed:color-mix(in oklab, var(--primary) 84%, var(--p-canvas));
@@ -88,6 +90,7 @@
   --hairline-ghost:var(--p-l-hair-ghost); --hairline-strong:var(--p-l-hair-strong);
   --fg-1:var(--p-l-fg1); --fg-2:var(--p-l-fg2); --fg-3:var(--p-l-fg3); --fg-4:var(--p-l-fg4); --track-empty:var(--p-l-track-empty);
   --primary-soft:var(--p-orange-lmtext);
+  --primary-text:var(--p-orange-lm-raised-text);
   --status-overdue:var(--p-l-overdue); --status-bad:var(--p-l-bad); --fg-on-bad:var(--p-l-on-bad); --fg-on-overdue:#FFFFFF;
   --status-done:var(--fg-1); --status-empty:var(--track-empty); --status-frozen:var(--fg-2);
   --primary-dim:color-mix(in oklab, var(--primary) 18%, var(--bg));
