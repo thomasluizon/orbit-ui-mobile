@@ -96,19 +96,6 @@
       "count": 5
     }
   },
-  "app/(app)/profile/_components/profile-account-actions.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "app/(app)/profile/_components/profile-action-button.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "app/(app)/profile/_components/profile-subscription-section.tsx": {
     "local/spacing-scale": {
       "count": 1
@@ -500,11 +487,6 @@
   "components/onboarding/onboarding-welcome.tsx": {
     "local/spacing-scale": {
       "count": 3
-    }
-  },
-  "components/profile/profile-nav-group.tsx": {
-    "local/spacing-scale": {
-      "count": 1
     }
   },
   "components/profile/profile-nav-icon.tsx": {

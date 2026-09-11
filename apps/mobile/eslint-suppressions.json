@@ -68,14 +68,6 @@
       "count": 2
     }
   },
-  "app/(tabs)/profile/_components/profile-action-button.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "app/about.tsx": {
     "local/spacing-scale": {
       "count": 3

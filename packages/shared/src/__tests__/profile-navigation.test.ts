@@ -2,14 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   PROFILE_NAV_ITEMS,
   PROFILE_SETTINGS_GROUPS,
-  buildProfileNavSections,
-  isProfileNavItemLocked,
-  resolveProfileNavHint,
   shouldRedirectProfileNavItem,
 } from '../utils/profile-navigation'
-
-const translate = (key: string, values?: Record<string, string | number>) =>
-  values ? `${key}:${JSON.stringify(values)}` : key
 
 describe('profile-navigation', () => {
   it('defines the five profile groups in display order', () => {
@@ -62,61 +56,6 @@ describe('profile-navigation', () => {
     expect(about?.entitlementMode).toBeNull()
   })
 
-  it('expands section definitions into groups selecting matching nav items in id order', () => {
-    const sections = buildProfileNavSections([
-      { labelKey: 'explore.sections.progress', ids: ['wrapped'] },
-      { labelKey: 'explore.sections.more', ids: ['about', 'advanced'] },
-    ])
-
-    expect(sections).toHaveLength(2)
-    expect(sections[0]?.labelKey).toBe('explore.sections.progress')
-    expect(sections[0]?.items.map((item) => item.id)).toEqual(['wrapped'])
-    expect(sections[1]?.items.map((item) => item.id)).toEqual(['about'])
-  })
-
-  it('yields an empty item list for a section whose ids match nothing', () => {
-    const [section] = buildProfileNavSections([{ labelKey: 'missing.section', ids: ['missing'] }])
-    expect(section?.items).toEqual([])
-  })
-
-  it('builds the gamification hint for pro users with a loaded profile', () => {
-    expect(
-      resolveProfileNavHint(
-        { hintMode: 'gamificationProfile', hintKey: 'gamification.profileCard.hint' },
-        { hasProAccess: true, gamificationProfile: { level: 4, totalXp: 870 } },
-        translate,
-      ),
-    ).toBe(
-      'gamification.profileCard.level:{"level":4} · gamification.profileCard.totalXp:{"total":870}',
-    )
-  })
-
-  it('falls back to the static hint without pro access or gamification data', () => {
-    expect(
-      resolveProfileNavHint(
-        { hintMode: 'gamificationProfile', hintKey: 'gamification.profileCard.hint' },
-        { hasProAccess: false, gamificationProfile: { level: 4, totalXp: 870 } },
-        translate,
-      ),
-    ).toBe('gamification.profileCard.hint')
-
-    expect(
-      resolveProfileNavHint(
-        { hintMode: 'gamificationProfile', hintKey: 'gamification.profileCard.hint' },
-        { hasProAccess: true, gamificationProfile: null },
-        translate,
-      ),
-    ).toBe('gamification.profileCard.hint')
-
-    expect(
-      resolveProfileNavHint(
-        { hintMode: 'static', hintKey: 'profile.sections.preferencesHint' },
-        { hasProAccess: true, gamificationProfile: { level: 4, totalXp: 870 } },
-        translate,
-      ),
-    ).toBe('profile.sections.preferencesHint')
-  })
-
   it('uses the shared entitlement rules for redirect decisions', () => {
     const calendar = PROFILE_NAV_ITEMS.find((item) => item.id === 'calendar-sync')
     const about = PROFILE_NAV_ITEMS.find((item) => item.id === 'about')
@@ -128,14 +67,6 @@ describe('profile-navigation', () => {
         subscriptionInterval: null,
       }),
     ).toBe(true)
-
-    expect(
-      isProfileNavItemLocked(calendar!, {
-        hasProAccess: true,
-        isLifetimePro: false,
-        subscriptionInterval: 'monthly',
-      }),
-    ).toBe(false)
 
     expect(
       shouldRedirectProfileNavItem(about!, {

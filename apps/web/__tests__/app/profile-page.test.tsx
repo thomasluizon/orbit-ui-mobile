@@ -89,10 +89,6 @@ vi.mock('@/app/(app)/profile/_components/profile-nav-card', () => ({
   ProfileNavCard: () => null,
 }))
 
-vi.mock('@/app/(app)/profile/_components/profile-action-button', () => ({
-  ProfileActionButton: () => null,
-}))
-
 vi.mock('@/components/profile/profile-nav-icon', () => ({
   ProfileNavIcon: () => null,
 }))
