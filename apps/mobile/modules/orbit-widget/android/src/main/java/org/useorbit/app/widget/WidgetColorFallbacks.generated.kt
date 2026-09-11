@@ -13,7 +13,7 @@ internal object WidgetColorFallbacks {
         "borderMuted" to "#2B2B2D", // WHY: --hairline-ghost flattened over --bg-card.
         "overdue" to "#FE9A00", // WHY: --status-overdue.
         "streak" to "#C4530F", // WHY: --primary.
-        "streakText" to "#F4F4F6", // WHY: --fg-1.
+        "streakText" to "#E16D33", // WHY: --primary-text.
         "statusEmpty" to "#7A7A7D", // WHY: --track-empty.
     )
 
@@ -28,7 +28,7 @@ internal object WidgetColorFallbacks {
         "borderMuted" to "#E6E6E8", // WHY: --hairline flattened over --bg-card.
         "overdue" to "#886100", // WHY: --status-overdue.
         "streak" to "#C4530F", // WHY: --primary.
-        "streakText" to "#1A1A1D", // WHY: --fg-1.
+        "streakText" to "#B64900", // WHY: --primary-text.
         "statusEmpty" to "#7F7F83", // WHY: --track-empty.
     )
 }

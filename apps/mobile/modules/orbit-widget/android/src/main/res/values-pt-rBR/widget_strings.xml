@@ -10,6 +10,7 @@
   <string name="widget_sign_in">Abra o Orbit para entrar</string>
   <string name="widget_refresh">Atualizar</string>
   <string name="widget_refreshing">Atualizando</string>
+  <string name="widget_loading">Carregando</string>
   <string name="widget_checklist_badge">lista %1$s</string>
   <string name="widget_deeper_count">+%1$d dentro</string>
   <string name="widget_status_done">Concluído</string>

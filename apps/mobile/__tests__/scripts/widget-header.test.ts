@@ -234,7 +234,7 @@ describe('Android widget header', () => {
       'android:visibility': 'gone',
     })
     expect(views.get('widget_streak')).toMatchObject({
-      'android:textColor': '@color/widget_primary',
+      'android:textColor': '@color/widget_streak_text',
     })
     expect(views.get('widget_streak_unit')).toMatchObject({
       'android:textColor': '@color/widget_fg_3',
@@ -242,7 +242,7 @@ describe('Android widget header', () => {
     expect(
       [...views.entries()]
         .filter(([, attributes]) =>
-          Object.values(attributes).includes('@color/widget_primary'),
+          Object.values(attributes).includes('@color/widget_streak_text'),
         )
         .map(([id]) => id),
     ).toEqual(['widget_streak'])
@@ -402,8 +402,43 @@ describe('Android widget header', () => {
     expect.soft(service).toContain('availableHeightDp - (fit - 1) * ROW_HEIGHT_DP >= REMAINDER_HEIGHT_DP')
     expect.soft(service).toContain('if (canStateRemainder) maxOf(1, fit - 1)')
     for (const index of [1, 2, 3, 4, 5]) {
-      expect.soft(views.get(`widget_skeleton_${index}`)?.['android:layout_height']).toBe('48dp')
+      expect.soft(views.get(`widget_skeleton_${index}`)).toMatchObject({
+        'android:layout_height': '48dp',
+        'android:gravity': 'center_vertical',
+        'android:orientation': 'horizontal',
+      })
     }
+  })
+
+  it('draws each first-load row as a placeholder mark and name bar', () => {
+    const layout = readFileSync(resolve(widgetRoot, 'layout/widget_layout.xml'), 'utf8')
+    const mark = drawable('widget_skeleton_mark.xml')
+    const nameBar = drawable('widget_skeleton_bar.xml')
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+
+    expect(layout.match(/@drawable\/widget_skeleton_mark/g)).toHaveLength(5)
+    expect(layout.match(/@drawable\/widget_skeleton_bar/g)).toHaveLength(5)
+    expect(mark).toContain('android:shape="oval"')
+    expect(mark).toContain('<solid android:color="@color/widget_well" />')
+    expect(nameBar).toContain('<corners android:radius="6dp" />')
+    expect(provider).toMatch(
+      /setContentDescription\(\s*R\.id\.widget_loading,[\s\S]{0,160}?WidgetString\.LOADING/,
+    )
+
+    expect(resourceStrings('values/widget_strings.xml').get('widget_loading')).toBe('Loading')
+    expect(resourceStrings('values-pt-rBR/widget_strings.xml').get('widget_loading')).toBe(
+      'Carregando',
+    )
+  })
+
+  it('dims only the rows while refresh is active and restores them for every idle render', () => {
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+
+    expect(provider).toMatch(
+      /private fun applyRefreshingState\(views: RemoteViews, refreshing: Boolean\)[\s\S]*?setViewVisibility\(R\.id\.widget_refresh, if \(refreshing\) View\.GONE else View\.VISIBLE\)[\s\S]*?setViewVisibility\(\s*R\.id\.widget_refresh_loading, if \(refreshing\) View\.VISIBLE else View\.GONE\s*\)[\s\S]*?setFloat\(R\.id\.widget_list, "setAlpha", if \(refreshing\) 0\.6f else 1f\)/,
+    )
+    expect(provider).toContain('applyRefreshingState(views, refreshing)')
+    expect(provider).not.toContain('setFloat(R.id.widget_content, "setAlpha"')
   })
 
   it('renders an accessible remainder item and hides only time on the narrow variant', () => {
@@ -785,7 +820,7 @@ describe('Android widget header', () => {
 
   it('names every visible refresh spinner through the widget language path', () => {
     const makesSpinnerVisible =
-      /setViewVisibility\(R\.id\.widget_refresh_loading, (?:android\.view\.)?View\.VISIBLE\)/
+      /setViewVisibility\(\s*R\.id\.widget_refresh_loading,[\s\S]{0,80}?(?:android\.view\.)?View\.VISIBLE/
     const namesSpinner =
       /setContentDescription\(\s*R\.id\.widget_refresh_loading,[\s\S]{0,160}?WidgetString\.REFRESHING/
 
