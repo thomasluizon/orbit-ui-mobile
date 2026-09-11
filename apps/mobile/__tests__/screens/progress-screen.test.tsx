@@ -571,11 +571,26 @@ describe('mobile ProgressContent', () => {
       progressPercentage: 100, linkedHabits: [],
     }]
     const tree = await renderProgress()
+    const action = findPill(tree.root, 'progressScreen.streak.repairAction:{"count":2}')
 
     await TestRenderer.act(() => {
-      ;(findPill(tree.root, 'progressScreen.streak.repairAction:{"count":2}').props.onClick as () => void)()
+      ;(action.props.onClick as () => void)()
     })
+    expect(action.props).toMatchObject({ variant: 'primary', size: 'sm' })
     expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-08', '2026-09-09'])
+  })
+
+  it('steps the gap repair action down to the neutral small button at wide width', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width: 800, height: 892, scale: 1, fontScale: 1 })
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.lastActiveDate = '2026-09-07'
+
+    const tree = await renderProgress()
+
+    expect(findPill(tree.root, 'progressScreen.streak.repairAction:{"count":2}').props).toMatchObject({ variant: 'secondary', size: 'sm' })
+    dimensions.mockRestore()
   })
 
   it('shows the no-freeze gap without an action or blame', async () => {
@@ -622,6 +637,23 @@ describe('mobile ProgressContent', () => {
 
     expect(alerts.length).toBeGreaterThan(0)
     expect(alerts.some((node) => node.props.children === message)).toBe(true)
+  })
+
+  it.each(['dark', 'light'] as const)('keeps the gap repair error legible on its well in %s', async (mode) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    theme.mode = mode
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.lastActiveDate = '2026-09-07'
+    mocks.repair.isError = true
+    mocks.repair.error = { status: 500 }
+
+    const tree = await renderProgress()
+    const alert = tree.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'alert')[0]!
+    const foreground = StyleSheet.flatten(alert.props.style as TextStyle).color as string
+    const tokens = createTokensV2('purple', mode)
+
+    expect(contrastOnSurface(foreground, [tokens.bg, tokens.bgWell])).toBeGreaterThanOrEqual(4.5)
   })
 
   it('does not render a failure after a repair conflict triggers read-back', async () => {

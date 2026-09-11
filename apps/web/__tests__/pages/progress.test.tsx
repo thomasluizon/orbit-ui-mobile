@@ -106,6 +106,7 @@ const mocks = vi.hoisted(() => ({
     daysUntilNextFreeze: 3,
   },
   streakSnapshotZones: null as Set<string> | null,
+  isDesktop: false,
 }))
 
 vi.mock('next-intl', () => ({
@@ -139,6 +140,7 @@ vi.mock('@/hooks/use-gamification', () => ({
 vi.mock('@/hooks/use-retrospective', () => ({
   useProgressRetrospective: () => mocks.retrospective,
 }))
+vi.mock('@/hooks/use-is-desktop', () => ({ useIsDesktop: () => mocks.isDesktop }))
 
 import ProgressPage from '@/app/(app)/progress/page'
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
@@ -312,6 +314,7 @@ describe('ProgressContent', () => {
     mocks.freeze.daysUntilNextFreeze = 3
     mocks.repair.isError = false
     mocks.repair.error = null
+    mocks.isDesktop = false
     mocks.streakSnapshotZones = null
     mocks.retrospective.isLoading = false
     mocks.retrospective.isError = false
@@ -541,8 +544,25 @@ describe('ProgressContent', () => {
     render(<ProgressContent />)
 
     expect(screen.getByText('progressScreen.streak.gapBody:{"count":2}')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('progressScreen.streak.repairAction:{"count":2}'))
+    const action = screen.getByText('progressScreen.streak.repairAction:{"count":2}').closest('button')
+    expect(action).toHaveAttribute('data-variant', 'primary')
+    expect(action).toHaveAttribute('data-size', 'sm')
+    fireEvent.click(action!)
     expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-08', '2026-09-09'])
+  })
+
+  it('steps the gap repair action down to the neutral small button at wide width', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    mocks.isDesktop = true
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.lastActiveDate = '2026-09-07'
+
+    render(<ProgressContent />)
+
+    const action = screen.getByText('progressScreen.streak.repairAction:{"count":2}').closest('button')
+    expect(action).toHaveAttribute('data-variant', 'secondary')
+    expect(action).toHaveAttribute('data-size', 'sm')
   })
 
   it('shows the no-freeze gap without an action or blame', () => {
@@ -585,6 +605,27 @@ describe('ProgressContent', () => {
     render(<ProgressContent />)
 
     expect(screen.getByRole('alert')).toHaveTextContent(message)
+  })
+
+  it.each(['dark', 'light'] as const)('keeps the gap repair error legible on its well in %s', (mode) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.lastActiveDate = '2026-09-07'
+    mocks.repair.isError = true
+    mocks.repair.error = { status: 500 }
+    render(<ProgressContent />)
+    const stylesheet = document.createElement('style')
+    stylesheet.textContent = textStyles
+    document.head.append(stylesheet)
+    try {
+      const renderedColor = getComputedStyle(screen.getByRole('alert')).color
+      const theme = resolveWebThemeVariables('purple', mode)
+      const foreground = theme[renderedColor.slice(4, -1) as `--${string}`]!
+      expect(contrastOnSurface(foreground, [theme['--bg']!, theme['--bg-well']!])).toBeGreaterThanOrEqual(4.5)
+    } finally {
+      stylesheet.remove()
+    }
   })
 
   it('does not render a failure after a repair conflict triggers read-back', () => {

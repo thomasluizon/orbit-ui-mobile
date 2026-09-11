@@ -140,12 +140,13 @@ function FrozenTodayStatus({ isFrozenToday, tokens }: Readonly<{ isFrozenToday: 
   )
 }
 
-function StreakRepairPanel({ state, daysUntilNextFreeze, ceiling, repair, tokens }: Readonly<{
+function StreakRepairPanel({ state, daysUntilNextFreeze, ceiling, repair, tokens, isWide }: Readonly<{
   state: StreakRepairState
   daysUntilNextFreeze: number
   ceiling: number
   repair: ReturnType<typeof useRepairStreak>
   tokens: AppTokensV2
+  isWide: boolean
 }>) {
   const { t } = useTranslation()
   const repairStatus = extractBackendStatus(repair.error)
@@ -153,9 +154,9 @@ function StreakRepairPanel({ state, daysUntilNextFreeze, ceiling, repair, tokens
     return (
       <View style={[styles.gapWell, { backgroundColor: tokens.bgWell }]}>
         <Text style={[styles.gapBody, { color: tokens.fg1 }]}>{t('progressScreen.streak.gapBody', { count: state.count })}</Text>
-        {state.canRepair ? <View style={styles.actionStart}><PillButton loading={repair.isPending} onClick={() => repair.mutate(state.dates)}>{t('progressScreen.streak.repairAction', { count: state.count })}</PillButton></View> : null}
+        {state.canRepair ? <View style={styles.actionStart}><PillButton variant={isWide ? 'secondary' : 'primary'} size="sm" loading={repair.isPending} onClick={() => repair.mutate(state.dates)}>{t('progressScreen.streak.repairAction', { count: state.count })}</PillButton></View> : null}
         {!state.canRepair ? <Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.streak.repairEmpty', { count: daysUntilNextFreeze })}</Text> : null}
-        {repair.isError && repairStatus !== 409 ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.statusBad }]}>{t(repairStatus === 429 ? 'progressScreen.streak.repairRateLimited' : 'progressScreen.streak.repairError')}</Text> : null}
+        {repair.isError && repairStatus !== 409 ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.fg2 }]}>{t(repairStatus === 429 ? 'progressScreen.streak.repairRateLimited' : 'progressScreen.streak.repairError')}</Text> : null}
       </View>
     )
   }
@@ -198,7 +199,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens }:
       <FrozenTodayStatus isFrozenToday={freeze.isFrozenToday} tokens={tokens} />
       <DayStrip size={width >= 768 ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
       {canView && freeze.streakInfo ? <FreezeBank banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} usedThisMonth={freeze.freezesUsedThisMonth} longestValue={longestStreak} longestLabel={t('progressScreen.streak.longest')} daysTowardNext={Math.max(0, 7 - freeze.daysUntilNextFreeze)} earnRateDays={7} tierValue={tier} tierLabel={t('streakDisplay.detail.tierTileLabel')} protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, i18n.language, freeze.isFrozenToday, timeZone ?? undefined)} words={{ ...dayWords, legendLabel: t('progressScreen.streak.legend'), bankedLabel: t('progressScreen.streak.banked'), usedLabel: t('progressScreen.streak.used'), nextLabel: t('progressScreen.streak.next'), nextProgressLabel: t('progressScreen.streak.nextProgress'), nextFreezeProgress: t('progressScreen.streak.nextOf', { current: Math.max(0, 7 - freeze.daysUntilNextFreeze), total: 7 }), protectedLabel: t('progressScreen.streak.protectedDays'), protectedEmpty: t('progressScreen.streak.protectedEmpty'), protectedDay: t('progressScreen.streak.protected'), protectedToday: t('progressScreen.streak.protectedToday') }} /> : <><View style={styles.tileGrid}><View style={styles.half}><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /></View><View style={styles.half}><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></View></View><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} tokens={tokens} /></>}
-      <StreakRepairPanel state={repairState} daysUntilNextFreeze={freeze.daysUntilNextFreeze} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} tokens={tokens} />
+      <StreakRepairPanel state={repairState} daysUntilNextFreeze={freeze.daysUntilNextFreeze} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} tokens={tokens} isWide={width >= 768} />
     </View>
   )
 }
