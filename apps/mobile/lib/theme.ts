@@ -133,6 +133,8 @@ export interface AppTokensV2 {
   primaryRgb: string
   /** Soft accent foreground resolved for the active canvas. */
   primarySoft: string
+  /** Accent foreground resolved for raised surfaces. */
+  primaryText: string
   primaryDim: string
   statusDone: string
   statusEmpty: string
@@ -215,6 +217,7 @@ export function createTokensV2(
     primaryPressed: accent.primaryPressed,
     primaryRgb: accent.primaryRgb,
     primarySoft: accent.primarySoft,
+    primaryText: accent.primaryText,
     primaryDim: accent.primaryDim,
     statusDone: neutral.fg1,
     statusEmpty: neutral.trackEmpty,

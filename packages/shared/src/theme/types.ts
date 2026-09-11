@@ -7,6 +7,7 @@ export interface SchemeAccent {
   primaryHover: string
   primaryPressed: string
   primarySoft: string
+  primaryText: string
   primaryDim: string
   primaryRgb: string
 }

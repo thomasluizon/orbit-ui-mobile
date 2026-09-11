@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { schemes } from '@orbit/shared/theme'
 import type { ColorScheme } from '@orbit/shared/theme'
@@ -59,8 +60,7 @@ describe('toWidgetColors', () => {
       border: '#2B2B2D',
       borderMuted: '#2B2B2D',
       overdue: '#FE9A00',
-      streak: '#C4530F',
-      streakText: '#F4F4F6',
+      streakText: '#E16D33',
       statusEmpty: '#7A7A7D',
     })
     expect(toWidgetColors(createTokensV2('purple', 'light'), 'light')).toEqual({
@@ -73,10 +73,23 @@ describe('toWidgetColors', () => {
       border: '#E6E6E8',
       borderMuted: '#E6E6E8',
       overdue: '#886100',
-      streak: '#C4530F',
-      streakText: '#1A1A1D',
+      streakText: '#B64900',
       statusEmpty: '#7F7F83',
     })
+  })
+
+  it('keeps the canvas primary text bytes aligned with the shipped theme', () => {
+    const canvasColors = readFileSync(resolve(
+      process.cwd(),
+      '../../design/canvas/_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/colors.css',
+    ), 'utf8')
+    const darkPrimaryText = canvasColors.match(/--p-orange-raised-text:(#[0-9A-F]{6});/)?.[1]
+    const lightPrimaryText = canvasColors.match(/--p-orange-lm-raised-text:(#[0-9A-F]{6});/)?.[1]
+
+    expect(canvasColors).toContain('--primary-text:var(--p-orange-raised-text);')
+    expect(canvasColors).toContain('--primary-text:var(--p-orange-lm-raised-text);')
+    expect(darkPrimaryText).toBe(createTokensV2('purple', 'dark').primaryText)
+    expect(lightPrimaryText).toBe(createTokensV2('purple', 'light').primaryText)
   })
 
   it('qualifies every preference by mode under the native color prefix', () => {
@@ -86,9 +99,9 @@ describe('toWidgetColors', () => {
     expect(preferences.dark_surface).toBe('#1D1D1F')
     expect(preferences.light_background).toBe('#FFFFFF')
     expect(preferences.light_surface).toBe('#F1F1F2')
-    expect(preferences.dark_streakText).toBe('#F4F4F6')
-    expect(preferences.light_streakText).toBe('#1A1A1D')
-    expect(Object.keys(preferences)).toHaveLength(24)
+    expect(preferences.dark_streakText).toBe('#E16D33')
+    expect(preferences.light_streakText).toBe('#B64900')
+    expect(Object.keys(preferences)).toHaveLength(22)
   })
 
   it('uses the muted text role for native progress and completed due-time text', () => {
@@ -113,7 +126,7 @@ describe('toWidgetColors', () => {
    * Stage 2 replaces stage 1's flame bitmap with the figure the canvas actually draws.
    *
    * `design/canvas/Orbit Widget Android.dc.html` renders the streak as a 15sp 600-weight span in
-   * `c.primary` followed by an 11sp `c.fg3` unit, baseline aligned with a 3px gap, and there is no
+   * `c.primaryText` followed by an 11sp `c.fg3` unit, baseline aligned with a 3px gap, and there is no
    * flame anywhere in it. Its own note reserves the accent for "one use only: the streak figure", so a
    * primary-tinted flame graphic would be a second use of it. Under D42 the drawing outranks
    * DESIGN.md prose, so this asserts the drawing.
@@ -130,7 +143,7 @@ describe('toWidgetColors', () => {
     const darkResources = readWidgetSource('res/values-night/widget_colors.xml')
 
     expect(widgetProviderSource).toContain(
-      'setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }',
+      'setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streakText }',
     )
     expect(widgetProviderSource).toContain(
       'setModeAwareColor(R.id.widget_streak_unit, "setTextColor", colorModes) { it.textMuted }',
@@ -140,12 +153,12 @@ describe('toWidgetColors', () => {
       expect(source).not.toContain('widget_flame')
     }
 
-    expect(widgetLayout).toContain('android:textColor="@color/widget_primary"')
+    expect(widgetLayout).toContain('android:textColor="@color/widget_streak_text"')
     expect(widgetLayout).toContain('android:textColor="@color/widget_fg_3"')
     expect(widgetLayout).not.toContain('widget_flame')
 
-    expect(lightResources).toContain('<color name="widget_primary">#C4530F</color>')
-    expect(darkResources).toContain('<color name="widget_primary">#C4530F</color>')
+    expect(lightResources).toContain('<color name="widget_streak_text">#B64900</color>')
+    expect(darkResources).toContain('<color name="widget_streak_text">#E16D33</color>')
   })
 
   it('carries both night modes through the full widget layout and collection rows', () => {

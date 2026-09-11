@@ -16,6 +16,7 @@ that disagrees with production is a trap rather than an authority.
 
 | date | what changed | why |
 |---|---|---|
+| 2026-09-11 | Added dark `--primary-text` at `#E16D33` and light at `#B64900`, then moved the Android widget streak figure to it | The widget streak is rationed accent text on a raised surface. `--primary` measured 4.057:1 on the dark card and 3.680:1 on its well, below the 4.5 text floor. The raised-surface pair measures 4.510:1 dark and 4.509:1 light on its worst surface. |
 | 2026-09-10 | Corrected dark `--track-empty` to `#7A7A7D` and light to `#7F7F83`, then kept `--status-empty` bound to it | The first values measured only canvas and replacement hover. These clear the reachable selection and card-child hover stacks after range endpoints were reduced to one tint, while preserving the neutral ramp. |
 | 2026-09-10 | Light `--p-l-overdue` from `#946A00` to `#886100` | The old value missed the 4.5 text floor on the light well, on hover, and on the 10 percent overdue tint the session-expiry warning paints text on. The new value measures 4.91, 4.73 and 4.70 on those, and 4.95 on the widget well, preserving the OKLCH hue and its 36.3 degree separation from the accent. |
 | 2026-09-09 | `--p-hover` dark, alpha `.14` to `.13` | `--fg-3` measured 4.39 on the hovered surface, under the 4.5 text floor. `.13` is the only value that also keeps the hover step above the 1.25:1 minimum. Closed limit 2 in the design-system readme. |
@@ -57,7 +58,7 @@ build.
 
 ## The design system, under `_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/`
 
-`_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/` holds the **170 authoritative token values**. A number typed into a component that
+`_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens/` holds the **174 authoritative token values**. A number typed into a component that
 disagrees with a token here is wrong, whatever any document says.
 
 | file | what it fixes |
