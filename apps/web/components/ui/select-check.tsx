@@ -106,7 +106,7 @@ export function RadioRow({
     >
       <RadioGlyph selected={selected} size={24} />
       <span
-        className="flex-1 min-w-0 overflow-hidden whitespace-nowrap text-ellipsis"
+        className="min-w-0 flex-1 break-words text-left"
         style={{
           fontFamily: 'var(--font-sans)',
           fontSize: 17,

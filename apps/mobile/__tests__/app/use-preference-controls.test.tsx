@@ -203,6 +203,27 @@ describe('usePreferenceControls', () => {
     )
   })
 
+  it('writes the selected timezone through the offline queue', async () => {
+    mocks.profile = makeProfile({ timeZone: 'UTC' })
+    const hook = await renderControls()
+    const timeZoneMutation = asMutation(hook.current.timeZoneMutation)
+
+    const context = timeZoneMutation.onMutate?.('America/Sao_Paulo')
+    await timeZoneMutation.mutationFn('America/Sao_Paulo')
+
+    expect(context).toEqual({ previous: 'UTC' })
+    expect(mocks.patchProfile).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
+    expect(mocks.performQueuedApiMutation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'setTimeZone',
+        endpoint: API.profile.timezone,
+        method: 'PUT',
+        payload: { timeZone: 'America/Sao_Paulo' },
+        dedupeKey: 'profile-timezone',
+      }),
+    )
+  })
+
   it('invalidates the habit caches after the week-start mutation settles', async () => {
     const hook = await renderControls()
 

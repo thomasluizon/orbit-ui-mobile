@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { AppState, Platform } from 'react-native'
 import Constants from 'expo-constants'
@@ -70,6 +78,8 @@ interface UsePushNotificationsReturn {
   requestPermission: () => Promise<boolean>
   refreshPermissionStatus: () => Promise<void>
 }
+
+const PushNotificationsContext = createContext<UsePushNotificationsReturn | null>(null)
 
 let activeRegistration: { userId: string | null; promise: Promise<boolean> } | null = null
 const PUSH_DISABLED_STORAGE_KEY_PREFIX = 'orbit_push_disabled'
@@ -251,7 +261,7 @@ function getPushDisabledStorageKey(userId: string | null): string {
     : PUSH_DISABLED_STORAGE_KEY_PREFIX
 }
 
-export function usePushNotifications(): UsePushNotificationsReturn {
+function usePushNotificationsController(): UsePushNotificationsReturn {
   const router = useRouter()
   const setAstraConversationOpen = useUIStore((state) => state.setAstraConversationOpen)
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null)
@@ -552,4 +562,23 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     requestPermission,
     refreshPermissionStatus: syncGrantedPermission,
   }
+}
+
+export function PushNotificationsProvider({
+  children,
+}: Readonly<{ children: ReactNode }>) {
+  const pushNotifications = usePushNotificationsController()
+  return createElement(
+    PushNotificationsContext.Provider,
+    { value: pushNotifications },
+    children,
+  )
+}
+
+export function usePushNotifications(): UsePushNotificationsReturn {
+  const pushNotifications = useContext(PushNotificationsContext)
+  if (!pushNotifications) {
+    throw new Error('usePushNotifications must be used within PushNotificationsProvider')
+  }
+  return pushNotifications
 }

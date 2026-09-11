@@ -34,6 +34,7 @@ export default function PreferencesScreen() {
     handleLanguageChange,
     handleThemeModeChange,
     handleShowGeneralToggle,
+    timeZoneMutation,
     weekStartMutation,
   } = usePreferenceControls()
   const tokens = useMemo(
@@ -95,6 +96,7 @@ export default function PreferencesScreen() {
   const pickerTitles: Record<PreferencePicker, string> = {
     language: t('profile.language.title'),
     theme: t('preferences.themeMode'),
+    timeZone: t('profile.settingsRows.timezone'),
     weekStart: t('settings.weekStartDay.title'),
   }
 
@@ -165,8 +167,12 @@ export default function PreferencesScreen() {
         activePicker={activePicker}
         pickerTitles={pickerTitles}
         pickerDescriptions={pickerDescriptions}
+        timeZoneSearchLabel={t('profile.timezonePicker.search')}
+        timeZoneNoResultsLabel={t('profile.timezonePicker.noResults')}
+        timeZoneShowMoreLabel={t('profile.timezonePicker.showMore')}
         selectedLanguage={selectedLanguage}
         currentTheme={currentTheme}
+        timeZone={profile?.timeZone}
         weekStartDay={profile?.weekStartDay}
         themeModeOptions={themeModeOptions}
         weekStartOptions={weekStartOptions}
@@ -177,6 +183,7 @@ export default function PreferencesScreen() {
           void handleLanguageChange(locale)
         }}
         onThemeModeChange={handleThemeModeChange}
+        onTimeZoneChange={(timeZone) => timeZoneMutation.mutate(timeZone)}
         onWeekStartChange={(day) => weekStartMutation.mutate(day)}
       />
     </SafeAreaView>

@@ -136,10 +136,24 @@ describe('getTimezoneList', () => {
     }
   })
 
-  it('falls back to an empty list when Intl.supportedValuesOf is unavailable', () => {
+  it('includes the UTC value accepted by the profile API exactly once', () => {
+    vi.stubGlobal('Intl', {
+      supportedValuesOf: () => ['Etc/UTC', 'UTC', 'Europe/London'],
+    })
+
+    const list = getTimezoneList()
+    expect(list).toContain('UTC')
+    expect(list.filter((timeZone) => ['UTC', 'Etc/UTC'].includes(timeZone))).toEqual(['UTC'])
+  })
+
+  it('falls back to the bundled IANA list when Intl.supportedValuesOf is unavailable', () => {
     vi.stubGlobal('Intl', {})
 
-    expect(getTimezoneList()).toEqual([])
+    const list = getTimezoneList()
+    expect(list.length).toBeGreaterThan(0)
+    expect(list).toContain('UTC')
+    expect(list).toContain('America/Sao_Paulo')
+    expect(list).toContain('Europe/London')
   })
 })
 

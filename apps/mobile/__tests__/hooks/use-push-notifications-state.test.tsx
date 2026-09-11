@@ -119,18 +119,44 @@ function createPermissionResponse(
 
 describe('usePushNotifications', () => {
   let latestResult: PushNotificationsResult | null = null
+  let globalPromptResult: PushNotificationsResult | null = null
+  let profileSurfaceResult: PushNotificationsResult | null = null
   let notificationsModule: NotificationsModule
   let usePushNotifications: UsePushNotificationsHook
   let pushNotificationsModule: UsePushNotificationsModule
+  let PushNotificationsProvider: UsePushNotificationsModule['PushNotificationsProvider']
 
   function Harness() {
     latestResult = usePushNotifications()
     return null
   }
 
+  function GlobalPromptSurface() {
+    globalPromptResult = usePushNotifications()
+    return null
+  }
+
+  function ProfileNotificationSurface() {
+    profileSurfaceResult = usePushNotifications()
+    return null
+  }
+
+  function MountedPushSurfaces() {
+    return (
+      <>
+        <GlobalPromptSurface />
+        <ProfileNotificationSurface />
+      </>
+    )
+  }
+
   async function renderHarness() {
     await TestRenderer.act(async () => {
-      TestRenderer.create(<Harness />)
+      TestRenderer.create(
+        <PushNotificationsProvider>
+          <Harness />
+        </PushNotificationsProvider>,
+      )
       await Promise.resolve()
     })
   }
@@ -144,6 +170,8 @@ describe('usePushNotifications', () => {
   beforeEach(async () => {
     vi.resetModules()
     latestResult = null
+    globalPromptResult = null
+    profileSurfaceResult = null
     mocks.storage.clear()
     mocks.apiClient.mockClear()
     mocks.router.push.mockClear()
@@ -180,6 +208,7 @@ describe('usePushNotifications', () => {
     pushNotificationsModule = await import('@/hooks/use-push-notifications')
     pushNotificationsModule.__setNotificationsModuleForTests(notificationsModule)
     usePushNotifications = pushNotificationsModule.usePushNotifications
+    PushNotificationsProvider = pushNotificationsModule.PushNotificationsProvider
   })
 
   it('keeps Orbit notifications disabled after the user opted out locally', async () => {
@@ -341,6 +370,33 @@ describe('usePushNotifications', () => {
     )
     expect(latestResult?.registrationStatus).toBe('registered')
     expect(latestResult?.isEnabled).toBe(true)
+  })
+
+  it('updates the mounted Profile surface when the global prompt registers push', async () => {
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('undetermined'),
+    )
+    vi.mocked(notificationsModule.requestPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('granted'),
+    )
+
+    await TestRenderer.act(async () => {
+      TestRenderer.create(
+        <PushNotificationsProvider>
+          <MountedPushSurfaces />
+        </PushNotificationsProvider>,
+      )
+      await Promise.resolve()
+    })
+    await flush()
+
+    await TestRenderer.act(async () => {
+      await globalPromptResult?.requestPermission()
+    })
+
+    expect(profileSurfaceResult?.permissionStatus).toBe('granted')
+    expect(profileSurfaceResult?.registrationStatus).toBe('registered')
+    expect(profileSurfaceResult?.isEnabled).toBe(true)
   })
 
   it('does not re-prompt when permission is permanently denied', async () => {

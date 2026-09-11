@@ -3,12 +3,24 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
-const { mockUseGamificationProfile } = vi.hoisted(() => ({
+const { mockUseGamificationProfile, mockProfileState } = vi.hoisted(() => ({
   mockUseGamificationProfile: vi.fn(() => ({ profile: null })),
+  mockProfileState: {
+    current: {
+      profile: undefined as ReturnType<typeof createMockProfile> | undefined,
+      isLoading: false,
+      error: null as Error | null,
+    },
+  },
 }))
 
 vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
   useTranslations: () => (key: string) => key,
+}))
+
+vi.mock('@/hooks/use-color-scheme', () => ({
+  useColorScheme: () => ({ currentTheme: 'dark', applyTheme: vi.fn() }),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -33,11 +45,7 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({
-    profile: createMockProfile({ hasProAccess: false, currentStreak: 13 }),
-    isLoading: false,
-    error: null,
-  }),
+  useProfile: () => mockProfileState.current,
   useTrialDaysLeft: () => 0,
   useTrialExpired: () => true,
 }))
@@ -81,10 +89,6 @@ vi.mock('@/app/(app)/profile/_components/profile-nav-card', () => ({
   ProfileNavCard: () => null,
 }))
 
-vi.mock('@/app/(app)/profile/_components/profile-action-button', () => ({
-  ProfileActionButton: () => null,
-}))
-
 vi.mock('@/components/profile/profile-nav-icon', () => ({
   ProfileNavIcon: () => null,
 }))
@@ -111,30 +115,29 @@ import ProfilePage from '@/app/(app)/profile/page'
 describe('ProfilePage', () => {
   beforeEach(() => {
     mockUseGamificationProfile.mockClear()
-  })
-
-  it('disables the gamification profile query for free users', () => {
-    render(<ProfilePage />)
-
-    expect(mockUseGamificationProfile).toHaveBeenCalledWith(false)
-  })
-
-  it('shows a free user their real streak (from profile, not the Pro-gated streak hook)', () => {
-    render(<ProfilePage />)
-
-    expect(document.body.textContent).toContain('13')
+    mockProfileState.current = {
+      profile: createMockProfile({ hasProAccess: false, currentStreak: 13 }),
+      isLoading: false,
+      error: null,
+    }
   })
 
   it('renders the remaining phone feature sections in order', () => {
     render(<ProfilePage />)
 
-    expect(screen.getByText('explore.sections.discover')).toBeInTheDocument()
-    expect(screen.getByText('explore.sections.progress')).toBeInTheDocument()
-    expect(screen.getByText('explore.sections.integrations')).toBeInTheDocument()
-    expect(screen.getByText('explore.sections.more')).toBeInTheDocument()
-
-    expect(screen.getByText('tour.replay.title')).toBeInTheDocument()
+    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toEqual([
+      'profile.groups.you',
+      'profile.groups.astra',
+      'profile.groups.notifications',
+      'profile.groups.more',
+      'profile.groups.ending',
+    ])
     expect(screen.getByText('profile.wrappedTitle')).toBeInTheDocument()
+    expect(screen.getByText('calendar.profileButton')).toBeInTheDocument()
+    expect(screen.getByText('profile.sections.aboutHelp')).toBeInTheDocument()
+    expect(screen.queryByText('profile.sections.preferences')).not.toBeInTheDocument()
+    expect(screen.queryByText('profile.sections.aiFeatures')).not.toBeInTheDocument()
+    expect(screen.queryByText('profile.sections.advanced')).not.toBeInTheDocument()
     expect(screen.queryByText('profile.retrospectiveTitle')).not.toBeInTheDocument()
     expect(screen.queryByText('gamification.profileCard.title')).not.toBeInTheDocument()
 
@@ -147,15 +150,78 @@ describe('ProfilePage', () => {
     }
   })
 
-  it('mounts the referral card on profile and opens the drawer when tapped', () => {
+  it('keeps every profile setting reachable by its accessible name', () => {
     render(<ProfilePage />)
 
-    const card = screen.getByTestId('profile-referral-card')
-    expect(card).toBeInTheDocument()
-    expect(screen.queryByTestId('profile-referral-drawer')).toBeNull()
+    const accessibleNames = [
+      'profile.settingsRows.editName',
+      'profile.language.title',
+      'profile.settingsRows.timezone',
+      'settings.weekStartDay.title',
+      'preferences.themeMode',
+      'profile.subscription.plan',
+      'profile.settingsRows.dailyAllowance',
+      'profile.proactiveAstra.title',
+      'profile.aiSummary.title',
+      'profile.settingsRows.apiKeysMcp',
+      'profile.wrappedTitle',
+      'calendar.profileButton',
+      'profile.sections.aboutHelp',
+      'dataExport.button',
+      'shareCard.entry',
+      'profile.freshStart.button',
+      'profile.logout',
+      'profile.deleteAccount.button',
+    ]
 
-    fireEvent.click(card)
+    for (const name of accessibleNames) {
+      expect(screen.getByRole('button', { name: new RegExp(name, 'i') })).toBeInTheDocument()
+    }
+    expect(
+      screen.getByRole('button', { name: 'profile.marketingEmails.accept' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'profile.marketingEmails.decline' }),
+    ).toBeInTheDocument()
+  })
 
-    expect(screen.getByTestId('profile-referral-drawer')).toBeInTheDocument()
+  it('opens the timezone picker from the timezone row', () => {
+    render(<ProfilePage />)
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /profile.settingsRows.timezone/ }),
+    )
+
+    expect(
+      screen.getByRole('dialog', { name: 'profile.settingsRows.timezone' }),
+    ).toBeInTheDocument()
+  })
+
+  it('renders habit notification guidance without action semantics or chevrons', () => {
+    render(<ProfilePage />)
+
+    expect(
+      screen.queryByRole('button', { name: 'profile.settingsRows.reminders' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'habits.form.slipAlert' }),
+    ).not.toBeInTheDocument()
+
+    const guidance = screen.getByText('profile.settingsRows.remindersNote')
+    expect(guidance.closest('button, a')).toBeNull()
+    expect(guidance.closest('[data-profile-notification-guidance]')?.querySelector('svg')).toBeNull()
+  })
+
+  it('shows one eight-row settings skeleton before the groups arrive', () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ hasProAccess: false }),
+      isLoading: true,
+      error: null,
+    }
+    render(<ProfilePage />)
+
+    expect(screen.getByRole('progressbar', { name: 'profile.loading' })).toBeInTheDocument()
+    expect(document.querySelectorAll('[data-settings-skeleton-row]')).toHaveLength(8)
+    expect(screen.queryAllByRole('heading', { level: 2 })).toHaveLength(0)
   })
 })

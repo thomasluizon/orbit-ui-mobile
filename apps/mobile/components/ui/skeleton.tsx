@@ -50,15 +50,19 @@ function HabitRowSkeleton({ tokens, opacity }: Readonly<{ tokens: AppTokensV2; o
   )
 }
 
-function SettingsSkeleton({ tokens, opacity }: Readonly<{ tokens: AppTokensV2; opacity: Animated.Value }>) {
+function SettingsSkeleton({ rows = 1, tokens, opacity }: Readonly<{ rows?: number; tokens: AppTokensV2; opacity: Animated.Value }>) {
   return (
-    <View style={styles.settingsRow}>
-      <Block style={styles.settingsIcon} tokens={tokens} opacity={opacity} />
-      <View style={styles.copy}>
-        <Block style={styles.settingsTitle} tokens={tokens} opacity={opacity} />
-        <Block style={styles.settingsMeta} tokens={tokens} opacity={opacity} />
-      </View>
-      <Block style={styles.settingsValue} tokens={tokens} opacity={opacity} />
+    <View>
+      {Array.from({ length: rows }, (_, index) => (
+        <View key={index} testID="settings-skeleton-row" style={styles.settingsRow}>
+          <Block style={styles.settingsIcon} tokens={tokens} opacity={opacity} />
+          <View style={styles.copy}>
+            <Block style={styles.settingsTitle} tokens={tokens} opacity={opacity} />
+            <Block style={styles.settingsMeta} tokens={tokens} opacity={opacity} />
+          </View>
+          <Block style={styles.settingsValue} tokens={tokens} opacity={opacity} />
+        </View>
+      ))}
     </View>
   )
 }
@@ -122,7 +126,7 @@ export function Skeleton(props: Readonly<SkeletonProps>) {
       testID={`skeleton-unit-${props.variant}`}
     >
       {props.variant === 'habit-row' ? <HabitRowSkeleton tokens={tokens} opacity={opacity} /> : null}
-      {props.variant === 'settings' ? <SettingsSkeleton tokens={tokens} opacity={opacity} /> : null}
+      {props.variant === 'settings' ? <SettingsSkeleton rows={props.rows} tokens={tokens} opacity={opacity} /> : null}
       {props.variant === 'stat-tile' ? <StatTileSkeleton tokens={tokens} opacity={opacity} /> : null}
       {props.variant === 'grid' ? <GridSkeleton props={props} tokens={tokens} opacity={opacity} /> : null}
     </View>
