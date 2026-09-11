@@ -107,10 +107,7 @@
       "route-streak",
       "m-route-streak"
     ],
-    "R10-screen-achievements": [
-      "route-achievements",
-      "m-route-achievements"
-    ],
+    "R10-screen-achievements": [],
     "R11-screen-astra": [
       "route-ai-settings",
       "route-chat",
@@ -196,6 +193,7 @@
       "m-route-preferences",
       "m-overlay-components-delete-account-modal",
       "m-overlay-components-edit-name-sheet",
+      "m-overlay-components-profile-settings-content",
       "m-overlay-profile-advanced-sections",
       "m-overlay-profile-preferences-sections",
       "m-overlay-navigation-notification-inbox",

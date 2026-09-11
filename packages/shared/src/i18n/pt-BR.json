@@ -2554,32 +2554,6 @@
     }
   },
   "gamification": {
-    "title": "Conquistas",
-    "profileCard": {
-      "title": "Conquistas & Nível",
-      "tileLabel": "Conquistas",
-      "hint": "Acompanhe seu progresso e ganhe conquistas",
-      "level": "Nível {level}",
-      "xp": "{current} / {next} XP",
-      "totalXp": "{total} XP",
-      "earned": "{count}/{total} conquistas"
-    },
-    "page": {
-      "lockedTitle": "Conquistas com o Pro",
-      "lockedDescription": "Assine o Pro para acompanhar seu progresso, ganhar XP e colecionar conquistas.",
-      "upgradeButton": "Assinar Pro"
-    },
-    "tile": {
-      "earned": "Conquistada · {date}"
-    },
-    "carrot": {
-      "title": "Próxima recompensa",
-      "toNextLevel": "{xp} XP para o Nível {level}",
-      "proTeaser": {
-        "title": "Incluído no Pro",
-        "achievements": "Conquistas e medalhas"
-      }
-    },
     "categories": {
       "GettingStarted": "Primeiros Passos",
       "Consistency": "Consistência",
