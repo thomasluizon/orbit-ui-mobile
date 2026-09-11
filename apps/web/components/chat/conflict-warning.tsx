@@ -10,27 +10,32 @@ interface ConflictWarningProps {
 
 function severityStyle(severity: ConflictWarningType['severity']): {
   className: string
+  graphicClassName: string
   ring: string
 } {
   switch (severity) {
     case 'HIGH':
       return {
         className: 'bg-[var(--status-bad)]/10 text-[var(--status-bad-text)]',
+        graphicClassName: 'text-[var(--status-bad)]',
         ring: 'color-mix(in srgb, var(--status-bad) 30%, transparent)',
       }
     case 'MEDIUM':
       return {
         className: 'bg-[var(--status-overdue)]/10 text-[var(--status-overdue-text)]',
+        graphicClassName: 'text-[var(--status-overdue)]',
         ring: 'color-mix(in srgb, var(--status-overdue) 30%, transparent)',
       }
     case 'LOW':
       return {
         className: 'bg-[rgba(var(--primary-rgb),0.10)] text-[var(--fg-1)]',
+        graphicClassName: 'text-[var(--primary)]',
         ring: 'rgba(var(--primary-rgb), 0.30)',
       }
     default:
       return {
         className: 'bg-[var(--bg-elev)] text-[var(--fg-2)]',
+        graphicClassName: 'text-[var(--fg-2)]',
         ring: 'var(--hairline)',
       }
   }
@@ -47,7 +52,7 @@ export function ConflictWarning({ warning }: Readonly<ConflictWarningProps>) {
       style={{ boxShadow: `inset 0 0 0 1px ${severity.ring}` }}
     >
       <p className="font-semibold mb-1 flex items-center gap-1.5">
-        <AlertTriangle className="size-3.5" />
+        <AlertTriangle className={`size-3.5 ${severity.graphicClassName}`} />
         {t('chat.conflict.title')}
       </p>
       {warning.conflictingHabits.length > 0 && (

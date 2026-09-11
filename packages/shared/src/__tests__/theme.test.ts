@@ -178,6 +178,21 @@ const BAD_TEXT_SOURCE_SITES = [
   },
 ] as const
 
+const BAD_GRAPHIC_SOURCE_SITES = [
+  {
+    name: 'web conflict warning glyph',
+    path: 'apps/web/components/chat/conflict-warning.tsx',
+    rolePattern: /case 'HIGH':[\s\S]*?graphicClassName: 'text-\[var\(--status-bad\)\]'/,
+    applicationPattern: /<AlertTriangle className=\{`size-3\.5 \$\{severity\.graphicClassName\}`\} \/>/,
+  },
+  {
+    name: 'mobile conflict warning glyph',
+    path: 'apps/mobile/components/chat/conflict-warning.tsx',
+    rolePattern: /case "HIGH":[\s\S]*?graphic: tokens\.statusBad/,
+    applicationPattern: /<AlertTriangle size=\{14\} color=\{sColors\.graphic\} \/>/,
+  },
+] as const
+
 const BAD_FILL_SOURCE_COUNTS = {
   'apps/mobile/app/(tabs)/calendar/_components/calendar-day-entry.tsx': 1,
   'apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx': 1,
@@ -185,7 +200,7 @@ const BAD_FILL_SOURCE_COUNTS = {
   'apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx': 1,
   'apps/mobile/app/(tabs)/profile/_components/profile-action-button.tsx': 1,
   'apps/mobile/app/calendar-sync.tsx': 2,
-  'apps/mobile/components/chat/conflict-warning.tsx': 2,
+  'apps/mobile/components/chat/conflict-warning.tsx': 3,
   'apps/mobile/components/goals/goal-detail-drawer.tsx': 1,
   'apps/mobile/components/goals/goal-metrics-panel.tsx': 1,
   'apps/mobile/components/habits/habit-checklist.tsx': 1,
@@ -216,7 +231,7 @@ const BAD_FILL_SOURCE_COUNTS = {
   'apps/web/components/calendar/calendar-agenda-view.tsx': 1,
   'apps/web/components/calendar/calendar-day-detail.tsx': 1,
   'apps/web/components/calendar/calendar-time-grid.tsx': 1,
-  'apps/web/components/chat/conflict-warning.tsx': 2,
+  'apps/web/components/chat/conflict-warning.tsx': 3,
   'apps/web/components/goals/goal-detail-sections.tsx': 1,
   'apps/web/components/goals/goal-metrics-panel.tsx': 1,
   'apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx': 1,
@@ -515,6 +530,15 @@ describe('bad status source roles', () => {
   it('keeps every direct fill-token reference in the reviewed graphic and surface inventory', () => {
     expect(directBadFillReferences()).toEqual(BAD_FILL_SOURCE_COUNTS)
   })
+
+  it.each(BAD_GRAPHIC_SOURCE_SITES)(
+    '$name explicitly uses the fill role instead of inheriting the text role',
+    ({ path, rolePattern, applicationPattern }) => {
+      const source = readFileSync(`${REPOSITORY_ROOT}${path}`, 'utf8')
+      expect(source).toMatch(rolePattern)
+      expect(source).toMatch(applicationPattern)
+    },
+  )
 })
 
 describe('type roles', () => {

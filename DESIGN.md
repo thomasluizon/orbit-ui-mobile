@@ -529,7 +529,8 @@ remains farther away in both modes.
 The roles split at language: words such as labels, errors and helper lines use
 `--status-bad-text`; surfaces, borders, rings and non-language glyphs use `--status-bad`. When one
 component contains both, its glyph and words take separate colors. The shared theme test inventories
-every direct fill-token reference so a new text consumer cannot silently reuse the fill role.
+every direct fill-token reference and asserts the mixed warning glyphs take an explicit fill role, so
+a new text consumer cannot silently reuse the fill role and a glyph cannot inherit the text role.
 
 **Closed 2026-09-10, corrected 2026-09-10: `--fg-4` as an empty graphic above the canvas, dark and
 light.** `--fg-4` measured 2.24 to 2.84 across dark raised surfaces and 2.94 on light hover, below

@@ -28,6 +28,7 @@ describe('ConflictWarning', () => {
       expect(wrapper?.getAttribute('data-severity')).toBe(severity)
       if (severity === 'HIGH') {
         expect(wrapper).toHaveClass('text-[var(--status-bad-text)]')
+        expect(container.querySelector('svg')).toHaveClass('text-[var(--status-bad)]')
       }
     },
   )

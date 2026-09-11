@@ -12,7 +12,9 @@ vi.mock('@/lib/theme', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/theme')>()
   return {
     ...actual,
-    createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
+    createTokensV2: () => new Proxy({}, {
+      get: (_target, property) => property === 'statusBad' ? '#222222' : '#111111',
+    }),
   }
 })
 
@@ -48,5 +50,7 @@ describe('ConflictWarning (mobile)', () => {
       fontSize: 12,
     })
     expect(StyleSheet.flatten(recommendation.props.style)).not.toHaveProperty('opacity')
+    expect(tree.root.findAll((node) => node.props.size === 14 && node.props.color === '#222222'))
+      .not.toHaveLength(0)
   })
 })
