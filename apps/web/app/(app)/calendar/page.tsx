@@ -43,7 +43,7 @@ import { Sheet } from '@/components/ui/sheet'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { useIsWideDesktop } from '@/hooks/use-is-desktop'
+import { useIsDesktop, useIsWideDesktop } from '@/hooks/use-is-desktop'
 import {
   CalendarHeader,
   CalendarLegend,
@@ -69,9 +69,12 @@ export default function CalendarPage() {
   const { displayWeekdayDate } = useDateFormat()
   const { profile } = useProfile()
   const weekStartsOn: 0 | 1 = profile?.weekStartDay ?? 1
+  const isDesktop = useIsDesktop()
   const isWideDesktop = useIsWideDesktop()
 
   const [view, setView] = useState<CalendarView>('month')
+  /** Agenda is desktop-width only until #56 stage 10 builds the mobile day groups. */
+  const activeView: CalendarView = !isDesktop && view === 'agenda' ? 'month' : view
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
   const [weekAnchor, setWeekAnchor] = useState(() => new Date())
@@ -156,7 +159,7 @@ export default function CalendarPage() {
     error: activeError,
     refresh: activeRefresh,
   } =
-    view === 'month'
+    activeView === 'month'
       ? { dayMap, isFetching, error, refresh }
       : {
           dayMap: rangeDayMap,
@@ -198,7 +201,7 @@ export default function CalendarPage() {
     setWeekAnchor(new Date())
   }, [])
 
-  const showInlineDayPanel = isWideDesktop && view === 'month'
+  const showInlineDayPanel = isWideDesktop && activeView === 'month'
 
   const openDay = useCallback(
     (dateStr: string) => {
@@ -247,15 +250,13 @@ export default function CalendarPage() {
     [monthStats, t],
   )
 
-  const viewOptions = useMemo(
-    () => [
-      { value: 'month' as const, label: t('calendar.view.month') },
-      { value: 'week' as const, label: t('calendar.view.week') },
-      { value: 'range' as const, label: t('calendar.view.range') },
-      { value: 'agenda' as const, label: t('calendar.view.agenda') },
-    ] as const,
-    [t],
-  )
+  const viewOptions = useMemo(() => {
+    const month = { value: 'month' as const, label: t('calendar.view.month') }
+    const week = { value: 'week' as const, label: t('calendar.view.week') }
+    const range = { value: 'range' as const, label: t('calendar.view.range') }
+    if (!isDesktop) return [month, week, range] as const
+    return [month, week, range, { value: 'agenda' as const, label: t('calendar.view.agenda') }] as const
+  }, [t, isDesktop])
 
   const touchStart = useRef<{ x: number; y: number } | null>(null)
 
@@ -305,7 +306,7 @@ export default function CalendarPage() {
         <div style={{ padding: '12px 16px 16px' }}>
           <SegmentedControl<CalendarView>
             options={viewOptions}
-            value={view}
+            value={activeView}
             onChange={setView}
             label={t('calendar.view.switchLabel')}
           />
@@ -317,15 +318,15 @@ export default function CalendarPage() {
           }`}
         />
 
-        {view === 'range' && calendarHeader}
+        {activeView === 'range' && calendarHeader}
 
-        {activeError && view !== 'agenda' ? (
+        {activeError && activeView !== 'agenda' ? (
           <div style={{ padding: '12px 16px 16px' }}>
             <CalendarLoadError onRetry={() => void activeRefresh()} />
           </div>
         ) : (
           <>
-            {view === 'month' && (
+            {activeView === 'month' && (
               <div className="lg:grid lg:grid-cols-[minmax(440px,55%)_minmax(0,1fr)] lg:items-start">
                 <div>
                   {calendarHeader}
@@ -441,7 +442,7 @@ export default function CalendarPage() {
               />
             )}
 
-            {view === 'agenda' && (
+            {activeView === 'agenda' && (
               <CalendarAgendaView
                 displayTime={displayTime}
                 dateFnsLocale={dateFnsLocale}
