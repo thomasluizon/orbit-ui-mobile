@@ -26,7 +26,7 @@ describe('widget color generator', () => {
   it.each(['light', 'dark'] as const)('generates parseable %s XML', mode => {
     const xml = generatedXml(mode)
 
-    expect(xml.match(/<!-- WHY:/g)).toHaveLength(11)
+    expect(xml.match(/<!-- WHY:/g)).toHaveLength(12)
     expect(xml).not.toContain('<!-- WHY: --')
     expect(() => new SaxesParser().write(xml).close()).not.toThrow()
   })
@@ -69,5 +69,19 @@ describe('widget color generator', () => {
       generatedColor(xml, 'widget_overdue'),
       [generatedColor(xml, 'widget_well')],
     )).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it.each([
+    ['dark', 'widget_card'],
+    ['dark', 'widget_well'],
+    ['light', 'widget_card'],
+    ['light', 'widget_well'],
+  ] as const)('keeps the %s empty track at the non-text floor on %s', (mode, surface) => {
+    const xml = generatedXml(mode)
+
+    expect(contrastOnSurface(
+      generatedColor(xml, 'widget_track_empty'),
+      [generatedColor(xml, surface)],
+    )).toBeGreaterThanOrEqual(3)
   })
 })

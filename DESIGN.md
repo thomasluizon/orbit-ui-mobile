@@ -18,7 +18,7 @@ It is authoritative for **both platforms** (`apps/web`, `apps/mobile`) and for t
 
 **D42, amended 2026-08-25: there are exactly two sources, this document and the granted canvas.**
 Thomas granted the twenty-one-screen Claude Design export on 2026-08-25. It is committed at
-`design/canvas/`, with the design system's 166 token values under
+`design/canvas/`, with the design system's 170 token values under
 `design/canvas/_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/`.
 
 **Precedence, in this order:**
@@ -404,6 +404,7 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --hairline-strong rgba(255,255,255,0.16)
 --fg-1 #F4F4F6   /* 18.11:1 */   --fg-2 #C9C9CC   /* 12.04:1 */
 --fg-3 #8F8F93   /*  6.18:1 */   --fg-4 #5D5D60   /*  3.03:1, clears the 3:1 non-text floor */
+--track-empty     #717174                     /* empty UI track. 3.02:1 on the worst surface */
 --primary         #C4530F                     /* fill and graphic ONLY. hue 45. White on it clears 4.5 */
 --primary-soft    #C85716                     /* accent TEXT on the canvas */
 --primary-pressed #A24716                     /* the fill, 16% toward the canvas */
@@ -412,7 +413,7 @@ Every value is derived in OKLCH against the canvas and measured. Do not eyeball 
 --primary-dim     #261611                     /* the fill at 18% over the canvas */
 --fg-on-primary   #FFFFFF                     /* always white: the fill is dark in both modes */
 --status-done     var(--fg-1)                 /* UNBOUND from the accent. The brightest neutral */
---status-empty    var(--fg-4)                 /* ring track. 3.03:1 */
+--status-empty    var(--track-empty)          /* ring track. 3.02:1 on the worst surface */
 --status-frozen   var(--fg-2)                 /* NEUTRAL. See the note below */
 --status-overdue  #FE9A00                     /* 9.32:1, hue 65.4 */
 --status-bad      #FB2C36                     /* 5.23:1, hue 25.4 */
@@ -435,7 +436,7 @@ step, and the measurement reversed its direction.
 
 **`--status-frozen` is retired as a hue.** Measured 2026-08-15: the old `#00D3F3` sits 12.0 degrees from the new accent, inside the 15-degree band where two hues read as one colour, so streak-freeze and done would have looked like the same state. **Frozen renders as a neutral chip plus the snowflake glyph, on a DAY and never on a habit.** This removes a colour from the system, and the no-colour-only rule already required the glyph.
 
-**`--status-done` is the second status neutralised, on the same precedent.** It was `var(--primary)`, so the brand colour and the completed state were one byte. Three rules in this document already forbade that: derivation rule 6's 15-degree separation, the accent note's "a static element rendered in the accent is as misleading as an interactive one rendered neutral", and "fill exactly one action per view", which a six-habit list with four done broke six times over. **Done now renders as an `--fg-1` disc with a filled check.** The neutral status ranking is done `--fg-1`, frozen `--fg-2`, skip `--fg-3`, empty `--fg-4`, so three neutral statuses can share one column and stay distinguishable.
+**`--status-done` is the second status neutralised, on the same precedent.** It was `var(--primary)`, so the brand colour and the completed state were one byte. Three rules in this document already forbade that: derivation rule 6's 15-degree separation, the accent note's "a static element rendered in the accent is as misleading as an interactive one rendered neutral", and "fill exactly one action per view", which a six-habit list with four done broke six times over. **Done now renders as an `--fg-1` disc with a filled check.** The neutral status ranking is done `--fg-1`, frozen `--fg-2`, skip `--fg-3`, empty `--track-empty`, so all four neutral statuses can share one column and stay distinguishable.
 
 ### Light mode (MANDATORY, ships with every surface)
 
@@ -446,7 +447,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --bg-field #FFFFFF · --bg-well rgba(9,9,11,0.04)
 --bg-sunk rgba(9,9,11,0.04)
 --bg-hover rgba(9,9,11,0.06)
---status-done var(--fg-1) · empty var(--fg-4) · frozen var(--fg-2)   /* the neutral statuses resolve through the fg ramp in BOTH variants */
+--status-done var(--fg-1) · empty var(--track-empty) · frozen var(--fg-2)
 --status-overdue #886100   /* 5.36:1 on #FAFAFA, hue 81.1. White on it 5.59:1 */
 --status-bad     #E7000B   /* 4.57:1 on #FAFAFA, hue 28.5 */
 --fg-on-bad      #FFFFFF   /* 4.77:1 on the fill */
@@ -455,6 +456,7 @@ Light is first-class and dark is primary. After the scheme collapse the matrix i
 --hairline-ghost rgba(9,9,11,0.10) · --hairline-strong rgba(9,9,11,0.16)
 --fg-1 #1A1A1D  /* 16.64:1 */   --fg-2 #424247  /*  9.57:1 */
 --fg-3 #68686D  /*  5.31:1 */   --fg-4 #89898D  /*  3.34:1 */
+--track-empty    #87878B   /* empty UI track. 3.03:1 on the worst surface */
 --primary        #C4530F   /* light mode takes the SAME dark fill, with white on it */
 --primary-soft   #C15109   /* derived against #FAFAFA, not against the canvas */
 --primary-dim    #F4DDD3   /* the fill at 18% over #FAFAFA. fg-1 on it 13.34:1, fg-2 7.67:1 */
@@ -475,7 +477,7 @@ dark-mode value `#261611`, a near-black wash painted onto a white card. That is 
 overdue attempt inherited `#020618`, which measured **4.26:1** on `#B45B00` and missed the 4.5 text
 floor. The explicit white override measures 5.59:1 on the current fill.
 
-### Measured contrast, and two limits that are open
+### Measured contrast, with the remaining limits closed
 
 Measured 2026-08-17 against every surface in the ladder, not just the canvas, because that is where
 the misses are. Two independent implementations agree on every number below.
@@ -486,9 +488,11 @@ the misses are. Two independent implementations agree on every number below.
 | dark `--fg-2` | 12.04 | 11.27 | 10.79 | 10.27 | 9.15 | 8.91 | 10.30 |
 | dark `--fg-3` | 6.18 | 5.78 | 5.53 | 5.27 | 4.69 | 4.57 | 5.28 |
 | dark `--fg-4` | 3.03 | **2.84** | **2.72** | **2.59** | **2.30** | **2.24** | **2.59** |
+| dark `--track-empty` | 4.089 | 3.814 | 3.680 | 3.497 | 3.105 | 3.024 | 3.497 |
 | dark `--primary-soft` | 4.58 | **4.28** | **4.10** | **3.90** | **3.48** | **3.38** | **3.91** |
 | light `--fg-3` | 5.31 | 5.54 | | 4.88 | | 4.67 | |
 | light `--fg-4` | 3.34 | 3.48 | | 3.07 | | **2.94** | |
+| light `--track-empty` | 3.428 | 3.578 | | 3.140 | | 3.029 | |
 | light `--primary-soft` | 4.52 | 4.72 | | 4.16 | | **3.98** | |
 
 **`--primary-soft` is canvas only, and that closes its row by rule rather than by pigment.** The token
@@ -503,15 +507,15 @@ percent overdue tint, all below the 4.5 text floor. Thomas moved it along consta
 4.95 on the widget well and 4.70 on that tint. White on the fill is 5.59, and the 36.3 degree
 separation from the accent still clears derivation rule 6.
 
-**Two limits are measured, open, and Thomas's call**, because each one trades against a rule set
-elsewhere in this document. They are written down with their numbers rather than left to be
-rediscovered. A third is now closed, and its record is kept below them.
-
-1. **`--fg-4` as a graphic above the canvas: 2.24 to 2.84 dark, 2.94 light on hover.** `--fg-4` is
-   specified at exactly the 3:1 non-text floor and reaches it **on the canvas alone**. The empty
-   `StatusRing` sits on a card, so it is under the floor everywhere it actually renders. Cheapest fix:
-   the empty ring takes `--fg-3`, which collapses the four-step neutral status ranking to three.
-2. **Light `--fg-4` on hover: 2.94.** The same defect on the light side, and the same fix.
+**Closed 2026-09-10: `--fg-4` as an empty graphic above the canvas, dark and light.** `--fg-4`
+measured 2.24 to 2.84 across dark raised surfaces and 2.94 on light hover, below the 3.0 non-text
+floor. Thomas kept `--fg-4` unchanged and added the dedicated `--track-empty` neutral, derived at
+constant OKLCH hue from `--fg-4` in each mode. Dark `#717174` measures 4.089 on canvas, 3.814 on
+card, 3.680 on field, 3.497 on well, 3.105 on elev-2, 3.024 on hover, 3.497 on overlay, 3.814 on
+the widget card and 3.459 on the widget well. Light `#87878B` measures 3.428 on canvas, 3.578 on
+card, 3.140 on well, 3.029 on hover, 3.578 on the widget card and 3.170 on the widget well.
+`--status-empty` now resolves through it. The four-step card ranking remains distinct: dark 16.89,
+11.23, 5.76 and 3.81; light 17.36, 9.99, 5.54 and 3.58 for done, frozen, skip and empty.
 
 **Closed 2026-09-09: `--fg-3` on a hovered surface, dark.** It measured **4.40** and missed the 4.5
 text floor, and this document proposed taking `--bg-hover` from alpha 0.14 to 0.12 as the cheapest
@@ -1083,7 +1087,7 @@ The floor is **WCAG 2.2 Level AA**, and **WCAG is the gate while APCA is the tie
 ### Perception
 
 - **Never encode state or meaning in colour alone.** Every status must also be carried by an icon, a shape, a text label, or a position.
-- **Non-text UI elements meet 3:1 against their adjacent surface.** `--fg-4` is derived to exactly this floor at 3.03:1.
+- **Non-text UI elements meet 3:1 against their adjacent surface.** `--track-empty` is derived to clear this floor on its worst permitted surface. `--fg-4` is canvas-only when used as a graphic.
 - **Measure the pair that actually renders**, not the page background, and remeasure in both modes. A pair that passes in light can fail in dark.
 - **Honour `prefers-reduced-transparency`** (raise surface opacity toward solid) and **`prefers-contrast: more`** (see derivation rule 9). The whole dark ladder is white-alpha translucency, so reduced-transparency is directly load-bearing.
 - **Never ship a full-viewport moving background, a slow oscillation near 0.2 Hz, or an abrupt light/dark brightness jump.**

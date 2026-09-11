@@ -61,7 +61,7 @@ describe('toWidgetColors', () => {
       overdue: '#FE9A00',
       streak: '#C4530F',
       streakText: '#F4F4F6',
-      statusEmpty: '#5D5D60',
+      statusEmpty: '#717174',
     })
     expect(toWidgetColors(createTokensV2('purple', 'light'), 'light')).toEqual({
       background: '#FFFFFF',
@@ -75,7 +75,7 @@ describe('toWidgetColors', () => {
       overdue: '#886100',
       streak: '#C4530F',
       streakText: '#1A1A1D',
-      statusEmpty: '#89898D',
+      statusEmpty: '#87878B',
     })
   })
 

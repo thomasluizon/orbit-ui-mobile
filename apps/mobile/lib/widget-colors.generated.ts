@@ -17,6 +17,8 @@ export const widgetColorPalette = {
     fg3: '#8F8F93',
     /** WHY: --fg-4. */
     fg4: '#5D5D60',
+    /** WHY: --track-empty. */
+    trackEmpty: '#717174',
     /** WHY: --primary. */
     primary: '#C4530F',
     /** WHY: --status-overdue. */
@@ -39,6 +41,8 @@ export const widgetColorPalette = {
     fg3: '#68686D',
     /** WHY: --fg-4. */
     fg4: '#89898D',
+    /** WHY: --track-empty. */
+    trackEmpty: '#87878B',
     /** WHY: --primary. */
     primary: '#C4530F',
     /** WHY: --status-overdue. */

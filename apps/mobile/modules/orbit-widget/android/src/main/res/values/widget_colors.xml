@@ -17,6 +17,8 @@
     <color name="widget_fg_3">#68686D</color>
     <!-- WHY: fg-4. -->
     <color name="widget_fg_4">#89898D</color>
+    <!-- WHY: track-empty. -->
+    <color name="widget_track_empty">#87878B</color>
     <!-- WHY: primary. -->
     <color name="widget_primary">#C4530F</color>
     <!-- WHY: fg-1. -->

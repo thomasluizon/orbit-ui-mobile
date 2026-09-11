@@ -67,6 +67,7 @@ describe('byte-exact mode colors', () => {
       fg2: '#C9C9CC',
       fg3: '#8F8F93',
       fg4: '#5D5D60',
+      trackEmpty: '#717174',
       scrim: 'rgba(0,0,0,0.55)',
     })
   })
@@ -89,6 +90,7 @@ describe('byte-exact mode colors', () => {
       fg2: '#424247',
       fg3: '#68686D',
       fg4: '#89898D',
+      trackEmpty: '#87878B',
       scrim: 'rgba(0,0,0,0.55)',
     })
   })
@@ -117,6 +119,13 @@ describe('byte-exact mode colors', () => {
   ] as const)('keeps light overdue text AA on the %s surface', (_surface, layers) => {
     expect(contrastOnSurface(statusConstants.light.overdueText, layers))
       .toBeGreaterThanOrEqual(4.5)
+  })
+
+  it.each([
+    ['dark', neutralColors.dark.trackEmpty, [neutralColors.dark.bg, neutralColors.dark.bgHover]],
+    ['light', neutralColors.light.trackEmpty, [neutralColors.light.bg, neutralColors.light.bgHover]],
+  ] as const)('keeps the %s empty track at the non-text floor on its worst surface', (_mode, track, layers) => {
+    expect(contrastOnSurface(track, layers)).toBeGreaterThanOrEqual(3)
   })
 })
 

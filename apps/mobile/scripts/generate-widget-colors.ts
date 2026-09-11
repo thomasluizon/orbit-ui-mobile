@@ -18,6 +18,7 @@ type PaletteKey =
   | 'fg2'
   | 'fg3'
   | 'fg4'
+  | 'trackEmpty'
   | 'primary'
   | 'overdue'
 type PaletteEntry = readonly [value: string, token: string]
@@ -35,7 +36,7 @@ const COLOR_ROLES = [
   ['overdue', 'overdue'],
   ['streak', 'primary'],
   ['streakText', 'fg1'],
-  ['statusEmpty', 'fg4'],
+  ['statusEmpty', 'trackEmpty'],
 ] as const satisfies readonly (readonly [string, PaletteKey])[]
 
 /** The granted canvas palette and its token provenance for generated outputs. */
@@ -49,6 +50,7 @@ const PALETTES = {
     fg2: ['#C9C9CC', '--fg-2'],
     fg3: ['#8F8F93', '--fg-3'],
     fg4: ['#5D5D60', '--fg-4'],
+    trackEmpty: ['#717174', '--track-empty'],
     primary: ['#C4530F', '--primary'],
     overdue: ['#FE9A00', '--status-overdue'],
   },
@@ -61,6 +63,7 @@ const PALETTES = {
     fg2: ['#424247', '--fg-2'],
     fg3: ['#68686D', '--fg-3'],
     fg4: ['#89898D', '--fg-4'],
+    trackEmpty: ['#87878B', '--track-empty'],
     primary: ['#C4530F', '--primary'],
     overdue: ['#886100', '--status-overdue'],
   },
@@ -101,6 +104,7 @@ const RESOURCE_ROLES = [
   ['widget_fg_2', 'fg2'],
   ['widget_fg_3', 'fg3'],
   ['widget_fg_4', 'fg4'],
+  ['widget_track_empty', 'trackEmpty'],
   ['widget_primary', 'primary'],
   ['widget_streak_text', 'fg1'],
   ['widget_overdue', 'overdue'],

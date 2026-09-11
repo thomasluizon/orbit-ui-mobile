@@ -664,7 +664,7 @@ describe('Android widget habit rows', () => {
     expect(overdue).toContain('<vector')
     expect(overdue).toContain('android:strokeColor="@color/widget_overdue"')
     expect(pending).toContain('<vector')
-    expect(pending).toContain('android:strokeColor="@color/widget_fg_4"')
+    expect(pending).toContain('android:strokeColor="@color/widget_track_empty"')
   })
 
   it('ships localized checklist and deeper-tree labels with the complete row vocabulary', () => {
