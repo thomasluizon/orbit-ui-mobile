@@ -278,8 +278,8 @@ function CalendarPageContent({
   }, [selectedDay, displayWeekdayDate])
 
   const { monthStats } = useMemo(
-    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn),
-    [currentMonth, dayMap, weekStartsOn],
+    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn, todayKey),
+    [currentMonth, dayMap, weekStartsOn, todayKey],
   )
 
   const monthStatTiles = useMemo(

@@ -4,7 +4,6 @@ import {
   endOfWeek,
   getDate,
   isSameMonth,
-  isToday,
   startOfMonth,
   startOfWeek,
 } from 'date-fns'
@@ -39,10 +38,10 @@ export function buildCalendarMonthModel(
   currentMonth: Date,
   dayMap: Map<string, CalendarDayEntry[]>,
   weekStartsOn: 0 | 1,
+  today: string,
 ): CalendarMonthModel {
-  const gridDays = buildMonthGridDays(currentMonth, dayMap, weekStartsOn)
+  const gridDays = buildMonthGridDays(currentMonth, dayMap, weekStartsOn, today)
   const monthDays = gridDays.filter((day) => day.isCurrentMonth)
-  const today = formatAPIDate(new Date())
   const countedDays = monthDays.filter(
     (day) => day.dateStr <= today && day.totalCount > 0,
   )
@@ -78,6 +77,7 @@ function buildMonthGridDays(
   currentMonth: Date,
   dayMap: Map<string, CalendarDayEntry[]>,
   weekStartsOn: 0 | 1,
+  today: string,
 ): CalendarMonthDay[] {
   const monthStart = startOfMonth(currentMonth)
   const monthEnd = endOfMonth(currentMonth)
@@ -95,7 +95,7 @@ function buildMonthGridDays(
       dateStr,
       day: getDate(date),
       isCurrentMonth: isSameMonth(date, currentMonth),
-      isToday: isToday(date),
+      isToday: dateStr === today,
       entries,
       completedCount,
       totalCount,
