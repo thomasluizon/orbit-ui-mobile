@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "66ee161d3ca74e7d67e9308843cfd3b9c2cbd054",
+  "generatedFrom": "9f488b767b4f2cb8af9ecd74dd3eb2be39d89a9e",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -14,8 +14,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 197,
-  "cellCount": 844,
+  "surfaceCount": 195,
+  "cellCount": 836,
   "cells": [
     {
       "surfaceId": "route-about",
@@ -74,62 +74,6 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "route-achievements",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/achievements/page.tsx",
-      "href": "/achievements",
-      "ownedFiles": [
-        "apps/web/app/(app)/achievements/page.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "route-achievements",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/achievements/page.tsx",
-      "href": "/achievements",
-      "ownedFiles": [
-        "apps/web/app/(app)/achievements/page.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "route-achievements",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/achievements/page.tsx",
-      "href": "/achievements",
-      "ownedFiles": [
-        "apps/web/app/(app)/achievements/page.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "route-achievements",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/achievements/page.tsx",
-      "href": "/achievements",
-      "ownedFiles": [
-        "apps/web/app/(app)/achievements/page.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
       "surfaceId": "route-advanced",
       "platform": "web",
       "kind": "route",
@@ -461,7 +405,7 @@
         "apps/web/components/calendar/use-agenda-day.ts",
         "apps/web/hooks/use-calendar-data.ts"
       ],
-      "closureSize": 255,
+      "closureSize": 257,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -486,7 +430,7 @@
         "apps/web/components/calendar/use-agenda-day.ts",
         "apps/web/hooks/use-calendar-data.ts"
       ],
-      "closureSize": 255,
+      "closureSize": 257,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -511,7 +455,7 @@
         "apps/web/components/calendar/use-agenda-day.ts",
         "apps/web/hooks/use-calendar-data.ts"
       ],
-      "closureSize": 255,
+      "closureSize": 257,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -536,7 +480,7 @@
         "apps/web/components/calendar/use-agenda-day.ts",
         "apps/web/hooks/use-calendar-data.ts"
       ],
-      "closureSize": 255,
+      "closureSize": 257,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -561,7 +505,7 @@
         "apps/web/components/calendar/use-agenda-day.ts",
         "apps/web/hooks/use-calendar-data.ts"
       ],
-      "closureSize": 255,
+      "closureSize": 257,
       "state": "empty",
       "theme": "light",
       "locale": "en"
@@ -586,7 +530,7 @@
         "apps/web/components/calendar/use-agenda-day.ts",
         "apps/web/hooks/use-calendar-data.ts"
       ],
-      "closureSize": 255,
+      "closureSize": 257,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR"
@@ -611,7 +555,7 @@
         "apps/web/components/calendar/use-agenda-day.ts",
         "apps/web/hooks/use-calendar-data.ts"
       ],
-      "closureSize": 255,
+      "closureSize": 257,
       "state": "empty",
       "theme": "dark",
       "locale": "en"
@@ -636,7 +580,7 @@
         "apps/web/components/calendar/use-agenda-day.ts",
         "apps/web/hooks/use-calendar-data.ts"
       ],
-      "closureSize": 255,
+      "closureSize": 257,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
@@ -6409,7 +6353,7 @@
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-horizontal-swipe.ts"
       ],
-      "closureSize": 264,
+      "closureSize": 265,
       "state": "default",
       "theme": "light",
       "locale": "en"
@@ -6434,7 +6378,7 @@
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-horizontal-swipe.ts"
       ],
-      "closureSize": 264,
+      "closureSize": 265,
       "state": "default",
       "theme": "light",
       "locale": "pt-BR"
@@ -6459,7 +6403,7 @@
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-horizontal-swipe.ts"
       ],
-      "closureSize": 264,
+      "closureSize": 265,
       "state": "default",
       "theme": "dark",
       "locale": "en"
@@ -6484,7 +6428,7 @@
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-horizontal-swipe.ts"
       ],
-      "closureSize": 264,
+      "closureSize": 265,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -6509,7 +6453,7 @@
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-horizontal-swipe.ts"
       ],
-      "closureSize": 264,
+      "closureSize": 265,
       "state": "empty",
       "theme": "light",
       "locale": "en"
@@ -6534,7 +6478,7 @@
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-horizontal-swipe.ts"
       ],
-      "closureSize": 264,
+      "closureSize": 265,
       "state": "empty",
       "theme": "light",
       "locale": "pt-BR"
@@ -6559,7 +6503,7 @@
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-horizontal-swipe.ts"
       ],
-      "closureSize": 264,
+      "closureSize": 265,
       "state": "empty",
       "theme": "dark",
       "locale": "en"
@@ -6584,7 +6528,7 @@
         "apps/mobile/components/ui/scroll-to-top-button.tsx",
         "apps/mobile/hooks/use-horizontal-swipe.ts"
       ],
-      "closureSize": 264,
+      "closureSize": 265,
       "state": "empty",
       "theme": "dark",
       "locale": "pt-BR"
@@ -6598,7 +6542,6 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/index.tsx",
         "apps/mobile/app/(tabs)/today-model.ts",
-        "apps/mobile/app/(tabs)/use-today-date.ts",
         "apps/mobile/app/(tabs)/use-today-motion.ts",
         "apps/mobile/app/(tabs)/use-today-selection.ts",
         "apps/mobile/components/habit-list.tsx",
@@ -6631,7 +6574,6 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/index.tsx",
         "apps/mobile/app/(tabs)/today-model.ts",
-        "apps/mobile/app/(tabs)/use-today-date.ts",
         "apps/mobile/app/(tabs)/use-today-motion.ts",
         "apps/mobile/app/(tabs)/use-today-selection.ts",
         "apps/mobile/components/habit-list.tsx",
@@ -6664,7 +6606,6 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/index.tsx",
         "apps/mobile/app/(tabs)/today-model.ts",
-        "apps/mobile/app/(tabs)/use-today-date.ts",
         "apps/mobile/app/(tabs)/use-today-motion.ts",
         "apps/mobile/app/(tabs)/use-today-selection.ts",
         "apps/mobile/components/habit-list.tsx",
@@ -6697,7 +6638,6 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/index.tsx",
         "apps/mobile/app/(tabs)/today-model.ts",
-        "apps/mobile/app/(tabs)/use-today-date.ts",
         "apps/mobile/app/(tabs)/use-today-motion.ts",
         "apps/mobile/app/(tabs)/use-today-selection.ts",
         "apps/mobile/components/habit-list.tsx",
@@ -6730,7 +6670,6 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/index.tsx",
         "apps/mobile/app/(tabs)/today-model.ts",
-        "apps/mobile/app/(tabs)/use-today-date.ts",
         "apps/mobile/app/(tabs)/use-today-motion.ts",
         "apps/mobile/app/(tabs)/use-today-selection.ts",
         "apps/mobile/components/habit-list.tsx",
@@ -6763,7 +6702,6 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/index.tsx",
         "apps/mobile/app/(tabs)/today-model.ts",
-        "apps/mobile/app/(tabs)/use-today-date.ts",
         "apps/mobile/app/(tabs)/use-today-motion.ts",
         "apps/mobile/app/(tabs)/use-today-selection.ts",
         "apps/mobile/components/habit-list.tsx",
@@ -6796,7 +6734,6 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/index.tsx",
         "apps/mobile/app/(tabs)/today-model.ts",
-        "apps/mobile/app/(tabs)/use-today-date.ts",
         "apps/mobile/app/(tabs)/use-today-motion.ts",
         "apps/mobile/app/(tabs)/use-today-selection.ts",
         "apps/mobile/components/habit-list.tsx",
@@ -6829,7 +6766,6 @@
       "ownedFiles": [
         "apps/mobile/app/(tabs)/index.tsx",
         "apps/mobile/app/(tabs)/today-model.ts",
-        "apps/mobile/app/(tabs)/use-today-date.ts",
         "apps/mobile/app/(tabs)/use-today-motion.ts",
         "apps/mobile/app/(tabs)/use-today-selection.ts",
         "apps/mobile/components/habit-list.tsx",
@@ -7117,62 +7053,6 @@
         "apps/mobile/app/about.tsx"
       ],
       "closureSize": 209,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-route-achievements",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/achievements.tsx",
-      "href": "/achievements",
-      "ownedFiles": [
-        "apps/mobile/app/achievements.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-route-achievements",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/achievements.tsx",
-      "href": "/achievements",
-      "ownedFiles": [
-        "apps/mobile/app/achievements.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-route-achievements",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/achievements.tsx",
-      "href": "/achievements",
-      "ownedFiles": [
-        "apps/mobile/app/achievements.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-route-achievements",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/achievements.tsx",
-      "href": "/achievements",
-      "ownedFiles": [
-        "apps/mobile/app/achievements.tsx"
-      ],
-      "closureSize": 1,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
