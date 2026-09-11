@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "9f488b767b4f2cb8af9ecd74dd3eb2be39d89a9e",
+  "generatedFrom": "b013fbbef87952a094b716128e6df30158f7d0e0",
   "baselineRef": "7d7c42c3",
   "baselineSha": "7d7c42c355d330606972e4ce68986462254f91ed",
   "themes": [
@@ -14,8 +14,8 @@
     "web",
     "mobile"
   ],
-  "surfaceCount": 195,
-  "cellCount": 836,
+  "surfaceCount": 193,
+  "cellCount": 828,
   "cells": [
     {
       "surfaceId": "route-about",
@@ -1222,62 +1222,6 @@
       "locale": "pt-BR"
     },
     {
-      "surfaceId": "route-streak",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/streak/page.tsx",
-      "href": "/streak",
-      "ownedFiles": [
-        "apps/web/app/(app)/streak/page.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "route-streak",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/streak/page.tsx",
-      "href": "/streak",
-      "ownedFiles": [
-        "apps/web/app/(app)/streak/page.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "route-streak",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/streak/page.tsx",
-      "href": "/streak",
-      "ownedFiles": [
-        "apps/web/app/(app)/streak/page.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "route-streak",
-      "platform": "web",
-      "kind": "route",
-      "sourceFile": "apps/web/app/(app)/streak/page.tsx",
-      "href": "/streak",
-      "ownedFiles": [
-        "apps/web/app/(app)/streak/page.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
       "surfaceId": "route-support",
       "platform": "web",
       "kind": "route",
@@ -8009,62 +7953,6 @@
         "apps/mobile/app/step-up.tsx"
       ],
       "closureSize": 221,
-      "state": "default",
-      "theme": "dark",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-route-streak",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/streak.tsx",
-      "href": "/streak",
-      "ownedFiles": [
-        "apps/mobile/app/streak.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "light",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-route-streak",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/streak.tsx",
-      "href": "/streak",
-      "ownedFiles": [
-        "apps/mobile/app/streak.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "light",
-      "locale": "pt-BR"
-    },
-    {
-      "surfaceId": "m-route-streak",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/streak.tsx",
-      "href": "/streak",
-      "ownedFiles": [
-        "apps/mobile/app/streak.tsx"
-      ],
-      "closureSize": 1,
-      "state": "default",
-      "theme": "dark",
-      "locale": "en"
-    },
-    {
-      "surfaceId": "m-route-streak",
-      "platform": "mobile",
-      "kind": "route",
-      "sourceFile": "apps/mobile/app/streak.tsx",
-      "href": "/streak",
-      "ownedFiles": [
-        "apps/mobile/app/streak.tsx"
-      ],
-      "closureSize": 1,
       "state": "default",
       "theme": "dark",
       "locale": "pt-BR"
@@ -12832,6 +12720,7 @@
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_refresh_icon.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_scrollbar_thumb.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_skeleton_bar.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_skeleton_mark.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_done.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_overdue.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_pending.xml",
@@ -12882,6 +12771,7 @@
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_refresh_icon.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_scrollbar_thumb.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_skeleton_bar.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_skeleton_mark.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_done.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_overdue.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_pending.xml",
@@ -12932,6 +12822,7 @@
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_refresh_icon.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_scrollbar_thumb.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_skeleton_bar.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_skeleton_mark.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_done.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_overdue.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_pending.xml",
@@ -12982,6 +12873,7 @@
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_refresh_icon.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_scrollbar_thumb.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_skeleton_bar.xml",
+        "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_skeleton_mark.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_done.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_overdue.xml",
         "apps/mobile/modules/orbit-widget/android/src/main/res/drawable/widget_status_pending.xml",

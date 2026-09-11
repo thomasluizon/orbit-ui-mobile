@@ -10,10 +10,10 @@ interface StreakBadgeProps {
 }
 
 /**
- * Kit streak entry point — 40px circled button (inset hairline-strong ring,
+ * Kit streak entry point: 40px circled button (inset hairline-strong ring,
  * translucent well) with the 🔥 flame emoji and a tabular count. Frozen state
- * swaps the flame for a snowflake stroked in the second foreground neutral. Tapping navigates
- * to the streak page.
+ * swaps the flame for a snowflake stroked in the second foreground neutral. Tapping opens
+ * the streak section in Progresso.
  */
 export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
   const t = useTranslations()

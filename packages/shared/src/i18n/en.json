@@ -2736,62 +2736,15 @@
     }
   },
   "streakDisplay": {
-    "title": "Streak",
-    "daysSuffix": "day | days",
     "badge": {
       "tooltip": "1 day streak | {count} day streak"
     },
-    "profile": {
-      "currentStreak": "1 day streak | {count} day streak",
-      "encouragement1": "Day one done",
-      "encouragement7": "One week",
-      "encouragement14": "Two weeks",
-      "encouragement30": "A full month",
-      "encouragement100": "Triple digits",
-      "encouragement365": "A whole year"
-    },
-    "freeze": {
-      "title": "Streak freeze",
-      "activeToday": "Freeze active today",
-      "auto": {
-        "explainer": "If you miss a day, the freeze is used automatically to keep your streak alive."
-      },
-      "banked": {
-        "label": "Banked"
-      },
-      "usedThisMonth": {
-        "label": "Used this month"
-      },
-      "nextFreeze": {
-        "label": "Next freeze",
-        "inDays": "in {days} days",
-        "full": "Banked full"
-      },
-      "protected": {
-        "label": "Protected days",
-        "empty": "No freezes used yet.",
-        "today": "Today",
-        "todayValue": "Protected"
-      },
-      "pro": {
-        "gate": "Streak freezes are part of Pro."
-      }
-    },
     "detail": {
-      "title": "Streak Details",
-      "thisWeek": "This Week",
-      "stats": "Stats",
-      "currentStreak": "Current",
-      "longestStreak": "Longest",
       "tierLegendary": "Legendary",
       "tierStrong": "Strong",
       "tierSteady": "Steady",
       "tierNormal": "Normal",
-      "tierTileLabel": "Rank",
-      "dayActive": "Active",
-      "dayFrozen": "Frozen",
-      "dayMissed": "Missed",
-      "daysUnit": "day | days"
+      "tierTileLabel": "Rank"
     }
   },
   "stepUp": {
