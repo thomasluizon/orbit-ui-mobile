@@ -21,14 +21,14 @@ import {
 } from '@orbit/shared/utils/goal-form'
 import type { GoalType } from '@orbit/shared/types/goal'
 import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
-import { FieldWell } from './field-well'
-import { GoalDeadlineField } from './create-goal-modal/goal-deadline-field'
-import { GoalTargetFields } from './create-goal-modal/goal-target-fields'
-import { GoalTypeSelector } from './create-goal-modal/goal-type-selector'
+import { FieldWell } from '@/components/goals/field-well'
+import { GoalDeadlineField } from '@/components/goals/create-goal-modal/goal-deadline-field'
+import { GoalTargetFields } from '@/components/goals/create-goal-modal/goal-target-fields'
+import { GoalTypeSelector } from '@/components/goals/create-goal-modal/goal-type-selector'
 
-interface CreateGoalModalProps {
+interface CreateGoalFromHabitSheetProps {
   open: boolean
-  onOpenChange: (open: boolean) => void
+  onClose: () => void
 }
 
 interface CreateGoalRequest {
@@ -97,7 +97,7 @@ function buildCreateGoalRequest(
   }
 }
 
-export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModalProps>) {
+export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalFromHabitSheetProps>) {
   const t = useTranslations()
   const translate = useCallback(
     (key: string, values?: GoalModalTranslateValues) => t(key, values),
@@ -137,7 +137,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
     onDismiss: () =>
       closeSheet(() => {
         resetForm()
-        onOpenChange(false)
+        onClose()
       }),
   })
 
@@ -194,14 +194,14 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
 
         await createGoal.mutateAsync(request)
         closeSheet(() => {
-          onOpenChange(false)
+          onClose()
           resetForm()
         })
       } catch (error: unknown) {
         showError(getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'))
       }
     },
-    [closeSheet, createGoal, deadline, description, goalType, onOpenChange, resetForm, showError, targetValue, translate, unit],
+    [closeSheet, createGoal, deadline, description, goalType, onClose, resetForm, showError, targetValue, translate, unit],
   )
 
   return (
@@ -209,10 +209,10 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
       {open ? (<Sheet
         ref={sheetRef}
         open
-        onClose={dismissGuard.canDismiss ? () => onOpenChange(false) : undefined}
+        onClose={dismissGuard.canDismiss ? onClose : undefined}
         title={t('goals.create')}
       >
-        <form id="create-goal-form" onSubmit={(e) => void onSubmit(e)} noValidate>
+        <form id="create-goal-from-habit-form" onSubmit={(e) => void onSubmit(e)} noValidate>
           <div style={{ padding: '4px 0 0' }}>
             <FieldWell
               label={t('goals.form.description')}
@@ -230,7 +230,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
             />
           </div>
 
-          <div style={{ padding: '14px 0 0' }}>
+          <div style={{ padding: '12px 0 0' }}>
             <GoalTypeSelector goalType={goalType} onTypeChange={handleTypeChange} />
           </div>
 
@@ -249,7 +249,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
             className="flex items-center"
             style={{
               gap: 12,
-              padding: '18px 0 8px',
+              padding: '16px 0 8px',
             }}
           >
             <PillButton

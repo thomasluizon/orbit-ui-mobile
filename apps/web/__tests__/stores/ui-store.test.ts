@@ -27,7 +27,6 @@ describe('ui store', () => {
       manuallySelectedIds: new Set<string>(),
       lastCreatedHabitId: null,
       showCreateModal: false,
-      showCreateGoalModal: false,
       searchQuery: '',
     })
   })
@@ -437,18 +436,6 @@ describe('ui store', () => {
       expect(useUIStore.getState().showCreateModal).toBe(false)
     })
 
-    it('starts with create goal modal hidden', () => {
-      expect(useUIStore.getState().showCreateGoalModal).toBe(false)
-    })
-
-    it('toggles create goal modal', () => {
-      const { setShowCreateGoalModal } = useUIStore.getState()
-      setShowCreateGoalModal(true)
-      expect(useUIStore.getState().showCreateGoalModal).toBe(true)
-
-      setShowCreateGoalModal(false)
-      expect(useUIStore.getState().showCreateGoalModal).toBe(false)
-    })
   })
 
 
