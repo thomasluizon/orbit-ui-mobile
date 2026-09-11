@@ -95,7 +95,6 @@ describe("mobile ui store", () => {
       manuallySelectedIds: new Set<string>(),
       lastCreatedHabitId: null,
       showCreateModal: false,
-      showCreateGoalModal: false,
       searchQuery: "",
     });
   });

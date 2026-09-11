@@ -16,7 +16,6 @@ import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { PushPrompt } from '@/components/ui/push-prompt'
 import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
-import { CreateGoalModal } from '@/components/goals/create-goal-modal'
 import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onboarding-overlay'
 import { CelebrationPanel } from '@/components/gamification/celebration-panel'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
@@ -123,8 +122,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const activeView = useUIStore((s) => s.activeView)
   const showCreateModal = useUIStore((s) => s.showCreateModal)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
-  const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal)
-  const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
   const astraConversationOpen = useUIStore((s) => s.astraConversationOpen)
   const setAstraConversationOpen = useUIStore((s) => s.setAstraConversationOpen)
   const {
@@ -302,11 +299,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
           }
         />
       )}
-      <CreateGoalModal
-        open={showCreateGoalModal}
-        onOpenChange={setShowCreateGoalModal}
-      />
-
       <ApiFetchI18nProvider />
       <TourProvider />
       <TourOverlay />

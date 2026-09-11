@@ -233,7 +233,6 @@ describe('Hoje date boundaries', () => {
       isSelectMode: false,
       selectedHabitIds: new Set<string>(),
       showCreateModal: false,
-      showCreateGoalModal: false,
     })
     mocks.date.selectedDate = new Date('2026-04-08T00:00:00')
     mocks.date.dateStr = '2026-04-08'

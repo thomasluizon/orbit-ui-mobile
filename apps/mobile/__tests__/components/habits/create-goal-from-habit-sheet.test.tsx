@@ -5,7 +5,7 @@ import {
   parseGoalTargetValue,
 } from '@orbit/shared/utils/goal-form'
 
-describe('CreateGoalModal helpers', () => {
+describe('create goal from habit helpers', () => {
   it('parses numeric target values and rejects invalid input', () => {
     expect(parseGoalTargetValue('10')).toBe(10)
     expect(parseGoalTargetValue(' 10.5 ')).toBe(10.5)
