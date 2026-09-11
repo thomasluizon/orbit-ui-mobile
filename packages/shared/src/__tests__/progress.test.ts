@@ -4,10 +4,11 @@ import type { Goal } from '../types/goal'
 import {
   achievementGlyphKey,
   buildGoalMovePositions,
+  deriveStreakRepairState,
   filterProgressGoals,
-  getStreakRepairGapDates,
   getGoalDeadlinePresentation,
   getGamificationLevelTitleKey,
+  getStreakRepairErrorMessageKey,
   visibleProgressAchievements,
 } from '../utils/progress'
 
@@ -61,36 +62,77 @@ describe('progress surface models', () => {
     ])
   })
 
-  it('derives the complete open gap ending on the account yesterday', () => {
+  it('keeps only a confirmed single-day repair offer with a valid API date', () => {
     const now = new Date('2026-08-28T15:00:00Z')
-    expect(getStreakRepairGapDates({
-      lastActiveDate: '2026-08-25',
-      recentFreezeDates: [],
-      isRepairAvailable: false,
-      repairDate: null,
-    }, now, 'America/Sao_Paulo')).toEqual(['2026-08-26', '2026-08-27'])
-    expect(getStreakRepairGapDates({
-      lastActiveDate: '2026-08-24',
-      recentFreezeDates: ['2026-08-26'],
-      isRepairAvailable: false,
-      repairDate: null,
-    }, now, 'America/Sao_Paulo')).toEqual(['2026-08-27'])
+    expect(deriveStreakRepairState({
+      streak: {
+        currentStreak: 0,
+        longestStreak: 4,
+        lastActiveDate: null,
+        isRepairAvailable: true,
+        repairDate: '2026-08-27',
+      },
+      freezesAvailable: 2,
+      banked: 2,
+      ceiling: 3,
+      now,
+      accountTimeZone: 'America/Sao_Paulo',
+    })).toMatchObject({ dates: ['2026-08-27'], count: 1, canRepair: true, gapUnavailable: false })
+    expect(deriveStreakRepairState({
+      streak: {
+        currentStreak: 0,
+        longestStreak: 4,
+        lastActiveDate: null,
+        isRepairAvailable: true,
+        repairDate: 'not-a-date',
+      },
+      freezesAvailable: 2,
+      banked: 2,
+      ceiling: 3,
+      now,
+      accountTimeZone: 'America/Sao_Paulo',
+    })).toMatchObject({ dates: [], count: 0, canRepair: false })
   })
 
-  it('keeps the confirmed single-day offer and rejects ungrounded gaps', () => {
+  it('leaves a restarted multi-day gap read-only', () => {
     const now = new Date('2026-08-28T15:00:00Z')
-    expect(getStreakRepairGapDates({
-      lastActiveDate: null,
-      recentFreezeDates: [],
-      isRepairAvailable: true,
-      repairDate: '2026-08-27',
-    }, now, 'America/Sao_Paulo')).toEqual(['2026-08-27'])
-    expect(getStreakRepairGapDates({
-      lastActiveDate: null,
-      recentFreezeDates: [],
-      isRepairAvailable: false,
-      repairDate: null,
-    }, now, 'America/Sao_Paulo')).toEqual([])
+    expect(deriveStreakRepairState({
+      streak: {
+        currentStreak: 1,
+        longestStreak: 4,
+        lastActiveDate: '2026-08-28',
+        isRepairAvailable: false,
+        repairDate: null,
+      },
+      freezesAvailable: 2,
+      banked: 2,
+      ceiling: 3,
+      now,
+      accountTimeZone: 'America/Sao_Paulo',
+    })).toMatchObject({ dates: [], count: 0, canRepair: false, showGap: true, gapUnavailable: true })
+  })
+
+  it('does not report a gap without the restart signal', () => {
+    const now = new Date('2026-08-28T15:00:00Z')
+    expect(deriveStreakRepairState({
+      streak: {
+        currentStreak: 4,
+        longestStreak: 9,
+        lastActiveDate: null,
+        isRepairAvailable: false,
+        repairDate: null,
+      },
+      freezesAvailable: 2,
+      banked: 2,
+      ceiling: 3,
+      now,
+      accountTimeZone: 'America/Sao_Paulo',
+    })).toMatchObject({ dates: [], showGap: false, gapUnavailable: false })
+  })
+
+  it('maps streak repair rate limiting separately from other failures', () => {
+    expect(getStreakRepairErrorMessageKey(429)).toBe('progressScreen.streak.repairRateLimited')
+    expect(getStreakRepairErrorMessageKey(500)).toBe('progressScreen.streak.repairError')
   })
 
   it('hides the retired social achievement categories', () => {

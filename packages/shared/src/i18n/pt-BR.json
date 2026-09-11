@@ -2464,6 +2464,7 @@
       "lockedBody": "O Orbit Pro mantém um banco de congelamentos para dias perdidos.",
       "lockedAction": "Ver o Orbit Pro",
       "gapBody": "{count, plural, one {Um dia sem registro.} other {# dias sem registro.}} Os hábitos continuam como estavam.",
+      "gapUnavailable": "Um intervalo encerrou a sequência anterior. Hoje começa uma nova; os hábitos não mudaram.",
       "repairAction": "Usar {count, plural, one {# congelamento} other {# congelamentos}}",
       "repairEmpty": "Não há congelamento guardado. A sequência começa de novo hoje, e o próximo congelamento chega em {count, plural, one {# dia} other {# dias}}.",
       "repairError": "Não foi possível reparar o intervalo. Tente novamente.",

@@ -602,7 +602,7 @@ export {
   filterProgressGoals,
   getProgressGoalLabelKey,
   deriveStreakRepairState,
-  getStreakRepairGapDates,
+  getStreakRepairErrorMessageKey,
   getGoalDeadlinePresentation,
   getGamificationLevelTitleKey,
   PROGRESS_GOAL_FILTERS,

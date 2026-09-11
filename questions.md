@@ -20,14 +20,13 @@ Kept so the same question is not raised twice.
 
 ### Progresso multi-day gap repair (ticket 329)
 
-Settled 2026-09-10 without asking because the condition that created the question expired.
-`thomasluizon/orbit-tickets#442` closed when `orbit-api` pull request 505 merged the atomic
-multi-day repair endpoint to `main` as `b4b2b776` on 2026-09-09.
+Settled 2026-09-10 with the reversible default: render the gap well, state the gap, offer nothing,
+and say nothing false about why. The atomic `POST /api/gamification/streak/repair-gap` write exists,
+but the client cannot derive its scheduled-occurrence payload from calendar dates.
 
-Progresso now sends the complete date set in one call to
-`POST /api/gamification/streak/repair-gap`. The operation is atomic, and a 409 triggers a streak
-read-back because another device may already have completed the repair. The drawing's gap and
-no-freeze variants therefore cover the repair states; no undrawn third variant is needed.
+The one-day action remains available when the server returns `IsRepairAvailable` with `RepairDate`.
+The multi-day action waits on `thomasluizon/orbit-tickets#505`, which adds the server-derived
+`RepairableGapDates` to the streak read before the client offers that action.
 
 ### Habit form picker motion (ticket 409)
 

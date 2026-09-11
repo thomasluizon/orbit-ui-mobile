@@ -559,37 +559,34 @@ describe('mobile ProgressContent', () => {
     dimensions.mockRestore()
   })
 
-  it('dispatches one atomic write for the complete gap', async () => {
+  it('renders a weekly two-occurrence gap without an action after the streak restarts today', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
-    mocks.freeze.streakInfo.currentStreak = 0
-    mocks.freeze.streakInfo.lastActiveDate = '2026-09-07'
-    mocks.goals.data.allGoals = [{
-      id: 'goal-1', title: 'Read 10 books', description: null, targetValue: 10,
-      currentValue: 10, unit: 'books', status: 'Active', deadline: null, position: 0,
-      createdAtUtc: '2026-08-01T00:00:00Z', completedAtUtc: null,
-      progressPercentage: 100, linkedHabits: [],
-    }]
+    mocks.freeze.streakInfo.currentStreak = 1
+    mocks.freeze.streakInfo.longestStreak = 4
+    mocks.freeze.streakInfo.lastActiveDate = '2026-09-10'
     const tree = await renderProgress()
-    const action = findPill(tree.root, 'progressScreen.streak.repairAction:{"count":2}')
+    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
 
-    await TestRenderer.act(() => {
-      ;(action.props.onClick as () => void)()
-    })
-    expect(action.props).toMatchObject({ variant: 'primary', size: 'sm' })
-    expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-08', '2026-09-09'])
+    expect(text).toContain('progressScreen.streak.gapUnavailable')
+    expect(tree.root.findAll((node) => node.type === 'PillButton' && typeof node.props.children === 'string' && node.props.children.startsWith('progressScreen.streak.repairAction'))).toHaveLength(0)
+    expect(mocks.repair.mutate).not.toHaveBeenCalled()
   })
 
-  it('steps the gap repair action down to the neutral small button at wide width', async () => {
+  it('offers the server-confirmed one-day repair as a neutral small button at wide width', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
     const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({ width: 800, height: 892, scale: 1, fontScale: 1 })
     mocks.freeze.streakInfo.currentStreak = 0
-    mocks.freeze.streakInfo.lastActiveDate = '2026-09-07'
+    mocks.freeze.streakInfo.isRepairAvailable = true
+    mocks.freeze.streakInfo.repairDate = '2026-09-09'
 
     const tree = await renderProgress()
+    const action = findPill(tree.root, 'progressScreen.streak.repairAction:{"count":1}')
 
-    expect(findPill(tree.root, 'progressScreen.streak.repairAction:{"count":2}').props).toMatchObject({ variant: 'secondary', size: 'sm' })
+    expect(action.props).toMatchObject({ variant: 'secondary', size: 'sm' })
+    await TestRenderer.act(() => (action.props.onClick as () => void)())
+    expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
     dimensions.mockRestore()
   })
 
@@ -597,7 +594,8 @@ describe('mobile ProgressContent', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
     mocks.freeze.streakInfo.currentStreak = 0
-    mocks.freeze.streakInfo.lastActiveDate = '2026-09-07'
+    mocks.freeze.streakInfo.isRepairAvailable = true
+    mocks.freeze.streakInfo.repairDate = '2026-09-09'
     mocks.freeze.streakInfo.streakFreezesAccumulated = 0
     mocks.freeze.freezesAvailable = 0
     mocks.freeze.streakFreezesAccumulated = 0
@@ -605,9 +603,9 @@ describe('mobile ProgressContent', () => {
     const tree = await renderProgress()
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
 
-    expect(text).toContain('progressScreen.streak.gapBody:{"count":2}')
+    expect(text).toContain('progressScreen.streak.gapBody:{"count":1}')
     expect(text).toContain('progressScreen.streak.repairEmpty:{"count":3}')
-    expect(tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.streak.repairAction:{"count":2}')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.streak.repairAction:{"count":1}')).toHaveLength(0)
   })
 
   it('shows the neutral bank limit and no next-freeze row', async () => {
@@ -628,7 +626,8 @@ describe('mobile ProgressContent', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
     mocks.freeze.streakInfo.currentStreak = 0
-    mocks.freeze.streakInfo.lastActiveDate = '2026-09-07'
+    mocks.freeze.streakInfo.isRepairAvailable = true
+    mocks.freeze.streakInfo.repairDate = '2026-09-09'
     mocks.repair.isError = true
     mocks.repair.error = { status }
 
@@ -644,7 +643,8 @@ describe('mobile ProgressContent', () => {
     vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
     theme.mode = mode
     mocks.freeze.streakInfo.currentStreak = 0
-    mocks.freeze.streakInfo.lastActiveDate = '2026-09-07'
+    mocks.freeze.streakInfo.isRepairAvailable = true
+    mocks.freeze.streakInfo.repairDate = '2026-09-09'
     mocks.repair.isError = true
     mocks.repair.error = { status: 500 }
 

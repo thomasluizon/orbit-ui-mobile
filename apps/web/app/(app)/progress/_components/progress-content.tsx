@@ -27,6 +27,7 @@ import {
   getBestRetrospectiveWeekdayKey,
   getProgressGoalLabelKey,
   getGamificationLevelTitleKey,
+  getStreakRepairErrorMessageKey,
   getStreakTierLabelKey,
   deriveProgressViewState,
   visibleProgressAchievements,
@@ -168,13 +169,20 @@ function StreakRepairPanel({
 }>) {
   const t = useTranslations()
   const repairStatus = extractBackendStatus(repair.error)
+  if (state.gapUnavailable) {
+    return (
+      <div className="flex flex-col items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-4">
+        <p className="text-[16px] leading-6 text-[var(--fg-1)]">{t('progressScreen.streak.gapUnavailable')}</p>
+      </div>
+    )
+  }
   if (state.showGap) {
     return (
       <div className="flex flex-col items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-4">
         <p className="text-[16px] leading-6 text-[var(--fg-1)]">{t('progressScreen.streak.gapBody', { count: state.count })}</p>
         {state.canRepair ? <PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" loading={repair.isPending} onClick={() => repair.mutate(state.dates)}>{t('progressScreen.streak.repairAction', { count: state.count })}</PillButton> : null}
         {!state.canRepair ? <p className="text-[14px] leading-5 text-[var(--fg-2)]">{t('progressScreen.streak.repairEmpty', { count: daysUntilNextFreeze })}</p> : null}
-        {repair.isError && repairStatus !== 409 ? <p role="alert" className="text-[14px] text-[var(--fg-2)]">{t(repairStatus === 429 ? 'progressScreen.streak.repairRateLimited' : 'progressScreen.streak.repairError')}</p> : null}
+        {repair.isError && repairStatus !== 409 ? <p role="alert" className="text-[14px] text-[var(--fg-2)]">{t(getStreakRepairErrorMessageKey(repairStatus))}</p> : null}
       </div>
     )
   }

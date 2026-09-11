@@ -1,5 +1,4 @@
 import {
-  addDays,
   differenceInCalendarDays,
   format,
   isValid,
@@ -140,51 +139,28 @@ export function getGamificationLevelTitleKey(level: number): string {
   return `progressScreen.achievements.levelTitles.${GAMIFICATION_LEVEL_TITLE_KEYS[index]}`
 }
 
-type StreakRepairSource = Pick<StreakInfo, 'isRepairAvailable' | 'lastActiveDate' | 'recentFreezeDates' | 'repairDate'>
+type StreakRepairSource = Pick<StreakInfo, 'currentStreak' | 'isRepairAvailable' | 'lastActiveDate' | 'longestStreak' | 'repairDate'>
 
 export type StreakRepairState = {
   dates: string[]
   count: number
   canRepair: boolean
   showGap: boolean
+  gapUnavailable: boolean
   bankFull: boolean
 }
 
-const MAX_STREAK_REPAIR_LOOKBACK_DAYS = 365
+export function getStreakRepairErrorMessageKey(status: number | undefined):
+  'progressScreen.streak.repairError' | 'progressScreen.streak.repairRateLimited' {
+  return status === 429
+    ? 'progressScreen.streak.repairRateLimited'
+    : 'progressScreen.streak.repairError'
+}
 
 function isApiDate(value: string | null | undefined): value is string {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const parsed = startOfDay(parseISO(value))
   return isValid(parsed) && format(parsed, 'yyyy-MM-dd') === value
-}
-
-/** Dates the current streak snapshot establishes as the open calendar gap ending yesterday. */
-export function getStreakRepairGapDates(
-  streak: StreakRepairSource,
-  now = nowDate(),
-  accountTimeZone?: string | null,
-): string[] {
-  if (streak.isRepairAvailable === true && isApiDate(streak.repairDate)) {
-    return [streak.repairDate]
-  }
-
-  const accountToday = getAccountToday(accountTimeZone, now)
-  const protectedDates = [streak.lastActiveDate, ...streak.recentFreezeDates]
-    .filter(isApiDate)
-    .filter((date) => date < accountToday)
-    .sort((left, right) => left.localeCompare(right))
-  const lastProtectedDate = protectedDates.at(-1)
-  if (!lastProtectedDate) return []
-
-  const openDays = differenceInCalendarDays(
-    addDays(startOfDay(parseISO(accountToday)), -1),
-    startOfDay(parseISO(lastProtectedDate)),
-  )
-  if (openDays < 1 || openDays > MAX_STREAK_REPAIR_LOOKBACK_DAYS) return []
-
-  const boundary = startOfDay(parseISO(lastProtectedDate))
-  return Array.from({ length: openDays }, (_, index) =>
-    format(addDays(boundary, index + 1), 'yyyy-MM-dd'))
 }
 
 export function deriveStreakRepairState({
@@ -202,14 +178,22 @@ export function deriveStreakRepairState({
   now?: Date
   accountTimeZone?: string | null
 }): StreakRepairState {
-  const dates = streak ? getStreakRepairGapDates(streak, now, accountTimeZone) : []
+  const dates = streak?.isRepairAvailable === true && isApiDate(streak.repairDate)
+    ? [streak.repairDate]
+    : []
   const count = dates.length
   const canRepair = count > 0 && freezesAvailable >= count
+  // WHY: https://github.com/thomasluizon/orbit-tickets/issues/505 will add server-derived multi-day gap dates.
+  const gapUnavailable = count === 0
+    && streak?.currentStreak === 1
+    && streak.longestStreak > 1
+    && streak.lastActiveDate === getAccountToday(accountTimeZone, now)
   return {
     dates,
     count,
     canRepair,
-    showGap: count > 0 && (canRepair || banked === 0),
+    showGap: gapUnavailable || (count > 0 && (canRepair || banked === 0)),
+    gapUnavailable,
     bankFull: banked >= ceiling,
   }
 }
