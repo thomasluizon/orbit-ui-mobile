@@ -24,7 +24,7 @@ describe('buildCalendarMonthModel', () => {
     const dayMap = sampleMonth()
     dayMap.set(key(new Date(2026, 4, 31)), [entry('completed')])
 
-    expect(buildCalendarMonthModel(june, dayMap).monthStats).toEqual({
+    expect(buildCalendarMonthModel(june, dayMap, 1).monthStats).toEqual({
       totalLogs: 5,
       missed: 1,
       bestStreak: 2,

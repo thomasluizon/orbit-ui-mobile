@@ -79,6 +79,10 @@ export function isAfter(left: Date | number | string, right: Date | number | str
   return toDate(left).getTime() > toDate(right).getTime()
 }
 
+export function isBefore(left: Date | number | string, right: Date | number | string): boolean {
+  return toDate(left).getTime() < toDate(right).getTime()
+}
+
 export function addMonths(dateInput: Date | number | string, amount: number): Date {
   const date = toDate(dateInput)
   const result = new Date(date)

@@ -66,7 +66,7 @@ export function HabitUnderstanding({
           />
         </div>
         {error ? (
-          <p id="habit-phrase-error" role="alert" className="text-sm text-[var(--status-bad)]">
+          <p id="habit-phrase-error" role="alert" className="text-sm text-[var(--status-bad-text)]">
             {error}
           </p>
         ) : null}

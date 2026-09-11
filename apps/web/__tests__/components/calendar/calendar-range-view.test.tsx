@@ -60,6 +60,7 @@ function renderRange({ isClamped = false, isAwaitingEnd = false }: RenderOverrid
       nowLabel="Now"
       showRecurring
       onShowRecurringChange={vi.fn()}
+      weekStartsOn={1}
     />,
   )
 }

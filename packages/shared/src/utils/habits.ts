@@ -37,12 +37,14 @@ export function buildCalendarDayMap(
   for (const [habitId, habitLogs] of Object.entries(calendarMonth.logs)) {
     const dateSet = new Set<string>()
     for (const log of habitLogs) {
-      dateSet.add(log.date)
+      if (log.value > 0) dateSet.add(log.date)
     }
     logsByHabit.set(habitId, dateSet)
   }
 
   for (const habit of calendarMonth.habits) {
+    if (habit.isGeneral) continue
+
     const instanceDates =
       Array.isArray(habit.instances) && habit.instances.length > 0
         ? habit.instances.map((instance) => instance.date)

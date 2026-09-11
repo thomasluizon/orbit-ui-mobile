@@ -7,11 +7,8 @@ const words: DayCellWords = {
   partial: 'partial',
   full: 'done',
   notScheduled: 'not scheduled',
-  unavailable: 'unavailable',
-  future: 'future',
   of: 'of',
   today: 'today',
-  selected: 'selected',
   readOnly: 'read only',
 }
 
@@ -20,24 +17,21 @@ function readOnlyCell(overrides: Partial<ReadOnlyDayCellProps> = {}): ReadOnlyDa
 }
 
 describe('date surface outcomes', () => {
-  it('keeps unavailable history ahead of completion-derived outcomes', () => {
-    const props = readOnlyCell({ outcome: 'unavailable', done: 1, scheduled: 1 })
-    const outcome = resolveDayCellOutcome(props)
-
-    expect(outcome).toBe('unavailable')
-    expect(buildDayCellAccessibleName(readOnlyCell({ outcome }), outcome)).toBe(
-      'August 27, unavailable, read only',
-    )
+  it.each([
+    [0, 0, 'not-scheduled'],
+    [0, 2, 'none'],
+    [1, 2, 'partial'],
+    [2, 2, 'full'],
+  ] as const)('derives %s of %s as %s', (done, scheduled, expected) => {
+    expect(resolveDayCellOutcome(readOnlyCell({ done, scheduled }))).toBe(expected)
   })
 
-  it('falls back to the not-scheduled wording when unavailable copy is absent', () => {
-    const props = readOnlyCell({
-      outcome: 'unavailable',
-      words: { ...words, unavailable: undefined },
-    })
+  it('announces the derived outcome and exact raw counts', () => {
+    const props = readOnlyCell({ done: 1, scheduled: 3 })
+    const outcome = resolveDayCellOutcome(props)
 
-    expect(buildDayCellAccessibleName(props, 'unavailable')).toBe(
-      'August 27, not scheduled, read only',
+    expect(buildDayCellAccessibleName(props, outcome)).toBe(
+      'August 27, partial 1 of 3, read only',
     )
   })
 })

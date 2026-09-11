@@ -113,6 +113,7 @@ describe('web theme variables', () => {
           '--status-frozen': 'var(--fg-2)',
           '--status-overdue': status.overdue,
           '--status-bad': status.bad,
+          '--status-bad-text': status.badText,
           '--fg-on-bad': status.fgOnBad,
           '--fg-on-overdue': status.fgOnOverdue,
           '--scrim': neutral.scrim,

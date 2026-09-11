@@ -38,7 +38,7 @@ export interface CalendarMonthModel {
 export function buildCalendarMonthModel(
   currentMonth: Date,
   dayMap: Map<string, CalendarDayEntry[]>,
-  weekStartsOn: 0 | 1 = 1,
+  weekStartsOn: 0 | 1,
 ): CalendarMonthModel {
   const gridDays = buildMonthGridDays(currentMonth, dayMap, weekStartsOn)
   const monthDays = gridDays.filter((day) => day.isCurrentMonth)
