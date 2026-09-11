@@ -21,7 +21,7 @@ export function DayStrip(props: Readonly<DayStripProps>) {
         const cellLabel = labels?.[index] ?? String(firstIndex + index + 1)
         const filled = state === 'done' || state === 'active'
         const backgroundColor = filled ? tokens.fg1 : state === 'frozen' ? tokens.statusFrozen : state === 'not-scheduled' ? tokens.bgWell : 'transparent'
-        const borderColor = state === 'today' ? tokens.primary : state === 'missed' ? tokens.fg4 : 'transparent'
+        const borderColor = state === 'today' ? tokens.primary : state === 'missed' ? tokens.statusEmpty : 'transparent'
         return (
           <View
             key={`${cellLabel}-${index}`}

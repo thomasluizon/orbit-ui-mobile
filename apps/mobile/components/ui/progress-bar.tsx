@@ -42,7 +42,7 @@ export function ProgressBar({ value = 0, max = 100, label }: Readonly<ProgressBa
       accessibilityRole="progressbar"
       accessibilityLabel={label}
       accessibilityValue={{ min: 0, max: safeMax, now: clampedValue }}
-      style={[styles.track, { backgroundColor: tokens.fg4 }]}
+      style={[styles.track, { backgroundColor: tokens.trackEmpty }]}
       testID={complete ? 'progress-bar-complete' : 'progress-bar-unfinished'}
     >
       <Animated.View

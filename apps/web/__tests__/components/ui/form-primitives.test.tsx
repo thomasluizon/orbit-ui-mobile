@@ -127,6 +127,7 @@ describe('form primitives on web', () => {
     render(<Switch label="Reminders" checked={false} onChange={onChange} />)
     const control = screen.getByRole('switch', { name: 'Reminders' })
     expect(control).toHaveAttribute('aria-checked', 'false')
+    expect(control.firstElementChild).toHaveStyle({ background: 'var(--track-empty)' })
     fireEvent.click(control)
     expect(onChange).toHaveBeenCalledWith(true)
   })

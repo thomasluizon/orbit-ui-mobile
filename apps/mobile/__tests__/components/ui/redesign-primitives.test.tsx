@@ -88,6 +88,7 @@ describe('redesign primitives on mobile', () => {
 
   it('draws unfinished ring progress in accent and completion in neutral', () => {
     const tree = render(<ProgressRing value={40} label="Progress" />)
+    expect(prop(byType(tree.root, 'Circle')[0]!, 'stroke')).toBe(tokens.trackEmpty)
     expect(prop(byType(tree.root, 'Circle')[1]!, 'stroke')).toBe(tokens.primary)
 
     void act(() => {

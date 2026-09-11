@@ -4,7 +4,7 @@ import type { StatusRingProps } from '@orbit/shared/contracts/lists'
 import { Check } from '@/components/ui/icons'
 
 const STATUS_COLOR: Record<NonNullable<StatusRingProps['status']>, string> = {
-  empty: 'var(--fg-4)',
+  empty: 'var(--status-empty)',
   done: 'var(--fg-1)',
   overdue: 'var(--status-overdue)',
   bad: 'var(--status-bad)',

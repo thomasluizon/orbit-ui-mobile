@@ -63,6 +63,7 @@ type ExpectedDayCellBase = {
   size?: number
   today?: boolean
   selected?: boolean
+  selectionTintedByParent?: boolean
   outsideMonth?: boolean
   label?: string
   habitHistory?: boolean

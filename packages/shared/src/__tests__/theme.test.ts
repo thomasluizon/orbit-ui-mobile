@@ -33,6 +33,53 @@ const GRANTED_ACCENTS = {
   },
 } as const
 
+const EMPTY_TRACK_SURFACES = {
+  dark: [
+    { name: 'canvas', layers: [neutralColors.dark.bg] },
+    { name: 'card', layers: [neutralColors.dark.bg, neutralColors.dark.bgCard] },
+    { name: 'well or overlay', layers: [neutralColors.dark.bg, neutralColors.dark.bgWell] },
+    { name: 'card replacement hover', layers: [neutralColors.dark.bg, neutralColors.dark.bgHover] },
+    { name: 'card child hover', layers: [neutralColors.dark.bg, neutralColors.dark.bgCard, neutralColors.dark.bgHover] },
+    {
+      name: 'canvas selection',
+      layers: [
+        neutralColors.dark.bg,
+        withAlpha(schemes.orange.accent.dark.primary, selectionAlpha.dark),
+      ],
+    },
+    {
+      name: 'card selection',
+      layers: [
+        neutralColors.dark.bg,
+        neutralColors.dark.bgCard,
+        withAlpha(schemes.orange.accent.dark.primary, selectionAlpha.dark),
+      ],
+    },
+  ],
+  light: [
+    { name: 'canvas', layers: [neutralColors.light.bg] },
+    { name: 'card or overlay', layers: [neutralColors.light.bg, neutralColors.light.bgCard] },
+    { name: 'well', layers: [neutralColors.light.bg, neutralColors.light.bgWell] },
+    { name: 'card replacement hover', layers: [neutralColors.light.bg, neutralColors.light.bgHover] },
+    { name: 'card child hover', layers: [neutralColors.light.bg, neutralColors.light.bgCard, neutralColors.light.bgHover] },
+    {
+      name: 'canvas selection',
+      layers: [
+        neutralColors.light.bg,
+        withAlpha(schemes.orange.accent.light.primary, selectionAlpha.light),
+      ],
+    },
+    {
+      name: 'card selection',
+      layers: [
+        neutralColors.light.bg,
+        neutralColors.light.bgCard,
+        withAlpha(schemes.orange.accent.light.primary, selectionAlpha.light),
+      ],
+    },
+  ],
+} as const
+
 describe('color schemes', () => {
   it('keeps all 6 contract values during the API overlap', () => {
     expect(Object.keys(schemes)).toHaveLength(6)
@@ -67,6 +114,7 @@ describe('byte-exact mode colors', () => {
       fg2: '#C9C9CC',
       fg3: '#8F8F93',
       fg4: '#5D5D60',
+      trackEmpty: '#7A7A7D',
       scrim: 'rgba(0,0,0,0.55)',
     })
   })
@@ -89,6 +137,7 @@ describe('byte-exact mode colors', () => {
       fg2: '#424247',
       fg3: '#68686D',
       fg4: '#89898D',
+      trackEmpty: '#7F7F83',
       scrim: 'rgba(0,0,0,0.55)',
     })
   })
@@ -118,6 +167,26 @@ describe('byte-exact mode colors', () => {
     expect(contrastOnSurface(statusConstants.light.overdueText, layers))
       .toBeGreaterThanOrEqual(4.5)
   })
+
+  for (const mode of ['dark', 'light'] as const) {
+    for (const surface of EMPTY_TRACK_SURFACES[mode]) {
+      it(`keeps the ${mode} empty track at the non-text floor on ${surface.name}`, () => {
+        expect(contrastOnSurface(neutralColors[mode].trackEmpty, surface.layers))
+          .toBeGreaterThanOrEqual(3)
+      })
+    }
+
+    it(`keeps the ${mode} card neutral ramp ordered around the empty track`, () => {
+      const colors = neutralColors[mode]
+      const card = [colors.bg, colors.bgCard]
+      const ratios = [colors.fg1, colors.fg2, colors.fg3, colors.trackEmpty, colors.fg4]
+        .map((color) => contrastOnSurface(color, card))
+
+      for (let index = 1; index < ratios.length; index += 1) {
+        expect(ratios[index - 1]).toBeGreaterThan(ratios[index]!)
+      }
+    })
+  }
 })
 
 describe('type roles', () => {

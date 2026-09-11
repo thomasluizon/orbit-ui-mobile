@@ -20,6 +20,8 @@ interface DayCellBase {
   size?: number
   today?: boolean
   selected?: boolean
+  /** The parent already paints the selection tint; the cell still paints its selected ring. */
+  selectionTintedByParent?: boolean
   outsideMonth?: boolean
   label?: string
   habitHistory?: boolean

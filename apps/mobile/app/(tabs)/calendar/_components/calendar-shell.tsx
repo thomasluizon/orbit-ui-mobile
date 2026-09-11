@@ -162,7 +162,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       height: 12,
       borderRadius: 999,
       borderWidth: 2,
-      borderColor: tokens.fg4,
+      borderColor: tokens.statusEmpty,
     },
     legendLabel: {
       fontFamily: 'Geist_400Regular',
@@ -353,7 +353,7 @@ export function CalendarLegend({
       </View>
       <View style={styles.legendItem}>
         <Svg testID="calendar-legend-partial" width={12} height={12}>
-          <Circle cx={6} cy={6} r={5} fill="none" stroke={tokens.fg4} strokeWidth={2} />
+          <Circle cx={6} cy={6} r={5} fill="none" stroke={tokens.statusEmpty} strokeWidth={2} />
           <Circle cx={6} cy={6} r={5} fill="none" stroke={tokens.primary} strokeDasharray={[Math.PI * 5, Math.PI * 10]} strokeLinecap="round" strokeWidth={2} rotation={-90} origin="6, 6" />
         </Svg>
         <Text style={styles.legendLabel}>{partialLabel}</Text>

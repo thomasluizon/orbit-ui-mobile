@@ -96,6 +96,7 @@ export function CalendarGrid({
               scheduled: cell.totalCount,
               today: cell.isToday,
               selected,
+              selectionTintedByParent: inRange,
               outsideMonth: !cell.isCurrentMonth,
               outcome,
               label: displayWeekdayDate(cell.date, true),
