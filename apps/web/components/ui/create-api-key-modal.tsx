@@ -239,7 +239,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            color: 'var(--status-bad)',
+            color: 'var(--status-bad-text)',
           }}
         >
           {validationError}
@@ -359,7 +359,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            color: 'var(--status-bad)',
+            color: 'var(--status-bad-text)',
           }}
         >
           {apiError}

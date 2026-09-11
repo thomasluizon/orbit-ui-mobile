@@ -236,7 +236,7 @@ export function PushNotificationSection({
   const accentStatusColor =
     pushStatusPresentation.tone === 'accent' ? tokens.primarySoft : tokens.fg3
   const pushStatusColor =
-    pushStatusPresentation.tone === 'critical' ? tokens.statusBad : accentStatusColor
+    pushStatusPresentation.tone === 'critical' ? tokens.statusBadText : accentStatusColor
   const content = pushSupported ? (
     <SupportedPushContent
       tokens={tokens}
