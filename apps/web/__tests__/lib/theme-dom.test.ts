@@ -104,6 +104,7 @@ describe('web theme variables', () => {
           '--primary-hover': accent.primaryHover,
           '--primary-pressed': accent.primaryPressed,
           '--primary-soft': accent.primarySoft,
+          '--primary-text': accent.primaryText,
           '--primary-dim': accent.primaryDim,
           '--primary-rgb': accent.primaryRgb,
           '--fg-on-primary': '#FFFFFF',
