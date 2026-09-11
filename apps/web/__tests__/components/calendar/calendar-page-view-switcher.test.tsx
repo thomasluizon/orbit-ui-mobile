@@ -59,6 +59,13 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => profileQueryState,
 }))
 
+vi.mock('@/app/(app)/today-provider', () => ({
+  useToday: () => {
+    const today = new Date()
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  },
+}))
+
 vi.mock('@/components/ui/section-label', () => ({
   SectionLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))

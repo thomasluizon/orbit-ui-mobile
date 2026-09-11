@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import {
   buildCalendarMonthModel,
   buildDayCellAccessibleName,
-  formatAPIDate,
+  isCalendarDayLoggable,
   resolveDayCellOutcome,
   type CalendarMonthDay,
 } from '@orbit/shared/utils'
@@ -24,6 +24,8 @@ interface CalendarGridProps {
   rangeEnd?: string | null
   isLoading?: boolean
   weekStartsOn: 0 | 1
+  todayKey: string
+  interaction?: 'write-window' | 'range-picker'
 }
 
 function isInRange(dateStr: string, rangeStart: string | null, rangeEnd: string | null): boolean {
@@ -45,16 +47,19 @@ interface CalendarGridDayProps {
   futureWord: string
   selectedWord: string
   label: string
+  interaction: 'write-window' | 'range-picker'
+  todayKey: string
 }
 
-function CalendarDayVisual({ cell, dayCell, future }: Readonly<{
+type CalendarFutureDayProps = {
+  accessibleName: string
   cell: CalendarMonthDay
-  dayCell: ReadOnlyDayCellProps
-  future: boolean
-}>) {
-  if (!future || !cell.isCurrentMonth) return <DayCell {...dayCell} />
+}
+
+function CalendarFutureNumeral({ cell }: Readonly<Pick<CalendarFutureDayProps, 'cell'>>) {
   return (
     <span
+      aria-hidden="true"
       style={{
         color: 'var(--fg-2)',
         fontFamily: 'var(--font-mono)',
@@ -67,63 +72,64 @@ function CalendarDayVisual({ cell, dayCell, future }: Readonly<{
   )
 }
 
-function CalendarDayButton({
-  accessibleName,
-  cell,
-  onSelectDay,
-  selected,
-  selectedWord,
-}: Readonly<{
-  accessibleName: string
-  cell: CalendarMonthDay
-  onSelectDay: (dateStr: string) => void
-  selected: boolean
-  selectedWord: string
-}>) {
-  if (!cell.isCurrentMonth) return null
-  const label = selected ? `${accessibleName}, ${selectedWord}` : accessibleName
+function CalendarFutureDay(props: Readonly<CalendarFutureDayProps>) {
   return (
-    <button
-      type="button"
-      aria-current={cell.isToday ? 'date' : undefined}
-      aria-label={label}
-      aria-pressed={selected}
-      data-calendar-date={cell.dateStr}
-      onClick={() => onSelectDay(cell.dateStr)}
-      className="absolute inset-0 rounded-full border-0 bg-transparent p-0 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
-    />
+    <span role="img" aria-label={props.accessibleName} className="inline-flex size-11 items-center justify-center">
+      <CalendarFutureNumeral cell={props.cell} />
+    </span>
   )
 }
 
-function CalendarDayContent({
+function calendarDayBackground(selected: boolean, inRange: boolean, raised: boolean): string {
+  if (selected || inRange) return 'var(--selection-bg)'
+  return raised ? 'var(--bg-well)' : 'transparent'
+}
+
+function CalendarGridDayBody({
   accessibleName,
   cell,
   dayCell,
   future,
+  isLoading,
   onSelectDay,
   selected,
-  selectedWord,
+  today,
 }: Readonly<{
   accessibleName: string
   cell: CalendarMonthDay
   dayCell: ReadOnlyDayCellProps
   future: boolean
+  isLoading: boolean
   onSelectDay: (dateStr: string) => void
   selected: boolean
-  selectedWord: string
+  today: boolean
 }>) {
+  if (isLoading) {
+    return (
+      <span
+        aria-hidden="true"
+        data-testid="calendar-day-skeleton"
+        style={{ display: 'block', width: 44, height: 44, borderRadius: 999, background: 'var(--bg-well)', opacity: cell.isCurrentMonth ? 1 : 0 }}
+      />
+    )
+  }
+  const contents = future && cell.isCurrentMonth
+    ? <CalendarFutureDay accessibleName={accessibleName} cell={cell} />
+    : <DayCell {...dayCell} />
   return (
     <>
-      <span aria-hidden="true">
-        <CalendarDayVisual cell={cell} dayCell={dayCell} future={future} />
-      </span>
-      <CalendarDayButton
-        accessibleName={accessibleName}
-        cell={cell}
-        onSelectDay={onSelectDay}
-        selected={selected}
-        selectedWord={selectedWord}
-      />
+      <span aria-hidden="true">{contents}</span>
+      {cell.isCurrentMonth ? (
+        <button
+          type="button"
+          aria-current={today ? 'date' : undefined}
+          aria-label={accessibleName}
+          aria-pressed={selected}
+          data-testid={`calendar-day-select-${cell.dateStr}`}
+          onClick={() => onSelectDay(cell.dateStr)}
+          className="absolute inset-0 rounded-full border-0 bg-transparent p-0 cursor-pointer transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+        />
+      ) : null}
     </>
   )
 }
@@ -140,23 +146,33 @@ function CalendarGridDay({
   futureWord,
   selectedWord,
   label,
+  interaction,
+  todayKey,
 }: Readonly<CalendarGridDayProps>) {
-  const dayCell: ReadOnlyDayCellProps = {
+  const writable = interaction === 'write-window'
+    && cell.isCurrentMonth
+    && isCalendarDayLoggable(cell.dateStr, todayKey)
+  const today = cell.dateStr === todayKey
+  const selectedLabel = selected ? `${label}, ${selectedWord}` : label
+  const dayCellBase = {
     day: cell.day,
     done: cell.completedCount,
     scheduled: cell.totalCount,
-    today: cell.isToday,
+    today,
     outsideMonth: !cell.isCurrentMonth,
-    label,
+    label: selectedLabel,
     words,
   }
+  const dayCell: ReadOnlyDayCellProps = dayCellBase
   const resolvedOutcome = resolveDayCellOutcome(dayCell)
   const accessibleName = future
-    ? `${dayCell.label}, ${futureWord}`
-    : buildDayCellAccessibleName(dayCell, resolvedOutcome, false)
+    ? `${selectedLabel}, ${futureWord}`
+    : buildDayCellAccessibleName(dayCell, resolvedOutcome, !writable)
+  const raised = writable
 
   return (
     <span
+      data-calendar-date={cell.dateStr}
       data-in-range={inRange ? 'true' : undefined}
       data-selected={selected ? 'true' : undefined}
       data-tour={isFirst ? 'tour-calendar-day' : undefined}
@@ -167,27 +183,20 @@ function CalendarGridDay({
         width: 44,
         height: 44,
         borderRadius: 999,
-        background: selected || inRange ? 'var(--selection-bg)' : 'transparent',
+        background: calendarDayBackground(selected, inRange, raised),
         boxShadow: selected ? 'inset 0 0 0 2px var(--primary)' : 'none',
       }}
     >
-      {isLoading ? (
-        <span
-          aria-hidden="true"
-          data-testid="calendar-day-skeleton"
-          style={{ display: 'block', width: 44, height: 44, borderRadius: 999, background: 'var(--bg-well)', opacity: cell.isCurrentMonth ? 1 : 0 }}
-        />
-      ) : (
-        <CalendarDayContent
-          accessibleName={accessibleName}
-          cell={cell}
-          dayCell={dayCell}
-          future={future}
-          onSelectDay={onSelectDay}
-          selected={selected}
-          selectedWord={selectedWord}
-        />
-      )}
+      <CalendarGridDayBody
+        accessibleName={accessibleName}
+        cell={cell}
+        dayCell={dayCell}
+        future={future}
+        isLoading={isLoading}
+        onSelectDay={onSelectDay}
+        selected={selected}
+        today={today}
+      />
     </span>
   )
 }
@@ -201,10 +210,11 @@ export function CalendarGrid({
   rangeEnd = null,
   isLoading = false,
   weekStartsOn,
+  todayKey,
+  interaction = 'write-window',
 }: Readonly<CalendarGridProps>) {
   const t = useTranslations()
   const { displayWeekdayDate, displayMonthYear } = useDateFormat()
-  const todayKey = formatAPIDate(new Date())
 
   const weekdayLabels = useMemo(() => {
     const mondayFirst = [
@@ -260,6 +270,8 @@ export function CalendarGrid({
                 futureWord={t('calendar.dayCell.future')}
                 selectedWord={t('calendar.dayCell.selected')}
                 label={displayWeekdayDate(cell.date, true)}
+                interaction={interaction}
+                todayKey={todayKey}
               />
             )
           })}

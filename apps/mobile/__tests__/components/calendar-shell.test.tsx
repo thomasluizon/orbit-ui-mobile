@@ -264,7 +264,7 @@ describe("CalendarLegend (mobile)", () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(
         <CalendarLegend
-          todayLabel="Today"
+          loggableLabel="Can log"
           fullLabel="All done"
           partialLabel="Partial"
           noneLabel="None logged"
@@ -275,7 +275,7 @@ describe("CalendarLegend (mobile)", () => {
 
     const texts = hostTextValues(tree!);
     expect(texts).toEqual(
-      expect.arrayContaining(["Today", "All done", "Partial", "None logged"]),
+      expect.arrayContaining(["Can log", "All done", "Partial", "None logged"]),
     );
     expect(tree!.root.findAll((node) => node.type === "View" && node.props.testID === "calendar-legend-full")).toHaveLength(1);
     expect(tree!.root.findAll((node) => node.type === "Svg" && node.props.testID === "calendar-legend-partial")).toHaveLength(1);
@@ -292,6 +292,14 @@ describe("CalendarLegend (mobile)", () => {
       (node) => node.type === "View" && node.props.testID === "calendar-legend-none",
     )[0];
     expect(StyleSheet.flatten(noneMark?.props.style).borderColor).toBe(tokens.statusEmpty);
+    const loggableMark = tree!.root.findAll(
+      (node) => node.type === "View" && node.props.testID === "calendar-legend-loggable",
+    )[0];
+    expect(StyleSheet.flatten(loggableMark?.props.style)).toMatchObject({
+      backgroundColor: tokens.bgWell,
+      borderColor: tokens.hairline,
+      borderWidth: 1,
+    });
   });
 });
 

@@ -463,6 +463,7 @@ export {
   canNavigateToNextDay,
   getDayOffset,
   getTodayBoundary,
+  isCalendarDayLoggable,
   type TodayBoundary,
 } from './today-date'
 export type {

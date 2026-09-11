@@ -84,14 +84,14 @@ describe('Calendar shell helpers', () => {
   it('renders the calendar legend labels inline', () => {
     render(
       <CalendarLegend
-        todayLabel="Today"
+        loggableLabel="Can log"
         fullLabel="All done"
         partialLabel="Partial"
         noneLabel="None logged"
       />,
     )
 
-    expect(screen.getByText('Today')).toBeInTheDocument()
+    expect(screen.getByText('Can log')).toBeInTheDocument()
     expect(screen.getByText('All done')).toBeInTheDocument()
     expect(screen.getByText('Partial')).toBeInTheDocument()
     expect(screen.getByText('None logged')).toBeInTheDocument()
@@ -99,5 +99,9 @@ describe('Calendar shell helpers', () => {
     expect(document.querySelector('[data-legend-outcome="partial"] circle:first-child')).toHaveAttribute('stroke', 'var(--status-empty)')
     expect(document.querySelector('[data-legend-outcome="partial"] circle:nth-child(2)')).toHaveAttribute('stroke', 'var(--primary)')
     expect(document.querySelector('[data-legend-outcome="none"]')).toHaveStyle({ boxShadow: 'inset 0 0 0 2px var(--status-empty)' })
+    expect(document.querySelector('[data-legend-outcome="loggable"]')).toHaveStyle({
+      background: 'var(--bg-well)',
+      boxShadow: 'inset 0 0 0 1px var(--hairline)',
+    })
   })
 })

@@ -39,6 +39,7 @@ interface CalendarRangeViewProps {
   showRecurringLabel: string;
   t: TFunction;
   tokens: Tokens;
+  todayKey: string;
 }
 
 /** Interval view: a mini-calendar to pick a contiguous range (capped at the
@@ -69,6 +70,7 @@ export function CalendarRangeView({
   showRecurringLabel,
   t,
   tokens,
+  todayKey,
 }: Readonly<CalendarRangeViewProps>) {
   const clampedHint = isClamped ? clampedNotice : hint;
   const hintText = isAwaitingEnd ? t("calendar.timeGrid.pickEndHint") : clampedHint;
@@ -86,6 +88,8 @@ export function CalendarRangeView({
         language={language}
         t={t}
         tokens={tokens}
+        todayKey={todayKey}
+        interaction="range-picker"
       />
       <View style={styles.hintRow}>
         <Text

@@ -176,7 +176,7 @@ export function CalendarWeekNav({
 }
 
 interface CalendarLegendProps {
-  todayLabel: string
+  loggableLabel: string
   fullLabel: string
   partialLabel: string
   noneLabel: string
@@ -185,7 +185,7 @@ interface CalendarLegendProps {
 /** v8 calendar legend — inline row of colored dots + labels, no section header.
  *  Items mirror the grid's day-dot vocabulary exactly. */
 export function CalendarLegend({
-  todayLabel,
+  loggableLabel,
   fullLabel,
   partialLabel,
   noneLabel,
@@ -196,16 +196,16 @@ export function CalendarLegend({
       className="flex flex-wrap items-center justify-center"
       style={{ padding: '14px 20px', gap: 16 }}
     >
-      <LegendItem outcome="today" label={todayLabel} />
       <LegendItem outcome="full" label={fullLabel} />
       <LegendItem outcome="partial" label={partialLabel} />
       <LegendItem outcome="none" label={noneLabel} />
+      <LegendItem outcome="loggable" label={loggableLabel} />
     </div>
   )
 }
 
 interface LegendItemProps {
-  outcome: 'today' | 'full' | 'partial' | 'none'
+  outcome: 'full' | 'partial' | 'none' | 'loggable'
   label: string
 }
 
@@ -221,7 +221,9 @@ function LegendSwatch({ outcome }: Readonly<Pick<LegendItemProps, 'outcome'>>) {
 
   const style = outcome === 'full'
     ? { background: 'var(--fg-1)' }
-    : { boxShadow: `inset 0 0 0 2px ${outcome === 'today' ? 'var(--primary)' : 'var(--status-empty)'}` }
+    : outcome === 'loggable'
+      ? { background: 'var(--bg-well)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }
+      : { boxShadow: 'inset 0 0 0 2px var(--status-empty)' }
   return <span aria-hidden="true" data-legend-outcome={outcome} className="rounded-full shrink-0" style={{ width: 12, height: 12, ...style }} />
 }
 
