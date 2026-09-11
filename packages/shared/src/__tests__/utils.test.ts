@@ -136,10 +136,13 @@ describe('getTimezoneList', () => {
     }
   })
 
-  it('falls back to an empty list when Intl.supportedValuesOf is unavailable', () => {
+  it('falls back to the bundled IANA list when Intl.supportedValuesOf is unavailable', () => {
     vi.stubGlobal('Intl', {})
 
-    expect(getTimezoneList()).toEqual([])
+    const list = getTimezoneList()
+    expect(list.length).toBeGreaterThan(0)
+    expect(list).toContain('America/Sao_Paulo')
+    expect(list).toContain('Europe/London')
   })
 })
 

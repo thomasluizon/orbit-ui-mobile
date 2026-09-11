@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@tanstack/query-core": "^5.101.2",
+    "@vvo/tzdb": "^6.198.0",
     "date-fns": "^4.4.0",
     "html-entities": "2.6.0",
     "marked": "18.0.9",
