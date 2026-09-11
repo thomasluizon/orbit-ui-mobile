@@ -36,7 +36,7 @@ class OrbitWidgetService : RemoteViewsService() {
 
 internal const val HEADER_HEIGHT_DP = 48f
 internal const val ROW_HEIGHT_DP = 48f
-internal const val REMAINDER_HEIGHT_DP = 24f
+internal const val REMAINDER_HEIGHT_DP = 48f
 
 internal data class WidgetGeometry(
     val visibleRowCount: Int,
@@ -691,9 +691,13 @@ class OrbitWidgetFactory(
             WidgetString.MORE_DESCRIPTION,
             remainderCount
         )
-        views.setTextViewText(R.id.widget_remainder, remainderText)
+        views.setTextViewText(R.id.widget_remainder_text, remainderText)
         views.setContentDescription(R.id.widget_remainder, remainderDescription)
-        views.setModeAwareColor(R.id.widget_remainder, "setTextColor", colorModes) { it.textMuted }
+        views.setModeAwareColor(
+            R.id.widget_remainder_text,
+            "setTextColor",
+            colorModes
+        ) { it.textMuted }
         views.setOnClickFillInIntent(R.id.widget_remainder, Intent())
         return views
     }

@@ -43,24 +43,37 @@ function resourceStrings(relativePath: string) {
  * distance, so a key on the breakpoint beats the key just above it. Transcribed from
  * android/widget/RemoteViews.java: fitsIn is `ceil(host) + 1 > key` and the comparison is strict.
  */
-function fitsIn(keyDp: number, hostDp: number) {
-  return Math.ceil(hostDp) + 1 > keyDp
+type SizeDp = Readonly<{
+  width: number
+  height: number
+}>
+
+type NamedSizeDp = SizeDp & Readonly<{
+  viewName: string
+}>
+
+function fitsIn(keyDp: SizeDp, hostDp: SizeDp) {
+  return Math.ceil(hostDp.width) + 1 > keyDp.width
+    && Math.ceil(hostDp.height) + 1 > keyDp.height
 }
 
-function selectedKeyDp(keysDp: readonly number[], hostDp: number) {
-  let selected: number | null = null
+function selectedSizeKey(keysDp: readonly NamedSizeDp[], hostDp: SizeDp) {
+  let selected: NamedSizeDp | null = null
   let smallestSquareDistance = Number.POSITIVE_INFINITY
 
   for (const keyDp of keysDp) {
     if (!fitsIn(keyDp, hostDp)) continue
-    const squareDistance = (keyDp - hostDp) ** 2
+    const squareDistance = (keyDp.width - hostDp.width) ** 2
+      + (keyDp.height - hostDp.height) ** 2
     if (selected === null || squareDistance < smallestSquareDistance) {
       selected = keyDp
       smallestSquareDistance = squareDistance
     }
   }
 
-  return selected ?? Math.min(...keysDp)
+  return selected ?? keysDp.reduce((smallest, key) => (
+    key.width * key.height < smallest.width * smallest.height ? key : smallest
+  ))
 }
 
 /**
@@ -88,6 +101,37 @@ function kotlinFloatConstant(source: string, name: string) {
   const value = source.match(new RegExp(`(?:private|internal) const val ${name} = ([\\d.]+)f`))?.[1]
   if (value === undefined) throw new Error(`Missing Kotlin constant: ${name}`)
   return Number(value)
+}
+
+function kotlinFloatExpression(source: string, expression: string) {
+  const normalized = expression.trim()
+  const literal = normalized.match(/^([\d.]+)f$/)?.[1]
+  if (literal !== undefined) return Number(literal)
+
+  const addition = normalized.match(/^(\w+) \+ ([\d.]+)f$/)
+  if (addition) {
+    const [, constantName, addend] = addition
+    if (constantName === undefined || addend === undefined) {
+      throw new Error(`Malformed Kotlin float expression: ${expression}`)
+    }
+    return kotlinFloatConstant(source, constantName) + Number(addend)
+  }
+
+  return kotlinFloatConstant(source, normalized)
+}
+
+function remoteViewSizeKeys(source: string) {
+  return [...source.matchAll(/SizeF\(([^,]+), ([^)]+)\) to (\w+)/g)].map(match => {
+    const [, width, height, viewName] = match
+    if (width === undefined || height === undefined || viewName === undefined) {
+      throw new Error(`Malformed RemoteViews size key: ${match[0]}`)
+    }
+    return {
+      width: kotlinFloatExpression(source, width),
+      height: kotlinFloatExpression(source, height),
+      viewName,
+    }
+  })
 }
 
 function widgetKotlinSources() {
@@ -277,46 +321,56 @@ describe('Android widget header', () => {
       expect(source).not.toContain('partiallyUpdateAppWidget')
       expect(source).not.toContain('OPTION_APPWIDGET_MIN_WIDTH')
     }
-    expect(provider).toContain('SizeF(COMPACT_IDEAL_WIDTH_DP, 1f) to compactViews')
-    expect(provider).toContain('SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, 1f) to expandedViews')
-
     const breakpointDp = kotlinFloatConstant(provider, 'STREAK_UNIT_BREAKPOINT_DP')
-    const compactKeyDp = kotlinFloatConstant(provider, 'COMPACT_IDEAL_WIDTH_DP')
-    const expandedKeyDp = breakpointDp + 1
-    const keysDp = [compactKeyDp, expandedKeyDp]
+    const keysDp = remoteViewSizeKeys(provider)
 
     expect(breakpointDp).toBe(200)
     for (const hostDp of [110, 160, 199, 199.5, 199.9, 200]) {
-      expect(selectedKeyDp(keysDp, hostDp), `${hostDp}dp`).toBe(compactKeyDp)
+      expect(
+        selectedSizeKey(keysDp, { width: hostDp, height: 96 }).width,
+        `${hostDp}dp`,
+      ).toBeLessThanOrEqual(breakpointDp)
     }
     for (const hostDp of [200.1, 200.38, 200.5, 201, 250, 400]) {
-      expect(selectedKeyDp(keysDp, hostDp), `${hostDp}dp`).toBe(expandedKeyDp)
+      expect(
+        selectedSizeKey(keysDp, { width: hostDp, height: 96 }).width,
+        `${hostDp}dp`,
+      ).toBe(breakpointDp + 1)
     }
     expect(provider).toMatch(
       /if \(Build\.VERSION\.SDK_INT < Build\.VERSION_CODES\.S\) \{\s*return buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_TWO_HEIGHT_DP,\s*true\s*\)\s*\}/,
     )
     expect(provider).toMatch(
-      /val compactViews = buildWidgetViews\([\s\S]*?View\.GONE,\s*TWO_BY_TWO_HEIGHT_DP,\s*false\s*\)[\s\S]*?val expandedViews = buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_TWO_HEIGHT_DP,\s*true\s*\)/,
+      /val compactViews = buildWidgetViews\([\s\S]*?View\.GONE,\s*TWO_BY_TWO_HEIGHT_DP,\s*false\s*\)/,
     )
   })
 
   it('offers the four launcher geometries as host-selected complete views', () => {
     const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    const breakpointKeyDp = kotlinFloatConstant(provider, 'STREAK_UNIT_BREAKPOINT_DP') + 1
+    const keysDp = remoteViewSizeKeys(provider)
+    const expectedSelections = [
+      { host: { width: 336, height: 96 }, viewName: 'fourByOneViews' },
+      { host: { width: 336, height: 192 }, viewName: 'fourByTwoViews' },
+      { host: { width: 336, height: 288 }, viewName: 'fourByThreeViews' },
+      { host: { width: 160, height: 192 }, viewName: 'twoByTwoViews' },
+      { host: { width: 250, height: 192 }, viewName: 'fourByTwoViews' },
+    ] as const
 
     expect.soft(provider).toMatch(
       /val fourByOneViews = buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_ONE_HEIGHT_DP,\s*true\s*\)/,
     )
     expect.soft(provider).toContain(
-      'SizeF(WIDE_WIDTH_DP, FOUR_BY_ONE_HEIGHT_DP) to fourByOneViews',
+      'SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_ONE_HEIGHT_DP) to fourByOneViews',
     )
     expect.soft(provider).toContain(
-      'SizeF(WIDE_WIDTH_DP, FOUR_BY_TWO_HEIGHT_DP) to fourByTwoViews',
+      'SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_TWO_HEIGHT_DP) to fourByTwoViews',
     )
     expect.soft(provider).toMatch(
       /val fourByThreeViews = buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_THREE_HEIGHT_DP,\s*true\s*\)/,
     )
     expect.soft(provider).toContain(
-      'SizeF(WIDE_WIDTH_DP, FOUR_BY_THREE_HEIGHT_DP) to fourByThreeViews',
+      'SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_THREE_HEIGHT_DP) to fourByThreeViews',
     )
     expect.soft(provider).toMatch(
       /val twoByTwoViews = buildWidgetViews\([\s\S]*?View\.GONE,\s*TWO_BY_TWO_HEIGHT_DP,\s*false\s*\)/,
@@ -327,6 +381,15 @@ describe('Android widget header', () => {
     expect.soft(provider).toMatch(
       /putExtra\(EXTRA_WIDGET_HEIGHT_DP, widgetHeightDp\)\s*putExtra\(EXTRA_SHOW_TIME, showTime\)\s*data = Uri\.parse\(toUri\(Intent\.URI_INTENT_SCHEME\)\)/,
     )
+    for (const { host, viewName } of expectedSelections) {
+      expect.soft(
+        selectedSizeKey(keysDp, host).viewName,
+        `${host.width} by ${host.height}dp`,
+      ).toBe(viewName)
+    }
+    for (const viewName of ['fourByOneViews', 'fourByTwoViews', 'fourByThreeViews']) {
+      expect.soft(keysDp.find(key => key.viewName === viewName)?.width).toBe(breakpointKeyDp)
+    }
   })
 
   it('derives row capacity and remainder space from the drawing geometry', () => {
@@ -347,7 +410,11 @@ describe('Android widget header', () => {
     const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
     const remainder = layoutViews('layout/widget_remainder.xml')
 
+    expect.soft(kotlinFloatConstant(service, 'REMAINDER_HEIGHT_DP')).toBe(48)
     expect.soft(remainder.get('widget_remainder')).toMatchObject({
+      'android:layout_height': '48dp',
+    })
+    expect.soft(remainder.get('widget_remainder_text')).toMatchObject({
       'android:layout_height': '24dp',
       'android:paddingStart': '12dp',
       'android:paddingEnd': '12dp',
@@ -356,7 +423,13 @@ describe('Android widget header', () => {
     })
     expect.soft(service).toContain('R.layout.widget_remainder')
     expect.soft(service).toContain(
+      'views.setTextViewText(R.id.widget_remainder_text, remainderText)',
+    )
+    expect.soft(service).toContain(
       'views.setContentDescription(R.id.widget_remainder, remainderDescription)',
+    )
+    expect.soft(service).toContain(
+      'views.setOnClickFillInIntent(R.id.widget_remainder, Intent())',
     )
     expect.soft(service).toMatch(
       /val remainderDescription = tr\(\s*context,\s*lang,\s*WidgetString\.MORE_DESCRIPTION,\s*remainderCount\s*\)/,
@@ -386,8 +459,8 @@ describe('Android widget header', () => {
   it('defaults to 4 by 2 and admits the supported resize floors', () => {
     const provider = rootAttributes('xml/orbit_widget_info.xml')
 
-    expect.soft(provider['android:minWidth']).toBe('336dp')
-    expect.soft(provider['android:minHeight']).toBe('192dp')
+    expect.soft(provider['android:minWidth']).toBe('250dp')
+    expect.soft(provider['android:minHeight']).toBe('110dp')
     expect.soft(provider['android:minResizeWidth']).toBe('160dp')
     expect.soft(provider['android:minResizeHeight']).toBe('96dp')
     expect.soft(provider['android:targetCellWidth']).toBe('4')

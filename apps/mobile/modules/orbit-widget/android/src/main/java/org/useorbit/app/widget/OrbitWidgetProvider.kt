@@ -29,7 +29,6 @@ class OrbitWidgetProvider : AppWidgetProvider() {
         private const val WIDGET_REFRESH_TIMEOUT_MS = 12_000L
         internal const val STREAK_UNIT_BREAKPOINT_DP = 200f
         internal const val NARROW_WIDTH_DP = 160f
-        internal const val WIDE_WIDTH_DP = 336f
         internal const val FOUR_BY_ONE_HEIGHT_DP = 96f
         internal const val FOUR_BY_TWO_HEIGHT_DP = 192f
         internal const val FOUR_BY_THREE_HEIGHT_DP = 288f
@@ -156,10 +155,12 @@ class OrbitWidgetProvider : AppWidgetProvider() {
 
         /**
          * API 31 lets the host choose a complete RemoteViews child for the size it is rendering.
-         * The two 1dp-high keys preserve the width-only fallback proven by #490, while exact keys
-         * add the four launcher geometries from the drawing. Each child carries its own height and
-         * time visibility into its collection factory, so resizing never depends on a runtime
-         * width read or a partial update. Older hosts receive the default 4 by 2 layout.
+         * Every wide height variant starts just above the #490 breakpoint. RemoteViews chooses the
+         * fitting key with the nearest two-dimensional distance, so keying those variants at the
+         * drawn 336dp width would let the height-matched narrow child beat them at intermediate
+         * widths such as 250 by 192dp. Each child carries its own height and time visibility into
+         * its collection factory, so resizing never depends on a runtime width read or a partial
+         * update. Older hosts receive the default 4 by 2 layout.
          */
         internal fun buildWidgetRemoteViews(
             context: Context,
@@ -190,16 +191,6 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 View.GONE,
                 TWO_BY_TWO_HEIGHT_DP,
                 false
-            )
-            val expandedViews = buildWidgetViews(
-                context,
-                appWidgetId,
-                bgWidth,
-                bgHeight,
-                signedOut,
-                View.VISIBLE,
-                FOUR_BY_TWO_HEIGHT_DP,
-                true
             )
             val fourByOneViews = buildWidgetViews(
                 context,
@@ -244,10 +235,9 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             return RemoteViews(
                 mapOf(
                     SizeF(COMPACT_IDEAL_WIDTH_DP, 1f) to compactViews,
-                    SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, 1f) to expandedViews,
-                    SizeF(WIDE_WIDTH_DP, FOUR_BY_ONE_HEIGHT_DP) to fourByOneViews,
-                    SizeF(WIDE_WIDTH_DP, FOUR_BY_TWO_HEIGHT_DP) to fourByTwoViews,
-                    SizeF(WIDE_WIDTH_DP, FOUR_BY_THREE_HEIGHT_DP) to fourByThreeViews,
+                    SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_ONE_HEIGHT_DP) to fourByOneViews,
+                    SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_TWO_HEIGHT_DP) to fourByTwoViews,
+                    SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_THREE_HEIGHT_DP) to fourByThreeViews,
                     SizeF(NARROW_WIDTH_DP, TWO_BY_TWO_HEIGHT_DP) to twoByTwoViews
                 )
             )
