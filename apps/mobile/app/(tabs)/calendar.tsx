@@ -29,7 +29,6 @@ import {
   endOfWeek,
   eachDayOfInterval,
   isSameMonth,
-  isToday,
   format,
 } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
@@ -237,12 +236,16 @@ function CalendarScreenContent({
       view === "week"
         ? eachDayOfInterval({ start: weekStart, end: weekEnd })
         : eachDayOfInterval({ start: rangeBounds.lo, end: rangeBounds.hi });
-    return days.map((date) => ({
-      date,
-      dateStr: formatAPIDate(date),
-      isToday: isToday(date),
-    }));
-  }, [view, weekStart, weekEnd, rangeBounds]);
+    return days.map((date) => {
+      const dateStr = formatAPIDate(date);
+      return {
+        date,
+        dateStr,
+        isToday: dateStr === todayKey,
+        isFuture: dateStr > todayKey,
+      };
+    });
+  }, [view, weekStart, weekEnd, rangeBounds, todayKey]);
 
   const displayRangeDayMap = useMemo(() => {
     if (showRecurring) return rangeDayMap;

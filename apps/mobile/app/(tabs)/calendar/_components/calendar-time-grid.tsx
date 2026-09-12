@@ -22,7 +22,7 @@ const DAY_HEIGHT = HOUR_HEIGHT * 24;
 const BLOCK_HEIGHT = 38;
 const GUTTER = 56;
 const BODY_MAX_HEIGHT = 520;
-const MIN_COL_WIDTH = 80;
+const MIN_COL_WIDTH = 44;
 const COL_HEADER_HEIGHT = 52;
 const ALL_DAY_MIN_HEIGHT = 34;
 const ALL_DAY_CHIP_HEIGHT = 22;
@@ -48,6 +48,7 @@ export interface TimeGridColumn {
   date: Date;
   dateStr: string;
   isToday: boolean;
+  isFuture: boolean;
 }
 
 interface PlacedEntry {
@@ -71,23 +72,6 @@ interface CalendarTimeGridProps {
   tokens: Tokens;
 }
 
-function withAlpha(color: string, alpha: number): string {
-  if (color.startsWith("#")) {
-    const hex = color.slice(1);
-    const r = Number.parseInt(hex.slice(0, 2), 16);
-    const g = Number.parseInt(hex.slice(2, 4), 16);
-    const b = Number.parseInt(hex.slice(4, 6), 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  }
-  const match = /rgba?\(([^)]+)\)/.exec(color);
-  if (match) {
-    const parts = match[1]!.split(",").map((value) => value.trim());
-    const existing = parts[3] !== undefined ? Number(parts[3]) : 1;
-    return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, ${existing * alpha})`;
-  }
-  return color;
-}
-
 function parseMinutes(time: string | null): number | null {
   if (!time) return null;
   const match = /^(\d{1,2}):(\d{2})/.exec(time);
@@ -101,16 +85,6 @@ function parseMinutes(time: string | null): number | null {
 function currentMinutesOfDay(): number {
   const now = new Date();
   return now.getHours() * 60 + now.getMinutes();
-}
-
-function entryAccent(entry: CalendarDayEntry, tokens: Tokens): string {
-  if (entry.status === "completed") {
-    return entry.isBadHabit ? tokens.statusBad : tokens.statusDone;
-  }
-  if (entry.status === "missed") {
-    return entry.isBadHabit ? tokens.statusDone : tokens.statusOverdue;
-  }
-  return tokens.fg4;
 }
 
 /** Lays out timed entries into non-overlapping lanes so concurrent blocks sit
@@ -181,7 +155,6 @@ function TimedBlock({
   onSelect: () => void;
   tokens: Tokens;
 }>) {
-  const accent = entryAccent(block.entry, tokens);
   const completed = block.entry.status === "completed";
   return (
     <Pressable
@@ -195,13 +168,13 @@ function TimedBlock({
         left: (block.lane / block.laneCount) * colWidth + 2,
         width: colWidth / block.laneCount - 4,
         paddingVertical: 4,
-        paddingHorizontal: 6,
+        paddingHorizontal: 8,
         borderRadius: 8,
         overflow: "hidden",
         justifyContent: "center",
-        backgroundColor: withAlpha(accent, pressed ? 0.24 : 0.16),
+        backgroundColor: pressed ? tokens.bgHover : tokens.bgWell,
         borderWidth: 1,
-        borderColor: withAlpha(accent, 0.42),
+        borderColor: tokens.hairline,
         transform: [{ scale: pressed ? 0.98 : 1 }],
       })}
     >
@@ -240,7 +213,6 @@ function AllDayChip({
   entry,
   tokens,
 }: Readonly<{ entry: CalendarDayEntry; tokens: Tokens }>) {
-  const accent = entryAccent(entry, tokens);
   const completed = entry.status === "completed";
   return (
     <View
@@ -250,22 +222,14 @@ function AllDayChip({
         alignItems: "center",
         gap: 4,
         height: ALL_DAY_CHIP_HEIGHT - ALL_DAY_GAP,
-        paddingHorizontal: 6,
+        paddingHorizontal: 8,
         borderRadius: 8,
         overflow: "hidden",
-        backgroundColor: withAlpha(accent, 0.14),
+        backgroundColor: tokens.bgWell,
         borderWidth: 1,
-        borderColor: withAlpha(accent, 0.28),
+        borderColor: tokens.hairline,
       }}
     >
-      <View
-        style={{
-          width: 5,
-          height: 5,
-          borderRadius: 999,
-          backgroundColor: accent,
-        }}
-      />
       <Text
         numberOfLines={1}
         style={{
@@ -305,7 +269,7 @@ function AllDayMoreChip({
         alignItems: "center",
         justifyContent: "center",
         height: ALL_DAY_CHIP_HEIGHT - ALL_DAY_GAP,
-        paddingHorizontal: 6,
+        paddingHorizontal: 8,
         borderRadius: 8,
         borderWidth: 1,
         borderColor: tokens.hairline,
@@ -349,7 +313,7 @@ function ColumnHeader({
       onPress={() => onSelectDay(column.dateStr)}
       style={({ pressed }) => [
         styles.colHeader,
-        { width: colWidth },
+        { width: colWidth, opacity: column.isFuture ? 0.45 : 1 },
         pressed && {
           backgroundColor: tokens.bgElev,
           transform: [{ scale: 0.96 }],
@@ -475,13 +439,14 @@ export function CalendarTimeGrid({
 
   return (
     <View style={styles.wrap}>
+      <Text testID="time-grid-any-time-label" style={styles.anyTimeLabel}>
+        {allDayLabel}
+      </Text>
       <View testID="calendar-time-grid" style={styles.card}>
         <View style={styles.row}>
           <View style={styles.gutter}>
             <View style={styles.gutterCorner} />
-            <View style={[styles.gutterAllDay, { height: allDayBandHeight }]}>
-              <Text style={styles.allDayLabel}>{allDayLabel}</Text>
-            </View>
+            <View style={[styles.gutterAllDay, { height: allDayBandHeight }]} />
             <ScrollView
               ref={gutterScrollRef}
               style={{ height: BODY_MAX_HEIGHT }}
@@ -494,6 +459,7 @@ export function CalendarTimeGrid({
                 {HOURS.map((hour) => (
                   <Text
                     key={hour}
+                    testID="time-grid-hour-label"
                     style={[styles.hourLabel, { top: hour * HOUR_HEIGHT + 2 }]}
                   >
                     {displayTime(`${String(hour).padStart(2, "0")}:00`)}
@@ -531,7 +497,10 @@ export function CalendarTimeGrid({
                     <View
                       key={column.dateStr}
                       testID="time-grid-all-day"
-                      style={[styles.allDayCell, { width: colWidth }]}
+                      style={[
+                        styles.allDayCell,
+                        { width: colWidth, opacity: column.isFuture ? 0.45 : 1 },
+                      ]}
                     >
                       {visible.map((entry) => (
                         <AllDayChip
@@ -567,7 +536,11 @@ export function CalendarTimeGrid({
                   {perColumn.map(({ column, timed }) => (
                     <View
                       key={column.dateStr}
-                      style={[styles.dayColumn, { width: colWidth }]}
+                      testID="time-grid-day-column"
+                      style={[
+                        styles.dayColumn,
+                        { width: colWidth, opacity: column.isFuture ? 0.45 : 1 },
+                      ]}
                     >
                       {HOURS.map((hour) => (
                         <View
@@ -619,12 +592,18 @@ export function CalendarTimeGrid({
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     wrap: {
-      paddingHorizontal: 20,
+      gap: 4,
+      paddingHorizontal: 16,
       paddingTop: 4,
       paddingBottom: 16,
     },
+    anyTimeLabel: {
+      fontFamily: "Geist_400Regular",
+      fontSize: 12,
+      color: tokens.fg3,
+    },
     card: {
-      borderRadius: 18,
+      borderRadius: 12,
       overflow: "hidden",
       backgroundColor: tokens.bgCard,
       borderWidth: 1,
@@ -642,18 +621,8 @@ function createStyles(tokens: Tokens) {
       borderBottomColor: tokens.hairline,
     },
     gutterAllDay: {
-      alignItems: "flex-end",
-      paddingTop: 6,
-      paddingRight: 6,
       borderBottomWidth: 1,
       borderBottomColor: tokens.hairline,
-    },
-    allDayLabel: {
-      fontFamily: "GeistMono_500Medium",
-      fontSize: 10,
-      letterSpacing: 0.4,
-      textTransform: "uppercase",
-      color: tokens.fg4,
     },
     hourLabel: {
       position: "absolute",
@@ -675,7 +644,7 @@ function createStyles(tokens: Tokens) {
     colHeader: {
       alignItems: "center",
       justifyContent: "center",
-      gap: 2,
+      gap: 4,
       paddingVertical: 8,
       borderLeftWidth: 1,
       borderLeftColor: tokens.hairline,
@@ -703,8 +672,8 @@ function createStyles(tokens: Tokens) {
       flexDirection: "row",
     },
     allDayCell: {
-      gap: ALL_DAY_GAP,
-      paddingVertical: 6,
+      gap: 4,
+      paddingVertical: 8,
       paddingHorizontal: 4,
       borderLeftWidth: 1,
       borderLeftColor: tokens.hairline,

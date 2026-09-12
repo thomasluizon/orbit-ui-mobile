@@ -1,5 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
+import { StyleSheet } from "react-native";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 
@@ -28,8 +29,13 @@ function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry 
   };
 }
 
-function column(dateStr: string): TimeGridColumn {
-  return { date: new Date(`${dateStr}T00:00:00`), dateStr, isToday: false };
+function column(dateStr: string, isFuture = false): TimeGridColumn {
+  return {
+    date: new Date(`${dateStr}T00:00:00`),
+    dateStr,
+    isToday: false,
+    isFuture,
+  };
 }
 
 const displayTime = (time: string) => time;
@@ -42,6 +48,7 @@ function renderGrid(
   dayMap: Map<string, CalendarDayEntry[]>,
   onSelectDay = vi.fn(),
   isLoading = false,
+  formatTime = displayTime,
 ): Tree {
   let tree: Tree;
   TestRenderer.act(() => {
@@ -50,9 +57,9 @@ function renderGrid(
         columns={columns}
         dayMap={dayMap}
         onSelectDay={onSelectDay}
-        displayTime={displayTime}
+        displayTime={formatTime}
         language="en"
-        allDayLabel="All-day"
+        allDayLabel="No set time"
         nowLabel="Now"
         isLoading={isLoading}
         t={translate}
@@ -88,6 +95,11 @@ function collectText(node: { props?: { children?: unknown } }): unknown[] {
   });
 }
 
+function resolveStyle(style: unknown): Record<string, unknown> {
+  const value = typeof style === "function" ? style({ pressed: false }) : style;
+  return StyleSheet.flatten(value) as Record<string, unknown>;
+}
+
 describe("CalendarTimeGrid (mobile)", () => {
   it("places a timed habit as a block in its column", () => {
     const col = column("2025-06-16");
@@ -97,6 +109,9 @@ describe("CalendarTimeGrid (mobile)", () => {
     const tree = renderGrid([col], dayMap);
 
     expect(hostsByTestID(tree, "time-grid-event")).toHaveLength(1);
+    expect(resolveStyle(hostsByTestID(tree, "time-grid-event")[0]!.props.style)).toMatchObject({
+      top: 384,
+    });
     expect(textValuesWithin(tree, "time-grid-event")).toContain("Standup");
   });
 
@@ -109,11 +124,38 @@ describe("CalendarTimeGrid (mobile)", () => {
 
     expect(hostsByTestID(tree, "time-grid-event")).toHaveLength(0);
     expect(textValuesWithin(tree, "time-grid-all-day-event")).toContain("Read");
+    expect(textValuesWithin(tree, "time-grid-any-time-label")).toContain("No set time");
+  });
+
+  it("dims every future day column", () => {
+    const tree = renderGrid([column("2025-06-18", true)], new Map());
+
+    expect(resolveStyle(hostsByTestID(tree, "time-grid-col-header")[0]!.props.style)).toMatchObject({
+      opacity: 0.45,
+    });
+    expect(resolveStyle(hostsByTestID(tree, "time-grid-all-day")[0]!.props.style)).toMatchObject({
+      opacity: 0.45,
+    });
+    expect(resolveStyle(hostsByTestID(tree, "time-grid-day-column")[0]!.props.style)).toMatchObject({
+      opacity: 0.45,
+    });
+  });
+
+  it("renders hour marks through both 24-hour and 12-hour formatters", () => {
+    const col = column("2025-06-16");
+    const view24 = renderGrid([col], new Map(), vi.fn(), false, (time) => time);
+    expect(textValuesWithin(view24, "time-grid-hour-label")).toContain("20:00");
+
+    const view12 = renderGrid([col], new Map(), vi.fn(), false, (time) => {
+      const hour = Number(time.slice(0, 2));
+      return `${hour % 12 || 12}:00 ${hour >= 12 ? "PM" : "AM"}`;
+    });
+    expect(textValuesWithin(view12, "time-grid-hour-label")).toContain("8:00 PM");
   });
 
   it("renders one column header per day in the range", () => {
     const columns = ["2025-06-16", "2025-06-17", "2025-06-18", "2025-06-19"].map(
-      column,
+      (dateStr) => column(dateStr),
     );
     const tree = renderGrid(columns, new Map());
 

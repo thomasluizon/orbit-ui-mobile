@@ -5,13 +5,12 @@ import { format, getHours, getMinutes } from 'date-fns'
 import type { Locale } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import { useIsDesktop } from '@/hooks/use-is-desktop'
 
 const HOUR_HEIGHT = 48
 const DAY_HEIGHT = HOUR_HEIGHT * 24
 const BLOCK_HEIGHT = 38
 const GUTTER = 56
-const MIN_COL_WIDTH = 80
+const MIN_COL_WIDTH = 44
 const HEADER_HEIGHT = 52
 const BODY_MAX_HEIGHT = 520
 const SCROLLER_MAX_HEIGHT = HEADER_HEIGHT + 40 + BODY_MAX_HEIGHT
@@ -33,14 +32,14 @@ function splitAllDay(allDay: CalendarDayEntry[]): {
 
 const CARD_BG = 'var(--bg-card)'
 const pinnedPaneBackground = {
-  backgroundColor: 'var(--bg)',
-  backgroundImage: 'linear-gradient(var(--bg-card), var(--bg-card))',
+  backgroundColor: 'var(--bg-elev)',
 } as const
 
 export interface TimeGridColumn {
   date: Date
   dateStr: string
   isToday: boolean
+  isFuture: boolean
 }
 
 interface CalendarTimeGridProps {
@@ -75,16 +74,6 @@ function parseMinutes(time: string | null): number | null {
 function currentMinutesOfDay(): number {
   const now = new Date()
   return getHours(now) * 60 + getMinutes(now)
-}
-
-function entryAccent(entry: CalendarDayEntry): string {
-  if (entry.status === 'completed') {
-    return entry.isBadHabit ? 'var(--status-bad)' : 'var(--status-done)'
-  }
-  if (entry.status === 'missed') {
-    return entry.isBadHabit ? 'var(--status-done)' : 'var(--status-overdue)'
-  }
-  return 'var(--fg-4)'
 }
 
 /** Lays out timed entries into non-overlapping lanes so concurrent blocks sit
@@ -142,7 +131,6 @@ function TimedBlock({
   displayTime: (time: string) => string
   onSelect: () => void
 }>) {
-  const accent = entryAccent(block.entry)
   const completed = block.entry.status === 'completed'
   return (
     <button
@@ -150,19 +138,18 @@ function TimedBlock({
       data-testid="time-grid-event"
       data-hour={block.hour}
       onClick={onSelect}
-      className="absolute flex flex-col justify-center overflow-hidden text-left cursor-pointer bg-[color-mix(in_srgb,var(--tg-accent)_16%,transparent)] hover:bg-[color-mix(in_srgb,var(--tg-accent)_24%,transparent)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.98]"
+      className="absolute flex flex-col justify-center overflow-hidden text-left cursor-pointer bg-[var(--bg-well)] hover:bg-[var(--bg-hover)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.98]"
       style={{
         top: block.top,
         height: BLOCK_HEIGHT,
         left: `calc(${(block.lane / block.laneCount) * 100}% + 2px)`,
         width: `calc(${100 / block.laneCount}% - 4px)`,
-        padding: '4px 6px',
+        padding: 4,
         borderRadius: 8,
         border: 0,
         appearance: 'none',
-        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${accent} 42%, transparent)`,
-        '--tg-accent': accent,
-      } as React.CSSProperties}
+        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+      }}
     >
       <span
         className="truncate"
@@ -195,24 +182,18 @@ function TimedBlock({
 }
 
 function AllDayChip({ entry }: Readonly<{ entry: CalendarDayEntry }>) {
-  const accent = entryAccent(entry)
   const completed = entry.status === 'completed'
   return (
     <div
       data-testid="time-grid-all-day-event"
       className="flex items-center gap-1 overflow-hidden"
       style={{
-        padding: '3px 6px',
+        padding: '4px 8px',
         borderRadius: 8,
-        background: `color-mix(in srgb, ${accent} 14%, transparent)`,
-        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${accent} 28%, transparent)`,
+        background: 'var(--bg-well)',
+        boxShadow: 'inset 0 0 0 1px var(--hairline)',
       }}
     >
-      <span
-        aria-hidden="true"
-        className="shrink-0 rounded-full"
-        style={{ width: 5, height: 5, background: accent }}
-      />
       <span
         className="truncate"
         style={{
@@ -244,7 +225,7 @@ function AllDayMoreChip({
       style={{
         appearance: 'none',
         cursor: 'pointer',
-        padding: '3px 6px',
+        padding: '4px 8px',
         borderRadius: 8,
         border: 0,
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
@@ -282,7 +263,6 @@ export function CalendarTimeGrid({
 }: Readonly<CalendarTimeGridProps>) {
   const t = useTranslations()
   const bodyRef = useRef<HTMLDivElement>(null)
-  const isDesktop = useIsDesktop()
   const [nowMinutes, setNowMinutes] = useState(currentMinutesOfDay)
 
   useEffect(() => {
@@ -295,10 +275,9 @@ export function CalendarTimeGrid({
     if (node) node.scrollTop = 7 * HOUR_HEIGHT
   }, [])
 
-  const columnTrack = isDesktop ? '1fr' : `minmax(${MIN_COL_WIDTH}px, 1fr)`
+  const columnTrack = `minmax(${MIN_COL_WIDTH}px, 1fr)`
   const gridTemplate = `${GUTTER}px repeat(${columns.length}, ${columnTrack})`
-  const gridMinWidth = isDesktop ? undefined : GUTTER + columns.length * MIN_COL_WIDTH
-  const scrollerOverflow = isDesktop ? { overflowX: 'hidden', overflowY: 'auto' } as const : { overflow: 'auto' } as const
+  const gridMinWidth = GUTTER + columns.length * MIN_COL_WIDTH
 
   const perColumn = useMemo(
     () =>
@@ -318,13 +297,19 @@ export function CalendarTimeGrid({
     perColumn.every(({ allDay, timed }) => allDay.length === 0 && timed.length === 0)
 
   return (
-    <div style={{ padding: '4px 20px 16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '4px 16px 16px' }}>
+      <span
+        data-testid="time-grid-any-time-label"
+        style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--fg-3)' }}
+      >
+        {allDayLabel}
+      </span>
       <div
         data-testid="calendar-time-grid"
         data-columns={columns.length}
         className="relative"
         style={{
-          borderRadius: 18,
+          borderRadius: 12,
           overflow: 'hidden',
           background: CARD_BG,
           boxShadow: 'inset 0 0 0 1px var(--hairline)',
@@ -333,7 +318,7 @@ export function CalendarTimeGrid({
         <div
           ref={bodyRef}
           className="thin-scrollbar"
-          style={{ ...scrollerOverflow, maxHeight: SCROLLER_MAX_HEIGHT }}
+          style={{ overflow: 'auto', maxHeight: SCROLLER_MAX_HEIGHT }}
         >
           <div
             className="grid sticky top-0 z-[3]"
@@ -358,8 +343,9 @@ export function CalendarTimeGrid({
                   borderLeft: '1px solid var(--hairline)',
                   borderBottom: '1px solid var(--hairline)',
                   cursor: 'pointer',
-                  padding: '0 2px',
-                  gap: 2,
+                  padding: '0 4px',
+                  gap: 4,
+                  opacity: column.isFuture ? 0.45 : 1,
                 }}
               >
                 <span
@@ -406,24 +392,11 @@ export function CalendarTimeGrid({
             <div
               className="sticky left-0 z-[1] flex items-start justify-end"
               style={{
-                padding: '6px 6px 0',
+                padding: '8px 8px 0',
                 borderBottom: '1px solid var(--hairline)',
                 ...pinnedPaneBackground,
               }}
-            >
-              <span
-                className="uppercase"
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  letterSpacing: '0.04em',
-                  color: 'var(--fg-4)',
-                }}
-              >
-                {allDayLabel}
-              </span>
-            </div>
+            />
             {perColumn.map(({ column, allDay }) => {
               const { visible, overflow } = splitAllDay(allDay)
               return (
@@ -435,9 +408,10 @@ export function CalendarTimeGrid({
                   style={{
                     gap: 4,
                     minHeight: 34,
-                    padding: '6px 3px',
+                    padding: '8px 4px',
                     borderLeft: '1px solid var(--hairline)',
                     borderBottom: '1px solid var(--hairline)',
+                    opacity: column.isFuture ? 0.45 : 1,
                   }}
                 >
                   {visible.map((entry) => (
@@ -464,6 +438,7 @@ export function CalendarTimeGrid({
               {HOURS.map((hour) => (
                 <span
                   key={hour}
+                  data-testid="time-grid-hour-label"
                   className="absolute right-2"
                   style={{
                     top: hour * HOUR_HEIGHT + 2,
@@ -480,16 +455,23 @@ export function CalendarTimeGrid({
             {perColumn.map(({ column, timed }) => (
               <div
                 key={column.dateStr}
+                data-testid="time-grid-day-column"
+                data-date={column.dateStr}
                 style={{
                   position: 'relative',
                   height: DAY_HEIGHT,
                   borderLeft: '1px solid var(--hairline)',
-                  backgroundImage:
-                    'repeating-linear-gradient(to bottom, var(--hairline) 0, var(--hairline) 1px, transparent 1px, transparent ' +
-                    HOUR_HEIGHT +
-                    'px)',
+                  opacity: column.isFuture ? 0.45 : 1,
                 }}
               >
+                {HOURS.map((hour) => (
+                  <span
+                    key={hour}
+                    aria-hidden="true"
+                    className="absolute inset-x-0"
+                    style={{ top: hour * HOUR_HEIGHT, height: 1, background: 'var(--hairline)' }}
+                  />
+                ))}
                 {timed.map((block) => (
                   <TimedBlock
                     key={block.entry.habitId}

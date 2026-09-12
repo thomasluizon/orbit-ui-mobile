@@ -30,6 +30,7 @@ function column(year: number, month: number, day: number): TimeGridColumn {
     date,
     dateStr: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
     isToday: false,
+    isFuture: false,
   }
 }
 
