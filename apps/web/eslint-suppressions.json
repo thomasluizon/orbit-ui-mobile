@@ -184,11 +184,6 @@
       "count": 3
     }
   },
-  "components/calendar/calendar-range-view.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/calendar/calendar-stats.tsx": {
     "local/spacing-scale": {
       "count": 2

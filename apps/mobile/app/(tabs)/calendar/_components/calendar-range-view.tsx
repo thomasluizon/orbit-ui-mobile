@@ -1,145 +1,114 @@
-import { StyleSheet, Text, View } from "react-native";
-import type { TFunction } from "i18next";
-import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
-import { createTokensV2 } from "@/lib/theme";
-import {
-  CalendarGrid,
-  type GridDay,
-  type WeekdayHeader,
-} from "./calendar-grid";
-import { ShowRecurringToggle } from "./show-recurring-toggle";
-import { CalendarTimeGrid, type TimeGridColumn } from "./calendar-time-grid";
-
-type Tokens = ReturnType<typeof createTokensV2>;
+import { StyleSheet, Text, View } from 'react-native'
+import { format } from 'date-fns'
+import { enUS, ptBR } from 'date-fns/locale'
+import type { TFunction } from 'i18next'
+import type { CalendarRangeModel } from '@orbit/shared/utils'
+import type { AppTokensV2 } from '@/lib/theme'
+import { DayCell } from '@/components/dates/day-cell'
+import { MonthGrid } from '@/components/dates/month-grid'
+import { PillButton } from '@/components/ui/pill-button'
+import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
+import { CalendarStats, type CalendarStat } from './calendar-stats'
 
 interface CalendarRangeViewProps {
-  gridDays: GridDay[];
-  weekdayHeaders: WeekdayHeader[];
-  isLoading: boolean;
-  rangeStart: string;
-  rangeEnd: string;
-  onPickDay: (dateStr: string) => void;
-  columns: readonly TimeGridColumn[];
-  rangeDayMap: Map<string, CalendarDayEntry[]>;
-  hint: string;
-  /** Notice shown in place of the hint when the picked range was clamped to the
-   *  maximum number of days. */
-  clampedNotice: string;
-  isClamped: boolean;
-  /** True between the first and second taps of a range pick. */
-  isAwaitingEnd: boolean;
-  isRangeLoading?: boolean;
-  onSelectDay: (dateStr: string) => void;
-  displayTime: (time: string) => string;
-  language: string;
-  allDayLabel: string;
-  nowLabel: string;
-  showRecurring: boolean;
-  onShowRecurringChange: (value: boolean) => void;
-  showRecurringLabel: string;
-  t: TFunction;
-  tokens: Tokens;
-  todayKey: string;
+  model: CalendarRangeModel
+  weekdayLabels: readonly string[]
+  rangeLabel: string
+  previousRangeLabel: string
+  nextRangeLabel: string
+  onPreviousRange: () => void
+  onNextRange: () => void
+  nextRangeDisabled: boolean
+  stats: readonly CalendarStat[]
+  language: string
+  t: TFunction
+  tokens: AppTokensV2
 }
 
-/** Interval view: a mini-calendar to pick a contiguous range (capped at the
- *  shared MAX_RANGE_DAYS), then the same time grid rendered with one column per
- *  day in that range. */
-// react-doctor-disable-next-line no-many-boolean-props -- Deliberate presentational aggregator: independent loading/clamped/awaiting UI-state flags passed from the calendar screen; an options-object rewrite would churn the caller and the web parity mirror for no runtime benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+/** A fixed fourteen-day, read-only orientation view with span-level figures. */
 export function CalendarRangeView({
-  gridDays,
-  weekdayHeaders,
-  isLoading,
-  rangeStart,
-  rangeEnd,
-  onPickDay,
-  columns,
-  rangeDayMap,
-  hint,
-  clampedNotice,
-  isClamped,
-  isAwaitingEnd,
-  isRangeLoading = false,
-  onSelectDay,
-  displayTime,
+  model,
+  weekdayLabels,
+  rangeLabel,
+  previousRangeLabel,
+  nextRangeLabel,
+  onPreviousRange,
+  onNextRange,
+  nextRangeDisabled,
+  stats,
   language,
-  allDayLabel,
-  nowLabel,
-  showRecurring,
-  onShowRecurringChange,
-  showRecurringLabel,
   t,
   tokens,
-  todayKey,
 }: Readonly<CalendarRangeViewProps>) {
-  const clampedHint = isClamped ? clampedNotice : hint;
-  const hintText = isAwaitingEnd ? t("calendar.timeGrid.pickEndHint") : clampedHint;
+  const locale = language === 'pt-BR' ? ptBR : enUS
+  const words = {
+    none: t('calendar.dayCell.none'),
+    partial: t('calendar.dayCell.partial'),
+    full: t('calendar.dayCell.full'),
+    notScheduled: t('calendar.dayCell.notScheduled'),
+    of: t('calendar.dayCell.of'),
+    today: t('calendar.dayCell.today'),
+    readOnly: t('calendar.dayCell.readOnly'),
+  }
 
   return (
-    <>
-      <CalendarGrid
-        gridDays={gridDays}
-        weekdayHeaders={weekdayHeaders}
-        selectedDay={null}
-        isLoading={isLoading}
-        rangeStart={rangeStart}
-        rangeEnd={rangeEnd}
-        onSelectDay={onPickDay}
-        language={language}
-        t={t}
-        tokens={tokens}
-        todayKey={todayKey}
-        interaction="range-picker"
-      />
-      <View style={styles.hintRow}>
-        <Text
-          style={[
-            styles.hintText,
-            {
-              color:
-                isClamped && !isAwaitingEnd
-                  ? tokens.statusOverdueText
-                  : tokens.fg3,
-            },
-          ]}
-        >
-          {hintText}
+    <View accessibilityLabel={rangeLabel} style={styles.container}>
+      <View style={styles.header}>
+        <Text numberOfLines={1} style={[styles.rangeLabel, { color: tokens.fg2 }]}>
+          {rangeLabel}
         </Text>
-        <ShowRecurringToggle
-          checked={showRecurring}
-          onChange={onShowRecurringChange}
-          label={showRecurringLabel}
-          tokens={tokens}
-        />
+        <PillButton
+          variant="ghost"
+          size="sm"
+          iconOnly
+          label={previousRangeLabel}
+          onClick={onPreviousRange}
+        >
+          <ChevronLeft size={20} strokeWidth={1.8} color={tokens.fg2} />
+        </PillButton>
+        <PillButton
+          variant="ghost"
+          size="sm"
+          iconOnly
+          label={nextRangeLabel}
+          onClick={onNextRange}
+          disabled={nextRangeDisabled}
+        >
+          <ChevronRight size={20} strokeWidth={1.8} color={tokens.fg2} />
+        </PillButton>
       </View>
-      <CalendarTimeGrid
-        columns={columns}
-        dayMap={rangeDayMap}
-        onSelectDay={onSelectDay}
-        displayTime={displayTime}
-        language={language}
-        allDayLabel={allDayLabel}
-        nowLabel={nowLabel}
-        isLoading={isRangeLoading}
-        t={t}
-        tokens={tokens}
-      />
-    </>
-  );
+
+      <MonthGrid weekdayLabels={[...weekdayLabels]} gap={4} label={rangeLabel}>
+        {Array.from({ length: model.leadingEmptyDays }, (_, index) => (
+          <View key={`leading-${index}`} accessibilityElementsHidden style={styles.daySlot} />
+        ))}
+        {model.days.map((day) => (
+          <DayCell
+            key={day.dateStr}
+            day={day.day}
+            done={day.completedCount}
+            scheduled={day.totalCount}
+            today={day.isToday}
+            label={format(day.date, 'EEEE, MMM d', { locale })}
+            words={words}
+          />
+        ))}
+      </MonthGrid>
+
+      <CalendarStats stats={stats} />
+    </View>
+  )
 }
 
 const styles = StyleSheet.create({
-  hintRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingBottom: 6,
+  container: { gap: 16, paddingHorizontal: 4, paddingTop: 12, paddingBottom: 24 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rangeLabel: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: 'GeistMono_400Regular',
+    fontSize: 14,
+    fontVariant: ['tabular-nums'],
   },
-  hintText: {
-    flexShrink: 1,
-    fontFamily: "Geist_400Regular",
-    fontSize: 13,
-  },
-});
+  daySlot: { width: 44, height: 44 },
+})

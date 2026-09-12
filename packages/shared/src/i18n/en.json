@@ -930,6 +930,11 @@
       "range": "Range",
       "agenda": "Agenda"
     },
+    "range": {
+      "label": "{start} to {end}",
+      "previous": "Previous range",
+      "next": "Next range"
+    },
     "timeGrid": {
       "allDay": "All-day",
       "now": "Now",
