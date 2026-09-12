@@ -11,11 +11,13 @@ describe('Chromium test lifecycle', () => {
 
   it('names the Chrome launch when the browser is unavailable', async () => {
     mocks.launch.mockRejectedValueOnce(new Error('browser executable unavailable'))
+    const browserLaunch = launchChrome()
 
-    await expect(launchChrome()).rejects.toThrow('Chrome launch failed')
+    await expect(browserLaunch).rejects.toThrow('Chrome launch failed')
+    await expect(closeChrome(browserLaunch)).resolves.toBeUndefined()
   })
 
-  it('skips teardown when launch never produced a browser', async () => {
+  it('skips teardown when launch never started', async () => {
     await expect(closeChrome(undefined)).resolves.toBeUndefined()
   })
 
@@ -23,7 +25,7 @@ describe('Chromium test lifecycle', () => {
     const close = vi.fn()
     const browser = { close, isConnected: () => false } as unknown as Browser
 
-    await closeChrome(browser)
+    await closeChrome(Promise.resolve(browser))
 
     expect(close).not.toHaveBeenCalled()
   })
@@ -32,7 +34,22 @@ describe('Chromium test lifecycle', () => {
     const close = vi.fn().mockResolvedValue(undefined)
     const browser = { close, isConnected: () => true } as unknown as Browser
 
-    await closeChrome(browser)
+    await closeChrome(Promise.resolve(browser))
+
+    expect(close).toHaveBeenCalledOnce()
+  })
+
+  it('closes a browser that resolves after teardown starts', async () => {
+    let resolveBrowser!: (browser: Browser) => void
+    const close = vi.fn().mockResolvedValue(undefined)
+    const browser = { close, isConnected: () => true } as unknown as Browser
+    mocks.launch.mockReturnValueOnce(new Promise<Browser>((resolve) => { resolveBrowser = resolve }))
+    const browserLaunch = launchChrome()
+
+    const teardown = closeChrome(browserLaunch)
+    expect(close).not.toHaveBeenCalled()
+    resolveBrowser(browser)
+    await teardown
 
     expect(close).toHaveBeenCalledOnce()
   })

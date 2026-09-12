@@ -7,7 +7,7 @@ import tailwind from '@tailwindcss/postcss'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { closeChrome, launchChrome, type Browser } from '@/__tests__/support/chromium'
+import { closeChrome, launchChrome, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
@@ -145,12 +145,14 @@ import ProgressPage from '@/app/(app)/progress/page'
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
 
 describe('ProgressContent', () => {
+  let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let compiledStyles: string
   let textStyles: string
 
   beforeAll(async () => {
-    browser = await launchChrome()
+    browserLaunch = launchChrome()
+    browser = await browserLaunch
   })
 
   beforeAll(async () => {
@@ -166,7 +168,7 @@ describe('ProgressContent', () => {
     textStyles = rules.join('\n')
   })
 
-  afterAll(async () => { await closeChrome(browser) }, 30_000)
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each(['dark', 'light'] as const)('keeps goal metadata legible in every card state in %s', (mode) => {
     mocks.goals.data.allGoals = [createMockGoal()]
