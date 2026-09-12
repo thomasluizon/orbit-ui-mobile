@@ -1,45 +1,4 @@
 {
-  "app/(tabs)/calendar/_components/calendar-day-detail.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "app/(tabs)/calendar/_components/calendar-day-entry.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/(tabs)/calendar/_components/calendar-range-view.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/(tabs)/calendar/_components/calendar-shell.tsx": {
-    "local/icon-size-grid": {
-      "count": 4
-    },
-    "local/spacing-scale": {
-      "count": 7
-    }
-  },
-  "app/(tabs)/calendar/_components/calendar-stats.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/(tabs)/calendar/_components/calendar-time-grid.tsx": {
-    "local/spacing-scale": {
-      "count": 6
-    }
-  },
-  "app/(tabs)/calendar/_components/calendar-week-view.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "app/(tabs)/index.tsx": {
     "local/spacing-scale": {
       "count": 1
@@ -83,16 +42,6 @@
       "count": 1
     }
   },
-  "app/calendar-sync-styles.ts": {
-    "local/spacing-scale": {
-      "count": 18
-    }
-  },
-  "app/calendar-sync.tsx": {
-    "local/icon-size-grid": {
-      "count": 4
-    }
-  },
   "app/preferences-styles.ts": {
     "local/spacing-scale": {
       "count": 5
@@ -119,21 +68,6 @@
   "app/wrapped-styles.ts": {
     "local/spacing-scale": {
       "count": 11
-    }
-  },
-  "components/calendar-sync/calendar-sync-auto-section.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    }
-  },
-  "components/calendar-sync/calendar-sync-event-row.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    }
-  },
-  "components/calendar-sync/calendar-sync-select-all-toggle.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
     }
   },
   "components/chat/conflict-warning.tsx": {

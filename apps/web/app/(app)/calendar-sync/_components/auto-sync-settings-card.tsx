@@ -96,12 +96,12 @@ export function AutoSyncSettingsCard() {
   return (
     <>
       <SectionLabel>{t('calendar.autoSync.title')}</SectionLabel>
-      <div style={{ padding: '0 20px' }}>
+      <div style={{ padding: '0 16px' }}>
         <div
           className="flex items-center"
           style={{
-            gap: 14,
-            padding: '16px 18px',
+            gap: 12,
+            padding: '16px',
             borderRadius: 16,
             background: 'var(--bg-card)',
             boxShadow: 'inset 0 0 0 1px var(--hairline)',
@@ -112,7 +112,7 @@ export function AutoSyncSettingsCard() {
             className="inline-flex justify-center shrink-0"
             style={{ width: 26 }}
           >
-            <CalendarDays size={22} strokeWidth={1.8} color="var(--fg-1)" />
+            <CalendarDays size={20} strokeWidth={1.8} color="var(--fg-1)" />
           </span>
           <div className="flex-1 min-w-0">
             <div
@@ -129,7 +129,7 @@ export function AutoSyncSettingsCard() {
             <div
               className="flex items-center"
               style={{
-                gap: 6,
+                gap: 4,
                 marginTop: 4,
                 fontFamily: 'var(--font-sans)',
                 fontSize: 13,
@@ -153,7 +153,7 @@ export function AutoSyncSettingsCard() {
       <SettingsDescription>{t('calendar.autoSync.description')}</SettingsDescription>
 
       {!isLoading && hasConnection && (
-        <div className="flex justify-end" style={{ padding: '0 20px 6px' }}>
+        <div className="flex justify-end" style={{ padding: '0 16px 4px' }}>
           <QuietActionButton onClick={() => void handleSyncNow()} disabled={runSyncNow.isPending}>
             {runSyncNow.isPending ? (
               <>
@@ -173,14 +173,14 @@ export function AutoSyncSettingsCard() {
       {showReconnect && (
         <div
           style={{
-            padding: '6px 20px 14px',
+            padding: '4px 16px 12px',
             display: 'flex',
             flexDirection: 'column',
             gap: 4,
           }}
         >
           <div className="flex items-start gap-2 text-[var(--status-overdue-text)]">
-            <AlertTriangle className="size-4 mt-0.5 shrink-0" aria-hidden />
+            <AlertTriangle className="size-4 mt-0 shrink-0" aria-hidden />
             <div className="flex-1 min-w-0">
               <p
                 style={{

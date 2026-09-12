@@ -34,7 +34,7 @@ export function CalendarSyncEventRow({
       className="flex items-start transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
       style={{
         gap: 12,
-        padding: '0 20px',
+        padding: '0 16px',
         borderBottom: '1px solid var(--hairline)',
         background: selected
           ? 'rgba(var(--primary-rgb), 0.06)'
@@ -46,9 +46,9 @@ export function CalendarSyncEventRow({
         onClick={() => onToggle(event.id)}
         aria-pressed={selected}
         className="flex-1 min-w-0 text-left flex items-start appearance-none border-0 bg-transparent cursor-pointer"
-        style={{ gap: 14, padding: '14px 0' }}
+        style={{ gap: 12, padding: '12px 0' }}
       >
-        <span className="shrink-0" style={{ marginTop: 1 }}>
+        <span className="shrink-0" style={{ marginTop: 0 }}>
           <RadioGlyph selected={selected} size={24} />
         </span>
         <span className="flex-1 min-w-0 block">
@@ -153,7 +153,7 @@ export function CalendarSyncEventRow({
           className="icon-btn touch-target shrink-0 hover:text-[var(--status-bad)] disabled:opacity-50"
           style={{ width: 36, height: 36, marginTop: 8, color: 'var(--fg-4)' }}
         >
-          <X size={18} strokeWidth={1.8} aria-hidden />
+          <X size={20} strokeWidth={1.8} aria-hidden />
         </button>
       )}
     </div>

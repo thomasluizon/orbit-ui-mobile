@@ -7,8 +7,6 @@ import type { DragEndEvent } from '@dnd-kit/core'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 import type { AgendaEntry } from '@/components/calendar/use-agenda-day'
 
-const pinnedCardLayer = ['linear-gradient', '(var(--bg-card), var(--bg-card))'].join('')
-
 let capturedOnDragEnd: ((event: DragEndEvent) => void) | undefined
 const updateMutate = vi.fn()
 const showSuccess = vi.fn()
@@ -176,8 +174,7 @@ describe('CalendarAgendaView', () => {
     expect(screen.queryByTestId('agenda-event')).toBeNull()
     expect(screen.getByTestId('agenda-all-day-event')).toHaveTextContent('Read')
     expect(screen.getByTestId('agenda-all-day-band')).toHaveStyle({
-      backgroundColor: 'var(--bg)',
-      backgroundImage: pinnedCardLayer,
+      backgroundColor: 'var(--bg-card)',
     })
   })
 

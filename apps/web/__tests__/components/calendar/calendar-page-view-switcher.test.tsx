@@ -27,6 +27,24 @@ const profileQueryState: {
   refetch: vi.fn(),
 }
 const calendarDataCalls = vi.fn()
+const calendarProfile = {
+  weekStartDay: 1,
+  hasProAccess: true,
+  hasGoogleConnection: true,
+  googleCalendarAutoSyncEnabled: true,
+  googleCalendarAutoSyncStatus: 'Idle' as const,
+  googleCalendarLastSyncedAt: '2026-09-12T09:12:00Z',
+}
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}))
+
+vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+
+vi.mock('@/hooks/use-calendar-auto-sync', () => ({
+  useSetCalendarAutoSync: () => ({ mutateAsync: vi.fn(async () => {}) }),
+}))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -151,7 +169,7 @@ describe('CalendarPage view switcher', () => {
     calendarEventsQueryState.data = { status: 'connected', events: [] }
     monthQueryState.error = null
     monthQueryState.refresh = vi.fn()
-    profileQueryState.profile = { weekStartDay: 1 }
+    profileQueryState.profile = calendarProfile
     profileQueryState.error = null
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()

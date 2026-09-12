@@ -96,7 +96,9 @@ export {
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
   filterCalendarSyncEventsByDate,
+  getCalendarSyncClockValue,
   isCalendarAutoSyncStatusReconnectRequired,
+  isCalendarSyncConnectionActive,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
 } from './calendar-sync'

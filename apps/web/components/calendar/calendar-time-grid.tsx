@@ -33,8 +33,7 @@ function splitAllDay(allDay: CalendarDayEntry[]): {
 
 const CARD_BG = 'var(--bg-card)'
 const pinnedPaneBackground = {
-  backgroundColor: 'var(--bg)',
-  backgroundImage: 'linear-gradient(var(--bg-card), var(--bg-card))',
+  backgroundColor: 'var(--bg-card)',
 } as const
 
 export interface TimeGridColumn {
@@ -202,7 +201,7 @@ function AllDayChip({ entry }: Readonly<{ entry: CalendarDayEntry }>) {
       data-testid="time-grid-all-day-event"
       className="flex items-center gap-1 overflow-hidden"
       style={{
-        padding: '3px 6px',
+        padding: '4px',
         borderRadius: 8,
         background: `color-mix(in srgb, ${accent} 14%, transparent)`,
         boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${accent} 28%, transparent)`,
@@ -244,7 +243,7 @@ function AllDayMoreChip({
       style={{
         appearance: 'none',
         cursor: 'pointer',
-        padding: '3px 6px',
+        padding: '4px',
         borderRadius: 8,
         border: 0,
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
@@ -318,7 +317,7 @@ export function CalendarTimeGrid({
     perColumn.every(({ allDay, timed }) => allDay.length === 0 && timed.length === 0)
 
   return (
-    <div style={{ padding: '4px 20px 16px' }}>
+    <div style={{ padding: '4px 16px 16px' }}>
       <div
         data-testid="calendar-time-grid"
         data-columns={columns.length}
@@ -358,8 +357,8 @@ export function CalendarTimeGrid({
                   borderLeft: '1px solid var(--hairline)',
                   borderBottom: '1px solid var(--hairline)',
                   cursor: 'pointer',
-                  padding: '0 2px',
-                  gap: 2,
+                  padding: 0,
+                  gap: 0,
                 }}
               >
                 <span
@@ -406,7 +405,7 @@ export function CalendarTimeGrid({
             <div
               className="sticky left-0 z-[1] flex items-start justify-end"
               style={{
-                padding: '6px 6px 0',
+                padding: '4px 4px 0',
                 borderBottom: '1px solid var(--hairline)',
                 ...pinnedPaneBackground,
               }}
@@ -435,7 +434,7 @@ export function CalendarTimeGrid({
                   style={{
                     gap: 4,
                     minHeight: 34,
-                    padding: '6px 3px',
+                    padding: '4px',
                     borderLeft: '1px solid var(--hairline)',
                     borderBottom: '1px solid var(--hairline)',
                   }}
@@ -484,12 +483,17 @@ export function CalendarTimeGrid({
                   position: 'relative',
                   height: DAY_HEIGHT,
                   borderLeft: '1px solid var(--hairline)',
-                  backgroundImage:
-                    'repeating-linear-gradient(to bottom, var(--hairline) 0, var(--hairline) 1px, transparent 1px, transparent ' +
-                    HOUR_HEIGHT +
-                    'px)',
+                  backgroundColor: 'var(--bg-card)',
                 }}
               >
+                {HOURS.slice(1).map((hour) => (
+                  <span
+                    key={hour}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0 border-t border-[var(--hairline)]"
+                    style={{ top: hour * HOUR_HEIGHT }}
+                  />
+                ))}
                 {timed.map((block) => (
                   <TimedBlock
                     key={block.entry.habitId}

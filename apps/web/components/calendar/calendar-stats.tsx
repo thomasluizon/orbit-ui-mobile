@@ -19,8 +19,8 @@ export function CalendarStats({ stats }: Readonly<CalendarStatsProps>) {
       className="grid"
       style={{
         gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))',
-        gap: 10,
-        padding: '0 20px',
+        gap: 8,
+        padding: '0 16px',
       }}
     >
       {stats.map((stat) => (

@@ -13,7 +13,14 @@ const state = vi.hoisted(() => ({
   rangeMap: new Map<string, CalendarDayEntry[]>(),
   monthError: null as string | null,
   monthRefresh: () => {},
-  profile: undefined as { weekStartDay: number } | undefined,
+  profile: undefined as {
+    weekStartDay: number;
+    hasProAccess: boolean;
+    hasGoogleConnection: boolean;
+    googleCalendarAutoSyncEnabled: boolean;
+    googleCalendarAutoSyncStatus: "Idle";
+    googleCalendarLastSyncedAt: string;
+  } | undefined,
   profileError: null as Error | null,
   profileRefetch: vi.fn(),
   calendarDataCalls: vi.fn(),
@@ -48,6 +55,14 @@ vi.mock("@/hooks/use-profile", () => ({
 
 vi.mock("@/hooks/use-time-format", () => ({
   useTimeFormat: () => ({ displayTime: (time: string) => time }),
+}));
+
+vi.mock("@/hooks/use-calendar-auto-sync", () => ({
+  useSetCalendarAutoSync: () => ({ mutateAsync: vi.fn(async () => {}) }),
+}));
+
+vi.mock("@/hooks/use-app-toast", () => ({
+  useAppToast: () => ({ showError: vi.fn() }),
 }));
 
 vi.mock("@/hooks/use-calendar-events", () => ({
@@ -173,7 +188,14 @@ describe("CalendarScreen views (mobile)", () => {
     calendarDayDetailProps.current = null;
     state.monthError = null;
     state.monthRefresh = () => {};
-    state.profile = { weekStartDay: 1 };
+    state.profile = {
+      weekStartDay: 1,
+      hasProAccess: true,
+      hasGoogleConnection: true,
+      googleCalendarAutoSyncEnabled: true,
+      googleCalendarAutoSyncStatus: "Idle",
+      googleCalendarLastSyncedAt: "2026-09-12T09:12:00Z",
+    };
     state.profileError = null;
     state.profileRefetch = vi.fn();
     state.calendarDataCalls.mockClear();

@@ -39,7 +39,7 @@ function createStyles(tokens: Tokens) {
     row: {
       flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: 18,
+      paddingHorizontal: 16,
       paddingVertical: 16,
       gap: 12,
     },
@@ -54,7 +54,7 @@ function createStyles(tokens: Tokens) {
     content: {
       flex: 1,
       minWidth: 0,
-      gap: 2,
+      gap: 0,
     },
     titleRow: {
       flexDirection: "row",
@@ -117,7 +117,7 @@ export function CalendarDayEntryRow({
           style={[styles.statusCircle, statusCircleStyle(entry, tokens)]}
         >
           {entry.status === "completed" ? (
-            <Check size={15} strokeWidth={2.5} color={tokens.fgOnPrimary} />
+            <Check size={16} strokeWidth={2.5} color={tokens.fgOnPrimary} />
           ) : null}
         </View>
         <View style={styles.content}>

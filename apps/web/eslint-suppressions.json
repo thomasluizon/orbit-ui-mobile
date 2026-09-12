@@ -24,45 +24,6 @@
       "count": 1
     }
   },
-  "app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 10
-    }
-  },
-  "app/(app)/calendar-sync/_components/calendar-picker-section.tsx": {
-    "local/spacing-scale": {
-      "count": 6
-    }
-  },
-  "app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "app/(app)/calendar-sync/_components/select-all-toggle.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    }
-  },
-  "app/(app)/calendar-sync/page.tsx": {
-    "local/spacing-scale": {
-      "count": 7
-    }
-  },
-  "app/(app)/calendar/_components/calendar-shell.tsx": {
-    "local/icon-size-grid": {
-      "count": 4
-    },
-    "local/spacing-scale": {
-      "count": 8
-    }
-  },
   "app/(app)/layout.tsx": {
     "local/spacing-scale": {
       "count": 2
@@ -158,53 +119,6 @@
     },
     "local/spacing-scale": {
       "count": 8
-    }
-  },
-  "components/calendar/calendar-agenda-view.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/no-raw-gradient": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "components/calendar/calendar-day-detail.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 8
-    }
-  },
-  "components/calendar/calendar-load-error.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "components/calendar/calendar-range-view.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "components/calendar/calendar-stats.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "components/calendar/calendar-time-grid.tsx": {
-    "local/no-raw-gradient": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 11
-    }
-  },
-  "components/calendar/calendar-week-view.tsx": {
-    "local/spacing-scale": {
-      "count": 2
     }
   },
   "components/charts/bar-chart.tsx": {

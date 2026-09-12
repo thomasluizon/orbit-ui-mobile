@@ -47,8 +47,7 @@ const MINUTES_IN_DAY = 24 * 60
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 
 const pinnedPaneBackground = {
-  backgroundColor: 'var(--bg)',
-  backgroundImage: 'linear-gradient(var(--bg-card), var(--bg-card))',
+  backgroundColor: 'var(--bg-card)',
 } as const
 
 function currentMinutes(): number {
@@ -293,7 +292,7 @@ function AgendaAllDayChip({ entry }: Readonly<AgendaAllDayChipProps>) {
   return (
     <div
       data-testid="agenda-all-day-event"
-      className="flex items-center gap-1.5 overflow-hidden"
+      className="flex items-center gap-1 overflow-hidden"
       style={{
         padding: '4px 8px',
         borderRadius: 8,
@@ -349,7 +348,7 @@ function AgendaDayNav({
         onClick={onPrevious}
         className="icon-btn touch-target shrink-0"
       >
-        <ChevronLeft size={22} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+        <ChevronLeft size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
       </button>
       <button
         type="button"
@@ -374,7 +373,7 @@ function AgendaDayNav({
         onClick={onNext}
         className="icon-btn touch-target shrink-0"
       >
-        <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+        <ChevronRight size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
       </button>
     </div>
   )
@@ -487,8 +486,8 @@ export function CalendarAgendaView({
   const isEmpty = !isLoading && visibleEntries.length === 0
 
   return (
-    <div style={{ padding: '0 20px 16px' }}>
-      <div className="shrink-0" style={{ padding: '12px 0 14px' }}>
+    <div style={{ padding: '0 16px 16px' }}>
+      <div className="shrink-0" style={{ padding: '12px 0' }}>
         <AgendaDayNav
           label={dayLabel}
           previousLabel={t('calendar.agenda.previousDay')}
@@ -585,12 +584,17 @@ export function CalendarAgendaView({
                   position: 'relative',
                   height: DAY_HEIGHT,
                   borderLeft: '1px solid var(--hairline)',
-                  backgroundImage:
-                    'repeating-linear-gradient(to bottom, var(--hairline) 0, var(--hairline) 1px, transparent 1px, transparent ' +
-                    HOUR_HEIGHT +
-                    'px)',
+                  backgroundColor: 'var(--bg-card)',
                 }}
               >
+                {HOURS.slice(1).map((hour) => (
+                  <span
+                    key={hour}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0 border-t border-[var(--hairline)]"
+                    style={{ top: hour * HOUR_HEIGHT }}
+                  />
+                ))}
                 {timedBlocks.map((block) => (
                   <AgendaEventBlock
                     key={block.entry.habitId}

@@ -92,7 +92,7 @@ export function CalendarSyncEventRow({
             ) : null}
             {event.reminders.length > 0 ? (
               <View style={styles.eventReminders}>
-                <Bell size={12} color={tokens.fg3} />
+                <Bell size={16} color={tokens.fg3} />
                 <Text style={[styles.eventMeta, { color: tokens.fg3 }]}>
                   {event.reminders.length}
                 </Text>
@@ -129,7 +129,7 @@ export function CalendarSyncEventRow({
               (pressed || dismissPending) && styles.quietActionDim,
             ]}
           >
-            <X size={18} color={tokens.fg4} strokeWidth={1.8} />
+            <X size={20} color={tokens.fg4} strokeWidth={1.8} />
           </Pressable>
         ) : null}
       </Pressable>

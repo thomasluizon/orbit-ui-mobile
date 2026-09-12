@@ -42,12 +42,15 @@ import {
   parseAPIDate,
   MAX_RANGE_DAYS,
   buildCalendarMonthModel,
+  getFriendlyErrorMessage,
 } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import type { Profile } from "@orbit/shared/types/profile";
 import { useCalendarData, useCalendarRange } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
+import { useSetCalendarAutoSync } from "@/hooks/use-calendar-auto-sync";
+import { useAppToast } from "@/hooks/use-app-toast";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { createTokensV2 } from "@/lib/theme";
@@ -135,7 +138,15 @@ function CalendarProfileState({ failed, onRetry }: Readonly<{ failed: boolean; o
 }
 
 interface CalendarScreenContentProps {
-  profile: Pick<Profile, 'weekStartDay'>;
+  profile: Pick<
+    Profile,
+    | 'weekStartDay'
+    | 'hasProAccess'
+    | 'hasGoogleConnection'
+    | 'googleCalendarAutoSyncEnabled'
+    | 'googleCalendarAutoSyncStatus'
+    | 'googleCalendarLastSyncedAt'
+  >;
   currentMonth: Date;
   setCurrentMonth: Dispatch<SetStateAction<Date>>;
   monthQuery: ReturnType<typeof useCalendarData>;
@@ -150,6 +161,7 @@ function CalendarScreenContent({
 }: Readonly<CalendarScreenContentProps>) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const { showError } = useAppToast();
   const { displayTime } = useTimeFormat();
   const todayKey = useCurrentDate();
   const { currentScheme, currentTheme } = useAppTheme();
@@ -202,7 +214,26 @@ function CalendarScreenContent({
   );
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
   const [showRecurring, setShowRecurring] = useState(true);
-  const { data: calendarEventsResult } = useCalendarEvents();
+  const { data: calendarEventsResult } = useCalendarEvents({ enabled: profile.hasProAccess });
+  const setCalendarAutoSync = useSetCalendarAutoSync();
+
+  const handleCalendarAutoSyncChange = useCallback(async (enabled: boolean) => {
+    try {
+      await setCalendarAutoSync.mutateAsync({ enabled });
+    } catch (error: unknown) {
+      showError(getFriendlyErrorMessage(
+        error,
+        t,
+        'calendar.autoSync.syncFailed',
+        'generic',
+      ));
+      throw error;
+    }
+  }, [setCalendarAutoSync, showError, t]);
+
+  const openOrbitPro = useCallback(() => {
+    router.push('/upgrade');
+  }, [router]);
 
   const { dayMap, isLoading, isFetching, error, refresh } = monthQuery;
 
@@ -634,9 +665,12 @@ function CalendarScreenContent({
             selectedEntries={selectedEntries}
             filteredEntries={filteredEntries}
             calendarEvents={selectedCalendarEvents}
+            syncProfile={profile}
             completedCount={completedCount}
             showRecurring={showRecurring}
             onShowRecurringChange={setShowRecurring}
+            onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
+            onOpenPro={openOrbitPro}
             onGoToDay={goToSelectedDay}
             displayTime={displayTime}
             t={t}

@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   toggleRowEnd: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    paddingHorizontal: 20,
-    paddingBottom: 6,
+    paddingHorizontal: 16,
+    paddingBottom: 4,
   },
 });

@@ -7,12 +7,14 @@ import Animated, {
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import type { CalendarSyncEvent } from "@orbit/shared";
+import type { CalendarSyncProfile } from "@orbit/shared/types/profile";
 import { plural } from "@/lib/plural";
 import { PillButton } from "@/components/ui/pill-button";
 import { createTokensV2 } from "@/lib/theme";
 import { CalendarDayEntryRow } from "./calendar-day-entry";
 import { ShowRecurringToggle } from "./show-recurring-toggle";
 import { EventRow } from "@/components/dates/event-row";
+import { CalendarSyncBoundary } from "./calendar-sync-boundary";
 
 type Tokens = ReturnType<typeof createTokensV2>;
 
@@ -20,9 +22,12 @@ interface CalendarDayDetailProps {
   selectedEntries: CalendarDayEntry[];
   filteredEntries: CalendarDayEntry[];
   calendarEvents: CalendarSyncEvent[];
+  syncProfile: CalendarSyncProfile;
   completedCount: number;
   showRecurring: boolean;
   onShowRecurringChange: (value: boolean) => void;
+  onCalendarAutoSyncChange: (value: boolean) => Promise<void>;
+  onOpenPro: () => void;
   onGoToDay: () => void;
   displayTime: (time: string) => string;
   t: TFunction;
@@ -54,9 +59,12 @@ export function CalendarDayDetail({
   selectedEntries,
   filteredEntries,
   calendarEvents,
+  syncProfile,
   completedCount,
   showRecurring,
   onShowRecurringChange,
+  onCalendarAutoSyncChange,
+  onOpenPro,
   onGoToDay,
   displayTime,
   t,
@@ -137,7 +145,7 @@ export function CalendarDayDetail({
         </>
       )}
 
-      {calendarEvents.length > 0 ? (
+      {syncProfile.hasProAccess && calendarEvents.length > 0 ? (
         <View style={styles.eventSection}>
           <Text style={[styles.eventTitle, { color: tokens.fg2 }]}>
             {t("calendar.dayDetail.eventsTitle")}
@@ -163,6 +171,15 @@ export function CalendarDayDetail({
           </View>
         </View>
       ) : null}
+
+      <CalendarSyncBoundary
+        profile={syncProfile}
+        displayTime={displayTime}
+        onAutoSyncChange={onCalendarAutoSyncChange}
+        onOpenPro={onOpenPro}
+        t={t}
+        tokens={tokens}
+      />
 
       <PillButton
         variant="ghost"
@@ -202,7 +219,7 @@ function createStyles(tokens: Tokens) {
       alignItems: "center",
       justifyContent: "center",
       paddingVertical: 24,
-      paddingHorizontal: 18,
+      paddingHorizontal: 16,
       borderRadius: 18,
       backgroundColor: tokens.bgCard,
       borderWidth: 1,

@@ -918,7 +918,13 @@
     "loadError": "Could not load the calendar. Please try again.",
     "dayDetail": {
       "completionSummary": "{done} of {total} habit completed | {done} of {total} habits completed",
-      "eventsTitle": "On your calendar"
+      "eventsTitle": "On your calendar",
+      "syncBoundary": "Syncing with Google Calendar is part of Orbit Pro.",
+      "syncBoundaryBody": "With it, your commitments show up beside the habits for the day.",
+      "viewPro": "See Pro",
+      "googleConnected": "Google Calendar connected",
+      "lastSynced": "Last synced {time}",
+      "autoSync": "Sync on its own"
     },
     "noHabitsScheduled": "No habits scheduled for this day.",
     "goToDay": "View this day",

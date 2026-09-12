@@ -88,7 +88,7 @@ export function CalendarRangeView({
       />
       <div
         className="flex items-center justify-between"
-        style={{ gap: 12, padding: '0 20px 6px' }}
+        style={{ gap: 12, padding: '0 16px 4px' }}
       >
         <p
           style={{
