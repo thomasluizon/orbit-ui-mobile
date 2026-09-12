@@ -1,4 +1,5 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { spawn, spawnSync } from "node:child_process"
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, watch, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
@@ -55,7 +56,45 @@ const discardLog = (stdout) => {
   }
 }
 
-export const cases = () => {
+const waitForFile = (path) => {
+  if (existsSync(path)) return Promise.resolve()
+  return new Promise((resolve, reject) => {
+    let deadline
+    const finish = () => {
+      clearTimeout(deadline)
+      watcher.close()
+      resolve()
+    }
+    const watcher = watch(dirname(path), () => {
+      if (!existsSync(path)) return
+      finish()
+    })
+    deadline = setTimeout(() => {
+      watcher.close()
+      reject(new Error(`timed out waiting for ${path}`))
+    }, 10000)
+    if (existsSync(path)) finish()
+  })
+}
+
+const launchAsync = (path, argv, env) => {
+  const child = spawn(process.execPath, [path, ...argv], {
+    cwd: dirname(path),
+    env: { ...process.env, ...env },
+    windowsHide: true,
+  })
+  const result = new Promise((resolve, reject) => {
+    let stdout = ""
+    let stderr = ""
+    child.stdout.on("data", (chunk) => { stdout += chunk })
+    child.stderr.on("data", (chunk) => { stderr += chunk })
+    child.on("error", reject)
+    child.on("close", (status) => resolve({ status, stdout, stderr }))
+  })
+  return { child, result }
+}
+
+export const cases = async () => {
   const fixture = launch("dry-run", launchConfig())
   if (!fixture) {
     T(`${TOOL}: a real git worktree fixture is available`, false, "could not stage a git repository")
@@ -264,6 +303,11 @@ export const cases = () => {
   discardLog(quiet.stdout)
 
   const wakeObservation = stage("launch-worker/wake-observation.json", "")
+  const wakeAuthEntered = stage("launch-worker/wake-auth-entered", "")
+  rmSync(wakeAuthEntered, { force: true })
+  const wakeAuthRelease = stage("launch-worker/wake-auth-release", "")
+  rmSync(wakeAuthRelease, { force: true })
+  const wakeAuthGate = stage("launch-worker/wake-auth-gate.cjs", "")
   const wakeObserver = stage("launch-worker/wake-observer.cjs", "")
   const observedLaunch = launch("wake-cleanup", launchConfig({ ...stubEngine(wakeObserver) }))
   const wakeHooks = join(observedLaunch.base, ".claude", "hooks")
@@ -276,6 +320,17 @@ export const cases = () => {
     join(observedLaunch.base, ".git", "orbit-orchestrate-run.json"),
     JSON.stringify({ sessionId: wakeSessionId, sleep: true, remaining: ["ORB-202"] }),
   )
+  writeFileSync(wakeAuthGate, `const { existsSync, writeFileSync } = require("node:fs")
+const argv = process.argv.slice(1)
+if (argv[0] && existsSync(argv[0])) return
+if (!argv.join(" ").includes("auth token --user test-owner")) process.exit(9)
+writeFileSync(${JSON.stringify(wakeAuthEntered)}, "authentication unresolved")
+while (!existsSync(${JSON.stringify(wakeAuthRelease)})) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20)
+}
+process.stdout.write("test-github-token")
+process.exit(0)
+`)
   writeFileSync(wakeObserver, `const { existsSync, readFileSync, writeFileSync } = require("node:fs")
 const { spawnSync } = require("node:child_process")
 const { join } = require("node:path")
@@ -302,12 +357,43 @@ const poll = setInterval(() => {
   clearInterval(poll)
 }, 50)
 `)
-  const observed = check(
-    TOOL,
-    "a real launcher registers its identity while its worker runs and exits normally",
-    ["--issue", "ORB-201", "--worktree", observedLaunch.worktree, "--prompt", observedLaunch.prompt],
-    { status: 0, stdout: /"exitCode": 0/ },
-    { path: observedLaunch.path, env: githubAuthEnv() },
+  const observedArgv = ["--issue", "ORB-201", "--worktree", observedLaunch.worktree, "--prompt", observedLaunch.prompt]
+  const observedProcess = launchAsync(observedLaunch.path, observedArgv, {
+    GH_BIN: process.execPath,
+    ORCA_BIN: process.execPath,
+    NODE_OPTIONS: `--require "${wakeAuthGate.replaceAll("\\", "/")}"`,
+  })
+  const pendingRecordPath = join(observedLaunch.base, ".git", "orbit-wake-sources", `${observedProcess.child.pid}.json`)
+  let observed
+  try {
+    await waitForFile(wakeAuthEntered)
+    const pendingSource = existsSync(pendingRecordPath) ? JSON.parse(readFileSync(pendingRecordPath, "utf8")) : null
+    const pendingStop = spawnSync(process.execPath, [join(wakeHooks, "require-wake-source.mjs")], {
+      input: JSON.stringify({ session_id: wakeSessionId, stop_hook_active: false }),
+      encoding: "utf8",
+      windowsHide: true,
+    })
+    T(
+      `${TOOL}: while authentication is unresolved the launcher has a fresh pending wake source`,
+      pendingSource?.pending === true &&
+        pendingSource.workerPid === null &&
+        pendingSource.pid === observedProcess.child.pid &&
+        typeof pendingSource.processStartIdentity === "string",
+      JSON.stringify(pendingSource),
+    )
+    T(
+      `${TOOL}: the pending launcher record lets the Stop adapter allow before child spawn`,
+      pendingStop.status === 0,
+      `exit ${pendingStop.status}: ${pendingStop.stderr || pendingStop.stdout}`,
+    )
+  } finally {
+    writeFileSync(wakeAuthRelease, "release authentication")
+    observed = await observedProcess.result
+  }
+  T(
+    `${TOOL}: a real launcher registers its identity while its worker runs and exits normally`,
+    observed.status === 0 && /"exitCode": 0/.test(observed.stdout),
+    `exit ${observed.status}: ${observed.stderr || observed.stdout}`,
   )
   discardLog(observed.stdout)
   const observation = JSON.parse(readFileSync(wakeObservation, "utf8"))
