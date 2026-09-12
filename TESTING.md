@@ -4,7 +4,7 @@
 > - Unit-first policy (Vitest), plus one local Android widget host instrumented gate; the only sanctioned E2E against prod is the post-deploy web smoke suite.
 > - Assert behavior and data-attributes, never class names or implementation details.
 > - For a defect missed by existing coverage, observe the unchanged test first, then the strengthened test failing before the fix; carry both observations into the PR body.
-> - PillButton target unit cases require installed Chrome; other web component tests use jsdom.
+> - Chromium geometry unit cases require installed Chrome; other web component tests use jsdom.
 > - Ten suites: web / mobile / shared unit, the local Android widget host instrumented gate, web Playwright e2e (which IS the post-deploy smoke), the hermetic layout guard, the authed-Today Lighthouse budget gate, Stryker mutation, and the two harness suites (hook parity and the tools execution gate) that test the agent harness rather than the product.
 > - The two harness suites are run BY HAND after any change to `tools/**` or `.claude/**`: `node tools/test-tools.mjs` and `node .claude/hooks/test-hooks.mjs`. The `Harness Execution` CI job was removed from branch protection on 2026-08-04, because a broken harness self-check froze every product merge.
 > - There is no visual regression gate and no screenshot anywhere: #422 deleted it. Its hermetic harness survived the deletion and lives under `apps/web/test-support/hermetic/`, where the Lighthouse budget gate and the layout guard both use it.
@@ -16,7 +16,7 @@ Every feature ships behavior tests. A test that cannot fail when the behavior br
 
 ## How to write a test here
 
-PillButton's three target cases run inside Vitest with Playwright's `chrome` channel, compiling the actual Tailwind stylesheet and loading the installed Geist font. Install Google Chrome before running the web suite. These isolated component cases measure visible bounds, pseudo-element bounds and hit testing without an app server, network fixtures or production access; jsdom cannot resolve this layout.
+Chromium geometry cases run inside Vitest with Playwright's `chrome` channel. Install Google Chrome before running the web suite. The GitHub-hosted `ubuntu-24.04` image satisfies this prerequisite. Every Chromium suite uses `__tests__/support/chromium.ts` to launch Chrome in its own hook before Tailwind compilation, report a named launch failure, and skip teardown when launch never returned or the browser already disconnected. PillButton's target cases compile the actual Tailwind stylesheet and load the installed Geist font. These isolated component cases measure visible bounds, pseudo-element bounds and hit testing without an app server, network fixtures or production access; jsdom cannot resolve this layout.
 
 - **Behavior, not implementation.** Assert what the user or caller observes: rendered text, a `data-*` attribute, a returned value, a thrown error. Never assert class names, call order, or private state. Those pass while the behavior is broken and block honest refactors.
 - **Three axes.** A real test covers the happy path **and** an edge case **and** a failure case. Invalid input must be *rejected*, not just valid input accepted.
