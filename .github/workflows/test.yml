@@ -165,6 +165,22 @@ jobs:
       - name: Ban decorative gradients in app code
         run: node tools/check-gradients.mjs
 
+  surface-scope-report:
+    name: Surface Scope Report
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Check declared token surface scopes
+        run: node tools/check-surface-scope.mjs
+
   contract-drift:
     name: Contract Drift
     runs-on: ubuntu-latest
