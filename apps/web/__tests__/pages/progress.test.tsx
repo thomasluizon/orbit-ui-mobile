@@ -8,9 +8,8 @@ import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import {
-  CHROME_LAUNCH_HOOK_TIMEOUT_MS,
   closeChrome,
-  launchChrome,
+  registerChromeLaunchHook,
   type Browser,
   type BrowserLaunch,
 } from '@/__tests__/support/chromium'
@@ -156,10 +155,10 @@ describe('ProgressContent', () => {
   let compiledStyles: string
   let textStyles: string
 
-  beforeAll(async () => {
-    browserLaunch = launchChrome()
+  registerChromeLaunchHook(beforeAll, async (launch) => {
+    browserLaunch = launch
     browser = await browserLaunch
-  }, CHROME_LAUNCH_HOOK_TIMEOUT_MS)
+  })
 
   beforeAll(async () => {
     const source = resolve('app/globals.css')

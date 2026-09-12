@@ -6,9 +6,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { PillButton } from '@/components/ui/pill-button'
 import {
-  CHROME_LAUNCH_HOOK_TIMEOUT_MS,
   closeChrome,
-  launchChrome,
+  registerChromeLaunchHook,
   type Browser,
   type BrowserLaunch,
 } from '@/__tests__/support/chromium'
@@ -19,10 +18,10 @@ describe('PillButton', () => {
     let browser: Browser
     let stylesheet: string
 
-    beforeAll(async () => {
-      browserLaunch = launchChrome()
+    registerChromeLaunchHook(beforeAll, async (launch) => {
+      browserLaunch = launch
       browser = await browserLaunch
-    }, CHROME_LAUNCH_HOOK_TIMEOUT_MS)
+    })
 
     beforeAll(async () => {
       const source = resolve(process.cwd(), 'app/globals.css')
