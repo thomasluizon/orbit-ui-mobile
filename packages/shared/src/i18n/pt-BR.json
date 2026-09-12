@@ -931,7 +931,8 @@
       "agenda": "Agenda"
     },
     "timeGrid": {
-      "allDay": "Sem hora certa",
+      "allDay": "Dia inteiro",
+      "noSetTime": "Sem hora certa",
       "now": "Agora",
       "pickRangeHint": "Escolha um dia inicial e final acima para definir seu intervalo.",
       "pickEndHint": "Agora escolha o dia final",

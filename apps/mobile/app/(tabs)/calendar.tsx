@@ -573,7 +573,7 @@ function CalendarScreenContent({
               onSelectDay={onSelectDay}
               displayTime={displayTime}
               language={i18n.language}
-              allDayLabel={t("calendar.timeGrid.allDay")}
+              allDayLabel={t("calendar.timeGrid.noSetTime")}
               nowLabel={t("calendar.timeGrid.now")}
               showRecurring={showRecurring}
               onShowRecurringChange={setShowRecurring}

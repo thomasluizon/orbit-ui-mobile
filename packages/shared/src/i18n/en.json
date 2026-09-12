@@ -931,7 +931,8 @@
       "agenda": "Agenda"
     },
     "timeGrid": {
-      "allDay": "No set time",
+      "allDay": "All-day",
+      "noSetTime": "No set time",
       "now": "Now",
       "pickRangeHint": "Pick a start and end day above to set your range.",
       "pickEndHint": "Now pick the end day",

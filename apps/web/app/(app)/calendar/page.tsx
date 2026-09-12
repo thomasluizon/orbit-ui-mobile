@@ -457,7 +457,7 @@ function CalendarPageContent({
                 onSelectDay={openDay}
                 displayTime={displayTime}
                 dateFnsLocale={dateFnsLocale}
-                allDayLabel={t('calendar.timeGrid.allDay')}
+                allDayLabel={t('calendar.timeGrid.noSetTime')}
                 nowLabel={t('calendar.timeGrid.now')}
                 showRecurring={showRecurring}
                 onShowRecurringChange={setShowRecurring}
