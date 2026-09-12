@@ -68,6 +68,7 @@ export function ScrollToTopButton({
       importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'}
       style={[styles.wrap, { bottom }, animatedStyle]}
     >
+      {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
       <Pressable
         onPress={onPress}
         accessibilityRole="button"

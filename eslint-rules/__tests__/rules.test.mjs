@@ -33,11 +33,11 @@ const rule = (name) => require(`../${name}.cjs`)
 
 const maxButtonWordsOptions = [{
   controls: [
-    { name: 'button', labelProps: ['children'] },
+    { name: 'button', labelProps: ['children', 'aria-label'] },
     { name: 'PillButton', labelProps: ['children', 'label'] },
     { name: 'Button', labelProps: ['children', 'label'] },
     { name: 'Chip', labelProps: ['children'] },
-    { name: 'Pressable', labelProps: ['children'], roles: ['button', 'tab', 'menuitem'] },
+    { name: 'Pressable', labelProps: ['children', 'accessibilityLabel'], roles: ['button', 'tab', 'menuitem'] },
     { name: 'SegmentedControl', collectionProps: ['options'] },
     { name: 'BottomTabBar', collectionProps: ['items'] },
     { name: 'ListRow', labelProps: ['title'] },
@@ -850,6 +850,8 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
   valid: [
     { code: '<PillButton>Log all</PillButton>', options: maxButtonWordsOptions },
     { code: '<PillButton>Set-up now</PillButton>', options: maxButtonWordsOptions },
+    { code: '<button aria-label="Open menu" />', options: maxButtonWordsOptions },
+    { code: '<Pressable accessibilityRole="button" accessibilityLabel="Open menu" />', options: maxButtonWordsOptions },
     { code: '<EmptyState description="This sentence belongs in empty state body copy" />', options: maxButtonWordsOptions },
     { code: '<Dialog><p>This sentence belongs in the dialog body</p></Dialog>', options: maxButtonWordsOptions },
     { code: 'toast("This sentence belongs in toast body copy")', options: maxButtonWordsOptions },
@@ -893,6 +895,16 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
       code: '<PillButton label="Open navigation menu" iconOnly />',
       options: maxButtonWordsOptions,
       errors: [maxWordsError('PillButton', 'Open navigation menu', 'source', 3)],
+    },
+    {
+      code: '<button aria-label="Open navigation menu" />',
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('button', 'Open navigation menu', 'source', 3)],
+    },
+    {
+      code: '<Pressable accessibilityRole="button" accessibilityLabel="Open navigation menu" />',
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('Pressable', 'Open navigation menu', 'source', 3)],
     },
     {
       code: "const t = useTranslations(); const chip = <Chip>{t('chat.suggestion.exercise')}</Chip>",

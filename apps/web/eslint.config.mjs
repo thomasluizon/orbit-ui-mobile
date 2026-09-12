@@ -36,7 +36,7 @@ import willChangeDiscipline from "../../eslint-rules/will-change-discipline.cjs"
 import maxButtonWords from "../../eslint-rules/max-button-words.cjs"
 
 const maxButtonWordControls = [
-  { name: "button", labelProps: ["children"] },
+  { name: "button", labelProps: ["children", "aria-label"] },
   { name: "PillButton", labelProps: ["children", "label"] },
   { name: "Button", labelProps: ["children", "label"] },
   { name: "Chip", labelProps: ["children"] },

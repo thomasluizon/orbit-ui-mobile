@@ -37,7 +37,7 @@ const maxButtonWordControls = [
   { name: "PillButton", labelProps: ["children", "label"] },
   { name: "Button", labelProps: ["children", "label"] },
   { name: "Chip", labelProps: ["children"] },
-  { name: "Pressable", labelProps: ["children"], roles: ["button", "tab", "menuitem"] },
+  { name: "Pressable", labelProps: ["children", "accessibilityLabel"], roles: ["button", "tab", "menuitem"] },
   { name: "SegmentedControl", collectionProps: ["options"] },
   { name: "BottomTabBar", collectionProps: ["items"] },
   { name: "ListRow", labelProps: ["title"] },

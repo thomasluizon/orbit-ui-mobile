@@ -88,6 +88,7 @@ function EditableChecklistItem({
   return (
     <View style={styles.editableItem}>
       <View style={styles.moveButtons}>
+        {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('habits.form.moveChecklistItemUp')}
@@ -101,6 +102,7 @@ function EditableChecklistItem({
         >
           <ChevronUp size={14} color={tokens.fg3} style={{ opacity: isFirst ? 0.3 : 1 }} />
         </Pressable>
+        {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('habits.form.moveChecklistItemDown')}
