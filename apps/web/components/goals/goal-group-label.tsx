@@ -5,7 +5,7 @@ interface GoalGroupLabelProps {
   top?: number
 }
 
-/** meta-criar group label: Rubik 14/500 fg-2 over the field group. */
+/** Goal-form group label using the shared form typography. */
 export function GoalGroupLabel({ children, top = 4 }: Readonly<GoalGroupLabelProps>) {
   return (
     <div

@@ -18,6 +18,7 @@ describe('notification-actions', () => {
     ['/progress', 'nav.progress'],
     ['/profile', 'nav.profile'],
     ['/streak', 'nav.progress'],
+    ['/goals?status=Active', 'nav.progress'],
     ['/chat', 'nav.today'],
     ['/calendar-sync?mode=review', 'nav.calendar'],
   ])('labels the existing target %s', (url, label) => {
@@ -79,6 +80,7 @@ describe('notification-actions', () => {
     '/streak',
     '/achievements?earned=latest',
     '/insights?range=year',
+    '/goals/legacy-detail',
     '/retrospective/year',
   ])('resolves the absorbed route %s to Progresso', (url) => {
     expect(resolveNotificationUrl(url)).toBe('/progress')

@@ -16,6 +16,9 @@
   <string name="widget_status_done">Concluído</string>
   <string name="widget_status_overdue">Atrasado</string>
   <string name="widget_status_pending">Não concluído</string>
+  <string name="widget_preview_done_name">Água da manhã</string>
+  <string name="widget_preview_overdue_name">Caminhada</string>
+  <string name="widget_preview_pending_name">Rotina da casa</string>
   <string name="widget_more">mais %1$d</string>
   <string name="widget_more_description">Mais %1$d hábitos não são exibidos.</string>
 </resources>

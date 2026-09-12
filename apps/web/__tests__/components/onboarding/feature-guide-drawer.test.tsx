@@ -30,14 +30,15 @@ describe('FeatureGuideDrawer', () => {
     expect(screen.getByText('onboarding.featureGuide.title')).toBeInTheDocument()
   })
 
-  it('renders all eight tabs', () => {
+  it('renders Progresso instead of a standalone goals destination', () => {
     render(
       <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
     )
     expect(screen.getByText('onboarding.featureGuide.astra')).toBeInTheDocument()
     expect(screen.getByText('onboarding.featureGuide.connect')).toBeInTheDocument()
     expect(screen.getByText('onboarding.featureGuide.habits')).toBeInTheDocument()
-    expect(screen.getByText('onboarding.featureGuide.goals')).toBeInTheDocument()
+    expect(screen.getByText('onboarding.featureGuide.progress')).toBeInTheDocument()
+    expect(screen.queryByText('onboarding.featureGuide.goals')).not.toBeInTheDocument()
     expect(screen.getByText('onboarding.featureGuide.calendar')).toBeInTheDocument()
     expect(screen.getByText('onboarding.featureGuide.rewards')).toBeInTheDocument()
     expect(screen.getByText('onboarding.featureGuide.settings')).toBeInTheDocument()
@@ -68,7 +69,7 @@ describe('FeatureGuideDrawer', () => {
   it.each([
     { tab: 'connect', title: 'onboarding.featureGuide.connectSection.mcpTitle' },
     { tab: 'habits', title: 'onboarding.featureGuide.habitsSection.creatingTitle' },
-    { tab: 'goals', title: 'onboarding.featureGuide.goalsSection.creatingTitle' },
+    { tab: 'progress', title: 'onboarding.featureGuide.progressSection.goalsTitle' },
     { tab: 'calendar', title: 'onboarding.featureGuide.calendarSection.dayDetailsTitle' },
     { tab: 'rewards', title: 'onboarding.featureGuide.rewardsSection.xpLevelsTitle' },
     { tab: 'notifications', title: 'onboarding.featureGuide.notificationsSection.bellTitle' },
@@ -121,8 +122,8 @@ describe('FeatureGuideDrawer', () => {
     )
     const astraTab = screen.getByText('onboarding.featureGuide.astra')
     expect(astraTab).toHaveAttribute('aria-selected', 'true')
-    const goalsTab = screen.getByText('onboarding.featureGuide.goals')
-    expect(goalsTab).toHaveAttribute('aria-selected', 'false')
+    const progressTab = screen.getByText('onboarding.featureGuide.progress')
+    expect(progressTab).toHaveAttribute('aria-selected', 'false')
   })
 
   it('uses tablist role for tab container', () => {

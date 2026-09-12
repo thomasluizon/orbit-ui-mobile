@@ -63,7 +63,7 @@ export function GoalDeadlineField({
           accessibilityRole="button"
           accessibilityLabel={t('goals.form.addDeadline')}
         >
-          <Plus size={14} color={tokens.fg1} strokeWidth={1.8} />
+          <Plus size={16} color={tokens.fg1} strokeWidth={1.8} />
           <Text style={styles.addDeadlineText}>
             {t('goals.form.addDeadline')}
           </Text>

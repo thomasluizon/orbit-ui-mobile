@@ -33,6 +33,7 @@ export function isViewableNotificationUrl(
 }
 
 const ABSORBED_PROGRESS_ROUTES = [
+  '/goals',
   '/streak',
   '/achievements',
   '/insights',
