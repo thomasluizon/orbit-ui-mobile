@@ -58,7 +58,7 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `design/canvas/` | The granted canvas export: 21 screens plus 166 tokens. Outranks DESIGN.md prose on how a surface looks; never over `## Information architecture` or `## Bans`. |
 | `AGENTS.md` | Codex's worker entry doc; defers to this file. |
 | `.claude/skills/pr-review/rubric.md` | The dimensions `/audit-code-quality` audits against; its only consumer. |
-| `FEATURES.md` | The Free/Trial/Pro/Yearly gating the arch map lacks. |
+| `gating-matrix.json` | Generated gating inventory at the `thomasluizon/orbit-api` repository root; run `node tools/gating-matrix.mjs` there to create it. |
 | `TESTING.md` | Unit, smoke, hermetic layout guard and performance, mutation, and harness suite catalog; authoring rules including producer-derived fixtures and observed regression failures in PR evidence, Chrome prerequisite for target geometry tests, and local Lighthouse commands and report location. |
 | `architecture.json` | Generated map, NOT committed (#470). Run `node tools/arch-map.mjs` once, then read it INSTEAD of exploring the codebase; it also writes `architecture.html` and the `architecture.mmd` diagram. Its first key is a `provenance` block whose `generatedFrom` hashes every input the generator read, so a copy can be checked against the tree in front of you. |
 | `.claude/rules/core.md` | Always-loaded judgement and D89/D90 operating-contract pointers. |

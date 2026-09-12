@@ -290,19 +290,20 @@ one-global-timezone behavior is a P1 finding. **Validator placement**: `Orbit.Ap
 catch block that swallows an error silently. **Test scope**: every new command or query handler, validator,
 and service has a unit test, and unit is all there is, so never ask for an integration or E2E suite.
 
-### 12. FEATURES.md gating
+### 12. Generated gating matrix
 
-> Reference: `FEATURES.md` at the orbit-ui-mobile root. **Gated: only when the diff changes the user-facing
-> feature surface.** Hand-maintained, so nothing generates it and no gate checks it.
+> Reference: generated `gating-matrix.json` at the `thomasluizon/orbit-api` repository root. Run
+> `node tools/gating-matrix.mjs` there to create it. **Gated: only when the diff changes the user-facing
+> feature surface.**
 
 Triggers: a new screen, route, or tab; a new or removed Astra (`IAiTool`) or MCP (`[McpServerTool]`) tool; a
 plan-gating change (`PayGateService`, `AppConstants`); a platform-availability or locale-specific behaviour
-change. Pure refactors, bugfixes, and visual polish are N/A. The same PR updates the row, keeping the
-Gating, Platform, and Locale columns accurate and the stated tool counts correct; a missing update is
-**High**, as is a gating or platform claim the diff makes stale, and a change that makes the in-app guide
-(`onboarding.featureGuide.*`) wrong is **Medium**. In the orbit-api repo the file is not checked out, so do
-not guess: emit "FEATURES.md update required in thomasluizon/orbit-ui-mobile" (**High**) so it lands in the
-paired frontend PR.
+change. Pure refactors, bugfixes, and visual polish are N/A. Generate `gating-matrix.json` from the
+candidate orbit-api tree and verify the UI against its `gates`, `appConfigs`, and `featureFlags`. Treat its
+compiled defaults as offline evidence only because live `AppConfigs` rows can override them. A stale gating
+or platform claim is **High**, and a change that makes the in-app guide (`onboarding.featureGuide.*`) wrong
+is **Medium**. In the orbit-api repo, regenerate `gating-matrix.json` and verify the affected entry instead
+of guessing or requesting a hand-written frontend update.
 
 ### 13. External-interface evidence
 
