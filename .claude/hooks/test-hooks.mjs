@@ -157,6 +157,13 @@ T("admin-merge: reading the merge endpoint allows", checkAdminMerge("gh api repo
 T("admin-merge: another GraphQL mutation allows", checkAdminMerge("gh api graphql -f query='mutation{resolveReviewThread(input:{threadId:\"x\"}){thread{isResolved}}}'"), null)
 T(`admin-merge: a commit message naming ${ADMIN} allows`, checkAdminMerge(`git commit -m "forbid gh pr merge ${ADMIN}"`), null)
 T("admin-merge: the refusal says to ask Thomas", checkAdminMerge(`gh pr merge 1 ${ADMIN}`)?.message.includes("ask him to"), true)
+for (const redirect of [">$(printf worker.log)", "2>&$(printf 1)"]) {
+  T(
+    `admin-merge: leading dynamic redirect ${redirect} cannot hide an admin merge`,
+    blocks(checkAdminMerge(`${redirect} gh pr merge 667 ${ADMIN}`)),
+    true,
+  )
+}
 
 const engine = (command, options) => checkEngineInvocation(command, { repoRoots: [], ...options })
 T("engine: codex exec blocks", blocks(engine('codex exec "do the thing"')), true)
@@ -172,6 +179,9 @@ T("engine: a piped codex cloud list allows", engine("codex cloud list --env env_
 T("engine: an exported token before a piped cloud read allows", engine("export GH_TOKEN=; codex cloud list --env env_1 | head -20"), null)
 T("engine: a redirected codex cloud list allows", engine("codex cloud list --env env_1 > tasks.txt"), null)
 T("engine: a leading redirection does not hide codex exec", blocks(engine("> worker.log codex exec")), true)
+for (const redirect of [">$(printf worker.log)", "2>&$(printf 1)"]) {
+  T(`engine: leading dynamic redirect ${redirect} fails closed`, blocks(engine(`${redirect} codex exec`)), true)
+}
 T("engine: codex exec before a pipe blocks", blocks(engine("codex exec | tee worker.log")), true)
 T("engine: codex exec after a pipe blocks", blocks(engine("head -20 | codex exec")), true)
 for (const separator of ["&&", ";", "||"]) {
@@ -227,6 +237,9 @@ T("staging: real linked worktree initializes", stagingGit(["worktree", "add", "-
 mkdirSync(join(stagingWorktree, "named-dir"), { recursive: true })
 rmSync(join(stagingWorktree, ".claude"), { recursive: true })
 const workerStaging = (command) => checkBroadStaging(command, { cwd: stagingWorktree, repoRoots: [stagingMain] })
+for (const redirect of [">$(printf worker.log)", "2>&$(printf 1)"]) {
+  T(`staging: leading dynamic redirect ${redirect} cannot hide broad staging`, blocks(workerStaging(`${redirect} git add -A`)), true)
+}
 for (const command of [
   "git add -A",
   "git add --all",
@@ -554,6 +567,7 @@ const runHook = (file, payload, env) =>
     env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env },
   }).status
 const bash = (command, cwd = root) => ({ tool_name: "Bash", tool_input: { command }, cwd })
+const powershell = (command, cwd = root) => ({ tool_name: "PowerShell", tool_input: { command }, cwd })
 
 T("adapter git-guardrails: push main -> 2", runHook("git-guardrails.mjs", bash("git push origin main")), 2)
 T("adapter git-guardrails: push feature -> 0", runHook("git-guardrails.mjs", bash("git push origin feature/x")), 0)
@@ -567,6 +581,13 @@ T("adapter orchestrator: codex --version -> 0", runHook(ORCH, bash("codex --vers
 T("adapter orchestrator: grep over a codex pattern -> 0", runHook(ORCH, bash("grep -rnE 'claude|codex' tools/")), 0)
 T("adapter orchestrator: piped codex cloud list -> 0", runHook(ORCH, bash("codex cloud list --env env_1 | head -20")), 0)
 T("adapter orchestrator: piped codex exec -> 2", runHook(ORCH, bash("codex exec | tee worker.log")), 2)
+for (const redirect of ["*>tasks.txt", "*>>tasks.txt", "*>&1"]) {
+  T(
+    `adapter orchestrator: PowerShell cloud read with ${redirect} -> 0`,
+    runHook(ORCH, powershell(`codex cloud list ${redirect}`)),
+    0,
+  )
+}
 T("adapter orchestrator: the launcher marker -> 0", runHook(ORCH, bash("codex exec"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
 T("adapter orchestrator: worker git add -A -> 2", runHook(ORCH, bash("git add -A"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter orchestrator: worker git add -u -> 2", runHook(ORCH, bash("git add -u"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
