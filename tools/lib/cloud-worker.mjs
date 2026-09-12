@@ -27,6 +27,10 @@ const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d
 const TASK_STATUSES = new Set(["pending", "ready", "applied", "error"])
 const TERMINAL_TASK_STATUSES = new Set(["ready", "applied", "error"])
 const LOCK_RETRY_SIGNAL = new Int32Array(new SharedArrayBuffer(4))
+// Two empties reproduce the fully exhausted retry measured for #490. A success does not erase
+// session evidence because the same run delivered one task while three other tasks were empty.
+export const CLOUD_EMPTY_RESULT_LIMIT = 2
+const CLOUD_CIRCUIT_BREAKER_FILE = "cloud-circuit-breaker.json"
 
 export const isTerminalTaskStatus = (status) => TERMINAL_TASK_STATUSES.has(status)
 export const isCloudTaskId = (value) => typeof value === "string" && TASK_ID.test(value)
@@ -295,6 +299,84 @@ export const assertSameGitRepository = (worktree, configuredRepository, reposito
 
 export const cloudStateRoot = (worktree) => join(gitRepositoryIdentity(worktree), "orbit-cloud")
 
+export const cloudCircuitBreakerPath = (orderFile) =>
+  join(dirname(resolve(orderFile)), CLOUD_CIRCUIT_BREAKER_FILE)
+
+const comparablePath = (path) => process.platform === "win32" ? path.toLowerCase() : path
+
+const sessionEmptyResults = (receipts, orderFile) => {
+  const sessionDirectory = dirname(resolve(orderFile))
+  return receipts
+    .filter((receipt) => (
+      receipt.emptyFailure && typeof receipt.orderFile === "string" &&
+      comparablePath(dirname(resolve(receipt.orderFile))) === comparablePath(sessionDirectory)
+    ))
+    .map((receipt) => ({
+      taskId: receipt.taskId,
+      ticket: receipt.ticket,
+      at: receipt.emptyFailure.at,
+      classification: receipt.emptyFailure.classification,
+      reason: receipt.emptyFailure.reason,
+    }))
+    .sort((left, right) => String(left.at).localeCompare(String(right.at)) ||
+      String(left.taskId).localeCompare(String(right.taskId)))
+}
+
+const validateCloudCircuitBreaker = (breaker, path) => {
+  if (
+    breaker?.kind !== "cloud-circuit-breaker" || breaker.state !== "open" ||
+    breaker.threshold !== CLOUD_EMPTY_RESULT_LIMIT || !Array.isArray(breaker.emptyResults) ||
+    !Array.isArray(breaker.routes)
+  ) {
+    throw new Error(`cloud circuit breaker at ${path} is invalid`)
+  }
+}
+
+export const updateCloudCircuitBreaker = (stateRoot, receipts, orderFile, route = null, options = {}) => {
+  const path = cloudCircuitBreakerPath(orderFile)
+  const callerEmptyResults = sessionEmptyResults(receipts, orderFile)
+  const existing = existsSync(path) ? readJsonFile(path, "cloud circuit breaker") : null
+  if (existing) validateCloudCircuitBreaker(existing, path)
+  if (!existing && callerEmptyResults.length < CLOUD_EMPTY_RESULT_LIMIT) return null
+
+  const releaseBreakerLock = acquireCloudLock(
+    stateRoot,
+    "circuit-breaker.lock",
+    "cloud circuit breaker persistence",
+    { waitForOwner: true, timeoutMs: options.lockTimeoutMs },
+  )
+  try {
+    const current = existsSync(path) ? readJsonFile(path, "cloud circuit breaker") : existing
+    if (current) validateCloudCircuitBreaker(current, path)
+    const observedAt = (options.now ?? new Date()).toISOString()
+    const emptyResultsByTask = new Map(callerEmptyResults.map((result) => [result.taskId, result]))
+    for (const result of current?.emptyResults ?? []) emptyResultsByTask.set(result.taskId, result)
+    const emptyResults = [...emptyResultsByTask.values()].sort((left, right) =>
+      String(left.at).localeCompare(String(right.at)) || String(left.taskId).localeCompare(String(right.taskId)))
+    const routes = current?.routes ?? []
+    const routeExists = route && routes.some((entry) => (
+      entry.ticket === route.ticket && entry.orderSha256 === route.orderSha256
+    ))
+    const state = {
+      kind: "cloud-circuit-breaker",
+      state: "open",
+      sessionDirectory: dirname(resolve(orderFile)),
+      threshold: CLOUD_EMPTY_RESULT_LIMIT,
+      openedAt: current?.openedAt ?? observedAt,
+      reason: `Cloud circuit breaker opened after ${CLOUD_EMPTY_RESULT_LIMIT} empty results in this session. ` +
+        "Further tickets must route to the local lane.",
+      emptyResults,
+      routes: route && !routeExists
+        ? [...routes, { ...route, outcome: "ROUTED_TO_LOCAL", at: observedAt }]
+        : routes,
+    }
+    writeJsonAtomic(path, state)
+    return { path, state }
+  } finally {
+    releaseBreakerLock()
+  }
+}
+
 export const mirrorPathFor = (stateRoot, taskId) => {
   if (!TASK_ID.test(taskId)) throw new Error(`invalid cloud task id: ${taskId}`)
   return join(stateRoot, "receipts", `${taskId}.json`)
@@ -366,15 +448,23 @@ export const persistReconciledReceipt = (receipt, mirrorPath, replicaPaths = [],
     "cloud receipt persistence",
     { waitForOwner: true, timeoutMs: options.lockTimeoutMs },
   )
+  let latestReceipt
   try {
-    const latestReceipt = existsSync(resolvedMirrorPath)
+    latestReceipt = existsSync(resolvedMirrorPath)
       ? reconcileReceiptCopies(receipt, readJsonFile(resolvedMirrorPath, "mirrored cloud receipt"))
       : receipt
     persistReceipt(latestReceipt, resolvedMirrorPath, replicaPaths)
-    return latestReceipt
   } finally {
     releaseReceiptLock()
   }
+  if (latestReceipt.emptyFailure && typeof latestReceipt.orderFile === "string") {
+    const receiptsDirectory = join(stateRoot, "receipts")
+    const receipts = readdirSync(receiptsDirectory)
+      .filter((entry) => entry.endsWith(".json"))
+      .map((entry) => readJsonFile(join(receiptsDirectory, entry), "cloud receipt"))
+    updateCloudCircuitBreaker(stateRoot, receipts, latestReceipt.orderFile, null, options)
+  }
+  return latestReceipt
 }
 
 const deadlinePassed = (receipt, now) => {

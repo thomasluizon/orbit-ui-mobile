@@ -206,6 +206,11 @@ interface DirectBadFillReference {
   source: string
 }
 
+interface BadFillInventory {
+  keys: string[]
+  referenceCount: number
+}
+
 function directBadFillReferencesInSource(path: string, source: string): DirectBadFillReference[] {
   return [...source.matchAll(DIRECT_BAD_FILL_PATTERN)].map((match) => {
     const offset = match.index
@@ -360,6 +365,22 @@ function unreviewedBadFillReferences(
     const lineSource = reference.source.split('\n')[reference.line]?.trim() ?? ''
     return [`${reference.path}:${reference.line + 1}:${reference.column} ${lineSource}`]
   })
+}
+
+function unreviewedBadFillInventory(
+  references = directBadFillReferences(),
+): BadFillInventory {
+  const countsByPath = new Map<string, number>()
+  for (const reference of references) {
+    if (hasDeclaredGraphicRole(reference)) continue
+    countsByPath.set(reference.path, (countsByPath.get(reference.path) ?? 0) + 1)
+  }
+  return {
+    keys: [...countsByPath.entries()]
+      .sort(([leftPath], [rightPath]) => leftPath.localeCompare(rightPath))
+      .map(([path, count]) => `${path}:${count}`),
+    referenceCount: [...countsByPath.values()].reduce((total, count) => total + count, 0),
+  }
 }
 
 /** WHY: both ExpiryWarning mirrors paint their text on the overdue token at this alpha over --bg. */
@@ -614,43 +635,18 @@ describe('bad status source roles', () => {
   })
 
   it('derives direct fill-token references and rejects unreviewed text-role syntax', () => {
-    const sites = unreviewedBadFillReferences().map((reference) => reference.split(' ')[0])
-    expect(sites.length).toBeLessThanOrEqual(31)
-    expect(sites).toMatchInlineSnapshot(`
-      [
-        "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx:108:31",
-        "apps/mobile/components/goals/goal-detail-drawer.tsx:75:352",
-        "apps/mobile/components/habits/habit-row-trailing.tsx:38:35",
-        "apps/mobile/components/habits/habit-row-trailing.tsx:47:23",
-        "apps/mobile/components/ui/block-frame.tsx:44:43",
-        "apps/mobile/components/ui/input.tsx:50:31",
-        "apps/mobile/components/ui/list-row.tsx:21:30",
-        "apps/mobile/components/ui/settings-row.tsx:54:30",
-        "apps/mobile/components/ui/status-dot.tsx:42:10",
-        "apps/mobile/components/ui/status-ring.tsx:18:10",
-        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx:153:65",
-        "apps/web/app/globals.css:257:10",
-        "apps/web/app/globals.css:1698:29",
-        "apps/web/app/globals.css:1702:10",
-        "apps/web/components/calendar/calendar-agenda-view.tsx:87:32",
-        "apps/web/components/calendar/calendar-time-grid.tsx:82:32",
-        "apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx:42:180",
-        "apps/web/components/habits/habit-checklist.tsx:163:107",
-        "apps/web/components/habits/habit-checklist.tsx:351:126",
-        "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx:66:168",
-        "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx:57:209",
-        "apps/web/components/habits/habit-row-trailing.tsx:15:24",
-        "apps/web/components/habits/habit-row-trailing.tsx:22:46",
-        "apps/web/components/habits/selection-tray.tsx:164:18",
-        "apps/web/components/navigation/notification-row.tsx:51:131",
-        "apps/web/components/ui/block-frame.tsx:32:44",
-        "apps/web/components/ui/list-row.tsx:9:31",
-        "apps/web/components/ui/list-row.tsx:42:284",
-        "apps/web/components/ui/settings-row.tsx:43:31",
-        "apps/web/components/ui/status-dot.tsx:31:9",
-        "apps/web/components/ui/status-ring.tsx:10:9",
-      ]
-    `)
+    const inventory = unreviewedBadFillInventory()
+    expect(inventory.referenceCount).toBeLessThanOrEqual(31)
+    expect(inventory.keys).toMatchSnapshot()
+  })
+
+  it('keeps inventory keys stable when source lines are inserted above a reference', () => {
+    const path = 'apps/web/components/ui/title-probe.tsx'
+    const fillSource = '<TitleText color="var(--status-bad)" />'
+    const shiftedSource = `// Unrelated source line.\n${fillSource}`
+
+    expect(unreviewedBadFillInventory(directBadFillReferencesInSource(path, shiftedSource)))
+      .toEqual(unreviewedBadFillInventory(directBadFillReferencesInSource(path, fillSource)))
   })
 
   it('rejects a closed graphic utility before a token-bearing text-color prop', () => {

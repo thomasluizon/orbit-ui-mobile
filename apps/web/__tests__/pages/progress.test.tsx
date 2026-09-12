@@ -7,7 +7,12 @@ import tailwind from '@tailwindcss/postcss'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
-import { closeChrome, launchChrome, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import {
+  closeChrome,
+  registerChromeLaunchHook,
+  type Browser,
+  type BrowserLaunch,
+} from '@/__tests__/support/chromium'
 
 const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
@@ -150,8 +155,8 @@ describe('ProgressContent', () => {
   let compiledStyles: string
   let textStyles: string
 
-  beforeAll(async () => {
-    browserLaunch = launchChrome()
+  registerChromeLaunchHook(beforeAll, async (launch) => {
+    browserLaunch = launch
     browser = await browserLaunch
   })
 

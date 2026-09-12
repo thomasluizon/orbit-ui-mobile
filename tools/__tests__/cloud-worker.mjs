@@ -336,6 +336,37 @@ export const cases = async () => {
     JSON.stringify(reservation),
   )
 
+  const breakerStateRoot = join(root, "cloud-worker", "monotonic-breaker")
+  mkdirSync(breakerStateRoot, { recursive: true })
+  const breakerOrder = stage("cloud-worker/monotonic-breaker/order.md", "Implement the ticket.\n")
+  const emptyReceipt = (taskId, ticket, at) => ({
+    taskId,
+    ticket,
+    orderFile: breakerOrder,
+    emptyFailure: { at, classification: "lost-work suspect" },
+  })
+  const staleEmptyResults = [
+    emptyReceipt("task_e_e1", "#499", "2026-09-10T01:00:00.000Z"),
+    emptyReceipt("task_e_e2", "#500", "2026-09-10T02:00:00.000Z"),
+  ]
+  const newerEmptyResults = [
+    ...staleEmptyResults,
+    emptyReceipt("task_e_e3", "#501", "2026-09-10T03:00:00.000Z"),
+  ]
+  cloud.updateCloudCircuitBreaker(breakerStateRoot, newerEmptyResults, breakerOrder, null, {
+    now: new Date("2026-09-10T03:00:00.000Z"),
+    lockTimeoutMs: 1000,
+  })
+  const staleUpdate = cloud.updateCloudCircuitBreaker(breakerStateRoot, staleEmptyResults, breakerOrder, null, {
+    now: new Date("2026-09-10T04:00:00.000Z"),
+    lockTimeoutMs: 1000,
+  })
+  T(
+    "cloud-worker.mjs: a stale breaker updater cannot discard newer empty-result evidence",
+    staleUpdate.state.emptyResults.map((entry) => entry.taskId).join(",") === "task_e_e1,task_e_e2,task_e_e3",
+    JSON.stringify(staleUpdate.state),
+  )
+
   const interruptedMirror = stage("cloud-worker/interrupted-mirror.json", "{}\n")
   const blockedReplicaParent = stage("cloud-worker/blocked-replica", "not a directory\n")
   const recoveryState = {

@@ -2,8 +2,11 @@ import { chromium, type Browser } from '@playwright/test'
 
 export type { Browser }
 export type BrowserLaunch = Promise<Browser>
+export type HookRegistrar = (hook: () => Promise<void> | void, timeout?: number) => void
 
-const CHROME_LAUNCH_TIMEOUT_MS = 10_000
+export const CHROME_LAUNCH_HOOK_TIMEOUT_MS = 45_000
+
+const CHROME_LAUNCH_TIMEOUT_MS = 30_000
 
 export function launchChrome(): BrowserLaunch {
   return chromium.launch({
@@ -12,6 +15,13 @@ export function launchChrome(): BrowserLaunch {
   }).catch((cause: unknown) => {
     throw new Error('Chrome launch failed for the installed chrome channel.', { cause })
   })
+}
+
+export function registerChromeLaunchHook(
+  registerHook: HookRegistrar,
+  useBrowserLaunch: (browserLaunch: BrowserLaunch) => Promise<void> | void,
+): void {
+  registerHook(async () => { await useBrowserLaunch(launchChrome()) }, CHROME_LAUNCH_HOOK_TIMEOUT_MS)
 }
 
 export async function closeChrome(browserLaunch: BrowserLaunch | undefined): Promise<void> {
