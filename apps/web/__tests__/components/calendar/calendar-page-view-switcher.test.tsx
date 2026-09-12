@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { buildCalendarMonthModel, formatAPIDate } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 let isWideDesktopValue = false
@@ -158,6 +158,8 @@ describe('CalendarPage view switcher', () => {
     calendarDataCalls.mockClear()
   })
 
+  afterEach(() => vi.useRealTimers())
+
   it('loads calendar data concurrently while the profile resolves', () => {
     profileQueryState.profile = undefined
     render(<CalendarPage />)
@@ -165,6 +167,25 @@ describe('CalendarPage view switcher', () => {
     expect(calendarDataCalls).toHaveBeenCalledTimes(1)
     expect(screen.getAllByRole('progressbar', { name: 'calendar.loading' })).toHaveLength(2)
     expect(document.querySelector('[data-variant="grid"] > [data-cell="44"]')).toHaveAttribute('data-gap', '4')
+  })
+
+  it.each([
+    ['five-row', new Date(2026, 8, 11), 5],
+    ['six-row', new Date(2026, 7, 11), 6],
+  ])('keeps the %s profile-loading grid at the loaded month height', (_label, now, expectedRows) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(now)
+    profileQueryState.profile = undefined
+    const { rerender } = render(<CalendarPage />)
+    const loadingRows = Number(document.querySelector('[data-variant="grid"] > [data-rows]')?.getAttribute('data-rows'))
+
+    profileQueryState.profile = { weekStartDay: 1 }
+    rerender(<CalendarPage />)
+    const loadedMonth = calendarGridProps.currentMonth as Date
+    const loadedRows = buildCalendarMonthModel(loadedMonth, new Map(), 1).gridDays.length / 7
+
+    expect(loadedRows).toBe(expectedRows)
+    expect(loadingRows).toBe(loadedRows)
   })
 
   it('shows a retryable error when the profile request fails', () => {
@@ -263,12 +284,12 @@ describe('CalendarPage view switcher', () => {
     expect(calendarStatsProps.state).toBe('empty')
   })
 
-  it('lets the grid, day panel, and each stat tile own their loading state', () => {
+  it('keeps compact loading shaped like the grid and stat tiles', () => {
     monthQueryState.isLoading = true
     render(<CalendarPage />)
 
     expect(calendarGridProps.isLoading).toBe(true)
-    expect(screen.getByTestId('calendar-day-loading')).toBeDefined()
+    expect(screen.queryByTestId('calendar-day-loading')).toBeNull()
     expect(screen.queryByTestId('calendar-legend')).toBeNull()
     expect(calendarStatsProps.state).toBe('loading')
   })

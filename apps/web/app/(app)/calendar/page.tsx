@@ -123,23 +123,6 @@ function CalendarMonthLegend({
   )
 }
 
-function CalendarDayLoading({
-  state,
-  isWideDesktop,
-  label,
-}: Readonly<{
-  state: CalendarMonthDisplayState
-  isWideDesktop: boolean
-  label: string
-}>) {
-  if (state !== 'loading' || isWideDesktop) return null
-  return (
-    <div style={{ padding: '16px' }} data-testid="calendar-day-loading">
-      <Skeleton variant="settings" rows={5} label={label} />
-    </div>
-  )
-}
-
 interface CalendarInlineDayPanelProps {
   show: boolean
   state: CalendarMonthDisplayState
@@ -211,6 +194,11 @@ export default function CalendarPage() {
   const { profile, error: profileError, refetch: refetchProfile } = useProfile()
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const monthQuery = useCalendarData(currentMonth)
+  const profileLoadingGridRows = useMemo(
+    () => buildCalendarMonthModel(currentMonth, new Map(), profile?.weekStartDay ?? 1).gridDays.length
+      / CALENDAR_MONTH_GRID_GEOMETRY.columns,
+    [currentMonth, profile?.weekStartDay],
+  )
 
   if (!profile) {
     return (
@@ -221,7 +209,7 @@ export default function CalendarPage() {
           <div className="flex flex-col gap-6">
             <Skeleton
               variant="grid"
-              rows={6}
+              rows={profileLoadingGridRows}
               cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
               cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
               gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
@@ -577,12 +565,6 @@ function CalendarPageContent({
                     createLabel={t('habits.createHabit')}
                     createVariant={isWideDesktop ? 'secondary' : 'primary'}
                     onCreate={openHabitCreation}
-                  />
-
-                  <CalendarDayLoading
-                    state={monthDisplayState}
-                    isWideDesktop={isWideDesktop}
-                    label={t('calendar.loading')}
                   />
 
                   <SectionLabel>{t('calendar.thisMonth')}</SectionLabel>

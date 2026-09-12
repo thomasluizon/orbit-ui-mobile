@@ -1,5 +1,5 @@
 import React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { formatAPIDate } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { View } from "react-native";
@@ -129,6 +129,7 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-day-detail", () => ({
 
 type TestNode = { type: unknown; props: Record<string, any> };
 type Tree = {
+  update: (element: React.ReactElement) => void;
   root: { findAll: (predicate: (node: TestNode) => boolean) => TestNode[] };
 };
 
@@ -201,6 +202,8 @@ describe("CalendarScreen views (mobile)", () => {
       ],
     ]);
   });
+
+  afterEach(() => vi.useRealTimers());
   it('leaves the top safe area to the shell', () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />) })
@@ -252,6 +255,8 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
   it('loads calendar data concurrently while the profile resolves', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 11));
     state.profile = undefined;
     let tree!: Tree;
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
@@ -264,8 +269,37 @@ describe("CalendarScreen views (mobile)", () => {
       (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-grid-shape',
     )[0];
     expect(gridShape?.props.style).toEqual(expect.arrayContaining([
-      expect.objectContaining({ width: 332, height: 284 }),
+      expect.objectContaining({ width: 332, height: 236 }),
     ]));
+  });
+
+  it.each([
+    ['five-row', new Date(2026, 8, 11), 5],
+    ['six-row', new Date(2026, 7, 11), 6],
+  ])('keeps the %s profile-loading grid at the loaded month height', (_label, now, expectedRows) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    state.profile = undefined;
+    let tree!: Tree;
+    TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
+    const loadingShape = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-grid-shape',
+    )[0]!;
+    const loadingHeight = loadingShape.props.style
+      .flat(Infinity)
+      .find((style: Record<string, unknown>) => typeof style.height === 'number')?.height;
+
+    state.profile = { weekStartDay: 1 };
+    TestRenderer.act(() => { tree.update(<CalendarScreen />); });
+    const flatList = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.type === 'FlatList',
+    )[0]!;
+    TestRenderer.act(() => { TestRenderer.create(flatList.props.ListHeaderComponent); });
+    const loadedRows = (calendarGridProps.current?.gridDays as unknown[]).length / 7;
+    const loadedHeight = loadedRows * 44 + (loadedRows - 1) * 4;
+
+    expect(loadedRows).toBe(expectedRows);
+    expect(loadingHeight).toBe(loadedHeight);
   });
 
   it('shows a retryable error when the profile request fails', () => {
@@ -424,7 +458,7 @@ describe("CalendarScreen views (mobile)", () => {
     )).toHaveLength(0);
   });
 
-  it("lets the grid, detail, and stat tiles own their loading state", () => {
+  it("keeps compact loading shaped like the grid and stat tiles", () => {
     state.monthLoading = true;
     let tree!: Tree;
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
@@ -441,7 +475,7 @@ describe("CalendarScreen views (mobile)", () => {
     expect(calendarGridProps.stats?.state).toBe("loading");
     expect(headerTree.root.findAll(
       (node) => typeof node.type === "string" && node.props.testID === "calendar-day-loading",
-    )).toHaveLength(1);
+    )).toHaveLength(0);
   });
 
   it("shows the legend once the month has a scheduled entry", () => {

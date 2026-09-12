@@ -131,11 +131,17 @@ export default function CalendarScreen() {
   const { profile, error: profileError, refetch: refetchProfile } = useProfile();
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const monthQuery = useCalendarData(currentMonth);
+  const profileLoadingGridRows = useMemo(
+    () => buildCalendarMonthModel(currentMonth, new Map(), profile?.weekStartDay ?? 1).gridDays.length
+      / CALENDAR_MONTH_GRID_GEOMETRY.columns,
+    [currentMonth, profile?.weekStartDay],
+  );
 
   if (!profile) {
     return (
       <CalendarProfileState
         failed={Boolean(profileError)}
+        gridRows={profileLoadingGridRows}
         onRetry={() => void refetchProfile()}
       />
     );
@@ -151,7 +157,11 @@ export default function CalendarScreen() {
   );
 }
 
-function CalendarProfileState({ failed, onRetry }: Readonly<{ failed: boolean; onRetry: () => void }>) {
+function CalendarProfileState({
+  failed,
+  gridRows,
+  onRetry,
+}: Readonly<{ failed: boolean; gridRows: number; onRetry: () => void }>) {
   const { t } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
@@ -172,7 +182,7 @@ function CalendarProfileState({ failed, onRetry }: Readonly<{ failed: boolean; o
           <View style={styles.profileLoading}>
             <Skeleton
               variant="grid"
-              rows={6}
+              rows={gridRows}
               cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
               cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
               gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
@@ -551,11 +561,6 @@ function CalendarScreenContent({
         tokens={tokens}
       />
 
-      {monthDisplayState === 'loading' ? (
-        <View style={styles.dayLoading} testID="calendar-day-loading">
-          <Skeleton variant="settings" rows={5} label={t('calendar.loading')} />
-        </View>
-      ) : null}
     </>
   );
 
@@ -767,9 +772,6 @@ function createStyles() {
       fontFamily: 'Geist_400Regular',
       fontSize: 16,
       lineHeight: 24,
-    },
-    dayLoading: {
-      padding: 16,
     },
     errorCard: {
       alignItems: "center",
