@@ -198,40 +198,6 @@ const GRAPHIC_ROLE_NAMES = new Set([
   'tintColor',
   'trackColor',
 ])
-const KNOWN_UNREVIEWED_BAD_FILL_SITES = [
-  'apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx:108:31',
-  'apps/mobile/components/goals/goal-detail-drawer.tsx:75:352',
-  'apps/mobile/components/habits/habit-row-trailing.tsx:38:35',
-  'apps/mobile/components/habits/habit-row-trailing.tsx:47:23',
-  'apps/mobile/components/ui/block-frame.tsx:44:43',
-  'apps/mobile/components/ui/input.tsx:50:31',
-  'apps/mobile/components/ui/list-row.tsx:21:30',
-  'apps/mobile/components/ui/settings-row.tsx:54:30',
-  'apps/mobile/components/ui/status-dot.tsx:42:10',
-  'apps/mobile/components/ui/status-ring.tsx:18:10',
-  'apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx:153:65',
-  'apps/web/app/globals.css:257:10',
-  'apps/web/app/globals.css:1698:29',
-  'apps/web/app/globals.css:1702:10',
-  'apps/web/components/calendar/calendar-agenda-view.tsx:87:32',
-  'apps/web/components/calendar/calendar-time-grid.tsx:82:32',
-  'apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx:42:180',
-  'apps/web/components/habits/habit-checklist.tsx:163:107',
-  'apps/web/components/habits/habit-checklist.tsx:351:126',
-  'apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx:66:168',
-  'apps/web/components/habits/habit-form-fields/tag-picker-field.tsx:57:209',
-  'apps/web/components/habits/habit-row-trailing.tsx:15:24',
-  'apps/web/components/habits/habit-row-trailing.tsx:22:46',
-  'apps/web/components/habits/selection-tray.tsx:164:18',
-  'apps/web/components/navigation/notification-row.tsx:51:131',
-  'apps/web/components/ui/block-frame.tsx:32:44',
-  'apps/web/components/ui/list-row.tsx:9:31',
-  'apps/web/components/ui/list-row.tsx:42:284',
-  'apps/web/components/ui/settings-row.tsx:43:31',
-  'apps/web/components/ui/status-dot.tsx:31:9',
-  'apps/web/components/ui/status-ring.tsx:10:9',
-] as const
-
 interface DirectBadFillReference {
   column: number
   line: number
@@ -364,10 +330,17 @@ function syntaxRoleNameAt(reference: DirectBadFillReference): string | null {
 }
 
 function tailwindRoleNameAt(reference: DirectBadFillReference): string | null {
-  const before = reference.source.slice(Math.max(0, reference.offset - 160), reference.offset)
-  const bracketStart = before.lastIndexOf('[')
-  if (bracketStart < 0) return null
-  return before.slice(0, bracketStart).match(/(?:^|[^\w-])(?:[\w-]+:)*([\w-]+)-$/)?.[1] ?? null
+  const utility = [...reference.source.matchAll(/\S+/g)].find((match) => {
+    const utilityStart = match.index
+    return utilityStart <= reference.offset
+      && reference.offset < utilityStart + match[0].length
+  })
+  if (utility === undefined) return null
+  const offsetInUtility = reference.offset - utility.index
+  const arbitraryValueStart = utility[0].lastIndexOf('-[', offsetInUtility)
+  const arbitraryValueEnd = utility[0].indexOf(']', offsetInUtility)
+  if (arbitraryValueStart < 0 || arbitraryValueEnd < offsetInUtility) return null
+  return utility[0].slice(0, arbitraryValueStart).match(/([\w-]+)$/)?.[1] ?? null
 }
 
 function hasDeclaredGraphicRole(reference: DirectBadFillReference): boolean {
@@ -642,7 +615,60 @@ describe('bad status source roles', () => {
 
   it('derives direct fill-token references and rejects unreviewed text-role syntax', () => {
     const sites = unreviewedBadFillReferences().map((reference) => reference.split(' ')[0])
-    expect(sites).toEqual(KNOWN_UNREVIEWED_BAD_FILL_SITES)
+    expect(sites.length).toBeLessThanOrEqual(31)
+    expect(sites).toMatchInlineSnapshot(`
+      [
+        "apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx:108:31",
+        "apps/mobile/components/goals/goal-detail-drawer.tsx:75:352",
+        "apps/mobile/components/habits/habit-row-trailing.tsx:38:35",
+        "apps/mobile/components/habits/habit-row-trailing.tsx:47:23",
+        "apps/mobile/components/ui/block-frame.tsx:44:43",
+        "apps/mobile/components/ui/input.tsx:50:31",
+        "apps/mobile/components/ui/list-row.tsx:21:30",
+        "apps/mobile/components/ui/settings-row.tsx:54:30",
+        "apps/mobile/components/ui/status-dot.tsx:42:10",
+        "apps/mobile/components/ui/status-ring.tsx:18:10",
+        "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx:153:65",
+        "apps/web/app/globals.css:257:10",
+        "apps/web/app/globals.css:1698:29",
+        "apps/web/app/globals.css:1702:10",
+        "apps/web/components/calendar/calendar-agenda-view.tsx:87:32",
+        "apps/web/components/calendar/calendar-time-grid.tsx:82:32",
+        "apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx:42:180",
+        "apps/web/components/habits/habit-checklist.tsx:163:107",
+        "apps/web/components/habits/habit-checklist.tsx:351:126",
+        "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx:66:168",
+        "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx:57:209",
+        "apps/web/components/habits/habit-row-trailing.tsx:15:24",
+        "apps/web/components/habits/habit-row-trailing.tsx:22:46",
+        "apps/web/components/habits/selection-tray.tsx:164:18",
+        "apps/web/components/navigation/notification-row.tsx:51:131",
+        "apps/web/components/ui/block-frame.tsx:32:44",
+        "apps/web/components/ui/list-row.tsx:9:31",
+        "apps/web/components/ui/list-row.tsx:42:284",
+        "apps/web/components/ui/settings-row.tsx:43:31",
+        "apps/web/components/ui/status-dot.tsx:31:9",
+        "apps/web/components/ui/status-ring.tsx:10:9",
+      ]
+    `)
+  })
+
+  it('rejects a closed graphic utility before a token-bearing text-color prop', () => {
+    const path = 'apps/web/components/ui/title-probe.tsx'
+    const fillSource = '<TitleText className="bg-[white]" color="var(--status-bad)" />'
+    expect(unreviewedBadFillReferences(
+      directBadFillReferencesInSource(path, fillSource),
+    )).toEqual([
+      `${path}:1:42 ${fillSource}`,
+    ])
+  })
+
+  it('accepts a status token inside a graphic arbitrary-value utility', () => {
+    const path = 'apps/web/components/ui/surface-probe.tsx'
+    const fillSource = '<Surface className="bg-[var(--status-bad)]" />'
+    expect(unreviewedBadFillReferences(
+      directBadFillReferencesInSource(path, fillSource),
+    )).toEqual([])
   })
 
   it('rejects a text-color prop even when the component also receives an imported icon', () => {
