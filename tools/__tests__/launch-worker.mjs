@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
@@ -266,13 +266,38 @@ export const cases = () => {
   const wakeObservation = stage("launch-worker/wake-observation.json", "")
   const wakeObserver = stage("launch-worker/wake-observer.cjs", "")
   const observedLaunch = launch("wake-cleanup", launchConfig({ ...stubEngine(wakeObserver) }))
+  const wakeHooks = join(observedLaunch.base, ".claude", "hooks")
+  mkdirSync(join(observedLaunch.base, ".git"), { recursive: true })
+  mkdirSync(wakeHooks, { recursive: true })
+  cpSync(join(TOOLS_DIR, "..", ".claude", "hooks", "_lib"), join(wakeHooks, "_lib"), { recursive: true })
+  cpSync(join(TOOLS_DIR, "..", ".claude", "hooks", "require-wake-source.mjs"), join(wakeHooks, "require-wake-source.mjs"))
+  const wakeSessionId = "launch-worker-replacement"
+  writeFileSync(
+    join(observedLaunch.base, ".git", "orbit-orchestrate-run.json"),
+    JSON.stringify({ sessionId: wakeSessionId, sleep: true, remaining: ["ORB-202"] }),
+  )
   writeFileSync(wakeObserver, `const { existsSync, readFileSync, writeFileSync } = require("node:fs")
+const { spawnSync } = require("node:child_process")
 const { join } = require("node:path")
 const recordPath = join(${JSON.stringify(observedLaunch.base)}, ".git", "orbit-wake-sources", process.ppid + ".json")
+const hookPath = join(${JSON.stringify(wakeHooks)}, "require-wake-source.mjs")
 const deadline = setTimeout(() => process.exit(1), 10000)
 const poll = setInterval(() => {
   if (!existsSync(recordPath)) return
-  writeFileSync(${JSON.stringify(wakeObservation)}, JSON.stringify({ recordPath, source: JSON.parse(readFileSync(recordPath, "utf8")) }))
+  const source = JSON.parse(readFileSync(recordPath, "utf8"))
+  if (source.workerPid !== process.pid) return
+  const stopped = spawnSync(process.execPath, [hookPath], {
+    input: JSON.stringify({ session_id: ${JSON.stringify(wakeSessionId)}, stop_hook_active: false }),
+    encoding: "utf8",
+    windowsHide: true,
+  })
+  writeFileSync(${JSON.stringify(wakeObservation)}, JSON.stringify({
+    recordPath,
+    source,
+    observerPid: process.pid,
+    stopStatus: stopped.status,
+    stopStderr: stopped.stderr,
+  }))
   clearTimeout(deadline)
   clearInterval(poll)
 }, 50)
@@ -287,6 +312,13 @@ const poll = setInterval(() => {
   discardLog(observed.stdout)
   const observation = JSON.parse(readFileSync(wakeObservation, "utf8"))
   T(`${TOOL}: the running launcher record includes its OS start identity`, typeof observation.source.processStartIdentity === "string")
+  T(
+    `${TOOL}: spawning the child replaces the pending record with its real pid and the Stop adapter still allows`,
+    observation.source.pending !== true &&
+      observation.source.workerPid === observation.observerPid &&
+      observation.stopStatus === 0,
+    JSON.stringify(observation),
+  )
   T(`${TOOL}: after a real launch exits its observed wake record is gone`, !existsSync(observation.recordPath), observation.recordPath)
 
   const ceiling = launch("ceiling", launchConfig({ ...stubEngine(SLEEPER), timeouts: { hardCeilingMinutes: 0.02, noProgressMinutes: 5, pollSeconds: 0.2 } }))
