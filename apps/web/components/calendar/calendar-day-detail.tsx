@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -12,6 +12,7 @@ import {
 } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { StatusRingProps } from '@orbit/shared/contracts/lists'
+import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import { CheckRow } from '@/components/ui/check-row'
 import { ListRow } from '@/components/ui/list-row'
 import { StatusRing } from '@/components/ui/status-ring'
@@ -22,8 +23,9 @@ interface CalendarDayDetailProps {
   entries: CalendarDayEntry[]
   loggable: boolean
   showRecurring: boolean
+  inFlightEntryKeys: ReadonlySet<string>
   onShowRecurringChange: (value: boolean) => void
-  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
+  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   /** Desktop side-panel mode: the entries list scrolls within the viewport and
    * the go-to-day row stays pinned below it. */
   fitViewport?: boolean
@@ -64,19 +66,19 @@ function CalendarDayCheckRow({
   dateStr,
   entry,
   displayTime,
+  isPending,
   onEntryChange,
   t,
 }: Readonly<{
   dateStr: string
   entry: CalendarDayEntry
   displayTime: (time: string) => string
-  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
+  isPending: boolean
+  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   t: ReturnType<typeof useTranslations>
 }>) {
   const sourceChecked = entry.status === 'completed'
-  const inFlightRef = useRef(false)
   const [optimisticChecked, setOptimisticChecked] = useState<boolean | null>(null)
-  const [isPending, setIsPending] = useState(false)
   const displayedChecked = optimisticChecked === sourceChecked ? null : optimisticChecked
   const checked = displayedChecked ?? sourceChecked
   const displayedEntry: CalendarDayEntry = displayedChecked === null
@@ -93,18 +95,14 @@ function CalendarDayCheckRow({
     : outcome.label
 
   async function changeChecked(nextChecked: boolean) {
-    if (inFlightRef.current) return
-    inFlightRef.current = true
+    const entryChange = onEntryChange(entry, nextChecked)
+    if (!entryChange) return
     setOptimisticChecked(nextChecked)
-    setIsPending(true)
 
     try {
-      await onEntryChange(entry, nextChecked)
+      await entryChange
     } catch {
       setOptimisticChecked(null)
-    } finally {
-      inFlightRef.current = false
-      setIsPending(false)
     }
   }
 
@@ -124,6 +122,7 @@ function CalendarDayRows({
   entries,
   loggable,
   displayTime,
+  inFlightEntryKeys,
   onEntryChange,
   t,
 }: Readonly<{
@@ -131,7 +130,8 @@ function CalendarDayRows({
   entries: CalendarDayEntry[]
   loggable: boolean
   displayTime: (time: string) => string
-  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
+  inFlightEntryKeys: ReadonlySet<string>
+  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   t: ReturnType<typeof useTranslations>
 }>) {
   return entries.map((entry) => {
@@ -147,6 +147,7 @@ function CalendarDayRows({
           dateStr={dateStr}
           entry={entry}
           displayTime={displayTime}
+          isPending={inFlightEntryKeys.has(getCalendarEntryMutationKey(dateStr, entry.habitId))}
           onEntryChange={onEntryChange}
           t={t}
         />
@@ -171,6 +172,7 @@ export function CalendarDayDetail({
   entries,
   loggable,
   showRecurring,
+  inFlightEntryKeys,
   onShowRecurringChange,
   onEntryChange,
   fitViewport = false,
@@ -230,6 +232,7 @@ export function CalendarDayDetail({
             entries={filteredEntries}
             loggable={loggable}
             displayTime={displayTime}
+            inFlightEntryKeys={inFlightEntryKeys}
             onEntryChange={onEntryChange}
             t={t}
           />

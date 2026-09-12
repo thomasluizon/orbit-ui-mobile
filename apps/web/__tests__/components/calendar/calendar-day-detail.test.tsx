@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import {
+  getCalendarEntryMutationKey,
+  useCalendarEntryMutationLock,
+} from '@orbit/shared/hooks'
 
 const translations: Record<string, string> = {
   'calendar.dayDetail.nothingDue': 'nothing due',
@@ -60,25 +64,41 @@ interface RenderProps {
   fitViewport?: boolean
 }
 
-function renderDetail({
+function CalendarDayDetailHarness({
   dateStr = '2025-06-15',
   entries = [],
   loggable = false,
   showRecurring = true,
   onEntryChange = async () => {},
   fitViewport = false,
-}: RenderProps = {}) {
-  return render(
+}: RenderProps) {
+  const { inFlightEntryKeys, startEntryMutation } = useCalendarEntryMutationLock()
+
+  function changeEntry(entry: CalendarDayEntry, checked: boolean) {
+    if (!dateStr) return null
+    return startEntryMutation(
+      getCalendarEntryMutationKey(dateStr, entry.habitId),
+      () => onEntryChange(entry, checked),
+    )
+  }
+
+  return (
     <CalendarDayDetail
+      key={dateStr ?? 'no-date'}
       dateStr={dateStr}
       entries={entries}
       loggable={loggable}
       showRecurring={showRecurring}
+      inFlightEntryKeys={inFlightEntryKeys}
       onShowRecurringChange={() => {}}
-      onEntryChange={onEntryChange}
+      onEntryChange={changeEntry}
       fitViewport={fitViewport}
-    />,
+    />
   )
+}
+
+function renderDetail(props: RenderProps = {}) {
+  return render(<CalendarDayDetailHarness {...props} />)
 }
 
 describe('CalendarDayDetail', () => {
@@ -183,12 +203,11 @@ describe('CalendarDayDetail', () => {
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Read' }))
     rendered.rerender(
-      <CalendarDayDetail
+      <CalendarDayDetailHarness
         dateStr="2025-06-15"
         entries={[{ ...entry, status: 'completed' }]}
         loggable
         showRecurring
-        onShowRecurringChange={() => {}}
         onEntryChange={onEntryChange}
       />,
     )
@@ -206,12 +225,11 @@ describe('CalendarDayDetail', () => {
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Read' }))
     rendered.rerender(
-      <CalendarDayDetail
+      <CalendarDayDetailHarness
         dateStr="2025-06-16"
         entries={[dayBEntry]}
         loggable
         showRecurring
-        onShowRecurringChange={() => {}}
         onEntryChange={onEntryChange}
       />,
     )
@@ -222,6 +240,48 @@ describe('CalendarDayDetail', () => {
     fireEvent.click(dayBRow)
     expect(onEntryChange).toHaveBeenCalledTimes(2)
     expect(onEntryChange).toHaveBeenLastCalledWith(dayBEntry, true)
+  })
+
+  it('keeps a returning day locked until its pending toggle settles', async () => {
+    let resolveChange: (() => void) | undefined
+    const pendingChange = new Promise<void>((resolve) => {
+      resolveChange = resolve
+    })
+    const entry = makeEntry({ title: 'Read', status: 'missed' })
+    const onEntryChange = vi.fn(() => pendingChange)
+    const rendered = renderDetail({ entries: [entry], loggable: true, onEntryChange })
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Read' }))
+    rendered.rerender(
+      <CalendarDayDetailHarness
+        dateStr="2025-06-16"
+        entries={[entry]}
+        loggable
+        showRecurring
+        onEntryChange={onEntryChange}
+      />,
+    )
+    rendered.rerender(
+      <CalendarDayDetailHarness
+        dateStr="2025-06-15"
+        entries={[entry]}
+        loggable
+        showRecurring
+        onEntryChange={onEntryChange}
+      />,
+    )
+
+    const returnedRow = screen.getByRole('checkbox', { name: 'Read' })
+    expect(returnedRow).toBeDisabled()
+    fireEvent.click(returnedRow)
+    expect(onEntryChange).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      resolveChange?.()
+      await pendingChange
+    })
+
+    expect(returnedRow).toBeEnabled()
   })
 
   it('controls and serializes a row toggle, then rolls it back when the write fails', async () => {

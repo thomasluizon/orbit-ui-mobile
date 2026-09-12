@@ -26,6 +26,10 @@ import {
   clampRangeToMaxDays,
   MAX_RANGE_DAYS,
 } from '@orbit/shared/utils'
+import {
+  getCalendarEntryMutationKey,
+  useCalendarEntryMutationLock,
+} from '@orbit/shared/hooks'
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
 import { useLogHabit } from '@/hooks/use-habits'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -117,6 +121,7 @@ function CalendarPageContent({
   const isWideDesktop = useIsWideDesktop()
   const todayKey = useToday()
   const logHabit = useLogHabit()
+  const { inFlightEntryKeys, startEntryMutation } = useCalendarEntryMutationLock()
 
   const [view, setView] = useState<CalendarView>('month')
   /** Agenda is desktop-width only until #56 stage 10 builds the mobile day groups. */
@@ -279,9 +284,13 @@ function CalendarPageContent({
   const selectedDayLoggable = selectedDay !== null
     && isCalendarDayLoggable(selectedDay, todayKey)
 
-  async function changeSelectedEntry(entry: CalendarDayEntry) {
-    if (!selectedDay) return
-    await logHabit.mutateAsync({ habitId: entry.habitId, date: selectedDay })
+  function changeSelectedEntry(entry: CalendarDayEntry): Promise<unknown> | null {
+    if (!selectedDay) return null
+    const entryKey = getCalendarEntryMutationKey(selectedDay, entry.habitId)
+    return startEntryMutation(
+      entryKey,
+      () => logHabit.mutateAsync({ habitId: entry.habitId, date: selectedDay }),
+    )
   }
 
   const dayDetailTitle = useMemo(() => {
@@ -442,6 +451,7 @@ function CalendarPageContent({
                       entries={selectedEntries}
                       loggable={selectedDayLoggable}
                       showRecurring={showRecurring}
+                      inFlightEntryKeys={inFlightEntryKeys}
                       onShowRecurringChange={setShowRecurring}
                       onEntryChange={changeSelectedEntry}
                       fitViewport
@@ -523,6 +533,7 @@ function CalendarPageContent({
           entries={selectedEntries}
           loggable={selectedDayLoggable}
           showRecurring={showRecurring}
+          inFlightEntryKeys={inFlightEntryKeys}
           onShowRecurringChange={setShowRecurring}
           onEntryChange={changeSelectedEntry}
         />

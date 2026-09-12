@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { StatusRingProps } from '@orbit/shared/contracts/lists'
+import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import { determineHabitDayStatus, parseAPIDate } from '@orbit/shared/utils'
 import { CheckRow } from '@/components/ui/check-row'
 import { ListRow } from '@/components/ui/list-row'
@@ -19,8 +20,9 @@ interface CalendarDayDetailProps {
   completedCount: number
   loggable: boolean
   showRecurring: boolean
+  inFlightEntryKeys: ReadonlySet<string>
   onShowRecurringChange: (value: boolean) => void
-  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
+  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   onGoToDay: () => void
   displayTime: (time: string) => string
   t: TFunction
@@ -59,19 +61,19 @@ function CalendarDayCheckRow({
   selectedDate,
   entry,
   displayTime,
+  isPending,
   onEntryChange,
   t,
 }: Readonly<{
   selectedDate: string
   entry: CalendarDayEntry
   displayTime: (time: string) => string
-  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
+  isPending: boolean
+  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   t: TFunction
 }>) {
   const sourceChecked = entry.status === 'completed'
-  const inFlightRef = useRef(false)
   const [optimisticChecked, setOptimisticChecked] = useState<boolean | null>(null)
-  const [isPending, setIsPending] = useState(false)
   const displayedChecked = optimisticChecked === sourceChecked ? null : optimisticChecked
   const checked = displayedChecked ?? sourceChecked
   const displayedEntry: CalendarDayEntry = displayedChecked === null
@@ -88,18 +90,14 @@ function CalendarDayCheckRow({
     : outcome.label
 
   async function changeChecked(nextChecked: boolean) {
-    if (inFlightRef.current) return
-    inFlightRef.current = true
+    const entryChange = onEntryChange(entry, nextChecked)
+    if (!entryChange) return
     setOptimisticChecked(nextChecked)
-    setIsPending(true)
 
     try {
-      await onEntryChange(entry, nextChecked)
+      await entryChange
     } catch {
       setOptimisticChecked(null)
-    } finally {
-      inFlightRef.current = false
-      setIsPending(false)
     }
   }
 
@@ -121,6 +119,7 @@ export function CalendarDayDetail({
   completedCount,
   loggable,
   showRecurring,
+  inFlightEntryKeys,
   onShowRecurringChange,
   onEntryChange,
   onGoToDay,
@@ -174,6 +173,9 @@ export function CalendarDayDetail({
                   selectedDate={selectedDate}
                   entry={entry}
                   displayTime={displayTime}
+                  isPending={inFlightEntryKeys.has(
+                    getCalendarEntryMutationKey(selectedDate, entry.habitId),
+                  )}
                   onEntryChange={onEntryChange}
                   t={t}
                 />

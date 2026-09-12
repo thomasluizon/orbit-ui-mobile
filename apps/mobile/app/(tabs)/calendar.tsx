@@ -43,6 +43,10 @@ import {
   MAX_RANGE_DAYS,
   buildCalendarMonthModel,
 } from "@orbit/shared/utils";
+import {
+  getCalendarEntryMutationKey,
+  useCalendarEntryMutationLock,
+} from "@orbit/shared/hooks";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import type { Profile } from "@orbit/shared/types/profile";
 import { useCalendarData, useCalendarRange, useLogHabit } from "@/hooks/use-habits";
@@ -152,6 +156,7 @@ function CalendarScreenContent({
   const { displayTime } = useTimeFormat();
   const todayKey = useCurrentDate();
   const logHabit = useLogHabit();
+  const { inFlightEntryKeys, startEntryMutation } = useCalendarEntryMutationLock();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -407,13 +412,14 @@ function CalendarScreenContent({
   const selectedDayLoggable = selectedDay !== null
     && isCalendarDayLoggable(selectedDay, todayKey);
 
-  const changeSelectedEntry = async (entry: CalendarDayEntry, checked: boolean) => {
-    if (!selectedDay) return;
-    await logHabit.mutateAsync({
+  const changeSelectedEntry = (entry: CalendarDayEntry, checked: boolean) => {
+    if (!selectedDay) return null;
+    const entryKey = getCalendarEntryMutationKey(selectedDay, entry.habitId);
+    return startEntryMutation(entryKey, () => logHabit.mutateAsync({
       habitId: entry.habitId,
       date: selectedDay,
       intent: checked ? "log" : "unlog",
-    });
+    }));
   };
 
   const { sheetRef, closeSheet } = useSheetHost();
@@ -640,6 +646,7 @@ function CalendarScreenContent({
             completedCount={completedCount}
             loggable={selectedDayLoggable}
             showRecurring={showRecurring}
+            inFlightEntryKeys={inFlightEntryKeys}
             onShowRecurringChange={setShowRecurring}
             onEntryChange={changeSelectedEntry}
             onGoToDay={goToSelectedDay}

@@ -2,6 +2,10 @@ import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { TFunction } from 'i18next'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import {
+  getCalendarEntryMutationKey,
+  useCalendarEntryMutationLock,
+} from '@orbit/shared/hooks'
 import { createTokensV2 } from '@/lib/theme'
 import { CalendarDayDetail } from '@/app/(tabs)/calendar/_components/calendar-day-detail'
 
@@ -73,30 +77,45 @@ interface RenderDetailProps {
   onGoToDay?: () => void
 }
 
-function detailElement({
+function CalendarDayDetailHarness({
   selectedDate = '2025-06-15',
   entries = [],
   loggable = false,
   onEntryChange = async () => {},
   onGoToDay = () => {},
-}: RenderDetailProps = {}): React.ReactElement {
+}: RenderDetailProps): React.ReactElement {
   const tokens = createTokensV2('purple', 'dark')
+  const { inFlightEntryKeys, startEntryMutation } = useCalendarEntryMutationLock()
+
+  function changeEntry(entry: CalendarDayEntry, checked: boolean) {
+    return startEntryMutation(
+      getCalendarEntryMutationKey(selectedDate, entry.habitId),
+      () => onEntryChange(entry, checked),
+    )
+  }
+
   return (
     <CalendarDayDetail
+      key={selectedDate}
       selectedDate={selectedDate}
       selectedEntries={entries}
       filteredEntries={entries}
       completedCount={entries.filter((entry) => entry.status === 'completed').length}
       loggable={loggable}
       showRecurring
+      inFlightEntryKeys={inFlightEntryKeys}
       onShowRecurringChange={() => {}}
-      onEntryChange={onEntryChange}
+      onEntryChange={changeEntry}
       onGoToDay={onGoToDay}
       displayTime={(time) => time}
       t={translate}
       tokens={tokens}
     />
   )
+}
+
+function detailElement(props: RenderDetailProps = {}): React.ReactElement {
+  return <CalendarDayDetailHarness {...props} />
 }
 
 function renderDetail(props: RenderDetailProps = {}): Tree {
@@ -262,6 +281,47 @@ describe('CalendarDayDetail (mobile)', () => {
     })
     expect(onEntryChange).toHaveBeenCalledTimes(2)
     expect(onEntryChange).toHaveBeenLastCalledWith(dayBEntry, true)
+  })
+
+  it('keeps a returning day locked until its pending toggle settles', async () => {
+    let resolveChange: (() => void) | undefined
+    const pendingChange = new Promise<void>((resolve) => {
+      resolveChange = resolve
+    })
+    const entry = makeEntry({ title: 'Read', status: 'missed' })
+    const onEntryChange = vi.fn(() => pendingChange)
+    const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
+
+    TestRenderer.act(() => {
+      const row = nodes(tree, 'CheckRowMock')[0]
+      ;(row?.props.onChange as (checked: boolean) => void)(true)
+    })
+    TestRenderer.act(() => {
+      tree.update(detailElement({
+        selectedDate: '2025-06-16',
+        entries: [entry],
+        loggable: true,
+        onEntryChange,
+      }))
+    })
+    TestRenderer.act(() => {
+      tree.update(detailElement({ entries: [entry], loggable: true, onEntryChange }))
+    })
+
+    let returnedRow = nodes(tree, 'CheckRowMock')[0]
+    expect(returnedRow?.props.loading).toBe(true)
+    TestRenderer.act(() => {
+      ;(returnedRow?.props.onChange as (checked: boolean) => void)(true)
+    })
+    expect(onEntryChange).toHaveBeenCalledTimes(1)
+
+    await TestRenderer.act(async () => {
+      resolveChange?.()
+      await pendingChange
+    })
+
+    returnedRow = nodes(tree, 'CheckRowMock')[0]
+    expect(returnedRow?.props.loading).toBe(false)
   })
 
   it('controls and serializes a row toggle, then rolls it back when the write fails', async () => {
