@@ -396,7 +396,6 @@ export {
 } from './goal-mutations'
 export {
   formatGoalMetricsDate,
-  getGoalHabitAdherenceTone,
   getGoalMetricsStatusPresentation,
 } from './goal-metrics'
 export { normalizeGoalQueryData } from './goal-query'
@@ -527,9 +526,6 @@ export type {
 export {
   buildRetrospectiveRequestUrl,
   getBestRetrospectiveWeekdayKey,
-  getRetrospectiveCacheKey,
-  RETROSPECTIVE_CACHE_PREFIX,
-  RETROSPECTIVE_PERIODS,
 } from './retrospective'
 export type {
   RetrospectivePeriod,

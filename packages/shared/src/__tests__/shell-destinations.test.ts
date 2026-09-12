@@ -8,7 +8,6 @@ describe('resolveShellDestination', () => {
     ['/calendar', 'calendario'],
     ['/calendar-sync', 'calendario'],
     ['/goals/123', 'progresso'],
-    ['/retrospective', 'progresso'],
     ['/wrapped', 'progresso'],
     ['/preferences', 'perfil'],
     ['/advanced', 'perfil'],
@@ -23,6 +22,7 @@ describe('resolveShellDestination', () => {
     expect(resolveShellDestination('/upgrade')).toBeNull()
     expect(resolveShellDestination('/streak')).toBeNull()
     expect(resolveShellDestination('/unknown')).toBeNull()
+    expect(resolveShellDestination('/retrospective')).toBeNull()
     expect(resolveShellDestination('/calendarized')).toBeNull()
   })
 })

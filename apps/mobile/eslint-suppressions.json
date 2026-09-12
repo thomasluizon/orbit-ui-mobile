@@ -134,46 +134,6 @@
       "count": 3
     }
   },
-  "components/goal-card.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "components/goals/create-goal-modal/goal-deadline-field.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "components/goals/create-goal-modal/goal-type-selector.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "components/goals/create-goal-modal/styles.ts": {
-    "local/spacing-scale": {
-      "count": 6
-    }
-  },
-  "components/goals/edit-goal-modal/edit-goal-deadline-field.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "components/goals/edit-goal-modal/styles.ts": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "components/goals/goal-list.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "components/goals/goal-metrics-panel.tsx": {
-    "local/spacing-scale": {
-      "count": 5
-    }
-  },
   "components/habit-list/move-parent-dialog.tsx": {
     "local/icon-size-grid": {
       "count": 2
@@ -421,11 +381,6 @@
   },
   "components/ui/year-picker.tsx": {
     "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/wrapped/wrapped-entry-button.tsx": {
-    "local/icon-size-grid": {
       "count": 1
     }
   },

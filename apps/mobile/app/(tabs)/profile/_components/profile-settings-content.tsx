@@ -243,7 +243,7 @@ function buildEndingRows({
   onLogout,
 }: EndingRowsOptions) {
   return [
-    <ShareCardEntryButton key="share" variant="row" displayName={profile?.name} />,
+    <ShareCardEntryButton key="share" displayName={profile?.name} />,
     <ListRow key="fresh-start" icon={icon(RotateCcw, tokens.fg1)} title={t('profile.freshStart.button')} chevron={false} onClick={onFreshStart} />,
     <ListRow key="logout" icon={icon(LogOut, tokens.fg1)} title={t('profile.logout')} chevron={false} onClick={onLogout} />,
     <ListRow key="delete" icon={icon(UserX, tokens.fg1)} title={t('profile.deleteAccount.button')} danger chevron={false} onClick={onDeleteAccount} />,

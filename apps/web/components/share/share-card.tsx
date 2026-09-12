@@ -101,7 +101,7 @@ export function ShareCard({ recap, displayName, ref }: Readonly<ShareCardProps>)
         <div style={weeklyBarsStyle}>
           {metrics.weeklyConsistency.slice(0, 7).map((value, index) => {
             const clamped = Math.max(0, Math.min(100, value))
-            const barLabel = t('retrospective.weeklyBarLabel', {
+            const barLabel = t('shareCard.weeklyBarLabel', {
               day: t(`dates.daysShort.${WEEKDAY_KEYS[index]!}`),
               percent: Math.round(clamped),
             })

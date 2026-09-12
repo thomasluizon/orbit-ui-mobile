@@ -1,5 +1,4 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { chromium, type Browser } from '@playwright/test'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -8,6 +7,12 @@ import tailwind from '@tailwindcss/postcss'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
+import {
+  closeChrome,
+  registerChromeLaunchHook,
+  type Browser,
+  type BrowserLaunch,
+} from '@/__tests__/support/chromium'
 
 const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
@@ -145,9 +150,15 @@ import ProgressPage from '@/app/(app)/progress/page'
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
 
 describe('ProgressContent', () => {
+  let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
   let compiledStyles: string
   let textStyles: string
+
+  registerChromeLaunchHook(beforeAll, async (launch) => {
+    browserLaunch = launch
+    browser = await browserLaunch
+  })
 
   beforeAll(async () => {
     const source = resolve('app/globals.css')
@@ -160,10 +171,9 @@ describe('ProgressContent', () => {
       }
     })
     textStyles = rules.join('\n')
-    browser = await chromium.launch({ channel: 'chrome' })
   })
 
-  afterAll(async () => { await browser.close() }, 30_000)
+  afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
   it.each(['dark', 'light'] as const)('keeps goal metadata legible in every card state in %s', (mode) => {
     mocks.goals.data.allGoals = [createMockGoal()]

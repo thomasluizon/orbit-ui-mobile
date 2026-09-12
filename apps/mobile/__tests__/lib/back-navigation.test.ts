@@ -68,9 +68,9 @@ describe('mobile back navigation helpers', () => {
     ).toBe('/progress')
     expect(
       getAndroidBackFallbackRoute('/upgrade', {
-        upgradeFrom: ['/retrospective'],
+        upgradeFrom: ['/progress'],
       }),
-    ).toBe('/retrospective')
+    ).toBe('/progress')
     expect(getAndroidBackFallbackRoute('/upgrade')).toBe('/profile')
   })
 

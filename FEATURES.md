@@ -61,7 +61,7 @@ Orbit exposes a full **Model Context Protocol** server, so you can connect Claud
 Celebrate progress with milestone cards and use personal referral links to invite people to Orbit.
 
 ### A serious core tracker underneath
-Flexible scheduling (daily, weekly, monthly, yearly, flexible, one-time, general), sub-habits, checklists, bad-habit tracking with AI slip alerts, goals with velocity metrics, a color-coded calendar with Google Calendar import, XP and levels, achievement badges, streaks with streak-freeze protection, an Orbit Wrapped recap, and an Android home-screen widget.
+Flexible scheduling (daily, weekly, monthly, yearly, flexible, one-time, general), sub-habits, checklists, bad-habit tracking with AI slip alerts, goals, a color-coded calendar with Google Calendar import, XP and levels, achievement badges, streaks with streak-freeze protection, an Orbit Wrapped recap, and an Android home-screen widget.
 
 ---
 
@@ -179,7 +179,6 @@ the Astra `GoalReviewTool`. Caps: max 10 goals/habit, 20 habits/goal.
 | Create goals | Title, target value, unit, optional deadline | Free | Both | — |
 | Track progress | Update current value, notes, full history | Free | Both | — |
 | Link habits | Connect habits for adherence tracking | Free | Both | — |
-| Metrics dashboard | Velocity, projected completion, on-track/at-risk/behind | Free | Both | — |
 | AI goal review | AI analysis of what's working and what needs attention | Pro | Both | — |
 | Lifecycle | Active → completed → abandoned states | Free | Both | — |
 
@@ -298,7 +297,7 @@ Play-required public URLs — they look unused in-app but must never be deleted.
 | Terms of Service | Public `/terms` | Free | Both | en + pt-BR |
 | Privacy Policy | Public `/privacy` | Free | Both | en + pt-BR |
 | Delete-account page | Public `/delete-account` (Play compliance) | Free | Web-only public page | — |
-| About / Feature Guide | In-app guide covering Astra, Connect, Habits, Goals, Calendar, Rewards, Settings, Notifications | Free | Both | Fully i18n-driven (en + pt-BR) |
+| About / Feature Guide | In-app guide covering Astra, Connect, Habits, Progress, Calendar, Rewards, Settings, Notifications | Free | Both | Fully i18n-driven (en + pt-BR) |
 | Public referral landing | `r/[code]` invite entry point | Free | Both | — |
 
 ---
