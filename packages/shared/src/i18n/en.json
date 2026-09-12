@@ -917,7 +917,8 @@
     "emptyMonth": "Nothing logged this month yet. Your days will fill in here.",
     "loadError": "Could not load the calendar. Please try again.",
     "dayDetail": {
-      "completionSummary": "{done} of {total} habit completed | {done} of {total} habits completed"
+      "completionSummary": "{done} of {total} habit completed | {done} of {total} habits completed",
+      "eventsTitle": "On your calendar"
     },
     "noHabitsScheduled": "No habits scheduled for this day.",
     "goToDay": "View this day",

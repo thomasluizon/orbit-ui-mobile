@@ -65,6 +65,12 @@ vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (value: string) => value }),
 }))
 
+vi.mock('@/hooks/use-calendar-events', () => ({
+  useCalendarEvents: () => ({
+    data: { status: 'connected', events: [] },
+  }),
+}))
+
 vi.mock('@/hooks/use-tour-target', () => ({
   useTourTarget: () => {},
 }))

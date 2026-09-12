@@ -2,10 +2,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
 import { formatAPIDate } from '@orbit/shared/utils'
+import type { CalendarSyncEvent } from '@orbit/shared'
 
 let isWideDesktopValue = false
 let isDesktopValue = false
 const calendarGridProps: { selectedDateStr?: string | null } = {}
+const calendarDayDetailProps: { calendarEvents?: CalendarSyncEvent[] } = {}
+const calendarEventsQueryState: {
+  data: { status: 'connected'; events: CalendarSyncEvent[] }
+} = {
+  data: { status: 'connected', events: [] },
+}
 const monthQueryState: { error: string | null; refresh: ReturnType<typeof vi.fn> } = {
   error: null,
   refresh: vi.fn(),
@@ -49,6 +56,10 @@ vi.mock('@/hooks/use-calendar-data', () => ({
     error: null,
     refresh: vi.fn(),
   }),
+}))
+
+vi.mock('@/hooks/use-calendar-events', () => ({
+  useCalendarEvents: () => calendarEventsQueryState,
 }))
 
 vi.mock('@/hooks/use-time-format', () => ({
@@ -111,7 +122,10 @@ vi.mock('@/components/calendar/calendar-stats', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-day-detail', () => ({
-  CalendarDayDetail: () => <div data-testid="day-detail" />,
+  CalendarDayDetail: (props: { calendarEvents?: CalendarSyncEvent[] }) => {
+    calendarDayDetailProps.calendarEvents = props.calendarEvents
+    return <div data-testid="day-detail" />
+  },
 }))
 
 vi.mock('@/components/calendar/calendar-week-view', () => ({
@@ -133,6 +147,8 @@ describe('CalendarPage view switcher', () => {
     isWideDesktopValue = false
     isDesktopValue = false
     calendarGridProps.selectedDateStr = undefined
+    calendarDayDetailProps.calendarEvents = undefined
+    calendarEventsQueryState.data = { status: 'connected', events: [] }
     monthQueryState.error = null
     monthQueryState.refresh = vi.fn()
     profileQueryState.profile = { weekStartDay: 1 }
@@ -212,6 +228,44 @@ describe('CalendarPage view switcher', () => {
 
     expect(screen.getByTestId('calendar-day-panel')).toBeDefined()
     expect(screen.getByTestId('day-detail')).toBeDefined()
+  })
+
+  it("passes only the selected day's Google events to the day detail", () => {
+    const selectedDay = formatAPIDate(new Date())
+    calendarEventsQueryState.data = {
+      status: 'connected',
+      events: [
+        {
+          id: 'selected-event',
+          title: 'Team meeting',
+          description: null,
+          startDate: selectedDay,
+          startTime: '09:00',
+          endTime: null,
+          isRecurring: false,
+          recurrenceRule: null,
+          reminders: [],
+        },
+        {
+          id: 'other-event',
+          title: 'Tomorrow',
+          description: null,
+          startDate: '2099-01-01',
+          startTime: '10:00',
+          endTime: null,
+          isRecurring: false,
+          recurrenceRule: null,
+          reminders: [],
+        },
+      ],
+    }
+    isWideDesktopValue = true
+
+    render(<CalendarPage />)
+
+    expect(calendarDayDetailProps.calendarEvents?.map((event) => event.id)).toEqual([
+      'selected-event',
+    ])
   })
 
   it('opens the day detail as an overlay below the wide-desktop breakpoint', () => {

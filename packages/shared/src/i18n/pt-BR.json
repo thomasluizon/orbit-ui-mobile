@@ -917,7 +917,8 @@
     "emptyMonth": "Nada registrado neste mês ainda. Seus dias vão aparecer aqui.",
     "loadError": "Não foi possível carregar o calendário. Tente de novo.",
     "dayDetail": {
-      "completionSummary": "{done} de {total} hábito concluído | {done} de {total} hábitos concluídos"
+      "completionSummary": "{done} de {total} hábito concluído | {done} de {total} hábitos concluídos",
+      "eventsTitle": "Na sua agenda"
     },
     "noHabitsScheduled": "Nenhum hábito agendado para este dia.",
     "goToDay": "Ver este dia",

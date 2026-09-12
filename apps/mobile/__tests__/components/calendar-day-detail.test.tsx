@@ -2,6 +2,7 @@ import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
+import type { CalendarSyncEvent } from "@orbit/shared";
 import { createTokensV2 } from "@/lib/theme";
 import { CalendarDayDetail } from "@/app/(tabs)/calendar/_components/calendar-day-detail";
 
@@ -30,6 +31,11 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-day-entry", () => ({
     }),
 }));
 
+vi.mock("@/components/dates/event-row", () => ({
+  EventRow: (props: Record<string, unknown>) =>
+    React.createElement("EventRowMock", props),
+}));
+
 type TestNode = { type: unknown; props: Record<string, any> };
 type Tree = {
   root: { findAll: (predicate: (node: TestNode) => boolean) => TestNode[] };
@@ -49,7 +55,10 @@ function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry 
   };
 }
 
-function renderDetail(entries: CalendarDayEntry[]): Tree {
+function renderDetail(
+  entries: CalendarDayEntry[],
+  calendarEvents: CalendarSyncEvent[] = [],
+): Tree {
   const tokens = createTokensV2("purple", "dark");
   let tree: Tree;
   TestRenderer.act(() => {
@@ -57,6 +66,7 @@ function renderDetail(entries: CalendarDayEntry[]): Tree {
       <CalendarDayDetail
         selectedEntries={entries}
         filteredEntries={entries}
+        calendarEvents={calendarEvents}
         completedCount={0}
         showRecurring
         onShowRecurringChange={() => {}}
@@ -111,5 +121,46 @@ describe("CalendarDayDetail entry list (mobile)", () => {
         node.props.children === "calendar.noHabitsScheduled",
     );
     expect(emptyText).toHaveLength(1);
+  });
+
+  it("renders timed and all-day Google events through the read-only event row", () => {
+    const tree = renderDetail([makeEntry()], [
+      {
+        id: "event-1",
+        title: "Team meeting",
+        description: null,
+        startDate: "2025-06-15",
+        startTime: "09:00",
+        endTime: null,
+        isRecurring: false,
+        recurrenceRule: null,
+        reminders: [],
+      },
+      {
+        id: "event-2",
+        title: "Company holiday",
+        description: null,
+        startDate: "2025-06-15",
+        startTime: null,
+        endTime: null,
+        isRecurring: false,
+        recurrenceRule: null,
+        reminders: [],
+      },
+    ]);
+
+    const events = tree.root.findAll((node) => node.type === "EventRowMock");
+    expect(events.map((event) => event.props)).toEqual([
+      expect.objectContaining({
+        time: "09:00",
+        title: "Team meeting",
+        source: "calendar.title",
+      }),
+      expect.objectContaining({
+        allDayLabel: "calendar.timeGrid.allDay",
+        title: "Company holiday",
+        source: "calendar.title",
+      }),
+    ]);
   });
 });

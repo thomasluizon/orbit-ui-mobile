@@ -17,9 +17,14 @@ const state = vi.hoisted(() => ({
   profileError: null as Error | null,
   profileRefetch: vi.fn(),
   calendarDataCalls: vi.fn(),
+  calendarEvents: [] as Record<string, unknown>[],
 }));
 
 const calendarGridProps = vi.hoisted(() => ({
+  current: null as Record<string, any> | null,
+}));
+
+const calendarDayDetailProps = vi.hoisted(() => ({
   current: null as Record<string, any> | null,
 }));
 
@@ -43,6 +48,12 @@ vi.mock("@/hooks/use-profile", () => ({
 
 vi.mock("@/hooks/use-time-format", () => ({
   useTimeFormat: () => ({ displayTime: (time: string) => time }),
+}));
+
+vi.mock("@/hooks/use-calendar-events", () => ({
+  useCalendarEvents: () => ({
+    data: { status: "connected", events: state.calendarEvents },
+  }),
 }));
 
 vi.mock("@/hooks/use-tour-target", () => ({ useTourTarget: () => {} }));
@@ -107,7 +118,10 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-stats", () => ({
   CalendarStats: () => null,
 }));
 vi.mock("@/app/(tabs)/calendar/_components/calendar-day-detail", () => ({
-  CalendarDayDetail: () => null,
+  CalendarDayDetail: (props: Record<string, any>) => {
+    calendarDayDetailProps.current = props;
+    return null;
+  },
 }));
 
 type TestNode = { type: unknown; props: Record<string, any> };
@@ -156,12 +170,14 @@ function pressView(tree: Tree, view: string) {
 describe("CalendarScreen views (mobile)", () => {
   beforeEach(() => {
     calendarGridProps.current = null;
+    calendarDayDetailProps.current = null;
     state.monthError = null;
     state.monthRefresh = () => {};
     state.profile = { weekStartDay: 1 };
     state.profileError = null;
     state.profileRefetch = vi.fn();
     state.calendarDataCalls.mockClear();
+    state.calendarEvents = [];
     const todayStr = formatAPIDate(new Date());
     state.rangeMap = new Map<string, CalendarDayEntry[]>([
       [
@@ -226,6 +242,57 @@ describe("CalendarScreen views (mobile)", () => {
     });
     expect(calendarGridProps.current?.selectedDay).toBe(formatAPIDate(new Date()));
     TestRenderer.act(() => headerTree.update(<></>));
+  });
+
+  it("passes only the selected day's Google events to the day detail", () => {
+    const selectedDay = formatAPIDate(new Date());
+    state.calendarEvents = [
+      {
+        id: "selected-event",
+        title: "Team meeting",
+        description: null,
+        startDate: selectedDay,
+        startTime: "09:00",
+        endTime: null,
+        isRecurring: false,
+        recurrenceRule: null,
+        reminders: [],
+      },
+      {
+        id: "other-event",
+        title: "Tomorrow",
+        description: null,
+        startDate: "2099-01-01",
+        startTime: "10:00",
+        endTime: null,
+        isRecurring: false,
+        recurrenceRule: null,
+        reminders: [],
+      },
+    ];
+
+    let tree: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />);
+    });
+    const flatList = tree!.root.findAll(
+      (node) => typeof node.type === "string" && node.type === "FlatList",
+    )[0]!;
+    let headerTree: import("react-test-renderer").ReactTestRenderer;
+    TestRenderer.act(() => {
+      headerTree = TestRenderer.create(flatList.props.ListHeaderComponent);
+    });
+    TestRenderer.act(() => {
+      calendarGridProps.current!.onSelectDay(selectedDay);
+    });
+
+    expect(
+      calendarDayDetailProps.current?.calendarEvents.map(
+        (event: { id: string }) => event.id,
+      ),
+    ).toEqual(["selected-event"]);
+    TestRenderer.act(() => headerTree!.update(<></>));
+    TestRenderer.act(() => (tree as unknown as import("react-test-renderer").ReactTestRenderer).update(<></>));
   });
 
   it('loads calendar data concurrently while the profile resolves', () => {
