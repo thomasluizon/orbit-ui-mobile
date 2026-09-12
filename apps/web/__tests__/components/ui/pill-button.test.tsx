@@ -5,7 +5,12 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { PillButton } from '@/components/ui/pill-button'
-import { closeChrome, launchChrome, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
+import {
+  closeChrome,
+  registerChromeLaunchHook,
+  type Browser,
+  type BrowserLaunch,
+} from '@/__tests__/support/chromium'
 
 describe('PillButton', () => {
   describe('small touch targets in Chromium', () => {
@@ -13,8 +18,8 @@ describe('PillButton', () => {
     let browser: Browser
     let stylesheet: string
 
-    beforeAll(async () => {
-      browserLaunch = launchChrome()
+    registerChromeLaunchHook(beforeAll, async (launch) => {
+      browserLaunch = launch
       browser = await browserLaunch
     })
 
