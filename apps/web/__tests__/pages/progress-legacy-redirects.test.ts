@@ -36,4 +36,17 @@ describe('legacy Progresso routes', () => {
       permanent: true,
     })
   })
+
+  it('does not retain the replaced standalone goal list components', () => {
+    const replacedFiles = [
+      'components/goals/goal-card.tsx',
+      'components/goals/goal-list.tsx',
+      'components/goals/goal-metrics-panel.tsx',
+      'components/goals/goal-status-badge.tsx',
+    ]
+
+    for (const file of replacedFiles) {
+      expect(existsSync(resolve(process.cwd(), file))).toBe(false)
+    }
+  })
 })

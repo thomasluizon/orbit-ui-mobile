@@ -1961,7 +1961,7 @@
       "connect": "Connect",
       "rewards": "Rewards",
       "settings": "Settings",
-      "goals": "Goals",
+      "progress": "Progress",
       "notifications": "Notifications",
       "habitsSection": {
         "creatingTitle": "Creating Habits",
@@ -2009,15 +2009,13 @@
         "skipTitle": "Skip vs Log",
         "skipDesc": "Skip marks a habit as intentionally skipped for the day without breaking your streak. Use it when you consciously chose not to do a habit (rest day, travel, etc.) rather than simply forgetting."
       },
-      "goalsSection": {
-        "creatingTitle": "Creating Goals",
-        "creatingDesc": "Create goals with a title, target value, unit, and optional deadline. Goals give your habits a bigger purpose and help you measure long-term progress.",
+      "progressSection": {
+        "goalsTitle": "Goals in Progress",
+        "goalsDesc": "Create a goal from a habit or ask Astra, then find it in Progress with your streak, figures, and achievements.",
         "trackingTitle": "Tracking Progress",
-        "trackingDesc": "Update your current value, add notes, and see your full progress history. Each update moves you closer to your target.",
+        "trackingDesc": "Open a goal to see notes and progress history. Update standard goals manually; streak goals follow linked habit logs.",
         "linkingTitle": "Linking Habits",
         "linkingDesc": "Connect habits to goals for adherence tracking. See how consistently you follow through on the habits that matter most for each goal.",
-        "dashboardTitle": "Goal Metrics Dashboard",
-        "dashboardDesc": "View velocity, projected completion date, and tracking status (on track, at risk, or behind) for each goal. Data-driven insight into your progress.",
         "aiReviewTitle": "AI Goal Review",
         "aiReviewDesc": "Get AI-generated reviews of your goal progress with analysis of what's working, what needs attention, and suggestions for staying on track.",
         "statusTitle": "Goal Lifecycle",
@@ -2339,7 +2337,6 @@
     "failedToStop": "Failed to stop recording."
   },
   "goals": {
-    "tab": "Goals",
     "empty": "No goals yet",
     "create": "New Goal",
     "dragItem": "draggable item",
@@ -2437,17 +2434,10 @@
     "linkedHabits": "Linked Habits",
     "noLinkedHabits": "No linked habits yet",
     "metrics": {
-      "title": "Goal Insights",
       "onTrack": "On Track",
       "atRisk": "At Risk",
       "behind": "Behind Schedule",
-      "noDeadline": "No Deadline",
-      "projectedCompletion": "Projected Completion",
-      "velocity": "Progress Rate",
-      "daysToDeadline": "Days to Deadline",
-      "habitAdherence": "Linked Habit Performance",
-      "noData": "No data",
-      "perDay": "day"
+      "noDeadline": "No Deadline"
     }
   },
   "progressScreen": {
@@ -2986,7 +2976,7 @@
       },
       "tabs": {
         "title": "View Tabs",
-        "description": "Switch between Today (scheduled habits), All (everything), General (always available), and Goals (your long-term targets)."
+        "description": "Use the four destinations for Today, Calendar, Progress, and Profile. Goals live inside Progress."
       },
       "dateNav": {
         "title": "Date Navigation",
@@ -2994,7 +2984,7 @@
       },
       "fab": {
         "title": "Create New",
-        "description": "Tap here to create a new habit. Choose from recurring, flexible, general, or one-time tasks. You can also create goals from the Goals tab."
+        "description": "Tap here to create a new habit. Create a goal from a habit or by asking Astra."
       },
       "streak": {
         "title": "Streak Counter",
@@ -3003,20 +2993,6 @@
       "notifications": {
         "title": "Notifications",
         "description": "Check reminders, achievement alerts, and updates here. Set up push notifications in settings to never miss a habit."
-      }
-    },
-    "goals": {
-      "tab": {
-        "title": "Goals Tab",
-        "description": "Switch to Goals to see your long-term objectives. Goals give direction to your habits by linking daily actions to bigger targets."
-      },
-      "card": {
-        "title": "Goal Card",
-        "description": "Each goal shows its progress bar, deadline, and linked habits. Track it from start to completion."
-      },
-      "progress": {
-        "title": "Goal Progress",
-        "description": "Update progress manually or let linked habits auto-track it. The progress bar shows how close you are to your target."
       }
     },
     "chat": {

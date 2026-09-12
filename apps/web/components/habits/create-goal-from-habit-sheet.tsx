@@ -22,9 +22,9 @@ import {
 import type { GoalType } from '@orbit/shared/types/goal'
 import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
 import { FieldWell } from '@/components/goals/field-well'
-import { GoalDeadlineField } from '@/components/goals/create-goal-modal/goal-deadline-field'
-import { GoalTargetFields } from '@/components/goals/create-goal-modal/goal-target-fields'
-import { GoalTypeSelector } from '@/components/goals/create-goal-modal/goal-type-selector'
+import { GoalDeadlineField } from './create-goal-from-habit/goal-deadline-field'
+import { GoalTargetFields } from './create-goal-from-habit/goal-target-fields'
+import { GoalTypeSelector } from './create-goal-from-habit/goal-type-selector'
 
 interface CreateGoalFromHabitSheetProps {
   open: boolean

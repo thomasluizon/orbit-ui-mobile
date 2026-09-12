@@ -1961,7 +1961,7 @@
       "connect": "Conectar",
       "rewards": "Recompensas",
       "settings": "Configurações",
-      "goals": "Metas",
+      "progress": "Progresso",
       "notifications": "Notificações",
       "habitsSection": {
         "creatingTitle": "Criando hábitos",
@@ -2009,15 +2009,13 @@
         "skipTitle": "Pular x Registrar",
         "skipDesc": "Pular marca um hábito como deixado de propósito naquele dia, sem quebrar a sua sequência. Use quando você escolheu não fazer um hábito de propósito (dia de descanso, viagem etc.), e não quando simplesmente esqueceu."
       },
-      "goalsSection": {
-        "creatingTitle": "Criando metas",
-        "creatingDesc": "Crie metas com título, valor alvo, unidade e prazo opcional. As metas dão um propósito maior aos seus hábitos e ajudam a medir o progresso no longo prazo.",
+      "progressSection": {
+        "goalsTitle": "Metas no Progresso",
+        "goalsDesc": "Crie uma meta a partir de um hábito ou peça à Astra. Depois, encontre-a no Progresso com sua sequência, seus números e suas conquistas.",
         "trackingTitle": "Acompanhando o progresso",
-        "trackingDesc": "Atualize o valor atual, adicione notas e veja todo o seu histórico de progresso. Cada atualização te deixa mais perto do objetivo.",
+        "trackingDesc": "Abra uma meta para ver notas e o histórico. Atualize metas padrão manualmente; metas de sequência seguem os registros dos hábitos vinculados.",
         "linkingTitle": "Vinculando hábitos",
         "linkingDesc": "Conecte hábitos às metas para acompanhar a constância. Veja o quanto você está mantendo os hábitos que mais importam para cada meta.",
-        "dashboardTitle": "Painel de métricas da meta",
-        "dashboardDesc": "Veja o ritmo, a data prevista de conclusão e a situação (no caminho, em risco ou atrasada) de cada meta. Insights baseados em dados sobre o seu progresso.",
         "aiReviewTitle": "Revisão de metas com IA",
         "aiReviewDesc": "Receba revisões feitas pela IA sobre o progresso das suas metas, com análise do que está dando certo, do que precisa de atenção e sugestões para não sair do rumo.",
         "statusTitle": "Ciclo de vida da meta",
@@ -2339,7 +2337,6 @@
     "failedToStop": "Não foi possível parar a gravação."
   },
   "goals": {
-    "tab": "Metas",
     "empty": "Nenhuma meta ainda",
     "create": "Nova meta",
     "dragItem": "item arrastável",
@@ -2437,17 +2434,10 @@
     "linkedHabits": "Hábitos Vinculados",
     "noLinkedHabits": "Nenhum hábito vinculado ainda",
     "metrics": {
-      "title": "Análise da Meta",
       "onTrack": "No Caminho",
       "atRisk": "Em Risco",
       "behind": "Atrasada",
-      "noDeadline": "Sem Prazo",
-      "projectedCompletion": "Conclusão Projetada",
-      "velocity": "Ritmo de Progresso",
-      "daysToDeadline": "Dias para o Prazo",
-      "habitAdherence": "Desempenho dos Hábitos Vinculados",
-      "noData": "Sem dados",
-      "perDay": "dia"
+      "noDeadline": "Sem Prazo"
     }
   },
   "progressScreen": {
@@ -2986,7 +2976,7 @@
       },
       "tabs": {
         "title": "Abas de visualização",
-        "description": "Alterne entre Hoje (hábitos agendados), Todos (tudo), Geral (sempre à mão) e Metas (seus objetivos de longo prazo)."
+        "description": "Use os quatro destinos: Hoje, Calendário, Progresso e Perfil. As metas ficam dentro de Progresso."
       },
       "dateNav": {
         "title": "Navegação por data",
@@ -2994,7 +2984,7 @@
       },
       "fab": {
         "title": "Criar novo",
-        "description": "Toque aqui para criar um hábito. Escolha entre recorrente, flexível, geral ou tarefa única. Você também pode criar metas na aba Metas."
+        "description": "Toque aqui para criar um hábito. Crie uma meta a partir de um hábito ou pedindo à Astra."
       },
       "streak": {
         "title": "Contador de sequência",
@@ -3003,20 +2993,6 @@
       "notifications": {
         "title": "Notificações",
         "description": "Veja lembretes, alertas de conquistas e novidades aqui. Ative as notificações push nas configurações para nunca esquecer um hábito."
-      }
-    },
-    "goals": {
-      "tab": {
-        "title": "Aba de metas",
-        "description": "Vá para Metas para ver seus objetivos de longo prazo. As metas dão direção aos seus hábitos, ligando ações diárias a alvos maiores."
-      },
-      "card": {
-        "title": "Cartão da meta",
-        "description": "Cada meta mostra a barra de progresso, o prazo e os hábitos vinculados. Acompanhe do começo à conclusão."
-      },
-      "progress": {
-        "title": "Progresso da meta",
-        "description": "Atualize o progresso na mão ou deixe os hábitos vinculados cuidarem disso sozinhos. A barra mostra o quanto você está perto do seu alvo."
       }
     },
     "chat": {

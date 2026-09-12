@@ -30,6 +30,17 @@ describe('legacy Progresso routes', () => {
     expect(redirectSystemPath({ path, initial: true })).toBe('/progress')
   })
 
+  it('does not retain the replaced standalone goal list components', () => {
+    const replacedFiles = [
+      'components/goal-card.tsx',
+      'components/goals/goal-list.tsx',
+      'components/goals/goal-metrics-panel.tsx',
+    ]
+
+    for (const file of replacedFiles) {
+      expect(existsSync(resolve(process.cwd(), file))).toBe(false)
+    }
+  })
   it.each(['/progress', '/streaks', 'orbit://profile'])(
     'preserves the current system path %s',
     (path) => {

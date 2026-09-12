@@ -11,9 +11,9 @@ export function createStyles(tokens: CreateGoalTokens, bottomInset: number) {
     },
     form: {
       paddingTop: 8,
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingBottom: Math.max(bottomInset, 16) + 24,
-      gap: 18,
+      gap: 16,
     },
     row: {
       flexDirection: 'row',
@@ -39,16 +39,16 @@ export function createStyles(tokens: CreateGoalTokens, bottomInset: number) {
       fontFamily: 'Geist_400Regular',
       fontSize: 12,
       color: tokens.statusOverdueText,
-      marginTop: 6,
+      marginTop: 8,
     },
     typeRow: {
       flexDirection: 'row',
-      gap: 10,
+      gap: 12,
     },
     typeOption: {
       flex: 1,
-      minHeight: 46,
-      borderRadius: 14,
+      minHeight: 48,
+      borderRadius: 16,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
@@ -76,7 +76,7 @@ export function createStyles(tokens: CreateGoalTokens, bottomInset: number) {
       fontSize: 15,
     },
     typeCaption: {
-      marginTop: 10,
+      marginTop: 12,
     },
     typeDesc: {
       fontFamily: 'Geist_400Regular',
@@ -116,7 +116,7 @@ export function createStyles(tokens: CreateGoalTokens, bottomInset: number) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      paddingVertical: 10,
+      paddingVertical: 12,
       alignSelf: 'flex-start',
     },
     addDeadlineText: {

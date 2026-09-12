@@ -3,7 +3,7 @@
 import { Target, Flame } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
 import type { GoalType } from '@orbit/shared/types/goal'
-import { GoalGroupLabel } from './goal-group-label'
+import { GoalGroupLabel } from '../../goals/goal-group-label'
 
 const goalTypeOptions = [
   {
@@ -41,7 +41,7 @@ export function GoalTypeSelector({
         className="flex"
         role="radiogroup"
         aria-label={t('goals.form.type')}
-        style={{ gap: 10 }}
+        style={{ gap: 12 }}
       >
         {goalTypeOptions.map((option) => {
           const isActive = goalType === option.key
@@ -56,8 +56,8 @@ export function GoalTypeSelector({
               className="flex flex-1 cursor-pointer appearance-none items-center justify-center transition-[background-color,color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:active:scale-[0.98]"
               style={{
                 gap: 8,
-                minHeight: 46,
-                borderRadius: 14,
+                minHeight: 48,
+                borderRadius: 16,
                 border: 0,
                 background: isActive ? 'var(--primary)' : 'var(--bg-elev)',
                 boxShadow: isActive ? 'none' : 'inset 0 0 0 1px var(--hairline)',
@@ -67,13 +67,13 @@ export function GoalTypeSelector({
                 color: isActive ? 'var(--fg-on-primary)' : 'var(--fg-2)',
               }}
             >
-              <Icon size={18} strokeWidth={1.8} aria-hidden="true" className="shrink-0" />
+              <Icon size={20} strokeWidth={1.8} aria-hidden="true" className="shrink-0" />
               {t(option.titleKey)}
             </button>
           )
         })}
       </div>
-      <div style={{ padding: '10px 0 12px' }}>
+      <div style={{ padding: '12px 0' }}>
         <div
           style={{
             fontFamily: 'var(--font-sans)',

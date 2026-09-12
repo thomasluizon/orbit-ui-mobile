@@ -101,7 +101,6 @@ export {
   updateGoalProgressItem,
   updateGoalStatusDetail,
   updateGoalStatusItem,
-  getGoalHabitAdherenceTone,
   getGoalMetricsStatusPresentation,
   appendTag,
   getCurrentPlan,

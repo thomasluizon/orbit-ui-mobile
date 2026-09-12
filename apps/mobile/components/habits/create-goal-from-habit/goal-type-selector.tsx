@@ -68,7 +68,7 @@ export function GoalTypeSelector({
               accessibilityState={{ checked: isActive }}
             >
               <OptionIcon
-                size={18}
+                size={20}
                 strokeWidth={1.8}
                 color={isActive ? tokens.fgOnPrimary : tokens.fg2}
               />

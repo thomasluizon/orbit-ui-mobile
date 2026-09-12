@@ -49,6 +49,24 @@ function pressTab(tree: RenderedTree, label: string) {
 }
 
 describe('FeatureGuideDrawer (mobile)', () => {
+  it('renders Progresso instead of a standalone goals destination', () => {
+    let tree: RenderedTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<FeatureGuideDrawer open onClose={vi.fn()} />)
+    })
+
+    expect(JSON.stringify(tree!.toJSON())).toContain('onboarding.featureGuide.progress')
+    expect(JSON.stringify(tree!.toJSON())).not.toContain('onboarding.featureGuide.goals')
+
+    pressTab(tree!, 'onboarding.featureGuide.progress')
+    expect(JSON.stringify(tree!.toJSON())).toContain(
+      'onboarding.featureGuide.progressSection.goalsTitle',
+    )
+    expect(JSON.stringify(tree!.toJSON())).not.toContain(
+      'onboarding.featureGuide.progressSection.metricsTitle',
+    )
+  })
+
   it('omits entries for retired surfaces', () => {
     let tree: RenderedTree
     TestRenderer.act(() => {
