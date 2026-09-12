@@ -66,17 +66,15 @@ const readFileContents = (path) => {
   }
 }
 
-const waitForFile = (path, expectedContents) => {
+const waitForFile = (path, expectedContents, writerResult) => {
   const initialContents = readFileContents(path)
   if (initialContents === expectedContents) return Promise.resolve()
   if (initialContents !== null) return Promise.reject(new Error(`observed incomplete contents in ${path}: ${JSON.stringify(initialContents)}`))
   return new Promise((resolve, reject) => {
-    let deadline
     let settled = false
     const finish = (error) => {
       if (settled) return
       settled = true
-      clearTimeout(deadline)
       watcher.close()
       if (error) reject(error)
       else resolve()
@@ -90,13 +88,49 @@ const waitForFile = (path, expectedContents) => {
       }
       finish()
     })
-    deadline = setTimeout(() => {
-      watcher.close()
-      reject(new Error(`timed out waiting for ${path}`))
-    }, 10000)
+    writerResult?.then((result) => {
+      finish(new Error(`writer exited before publishing ${path}: ${result.stderr || result.stdout}`))
+    }, finish)
     const contents = readFileContents(path)
     if (contents === expectedContents) finish()
     else if (contents !== null) finish(new Error(`observed incomplete contents in ${path}: ${JSON.stringify(contents)}`))
+  })
+}
+
+const waitForAcknowledgementPublication = (path, writerResult) => {
+  const directWriteOpened = `${path}.direct-write-opened`
+  const readerObservedIncomplete = `${path}.reader-observed-incomplete`
+  return new Promise((resolve, reject) => {
+    let observedIncomplete = false
+    let settled = false
+    const finish = (error) => {
+      if (settled) return
+      settled = true
+      watcher.close()
+      if (error) reject(error)
+      else resolve({ observedIncomplete })
+    }
+    const inspectPublication = () => {
+      const contents = readFileContents(path)
+      if (contents !== null && contents !== "") {
+        finish()
+        return
+      }
+      const directWriteState = readFileContents(directWriteOpened)
+      if (directWriteState === null) return
+      if (directWriteState !== "opened") {
+        finish(new Error(`observed invalid direct-write state in ${directWriteOpened}: ${JSON.stringify(directWriteState)}`))
+        return
+      }
+      if (observedIncomplete) return
+      observedIncomplete = true
+      publishMarker(readerObservedIncomplete, "observed")
+    }
+    const watcher = watch(dirname(path), inspectPublication)
+    writerResult.then((result) => {
+      finish(new Error(`sampler exited before publishing ${path}: ${result.stderr || result.stdout}`))
+    }, finish)
+    inspectPublication()
   })
 }
 
@@ -289,16 +323,41 @@ export const cases = async () => {
     "launch-worker/acknowledgement-publication-probe.cjs",
     `const fs = require("node:fs")
 const { syncBuiltinESMExports } = require("node:module")
+const { dirname } = require("node:path")
 const writeFileSync = fs.writeFileSync
 fs.writeFileSync = (path, contents, options) => {
   const clockPath = process.env.ORBIT_TEST_SUPERVISION_CLOCK
-  if (clockPath && String(path).startsWith(clockPath + ".sampled-") && !String(path).endsWith(".unpublished")) {
+  const acknowledgementPrefix = clockPath + ".sampled-"
+  const acknowledgementSuffix = String(path).slice(acknowledgementPrefix.length)
+  if (clockPath && String(path).startsWith(acknowledgementPrefix) && /^\\d+$/.test(acknowledgementSuffix)) {
     const descriptor = fs.openSync(path, "w")
+    const directWriteOpened = path + ".direct-write-opened"
+    const readerObservedIncomplete = path + ".reader-observed-incomplete"
+    const readerWatcher = fs.watch(dirname(path), () => {
+      if (readFileContents(readerObservedIncomplete) !== "observed") return
+      try {
+        writeFileSync(descriptor, contents, options)
+      } finally {
+        fs.closeSync(descriptor)
+        readerWatcher.close()
+      }
+    })
+    const readFileContents = (candidate) => {
+      try {
+        return fs.readFileSync(candidate, "utf8")
+      } catch (error) {
+        if (error.code === "ENOENT") return null
+        throw error
+      }
+    }
+    const unpublishedPath = directWriteOpened + "." + process.pid + ".unpublished"
     try {
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500)
-      writeFileSync(descriptor, contents, options)
-    } finally {
+      writeFileSync(unpublishedPath, "opened")
+      fs.renameSync(unpublishedPath, directWriteOpened)
+    } catch (error) {
       fs.closeSync(descriptor)
+      readerWatcher.close()
+      throw error
     }
     return
   }
@@ -343,7 +402,10 @@ setInterval(() => {}, 60000)
     },
   )
   await Promise.race([
-    Promise.all([waitForFile(dripReady, "ready"), waitForFile(supervisionClockReady, "ready")]),
+    Promise.all([
+      waitForFile(dripReady, "ready", logProgressProcess.result),
+      waitForFile(supervisionClockReady, "ready", logProgressProcess.result),
+    ]),
     logProgressProcess.result.then((result) => {
       throw new Error(`log-progress exited before publishing its ready markers: ${result.stderr || result.stdout}`)
     }),
@@ -354,7 +416,12 @@ setInterval(() => {}, 60000)
     const acknowledgement = `${supervisionClock}.sampled-${publishedByteLength}`
     rmSync(acknowledgement, { force: true })
     appendFileSync(supervisionClock, record)
-    await waitForFile(acknowledgement, String(expectedSample))
+    const publication = await waitForAcknowledgementPublication(acknowledgement, logProgressProcess.result)
+    T(
+      `${TOOL}: a sampler acknowledgement is atomically published`,
+      !publication.observedIncomplete,
+      `the reader observed incomplete contents in ${acknowledgement}`,
+    )
     return readFileSync(acknowledgement, "utf8")
   }
   // The first virtual interval stays one millisecond inside the cap. Empty and invalid records are
@@ -368,7 +435,7 @@ setInterval(() => {}, 60000)
   )
   if (logProgressProcess.child.exitCode === null) {
     publishMarker(dripCommand, "write one heartbeat")
-    await waitForFile(dripWritten, "written")
+    await waitForFile(dripWritten, "written", logProgressProcess.result)
     const afterInvalidRecord = await publishClockAndWaitForSample("invalid\n", previousClockValue)
     T(
       `${TOOL}: an invalid clock record retains the previous non-zero value`,
@@ -508,7 +575,7 @@ const poll = setInterval(() => {
   const pendingRecordPath = join(observedLaunch.base, ".git", "orbit-wake-sources", `${observedProcess.child.pid}.json`)
   let observed
   try {
-    await waitForFile(wakeAuthEntered, "authentication unresolved")
+    await waitForFile(wakeAuthEntered, "authentication unresolved", observedProcess.result)
     const pendingSource = existsSync(pendingRecordPath) ? JSON.parse(readFileSync(pendingRecordPath, "utf8")) : null
     const pendingStop = spawnSync(process.execPath, [join(wakeHooks, "require-wake-source.mjs")], {
       input: JSON.stringify({ session_id: wakeSessionId, stop_hook_active: false }),
