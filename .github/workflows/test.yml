@@ -93,6 +93,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
@@ -109,7 +111,27 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-${{ github.job }}-
 
-      - run: npx turbo run lint
+      - name: Lint only files changed by this pull request
+        shell: bash
+        run: |
+          set -euo pipefail
+          web=()
+          mobile=()
+          shared=()
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              apps/web/*.js|apps/web/*.jsx|apps/web/*.mjs|apps/web/*.cjs|apps/web/*.ts|apps/web/*.tsx|apps/web/*.mts|apps/web/*.cts)
+                web+=("${file#apps/web/}") ;;
+              apps/mobile/*.js|apps/mobile/*.jsx|apps/mobile/*.mjs|apps/mobile/*.cjs|apps/mobile/*.ts|apps/mobile/*.tsx|apps/mobile/*.mts|apps/mobile/*.cts)
+                mobile+=("${file#apps/mobile/}") ;;
+              packages/shared/*.js|packages/shared/*.jsx|packages/shared/*.mjs|packages/shared/*.cjs|packages/shared/*.ts|packages/shared/*.tsx|packages/shared/*.mts|packages/shared/*.cts)
+                shared+=("${file#packages/shared/}") ;;
+            esac
+          done < <(git diff --name-only --diff-filter=ACMR -z origin/${{ github.base_ref }}...HEAD)
+          if [ "${#web[@]}" -gt 0 ]; then npm exec --workspace @orbit/web -- eslint -- "${web[@]}"; fi
+          if [ "${#mobile[@]}" -gt 0 ]; then npm exec --workspace @orbit/mobile -- eslint -- "${mobile[@]}"; fi
+          if [ "${#shared[@]}" -gt 0 ]; then npm exec --workspace @orbit/shared -- eslint -- "${shared[@]}"; fi
+          echo "Linted ${#web[@]} web, ${#mobile[@]} mobile and ${#shared[@]} shared files."
 
   dependency-audit:
     name: Dependency Audit
