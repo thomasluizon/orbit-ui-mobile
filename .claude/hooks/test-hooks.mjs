@@ -16,7 +16,7 @@ import { dirname, join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
-import { countUnreviewedPendingLessons } from "./_lib/rules-lessons.mjs"
+import { countUnreviewedPendingLessons, isDriftReviewOverdue } from "./_lib/rules-lessons.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
 import { checkTicketMutation } from "./_lib/rules-tickets.mjs"
 import { checkInventedIdentifier, extractNodeIds } from "./_lib/rules-identifier.mjs"
@@ -607,6 +607,11 @@ T("lessons: the title alone has no pending entries", countUnreviewedPendingLesso
 T("lessons: the real pending-lessons.md parses", Number.isInteger(countUnreviewedPendingLessons(
   readFileSync(join(repoRoot, ".claude", "pending-lessons.md"), "utf8"),
 )), true)
+const DRIFT_TODAY = new Date("2026-09-12T12:00:00.000Z")
+T("lessons: absent drift state is overdue", isDriftReviewOverdue(undefined, DRIFT_TODAY), true)
+T("lessons: today's drift state is current", isDriftReviewOverdue('{"lastRun":"2026-09-12"}', DRIFT_TODAY), false)
+T("lessons: state from eight days ago is overdue", isDriftReviewOverdue('{"lastRun":"2026-09-04"}', DRIFT_TODAY), true)
+T("lessons: malformed drift state stays silent", isDriftReviewOverdue("not json", DRIFT_TODAY), false)
 
 // ---------------------------------------------------------------------------
 // 3. The real hook files: stdin payload in, exit code out
@@ -625,8 +630,10 @@ const powershell = (command, cwd = root) => ({ tool_name: "PowerShell", tool_inp
 const LESSONS_HOOK = "surface-pending-lessons.mjs"
 const lessonsFixtureRoot = join(root, "lessons-project")
 const lessonsFixtureFile = join(lessonsFixtureRoot, ".claude", "pending-lessons.md")
+const driftStateFixtureFile = join(lessonsFixtureRoot, ".claude", "drift-review-state.json")
 mkdirSync(dirname(lessonsFixtureFile), { recursive: true })
 const runLessonsHook = (input) => runHookResult(LESSONS_HOOK, input, { CLAUDE_PROJECT_DIR: lessonsFixtureRoot })
+writeFileSync(driftStateFixtureFile, JSON.stringify({ lastRun: new Date().toISOString().slice(0, 10) }))
 writeFileSync(lessonsFixtureFile, [
   "# Pending lessons",
   datedEntry("2026-09-10", "first lesson"),
@@ -681,12 +688,33 @@ T("adapter lessons: malformed stdin exits 0 and emits nothing", {
   status: malformedInputLessons.status, stdout: malformedInputLessons.stdout, stderr: malformedInputLessons.stderr,
 }, { status: 0, stdout: "", stderr: "" })
 const realFileLessons = runHookResult(LESSONS_HOOK, "{}", { CLAUDE_PROJECT_DIR: repoRoot })
-T("adapter lessons: the real file exits 0 and emits nothing", {
-  status: realFileLessons.status, stdout: realFileLessons.stdout, stderr: realFileLessons.stderr,
-}, { status: 0, stdout: "", stderr: "" })
+T("adapter lessons: the real project state exits 0 with valid optional output", {
+  status: realFileLessons.status,
+  validOutput: realFileLessons.stdout === "" || JSON.parse(realFileLessons.stdout).hookSpecificOutput.hookEventName === "SessionStart",
+  stderr: realFileLessons.stderr,
+}, { status: 0, validOutput: true, stderr: "" })
 const fallbackLessons = runHookResult(LESSONS_HOOK, "null", { CLAUDE_PROJECT_DIR: "" })
 T("adapter lessons: an empty project environment falls back to the hook location", {
-  status: fallbackLessons.status, stdout: fallbackLessons.stdout, stderr: fallbackLessons.stderr,
+  status: fallbackLessons.status,
+  validOutput: fallbackLessons.stdout === "" || JSON.parse(fallbackLessons.stdout).hookSpecificOutput.hookEventName === "SessionStart",
+  stderr: fallbackLessons.stderr,
+}, { status: 0, validOutput: true, stderr: "" })
+
+writeFileSync(lessonsFixtureFile, "# Pending lessons\n## Graduated\n")
+rmSync(driftStateFixtureFile)
+const absentDriftState = runLessonsHook("{}")
+T("adapter lessons: absent drift state emits the overdue line", JSON.parse(absentDriftState.stdout).hookSpecificOutput.additionalContext, "Workflow drift review is overdue. Run /drift-review.")
+writeFileSync(driftStateFixtureFile, JSON.stringify({ lastRun: new Date().toISOString().slice(0, 10) }))
+const currentDriftState = runLessonsHook("{}")
+T("adapter lessons: current drift state emits nothing", { status: currentDriftState.status, stdout: currentDriftState.stdout }, { status: 0, stdout: "" })
+const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+writeFileSync(driftStateFixtureFile, JSON.stringify({ lastRun: eightDaysAgo }))
+const overdueDriftState = runLessonsHook("{}")
+T("adapter lessons: eight-day-old drift state emits the overdue line", JSON.parse(overdueDriftState.stdout).hookSpecificOutput.additionalContext, "Workflow drift review is overdue. Run /drift-review.")
+writeFileSync(driftStateFixtureFile, "not json")
+const malformedDriftState = runLessonsHook("{}")
+T("adapter lessons: malformed drift state exits 0 and emits nothing", {
+  status: malformedDriftState.status, stdout: malformedDriftState.stdout, stderr: malformedDriftState.stderr,
 }, { status: 0, stdout: "", stderr: "" })
 
 T("adapter git-guardrails: push main -> 2", runHook("git-guardrails.mjs", bash("git push origin main")), 2)
