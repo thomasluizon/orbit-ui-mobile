@@ -246,12 +246,11 @@ export { filterRecurringEntries } from './calendar-entries'
 export {
   CALENDAR_MONTH_MAX_RANGE_DAYS,
   buildCalendarRangeModel,
-  clampRangeToMaxDays,
   MAX_RANGE_DAYS,
   resolveCalendarRangeEnd,
   splitCalendarMonthRange,
 } from './calendar-range'
-export type { CalendarRangeChunk, CalendarRangeModel, ClampedRange } from './calendar-range'
+export type { CalendarRangeChunk, CalendarRangeModel } from './calendar-range'
 export { fetchAllPaginatedItems } from './pagination'
 export {
   buildHabitQueryString,

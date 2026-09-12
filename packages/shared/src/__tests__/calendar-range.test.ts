@@ -3,7 +3,6 @@ import { differenceInCalendarDays } from 'date-fns'
 import {
   buildCalendarRangeModel,
   CALENDAR_MONTH_MAX_RANGE_DAYS,
-  clampRangeToMaxDays,
   MAX_RANGE_DAYS,
   resolveCalendarRangeEnd,
   splitCalendarMonthRange,
@@ -17,6 +16,8 @@ function entry(status: CalendarDayEntry['status'], habitId = 'habit'): CalendarD
 
 describe('buildCalendarRangeModel', () => {
   it('builds fourteen read-only day models and derives all three figures from them', () => {
+    expect(MAX_RANGE_DAYS).toBe(14)
+
     const dayMap = new Map<string, CalendarDayEntry[]>([
       ['2026-06-01', [entry('completed')]],
       ['2026-06-02', [entry('completed')]],
@@ -56,52 +57,6 @@ describe('buildCalendarRangeModel', () => {
   it('pages by one complete fourteen-day span', () => {
     expect(formatAPIDate(resolveCalendarRangeEnd(parseAPIDate('2026-06-14'), -1))).toBe('2026-05-31')
     expect(formatAPIDate(resolveCalendarRangeEnd(parseAPIDate('2026-06-14'), 1))).toBe('2026-06-28')
-  })
-})
-
-describe('clampRangeToMaxDays', () => {
-  it('caps the interval at 14 days', () => {
-    expect(MAX_RANGE_DAYS).toBe(14)
-  })
-
-  it('leaves a short forward range untouched', () => {
-    expect(clampRangeToMaxDays('2025-06-01', '2025-06-10')).toEqual({
-      start: '2025-06-01',
-      end: '2025-06-10',
-      clamped: false,
-    })
-  })
-
-  it('keeps an exactly-14-day range without clamping', () => {
-    expect(clampRangeToMaxDays('2025-06-01', '2025-06-14')).toEqual({
-      start: '2025-06-01',
-      end: '2025-06-14',
-      clamped: false,
-    })
-  })
-
-  it('clamps a forward range longer than 14 days to the anchor', () => {
-    expect(clampRangeToMaxDays('2025-06-01', '2025-06-30')).toEqual({
-      start: '2025-06-01',
-      end: '2025-06-14',
-      clamped: true,
-    })
-  })
-
-  it('clamps a backward range longer than 14 days, preserving the anchor end', () => {
-    expect(clampRangeToMaxDays('2025-06-20', '2025-06-01')).toEqual({
-      start: '2025-06-07',
-      end: '2025-06-20',
-      clamped: true,
-    })
-  })
-
-  it('orders a same-day pick without clamping', () => {
-    expect(clampRangeToMaxDays('2025-06-05', '2025-06-05')).toEqual({
-      start: '2025-06-05',
-      end: '2025-06-05',
-      clamped: false,
-    })
   })
 })
 
