@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -189,7 +189,11 @@ describe('CalendarDayDetail', () => {
     expect(screen.queryByText('Team meeting')).not.toBeInTheDocument()
     expect(screen.getByText('calendar.dayDetail.syncBoundary')).toBeInTheDocument()
     expect(screen.getByText('calendar.dayDetail.syncBoundaryBody')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'calendar.dayDetail.viewPro' }))
+    const upgradeAction = screen.getByRole('button', { name: 'calendar.dayDetail.viewPro' })
+    expect(upgradeAction).toHaveAttribute('data-variant', 'primary')
+    expect(upgradeAction).not.toBeDisabled()
+    expect(screen.getAllByRole('switch')).toHaveLength(1)
+    fireEvent.click(upgradeAction)
     expect(onOpenPro).toHaveBeenCalledOnce()
   })
 
@@ -208,6 +212,23 @@ describe('CalendarDayDetail', () => {
     expect(autoSync).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(autoSync)
     expect(onCalendarAutoSyncChange).toHaveBeenCalledWith(false)
+  })
+
+  it('rolls the Pro switch back when auto-sync fails', async () => {
+    const onCalendarAutoSyncChange = vi.fn(async () => {
+      throw new Error('offline')
+    })
+    renderDetail({
+      dateStr: '2025-06-15',
+      entries: [makeEntry()],
+      syncProfile: proSyncProfile,
+      onCalendarAutoSyncChange,
+    })
+
+    const autoSync = screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' })
+    fireEvent.click(autoSync)
+    expect(autoSync).toHaveAttribute('aria-checked', 'false')
+    await waitFor(() => expect(autoSync).toHaveAttribute('aria-checked', 'true'))
   })
 
   it('shows completion summary', () => {

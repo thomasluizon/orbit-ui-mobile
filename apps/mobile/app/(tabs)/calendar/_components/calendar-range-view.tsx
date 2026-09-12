@@ -134,8 +134,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-    paddingHorizontal: 20,
-    paddingBottom: 6,
+    paddingHorizontal: 16,
+    paddingBottom: 4,
   },
   hintText: {
     flexShrink: 1,

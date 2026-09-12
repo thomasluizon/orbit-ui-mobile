@@ -58,7 +58,16 @@ vi.mock('@/hooks/use-habits', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { weekStartDay: 1 } }),
+  useProfile: () => ({
+    profile: {
+      weekStartDay: 1,
+      hasProAccess: true,
+      hasGoogleConnection: true,
+      googleCalendarAutoSyncEnabled: true,
+      googleCalendarAutoSyncStatus: 'Idle',
+      googleCalendarLastSyncedAt: '2026-09-12T09:12:00Z',
+    },
+  }),
 }))
 
 vi.mock('@/hooks/use-time-format', () => ({
@@ -69,6 +78,14 @@ vi.mock('@/hooks/use-calendar-events', () => ({
   useCalendarEvents: () => ({
     data: { status: 'connected', events: [] },
   }),
+}))
+
+vi.mock('@/hooks/use-calendar-auto-sync', () => ({
+  useSetCalendarAutoSync: () => ({ mutateAsync: vi.fn(async () => {}) }),
+}))
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showError: vi.fn() }),
 }))
 
 vi.mock('@/hooks/use-tour-target', () => ({

@@ -13,8 +13,6 @@ vi.mock('next-intl', () => ({
 import { CalendarTimeGrid, type TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
-const pinnedCardLayer = ['linear-gradient', '(var(--bg-card), var(--bg-card))'].join('')
-
 function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
   return {
     habitId: '1',
@@ -78,18 +76,15 @@ function resolvePinnedPane(
   pane: HTMLElement,
   colors: { bg: string; bgCard: string },
 ): string {
-  const canvasToken = pane.style.backgroundColor.match(/^var\((--[\w-]+)\)$/)?.[1]
-  const cardToken = pane.style.backgroundImage.match(
-    /^linear-gradient\(var\((--[\w-]+)\), var\(\1\)\)$/,
-  )?.[1]
+  const cardToken = pane.style.backgroundColor.match(/^var\((--[\w-]+)\)$/)?.[1]
   const tokens: Record<string, string> = {
     '--bg': colors.bg,
     '--bg-card': colors.bgCard,
   }
-  if (!canvasToken || !cardToken || !tokens[canvasToken] || !tokens[cardToken]) {
+  if (!cardToken || !tokens[cardToken]) {
     throw new Error('Pinned pane does not use the expected semantic layers')
   }
-  return compositeCardOverCanvas(tokens[cardToken], tokens[canvasToken])
+  return compositeCardOverCanvas(tokens[cardToken], colors.bg)
 }
 
 describe('CalendarTimeGrid', () => {
@@ -179,10 +174,7 @@ describe('CalendarTimeGrid', () => {
     renderGrid([col], new Map())
 
     const band = screen.getByTestId('time-grid-all-day-band')
-    expect(band).toHaveStyle({
-      backgroundColor: 'var(--bg)',
-      backgroundImage: pinnedCardLayer,
-    })
+    expect(band).toHaveStyle({ backgroundColor: 'var(--bg-card)' })
 
     for (const [mode, expected] of [['dark', '#131315'], ['light', '#FFFFFF']] as const) {
       const colors = neutralColors[mode]

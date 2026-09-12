@@ -219,7 +219,7 @@ function createStyles(tokens: Tokens) {
       alignItems: "center",
       justifyContent: "center",
       paddingVertical: 24,
-      paddingHorizontal: 18,
+      paddingHorizontal: 16,
       borderRadius: 18,
       backgroundColor: tokens.bgCard,
       borderWidth: 1,

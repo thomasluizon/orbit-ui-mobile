@@ -109,7 +109,7 @@ export function CalendarDayDetail({
         <div
           className="text-[var(--fg-3)] text-sm text-center"
           style={{
-            padding: '24px 18px',
+            padding: '24px 16px',
             borderRadius: 18,
             background: 'var(--bg-card)',
             boxShadow: 'inset 0 0 0 1px var(--hairline)',
@@ -135,7 +135,7 @@ export function CalendarDayDetail({
             <div
               className="text-[var(--fg-3)] text-sm text-center"
               style={{
-                padding: '24px 18px',
+                padding: '24px 16px',
                 borderRadius: 18,
                 background: 'var(--bg-card)',
                 boxShadow: 'inset 0 0 0 1px var(--hairline)',
@@ -162,7 +162,7 @@ export function CalendarDayDetail({
                     key={entry.habitId}
                     className="flex items-center gap-3"
                     style={{
-                      padding: '15px 18px',
+                      padding: '16px',
                       borderBottom:
                         i < filteredEntries.length - 1
                           ? '1px solid var(--hairline)'
@@ -175,7 +175,7 @@ export function CalendarDayDetail({
                       style={statusCircleStyle(entry)}
                     >
                       {entry.status === 'completed' && (
-                        <Check size={15} strokeWidth={2.5} color="var(--fg-on-primary)" />
+                        <Check size={16} strokeWidth={2.5} color="var(--fg-on-primary)" />
                       )}
                     </span>
 
@@ -282,14 +282,14 @@ export function CalendarDayDetail({
       className="flex w-full shrink-0 sm:max-w-[360px] sm:mx-auto items-center justify-center gap-2 rounded-full bg-transparent text-[var(--fg-1)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
       style={{
         marginTop: 16,
-        padding: '14px 26px',
+        padding: '12px 24px',
         fontFamily: 'var(--font-sans)',
         fontSize: 16,
         fontWeight: 500,
         boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
       }}
     >
-      <ArrowRight size={18} strokeWidth={1.8} aria-hidden="true" />
+      <ArrowRight size={20} strokeWidth={1.8} aria-hidden="true" />
       {t('calendar.goToDay')}
     </Link>
   )
@@ -299,7 +299,7 @@ export function CalendarDayDetail({
       <section
         aria-label={formattedDate}
         className="flex min-h-0 flex-1 flex-col"
-        style={{ padding: '12px 20px 12px' }}
+        style={{ padding: '12px 16px' }}
       >
         {recurringToggle}
         <div className="relative min-h-0 flex-1">
@@ -316,7 +316,7 @@ export function CalendarDayDetail({
   }
 
   return (
-    <section aria-label={formattedDate} style={{ padding: '12px 20px 12px' }}>
+    <section aria-label={formattedDate} style={{ padding: '12px 16px' }}>
       {recurringToggle}
       {body}
       {goToDay}

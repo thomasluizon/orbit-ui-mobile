@@ -195,7 +195,7 @@ function TimedBlock({
         left: (block.lane / block.laneCount) * colWidth + 2,
         width: colWidth / block.laneCount - 4,
         paddingVertical: 4,
-        paddingHorizontal: 6,
+        paddingHorizontal: 4,
         borderRadius: 8,
         overflow: "hidden",
         justifyContent: "center",
@@ -250,7 +250,7 @@ function AllDayChip({
         alignItems: "center",
         gap: 4,
         height: ALL_DAY_CHIP_HEIGHT - ALL_DAY_GAP,
-        paddingHorizontal: 6,
+        paddingHorizontal: 4,
         borderRadius: 8,
         overflow: "hidden",
         backgroundColor: withAlpha(accent, 0.14),
@@ -305,7 +305,7 @@ function AllDayMoreChip({
         alignItems: "center",
         justifyContent: "center",
         height: ALL_DAY_CHIP_HEIGHT - ALL_DAY_GAP,
-        paddingHorizontal: 6,
+        paddingHorizontal: 4,
         borderRadius: 8,
         borderWidth: 1,
         borderColor: tokens.hairline,
@@ -619,7 +619,7 @@ export function CalendarTimeGrid({
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     wrap: {
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingTop: 4,
       paddingBottom: 16,
     },
@@ -643,8 +643,8 @@ function createStyles(tokens: Tokens) {
     },
     gutterAllDay: {
       alignItems: "flex-end",
-      paddingTop: 6,
-      paddingRight: 6,
+      paddingTop: 4,
+      paddingRight: 4,
       borderBottomWidth: 1,
       borderBottomColor: tokens.hairline,
     },
@@ -675,7 +675,7 @@ function createStyles(tokens: Tokens) {
     colHeader: {
       alignItems: "center",
       justifyContent: "center",
-      gap: 2,
+      gap: 0,
       paddingVertical: 8,
       borderLeftWidth: 1,
       borderLeftColor: tokens.hairline,
@@ -704,7 +704,7 @@ function createStyles(tokens: Tokens) {
     },
     allDayCell: {
       gap: ALL_DAY_GAP,
-      paddingVertical: 6,
+      paddingVertical: 4,
       paddingHorizontal: 4,
       borderLeftWidth: 1,
       borderLeftColor: tokens.hairline,

@@ -220,6 +220,9 @@ describe("CalendarDayDetail entry list (mobile)", () => {
     expect(tree.root.findAll((node) => node.type === "EventRowMock")).toHaveLength(0);
     expect(tree.root.findAll((node) => node.type === "CapacityNoticeMock")).toHaveLength(1);
     const action = tree.root.findAll((node) => node.type === "PillButtonMock")[0]!;
+    expect(action.props.variant).toBe("primary");
+    expect(action.props.disabled).not.toBe(true);
+    expect(tree.root.findAll((node) => node.type === "SwitchMock")).toHaveLength(0);
     TestRenderer.act(() => action.props.onClick());
     expect(onOpenPro).toHaveBeenCalledOnce();
   });

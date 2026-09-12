@@ -476,7 +476,7 @@ export default function CalendarSyncScreen() {
             <View
               style={[styles.stateGlyphCircle, { backgroundColor: tintFromPrimary(tokens, 0.1) }]}
             >
-              <LinkIcon size={28} color={tokens.primary} strokeWidth={1.8} />
+              <LinkIcon size={24} color={tokens.primary} strokeWidth={1.8} />
             </View>
             <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
               {t('calendar.notConnectedTitle')}
@@ -501,7 +501,7 @@ export default function CalendarSyncScreen() {
             accessibilityLiveRegion="polite"
             accessibilityLabel={t('offline.title')}
           >
-            <WifiOff size={28} color={tokens.fg3} strokeWidth={1.4} />
+            <WifiOff size={24} color={tokens.fg3} strokeWidth={1.4} />
             <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
               {t('offline.title')}
             </Text>
@@ -628,7 +628,7 @@ export default function CalendarSyncScreen() {
                   { backgroundColor: tintFromPrimary(tokens, 0.15) },
                 ]}
               >
-                <Check size={32} color={tokens.statusDone} strokeWidth={2.2} />
+                <Check size={24} color={tokens.statusDone} strokeWidth={2.2} />
               </View>
               <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
                 {t('calendar.importDone')}
@@ -663,7 +663,7 @@ export default function CalendarSyncScreen() {
                 { backgroundColor: rgbaFromHex(tokens.statusBad, 0.15) },
               ]}
             >
-              <AlertTriangle size={32} color={tokens.statusBad} strokeWidth={1.8} />
+              <AlertTriangle size={24} color={tokens.statusBad} strokeWidth={1.8} />
             </View>
             <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
               {t('calendar.errorTitle')}
