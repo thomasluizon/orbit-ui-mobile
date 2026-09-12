@@ -75,6 +75,31 @@ export function buildCalendarDayMap(
   return map
 }
 
+export function optimisticSetCalendarHabitLog(
+  calendarMonth: CalendarMonthResponse,
+  habitId: string,
+  date: string,
+  logged: boolean,
+  optimisticLogId: string,
+  createdAtUtc: string,
+): CalendarMonthResponse {
+  const currentLogs = calendarMonth.logs[habitId] ?? []
+  const hasActiveLog = currentLogs.some((log) => log.date === date && log.value > 0)
+  if (logged === hasActiveLog) return calendarMonth
+
+  const nextLogs = logged
+    ? [...currentLogs, { id: optimisticLogId, date, value: 1, createdAtUtc }]
+    : currentLogs.filter((log) => log.date !== date || log.value <= 0)
+
+  return {
+    ...calendarMonth,
+    logs: {
+      ...calendarMonth.logs,
+      [habitId]: nextLogs,
+    },
+  }
+}
+
 export function hasHabitScheduleOnDate(
   habit: HabitScheduleMatchSource,
   date: string,

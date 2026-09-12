@@ -5,7 +5,8 @@ import React from 'react'
 import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useSearchHabits } from '@/hooks/use-habit-queries'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
-import type { HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
+import { buildCalendarDayMap } from '@orbit/shared/utils'
+import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
 const mockFetch = vi.fn()
 
@@ -187,6 +188,24 @@ function makePaginatedResponse(items: HabitScheduleItem[]): PaginatedResponse<Ha
     totalCount: items.length,
     totalPages: 1,
   }
+}
+
+function makeCalendarMonth(date: string): CalendarMonthResponse {
+  return {
+    habits: [makeScheduleItem({ dueDate: date, scheduledDates: [date] })],
+    logs: { 'h-1': [] },
+  }
+}
+
+function getCalendarStatus(
+  queryClient: QueryClient,
+  key: ReturnType<typeof habitKeys.calendar>,
+  date: string,
+) {
+  const calendar = queryClient.getQueryData<CalendarMonthResponse>(key)
+  return calendar
+    ? buildCalendarDayMap(calendar, new Date('2025-01-16T12:00:00Z')).get(date)?.[0]?.status
+    : undefined
 }
 
 function createQueryClient() {
@@ -407,6 +426,30 @@ describe('useLogHabit', () => {
     })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.logs('h-1') })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.metrics('h-1') })
+  })
+
+  it('updates a dated calendar row immediately and restores it when logging fails', async () => {
+    const { logHabit } = await import('@/app/actions/habits')
+    let rejectLog: ((error: Error) => void) | undefined
+    vi.mocked(logHabit).mockImplementation(() => new Promise((_, reject) => {
+      rejectLog = reject
+    }))
+
+    const date = '2025-01-15'
+    const key = habitKeys.calendar(date, date)
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(key, makeCalendarMonth(date))
+    const { result } = renderHook(() => useLogHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    expect(getCalendarStatus(queryClient, key, date)).toBe('missed')
+    act(() => result.current.mutate({ habitId: 'h-1', date }))
+    expect(getCalendarStatus(queryClient, key, date)).toBe('completed')
+
+    await waitFor(() => expect(logHabit).toHaveBeenCalled())
+    rejectLog?.(new Error('Log failed'))
+    await waitFor(() => expect(getCalendarStatus(queryClient, key, date)).toBe('missed'))
   })
 
   it('optimistically completes before query cancellation resolves', async () => {
