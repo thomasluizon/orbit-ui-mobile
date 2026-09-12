@@ -277,14 +277,15 @@ function textTag(tag) {
 function classifiedRole(node, source, matchIndex, graphicTags) {
   const tag = jsxTag(openingElement(node))
   if (graphicTags.has(tag)) return "graphic"
-  const before = source.slice(Math.max(0, matchIndex - 48), matchIndex)
+  const literal = ancestor(node, (current) => ts.isStringLiteralLike(current) || ts.isTemplateExpression(current))
+  const before = source.slice(literal ? literal.getStart() + 1 : Math.max(0, matchIndex - 48), matchIndex)
   if (/(?:^|\s)text-\[[^\]]*$/.test(before)) return "text"
-  if (/(?:bg|border|fill|outline|ring|shadow|stroke)-\[[^\]]*$/.test(before)) return "graphic"
+  if (/(?:^|\s)(?:bg|border|fill|outline|ring|shadow|stroke)-\[[^\]]*$/.test(before)) return "graphic"
   const attribute = ancestor(node, ts.isJsxAttribute)
   if (attribute) {
     const name = propertyName(attribute.name).toLowerCase()
     if (/^(?:background|backgroundcolor|bordercolor|fill|stroke)$/.test(name)) return "graphic"
-    if (name === "color") return "text"
+    if (name === "color") return /(?:Icon|Ring)$/.test(tag) ? "graphic" : "text"
   }
   const property = ancestor(node, ts.isPropertyAssignment)
   if (property) {
@@ -301,23 +302,23 @@ function classifiedRole(node, source, matchIndex, graphicTags) {
   return undefined
 }
 
-function surfaceInText(text) {
-  let result
+function surfacesInText(text) {
+  const result = new Set()
   for (const match of tokenMatches(text)) {
     const surface = SURFACE_TOKENS.get(match.token)
-    if (surface) result = surface
+    if (surface) result.add(surface)
   }
-  return result
-}
-
-function explicitSurface(node) {
-  const current = openingElement(node)
-  return current ? surfaceInText(current.getText()) : undefined
+  return [...result]
 }
 
 function owningFunctionName(node) {
-  const fn = ancestor(node, ts.isFunctionDeclaration)
-  return fn?.name?.text
+  for (let current = node; current; current = current.parent) {
+    if (ts.isFunctionDeclaration(current) && current.name) return current.name.text
+    if ((ts.isArrowFunction(current) || ts.isFunctionExpression(current)) && ts.isVariableDeclaration(current.parent)) {
+      return propertyName(current.parent.name)
+    }
+  }
+  return undefined
 }
 
 function exportedFunctions(sourceFile) {
@@ -370,8 +371,113 @@ function inheritsIntoGraphic(node, graphicTags) {
   return inherited
 }
 
+function enclosingFunction(node) {
+  return ancestor(node, (current) => ts.isFunctionDeclaration(current) || ts.isFunctionExpression(current) || ts.isArrowFunction(current))
+}
+
+function localDeclaration(scope, name, before) {
+  let result
+  const visit = (node) => {
+    if (node.pos >= before) return
+    if (ts.isVariableDeclaration(node) && propertyName(node.name) === name && node.initializer) result = node
+    ts.forEachChild(node, visit)
+  }
+  visit(scope)
+  return result
+}
+
+function localExpressionSurfaces(node, sourceFile) {
+  const scope = enclosingFunction(node)
+  if (!scope) return []
+  const surfaces = new Set()
+  const seen = new Set()
+  const inspect = (expression) => {
+    for (const surface of surfacesInText(expression.getText(sourceFile))) surfaces.add(surface)
+    const visit = (current) => {
+      if (ts.isIdentifier(current) && !seen.has(current.text)) {
+        const declaration = localDeclaration(scope, current.text, current.pos)
+        if (declaration) {
+          seen.add(current.text)
+          inspect(declaration.initializer)
+        }
+      }
+      ts.forEachChild(current, visit)
+    }
+    visit(expression)
+  }
+  inspect(node)
+  return [...surfaces]
+}
+
+function openingSurfaces(opening, sourceFile) {
+  const surfaces = new Set()
+  for (const attribute of opening.attributes.properties) {
+    if (!ts.isJsxAttribute(attribute) || !["className", "style"].includes(propertyName(attribute.name))) continue
+    for (const surface of surfacesInText(attribute.getText(sourceFile))) surfaces.add(surface)
+    if (attribute.initializer && ts.isJsxExpression(attribute.initializer) && attribute.initializer.expression) {
+      for (const surface of localExpressionSurfaces(attribute.initializer.expression, sourceFile)) surfaces.add(surface)
+    }
+  }
+  return [...surfaces]
+}
+
+function contextSurfaces(node, sourceFile) {
+  const surfaces = new Set()
+  const variable = ancestor(node, ts.isVariableDeclaration)
+  if (variable?.initializer) {
+    for (const surface of surfacesInText(variable.initializer.getText(sourceFile))) surfaces.add(surface)
+  }
+  const openings = new Set()
+  for (let current = node; current; current = current.parent) {
+    if (ts.isJsxOpeningElement(current) || ts.isJsxSelfClosingElement(current)) openings.add(current)
+    if (ts.isJsxElement(current)) openings.add(current.openingElement)
+  }
+  for (const opening of openings) {
+    for (const surface of openingSurfaces(opening, sourceFile)) surfaces.add(surface)
+  }
+  const scope = variable && (enclosingFunction(variable) ?? sourceFile)
+  const name = variable && propertyName(variable.name)
+  if (scope && name) {
+    const visit = (current) => {
+      if (ts.isIdentifier(current) && current.text === name && current !== variable.name) {
+        for (let parent = current; parent; parent = parent.parent) {
+          if (ts.isJsxOpeningElement(parent) || ts.isJsxSelfClosingElement(parent)) {
+            for (const surface of openingSurfaces(parent, sourceFile)) surfaces.add(surface)
+          }
+          if (ts.isJsxElement(parent)) {
+            for (const surface of openingSurfaces(parent.openingElement, sourceFile)) surfaces.add(surface)
+          }
+          if (parent === scope) break
+        }
+      }
+      ts.forEachChild(current, visit)
+    }
+    visit(scope)
+  }
+  return [...surfaces]
+}
+
+function inferredRoles(node, sourceFile, source, matchIndex, graphicTags) {
+  const direct = classifiedRole(node, source, matchIndex, graphicTags)
+  if (direct) return [direct]
+  const variable = ancestor(node, ts.isVariableDeclaration)
+  const name = variable && propertyName(variable.name)
+  const scope = variable && (enclosingFunction(variable) ?? sourceFile)
+  if (!name || !scope) return []
+  const roles = new Set()
+  const visit = (current) => {
+    if (ts.isIdentifier(current) && current.text === name && current !== variable.name) {
+      const role = classifiedRole(current, source, current.getStart(sourceFile), graphicTags)
+      if (role) roles.add(role)
+    }
+    ts.forEachChild(current, visit)
+  }
+  visit(scope)
+  return [...roles]
+}
+
 function componentSurfaces(files) {
-  const result = new Map()
+  const calls = []
   for (const file of files) {
     const source = readFileSync(file, "utf8")
     const syntax = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
@@ -379,15 +485,28 @@ function componentSurfaces(files) {
       if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
         const tag = jsxTag(node)
         if (/^[A-Z]/.test(tag)) {
-          const surface = explicitSurface(node.parent) ?? "canvas"
-          const values = result.get(tag) ?? new Set()
-          values.add(surface)
-          result.set(tag, values)
+          calls.push({ tag, owner: owningFunctionName(node), surfaces: contextSurfaces(node, syntax) })
         }
       }
       ts.forEachChild(node, visit)
     }
     visit(syntax)
+  }
+  const result = new Map()
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const call of calls) {
+      const values = result.get(call.tag) ?? new Set()
+      const inherited = call.surfaces.length > 0 ? call.surfaces : [...(result.get(call.owner) ?? [])]
+      for (const surface of inherited) {
+        if (!values.has(surface)) {
+          values.add(surface)
+          changed = true
+        }
+      }
+      result.set(call.tag, values)
+    }
   }
   return result
 }
@@ -406,27 +525,30 @@ function inspectSources(repositoryRoot, declarations) {
       const declaration = declarations.get(match.token)
       if (!declaration) continue
       const node = nodeAt(syntax, match.index)
-      const role = classifiedRole(node, source, match.index, graphicTags)
+      const roles = inferredRoles(node, syntax, source, match.index, graphicTags)
       const line = syntax.getLineAndCharacterOfPosition(match.index).line + 1
       const path = relative(repositoryRoot, file).replaceAll("\\", "/")
       if (declaration.roles.length === 0) {
         undeclared.push(`${path}:${line}: ${match.token} has an undeclared token role`)
         continue
       }
-      if (!role) continue
-      const ownSurface = explicitSurface(node)
+      if (roles.length === 0) continue
+      const ownSurfaces = contextSurfaces(node, syntax)
       const owner = owningFunctionName(node)
       const variable = ancestor(node, ts.isVariableDeclaration)
       const componentLevelRole = !owner && variable && /^[A-Z\d_]+$/.test(propertyName(variable.name))
-      const inherited = ownSurface
-        ? [ownSurface]
+      const inherited = ownSurfaces.length > 0
+        ? ownSurfaces
+        : owner
+          ? [...(callSurfaces.get(owner) ?? [])]
         : componentLevelRole
           ? [...new Set(exported.flatMap((name) => [...(callSurfaces.get(name) ?? [])]))]
           : []
-      const surfaces = inherited.length > 0 ? inherited : ["canvas"]
-      usages.push({ path, line, token: match.token, role, surfaces })
-      if (role === "text" && inheritsIntoGraphic(node, graphicTags)) {
-        usages.push({ path, line, token: match.token, role: "graphic", surfaces })
+      for (const role of roles) {
+        usages.push({ path, line, token: match.token, role, surfaces: inherited })
+        if (role === "text" && inheritsIntoGraphic(node, graphicTags)) {
+          usages.push({ path, line, token: match.token, role: "graphic", surfaces: inherited })
+        }
       }
     }
   }
@@ -450,11 +572,19 @@ try {
       else violations.push(finding)
       continue
     }
+    if (usage.surfaces.length === 0) {
+      const canFailOnKnownSurface = ["dark", "light"].some((mode) =>
+        [...(themes[mode].get(usage.token)?.values() ?? [])].some((ratio) => ratio < FLOORS[usage.role]))
+      if (canFailOnKnownSurface) {
+        violations.push(`${usage.path}:${usage.line}: ${usage.token} ${usage.role.toUpperCase()} surface is unresolved`)
+      }
+      continue
+    }
     for (const surface of usage.surfaces) {
       for (const mode of ["dark", "light"]) {
         const ratio = themes[mode].get(usage.token)?.get(surface)
         if (ratio !== undefined && ratio < FLOORS[usage.role]) {
-          violations.push(`${usage.path}:${usage.line}: ${usage.token} on ${surface}, ${mode} ratio ${ratio.toFixed(2)}, ${usage.role.toUpperCase()} floor ${FLOORS[usage.role].toFixed(2)}`)
+          violations.push(`${usage.path}:${usage.line}: ${usage.token} on ${surface}, ${mode} ratio ${ratio.toFixed(3)}, ${usage.role.toUpperCase()} floor ${FLOORS[usage.role].toFixed(2)}`)
         }
       }
     }
