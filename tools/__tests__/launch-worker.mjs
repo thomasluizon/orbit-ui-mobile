@@ -251,7 +251,8 @@ export const cases = async () => {
   rmSync(dripWritten, { force: true })
   // Empty and invalid complete records keep the previous valid clock value instead of becoming 0
   // or terminating supervision. Later records use the same append-only framing.
-  const supervisionClock = stage("launch-worker/supervision-clock", "0\n\ninvalid\n")
+  const supervisionStart = 10000
+  const supervisionClock = stage("launch-worker/supervision-clock", `${supervisionStart}\n`)
   const supervisionClockReady = `${supervisionClock}.ready`
   const DRIP = stage(
     "launch-worker/dripping-worker.js",
@@ -271,7 +272,8 @@ setInterval(() => {}, 60000)
 `,
   )
   const logNoProgressMinutes = 0.03
-  const logProgress = launch("log-progress", launchConfig({ ...stubEngine(DRIP), timeouts: { hardCeilingMinutes: 0.1, noProgressMinutes: logNoProgressMinutes, pollSeconds: 0.2 } }))
+  const logPollSeconds = 0.2
+  const logProgress = launch("log-progress", launchConfig({ ...stubEngine(DRIP), timeouts: { hardCeilingMinutes: 0.1, noProgressMinutes: logNoProgressMinutes, pollSeconds: logPollSeconds } }))
   const logProgressProcess = launchAsync(
     logProgress.path,
     ["--issue", "ORB-201", "--worktree", logProgress.worktree, "--prompt", logProgress.prompt],
@@ -279,12 +281,33 @@ setInterval(() => {}, 60000)
   )
   await Promise.all([waitForFile(dripReady), waitForFile(supervisionClockReady)])
   const noProgressMs = logNoProgressMinutes * 60 * 1000
-  // Whichever side of the heartbeat the sampler observes, the next virtual interval remains one
-  // millisecond inside the cap. Ignoring log growth leaves the full two intervals visible and red.
-  appendFileSync(supervisionClock, `${noProgressMs - 1}\n`)
-  writeFileSync(dripCommand, "write one heartbeat")
-  await waitForFile(dripWritten)
-  appendFileSync(supervisionClock, `${(noProgressMs * 2) - 2}\n`)
+  const waitForClockSample = () => new Promise((resolve) => setTimeout(resolve, logPollSeconds * 2000))
+  // The first virtual interval stays one millisecond inside the cap. Empty and invalid records are
+  // then the newest complete publications while the heartbeat resets the retained clock value.
+  appendFileSync(supervisionClock, `${supervisionStart + noProgressMs - 1}\n\ninvalid\n`)
+  await waitForClockSample()
+  if (logProgressProcess.child.exitCode === null) {
+    writeFileSync(dripCommand, "write one heartbeat")
+    await waitForFile(dripWritten)
+    await waitForClockSample()
+    appendFileSync(supervisionClock, `${supervisionStart + (noProgressMs * 2) - 2}\n`)
+    await waitForClockSample()
+    T(
+      `${TOOL}: empty and invalid clock records retain the previous non-zero value`,
+      logProgressProcess.child.exitCode === null,
+      "an empty clock record became zero and shortened the worker's life",
+    )
+    if (logProgressProcess.child.exitCode === null) {
+      appendFileSync(supervisionClock, `${supervisionStart + (noProgressMs * 4)}`)
+      await waitForClockSample()
+      await waitForClockSample()
+      T(
+        `${TOOL}: a truncated trailing clock record is ignored until publication completes`,
+        logProgressProcess.child.exitCode === null,
+        "a trailing partial clock record shortened the worker's life",
+      )
+    }
+  }
   const dripped = await logProgressProcess.result
   T(
     `${TOOL}: a worker appending to its own log resets the injected stall clock`,
