@@ -131,7 +131,7 @@ describe('finalizeHabitMutation', () => {
     vi.useRealTimers()
   })
 
-  it('skips invalidation for queued mutations', () => {
+  it('marks the calendar stale without refetching when a mutation enters the queue', () => {
     const queryClient = {
       getQueryCache: () => ({ findAll: () => [] }),
     removeQueries: vi.fn(),
@@ -150,7 +150,11 @@ describe('finalizeHabitMutation', () => {
       },
     )
 
-    expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
+    expect(queryClient.invalidateQueries).toHaveBeenCalledOnce()
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.calendarPrefix(),
+      refetchType: 'none',
+    })
     expect(mocks.syncWidgetData).not.toHaveBeenCalled()
   })
 
@@ -248,7 +252,7 @@ describe('finalizeHabitMutation', () => {
     expect(mocks.syncWidgetData).toHaveBeenCalledTimes(1)
   })
 
-  it('still skips invalidation for a queued (offline) result even on error', () => {
+  it('still limits queued error invalidation to the calendar cache', () => {
     const queryClient = { getQueryCache: () => ({ findAll: () => [] }),
     removeQueries: vi.fn(),
     invalidateQueries: vi.fn(async () => {}) }
@@ -260,7 +264,11 @@ describe('finalizeHabitMutation', () => {
       { includeGoals: true },
     )
 
-    expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
+    expect(queryClient.invalidateQueries).toHaveBeenCalledOnce()
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.calendarPrefix(),
+      refetchType: 'none',
+    })
     expect(mocks.syncWidgetData).not.toHaveBeenCalled()
   })
 })

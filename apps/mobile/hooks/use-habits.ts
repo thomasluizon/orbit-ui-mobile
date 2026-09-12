@@ -17,6 +17,7 @@ import {
   findHabitInList,
   formatAPIDate,
   normalizeHabits,
+  optimisticSetCalendarHabitLog,
   removeHabitDetailChild,
 } from '@orbit/shared/utils'
 import type {
@@ -37,6 +38,7 @@ import type {
   BulkLogResult,
   BulkSkipItemRequest,
   BulkSkipResult,
+  CalendarMonthResponse,
 } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -105,6 +107,7 @@ type HabitDetailSnapshots = readonly (readonly [readonly unknown[], HabitDetail 
 type LogHabitSnapshot = {
   previousLists: HabitListSnapshots
   previousLogs: HabitLog[] | undefined
+  previousCalendars: readonly (readonly [readonly unknown[], CalendarMonthResponse | undefined])[]
 }
 type OfflineBulkMutationOutcome<TResponse> = TResponse & {
   ambiguousIds: string[]
@@ -166,16 +169,25 @@ export function useLogHabit() {
 
     onMutate: ({ habitId, date, intent }) => {
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
-      if (date) void queryClient.cancelQueries({ queryKey: habitKeys.logs(habitId) })
+      if (date) {
+        void queryClient.cancelQueries({ queryKey: habitKeys.logs(habitId) })
+        void queryClient.cancelQueries({ queryKey: habitKeys.calendarPrefix() })
+      }
 
       const previousLists = snapshotHabitLists(queryClient)
       const previousLogs = date
         ? queryClient.getQueryData<HabitLog[]>(habitKeys.logs(habitId))
         : undefined
+      const previousCalendars = date
+        ? queryClient.getQueriesData<CalendarMonthResponse>({
+            queryKey: habitKeys.calendarPrefix(),
+          })
+        : []
 
       if (date) {
         const completed = intent === 'log'
         const optimisticLogId = `optimistic-log:${habitId}:${date}`
+        const createdAtUtc = new Date().toISOString()
 
         queryClient.setQueryData<HabitLog[]>(habitKeys.logs(habitId), (old) => {
           const logs = old ?? []
@@ -187,9 +199,22 @@ export function useLogHabit() {
             id: optimisticLogId,
             date,
             value: 1,
-            createdAtUtc: new Date().toISOString(),
+            createdAtUtc,
           }]
         })
+        queryClient.setQueriesData<CalendarMonthResponse>(
+          { queryKey: habitKeys.calendarPrefix() },
+          (old) => old
+            ? optimisticSetCalendarHabitLog(
+                old,
+                habitId,
+                date,
+                completed,
+                optimisticLogId,
+                createdAtUtc,
+              )
+            : old,
+        )
         updateHabitListsForDate(queryClient, date, (items) =>
           optimisticSetDatedCompletion(
             items,
@@ -202,7 +227,7 @@ export function useLogHabit() {
         updateHabitLists(queryClient, (items) => optimisticToggleCompletion(items, habitId))
       }
 
-      return { previousLists, previousLogs }
+      return { previousLists, previousLogs, previousCalendars }
     },
 
     onError: (_err, variables, context) => {
@@ -215,6 +240,9 @@ export function useLogHabit() {
       }
       if (context && variables.date) {
         queryClient.setQueryData(habitKeys.logs(variables.habitId), context.previousLogs)
+        for (const [key, calendar] of context.previousCalendars) {
+          if (calendar) queryClient.setQueryData(key, calendar)
+        }
       }
     },
 

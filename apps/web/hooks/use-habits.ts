@@ -16,6 +16,7 @@ import {
   buildOptimisticSkipPatch,
   findHabitInList,
   normalizeHabits,
+  optimisticSetCalendarHabitLog,
   removeHabitDetailChild,
 } from '@orbit/shared/utils'
 import {
@@ -48,6 +49,7 @@ import type {
   BulkMutationOutcome,
   BulkLogResult,
   BulkSkipResult,
+  CalendarMonthResponse,
 } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -138,19 +140,45 @@ export function useLogHabit() {
 
     onMutate: ({ habitId, date }) => {
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
+      if (date) void queryClient.cancelQueries({ queryKey: habitKeys.calendarPrefix() })
 
       const previousLists = queryClient.getQueriesData<HabitScheduleItem[]>({
         queryKey: habitKeys.lists(),
       })
+      const previousCalendars = date
+        ? queryClient.getQueriesData<CalendarMonthResponse>({
+            queryKey: habitKeys.calendarPrefix(),
+          })
+        : []
 
-      if (!date) {
+      if (date) {
+        const optimisticLogId = `optimistic-log:${habitId}:${date}`
+        const createdAtUtc = new Date().toISOString()
+        queryClient.setQueriesData<CalendarMonthResponse>(
+          { queryKey: habitKeys.calendarPrefix() },
+          (old) => {
+            if (!old) return old
+            const logged = !old.logs[habitId]?.some(
+              (log) => log.date === date && log.value > 0,
+            )
+            return optimisticSetCalendarHabitLog(
+              old,
+              habitId,
+              date,
+              logged,
+              optimisticLogId,
+              createdAtUtc,
+            )
+          },
+        )
+      } else {
         queryClient.setQueriesData<HabitScheduleItem[], { queryKey: HabitListKey }>(
           { queryKey: habitKeys.lists() },
           (old) => old ? optimisticToggleCompletion(old, habitId) : old,
         )
       }
 
-      return { previousLists }
+      return { previousLists, previousCalendars }
     },
 
     onError: (_err, _vars, context) => {
@@ -160,6 +188,9 @@ export function useLogHabit() {
             queryClient.setQueryData(key, data)
           }
         }
+      }
+      for (const [key, calendar] of context?.previousCalendars ?? []) {
+        if (calendar) queryClient.setQueryData(key, calendar)
       }
     },
 
