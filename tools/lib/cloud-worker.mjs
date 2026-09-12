@@ -334,10 +334,10 @@ const validateCloudCircuitBreaker = (breaker, path) => {
 
 export const updateCloudCircuitBreaker = (stateRoot, receipts, orderFile, route = null, options = {}) => {
   const path = cloudCircuitBreakerPath(orderFile)
-  const emptyResults = sessionEmptyResults(receipts, orderFile)
+  const callerEmptyResults = sessionEmptyResults(receipts, orderFile)
   const existing = existsSync(path) ? readJsonFile(path, "cloud circuit breaker") : null
   if (existing) validateCloudCircuitBreaker(existing, path)
-  if (!existing && emptyResults.length < CLOUD_EMPTY_RESULT_LIMIT) return null
+  if (!existing && callerEmptyResults.length < CLOUD_EMPTY_RESULT_LIMIT) return null
 
   const releaseBreakerLock = acquireCloudLock(
     stateRoot,
@@ -349,6 +349,10 @@ export const updateCloudCircuitBreaker = (stateRoot, receipts, orderFile, route 
     const current = existsSync(path) ? readJsonFile(path, "cloud circuit breaker") : existing
     if (current) validateCloudCircuitBreaker(current, path)
     const observedAt = (options.now ?? new Date()).toISOString()
+    const emptyResultsByTask = new Map(callerEmptyResults.map((result) => [result.taskId, result]))
+    for (const result of current?.emptyResults ?? []) emptyResultsByTask.set(result.taskId, result)
+    const emptyResults = [...emptyResultsByTask.values()].sort((left, right) =>
+      String(left.at).localeCompare(String(right.at)) || String(left.taskId).localeCompare(String(right.taskId)))
     const routes = current?.routes ?? []
     const routeExists = route && routes.some((entry) => (
       entry.ticket === route.ticket && entry.orderSha256 === route.orderSha256
