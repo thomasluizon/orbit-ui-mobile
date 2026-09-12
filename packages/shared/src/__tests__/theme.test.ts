@@ -637,7 +637,7 @@ describe('bad status source roles', () => {
         "apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx:42:180",
         "apps/web/components/habits/habit-checklist.tsx:163:107",
         "apps/web/components/habits/habit-checklist.tsx:351:126",
-        "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx:66:168",
+        "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx:67:168",
         "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx:57:209",
         "apps/web/components/habits/habit-row-trailing.tsx:15:24",
         "apps/web/components/habits/habit-row-trailing.tsx:22:46",
