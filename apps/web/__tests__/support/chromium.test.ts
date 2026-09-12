@@ -34,6 +34,9 @@ describe('Chromium test lifecycle', () => {
     expect(globalHookTimeout).toBeTypeOf('number')
     if (typeof globalHookTimeout !== 'number') throw new Error('Global hook timeout must be numeric')
     const effectiveChromiumHookTimeout = chromiumHookTimeout ?? globalHookTimeout
+    expect(chromeLaunchTimeout).toBe(30_000)
+    expect(effectiveChromiumHookTimeout).toBe(45_000)
+    expect(effectiveChromiumHookTimeout - chromeLaunchTimeout).toBe(15_000)
     expect(globalHookTimeout).toBeLessThan(chromeLaunchTimeout)
     expect(chromeLaunchTimeout).toBeLessThan(effectiveChromiumHookTimeout)
   })
