@@ -6,6 +6,7 @@ import { View } from "react-native";
 
 import CalendarScreen from "@/app/(tabs)/calendar";
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { ListRow } from '@/components/ui/list-row'
 
 const TestRenderer = require("react-test-renderer");
 
@@ -187,7 +188,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => tree.update(<></>))
   })
 
-  it("renders one three-option view switcher without agenda and opens the month on today", () => {
+  it("renders the agenda at phone width without folding it back to month", () => {
     let tree: Tree;
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />);
@@ -205,7 +206,7 @@ describe("CalendarScreen views (mobile)", () => {
     );
 
     expect(switchers).toHaveLength(1);
-    expect(segments).toHaveLength(3);
+    expect(segments).toHaveLength(4);
     expect(
       segments.find(
         (segment) => segment.props.testID === "segment-month-selected-enabled",
@@ -215,7 +216,7 @@ describe("CalendarScreen views (mobile)", () => {
       segments.some(
         (segment) => segment.props.testID === "segment-agenda-unselected-enabled",
       ),
-    ).toBe(false);
+    ).toBe(true);
 
     const flatLists = tree!.root.findAll(
       (node) => typeof node.type === "string" && node.type === "FlatList",
@@ -226,6 +227,22 @@ describe("CalendarScreen views (mobile)", () => {
     });
     expect(calendarGridProps.current?.selectedDay).toBe(formatAPIDate(new Date()));
     TestRenderer.act(() => headerTree.update(<></>));
+
+    pressView(tree!, "agenda");
+    expect(
+      tree!.root.findAll(
+        (node) =>
+          typeof node.type === "string" &&
+          node.props.testID === "calendar-agenda-view",
+      ),
+    ).toHaveLength(1);
+    const agendaRows = tree!.root.findAll((node) => node.type === ListRow);
+    expect(agendaRows).toHaveLength(2);
+    for (const row of agendaRows) {
+      expect(row.props.readOnly).toBe(true);
+      expect(row.props.onPress).toBeUndefined();
+      expect(row.props.onClick).toBeUndefined();
+    }
   });
 
   it('loads calendar data concurrently while the profile resolves', () => {

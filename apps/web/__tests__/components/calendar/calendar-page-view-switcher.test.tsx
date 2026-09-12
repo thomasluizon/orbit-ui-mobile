@@ -4,7 +4,6 @@ import React from 'react'
 import { formatAPIDate } from '@orbit/shared/utils'
 
 let isWideDesktopValue = false
-let isDesktopValue = false
 const calendarGridProps: { selectedDateStr?: string | null } = {}
 const monthQueryState: { error: string | null; refresh: ReturnType<typeof vi.fn> } = {
   error: null,
@@ -27,7 +26,6 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/hooks/use-is-desktop', () => ({
-  useIsDesktop: () => isDesktopValue,
   useIsWideDesktop: () => isWideDesktopValue,
 }))
 
@@ -131,7 +129,6 @@ import CalendarPage from '@/app/(app)/calendar/page'
 describe('CalendarPage view switcher', () => {
   beforeEach(() => {
     isWideDesktopValue = false
-    isDesktopValue = false
     calendarGridProps.selectedDateStr = undefined
     monthQueryState.error = null
     monthQueryState.refresh = vi.fn()
@@ -160,26 +157,29 @@ describe('CalendarPage view switcher', () => {
     expect(profileQueryState.refetch).toHaveBeenCalledTimes(1)
   })
 
-  it('renders one three-option view switcher at phone width and opens the month on today', () => {
+  it('renders the agenda at phone width without folding it back to month', () => {
     render(<CalendarPage />)
 
     expect(screen.getAllByRole('radiogroup', { name: 'calendar.view.switchLabel' })).toHaveLength(1)
-    expect(screen.getAllByRole('radio')).toHaveLength(3)
+    expect(screen.getAllByRole('radio')).toHaveLength(4)
     expect(screen.getByRole('radio', { name: 'calendar.view.month' }).getAttribute('aria-checked')).toBe('true')
-    expect(screen.queryByRole('radio', { name: 'calendar.view.agenda' })).toBeNull()
     expect(calendarGridProps.selectedDateStr).toBe(formatAPIDate(new Date()))
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
+
+    expect(screen.getByRole('radio', { name: 'calendar.view.agenda' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByTestId('agenda-view')).toBeDefined()
+    expect(screen.queryByTestId('month-view')).toBeNull()
   })
 
-  it('adds the agenda option at desktop width', () => {
-    isDesktopValue = true
+  it('keeps the agenda option at desktop width', () => {
     render(<CalendarPage />)
 
     expect(screen.getAllByRole('radio')).toHaveLength(4)
     expect(screen.getAllByRole('radio', { name: 'calendar.view.agenda' })).toHaveLength(1)
   })
 
-  it('switches from the month heat-map to the agenda planner and back', () => {
-    isDesktopValue = true
+  it('switches from the month view to the agenda list and back', () => {
     render(<CalendarPage />)
 
     expect(screen.getByTestId('month-view')).toBeDefined()
