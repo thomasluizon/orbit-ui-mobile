@@ -386,6 +386,71 @@ function localDeclaration(scope, name, before) {
   return result
 }
 
+function localObjectMemberPath(node, sourceFile) {
+  const property = ancestor(node, (current) =>
+    ts.isPropertyAssignment(current)
+    && current.initializer.pos <= node.pos
+    && current.initializer.end >= node.end)
+  const object = property?.parent
+  if (!property || !object || !ts.isObjectLiteralExpression(object)) return undefined
+  const declaration = ancestor(object, ts.isVariableDeclaration)
+  if (!declaration?.initializer || unwrapExpression(declaration.initializer) !== object) return undefined
+  const binding = propertyName(declaration.name)
+  const member = propertyName(property.name)
+  const scope = enclosingFunction(declaration) ?? sourceFile
+  return binding && member ? { binding, member, object, scope } : undefined
+}
+
+function selectedObjectAlias(reference) {
+  const property = ancestor(reference, (current) =>
+    ts.isPropertyAssignment(current)
+    && current.initializer.pos <= reference.pos
+    && current.initializer.end >= reference.end)
+  const object = property?.parent
+  if (!property || unwrapExpression(property.initializer) !== reference
+    || !object || !ts.isObjectLiteralExpression(object)) return undefined
+  let selectionSource = object
+  while (selectionSource.parent
+    && (ts.isParenthesizedExpression(selectionSource.parent)
+      || ts.isAsExpression(selectionSource.parent)
+      || ts.isSatisfiesExpression(selectionSource.parent))) {
+    selectionSource = selectionSource.parent
+  }
+  const selection = selectionSource.parent
+  if (!selection || !ts.isElementAccessExpression(selection) || unwrapExpression(selection.expression) !== object) return undefined
+  const declaration = ancestor(selection, ts.isVariableDeclaration)
+  if (!declaration?.initializer || unwrapExpression(declaration.initializer) !== selection) return undefined
+  return propertyName(declaration.name)
+}
+
+function selectedObjectMemberReferences(node, sourceFile) {
+  const path = localObjectMemberPath(node, sourceFile)
+  if (!path) return undefined
+  const bindings = [path.binding]
+  const seen = new Set()
+  const references = []
+  while (bindings.length > 0) {
+    const binding = bindings.shift()
+    if (seen.has(binding)) continue
+    seen.add(binding)
+    const visit = (current) => {
+      if (ts.isPropertyAccessExpression(current)
+        && ts.isIdentifier(current.expression)
+        && current.expression.text === binding
+        && propertyName(current.name) === path.member) {
+        references.push(current)
+      }
+      if (ts.isIdentifier(current) && current.text === binding) {
+        const alias = selectedObjectAlias(current)
+        if (alias && !seen.has(alias)) bindings.push(alias)
+      }
+      ts.forEachChild(current, visit)
+    }
+    visit(path.scope)
+  }
+  return { path, references }
+}
+
 function localExpressionSurfaces(node, sourceFile) {
   const scope = enclosingFunction(node)
   if (!scope) return []
@@ -424,7 +489,13 @@ function openingSurfaces(opening, sourceFile) {
 function contextSurfaces(node, sourceFile) {
   const surfaces = new Set()
   const variable = ancestor(node, ts.isVariableDeclaration)
-  if (variable?.initializer) {
+  const selectedMember = localObjectMemberPath(node, sourceFile)
+  if (selectedMember) {
+    for (const property of selectedMember.object.properties) {
+      if (!ts.isPropertyAssignment(property) || !/^background(?:Color)?$/i.test(propertyName(property.name))) continue
+      for (const surface of surfacesInText(property.initializer.getText(sourceFile))) surfaces.add(surface)
+    }
+  } else if (variable?.initializer) {
     for (const surface of surfacesInText(variable.initializer.getText(sourceFile))) surfaces.add(surface)
   }
   const openings = new Set()
@@ -460,6 +531,15 @@ function contextSurfaces(node, sourceFile) {
 function inferredRoles(node, sourceFile, source, matchIndex, graphicTags) {
   const direct = classifiedRole(node, source, matchIndex, graphicTags)
   if (direct) return [direct]
+  const selectedMember = selectedObjectMemberReferences(node, sourceFile)
+  if (selectedMember) {
+    const roles = new Set()
+    for (const reference of selectedMember.references) {
+      const role = classifiedRole(reference, source, reference.getStart(sourceFile), graphicTags)
+      if (role) roles.add(role)
+    }
+    return [...roles]
+  }
   const variable = ancestor(node, ts.isVariableDeclaration)
   const name = variable && propertyName(variable.name)
   const scope = variable && (enclosingFunction(variable) ?? sourceFile)

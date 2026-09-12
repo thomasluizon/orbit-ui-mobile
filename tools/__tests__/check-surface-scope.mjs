@@ -88,6 +88,12 @@ export const cases = () => {
     stderr: /apps\/mobile\/example\.tsx:2: --fg-4 on card, dark ratio 2\.828, GRAPHIC floor 3\.00/,
   })
 
+  const selectedObjectMember = stageRepository("selected-object-member", { mobile: `export function Toast({ kind = 'lost' }){\n  const lossColors = { background: tokens.bgCard, action: tokens.primarySoft }\n  const neutralColors = { background: tokens.bgSheet, action: tokens.fg1 }\n  const colors = { neutral: neutralColors, lost: lossColors }[kind]\n  return <View style={{ backgroundColor: colors.background }}><Text style={{ color: colors.action }}>Retry</Text></View>\n}` })
+  check("check-surface-scope.mjs", "rejects text carried through a selected local object member", ["--root", selectedObjectMember], {
+    status: 1,
+    stderr: /^Surface scope guard failed\.\r?\napps\/mobile\/example\.tsx:2: --primary-soft on card, dark ratio 4\.269, TEXT floor 4\.50\r?\n?$/,
+  })
+
   const unresolved = stageRepository("unresolved", { mobile: `export function Accent(){return <Text style={{ color: tokens.primarySoft }}>accent</Text>}` })
   check("check-surface-scope.mjs", "fails a surface-sensitive token whose surface is unresolved", ["--root", unresolved], {
     status: 1,
