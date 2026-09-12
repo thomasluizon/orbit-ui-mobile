@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process"
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, watch, writeFileSync } from "node:fs"
+import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, watch, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
@@ -249,7 +249,9 @@ export const cases = async () => {
   rmSync(dripCommand, { force: true })
   const dripWritten = stage("launch-worker/drip-written", "")
   rmSync(dripWritten, { force: true })
-  const supervisionClock = stage("launch-worker/supervision-clock", "0")
+  // Empty and invalid complete records keep the previous valid clock value instead of becoming 0
+  // or terminating supervision. Later records use the same append-only framing.
+  const supervisionClock = stage("launch-worker/supervision-clock", "0\n\ninvalid\n")
   const supervisionClockReady = `${supervisionClock}.ready`
   const DRIP = stage(
     "launch-worker/dripping-worker.js",
@@ -279,10 +281,10 @@ setInterval(() => {}, 60000)
   const noProgressMs = logNoProgressMinutes * 60 * 1000
   // Whichever side of the heartbeat the sampler observes, the next virtual interval remains one
   // millisecond inside the cap. Ignoring log growth leaves the full two intervals visible and red.
-  writeFileSync(supervisionClock, String(noProgressMs - 1))
+  appendFileSync(supervisionClock, `${noProgressMs - 1}\n`)
   writeFileSync(dripCommand, "write one heartbeat")
   await waitForFile(dripWritten)
-  writeFileSync(supervisionClock, String((noProgressMs * 2) - 2))
+  appendFileSync(supervisionClock, `${(noProgressMs * 2) - 2}\n`)
   const dripped = await logProgressProcess.result
   T(
     `${TOOL}: a worker appending to its own log resets the injected stall clock`,

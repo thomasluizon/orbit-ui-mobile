@@ -155,11 +155,19 @@ if (measurement && !(Number.isFinite(measurementNoProgressMinutes) && measuremen
 const noProgressMinutes = measurement ? measurementNoProgressMinutes : config.timeouts.noProgressMinutes
 const noProgressMs = noProgressMinutes * 60 * 1000
 const supervisionClockPath = process.env.ORBIT_TEST_SUPERVISION_CLOCK
+let lastCompleteSupervisionTime = null
 const supervisionNow = () => {
   if (!supervisionClockPath) return Date.now()
-  const clockValue = Number(readFileSync(supervisionClockPath, "utf8"))
-  if (!Number.isFinite(clockValue)) throw new Error(`invalid supervision clock at ${supervisionClockPath}`)
-  return clockValue
+  const records = readFileSync(supervisionClockPath, "utf8").split("\n")
+  records.pop()
+  for (let index = records.length - 1; index >= 0; index -= 1) {
+    if (records[index].trim() === "") continue
+    const clockValue = Number(records[index])
+    if (!Number.isFinite(clockValue)) continue
+    lastCompleteSupervisionTime = clockValue
+    return clockValue
+  }
+  return lastCompleteSupervisionTime
 }
 
 const workerPointer = (worktreePath, branch) =>
@@ -447,7 +455,7 @@ const logByteCap = Number.isFinite(logMegabyteCap) && logMegabyteCap > 0 ? logMe
  * A tree that is idle on all three for noProgressMinutes is still killed, as it must be.
  */
 let progress = progressFingerprint()
-let lastProgressAt = supervisionNow()
+let lastProgressAt = supervisionNow() ?? Date.now()
 if (supervisionClockPath) writeFileSync(`${supervisionClockPath}.ready`, "ready")
 let lastLogSize = 0
 let cpuBaseline = null
@@ -465,7 +473,8 @@ const sampler = setInterval(() => {
     return
   }
   const noteProgress = () => {
-    lastProgressAt = supervisionNow()
+    const now = supervisionNow()
+    if (now !== null) lastProgressAt = now
     if (logSize !== null) lastLogSize = logSize
     cpuBaseline = null
   }
@@ -486,6 +495,7 @@ const sampler = setInterval(() => {
   // the filesystem and log signals rather than letting real CPU reset a virtual stall interval.
   const cpuMs = supervisionClockPath ? null : cpuMillisecondsOfTree(child.pid)
   const now = supervisionNow()
+  if (now === null) return
   if (cpuMs !== null) {
     if (cpuBaseline === null || cpuMs < cpuBaseline.cpuMs) {
       // First silent sample, or a child exited and took its CPU time out of the snapshot. Rebase
