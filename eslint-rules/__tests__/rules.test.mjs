@@ -31,6 +31,24 @@ const ruleTester = new RuleTester({
 
 const rule = (name) => require(`../${name}.cjs`)
 
+const maxButtonWordsOptions = [{
+  controls: [
+    { name: 'button', labelProps: ['children'] },
+    { name: 'PillButton', labelProps: ['children', 'label'] },
+    { name: 'Button', labelProps: ['children', 'label'] },
+    { name: 'Chip', labelProps: ['children'] },
+    { name: 'Pressable', labelProps: ['children'], roles: ['button', 'tab', 'menuitem'] },
+    { name: 'SegmentedControl', collectionProps: ['options'] },
+    { name: 'BottomTabBar', collectionProps: ['items'] },
+    { name: 'ListRow', labelProps: ['title'] },
+  ],
+}]
+
+const maxWordsError = (control, label, locale, count) => ({
+  messageId: 'tooManyWords',
+  data: { control, label, locale, count: String(count), limit: '2' },
+})
+
 ruleTester.run('no-decorative-glow', rule('no-decorative-glow'), {
   valid: [
     '<PillButton glow={false}>Save</PillButton>',
@@ -824,6 +842,108 @@ ruleTester.run('no-pill-radius-on-static', rule('no-pill-radius-on-static'), {
     {
       code: "const base = { borderRadius: 9999 }; const a = <View style={base}><Text>Pro</Text></View>",
       errors: [{ messageId: 'pillOnStatic' }],
+    },
+  ],
+})
+
+ruleTester.run('max-button-words', rule('max-button-words'), {
+  valid: [
+    { code: '<PillButton>Log all</PillButton>', options: maxButtonWordsOptions },
+    { code: '<PillButton>Set-up now</PillButton>', options: maxButtonWordsOptions },
+    { code: '<EmptyState description="This sentence belongs in empty state body copy" />', options: maxButtonWordsOptions },
+    { code: '<Dialog><p>This sentence belongs in the dialog body</p></Dialog>', options: maxButtonWordsOptions },
+    { code: 'toast("This sentence belongs in toast body copy")', options: maxButtonWordsOptions },
+    { code: '<h2>This heading may use several useful words</h2>', options: maxButtonWordsOptions },
+    {
+      code: "const { t } = useTranslation(); const tab = <button role=\"tab\">{t('nav.progress')}</button>",
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: 'const { t } = useTranslation(); const key = getKey(); const button = <PillButton>{t(key)}</PillButton>',
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: "const { t } = useTranslation(); const button = <PillButton>{t('missing.locale.key')}</PillButton>",
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: "const { t } = useTranslation(); const button = <PillButton>{t('habits.detail.log')}</PillButton>",
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: "const { t } = useTranslation(); const button = <PillButton>{t('habits.search.count')}</PillButton>",
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: "const { t } = useTranslation(); const tabs = <BottomTabBar items={[{ id: 'today', label: t('nav.today') }]} />",
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: '<div>\n{/* eslint-disable-next-line rule-to-test/max-button-words -- D69 deletes this surface. */}\n<PillButton>Open all insights</PillButton>\n</div>',
+      options: maxButtonWordsOptions,
+    },
+  ],
+  invalid: [
+    {
+      code: '<PillButton>Open all insights</PillButton>',
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('PillButton', 'Open all insights', 'source', 3)],
+    },
+    {
+      code: '<PillButton label="Open navigation menu" iconOnly />',
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('PillButton', 'Open navigation menu', 'source', 3)],
+    },
+    {
+      code: "const t = useTranslations(); const chip = <Chip>{t('chat.suggestion.exercise')}</Chip>",
+      options: maxButtonWordsOptions,
+      errors: [
+        maxWordsError('Chip', 'Create a habit to exercise every morning', 'en', 7),
+        maxWordsError('Chip', 'Criar um h\u00e1bito de exerc\u00edcio toda manh\u00e3', 'pt-BR', 7),
+      ],
+    },
+    {
+      code: "const { t } = useTranslation(); const button = <PillButton>{t('common.retry')}</PillButton>",
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('PillButton', 'Tentar de novo', 'pt-BR', 3)],
+    },
+    {
+      code: "const t = useTranslations(); const suggestions = useMemo(() => [t('chat.suggestion.exercise')], [t]); const view = suggestions.map((suggestion) => <button>{suggestion}</button>)",
+      options: maxButtonWordsOptions,
+      errors: [
+        maxWordsError('button', 'Create a habit to exercise every morning', 'en', 7),
+        maxWordsError('button', 'Criar um h\u00e1bito de exerc\u00edcio toda manh\u00e3', 'pt-BR', 7),
+      ],
+    },
+    {
+      code: "const { t } = useTranslation(); const suggestions = [t('chat.suggestion.exercise')]; const view = suggestions.map((suggestion) => <Pressable accessibilityRole=\"button\"><Text>{suggestion}</Text></Pressable>)",
+      options: maxButtonWordsOptions,
+      errors: [
+        maxWordsError('Pressable', 'Create a habit to exercise every morning', 'en', 7),
+        maxWordsError('Pressable', 'Criar um h\u00e1bito de exerc\u00edcio toda manh\u00e3', 'pt-BR', 7),
+      ],
+    },
+    {
+      code: "const { t } = useTranslation(); const control = <SegmentedControl options={[{ value: 'retry', label: t('common.retry') }]} />",
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('SegmentedControl', 'Tentar de novo', 'pt-BR', 3)],
+    },
+    {
+      code: "const { t } = useTranslation(); const row = <ListRow title={t('common.retry')} />",
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('ListRow', 'Tentar de novo', 'pt-BR', 3)],
+    },
+  ],
+})
+
+ruleTester.run('no-unjustified-disable', rule('no-unjustified-disable'), {
+  valid: [
+    '// eslint-disable-next-line no-console -- CLI output is required.\nconsole.log("ready")',
+  ],
+  invalid: [
+    {
+      code: '// eslint-disable-next-line no-console\nconsole.log("ready")',
+      errors: [{ messageId: 'missingReason' }],
     },
   ],
 })

@@ -42,6 +42,7 @@ export function SuggestionChips({ onSelect }: Readonly<SuggestionChipsProps>) {
             .delay(index * 60)
             .reduceMotion(ReduceMotion.System)}
         >
+          {/* eslint-disable-next-line local/max-button-words -- D69 replaces this pre-redesign chip surface. */}
           <Pressable
             style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
             onPress={() => onSelect(suggestion)}

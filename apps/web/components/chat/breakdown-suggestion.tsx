@@ -43,6 +43,7 @@ export function BreakdownSuggestion({ parentName, subHabits, warning, onConfirme
     <BlockFrame state={bulkCreate.isPending ? 'acting' : card.partiallyFailed ? 'partiallyFailed' : 'resting'} title={t('chat.breakdown.title', { name: parentName })} items={rows} proposedLabel={t('chat.preview.proposed')} editLabel={t('chat.preview.editItem')} onEditItem={card.setEditingId} irreversibleLabel={t('chat.operation.irreversible')} confirmNote={t('chat.breakdown.confirmNote')} actions={(
       <div className="flex flex-wrap items-center gap-2">
         {warning?.hasConflict ? <p className="flex basis-full items-center gap-2 text-sm text-[var(--fg-2)]"><AlertTriangle aria-hidden="true" size={16} className="text-[var(--status-overdue)]" />{t('chat.breakdown.conflict', { name: warning.conflictingHabits[0]?.habitTitle ?? parentName })}</p> : null}
+        {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
         {card.partiallyFailed ? <Button size="sm" onClick={() => void card.submit(card.failedIds)}>{t('chat.batch.retry', { count: card.failedIds.length })}</Button> : (
           <>
             <Button size="sm" disabled={bulkCreate.isPending} onClick={() => card.setConfirmOpen(true)}>{t('chat.preview.approve')}</Button>

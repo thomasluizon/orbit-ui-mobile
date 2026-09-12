@@ -100,6 +100,7 @@ export function ShareCardPanel({ open, onClose, displayName }: Readonly<ShareCar
         {!isLoading && isError ? (
           <View style={styles.errorState}>
             <Text style={styles.errorText}>{t('shareCard.error')}</Text>
+            {/* eslint-disable-next-line local/max-button-words -- ORB-66 owns this existing share label. */}
             <PillButton variant="ghost" onClick={() => void refetch()}>
               {t('common.retry')}
             </PillButton>

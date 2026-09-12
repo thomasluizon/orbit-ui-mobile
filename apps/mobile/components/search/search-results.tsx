@@ -40,6 +40,7 @@ export function SearchEmpty({ query, onCreate }: Readonly<{ query: string; onCre
   return <View style={styles.empty}>
     <Text style={[styles.name, { color: tokens.fg1 }]}><Trans i18nKey="habits.search.emptyTitle" values={{ query }} components={{ queryText: <Text /> }} /></Text>
     <Text style={[styles.body, { color: tokens.fg3 }]}>{t('habits.search.emptyBody')}</Text>
+    {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
     <Button size="sm" onClick={onCreate}>{t('habits.search.create')}</Button>
   </View>
 }

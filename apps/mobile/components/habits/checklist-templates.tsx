@@ -115,6 +115,7 @@ export function ChecklistTemplates({
         <Sheet ref={sheetRef} open title={t('habits.form.templates')} onClose={() => setOpen(false)}>
           <View style={styles.container}>
             {templates.length > 0 && items.length > 0 && !showSave ? (
+              /* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */
               <ListRow
                 icon="device-floppy"
                 title={t('habits.form.saveAsTemplate')}

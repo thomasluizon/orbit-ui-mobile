@@ -107,6 +107,7 @@ export function OnboardingTemplatePacks({
         </View>
 
         <View style={styles.secondaryActions}>
+          {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
           <Pressable
             onPress={onCreateOwn}
             style={({ pressed }) => [styles.secondaryButton, pressed && styles.textButtonPressed]}
@@ -117,6 +118,7 @@ export function OnboardingTemplatePacks({
               {t('onboarding.flow.templatePacks.createOwn')}
             </Text>
           </Pressable>
+          {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
           <Pressable
             onPress={onSkip}
             style={({ pressed }) => [styles.secondaryButton, pressed && styles.textButtonPressed]}
@@ -164,6 +166,7 @@ export function OnboardingTemplatePacks({
       </View>
 
       <View style={styles.ctaWrap}>
+        {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
         <PillButton
 
           disabled={enabledCount === 0 || isCreating}

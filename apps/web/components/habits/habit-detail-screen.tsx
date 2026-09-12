@@ -203,6 +203,7 @@ function RescheduleBlock({ habit, slipping, hasProAccess, locale }: Readonly<{ h
     <Proposed proposed scope="block" label={t('proposed')}>
       <div className="flex flex-col gap-4 p-4">
         <div><p className="font-medium text-[var(--fg-1)]">{t('slipping')}</p><p className="mt-1 text-sm text-[var(--fg-3)]">{query.suggestion?.rationale ?? (query.error ? t('rescheduleError') : t('rescheduleLoading'))}</p></div>
+        {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
         <PillButton variant="secondary" size="sm" disabled={!query.suggestion} loading={updateHabit.isPending} onClick={() => void accept()}>{t('rescheduleAccept')}</PillButton>
       </div>
     </Proposed>

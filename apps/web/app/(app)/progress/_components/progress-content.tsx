@@ -238,6 +238,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
             <p className="text-[16px] font-medium text-[var(--fg-1)]">{t('progressScreen.streak.repairTitle')}</p>
             <p className="text-[14px] text-[var(--fg-3)]">{canRepair ? t('progressScreen.streak.repairBody', { count: available }) : t('progressScreen.streak.repairEmpty', { count: freeze.daysUntilNextFreeze })}</p>
           </div>
+          {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
           {canRepair ? <PillButton loading={repair.isPending} onClick={() => repair.mutate()}>{t('progressScreen.streak.repairAction')}</PillButton> : null}
           {repair.isError ? <p role="alert" className="text-[14px] text-[var(--status-bad-text)]">{t('progressScreen.streak.repairError')}</p> : null}
         </div>
@@ -310,7 +311,9 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3"><h2 id={headingId} className="text-[20px] font-medium text-[var(--fg-1)]">{t('progressScreen.sections.goals')}</h2>
       {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={(id) => setFilter(id)} label={t('progressScreen.goals.views')} /> : null}
+      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {goals.length === 0 ? <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant="ghost" onClick={() => router.push('/')}>{t('progressScreen.startHabit')}</PillButton>} /> : null}
+      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {goals.length > 0 && filtered.length === 0 ? <div className="flex flex-col items-start gap-3 py-6"><p className="text-[14px] text-[var(--fg-3)]">{t('progressScreen.goals.filterEmpty')}</p><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></div> : null}
       {filtered.length > 0 ? (
         <DndContext sensors={drag.sensors} onDragEnd={drag.onDragEnd} collisionDetection={closestCenter}><SortableContext items={filtered.map((goal) => goal.id)} strategy={verticalListSortingStrategy}><div className="flex flex-col gap-3">
@@ -462,6 +465,7 @@ export function ProgressContent() {
       <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {error ? <div className="w-full max-w-[620px]"><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
+      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {empty ? <div className="pt-12"><EmptyState title={t('progressScreen.empty')} action={<PillButton variant="ghost" size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></div> : null}
       {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} /><AchievementsSection profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
       </div>

@@ -104,6 +104,7 @@ export function AstraImportPrompt() {
           {t('onboarding.wizard.importDescription')}
         </Text>
         <View style={styles.spacer} />
+        {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
         <PillButton  onClick={() => void handleImport()}>
           {t('onboarding.wizard.importButton')}
         </PillButton>

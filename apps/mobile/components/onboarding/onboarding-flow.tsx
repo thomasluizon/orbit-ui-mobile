@@ -161,6 +161,7 @@ function OnboardingFooter({
         onForward={canAdvance ? onNext : undefined} />
 
       {onHaveAccount && (
+        /* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */
         <Pressable
           onPress={onHaveAccount}
           hitSlop={8}

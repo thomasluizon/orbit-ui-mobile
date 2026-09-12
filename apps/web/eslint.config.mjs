@@ -33,6 +33,18 @@ import noSparkleAiMarker from "../../eslint-rules/no-sparkle-ai-marker.cjs"
 import iconSizeGrid from "../../eslint-rules/icon-size-grid.cjs"
 import noPillRadiusOnStatic from "../../eslint-rules/no-pill-radius-on-static.cjs"
 import willChangeDiscipline from "../../eslint-rules/will-change-discipline.cjs"
+import maxButtonWords from "../../eslint-rules/max-button-words.cjs"
+
+const maxButtonWordControls = [
+  { name: "button", labelProps: ["children"] },
+  { name: "PillButton", labelProps: ["children", "label"] },
+  { name: "Button", labelProps: ["children", "label"] },
+  { name: "Chip", labelProps: ["children"] },
+  { name: "Pressable", labelProps: ["children"], roles: ["button", "tab", "menuitem"] },
+  { name: "SegmentedControl", collectionProps: ["options"] },
+  { name: "BottomTabBar", collectionProps: ["items"] },
+  { name: "ListRow", labelProps: ["title"] },
+]
 
 export default [
   ...nextConfig,
@@ -103,6 +115,7 @@ export default [
           "icon-size-grid": iconSizeGrid,
           "no-pill-radius-on-static": noPillRadiusOnStatic,
           "will-change-discipline": willChangeDiscipline,
+          "max-button-words": maxButtonWords,
         },
       },
     },
@@ -168,6 +181,7 @@ export default [
       "local/no-sparkle-ai-marker": "error",
       "local/icon-size-grid": "error",
       "local/no-pill-radius-on-static": "error",
+      "local/max-button-words": ["error", { controls: maxButtonWordControls }],
 
       // A RATCHET, not a backlog: `error`, with pre-existing violations carried in the
       // committed eslint-suppressions.json baseline (regenerated against main, 2026-07-24),
@@ -237,6 +251,7 @@ export default [
     files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
     rules: {
       "local/no-fullbleed-button": "off",
+      "local/max-button-words": "off",
       "local/no-double-assertion": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-require-imports": "off",

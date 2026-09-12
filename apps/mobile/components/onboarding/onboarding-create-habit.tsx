@@ -198,6 +198,7 @@ export function OnboardingCreateHabit({
       />
 
       <View style={styles.toggleRow}>
+        {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
         <Chip
           active={showFrequencyPicker}
           leading={<Settings2 size={11} strokeWidth={1.5} color={tokens.fg2} />}

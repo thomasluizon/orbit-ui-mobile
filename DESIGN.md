@@ -1303,6 +1303,7 @@ Describe the rendered screen in one sentence as if narrating a film scene. If it
 | Banned-word set (Voice) | `tools/check-copy.mjs --check` | **extend to the 25 enumerated entries, with the scope column** |
 | No UPPERCASE typed into a string | `tools/check-copy.mjs --check` | shipping |
 | No full-bleed pill CTA (Buttons) | `local/no-fullbleed-button` | shipping, web only |
+| Control labels stay within 1 to 2 words (Buttons, Copy) | `local/max-button-words` | shipping, both apps |
 | Icons only through the barrel | `no-restricted-imports` | shipping |
 | No gorhom sheet (Overlay) | `local/no-gorhom-sheet` | keep |
 | No `oklch()` in a shared token or mobile style (Tokens) | **new rule** | unblocked |

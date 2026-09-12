@@ -177,6 +177,7 @@ export function ScheduledReminderSection({
                     {t("habits.form.scheduledReminderDayBefore")}
                   </Text>
                 </Pressable>
+                {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
                 <Pressable
                   style={({ pressed }) => [
                     sectionStyles.whenButton,

@@ -370,6 +370,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
         <PillButton variant="ghost" onClick={onCancel} disabled={isSubmitting}>
           {t('common.cancel')}
         </PillButton>
+        {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
         <PillButton  disabled={isSubmitting}>
           {isSubmitting ? t('common.loading') : t('orbitMcp.createKey')}
         </PillButton>

@@ -34,6 +34,7 @@ export function FailureScreen({ error, retry, titleId }: Readonly<{ error: unkno
       <p className="error-surface-body">{t(countdown ? 'errorScreen.throttleBody' : 'errorScreen.body')}</p>
       {countdown ? <p role="timer" className="font-mono text-[20px] leading-[1.4] tabular-nums">{countdown.label}</p> : null}
       <div className="error-surface-action">
+        {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
         <PillButton variant={waiting ? 'ghost' : 'primary'} disabled={waiting} loading={retrying}
           onClick={handleRetry}>{t('errorScreen.retry')}</PillButton>
       </div>
