@@ -132,7 +132,7 @@ function CalendarProfileState({ failed, onRetry }: Readonly<{ failed: boolean; o
 }
 
 interface CalendarScreenContentProps {
-  profile: Pick<Profile, 'weekStartDay'>;
+  profile: Pick<Profile, 'weekStartDay' | 'timeZone'>;
   currentMonth: Date;
   setCurrentMonth: Dispatch<SetStateAction<Date>>;
   monthQuery: ReturnType<typeof useCalendarData>;
@@ -148,7 +148,7 @@ function CalendarScreenContent({
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { displayTime } = useTimeFormat();
-  const todayKey = useCurrentDate();
+  const todayKey = useCurrentDate(profile.timeZone);
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),

@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import {
   canNavigateToNextDay,
   formatAPIDate,
+  formatAPIDateInTimeZone,
   formatLocaleDate,
 } from '@orbit/shared/utils'
 
@@ -16,8 +17,8 @@ function getMillisecondsUntilNextLocalMidnight(): number {
   return Math.max(nextMidnight.getTime() - now.getTime(), 1_000)
 }
 
-function getTodayDate(): string {
-  return formatAPIDate(new Date())
+function getTodayDate(timeZone?: string | null): string {
+  return timeZone ? formatAPIDateInTimeZone(new Date(), timeZone) : formatAPIDate(new Date())
 }
 
 export interface TodayDate {
@@ -34,23 +35,23 @@ export interface TodayDate {
   goToToday: () => void
 }
 
-/** The current local day as a `YYYY-MM-DD` string, advancing on day rollover. */
-export function useCurrentDate(): string {
-  const [today, setToday] = useState(getTodayDate)
+/** The current day as a `YYYY-MM-DD` string, optionally in the account timezone. */
+export function useCurrentDate(timeZone?: string | null): string {
+  const [today, setToday] = useState(() => getTodayDate(timeZone))
 
   useEffect(() => {
     let rolloverTimer: ReturnType<typeof globalThis.setTimeout> | null = null
     const reset = () => {
       if (rolloverTimer) globalThis.clearTimeout(rolloverTimer)
       rolloverTimer = globalThis.setTimeout(() => {
-        setToday(getTodayDate())
+        setToday(getTodayDate(timeZone))
         reset()
-      }, getMillisecondsUntilNextLocalMidnight())
+      }, timeZone ? 60_000 : getMillisecondsUntilNextLocalMidnight())
     }
     reset()
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        setToday(getTodayDate())
+        setToday(getTodayDate(timeZone))
         reset()
       }
     })
@@ -58,7 +59,8 @@ export function useCurrentDate(): string {
       if (rolloverTimer) globalThis.clearTimeout(rolloverTimer)
       subscription.remove()
     }
-  }, [])
+    setToday(getTodayDate(timeZone))
+  }, [timeZone])
 
   return today
 }

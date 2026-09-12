@@ -91,7 +91,7 @@ export default function CalendarPage() {
 }
 
 interface CalendarPageContentProps {
-  profile: Pick<Profile, 'weekStartDay'>
+  profile: Pick<Profile, 'weekStartDay' | 'timeZone'>
   currentMonth: Date
   setCurrentMonth: Dispatch<SetStateAction<Date>>
   monthQuery: ReturnType<typeof useCalendarData>
@@ -112,7 +112,7 @@ function CalendarPageContent({
   const weekStartsOn = profile.weekStartDay
   const isDesktop = useIsDesktop()
   const isWideDesktop = useIsWideDesktop()
-  const todayKey = useToday()
+  const todayKey = useToday(profile.timeZone)
 
   const [view, setView] = useState<CalendarView>('month')
   /** Agenda is desktop-width only until #56 stage 10 builds the mobile day groups. */

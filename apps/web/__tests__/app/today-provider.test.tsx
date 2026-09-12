@@ -16,12 +16,18 @@ vi.mock('@orbit/shared/utils', () => ({
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
       date.getDate(),
     ).padStart(2, '0')}`,
+  formatAPIDateInTimeZone: (date: Date, timeZone: string) =>
+    timeZone === 'Pacific/Kiritimati' ? date.toISOString().slice(0, 10) : 'unexpected-zone',
 }))
 
 import { TodayProvider, useToday } from '@/app/(app)/today-provider'
 
 function TodayProbe() {
   return <span data-testid="today">{useToday()}</span>
+}
+
+function AccountTodayProbe() {
+  return <span data-testid="today">{useToday('Pacific/Kiritimati')}</span>
 }
 
 function renderProvider() {
@@ -49,6 +55,15 @@ describe('TodayProvider', () => {
     renderProvider()
 
     expect(screen.getByTestId('today')).toHaveTextContent('2026-04-07')
+  })
+
+  it('provides the current day in the account timezone', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-12T01:30:00.000Z'))
+
+    render(<TodayProvider><AccountTodayProbe /></TodayProvider>)
+
+    expect(screen.getByTestId('today')).toHaveTextContent('2026-09-12')
   })
 
   it('advances the day and refreshes gamification when the tab regains visibility on a new day', () => {

@@ -1,5 +1,11 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
-import { parseAPIDate, formatAPIDate, nowDate, resolveHabitDetailRouteDate } from '../utils/dates'
+import {
+  parseAPIDate,
+  formatAPIDate,
+  formatAPIDateInTimeZone,
+  nowDate,
+  resolveHabitDetailRouteDate,
+} from '../utils/dates'
 import { getTimezoneList } from '../utils/timezones'
 import { isValidEmail } from '../utils/email'
 import {
@@ -75,6 +81,15 @@ describe('formatAPIDate', () => {
   it('handles first day of year', () => {
     const date = new Date(2025, 0, 1)
     expect(formatAPIDate(date)).toBe('2025-01-01')
+  })
+})
+
+describe('formatAPIDateInTimeZone', () => {
+  it('formats the account date when it differs from the browser-local date', () => {
+    const instant = new Date('2026-09-12T01:30:00.000Z')
+
+    expect(formatAPIDateInTimeZone(instant, 'Pacific/Kiritimati')).toBe('2026-09-12')
+    expect(formatAPIDateInTimeZone(instant, 'America/Sao_Paulo')).toBe('2026-09-11')
   })
 })
 

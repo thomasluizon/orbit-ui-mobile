@@ -67,7 +67,7 @@ describe('CalendarTimeGrid', () => {
 
     const block = screen.getByTestId('time-grid-event')
     expect(block).toHaveAttribute('data-hour', '8')
-    expect(block).toHaveStyle({ top: '384px', height: '44px' })
+    expect(block).toHaveStyle({ top: '384px', minWidth: '44px', height: '44px' })
     expect(block).toHaveTextContent('Standup')
   })
 
@@ -80,6 +80,25 @@ describe('CalendarTimeGrid', () => {
 
     const block = screen.getByTestId('time-grid-event')
     expect(block).toHaveStyle({ boxShadow: 'inset 0 0 0 1px var(--hairline)' })
+  })
+
+  it('keeps every concurrent timed-event lane at least 44px wide', () => {
+    const col = column(2025, 5, 16)
+    const dayMap = new Map<string, CalendarDayEntry[]>([[
+      col.dateStr,
+      [
+        makeEntry({ habitId: 'a', dueTime: '08:00' }),
+        makeEntry({ habitId: 'b', dueTime: '08:00' }),
+      ],
+    ]])
+    renderGrid([col], dayMap)
+
+    expect(screen.getByTestId('time-grid-all-day-band')).toHaveStyle({
+      gridTemplateColumns: '56px repeat(1, minmax(96px, 1fr))',
+    })
+    for (const block of screen.getAllByTestId('time-grid-event')) {
+      expect(block).toHaveStyle({ minWidth: '44px' })
+    }
   })
 
   it('places an untimed habit in the all-day row, not the time body', () => {

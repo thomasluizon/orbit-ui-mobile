@@ -20,14 +20,16 @@ type Tokens = ReturnType<typeof createTokensV2>;
 const HOUR_HEIGHT = 48;
 const DAY_HEIGHT = HOUR_HEIGHT * 24;
 const BLOCK_HEIGHT = 44;
+const BLOCK_MIN_WIDTH = 44;
+const BLOCK_HORIZONTAL_INSET = 4;
 const GUTTER = 56;
 const BODY_MAX_HEIGHT = 520;
-const MIN_COL_WIDTH = 44;
+const MIN_LANE_WIDTH = BLOCK_MIN_WIDTH + BLOCK_HORIZONTAL_INSET;
 const COL_HEADER_HEIGHT = 52;
 const ALL_DAY_MIN_HEIGHT = 34;
-const ALL_DAY_CHIP_HEIGHT = 22;
-const ALL_DAY_GAP = 3;
-const ALL_DAY_PADDING = 12;
+const ALL_DAY_CHIP_HEIGHT = 19;
+const ALL_DAY_GAP = 4;
+const ALL_DAY_PADDING_VERTICAL = 8;
 const ALL_DAY_MAX_VISIBLE = 5;
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 
@@ -167,8 +169,11 @@ function TimedBlock({
         position: "absolute",
         top: block.top,
         height: BLOCK_HEIGHT,
-        left: (block.lane / block.laneCount) * colWidth + 2,
-        width: colWidth / block.laneCount - 4,
+        left:
+          (block.lane / block.laneCount) * colWidth +
+          BLOCK_HORIZONTAL_INSET / 2,
+        width: colWidth / block.laneCount - BLOCK_HORIZONTAL_INSET,
+        minWidth: BLOCK_MIN_WIDTH,
         paddingVertical: 4,
         paddingHorizontal: 8,
         borderRadius: 8,
@@ -228,7 +233,7 @@ function AllDayChip({
         flexDirection: "row",
         alignItems: "center",
         gap: 4,
-        height: ALL_DAY_CHIP_HEIGHT - ALL_DAY_GAP,
+        height: ALL_DAY_CHIP_HEIGHT,
         paddingHorizontal: 8,
         borderRadius: 8,
         overflow: "hidden",
@@ -275,7 +280,7 @@ function AllDayMoreChip({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        height: ALL_DAY_CHIP_HEIGHT - ALL_DAY_GAP,
+        height: ALL_DAY_CHIP_HEIGHT,
         paddingHorizontal: 8,
         borderRadius: 8,
         borderWidth: 1,
@@ -420,14 +425,24 @@ export function CalendarTimeGrid({
     const rows = Math.min(maxChips, ALL_DAY_MAX_VISIBLE);
     return Math.max(
       ALL_DAY_MIN_HEIGHT,
-      ALL_DAY_PADDING + rows * ALL_DAY_CHIP_HEIGHT,
+      ALL_DAY_PADDING_VERTICAL * 2 +
+        rows * ALL_DAY_CHIP_HEIGHT +
+        (rows - 1) * ALL_DAY_GAP,
     );
   }, [perColumn]);
 
+  const maxLaneCount = Math.max(
+    1,
+    ...perColumn.flatMap(({ timed }) =>
+      timed.map(({ laneCount }) => laneCount),
+    ),
+  );
+  const minColumnWidth = maxLaneCount * MIN_LANE_WIDTH;
+
   const colWidth =
     viewportWidth > 0 && columns.length > 0
-      ? Math.max(MIN_COL_WIDTH, viewportWidth / columns.length)
-      : MIN_COL_WIDTH;
+      ? Math.max(minColumnWidth, viewportWidth / columns.length)
+      : minColumnWidth;
 
   const isEmpty =
     !isLoading &&
@@ -709,8 +724,8 @@ function createStyles(tokens: Tokens) {
       flexDirection: "row",
     },
     allDayCell: {
-      gap: 4,
-      paddingVertical: 8,
+      gap: ALL_DAY_GAP,
+      paddingVertical: ALL_DAY_PADDING_VERTICAL,
       paddingHorizontal: 4,
       borderLeftWidth: 1,
       borderLeftColor: tokens.hairline,

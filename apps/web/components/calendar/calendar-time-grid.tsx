@@ -9,8 +9,10 @@ import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 const HOUR_HEIGHT = 48
 const DAY_HEIGHT = HOUR_HEIGHT * 24
 const BLOCK_HEIGHT = 44
+const BLOCK_MIN_WIDTH = 44
+const BLOCK_HORIZONTAL_INSET = 4
 const GUTTER = 56
-const MIN_COL_WIDTH = 44
+const MIN_LANE_WIDTH = BLOCK_MIN_WIDTH + BLOCK_HORIZONTAL_INSET
 const HEADER_HEIGHT = 52
 const BODY_MAX_HEIGHT = 520
 const SCROLLER_MAX_HEIGHT = HEADER_HEIGHT + 40 + BODY_MAX_HEIGHT
@@ -144,8 +146,9 @@ function TimedBlock({
       style={{
         top: block.top,
         height: BLOCK_HEIGHT,
-        left: `calc(${(block.lane / block.laneCount) * 100}% + 2px)`,
-        width: `calc(${100 / block.laneCount}% - 4px)`,
+        left: `calc(${(block.lane / block.laneCount) * 100}% + ${BLOCK_HORIZONTAL_INSET / 2}px)`,
+        width: `calc(${100 / block.laneCount}% - ${BLOCK_HORIZONTAL_INSET}px)`,
+        minWidth: BLOCK_MIN_WIDTH,
         padding: 4,
         borderRadius: 8,
         border: 0,
@@ -277,10 +280,6 @@ export function CalendarTimeGrid({
     if (node) node.scrollTop = 7 * HOUR_HEIGHT
   }, [])
 
-  const columnTrack = `minmax(${MIN_COL_WIDTH}px, 1fr)`
-  const gridTemplate = `${GUTTER}px repeat(${columns.length}, ${columnTrack})`
-  const gridMinWidth = GUTTER + columns.length * MIN_COL_WIDTH
-
   const perColumn = useMemo(
     () =>
       columns.map((column) => {
@@ -293,6 +292,15 @@ export function CalendarTimeGrid({
       }),
     [columns, dayMap],
   )
+
+  const maxLaneCount = Math.max(
+    1,
+    ...perColumn.flatMap(({ timed }) => timed.map(({ laneCount }) => laneCount)),
+  )
+  const minColumnWidth = maxLaneCount * MIN_LANE_WIDTH
+  const columnTrack = `minmax(${minColumnWidth}px, 1fr)`
+  const gridTemplate = `${GUTTER}px repeat(${columns.length}, ${columnTrack})`
+  const gridMinWidth = GUTTER + columns.length * minColumnWidth
 
   const isEmpty =
     !isLoading &&

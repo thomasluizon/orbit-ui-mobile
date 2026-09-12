@@ -27,6 +27,21 @@ export function formatAPIDate(date: Date): string {
   return format(date, 'yyyy-MM-dd')
 }
 
+/** Format an instant as the calendar date used by an account's API timezone. */
+export function formatAPIDateInTimeZone(date: Date, timeZone?: string | null): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timeZone || 'UTC',
+    calendar: 'iso8601',
+    numberingSystem: 'latn',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((candidate) => candidate.type === type)?.value
+  return `${part('year')}-${part('month')}-${part('day')}`
+}
+
 export function resolveHabitDetailRouteDate(
   value: string | readonly string[] | null | undefined,
   today = new Date(),

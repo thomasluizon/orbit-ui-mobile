@@ -12,7 +12,11 @@ import {
 
 const TestRenderer = require("react-test-renderer");
 
-type TestNode = { type: unknown; props: Record<string, any> };
+type TestNode = {
+  type: unknown;
+  props: Record<string, any>;
+  parent?: TestNode | null;
+};
 type Tree = {
   root: { findAll: (predicate: (node: TestNode) => boolean) => TestNode[] };
 };
@@ -100,6 +104,16 @@ function resolveStyle(style: unknown): Record<string, unknown> {
   return StyleSheet.flatten(value) as Record<string, unknown>;
 }
 
+function renderedAncestorHeight(node: TestNode): number | undefined {
+  let ancestor = node.parent;
+  while (ancestor) {
+    const height = resolveStyle(ancestor.props.style).height;
+    if (typeof height === "number") return height;
+    ancestor = ancestor.parent;
+  }
+  return undefined;
+}
+
 describe("CalendarTimeGrid (mobile)", () => {
   it("places a timed habit as a block in its column", () => {
     const col = column("2025-06-16");
@@ -111,6 +125,7 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(hostsByTestID(tree, "time-grid-event")).toHaveLength(1);
     expect(resolveStyle(hostsByTestID(tree, "time-grid-event")[0]!.props.style)).toMatchObject({
       top: 384,
+      width: 44,
       height: 44,
     });
     expect(textValuesWithin(tree, "time-grid-event")).toContain("Standup");
@@ -126,6 +141,23 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(hostsByTestID(tree, "time-grid-event")).toHaveLength(0);
     expect(textValuesWithin(tree, "time-grid-all-day-event")).toContain("Read");
     expect(textValuesWithin(tree, "time-grid-any-time-label")).toContain("No set time");
+  });
+
+  it("keeps every concurrent timed-event lane 44px wide", () => {
+    const col = column("2025-06-16");
+    const dayMap = new Map<string, CalendarDayEntry[]>([[
+      col.dateStr,
+      [
+        makeEntry({ habitId: "a", dueTime: "08:00" }),
+        makeEntry({ habitId: "b", dueTime: "08:00" }),
+      ],
+    ]]);
+    const tree = renderGrid([col], dayMap);
+
+    const widths = hostsByTestID(tree, "time-grid-event").map(
+      (event) => resolveStyle(event.props.style).width,
+    );
+    expect(widths).toEqual([44, 44]);
   });
 
   it("dims every future day column without lowering text contrast", () => {
@@ -176,6 +208,8 @@ describe("CalendarTimeGrid (mobile)", () => {
     const more = hostsByTestID(tree, "time-grid-all-day-more");
     expect(more).toHaveLength(1);
     expect(textValuesWithin(tree, "time-grid-all-day-more")).toContain(4);
+    const allDayCell = hostsByTestID(tree, "time-grid-all-day")[0];
+    expect(renderedAncestorHeight(allDayCell!)).toBe(127);
 
     TestRenderer.act(() => {
       more[0]!.props.onPress();
