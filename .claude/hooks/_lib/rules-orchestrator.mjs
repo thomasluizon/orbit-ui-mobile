@@ -116,36 +116,51 @@ const plainVariableEnd = (source, start) => {
   return variable ? start + variable[0].length : null
 }
 
+const STATIC_REDIRECT_PATH_CHARACTER = /^[A-Za-z0-9_./\\:+=-]$/
+const VARIABLE_EVALUATION_SUFFIX = new Set([".", "[", "(", ":", "+", "-"])
+const unclassifiableTarget = (source) => ({ end: source.length, classifiable: false })
+
 const redirectionTargetEnd = (source, start) => {
   let cursor = start
   let quote = ""
+  let variableSeen = false
+  let immediatelyAfterVariable = false
   while (cursor < source.length) {
     const character = source[cursor]
     if (!quote && /\s/.test(character)) break
-    if (character === "\\" && quote !== "'") {
-      cursor += 2
-      continue
+    if (character === "`" || source.startsWith("<(", cursor) || source.startsWith(">(", cursor)) {
+      return unclassifiableTarget(source)
     }
     if (quote) {
-      if (character === quote) quote = ""
-    } else if (character === '"' || character === "'") {
-      quote = character
-    }
-    const processSubstitution = !quote && cursor === start && character === "("
-    if (quote !== "'" && character === "$") {
-      const variableEnd = plainVariableEnd(source, cursor)
-      if (variableEnd !== null) {
-        cursor = variableEnd
+      if (character === quote) {
+        quote = ""
+        cursor++
         continue
       }
-      return { end: source.length, classifiable: false }
+      if (quote === "'") {
+        immediatelyAfterVariable = false
+        cursor++
+        continue
+      }
+    } else if (character === '"' || character === "'") {
+      quote = character
+      cursor++
+      continue
     }
-    if (quote !== "'" && (character === "`" || processSubstitution)) {
-      return { end: source.length, classifiable: false }
+    if (character === "$") {
+      const variableEnd = plainVariableEnd(source, cursor)
+      if (variableEnd === null || variableSeen) return unclassifiableTarget(source)
+      variableSeen = true
+      immediatelyAfterVariable = true
+      cursor = variableEnd
+      continue
     }
+    if (immediatelyAfterVariable && VARIABLE_EVALUATION_SUFFIX.has(character)) return unclassifiableTarget(source)
+    immediatelyAfterVariable = false
+    if (!quote && !STATIC_REDIRECT_PATH_CHARACTER.test(character)) return unclassifiableTarget(source)
     cursor++
   }
-  return { end: cursor, classifiable: cursor > start }
+  return { end: cursor, classifiable: cursor > start && !quote }
 }
 
 /** Remove shell redirections before finding and validating the invoked command. Redirection

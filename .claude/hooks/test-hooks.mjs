@@ -182,6 +182,12 @@ const descriptorSafetyRefusals = [
   ["backtick command substitution", "2>&`codex exec 'do work'`"],
   ["dynamic leading redirect", ">$(printf worker.log) codex exec"],
   ["nested parameter command substitution", 'codex cloud list > "${OUT:-$(mktemp)}"'],
+  ["input process substitution after a variable", "codex cloud list > $OUT<(codex)"],
+  ["output process substitution after a variable", "codex cloud list > $OUT>(codex)"],
+  ["PowerShell variable member access", "codex cloud list > $obj.Path"],
+  ["parameter expansion operator", "codex cloud list > ${OUT:-worker.log}"],
+  ["variable index", "codex cloud list > $OUT[0]"],
+  ["variable call", "codex cloud list > $OUT(codex)"],
   ["engine invocation before a pipeline", "codex exec | tee log"],
   ["engine invocation after a list separator", "codex cloud list && codex exec"],
 ]
@@ -611,6 +617,11 @@ for (const [shape, command] of descriptorSuffixAllows) {
 for (const [shape, command] of descriptorSafetyRefusals) {
   T(`adapter orchestrator: descriptor safety ${shape} -> 2`, runHook(ORCH, bash(command)), 2)
 }
+T(
+  "adapter orchestrator: PowerShell variable member access -> 2",
+  runHook(ORCH, powershell("codex cloud list > $obj.Path")),
+  2,
+)
 T("adapter orchestrator: codex exec -> 2", runHook(ORCH, bash('codex exec "do the thing"')), 2)
 T(`adapter orchestrator: gh pr merge ${ADMIN} -> 2`, runHook(ORCH, bash(`gh pr merge 1 --squash ${ADMIN}`)), 2)
 T("adapter orchestrator: gh pr merge --squash -> 0", runHook(ORCH, bash("gh pr merge 1 --squash")), 0)
