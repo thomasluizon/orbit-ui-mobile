@@ -166,6 +166,25 @@ for (const redirect of [">$(printf worker.log)", "2>&$(printf 1)"]) {
 }
 
 const engine = (command, options) => checkEngineInvocation(command, { repoRoots: [], ...options })
+const descriptorSuffixAllows = [
+  ["cloud read before a redirection", "codex cloud list 2>&1 >out.log"],
+  ["zero-cost query before a safe argument", "codex 2>&1 --version"],
+  ["cloud read before a safe argument", "codex cloud list 2>&1 --json"],
+  ["cloud read before another redirection", "codex cloud list 2>&1 3>trace.log"],
+]
+const descriptorSafetyRefusals = [
+  ["dollar command substitution", "2>&$(codex exec 'do work')"],
+  ["backtick command substitution", "2>&`codex exec 'do work'`"],
+  ["dynamic leading redirect", ">$(printf worker.log) codex exec"],
+  ["engine invocation before a pipeline", "codex exec | tee log"],
+  ["engine invocation after a list separator", "codex cloud list && codex exec"],
+]
+for (const [shape, command] of descriptorSuffixAllows) {
+  T(`engine: descriptor duplication ${shape} allows`, engine(command), null)
+}
+for (const [shape, command] of descriptorSafetyRefusals) {
+  T(`engine: descriptor safety ${shape} blocks`, blocks(engine(command)), true)
+}
 T("engine: codex exec blocks", blocks(engine('codex exec "do the thing"')), true)
 T("engine: bare claude blocks", blocks(engine("claude")), true)
 T("engine: claude -p blocks", blocks(engine('claude -p "summarize"')), true)
@@ -574,6 +593,12 @@ T("adapter git-guardrails: push feature -> 0", runHook("git-guardrails.mjs", bas
 T("adapter git-guardrails: worktree remove --force -> 2", runHook("git-guardrails.mjs", bash("git worktree remove --force .claude/worktrees/x")), 2)
 
 const ORCH = "orchestrator-guardrails.mjs"
+for (const [shape, command] of descriptorSuffixAllows) {
+  T(`adapter orchestrator: descriptor duplication ${shape} -> 0`, runHook(ORCH, bash(command)), 0)
+}
+for (const [shape, command] of descriptorSafetyRefusals) {
+  T(`adapter orchestrator: descriptor safety ${shape} -> 2`, runHook(ORCH, bash(command)), 2)
+}
 T("adapter orchestrator: codex exec -> 2", runHook(ORCH, bash('codex exec "do the thing"')), 2)
 T(`adapter orchestrator: gh pr merge ${ADMIN} -> 2`, runHook(ORCH, bash(`gh pr merge 1 --squash ${ADMIN}`)), 2)
 T("adapter orchestrator: gh pr merge --squash -> 0", runHook(ORCH, bash("gh pr merge 1 --squash")), 0)
