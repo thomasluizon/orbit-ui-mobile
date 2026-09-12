@@ -521,9 +521,6 @@ export type {
 export {
   buildRetrospectiveRequestUrl,
   getBestRetrospectiveWeekdayKey,
-  getRetrospectiveCacheKey,
-  RETROSPECTIVE_CACHE_PREFIX,
-  RETROSPECTIVE_PERIODS,
 } from './retrospective'
 export type {
   RetrospectivePeriod,

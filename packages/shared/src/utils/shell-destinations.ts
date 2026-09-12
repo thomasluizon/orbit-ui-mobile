@@ -13,7 +13,6 @@ export const SHELL_DESTINATION_ROUTES: readonly ShellDestinationRoute[] = [
   { pattern: '/calendar-sync', destination: 'calendario' },
   { pattern: '/progress', destination: 'progresso' },
   { pattern: '/goals', destination: 'progresso' },
-  { pattern: '/retrospective', destination: 'progresso' },
   { pattern: '/wrapped', destination: 'progresso' },
   { pattern: '/profile', destination: 'perfil' },
   { pattern: '/preferences', destination: 'perfil' },
