@@ -3,7 +3,9 @@ import { chromium, type Browser } from '@playwright/test'
 export type { Browser }
 export type BrowserLaunch = Promise<Browser>
 
-const CHROME_LAUNCH_TIMEOUT_MS = 10_000
+export const CHROME_LAUNCH_HOOK_TIMEOUT_MS = 45_000
+
+const CHROME_LAUNCH_TIMEOUT_MS = 30_000
 
 export function launchChrome(): BrowserLaunch {
   return chromium.launch({
