@@ -95,10 +95,7 @@
       "m-route-calendar-sync",
       "m-overlay-components-calendar-shell"
     ],
-    "R9-screen-streak": [
-      "route-streak",
-      "m-route-streak"
-    ],
+    "R9-screen-streak": [],
     "R10-screen-achievements": [],
     "R11-screen-astra": [
       "route-ai-settings",

@@ -2052,8 +2052,6 @@
         "setupDesc": "Open AI Settings, create an API key, and add Orbit's MCP endpoint to your assistant. The connection uses a secure OAuth or API-key handshake -- full setup steps live in AI Settings."
       },
       "calendarSection": {
-        "colorsTitle": "Color Coding",
-        "colorsDesc": "Green means all habits completed for that day. Orange means you missed some habits. Purple means habits are upcoming (today or future). Each day with habits shows a small dot indicator.",
         "dayDetailsTitle": "Day Details",
         "dayDetailsDesc": "Tap any day on the calendar to see which habits were scheduled and their completion status.",
         "navigationTitle": "Navigation",
@@ -2076,10 +2074,6 @@
         "wrappedDesc": "A shareable recap of your habits -- your best streaks, biggest wins, and standout stats, wrapped up to look back on and share.",
         "widgetTitle": "Home Screen Widget",
         "widgetDesc": "Android only. Add the Orbit widget to your home screen to see today's habits at a glance -- completion status, due times, and checklist progress. When nothing is scheduled for today, it shows tomorrow's habits instead.",
-        "insightsTitle": "Insights & Analytics",
-        "insightsDesc": "Web only, Pro. A deep analytics dashboard with completion trends, goal velocity, and progress charts across custom time ranges.",
-        "retrospectiveTitle": "AI Retrospective",
-        "retrospectiveDesc": "Orbit Pro. Generate AI-powered retrospectives that analyze your habits over any period (week, month, quarter, year) -- highlights, missed opportunities, trends, and actionable suggestions. Accessible from your Profile.",
         "milestoneShareTitle": "Milestone Sharing",
         "milestoneShareDesc": "When you hit a big streak or achievement, share a milestone card with friends inside Orbit or anywhere else.",
         "referralsTitle": "Invite Links & Referrals",
@@ -2726,62 +2720,15 @@
     }
   },
   "streakDisplay": {
-    "title": "Streak",
-    "daysSuffix": "day | days",
     "badge": {
       "tooltip": "1 day streak | {count} day streak"
     },
-    "profile": {
-      "currentStreak": "1 day streak | {count} day streak",
-      "encouragement1": "Day one done",
-      "encouragement7": "One week",
-      "encouragement14": "Two weeks",
-      "encouragement30": "A full month",
-      "encouragement100": "Triple digits",
-      "encouragement365": "A whole year"
-    },
-    "freeze": {
-      "title": "Streak freeze",
-      "activeToday": "Freeze active today",
-      "auto": {
-        "explainer": "If you miss a day, the freeze is used automatically to keep your streak alive."
-      },
-      "banked": {
-        "label": "Banked"
-      },
-      "usedThisMonth": {
-        "label": "Used this month"
-      },
-      "nextFreeze": {
-        "label": "Next freeze",
-        "inDays": "in {days} days",
-        "full": "Banked full"
-      },
-      "protected": {
-        "label": "Protected days",
-        "empty": "No freezes used yet.",
-        "today": "Today",
-        "todayValue": "Protected"
-      },
-      "pro": {
-        "gate": "Streak freezes are part of Pro."
-      }
-    },
     "detail": {
-      "title": "Streak Details",
-      "thisWeek": "This Week",
-      "stats": "Stats",
-      "currentStreak": "Current",
-      "longestStreak": "Longest",
       "tierLegendary": "Legendary",
       "tierStrong": "Strong",
       "tierSteady": "Steady",
       "tierNormal": "Normal",
-      "tierTileLabel": "Rank",
-      "dayActive": "Active",
-      "dayFrozen": "Frozen",
-      "dayMissed": "Missed",
-      "daysUnit": "day | days"
+      "tierTileLabel": "Rank"
     }
   },
   "stepUp": {
@@ -3196,8 +3143,9 @@
     }
   },
   "dataExport": {
-    "button": "Download my data",
-    "preparing": "Preparing your export...",
+    "button": "Export my data",
+    "preparing": "Preparing",
+    "done": "Your data has been downloaded.",
     "error": "We couldn't prepare your export. Please try again.",
     "shareTitle": "Orbit data export"
   },

@@ -87,7 +87,6 @@ const SLIDE_FROM_RIGHT_SCREENS = [
   'ai-settings',
   'advanced',
   'support',
-  'streak',
   'upgrade',
   'retrospective',
   'wrapped',

@@ -26,15 +26,29 @@ vi.mock('@/components/referral/referral-drawer', () => ({
 
 const TestRenderer = require('react-test-renderer')
 
-const { mockAuthState, mockUseGamificationProfile, mockRouterPush } = vi.hoisted(() => ({
+const {
+  mockApiClient,
+  mockAuthState,
+  mockShareAsync,
+  mockShellNoticeSlot,
+  mockUseGamificationProfile,
+  mockRouterPush,
+} = vi.hoisted(() => ({
+  mockApiClient: vi.fn(),
+  mockShareAsync: vi.fn(),
   mockAuthState: {
     isAuthenticated: true,
     user: { userId: 'user-1' },
     logout: vi.fn(),
   },
   mockUseGamificationProfile: vi.fn(() => ({ profile: null })),
+  mockShellNoticeSlot: vi.fn(),
   mockRouterPush: vi.fn(),
 }))
+
+vi.mock('expo-sharing', () => {
+  return { shareAsync: mockShareAsync }
+})
 
 vi.mock('expo-device', () => ({
   __esModule: true,
@@ -150,7 +164,12 @@ vi.mock('@/lib/theme', () => ({
 }))
 
 vi.mock('@/lib/api-client', () => ({
-  apiClient: vi.fn(),
+  apiClient: mockApiClient,
+}))
+
+vi.mock('@orbit/shared/hooks', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useShellNoticeSlot: mockShellNoticeSlot,
 }))
 
 vi.mock('@/lib/checklist-template-storage', () => ({
@@ -250,18 +269,21 @@ vi.mock('@/components/ui/list-row', () => ({
   ListRow: ({
     title,
     description,
+    value,
     onClick,
     accessibilityLabel,
     chevron = true,
   }: {
     title: string
     description?: string
+    value?: string
     onClick?: () => void
     accessibilityLabel?: string
     chevron?: boolean
   }) => React.createElement('SettingsRowStub', {
     label: title,
     hint: description,
+    value,
     onPress: onClick,
     chevron,
     accessibilityRole: onClick ? 'button' : undefined,
@@ -318,6 +340,7 @@ interface SettingsRowStubNode {
   props: {
     label?: string
     hint?: string
+    value?: string
     onPress?: () => void
     chevron?: boolean
     accessibilityRole?: string
@@ -372,6 +395,9 @@ function findRowByLabel(
 
 describe('ProfileScreen', () => {
   beforeEach(() => {
+    mockApiClient.mockReset()
+    mockShareAsync.mockReset().mockResolvedValue(undefined)
+    mockShellNoticeSlot.mockReset()
     vi.mocked(ExpoNotifications.getPermissionsAsync).mockReset()
     vi.mocked(ExpoNotifications.getPermissionsAsync).mockResolvedValue({
       status: 'undetermined',
@@ -486,6 +512,59 @@ describe('ProfileScreen', () => {
         `missing accessible profile row: ${accessibilityLabel}`,
       ).toHaveLength(1)
     }
+  })
+
+  it('places export last in You instead of Ending things', async () => {
+    const tree = await renderProfileScreen()
+    const youGroup = tree.root.find(
+      (node: { props: { testID?: string } }) =>
+        node.props.testID === 'profile-settings-group-you',
+    )
+    const endingGroup = tree.root.find(
+      (node: { props: { testID?: string } }) =>
+        node.props.testID === 'profile-settings-group-ending',
+    )
+    const youRows = youGroup.findAll(
+      (node: SettingsRowStubNode) => node.type === 'SettingsRowStub',
+    ) as SettingsRowStubNode[]
+
+    expect(youRows.at(-1)?.props.label).toBe('dataExport.button')
+    expect(
+      endingGroup.findAll(
+        (node: SettingsRowStubNode) =>
+          node.type === 'SettingsRowStub' && node.props.label === 'dataExport.button',
+      ),
+    ).toHaveLength(0)
+  })
+
+  it('shows Preparing on the row and registers completion in the shell notice slot', async () => {
+    let finishExport!: (value: Record<string, never>) => void
+    mockApiClient.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishExport = resolve
+      }),
+    )
+    const tree = await renderProfileScreen()
+
+    await TestRenderer.act(async () => {
+      findRowByLabel(tree, 'dataExport.button').props.onPress?.()
+      await Promise.resolve()
+    })
+    expect(findRowByLabel(tree, 'dataExport.button').props.value).toBe(
+      'dataExport.preparing',
+    )
+
+    await TestRenderer.act(async () => {
+      finishExport({})
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(mockShellNoticeSlot.mock.calls.some(([enabled]) => enabled)).toBe(true)
+    const noticeCall = [...mockShellNoticeSlot.mock.calls]
+      .reverse()
+      .find((call) => call[0] === true)
+    const notice = noticeCall?.[1]() as React.ReactElement<{ kind: string; message: string }>
+    expect(notice.props).toMatchObject({ kind: 'done', message: 'dataExport.done' })
   })
 
   it('opens the timezone picker from the timezone row', async () => {

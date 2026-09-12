@@ -1,61 +1,88 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
-
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
-
-const TestRenderer = require('react-test-renderer')
-
-;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }))
-vi.mock('@/lib/use-app-theme', () => ({
-  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
-}))
-vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('Sheet', null, children),
-}))
+
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
+
 vi.mock('@/components/ui/chip', () => ({
-  Chip: ({ children, onPress }: { children: React.ReactNode; onPress: () => void }) => (
-    React.createElement('Chip', { onPress }, children)
-  ),
+  Chip: ({
+    children,
+    onPress,
+  }: {
+    children: React.ReactNode
+    onPress: () => void
+  }) => React.createElement('ChipStub', { onPress }, children),
 }))
 
-function flattenText(node: unknown): string {
-  if (node == null) return ''
-  if (typeof node === 'string' || typeof node === 'number') return String(node)
-  if (Array.isArray(node)) return node.map(flattenText).join('')
-  if (typeof node === 'object' && 'props' in (node as Record<string, unknown>)) {
-    return flattenText((node as { props: { children?: unknown } }).props.children)
-  }
-  return ''
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({
+    currentScheme: 'purple',
+    currentTheme: 'dark',
+  }),
+}))
+
+const TestRenderer = require('react-test-renderer')
+
+type RenderedNode = {
+  props: Record<string, unknown>
 }
 
-describe('FeatureGuideDrawer', () => {
-  it('renders Progresso instead of a standalone goals destination', async () => {
-    let tree: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(() => {
+type RenderedTree = {
+  root: {
+    findAll: (predicate: (node: RenderedNode) => boolean) => RenderedNode[]
+  }
+  toJSON: () => unknown
+}
+
+function pressTab(tree: RenderedTree, label: string) {
+  const tab = tree.root.findAll(
+    (node) => node.props.children === label && typeof node.props.onPress === 'function',
+  )[0]
+  if (!tab) throw new Error(`Missing tab: ${label}`)
+  TestRenderer.act(() => {
+    ;(tab.props.onPress as () => void)()
+  })
+}
+
+describe('FeatureGuideDrawer (mobile)', () => {
+  it('renders Progresso instead of a standalone goals destination', () => {
+    let tree: RenderedTree
+    TestRenderer.act(() => {
       tree = TestRenderer.create(<FeatureGuideDrawer open onClose={vi.fn()} />)
     })
 
-    const chips = tree!.root.findAllByType('Chip')
-    const labels = chips.map((chip: { props: { children?: unknown } }) => flattenText(chip.props.children))
+    expect(JSON.stringify(tree!.toJSON())).toContain('onboarding.featureGuide.progress')
+    expect(JSON.stringify(tree!.toJSON())).not.toContain('onboarding.featureGuide.goals')
 
-    expect(labels).toContain('onboarding.featureGuide.progress')
-    expect(labels).not.toContain('onboarding.featureGuide.goals')
-
-    const progressChip = chips.find(
-      (chip: { props: { children?: unknown } }) =>
-        flattenText(chip.props.children) === 'onboarding.featureGuide.progress',
+    pressTab(tree!, 'onboarding.featureGuide.progress')
+    expect(JSON.stringify(tree!.toJSON())).toContain(
+      'onboarding.featureGuide.progressSection.goalsTitle',
     )
-    await TestRenderer.act(() => progressChip.props.onPress())
+    expect(JSON.stringify(tree!.toJSON())).not.toContain(
+      'onboarding.featureGuide.progressSection.metricsTitle',
+    )
+  })
 
-    const rendered = tree!.root
-      .findAllByType('Text')
-      .map((node: { props: { children?: unknown } }) => flattenText(node.props.children))
-    expect(rendered).toContain('onboarding.featureGuide.progressSection.goalsTitle')
-    expect(rendered).not.toContain('onboarding.featureGuide.progressSection.metricsTitle')
+  it('omits entries for retired surfaces', () => {
+    let tree: RenderedTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<FeatureGuideDrawer open onClose={vi.fn()} />)
+    })
+
+    pressTab(tree!, 'onboarding.featureGuide.calendar')
+    expect(JSON.stringify(tree!.toJSON())).not.toContain(
+      `onboarding.featureGuide.calendarSection.${['colors', 'Title'].join('')}`,
+    )
+
+    pressTab(tree!, 'onboarding.featureGuide.rewards')
+    for (const prefix of ['insights', 'retrospective']) {
+      expect(JSON.stringify(tree!.toJSON())).not.toContain(
+        `onboarding.featureGuide.rewardsSection.${prefix}Title`,
+      )
+    }
   })
 })

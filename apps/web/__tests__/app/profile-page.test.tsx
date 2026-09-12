@@ -1,9 +1,16 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
-const { mockUseGamificationProfile, mockProfileState } = vi.hoisted(() => ({
+const {
+  mockExportUserData,
+  mockShellNoticeSlot,
+  mockUseGamificationProfile,
+  mockProfileState,
+} = vi.hoisted(() => ({
+  mockExportUserData: vi.fn(),
+  mockShellNoticeSlot: vi.fn(),
   mockUseGamificationProfile: vi.fn(() => ({ profile: null })),
   mockProfileState: {
     current: {
@@ -12,6 +19,13 @@ const { mockUseGamificationProfile, mockProfileState } = vi.hoisted(() => ({
       error: null as Error | null,
     },
   },
+}))
+
+vi.mock('@/app/actions/profile', () => ({ exportUserData: mockExportUserData }))
+
+vi.mock('@orbit/shared/hooks', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useShellNoticeSlot: mockShellNoticeSlot,
 }))
 
 vi.mock('next-intl', () => ({
@@ -114,6 +128,13 @@ import ProfilePage from '@/app/(app)/profile/page'
 
 describe('ProfilePage', () => {
   beforeEach(() => {
+    mockExportUserData.mockReset()
+    mockShellNoticeSlot.mockReset()
+    Object.defineProperties(URL, {
+      createObjectURL: { configurable: true, value: vi.fn(() => 'blob:export') },
+      revokeObjectURL: { configurable: true, value: vi.fn() },
+    })
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
     mockUseGamificationProfile.mockClear()
     mockProfileState.current = {
       profile: createMockProfile({ hasProAccess: false, currentStreak: 13 }),
@@ -181,6 +202,41 @@ describe('ProfilePage', () => {
     expect(
       screen.getByRole('button', { name: 'profile.marketingEmails.decline' }),
     ).toBeInTheDocument()
+  })
+
+  it('places export last in You instead of Ending things', () => {
+    render(<ProfilePage />)
+
+    const youGroup = screen.getByTestId('profile-settings-group-you')
+    const endingGroup = screen.getByTestId('profile-settings-group-ending')
+    const youButtons = Array.from(youGroup.querySelectorAll('button'))
+
+    expect(youButtons.at(-1)).toHaveAccessibleName(/dataExport\.button/i)
+    expect(endingGroup).not.toHaveTextContent('dataExport.button')
+  })
+
+  it('shows Preparing on the row and registers completion in the shell notice slot', async () => {
+    let finishExport!: (value: Record<string, never>) => void
+    mockExportUserData.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishExport = resolve
+      }),
+    )
+    render(<ProfilePage />)
+
+    const exportRow = screen.getByRole('button', { name: /dataExport\.button/i })
+    fireEvent.click(exportRow)
+    expect(exportRow).toHaveTextContent('dataExport.preparing')
+
+    await act(async () => finishExport({}))
+    await waitFor(() => {
+      expect(mockShellNoticeSlot.mock.calls.some(([enabled]) => enabled)).toBe(true)
+    })
+    const noticeCall = [...mockShellNoticeSlot.mock.calls]
+      .reverse()
+      .find((call) => call[0] === true)
+    const notice = noticeCall?.[1]() as React.ReactElement<{ kind: string; message: string }>
+    expect(notice.props).toMatchObject({ kind: 'done', message: 'dataExport.done' })
   })
 
   it('opens the timezone picker from the timezone row', () => {

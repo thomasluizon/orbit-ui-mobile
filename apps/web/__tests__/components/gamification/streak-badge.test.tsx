@@ -25,7 +25,7 @@ describe('StreakBadge', () => {
     pushMock.mockClear()
   })
 
-  it('stays visible at streak 0 and still routes to the streak page', () => {
+  it('stays visible at streak 0 and still routes to Progresso', () => {
     render(<StreakBadge streak={0} />)
     const button = screen.getByRole('button')
     expect(button).toBeInTheDocument()
@@ -43,7 +43,7 @@ describe('StreakBadge', () => {
     expect(document.body.textContent).toContain('5')
   })
 
-  it('navigates to the streak page when clicked', () => {
+  it('navigates to Progresso when clicked', () => {
     render(<StreakBadge streak={5} />)
     fireEvent.click(screen.getByRole('button'))
     expect(pushMock).toHaveBeenCalledWith('/progress')
