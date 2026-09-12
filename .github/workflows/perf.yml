@@ -49,8 +49,12 @@ jobs:
           echo "::error::mock orbit-api failed to become healthy on :5099"
           exit 1
 
-      - name: Run authed Today Lighthouse budget gate
+      - name: Run median TBT and script budget gates
         run: npx lhci autorun --config apps/web/lighthouserc.json
+
+      - name: Run trimmed authed Today LCP budget gate
+        if: always()
+        run: node apps/web/perf/assert-lcp-budget.mjs
 
       - name: Stop mock orbit-api
         if: always()
