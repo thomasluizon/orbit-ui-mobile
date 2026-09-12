@@ -79,6 +79,7 @@ describe('notification-actions', () => {
   it.each([
     '/streak',
     '/achievements?earned=latest',
+    '/insights?range=year',
     '/goals/legacy-detail',
     '/retrospective/year',
   ])('resolves the absorbed route %s to Progresso', (url) => {

@@ -134,9 +134,7 @@
     "R12-screen-insights": [
       "route-progress",
       "m-route-tabs-progress",
-      "route-retrospective",
       "route-wrapped",
-      "m-route-retrospective",
       "m-route-wrapped",
       "m-overlay-edit-goal-modal-edit-goal-deadline-field",
       "m-overlay-goals-edit-goal-modal",

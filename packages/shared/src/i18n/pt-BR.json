@@ -1009,46 +1009,6 @@
       "syncFailed": "A sincronização falhou. Tente de novo."
     }
   },
-  "insights": {
-    "title": "Análises",
-    "subtitle": "Tendências e padrões dos seus hábitos",
-    "rangeWeek": "Semana",
-    "rangeMonth": "Mês",
-    "rangeQuarter": "Trimestre",
-    "rangeYear": "Ano",
-    "empty": "Ainda não há dados suficientes. Continue registrando hábitos para ver suas análises.",
-    "loading": "Carregando análises...",
-    "error": "Não foi possível carregar suas análises.",
-    "lockedTitle": "Análises com o Pro",
-    "lockedDescription": "Assine o Pro para ver tendências e padrões dos seus hábitos.",
-    "trendUp": "Em alta",
-    "trendDown": "Em queda",
-    "sections": {
-      "completionTrends": "Tendências de conclusão",
-      "multiHabitComparison": "Comparação de hábitos",
-      "goalProgress": "Progresso das metas",
-      "monthlyHeatmap": "Mapa de calor mensal",
-      "streakHistory": "Histórico de sequências",
-      "achievementsTimeline": "Linha do tempo de conquistas",
-      "xpOverTime": "XP ao longo do tempo",
-      "completionTrendsDesc": "Como sua taxa de conclusão muda ao longo do tempo",
-      "goalProgressDesc": "Progresso em cada meta ativa",
-      "xpOverTimeDesc": "XP que você ganhou no período",
-      "streakHistoryDesc": "O tamanho da sua sequência dia a dia",
-      "monthlyHeatmapDesc": "Hábitos que você concluiu a cada dia",
-      "achievementsTimelineDesc": "Conquistas que você ganhou, mais recentes primeiro",
-      "multiHabitComparisonDesc": "Seus hábitos por sequência atual",
-      "heatmapCell": "{date}: {count} concluídos",
-      "heatmapLess": "Menos",
-      "heatmapMore": "Mais",
-      "achievementsOf": "de {total}",
-      "selectGoal": "Selecione uma meta",
-      "noGoals": "Nenhuma meta para mostrar ainda",
-      "goalProgressEmpty": "Nenhum progresso registrado para esta meta ainda.",
-      "averageCaption": "média",
-      "streakDaysShort": "{count}d"
-    }
-  },
   "explore": {
     "title": "Explorar",
     "subtitle": "Tudo o que o Orbit pode fazer, em um só lugar.",
@@ -1382,8 +1342,6 @@
       "emailInvalid": "Digite um e-mail válido."
     },
     "logout": "Sair",
-    "retrospectiveTitle": "Retrospectiva",
-    "retrospectiveHint": "Insights da IA sobre seus hábitos ao longo do tempo",
     "wrappedTitle": "Seu Wrapped",
     "wrappedHint": "Um resumo compartilhável da sua semana, mês ou ano",
     "widgetTitle": "Widget na tela inicial",
@@ -1512,6 +1470,7 @@
     "empty": "Registre alguns hábitos primeiro para criar um card que valha a pena compartilhar.",
     "error": "Não foi possível carregar seu resumo. Tente novamente.",
     "shareError": "Não foi possível compartilhar seu card. Tente novamente.",
+    "weeklyBarLabel": "Conclusão em {day}: {percent}%",
     "periods": {
       "week": "Semana",
       "month": "Mês",
@@ -1717,45 +1676,6 @@
     "askAstra": "Pergunte à Astra",
     "upgrade": "Fazer upgrade",
     "freePrompt": "No Pro, você recebe um resumo diário dos seus hábitos."
-  },
-  "retrospective": {
-    "title": "Retrospectiva",
-    "locked": "A retrospectiva é um recurso Pro",
-    "lockedHint": "Faça upgrade para o Pro e libere retrospectivas com IA que analisam seus hábitos ao longo do tempo.",
-    "changePlan": "Mudar plano",
-    "generate": "Gerar retrospectiva",
-    "generating": "Analisando seus hábitos...",
-    "error": "Não foi possível gerar sua retrospectiva.",
-    "empty": "Escolha um período e gere uma retrospectiva para ver os insights da Astra sobre seus hábitos.",
-    "noData": "Você ainda não tem hábitos registrados nesse período. Conclua alguns e volte aqui.",
-    "cached": "Carregado do cache",
-    "astraEyebrow": "Astra",
-    "regenerate": "Regenerar",
-    "metrics": {
-      "completionRate": "Conclusão",
-      "logs": "Registros",
-      "currentStreak": "Sequência",
-      "activeDays": "Dias ativos"
-    },
-    "weeklyTitle": "Consistência semanal",
-    "weeklyBarLabel": "Conclusão em {day}: {percent}%",
-    "topHabitsTitle": "Melhores hábitos",
-    "needsAttentionTitle": "Precisa de atenção",
-    "completed": "Concluído",
-    "notCompleted": "Não concluído",
-    "sections": {
-      "highlights": "Destaques",
-      "missed": "Oportunidades perdidas",
-      "trends": "Tendências",
-      "suggestion": "Sugestão"
-    },
-    "periods": {
-      "week": "Semana",
-      "month": "Mês",
-      "quarter": "Trimestre",
-      "semester": "Semestre",
-      "year": "Ano"
-    }
   },
   "onboarding": {
     "flow": {
@@ -3039,10 +2959,6 @@
       "subscription": {
         "title": "Assinatura",
         "description": "O plano grátis inclui 5 mensagens da Astra por dia. O Pro inclui 50, dez vezes mais."
-      },
-      "retrospective": {
-        "title": "Retrospectiva com IA",
-        "description": "Receba uma análise detalhada da IA sobre os seus padrões de hábitos ao longo do tempo. Disponível por semana, mês, trimestre ou ano."
       },
       "achievements": {
         "title": "Conquistas e níveis",

@@ -88,7 +88,6 @@ const SLIDE_FROM_RIGHT_SCREENS = [
   'advanced',
   'support',
   'upgrade',
-  'retrospective',
   'wrapped',
   'calendar-sync',
   'step-up',

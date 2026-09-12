@@ -92,6 +92,12 @@ describe('FeatureGuideDrawer', () => {
     expect(document.body.textContent).toContain(
       'onboarding.featureGuide.rewardsSection.referralsTitle',
     )
+    expect(document.body.textContent).not.toContain(
+      'onboarding.featureGuide.rewardsSection.insightsTitle',
+    )
+    expect(document.body.textContent).not.toContain(
+      'onboarding.featureGuide.rewardsSection.retrospectiveTitle',
+    )
   })
 
   it('omits entries for retired surfaces', () => {
