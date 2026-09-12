@@ -202,9 +202,13 @@ name belong to dimension 1; do not over-claim completeness here.
 
 ### 8. Cross-platform parity
 
-> Reference: root CLAUDE.md "Cross-platform parity (MANDATORY)". **The `Cross-Platform Parity` gate only
+> Reference: root CLAUDE.md "Cross-platform parity (MANDATORY)" and generated `architecture.json` at the
+> repository root. Run `node tools/arch-map.mjs` to create it. **The `Cross-Platform Parity` gate only
 > counts changed files per platform**, so it catches a wholly one-sided PR and nothing else. Per-file
 > mirrors and behavioural equivalence are yours.
+
+A new screen or route triggers this dimension. Verify its generated `routes.web` or `routes.mobile` entry,
+including `platform`, `routePath`, and `sourceFile`, then check `routes.parityPairs` and `routes.unpaired`.
 
 Every changed `apps/web/**` file has its `apps/mobile/**` mirror changed in the same PR and vice versa:
 `hooks/use-<x>.ts`, `stores/<x>-store.ts`, and `components/<feature>/<X>.tsx` map one to one,
@@ -293,17 +297,19 @@ and service has a unit test, and unit is all there is, so never ask for an integ
 ### 12. Generated gating matrix
 
 > Reference: generated `gating-matrix.json` at the `thomasluizon/orbit-api` repository root. Run
-> `node tools/gating-matrix.mjs` there to create it. **Gated: only when the diff changes the user-facing
-> feature surface.**
+> `node tools/gating-matrix.mjs` there to create it. It contains PayGate methods, config keys, and feature
+> flags. **Gated: only when the diff changes plan gating.**
 
-Triggers: a new screen, route, or tab; a new or removed Astra (`IAiTool`) or MCP (`[McpServerTool]`) tool; a
-plan-gating change (`PayGateService`, `AppConstants`); a platform-availability or locale-specific behaviour
-change. Pure refactors, bugfixes, and visual polish are N/A. Generate `gating-matrix.json` from the
-candidate orbit-api tree and verify the UI against its `gates`, `appConfigs`, and `featureFlags`. Treat its
+Triggers: a plan-gating change in `PayGateService` or `AppConstants`, or UI behaviour that relies on those
+gates. Pure refactors, unrelated bugfixes, and visual polish are N/A. Generate `gating-matrix.json` from the
+candidate orbit-api tree and verify the affected `gates`, `appConfigs`, and `featureFlags` entry. Treat its
 compiled defaults as offline evidence only because live `AppConfigs` rows can override them. A stale gating
-or platform claim is **High**, and a change that makes the in-app guide (`onboarding.featureGuide.*`) wrong
-is **Medium**. In the orbit-api repo, regenerate `gating-matrix.json` and verify the affected entry instead
-of guessing or requesting a hand-written frontend update.
+claim is **High**. In the orbit-api repo, regenerate the matrix and verify the affected entry instead of
+guessing or requesting a hand-written frontend update.
+
+**Currently unverifiable inventory dimensions:** tab membership, Astra and MCP tool counts, feature platform
+availability beyond route or screen presence, locale-specific behaviour, feature descriptions, and in-app
+guide coverage have no authoritative generated source.
 
 ### 13. External-interface evidence
 
