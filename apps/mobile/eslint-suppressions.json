@@ -394,11 +394,6 @@
       "count": 1
     }
   },
-  "components/wrapped/wrapped-entry-button.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
   "components/wrapped/wrapped-player.tsx": {
     "local/icon-size-grid": {
       "count": 2
