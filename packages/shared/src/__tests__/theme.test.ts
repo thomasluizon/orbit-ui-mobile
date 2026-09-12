@@ -188,6 +188,21 @@ interface DirectBadFillReference {
   source: string
 }
 
+function directBadFillReferencesInSource(path: string, source: string): DirectBadFillReference[] {
+  return [...source.matchAll(DIRECT_BAD_FILL_PATTERN)].map((match) => {
+    const offset = match.index
+    const precedingSource = source.slice(0, offset)
+    const lineStart = precedingSource.lastIndexOf('\n') + 1
+    return {
+      column: offset - lineStart + 1,
+      line: precedingSource.match(/\n/g)?.length ?? 0,
+      offset,
+      path,
+      source,
+    }
+  })
+}
+
 function productionSourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     if (entry.name === '__tests__' || entry.name === 'node_modules' || entry.name === '.next') return []
@@ -207,27 +222,77 @@ function directBadFillReferences(): DirectBadFillReference[] {
   return sourceFiles.flatMap((path) => {
     const source = readFileSync(path, 'utf8')
     const repositoryPath = relative(REPOSITORY_ROOT, path).replaceAll('\\', '/')
-    return [...source.matchAll(DIRECT_BAD_FILL_PATTERN)].map((match) => {
-      const offset = match.index
-      const precedingSource = source.slice(0, offset)
-      const lineStart = precedingSource.lastIndexOf('\n') + 1
-      return {
-        column: offset - lineStart + 1,
-        line: precedingSource.match(/\n/g)?.length ?? 0,
-        offset,
-        path: repositoryPath,
-        source,
-      }
-    })
+    return directBadFillReferencesInSource(repositoryPath, source)
   })
+}
+
+function jsxTagEnd(source: string, tagStart: number): number {
+  let braceDepth = 0
+  let quote: string | null = null
+  for (let index = tagStart; index < source.length; index += 1) {
+    const character = source[index]!
+    if (quote !== null) {
+      if (character === quote && source[index - 1] !== '\\') quote = null
+      continue
+    }
+    if (character === "'" || character === '"' || character === '`') {
+      quote = character
+    } else if (character === '{') {
+      braceDepth += 1
+    } else if (character === '}') {
+      braceDepth -= 1
+    } else if (character === '>' && braceDepth === 0) {
+      return index
+    }
+  }
+  return -1
 }
 
 function openingTagAt(reference: DirectBadFillReference): string | null {
   const tagStart = reference.source.lastIndexOf('<', reference.offset)
   const priorTagEnd = reference.source.lastIndexOf('>', reference.offset)
-  const tagEnd = reference.source.indexOf('>', reference.offset)
-  if (tagStart < 0 || tagStart < priorTagEnd || tagEnd < reference.offset) return null
+  if (tagStart < 0 || tagStart < priorTagEnd) return null
+  const tagEnd = jsxTagEnd(reference.source, tagStart)
+  if (tagEnd < reference.offset) return null
   return reference.source.slice(tagStart, tagEnd + 1)
+}
+
+function importedGraphicNames(source: string): Set<string> {
+  const names = new Set<string>()
+  const imports = source.matchAll(
+    /import\s*\{([^}]*)\}\s*from\s*['"]@\/components\/ui\/icons?['"]/g,
+  )
+  for (const match of imports) {
+    for (const specifier of match[1]!.split(',')) {
+      const importedName = specifier.trim().replace(/^type\s+/, '')
+      if (importedName === '') continue
+      names.add(importedName.split(/\s+as\s+/).at(-1)!)
+    }
+  }
+  return names
+}
+
+function openingTagHasGraphicRole(openingTag: string, source: string): boolean {
+  const names = importedGraphicNames(source)
+  const componentName = openingTag.match(/^<([A-Z][\w]*)\b/)?.[1]
+  if (componentName !== undefined && names.has(componentName)) return true
+  const iconName = openingTag.match(/\bicon=\{([A-Z][\w]*)\}/)?.[1]
+  return iconName !== undefined && names.has(iconName)
+}
+
+function hasOnlyGraphicButtonChildren(reference: DirectBadFillReference): boolean {
+  const buttonStart = reference.source.lastIndexOf('<button', reference.offset)
+  const priorButtonEnd = reference.source.lastIndexOf('</button>', reference.offset)
+  if (buttonStart < 0 || buttonStart < priorButtonEnd) return false
+  const openingEnd = jsxTagEnd(reference.source, buttonStart)
+  if (openingEnd < reference.offset) return false
+  const closingStart = reference.source.indexOf('</button>', openingEnd)
+  if (closingStart < 0) return false
+  const children = reference.source.slice(openingEnd + 1, closingStart)
+  const graphicNames = importedGraphicNames(reference.source)
+  const hasGraphic = [...graphicNames].some((name) => new RegExp(`<${name}\\b`).test(children))
+  const childContent = children.replace(/<[^>]+>/g, '').trim()
+  return hasGraphic && childContent === ''
 }
 
 function cssSelectorAt(reference: DirectBadFillReference): string | null {
@@ -249,28 +314,24 @@ function hasSurfaceRole(reference: DirectBadFillReference): boolean {
 
 function hasGraphicRole(reference: DirectBadFillReference): boolean {
   const before = reference.source.slice(Math.max(0, reference.offset - 600), reference.offset)
-  const lineBefore = before.slice(before.lastIndexOf('\n') + 1)
   const openingTag = openingTagAt(reference)
-  const buttonStart = reference.source.lastIndexOf('<button', reference.offset)
-  const buttonEnd = reference.source.lastIndexOf('</button>', reference.offset)
-  const buttonOpeningEnd = reference.source.indexOf('>', reference.offset)
-  const buttonOpeningTag = buttonStart > buttonEnd && buttonOpeningEnd > reference.offset
-    ? reference.source.slice(buttonStart, buttonOpeningEnd + 1)
-    : null
   const selector = cssSelectorAt(reference)
-  return /(?:graphic(?:ClassName)?|iconColor|dangerColor|\bbad)\s*[:=][^;\n]*$/.test(before)
+  return /(?:graphic(?:ClassName)?|iconColor|dangerColor|\bring)\s*[:=][^;\n]*$/.test(before)
     || /function\s+\w*(?:Accent|Ring\w*Color)\b[\s\S]*$/.test(before)
-    || openingTag !== null && /^<(?!Text\b)[A-Z][\w.]*/.test(openingTag)
-    || buttonOpeningTag !== null && /aria-label=/.test(buttonOpeningTag)
+    || /export function Status(?:Ring|Dot)\b[\s\S]*\bbad\s*:\s*[^,]*$/.test(before)
+    || /(?:STATUS_COLOR|COLOR_VAR|colorMap)[\s\S]*\bbad\s*:\s*[^,]*$/.test(before)
+    || openingTag !== null && openingTagHasGraphicRole(openingTag, reference.source)
+    || hasOnlyGraphicButtonChildren(reference)
     || selector !== null && /(?:icon|glyph)/i.test(selector)
     || selector !== null
       && reference.source.includes(`${selector} .`)
       && reference.source.includes('var(--status-bad-text)')
-    || /\bcolor=\{?[^{}\n]*$/.test(lineBefore)
 }
 
-function unreviewedBadFillReferences(): string[] {
-  return directBadFillReferences().flatMap((reference) => {
+function unreviewedBadFillReferences(
+  references = directBadFillReferences(),
+): string[] {
+  return references.flatMap((reference) => {
     if (hasSurfaceRole(reference) || hasGraphicRole(reference)) return []
     const lineSource = reference.source.split('\n')[reference.line]?.trim() ?? ''
     return [`${reference.path}:${reference.line + 1}:${reference.column} ${lineSource}`]
@@ -530,6 +591,41 @@ describe('bad status source roles', () => {
 
   it('derives direct fill-token references and rejects unreviewed text-role syntax', () => {
     expect(unreviewedBadFillReferences()).toEqual([])
+  })
+
+  it('rejects the fill token in a custom text component and accepts the text token', () => {
+    const path = 'apps/web/components/habits/habit-row-content.tsx'
+    const fillSource = [
+      'return (',
+      '  <TitleText title={habit.title} size={titleSize} color="var(--status-bad)" strikethrough={isDone} />',
+      ')',
+    ].join('\n')
+    const fillReferences = directBadFillReferencesInSource(path, fillSource)
+    expect(unreviewedBadFillReferences(fillReferences)).toEqual([
+      `${path}:2:58 <TitleText title={habit.title} size={titleSize} color="var(--status-bad)" strikethrough={isDone} />`,
+    ])
+
+    const textSource = fillSource.replace('var(--status-bad)', 'var(--status-bad-text)')
+    expect(unreviewedBadFillReferences(directBadFillReferencesInSource(path, textSource))).toEqual([])
+  })
+
+  it('rejects the fill token in a text-bearing accessible icon button', () => {
+    const path = 'apps/web/components/ui/destructive-action.tsx'
+    const fillSource = [
+      "import { Trash2 } from '@/components/ui/icons'",
+      'return (',
+      '  <button aria-label={label} className="text-[var(--status-bad)]">',
+      '    <Trash2 size={16} aria-hidden="true" /><span>{label}</span>',
+      '  </button>',
+      ')',
+    ].join('\n')
+    const fillReferences = directBadFillReferencesInSource(path, fillSource)
+    expect(unreviewedBadFillReferences(fillReferences)).toEqual([
+      `${path}:3:47 <button aria-label={label} className="text-[var(--status-bad)]">`,
+    ])
+
+    const textSource = fillSource.replace('var(--status-bad)', 'var(--status-bad-text)')
+    expect(unreviewedBadFillReferences(directBadFillReferencesInSource(path, textSource))).toEqual([])
   })
 
   it.each(BAD_GRAPHIC_SOURCE_SITES)(
