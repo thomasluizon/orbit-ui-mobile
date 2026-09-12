@@ -4,7 +4,9 @@ import {
   buildCalendarSyncImportRequest,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
+  getCalendarSyncClockValue,
   isCalendarAutoSyncStatusReconnectRequired,
+  isCalendarSyncConnectionActive,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
 } from '../utils/calendar-sync'
@@ -113,6 +115,19 @@ describe('calendar-sync utils', () => {
     expect(isCalendarAutoSyncStatusReconnectRequired('ReconnectRequired')).toBe(true)
     expect(isCalendarAutoSyncStatusReconnectRequired('Idle')).toBe(false)
     expect(isCalendarAutoSyncStatusReconnectRequired(null)).toBe(false)
+  })
+
+  it('derives the connection line from confirmed profile fields', () => {
+    expect(isCalendarSyncConnectionActive(true, 'Idle')).toBe(true)
+    expect(isCalendarSyncConnectionActive(true, 'TransientError')).toBe(true)
+    expect(isCalendarSyncConnectionActive(true, 'ReconnectRequired')).toBe(false)
+    expect(isCalendarSyncConnectionActive(false, 'Idle')).toBe(false)
+  })
+
+  it('extracts the local clock value from the last sync timestamp', () => {
+    expect(getCalendarSyncClockValue('2026-09-12T09:12:00')).toBe('09:12')
+    expect(getCalendarSyncClockValue(null)).toBeNull()
+    expect(getCalendarSyncClockValue('invalid')).toBeNull()
   })
 
   it('recognizes not-connected messages', () => {

@@ -101,6 +101,15 @@ export const profileSchema = z.object({
 
 export type Profile = z.infer<typeof profileSchema>
 
+export type CalendarSyncProfile = Pick<
+  Profile,
+  | 'hasProAccess'
+  | 'hasGoogleConnection'
+  | 'googleCalendarAutoSyncEnabled'
+  | 'googleCalendarAutoSyncStatus'
+  | 'googleCalendarLastSyncedAt'
+>
+
 export const updateTimezoneRequestSchema = z.object({
   timeZone: z.string(),
 })

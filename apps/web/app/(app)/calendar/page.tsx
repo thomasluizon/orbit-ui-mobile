@@ -17,6 +17,8 @@ import {
 } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { useLocale, useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import {
   formatAPIDate,
   parseAPIDate,
@@ -25,9 +27,11 @@ import {
   filterCalendarSyncEventsByDate,
   clampRangeToMaxDays,
   MAX_RANGE_DAYS,
+  getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
+import { useSetCalendarAutoSync } from '@/hooks/use-calendar-auto-sync'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
@@ -94,7 +98,15 @@ export default function CalendarPage() {
 }
 
 interface CalendarPageContentProps {
-  profile: Pick<Profile, 'weekStartDay'>
+  profile: Pick<
+    Profile,
+    | 'weekStartDay'
+    | 'hasProAccess'
+    | 'hasGoogleConnection'
+    | 'googleCalendarAutoSyncEnabled'
+    | 'googleCalendarAutoSyncStatus'
+    | 'googleCalendarLastSyncedAt'
+  >
   currentMonth: Date
   setCurrentMonth: Dispatch<SetStateAction<Date>>
   monthQuery: ReturnType<typeof useCalendarData>
@@ -108,6 +120,7 @@ function CalendarPageContent({
   monthQuery,
 }: Readonly<CalendarPageContentProps>) {
   const t = useTranslations()
+  const router = useRouter()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const { displayTime } = useTimeFormat()
@@ -132,7 +145,26 @@ function CalendarPageContent({
   )
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false)
   const [showRecurring, setShowRecurring] = useState(true)
-  const { data: calendarEventsResult } = useCalendarEvents()
+  const { data: calendarEventsResult } = useCalendarEvents({ enabled: profile.hasProAccess })
+  const setCalendarAutoSync = useSetCalendarAutoSync()
+
+  const handleCalendarAutoSyncChange = useCallback(async (enabled: boolean) => {
+    try {
+      await setCalendarAutoSync.mutateAsync({ enabled })
+    } catch (error: unknown) {
+      toast.error(getFriendlyErrorMessage(
+        error,
+        t,
+        'calendar.autoSync.syncFailed',
+        'generic',
+      ))
+      throw error
+    }
+  }, [setCalendarAutoSync, t])
+
+  const openOrbitPro = useCallback(() => {
+    router.push('/upgrade')
+  }, [router])
 
   const { dayMap, isLoading, isFetching, error, refresh } = monthQuery
 
@@ -441,8 +473,11 @@ function CalendarPageContent({
                       dateStr={selectedDay}
                       entries={selectedEntries}
                       calendarEvents={selectedCalendarEvents}
+                      syncProfile={profile}
                       showRecurring={showRecurring}
                       onShowRecurringChange={setShowRecurring}
+                      onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
+                      onOpenPro={openOrbitPro}
                       fitViewport
                     />
                   </section>
@@ -521,8 +556,11 @@ function CalendarPageContent({
           dateStr={selectedDay}
           entries={selectedEntries}
           calendarEvents={selectedCalendarEvents}
+          syncProfile={profile}
           showRecurring={showRecurring}
           onShowRecurringChange={setShowRecurring}
+          onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
+          onOpenPro={openOrbitPro}
         />
       </Sheet>) : null}
     </div>

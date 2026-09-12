@@ -918,7 +918,13 @@
     "loadError": "Não foi possível carregar o calendário. Tente de novo.",
     "dayDetail": {
       "completionSummary": "{done} de {total} hábito concluído | {done} de {total} hábitos concluídos",
-      "eventsTitle": "Na sua agenda"
+      "eventsTitle": "Na sua agenda",
+      "syncBoundary": "Sincronizar com o Google Calendar faz parte do Orbit Pro.",
+      "syncBoundaryBody": "Com ele, os seus compromissos aparecem ao lado dos hábitos do dia.",
+      "viewPro": "Ver o Pro",
+      "googleConnected": "Google Calendar conectado",
+      "lastSynced": "Última sincronização {time}",
+      "autoSync": "Sincronizar sozinho"
     },
     "noHabitsScheduled": "Nenhum hábito agendado para este dia.",
     "goToDay": "Ver este dia",

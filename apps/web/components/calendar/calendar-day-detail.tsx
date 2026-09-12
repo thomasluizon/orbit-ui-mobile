@@ -10,15 +10,20 @@ import { useDateFormat } from '@/hooks/use-date-format'
 import { parseAPIDate, filterRecurringEntries } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarSyncEvent } from '@orbit/shared'
+import type { CalendarSyncProfile } from '@orbit/shared/types/profile'
 import { ShowRecurringToggle } from '@/components/calendar/show-recurring-toggle'
 import { EventRow } from '@/components/dates/event-row'
+import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
 
 interface CalendarDayDetailProps {
   dateStr: string | null
   entries: CalendarDayEntry[]
   calendarEvents: CalendarSyncEvent[]
+  syncProfile: CalendarSyncProfile
   showRecurring: boolean
   onShowRecurringChange: (value: boolean) => void
+  onCalendarAutoSyncChange: (value: boolean) => Promise<void>
+  onOpenPro: () => void
   /** Desktop side-panel mode: the entries list scrolls within the viewport, a
    *  bottom fade hints at more content, and the go-to-day CTA stays pinned below. */
   fitViewport?: boolean
@@ -52,8 +57,11 @@ export function CalendarDayDetail({
   dateStr,
   entries,
   calendarEvents,
+  syncProfile,
   showRecurring,
   onShowRecurringChange,
+  onCalendarAutoSyncChange,
+  onOpenPro,
   fitViewport = false,
 }: Readonly<CalendarDayDetailProps>) {
   const t = useTranslations()
@@ -226,7 +234,7 @@ export function CalendarDayDetail({
         </div>
       )}
 
-      {calendarEvents.length > 0 && (
+      {syncProfile.hasProAccess && calendarEvents.length > 0 && (
         <div className="flex flex-col" style={{ gap: 8, marginTop: 16 }}>
           <p
             className="text-sm font-medium text-[var(--fg-2)]"
@@ -255,6 +263,16 @@ export function CalendarDayDetail({
           </div>
         </div>
       )}
+
+      <div style={{ marginTop: 16 }}>
+        <CalendarSyncBoundary
+          profile={syncProfile}
+          displayTime={displayTime}
+          onAutoSyncChange={onCalendarAutoSyncChange}
+          onOpenPro={onOpenPro}
+          wide={fitViewport}
+        />
+      </div>
     </>
   )
 

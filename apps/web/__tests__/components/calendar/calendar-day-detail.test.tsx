@@ -40,6 +40,24 @@ vi.mock('next/link', () => ({
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarSyncEvent } from '@orbit/shared'
+import type { Profile } from '@orbit/shared/types/profile'
+
+type CalendarSyncProfile = Pick<
+  Profile,
+  | 'hasProAccess'
+  | 'hasGoogleConnection'
+  | 'googleCalendarAutoSyncEnabled'
+  | 'googleCalendarAutoSyncStatus'
+  | 'googleCalendarLastSyncedAt'
+>
+
+const proSyncProfile: CalendarSyncProfile = {
+  hasProAccess: true,
+  hasGoogleConnection: true,
+  googleCalendarAutoSyncEnabled: true,
+  googleCalendarAutoSyncStatus: 'Idle',
+  googleCalendarLastSyncedAt: '2026-09-12T09:12:00Z',
+}
 
 function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
   return {
@@ -57,24 +75,33 @@ interface RenderProps {
   dateStr: string | null
   entries: CalendarDayEntry[]
   calendarEvents?: CalendarSyncEvent[]
+  syncProfile?: CalendarSyncProfile
   showRecurring?: boolean
   onShowRecurringChange?: (value: boolean) => void
+  onCalendarAutoSyncChange?: (value: boolean) => Promise<void>
+  onOpenPro?: () => void
 }
 
 function renderDetail({
   dateStr,
   entries,
   calendarEvents = [],
+  syncProfile = proSyncProfile,
   showRecurring = true,
   onShowRecurringChange = () => {},
+  onCalendarAutoSyncChange = async () => {},
+  onOpenPro = () => {},
 }: RenderProps) {
   return render(
     <CalendarDayDetail
       dateStr={dateStr}
       entries={entries}
       calendarEvents={calendarEvents}
+      syncProfile={syncProfile}
       showRecurring={showRecurring}
       onShowRecurringChange={onShowRecurringChange}
+      onCalendarAutoSyncChange={onCalendarAutoSyncChange}
+      onOpenPro={onOpenPro}
     />,
   )
 }
@@ -142,6 +169,45 @@ describe('CalendarDayDetail', () => {
     })
     expect(within(timedEvent).queryByRole('button')).toBeNull()
     expect(within(allDayEvent).queryByRole('button')).toBeNull()
+  })
+
+  it('keeps habit data visible while replacing Google events with the free plan boundary', () => {
+    const onOpenPro = vi.fn()
+    renderDetail({
+      dateStr: '2025-06-15',
+      entries: [makeEntry({ title: 'Read' })],
+      calendarEvents: [{
+        id: 'event-1', title: 'Team meeting', description: null,
+        startDate: '2025-06-15', startTime: '09:00', endTime: null,
+        isRecurring: false, recurrenceRule: null, reminders: [],
+      }],
+      syncProfile: { ...proSyncProfile, hasProAccess: false },
+      onOpenPro,
+    })
+
+    expect(screen.getByText('Read')).toBeInTheDocument()
+    expect(screen.queryByText('Team meeting')).not.toBeInTheDocument()
+    expect(screen.getByText('calendar.dayDetail.syncBoundary')).toBeInTheDocument()
+    expect(screen.getByText('calendar.dayDetail.syncBoundaryBody')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'calendar.dayDetail.viewPro' }))
+    expect(onOpenPro).toHaveBeenCalledOnce()
+  })
+
+  it('builds the Pro sync line and switch from the profile fields', () => {
+    const onCalendarAutoSyncChange = vi.fn(async () => {})
+    renderDetail({
+      dateStr: '2025-06-15',
+      entries: [makeEntry()],
+      syncProfile: proSyncProfile,
+      onCalendarAutoSyncChange,
+    })
+
+    expect(screen.getByText('calendar.dayDetail.googleConnected')).toBeInTheDocument()
+    expect(document.body.textContent).toContain('calendar.dayDetail.lastSynced')
+    const autoSync = screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' })
+    expect(autoSync).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(autoSync)
+    expect(onCalendarAutoSyncChange).toHaveBeenCalledWith(false)
   })
 
   it('shows completion summary', () => {
@@ -221,7 +287,7 @@ describe('CalendarDayDetail', () => {
       entries: [makeEntry()],
       onShowRecurringChange,
     })
-    fireEvent.click(screen.getByRole('switch'))
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
     expect(onShowRecurringChange).toHaveBeenCalledWith(false)
   })
 
@@ -232,8 +298,11 @@ describe('CalendarDayDetail', () => {
           dateStr="2025-06-15"
           entries={entries}
           calendarEvents={[]}
+          syncProfile={proSyncProfile}
           showRecurring
           onShowRecurringChange={() => {}}
+          onCalendarAutoSyncChange={async () => {}}
+          onOpenPro={() => {}}
           fitViewport
         />,
       )

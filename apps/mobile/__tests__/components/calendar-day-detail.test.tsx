@@ -3,14 +3,29 @@ import { describe, it, expect, vi } from "vitest";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import type { CalendarSyncEvent } from "@orbit/shared";
+import type { Profile } from "@orbit/shared/types/profile";
 import { createTokensV2 } from "@/lib/theme";
 import { CalendarDayDetail } from "@/app/(tabs)/calendar/_components/calendar-day-detail";
 
 const TestRenderer = require("react-test-renderer");
 
 vi.mock("@/components/ui/pill-button", () => ({
-  PillButton: ({ children }: { children?: React.ReactNode }) =>
-    React.createElement("PillButtonMock", null, children),
+  PillButton: ({ children, ...props }: { children?: React.ReactNode }) =>
+    React.createElement("PillButtonMock", props, children),
+}));
+
+vi.mock("@/components/ui/capacity-notice", () => ({
+  CapacityNotice: ({ message, body, action }: Record<string, unknown>) =>
+    React.createElement("CapacityNoticeMock", { message, body }, action as React.ReactNode),
+}));
+
+vi.mock("@/components/ui/switch", () => ({
+  Switch: ({ checked, label, onChange }: { checked: boolean; label: string; onChange: (value: boolean) => void }) =>
+    React.createElement("SwitchMock", {
+      accessibilityLabel: label,
+      accessibilityState: { checked },
+      onPress: () => onChange(!checked),
+    }),
 }));
 
 vi.mock("@/app/(tabs)/calendar/_components/show-recurring-toggle", () => ({
@@ -43,6 +58,23 @@ type Tree = {
 
 const translate = ((key: string) => key) as unknown as TFunction;
 
+type CalendarSyncProfile = Pick<
+  Profile,
+  | "hasProAccess"
+  | "hasGoogleConnection"
+  | "googleCalendarAutoSyncEnabled"
+  | "googleCalendarAutoSyncStatus"
+  | "googleCalendarLastSyncedAt"
+>;
+
+const proSyncProfile: CalendarSyncProfile = {
+  hasProAccess: true,
+  hasGoogleConnection: true,
+  googleCalendarAutoSyncEnabled: true,
+  googleCalendarAutoSyncStatus: "Idle",
+  googleCalendarLastSyncedAt: "2026-09-12T09:12:00Z",
+};
+
 function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
   return {
     habitId: "1",
@@ -58,6 +90,9 @@ function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry 
 function renderDetail(
   entries: CalendarDayEntry[],
   calendarEvents: CalendarSyncEvent[] = [],
+  syncProfile: CalendarSyncProfile = proSyncProfile,
+  onCalendarAutoSyncChange: (value: boolean) => Promise<void> = async () => {},
+  onOpenPro: () => void = () => {},
 ): Tree {
   const tokens = createTokensV2("purple", "dark");
   let tree: Tree;
@@ -67,9 +102,12 @@ function renderDetail(
         selectedEntries={entries}
         filteredEntries={entries}
         calendarEvents={calendarEvents}
+        syncProfile={syncProfile}
         completedCount={0}
         showRecurring
         onShowRecurringChange={() => {}}
+        onCalendarAutoSyncChange={onCalendarAutoSyncChange}
+        onOpenPro={onOpenPro}
         onGoToDay={() => {}}
         displayTime={(time) => time}
         t={translate}
@@ -162,5 +200,40 @@ describe("CalendarDayDetail entry list (mobile)", () => {
         source: "calendar.title",
       }),
     ]);
+  });
+
+  it("keeps habits visible while replacing events with the free plan boundary", () => {
+    const onOpenPro = vi.fn();
+    const tree = renderDetail(
+      [makeEntry({ title: "Read" })],
+      [{
+        id: "event-1", title: "Team meeting", description: null,
+        startDate: "2025-06-15", startTime: "09:00", endTime: null,
+        isRecurring: false, recurrenceRule: null, reminders: [],
+      }],
+      { ...proSyncProfile, hasProAccess: false },
+      async () => {},
+      onOpenPro,
+    );
+
+    expect(entryRows(tree).map((row) => row.props.title)).toContain("Read");
+    expect(tree.root.findAll((node) => node.type === "EventRowMock")).toHaveLength(0);
+    expect(tree.root.findAll((node) => node.type === "CapacityNoticeMock")).toHaveLength(1);
+    const action = tree.root.findAll((node) => node.type === "PillButtonMock")[0]!;
+    TestRenderer.act(() => action.props.onClick());
+    expect(onOpenPro).toHaveBeenCalledOnce();
+  });
+
+  it("builds the Pro sync line and switch from the profile fields", () => {
+    const onCalendarAutoSyncChange = vi.fn(async () => {});
+    const tree = renderDetail([makeEntry({})], [], proSyncProfile, onCalendarAutoSyncChange);
+
+    expect(
+      tree.root.findAll((node) => node.props.children === "calendar.dayDetail.googleConnected").length,
+    ).toBeGreaterThan(0);
+    const autoSync = tree.root.findAll((node) => node.type === "SwitchMock")[0]!;
+    expect(autoSync.props.accessibilityState.checked).toBe(true);
+    TestRenderer.act(() => autoSync.props.onPress());
+    expect(onCalendarAutoSyncChange).toHaveBeenCalledWith(false);
   });
 });

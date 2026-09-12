@@ -242,6 +242,22 @@ export function isCalendarAutoSyncStatusReconnectRequired(
   return status === 'ReconnectRequired'
 }
 
+export function isCalendarSyncConnectionActive(
+  hasGoogleConnection: boolean,
+  status: CalendarAutoSyncStatus,
+): boolean {
+  return hasGoogleConnection && status !== 'ReconnectRequired'
+}
+
+export function getCalendarSyncClockValue(isoTimestamp: string | null): string | null {
+  if (!isoTimestamp) return null
+  const syncedAt = new Date(isoTimestamp)
+  if (Number.isNaN(syncedAt.getTime())) return null
+  const hours = String(syncedAt.getHours()).padStart(2, '0')
+  const minutes = String(syncedAt.getMinutes()).padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
 /**
  * Formats a "last synced at" timestamp into a human-readable label.
  * The translate function must handle the 'calendar.autoSync.lastSyncedNever'
