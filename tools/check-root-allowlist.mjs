@@ -29,22 +29,33 @@ import { readdirSync, readFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
-const USAGE = `usage: check-root-allowlist.mjs
+const USAGE = `usage: check-root-allowlist.mjs [--changed-files-file <path>]
 
   Fails when the repository root contains a file or directory not named in root-allowlist.json.
   The .git worktree pointer is always ignored.
 
-  --help, -h  print this usage and exit 0
+  --changed-files-file <path>  NUL-delimited pull request paths; skip when no root entry can change
+  --help, -h                   print this usage and exit 0
 
 exit codes: 0 every root entry is declared, 1 undeclared root entries exist, 2 usage or configuration error`
 
-if (process.argv.includes("--help") || process.argv.includes("-h")) {
-  console.log(USAGE)
-  process.exit(0)
+function parseArguments(argv) {
+  if (argv.includes("--help") || argv.includes("-h")) {
+    console.log(USAGE)
+    process.exit(0)
+  }
+  if (argv.length === 0) return null
+  if (argv.length === 2 && argv[0] === "--changed-files-file" && argv[1] && !argv[1].startsWith("-")) {
+    return resolve(argv[1])
+  }
+  throw new Error(`expected --changed-files-file <path>, got: ${argv.join(" ")}`)
 }
 
-if (process.argv.length > 2) {
-  console.error(`check-root-allowlist: takes no arguments, got: ${process.argv.slice(2).join(" ")}\n`)
+let changedFilesPath
+try {
+  changedFilesPath = parseArguments(process.argv.slice(2))
+} catch (error) {
+  console.error(`check-root-allowlist: ${error.message}\n`)
   console.error(USAGE)
   process.exit(2)
 }
@@ -75,6 +86,26 @@ if (allowlist === null || typeof allowlist !== "object" || !isNameList(allowlist
 
 const allowedFiles = new Set(allowlist.files)
 const allowedDirectories = new Set(allowlist.directories)
+
+if (changedFilesPath) {
+  let changedPaths
+  try {
+    changedPaths = readFileSync(changedFilesPath, "utf8").split("\0").filter(Boolean)
+  } catch (error) {
+    console.error(`check-root-allowlist: cannot read ${changedFilesPath}: ${error.message}`)
+    process.exit(2)
+  }
+  const ownInputs = new Set(["tools/check-root-allowlist.mjs", "tools/root-allowlist.json"])
+  const canChangeRoot = changedPaths.some((path) => {
+    if (ownInputs.has(path)) return true
+    const segments = path.split("/")
+    return segments.length === 1 ? !allowedFiles.has(segments[0]) : !allowedDirectories.has(segments[0])
+  })
+  if (!canChangeRoot) {
+    console.log("Root allowlist skipped: no changed path can alter a declared root entry.")
+    process.exit(0)
+  }
+}
 
 const undeclared = readdirSync(repositoryRoot, { withFileTypes: true })
   .filter((entry) => entry.name !== ".git")

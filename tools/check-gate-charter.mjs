@@ -69,6 +69,10 @@ function guardJobBlock(workflowSource, job) {
   return lines.slice(start, next < 0 ? lines.length : next).join("\n")
 }
 
+function derivesPullRequestChangedFiles(jobBlock) {
+  return /\bgit\s+diff\s+--name-only\b[\s\S]*?origin\/\$\{\{\s*github\.base_ref\s*\}\}\.\.\.HEAD/.test(jobBlock)
+}
+
 function gateIds(repositoryRoot) {
   return [
     ...filesIn(repositoryRoot, "tools", (name) => /^check-.*\.mjs$/.test(name)),
@@ -140,6 +144,10 @@ function run(repositoryRoot) {
     else {
       problems.push(...validateEntry(id, charter[id]))
       const guardJob = id.match(/^\.github\/workflows\/guards\.yml#(.+)$/)?.[1]
+      if (guardJob && charter[id]?.scope === "changed-files" &&
+          !derivesPullRequestChangedFiles(guardJobBlock(workflowSource, guardJob))) {
+        problems.push(`${id}: changed-files job must derive or receive the pull request changed file list`)
+      }
       if (guardJob && charter[id]?.scope === "whole-tree-advisory" &&
           !/^\s{8}continue-on-error:\s*true\s*$/m.test(guardJobBlock(workflowSource, guardJob))) {
         problems.push(`${id}: whole-tree-advisory job must make its reporting step continue-on-error`)

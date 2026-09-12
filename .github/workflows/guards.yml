@@ -68,12 +68,13 @@ jobs:
           node-version: 22
       - name: Root entries changed deliberately
         run: |
-          if [ '${{ github.event_name }}' != 'pull_request' ] || \
-             git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
-               | grep -Eq '^[^/]+/?$|^tools/(check-root-allowlist\.mjs|root-allowlist\.json)$'; then
+          if [ '${{ github.event_name }}' != 'pull_request' ]; then
             node tools/check-root-allowlist.mjs
           else
-            echo "Root allowlist skipped: no owned path changed."
+            git diff --name-only --diff-filter=ACMRD -z origin/${{ github.base_ref }}...HEAD \
+              > "$RUNNER_TEMP/root-allowlist-changed.txt"
+            node tools/check-root-allowlist.mjs \
+              --changed-files-file "$RUNNER_TEMP/root-allowlist-changed.txt"
           fi
       - name: Workspace packages declare no ignored overrides
         run: |
@@ -199,7 +200,14 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: node tools/check-suppressions-ratchet.mjs
+      - name: Changed suppression baselines only shrink
+        run: |
+          if git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+               | grep -Eq '^apps/(web|mobile)/eslint-suppressions\.json$|^tools/check-suppressions-ratchet\.mjs$'; then
+            node tools/check-suppressions-ratchet.mjs
+          else
+            echo "Suppressions ratchet skipped: no owned path changed."
+          fi
 
   calibration:
     name: Harness Calibration
@@ -255,7 +263,8 @@ jobs:
       - name: Expo-pinned versions still resolve to the SDK set
         working-directory: apps/mobile
         run: |
-          if git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
                | grep -Eq '^(package-lock\.json|apps/mobile/package\.json)$'; then
             CI=1 npx expo install --check
           else
@@ -315,4 +324,12 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: node tools/check-gate-charter.mjs
+      - name: Changed gates obey the charter
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+               | grep -Eq '^\.github/workflows/guards\.yml$|^tools/(check-.*\.mjs|gate-charter\.json)$|^eslint-rules/[^/]+\.(cjs|js|mjs)$|^\.claude/hooks/[^/]+\.(cjs|js|mjs)$'; then
+            node tools/check-gate-charter.mjs
+          else
+            echo "Gate charter skipped: no registered gate changed."
+          fi

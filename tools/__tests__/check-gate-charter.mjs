@@ -10,7 +10,9 @@ const entry = (overrides = {}) => ({
   ...overrides,
 })
 
-const stageRepository = (label, charter) => {
+const scopedGuardWorkflow = "jobs:\n  existing:\n    runs-on: ubuntu-latest\n    steps:\n      - run: |\n          git diff --name-only origin/${{ github.base_ref }}...HEAD > changed.txt\n          node gate.mjs --changed-files-file changed.txt\n"
+
+const stageRepository = (label, charter, workflow = scopedGuardWorkflow) => {
   const repository = join(root, "gate-charter", label)
   for (const path of ["tools", "eslint-rules", ".claude/hooks", ".github/workflows"]) {
     mkdirSync(join(repository, path), { recursive: true })
@@ -20,7 +22,7 @@ const stageRepository = (label, charter) => {
   writeFileSync(join(repository, "eslint-rules", "_helper.cjs"), "module.exports = {}\n")
   writeFileSync(join(repository, ".claude/hooks", "existing.mjs"), "process.exit(0)\n")
   writeFileSync(join(repository, ".claude/hooks", "test-hooks.mjs"), "process.exit(0)\n")
-  writeFileSync(join(repository, ".github/workflows", "guards.yml"), "jobs:\n  existing:\n    runs-on: ubuntu-latest\n    steps:\n      - run: node gate.mjs\n")
+  writeFileSync(join(repository, ".github/workflows", "guards.yml"), workflow)
   writeFileSync(join(repository, "tools", "gate-charter.json"), `${JSON.stringify(charter, null, 2)}\n`)
   return repository
 }
@@ -51,6 +53,14 @@ export const cases = () => {
     "accepts the new gate after registration",
     ["--root", registeredGate],
     { status: 0, stdout: /5 gates registered/ },
+  )
+
+  const unconditionalWorkflow = "jobs:\n  existing:\n    runs-on: ubuntu-latest\n    steps:\n      - run: node gate.mjs\n"
+  check(
+    "check-gate-charter.mjs",
+    "rejects a whole-tree blocking job declared as changed-files",
+    ["--root", stageRepository("unscoped-changed-files", completeCharter(), unconditionalWorkflow)],
+    { status: 1, stderr: /changed-files job must derive or receive the pull request changed file list/ },
   )
 
   const unregenerable = completeCharter()
