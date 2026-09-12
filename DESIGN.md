@@ -484,24 +484,30 @@ floor. The explicit white override measures 5.59:1 on the current fill.
 ### Measured contrast, with the remaining limits closed
 
 Measured 2026-08-17 against every surface in the ladder, not just the canvas, because that is where
-the misses are. Two independent implementations agree on every number below.
+the misses are. The widget card and widget well are the flattened surfaces produced by
+`apps/mobile/scripts/generate-widget-colors.ts`. `text` uses the 4.5 floor and `graphic` uses 3.0.
+Every scope below is derived from those floors and the measured ratios.
 
-| on | canvas | card | field | well | elev-2 | hover | overlay |
-|---|---|---|---|---|---|---|---|
-| dark `--fg-1` | 18.11 | 16.95 | 16.23 | 15.44 | 13.77 | 13.40 | 15.49 |
-| dark `--fg-2` | 12.04 | 11.27 | 10.79 | 10.27 | 9.15 | 8.91 | 10.30 |
-| dark `--fg-3` | 6.18 | 5.78 | 5.53 | 5.27 | 4.69 | 4.57 | 5.28 |
-| dark `--fg-4` | 3.03 | **2.84** | **2.72** | **2.59** | **2.30** | **2.24** | **2.59** |
-| dark `--track-empty` | 4.649 | 4.336 | 4.184 | 3.976 | 3.530 | 3.439 | 3.976 |
-| dark `--primary-soft` | 4.58 | **4.28** | **4.10** | **3.90** | **3.48** | **3.38** | **3.91** |
-| dark `--primary-text` | 6.10 | 5.69 | 5.49 | 5.22 | 4.63 | 4.51 | 5.22 |
-| dark `--status-bad-text` | 7.788 | 7.264 | 7.008 | 6.661 | 5.913 | 5.760 | 6.661 |
-| light `--fg-3` | 5.31 | 5.54 | | 4.88 | | 4.67 | |
-| light `--fg-4` | 3.34 | 3.48 | | 3.07 | | **2.94** | |
-| light `--track-empty` | 3.821 | 3.988 | | 3.499 | | 3.376 | |
-| light `--primary-soft` | 4.52 | 4.72 | | 4.16 | | **3.98** | |
-| light `--primary-text` | 5.10 | 5.33 | | 4.68 | | 4.51 | |
-| light `--status-bad-text` | 5.168 | 5.394 | 5.394 | 4.733 | 5.394 | 4.566 | 5.394 |
+<!-- surface-scope:start -->
+| on | role | scope | canvas | card | field | well | elev-2 | hover | overlay | widget card | widget well |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| dark `--fg-1` | text + graphic | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well; graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 18.112 | 16.893 | 16.298 | 15.490 | 13.751 | 13.395 | 15.490 | 16.893 | 15.321 |
+| light `--fg-1` | text + graphic | text: canvas, card, well, hover, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 16.636 | 17.364 | - | 15.236 | - | 14.698 | - | 17.364 | 15.383 |
+| dark `--fg-2` | text + graphic | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well; graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 12.042 | 11.231 | 10.835 | 10.298 | 9.142 | 8.906 | 10.298 | 11.231 | 10.186 |
+| light `--fg-2` | text + graphic | text: canvas, card, well, hover, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 9.572 | 9.991 | - | 8.767 | - | 8.457 | - | 9.991 | 8.851 |
+| dark `--fg-3` | text + graphic | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well; graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 6.175 | 5.760 | 5.557 | 5.281 | 4.688 | 4.567 | 5.281 | 5.760 | 5.224 |
+| light `--fg-3` | text + graphic | text: canvas, card, well, hover, widget card, widget well; graphic: canvas, card, well, hover, widget card, widget well | 5.309 | 5.542 | - | 4.863 | - | 4.691 | - | 5.542 | 4.909 |
+| dark `--fg-4` | graphic | graphic: canvas | 3.032 | 2.828 | 2.728 | 2.593 | 2.302 | 2.242 | 2.593 | 2.828 | 2.565 |
+| light `--fg-4` | graphic | graphic: canvas, card, well, widget card, widget well | 3.338 | 3.485 | - | 3.058 | - | 2.950 | - | 3.485 | 3.087 |
+| dark `--track-empty` | graphic | graphic: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 4.649 | 4.336 | 4.184 | 3.976 | 3.530 | 3.439 | 3.976 | 4.336 | 3.933 |
+| light `--track-empty` | graphic | graphic: canvas, card, well, hover, widget card, widget well | 3.821 | 3.988 | - | 3.499 | - | 3.376 | - | 3.988 | 3.533 |
+| dark `--primary-soft` | text | text: canvas | 4.577 | 4.269 | 4.118 | 3.914 | 3.475 | 3.385 | 3.914 | 4.269 | 3.871 |
+| light `--primary-soft` | text | text: canvas, card, widget card | 4.523 | 4.721 | - | 4.142 | - | 3.996 | - | 4.721 | 4.182 |
+| dark `--primary-text` | text | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 6.098 | 5.688 | 5.487 | 5.215 | 4.630 | 4.510 | 5.215 | 5.688 | 5.159 |
+| light `--primary-text` | text | text: canvas, card, well, hover, widget card, widget well | 5.104 | 5.327 | - | 4.675 | - | 4.509 | - | 5.327 | 4.720 |
+| dark `--status-bad-text` | text | text: canvas, card, field, well, elev-2, hover, overlay, widget card, widget well | 7.788 | 7.264 | 7.008 | 6.661 | 5.913 | 5.760 | 6.661 | 7.264 | 6.588 |
+| light `--status-bad-text` | text | text: canvas, card, well, hover, widget card, widget well | 5.168 | 5.394 | - | 4.733 | - | 4.566 | - | 5.394 | 4.779 |
+<!-- surface-scope:end -->
 
 **`--primary-soft` is canvas only, and that closes its row by rule rather than by pigment.** The token
 is already defined as accent TEXT on the canvas, so 4.28 on a card is the token used outside its own
