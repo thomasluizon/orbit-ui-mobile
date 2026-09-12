@@ -236,7 +236,11 @@ export function CalendarGrid({
 
   if (isLoading) {
     return (
-      <div data-testid="calendar-grid" data-tour="tour-calendar-grid" style={{ padding: '16px 4px 8px' }}>
+      <div
+        data-testid="calendar-grid"
+        data-tour="tour-calendar-grid"
+        style={{ padding: '16px 4px 8px', overflowX: 'auto' }}
+      >
         <div
           data-testid="calendar-grid-card"
           style={{
@@ -259,7 +263,11 @@ export function CalendarGrid({
   }
 
   return (
-    <div data-testid="calendar-grid" data-tour="tour-calendar-grid" style={{ padding: '16px 4px 8px' }}>
+    <div
+      data-testid="calendar-grid"
+      data-tour="tour-calendar-grid"
+      style={{ padding: '16px 4px 8px', overflowX: 'auto' }}
+    >
       <div
         data-testid="calendar-grid-card"
         style={{
