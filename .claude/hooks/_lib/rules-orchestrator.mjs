@@ -111,56 +111,17 @@ const redirectionOperatorEnd = (source, start) => {
   return cursor
 }
 
-const plainVariableEnd = (source, start) => {
-  const variable = /^(?:\$[A-Za-z_][A-Za-z0-9_]*|\$\{[A-Za-z_][A-Za-z0-9_]*\})/.exec(source.slice(start))
-  return variable ? start + variable[0].length : null
-}
-
-const STATIC_REDIRECT_PATH_CHARACTER = /^[A-Za-z0-9_./\\:+=-]$/
-const VARIABLE_EVALUATION_SUFFIX = new Set([".", "[", "(", ":", "+", "-"])
+// One anchored allowlist owns the complete target. A trailing backslash is ambiguous at a shell
+// delimiter or closing quote, so it fails closed with every other non-allowlisted shape.
+const REDIRECT_PATH_PART = String.raw`(?:[A-Za-z0-9_./\\:+-]|\$[A-Za-z_][A-Za-z0-9_]*(?![A-Za-z0-9_.])|\$\{[A-Za-z_][A-Za-z0-9_]*\}(?!\.))`
+const REDIRECT_TARGET = new RegExp(
+  String.raw`^(?:"${REDIRECT_PATH_PART}+(?<!\\)"|'${REDIRECT_PATH_PART}+(?<!\\)'|${REDIRECT_PATH_PART}+(?<!\\))(?=\s|$)`,
+)
 const unclassifiableTarget = (source) => ({ end: source.length, classifiable: false })
 
 const redirectionTargetEnd = (source, start) => {
-  let cursor = start
-  let quote = ""
-  let variableSeen = false
-  let immediatelyAfterVariable = false
-  while (cursor < source.length) {
-    const character = source[cursor]
-    if (!quote && /\s/.test(character)) break
-    if (character === "`" || source.startsWith("<(", cursor) || source.startsWith(">(", cursor)) {
-      return unclassifiableTarget(source)
-    }
-    if (quote) {
-      if (character === quote) {
-        quote = ""
-        cursor++
-        continue
-      }
-      if (quote === "'") {
-        immediatelyAfterVariable = false
-        cursor++
-        continue
-      }
-    } else if (character === '"' || character === "'") {
-      quote = character
-      cursor++
-      continue
-    }
-    if (character === "$") {
-      const variableEnd = plainVariableEnd(source, cursor)
-      if (variableEnd === null || variableSeen) return unclassifiableTarget(source)
-      variableSeen = true
-      immediatelyAfterVariable = true
-      cursor = variableEnd
-      continue
-    }
-    if (immediatelyAfterVariable && VARIABLE_EVALUATION_SUFFIX.has(character)) return unclassifiableTarget(source)
-    immediatelyAfterVariable = false
-    if (!quote && !STATIC_REDIRECT_PATH_CHARACTER.test(character)) return unclassifiableTarget(source)
-    cursor++
-  }
-  return { end: cursor, classifiable: cursor > start && !quote }
+  const target = REDIRECT_TARGET.exec(source.slice(start))
+  return target ? { end: start + target[0].length, classifiable: true } : unclassifiableTarget(source)
 }
 
 /** Remove shell redirections before finding and validating the invoked command. Redirection

@@ -168,6 +168,7 @@ for (const redirect of [">$(printf worker.log)", "2>&$(printf 1)"]) {
 const engine = (command, options) => checkEngineInvocation(command, { repoRoots: [], ...options })
 const variableRedirectAllows = [
   ["quoted variable path before the launcher", 'SP="C:/x" && cat "$SP/a.md" "$SP/b.md" > "$SP/c.md" && node tools/launch-worker.mjs --issue 1 --worktree x --prompt y'],
+  ["quoted variable path", 'cat "$SP/a.md" > "$SP/c.md"'],
   ["quoted variable target", 'codex cloud list > "$OUT"'],
   ["braced variable target", "codex cloud list > ${OUT}"],
 ]
@@ -178,6 +179,7 @@ const descriptorSuffixAllows = [
   ["cloud read before another redirection", "codex cloud list 2>&1 3>trace.log"],
 ]
 const descriptorSafetyRefusals = [
+  ["escaped-space target delimiter", "> worker\\ log.txt codex exec"],
   ["dollar command substitution", "2>&$(codex exec 'do work')"],
   ["backtick command substitution", "2>&`codex exec 'do work'`"],
   ["dynamic leading redirect", ">$(printf worker.log) codex exec"],
