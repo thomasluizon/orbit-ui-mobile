@@ -100,13 +100,88 @@ function withoutLeadingAssignments(segment) {
   return rest
 }
 
+const redirectionOperatorEnd = (source, start) => {
+  let cursor = start
+  if (source[cursor] === "&" && source[cursor + 1] === ">") cursor++
+  if (source[cursor] !== "<" && source[cursor] !== ">") return start
+  const direction = source[cursor++]
+  while (source[cursor] === direction && cursor < start + 3) cursor++
+  if (["&", "|", direction === "<" ? ">" : ""].includes(source[cursor])) cursor++
+  return cursor
+}
+
+const redirectionTargetEnd = (source, start) => {
+  let cursor = start
+  let quote = ""
+  while (cursor < source.length) {
+    const character = source[cursor]
+    if (!quote && /\s/.test(character)) break
+    if (character === "\\" && quote !== "'") {
+      cursor += 2
+      continue
+    }
+    if (quote) {
+      if (character === quote) quote = ""
+    } else if (character === '"' || character === "'") {
+      quote = character
+    }
+    cursor++
+  }
+  return cursor
+}
+
+/** Remove shell redirections before finding and validating the invoked command. Redirection
+ * targets are data, not argv, and a redirection may legally precede the executable. Dynamic
+ * targets leave an unsafe marker so they cannot make a read-only engine shape look safe. */
+function withoutRedirections(segment) {
+  let cleaned = ""
+  let quote = ""
+  let dynamicTarget = false
+  for (let cursor = 0; cursor < segment.length;) {
+    const character = segment[cursor]
+    if (character === "\\" && quote !== "'") {
+      cleaned += segment.slice(cursor, cursor + 2)
+      cursor += 2
+      continue
+    }
+    if (quote) {
+      if (character === quote) quote = ""
+      cleaned += character
+      cursor++
+      continue
+    }
+    if (character === '"' || character === "'") {
+      quote = character
+      cleaned += character
+      cursor++
+      continue
+    }
+    const operatorEnd = redirectionOperatorEnd(segment, cursor)
+    if (operatorEnd === cursor) {
+      cleaned += character
+      cursor++
+      continue
+    }
+    const descriptor = /(?:^|\s)(\d+)$/.exec(cleaned)
+    if (descriptor) cleaned = cleaned.slice(0, -descriptor[1].length)
+    cursor = operatorEnd
+    while (/\s/.test(segment[cursor] ?? "")) cursor++
+    const targetEnd = redirectionTargetEnd(segment, cursor)
+    const target = segment.slice(cursor, targetEnd)
+    if (!target || /[$`()]/.test(target)) dynamicTarget = true
+    cleaned += " "
+    cursor = targetEnd
+  }
+  return dynamicTarget ? `${cleaned} $()` : cleaned
+}
+
 /**
  * The binary a segment actually invokes, lowercased and stripped of directory and Windows
  * extension. Matching HERE and not against the whole string is the point: `.claude/skills/...` is
  * a path, not the `claude` binary, and a commit message naming a command is data.
  */
 export function invokedBinary(segment) {
-  const token = LEADING_TOKEN.exec(withoutLeadingAssignments(segment))
+  const token = LEADING_TOKEN.exec(withoutLeadingAssignments(withoutRedirections(segment)))
   if (!token) return ""
   return token[1]
     .replace(/^["']|["']$/g, "")
@@ -128,7 +203,8 @@ export function segmentsOf(command) {
   const segments = []
   let current = ""
   let quote = ""
-  for (const character of source) {
+  for (let index = 0; index < source.length; index++) {
+    const character = source[index]
     if (quote) {
       if (character === quote) quote = ""
       current += character
@@ -139,7 +215,10 @@ export function segmentsOf(command) {
       current += character
       continue
     }
-    if (character === "&" || character === "|" || character === ";" || character === "\n") {
+    const partOfRedirection =
+      (character === "&" && (current.endsWith(">") || current.endsWith("<") || source[index + 1] === ">")) ||
+      (character === "|" && current.endsWith(">"))
+    if (!partOfRedirection && (character === "&" || character === "|" || character === ";" || character === "\n")) {
       segments.push(current)
       current = ""
       continue
@@ -151,7 +230,7 @@ export function segmentsOf(command) {
 }
 
 const safeEngineWords = (segment) => {
-  const words = segment.trim().split(/\s+/)
+  const words = withoutRedirections(segment).trim().split(/\s+/)
   return SAFE_ENGINE_BINARY.test(words[0] ?? "") && words.every((word) => SAFE_ENGINE_ARGUMENT.test(word))
     ? words
     : null
