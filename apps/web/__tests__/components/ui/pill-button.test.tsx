@@ -1,16 +1,22 @@
 import { afterAll, beforeAll, describe, it, expect, vi } from 'vitest'
-import { chromium, type Browser } from '@playwright/test'
 import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { PillButton } from '@/components/ui/pill-button'
+import { closeChrome, launchChrome, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 describe('PillButton', () => {
   describe('small touch targets in Chromium', () => {
+    let browserLaunch: BrowserLaunch | undefined
     let browser: Browser
     let stylesheet: string
+
+    beforeAll(async () => {
+      browserLaunch = launchChrome()
+      browser = await browserLaunch
+    })
 
     beforeAll(async () => {
       const source = resolve(process.cwd(), 'app/globals.css')
@@ -20,10 +26,9 @@ describe('PillButton', () => {
         @font-face { font-family: TestGeist; font-weight: 500; src: url(data:font/ttf;base64,${font}); }
         :root { --font-sans: TestGeist; }
         body { padding: 48px; }`
-      browser = await chromium.launch({ channel: 'chrome' })
     })
 
-    afterAll(async () => { await browser.close() }, 30_000)
+    afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
 
     it.each([
       { label: 'Continue', iconOnly: false, narrow: false },
