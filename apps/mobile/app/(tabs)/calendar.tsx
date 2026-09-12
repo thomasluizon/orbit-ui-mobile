@@ -131,17 +131,10 @@ export default function CalendarScreen() {
   const { profile, error: profileError, refetch: refetchProfile } = useProfile();
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const monthQuery = useCalendarData(currentMonth);
-  const profileLoadingGridRows = useMemo(
-    () => buildCalendarMonthModel(currentMonth, new Map(), profile?.weekStartDay ?? 1).gridDays.length
-      / CALENDAR_MONTH_GRID_GEOMETRY.columns,
-    [currentMonth, profile?.weekStartDay],
-  );
-
   if (!profile) {
     return (
       <CalendarProfileState
         failed={Boolean(profileError)}
-        gridRows={profileLoadingGridRows}
         onRetry={() => void refetchProfile()}
       />
     );
@@ -159,9 +152,8 @@ export default function CalendarScreen() {
 
 function CalendarProfileState({
   failed,
-  gridRows,
   onRetry,
-}: Readonly<{ failed: boolean; gridRows: number; onRetry: () => void }>) {
+}: Readonly<{ failed: boolean; onRetry: () => void }>) {
   const { t } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
@@ -182,7 +174,7 @@ function CalendarProfileState({
           <View style={styles.profileLoading}>
             <Skeleton
               variant="grid"
-              rows={gridRows}
+              rows={CALENDAR_MONTH_GRID_GEOMETRY.maximumRows}
               cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
               cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
               gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}

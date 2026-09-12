@@ -5,6 +5,7 @@ export function MonthGrid({
   children,
   gap = 8,
   label,
+  minimumDayGridHeight,
 }: Readonly<MonthGridProps>) {
   const columns = weekdayLabels.length
   const gridStyle = columns > 0 ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined
@@ -30,7 +31,11 @@ export function MonthGrid({
           ))}
         </div>
       ) : null}
-      <div className="grid justify-items-center" style={{ ...gridStyle, gap }} data-testid="month-grid-days">
+      <div
+        className="grid justify-items-center"
+        style={{ ...gridStyle, gap, minHeight: minimumDayGridHeight }}
+        data-testid="month-grid-days"
+      >
         {children}
       </div>
     </div>

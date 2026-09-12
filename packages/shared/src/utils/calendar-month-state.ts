@@ -1,8 +1,13 @@
 export const CALENDAR_MONTH_GRID_GEOMETRY = {
   columns: 7,
+  maximumRows: 6,
   cell: 44,
   gap: 4,
 } as const
+
+export const CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT =
+  CALENDAR_MONTH_GRID_GEOMETRY.maximumRows * CALENDAR_MONTH_GRID_GEOMETRY.cell
+  + (CALENDAR_MONTH_GRID_GEOMETRY.maximumRows - 1) * CALENDAR_MONTH_GRID_GEOMETRY.gap
 
 export type CalendarMonthDisplayState = 'loading' | 'empty' | 'future' | 'ready'
 

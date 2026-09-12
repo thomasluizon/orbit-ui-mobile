@@ -194,12 +194,6 @@ export default function CalendarPage() {
   const { profile, error: profileError, refetch: refetchProfile } = useProfile()
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const monthQuery = useCalendarData(currentMonth)
-  const profileLoadingGridRows = useMemo(
-    () => buildCalendarMonthModel(currentMonth, new Map(), profile?.weekStartDay ?? 1).gridDays.length
-      / CALENDAR_MONTH_GRID_GEOMETRY.columns,
-    [currentMonth, profile?.weekStartDay],
-  )
-
   if (!profile) {
     return (
       <div style={{ padding: '16px 4px' }}>
@@ -209,7 +203,7 @@ export default function CalendarPage() {
           <div className="flex flex-col gap-6">
             <Skeleton
               variant="grid"
-              rows={profileLoadingGridRows}
+              rows={CALENDAR_MONTH_GRID_GEOMETRY.maximumRows}
               cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
               cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
               gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}

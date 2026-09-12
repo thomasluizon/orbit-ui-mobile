@@ -1,6 +1,9 @@
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { formatAPIDate } from "@orbit/shared/utils";
+import {
+  CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
+  formatAPIDate,
+} from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { View } from "react-native";
 
@@ -8,6 +11,7 @@ import CalendarScreen from "@/app/(tabs)/calendar";
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 const TestRenderer = require("react-test-renderer");
+type CalendarGridComponent = typeof import("@/app/(tabs)/calendar/_components/calendar-grid")["CalendarGrid"];
 
 const state = vi.hoisted(() => ({
   rangeMap: new Map<string, CalendarDayEntry[]>(),
@@ -24,6 +28,7 @@ const state = vi.hoisted(() => ({
 }));
 
 const calendarGridProps = vi.hoisted(() => ({
+  actual: null as CalendarGridComponent | null,
   current: null as Record<string, any> | null,
   header: null as Record<string, any> | null,
   stats: null as Record<string, any> | null,
@@ -111,12 +116,16 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-shell", () => ({
   CalendarWeekNav: () => null,
   CalendarLegend: () => <View testID="calendar-legend" />,
 }));
-vi.mock("@/app/(tabs)/calendar/_components/calendar-grid", () => ({
-  CalendarGrid: (props: Record<string, any>) => {
-    calendarGridProps.current = props;
-    return null;
-  },
-}));
+vi.mock("@/app/(tabs)/calendar/_components/calendar-grid", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/app/(tabs)/calendar/_components/calendar-grid")>();
+  calendarGridProps.actual = actual.CalendarGrid;
+  return {
+    CalendarGrid: (props: Record<string, any>) => {
+      calendarGridProps.current = props;
+      return null;
+    },
+  };
+});
 vi.mock("@/app/(tabs)/calendar/_components/calendar-stats", () => ({
   CalendarStats: (props: Record<string, any>) => {
     calendarGridProps.stats = props;
@@ -269,14 +278,15 @@ describe("CalendarScreen views (mobile)", () => {
       (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-grid-shape',
     )[0];
     expect(gridShape?.props.style).toEqual(expect.arrayContaining([
-      expect.objectContaining({ width: 332, height: 236 }),
+      expect.objectContaining({ width: 332, height: 284 }),
     ]));
   });
 
   it.each([
-    ['five-row', new Date(2026, 8, 11), 5],
-    ['six-row', new Date(2026, 7, 11), 6],
-  ])('keeps the %s profile-loading grid at the loaded month height', (_label, now, expectedRows) => {
+    ['Monday-first five-row', new Date(2026, 8, 11), 1, 5],
+    ['Monday-first six-row', new Date(2026, 7, 11), 1, 6],
+    ['Sunday-first six-row', new Date(2026, 4, 11), 0, 6],
+  ] as const)('keeps the %s profile-loading grid at the loaded month height', (_label, now, weekStartDay, expectedRows) => {
     vi.useFakeTimers();
     vi.setSystemTime(now);
     state.profile = undefined;
@@ -289,17 +299,31 @@ describe("CalendarScreen views (mobile)", () => {
       .flat(Infinity)
       .find((style: Record<string, unknown>) => typeof style.height === 'number')?.height;
 
-    state.profile = { weekStartDay: 1 };
+    state.profile = { weekStartDay };
     TestRenderer.act(() => { tree.update(<CalendarScreen />); });
     const flatList = tree.root.findAll(
       (node) => typeof node.type === 'string' && node.type === 'FlatList',
     )[0]!;
     TestRenderer.act(() => { TestRenderer.create(flatList.props.ListHeaderComponent); });
     const loadedRows = (calendarGridProps.current?.gridDays as unknown[]).length / 7;
-    const loadedHeight = loadedRows * 44 + (loadedRows - 1) * 4;
+    const ActualCalendarGrid = calendarGridProps.actual!;
+    let gridTree!: import('react-test-renderer').ReactTestRenderer;
+    TestRenderer.act(() => {
+      gridTree = TestRenderer.create(
+        <ActualCalendarGrid
+          {...(calendarGridProps.current! as React.ComponentProps<CalendarGridComponent>)}
+        />,
+      );
+    });
+    const loadedDayGrid = gridTree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.testID === 'month-grid-days',
+    )[0]!;
+    const loadedHeight = (loadedDayGrid.props.style as { minHeight: number }).minHeight;
 
     expect(loadedRows).toBe(expectedRows);
     expect(loadingHeight).toBe(loadedHeight);
+    expect(loadedHeight).toBe(CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT);
+    TestRenderer.act(() => gridTree.update(<></>));
   });
 
   it('shows a retryable error when the profile request fails', () => {

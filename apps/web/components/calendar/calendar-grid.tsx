@@ -8,6 +8,7 @@ import {
   isCalendarDayLoggable,
   resolveDayCellOutcome,
   CALENDAR_MONTH_GRID_GEOMETRY,
+  CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
   type CalendarMonthDay,
 } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
@@ -232,8 +233,6 @@ export function CalendarGrid({
     readOnly: t('calendar.dayCell.readOnly'),
   }
 
-  const gridRows = gridDays.length / CALENDAR_MONTH_GRID_GEOMETRY.columns
-
   if (isLoading) {
     return (
       <div
@@ -251,7 +250,7 @@ export function CalendarGrid({
         >
           <Skeleton
             variant="grid"
-            rows={gridRows}
+            rows={CALENDAR_MONTH_GRID_GEOMETRY.maximumRows}
             cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
             cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
             gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
@@ -280,7 +279,12 @@ export function CalendarGrid({
           boxShadow: 'inset 0 0 0 1px var(--hairline)',
         }}
       >
-        <MonthGrid weekdayLabels={weekdayLabels} gap={CALENDAR_MONTH_GRID_GEOMETRY.gap} label={displayMonthYear(currentMonth)}>
+        <MonthGrid
+          weekdayLabels={weekdayLabels}
+          gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
+          label={displayMonthYear(currentMonth)}
+          minimumDayGridHeight={CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT}
+        >
           {gridDays.map((cell, index) => {
             const future = cell.dateStr > todayKey
             const selected = cell.isCurrentMonth && (

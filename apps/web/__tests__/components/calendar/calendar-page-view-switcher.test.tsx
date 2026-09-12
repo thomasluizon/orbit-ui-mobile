@@ -1,7 +1,11 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
-import { buildCalendarMonthModel, formatAPIDate } from '@orbit/shared/utils'
+import {
+  buildCalendarMonthModel,
+  CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
+  formatAPIDate,
+} from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 let isWideDesktopValue = false
@@ -100,22 +104,29 @@ vi.mock('@/app/(app)/calendar/_components/calendar-shell', () => ({
   CalendarWeekNav: () => <div data-testid="calendar-week-nav" />,
 }))
 
-vi.mock('@/components/calendar/calendar-grid', () => ({
-  CalendarGrid: (props: {
-    onSelectDay?: (dateStr: string) => void
-    selectedDateStr?: string | null
-    [key: string]: unknown
-  }) => {
-    Object.assign(calendarGridProps, props)
-    return (
-      <button
-        type="button"
-        data-testid="month-view"
-        onClick={() => props.onSelectDay?.('2026-01-05')}
-      />
-    )
-  },
-}))
+vi.mock('@/components/calendar/calendar-grid', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/calendar/calendar-grid')>()
+  const ActualCalendarGrid = actual.CalendarGrid
+  return {
+    CalendarGrid: (props: {
+      onSelectDay?: (dateStr: string) => void
+      selectedDateStr?: string | null
+      [key: string]: unknown
+    }) => {
+      Object.assign(calendarGridProps, props)
+      return (
+        <>
+          <ActualCalendarGrid {...(props as React.ComponentProps<typeof ActualCalendarGrid>)} />
+          <button
+            type="button"
+            data-testid="month-view"
+            onClick={() => props.onSelectDay?.('2026-01-05')}
+          />
+        </>
+      )
+    },
+  }
+})
 
 vi.mock('@/components/calendar/calendar-stats', () => ({
   CalendarStats: (props: Record<string, unknown>) => {
@@ -170,22 +181,26 @@ describe('CalendarPage view switcher', () => {
   })
 
   it.each([
-    ['five-row', new Date(2026, 8, 11), 5],
-    ['six-row', new Date(2026, 7, 11), 6],
-  ])('keeps the %s profile-loading grid at the loaded month height', (_label, now, expectedRows) => {
+    ['Monday-first five-row', new Date(2026, 8, 11), 1, 5],
+    ['Monday-first six-row', new Date(2026, 7, 11), 1, 6],
+    ['Sunday-first six-row', new Date(2026, 4, 11), 0, 6],
+  ] as const)('keeps the %s profile-loading grid at the loaded month height', (_label, now, weekStartDay, expectedRows) => {
     vi.useFakeTimers()
     vi.setSystemTime(now)
     profileQueryState.profile = undefined
     const { rerender } = render(<CalendarPage />)
     const loadingRows = Number(document.querySelector('[data-variant="grid"] > [data-rows]')?.getAttribute('data-rows'))
+    const loadingHeight = loadingRows * 44 + (loadingRows - 1) * 4
 
-    profileQueryState.profile = { weekStartDay: 1 }
+    profileQueryState.profile = { weekStartDay }
     rerender(<CalendarPage />)
     const loadedMonth = calendarGridProps.currentMonth as Date
-    const loadedRows = buildCalendarMonthModel(loadedMonth, new Map(), 1).gridDays.length / 7
+    const loadedRows = buildCalendarMonthModel(loadedMonth, new Map(), weekStartDay).gridDays.length / 7
+    const loadedHeight = Number(screen.getByTestId('month-grid-days').style.minHeight.replace('px', ''))
 
     expect(loadedRows).toBe(expectedRows)
-    expect(loadingRows).toBe(loadedRows)
+    expect(loadingHeight).toBe(loadedHeight)
+    expect(loadedHeight).toBe(CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT)
   })
 
   it('shows a retryable error when the profile request fails', () => {
