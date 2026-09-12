@@ -655,7 +655,7 @@ T("adapter identifier: the ledger is restored, so the id blocks again -> 2", run
  * a session id that does not match is treated as a previous run's and ignored.
  */
 const WAKE_HOOK = "require-wake-source.mjs"
-const { clearWakeSource, readWakeSources, registerWakeSource, runStatePath, wakeSourceDirectory } = await import("../../tools/lib/run-state.mjs")
+const { PENDING_WAKE_SOURCE_MAX_AGE_MS, clearWakeSource, readWakeSources, registerWakeSource, runStatePath, wakeSourceDirectory } = await import("../../tools/lib/run-state.mjs")
 const stopPayload = { session_id: "orbit-hooks-gate-session", stop_hook_active: false }
 const priorState = existsSync(runStatePath()) ? readFileSync(runStatePath(), "utf8") : null
 // The reader and the final predicate each prove the persisted process identity.
@@ -687,13 +687,50 @@ cpSync(join(hooksDir, "_lib"), join(wakeHooks, "_lib"), { recursive: true })
 cpSync(join(hooksDir, WAKE_HOOK), join(wakeHooks, WAKE_HOOK))
 writeFileSync(runStatePath(wakeCheckout), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }))
 const wakeFile = join(wakeSourceDirectory(wakeCheckout), `${process.pid}.json`)
-const isolatedWakeStop = () => spawnSync(process.execPath, [join(wakeHooks, WAKE_HOOK)], {
-  input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true,
-}).status
+const isolatedWakeStop = ({ preload = null, env = {} } = {}) => spawnSync(
+  process.execPath,
+  [...(preload ? ["--import", pathToFileURL(preload).href] : []), join(wakeHooks, WAKE_HOOK)],
+  { input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true, env: { ...process.env, ...env } },
+).status
 registerWakeSource({ pid: process.pid, what: "hook identity regression" }, wakeCheckout)
 const registeredWake = JSON.parse(readFileSync(wakeFile, "utf8"))
 T("wake identity: registration captures a real OS process start identity", typeof registeredWake.processStartIdentity, "string")
 T("wake identity: the same live process allows the real Stop adapter", isolatedWakeStop(), 0)
+
+/** A pending record is an admission window, not permission to claim a process that never began. */
+clearWakeSource(process.pid, wakeCheckout)
+const neverSpawnedPid = 2_147_483_647
+registerWakeSource({
+  pid: neverSpawnedPid,
+  what: "worker ORB-never-spawned",
+  pending: true,
+  pendingAt: "2026-09-12T00:00:00.000Z",
+}, wakeCheckout)
+T("wake pending: a registration whose process never starts blocks the real Stop adapter", isolatedWakeStop(), 2)
+clearWakeSource(neverSpawnedPid, wakeCheckout)
+
+/** Freeze the adapter's clock so both sides of the 45-second boundary run instantly. */
+const wakeTimePreload = join(wakeCheckout, "wake-time.mjs")
+writeFileSync(wakeTimePreload, "Date.now = () => Number(process.env.ORBIT_TEST_NOW)\n")
+const pendingAt = Date.parse("2026-09-12T00:00:00.000Z")
+registerWakeSource({
+  pid: process.pid,
+  what: "worker ORB-pending",
+  workerPid: null,
+  pending: true,
+  pendingAt: new Date(pendingAt).toISOString(),
+}, wakeCheckout)
+T(
+  "wake pending: a live registration inside the admission window allows the real Stop adapter",
+  isolatedWakeStop({ preload: wakeTimePreload, env: { ORBIT_TEST_NOW: String(pendingAt + PENDING_WAKE_SOURCE_MAX_AGE_MS) } }),
+  0,
+)
+T(
+  "wake pending: a registration past the admission window blocks without sleeping",
+  isolatedWakeStop({ preload: wakeTimePreload, env: { ORBIT_TEST_NOW: String(pendingAt + PENDING_WAKE_SOURCE_MAX_AGE_MS + 1) } }),
+  2,
+)
+writeFileSync(wakeFile, JSON.stringify(registeredWake))
 writeFileSync(wakeFile, JSON.stringify({ ...registeredWake, processStartIdentity: `${registeredWake.processStartIdentity}:different-start` }))
 T("wake identity: a live pid with a different start identity blocks the real Stop adapter", isolatedWakeStop(), 2)
 T("wake identity: a live mismatched record is left alone", existsSync(wakeFile), true)
