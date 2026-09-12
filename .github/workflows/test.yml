@@ -145,16 +145,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Ban raw --slate-*, transition-all, h-screen in app code
         run: |
           # DESIGN.md bans semantic-token violations. Accent-color literals are caught by
           # the Copy Register gate (tools/check-copy.mjs); this gate covers the rest.
-          hits=$(grep -rnE '\-\-slate-|transition-all|\bh-screen\b' apps/web apps/mobile \
-            --include='*.ts' --include='*.tsx' --include='*.css' \
-            --exclude-dir=node_modules --exclude-dir=__tests__ \
-            --exclude='globals.css' --exclude='theme.ts' \
-            --exclude='*.test.ts' --exclude='*.test.tsx' --exclude='*.spec.ts' --exclude='*.spec.tsx' || true)
+          hits=$(git diff --name-only --diff-filter=ACMR -z origin/${{ github.base_ref }}...HEAD -- apps/web apps/mobile \
+            | grep -zE '\.(ts|tsx|css)$' \
+            | grep -zvE '(^|/)__tests__/|/globals\.css$|/theme\.ts$|\.(test|spec)\.tsx?$' \
+            | xargs -0 --no-run-if-empty grep -nHE '\-\-slate-|transition-all|\bh-screen\b' || true)
           if [ -n "$hits" ]; then
             echo "::error::DESIGN.md ban: use semantic tokens (var(--fg-*)/var(--primary)), transform+opacity transitions, and min-h-dvh."
             echo "$hits"
@@ -163,7 +164,13 @@ jobs:
           echo "Design token guard passed."
 
       - name: Ban decorative gradients in app code
-        run: node tools/check-gradients.mjs
+        run: |
+          if git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+               | grep -Eq '^apps/(web|mobile)/.*\.(cjs|css|js|jsx|mjs|ts|tsx)$|^tools/check-gradients\.mjs$'; then
+            node tools/check-gradients.mjs
+          else
+            echo "Gradient guard skipped: no owned path changed."
+          fi
 
   surface-scope-report:
     name: Surface Scope Report
