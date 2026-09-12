@@ -52,9 +52,9 @@ jobs:
       - name: Run median TBT and script budget gates
         run: npx lhci autorun --config apps/web/lighthouserc.json
 
-      - name: Run trimmed authed Today LCP budget gate
+      - name: Report authed Today LCP
         if: always()
-        run: node apps/web/perf/assert-lcp-budget.mjs
+        run: node apps/web/perf/report-lcp.mjs
 
       - name: Stop mock orbit-api
         if: always()

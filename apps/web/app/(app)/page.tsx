@@ -7,7 +7,6 @@ interface TodayPageProps {
 }
 
 export default async function TodayPage({ searchParams }: Readonly<TodayPageProps>) {
-  await new Promise(resolve => setTimeout(resolve, 500))
   const { date } = await searchParams
   const requestedDate = Array.isArray(date) ? date[0] : date
   const initialToday = formatAPIDate(new Date())

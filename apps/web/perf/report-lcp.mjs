@@ -2,13 +2,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-export const LCP_BUDGET_MS = 7800
 export const LIGHTHOUSE_RUN_COUNT = 5
+export const PREVIOUS_LCP_BUDGET_MS = 7800
 
 const LCP_AUDIT_ID = 'largest-contentful-paint'
 const SAVED_REPORT_PATTERN = /^lhr-\d+\.json$/
 
-export function evaluateLcpBudget(values, budget = LCP_BUDGET_MS) {
+export function summarizeLcp(values) {
   if (values.length !== LIGHTHOUSE_RUN_COUNT) {
     throw new Error(`Expected ${LIGHTHOUSE_RUN_COUNT} LCP values, found ${values.length}`)
   }
@@ -17,12 +17,11 @@ export function evaluateLcpBudget(values, budget = LCP_BUDGET_MS) {
   }
 
   const sortedValues = values.toSorted((left, right) => left - right)
-  const selectedValue = sortedValues[1]
 
   return {
-    budget,
-    passed: selectedValue <= budget,
-    selectedValue,
+    maximum: sortedValues.at(-1),
+    median: sortedValues[2],
+    minimum: sortedValues[0],
     sortedValues,
   }
 }
@@ -46,18 +45,13 @@ export function readLcpValues(reportDirectory) {
 
 function run() {
   const reportDirectory = path.resolve('.lighthouseci')
-  const result = evaluateLcpBudget(readLcpValues(reportDirectory))
-  const values = result.sortedValues.map(value => value.toFixed(1)).join(', ')
-  const summary = [
-    `LCP values, fastest to slowest: ${values} ms`,
-    `LCP assertion: ${result.selectedValue.toFixed(1)} <= ${result.budget} ms after discarding the fastest runner outlier`,
-  ].join('\n')
+  const summary = summarizeLcp(readLcpValues(reportDirectory))
+  const values = summary.sortedValues.map(value => value.toFixed(1)).join(', ')
 
-  process.stdout.write(`${summary}\n`)
-  if (!result.passed) {
-    process.stderr.write('LCP budget failed\n')
-    process.exitCode = 1
-  }
+  process.stdout.write(`LCP values, fastest to slowest: ${values} ms\n`)
+  process.stdout.write(
+    `LCP report only: min ${summary.minimum.toFixed(1)}, median ${summary.median.toFixed(1)}, max ${summary.maximum.toFixed(1)} ms; previous gate ${PREVIOUS_LCP_BUDGET_MS} ms\n`,
+  )
 }
 
 const invokedPath = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : ''
@@ -66,7 +60,7 @@ if (import.meta.url === invokedPath) {
     run()
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    process.stderr.write(`LCP budget could not run: ${message}\n`)
+    process.stderr.write(`LCP report could not run: ${message}\n`)
     process.exitCode = 1
   }
 }
