@@ -74,6 +74,7 @@ export function CalendarAgendaView({
                     title={entry.title}
                     value={entry.dueTime ? displayTime(entry.dueTime) : undefined}
                     readOnly
+                    wrapTitle
                   />
                 ))}
               </div>

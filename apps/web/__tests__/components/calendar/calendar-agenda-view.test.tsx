@@ -51,6 +51,8 @@ describe('CalendarAgendaView', () => {
     renderAgenda()
 
     expect(screen.getByText('Morning walk')).toBeDefined()
+    expect(screen.getByText('Morning walk')).toHaveClass('break-words')
+    expect(screen.getByText('Morning walk')).not.toHaveClass('truncate')
     expect(screen.queryByRole('button')).toBeNull()
   })
 })

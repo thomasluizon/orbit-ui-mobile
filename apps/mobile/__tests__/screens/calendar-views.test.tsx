@@ -240,6 +240,7 @@ describe("CalendarScreen views (mobile)", () => {
     expect(agendaRows).toHaveLength(2);
     for (const row of agendaRows) {
       expect(row.props.readOnly).toBe(true);
+      expect(row.props.wrapTitle).toBe(true);
       expect(row.props.onPress).toBeUndefined();
       expect(row.props.onClick).toBeUndefined();
     }
