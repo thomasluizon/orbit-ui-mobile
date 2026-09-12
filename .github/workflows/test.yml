@@ -165,6 +165,35 @@ jobs:
       - name: Ban decorative gradients in app code
         run: node tools/check-gradients.mjs
 
+  surface-scope-report:
+    name: Surface Scope Report
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Report declared token surface scopes
+        env:
+          SURFACE_SCOPE_MODE: reporting-only
+        run: |
+          echo "Surface scope mode: ${SURFACE_SCOPE_MODE}. Findings are reported and do not fail this job."
+          echo "Tickets #486 and #506 flip this job to enforcing."
+          set +e
+          node tools/check-surface-scope.mjs
+          checker_status=$?
+          set -e
+          if [ "$SURFACE_SCOPE_MODE" = "reporting-only" ] && [ "$checker_status" -eq 1 ]; then
+            echo "Surface scope findings reported. This reporting-only job exits 0."
+            exit 0
+          fi
+          exit "$checker_status"
+
   contract-drift:
     name: Contract Drift
     runs-on: ubuntu-latest

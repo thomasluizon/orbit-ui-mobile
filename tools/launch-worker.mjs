@@ -227,6 +227,12 @@ if (dryRun) {
 
 console.error(`starting the ${engineName} worker for ${issue} in ${runDirectory}; log: ${logFile}`)
 const startedAt = new Date().toISOString()
+/**
+ * The orchestrator backgrounds this launcher. Register before any awaited setup or child spawn so
+ * a Stop in that launch window can observe the live launcher. The reader expires this pending form
+ * after 45 seconds, while the process identity still proves that the launcher itself really began.
+ */
+registerWakeSource({ pid: process.pid, what: `worker ${issue}`, workerPid: null, logFile, startedAt, pending: true, pendingAt: startedAt })
 const logFd = openSync(logFile, "a")
 /**
  * stdin is CLOSED, never "inherit" and never "pipe": an inherited-but-unwritten stdin pipe hangs
@@ -264,6 +270,7 @@ const child = spawn(executable, workerArgs, {
  * session with, so this pid is the run's real wake source. Registering it here is what lets the Stop
  * hook prove an unattended run has something live to wake it rather than take its word: a run that
  * ended a turn claiming "CI will wake me" with nothing scheduled ended the whole night on 2026-08-06.
+ * This overwrites the pending form now that the child pid is known.
  */
 registerWakeSource({ pid: process.pid, what: `worker ${issue}`, workerPid: child.pid ?? null, logFile, startedAt })
 
