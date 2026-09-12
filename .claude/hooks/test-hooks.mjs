@@ -34,6 +34,14 @@ const T = (name, got, want) => {
 const blocks = (verdict) => !!verdict?.block
 const NV = "--no-" + "verify"
 const ADMIN = "--" + "admin"
+/** A Bash backslash followed by a PowerShell backtick: even together, odd for PowerShell alone. */
+const MIXED_ESCAPE = String.fromCharCode(92, 96)
+/** Two backticks. PowerShell still executes what follows the ampersand, so parity proves nothing. */
+const EVEN_BACKTICKS = String.fromCharCode(96, 96)
+/** Two backslashes, the Bash mirror of the case above. */
+const EVEN_BACKSLASHES = String.fromCharCode(92, 92)
+/** `2>&$(...)`: Bash RUNS the substitution while expanding the descriptor target, so it is not inert. */
+const EXECUTABLE_DESCRIPTOR = "codex cloud list 2>&" + String.fromCharCode(36) + "(codex exec do-work)"
 
 // One unique fixture root per run, removed best-effort on exit: a leaked tmp dir
 // is garbage, never a verdict.
@@ -185,6 +193,43 @@ T("engine: codex cloud exec blocks", blocks(engine('codex cloud exec --env env_1
 T("engine: codex cloud apply blocks", blocks(engine("codex cloud apply task_123")), true)
 T('engine: "list" inside a prompt exempts nothing', blocks(engine('codex exec "cloud list things"')), true)
 T("engine: the cloud allowance is codex-only", blocks(engine("claude cloud list")), true)
+// #496: a redirection is punctuation, not an argument. `2>&1` used to split the segment on its
+// own ampersand and leave a phantom `2>` word, which failed the safe-argument test and refused a
+// permitted read. Every prohibited segment still refuses the whole command.
+T("engine: a piped cloud read allows", engine("codex cloud list --env env_1 | head -20"), null)
+T("engine: a cloud read with merged stderr allows", engine("codex cloud list --env env_1 2>&1 | head -20"), null)
+T("engine: a cloud read redirected to a file allows", engine("codex cloud diff task_123 > diff.txt"), null)
+T("engine: a cloud read with a numbered redirection allows", engine("codex cloud status task_123 2> err.log"), null)
+T("engine: a cloud read with an ampersand redirection allows", engine("codex cloud list &> out.log"), null)
+T("engine: a zero-cost query with merged stderr allows", engine("codex --version 2>&1 | cat"), null)
+T("engine: a piped worker start still blocks", blocks(engine("codex exec | tee log")), true)
+T("engine: a worker start with merged stderr still blocks", blocks(engine("codex exec 2>&1 | tee log")), true)
+T("engine: a worker start redirected to a file still blocks", blocks(engine("codex exec &> out.log")), true)
+T("engine: a chained worker start after a cloud read with merged stderr still blocks", blocks(engine("codex cloud list 2>&1 && codex exec")), true)
+T("engine: a spaced process substitution after a redirection operator still blocks", blocks(engine("codex cloud list > (codex exec)")), true)
+T("engine: a bare ampersand after a redirection operator still blocks", blocks(engine("codex cloud list > & codex exec")), true)
+// An ESCAPED greater-than is a literal character, so the ampersand after it still separates
+// commands. Treating it as a redirection hid the second command from every rule reading segmentsOf.
+T("engine: a Bash-escaped greater-than does not hide the next command", blocks(engine(String.raw`printf \> & codex exec`)), true)
+T("engine: a PowerShell-escaped greater-than does not hide the next command", blocks(engine("Write-Output before `> & codex exec")), true)
+// A backslash then a backtick is EVEN when the two grammars are counted together, while PowerShell
+// still escapes the arrow and runs the second command. Each grammar is counted on its own run.
+T("engine: a mixed escape run does not hide the next command", blocks(engine(`Write-Output before ${MIXED_ESCAPE}> & codex exec`)), true)
+// Parity is not a shell grammar. Real PowerShell backgrounds the pipeline at `&` and runs what
+// follows even after an EVEN backtick run, so the ampersand always ends the segment.
+T("engine: an even backtick run does not hide the next command", blocks(engine(`Write-Output before ${EVEN_BACKTICKS}> & codex exec`)), true)
+T("engine: an even backslash run does not hide the next command", blocks(engine(`Write-Output before ${EVEN_BACKSLASHES}> & codex exec`)), true)
+// segmentsOf splits the ampersand out of `>&<target>`, so the dangling operator's target lives in
+// the NEXT segment. Dropping the operator without proving that target inert let a command
+// substitution start a worker while Bash expanded it.
+T("engine: an executable descriptor target blocks", blocks(engine(EXECUTABLE_DESCRIPTOR)), true)
+T("engine: a backtick descriptor target blocks", blocks(engine("codex cloud list 2>&" + String.fromCharCode(96) + "codex exec" + String.fromCharCode(96))), true)
+T("engine: descriptor duplication is still inert", engine("codex cloud list 2>&1"), null)
+T("engine: closing a descriptor is still inert", engine("codex cloud list 2>&-"), null)
+T("admin-merge: a Bash-escaped greater-than does not hide an admin merge", blocks(checkAdminMerge(String.raw`printf \> & gh pr merge 667 --squash ${ADMIN}`)), true)
+T("admin-merge: a PowerShell-escaped greater-than does not hide an admin merge", blocks(checkAdminMerge(`Write-Output before \`> & gh pr merge 667 --squash ${ADMIN}`)), true)
+T("admin-merge: a mixed escape run does not hide an admin merge", blocks(checkAdminMerge(`Write-Output before ${MIXED_ESCAPE}> & gh pr merge 667 --squash ${ADMIN}`)), true)
+T("admin-merge: an even backtick run does not hide an admin merge", blocks(checkAdminMerge(`Write-Output before ${EVEN_BACKTICKS}> & gh pr merge 667 --squash ${ADMIN}`)), true)
 T("engine: the refusal names the cloud submitter", engine("codex cloud exec")?.message.includes("tools/submit-cloud-worker.mjs"), true)
 // The launcher exports its marker into every worker it spawns; that is the
 // discriminator, and it is read from the ENVIRONMENT only.
@@ -217,6 +262,12 @@ T("staging: real linked worktree initializes", stagingGit(["worktree", "add", "-
 mkdirSync(join(stagingWorktree, "named-dir"), { recursive: true })
 rmSync(join(stagingWorktree, ".claude"), { recursive: true })
 const workerStaging = (command) => checkBroadStaging(command, { cwd: stagingWorktree, repoRoots: [stagingMain] })
+// #496: segmentsOf feeds this rule too, so an escaped greater-than must not hide the second command
+// from it either. Bash `printf \> & git add -A` starts a real `git add -A`.
+T("staging: a Bash-escaped greater-than does not hide a broad stage", blocks(workerStaging(String.raw`printf \> & git add -A`)), true)
+T("staging: a PowerShell-escaped greater-than does not hide a broad stage", blocks(workerStaging("Write-Output before `> & git add -A")), true)
+T("staging: a mixed escape run does not hide a broad stage", blocks(workerStaging(`Write-Output before ${MIXED_ESCAPE}> & git add -A`)), true)
+T("staging: an even backtick run does not hide a broad stage", blocks(workerStaging(`Write-Output before ${EVEN_BACKTICKS}> & git add -A`)), true)
 for (const command of [
   "git add -A",
   "git add --all",
@@ -556,6 +607,8 @@ T("adapter orchestrator: gh pr merge --squash -> 0", runHook(ORCH, bash("gh pr m
 T("adapter orchestrator: codex --version -> 0", runHook(ORCH, bash("codex --version")), 0)
 T("adapter orchestrator: grep over a codex pattern -> 0", runHook(ORCH, bash("grep -rnE 'claude|codex' tools/")), 0)
 T("adapter orchestrator: the launcher marker -> 0", runHook(ORCH, bash("codex exec"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
+T("adapter orchestrator: an executable descriptor target -> 2", runHook(ORCH, bash(EXECUTABLE_DESCRIPTOR)), 2)
+T("adapter orchestrator: codex cloud list 2>&1 | head -20 -> 0", runHook(ORCH, bash("codex cloud list 2>&1 | head -20")), 0)
 T("adapter orchestrator: worker git add -A -> 2", runHook(ORCH, bash("git add -A"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter orchestrator: worker git add -u -> 2", runHook(ORCH, bash("git add -u"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter orchestrator: worker named git add -> 0", runHook(ORCH, bash("git add tools/verify-delivery.mjs", repoRoot), { ORBIT_LAUNCH_WORKER: "1" }), 0)
