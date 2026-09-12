@@ -41,6 +41,29 @@ export const cases = () => {
   )
   run("accepts an explicitly allowlisted scoped off rule", allowed, { status: 0 })
 
+  const escapedBasePath = stageConfig(
+    "escaped-base-path",
+    `export default [{ basePath: "../..", files: ${JSON.stringify(allowedFiles)}, rules: { "local/no-double-assertion": "off" } }]\n`,
+    "packages/shared/eslint.config.mjs",
+  )
+  run("rejects an allowlisted off rule resolved outside its named directory", escapedBasePath, {
+    status: 1,
+    stderr: /outside the declared scoped allowlist/,
+  })
+
+  const fullScreenFiles = [
+    "**/*-sheet.tsx", "**/*-modal.tsx", "**/*-dialog.tsx", "**/*-drawer.tsx",
+    "**/*-overlay.tsx", "**/*-prompt.tsx", "**/*-form.tsx", "**/*-celebration.tsx",
+    "**/*-picker.tsx", "**/*-gate.tsx", "**/goal-detail-drawer/**", "**/calendar-sync/**",
+    "**/onboarding/**", "**/(auth)/**", "**/*empty-state.tsx", "**/*-no-data-state.tsx",
+  ]
+  const fullScreen = stageConfig(
+    "full-screen-off",
+    `export default [{ files: ${JSON.stringify(fullScreenFiles)}, rules: { "local/no-fullbleed-button": "off" } }]\n`,
+    "apps/web/eslint.config.mjs",
+  )
+  run("accepts the allowlisted full-screen off scope", fullScreen, { status: 0 })
+
   const broadenedFiles = [...allowedFiles, "src/**/*.ts"]
   const broadened = stageConfig(
     "broadened-off",
@@ -70,6 +93,15 @@ export const cases = () => {
   run("rejects an existing custom suppressions-location target", customBaseline, {
     status: 1,
     stderr: /apps\/web\/custom-lint-baseline\.json/,
+  })
+
+  const escapedBaseline = stageConfig("escaped-baseline", 'export default [{ rules: { "local/example": "error" } }]\n')
+  writeFileSync(join(escapedBaseline, "package.json"), JSON.stringify({
+    scripts: { lint: "eslint . --suppressions-location ../.." },
+  }))
+  run("rejects a suppressions-location resolved outside the repository", escapedBaseline, {
+    status: 1,
+    stderr: /resolves outside the repository/,
   })
 
   const reportingStillBlocks = stageConfig("reporting-warning", 'export default [{ rules: { "local/example": "warn" } }]\n')

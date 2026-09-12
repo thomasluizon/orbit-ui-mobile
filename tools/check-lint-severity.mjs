@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
-import { basename, dirname, join, relative, resolve, sep } from "node:path"
+import { existsSync, readFileSync, realpathSync, readdirSync, statSync } from "node:fs"
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 const USAGE = `usage: check-lint-severity.mjs (--report-suppressions | --enforce-suppressions) [--root <path>]
@@ -45,6 +45,25 @@ while (argumentsLeft.length > 0) {
 if (suppressionMode === null) fail(2, `check-lint-severity: choose a suppression mode\n\n${USAGE}`)
 
 const normalizedRelativePath = (path) => relative(repositoryRoot, path).split(sep).join("/")
+const resolvedPath = (path) => {
+  const absolutePath = resolve(path)
+  if (existsSync(absolutePath)) return realpathSync.native(absolutePath)
+
+  const missingSegments = []
+  let existingAncestor = absolutePath
+  while (!existsSync(existingAncestor)) {
+    const parent = dirname(existingAncestor)
+    if (parent === existingAncestor) return absolutePath
+    missingSegments.unshift(basename(existingAncestor))
+    existingAncestor = parent
+  }
+  return resolve(realpathSync.native(existingAncestor), ...missingSegments)
+}
+const resolvedRepositoryRoot = resolvedPath(repositoryRoot)
+const isInsideRepository = (path) => {
+  const relativePath = relative(resolvedRepositoryRoot, path)
+  return relativePath === "" || (!isAbsolute(relativePath) && relativePath !== ".." && !relativePath.startsWith(`..${sep}`))
+}
 const ignoredDirectories = new Set([".git", "node_modules"])
 const repositoryFiles = []
 const visit = (directory) => {
@@ -110,9 +129,26 @@ const sameStrings = (left, right) =>
   && left.length === right.length
   && [...left].sort().every((value, index) => value === [...right].sort()[index])
 
-const isAllowedOff = (config, files, rule) => scopedOffAllowlist.some(
-  (entry) => entry.config === config && sameStrings(files, entry.files) && entry.rules.includes(rule),
-)
+const resolvedOffAllowlist = scopedOffAllowlist.map((entry) => {
+  const configPath = resolvedPath(resolve(repositoryRoot, entry.config))
+  const basePath = resolvedPath(dirname(configPath))
+  return {
+    configPath,
+    files: entry.files.map((pattern) => resolve(basePath, pattern)),
+    rules: entry.rules,
+  }
+})
+
+const isAllowedOff = (configPath, block, rule) => {
+  if (!Array.isArray(block.files) || !block.files.every((pattern) => typeof pattern === "string")) return false
+  if (block.basePath !== undefined && typeof block.basePath !== "string") return false
+  const basePath = resolvedPath(resolve(dirname(configPath), block.basePath ?? "."))
+  const files = block.files.map((pattern) => resolve(basePath, pattern))
+  const canonicalConfigPath = resolvedPath(configPath)
+  return resolvedOffAllowlist.some(
+    (entry) => entry.configPath === canonicalConfigPath && sameStrings(files, entry.files) && entry.rules.includes(rule),
+  )
+}
 
 const flattenConfigs = (value) => Array.isArray(value) ? value.flatMap(flattenConfigs) : [value]
 const severityOf = (setting) => Array.isArray(setting) ? setting[0] : setting
@@ -137,7 +173,7 @@ for (const configPath of configPaths) {
       const severity = severityOf(setting)
       if (severity === "warn" || severity === 1) {
         severityProblems.push(`${configName} block ${index + 1}: ${rule} is warn`)
-      } else if ((severity === "off" || severity === 0) && !isAllowedOff(configName, block.files, rule)) {
+      } else if ((severity === "off" || severity === 0) && !isAllowedOff(configPath, block, rule)) {
         severityProblems.push(`${configName} block ${index + 1}: ${rule} is off outside the declared scoped allowlist`)
       }
     }
@@ -154,19 +190,29 @@ const suppressionTargetPattern = /--suppressions-location(?:=|\s+)(?:"([^"]+)"|'
 const commandSources = repositoryFiles.filter((path) =>
   basename(path) === "package.json" || /[\\/]\.github[\\/]workflows[\\/].+\.ya?ml$/.test(path),
 )
-const declaredTargets = new Set()
+const declaredTargets = new Map()
 for (const sourcePath of commandSources) {
   const body = readFileSync(sourcePath, "utf8")
   for (const match of body.matchAll(suppressionTargetPattern)) {
-    const target = (match[1] ?? match[2] ?? match[3]).replaceAll("\\", "/").replace(/^\.\//, "")
-    declaredTargets.add(target)
+    const target = match[1] ?? match[2] ?? match[3]
+    const basePath = basename(sourcePath) === "package.json" ? dirname(sourcePath) : repositoryRoot
+    const absoluteTarget = resolvedPath(resolve(basePath, target))
+    declaredTargets.set(absoluteTarget, { sourcePath, target })
   }
 }
-for (const target of declaredTargets) {
-  for (const path of repositoryFiles) {
-    const candidate = normalizedRelativePath(path)
-    if (candidate === target || candidate.endsWith(`/${target}`)) suppressionFiles.add(candidate)
+const repositoryFilesByResolvedPath = new Map(
+  repositoryFiles.map((path) => [resolvedPath(path), normalizedRelativePath(path)]),
+)
+const suppressionLocationProblems = []
+for (const [absoluteTarget, declaration] of declaredTargets) {
+  if (!isInsideRepository(absoluteTarget)) {
+    suppressionLocationProblems.push(
+      `${normalizedRelativePath(declaration.sourcePath)}: --suppressions-location ${declaration.target} resolves outside the repository`,
+    )
+    continue
   }
+  const matchedFile = repositoryFilesByResolvedPath.get(absoluteTarget)
+  if (matchedFile) suppressionFiles.add(matchedFile)
 }
 
 if (severityProblems.length > 0) {
@@ -174,16 +220,23 @@ if (severityProblems.length > 0) {
   for (const problem of severityProblems) console.error(`  ${problem}`)
 }
 
-if (suppressionFiles.size > 0) {
+const hasSuppressionFindings = suppressionFiles.size > 0 || suppressionLocationProblems.length > 0
+if (hasSuppressionFindings) {
   const paths = [...suppressionFiles].sort()
   const label = suppressionMode === "report" ? "reported" : "failed"
   const stream = suppressionMode === "report" ? console.log : console.error
-  stream(`Lint suppressions ${label}: ${paths.length} baseline file(s) exist.`)
-  for (const path of paths) stream(`  ${path}`)
+  if (paths.length > 0) {
+    stream(`Lint suppressions ${label}: ${paths.length} baseline file(s) exist.`)
+    for (const path of paths) stream(`  ${path}`)
+  }
+  if (suppressionLocationProblems.length > 0) {
+    stream(`Lint suppression locations ${label}: ${suppressionLocationProblems.length} target(s) resolve outside the repository.`)
+    for (const problem of suppressionLocationProblems) stream(`  ${problem}`)
+  }
   if (suppressionMode === "report") {
     stream("GitHub #175 keeps this finding report-only until the redesign reaches zero baselines; severity findings still enforce now.")
   }
 }
 
-if (severityProblems.length > 0 || (suppressionMode === "enforce" && suppressionFiles.size > 0)) process.exit(1)
+if (severityProblems.length > 0 || (suppressionMode === "enforce" && hasSuppressionFindings)) process.exit(1)
 console.log(`check-lint-severity: checked ${localRuleCount} local rule setting(s) across ${configPaths.length} config(s) in ${suppressionMode} mode.`)
