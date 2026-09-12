@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process"
-import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, watch, writeFileSync } from "node:fs"
+import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, watch, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
@@ -34,6 +34,7 @@ const IMMEDIATE = stage("launch-worker/immediate-worker.js", "process.exit(0)\n"
 /** Floods stdout the way ORB-201 did, which is how a 61.73 MB log happened. It never exits on its
  * own, so the only thing that can end it is the launcher noticing the flood. */
 const FLOODER = stage("launch-worker/flooding-worker.js", "const line = 'x'.repeat(4096)\nsetInterval(() => { for (let i = 0; i < 64; i++) process.stdout.write(line + '\\n') }, 5)\n")
+const UNBOUNDED_LOG_DRIP = stage("launch-worker/unbounded-log-drip.js", "setInterval(() => process.stdout.write('heartbeat\\n'), 250)\n")
 
 const launch = (label, config) => {
   const repo = stageRepo(`launch-worker-${label}`)
@@ -56,25 +57,55 @@ const discardLog = (stdout) => {
   }
 }
 
-const waitForFile = (path) => {
-  if (existsSync(path)) return Promise.resolve()
+const readFileContents = (path) => {
+  try {
+    return readFileSync(path, "utf8")
+  } catch (error) {
+    if (error.code === "ENOENT") return null
+    throw error
+  }
+}
+
+const waitForFile = (path, expectedContents) => {
+  const initialContents = readFileContents(path)
+  if (initialContents === expectedContents) return Promise.resolve()
+  if (initialContents !== null) return Promise.reject(new Error(`observed incomplete contents in ${path}: ${JSON.stringify(initialContents)}`))
   return new Promise((resolve, reject) => {
     let deadline
-    const finish = () => {
+    let settled = false
+    const finish = (error) => {
+      if (settled) return
+      settled = true
       clearTimeout(deadline)
       watcher.close()
-      resolve()
+      if (error) reject(error)
+      else resolve()
     }
     const watcher = watch(dirname(path), () => {
-      if (!existsSync(path)) return
+      const contents = readFileContents(path)
+      if (contents === null) return
+      if (contents !== expectedContents) {
+        finish(new Error(`observed incomplete contents in ${path}: ${JSON.stringify(contents)}`))
+        return
+      }
       finish()
     })
     deadline = setTimeout(() => {
       watcher.close()
       reject(new Error(`timed out waiting for ${path}`))
     }, 10000)
-    if (existsSync(path)) finish()
+    const contents = readFileContents(path)
+    if (contents === expectedContents) finish()
+    else if (contents !== null) finish(new Error(`observed incomplete contents in ${path}: ${JSON.stringify(contents)}`))
   })
+}
+
+let markerPublication = 0
+const publishMarker = (path, contents) => {
+  markerPublication += 1
+  const unpublishedPath = `${path}.${process.pid}-${markerPublication}.unpublished`
+  writeFileSync(unpublishedPath, contents)
+  renameSync(unpublishedPath, path)
 }
 
 const launchAsync = (path, argv, env) => {
@@ -254,19 +285,46 @@ export const cases = async () => {
   const supervisionStart = 10000
   const supervisionClock = stage("launch-worker/supervision-clock", `${supervisionStart}\n`)
   const supervisionClockReady = `${supervisionClock}.ready`
+  const acknowledgementPublicationProbe = stage(
+    "launch-worker/acknowledgement-publication-probe.cjs",
+    `const fs = require("node:fs")
+const { syncBuiltinESMExports } = require("node:module")
+const writeFileSync = fs.writeFileSync
+fs.writeFileSync = (path, contents, options) => {
+  const clockPath = process.env.ORBIT_TEST_SUPERVISION_CLOCK
+  if (clockPath && String(path).startsWith(clockPath + ".sampled-") && !String(path).endsWith(".unpublished")) {
+    const descriptor = fs.openSync(path, "w")
+    try {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500)
+      writeFileSync(descriptor, contents, options)
+    } finally {
+      fs.closeSync(descriptor)
+    }
+    return
+  }
+  writeFileSync(path, contents, options)
+}
+syncBuiltinESMExports()
+`,
+  )
   const DRIP = stage(
     "launch-worker/dripping-worker.js",
-    `const { existsSync, watch, writeFileSync } = require("node:fs")
+    `const { existsSync, renameSync, watch, writeFileSync } = require("node:fs")
 const { dirname } = require("node:path")
+const publishMarker = (path, contents) => {
+  const unpublishedPath = path + "." + process.pid + ".unpublished"
+  writeFileSync(unpublishedPath, contents)
+  renameSync(unpublishedPath, path)
+}
 const publishHeartbeat = () => {
   if (!existsSync(${JSON.stringify(dripCommand)})) return false
-  process.stdout.write("heartbeat\\n", () => writeFileSync(${JSON.stringify(dripWritten)}, "written"))
+  process.stdout.write("heartbeat\\n", () => publishMarker(${JSON.stringify(dripWritten)}, "written"))
   return true
 }
 const commandWatcher = watch(dirname(${JSON.stringify(dripCommand)}), () => {
   if (publishHeartbeat()) commandWatcher.close()
 })
-writeFileSync(${JSON.stringify(dripReady)}, "ready")
+publishMarker(${JSON.stringify(dripReady)}, "ready")
 if (publishHeartbeat()) commandWatcher.close()
 setInterval(() => {}, 60000)
 `,
@@ -274,34 +332,44 @@ setInterval(() => {}, 60000)
   const logNoProgressMinutes = 0.03
   const logPollSeconds = 0.2
   const logProgress = launch("log-progress", launchConfig({ ...stubEngine(DRIP), timeouts: { hardCeilingMinutes: 0.1, noProgressMinutes: logNoProgressMinutes, pollSeconds: logPollSeconds } }))
+  const logProgressEnvironment = githubAuthEnv()
   const logProgressProcess = launchAsync(
     logProgress.path,
     ["--issue", "ORB-201", "--worktree", logProgress.worktree, "--prompt", logProgress.prompt],
-    { ...githubAuthEnv(), ORBIT_TEST_SUPERVISION_CLOCK: supervisionClock },
+    {
+      ...logProgressEnvironment,
+      NODE_OPTIONS: `${logProgressEnvironment.NODE_OPTIONS} --require "${acknowledgementPublicationProbe.replaceAll("\\", "/")}"`,
+      ORBIT_TEST_SUPERVISION_CLOCK: supervisionClock,
+    },
   )
-  await Promise.all([waitForFile(dripReady), waitForFile(supervisionClockReady)])
+  await Promise.race([
+    Promise.all([waitForFile(dripReady, "ready"), waitForFile(supervisionClockReady, "ready")]),
+    logProgressProcess.result.then((result) => {
+      throw new Error(`log-progress exited before publishing its ready markers: ${result.stderr || result.stdout}`)
+    }),
+  ])
   const noProgressMs = logNoProgressMinutes * 60 * 1000
-  const publishClockAndWaitForSample = async (record) => {
+  const publishClockAndWaitForSample = async (record, expectedSample) => {
     const publishedByteLength = Buffer.byteLength(readFileSync(supervisionClock, "utf8")) + Buffer.byteLength(record)
     const acknowledgement = `${supervisionClock}.sampled-${publishedByteLength}`
     rmSync(acknowledgement, { force: true })
     appendFileSync(supervisionClock, record)
-    await waitForFile(acknowledgement)
+    await waitForFile(acknowledgement, String(expectedSample))
     return readFileSync(acknowledgement, "utf8")
   }
   // The first virtual interval stays one millisecond inside the cap. Empty and invalid records are
   // then the newest complete publications while the heartbeat resets the retained clock value.
   const previousClockValue = supervisionStart + noProgressMs - 1
-  const afterEmptyRecord = await publishClockAndWaitForSample(`${previousClockValue}\n\n`)
+  const afterEmptyRecord = await publishClockAndWaitForSample(`${previousClockValue}\n\n`, previousClockValue)
   T(
     `${TOOL}: an empty clock record retains the previous non-zero value`,
     afterEmptyRecord === String(previousClockValue),
     `the sampler reported ${afterEmptyRecord} instead of ${previousClockValue}`,
   )
   if (logProgressProcess.child.exitCode === null) {
-    writeFileSync(dripCommand, "write one heartbeat")
-    await waitForFile(dripWritten)
-    const afterInvalidRecord = await publishClockAndWaitForSample("invalid\n")
+    publishMarker(dripCommand, "write one heartbeat")
+    await waitForFile(dripWritten, "written")
+    const afterInvalidRecord = await publishClockAndWaitForSample("invalid\n", previousClockValue)
     T(
       `${TOOL}: an invalid clock record retains the previous non-zero value`,
       afterInvalidRecord === String(previousClockValue),
@@ -309,8 +377,8 @@ setInterval(() => {}, 60000)
     )
     if (logProgressProcess.child.exitCode === null) {
       const nextClockValue = supervisionStart + (noProgressMs * 2) - 2
-      await publishClockAndWaitForSample(`${nextClockValue}\n`)
-      const afterPartialRecord = await publishClockAndWaitForSample(`${supervisionStart + (noProgressMs * 4)}`)
+      await publishClockAndWaitForSample(`${nextClockValue}\n`, nextClockValue)
+      const afterPartialRecord = await publishClockAndWaitForSample(`${supervisionStart + (noProgressMs * 4)}`, nextClockValue)
       T(
         `${TOOL}: a truncated trailing clock record is ignored until publication completes`,
         afterPartialRecord === String(nextClockValue) && logProgressProcess.child.exitCode === null,
@@ -330,7 +398,7 @@ setInterval(() => {}, 60000)
    * count as progress in that configuration: a flooding hung worker would otherwise hold the stall
    * clock open all the way to the ceiling, the exact ORB-201 shape. */
   const uncapped = launch("log-uncapped", (() => {
-    const config = launchConfig({ ...stubEngine(FLOODER), timeouts: { hardCeilingMinutes: 0.1, noProgressMinutes: 0.03, pollSeconds: 0.2 } })
+    const config = launchConfig({ ...stubEngine(UNBOUNDED_LOG_DRIP), timeouts: { hardCeilingMinutes: 0.1, noProgressMinutes: 0.03, pollSeconds: 0.2 } })
     delete config.caps.workerLogMegabytes
     return config
   })())
@@ -392,11 +460,13 @@ setInterval(() => {}, 60000)
     join(observedLaunch.base, ".git", "orbit-orchestrate-run.json"),
     JSON.stringify({ sessionId: wakeSessionId, sleep: true, remaining: ["ORB-202"] }),
   )
-  writeFileSync(wakeAuthGate, `const { existsSync, writeFileSync } = require("node:fs")
+  writeFileSync(wakeAuthGate, `const { existsSync, renameSync, writeFileSync } = require("node:fs")
 const argv = process.argv.slice(1)
 if (argv[0] && existsSync(argv[0])) return
 if (!argv.join(" ").includes("auth token --user test-owner")) process.exit(9)
-writeFileSync(${JSON.stringify(wakeAuthEntered)}, "authentication unresolved")
+const unpublishedPath = ${JSON.stringify(wakeAuthEntered)} + "." + process.pid + ".unpublished"
+writeFileSync(unpublishedPath, "authentication unresolved")
+renameSync(unpublishedPath, ${JSON.stringify(wakeAuthEntered)})
 while (!existsSync(${JSON.stringify(wakeAuthRelease)})) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20)
 }
@@ -438,7 +508,7 @@ const poll = setInterval(() => {
   const pendingRecordPath = join(observedLaunch.base, ".git", "orbit-wake-sources", `${observedProcess.child.pid}.json`)
   let observed
   try {
-    await waitForFile(wakeAuthEntered)
+    await waitForFile(wakeAuthEntered, "authentication unresolved")
     const pendingSource = existsSync(pendingRecordPath) ? JSON.parse(readFileSync(pendingRecordPath, "utf8")) : null
     const pendingStop = spawnSync(process.execPath, [join(wakeHooks, "require-wake-source.mjs")], {
       input: JSON.stringify({ session_id: wakeSessionId, stop_hook_active: false }),
@@ -459,7 +529,7 @@ const poll = setInterval(() => {
       `exit ${pendingStop.status}: ${pendingStop.stderr || pendingStop.stdout}`,
     )
   } finally {
-    writeFileSync(wakeAuthRelease, "release authentication")
+    publishMarker(wakeAuthRelease, "release authentication")
     observed = await observedProcess.result
   }
   T(

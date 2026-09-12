@@ -13,7 +13,7 @@
  */
 
 import { spawn, spawnSync } from "node:child_process"
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, extname, join, resolve } from "node:path"
 
@@ -157,6 +157,11 @@ const noProgressMs = noProgressMinutes * 60 * 1000
 const supervisionClockPath = process.env.ORBIT_TEST_SUPERVISION_CLOCK
 let lastCompleteSupervisionTime = null
 let supervisionSample = null
+const publishSupervisionMarker = (path, contents) => {
+  const unpublishedPath = `${path}.${process.pid}.unpublished`
+  writeFileSync(unpublishedPath, contents)
+  renameSync(unpublishedPath, path)
+}
 const supervisionNow = () => {
   if (!supervisionClockPath) return Date.now()
   const clockContents = readFileSync(supervisionClockPath, "utf8")
@@ -177,7 +182,7 @@ const supervisionNow = () => {
 
 const acknowledgeSupervisionSample = () => {
   if (!supervisionClockPath || supervisionSample === null) return
-  writeFileSync(`${supervisionClockPath}.sampled-${supervisionSample.byteLength}`, String(supervisionSample.sampledTime))
+  publishSupervisionMarker(`${supervisionClockPath}.sampled-${supervisionSample.byteLength}`, String(supervisionSample.sampledTime))
 }
 
 const workerPointer = (worktreePath, branch) =>
@@ -466,7 +471,7 @@ const logByteCap = Number.isFinite(logMegabyteCap) && logMegabyteCap > 0 ? logMe
  */
 let progress = progressFingerprint()
 let lastProgressAt = supervisionNow() ?? Date.now()
-if (supervisionClockPath) writeFileSync(`${supervisionClockPath}.ready`, "ready")
+if (supervisionClockPath) publishSupervisionMarker(`${supervisionClockPath}.ready`, "ready")
 let lastLogSize = 0
 let cpuBaseline = null
 const sampleProgress = () => {
