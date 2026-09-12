@@ -178,62 +178,15 @@ const BAD_GRAPHIC_SOURCE_SITES = [
   },
 ] as const
 
-const BAD_FILL_SOURCE_COUNTS = {
-  'apps/mobile/app/(tabs)/calendar/_components/calendar-day-entry.tsx': 1,
-  'apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx': 1,
-  'apps/mobile/app/(tabs)/profile/_components/delete-account-modal.tsx': 2,
-  'apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx': 1,
-  'apps/mobile/app/calendar-sync.tsx': 2,
-  'apps/mobile/components/chat/conflict-warning.tsx': 3,
-  'apps/mobile/components/goals/goal-detail-drawer.tsx': 1,
-  'apps/mobile/components/habits/habit-checklist.tsx': 1,
-  'apps/mobile/components/habits/habit-detail-screen.tsx': 1,
-  'apps/mobile/components/habits/habit-row-trailing.tsx': 2,
-  'apps/mobile/components/habits/selection-tray.tsx': 1,
-  'apps/mobile/components/navigation/notification-row.tsx': 1,
-  'apps/mobile/components/offline-notice.tsx': 1,
-  'apps/mobile/components/shell/composer.tsx': 1,
-  'apps/mobile/components/ui/app-text-input.tsx': 1,
-  'apps/mobile/components/ui/block-frame.tsx': 1,
-  'apps/mobile/components/ui/checkbox.tsx': 1,
-  'apps/mobile/components/ui/input.tsx': 1,
-  'apps/mobile/components/ui/list-row.tsx': 2,
-  'apps/mobile/components/ui/otp-input.tsx': 1,
-  'apps/mobile/components/ui/pill-button.tsx': 2,
-  'apps/mobile/components/ui/settings-row.tsx': 1,
-  'apps/mobile/components/ui/status-dot.tsx': 1,
-  'apps/mobile/components/ui/status-ring.tsx': 1,
-  'apps/mobile/components/ui/time-field.tsx': 1,
-  'apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx': 1,
-  'apps/web/app/(app)/calendar-sync/page.tsx': 2,
-  'apps/web/app/(app)/profile/_components/delete-account-modal.tsx': 2,
-  'apps/web/app/(app)/profile/_components/fresh-start-modal.tsx': 1,
-  'apps/web/app/(app)/support/_components/support-field.tsx': 1,
-  'apps/web/app/globals.css': 5,
-  'apps/web/components/calendar/calendar-agenda-view.tsx': 1,
-  'apps/web/components/calendar/calendar-day-detail.tsx': 1,
-  'apps/web/components/calendar/calendar-time-grid.tsx': 1,
-  'apps/web/components/chat/conflict-warning.tsx': 3,
-  'apps/web/components/goals/goal-detail-sections.tsx': 1,
-  'apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx': 1,
-  'apps/web/components/habits/habit-checklist.tsx': 2,
-  'apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx': 1,
-  'apps/web/components/habits/habit-form-fields/tag-picker-field.tsx': 1,
-  'apps/web/components/habits/habit-row-trailing.tsx': 2,
-  'apps/web/components/habits/selection-tray.tsx': 1,
-  'apps/web/components/navigation/notification-row.tsx': 1,
-  'apps/web/components/shell/composer.tsx': 1,
-  'apps/web/components/ui/block-frame.tsx': 1,
-  'apps/web/components/ui/checkbox.tsx': 1,
-  'apps/web/components/ui/input.tsx': 1,
-  'apps/web/components/ui/list-row.tsx': 2,
-  'apps/web/components/ui/otp-input.tsx': 1,
-  'apps/web/components/ui/pill-button.tsx': 2,
-  'apps/web/components/ui/settings-row.tsx': 1,
-  'apps/web/components/ui/status-dot.tsx': 1,
-  'apps/web/components/ui/status-ring.tsx': 1,
-  'apps/web/components/ui/time-field.tsx': 1,
-} as const
+const DIRECT_BAD_FILL_PATTERN = /\btokens\.statusBad\b|var\(--status-bad\)/g
+
+interface DirectBadFillReference {
+  column: number
+  line: number
+  offset: number
+  path: string
+  source: string
+}
 
 function productionSourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -246,17 +199,82 @@ function productionSourceFiles(directory: string): string[] {
   })
 }
 
-function directBadFillReferences(): Record<string, number> {
+function directBadFillReferences(): DirectBadFillReference[] {
   const sourceFiles = [
     ...productionSourceFiles(`${REPOSITORY_ROOT}apps/mobile`),
     ...productionSourceFiles(`${REPOSITORY_ROOT}apps/web`),
   ]
-  return Object.fromEntries(sourceFiles.flatMap((path) => {
+  return sourceFiles.flatMap((path) => {
     const source = readFileSync(path, 'utf8')
-    const count = [...source.matchAll(/\btokens\.statusBad\b|var\(--status-bad\)/g)].length
     const repositoryPath = relative(REPOSITORY_ROOT, path).replaceAll('\\', '/')
-    return count > 0 ? [[repositoryPath, count] as const] : []
-  }).sort(([left], [right]) => left.localeCompare(right)))
+    return [...source.matchAll(DIRECT_BAD_FILL_PATTERN)].map((match) => {
+      const offset = match.index
+      const precedingSource = source.slice(0, offset)
+      const lineStart = precedingSource.lastIndexOf('\n') + 1
+      return {
+        column: offset - lineStart + 1,
+        line: precedingSource.match(/\n/g)?.length ?? 0,
+        offset,
+        path: repositoryPath,
+        source,
+      }
+    })
+  })
+}
+
+function openingTagAt(reference: DirectBadFillReference): string | null {
+  const tagStart = reference.source.lastIndexOf('<', reference.offset)
+  const priorTagEnd = reference.source.lastIndexOf('>', reference.offset)
+  const tagEnd = reference.source.indexOf('>', reference.offset)
+  if (tagStart < 0 || tagStart < priorTagEnd || tagEnd < reference.offset) return null
+  return reference.source.slice(tagStart, tagEnd + 1)
+}
+
+function cssSelectorAt(reference: DirectBadFillReference): string | null {
+  if (!reference.path.endsWith('.css')) return null
+  const blockStart = reference.source.lastIndexOf('{', reference.offset)
+  const priorBlockEnd = reference.source.lastIndexOf('}', blockStart)
+  if (blockStart < 0) return null
+  return reference.source.slice(priorBlockEnd + 1, blockStart).trim()
+}
+
+function hasSurfaceRole(reference: DirectBadFillReference): boolean {
+  const before = reference.source.slice(Math.max(0, reference.offset - 240), reference.offset)
+  const lineBefore = before.slice(before.lastIndexOf('\n') + 1)
+  return /(?:background(?:Color)?|border(?:Color)?|boxShadow|shadow|ring|bg)\s*[:=][^;{}]*$/.test(before)
+    || /(?:background(?:Color)?|border(?:Color)?|boxShadow|shadow|ring|bg)\s*[:=][^;\n]*$/.test(lineBefore)
+    || /(?:bg|border|shadow|ring)-\[[^\]\n]*$/.test(lineBefore)
+    || /--color-status-bad\s*:\s*$/.test(lineBefore)
+}
+
+function hasGraphicRole(reference: DirectBadFillReference): boolean {
+  const before = reference.source.slice(Math.max(0, reference.offset - 600), reference.offset)
+  const lineBefore = before.slice(before.lastIndexOf('\n') + 1)
+  const openingTag = openingTagAt(reference)
+  const buttonStart = reference.source.lastIndexOf('<button', reference.offset)
+  const buttonEnd = reference.source.lastIndexOf('</button>', reference.offset)
+  const buttonOpeningEnd = reference.source.indexOf('>', reference.offset)
+  const buttonOpeningTag = buttonStart > buttonEnd && buttonOpeningEnd > reference.offset
+    ? reference.source.slice(buttonStart, buttonOpeningEnd + 1)
+    : null
+  const selector = cssSelectorAt(reference)
+  return /(?:graphic(?:ClassName)?|iconColor|dangerColor|\bbad)\s*[:=][^;\n]*$/.test(before)
+    || /function\s+\w*(?:Accent|Ring\w*Color)\b[\s\S]*$/.test(before)
+    || openingTag !== null && /^<(?!Text\b)[A-Z][\w.]*/.test(openingTag)
+    || buttonOpeningTag !== null && /aria-label=/.test(buttonOpeningTag)
+    || selector !== null && /(?:icon|glyph)/i.test(selector)
+    || selector !== null
+      && reference.source.includes(`${selector} .`)
+      && reference.source.includes('var(--status-bad-text)')
+    || /\bcolor=\{?[^{}\n]*$/.test(lineBefore)
+}
+
+function unreviewedBadFillReferences(): string[] {
+  return directBadFillReferences().flatMap((reference) => {
+    if (hasSurfaceRole(reference) || hasGraphicRole(reference)) return []
+    const lineSource = reference.source.split('\n')[reference.line]?.trim() ?? ''
+    return [`${reference.path}:${reference.line + 1}:${reference.column} ${lineSource}`]
+  })
 }
 
 /** WHY: both ExpiryWarning mirrors paint their text on the overdue token at this alpha over --bg. */
@@ -510,8 +528,8 @@ describe('bad status source roles', () => {
     expect(source).toMatch(pattern)
   })
 
-  it('keeps every direct fill-token reference in the reviewed graphic and surface inventory', () => {
-    expect(directBadFillReferences()).toEqual(BAD_FILL_SOURCE_COUNTS)
+  it('derives direct fill-token references and rejects unreviewed text-role syntax', () => {
+    expect(unreviewedBadFillReferences()).toEqual([])
   })
 
   it.each(BAD_GRAPHIC_SOURCE_SITES)(

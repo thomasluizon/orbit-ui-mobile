@@ -18,6 +18,8 @@ Every feature ships behavior tests. A test that cannot fail when the behavior br
 
 PillButton's three target cases run inside Vitest with Playwright's `chrome` channel, compiling the actual Tailwind stylesheet and loading the installed Geist font. Install Google Chrome before running the web suite. These isolated component cases measure visible bounds, pseudo-element bounds and hit testing without an app server, network fixtures or production access; jsdom cannot resolve this layout.
 
+The bad status role guard in `packages/shared/src/__tests__/theme.test.ts` walks production CSS and TypeScript under both apps on every run. It accepts direct `--status-bad` and `tokens.statusBad` references only when their syntax identifies a graphic or surface role, while named text consumers must use the text token. Deleted files and removed references leave the derived inventory automatically; there is no snapshot or regeneration command. Direct-reference discovery cannot infer a glyph that inherits its container color, so the mixed warning assertions keep that known case visible while #507 owns additional inherited-color shapes.
+
 - **Behavior, not implementation.** Assert what the user or caller observes: rendered text, a `data-*` attribute, a returned value, a thrown error. Never assert class names, call order, or private state. Those pass while the behavior is broken and block honest refactors.
 - **Three axes.** A real test covers the happy path **and** an edge case **and** a failure case. Invalid input must be *rejected*, not just valid input accepted.
 - **Factories over literals.** Build fixtures with `packages/shared/src/__tests__/factories.ts` so a schema change updates every test in one place.
