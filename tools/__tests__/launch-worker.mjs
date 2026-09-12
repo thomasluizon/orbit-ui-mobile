@@ -281,30 +281,40 @@ setInterval(() => {}, 60000)
   )
   await Promise.all([waitForFile(dripReady), waitForFile(supervisionClockReady)])
   const noProgressMs = logNoProgressMinutes * 60 * 1000
-  const waitForClockSample = () => new Promise((resolve) => setTimeout(resolve, logPollSeconds * 2000))
+  const publishClockAndWaitForSample = async (record) => {
+    const publishedByteLength = Buffer.byteLength(readFileSync(supervisionClock, "utf8")) + Buffer.byteLength(record)
+    const acknowledgement = `${supervisionClock}.sampled-${publishedByteLength}`
+    rmSync(acknowledgement, { force: true })
+    appendFileSync(supervisionClock, record)
+    await waitForFile(acknowledgement)
+    return readFileSync(acknowledgement, "utf8")
+  }
   // The first virtual interval stays one millisecond inside the cap. Empty and invalid records are
   // then the newest complete publications while the heartbeat resets the retained clock value.
-  appendFileSync(supervisionClock, `${supervisionStart + noProgressMs - 1}\n\ninvalid\n`)
-  await waitForClockSample()
+  const previousClockValue = supervisionStart + noProgressMs - 1
+  const afterEmptyRecord = await publishClockAndWaitForSample(`${previousClockValue}\n\n`)
+  T(
+    `${TOOL}: an empty clock record retains the previous non-zero value`,
+    afterEmptyRecord === String(previousClockValue),
+    `the sampler reported ${afterEmptyRecord} instead of ${previousClockValue}`,
+  )
   if (logProgressProcess.child.exitCode === null) {
     writeFileSync(dripCommand, "write one heartbeat")
     await waitForFile(dripWritten)
-    await waitForClockSample()
-    appendFileSync(supervisionClock, `${supervisionStart + (noProgressMs * 2) - 2}\n`)
-    await waitForClockSample()
+    const afterInvalidRecord = await publishClockAndWaitForSample("invalid\n")
     T(
-      `${TOOL}: empty and invalid clock records retain the previous non-zero value`,
-      logProgressProcess.child.exitCode === null,
-      "an empty clock record became zero and shortened the worker's life",
+      `${TOOL}: an invalid clock record retains the previous non-zero value`,
+      afterInvalidRecord === String(previousClockValue),
+      `the sampler reported ${afterInvalidRecord} instead of ${previousClockValue}`,
     )
     if (logProgressProcess.child.exitCode === null) {
-      appendFileSync(supervisionClock, `${supervisionStart + (noProgressMs * 4)}`)
-      await waitForClockSample()
-      await waitForClockSample()
+      const nextClockValue = supervisionStart + (noProgressMs * 2) - 2
+      await publishClockAndWaitForSample(`${nextClockValue}\n`)
+      const afterPartialRecord = await publishClockAndWaitForSample(`${supervisionStart + (noProgressMs * 4)}`)
       T(
         `${TOOL}: a truncated trailing clock record is ignored until publication completes`,
-        logProgressProcess.child.exitCode === null,
-        "a trailing partial clock record shortened the worker's life",
+        afterPartialRecord === String(nextClockValue) && logProgressProcess.child.exitCode === null,
+        `the sampler reported ${afterPartialRecord} instead of ${nextClockValue}, or shortened the worker's life`,
       )
     }
   }
@@ -320,7 +330,7 @@ setInterval(() => {}, 60000)
    * count as progress in that configuration: a flooding hung worker would otherwise hold the stall
    * clock open all the way to the ceiling, the exact ORB-201 shape. */
   const uncapped = launch("log-uncapped", (() => {
-    const config = launchConfig({ ...stubEngine(DRIP), timeouts: { hardCeilingMinutes: 0.1, noProgressMinutes: 0.03, pollSeconds: 0.2 } })
+    const config = launchConfig({ ...stubEngine(FLOODER), timeouts: { hardCeilingMinutes: 0.1, noProgressMinutes: 0.03, pollSeconds: 0.2 } })
     delete config.caps.workerLogMegabytes
     return config
   })())

@@ -156,18 +156,28 @@ const noProgressMinutes = measurement ? measurementNoProgressMinutes : config.ti
 const noProgressMs = noProgressMinutes * 60 * 1000
 const supervisionClockPath = process.env.ORBIT_TEST_SUPERVISION_CLOCK
 let lastCompleteSupervisionTime = null
+let supervisionSample = null
 const supervisionNow = () => {
   if (!supervisionClockPath) return Date.now()
-  const records = readFileSync(supervisionClockPath, "utf8").split("\n")
+  const clockContents = readFileSync(supervisionClockPath, "utf8")
+  const records = clockContents.split("\n")
   records.pop()
+  let sampledTime = lastCompleteSupervisionTime
   for (let index = records.length - 1; index >= 0; index -= 1) {
     if (records[index].trim() === "") continue
     const clockValue = Number(records[index])
     if (!Number.isFinite(clockValue)) continue
     lastCompleteSupervisionTime = clockValue
-    return clockValue
+    sampledTime = clockValue
+    break
   }
-  return lastCompleteSupervisionTime
+  supervisionSample = { byteLength: Buffer.byteLength(clockContents), sampledTime }
+  return sampledTime
+}
+
+const acknowledgeSupervisionSample = () => {
+  if (!supervisionClockPath || supervisionSample === null) return
+  writeFileSync(`${supervisionClockPath}.sampled-${supervisionSample.byteLength}`, String(supervisionSample.sampledTime))
 }
 
 const workerPointer = (worktreePath, branch) =>
@@ -459,7 +469,7 @@ let lastProgressAt = supervisionNow() ?? Date.now()
 if (supervisionClockPath) writeFileSync(`${supervisionClockPath}.ready`, "ready")
 let lastLogSize = 0
 let cpuBaseline = null
-const sampler = setInterval(() => {
+const sampleProgress = () => {
   let logSize = null
   try {
     logSize = statSync(logFile).size
@@ -512,6 +522,11 @@ const sampler = setInterval(() => {
   outcome = "KILLED_NO_PROGRESS"
   console.error(`${issue} has not moved HEAD, written a file, grown its log or burned CPU for ${noProgressMinutes} minutes${measurement ? " (measurement cap)" : ""}; killing the worker process tree`)
   killTree(child.pid)
+}
+const sampler = setInterval(() => {
+  supervisionSample = null
+  sampleProgress()
+  acknowledgeSupervisionSample()
 }, config.timeouts.pollSeconds * 1000)
 
 child.on("error", (error) => {
