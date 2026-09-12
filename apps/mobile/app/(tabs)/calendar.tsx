@@ -128,7 +128,10 @@ function CalendarAgendaView({
             testID="calendar-agenda-day"
             style={styles.agendaDay}
           >
-            <Text style={[styles.agendaHeading, { color: tokens.fg2 }]}>
+            <Text
+              accessibilityRole="header"
+              style={[styles.agendaHeading, { color: tokens.fg2 }]}
+            >
               {heading}
             </Text>
             {entries.length === 0 ? (

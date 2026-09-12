@@ -238,6 +238,13 @@ describe("CalendarScreen views (mobile)", () => {
     ).toHaveLength(1);
     const agendaRows = tree!.root.findAll((node) => node.type === ListRow);
     expect(agendaRows).toHaveLength(2);
+    expect(
+      tree!.root.findAll(
+        (node) =>
+          typeof node.type === "string" &&
+          node.props.accessibilityRole === "header",
+      ),
+    ).toHaveLength(7);
     for (const row of agendaRows) {
       expect(row.props.readOnly).toBe(true);
       expect(row.props.wrapTitle).toBe(true);
