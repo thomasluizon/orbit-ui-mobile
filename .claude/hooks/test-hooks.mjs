@@ -166,6 +166,11 @@ for (const redirect of [">$(printf worker.log)", "2>&$(printf 1)"]) {
 }
 
 const engine = (command, options) => checkEngineInvocation(command, { repoRoots: [], ...options })
+const variableRedirectAllows = [
+  ["quoted variable path before the launcher", 'SP="C:/x" && cat "$SP/a.md" "$SP/b.md" > "$SP/c.md" && node tools/launch-worker.mjs --issue 1 --worktree x --prompt y'],
+  ["quoted variable target", 'codex cloud list > "$OUT"'],
+  ["braced variable target", "codex cloud list > ${OUT}"],
+]
 const descriptorSuffixAllows = [
   ["cloud read before a redirection", "codex cloud list 2>&1 >out.log"],
   ["zero-cost query before a safe argument", "codex 2>&1 --version"],
@@ -176,9 +181,13 @@ const descriptorSafetyRefusals = [
   ["dollar command substitution", "2>&$(codex exec 'do work')"],
   ["backtick command substitution", "2>&`codex exec 'do work'`"],
   ["dynamic leading redirect", ">$(printf worker.log) codex exec"],
+  ["nested parameter command substitution", 'codex cloud list > "${OUT:-$(mktemp)}"'],
   ["engine invocation before a pipeline", "codex exec | tee log"],
   ["engine invocation after a list separator", "codex cloud list && codex exec"],
 ]
+for (const [shape, command] of variableRedirectAllows) {
+  T(`engine: variable redirect ${shape} allows`, engine(command), null)
+}
 for (const [shape, command] of descriptorSuffixAllows) {
   T(`engine: descriptor duplication ${shape} allows`, engine(command), null)
 }
@@ -593,6 +602,9 @@ T("adapter git-guardrails: push feature -> 0", runHook("git-guardrails.mjs", bas
 T("adapter git-guardrails: worktree remove --force -> 2", runHook("git-guardrails.mjs", bash("git worktree remove --force .claude/worktrees/x")), 2)
 
 const ORCH = "orchestrator-guardrails.mjs"
+for (const [shape, command] of variableRedirectAllows) {
+  T(`adapter orchestrator: variable redirect ${shape} -> 0`, runHook(ORCH, bash(command)), 0)
+}
 for (const [shape, command] of descriptorSuffixAllows) {
   T(`adapter orchestrator: descriptor duplication ${shape} -> 0`, runHook(ORCH, bash(command)), 0)
 }

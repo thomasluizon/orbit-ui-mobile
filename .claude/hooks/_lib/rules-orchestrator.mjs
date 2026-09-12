@@ -111,6 +111,11 @@ const redirectionOperatorEnd = (source, start) => {
   return cursor
 }
 
+const plainVariableEnd = (source, start) => {
+  const variable = /^(?:\$[A-Za-z_][A-Za-z0-9_]*|\$\{[A-Za-z_][A-Za-z0-9_]*\})/.exec(source.slice(start))
+  return variable ? start + variable[0].length : null
+}
+
 const redirectionTargetEnd = (source, start) => {
   let cursor = start
   let quote = ""
@@ -127,7 +132,15 @@ const redirectionTargetEnd = (source, start) => {
       quote = character
     }
     const processSubstitution = !quote && cursor === start && character === "("
-    if (quote !== "'" && (character === "$" || character === "`" || processSubstitution)) {
+    if (quote !== "'" && character === "$") {
+      const variableEnd = plainVariableEnd(source, cursor)
+      if (variableEnd !== null) {
+        cursor = variableEnd
+        continue
+      }
+      return { end: source.length, classifiable: false }
+    }
+    if (quote !== "'" && (character === "`" || processSubstitution)) {
       return { end: source.length, classifiable: false }
     }
     cursor++
@@ -137,8 +150,8 @@ const redirectionTargetEnd = (source, start) => {
 
 /** Remove shell redirections before finding and validating the invoked command. Redirection
  * targets are data, not argv, and a redirection may legally precede the executable. A dynamic
- * target makes the whole segment unclassifiable; callers refuse it instead of guessing where the
- * executable begins. */
+ * target that can run shell code makes the whole segment unclassifiable; callers refuse it instead
+ * of guessing where the executable begins. */
 function withoutRedirections(segment) {
   let cleaned = ""
   let quote = ""
