@@ -111,6 +111,7 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(hostsByTestID(tree, "time-grid-event")).toHaveLength(1);
     expect(resolveStyle(hostsByTestID(tree, "time-grid-event")[0]!.props.style)).toMatchObject({
       top: 384,
+      height: 44,
     });
     expect(textValuesWithin(tree, "time-grid-event")).toContain("Standup");
   });
@@ -127,17 +128,17 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(textValuesWithin(tree, "time-grid-any-time-label")).toContain("No set time");
   });
 
-  it("dims every future day column", () => {
+  it("dims every future day column without lowering text contrast", () => {
     const tree = renderGrid([column("2025-06-18", true)], new Map());
 
-    expect(resolveStyle(hostsByTestID(tree, "time-grid-col-header")[0]!.props.style)).toMatchObject({
-      opacity: 0.45,
+    expect(resolveStyle(hostsByTestID(tree, "time-grid-col-date")[0]!.props.style)).toMatchObject({
+      color: tokens.fg3,
     });
     expect(resolveStyle(hostsByTestID(tree, "time-grid-all-day")[0]!.props.style)).toMatchObject({
-      opacity: 0.45,
+      borderLeftColor: tokens.hairlineGhost,
     });
     expect(resolveStyle(hostsByTestID(tree, "time-grid-day-column")[0]!.props.style)).toMatchObject({
-      opacity: 0.45,
+      borderLeftColor: tokens.hairlineGhost,
     });
   });
 

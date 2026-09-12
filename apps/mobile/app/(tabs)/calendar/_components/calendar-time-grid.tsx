@@ -19,7 +19,7 @@ type Tokens = ReturnType<typeof createTokensV2>;
 
 const HOUR_HEIGHT = 48;
 const DAY_HEIGHT = HOUR_HEIGHT * 24;
-const BLOCK_HEIGHT = 38;
+const BLOCK_HEIGHT = 44;
 const GUTTER = 56;
 const BODY_MAX_HEIGHT = 520;
 const MIN_COL_WIDTH = 44;
@@ -147,12 +147,14 @@ function TimedBlock({
   colWidth,
   displayTime,
   onSelect,
+  isFuture,
   tokens,
 }: Readonly<{
   block: PlacedEntry;
   colWidth: number;
   displayTime: (time: string) => string;
   onSelect: () => void;
+  isFuture: boolean;
   tokens: Tokens;
 }>) {
   const completed = block.entry.status === "completed";
@@ -172,10 +174,14 @@ function TimedBlock({
         borderRadius: 8,
         overflow: "hidden",
         justifyContent: "center",
-        backgroundColor: pressed ? tokens.bgHover : tokens.bgWell,
+        backgroundColor: pressed
+          ? tokens.bgHover
+          : isFuture
+            ? "transparent"
+            : tokens.bgWell,
         borderWidth: 1,
-        borderColor: tokens.hairline,
-        transform: [{ scale: pressed ? 0.98 : 1 }],
+        borderColor: isFuture ? tokens.hairlineGhost : tokens.hairline,
+        transform: [{ scale: pressed ? 0.96 : 1 }],
       })}
     >
       <Text
@@ -185,7 +191,7 @@ function TimedBlock({
           // react-doctor-disable-next-line no-tiny-text -- Deliberate density: entry title inside a packed day/week time-grid cell (like standard calendar apps); 12px would overflow the fixed-height slots. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
           fontSize: 11,
           lineHeight: 13,
-          color: completed ? tokens.fg3 : tokens.fg1,
+          color: completed || isFuture ? tokens.fg3 : tokens.fg1,
           textDecorationLine: completed ? "line-through" : "none",
         }}
       >
@@ -211,8 +217,9 @@ function TimedBlock({
 
 function AllDayChip({
   entry,
+  isFuture,
   tokens,
-}: Readonly<{ entry: CalendarDayEntry; tokens: Tokens }>) {
+}: Readonly<{ entry: CalendarDayEntry; isFuture: boolean; tokens: Tokens }>) {
   const completed = entry.status === "completed";
   return (
     <View
@@ -225,9 +232,9 @@ function AllDayChip({
         paddingHorizontal: 8,
         borderRadius: 8,
         overflow: "hidden",
-        backgroundColor: tokens.bgWell,
+        backgroundColor: isFuture ? "transparent" : tokens.bgWell,
         borderWidth: 1,
-        borderColor: tokens.hairline,
+        borderColor: isFuture ? tokens.hairlineGhost : tokens.hairline,
       }}
     >
       <Text
@@ -236,7 +243,7 @@ function AllDayChip({
           flexShrink: 1,
           fontFamily: "Geist_500Medium",
           fontSize: 11,
-          color: completed ? tokens.fg3 : tokens.fg1,
+          color: completed || isFuture ? tokens.fg3 : tokens.fg1,
           textDecorationLine: completed ? "line-through" : "none",
         }}
       >
@@ -273,7 +280,7 @@ function AllDayMoreChip({
         borderRadius: 8,
         borderWidth: 1,
         borderColor: tokens.hairline,
-        backgroundColor: pressed ? tokens.bgElev : "transparent",
+        backgroundColor: pressed ? tokens.bgHover : "transparent",
       })}
     >
       <Text
@@ -313,9 +320,9 @@ function ColumnHeader({
       onPress={() => onSelectDay(column.dateStr)}
       style={({ pressed }) => [
         styles.colHeader,
-        { width: colWidth, opacity: column.isFuture ? 0.45 : 1 },
+        { width: colWidth },
         pressed && {
-          backgroundColor: tokens.bgElev,
+          backgroundColor: tokens.bgHover,
           transform: [{ scale: 0.96 }],
         },
       ]}
@@ -335,10 +342,15 @@ function ColumnHeader({
         ]}
       >
         <Text
+          testID="time-grid-col-date"
           style={[
             styles.colHeaderDate,
             {
-              color: column.isToday ? tokens.fgOnPrimary : tokens.fg1,
+              color: column.isToday
+                ? tokens.fgOnPrimary
+                : column.isFuture
+                  ? tokens.fg3
+                  : tokens.fg1,
               fontFamily: "GeistMono_500Medium",
             },
           ]}
@@ -499,13 +511,22 @@ export function CalendarTimeGrid({
                       testID="time-grid-all-day"
                       style={[
                         styles.allDayCell,
-                        { width: colWidth, opacity: column.isFuture ? 0.45 : 1 },
+                        {
+                          width: colWidth,
+                          borderLeftColor: column.isFuture
+                            ? tokens.hairlineGhost
+                            : tokens.hairline,
+                          borderBottomColor: column.isFuture
+                            ? tokens.hairlineGhost
+                            : tokens.hairline,
+                        },
                       ]}
                     >
                       {visible.map((entry) => (
                         <AllDayChip
                           key={entry.habitId}
                           entry={entry}
+                          isFuture={column.isFuture}
                           tokens={tokens}
                         />
                       ))}
@@ -539,13 +560,26 @@ export function CalendarTimeGrid({
                       testID="time-grid-day-column"
                       style={[
                         styles.dayColumn,
-                        { width: colWidth, opacity: column.isFuture ? 0.45 : 1 },
+                        {
+                          width: colWidth,
+                          borderLeftColor: column.isFuture
+                            ? tokens.hairlineGhost
+                            : tokens.hairline,
+                        },
                       ]}
                     >
                       {HOURS.map((hour) => (
                         <View
                           key={hour}
-                          style={[styles.hourLine, { top: hour * HOUR_HEIGHT }]}
+                          style={[
+                            styles.hourLine,
+                            {
+                              top: hour * HOUR_HEIGHT,
+                              backgroundColor: column.isFuture
+                                ? tokens.hairlineGhost
+                                : tokens.hairline,
+                            },
+                          ]}
                         />
                       ))}
                       {timed.map((block) => (
@@ -555,11 +589,14 @@ export function CalendarTimeGrid({
                           colWidth={colWidth}
                           displayTime={displayTime}
                           onSelect={() => onSelectDay(column.dateStr)}
+                          isFuture={column.isFuture}
                           tokens={tokens}
                         />
                       ))}
                       {column.isToday ? (
                         <View
+                          accessible
+                          accessibilityRole="image"
                           pointerEvents="none"
                           accessibilityLabel={nowLabel}
                           style={[

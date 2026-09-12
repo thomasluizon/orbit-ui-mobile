@@ -67,7 +67,7 @@ describe('CalendarTimeGrid', () => {
 
     const block = screen.getByTestId('time-grid-event')
     expect(block).toHaveAttribute('data-hour', '8')
-    expect(block).toHaveStyle({ top: '384px' })
+    expect(block).toHaveStyle({ top: '384px', height: '44px' })
     expect(block).toHaveTextContent('Standup')
   })
 
@@ -96,13 +96,17 @@ describe('CalendarTimeGrid', () => {
     expect(screen.getByTestId('time-grid-any-time-label')).toHaveTextContent('No set time')
   })
 
-  it('dims every future day column', () => {
+  it('dims every future day column without lowering text contrast', () => {
     const col = column(2025, 5, 18, true)
     renderGrid([col], new Map())
 
-    expect(screen.getByTestId('time-grid-col-header')).toHaveStyle({ opacity: '0.45' })
-    expect(screen.getByTestId('time-grid-all-day')).toHaveStyle({ opacity: '0.45' })
-    expect(screen.getByTestId('time-grid-day-column')).toHaveStyle({ opacity: '0.45' })
+    expect(screen.getByTestId('time-grid-col-date')).toHaveStyle({ color: 'var(--fg-3)' })
+    expect(screen.getByTestId('time-grid-all-day').style.borderLeft).toBe(
+      '1px solid var(--hairline-ghost)',
+    )
+    expect(screen.getByTestId('time-grid-day-column').style.borderLeft).toBe(
+      '1px solid var(--hairline-ghost)',
+    )
   })
 
   it('renders hour marks through both 24-hour and 12-hour formatters', () => {

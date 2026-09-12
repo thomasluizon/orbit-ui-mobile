@@ -8,7 +8,7 @@ import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 const HOUR_HEIGHT = 48
 const DAY_HEIGHT = HOUR_HEIGHT * 24
-const BLOCK_HEIGHT = 38
+const BLOCK_HEIGHT = 44
 const GUTTER = 56
 const MIN_COL_WIDTH = 44
 const HEADER_HEIGHT = 52
@@ -126,10 +126,12 @@ function TimedBlock({
   block,
   displayTime,
   onSelect,
+  isFuture,
 }: Readonly<{
   block: PlacedEntry
   displayTime: (time: string) => string
   onSelect: () => void
+  isFuture: boolean
 }>) {
   const completed = block.entry.status === 'completed'
   return (
@@ -138,7 +140,7 @@ function TimedBlock({
       data-testid="time-grid-event"
       data-hour={block.hour}
       onClick={onSelect}
-      className="absolute flex flex-col justify-center overflow-hidden text-left cursor-pointer bg-[var(--bg-well)] hover:bg-[var(--bg-hover)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.98]"
+      className={`absolute flex flex-col justify-center overflow-hidden text-left cursor-pointer hover:bg-[var(--bg-hover)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] ${isFuture ? 'bg-transparent' : 'bg-[var(--bg-well)]'}`}
       style={{
         top: block.top,
         height: BLOCK_HEIGHT,
@@ -148,7 +150,7 @@ function TimedBlock({
         borderRadius: 8,
         border: 0,
         appearance: 'none',
-        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+        boxShadow: `inset 0 0 0 1px var(${isFuture ? '--hairline-ghost' : '--hairline'})`,
       }}
     >
       <span
@@ -158,7 +160,7 @@ function TimedBlock({
           fontSize: 12,
           fontWeight: 500,
           lineHeight: 1.2,
-          color: completed ? 'var(--fg-3)' : 'var(--fg-1)',
+          color: completed || isFuture ? 'var(--fg-3)' : 'var(--fg-1)',
           textDecoration: completed ? 'line-through' : 'none',
         }}
       >
@@ -181,7 +183,7 @@ function TimedBlock({
   )
 }
 
-function AllDayChip({ entry }: Readonly<{ entry: CalendarDayEntry }>) {
+function AllDayChip({ entry, isFuture }: Readonly<{ entry: CalendarDayEntry; isFuture: boolean }>) {
   const completed = entry.status === 'completed'
   return (
     <div
@@ -190,8 +192,8 @@ function AllDayChip({ entry }: Readonly<{ entry: CalendarDayEntry }>) {
       style={{
         padding: '4px 8px',
         borderRadius: 8,
-        background: 'var(--bg-well)',
-        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+        background: isFuture ? 'transparent' : 'var(--bg-well)',
+        boxShadow: `inset 0 0 0 1px var(${isFuture ? '--hairline-ghost' : '--hairline'})`,
       }}
     >
       <span
@@ -200,7 +202,7 @@ function AllDayChip({ entry }: Readonly<{ entry: CalendarDayEntry }>) {
           fontFamily: 'var(--font-sans)',
           fontSize: 12,
           fontWeight: 500,
-          color: completed ? 'var(--fg-3)' : 'var(--fg-1)',
+          color: completed || isFuture ? 'var(--fg-3)' : 'var(--fg-1)',
           textDecoration: completed ? 'line-through' : 'none',
         }}
       >
@@ -221,7 +223,7 @@ function AllDayMoreChip({
       data-testid="time-grid-all-day-more"
       onClick={onSelect}
       aria-label={accessibilityLabel}
-      className="touch-target flex items-center justify-center bg-transparent transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+      className="touch-target flex items-center justify-center bg-transparent transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)]"
       style={{
         appearance: 'none',
         cursor: 'pointer',
@@ -335,7 +337,7 @@ export function CalendarTimeGrid({
                 type="button"
                 data-testid="time-grid-col-header"
                 onClick={() => onSelectDay(column.dateStr)}
-                className="flex flex-col items-center justify-center bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
+                className="flex flex-col items-center justify-center bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.96]"
                 style={{
                   appearance: 'none',
                   border: 0,
@@ -345,7 +347,6 @@ export function CalendarTimeGrid({
                   cursor: 'pointer',
                   padding: '0 4px',
                   gap: 4,
-                  opacity: column.isFuture ? 0.45 : 1,
                 }}
               >
                 <span
@@ -361,6 +362,7 @@ export function CalendarTimeGrid({
                   {format(column.date, 'EEE', { locale: dateFnsLocale })}
                 </span>
                 <span
+                  data-testid="time-grid-col-date"
                   className="inline-flex items-center justify-center rounded-full"
                   style={{
                     width: 24,
@@ -369,7 +371,11 @@ export function CalendarTimeGrid({
                     fontSize: 13,
                     fontWeight: column.isToday ? 700 : 500,
                     fontVariantNumeric: 'tabular-nums',
-                    color: column.isToday ? 'var(--fg-on-primary)' : 'var(--fg-1)',
+                    color: column.isToday
+                      ? 'var(--fg-on-primary)'
+                      : column.isFuture
+                        ? 'var(--fg-3)'
+                        : 'var(--fg-1)',
                     background: column.isToday ? 'var(--primary)' : 'transparent',
                   }}
                 >
@@ -409,13 +415,12 @@ export function CalendarTimeGrid({
                     gap: 4,
                     minHeight: 34,
                     padding: '8px 4px',
-                    borderLeft: '1px solid var(--hairline)',
-                    borderBottom: '1px solid var(--hairline)',
-                    opacity: column.isFuture ? 0.45 : 1,
+                    borderLeft: `1px solid var(${column.isFuture ? '--hairline-ghost' : '--hairline'})`,
+                    borderBottom: `1px solid var(${column.isFuture ? '--hairline-ghost' : '--hairline'})`,
                   }}
                 >
                   {visible.map((entry) => (
-                    <AllDayChip key={entry.habitId} entry={entry} />
+                    <AllDayChip key={entry.habitId} entry={entry} isFuture={column.isFuture} />
                   ))}
                   {overflow > 0 && (
                     <AllDayMoreChip
@@ -460,8 +465,7 @@ export function CalendarTimeGrid({
                 style={{
                   position: 'relative',
                   height: DAY_HEIGHT,
-                  borderLeft: '1px solid var(--hairline)',
-                  opacity: column.isFuture ? 0.45 : 1,
+                  borderLeft: `1px solid var(${column.isFuture ? '--hairline-ghost' : '--hairline'})`,
                 }}
               >
                 {HOURS.map((hour) => (
@@ -469,7 +473,11 @@ export function CalendarTimeGrid({
                     key={hour}
                     aria-hidden="true"
                     className="absolute inset-x-0"
-                    style={{ top: hour * HOUR_HEIGHT, height: 1, background: 'var(--hairline)' }}
+                    style={{
+                      top: hour * HOUR_HEIGHT,
+                      height: 1,
+                      background: `var(${column.isFuture ? '--hairline-ghost' : '--hairline'})`,
+                    }}
                   />
                 ))}
                 {timed.map((block) => (
@@ -478,12 +486,14 @@ export function CalendarTimeGrid({
                     block={block}
                     displayTime={displayTime}
                     onSelect={() => onSelectDay(column.dateStr)}
+                    isFuture={column.isFuture}
                   />
                 ))}
                 {column.isToday && (
                   <div
                     className="absolute left-0 right-0 flex items-center"
                     style={{ top: (nowMinutes / 60) * HOUR_HEIGHT, pointerEvents: 'none' }}
+                    role="img"
                     aria-label={nowLabel}
                   >
                     <span
