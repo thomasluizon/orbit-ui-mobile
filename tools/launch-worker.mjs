@@ -13,7 +13,7 @@
  */
 
 import { spawn, spawnSync } from "node:child_process"
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, statSync } from "node:fs"
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, extname, join, resolve } from "node:path"
 
@@ -154,6 +154,13 @@ if (measurement && !(Number.isFinite(measurementNoProgressMinutes) && measuremen
 }
 const noProgressMinutes = measurement ? measurementNoProgressMinutes : config.timeouts.noProgressMinutes
 const noProgressMs = noProgressMinutes * 60 * 1000
+const supervisionClockPath = process.env.ORBIT_TEST_SUPERVISION_CLOCK
+const supervisionNow = () => {
+  if (!supervisionClockPath) return Date.now()
+  const clockValue = Number(readFileSync(supervisionClockPath, "utf8"))
+  if (!Number.isFinite(clockValue)) throw new Error(`invalid supervision clock at ${supervisionClockPath}`)
+  return clockValue
+}
 
 const workerPointer = (worktreePath, branch) =>
   `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now.`
@@ -440,7 +447,8 @@ const logByteCap = Number.isFinite(logMegabyteCap) && logMegabyteCap > 0 ? logMe
  * A tree that is idle on all three for noProgressMinutes is still killed, as it must be.
  */
 let progress = progressFingerprint()
-let lastProgressAt = Date.now()
+let lastProgressAt = supervisionNow()
+if (supervisionClockPath) writeFileSync(`${supervisionClockPath}.ready`, "ready")
 let lastLogSize = 0
 let cpuBaseline = null
 const sampler = setInterval(() => {
@@ -457,7 +465,7 @@ const sampler = setInterval(() => {
     return
   }
   const noteProgress = () => {
-    lastProgressAt = Date.now()
+    lastProgressAt = supervisionNow()
     if (logSize !== null) lastLogSize = logSize
     cpuBaseline = null
   }
@@ -474,8 +482,10 @@ const sampler = setInterval(() => {
     noteProgress()
     return
   }
-  const cpuMs = cpuMillisecondsOfTree(child.pid)
-  const now = Date.now()
+  // An injected wall clock has no relationship to live process CPU. Clock-driven cases isolate
+  // the filesystem and log signals rather than letting real CPU reset a virtual stall interval.
+  const cpuMs = supervisionClockPath ? null : cpuMillisecondsOfTree(child.pid)
+  const now = supervisionNow()
   if (cpuMs !== null) {
     if (cpuBaseline === null || cpuMs < cpuBaseline.cpuMs) {
       // First silent sample, or a child exited and took its CPU time out of the snapshot. Rebase

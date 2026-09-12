@@ -243,14 +243,51 @@ export const cases = async () => {
   )
   discardLog(burned.stdout)
 
-  const DRIP = stage("launch-worker/dripping-worker.js", "setInterval(() => process.stdout.write('heartbeat\\n'), 250)\n")
-  const logProgress = launch("log-progress", launchConfig({ ...stubEngine(DRIP), timeouts: { hardCeilingMinutes: 0.1, noProgressMinutes: 0.03, pollSeconds: 0.2 } }))
-  const dripped = check(
-    TOOL,
-    "a worker only appending to its own log is NOT killed as stalled",
+  const dripReady = stage("launch-worker/drip-ready", "")
+  rmSync(dripReady, { force: true })
+  const dripCommand = stage("launch-worker/drip-command", "")
+  rmSync(dripCommand, { force: true })
+  const dripWritten = stage("launch-worker/drip-written", "")
+  rmSync(dripWritten, { force: true })
+  const supervisionClock = stage("launch-worker/supervision-clock", "0")
+  const supervisionClockReady = `${supervisionClock}.ready`
+  const DRIP = stage(
+    "launch-worker/dripping-worker.js",
+    `const { existsSync, watch, writeFileSync } = require("node:fs")
+const { dirname } = require("node:path")
+const publishHeartbeat = () => {
+  if (!existsSync(${JSON.stringify(dripCommand)})) return false
+  process.stdout.write("heartbeat\\n", () => writeFileSync(${JSON.stringify(dripWritten)}, "written"))
+  return true
+}
+const commandWatcher = watch(dirname(${JSON.stringify(dripCommand)}), () => {
+  if (publishHeartbeat()) commandWatcher.close()
+})
+writeFileSync(${JSON.stringify(dripReady)}, "ready")
+if (publishHeartbeat()) commandWatcher.close()
+setInterval(() => {}, 60000)
+`,
+  )
+  const logNoProgressMinutes = 0.03
+  const logProgress = launch("log-progress", launchConfig({ ...stubEngine(DRIP), timeouts: { hardCeilingMinutes: 0.1, noProgressMinutes: logNoProgressMinutes, pollSeconds: 0.2 } }))
+  const logProgressProcess = launchAsync(
+    logProgress.path,
     ["--issue", "ORB-201", "--worktree", logProgress.worktree, "--prompt", logProgress.prompt],
-    { status: 1, stdout: /"outcome": "KILLED_HARD_CEILING"/ },
-    { path: logProgress.path, env: githubAuthEnv() },
+    { ...githubAuthEnv(), ORBIT_TEST_SUPERVISION_CLOCK: supervisionClock },
+  )
+  await Promise.all([waitForFile(dripReady), waitForFile(supervisionClockReady)])
+  const noProgressMs = logNoProgressMinutes * 60 * 1000
+  // Whichever side of the heartbeat the sampler observes, the next virtual interval remains one
+  // millisecond inside the cap. Ignoring log growth leaves the full two intervals visible and red.
+  writeFileSync(supervisionClock, String(noProgressMs - 1))
+  writeFileSync(dripCommand, "write one heartbeat")
+  await waitForFile(dripWritten)
+  writeFileSync(supervisionClock, String((noProgressMs * 2) - 2))
+  const dripped = await logProgressProcess.result
+  T(
+    `${TOOL}: a worker appending to its own log resets the injected stall clock`,
+    dripped.status === 1 && /"outcome": "KILLED_HARD_CEILING"/.test(dripped.stdout),
+    `exit ${dripped.status}: ${dripped.stderr || dripped.stdout}`,
   )
   discardLog(dripped.stdout)
 
