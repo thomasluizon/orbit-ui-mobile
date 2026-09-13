@@ -375,6 +375,7 @@ function CalendarScreenContent({
     refetch: refetchCalendarEvents,
   } = useCalendarEvents({
     enabled: profile.hasProAccess,
+    timeZone: profile.timeZone,
   });
   const calendarEventsState = resolveCalendarEventsDisplayState({
     enabled: profile.hasProAccess,

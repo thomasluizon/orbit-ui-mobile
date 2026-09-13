@@ -34,6 +34,7 @@ const state = vi.hoisted(() => ({
   calendarEvents: [] as Record<string, unknown>[],
   calendarEventsNotConnected: false,
   calendarEventsEnabled: undefined as boolean | undefined,
+  calendarEventsTimeZone: undefined as string | null | undefined,
   calendarEventsPending: false,
   calendarEventsError: null as Error | null,
   calendarEventsRefetch: vi.fn(),
@@ -92,8 +93,9 @@ vi.mock("@/hooks/use-time-format", () => ({
 }));
 
 vi.mock("@/hooks/use-calendar-events", () => ({
-  useCalendarEvents: (options?: { enabled?: boolean }) => {
+  useCalendarEvents: (options?: { enabled?: boolean; timeZone?: string | null }) => {
     state.calendarEventsEnabled = options?.enabled;
+    state.calendarEventsTimeZone = options?.timeZone;
     return {
       data: state.calendarEventsNotConnected
         ? { status: "not-connected" }
@@ -330,6 +332,7 @@ describe("CalendarScreen views (mobile)", () => {
     state.calendarEvents = [];
     state.calendarEventsNotConnected = false;
     state.calendarEventsEnabled = undefined;
+    state.calendarEventsTimeZone = undefined;
     state.calendarEventsPending = false;
     state.calendarEventsError = null;
     state.calendarEventsRefetch = vi.fn();
@@ -496,6 +499,7 @@ describe("CalendarScreen views (mobile)", () => {
         (event: { id: string }) => event.id,
       ),
     ).toEqual(["selected-event"]);
+    expect(state.calendarEventsTimeZone).toBe("UTC");
     TestRenderer.act(() => headerTree.update(<></>));
     TestRenderer.act(() => (tree as unknown as import("react-test-renderer").ReactTestRenderer).update(<></>));
   });
