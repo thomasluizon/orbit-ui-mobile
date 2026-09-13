@@ -14,11 +14,16 @@ const state = vi.hoisted(() => ({
   monthMap: new Map<string, CalendarDayEntry[]>(),
   monthError: null as string | null,
   monthRefresh: () => {},
-  profile: undefined as { weekStartDay: 0 | 1; timeZone: string | null } | undefined,
+  profile: undefined as {
+    weekStartDay: 0 | 1;
+    timeZone: string | null;
+    hasProAccess: boolean;
+  } | undefined,
   profileError: null as Error | null,
   profileRefetch: vi.fn(),
   calendarDataCalls: vi.fn(),
   calendarEvents: [] as Record<string, unknown>[],
+  calendarEventsEnabled: undefined as boolean | undefined,
 }));
 
 const calendarGridProps = vi.hoisted(() => ({
@@ -52,9 +57,12 @@ vi.mock("@/hooks/use-time-format", () => ({
 }));
 
 vi.mock("@/hooks/use-calendar-events", () => ({
-  useCalendarEvents: () => ({
-    data: { status: "connected", events: state.calendarEvents },
-  }),
+  useCalendarEvents: (options?: { enabled?: boolean }) => {
+    state.calendarEventsEnabled = options?.enabled;
+    return {
+      data: { status: "connected", events: state.calendarEvents },
+    };
+  },
 }));
 
 vi.mock("@/hooks/use-tour-target", () => ({ useTourTarget: () => {} }));
@@ -219,11 +227,12 @@ describe("CalendarScreen views (mobile)", () => {
     state.monthMap = new Map();
     state.monthError = null;
     state.monthRefresh = () => {};
-    state.profile = { weekStartDay: 1, timeZone: "UTC" };
+    state.profile = { weekStartDay: 1, timeZone: "UTC", hasProAccess: false };
     state.profileError = null;
     state.profileRefetch = vi.fn();
     state.calendarDataCalls.mockClear();
     state.calendarEvents = [];
+    state.calendarEventsEnabled = undefined;
     const todayStr = formatAPIDate(new Date());
     state.rangeMap = new Map<string, CalendarDayEntry[]>([
       [
@@ -291,6 +300,7 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
   it("passes only the selected day's Google events to the day detail", () => {
+    state.profile = { weekStartDay: 1, timeZone: "UTC", hasProAccess: true };
     const selectedDay = formatAPIDate(new Date());
     state.calendarEvents = [
       {
@@ -341,12 +351,22 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => (tree as unknown as import("react-test-renderer").ReactTestRenderer).update(<></>));
   });
 
+  it("does not enable the calendar event request for a free profile", () => {
+    let tree!: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />);
+    });
+
+    expect(state.calendarEventsEnabled).toBe(false);
+    TestRenderer.act(() => tree.update(<></>));
+  });
+
   it("uses UTC when the mounted screen has a nullable account timezone", () => {
     const originalTimeZone = process.env.TZ;
     process.env.TZ = "America/Sao_Paulo";
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-12T01:30:00.000Z"));
-    state.profile = { weekStartDay: 1, timeZone: null };
+    state.profile = { weekStartDay: 1, timeZone: null, hasProAccess: false };
     let tree!: Tree;
     let headerTree!: import("react-test-renderer").ReactTestRenderer;
     try {
@@ -369,7 +389,7 @@ describe("CalendarScreen views (mobile)", () => {
     process.env.TZ = "America/Sao_Paulo";
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-11T09:59:30.000Z"));
-    state.profile = { weekStartDay: 1, timeZone: "Pacific/Kiritimati" };
+    state.profile = { weekStartDay: 1, timeZone: "Pacific/Kiritimati", hasProAccess: false };
     let tree!: Tree;
     let headerTree!: import("react-test-renderer").ReactTestRenderer;
     try {
@@ -402,7 +422,7 @@ describe("CalendarScreen views (mobile)", () => {
     process.env.TZ = "America/Sao_Paulo";
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-11T10:30:00.000Z"));
-    state.profile = { weekStartDay: 1, timeZone: "Pacific/Kiritimati" };
+    state.profile = { weekStartDay: 1, timeZone: "Pacific/Kiritimati", hasProAccess: false };
     let tree!: Tree;
     let headerTree!: import("react-test-renderer").ReactTestRenderer;
     try {
@@ -412,7 +432,7 @@ describe("CalendarScreen views (mobile)", () => {
       headerTree = renderMonthHeader(tree);
       expect(calendarGridProps.current?.todayKey).toBe("2026-09-12");
 
-      state.profile = { weekStartDay: 1, timeZone: "America/Los_Angeles" };
+      state.profile = { weekStartDay: 1, timeZone: "America/Los_Angeles", hasProAccess: false };
       TestRenderer.act(() => {
         tree.update(<CalendarScreen />);
       });
@@ -464,7 +484,7 @@ describe("CalendarScreen views (mobile)", () => {
     process.env.TZ = deviceTimeZone;
     vi.useFakeTimers();
     vi.setSystemTime(new Date(now));
-    state.profile = { weekStartDay: 1, timeZone: accountTimeZone };
+    state.profile = { weekStartDay: 1, timeZone: accountTimeZone, hasProAccess: false };
     setBoundaryEntries(firstDay, secondDay);
     let tree!: Tree;
     let footerTree!: import("react-test-renderer").ReactTestRenderer;

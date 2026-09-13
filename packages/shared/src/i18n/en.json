@@ -917,7 +917,7 @@
     "loadError": "Could not load the calendar. Please try again.",
     "dayDetail": {
       "completionSummary": "{done} of {total} habit completed | {done} of {total} habits completed",
-      "eventsTitle": "On your calendar"
+      "eventsTitle": "Available to import"
     },
     "noHabitsScheduled": "No habits scheduled for this day.",
     "goToDay": "View this day",

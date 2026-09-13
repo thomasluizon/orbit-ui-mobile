@@ -133,7 +133,7 @@ function CalendarProfileState({ failed, onRetry }: Readonly<{ failed: boolean; o
 }
 
 interface CalendarScreenContentProps {
-  profile: Pick<Profile, 'weekStartDay' | 'timeZone'>;
+  profile: Pick<Profile, 'weekStartDay' | 'timeZone' | 'hasProAccess'>;
   currentMonth: Date;
   setCurrentMonth: Dispatch<SetStateAction<Date>>;
   monthQuery: ReturnType<typeof useCalendarData>;
@@ -200,7 +200,9 @@ function CalendarScreenContent({
   );
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
   const [showRecurring, setShowRecurring] = useState(true);
-  const { data: calendarEventsResult } = useCalendarEvents();
+  const { data: calendarEventsResult } = useCalendarEvents({
+    enabled: profile.hasProAccess,
+  });
 
   const { dayMap, isLoading, isFetching, error, refresh } = monthQuery;
 

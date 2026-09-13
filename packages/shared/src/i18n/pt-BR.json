@@ -917,7 +917,7 @@
     "loadError": "Não foi possível carregar o calendário. Tente de novo.",
     "dayDetail": {
       "completionSummary": "{done} de {total} hábito concluído | {done} de {total} hábitos concluídos",
-      "eventsTitle": "Na sua agenda"
+      "eventsTitle": "Disponíveis para importar"
     },
     "noHabitsScheduled": "Nenhum hábito agendado para este dia.",
     "goToDay": "Ver este dia",

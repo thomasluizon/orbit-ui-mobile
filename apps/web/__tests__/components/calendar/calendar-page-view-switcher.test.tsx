@@ -14,6 +14,7 @@ const calendarEventsQueryState: {
 } = {
   data: { status: 'connected', events: [] },
 }
+let calendarEventsEnabled: boolean | undefined
 const monthQueryState: {
   dayMap: Map<string, CalendarDayEntry[]>
   error: string | null
@@ -24,11 +25,15 @@ const monthQueryState: {
   refresh: vi.fn(),
 }
 const profileQueryState: {
-  profile: { weekStartDay: number; timeZone: string | null } | undefined
+  profile: {
+    weekStartDay: number
+    timeZone: string | null
+    hasProAccess: boolean
+  } | undefined
   error: Error | null
   refetch: ReturnType<typeof vi.fn>
 } = {
-  profile: { weekStartDay: 1, timeZone: 'UTC' },
+  profile: { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false },
   error: null,
   refetch: vi.fn(),
 }
@@ -65,7 +70,10 @@ vi.mock('@/hooks/use-calendar-data', () => ({
 }))
 
 vi.mock('@/hooks/use-calendar-events', () => ({
-  useCalendarEvents: () => calendarEventsQueryState,
+  useCalendarEvents: (options?: { enabled?: boolean }) => {
+    calendarEventsEnabled = options?.enabled
+    return calendarEventsQueryState
+  },
 }))
 
 vi.mock('@/hooks/use-time-format', () => ({
@@ -187,10 +195,11 @@ describe('CalendarPage view switcher', () => {
     calendarGridProps.todayKey = undefined
     calendarDayDetailProps.calendarEvents = undefined
     calendarEventsQueryState.data = { status: 'connected', events: [] }
+    calendarEventsEnabled = undefined
     monthQueryState.dayMap = new Map()
     monthQueryState.error = null
     monthQueryState.refresh = vi.fn()
-    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC' }
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false }
     profileQueryState.error = null
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()
@@ -228,7 +237,11 @@ describe('CalendarPage view switcher', () => {
   it('marks today in the account timezone when the browser-local date differs', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-12T01:30:00.000Z'))
-    profileQueryState.profile = { weekStartDay: 1, timeZone: 'Pacific/Kiritimati' }
+    profileQueryState.profile = {
+      weekStartDay: 1,
+      timeZone: 'Pacific/Kiritimati',
+      hasProAccess: false,
+    }
     try {
       render(<CalendarPage />)
 
@@ -236,6 +249,12 @@ describe('CalendarPage view switcher', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('does not enable the calendar event request for a free profile', () => {
+    render(<CalendarPage />)
+
+    expect(calendarEventsEnabled).toBe(false)
   })
 
   it.each([
@@ -269,7 +288,11 @@ describe('CalendarPage view switcher', () => {
     process.env.TZ = deviceTimeZone
     vi.useFakeTimers()
     vi.setSystemTime(new Date(now))
-    profileQueryState.profile = { weekStartDay: 1, timeZone: accountTimeZone }
+    profileQueryState.profile = {
+      weekStartDay: 1,
+      timeZone: accountTimeZone,
+      hasProAccess: false,
+    }
     setBoundaryEntries(firstDay, secondDay)
     try {
       render(<CalendarPage />)
@@ -327,6 +350,7 @@ describe('CalendarPage view switcher', () => {
   })
 
   it("passes only the selected day's Google events to the day detail", () => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true }
     const selectedDay = formatAPIDate(new Date())
     calendarEventsQueryState.data = {
       status: 'connected',
