@@ -32,6 +32,9 @@ const state = vi.hoisted(() => ({
   calendarDataCalls: vi.fn(),
   calendarEvents: [] as Record<string, unknown>[],
   calendarEventsEnabled: undefined as boolean | undefined,
+  calendarEventsPending: false,
+  calendarEventsError: null as Error | null,
+  calendarEventsRefetch: vi.fn(),
   calendarRangeCalls: vi.fn(),
   routerPush: vi.fn(),
   setShowCreateModal: vi.fn(),
@@ -91,6 +94,9 @@ vi.mock("@/hooks/use-calendar-events", () => ({
     state.calendarEventsEnabled = options?.enabled;
     return {
       data: { status: "connected", events: state.calendarEvents },
+      isPending: state.calendarEventsPending,
+      error: state.calendarEventsError,
+      refetch: state.calendarEventsRefetch,
     };
   },
 }));
@@ -266,6 +272,17 @@ function renderMonthHeader(tree: Tree): import("react-test-renderer").ReactTestR
   return headerTree;
 }
 
+function openSelectedDay(
+  tree: Tree,
+  selectedDay: string,
+): import("react-test-renderer").ReactTestRenderer {
+  const headerTree = renderMonthHeader(tree);
+  TestRenderer.act(() => {
+    calendarGridProps.current!.onSelectDay(selectedDay);
+  });
+  return headerTree;
+}
+
 function renderMonthFooter(tree: Tree): import("react-test-renderer").ReactTestRenderer {
   const flatList = tree.root.findAll(
     (node) => typeof node.type === "string" && node.type === "FlatList",
@@ -307,6 +324,9 @@ describe("CalendarScreen views (mobile)", () => {
     state.calendarDataCalls.mockClear();
     state.calendarEvents = [];
     state.calendarEventsEnabled = undefined;
+    state.calendarEventsPending = false;
+    state.calendarEventsError = null;
+    state.calendarEventsRefetch = vi.fn();
     state.calendarRangeCalls.mockClear();
     state.rangeLoading = false;
     calendarStatsProps.current = null;
@@ -459,24 +479,47 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />);
     });
-    const flatList = tree!.root.findAll(
-      (node) => typeof node.type === "string" && node.type === "FlatList",
-    )[0]!;
-    let headerTree: import("react-test-renderer").ReactTestRenderer;
-    TestRenderer.act(() => {
-      headerTree = TestRenderer.create(flatList.props.ListHeaderComponent);
-    });
-    TestRenderer.act(() => {
-      calendarGridProps.current!.onSelectDay(selectedDay);
-    });
+    const headerTree = openSelectedDay(tree!, selectedDay);
 
     expect(
       calendarDayDetailProps.current?.calendarEvents.map(
         (event: { id: string }) => event.id,
       ),
     ).toEqual(["selected-event"]);
-    TestRenderer.act(() => headerTree!.update(<></>));
+    TestRenderer.act(() => headerTree.update(<></>));
     TestRenderer.act(() => (tree as unknown as import("react-test-renderer").ReactTestRenderer).update(<></>));
+  });
+
+  it("passes a failed Google events query to the selected-day panel", () => {
+    state.profile = { weekStartDay: 1, timeZone: "UTC", hasProAccess: true };
+    state.calendarEventsError = new Error("calendar events unavailable");
+    let tree!: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />);
+    });
+    const headerTree = openSelectedDay(tree, formatAPIDate(new Date()));
+
+    expect(calendarDayDetailProps.current?.calendarEventsState).toBe("failed");
+    TestRenderer.act(() => {
+      calendarDayDetailProps.current?.onRetryCalendarEvents();
+    });
+    expect(state.calendarEventsRefetch).toHaveBeenCalledTimes(1);
+    TestRenderer.act(() => headerTree.update(<></>));
+    TestRenderer.act(() => tree.update(<></>));
+  });
+
+  it("passes a resolved empty Google events query as ready", () => {
+    state.profile = { weekStartDay: 1, timeZone: "UTC", hasProAccess: true };
+    let tree!: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />);
+    });
+    const headerTree = openSelectedDay(tree, formatAPIDate(new Date()));
+
+    expect(calendarDayDetailProps.current?.calendarEventsState).toBe("ready");
+    expect(calendarDayDetailProps.current?.calendarEvents).toEqual([]);
+    TestRenderer.act(() => headerTree.update(<></>));
+    TestRenderer.act(() => tree.update(<></>));
   });
 
   it("does not enable the calendar event request for a free profile", () => {
@@ -497,20 +540,11 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />);
     });
-    const flatList = tree.root.findAll(
-      (node) => typeof node.type === "string" && node.type === "FlatList",
-    )[0]!;
-    let headerTree: import("react-test-renderer").ReactTestRenderer;
-    TestRenderer.act(() => {
-      headerTree = TestRenderer.create(flatList.props.ListHeaderComponent);
-    });
-    TestRenderer.act(() => {
-      calendarGridProps.current!.onSelectDay(formatAPIDate(new Date()));
-    });
+    const headerTree = openSelectedDay(tree, formatAPIDate(new Date()));
 
     expect(state.calendarEventsEnabled).toBe(false);
     expect(calendarDayDetailProps.current?.calendarEvents).toEqual([]);
-    TestRenderer.act(() => headerTree!.update(<></>));
+    TestRenderer.act(() => headerTree.update(<></>));
     TestRenderer.act(() => tree.update(<></>));
   });
 

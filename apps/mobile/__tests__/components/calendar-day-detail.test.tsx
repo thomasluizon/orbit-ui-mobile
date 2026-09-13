@@ -2,6 +2,7 @@ import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
+import type { CalendarEventsDisplayState } from "@orbit/shared/utils";
 import type { CalendarSyncEvent } from "@orbit/shared";
 import { createTokensV2 } from "@/lib/theme";
 import { CalendarDayDetail } from "@/app/(tabs)/calendar/_components/calendar-day-detail";
@@ -58,6 +59,7 @@ function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry 
 function renderDetail(
   entries: CalendarDayEntry[],
   calendarEvents: CalendarSyncEvent[] = [],
+  calendarEventsState: CalendarEventsDisplayState = "hidden",
 ): Tree {
   const tokens = createTokensV2("purple", "dark");
   let tree: Tree;
@@ -67,6 +69,8 @@ function renderDetail(
         selectedEntries={entries}
         filteredEntries={entries}
         calendarEvents={calendarEvents}
+        calendarEventsState={calendarEventsState}
+        onRetryCalendarEvents={() => {}}
         completedCount={0}
         showRecurring
         onShowRecurringChange={() => {}}
@@ -147,7 +151,7 @@ describe("CalendarDayDetail entry list (mobile)", () => {
         recurrenceRule: null,
         reminders: [],
       },
-    ]);
+    ], "ready");
 
     const events = tree.root.findAll((node) => node.type === "EventRowMock");
     expect(events.map((event) => event.props)).toEqual([
@@ -162,5 +166,31 @@ describe("CalendarDayDetail entry list (mobile)", () => {
         source: "calendar.title",
       }),
     ]);
+  });
+
+  it("renders a failed events request instead of the empty result", () => {
+    const tree = renderDetail([makeEntry()], [], "failed");
+    const labels = tree.root.findAll(
+      (node) => node.type === "Text" && node.props.accessibilityLabel === "calendar.fetchError",
+    );
+    const empty = tree.root.findAll(
+      (node) => node.type === "Text" && node.props.children === "calendar.noEvents",
+    );
+
+    expect(labels).toHaveLength(1);
+    expect(empty).toHaveLength(0);
+  });
+
+  it("renders the empty events state after an empty response resolves", () => {
+    const tree = renderDetail([makeEntry()], [], "ready");
+    const empty = tree.root.findAll(
+      (node) => node.type === "Text" && node.props.children === "calendar.noEvents",
+    );
+    const errors = tree.root.findAll(
+      (node) => node.props.accessibilityLabel === "calendar.fetchError",
+    );
+
+    expect(empty).toHaveLength(1);
+    expect(errors).toHaveLength(0);
   });
 });

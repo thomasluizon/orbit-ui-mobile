@@ -6,6 +6,7 @@ import Animated, {
 } from "react-native-reanimated";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
+import type { CalendarEventsDisplayState } from "@orbit/shared/utils";
 import type { CalendarSyncEvent } from "@orbit/shared";
 import { plural } from "@/lib/plural";
 import { PillButton } from "@/components/ui/pill-button";
@@ -13,6 +14,8 @@ import { createTokensV2 } from "@/lib/theme";
 import { CalendarDayEntryRow } from "./calendar-day-entry";
 import { ShowRecurringToggle } from "./show-recurring-toggle";
 import { EventRow } from "@/components/dates/event-row";
+import { ErrorState } from "@/components/ui/error-state";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Tokens = ReturnType<typeof createTokensV2>;
 
@@ -20,6 +23,8 @@ interface CalendarDayDetailProps {
   selectedEntries: CalendarDayEntry[];
   filteredEntries: CalendarDayEntry[];
   calendarEvents: CalendarSyncEvent[];
+  calendarEventsState: CalendarEventsDisplayState;
+  onRetryCalendarEvents: () => void;
   completedCount: number;
   showRecurring: boolean;
   onShowRecurringChange: (value: boolean) => void;
@@ -27,6 +32,71 @@ interface CalendarDayDetailProps {
   displayTime: (time: string) => string;
   t: TFunction;
   tokens: Tokens;
+}
+
+function CalendarEventsSection({
+  calendarEvents,
+  state,
+  onRetry,
+  displayTime,
+  t,
+  styles,
+  tokens,
+}: Readonly<{
+  calendarEvents: CalendarSyncEvent[];
+  state: CalendarEventsDisplayState;
+  onRetry: () => void;
+  displayTime: (time: string) => string;
+  t: TFunction;
+  styles: ReturnType<typeof createStyles>;
+  tokens: Tokens;
+}>) {
+  if (state === "hidden") return null;
+
+  return (
+    <View style={styles.eventSection}>
+      <Text style={[styles.eventTitle, { color: tokens.fg2 }]}>
+        {t("calendar.dayDetail.eventsTitle")}
+      </Text>
+      {state === "loading" ? (
+        <Skeleton variant="settings" rows={1} label={t("calendar.fetchingEvents")} />
+      ) : null}
+      {state === "failed" ? (
+        <ErrorState
+          message={t("calendar.fetchError")}
+          action={<PillButton variant="ghost" onClick={onRetry}>{t("common.retry")}</PillButton>}
+        />
+      ) : null}
+      {state === "ready" && calendarEvents.length === 0 ? (
+        <View style={styles.emptyDayCard}>
+          <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
+            {t("calendar.noEvents")}
+          </Text>
+        </View>
+      ) : null}
+      {state === "ready" && calendarEvents.length > 0 ? (
+        <View style={styles.eventList}>
+          {calendarEvents.map((event) =>
+            event.startTime ? (
+              <EventRow
+                key={event.id}
+                time={displayTime(event.startTime)}
+                title={event.title}
+                source={t("calendar.title")}
+              />
+            ) : (
+              <EventRow
+                key={event.id}
+                allDayLabel={t("calendar.timeGrid.allDay")}
+                title={event.title}
+                source={t("calendar.title")}
+              />
+            ),
+          )}
+        </View>
+      ) : null}
+    </View>
+  );
 }
 
 function statusBadge(
@@ -54,6 +124,8 @@ export function CalendarDayDetail({
   selectedEntries,
   filteredEntries,
   calendarEvents,
+  calendarEventsState,
+  onRetryCalendarEvents,
   completedCount,
   showRecurring,
   onShowRecurringChange,
@@ -137,32 +209,15 @@ export function CalendarDayDetail({
         </>
       )}
 
-      {calendarEvents.length > 0 ? (
-        <View style={styles.eventSection}>
-          <Text style={[styles.eventTitle, { color: tokens.fg2 }]}>
-            {t("calendar.dayDetail.eventsTitle")}
-          </Text>
-          <View style={styles.eventList}>
-            {calendarEvents.map((event) =>
-              event.startTime ? (
-                <EventRow
-                  key={event.id}
-                  time={displayTime(event.startTime)}
-                  title={event.title}
-                  source={t("calendar.title")}
-                />
-              ) : (
-                <EventRow
-                  key={event.id}
-                  allDayLabel={t("calendar.timeGrid.allDay")}
-                  title={event.title}
-                  source={t("calendar.title")}
-                />
-              ),
-            )}
-          </View>
-        </View>
-      ) : null}
+      <CalendarEventsSection
+        calendarEvents={calendarEvents}
+        state={calendarEventsState}
+        onRetry={onRetryCalendarEvents}
+        displayTime={displayTime}
+        t={t}
+        styles={styles}
+        tokens={tokens}
+      />
 
       <PillButton
         variant="ghost"
@@ -202,7 +257,7 @@ function createStyles(tokens: Tokens) {
       alignItems: "center",
       justifyContent: "center",
       paddingVertical: 24,
-      paddingHorizontal: 18,
+      paddingHorizontal: 16,
       borderRadius: 18,
       backgroundColor: tokens.bgCard,
       borderWidth: 1,

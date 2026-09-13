@@ -19,11 +19,21 @@ const calendarGridProps: Record<string, unknown> & {
   todayKey?: string
 } = {}
 const calendarStatsProps: Record<string, unknown> = {}
-const calendarDayDetailProps: { calendarEvents?: CalendarSyncEvent[] } = {}
+const calendarDayDetailProps: {
+  calendarEvents?: CalendarSyncEvent[]
+  calendarEventsState?: string
+  onRetryCalendarEvents?: () => void
+} = {}
 const calendarEventsQueryState: {
   data: { status: 'connected'; events: CalendarSyncEvent[] }
+  isPending: boolean
+  error: Error | null
+  refetch: ReturnType<typeof vi.fn>
 } = {
   data: { status: 'connected', events: [] },
+  isPending: false,
+  error: null,
+  refetch: vi.fn(),
 }
 let calendarEventsEnabled: boolean | undefined
 const monthQueryState: {
@@ -179,8 +189,12 @@ vi.mock('@/components/calendar/calendar-day-detail', () => ({
     onShowRecurringChange: (value: boolean) => void
     showRecurring: boolean
     showRecurringToggle?: boolean
+    calendarEventsState?: string
+    onRetryCalendarEvents?: () => void
   }) => {
     calendarDayDetailProps.calendarEvents = props.calendarEvents
+    calendarDayDetailProps.calendarEventsState = props.calendarEventsState
+    calendarDayDetailProps.onRetryCalendarEvents = props.onRetryCalendarEvents
     return (
       <div data-testid="day-detail">
         {(props.showRecurringToggle ?? true) && (
@@ -271,7 +285,12 @@ describe('CalendarPage view switcher', () => {
     calendarGridSelectionDate = '2026-01-05'
     calendarGridProps.selectedDateStr = undefined
     calendarDayDetailProps.calendarEvents = undefined
+    calendarDayDetailProps.calendarEventsState = undefined
+    calendarDayDetailProps.onRetryCalendarEvents = undefined
     calendarEventsQueryState.data = { status: 'connected', events: [] }
+    calendarEventsQueryState.isPending = false
+    calendarEventsQueryState.error = null
+    calendarEventsQueryState.refetch = vi.fn()
     calendarEventsEnabled = undefined
     calendarGridProps.dayMap = undefined
     calendarGridProps.todayKey = undefined
@@ -583,6 +602,28 @@ describe('CalendarPage view switcher', () => {
     expect(calendarDayDetailProps.calendarEvents?.map((event) => event.id)).toEqual([
       'selected-event',
     ])
+  })
+
+  it('passes a failed Google events query to the selected-day panel', () => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true }
+    calendarEventsQueryState.error = new Error('calendar events unavailable')
+    isWideDesktopValue = true
+
+    render(<CalendarPage />)
+
+    expect(calendarDayDetailProps.calendarEventsState).toBe('failed')
+    calendarDayDetailProps.onRetryCalendarEvents?.()
+    expect(calendarEventsQueryState.refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes a resolved empty Google events query as ready', () => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true }
+    isWideDesktopValue = true
+
+    render(<CalendarPage />)
+
+    expect(calendarDayDetailProps.calendarEventsState).toBe('ready')
+    expect(calendarDayDetailProps.calendarEvents).toEqual([])
   })
 
   it('opens the day detail as an overlay below the wide-desktop breakpoint', () => {

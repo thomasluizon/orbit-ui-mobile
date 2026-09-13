@@ -30,7 +30,9 @@ import {
   resolveCalendarRangeEnd,
   CALENDAR_MONTH_GRID_GEOMETRY,
   resolveCalendarMonthDisplayState,
+  resolveCalendarEventsDisplayState,
   type CalendarMonthDisplayState,
+  type CalendarEventsDisplayState,
 } from '@orbit/shared/utils'
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
@@ -135,6 +137,8 @@ interface CalendarInlineDayPanelProps {
   selectedDay: string | null
   entries: CalendarDayEntry[]
   calendarEvents: CalendarSyncEvent[]
+  calendarEventsState: CalendarEventsDisplayState
+  onRetryCalendarEvents: () => void
   showRecurring: boolean
   showRecurringToggle: boolean
   onShowRecurringChange: (value: boolean) => void
@@ -148,6 +152,8 @@ function CalendarInlineDayPanel({
   selectedDay,
   entries,
   calendarEvents,
+  calendarEventsState,
+  onRetryCalendarEvents,
   showRecurring,
   showRecurringToggle,
   onShowRecurringChange,
@@ -182,6 +188,8 @@ function CalendarInlineDayPanel({
             dateStr={selectedDay}
             entries={entries}
             calendarEvents={calendarEvents}
+            calendarEventsState={calendarEventsState}
+            onRetryCalendarEvents={onRetryCalendarEvents}
             showRecurring={showRecurring}
             onShowRecurringChange={onShowRecurringChange}
             showRecurringToggle={showRecurringToggle}
@@ -297,8 +305,18 @@ function CalendarPageContent({
   )
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false)
   const [showRecurring, setShowRecurring] = useState(true)
-  const { data: calendarEventsResult } = useCalendarEvents({
+  const {
+    data: calendarEventsResult,
+    isPending: calendarEventsPending,
+    error: calendarEventsError,
+    refetch: refetchCalendarEvents,
+  } = useCalendarEvents({
     enabled: profile.hasProAccess,
+  })
+  const calendarEventsState = resolveCalendarEventsDisplayState({
+    enabled: profile.hasProAccess,
+    isPending: calendarEventsPending,
+    error: calendarEventsError,
   })
 
   const { dayMap, isLoading, isFetching, error, refresh } = monthQuery
@@ -667,6 +685,8 @@ function CalendarPageContent({
                   selectedDay={selectedDay}
                   entries={selectedEntries}
                   calendarEvents={selectedCalendarEvents}
+                  calendarEventsState={calendarEventsState}
+                  onRetryCalendarEvents={() => void refetchCalendarEvents()}
                   showRecurring={showRecurring}
                   showRecurringToggle={!showMonthRecurringToggle}
                   onShowRecurringChange={setShowRecurring}
@@ -740,6 +760,8 @@ function CalendarPageContent({
           dateStr={selectedDay}
           entries={selectedEntries}
           calendarEvents={selectedCalendarEvents}
+          calendarEventsState={calendarEventsState}
+          onRetryCalendarEvents={() => void refetchCalendarEvents()}
           showRecurring={showRecurring}
           onShowRecurringChange={setShowRecurring}
         />

@@ -39,6 +39,7 @@ vi.mock('next/link', () => ({
 
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarEventsDisplayState } from '@orbit/shared/utils'
 import type { CalendarSyncEvent } from '@orbit/shared'
 
 function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
@@ -57,6 +58,8 @@ interface RenderProps {
   dateStr: string | null
   entries: CalendarDayEntry[]
   calendarEvents?: CalendarSyncEvent[]
+  calendarEventsState?: CalendarEventsDisplayState
+  onRetryCalendarEvents?: () => void
   showRecurring?: boolean
   onShowRecurringChange?: (value: boolean) => void
 }
@@ -65,6 +68,8 @@ function renderDetail({
   dateStr,
   entries,
   calendarEvents = [],
+  calendarEventsState = 'hidden',
+  onRetryCalendarEvents = () => {},
   showRecurring = true,
   onShowRecurringChange = () => {},
 }: RenderProps) {
@@ -73,6 +78,8 @@ function renderDetail({
       dateStr={dateStr}
       entries={entries}
       calendarEvents={calendarEvents}
+      calendarEventsState={calendarEventsState}
+      onRetryCalendarEvents={onRetryCalendarEvents}
       showRecurring={showRecurring}
       onShowRecurringChange={onShowRecurringChange}
     />,
@@ -107,6 +114,7 @@ describe('CalendarDayDetail', () => {
     renderDetail({
       dateStr: '2025-06-15',
       entries: [makeEntry({ title: 'Read' })],
+      calendarEventsState: 'ready',
       calendarEvents: [
         {
           id: 'event-1',
@@ -142,6 +150,28 @@ describe('CalendarDayDetail', () => {
     })
     expect(within(timedEvent).queryByRole('button')).toBeNull()
     expect(within(allDayEvent).queryByRole('button')).toBeNull()
+  })
+
+  it('renders a failed events request instead of the empty result', () => {
+    renderDetail({
+      dateStr: '2025-06-15',
+      entries: [makeEntry()],
+      calendarEventsState: 'failed',
+    })
+
+    expect(screen.getByRole('alert')).toHaveTextContent('calendar.fetchError')
+    expect(screen.queryByText('calendar.noEvents')).not.toBeInTheDocument()
+  })
+
+  it('renders the empty events state after an empty response resolves', () => {
+    renderDetail({
+      dateStr: '2025-06-15',
+      entries: [makeEntry()],
+      calendarEventsState: 'ready',
+    })
+
+    expect(screen.getByText('calendar.noEvents')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('shows completion summary', () => {
@@ -232,6 +262,8 @@ describe('CalendarDayDetail', () => {
           dateStr="2025-06-15"
           entries={entries}
           calendarEvents={[]}
+          calendarEventsState="hidden"
+          onRetryCalendarEvents={() => {}}
           showRecurring
           onShowRecurringChange={() => {}}
           fitViewport

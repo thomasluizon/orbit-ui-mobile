@@ -1,9 +1,4 @@
 {
-  "app/(tabs)/calendar/_components/calendar-day-detail.tsx": {
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "app/(tabs)/calendar/_components/calendar-day-entry.tsx": {
     "local/icon-size-grid": {
       "count": 1

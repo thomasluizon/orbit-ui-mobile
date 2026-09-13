@@ -48,6 +48,7 @@ import {
   resolveCalendarRangeEnd,
   CALENDAR_MONTH_GRID_GEOMETRY,
   resolveCalendarMonthDisplayState,
+  resolveCalendarEventsDisplayState,
   type CalendarMonthDisplayState,
 } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
@@ -360,8 +361,18 @@ function CalendarScreenContent({
   );
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
   const [showRecurring, setShowRecurring] = useState(true);
-  const { data: calendarEventsResult } = useCalendarEvents({
+  const {
+    data: calendarEventsResult,
+    isPending: calendarEventsPending,
+    error: calendarEventsError,
+    refetch: refetchCalendarEvents,
+  } = useCalendarEvents({
     enabled: profile.hasProAccess,
+  });
+  const calendarEventsState = resolveCalendarEventsDisplayState({
+    enabled: profile.hasProAccess,
+    isPending: calendarEventsPending,
+    error: calendarEventsError,
   });
 
   const { dayMap, isLoading, isFetching, error, refresh } = monthQuery;
@@ -870,6 +881,8 @@ function CalendarScreenContent({
             selectedEntries={selectedEntries}
             filteredEntries={filteredEntries}
             calendarEvents={selectedCalendarEvents}
+            calendarEventsState={calendarEventsState}
+            onRetryCalendarEvents={() => void refetchCalendarEvents()}
             completedCount={completedCount}
             showRecurring={showRecurring}
             onShowRecurringChange={setShowRecurring}

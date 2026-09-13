@@ -163,9 +163,6 @@
   "components/calendar/calendar-day-detail.tsx": {
     "local/icon-size-grid": {
       "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 8
     }
   },
   "components/calendar/calendar-load-error.tsx": {

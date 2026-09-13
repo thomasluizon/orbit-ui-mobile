@@ -8,21 +8,93 @@ import { plural } from '@/lib/plural'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { parseAPIDate, filterRecurringEntries } from '@orbit/shared/utils'
+import type { CalendarEventsDisplayState } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import { ShowRecurringToggle } from '@/components/calendar/show-recurring-toggle'
 import { EventRow } from '@/components/dates/event-row'
+import { ErrorState } from '@/components/ui/error-state'
+import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface CalendarDayDetailProps {
   dateStr: string | null
   entries: CalendarDayEntry[]
   calendarEvents: CalendarSyncEvent[]
+  calendarEventsState: CalendarEventsDisplayState
+  onRetryCalendarEvents: () => void
   showRecurring: boolean
   onShowRecurringChange: (value: boolean) => void
   showRecurringToggle?: boolean
   /** Desktop side-panel mode: the entries list scrolls within the viewport, a
    *  bottom fade hints at more content, and the go-to-day CTA stays pinned below. */
   fitViewport?: boolean
+}
+
+function CalendarEventsSection({
+  calendarEvents,
+  state,
+  onRetry,
+}: Readonly<{
+  calendarEvents: CalendarSyncEvent[]
+  state: CalendarEventsDisplayState
+  onRetry: () => void
+}>) {
+  const t = useTranslations()
+  const { displayTime } = useTimeFormat()
+
+  if (state === 'hidden') return null
+
+  return (
+    <div className="flex flex-col" style={{ gap: 8, marginTop: 16 }}>
+      <p className="text-sm font-medium text-[var(--fg-2)]" style={{ margin: 0, lineHeight: 1.4 }}>
+        {t('calendar.dayDetail.eventsTitle')}
+      </p>
+      {state === 'loading' ? (
+        <Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} />
+      ) : null}
+      {state === 'failed' ? (
+        <ErrorState
+          message={t('calendar.fetchError')}
+          action={<PillButton variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>}
+        />
+      ) : null}
+      {state === 'ready' && calendarEvents.length === 0 ? (
+        <div
+          className="text-center text-sm text-[var(--fg-3)]"
+          style={{
+            padding: '24px 16px',
+            borderRadius: 18,
+            background: 'var(--bg-card)',
+            boxShadow: 'inset 0 0 0 1px var(--hairline)',
+          }}
+        >
+          {t('calendar.noEvents')}
+        </div>
+      ) : null}
+      {state === 'ready' && calendarEvents.length > 0 ? (
+        <div className="flex flex-col" style={{ gap: 4 }}>
+          {calendarEvents.map((event) =>
+            event.startTime ? (
+              <EventRow
+                key={event.id}
+                time={displayTime(event.startTime)}
+                title={event.title}
+                source={t('calendar.title')}
+              />
+            ) : (
+              <EventRow
+                key={event.id}
+                allDayLabel={t('calendar.timeGrid.allDay')}
+                title={event.title}
+                source={t('calendar.title')}
+              />
+            ),
+          )}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 function statusBadgeColor(entry: CalendarDayEntry): string {
@@ -53,6 +125,8 @@ export function CalendarDayDetail({
   dateStr,
   entries,
   calendarEvents,
+  calendarEventsState,
+  onRetryCalendarEvents,
   showRecurring,
   onShowRecurringChange,
   showRecurringToggle = true,
@@ -103,7 +177,7 @@ export function CalendarDayDetail({
         <div
           className="text-[var(--fg-3)] text-sm text-center"
           style={{
-            padding: '24px 18px',
+            padding: '24px 16px',
             borderRadius: 18,
             background: 'var(--bg-card)',
             boxShadow: 'inset 0 0 0 1px var(--hairline)',
@@ -129,7 +203,7 @@ export function CalendarDayDetail({
             <div
               className="text-[var(--fg-3)] text-sm text-center"
               style={{
-                padding: '24px 18px',
+                padding: '24px 16px',
                 borderRadius: 18,
                 background: 'var(--bg-card)',
                 boxShadow: 'inset 0 0 0 1px var(--hairline)',
@@ -156,7 +230,7 @@ export function CalendarDayDetail({
                     key={entry.habitId}
                     className="flex items-center gap-3"
                     style={{
-                      padding: '15px 18px',
+                      padding: '16px',
                       borderBottom:
                         i < filteredEntries.length - 1
                           ? '1px solid var(--hairline)'
@@ -228,35 +302,11 @@ export function CalendarDayDetail({
         </div>
       )}
 
-      {calendarEvents.length > 0 && (
-        <div className="flex flex-col" style={{ gap: 8, marginTop: 16 }}>
-          <p
-            className="text-sm font-medium text-[var(--fg-2)]"
-            style={{ margin: 0, lineHeight: 1.4 }}
-          >
-            {t('calendar.dayDetail.eventsTitle')}
-          </p>
-          <div className="flex flex-col" style={{ gap: 4 }}>
-            {calendarEvents.map((event) =>
-              event.startTime ? (
-                <EventRow
-                  key={event.id}
-                  time={displayTime(event.startTime)}
-                  title={event.title}
-                  source={t('calendar.title')}
-                />
-              ) : (
-                <EventRow
-                  key={event.id}
-                  allDayLabel={t('calendar.timeGrid.allDay')}
-                  title={event.title}
-                  source={t('calendar.title')}
-                />
-              ),
-            )}
-          </div>
-        </div>
-      )}
+      <CalendarEventsSection
+        calendarEvents={calendarEvents}
+        state={calendarEventsState}
+        onRetry={onRetryCalendarEvents}
+      />
     </>
   )
 
@@ -266,7 +316,7 @@ export function CalendarDayDetail({
       className="flex w-full shrink-0 sm:max-w-[360px] sm:mx-auto items-center justify-center gap-2 rounded-full bg-transparent text-[var(--fg-1)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
       style={{
         marginTop: 16,
-        padding: '14px 26px',
+        padding: '12px 24px',
         fontFamily: 'var(--font-sans)',
         fontSize: 16,
         fontWeight: 500,
@@ -283,7 +333,7 @@ export function CalendarDayDetail({
       <section
         aria-label={formattedDate}
         className="flex min-h-0 flex-1 flex-col"
-        style={{ padding: '12px 20px 12px' }}
+        style={{ padding: '12px 16px' }}
       >
         {recurringToggle}
         <div className="relative min-h-0 flex-1">
@@ -300,7 +350,7 @@ export function CalendarDayDetail({
   }
 
   return (
-    <section aria-label={formattedDate} style={{ padding: '12px 20px 12px' }}>
+    <section aria-label={formattedDate} style={{ padding: '12px 16px' }}>
       {recurringToggle}
       {body}
       {goToDay}
