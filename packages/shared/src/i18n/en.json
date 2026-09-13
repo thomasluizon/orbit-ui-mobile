@@ -1279,6 +1279,16 @@
       "currentDevice": "This device",
       "pushDeviceLimit": "Up to 5 devices can receive alerts."
     },
+    "allowance": {
+      "title": "Today's messages",
+      "usage": "{used} of {limit} used",
+      "spent": "Today's messages have been used. Your list keeps working without them.",
+      "plan": "Plan",
+      "free": "Free",
+      "pro": "Pro",
+      "seePro": "See Pro",
+      "manageSubscription": "Manage subscription"
+    },
     "timezonePicker": {
       "search": "Search timezones",
       "noResults": "No timezones found",

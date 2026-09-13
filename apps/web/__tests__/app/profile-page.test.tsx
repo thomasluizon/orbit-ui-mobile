@@ -1,6 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
 const {
@@ -8,10 +8,12 @@ const {
   mockShellNoticeSlot,
   mockUseGamificationProfile,
   mockProfileState,
+  mockRouterPush,
 } = vi.hoisted(() => ({
   mockExportUserData: vi.fn(),
   mockShellNoticeSlot: vi.fn(),
   mockUseGamificationProfile: vi.fn(() => ({ profile: null })),
+  mockRouterPush: vi.fn(),
   mockProfileState: {
     current: {
       profile: undefined as ReturnType<typeof createMockProfile> | undefined,
@@ -39,7 +41,7 @@ vi.mock('@/hooks/use-color-scheme', () => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: vi.fn(),
+    push: mockRouterPush,
     replace: vi.fn(),
     back: vi.fn(),
     refresh: vi.fn(),
@@ -136,8 +138,15 @@ describe('ProfilePage', () => {
     })
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
     mockUseGamificationProfile.mockClear()
+    mockRouterPush.mockClear()
     mockProfileState.current = {
-      profile: createMockProfile({ hasProAccess: false, currentStreak: 13 }),
+      profile: createMockProfile({
+        plan: 'free',
+        hasProAccess: false,
+        currentStreak: 13,
+        aiMessagesUsed: 2,
+        aiMessagesLimit: 5,
+      }),
       isLoading: false,
       error: null,
     }
@@ -178,9 +187,6 @@ describe('ProfilePage', () => {
       'settings.weekStartDay.title',
       'preferences.themeMode',
       'profile.subscription.plan',
-      'profile.settingsRows.dailyAllowance',
-      'profile.proactiveAstra.title',
-      'profile.aiSummary.title',
       'profile.settingsRows.apiKeysMcp',
       'profile.wrappedTitle',
       'calendar.profileButton',
@@ -201,6 +207,46 @@ describe('ProfilePage', () => {
     expect(
       screen.getByRole('button', { name: 'profile.marketingEmails.decline' }),
     ).toBeInTheDocument()
+  })
+
+  it('shows the free daily allowance and routes its only plan action to Pro', () => {
+    render(<ProfilePage />)
+
+    const astra = within(screen.getByTestId('profile-settings-group-astra'))
+    const progress = astra.getByRole('progressbar', { name: 'profile.allowance.title' })
+    expect(progress).toHaveAttribute('aria-valuenow', '2')
+    expect(progress).toHaveAttribute('aria-valuemax', '5')
+    expect(astra.getByText('profile.allowance.usage')).toBeInTheDocument()
+    expect(astra.queryByText('profile.allowance.spent')).not.toBeInTheDocument()
+    expect(astra.queryByText('profile.proactiveAstra.title')).not.toBeInTheDocument()
+    expect(astra.queryByText('profile.aiSummary.title')).not.toBeInTheDocument()
+    expect(astra.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
+
+    expect(astra.getByRole('link', { name: 'profile.allowance.seePro' })).toHaveAttribute('href', '/upgrade')
+  })
+
+  it('shows a spent Pro allowance and hands subscription management off directly', () => {
+    mockProfileState.current = {
+      profile: createMockProfile({
+        plan: 'pro',
+        hasProAccess: true,
+        aiMessagesUsed: 50,
+        aiMessagesLimit: 50,
+      }),
+      isLoading: false,
+      error: null,
+    }
+    render(<ProfilePage />)
+
+    const astra = within(screen.getByTestId('profile-settings-group-astra'))
+    const progress = astra.getByRole('progressbar', { name: 'profile.allowance.title' })
+    expect(progress).toHaveAttribute('aria-valuenow', '50')
+    expect(progress).toHaveAttribute('aria-valuemax', '50')
+    expect(progress).toHaveAttribute('data-complete', 'true')
+    expect(astra.getByText('profile.allowance.spent')).toBeInTheDocument()
+    expect(astra.queryByRole('link', { name: 'profile.allowance.seePro' })).not.toBeInTheDocument()
+
+    expect(astra.getByRole('link', { name: 'profile.allowance.manageSubscription' })).toHaveAttribute('href', '/upgrade')
   })
 
   it('places export last in You instead of Ending things', () => {

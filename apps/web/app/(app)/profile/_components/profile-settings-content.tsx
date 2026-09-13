@@ -11,7 +11,6 @@ import {
   shouldRedirectProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
 import {
-  BellRing,
   Calendar,
   Clock,
   CreditCard,
@@ -19,17 +18,17 @@ import {
   Languages,
   Lock,
   LogOut,
-  MessageSquare,
   Moon,
   RotateCcw,
-  Satellite,
   User,
   UserX,
 } from '@/components/ui/icons'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
+import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
 import { ProfileSettingsFrame } from '@/components/profile/profile-settings-frame'
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { ListRow } from '@/components/ui/list-row'
+import { RowList } from '@/components/ui/row-list'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { Toast } from '@/components/ui/toast'
 import { useAuthStore } from '@/stores/auth-store'
@@ -91,12 +90,16 @@ function buildYouRows(
 }
 
 function buildAstraRows({ profile, router, t }: RowContext) {
-  return [
-    <ListRow key="allowance" icon={icon(Satellite)} title={t('profile.settingsRows.dailyAllowance')} value={`${profile?.aiMessagesUsed ?? 0}/${profile?.aiMessagesLimit ?? 0}`} onClick={() => router.push('/upgrade')} />,
-    <ListRow key="proactive" icon={icon(BellRing)} title={t('profile.proactiveAstra.title')} onClick={() => router.push('/ai-settings')} />,
-    <ListRow key="summary" icon={icon(MessageSquare)} title={t('profile.aiSummary.title')} onClick={() => router.push('/ai-settings')} />,
-    <ListRow key="api-keys" icon={icon(Lock)} title={t('profile.settingsRows.apiKeysMcp')} onClick={() => router.push('/advanced')} />,
-  ]
+  return (
+    <>
+      {profile ? (
+        <AstraAllowancePanel profile={profile} />
+      ) : null}
+      <RowList>
+        <ListRow key="api-keys" icon={icon(Lock)} title={t('profile.settingsRows.apiKeysMcp')} onClick={() => router.push('/advanced')} />
+      </RowList>
+    </>
+  )
 }
 
 function buildNotificationRows(
@@ -283,7 +286,7 @@ export function ProfileSettingsContent({
           ending: t('profile.groups.ending'),
         }}
         rows={rows}
-        uncontainedGroups={['notifications']}
+        uncontainedGroups={['astra', 'notifications']}
       />
       <EditNameSheet open={showEditName} onOpenChange={setShowEditName} />
       <FreshStartModal open={showFreshStart} onOpenChange={setShowFreshStart} />

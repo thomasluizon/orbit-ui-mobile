@@ -33,6 +33,7 @@ const {
   mockShellNoticeSlot,
   mockUseGamificationProfile,
   mockRouterPush,
+  mockProfileState,
 } = vi.hoisted(() => ({
   mockApiClient: vi.fn(),
   mockShareAsync: vi.fn(),
@@ -44,6 +45,13 @@ const {
   mockUseGamificationProfile: vi.fn(() => ({ profile: null })),
   mockShellNoticeSlot: vi.fn(),
   mockRouterPush: vi.fn(),
+  mockProfileState: {
+    current: {
+      profile: undefined as ReturnType<typeof createMockProfile> | undefined,
+      isLoading: false,
+      error: null as Error | null,
+    },
+  },
 }))
 
 vi.mock('expo-sharing', () => {
@@ -88,11 +96,7 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({
-    profile: createMockProfile({ hasProAccess: false }),
-    isLoading: false,
-    error: null,
-  }),
+  useProfile: () => mockProfileState.current,
   useTrialDaysLeft: () => 0,
   useTrialExpired: () => true,
 }))
@@ -422,6 +426,16 @@ describe('ProfileScreen', () => {
     __setNotificationsModuleForTests(ExpoNotifications)
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()
+    mockProfileState.current = {
+      profile: createMockProfile({
+        plan: 'free',
+        hasProAccess: false,
+        aiMessagesUsed: 2,
+        aiMessagesLimit: 5,
+      }),
+      isLoading: false,
+      error: null,
+    }
   })
 
   it('renders every feature destination as a grouped settings row with its hint', async () => {
@@ -488,9 +502,6 @@ describe('ProfileScreen', () => {
       'settings.weekStartDay.title',
       'preferences.themeMode',
       'profile.subscription.plan',
-      'profile.settingsRows.dailyAllowance',
-      'profile.proactiveAstra.title',
-      'profile.aiSummary.title',
       'profile.settingsRows.apiKeysMcp',
       'profile.wrappedTitle',
       'calendar.profileButton',
@@ -512,6 +523,73 @@ describe('ProfileScreen', () => {
         `missing accessible profile row: ${accessibilityLabel}`,
       ).toHaveLength(1)
     }
+  })
+
+  it('shows the free daily allowance and routes its only plan action to Pro', async () => {
+    const tree = await renderProfileScreen()
+    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
+    const progress = astra.findByProps({
+      accessibilityRole: 'progressbar',
+      accessibilityLabel: 'profile.allowance.title',
+    })
+    expect(progress.props.accessibilityValue).toEqual({ min: 0, max: 5, now: 2 })
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.allowance.spent')),
+    ).toHaveLength(0)
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.proactiveAstra.title')),
+    ).toHaveLength(0)
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.aiSummary.title')),
+    ).toHaveLength(0)
+
+    TestRenderer.act(() => {
+      findButtonByText(tree, 'profile.allowance.seePro').props.onPress()
+    })
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
+  })
+
+  it('shows a spent Pro allowance and hands subscription management off directly', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({
+        plan: 'pro',
+        hasProAccess: true,
+        aiMessagesUsed: 50,
+        aiMessagesLimit: 50,
+      }),
+      isLoading: false,
+      error: null,
+    }
+    const tree = await renderProfileScreen()
+    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
+    const progress = astra.findByProps({
+      accessibilityRole: 'progressbar',
+      accessibilityLabel: 'profile.allowance.title',
+    })
+    expect(progress.props.accessibilityValue).toEqual({ min: 0, max: 50, now: 50 })
+    expect(astra.findByProps({ testID: 'progress-bar-complete' })).toBeDefined()
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.allowance.spent')),
+    ).toHaveLength(1)
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.allowance.seePro')),
+    ).toHaveLength(0)
+
+    TestRenderer.act(() => {
+      findButtonByText(tree, 'profile.allowance.manageSubscription').props.onPress()
+    })
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
   })
 
   it('places export last in You instead of Ending things', async () => {
