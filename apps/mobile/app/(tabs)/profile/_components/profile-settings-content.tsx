@@ -87,21 +87,27 @@ function buildYouRows(
     : t('profile.settingsRows.timezone')
 
   return [
+    /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
     <ListRow key="account" icon={icon(User, tokens.fg1)} title={profile?.name ?? t('profile.editName.title')} accessibilityLabel={t('profile.settingsRows.editName', { name: profile?.name ?? '', email: profile?.email ?? '' })} description={profile?.email} onClick={onEditName} />,
     <ListRow key="language" icon={icon(Languages, tokens.fg1)} title={t('profile.language.title')} onClick={() => router.push('/preferences')} />,
+    /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
     <ListRow key="timezone" icon={icon(Clock, tokens.fg1)} title={t('profile.settingsRows.timezone')} accessibilityLabel={timeZoneLabel} value={profile?.timeZone ?? undefined} onClick={onOpenTimeZone} />,
+    /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
     <ListRow key="week-start" icon={icon(Calendar, tokens.fg1)} title={t('settings.weekStartDay.title')} onClick={() => router.push('/preferences')} />,
     <ListRow key="theme" icon={icon(Moon, tokens.fg1)} title={t('preferences.themeMode')} onClick={() => router.push('/preferences')} />,
     <ListRow key="plan" icon={icon(CreditCard, tokens.fg1)} title={t('profile.subscription.plan')} value={planLabel} onClick={() => router.push(buildUpgradeHref('/profile'))} />,
+    /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
     <ListRow key="export" icon={icon(Download, tokens.fg1)} title={t('dataExport.button')} value={isExporting ? t('dataExport.preparing') : undefined} description={exportError || undefined} chevron={false} onClick={onExport} />,
   ]
 }
 
 function buildAstraRows({ profile, router, t, tokens }: RowContext) {
   return [
+    /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
     <ListRow key="allowance" icon={icon(Satellite, tokens.fg1)} title={t('profile.settingsRows.dailyAllowance')} value={`${profile?.aiMessagesUsed ?? 0}/${profile?.aiMessagesLimit ?? 0}`} onClick={() => router.push(buildUpgradeHref('/profile'))} />,
     <ListRow key="proactive" icon={icon(BellRing, tokens.fg1)} title={t('profile.proactiveAstra.title')} onClick={() => router.push('/ai-settings')} />,
     <ListRow key="summary" icon={icon(MessageSquare, tokens.fg1)} title={t('profile.aiSummary.title')} onClick={() => router.push('/ai-settings')} />,
+    /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
     <ListRow key="api-keys" icon={icon(Lock, tokens.fg1)} title={t('profile.settingsRows.apiKeysMcp')} onClick={() => router.push('/advanced')} />,
   ]
 }

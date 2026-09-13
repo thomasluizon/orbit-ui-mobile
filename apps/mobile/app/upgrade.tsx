@@ -62,6 +62,7 @@ function UpgradeContent({
     )
   } else if (state === 'load-failed') {
     body = <ErrorState message={t('upgrade.billing.error')} action={
+      /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
       <PillButton variant="ghost" onClick={onRetry}>{t('upgrade.billing.retry')}</PillButton>
     } />
   } else {

@@ -316,7 +316,10 @@ function MobileStepUpSuccess({
   showProNotice: boolean
 }>) {
   return (
-    <FlowShell nav={false} action={<PillButton onClick={onSignOut}>{t('stepUp.signOut')}</PillButton>}>
+    <FlowShell nav={false} action={
+      /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
+      <PillButton onClick={onSignOut}>{t('stepUp.signOut')}</PillButton>
+    }>
       <View style={styles.column}>
         <MobileStepUpHeader operationLabel={operationLabel} t={t} title={t('stepUp.successTitle', { date: deletionDate })} tokens={tokens} />
         <View style={styles.success}>
@@ -400,6 +403,7 @@ function MobileStepUpResend({ cooldownSeconds, onResend, requesting, t, tokens }
       {cooldownSeconds > 0 ? (
         <Text testID="resend-countdown" style={[styles.mono, { color: tokens.fg3 }]}>{t('stepUp.cooldown', { time: formatStepUpCountdown(cooldownSeconds) })}</Text>
       ) : (
+        /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
         <PillButton variant="ghost" size="sm" loading={requesting} onClick={onResend}>{t('stepUp.resend')}</PillButton>
       )}
     </View>

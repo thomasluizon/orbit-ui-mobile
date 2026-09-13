@@ -107,7 +107,9 @@ function translationPrefix(call, sourceCode) {
   if (callee?.type !== 'Identifier') return null
   const variable = variableFor(callee.name, sourceCode.getScope(call))
   const definition = variable?.defs.at(-1)
-  if (!definition || definition.type !== 'Variable') return null
+  if (!definition) return null
+  if (definition.type === 'Parameter') return ''
+  if (definition.type !== 'Variable') return null
   const declarator = definition.node
   const init = unwrap(declarator.init)
 

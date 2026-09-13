@@ -1000,6 +1000,14 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
       options: mobileMaxButtonWordsOptions,
       errors: [maxWordsError('ListRow', 'Remove this account', 'source', 3)],
     },
+    {
+      code: "function InvoiceRow({ t }) { return <ListRow action={{ icon: 'download', label: t('upgrade.billing.invoices.downloadDated'), onPress }} /> }",
+      options: webMaxButtonWordsOptions,
+      errors: [
+        maxWordsError('ListRow', 'Download the invoice from {date}', 'en', 5),
+        maxWordsError('ListRow', 'Baixar a fatura de {date}', 'pt-BR', 5),
+      ],
+    },
   ],
 })
 
