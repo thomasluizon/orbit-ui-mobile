@@ -113,6 +113,8 @@ export const cases = () => {
     lintTildeHome: `${eslintCommand} ~`,
     lintTildeHomePath: `${eslintCommand} ~/custom-baseline.json`,
     lintTildeUser: `${eslintCommand} ~root/custom-baseline.json`,
+    lintTildeQualifiedUser: `${eslintCommand} ~user@domain/custom-baseline.json`,
+    lintTildeUnlistedUser: `${eslintCommand} ~@domain/custom-baseline.json`,
     lintTildeCurrent: `${eslintCommand} ~+/tilde-plus-baseline.json`,
     lintTildePrevious: `${eslintCommand} ~-/custom-baseline.json`,
     lintTildeCurrentStack: `${eslintCommand} ~+0/custom-baseline.json`,
@@ -144,7 +146,7 @@ export const cases = () => {
   )
   const shellExpansionResult = run("rejects shell-expanded suppressions-location targets", shellExpandedBaseline, {
     status: 1,
-    stderr: /13 unsafe target declaration\(s\)/,
+    stderr: /15 unsafe target declaration\(s\)/,
   })
   const shellExpansionTargets = [
     "$SUPPRESSIONS_FILE",
@@ -155,6 +157,8 @@ export const cases = () => {
     "~",
     "~/custom-baseline.json",
     "~root/custom-baseline.json",
+    "~user@domain/custom-baseline.json",
+    "~@domain/custom-baseline.json",
     "~+/tilde-plus-baseline.json",
     "~-/custom-baseline.json",
     "~+0/custom-baseline.json",
