@@ -917,7 +917,10 @@
     "dayDetail": {
       "completionSummary": "{done} of {total} logged",
       "nothingDue": "nothing due",
-      "eventsTitle": "Available to import"
+      "eventsTitle": "Available to import",
+      "disconnectedTitle": "Google Calendar disconnected",
+      "disconnectedBody": "Reconnect to see the events you can import.",
+      "noEventsToImport": "Nothing left to import from Google Calendar on this day."
     },
     "proBoundary": {
       "title": "Syncing with Google Calendar is part of Orbit Pro.",

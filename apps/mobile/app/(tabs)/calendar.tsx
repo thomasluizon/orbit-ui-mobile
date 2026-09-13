@@ -924,8 +924,14 @@ function CalendarScreenContent({
             calendarEvents={selectedCalendarEvents}
             calendarEventsState={calendarEventsState}
             onRetryCalendarEvents={() => void refetchCalendarEvents()}
-            onReconnectCalendarEvents={() => router.push('/calendar-sync')}
-            onViewPro={() => router.push('/upgrade')}
+            onReconnectCalendarEvents={() => closeSheet(() => {
+              setIsDayDetailOpen(false);
+              router.push('/calendar-sync');
+            })}
+            onViewPro={() => closeSheet(() => {
+              setIsDayDetailOpen(false);
+              router.push('/upgrade');
+            })}
             completedCount={completedCount}
             loggable={selectedDayLoggable}
             showRecurring={showRecurring}

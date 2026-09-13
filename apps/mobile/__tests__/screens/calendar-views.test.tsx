@@ -11,6 +11,7 @@ import { Text, View } from "react-native";
 import CalendarScreen from "@/app/(tabs)/calendar";
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ListRow } from '@/components/ui/list-row'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const TestRenderer = require("react-test-renderer");
 type CalendarGridComponent = typeof import("@/app/(tabs)/calendar/_components/calendar-grid")["CalendarGrid"];
@@ -356,7 +357,10 @@ describe("CalendarScreen views (mobile)", () => {
     ]);
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    sheetTestControls.defer(false);
+    vi.useRealTimers();
+  });
   it('leaves the top safe area to the shell', () => {
     let tree!: import('react-test-renderer').ReactTestRenderer
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />) })
@@ -515,6 +519,7 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
   it("passes a revoked Google authorization to the selected-day panel", () => {
+    sheetTestControls.defer(true);
     state.profile = { weekStartDay: 1, timeZone: "UTC", hasProAccess: true };
     state.calendarEventsNotConnected = true;
     let tree!: Tree;
@@ -527,6 +532,11 @@ describe("CalendarScreen views (mobile)", () => {
     expect(calendarDayDetailProps.current?.calendarEvents).toEqual([]);
     TestRenderer.act(() => {
       calendarDayDetailProps.current?.onReconnectCalendarEvents();
+    });
+    expect(state.routerPush).not.toHaveBeenCalled();
+    expect(sheetTestControls.isDismissPending).toBe(true);
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal();
     });
     expect(state.routerPush).toHaveBeenCalledWith("/calendar-sync");
     TestRenderer.act(() => headerTree.update(<></>));
@@ -548,6 +558,7 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
   it("does not enable the calendar event request for a free profile", () => {
+    sheetTestControls.defer(true);
     state.calendarEvents = [
       {
         id: "retained-event",
@@ -572,6 +583,11 @@ describe("CalendarScreen views (mobile)", () => {
     expect(calendarDayDetailProps.current?.calendarEventsState).toBe("pro-boundary");
     TestRenderer.act(() => {
       calendarDayDetailProps.current?.onViewPro();
+    });
+    expect(state.routerPush).not.toHaveBeenCalled();
+    expect(sheetTestControls.isDismissPending).toBe(true);
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal();
     });
     expect(state.routerPush).toHaveBeenCalledWith("/upgrade");
     TestRenderer.act(() => headerTree.update(<></>));
