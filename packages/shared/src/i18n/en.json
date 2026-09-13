@@ -910,9 +910,8 @@
       "selected": "Selected",
       "readOnly": "Read only"
     },
-    "thisMonth": "This month",
     "bestStreak": "Best streak",
-    "totalLogs": "Total logs",
+    "totalLogs": "Logs",
     "missedCount": "Missed",
     "emptyMonth": "No habit was scheduled in this month.",
     "futureMonth": "This month has not arrived yet.",

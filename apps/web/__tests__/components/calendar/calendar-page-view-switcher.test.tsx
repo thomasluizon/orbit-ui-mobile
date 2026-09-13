@@ -5,6 +5,7 @@ import {
   buildCalendarMonthModel,
   CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
   formatAPIDate,
+  formatAPIDateInTimeZone,
 } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
@@ -75,8 +76,9 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/app/(app)/today-provider', () => ({
   useToday: (timeZone?: string | null) => {
     const today = new Date()
-    if (timeZone === 'Pacific/Kiritimati') return today.toISOString().slice(0, 10)
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    return timeZone === undefined
+      ? formatAPIDate(today)
+      : formatAPIDateInTimeZone(today, timeZone)
   },
 }))
 
@@ -132,7 +134,12 @@ vi.mock('@/components/calendar/calendar-grid', async (importOriginal) => {
 vi.mock('@/components/calendar/calendar-stats', () => ({
   CalendarStats: (props: Record<string, unknown>) => {
     Object.assign(calendarStatsProps, props)
-    return <div data-testid="month-stats" data-state={String(props.state)} />
+    const stats = props.stats as readonly { key: string; value: string | number }[]
+    return (
+      <div data-testid="month-stats" data-state={String(props.state)}>
+        {stats.map((stat) => <span key={stat.key}>{`${stat.key}:${stat.value}`}</span>)}
+      </div>
+    )
   },
 }))
 
@@ -153,6 +160,24 @@ vi.mock('@/components/calendar/calendar-agenda-view', () => ({
 }))
 
 import CalendarPage from '@/app/(app)/calendar/page'
+
+function monthEntry(habitId: string, status: CalendarDayEntry['status']): CalendarDayEntry {
+  return {
+    habitId,
+    title: 'Habit',
+    status,
+    isBadHabit: false,
+    dueTime: null,
+    isOneTime: false,
+  }
+}
+
+function setBoundaryEntries(firstDay: string, secondDay: string) {
+  monthQueryState.dayMap = new Map([
+    [firstDay, [monthEntry('first', 'completed')]],
+    [secondDay, [monthEntry('second', 'completed'), monthEntry('missed', 'upcoming')]],
+  ])
+}
 
 describe('CalendarPage view switcher', () => {
   beforeEach(() => {
@@ -235,6 +260,50 @@ describe('CalendarPage view switcher', () => {
       expect(calendarGridProps.todayKey).toBe('2026-09-12')
     } finally {
       vi.useRealTimers()
+    }
+  })
+
+  it.each([
+    {
+      name: 'device date is one day ahead',
+      deviceTimeZone: 'Pacific/Kiritimati',
+      accountTimeZone: 'America/Los_Angeles',
+      now: '2026-09-12T10:30:00.000Z',
+      firstDay: '2026-09-12',
+      secondDay: '2026-09-13',
+      expected: ['bestStreak:1', 'totalLogs:1', 'missed:0'],
+    },
+    {
+      name: 'device date is one day behind',
+      deviceTimeZone: 'America/Los_Angeles',
+      accountTimeZone: 'UTC',
+      now: '2026-09-12T00:30:00.000Z',
+      firstDay: '2026-09-11',
+      secondDay: '2026-09-12',
+      expected: ['bestStreak:2', 'totalLogs:2', 'missed:1'],
+    },
+  ])('renders statistics through the account date when $name', ({
+    deviceTimeZone,
+    accountTimeZone,
+    now,
+    firstDay,
+    secondDay,
+    expected,
+  }) => {
+    const originalTimeZone = process.env.TZ
+    process.env.TZ = deviceTimeZone
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(now))
+    profileQueryState.profile = { weekStartDay: 1, timeZone: accountTimeZone }
+    setBoundaryEntries(firstDay, secondDay)
+    try {
+      render(<CalendarPage />)
+
+      for (const figure of expected) expect(screen.getByText(figure)).toBeDefined()
+    } finally {
+      vi.useRealTimers()
+      if (originalTimeZone === undefined) delete process.env.TZ
+      else process.env.TZ = originalTimeZone
     }
   })
 

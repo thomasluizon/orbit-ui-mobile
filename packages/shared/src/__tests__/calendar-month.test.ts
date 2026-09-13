@@ -25,16 +25,16 @@ describe('buildCalendarMonthModel', () => {
     const dayMap = sampleMonth()
     dayMap.set(key(new Date(2026, 4, 31)), [entry('completed')])
 
-    expect(buildCalendarMonthModel(june, dayMap, 1).monthStats).toEqual({
+    expect(buildCalendarMonthModel(june, dayMap, 1, '2026-06-30').monthStats).toEqual({
       totalLogs: 5,
       missed: 1,
-      bestStreak: 2,
+      bestStreak: 4,
       hasEntries: true,
     })
   })
 
   it('builds whole weeks with counts and ratios', () => {
-    const { gridDays } = buildCalendarMonthModel(june, sampleMonth(), 1)
+    const { gridDays } = buildCalendarMonthModel(june, sampleMonth(), 1, '2026-06-01')
     const june1 = gridDays.find((day) => day.dateStr === key(new Date(2026, 5, 1)))
 
     expect(gridDays.length % 7).toBe(0)
@@ -48,10 +48,55 @@ describe('buildCalendarMonthModel', () => {
   })
 
   it('supports Sunday-first weeks and an empty month', () => {
-    const model = buildCalendarMonthModel(june, new Map(), 0)
+    const model = buildCalendarMonthModel(june, new Map(), 0, '2026-06-30')
 
     expect(model.gridDays[0]?.date.getDay()).toBe(0)
-    expect(model.monthStats.hasEntries).toBe(false)
+    expect(model.monthStats).toEqual({
+      totalLogs: 0,
+      missed: 0,
+      bestStreak: 0,
+      hasEntries: false,
+    })
+  })
+
+  it('computes tile counts from scheduled days through today', () => {
+    const august = new Date(2026, 7, 1)
+    const dayMap = new Map<string, CalendarDayEntry[]>([
+      [key(new Date(2026, 7, 1)), [entry('completed'), entry('completed', 'h2')]],
+      [key(new Date(2026, 7, 3)), [entry('completed'), entry('missed', 'h2')]],
+      [key(new Date(2026, 7, 4)), [entry('missed')]],
+      [key(new Date(2026, 7, 5)), [entry('completed')]],
+      [key(new Date(2026, 7, 17)), [entry('completed'), entry('upcoming', 'h2')]],
+      [key(new Date(2026, 7, 18)), [entry('completed')]],
+    ])
+
+    expect(buildCalendarMonthModel(august, dayMap, 1, '2026-08-17').monthStats).toEqual({
+      totalLogs: 5,
+      missed: 3,
+      bestStreak: 2,
+      hasEntries: true,
+    })
+  })
+
+  it('updates every statistic when today advances and other inputs stay unchanged', () => {
+    const august = new Date(2026, 7, 1)
+    const dayMap = new Map<string, CalendarDayEntry[]>([
+      [key(new Date(2026, 7, 17)), [entry('completed')]],
+      [key(new Date(2026, 7, 18)), [entry('completed'), entry('missed', 'h2')]],
+    ])
+
+    expect(buildCalendarMonthModel(august, dayMap, 1, '2026-08-17').monthStats).toEqual({
+      totalLogs: 1,
+      missed: 0,
+      bestStreak: 1,
+      hasEntries: true,
+    })
+    expect(buildCalendarMonthModel(august, dayMap, 1, '2026-08-18').monthStats).toEqual({
+      totalLogs: 2,
+      missed: 1,
+      bestStreak: 2,
+      hasEntries: true,
+    })
   })
 })
 

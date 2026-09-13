@@ -2,20 +2,18 @@ import { StatTile } from '@/components/ui/stat-tile'
 
 export interface CalendarStat {
   key: string
-  emoji: string
   value: string | number
   label: string
 }
 
 interface CalendarStatsProps {
-  stats: ReadonlyArray<CalendarStat>
+  stats: readonly [CalendarStat, CalendarStat, CalendarStat]
   state?: 'default' | 'loading' | 'empty'
   loadingLabel?: string
   emptyLabel?: string
 }
 
-/** At-a-glance month stat tiles. Data-driven so new stats drop in as array
- *  entries; the auto-fit grid reflows them without a layout rewrite. */
+/** The three month figures, kept in one row at every width. */
 export function CalendarStats({
   stats,
   state = 'default',
@@ -25,10 +23,11 @@ export function CalendarStats({
   return (
     <div
       className="grid"
+      data-testid="calendar-stats"
       style={{
-        gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))',
-        gap: 10,
-        padding: '0 20px',
+        gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+        gap: 12,
+        padding: '0 16px',
       }}
     >
       {stats.map((stat) => (

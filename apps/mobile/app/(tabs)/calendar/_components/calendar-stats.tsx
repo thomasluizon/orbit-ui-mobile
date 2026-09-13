@@ -3,20 +3,18 @@ import { StatTile } from "@/components/ui/stat-tile";
 
 export interface CalendarStat {
   key: string;
-  emoji: string;
   value: string | number;
   label: string;
 }
 
 interface CalendarStatsProps {
-  stats: readonly CalendarStat[];
+  stats: readonly [CalendarStat, CalendarStat, CalendarStat];
   state?: 'default' | 'loading' | 'empty';
   loadingLabel?: string;
   emptyLabel?: string;
 }
 
-/** At-a-glance, data-driven month stat section: each entry renders as a kit StatTile
- *  in a wrapping 3-up grid so new stats drop in as array entries without a layout rewrite. */
+/** The three month figures, kept in one row at every width. */
 export function CalendarStats({
   stats,
   state = 'default',
@@ -24,7 +22,7 @@ export function CalendarStats({
   emptyLabel,
 }: Readonly<CalendarStatsProps>) {
   return (
-    <View style={styles.row}>
+    <View testID="calendar-stats" style={styles.row}>
       {stats.map((stat) => (
         <View key={stat.key} style={styles.cell}>
           {state === 'loading' ? (
@@ -43,13 +41,11 @@ export function CalendarStats({
 const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    paddingHorizontal: 20,
+    gap: 12,
+    paddingHorizontal: 16,
   },
   cell: {
-    flexGrow: 1,
-    flexBasis: "30%",
-    minWidth: 96,
+    flex: 1,
+    minWidth: 0,
   },
 });

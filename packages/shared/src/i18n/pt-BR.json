@@ -910,10 +910,9 @@
       "selected": "Selecionado",
       "readOnly": "Somente leitura"
     },
-    "thisMonth": "Este mês",
     "bestStreak": "Melhor sequência",
-    "totalLogs": "Total de registros",
-    "missedCount": "Perdidos",
+    "totalLogs": "Registros",
+    "missedCount": "Sem registro",
     "emptyMonth": "Nenhum hábito estava programado neste mês.",
     "futureMonth": "Este mês ainda não chegou.",
     "emptyStat": "sem dados",
