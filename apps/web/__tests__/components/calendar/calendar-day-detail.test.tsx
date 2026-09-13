@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -38,25 +38,14 @@ vi.mock('next/link', () => ({
 }))
 
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
-import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarSyncEvent } from '@orbit/shared'
-import type { Profile } from '@orbit/shared/types/profile'
 
-type CalendarSyncProfile = Pick<
-  Profile,
-  | 'hasProAccess'
-  | 'hasGoogleConnection'
-  | 'googleCalendarAutoSyncEnabled'
-  | 'googleCalendarAutoSyncStatus'
-  | 'googleCalendarLastSyncedAt'
->
-
-const proSyncProfile: CalendarSyncProfile = {
-  hasProAccess: true,
+const proAutoSyncState: CalendarAutoSyncState = {
   hasGoogleConnection: true,
-  googleCalendarAutoSyncEnabled: true,
-  googleCalendarAutoSyncStatus: 'Idle',
-  googleCalendarLastSyncedAt: '2026-09-12T09:12:00Z',
+  enabled: true,
+  status: 'Idle',
+  lastSyncedAt: '2026-09-12T09:12:00Z',
 }
 
 function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
@@ -75,7 +64,8 @@ interface RenderProps {
   dateStr: string | null
   entries: CalendarDayEntry[]
   calendarEvents?: CalendarSyncEvent[]
-  syncProfile?: CalendarSyncProfile
+  hasProAccess?: boolean
+  autoSyncState?: CalendarAutoSyncState
   showRecurring?: boolean
   onShowRecurringChange?: (value: boolean) => void
   onCalendarAutoSyncChange?: (value: boolean) => Promise<void>
@@ -86,7 +76,8 @@ function renderDetail({
   dateStr,
   entries,
   calendarEvents = [],
-  syncProfile = proSyncProfile,
+  hasProAccess = true,
+  autoSyncState = proAutoSyncState,
   showRecurring = true,
   onShowRecurringChange = () => {},
   onCalendarAutoSyncChange = async () => {},
@@ -97,7 +88,8 @@ function renderDetail({
       dateStr={dateStr}
       entries={entries}
       calendarEvents={calendarEvents}
-      syncProfile={syncProfile}
+      hasProAccess={hasProAccess}
+      autoSyncState={autoSyncState}
       showRecurring={showRecurring}
       onShowRecurringChange={onShowRecurringChange}
       onCalendarAutoSyncChange={onCalendarAutoSyncChange}
@@ -181,7 +173,7 @@ describe('CalendarDayDetail', () => {
         startDate: '2025-06-15', startTime: '09:00', endTime: null,
         isRecurring: false, recurrenceRule: null, reminders: [],
       }],
-      syncProfile: { ...proSyncProfile, hasProAccess: false },
+      hasProAccess: false,
       onOpenPro,
     })
 
@@ -202,7 +194,7 @@ describe('CalendarDayDetail', () => {
     renderDetail({
       dateStr: '2025-06-15',
       entries: [makeEntry()],
-      syncProfile: proSyncProfile,
+      autoSyncState: proAutoSyncState,
       onCalendarAutoSyncChange,
     })
 
@@ -214,21 +206,15 @@ describe('CalendarDayDetail', () => {
     expect(onCalendarAutoSyncChange).toHaveBeenCalledWith(false)
   })
 
-  it('rolls the Pro switch back when auto-sync fails', async () => {
-    const onCalendarAutoSyncChange = vi.fn(async () => {
-      throw new Error('offline')
-    })
+  it('does not offer auto-sync as enabled without a Google connection', () => {
     renderDetail({
       dateStr: '2025-06-15',
       entries: [makeEntry()],
-      syncProfile: proSyncProfile,
-      onCalendarAutoSyncChange,
+      autoSyncState: { ...proAutoSyncState, hasGoogleConnection: false },
     })
 
-    const autoSync = screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' })
-    fireEvent.click(autoSync)
-    expect(autoSync).toHaveAttribute('aria-checked', 'false')
-    await waitFor(() => expect(autoSync).toHaveAttribute('aria-checked', 'true'))
+    const switches = screen.queryAllByRole('switch', { name: 'calendar.dayDetail.autoSync' })
+    expect(switches.every((control) => control.getAttribute('aria-checked') !== 'true')).toBe(true)
   })
 
   it('shows completion summary', () => {
@@ -319,7 +305,8 @@ describe('CalendarDayDetail', () => {
           dateStr="2025-06-15"
           entries={entries}
           calendarEvents={[]}
-          syncProfile={proSyncProfile}
+          hasProAccess
+          autoSyncState={proAutoSyncState}
           showRecurring
           onShowRecurringChange={() => {}}
           onCalendarAutoSyncChange={async () => {}}

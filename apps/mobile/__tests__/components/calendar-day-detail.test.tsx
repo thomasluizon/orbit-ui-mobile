@@ -1,9 +1,8 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
 import type { TFunction } from "i18next";
-import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
+import type { CalendarAutoSyncState, CalendarDayEntry } from "@orbit/shared/types/calendar";
 import type { CalendarSyncEvent } from "@orbit/shared";
-import type { Profile } from "@orbit/shared/types/profile";
 import { createTokensV2 } from "@/lib/theme";
 import { CalendarDayDetail } from "@/app/(tabs)/calendar/_components/calendar-day-detail";
 
@@ -58,21 +57,11 @@ type Tree = {
 
 const translate = ((key: string) => key) as unknown as TFunction;
 
-type CalendarSyncProfile = Pick<
-  Profile,
-  | "hasProAccess"
-  | "hasGoogleConnection"
-  | "googleCalendarAutoSyncEnabled"
-  | "googleCalendarAutoSyncStatus"
-  | "googleCalendarLastSyncedAt"
->;
-
-const proSyncProfile: CalendarSyncProfile = {
-  hasProAccess: true,
+const proAutoSyncState: CalendarAutoSyncState = {
   hasGoogleConnection: true,
-  googleCalendarAutoSyncEnabled: true,
-  googleCalendarAutoSyncStatus: "Idle",
-  googleCalendarLastSyncedAt: "2026-09-12T09:12:00Z",
+  enabled: true,
+  status: "Idle",
+  lastSyncedAt: "2026-09-12T09:12:00Z",
 };
 
 function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
@@ -90,7 +79,8 @@ function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry 
 function renderDetail(
   entries: CalendarDayEntry[],
   calendarEvents: CalendarSyncEvent[] = [],
-  syncProfile: CalendarSyncProfile = proSyncProfile,
+  hasProAccess = true,
+  autoSyncState: CalendarAutoSyncState = proAutoSyncState,
   onCalendarAutoSyncChange: (value: boolean) => Promise<void> = async () => {},
   onOpenPro: () => void = () => {},
 ): Tree {
@@ -102,7 +92,8 @@ function renderDetail(
         selectedEntries={entries}
         filteredEntries={entries}
         calendarEvents={calendarEvents}
-        syncProfile={syncProfile}
+        hasProAccess={hasProAccess}
+        autoSyncState={autoSyncState}
         completedCount={0}
         showRecurring
         onShowRecurringChange={() => {}}
@@ -211,7 +202,8 @@ describe("CalendarDayDetail entry list (mobile)", () => {
         startDate: "2025-06-15", startTime: "09:00", endTime: null,
         isRecurring: false, recurrenceRule: null, reminders: [],
       }],
-      { ...proSyncProfile, hasProAccess: false },
+      false,
+      proAutoSyncState,
       async () => {},
       onOpenPro,
     );
@@ -229,7 +221,13 @@ describe("CalendarDayDetail entry list (mobile)", () => {
 
   it("builds the Pro sync line and switch from the profile fields", () => {
     const onCalendarAutoSyncChange = vi.fn(async () => {});
-    const tree = renderDetail([makeEntry({})], [], proSyncProfile, onCalendarAutoSyncChange);
+    const tree = renderDetail(
+      [makeEntry({})],
+      [],
+      true,
+      proAutoSyncState,
+      onCalendarAutoSyncChange,
+    );
 
     expect(
       tree.root.findAll((node) => node.props.children === "calendar.dayDetail.googleConnected").length,
@@ -238,5 +236,17 @@ describe("CalendarDayDetail entry list (mobile)", () => {
     expect(autoSync.props.accessibilityState.checked).toBe(true);
     TestRenderer.act(() => autoSync.props.onPress());
     expect(onCalendarAutoSyncChange).toHaveBeenCalledWith(false);
+  });
+
+  it("does not offer auto-sync as enabled without a Google connection", () => {
+    const tree = renderDetail(
+      [makeEntry()],
+      [],
+      true,
+      { ...proAutoSyncState, hasGoogleConnection: false },
+    );
+
+    const switches = tree.root.findAll((node) => node.type === "SwitchMock");
+    expect(switches.every((node) => node.props.accessibilityState.checked !== true)).toBe(true);
   });
 });

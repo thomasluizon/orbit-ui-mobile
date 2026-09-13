@@ -8,9 +8,8 @@ import { plural } from '@/lib/plural'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { parseAPIDate, filterRecurringEntries } from '@orbit/shared/utils'
-import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarSyncEvent } from '@orbit/shared'
-import type { CalendarSyncProfile } from '@orbit/shared/types/profile'
 import { ShowRecurringToggle } from '@/components/calendar/show-recurring-toggle'
 import { EventRow } from '@/components/dates/event-row'
 import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
@@ -19,7 +18,8 @@ interface CalendarDayDetailProps {
   dateStr: string | null
   entries: CalendarDayEntry[]
   calendarEvents: CalendarSyncEvent[]
-  syncProfile: CalendarSyncProfile
+  hasProAccess: boolean
+  autoSyncState: CalendarAutoSyncState | undefined
   showRecurring: boolean
   onShowRecurringChange: (value: boolean) => void
   onCalendarAutoSyncChange: (value: boolean) => Promise<void>
@@ -58,7 +58,8 @@ export function CalendarDayDetail({
   dateStr,
   entries,
   calendarEvents,
-  syncProfile,
+  hasProAccess,
+  autoSyncState,
   showRecurring,
   onShowRecurringChange,
   onCalendarAutoSyncChange,
@@ -236,7 +237,7 @@ export function CalendarDayDetail({
         </div>
       )}
 
-      {syncProfile.hasProAccess && calendarEvents.length > 0 && (
+      {hasProAccess && calendarEvents.length > 0 && (
         <div className="flex flex-col" style={{ gap: 8, marginTop: 16 }}>
           <p
             className="text-sm font-medium text-[var(--fg-2)]"
@@ -268,7 +269,8 @@ export function CalendarDayDetail({
 
       <div style={{ marginTop: 16 }}>
         <CalendarSyncBoundary
-          profile={syncProfile}
+          hasProAccess={hasProAccess}
+          autoSyncState={autoSyncState}
           displayTime={displayTime}
           onAutoSyncChange={onCalendarAutoSyncChange}
           onOpenPro={onOpenPro}

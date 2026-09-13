@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import type { CalendarSyncProfile } from '@orbit/shared/types/profile'
+import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 import {
   getCalendarSyncClockValue,
   isCalendarSyncConnectionActive,
@@ -13,7 +13,8 @@ import { PillButton } from '@/components/ui/pill-button'
 import { Switch } from '@/components/ui/switch'
 
 interface CalendarSyncBoundaryProps {
-  profile: CalendarSyncProfile
+  hasProAccess: boolean
+  autoSyncState: CalendarAutoSyncState | undefined
   displayTime: (time: string) => string
   onAutoSyncChange: (enabled: boolean) => Promise<void>
   onOpenPro: () => void
@@ -21,19 +22,17 @@ interface CalendarSyncBoundaryProps {
 }
 
 export function CalendarSyncBoundary({
-  profile,
+  hasProAccess,
+  autoSyncState,
   displayTime,
   onAutoSyncChange,
   onOpenPro,
   wide = false,
 }: Readonly<CalendarSyncBoundaryProps>) {
   const t = useTranslations()
-  const [autoSyncEnabled, setAutoSyncEnabled] = useState(
-    profile.googleCalendarAutoSyncEnabled,
-  )
   const [isSaving, setIsSaving] = useState(false)
 
-  if (!profile.hasProAccess) {
+  if (!hasProAccess) {
     return (
       <CapacityNotice
         message={t('calendar.dayDetail.syncBoundary')}
@@ -52,26 +51,22 @@ export function CalendarSyncBoundary({
   }
 
   const connected = isCalendarSyncConnectionActive(
-    profile.hasGoogleConnection,
-    profile.googleCalendarAutoSyncStatus,
+    autoSyncState?.hasGoogleConnection ?? false,
+    autoSyncState?.status ?? 'Idle',
   )
   const connectionLabel = connected
     ? t('calendar.dayDetail.googleConnected')
     : t('calendar.autoSync.reconnectTitle')
-  const clockValue = getCalendarSyncClockValue(profile.googleCalendarLastSyncedAt)
+  const clockValue = getCalendarSyncClockValue(autoSyncState?.lastSyncedAt ?? null)
   const lastSynced = clockValue
     ? t('calendar.dayDetail.lastSynced', { time: displayTime(clockValue) })
     : t('calendar.autoSync.lastSyncedNever')
 
   const handleAutoSyncChange = async (enabled: boolean) => {
     if (isSaving) return
-    const previous = autoSyncEnabled
-    setAutoSyncEnabled(enabled)
     setIsSaving(true)
     try {
       await onAutoSyncChange(enabled)
-    } catch {
-      setAutoSyncEnabled(previous)
     } finally {
       setIsSaving(false)
     }
@@ -91,16 +86,18 @@ export function CalendarSyncBoundary({
           {lastSynced}
         </p>
       </div>
-      <div className="flex min-h-11 items-center justify-between gap-3">
-        <span className="text-sm text-[var(--fg-2)]">
-          {t('calendar.dayDetail.autoSync')}
-        </span>
-        <Switch
-          checked={autoSyncEnabled}
-          onChange={(enabled) => void handleAutoSyncChange(enabled)}
-          label={t('calendar.dayDetail.autoSync')}
-        />
-      </div>
+      {connected ? (
+        <div className="flex min-h-11 items-center justify-between gap-3">
+          <span className="text-sm text-[var(--fg-2)]">
+            {t('calendar.dayDetail.autoSync')}
+          </span>
+          <Switch
+            checked={autoSyncState?.enabled ?? false}
+            onChange={(enabled) => void handleAutoSyncChange(enabled)}
+            label={t('calendar.dayDetail.autoSync')}
+          />
+        </div>
+      ) : null}
     </div>
   )
 }

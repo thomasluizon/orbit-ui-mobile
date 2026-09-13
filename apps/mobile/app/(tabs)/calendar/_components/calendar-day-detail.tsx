@@ -5,9 +5,8 @@ import Animated, {
   ReduceMotion,
 } from "react-native-reanimated";
 import type { TFunction } from "i18next";
-import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
+import type { CalendarAutoSyncState, CalendarDayEntry } from "@orbit/shared/types/calendar";
 import type { CalendarSyncEvent } from "@orbit/shared";
-import type { CalendarSyncProfile } from "@orbit/shared/types/profile";
 import { plural } from "@/lib/plural";
 import { PillButton } from "@/components/ui/pill-button";
 import { createTokensV2 } from "@/lib/theme";
@@ -22,7 +21,8 @@ interface CalendarDayDetailProps {
   selectedEntries: CalendarDayEntry[];
   filteredEntries: CalendarDayEntry[];
   calendarEvents: CalendarSyncEvent[];
-  syncProfile: CalendarSyncProfile;
+  hasProAccess: boolean;
+  autoSyncState: CalendarAutoSyncState | undefined;
   completedCount: number;
   showRecurring: boolean;
   onShowRecurringChange: (value: boolean) => void;
@@ -59,7 +59,8 @@ export function CalendarDayDetail({
   selectedEntries,
   filteredEntries,
   calendarEvents,
-  syncProfile,
+  hasProAccess,
+  autoSyncState,
   completedCount,
   showRecurring,
   onShowRecurringChange,
@@ -145,7 +146,7 @@ export function CalendarDayDetail({
         </>
       )}
 
-      {syncProfile.hasProAccess && calendarEvents.length > 0 ? (
+      {hasProAccess && calendarEvents.length > 0 ? (
         <View style={styles.eventSection}>
           <Text style={[styles.eventTitle, { color: tokens.fg2 }]}>
             {t("calendar.dayDetail.eventsTitle")}
@@ -173,7 +174,8 @@ export function CalendarDayDetail({
       ) : null}
 
       <CalendarSyncBoundary
-        profile={syncProfile}
+        hasProAccess={hasProAccess}
+        autoSyncState={autoSyncState}
         displayTime={displayTime}
         onAutoSyncChange={onCalendarAutoSyncChange}
         onOpenPro={onOpenPro}

@@ -2,10 +2,22 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import CalendarScreen from '@/app/(tabs)/calendar'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 
 const mockPush = vi.fn()
+const mockSetAutoSync = vi.fn(({ enabled }: { enabled: boolean }) => {
+  autoSyncState = { ...autoSyncState, enabled }
+  return Promise.resolve()
+})
 
 let calendarIsLoading = false
+let profileHasProAccess = true
+let autoSyncState: CalendarAutoSyncState = {
+  enabled: true,
+  status: 'Idle',
+  lastSyncedAt: '2026-09-12T09:12:00Z',
+  hasGoogleConnection: true,
+}
 vi.mock('react-native', async () => {
   const ReactLib = require('react')
   const reactNative = await import('../../../test-mocks/react-native')
@@ -61,7 +73,8 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
     profile: {
       weekStartDay: 1,
-      hasProAccess: true,
+      timeZone: 'UTC',
+      hasProAccess: profileHasProAccess,
       hasGoogleConnection: true,
       googleCalendarAutoSyncEnabled: true,
       googleCalendarAutoSyncStatus: 'Idle',
@@ -81,7 +94,8 @@ vi.mock('@/hooks/use-calendar-events', () => ({
 }))
 
 vi.mock('@/hooks/use-calendar-auto-sync', () => ({
-  useSetCalendarAutoSync: () => ({ mutateAsync: vi.fn(async () => {}) }),
+  useCalendarAutoSyncState: () => ({ data: autoSyncState }),
+  useSetCalendarAutoSync: () => ({ mutateAsync: mockSetAutoSync }),
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({
@@ -137,6 +151,13 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     vi.setSystemTime(new Date(2026, 7, 15))
     vi.clearAllMocks()
     calendarIsLoading = false
+    profileHasProAccess = true
+    autoSyncState = {
+      enabled: true,
+      status: 'Idle',
+      lastSyncedAt: '2026-09-12T09:12:00Z',
+      hasGoogleConnection: true,
+    }
     sheetTestControls.defer(true)
   })
 
@@ -181,6 +202,67 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     })
 
     expect(mockPush).toHaveBeenCalledTimes(1)
+  })
+
+  it('dismisses the free-plan day sheet before opening Orbit Pro', () => {
+    profileHasProAccess = false
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />)
+    })
+
+    TestRenderer.act(() => {
+      ;(findGridDayCell(tree.root, '2026-08-15').props.onPress as () => void)()
+    })
+    TestRenderer.act(() => {
+      pressButton(tree.root, 'calendar.dayDetail.viewPro')
+    })
+
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(sheetTestControls.isDismissPending).toBe(true)
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(mockPush).toHaveBeenCalledOnce()
+    expect(mockPush).toHaveBeenCalledWith('/upgrade')
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
+  })
+
+  it('keeps the changed auto-sync value after closing and reopening day detail', async () => {
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />)
+    })
+    TestRenderer.act(() => {
+      ;(findGridDayCell(tree.root, '2026-08-15').props.onPress as () => void)()
+    })
+
+    const autoSync = tree.root.findAll(
+      (node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.dayDetail.autoSync',
+    )[0]!
+    await TestRenderer.act(() => {
+      ;(autoSync.props.onPress as () => void)()
+      return Promise.resolve()
+    })
+
+    TestRenderer.act(() => {
+      const dismiss = tree.root.findAll(
+        (node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss',
+      )[0]!
+      ;(dismiss.props.onPress as () => void)()
+      sheetTestControls.completeDismissal()
+    })
+    TestRenderer.act(() => {
+      ;(findGridDayCell(tree.root, '2026-08-15').props.onPress as () => void)()
+    })
+
+    const reopened = tree.root.findAll(
+      (node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.dayDetail.autoSync',
+    )[0]!
+    const accessibilityState = reopened.props.accessibilityState as { checked?: boolean }
+    expect(accessibilityState.checked).toBe(false)
   })
 
   it('opens an older current-month day through its read-only selection path', () => {

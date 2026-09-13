@@ -56,7 +56,10 @@ import type { Profile } from "@orbit/shared/types/profile";
 import { useCalendarData, useCalendarRange } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
-import { useSetCalendarAutoSync } from "@/hooks/use-calendar-auto-sync";
+import {
+  useCalendarAutoSyncState,
+  useSetCalendarAutoSync,
+} from "@/hooks/use-calendar-auto-sync";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
@@ -298,16 +301,7 @@ function CalendarProfileState({
 }
 
 interface CalendarScreenContentProps {
-  profile: Pick<
-    Profile,
-    | 'weekStartDay'
-    | 'timeZone'
-    | 'hasProAccess'
-    | 'hasGoogleConnection'
-    | 'googleCalendarAutoSyncEnabled'
-    | 'googleCalendarAutoSyncStatus'
-    | 'googleCalendarLastSyncedAt'
-  >;
+  profile: Pick<Profile, 'weekStartDay' | 'timeZone' | 'hasProAccess'>;
   currentMonth: Date;
   setCurrentMonth: Dispatch<SetStateAction<Date>>;
   monthQuery: ReturnType<typeof useCalendarData>;
@@ -322,6 +316,7 @@ function CalendarScreenContent({
 }: Readonly<CalendarScreenContentProps>) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const { sheetRef, closeSheet } = useSheetHost();
   const { showError } = useAppToast();
   const { displayTime } = useTimeFormat();
   const todayKey = useCurrentDate(profile.timeZone);
@@ -376,6 +371,9 @@ function CalendarScreenContent({
   const { data: calendarEventsResult } = useCalendarEvents({
     enabled: profile.hasProAccess,
   });
+  const { data: autoSyncState } = useCalendarAutoSyncState({
+    enabled: profile.hasProAccess,
+  });
   const setCalendarAutoSync = useSetCalendarAutoSync();
 
   const handleCalendarAutoSyncChange = useCallback(async (enabled: boolean) => {
@@ -388,13 +386,15 @@ function CalendarScreenContent({
         'calendar.autoSync.syncFailed',
         'generic',
       ));
-      throw error;
     }
   }, [setCalendarAutoSync, showError, t]);
 
   const openOrbitPro = useCallback(() => {
-    router.push('/upgrade');
-  }, [router]);
+    closeSheet(() => {
+      setIsDayDetailOpen(false);
+      router.push('/upgrade');
+    });
+  }, [closeSheet, router]);
 
   const { dayMap, isLoading, isFetching, error, refresh } = monthQuery;
 
@@ -631,8 +631,6 @@ function CalendarScreenContent({
   const completedCount = filteredEntries.filter(
     (entry: CalendarDayEntry) => entry.status === "completed",
   ).length;
-
-  const { sheetRef, closeSheet } = useSheetHost();
 
   const goToSelectedDay = () => {
     if (!selectedDay) return;
@@ -902,7 +900,8 @@ function CalendarScreenContent({
             selectedEntries={selectedEntries}
             filteredEntries={filteredEntries}
             calendarEvents={selectedCalendarEvents}
-            syncProfile={profile}
+            hasProAccess={profile.hasProAccess}
+            autoSyncState={autoSyncState}
             completedCount={completedCount}
             showRecurring={showRecurring}
             onShowRecurringChange={setShowRecurring}
