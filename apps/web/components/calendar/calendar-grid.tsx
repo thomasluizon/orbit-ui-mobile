@@ -230,8 +230,8 @@ export function CalendarGrid({
   }, [t, weekStartsOn])
 
   const { gridDays } = useMemo(
-    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn),
-    [currentMonth, dayMap, weekStartsOn],
+    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn, todayKey),
+    [currentMonth, dayMap, weekStartsOn, todayKey],
   )
 
   const words: DayCellWords = {
