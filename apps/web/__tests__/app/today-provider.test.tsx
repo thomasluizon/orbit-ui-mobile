@@ -11,16 +11,9 @@ vi.mock('@orbit/shared/query', () => ({
   gamificationKeys: { all: ['gamification'] },
 }))
 
-vi.mock('@orbit/shared/utils', () => ({
-  formatAPIDate: (date: Date) =>
-    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-      date.getDate(),
-    ).padStart(2, '0')}`,
-  formatAPIDateInTimeZone: (date: Date, timeZone: string) =>
-    timeZone === 'Pacific/Kiritimati' ? date.toISOString().slice(0, 10) : 'unexpected-zone',
-}))
-
 import { TodayProvider, useToday } from '@/app/(app)/today-provider'
+
+const originalTimeZone = process.env.TZ
 
 function TodayProbe() {
   return <span data-testid="today">{useToday()}</span>
@@ -28,6 +21,10 @@ function TodayProbe() {
 
 function AccountTodayProbe() {
   return <span data-testid="today">{useToday('Pacific/Kiritimati')}</span>
+}
+
+function NullableAccountTodayProbe() {
+  return <span data-testid="today">{useToday(null)}</span>
 }
 
 function renderProvider() {
@@ -42,10 +39,13 @@ describe('TodayProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useRealTimers()
+    process.env.TZ = 'America/Sao_Paulo'
   })
 
   afterEach(() => {
     vi.useRealTimers()
+    if (originalTimeZone === undefined) delete process.env.TZ
+    else process.env.TZ = originalTimeZone
   })
 
   it('provides the current local day to consumers', () => {
@@ -59,9 +59,31 @@ describe('TodayProvider', () => {
 
   it('provides the current day in the account timezone', () => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-09-12T01:30:00.000Z'))
+    vi.setSystemTime(new Date('2026-09-11T10:30:00.000Z'))
 
     render(<TodayProvider><AccountTodayProbe /></TodayProvider>)
+
+    expect(screen.getByTestId('today')).toHaveTextContent('2026-09-12')
+  })
+
+  it('uses UTC when the account timezone is null', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-12T01:30:00.000Z'))
+
+    render(<TodayProvider><NullableAccountTodayProbe /></TodayProvider>)
+
+    expect(screen.getByTestId('today')).toHaveTextContent('2026-09-12')
+  })
+
+  it('advances at account midnight while the device remains on the previous day', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-11T09:59:30.000Z'))
+    render(<TodayProvider><AccountTodayProbe /></TodayProvider>)
+    expect(screen.getByTestId('today')).toHaveTextContent('2026-09-11')
+
+    act(() => {
+      vi.advanceTimersByTime(60_000)
+    })
 
     expect(screen.getByTestId('today')).toHaveTextContent('2026-09-12')
   })

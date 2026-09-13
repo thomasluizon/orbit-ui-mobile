@@ -8,7 +8,7 @@ import {
 import type { Achievement, GamificationProfile } from '../types/gamification'
 import type { Goal, GoalPositionItem, GoalStatus } from '../types/goal'
 import type { Profile } from '../types/profile'
-import { nowDate } from './dates'
+import { formatAPIDateInTimeZone, nowDate } from './dates'
 import { getGoalMetricsStatusPresentation } from './goal-metrics'
 
 type ProgressQueryState = { isLoading: boolean; isError: boolean }
@@ -147,24 +147,7 @@ export function getAvailableStreakRepairDate(
 }
 
 function getProtectedAccountToday(timeZone?: string | null): string {
-  const now = nowDate()
-  try {
-    const accountDateParts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: timeZone || 'UTC',
-      calendar: 'iso8601',
-      numberingSystem: 'latn',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).formatToParts(now)
-    const year = accountDateParts.find((part) => part.type === 'year')?.value
-    const month = accountDateParts.find((part) => part.type === 'month')?.value
-    const day = accountDateParts.find((part) => part.type === 'day')?.value
-    return `${year}-${month}-${day}`
-  } catch (error) {
-    if (!(error instanceof RangeError)) throw error
-    return now.toISOString().slice(0, 10)
-  }
+  return formatAPIDateInTimeZone(nowDate(), timeZone)
 }
 
 export function buildProtectedDayLabels(

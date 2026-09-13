@@ -59,6 +59,7 @@ function renderRange({ isClamped = false, isAwaitingEnd = false }: RenderOverrid
       dateFnsLocale={enUS}
       allDayLabel="All-day"
       nowLabel="Now"
+      timeZone="UTC"
       showRecurring
       onShowRecurringChange={vi.fn()}
       weekStartsOn={1}

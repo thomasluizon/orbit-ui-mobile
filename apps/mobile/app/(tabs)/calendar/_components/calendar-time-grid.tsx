@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
+import { getAccountDateTime, nowDate } from "@orbit/shared/utils";
 import { createTokensV2 } from "@/lib/theme";
 
 type Tokens = ReturnType<typeof createTokensV2>;
@@ -69,6 +70,7 @@ interface CalendarTimeGridProps {
   language: string;
   allDayLabel: string;
   nowLabel: string;
+  timeZone: string | null;
   isLoading?: boolean;
   t: TFunction;
   tokens: Tokens;
@@ -82,11 +84,6 @@ function parseMinutes(time: string | null): number | null {
   const minutes = Number(match[2]);
   if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
   return Math.min(hours * 60 + minutes, 24 * 60 - 1);
-}
-
-function currentMinutesOfDay(): number {
-  const now = new Date();
-  return now.getHours() * 60 + now.getMinutes();
 }
 
 /** Lays out timed entries into non-overlapping lanes so concurrent blocks sit
@@ -385,6 +382,7 @@ export function CalendarTimeGrid({
   language,
   allDayLabel,
   nowLabel,
+  timeZone,
   isLoading = false,
   t,
   tokens,
@@ -393,13 +391,11 @@ export function CalendarTimeGrid({
   const bodyScrollRef = useRef<ScrollView>(null);
   const gutterScrollRef = useRef<ScrollView>(null);
   const [viewportWidth, setViewportWidth] = useState(0);
-  const [nowMinutes, setNowMinutes] = useState(currentMinutesOfDay);
+  const [now, setNow] = useState<Date>(() => nowDate());
+  const nowMinutes = getAccountDateTime(now, timeZone).minutes;
 
   useEffect(() => {
-    const interval = setInterval(
-      () => setNowMinutes(currentMinutesOfDay()),
-      60_000,
-    );
+    const interval = setInterval(() => setNow(nowDate()), 60_000);
     return () => clearInterval(interval);
   }, []);
 

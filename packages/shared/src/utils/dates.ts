@@ -27,19 +27,41 @@ export function formatAPIDate(date: Date): string {
   return format(date, 'yyyy-MM-dd')
 }
 
-/** Format an instant as the calendar date used by an account's API timezone. */
-export function formatAPIDateInTimeZone(date: Date, timeZone?: string | null): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: timeZone || 'UTC',
-    calendar: 'iso8601',
-    numberingSystem: 'latn',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(date)
+export interface AccountDateTime {
+  date: string
+  minutes: number
+}
+
+/** Resolve an instant to the account calendar values used by the API. */
+export function getAccountDateTime(date: Date, timeZone?: string | null): AccountDateTime {
+  let parts: Intl.DateTimeFormatPart[]
+  try {
+    parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timeZone || 'UTC',
+      calendar: 'iso8601',
+      numberingSystem: 'latn',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(date)
+  } catch (error) {
+    if (!(error instanceof RangeError)) throw error
+    return getAccountDateTime(date, 'UTC')
+  }
   const part = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((candidate) => candidate.type === type)?.value
-  return `${part('year')}-${part('month')}-${part('day')}`
+  return {
+    date: `${part('year')}-${part('month')}-${part('day')}`,
+    minutes: Number(part('hour')) * 60 + Number(part('minute')),
+  }
+}
+
+/** Format an instant as the calendar date used by an account's API timezone. */
+export function formatAPIDateInTimeZone(date: Date, timeZone?: string | null): string {
+  return getAccountDateTime(date, timeZone).date
 }
 
 export function resolveHabitDetailRouteDate(

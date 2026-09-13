@@ -24,6 +24,7 @@ interface CalendarWeekViewProps {
   dateFnsLocale: Locale
   allDayLabel: string
   nowLabel: string
+  timeZone: string | null
   showRecurring: boolean
   onShowRecurringChange: (value: boolean) => void
 }
@@ -46,6 +47,7 @@ export function CalendarWeekView({
   dateFnsLocale,
   allDayLabel,
   nowLabel,
+  timeZone,
   showRecurring,
   onShowRecurringChange,
 }: Readonly<CalendarWeekViewProps>) {
@@ -82,6 +84,7 @@ export function CalendarWeekView({
           dateFnsLocale={dateFnsLocale}
           allDayLabel={allDayLabel}
           nowLabel={nowLabel}
+          timeZone={timeZone}
           isLoading={isLoading}
         />
       </div>

@@ -51,12 +51,12 @@ export function useToday(timeZone?: string | null): string {
   const today = useContext(TodayContext)
   const [, setAccountDateTick] = useState(0)
   useEffect(() => {
-    if (!timeZone) return
+    if (timeZone === undefined) return
     const interval = globalThis.setInterval(() => setAccountDateTick((tick) => tick + 1), 60_000)
     return () => globalThis.clearInterval(interval)
   }, [timeZone])
   if (today === null) {
     throw new Error('useToday must be used within a TodayProvider')
   }
-  return timeZone ? formatAPIDateInTimeZone(new Date(), timeZone) : today
+  return timeZone === undefined ? today : formatAPIDateInTimeZone(new Date(), timeZone)
 }

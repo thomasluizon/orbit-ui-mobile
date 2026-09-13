@@ -18,7 +18,10 @@ function getMillisecondsUntilNextLocalMidnight(): number {
 }
 
 function getTodayDate(timeZone?: string | null): string {
-  return timeZone ? formatAPIDateInTimeZone(new Date(), timeZone) : formatAPIDate(new Date())
+  const now = new Date()
+  return timeZone === undefined
+    ? formatAPIDate(now)
+    : formatAPIDateInTimeZone(now, timeZone)
 }
 
 export interface TodayDate {
@@ -37,21 +40,21 @@ export interface TodayDate {
 
 /** The current day as a `YYYY-MM-DD` string, optionally in the account timezone. */
 export function useCurrentDate(timeZone?: string | null): string {
-  const [today, setToday] = useState(() => getTodayDate(timeZone))
+  const [, setDateTick] = useState(0)
 
   useEffect(() => {
     let rolloverTimer: ReturnType<typeof globalThis.setTimeout> | null = null
     const reset = () => {
       if (rolloverTimer) globalThis.clearTimeout(rolloverTimer)
       rolloverTimer = globalThis.setTimeout(() => {
-        setToday(getTodayDate(timeZone))
+        setDateTick((tick) => tick + 1)
         reset()
-      }, timeZone ? 60_000 : getMillisecondsUntilNextLocalMidnight())
+      }, timeZone === undefined ? getMillisecondsUntilNextLocalMidnight() : 60_000)
     }
     reset()
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        setToday(getTodayDate(timeZone))
+        setDateTick((tick) => tick + 1)
         reset()
       }
     })
@@ -59,10 +62,9 @@ export function useCurrentDate(timeZone?: string | null): string {
       if (rolloverTimer) globalThis.clearTimeout(rolloverTimer)
       subscription.remove()
     }
-    setToday(getTodayDate(timeZone))
   }, [timeZone])
 
-  return today
+  return getTodayDate(timeZone)
 }
 
 export function useTodayDate(): TodayDate {

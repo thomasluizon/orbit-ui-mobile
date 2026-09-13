@@ -459,6 +459,7 @@ function CalendarPageContent({
                 dateFnsLocale={dateFnsLocale}
                 allDayLabel={t('calendar.timeGrid.noSetTime')}
                 nowLabel={t('calendar.timeGrid.now')}
+                timeZone={profile.timeZone}
                 showRecurring={showRecurring}
                 onShowRecurringChange={setShowRecurring}
               />
@@ -484,6 +485,7 @@ function CalendarPageContent({
                 dateFnsLocale={dateFnsLocale}
                 allDayLabel={t('calendar.timeGrid.allDay')}
                 nowLabel={t('calendar.timeGrid.now')}
+                timeZone={profile.timeZone}
                 showRecurring={showRecurring}
                 onShowRecurringChange={setShowRecurring}
                 weekStartsOn={weekStartsOn}

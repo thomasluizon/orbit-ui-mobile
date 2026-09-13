@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { format, getHours, getMinutes } from 'date-fns'
+import { format } from 'date-fns'
 import type { Locale } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import { getAccountDateTime, nowDate } from '@orbit/shared/utils'
 
 const HOUR_HEIGHT = 48
 const DAY_HEIGHT = HOUR_HEIGHT * 24
@@ -52,6 +53,7 @@ interface CalendarTimeGridProps {
   dateFnsLocale: Locale
   allDayLabel: string
   nowLabel: string
+  timeZone: string | null
   isLoading?: boolean
 }
 
@@ -71,11 +73,6 @@ function parseMinutes(time: string | null): number | null {
   const minutes = Number(match[2])
   if (Number.isNaN(hours) || Number.isNaN(minutes)) return null
   return Math.min(hours * 60 + minutes, 24 * 60 - 1)
-}
-
-function currentMinutesOfDay(): number {
-  const now = new Date()
-  return getHours(now) * 60 + getMinutes(now)
 }
 
 /** Lays out timed entries into non-overlapping lanes so concurrent blocks sit
@@ -264,14 +261,16 @@ export function CalendarTimeGrid({
   dateFnsLocale,
   allDayLabel,
   nowLabel,
+  timeZone,
   isLoading = false,
 }: Readonly<CalendarTimeGridProps>) {
   const t = useTranslations()
   const bodyRef = useRef<HTMLDivElement>(null)
-  const [nowMinutes, setNowMinutes] = useState(currentMinutesOfDay)
+  const [now, setNow] = useState<Date>(() => nowDate())
+  const nowMinutes = getAccountDateTime(now, timeZone).minutes
 
   useEffect(() => {
-    const interval = setInterval(() => setNowMinutes(currentMinutesOfDay()), 60_000)
+    const interval = setInterval(() => setNow(nowDate()), 60_000)
     return () => clearInterval(interval)
   }, [])
 

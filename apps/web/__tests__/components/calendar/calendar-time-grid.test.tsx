@@ -42,6 +42,7 @@ function renderGrid(
   onSelectDay = vi.fn(),
   isLoading = false,
   formatTime = displayTime,
+  timeZone: string | null = 'UTC',
 ) {
   return render(
     <CalendarTimeGrid
@@ -53,6 +54,7 @@ function renderGrid(
       allDayLabel="No set time"
       nowLabel="Now"
       isLoading={isLoading}
+      timeZone={timeZone}
     />,
   )
 }
@@ -139,6 +141,19 @@ describe('CalendarTimeGrid', () => {
       return `${hour % 12 || 12}:00 ${hour >= 12 ? 'PM' : 'AM'}`
     })
     expect(screen.getByText('8:00 PM')).toBeInTheDocument()
+  })
+
+  it('positions the now line by the account timezone', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-11T10:30:00.000Z'))
+    const today = { ...column(2026, 8, 12), isToday: true }
+    try {
+      renderGrid([today], new Map(), vi.fn(), false, displayTime, 'Pacific/Kiritimati')
+
+      expect(screen.getByRole('img', { name: 'Now' })).toHaveStyle({ top: '24px' })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('renders one column per day in the selected range', () => {

@@ -53,6 +53,7 @@ function renderGrid(
   onSelectDay = vi.fn(),
   isLoading = false,
   formatTime = displayTime,
+  timeZone: string | null = "UTC",
 ): Tree {
   let tree: Tree;
   TestRenderer.act(() => {
@@ -68,6 +69,7 @@ function renderGrid(
         isLoading={isLoading}
         t={translate}
         tokens={tokens}
+        timeZone={timeZone}
       />,
     );
   });
@@ -186,6 +188,31 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(textValuesWithin(view12, "time-grid-hour-label")).toContain("8:00 PM");
   });
 
+  it("positions the now line by the account timezone", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-11T10:30:00.000Z"));
+    const today = { ...column("2026-09-12"), isToday: true };
+    try {
+      const tree = renderGrid(
+        [today],
+        new Map(),
+        vi.fn(),
+        false,
+        displayTime,
+        "Pacific/Kiritimati",
+      );
+      const nowLine = tree.root.findAll(
+        (node) =>
+          typeof node.type === "string" &&
+          node.props.accessibilityLabel === "Now",
+      )[0];
+
+      expect(resolveStyle(nowLine!.props.style)).toMatchObject({ top: 24 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("renders one column header per day in the range", () => {
     const columns = ["2025-06-16", "2025-06-17", "2025-06-18", "2025-06-19"].map(
       (dateStr) => column(dateStr),
@@ -215,6 +242,17 @@ describe("CalendarTimeGrid (mobile)", () => {
       more[0]!.props.onPress();
     });
     expect(onSelectDay).toHaveBeenCalledWith("2025-06-16");
+  });
+
+  it("fits one all-day chip inside the fixed band", () => {
+    const col = column("2025-06-16");
+    const tree = renderGrid(
+      [col],
+      new Map([[col.dateStr, [makeEntry({ dueTime: null })]]]),
+    );
+    const allDayCell = hostsByTestID(tree, "time-grid-all-day")[0];
+
+    expect(renderedAncestorHeight(allDayCell!)).toBe(35);
   });
 
   it("opens the tapped day from a column header", () => {

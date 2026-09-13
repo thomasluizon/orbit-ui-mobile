@@ -575,6 +575,7 @@ function CalendarScreenContent({
               language={i18n.language}
               allDayLabel={t("calendar.timeGrid.noSetTime")}
               nowLabel={t("calendar.timeGrid.now")}
+              timeZone={profile.timeZone}
               showRecurring={showRecurring}
               onShowRecurringChange={setShowRecurring}
               showRecurringLabel={t("calendar.showRecurring")}
@@ -603,6 +604,7 @@ function CalendarScreenContent({
               language={i18n.language}
               allDayLabel={t("calendar.timeGrid.allDay")}
               nowLabel={t("calendar.timeGrid.now")}
+              timeZone={profile.timeZone}
               showRecurring={showRecurring}
               onShowRecurringChange={setShowRecurring}
               showRecurringLabel={t("calendar.showRecurring")}
