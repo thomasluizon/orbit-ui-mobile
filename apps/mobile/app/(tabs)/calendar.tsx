@@ -29,7 +29,6 @@ import {
   endOfWeek,
   eachDayOfInterval,
   isSameMonth,
-  isToday,
   format,
 } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
@@ -133,7 +132,7 @@ function CalendarProfileState({ failed, onRetry }: Readonly<{ failed: boolean; o
 }
 
 interface CalendarScreenContentProps {
-  profile: Pick<Profile, 'weekStartDay'>;
+  profile: Pick<Profile, 'weekStartDay' | 'timeZone'>;
   currentMonth: Date;
   setCurrentMonth: Dispatch<SetStateAction<Date>>;
   monthQuery: ReturnType<typeof useCalendarData>;
@@ -149,7 +148,7 @@ function CalendarScreenContent({
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { displayTime } = useTimeFormat();
-  const todayKey = useCurrentDate();
+  const todayKey = useCurrentDate(profile.timeZone);
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -237,12 +236,16 @@ function CalendarScreenContent({
       view === "week"
         ? eachDayOfInterval({ start: weekStart, end: weekEnd })
         : eachDayOfInterval({ start: rangeBounds.lo, end: rangeBounds.hi });
-    return days.map((date) => ({
-      date,
-      dateStr: formatAPIDate(date),
-      isToday: isToday(date),
-    }));
-  }, [view, weekStart, weekEnd, rangeBounds]);
+    return days.map((date) => {
+      const dateStr = formatAPIDate(date);
+      return {
+        date,
+        dateStr,
+        isToday: dateStr === todayKey,
+        isFuture: dateStr > todayKey,
+      };
+    });
+  }, [view, weekStart, weekEnd, rangeBounds, todayKey]);
 
   const displayRangeDayMap = useMemo(() => {
     if (showRecurring) return rangeDayMap;
@@ -570,8 +573,9 @@ function CalendarScreenContent({
               onSelectDay={onSelectDay}
               displayTime={displayTime}
               language={i18n.language}
-              allDayLabel={t("calendar.timeGrid.allDay")}
+              allDayLabel={t("calendar.timeGrid.noSetTime")}
               nowLabel={t("calendar.timeGrid.now")}
+              timeZone={profile.timeZone}
               showRecurring={showRecurring}
               onShowRecurringChange={setShowRecurring}
               showRecurringLabel={t("calendar.showRecurring")}
@@ -600,6 +604,7 @@ function CalendarScreenContent({
               language={i18n.language}
               allDayLabel={t("calendar.timeGrid.allDay")}
               nowLabel={t("calendar.timeGrid.now")}
+              timeZone={profile.timeZone}
               showRecurring={showRecurring}
               onShowRecurringChange={setShowRecurring}
               showRecurringLabel={t("calendar.showRecurring")}
