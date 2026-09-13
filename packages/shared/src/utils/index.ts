@@ -250,7 +250,12 @@ export {
 } from './time-parts'
 export type { DayPeriod, TimeParts } from './time-parts'
 export { buildYearRange } from './year-range'
-export { filterRecurringEntries } from './calendar-entries'
+export {
+  CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO,
+  CALENDAR_MONTH_SWIPE_THRESHOLD,
+  filterRecurringDayMap,
+  filterRecurringEntries,
+} from './calendar-entries'
 export {
   CALENDAR_MONTH_MAX_RANGE_DAYS,
   clampRangeToMaxDays,

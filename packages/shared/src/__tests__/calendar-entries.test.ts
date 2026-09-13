@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { filterRecurringEntries } from '../utils/calendar-entries'
+import {
+  CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO,
+  CALENDAR_MONTH_SWIPE_THRESHOLD,
+  filterRecurringDayMap,
+  filterRecurringEntries,
+} from '../utils/calendar-entries'
 import type { CalendarDayEntry } from '../types/calendar'
 
 function entry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
@@ -30,5 +35,30 @@ describe('filterRecurringEntries', () => {
 
   it('returns an empty list when every entry is recurring and the toggle is off', () => {
     expect(filterRecurringEntries([recurring], false)).toEqual([])
+  })
+})
+
+describe('calendar month controls', () => {
+  it('keeps the 60px swipe boundary readable by both platforms', () => {
+    expect(CALENDAR_MONTH_SWIPE_THRESHOLD).toBe(60)
+  })
+
+  it('keeps the 1.2 horizontal direction ratio readable by both platforms', () => {
+    expect(CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO).toBeCloseTo(1.2)
+  })
+
+  it('filters every date before the month model derives rings and figures', () => {
+    const recurring = entry({ habitId: 'recurring', isOneTime: false })
+    const oneTime = entry({ habitId: 'one-time', isOneTime: true })
+    const source = new Map([
+      ['2026-09-10', [recurring]],
+      ['2026-09-11', [recurring, oneTime]],
+    ])
+
+    expect(filterRecurringDayMap(source, false)).toEqual(new Map([
+      ['2026-09-10', []],
+      ['2026-09-11', [oneTime]],
+    ]))
+    expect(filterRecurringDayMap(source, true)).toBe(source)
   })
 })
