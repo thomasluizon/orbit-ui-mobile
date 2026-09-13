@@ -436,8 +436,6 @@ describe('CalendarPage view switcher', () => {
 
   it('logs a selected writable day with its selected date', async () => {
     isWideDesktopValue = true
-    render(<CalendarPage />)
-
     const entry: CalendarDayEntry = {
       habitId: 'habit-1',
       title: 'Read',
@@ -446,12 +444,16 @@ describe('CalendarPage view switcher', () => {
       dueTime: null,
       isOneTime: false,
     }
+    const selectedDate = formatAPIDate(new Date())
+    monthQueryState.dayMap = new Map([[selectedDate, [entry]]])
+    render(<CalendarPage />)
+
     await calendarDayDetailProps.onEntryChange?.(entry, true)
 
     expect(calendarDayDetailProps.loggable).toBe(true)
     expect(logHabitMutateAsync).toHaveBeenCalledWith({
       habitId: 'habit-1',
-      date: formatAPIDate(new Date()),
+      date: selectedDate,
     })
   })
 

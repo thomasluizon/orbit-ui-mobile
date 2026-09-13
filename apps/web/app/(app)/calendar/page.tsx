@@ -20,7 +20,6 @@ import {
   formatAPIDate,
   parseAPIDate,
   capitalizeFirstLetter,
-  filterRecurringEntries,
   isCalendarDayLoggable,
   CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO,
   CALENDAR_MONTH_SWIPE_THRESHOLD,

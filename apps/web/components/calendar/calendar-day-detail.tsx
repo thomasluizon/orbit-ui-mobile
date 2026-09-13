@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -81,10 +81,9 @@ function CalendarDayCheckRow({
   t: ReturnType<typeof useTranslations>
 }>) {
   const sourceChecked = entry.status === 'completed'
-  const [optimisticChecked, setOptimisticChecked] = useState<boolean | null>(
-    () => pendingChecked ?? null,
-  )
-  const displayedChecked = optimisticChecked === sourceChecked ? null : optimisticChecked
+  const displayedChecked = pendingChecked === undefined || pendingChecked === sourceChecked
+    ? null
+    : pendingChecked
   const checked = displayedChecked ?? sourceChecked
   const displayedEntry: CalendarDayEntry = displayedChecked === null
     ? entry
@@ -102,13 +101,7 @@ function CalendarDayCheckRow({
   async function changeChecked(nextChecked: boolean) {
     const entryChange = onEntryChange(entry, nextChecked)
     if (!entryChange) return
-    setOptimisticChecked(nextChecked)
-
-    try {
-      await entryChange
-    } catch {
-      setOptimisticChecked(null)
-    }
+    await entryChange.catch(() => undefined)
   }
 
   return (

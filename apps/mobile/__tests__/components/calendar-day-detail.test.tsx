@@ -85,10 +85,13 @@ function CalendarDayDetailHarness({
   onGoToDay = () => {},
 }: RenderDetailProps): React.ReactElement {
   const tokens = createTokensV2('purple', 'dark')
-  const sourceEntryStates = new Map(entries.map((entry) => [
-    getCalendarEntryMutationKey(selectedDate, entry.habitId),
-    entry.status === 'completed',
-  ]))
+  const sourceEntryStates = React.useMemo(
+    () => new Map(entries.map((entry) => [
+      getCalendarEntryMutationKey(selectedDate, entry.habitId),
+      entry.status === 'completed',
+    ])),
+    [entries, selectedDate],
+  )
   const { pendingEntryStates, startEntryMutation } = useCalendarEntryMutationLock(
     sourceEntryStates,
   )
@@ -346,6 +349,55 @@ describe('CalendarDayDetail (mobile)', () => {
     expect(returnedRow?.props.loading).toBe(false)
   })
 
+  it('restores a returned day and keeps it locked until a rejected toggle reconciles', async () => {
+    let rejectChange: ((reason?: unknown) => void) | undefined
+    const pendingChange = new Promise<void>((_resolve, reject) => {
+      rejectChange = reject
+    })
+    const entry = makeEntry({ title: 'Read', status: 'missed' })
+    const onEntryChange = vi.fn(() => pendingChange)
+    const tree = renderDetail({ entries: [entry], loggable: true, onEntryChange })
+
+    TestRenderer.act(() => {
+      const row = nodes(tree, 'CheckRowMock')[0]
+      ;(row?.props.onChange as (checked: boolean) => void)(true)
+    })
+    TestRenderer.act(() => {
+      tree.update(detailElement({
+        selectedDate: '2025-06-16',
+        entries: [entry],
+        loggable: true,
+        onEntryChange,
+      }))
+    })
+    TestRenderer.act(() => {
+      tree.update(detailElement({ entries: [entry], loggable: true, onEntryChange }))
+    })
+
+    await TestRenderer.act(async () => {
+      rejectChange?.(new Error('write failed'))
+      await pendingChange.catch(() => {})
+    })
+
+    let rejectedRow = nodes(tree, 'CheckRowMock')[0]
+    expect(rejectedRow?.props).toMatchObject({ checked: false, loading: true })
+    TestRenderer.act(() => {
+      ;(rejectedRow?.props.onChange as (checked: boolean) => void)(true)
+    })
+    expect(onEntryChange).toHaveBeenCalledTimes(1)
+
+    TestRenderer.act(() => {
+      tree.update(detailElement({
+        entries: [{ ...entry }],
+        loggable: true,
+        onEntryChange,
+      }))
+    })
+
+    rejectedRow = nodes(tree, 'CheckRowMock')[0]
+    expect(rejectedRow?.props.loading).toBe(false)
+  })
+
   it('controls and serializes a row toggle, then rolls it back when the write fails', async () => {
     let rejectChange: ((reason?: unknown) => void) | undefined
     const pendingChange = new Promise<void>((_resolve, reject) => {
@@ -379,9 +431,20 @@ describe('CalendarDayDetail (mobile)', () => {
     row = nodes(tree, 'CheckRowMock')[0]
     expect(row?.props).toMatchObject({
       checked: false,
-      loading: false,
+      loading: true,
       value: '08:00 · not logged',
     })
+
+    TestRenderer.act(() => {
+      tree.update(detailElement({
+        entries: [{ ...entry }],
+        loggable: true,
+        onEntryChange,
+      }))
+    })
+
+    row = nodes(tree, 'CheckRowMock')[0]
+    expect(row?.props.loading).toBe(false)
   })
 
   it('routes the panel row through the supplied Today callback', () => {

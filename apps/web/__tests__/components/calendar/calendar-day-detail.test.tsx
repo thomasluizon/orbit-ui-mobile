@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
@@ -72,15 +73,18 @@ function CalendarDayDetailHarness({
   onEntryChange = async () => {},
   fitViewport = false,
 }: RenderProps) {
-  const sourceEntryStates = new Map<string, boolean>()
-  if (dateStr) {
-    for (const entry of entries) {
-      sourceEntryStates.set(
-        getCalendarEntryMutationKey(dateStr, entry.habitId),
-        entry.status === 'completed',
-      )
+  const sourceEntryStates = useMemo(() => {
+    const states = new Map<string, boolean>()
+    if (dateStr) {
+      for (const entry of entries) {
+        states.set(
+          getCalendarEntryMutationKey(dateStr, entry.habitId),
+          entry.status === 'completed',
+        )
+      }
     }
-  }
+    return states
+  }, [dateStr, entries])
   const { pendingEntryStates, startEntryMutation } = useCalendarEntryMutationLock(
     sourceEntryStates,
   )
@@ -311,6 +315,59 @@ describe('CalendarDayDetail', () => {
     expect(screen.getByRole('checkbox', { name: 'Read' })).toBeEnabled()
   })
 
+  it('restores a returned day and keeps it locked until a rejected toggle reconciles', async () => {
+    let rejectChange: ((reason?: unknown) => void) | undefined
+    const pendingChange = new Promise<void>((_resolve, reject) => {
+      rejectChange = reject
+    })
+    const entry = makeEntry({ title: 'Read', status: 'missed' })
+    const onEntryChange = vi.fn(() => pendingChange)
+    const rendered = renderDetail({ entries: [entry], loggable: true, onEntryChange })
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Read' }))
+    rendered.rerender(
+      <CalendarDayDetailHarness
+        dateStr="2025-06-16"
+        entries={[entry]}
+        loggable
+        showRecurring
+        onEntryChange={onEntryChange}
+      />,
+    )
+    rendered.rerender(
+      <CalendarDayDetailHarness
+        dateStr="2025-06-15"
+        entries={[entry]}
+        loggable
+        showRecurring
+        onEntryChange={onEntryChange}
+      />,
+    )
+
+    await act(async () => {
+      rejectChange?.(new Error('write failed'))
+      await pendingChange.catch(() => {})
+    })
+
+    const rejectedRow = screen.getByRole('checkbox', { name: 'Read' })
+    expect(rejectedRow).toHaveAttribute('aria-checked', 'false')
+    expect(rejectedRow).toBeDisabled()
+    fireEvent.click(rejectedRow)
+    expect(onEntryChange).toHaveBeenCalledTimes(1)
+
+    rendered.rerender(
+      <CalendarDayDetailHarness
+        dateStr="2025-06-15"
+        entries={[{ ...entry }]}
+        loggable
+        showRecurring
+        onEntryChange={onEntryChange}
+      />,
+    )
+
+    expect(screen.getByRole('checkbox', { name: 'Read' })).toBeEnabled()
+  })
+
   it('controls and serializes a row toggle, then rolls it back when the write fails', async () => {
     let rejectChange: ((reason?: unknown) => void) | undefined
     const pendingChange = new Promise<void>((_resolve, reject) => {
@@ -318,7 +375,7 @@ describe('CalendarDayDetail', () => {
     })
     const entry = makeEntry({ title: 'Read', status: 'missed' })
     const onEntryChange = vi.fn(() => pendingChange)
-    renderDetail({ entries: [entry], loggable: true, onEntryChange })
+    const rendered = renderDetail({ entries: [entry], loggable: true, onEntryChange })
 
     const row = screen.getByRole('checkbox', { name: 'Read' })
     fireEvent.click(row)
@@ -335,8 +392,20 @@ describe('CalendarDayDetail', () => {
     })
 
     expect(row).toHaveAttribute('aria-checked', 'false')
-    expect(row).toBeEnabled()
+    expect(row).toBeDisabled()
     expect(within(row).getByText('08:00 · not logged')).toBeInTheDocument()
+
+    rendered.rerender(
+      <CalendarDayDetailHarness
+        dateStr="2025-06-15"
+        entries={[{ ...entry }]}
+        loggable
+        showRecurring
+        onEntryChange={onEntryChange}
+      />,
+    )
+
+    expect(screen.getByRole('checkbox', { name: 'Read' })).toBeEnabled()
   })
 
   it('summarizes the filtered rows and keeps the no-habits line when recurring rows are hidden', () => {
