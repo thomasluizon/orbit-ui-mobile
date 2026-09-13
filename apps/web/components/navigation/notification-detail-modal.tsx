@@ -61,11 +61,13 @@ export function NotificationDetailModal({
       actions={
         <div className="flex flex-wrap items-center justify-end" style={{ gap: 8 }}>
           {canView && (
+            /* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */
             <Button variant={wide ? 'secondary' : 'primary'} size="sm" onClick={handleView}>
               {targetKey ? t('notifications.openIn', { target: t(targetKey) }) : t('notifications.view')}
             </Button>
           )}
           {canMarkAsRead && (
+            /* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */
             <Button variant="ghost" size="sm" onClick={() => onMarkAsRead(notification.id)}>
               {t('notifications.markAsRead')}
             </Button>

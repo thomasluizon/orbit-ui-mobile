@@ -68,6 +68,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
           >
             {t('calendar.calendars.error')}
           </span>
+          {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
           <button type="button" className="chip shrink-0" onClick={() => void refetch()}>
             {t('calendar.retry')}
           </button>

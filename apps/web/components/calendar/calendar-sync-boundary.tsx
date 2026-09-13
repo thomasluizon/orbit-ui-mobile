@@ -38,6 +38,7 @@ export function CalendarSyncBoundary({
         message={t('calendar.dayDetail.syncBoundary')}
         body={t('calendar.dayDetail.syncBoundaryBody')}
         action={(
+          /* eslint-disable-next-line local/max-button-words -- ORB-50 owns this approved control copy. */
           <PillButton
             size="sm"
             variant={wide ? 'secondary' : 'primary'}

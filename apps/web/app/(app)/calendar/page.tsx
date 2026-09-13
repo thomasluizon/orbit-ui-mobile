@@ -24,6 +24,7 @@ import {
   parseAPIDate,
   capitalizeFirstLetter,
   filterCalendarSyncEventsByDate,
+  isCalendarDayLoggable,
   buildCalendarRangeModel,
   CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO,
   CALENDAR_MONTH_SWIPE_THRESHOLD,
@@ -32,15 +33,22 @@ import {
   resolveCalendarRangeEnd,
   CALENDAR_MONTH_GRID_GEOMETRY,
   resolveCalendarMonthDisplayState,
+  resolveCalendarEventsDisplayState,
   type CalendarMonthDisplayState,
   getFriendlyErrorMessage,
+  type CalendarEventsDisplayState,
 } from '@orbit/shared/utils'
+import {
+  getCalendarEntryMutationKey,
+  useCalendarEntryMutationLock,
+} from '@orbit/shared/hooks'
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import {
   useCalendarAutoSyncState,
   useSetCalendarAutoSync,
 } from '@/hooks/use-calendar-auto-sync'
+import { useLogHabit } from '@/hooks/use-habits'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
@@ -144,11 +152,17 @@ interface CalendarInlineDayPanelProps {
   calendarEvents: CalendarSyncEvent[]
   hasProAccess: boolean
   autoSyncState: CalendarAutoSyncState | undefined
+  calendarEventsState: CalendarEventsDisplayState
+  onRetryCalendarEvents: () => void
+  onReconnectCalendarEvents: () => void
+  loggable: boolean
   showRecurring: boolean
+  pendingEntryStates: ReadonlyMap<string, boolean>
   showRecurringToggle: boolean
   onShowRecurringChange: (value: boolean) => void
   onCalendarAutoSyncChange: (value: boolean) => Promise<void>
   onOpenPro: () => void
+  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
 }
 
 function CalendarInlineDayPanel({
@@ -161,11 +175,17 @@ function CalendarInlineDayPanel({
   calendarEvents,
   hasProAccess,
   autoSyncState,
+  calendarEventsState,
+  onRetryCalendarEvents,
+  onReconnectCalendarEvents,
+  loggable,
   showRecurring,
+  pendingEntryStates,
   showRecurringToggle,
   onShowRecurringChange,
   onCalendarAutoSyncChange,
   onOpenPro,
+  onEntryChange,
 }: Readonly<CalendarInlineDayPanelProps>) {
   if (!show) return null
   const loading = state === 'loading'
@@ -199,10 +219,16 @@ function CalendarInlineDayPanel({
             calendarEvents={calendarEvents}
             hasProAccess={hasProAccess}
             autoSyncState={autoSyncState}
+            calendarEventsState={calendarEventsState}
+            onRetryCalendarEvents={onRetryCalendarEvents}
+            onReconnectCalendarEvents={onReconnectCalendarEvents}
+            loggable={loggable}
             showRecurring={showRecurring}
+            pendingEntryStates={pendingEntryStates}
             onShowRecurringChange={onShowRecurringChange}
             onCalendarAutoSyncChange={onCalendarAutoSyncChange}
             onOpenPro={onOpenPro}
+            onEntryChange={onEntryChange}
             showRecurringToggle={showRecurringToggle}
             fitViewport
           />
@@ -305,8 +331,8 @@ function CalendarPageContent({
   setCurrentMonth,
   monthQuery,
 }: Readonly<CalendarPageContentProps>) {
-  const t = useTranslations()
   const router = useRouter()
+  const t = useTranslations()
   const { sheetRef, closeSheet } = useSheetHost()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
@@ -316,6 +342,7 @@ function CalendarPageContent({
   const isWideDesktop = useIsWideDesktop()
   const todayKey = useToday(profile.timeZone)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
+  const logHabit = useLogHabit()
 
   const [view, setView] = useState<CalendarView>('month')
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
@@ -327,7 +354,12 @@ function CalendarPageContent({
   )
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false)
   const [showRecurring, setShowRecurring] = useState(true)
-  const { data: calendarEventsResult } = useCalendarEvents({
+  const {
+    data: calendarEventsResult,
+    isPending: calendarEventsPending,
+    error: calendarEventsError,
+    refetch: refetchCalendarEvents,
+  } = useCalendarEvents({
     enabled: profile.hasProAccess,
   })
   const { data: autoSyncState } = useCalendarAutoSyncState({
@@ -360,6 +392,12 @@ function CalendarPageContent({
       router.push('/upgrade')
     })
   }, [closeSheet, router])
+  const calendarEventsState = resolveCalendarEventsDisplayState({
+    enabled: profile.hasProAccess,
+    isPending: calendarEventsPending,
+    error: calendarEventsError,
+    resultStatus: calendarEventsResult?.status,
+  })
 
   const { dayMap, isLoading, isFetching, error, refresh } = monthQuery
 
@@ -516,6 +554,37 @@ function CalendarPageContent({
         : [],
     [calendarEventsResult, profile.hasProAccess, selectedDay],
   )
+
+  const selectedDayLoggable = selectedDay !== null
+    && isCalendarDayLoggable(selectedDay, todayKey)
+
+  const selectedEntrySourceStates = useMemo(() => {
+    const sourceStates = new Map<string, boolean>()
+    if (!selectedDay) return sourceStates
+    for (const entry of selectedEntries) {
+      sourceStates.set(
+        getCalendarEntryMutationKey(selectedDay, entry.habitId),
+        entry.status === 'completed',
+      )
+    }
+    return sourceStates
+  }, [selectedDay, selectedEntries])
+  const { pendingEntryStates, startEntryMutation } = useCalendarEntryMutationLock(
+    selectedEntrySourceStates,
+  )
+
+  function changeSelectedEntry(
+    entry: CalendarDayEntry,
+    checked: boolean,
+  ): Promise<unknown> | null {
+    if (!selectedDay) return null
+    const entryKey = getCalendarEntryMutationKey(selectedDay, entry.habitId)
+    return startEntryMutation(
+      entryKey,
+      checked,
+      () => logHabit.mutateAsync({ habitId: entry.habitId, date: selectedDay }),
+    )
+  }
 
   const dayDetailTitle = useMemo(() => {
     if (!selectedDay) return ''
@@ -729,11 +798,17 @@ function CalendarPageContent({
                   calendarEvents={selectedCalendarEvents}
                   hasProAccess={profile.hasProAccess}
                   autoSyncState={autoSyncState}
+                  calendarEventsState={calendarEventsState}
+                  onRetryCalendarEvents={() => void refetchCalendarEvents()}
+                  onReconnectCalendarEvents={() => router.push('/calendar-sync')}
+                  loggable={selectedDayLoggable}
                   showRecurring={showRecurring}
+                  pendingEntryStates={pendingEntryStates}
                   showRecurringToggle={!showMonthRecurringToggle}
                   onShowRecurringChange={setShowRecurring}
                   onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
                   onOpenPro={openOrbitPro}
+                  onEntryChange={changeSelectedEntry}
                 />
               </div>
             )}
@@ -807,10 +882,16 @@ function CalendarPageContent({
           calendarEvents={selectedCalendarEvents}
           hasProAccess={profile.hasProAccess}
           autoSyncState={autoSyncState}
+          calendarEventsState={calendarEventsState}
+          onRetryCalendarEvents={() => void refetchCalendarEvents()}
+          onReconnectCalendarEvents={() => router.push('/calendar-sync')}
+          loggable={selectedDayLoggable}
           showRecurring={showRecurring}
+          pendingEntryStates={pendingEntryStates}
           onShowRecurringChange={setShowRecurring}
           onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
           onOpenPro={openOrbitPro}
+          onEntryChange={changeSelectedEntry}
         />
       </Sheet>) : null}
     </div>

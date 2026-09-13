@@ -57,6 +57,7 @@ export default function SearchScreen() {
     </View>
     <ScrollView role="list" keyboardShouldPersistTaps="handled" contentContainerStyle={styles.list} accessibilityState={{ busy: search.busy }}>
       {search.showLoading && <><Searching /><Text accessibilityRole="header" style={[styles.heading, { color: tokens.fg4 }]}>{t('command.groups.search')}</Text>{[0, 1, 2].map((index) => <Skeleton key={index} variant="habit-row" label={t('habits.search.searching')} />)}</>}
+      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {search.isError && <View accessibilityRole="alert"><Text style={{ color: tokens.fg3 }}>{t('habits.search.loadError')}</Text><Button size="sm" variant="ghost" onClick={() => void search.refetch()}>{t('common.retry')}</Button></View>}
       {!search.busy && !search.isError && <>
         {habits.length > 0 && (search.query && !commandPage

@@ -915,7 +915,8 @@
     "loading": "Loading",
     "loadError": "Could not load the calendar. Please try again.",
     "dayDetail": {
-      "completionSummary": "{done} of {total} habit completed | {done} of {total} habits completed",
+      "completionSummary": "{done} of {total} logged",
+      "nothingDue": "nothing due",
       "eventsTitle": "Available to import",
       "syncBoundary": "Syncing with Google Calendar is part of Orbit Pro.",
       "syncBoundaryBody": "With it, your commitments show up beside the habits for the day.",
@@ -924,8 +925,8 @@
       "lastSynced": "Last synced {time}",
       "autoSync": "Sync on its own"
     },
-    "noHabitsScheduled": "No habits scheduled for this day.",
-    "goToDay": "View this day",
+    "noHabitsScheduled": "No habit was scheduled on this day.",
+    "goToDay": "Open this day on Today",
     "goToCurrentMonth": "Go to current month",
     "goToCurrentWeek": "Go to current week",
     "view": {
@@ -951,11 +952,11 @@
       "moreLabel": "{count} more"
     },
     "status": {
-      "completed": "Completed",
-      "missed": "Missed",
+      "completed": "done",
+      "missed": "not logged",
       "upcoming": "Upcoming",
-      "indulged": "Indulged",
-      "resisted": "Resisted"
+      "indulged": "indulged",
+      "resisted": "resisted"
     },
     "completionHistory": "Completion History",
     "showRecurring": "Show recurring habits",

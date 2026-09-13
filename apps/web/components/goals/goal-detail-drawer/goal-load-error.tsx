@@ -22,6 +22,7 @@ export function GoalLoadError({ onRetry }: Readonly<GoalLoadErrorProps>) {
       >
         {t('goals.detail.loadError')}
       </p>
+      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       <button
         type="button"
         onClick={onRetry}

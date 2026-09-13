@@ -35,6 +35,7 @@ export function GoalListCard({ goalList, onOpenGoal }: Readonly<{ goalList: Goal
       <BlockFrame state="resting" title={t('chat.goalList.title')} items={items} actions={(
         <div className="flex flex-col items-start gap-3">
           {items.length === 0 ? <p className="text-sm text-[var(--fg-3)]">{t('chat.goalList.empty')}</p> : null}
+          {/* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */}
           <Button variant="ghost" size="sm" onClick={() => router.push('/progress')}>{t('chat.goalList.progressLink')}</Button>
         </div>
       )} />

@@ -41,6 +41,7 @@ import {
   filterRecurringEntries,
   filterCalendarSyncEventsByDate,
   formatAPIDate,
+  isCalendarDayLoggable,
   parseAPIDate,
   MAX_RANGE_DAYS,
   buildCalendarMonthModel,
@@ -48,12 +49,17 @@ import {
   resolveCalendarRangeEnd,
   CALENDAR_MONTH_GRID_GEOMETRY,
   resolveCalendarMonthDisplayState,
+  resolveCalendarEventsDisplayState,
   type CalendarMonthDisplayState,
   getFriendlyErrorMessage,
 } from "@orbit/shared/utils";
+import {
+  getCalendarEntryMutationKey,
+  useCalendarEntryMutationLock,
+} from "@orbit/shared/hooks";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import type { Profile } from "@orbit/shared/types/profile";
-import { useCalendarData, useCalendarRange } from "@/hooks/use-habits";
+import { useCalendarData, useCalendarRange, useLogHabit } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import {
@@ -271,6 +277,7 @@ function CalendarProfileState({
         {failed ? (
           <View style={[styles.errorCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
             <Text style={[styles.errorText, { color: tokens.fg2 }]}>{t('calendar.loadError')}</Text>
+            {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
             <PillButton variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
           </View>
         ) : (
@@ -330,6 +337,7 @@ function CalendarScreenContent({
   const { displayTime } = useTimeFormat();
   const todayKey = useCurrentDate(profile.timeZone);
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal);
+  const logHabit = useLogHabit();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -377,7 +385,12 @@ function CalendarScreenContent({
   );
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
   const [showRecurring, setShowRecurring] = useState(true);
-  const { data: calendarEventsResult } = useCalendarEvents({
+  const {
+    data: calendarEventsResult,
+    isPending: calendarEventsPending,
+    error: calendarEventsError,
+    refetch: refetchCalendarEvents,
+  } = useCalendarEvents({
     enabled: profile.hasProAccess,
   });
   const { data: autoSyncState } = useCalendarAutoSyncState({
@@ -410,6 +423,12 @@ function CalendarScreenContent({
       router.push('/upgrade');
     });
   }, [closeSheet, router]);
+  const calendarEventsState = resolveCalendarEventsDisplayState({
+    enabled: profile.hasProAccess,
+    isPending: calendarEventsPending,
+    error: calendarEventsError,
+    resultStatus: calendarEventsResult?.status,
+  });
 
   const { dayMap, isLoading, isFetching, error, refresh } = monthQuery;
 
@@ -432,12 +451,15 @@ function CalendarScreenContent({
   const agendaStart = useMemo(() => parseAPIDate(todayKey), [todayKey]);
   const agendaEnd = useMemo(() => addDays(agendaStart, 6), [agendaStart]);
 
-  const [gridStartDate, gridEndDate] =
-    view === "week"
-      ? [weekStart, weekEnd]
-      : view === "agenda"
-        ? [agendaStart, agendaEnd]
-        : [rangeBounds.lo, rangeBounds.hi];
+  let gridStartDate = rangeBounds.lo;
+  let gridEndDate = rangeBounds.hi;
+  if (view === "week") {
+    gridStartDate = weekStart;
+    gridEndDate = weekEnd;
+  } else if (view === "agenda") {
+    gridStartDate = agendaStart;
+    gridEndDate = agendaEnd;
+  }
 
   const {
     dayMap: rangeDayMap,
@@ -647,6 +669,34 @@ function CalendarScreenContent({
     (entry: CalendarDayEntry) => entry.status === "completed",
   ).length;
 
+  const selectedDayLoggable = selectedDay !== null
+    && isCalendarDayLoggable(selectedDay, todayKey);
+
+  const selectedEntrySourceStates = useMemo(() => {
+    const sourceStates = new Map<string, boolean>();
+    if (!selectedDay) return sourceStates;
+    for (const entry of selectedEntries) {
+      sourceStates.set(
+        getCalendarEntryMutationKey(selectedDay, entry.habitId),
+        entry.status === "completed",
+      );
+    }
+    return sourceStates;
+  }, [selectedDay, selectedEntries]);
+  const { pendingEntryStates, startEntryMutation } = useCalendarEntryMutationLock(
+    selectedEntrySourceStates,
+  );
+
+  const changeSelectedEntry = (entry: CalendarDayEntry, checked: boolean) => {
+    if (!selectedDay) return null;
+    const entryKey = getCalendarEntryMutationKey(selectedDay, entry.habitId);
+    return startEntryMutation(entryKey, checked, () => logHabit.mutateAsync({
+      habitId: entry.habitId,
+      date: selectedDay,
+      intent: checked ? "log" : "unlog",
+    }));
+  };
+
   const goToSelectedDay = () => {
     if (!selectedDay) return;
     closeSheet(() => {
@@ -807,6 +857,7 @@ function CalendarScreenContent({
             <Text style={[styles.errorText, { color: tokens.fg2 }]}>
               {t("calendar.loadError")}
             </Text>
+            {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
             <PillButton variant="ghost" onClick={() => void activeRefresh()}>
               {t("common.retry")}
             </PillButton>
@@ -903,25 +954,32 @@ function CalendarScreenContent({
         </ScrollView>
       )}
 
-      {isDayDetailOpen ? (<Sheet
+      {isDayDetailOpen && selectedDay ? (<Sheet
         ref={sheetRef}
         open
         onClose={closeDayDetail}
         title={formattedSelectedDate}
-        key={selectedDay ?? undefined}
+        key={selectedDay}
       >
         <View style={styles.sheetContent}>
           <CalendarDayDetail
+            selectedDate={selectedDay}
             selectedEntries={selectedEntries}
             filteredEntries={filteredEntries}
             calendarEvents={selectedCalendarEvents}
             hasProAccess={profile.hasProAccess}
             autoSyncState={autoSyncState}
+            calendarEventsState={calendarEventsState}
+            onRetryCalendarEvents={() => void refetchCalendarEvents()}
+            onReconnectCalendarEvents={() => router.push('/calendar-sync')}
             completedCount={completedCount}
+            loggable={selectedDayLoggable}
             showRecurring={showRecurring}
+            pendingEntryStates={pendingEntryStates}
             onShowRecurringChange={setShowRecurring}
             onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
             onOpenPro={openOrbitPro}
+            onEntryChange={changeSelectedEntry}
             onGoToDay={goToSelectedDay}
             displayTime={displayTime}
             t={t}

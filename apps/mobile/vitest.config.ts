@@ -35,7 +35,6 @@ export default defineConfig({
         '**/styles.ts',
         'app/**/_layout.tsx',
         'app/(onboarding)/index.tsx',
-        'app/(tabs)/calendar/_components/calendar-day-entry.tsx',
         'app/(tabs)/calendar/_components/calendar-grid.tsx',
         'app/+not-found.tsx',
         'app/about.tsx',
