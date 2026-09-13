@@ -8,10 +8,18 @@ export interface CalendarStat {
 
 interface CalendarStatsProps {
   stats: readonly [CalendarStat, CalendarStat, CalendarStat]
+  state?: 'default' | 'loading' | 'empty'
+  loadingLabel?: string
+  emptyLabel?: string
 }
 
 /** The three month figures, kept in one row at every width. */
-export function CalendarStats({ stats }: Readonly<CalendarStatsProps>) {
+export function CalendarStats({
+  stats,
+  state = 'default',
+  loadingLabel,
+  emptyLabel,
+}: Readonly<CalendarStatsProps>) {
   return (
     <div
       className="grid"
@@ -23,7 +31,13 @@ export function CalendarStats({ stats }: Readonly<CalendarStatsProps>) {
       }}
     >
       {stats.map((stat) => (
-        <StatTile key={stat.key} value={stat.value} label={stat.label} />
+        state === 'loading' ? (
+          <StatTile key={stat.key} state="loading" loadingLabel={loadingLabel ?? ''} label={stat.label} />
+        ) : state === 'empty' ? (
+          <StatTile key={stat.key} state="empty" emptyLabel={emptyLabel ?? ''} label={stat.label} />
+        ) : (
+          <StatTile key={stat.key} value={stat.value} label={stat.label} />
+        )
       ))}
     </div>
   )
