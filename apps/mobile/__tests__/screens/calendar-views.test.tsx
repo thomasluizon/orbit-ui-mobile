@@ -147,6 +147,7 @@ vi.mock("@/hooks/use-habits", () => ({
       refresh: vi.fn(),
     };
   },
+  useLogHabit: () => ({ mutate: vi.fn() }),
 }));
 
 vi.mock("@/lib/use-app-theme", () => ({

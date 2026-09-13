@@ -19,10 +19,37 @@ const calendarGridProps: Record<string, unknown> & {
   todayKey?: string
 } = {}
 const calendarStatsProps: Record<string, unknown> = {}
+const monthQueryState: {
+  dayMap: Map<string, CalendarDayEntry[]>
+  error: string | null
+  isLoading: boolean
+  refresh: ReturnType<typeof vi.fn>
+} = {
+  dayMap: new Map(),
+  error: null,
+  isLoading: false,
+  refresh: vi.fn(),
+}
+const profileQueryState: {
+  profile: { weekStartDay: number; timeZone: string | null; hasProAccess: boolean } | undefined
+  error: Error | null
+  refetch: ReturnType<typeof vi.fn>
+} = {
+  profile: { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false },
+  error: null,
+  refetch: vi.fn(),
+}
+const calendarDataCalls = vi.fn()
+const logHabitMutateAsync = vi.fn(async () => {})
 const calendarDayDetailProps: {
   calendarEvents?: CalendarSyncEvent[]
   calendarEventsState?: string
   onRetryCalendarEvents?: () => void
+  loggable?: boolean
+  onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
+  onShowRecurringChange?: (value: boolean) => void
+  showRecurring?: boolean
+  showRecurringToggle?: boolean
 } = {}
 const calendarEventsQueryState: {
   data: { status: 'connected'; events: CalendarSyncEvent[] }
@@ -36,31 +63,6 @@ const calendarEventsQueryState: {
   refetch: vi.fn(),
 }
 let calendarEventsEnabled: boolean | undefined
-const monthQueryState: {
-  dayMap: Map<string, CalendarDayEntry[]>
-  error: string | null
-  isLoading: boolean
-  refresh: ReturnType<typeof vi.fn>
-} = {
-  dayMap: new Map(),
-  error: null,
-  isLoading: false,
-  refresh: vi.fn(),
-}
-const profileQueryState: {
-  profile: {
-    weekStartDay: number
-    timeZone: string | null
-    hasProAccess: boolean
-  } | undefined
-  error: Error | null
-  refetch: ReturnType<typeof vi.fn>
-} = {
-  profile: { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false },
-  error: null,
-  refetch: vi.fn(),
-}
-const calendarDataCalls = vi.fn()
 const agendaViewProps: {
   dayMap?: ReadonlyMap<string, CalendarDayEntry[]>
   isLoading?: boolean
@@ -103,6 +105,10 @@ vi.mock('@/hooks/use-calendar-events', () => ({
     calendarEventsEnabled = options?.enabled
     return calendarEventsQueryState
   },
+}))
+
+vi.mock('@/hooks/use-habits', () => ({
+  useLogHabit: () => ({ mutateAsync: logHabitMutateAsync }),
 }))
 
 vi.mock('@/hooks/use-time-format', () => ({
@@ -184,27 +190,18 @@ vi.mock('@/components/calendar/calendar-stats', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-day-detail', () => ({
-  CalendarDayDetail: (props: {
-    calendarEvents?: CalendarSyncEvent[]
-    onShowRecurringChange: (value: boolean) => void
-    showRecurring: boolean
-    showRecurringToggle?: boolean
-    calendarEventsState?: string
-    onRetryCalendarEvents?: () => void
-  }) => {
-    calendarDayDetailProps.calendarEvents = props.calendarEvents
-    calendarDayDetailProps.calendarEventsState = props.calendarEventsState
-    calendarDayDetailProps.onRetryCalendarEvents = props.onRetryCalendarEvents
+  CalendarDayDetail: (props: typeof calendarDayDetailProps) => {
+    Object.assign(calendarDayDetailProps, props)
     return (
       <div data-testid="day-detail">
-        {(props.showRecurringToggle ?? true) && (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={props.showRecurring}
-            aria-label="calendar.showRecurring"
-            onClick={() => props.onShowRecurringChange(!props.showRecurring)}
-          />
+        {props.showRecurringToggle !== false && (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={props.showRecurring}
+          aria-label="calendar.showRecurring"
+          onClick={() => props.onShowRecurringChange?.(!props.showRecurring)}
+        />
         )}
       </div>
     )
@@ -284,14 +281,6 @@ describe('CalendarPage view switcher', () => {
     isWideDesktopValue = false
     calendarGridSelectionDate = '2026-01-05'
     calendarGridProps.selectedDateStr = undefined
-    calendarDayDetailProps.calendarEvents = undefined
-    calendarDayDetailProps.calendarEventsState = undefined
-    calendarDayDetailProps.onRetryCalendarEvents = undefined
-    calendarEventsQueryState.data = { status: 'connected', events: [] }
-    calendarEventsQueryState.isPending = false
-    calendarEventsQueryState.error = null
-    calendarEventsQueryState.refetch = vi.fn()
-    calendarEventsEnabled = undefined
     calendarGridProps.dayMap = undefined
     calendarGridProps.todayKey = undefined
     calendarStatsProps.state = undefined
@@ -303,6 +292,17 @@ describe('CalendarPage view switcher', () => {
     profileQueryState.error = null
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()
+    logHabitMutateAsync.mockClear()
+    calendarEventsQueryState.data = { status: 'connected', events: [] }
+    calendarEventsQueryState.isPending = false
+    calendarEventsQueryState.error = null
+    calendarEventsQueryState.refetch = vi.fn()
+    calendarEventsEnabled = undefined
+    delete calendarDayDetailProps.calendarEvents
+    delete calendarDayDetailProps.calendarEventsState
+    delete calendarDayDetailProps.onRetryCalendarEvents
+    delete calendarDayDetailProps.loggable
+    delete calendarDayDetailProps.onEntryChange
     agendaViewProps.dayMap = undefined
     agendaViewProps.isLoading = undefined
     rangeLoading = false
@@ -319,6 +319,31 @@ describe('CalendarPage view switcher', () => {
     expect(calendarDataCalls).toHaveBeenCalledTimes(1)
     expect(screen.getAllByRole('progressbar', { name: 'calendar.loading' })).toHaveLength(2)
     expect(document.querySelector('[data-variant="grid"] > [data-cell="44"]')).toHaveAttribute('data-gap', '4')
+  })
+
+  it('does not enable the calendar event request for a free profile', () => {
+    calendarEventsQueryState.data = {
+      status: 'connected',
+      events: [
+        {
+          id: 'retained-event',
+          title: 'Retained meeting',
+          description: null,
+          startDate: formatAPIDate(new Date()),
+          startTime: '09:00',
+          endTime: null,
+          isRecurring: false,
+          recurrenceRule: null,
+          reminders: [],
+        },
+      ],
+    }
+    isWideDesktopValue = true
+
+    render(<CalendarPage />)
+
+    expect(calendarEventsEnabled).toBe(false)
+    expect(calendarDayDetailProps.calendarEvents).toEqual([])
   })
 
   it.each([
@@ -389,31 +414,6 @@ describe('CalendarPage view switcher', () => {
     } finally {
       vi.useRealTimers()
     }
-  })
-
-  it('does not enable the calendar event request for a free profile', () => {
-    calendarEventsQueryState.data = {
-      status: 'connected',
-      events: [
-        {
-          id: 'retained-event',
-          title: 'Retained meeting',
-          description: null,
-          startDate: formatAPIDate(new Date()),
-          startTime: '09:00',
-          endTime: null,
-          isRecurring: false,
-          recurrenceRule: null,
-          reminders: [],
-        },
-      ],
-    }
-    isWideDesktopValue = true
-
-    render(<CalendarPage />)
-
-    expect(calendarEventsEnabled).toBe(false)
-    expect(calendarDayDetailProps.calendarEvents).toEqual([])
   })
 
   it.each([
@@ -563,6 +563,29 @@ describe('CalendarPage view switcher', () => {
     expect(calendarGridProps.currentMonth).toEqual(new Date(2026, 1, 1))
     expect(calendarGridProps.selectedDateStr).toBe(futureDay)
     expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
+  })
+
+  it('logs a selected writable day with its selected date', async () => {
+    isWideDesktopValue = true
+    const entry: CalendarDayEntry = {
+      habitId: 'habit-1',
+      title: 'Read',
+      status: 'upcoming',
+      isBadHabit: false,
+      dueTime: null,
+      isOneTime: false,
+    }
+    const selectedDate = formatAPIDate(new Date())
+    monthQueryState.dayMap = new Map([[selectedDate, [entry]]])
+    render(<CalendarPage />)
+
+    await calendarDayDetailProps.onEntryChange?.(entry, true)
+
+    expect(calendarDayDetailProps.loggable).toBe(true)
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      date: selectedDate,
+    })
   })
 
   it("passes only the selected day's Google events to the day detail", () => {
