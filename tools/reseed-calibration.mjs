@@ -92,6 +92,8 @@ const VERDICTS = {
     "undeclared, inherits the session: it fans out web-researcher subagents that carry their own sonnet/medium tuning, so the orchestrating half inheriting the session is defensible today.",
   ".claude/skills/dev-server/SKILL.md":
     "current: brings up Docker, the API and the web server in dependency order with readiness gates, which is mechanical, so low effort is right.",
+  ".claude/skills/drift-review/SKILL.md":
+    "undeclared, inherits the session: it judges repeated evidence against the current workflow files, but every result remains a staged candidate for human review.",
   ".claude/skills/handoff/SKILL.md":
     "current: high effort, and it earns it: it decides what a fresh session cannot rediscover, and under-thinking it is how a handoff loses the one fact written nowhere else.",
   ".claude/skills/investigate/SKILL.md":
