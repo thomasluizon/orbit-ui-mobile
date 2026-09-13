@@ -37,13 +37,13 @@ import maxButtonWords from "../../eslint-rules/max-button-words.cjs"
 
 const maxButtonWordControls = [
   { name: "button", labelProps: ["children", "aria-label"] },
-  { name: "PillButton", labelProps: ["children", "label"] },
-  { name: "Button", labelProps: ["children", "label"] },
-  { name: "Chip", labelProps: ["children"] },
+  { name: "PillButton", labelProps: ["children", "label", "accessibleName"] },
+  { name: "Button", labelProps: ["children", "label", "accessibleName"] },
+  { name: "Chip", labelProps: ["children", "ariaLabel"] },
   { name: "Pressable", labelProps: ["children"], roles: ["button", "tab", "menuitem"] },
   { name: "SegmentedControl", collectionProps: ["options"] },
   { name: "BottomTabBar", collectionProps: ["items"] },
-  { name: "ListRow", labelProps: ["title"] },
+  { name: "ListRow", labelProps: ["title", "accessibilityLabel"] },
 ]
 
 export default [

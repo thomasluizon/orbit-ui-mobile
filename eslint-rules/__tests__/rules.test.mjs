@@ -34,13 +34,13 @@ const rule = (name) => require(`../${name}.cjs`)
 const maxButtonWordsOptions = [{
   controls: [
     { name: 'button', labelProps: ['children', 'aria-label'] },
-    { name: 'PillButton', labelProps: ['children', 'label'] },
-    { name: 'Button', labelProps: ['children', 'label'] },
-    { name: 'Chip', labelProps: ['children'] },
+    { name: 'PillButton', labelProps: ['children', 'label', 'accessibleName'] },
+    { name: 'Button', labelProps: ['children', 'label', 'accessibleName'] },
+    { name: 'Chip', labelProps: ['children', 'ariaLabel', 'accessibilityLabel'] },
     { name: 'Pressable', labelProps: ['children', 'accessibilityLabel'], roles: ['button', 'tab', 'menuitem'] },
     { name: 'SegmentedControl', collectionProps: ['options'] },
     { name: 'BottomTabBar', collectionProps: ['items'] },
-    { name: 'ListRow', labelProps: ['title'] },
+    { name: 'ListRow', labelProps: ['title', 'accessibilityLabel'] },
   ],
 }]
 
@@ -897,6 +897,26 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
       errors: [maxWordsError('PillButton', 'Open navigation menu', 'source', 3)],
     },
     {
+      code: '<PillButton accessibleName="Open payment settings">Change</PillButton>',
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('PillButton', 'Open payment settings', 'source', 3)],
+    },
+    {
+      code: '<Button accessibleName="Open payment settings">Change</Button>',
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('Button', 'Open payment settings', 'source', 3)],
+    },
+    {
+      code: '<Chip ariaLabel="Open filter options">Filters</Chip>',
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('Chip', 'Open filter options', 'source', 3)],
+    },
+    {
+      code: '<Chip accessibilityLabel="Open filter options">Filters</Chip>',
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('Chip', 'Open filter options', 'source', 3)],
+    },
+    {
       code: '<button aria-label="Open navigation menu" />',
       options: maxButtonWordsOptions,
       errors: [maxWordsError('button', 'Open navigation menu', 'source', 3)],
@@ -944,6 +964,11 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
       code: "const { t } = useTranslation(); const row = <ListRow title={t('common.retry')} />",
       options: maxButtonWordsOptions,
       errors: [maxWordsError('ListRow', 'Tentar de novo', 'pt-BR', 3)],
+    },
+    {
+      code: '<ListRow title="Settings" accessibilityLabel="Open account settings" />',
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('ListRow', 'Open account settings', 'source', 3)],
     },
   ],
 })
