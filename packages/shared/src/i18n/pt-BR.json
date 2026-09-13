@@ -1322,11 +1322,11 @@
       "description": "Escolha seu idioma"
     },
     "aiSummary": {
-      "title": "Resumo diário",
+      "title": "Resumo do dia pelo Astra",
       "description": "Com isso ativado, o Orbit cria um resumo personalizado do seu dia na tela de hábitos."
     },
     "proactiveAstra": {
-      "title": "Check-ins proativos",
+      "title": "Astra avisa quando algo escapa",
       "description": "Deixe a Astra te procurar com um empurrãozinho personalizado quando você ficar para trás, mesmo que você esqueça de abrir o app."
     },
     "marketingEmails": {

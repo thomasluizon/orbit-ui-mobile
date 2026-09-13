@@ -1,9 +1,12 @@
-import { useMemo, useState } from 'react'
-import { Linking, StyleSheet, Text } from 'react-native'
+import { type ReactNode, useMemo, useState } from 'react'
+import { Linking, StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { API } from '@orbit/shared/api'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useShellNoticeSlot } from '@orbit/shared/hooks'
+import { habitKeys } from '@orbit/shared/query'
 import { buildWeekStartOptions } from '@orbit/shared/utils'
 import {
   PROFILE_NAV_ITEMS,
@@ -25,17 +28,22 @@ import {
 } from '@/components/ui/icons'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
-import { ProfileSettingsFrame } from '@/components/profile/profile-settings-frame'
+import {
+  ProfileSettingsFrame,
+  ProfileValueRow,
+} from '@/components/profile/profile-settings-frame'
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { ListRow } from '@/components/ui/list-row'
 import { RowList } from '@/components/ui/row-list'
 import { ProBadge } from '@/components/ui/pro-badge'
+import { Switch } from '@/components/ui/switch'
 import { Toast } from '@/components/ui/app-toast'
 import { useLogout } from '@/hooks/use-logout'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { createTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { usePreferenceControls } from '@/app/use-preference-controls'
+import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
 import {
   PreferencePickerSheet,
@@ -51,6 +59,7 @@ import { useDataExport } from './use-data-export'
 interface ProfileSettingsContentProps {
   profile: Profile | undefined
   isLoading: boolean
+  patchProfile: (patch: Partial<Profile>) => void
 }
 
 type Translate = ReturnType<typeof useTranslation>['t']
@@ -96,7 +105,107 @@ function buildYouRows(
   ]
 }
 
-function buildAstraRows({ profile, router, t, tokens }: RowContext) {
+interface AstraSettings {
+  aiSummaryEnabled: boolean
+  proactiveAstraEnabled: boolean
+  summaryPending: boolean
+  proactivePending: boolean
+  onToggleSummary: (enabled: boolean) => void
+  onToggleProactive: (enabled: boolean) => void
+}
+
+interface PendingSwitchBoundaryProps {
+  pending: boolean
+  checked: boolean
+  label: string
+  children: ReactNode
+}
+
+function PendingSwitchBoundary({
+  pending,
+  checked,
+  label,
+  children,
+}: Readonly<PendingSwitchBoundaryProps>) {
+  return (
+    <View
+      pointerEvents={pending ? 'none' : 'auto'}
+      accessible={pending}
+      accessibilityRole={pending ? 'switch' : undefined}
+      accessibilityLabel={pending ? label : undefined}
+      accessibilityState={pending ? { checked, disabled: true } : undefined}
+    >
+      <View
+        accessibilityElementsHidden={pending}
+        importantForAccessibility={pending ? 'no-hide-descendants' : 'auto'}
+      >
+        {children}
+      </View>
+    </View>
+  )
+}
+
+function useAstraSettings(
+  profile: Profile | undefined,
+  patchProfile: (patch: Partial<Profile>) => void,
+): AstraSettings {
+  const queryClient = useQueryClient()
+  const aiSummaryMutation = useMutation({
+    mutationFn: (enabled: boolean) => performQueuedApiMutation({
+      type: 'setAiSummary',
+      scope: 'profile',
+      endpoint: API.profile.aiSummary,
+      method: 'PUT',
+      payload: { enabled },
+      dedupeKey: 'profile-ai-summary',
+    }),
+    onMutate: (enabled) => {
+      const previous = profile?.aiSummaryEnabled
+      patchProfile({ aiSummaryEnabled: enabled })
+      return { previous }
+    },
+    onError: (_error, _enabled, context) => {
+      if (context?.previous !== undefined) patchProfile({ aiSummaryEnabled: context.previous })
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+    },
+  })
+  // react-doctor-disable-next-line query-mutation-missing-invalidation -- The optimistic profile cache update mirrors the stored boolean and rolls back on error. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+  const proactiveMutation = useMutation({
+    mutationFn: (enabled: boolean) => performQueuedApiMutation({
+      type: 'setProactiveAstra',
+      scope: 'profile',
+      endpoint: API.profile.proactiveAstra,
+      method: 'PUT',
+      payload: { enabled },
+      dedupeKey: 'profile-proactive-astra',
+    }),
+    onMutate: (enabled) => {
+      const previous = profile?.proactiveAstraEnabled
+      patchProfile({ proactiveAstraEnabled: enabled })
+      return { previous }
+    },
+    onError: (_error, _enabled, context) => {
+      if (context?.previous !== undefined) patchProfile({ proactiveAstraEnabled: context.previous })
+    },
+  })
+
+  return {
+    aiSummaryEnabled: profile?.aiSummaryEnabled ?? false,
+    proactiveAstraEnabled: profile?.proactiveAstraEnabled ?? false,
+    summaryPending: aiSummaryMutation.isPending,
+    proactivePending: proactiveMutation.isPending,
+    onToggleSummary: (enabled) => aiSummaryMutation.mutate(enabled),
+    onToggleProactive: (enabled) => proactiveMutation.mutate(enabled),
+  }
+}
+
+function buildAstraRows(
+  { profile, router, t, tokens }: RowContext,
+  settings: AstraSettings,
+) {
+  const onUpgrade = () => router.push(buildUpgradeHref('/profile'))
   return (
     <>
       {profile ? (
@@ -104,6 +213,51 @@ function buildAstraRows({ profile, router, t, tokens }: RowContext) {
           profile={profile}
           onPlanAction={() => router.push(buildUpgradeHref('/profile'))}
         />
+      ) : null}
+      {profile ? (
+        <RowList>
+          {profile.hasProAccess ? (
+            <>
+              <ProfileValueRow
+                label={t('profile.proactiveAstra.title')}
+                control={(
+                  <PendingSwitchBoundary
+                    pending={settings.proactivePending}
+                    checked={settings.proactiveAstraEnabled}
+                    label={t('profile.proactiveAstra.title')}
+                  >
+                    <Switch
+                      checked={settings.proactiveAstraEnabled}
+                      onChange={settings.onToggleProactive}
+                      label={t('profile.proactiveAstra.title')}
+                    />
+                  </PendingSwitchBoundary>
+                )}
+              />
+              <ProfileValueRow
+                label={t('profile.aiSummary.title')}
+                control={(
+                  <PendingSwitchBoundary
+                    pending={settings.summaryPending}
+                    checked={settings.aiSummaryEnabled}
+                    label={t('profile.aiSummary.title')}
+                  >
+                    <Switch
+                      checked={settings.aiSummaryEnabled}
+                      onChange={settings.onToggleSummary}
+                      label={t('profile.aiSummary.title')}
+                    />
+                  </PendingSwitchBoundary>
+                )}
+              />
+            </>
+          ) : (
+            <>
+              <ListRow icon={icon(Lock, tokens.fg1)} title={t('profile.proactiveAstra.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
+              <ListRow icon={icon(Lock, tokens.fg1)} title={t('profile.aiSummary.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
+            </>
+          )}
+        </RowList>
       ) : null}
       <RowList>
         <ListRow key="api-keys" icon={icon(Lock, tokens.fg1)} title={t('profile.settingsRows.apiKeysMcp')} onClick={() => router.push('/advanced')} />
@@ -259,6 +413,7 @@ function buildEndingRows({
 export function ProfileSettingsContent({
   profile,
   isLoading,
+  patchProfile,
 }: Readonly<ProfileSettingsContentProps>) {
   const { t } = useTranslation()
   const router = useRouter()
@@ -279,6 +434,7 @@ export function ProfileSettingsContent({
   const [showEditName, setShowEditName] = useState(false)
   const [showFreshStart, setShowFreshStart] = useState(false)
   const [showDeleteAccount, setShowDeleteAccount] = useState(false)
+  const astraSettings = useAstraSettings(profile, patchProfile)
   useShellNoticeSlot(
     exportDone,
     () => (
@@ -300,7 +456,7 @@ export function ProfileSettingsContent({
       () => void exportData(),
       () => preferenceControls.setActivePicker('timeZone'),
     ),
-    astra: buildAstraRows(context),
+    astra: buildAstraRows(context, astraSettings),
     notifications: buildNotificationRows(t, tokens, push),
     more: buildMoreRows(context),
     ending: buildEndingRows({

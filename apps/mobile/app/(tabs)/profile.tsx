@@ -11,7 +11,7 @@ import { ProfileSettingsContent } from './profile/_components/profile-settings-c
 
 export default function ProfileScreen() {
   const { t } = useTranslation()
-  const { profile, isLoading, error } = useProfile()
+  const { profile, isLoading, error, patchProfile } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -39,7 +39,11 @@ export default function ProfileScreen() {
             </Text>
           </View>
         ) : null}
-        <ProfileSettingsContent profile={profile} isLoading={isLoading} />
+        <ProfileSettingsContent
+          profile={profile}
+          isLoading={isLoading}
+          patchProfile={patchProfile}
+        />
       </ScrollView>
     </SafeAreaView>
   )

@@ -1322,11 +1322,11 @@
       "description": "Select your preferred language"
     },
     "aiSummary": {
-      "title": "Daily Summary",
+      "title": "Daily summary from Astra",
       "description": "When enabled, Orbit generates a personalized AI summary of your day on the habits screen."
     },
     "proactiveAstra": {
-      "title": "Proactive check-ins",
+      "title": "Astra tells you when something slips",
       "description": "Let Astra reach out with a personalized nudge when you fall behind, even if you forget to open the app."
     },
     "marketingEmails": {

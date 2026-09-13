@@ -5,14 +5,20 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
 const {
   mockExportUserData,
+  mockUpdateAiSummary,
+  mockUpdateProactiveAstra,
   mockShellNoticeSlot,
   mockUseGamificationProfile,
+  mockPatchProfile,
   mockProfileState,
   mockRouterPush,
 } = vi.hoisted(() => ({
   mockExportUserData: vi.fn(),
+  mockUpdateAiSummary: vi.fn(),
+  mockUpdateProactiveAstra: vi.fn(),
   mockShellNoticeSlot: vi.fn(),
   mockUseGamificationProfile: vi.fn(() => ({ profile: null })),
+  mockPatchProfile: vi.fn(),
   mockRouterPush: vi.fn(),
   mockProfileState: {
     current: {
@@ -23,7 +29,11 @@ const {
   },
 }))
 
-vi.mock('@/app/actions/profile', () => ({ exportUserData: mockExportUserData }))
+vi.mock('@/app/actions/profile', () => ({
+  exportUserData: mockExportUserData,
+  updateAiSummary: mockUpdateAiSummary,
+  updateProactiveAstra: mockUpdateProactiveAstra,
+}))
 
 vi.mock('@orbit/shared/hooks', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -54,14 +64,14 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({
     invalidateQueries: vi.fn(),
   }),
-  useMutation: () => ({
-    mutate: vi.fn(),
+  useMutation: (options: { mutationFn?: (value: boolean) => unknown }) => ({
+    mutate: (value: boolean) => options.mutationFn?.(value),
     isPending: false,
   }),
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => mockProfileState.current,
+  useProfile: () => ({ ...mockProfileState.current, patchProfile: mockPatchProfile }),
   useTrialDaysLeft: () => 0,
   useTrialExpired: () => true,
 }))
@@ -131,7 +141,10 @@ import ProfilePage from '@/app/(app)/profile/page'
 describe('ProfilePage', () => {
   beforeEach(() => {
     mockExportUserData.mockReset()
+    mockUpdateAiSummary.mockReset()
+    mockUpdateProactiveAstra.mockReset()
     mockShellNoticeSlot.mockReset()
+    mockPatchProfile.mockReset()
     Object.defineProperties(URL, {
       createObjectURL: { configurable: true, value: vi.fn(() => 'blob:export') },
       revokeObjectURL: { configurable: true, value: vi.fn() },
@@ -218,11 +231,35 @@ describe('ProfilePage', () => {
     expect(progress).toHaveAttribute('aria-valuemax', '5')
     expect(astra.getByText('profile.allowance.usage')).toBeInTheDocument()
     expect(astra.queryByText('profile.allowance.spent')).not.toBeInTheDocument()
-    expect(astra.queryByText('profile.proactiveAstra.title')).not.toBeInTheDocument()
-    expect(astra.queryByText('profile.aiSummary.title')).not.toBeInTheDocument()
+    const proactiveGate = astra.getByRole('button', { name: /profile\.proactiveAstra\.title/i })
+    const summaryGate = astra.getByRole('button', { name: /profile\.aiSummary\.title/i })
     expect(astra.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
 
     expect(astra.getByRole('link', { name: 'profile.allowance.seePro' })).toHaveAttribute('href', '/upgrade')
+    fireEvent.click(proactiveGate)
+    fireEvent.click(summaryGate)
+    expect(mockRouterPush).toHaveBeenNthCalledWith(1, '/upgrade')
+    expect(mockRouterPush).toHaveBeenNthCalledWith(2, '/upgrade')
+  })
+
+  it('shows trial copy and routes its allowance action to the trial pitch', () => {
+    mockProfileState.current = {
+      profile: createMockProfile({
+        plan: 'pro',
+        hasProAccess: true,
+        isTrialActive: true,
+        aiMessagesUsed: 2,
+        aiMessagesLimit: 50,
+      }),
+      isLoading: false,
+      error: null,
+    }
+    render(<ProfilePage />)
+
+    const astra = within(screen.getByTestId('profile-settings-group-astra'))
+    expect(astra.getByText('profile.subscription.trial')).toBeInTheDocument()
+    expect(astra.getByRole('link', { name: 'profile.allowance.seePro' })).toHaveAttribute('href', '/upgrade')
+    expect(astra.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
   })
 
   it('shows a spent Pro allowance and hands subscription management off directly', () => {
@@ -247,6 +284,12 @@ describe('ProfilePage', () => {
     expect(astra.queryByRole('link', { name: 'profile.allowance.seePro' })).not.toBeInTheDocument()
 
     expect(astra.getByRole('link', { name: 'profile.allowance.manageSubscription' })).toHaveAttribute('href', '/upgrade')
+    const proactiveSwitch = astra.getByRole('switch', { name: 'profile.proactiveAstra.title' })
+    const summarySwitch = astra.getByRole('switch', { name: 'profile.aiSummary.title' })
+    fireEvent.click(proactiveSwitch)
+    fireEvent.click(summarySwitch)
+    expect(mockUpdateProactiveAstra).toHaveBeenCalledWith({ enabled: true })
+    expect(mockUpdateAiSummary).toHaveBeenCalledWith({ enabled: false })
   })
 
   it('places export last in You instead of Ending things', () => {

@@ -6,7 +6,7 @@ import { ProfileSettingsContent } from './_components/profile-settings-content'
 
 export default function ProfilePage() {
   const t = useTranslations()
-  const { profile, isLoading, error } = useProfile()
+  const { profile, isLoading, error, patchProfile } = useProfile()
 
   return (
     <div className="flex flex-col" style={{ gap: 12 }}>
@@ -17,7 +17,11 @@ export default function ProfilePage() {
             : t('errors.loadProfile')}
         </p>
       ) : null}
-      <ProfileSettingsContent profile={profile} isLoading={isLoading} />
+      <ProfileSettingsContent
+        profile={profile}
+        isLoading={isLoading}
+        patchProfile={patchProfile}
+      />
     </div>
   )
 }

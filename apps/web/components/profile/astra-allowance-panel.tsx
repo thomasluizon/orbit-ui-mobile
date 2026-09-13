@@ -14,15 +14,17 @@ export function AstraAllowancePanel({
   profile,
 }: Readonly<AstraAllowancePanelProps>) {
   const t = useTranslations()
-  const isPro = profile.hasProAccess
+  const isPaidPro = profile.hasProAccess && !profile.isTrialActive
   const isSpent = profile.aiMessagesLimit > 0
     && profile.aiMessagesUsed >= profile.aiMessagesLimit
-  const actionLabel = isPro
+  const actionLabel = isPaidPro
     ? t('profile.allowance.manageSubscription')
     : t('profile.allowance.seePro')
-  const planLabel = isPro
-    ? t('profile.allowance.pro')
-    : t('profile.allowance.free')
+  const planLabel = profile.isTrialActive
+    ? t('profile.subscription.trial')
+    : isPaidPro
+      ? t('profile.allowance.pro')
+      : t('profile.allowance.free')
 
   return (
     <div
