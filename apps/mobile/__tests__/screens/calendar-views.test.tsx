@@ -13,7 +13,7 @@ const state = vi.hoisted(() => ({
   rangeMap: new Map<string, CalendarDayEntry[]>(),
   monthError: null as string | null,
   monthRefresh: () => {},
-  profile: undefined as { weekStartDay: number } | undefined,
+  profile: undefined as { weekStartDay: 0 | 1; timeZone: string | null } | undefined,
   profileError: null as Error | null,
   profileRefetch: vi.fn(),
   calendarDataCalls: vi.fn(),
@@ -113,6 +113,7 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-day-detail", () => ({
 type TestNode = { type: unknown; props: Record<string, any> };
 type Tree = {
   root: { findAll: (predicate: (node: TestNode) => boolean) => TestNode[] };
+  update: (element: React.ReactElement) => void;
 };
 
 function makeEntry(overrides: Partial<CalendarDayEntry>): CalendarDayEntry {
@@ -153,12 +154,23 @@ function pressView(tree: Tree, view: string) {
   });
 }
 
+function renderMonthHeader(tree: Tree): import("react-test-renderer").ReactTestRenderer {
+  const flatList = tree.root.findAll(
+    (node) => typeof node.type === "string" && node.type === "FlatList",
+  )[0];
+  let headerTree!: import("react-test-renderer").ReactTestRenderer;
+  TestRenderer.act(() => {
+    headerTree = TestRenderer.create(flatList!.props.ListHeaderComponent);
+  });
+  return headerTree;
+}
+
 describe("CalendarScreen views (mobile)", () => {
   beforeEach(() => {
     calendarGridProps.current = null;
     state.monthError = null;
     state.monthRefresh = () => {};
-    state.profile = { weekStartDay: 1 };
+    state.profile = { weekStartDay: 1, timeZone: "UTC" };
     state.profileError = null;
     state.profileRefetch = vi.fn();
     state.calendarDataCalls.mockClear();
@@ -226,6 +238,98 @@ describe("CalendarScreen views (mobile)", () => {
     });
     expect(calendarGridProps.current?.selectedDay).toBe(formatAPIDate(new Date()));
     TestRenderer.act(() => headerTree.update(<></>));
+  });
+
+  it("uses UTC when the mounted screen has a nullable account timezone", () => {
+    const originalTimeZone = process.env.TZ;
+    process.env.TZ = "America/Sao_Paulo";
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-12T01:30:00.000Z"));
+    state.profile = { weekStartDay: 1, timeZone: null };
+    let tree!: Tree;
+    let headerTree!: import("react-test-renderer").ReactTestRenderer;
+    try {
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(<CalendarScreen />);
+      });
+      headerTree = renderMonthHeader(tree);
+
+      expect(calendarGridProps.current?.todayKey).toBe("2026-09-12");
+    } finally {
+      TestRenderer.act(() => headerTree.update(<></>));
+      vi.useRealTimers();
+      if (originalTimeZone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimeZone;
+    }
+  });
+
+  it("advances at account midnight while the device remains on the previous day", () => {
+    const originalTimeZone = process.env.TZ;
+    process.env.TZ = "America/Sao_Paulo";
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-11T09:59:30.000Z"));
+    state.profile = { weekStartDay: 1, timeZone: "Pacific/Kiritimati" };
+    let tree!: Tree;
+    let headerTree!: import("react-test-renderer").ReactTestRenderer;
+    try {
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(<CalendarScreen />);
+      });
+      headerTree = renderMonthHeader(tree);
+      expect(calendarGridProps.current?.todayKey).toBe("2026-09-11");
+
+      TestRenderer.act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      const flatList = tree.root.findAll(
+        (node) => typeof node.type === "string" && node.type === "FlatList",
+      )[0];
+      TestRenderer.act(() => {
+        headerTree.update(flatList!.props.ListHeaderComponent);
+      });
+      expect(calendarGridProps.current?.todayKey).toBe("2026-09-12");
+    } finally {
+      TestRenderer.act(() => headerTree.update(<></>));
+      vi.useRealTimers();
+      if (originalTimeZone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimeZone;
+    }
+  });
+
+  it("reclassifies days immediately after a mounted profile timezone change", () => {
+    const originalTimeZone = process.env.TZ;
+    process.env.TZ = "America/Sao_Paulo";
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-11T10:30:00.000Z"));
+    state.profile = { weekStartDay: 1, timeZone: "Pacific/Kiritimati" };
+    let tree!: Tree;
+    let headerTree!: import("react-test-renderer").ReactTestRenderer;
+    try {
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(<CalendarScreen />);
+      });
+      headerTree = renderMonthHeader(tree);
+      expect(calendarGridProps.current?.todayKey).toBe("2026-09-12");
+
+      state.profile = { weekStartDay: 1, timeZone: "America/Los_Angeles" };
+      TestRenderer.act(() => {
+        tree.update(<CalendarScreen />);
+      });
+      const flatList = tree.root.findAll(
+        (node) => typeof node.type === "string" && node.type === "FlatList",
+      )[0];
+      TestRenderer.act(() => {
+        headerTree.update(flatList!.props.ListHeaderComponent);
+      });
+
+      expect(calendarGridProps.current?.todayKey).toBe("2026-09-11");
+    } finally {
+      TestRenderer.act(() => tree.update(<></>));
+      TestRenderer.act(() => headerTree.update(<></>));
+      vi.useRealTimers();
+      if (originalTimeZone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimeZone;
+    }
   });
 
   it('loads calendar data concurrently while the profile resolves', () => {

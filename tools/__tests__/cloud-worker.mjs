@@ -520,6 +520,8 @@ cloud.persistReconciledReceipt(receipt, workerData.mirrorPath, [], { lockTimeout
     "cloud-worker/blocked-receipt-writer.mjs",
     `import { parentPort, workerData } from "node:worker_threads"
 const cloud = await import(${JSON.stringify(pathToFileURL(toolPath("lib/cloud-worker.mjs")).href)})
+const timeoutClock = [0, 0, 0, workerData.lockTimeoutMs + 1, workerData.lockTimeoutMs + 1]
+Object.defineProperty(performance, "now", { value: () => timeoutClock.shift() ?? workerData.lockTimeoutMs + 1 })
 const startedAt = performance.now()
 try {
   cloud.persistReconciledReceipt({ taskId: "task_e_a4" }, workerData.mirrorPath, [], {
@@ -556,8 +558,7 @@ try {
       blockedResult.code === "RECEIPT_LOCK_TIMEOUT" &&
       blockedResult.timeoutMs === receiptLockTimeoutMs &&
       blockedResult.ownerPid === process.pid &&
-      blockedResult.elapsedMs >= receiptLockTimeoutMs &&
-      blockedResult.elapsedMs < receiptLockTimeoutMs + 500,
+      blockedResult.elapsedMs === receiptLockTimeoutMs + 1,
     JSON.stringify(blockedResult),
   )
 
