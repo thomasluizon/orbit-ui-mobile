@@ -307,9 +307,8 @@ compiled defaults as offline evidence only because live `AppConfigs` rows can ov
 claim is **High**. In the orbit-api repo, regenerate the matrix and verify the affected entry instead of
 guessing or requesting a hand-written frontend update.
 
-**Currently unverifiable inventory dimensions:** tab membership, Astra and MCP tool counts, feature platform
-availability beyond route or screen presence, locale-specific behaviour, feature descriptions, and in-app
-guide coverage have no authoritative generated source.
+Non-gating feature inventory review is currently unverifiable because no authoritative generated source exists,
+so it does not trigger this rubric.
 
 ### 13. External-interface evidence
 
