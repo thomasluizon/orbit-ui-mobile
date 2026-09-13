@@ -129,6 +129,16 @@
       }
     ]
   },
+  "eslint-rules/max-button-words.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "maximum control label words",
+        "source": "DESIGN.md Buttons and Copy"
+      }
+    ]
+  },
   "eslint-rules/mobile-supabase-lazy.cjs": {
     "scope": "changed-files",
     "snapshot": "none",
