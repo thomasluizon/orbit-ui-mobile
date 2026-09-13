@@ -40,7 +40,7 @@ const maxButtonWordControls = [
   { name: "Pressable", labelProps: ["children", "accessibilityLabel"], roles: ["button", "tab", "menuitem"] },
   { name: "SegmentedControl", collectionProps: ["options"] },
   { name: "BottomTabBar", collectionProps: ["items"] },
-  { name: "ListRow", labelProps: ["title", "accessibilityLabel"] },
+  { name: "ListRow", labelProps: ["title", "accessibilityLabel", "action.label"] },
 ]
 
 // https://github.com/expo/expo/issues/43758 — eslint-config-expo@56 bundles react-hooks v7 and

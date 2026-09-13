@@ -241,9 +241,50 @@ function collectionCandidates(node, sourceCode, seen = new Set()) {
   return []
 }
 
+function nestedPropertyCandidates(node, path, sourceCode, seen = new Set()) {
+  if (path.length === 0) return sourceCandidates(node, sourceCode)
+
+  const value = unwrap(node)
+  if (!value || seen.has(value)) return []
+  seen.add(value)
+
+  if (value.type === 'Identifier') {
+    return nestedPropertyCandidates(bindingValue(value, sourceCode), path, sourceCode, seen)
+  }
+  if (value.type === 'CallExpression' && callName(value) === 'useMemo') {
+    return nestedPropertyCandidates(functionResult(value.arguments[0]), path, sourceCode, seen)
+  }
+  if (value.type === 'ObjectExpression') {
+    const property = value.properties.find(
+      (candidate) => candidate.type === 'Property' && getPropertyKeyName(candidate) === path[0],
+    )
+    return property?.type === 'Property'
+      ? nestedPropertyCandidates(property.value, path.slice(1), sourceCode, seen)
+      : []
+  }
+  if (value.type === 'ConditionalExpression') {
+    return [
+      ...nestedPropertyCandidates(value.consequent, path, sourceCode, seen),
+      ...nestedPropertyCandidates(value.alternate, path, sourceCode, seen),
+    ]
+  }
+  if (value.type === 'LogicalExpression') {
+    return [
+      ...nestedPropertyCandidates(value.left, path, sourceCode, seen),
+      ...nestedPropertyCandidates(value.right, path, sourceCode, seen),
+    ]
+  }
+  return []
+}
+
 function attributeCandidates(openingElement, prop, sourceCode) {
-  const attribute = getAttribute(openingElement, prop)
-  return attribute ? sourceCandidates(getAttributeValueNode(attribute), sourceCode) : []
+  const [attributeName, ...path] = prop.split('.')
+  const attribute = getAttribute(openingElement, attributeName)
+  if (!attribute) return []
+  const value = getAttributeValueNode(attribute)
+  return path.length === 0
+    ? sourceCandidates(value, sourceCode)
+    : nestedPropertyCandidates(value, path, sourceCode)
 }
 
 function roleMatches(openingElement, roles) {

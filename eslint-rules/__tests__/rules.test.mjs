@@ -13,8 +13,10 @@ import { afterAll, describe, it } from 'vitest'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import webEslintConfig from '../../apps/web/eslint.config.mjs'
 
 const require = createRequire(import.meta.url)
+const mobileEslintConfig = require('../../apps/mobile/eslint.config.js')
 
 RuleTester.describe = describe
 RuleTester.it = it
@@ -25,24 +27,27 @@ const ruleTester = new RuleTester({
     parser: tsParser,
     ecmaVersion: 2022,
     sourceType: 'module',
-    parserOptions: { ecmaFeatures: { jsx: true } },
+    parserOptions: {
+      ecmaFeatures: { jsx: true },
+      tsconfigRootDir: dirname(fileURLToPath(import.meta.url)),
+    },
   },
 })
 
 const rule = (name) => require(`../${name}.cjs`)
 
-const maxButtonWordsOptions = [{
-  controls: [
-    { name: 'button', labelProps: ['children', 'aria-label'] },
-    { name: 'PillButton', labelProps: ['children', 'label', 'accessibleName'] },
-    { name: 'Button', labelProps: ['children', 'label', 'accessibleName'] },
-    { name: 'Chip', labelProps: ['children', 'ariaLabel', 'accessibilityLabel'] },
-    { name: 'Pressable', labelProps: ['children', 'accessibilityLabel'], roles: ['button', 'tab', 'menuitem'] },
-    { name: 'SegmentedControl', collectionProps: ['options'] },
-    { name: 'BottomTabBar', collectionProps: ['items'] },
-    { name: 'ListRow', labelProps: ['title', 'accessibilityLabel'] },
-  ],
-}]
+const maxButtonWordsOptionsFrom = (config, platform) => {
+  const registration = config
+    .flat()
+    .map((entry) => entry?.rules?.['local/max-button-words'])
+    .find((configuredRule) => Array.isArray(configuredRule) && configuredRule[0] === 'error')
+  if (!registration?.[1]) throw new Error(`${platform} must register local/max-button-words at error`)
+  return [registration[1]]
+}
+
+const webMaxButtonWordsOptions = maxButtonWordsOptionsFrom(webEslintConfig, 'web')
+const mobileMaxButtonWordsOptions = maxButtonWordsOptionsFrom(mobileEslintConfig, 'mobile')
+const maxButtonWordsOptions = webMaxButtonWordsOptions
 
 const maxWordsError = (control, label, locale, count) => ({
   messageId: 'tooManyWords',
@@ -898,22 +903,32 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
     },
     {
       code: '<PillButton accessibleName="Open payment settings">Change</PillButton>',
-      options: maxButtonWordsOptions,
+      options: webMaxButtonWordsOptions,
+      errors: [maxWordsError('PillButton', 'Open payment settings', 'source', 3)],
+    },
+    {
+      code: '<PillButton accessibleName="Open payment settings">Change</PillButton>',
+      options: mobileMaxButtonWordsOptions,
       errors: [maxWordsError('PillButton', 'Open payment settings', 'source', 3)],
     },
     {
       code: '<Button accessibleName="Open payment settings">Change</Button>',
-      options: maxButtonWordsOptions,
+      options: webMaxButtonWordsOptions,
+      errors: [maxWordsError('Button', 'Open payment settings', 'source', 3)],
+    },
+    {
+      code: '<Button accessibleName="Open payment settings">Change</Button>',
+      options: mobileMaxButtonWordsOptions,
       errors: [maxWordsError('Button', 'Open payment settings', 'source', 3)],
     },
     {
       code: '<Chip ariaLabel="Open filter options">Filters</Chip>',
-      options: maxButtonWordsOptions,
+      options: webMaxButtonWordsOptions,
       errors: [maxWordsError('Chip', 'Open filter options', 'source', 3)],
     },
     {
       code: '<Chip accessibilityLabel="Open filter options">Filters</Chip>',
-      options: maxButtonWordsOptions,
+      options: mobileMaxButtonWordsOptions,
       errors: [maxWordsError('Chip', 'Open filter options', 'source', 3)],
     },
     {
@@ -923,7 +938,7 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
     },
     {
       code: '<Pressable accessibilityRole="button" accessibilityLabel="Open navigation menu" />',
-      options: maxButtonWordsOptions,
+      options: mobileMaxButtonWordsOptions,
       errors: [maxWordsError('Pressable', 'Open navigation menu', 'source', 3)],
     },
     {
@@ -967,8 +982,23 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
     },
     {
       code: '<ListRow title="Settings" accessibilityLabel="Open account settings" />',
-      options: maxButtonWordsOptions,
+      options: webMaxButtonWordsOptions,
       errors: [maxWordsError('ListRow', 'Open account settings', 'source', 3)],
+    },
+    {
+      code: '<ListRow title="Settings" accessibilityLabel="Open account settings" />',
+      options: mobileMaxButtonWordsOptions,
+      errors: [maxWordsError('ListRow', 'Open account settings', 'source', 3)],
+    },
+    {
+      code: '<ListRow title="Settings" action={{ icon: "trash", label: "Remove this account", onPress }} />',
+      options: webMaxButtonWordsOptions,
+      errors: [maxWordsError('ListRow', 'Remove this account', 'source', 3)],
+    },
+    {
+      code: '<ListRow title="Settings" action={{ icon: "trash", label: "Remove this account", onPress }} />',
+      options: mobileMaxButtonWordsOptions,
+      errors: [maxWordsError('ListRow', 'Remove this account', 'source', 3)],
     },
   ],
 })

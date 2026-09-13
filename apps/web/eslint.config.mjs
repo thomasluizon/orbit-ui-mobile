@@ -43,7 +43,7 @@ const maxButtonWordControls = [
   { name: "Pressable", labelProps: ["children"], roles: ["button", "tab", "menuitem"] },
   { name: "SegmentedControl", collectionProps: ["options"] },
   { name: "BottomTabBar", collectionProps: ["items"] },
-  { name: "ListRow", labelProps: ["title", "accessibilityLabel"] },
+  { name: "ListRow", labelProps: ["title", "accessibilityLabel", "action.label"] },
 ]
 
 export default [
