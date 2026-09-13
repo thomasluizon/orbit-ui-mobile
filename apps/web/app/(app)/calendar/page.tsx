@@ -12,7 +12,6 @@ import {
   endOfWeek,
   eachDayOfInterval,
   isSameMonth,
-  isToday,
   format,
 } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
@@ -24,6 +23,9 @@ import {
   filterRecurringEntries,
   clampRangeToMaxDays,
   MAX_RANGE_DAYS,
+  CALENDAR_MONTH_GRID_GEOMETRY,
+  resolveCalendarMonthDisplayState,
+  type CalendarMonthDisplayState,
 } from '@orbit/shared/utils'
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -41,11 +43,11 @@ import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
 import { CalendarLoadError } from '@/components/calendar/calendar-load-error'
 import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import { Sheet } from '@/components/ui/sheet'
-import { EmptyState } from '@/components/ui/empty-state'
-import { SectionLabel } from '@/components/ui/section-label'
+import { PillButton } from '@/components/ui/pill-button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useIsDesktop, useIsWideDesktop } from '@/hooks/use-is-desktop'
+import { useUIStore } from '@/stores/ui-store'
 import { useToday } from '../today-provider'
 import {
   CalendarHeader,
@@ -56,6 +58,128 @@ const SWIPE_THRESHOLD = 50
 
 type MonthSlide = 'left' | 'right' | null
 type CalendarView = 'month' | 'week' | 'range' | 'agenda'
+
+function calendarStatState(
+  state: CalendarMonthDisplayState,
+): 'default' | 'loading' | 'empty' {
+  if (state === 'loading') return 'loading'
+  if (state === 'ready') return 'default'
+  return 'empty'
+}
+
+interface CalendarMonthFeedbackProps {
+  state: CalendarMonthDisplayState
+  emptyText: string
+  futureText: string
+  createLabel: string
+  createVariant: 'primary' | 'secondary'
+  onCreate: () => void
+}
+
+function CalendarMonthFeedback({
+  state,
+  emptyText,
+  futureText,
+  createLabel,
+  createVariant,
+  onCreate,
+}: Readonly<CalendarMonthFeedbackProps>) {
+  if (state !== 'empty' && state !== 'future') return null
+  return (
+    <div className="flex flex-col items-start gap-3 px-4 py-4" data-testid="calendar-month-empty">
+      <p className="text-[var(--fg-2)]">{state === 'future' ? futureText : emptyText}</p>
+      {state === 'empty' ? (
+        <PillButton variant={createVariant} size="sm" onClick={onCreate}>
+          {createLabel}
+        </PillButton>
+      ) : null}
+    </div>
+  )
+}
+
+function CalendarMonthLegend({
+  state,
+  loggableLabel,
+  fullLabel,
+  partialLabel,
+  noneLabel,
+}: Readonly<{
+  state: CalendarMonthDisplayState
+  loggableLabel: string
+  fullLabel: string
+  partialLabel: string
+  noneLabel: string
+}>) {
+  if (state !== 'ready') return null
+  return (
+    <CalendarLegend
+      loggableLabel={loggableLabel}
+      fullLabel={fullLabel}
+      partialLabel={partialLabel}
+      noneLabel={noneLabel}
+    />
+  )
+}
+
+interface CalendarInlineDayPanelProps {
+  show: boolean
+  state: CalendarMonthDisplayState
+  loadingLabel: string
+  title: string
+  selectedDay: string | null
+  entries: CalendarDayEntry[]
+  showRecurring: boolean
+  onShowRecurringChange: (value: boolean) => void
+}
+
+function CalendarInlineDayPanel({
+  show,
+  state,
+  loadingLabel,
+  title,
+  selectedDay,
+  entries,
+  showRecurring,
+  onShowRecurringChange,
+}: Readonly<CalendarInlineDayPanelProps>) {
+  if (!show) return null
+  const loading = state === 'loading'
+  return (
+    <section
+      data-testid="calendar-day-panel"
+      aria-label={loading ? loadingLabel : title}
+      className="sticky top-16 flex h-[calc(100dvh-84px)] flex-col"
+      style={{ padding: '16px 0 8px 4px' }}
+    >
+      {loading ? (
+        <Skeleton variant="settings" rows={5} label={loadingLabel} />
+      ) : (
+        <>
+          <h2
+            className="min-w-0 shrink-0 truncate"
+            style={{
+              margin: 0,
+              padding: '0 0 12px',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 20,
+              fontWeight: 500,
+              color: 'var(--fg-1)',
+            }}
+          >
+            {title}
+          </h2>
+          <CalendarDayDetail
+            dateStr={selectedDay}
+            entries={entries}
+            showRecurring={showRecurring}
+            onShowRecurringChange={onShowRecurringChange}
+            fitViewport
+          />
+        </>
+      )}
+    </section>
+  )
+}
 
 function resolveMonthSlideClass(monthSlide: MonthSlide): string {
   if (monthSlide === 'right') return 'animate-slide-date-right'
@@ -68,14 +192,32 @@ export default function CalendarPage() {
   const { profile, error: profileError, refetch: refetchProfile } = useProfile()
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const monthQuery = useCalendarData(currentMonth)
-
   if (!profile) {
     return (
       <div style={{ padding: '16px 4px' }}>
         {profileError ? (
           <CalendarLoadError onRetry={() => void refetchProfile()} />
         ) : (
-          <Skeleton variant="grid" rows={6} cols={7} cell={44} gap={0} label={t('common.loading')} />
+          <div className="flex flex-col gap-6">
+            <Skeleton
+              variant="grid"
+              rows={CALENDAR_MONTH_GRID_GEOMETRY.maximumRows}
+              cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
+              cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
+              gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
+              label={t('calendar.loading')}
+            />
+            <Skeleton variant="settings" rows={5} label={t('calendar.loading')} />
+            <CalendarStats
+              stats={[
+                { key: 'bestStreak', value: 0, label: t('calendar.bestStreak') },
+                { key: 'totalLogs', value: 0, label: t('calendar.totalLogs') },
+                { key: 'missed', value: 0, label: t('calendar.missedCount') },
+              ]}
+              state="loading"
+              loadingLabel={t('calendar.loading')}
+            />
+          </div>
         )}
       </div>
     )
@@ -92,7 +234,7 @@ export default function CalendarPage() {
 }
 
 interface CalendarPageContentProps {
-  profile: Pick<Profile, 'weekStartDay'>
+  profile: Pick<Profile, 'weekStartDay' | 'timeZone'>
   currentMonth: Date
   setCurrentMonth: Dispatch<SetStateAction<Date>>
   monthQuery: ReturnType<typeof useCalendarData>
@@ -113,7 +255,8 @@ function CalendarPageContent({
   const weekStartsOn = profile.weekStartDay
   const isDesktop = useIsDesktop()
   const isWideDesktop = useIsWideDesktop()
-  const todayKey = useToday()
+  const todayKey = useToday(profile.timeZone)
+  const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
 
   const [view, setView] = useState<CalendarView>('month')
   /** Agenda is desktop-width only until #56 stage 10 builds the mobile day groups. */
@@ -165,12 +308,16 @@ function CalendarPageContent({
       view === 'week'
         ? eachDayOfInterval({ start: weekStart, end: weekEnd })
         : eachDayOfInterval({ start: rangeBounds.lo, end: rangeBounds.hi })
-    return days.map((date) => ({
-      date,
-      dateStr: formatAPIDate(date),
-      isToday: isToday(date),
-    }))
-  }, [view, weekStart, weekEnd, rangeBounds])
+    return days.map((date) => {
+      const dateStr = formatAPIDate(date)
+      return {
+        date,
+        dateStr,
+        isToday: dateStr === todayKey,
+        isFuture: dateStr > todayKey,
+      }
+    })
+  }, [view, weekStart, weekEnd, rangeBounds, todayKey])
 
   const monthLabel = useMemo(
     () => capitalizeFirstLetter(format(currentMonth, 'MMMM', { locale: dateFnsLocale })),
@@ -279,16 +426,22 @@ function CalendarPageContent({
   }, [selectedDay, displayWeekdayDate])
 
   const { monthStats } = useMemo(
-    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn),
-    [currentMonth, dayMap, weekStartsOn],
+    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn, todayKey),
+    [currentMonth, dayMap, weekStartsOn, todayKey],
   )
+  const monthDisplayState = resolveCalendarMonthDisplayState({
+    currentMonth,
+    today: todayKey,
+    hasEntries: monthStats.hasEntries,
+    isLoading,
+  })
 
   const monthStatTiles = useMemo(
     () => [
-      { key: 'bestStreak', emoji: '🔥', value: monthStats.bestStreak, label: t('calendar.bestStreak') },
-      { key: 'totalLogs', emoji: '✅', value: monthStats.totalLogs, label: t('calendar.totalLogs') },
-      { key: 'missed', emoji: '⚠️', value: monthStats.missed, label: t('calendar.missedCount') },
-    ],
+      { key: 'bestStreak', value: monthStats.bestStreak, label: t('calendar.bestStreak') },
+      { key: 'totalLogs', value: monthStats.totalLogs, label: t('calendar.totalLogs') },
+      { key: 'missed', value: monthStats.missed, label: t('calendar.missedCount') },
+    ] as const,
     [monthStats, t],
   )
 
@@ -326,6 +479,10 @@ function CalendarPageContent({
   }, [setCurrentMonth])
 
   const monthSlideClass = resolveMonthSlideClass(monthSlide)
+
+  const openHabitCreation = useCallback(() => {
+    setShowCreateModal(true)
+  }, [setShowCreateModal])
 
   const calendarHeader = (
     <CalendarHeader
@@ -389,52 +546,41 @@ function CalendarPageContent({
                     />
                   </div>
 
-                  <CalendarLegend
+                  <CalendarMonthLegend
+                    state={monthDisplayState}
                     loggableLabel={t('calendar.legend.loggable')}
                     fullLabel={t('calendar.dayCell.full')}
                     partialLabel={t('calendar.dayCell.partial')}
                     noneLabel={t('calendar.dayCell.none')}
                   />
 
-                  {!isLoading && !monthStats.hasEntries ? (
-                    <EmptyState title={t('calendar.emptyMonth')} />
-                  ) : (
-                    <>
-                      <SectionLabel>{t('calendar.thisMonth')}</SectionLabel>
-                      <CalendarStats stats={monthStatTiles} />
-                    </>
-                  )}
+                  <CalendarMonthFeedback
+                    state={monthDisplayState}
+                    emptyText={t('calendar.emptyMonth')}
+                    futureText={t('calendar.futureMonth')}
+                    createLabel={t('habits.createHabit')}
+                    createVariant={isWideDesktop ? 'secondary' : 'primary'}
+                    onCreate={openHabitCreation}
+                  />
+
+                  <CalendarStats
+                    stats={monthStatTiles}
+                    state={calendarStatState(monthDisplayState)}
+                    loadingLabel={t('calendar.loading')}
+                    emptyLabel={t('calendar.emptyStat')}
+                  />
                 </div>
 
-                {showInlineDayPanel && (
-                  <section
-                    data-testid="calendar-day-panel"
-                    aria-label={dayDetailTitle}
-                    className="sticky top-16 flex h-[calc(100dvh-84px)] flex-col"
-                    style={{ padding: '16px 0 8px 4px' }}
-                  >
-                    <h2
-                      className="min-w-0 shrink-0 truncate"
-                      style={{
-                        margin: 0,
-                        padding: '0 0 12px',
-                        fontFamily: 'var(--font-sans)',
-                        fontSize: 20,
-                        fontWeight: 500,
-                        color: 'var(--fg-1)',
-                      }}
-                    >
-                      {dayDetailTitle}
-                    </h2>
-                    <CalendarDayDetail
-                      dateStr={selectedDay}
-                      entries={selectedEntries}
-                      showRecurring={showRecurring}
-                      onShowRecurringChange={setShowRecurring}
-                      fitViewport
-                    />
-                  </section>
-                )}
+                <CalendarInlineDayPanel
+                  show={showInlineDayPanel}
+                  state={monthDisplayState}
+                  loadingLabel={t('calendar.loading')}
+                  title={dayDetailTitle}
+                  selectedDay={selectedDay}
+                  entries={selectedEntries}
+                  showRecurring={showRecurring}
+                  onShowRecurringChange={setShowRecurring}
+                />
               </div>
             )}
 
@@ -454,8 +600,9 @@ function CalendarPageContent({
                 onSelectDay={openDay}
                 displayTime={displayTime}
                 dateFnsLocale={dateFnsLocale}
-                allDayLabel={t('calendar.timeGrid.allDay')}
+                allDayLabel={t('calendar.timeGrid.noSetTime')}
                 nowLabel={t('calendar.timeGrid.now')}
+                timeZone={profile.timeZone}
                 showRecurring={showRecurring}
                 onShowRecurringChange={setShowRecurring}
               />
@@ -481,6 +628,7 @@ function CalendarPageContent({
                 dateFnsLocale={dateFnsLocale}
                 allDayLabel={t('calendar.timeGrid.allDay')}
                 nowLabel={t('calendar.timeGrid.now')}
+                timeZone={profile.timeZone}
                 showRecurring={showRecurring}
                 onShowRecurringChange={setShowRecurring}
                 weekStartsOn={weekStartsOn}

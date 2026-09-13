@@ -7,6 +7,8 @@ import {
   buildDayCellAccessibleName,
   isCalendarDayLoggable,
   resolveDayCellOutcome,
+  CALENDAR_MONTH_GRID_GEOMETRY,
+  CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
   type CalendarMonthDay,
 } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
@@ -14,6 +16,7 @@ import type { DayCellWords, ReadOnlyDayCellProps } from '@orbit/shared/contracts
 import { useDateFormat } from '@/hooks/use-date-format'
 import { DayCell } from '@/components/dates/day-cell'
 import { MonthGrid } from '@/components/dates/month-grid'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface CalendarGridProps {
   currentMonth: Date
@@ -40,7 +43,6 @@ interface CalendarGridDayProps {
   future: boolean
   inRange: boolean
   isFirst: boolean
-  isLoading: boolean
   onSelectDay: (dateStr: string) => void
   selected: boolean
   words: DayCellWords
@@ -90,7 +92,6 @@ function CalendarGridDayBody({
   cell,
   dayCell,
   future,
-  isLoading,
   onSelectDay,
   selected,
   today,
@@ -99,20 +100,10 @@ function CalendarGridDayBody({
   cell: CalendarMonthDay
   dayCell: ReadOnlyDayCellProps
   future: boolean
-  isLoading: boolean
   onSelectDay: (dateStr: string) => void
   selected: boolean
   today: boolean
 }>) {
-  if (isLoading) {
-    return (
-      <span
-        aria-hidden="true"
-        data-testid="calendar-day-skeleton"
-        style={{ display: 'block', width: 44, height: 44, borderRadius: 999, background: 'var(--bg-well)', opacity: cell.isCurrentMonth ? 1 : 0 }}
-      />
-    )
-  }
   const contents = future && cell.isCurrentMonth
     ? <CalendarFutureDay accessibleName={accessibleName} cell={cell} />
     : <DayCell {...dayCell} />
@@ -139,7 +130,6 @@ function CalendarGridDay({
   future,
   inRange,
   isFirst,
-  isLoading,
   onSelectDay,
   selected,
   words,
@@ -192,7 +182,6 @@ function CalendarGridDay({
         cell={cell}
         dayCell={dayCell}
         future={future}
-        isLoading={isLoading}
         onSelectDay={onSelectDay}
         selected={selected}
         today={today}
@@ -230,8 +219,8 @@ export function CalendarGrid({
   }, [t, weekStartsOn])
 
   const { gridDays } = useMemo(
-    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn),
-    [currentMonth, dayMap, weekStartsOn],
+    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn, todayKey),
+    [currentMonth, dayMap, weekStartsOn, todayKey],
   )
 
   const words: DayCellWords = {
@@ -244,10 +233,58 @@ export function CalendarGrid({
     readOnly: t('calendar.dayCell.readOnly'),
   }
 
+  if (isLoading) {
+    return (
+      <div
+        data-testid="calendar-grid"
+        data-tour="tour-calendar-grid"
+        style={{ padding: '16px 4px 8px', overflowX: 'auto' }}
+      >
+        <div
+          data-testid="calendar-grid-card"
+          style={{
+            width: CALENDAR_MONTH_GRID_GEOMETRY.columns * CALENDAR_MONTH_GRID_GEOMETRY.cell
+              + (CALENDAR_MONTH_GRID_GEOMETRY.columns - 1) * CALENDAR_MONTH_GRID_GEOMETRY.gap,
+            marginInline: 'auto',
+          }}
+        >
+          <Skeleton
+            variant="grid"
+            rows={CALENDAR_MONTH_GRID_GEOMETRY.maximumRows}
+            cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
+            cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
+            gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
+            label={t('calendar.loading')}
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div data-testid="calendar-grid" data-tour="tour-calendar-grid" style={{ padding: '16px 4px 8px' }}>
-      <div data-testid="calendar-grid-card" style={{ borderRadius: 20, padding: 0, background: 'var(--bg-card)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}>
-        <MonthGrid weekdayLabels={weekdayLabels} gap={0} label={displayMonthYear(currentMonth)}>
+    <div
+      data-testid="calendar-grid"
+      data-tour="tour-calendar-grid"
+      style={{ padding: '16px 4px 8px', overflowX: 'auto' }}
+    >
+      <div
+        data-testid="calendar-grid-card"
+        style={{
+          width: CALENDAR_MONTH_GRID_GEOMETRY.columns * CALENDAR_MONTH_GRID_GEOMETRY.cell
+            + (CALENDAR_MONTH_GRID_GEOMETRY.columns - 1) * CALENDAR_MONTH_GRID_GEOMETRY.gap,
+          marginInline: 'auto',
+          borderRadius: 20,
+          padding: 0,
+          background: 'var(--bg-card)',
+          boxShadow: 'inset 0 0 0 1px var(--hairline)',
+        }}
+      >
+        <MonthGrid
+          weekdayLabels={weekdayLabels}
+          gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
+          label={displayMonthYear(currentMonth)}
+          minimumDayGridHeight={CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT}
+        >
           {gridDays.map((cell, index) => {
             const future = cell.dateStr > todayKey
             const selected = cell.isCurrentMonth && (
@@ -263,7 +300,6 @@ export function CalendarGrid({
                 future={future}
                 inRange={inRange}
                 isFirst={index === 0}
-                isLoading={isLoading}
                 onSelectDay={onSelectDay}
                 selected={selected}
                 words={words}
