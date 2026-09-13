@@ -19,6 +19,7 @@ const state = vi.hoisted(() => ({
   profileRefetch: vi.fn(),
   calendarDataCalls: vi.fn(),
   calendarRangeCalls: vi.fn(),
+  rangeLoading: false,
 }));
 
 const calendarGridProps = vi.hoisted(() => ({
@@ -80,7 +81,7 @@ vi.mock("@/hooks/use-habits", () => ({
     state.calendarRangeCalls(start, end, enabled);
     return {
       dayMap: state.rangeMap,
-      isLoading: false,
+      isLoading: state.rangeLoading,
       isFetching: false,
       error: null,
       refresh: vi.fn(),
@@ -135,6 +136,7 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-day-detail", () => ({
 type TestNode = { type: unknown; props: Record<string, any> };
 type Tree = {
   root: { findAll: (predicate: (node: TestNode) => boolean) => TestNode[] };
+  update: (element: React.ReactElement) => void;
 };
 
 function makeEntry(overrides: Partial<CalendarDayEntry>): CalendarDayEntry {
@@ -185,6 +187,7 @@ describe("CalendarScreen views (mobile)", () => {
     state.profileRefetch = vi.fn();
     state.calendarDataCalls.mockClear();
     state.calendarRangeCalls.mockClear();
+    state.rangeLoading = false;
     calendarStatsProps.current = null;
     const todayStr = formatAPIDate(new Date());
     state.rangeMap = new Map<string, CalendarDayEntry[]>([
@@ -382,6 +385,42 @@ describe("CalendarScreen views (mobile)", () => {
       expect(day.props.onPress).toBeUndefined();
     }
     expect(calendarStatsProps.current?.map((stat) => stat.value)).toEqual([1, 1, 1]);
+  });
+
+  it("keeps the pending range busy without exposing empty outcomes, then reveals the resolved span", () => {
+    state.rangeLoading = true;
+    let tree!: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />);
+    });
+
+    pressView(tree, "range");
+    const loadingGrid = tree.root.findAll(
+      (node) =>
+        typeof node.type === "string" &&
+        node.props.testID === "skeleton-unit-grid" &&
+        node.props.accessibilityRole === "progressbar",
+    );
+    expect(loadingGrid).toHaveLength(1);
+    expect(loadingGrid[0]!.props.accessibilityRole).toBe("progressbar");
+    expect(loadingGrid[0]!.props.accessibilityState).toEqual({ busy: true });
+    expect(tree.root.findAll(
+      (node) => typeof node.type === "string" && typeof node.props.testID === "string" && node.props.testID.startsWith("day-cell-"),
+    )).toHaveLength(0);
+    expect(calendarStatsProps.current).toBeNull();
+
+    state.rangeLoading = false;
+    TestRenderer.act(() => {
+      tree.update(<CalendarScreen />);
+    });
+
+    expect(tree.root.findAll(
+      (node) => typeof node.type === "string" && node.props.testID === "skeleton-unit-grid",
+    )).toHaveLength(0);
+    expect(tree.root.findAll(
+      (node) => typeof node.type === "string" && typeof node.props.testID === "string" && node.props.testID.startsWith("day-cell-"),
+    )).toHaveLength(14);
+    expect(calendarStatsProps.current).not.toBeNull();
   });
 
   it("shows the empty-month state in place of the stat tiles when nothing is logged", () => {

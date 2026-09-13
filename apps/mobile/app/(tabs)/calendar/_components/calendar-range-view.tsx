@@ -7,6 +7,7 @@ import type { AppTokensV2 } from '@/lib/theme'
 import { DayCell } from '@/components/dates/day-cell'
 import { MonthGrid } from '@/components/dates/month-grid'
 import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { CalendarStats, type CalendarStat } from './calendar-stats'
 
@@ -19,6 +20,8 @@ interface CalendarRangeViewProps {
   onPreviousRange: () => void
   onNextRange: () => void
   nextRangeDisabled: boolean
+  isLoading: boolean
+  loadingLabel: string
   stats: readonly CalendarStat[]
   language: string
   t: TFunction
@@ -35,6 +38,8 @@ export function CalendarRangeView({
   onPreviousRange,
   onNextRange,
   nextRangeDisabled,
+  isLoading,
+  loadingLabel,
   stats,
   language,
   t,
@@ -50,9 +55,14 @@ export function CalendarRangeView({
     today: t('calendar.dayCell.today'),
     readOnly: t('calendar.dayCell.readOnly'),
   }
+  const gridCellCount = model.leadingEmptyDays + model.days.length
 
   return (
-    <View accessibilityLabel={rangeLabel} style={styles.container}>
+    <View
+      accessibilityLabel={rangeLabel}
+      accessibilityState={{ busy: isLoading }}
+      style={styles.container}
+    >
       <View style={styles.header}>
         <Text numberOfLines={1} style={[styles.rangeLabel, { color: tokens.fg2 }]}>
           {rangeLabel}
@@ -78,24 +88,49 @@ export function CalendarRangeView({
         </PillButton>
       </View>
 
-      <MonthGrid weekdayLabels={[...weekdayLabels]} gap={4} label={rangeLabel}>
-        {Array.from({ length: model.leadingEmptyDays }, (_, index) => (
-          <View key={`leading-${index}`} accessibilityElementsHidden style={styles.daySlot} />
-        ))}
-        {model.days.map((day) => (
-          <DayCell
-            key={day.dateStr}
-            day={day.day}
-            done={day.completedCount}
-            scheduled={day.totalCount}
-            today={day.isToday}
-            label={format(day.date, 'EEEE, MMM d', { locale })}
-            words={words}
-          />
-        ))}
-      </MonthGrid>
+      {isLoading ? (
+        <>
+          <MonthGrid weekdayLabels={[...weekdayLabels]} gap={4} label={rangeLabel}>
+            {Array.from({ length: gridCellCount }, (_, index) => (
+              <View key={index} style={styles.daySlot}>
+                {index === 0 ? (
+                  <Skeleton variant="grid" rows={1} cols={1} cell={44} gap={0} label={loadingLabel} />
+                ) : (
+                  <Skeleton variant="grid" rows={1} cols={1} cell={44} gap={0} grouped />
+                )}
+              </View>
+            ))}
+          </MonthGrid>
+          <View accessibilityElementsHidden style={styles.statsRow}>
+            {Array.from({ length: 3 }, (_, index) => (
+              <View key={index} style={styles.statCell}>
+                <Skeleton variant="stat-tile" grouped />
+              </View>
+            ))}
+          </View>
+        </>
+      ) : (
+        <>
+          <MonthGrid weekdayLabels={[...weekdayLabels]} gap={4} label={rangeLabel}>
+            {Array.from({ length: model.leadingEmptyDays }, (_, index) => (
+              <View key={`leading-${index}`} accessibilityElementsHidden style={styles.daySlot} />
+            ))}
+            {model.days.map((day) => (
+              <DayCell
+                key={day.dateStr}
+                day={day.day}
+                done={day.completedCount}
+                scheduled={day.totalCount}
+                today={day.isToday}
+                label={format(day.date, 'EEEE, MMM d', { locale })}
+                words={words}
+              />
+            ))}
+          </MonthGrid>
 
-      <CalendarStats stats={stats} />
+          <CalendarStats stats={stats} />
+        </>
+      )}
     </View>
   )
 }
@@ -111,4 +146,6 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   daySlot: { width: 44, height: 44 },
+  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 16 },
+  statCell: { flexGrow: 1, flexBasis: '30%', minWidth: 96 },
 })

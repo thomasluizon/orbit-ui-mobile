@@ -19,7 +19,7 @@ function entry(status: CalendarDayEntry['status'], habitId = 'habit'): CalendarD
   return { habitId, title: 'Habit', status, isBadHabit: false, dueTime: null, isOneTime: false }
 }
 
-function renderRange() {
+function renderRange(isLoading = false) {
   const onPreviousRange = vi.fn()
   const onNextRange = vi.fn()
   const model = buildCalendarRangeModel(
@@ -33,7 +33,7 @@ function renderRange() {
     '2026-06-14',
   )
 
-  render(
+  const view = render(
     <CalendarRangeView
       model={model}
       weekdayLabels={['M', 'T', 'W', 'T', 'F', 'S', 'S']}
@@ -43,6 +43,8 @@ function renderRange() {
       onPreviousRange={onPreviousRange}
       onNextRange={onNextRange}
       nextRangeDisabled={false}
+      isLoading={isLoading}
+      loadingLabel="Loading range"
       stats={[
         { key: 'bestStreak', emoji: '🔥', value: model.stats.bestStreak, label: 'Best streak' },
         { key: 'totalLogs', emoji: '✅', value: model.stats.totalLogs, label: 'Logs' },
@@ -50,7 +52,7 @@ function renderRange() {
       ]}
     />,
   )
-  return { onPreviousRange, onNextRange }
+  return { onPreviousRange, onNextRange, ...view }
 }
 
 describe('CalendarRangeView', () => {
@@ -72,5 +74,46 @@ describe('CalendarRangeView', () => {
     expect(screen.getByText('Logs').previousSibling).toHaveTextContent('4')
     expect(screen.getByText('Missed').previousSibling).toHaveTextContent('1')
     expect(screen.getByText('Best streak').previousSibling).toHaveTextContent('2')
+  })
+
+  it('keeps the range geometry busy without announcing empty outcomes, then reveals the resolved span', () => {
+    const view = renderRange(true)
+
+    expect(screen.getByRole('region', { name: 'Jun 1 to Jun 14' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('progressbar', { name: 'Loading range' })).toBeInTheDocument()
+    expect(screen.getByTestId('month-grid-days').children).toHaveLength(14)
+    expect(screen.getByTestId('month-grid-days')).toHaveStyle({ gap: '4px' })
+    expect(screen.queryAllByRole('img')).toHaveLength(0)
+    expect(screen.queryByText('Logs')).not.toBeInTheDocument()
+
+    view.rerender(
+      <CalendarRangeView
+        model={buildCalendarRangeModel(
+          parseAPIDate('2026-06-14'),
+          new Map([['2026-06-01', [entry('completed')]]]),
+          1,
+          '2026-06-14',
+        )}
+        weekdayLabels={['M', 'T', 'W', 'T', 'F', 'S', 'S']}
+        rangeLabel="Jun 1 to Jun 14"
+        previousRangeLabel="Previous range"
+        nextRangeLabel="Next range"
+        onPreviousRange={vi.fn()}
+        onNextRange={vi.fn()}
+        nextRangeDisabled={false}
+        isLoading={false}
+        loadingLabel="Loading range"
+        stats={[
+          { key: 'bestStreak', emoji: '🔥', value: 1, label: 'Best streak' },
+          { key: 'totalLogs', emoji: '✅', value: 1, label: 'Logs' },
+          { key: 'missed', emoji: '⚠️', value: 0, label: 'Missed' },
+        ]}
+      />,
+    )
+
+    expect(screen.getByRole('region', { name: 'Jun 1 to Jun 14' })).toHaveAttribute('aria-busy', 'false')
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('img')).toHaveLength(14)
+    expect(screen.getByText('Logs').previousSibling).toHaveTextContent('1')
   })
 })

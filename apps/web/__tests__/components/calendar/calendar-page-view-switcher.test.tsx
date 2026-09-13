@@ -20,6 +20,8 @@ const profileQueryState: {
   refetch: vi.fn(),
 }
 const calendarDataCalls = vi.fn()
+let rangeLoading = false
+const calendarRangeViewProps: { current: Record<string, unknown> | null } = { current: null }
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -44,7 +46,7 @@ vi.mock('@/hooks/use-calendar-data', () => ({
   },
   useCalendarRange: () => ({
     dayMap: new Map(),
-    isLoading: false,
+    isLoading: rangeLoading,
     isFetching: false,
     error: null,
     refresh: vi.fn(),
@@ -119,7 +121,10 @@ vi.mock('@/components/calendar/calendar-week-view', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-range-view', () => ({
-  CalendarRangeView: () => <div data-testid="range-view" />,
+  CalendarRangeView: (props: Record<string, unknown>) => {
+    calendarRangeViewProps.current = props
+    return <div data-testid="range-view" />
+  },
 }))
 
 vi.mock('@/components/calendar/calendar-agenda-view', () => ({
@@ -139,6 +144,8 @@ describe('CalendarPage view switcher', () => {
     profileQueryState.error = null
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()
+    rangeLoading = false
+    calendarRangeViewProps.current = null
   })
 
   it('loads calendar data concurrently while the profile resolves', () => {
@@ -204,6 +211,18 @@ describe('CalendarPage view switcher', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
     expect(screen.getByTestId('range-view')).toBeDefined()
+  })
+
+  it('passes the pending range state through the owning composition', () => {
+    rangeLoading = true
+    const view = render(<CalendarPage />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
+    expect(calendarRangeViewProps.current?.isLoading).toBe(true)
+
+    rangeLoading = false
+    view.rerender(<CalendarPage />)
+    expect(calendarRangeViewProps.current?.isLoading).toBe(false)
   })
 
   it('renders the day detail as a persistent inline panel at wide desktop', () => {

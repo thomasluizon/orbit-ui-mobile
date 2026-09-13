@@ -5,6 +5,7 @@ import type { CalendarRangeModel } from '@orbit/shared/utils'
 import { DayCell } from '@/components/dates/day-cell'
 import { MonthGrid } from '@/components/dates/month-grid'
 import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { CalendarStats, type CalendarStat } from './calendar-stats'
@@ -18,6 +19,8 @@ interface CalendarRangeViewProps {
   onPreviousRange: () => void
   onNextRange: () => void
   nextRangeDisabled: boolean
+  isLoading: boolean
+  loadingLabel: string
   stats: readonly CalendarStat[]
 }
 
@@ -31,6 +34,8 @@ export function CalendarRangeView({
   onPreviousRange,
   onNextRange,
   nextRangeDisabled,
+  isLoading,
+  loadingLabel,
   stats,
 }: Readonly<CalendarRangeViewProps>) {
   const t = useTranslations()
@@ -44,10 +49,12 @@ export function CalendarRangeView({
     today: t('calendar.dayCell.today'),
     readOnly: t('calendar.dayCell.readOnly'),
   }
+  const gridCellCount = model.leadingEmptyDays + model.days.length
 
   return (
     <section
       aria-label={rangeLabel}
+      aria-busy={isLoading}
       className="flex flex-col"
       style={{ gap: 16, maxWidth: 420, padding: '12px 4px 24px' }}
     >
@@ -84,24 +91,55 @@ export function CalendarRangeView({
         </PillButton>
       </div>
 
-      <MonthGrid weekdayLabels={[...weekdayLabels]} gap={4} label={rangeLabel}>
-        {Array.from({ length: model.leadingEmptyDays }, (_, index) => (
-          <span key={`leading-${index}`} aria-hidden="true" style={{ width: 44, height: 44 }} />
-        ))}
-        {model.days.map((day) => (
-          <DayCell
-            key={day.dateStr}
-            day={day.day}
-            done={day.completedCount}
-            scheduled={day.totalCount}
-            today={day.isToday}
-            label={displayWeekdayDate(day.date, true)}
-            words={words}
-          />
-        ))}
-      </MonthGrid>
+      {isLoading ? (
+        <>
+          <MonthGrid weekdayLabels={[...weekdayLabels]} gap={4} label={rangeLabel}>
+            {Array.from({ length: gridCellCount }, (_, index) => (
+              <span key={index} style={{ width: 44, height: 44 }}>
+                {index === 0 ? (
+                  <Skeleton variant="grid" rows={1} cols={1} cell={44} gap={0} label={loadingLabel} />
+                ) : (
+                  <Skeleton variant="grid" rows={1} cols={1} cell={44} gap={0} grouped />
+                )}
+              </span>
+            ))}
+          </MonthGrid>
+          <div
+            aria-hidden="true"
+            className="grid"
+            style={{
+              gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))',
+              gap: 12,
+              padding: '0 16px',
+            }}
+          >
+            {Array.from({ length: 3 }, (_, index) => (
+              <Skeleton key={index} variant="stat-tile" grouped />
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <MonthGrid weekdayLabels={[...weekdayLabels]} gap={4} label={rangeLabel}>
+            {Array.from({ length: model.leadingEmptyDays }, (_, index) => (
+              <span key={`leading-${index}`} aria-hidden="true" style={{ width: 44, height: 44 }} />
+            ))}
+            {model.days.map((day) => (
+              <DayCell
+                key={day.dateStr}
+                day={day.day}
+                done={day.completedCount}
+                scheduled={day.totalCount}
+                today={day.isToday}
+                label={displayWeekdayDate(day.date, true)}
+                words={words}
+              />
+            ))}
+          </MonthGrid>
 
-      <CalendarStats stats={stats} />
+          <CalendarStats stats={stats} />
+        </>
+      )}
     </section>
   )
 }

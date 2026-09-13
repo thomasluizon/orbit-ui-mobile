@@ -612,6 +612,8 @@ function CalendarScreenContent({
               onPreviousRange={previousRange}
               onNextRange={nextRange}
               nextRangeDisabled={rangeOffset === 0}
+              isLoading={rangeLoading}
+              loadingLabel={t("common.loading")}
               stats={rangeStatTiles}
               language={i18n.language}
               t={t}

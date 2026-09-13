@@ -494,6 +494,8 @@ function CalendarPageContent({
                 onPreviousRange={previousRange}
                 onNextRange={nextRange}
                 nextRangeDisabled={rangeOffset === 0}
+                isLoading={rangeLoading}
+                loadingLabel={t('common.loading')}
                 stats={rangeStatTiles}
               />
             )}
