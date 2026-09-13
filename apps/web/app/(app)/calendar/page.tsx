@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useRef, type Dispatch, type SetStateAction } from 'react'
 import {
   addMonths,
+  addDays,
   subMonths,
   setYear,
   addWeeks,
@@ -43,7 +44,7 @@ import { Sheet } from '@/components/ui/sheet'
 import { EmptyState } from '@/components/ui/empty-state'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useIsDesktop, useIsWideDesktop } from '@/hooks/use-is-desktop'
+import { useIsWideDesktop } from '@/hooks/use-is-desktop'
 import { useToday } from '../today-provider'
 import {
   CalendarHeader,
@@ -109,13 +110,10 @@ function CalendarPageContent({
   const { displayTime } = useTimeFormat()
   const { displayWeekdayDate } = useDateFormat()
   const weekStartsOn = profile.weekStartDay
-  const isDesktop = useIsDesktop()
   const isWideDesktop = useIsWideDesktop()
   const todayKey = useToday(profile.timeZone)
 
   const [view, setView] = useState<CalendarView>('month')
-  /** Agenda is desktop-width only until #56 stage 10 builds the mobile day groups. */
-  const activeView: CalendarView = !isDesktop && view === 'agenda' ? 'month' : view
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
   const [weekAnchor, setWeekAnchor] = useState(() => new Date())
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null)
@@ -147,8 +145,15 @@ function CalendarPageContent({
     return rangeStart <= rangeEnd ? { lo: a, hi: b } : { lo: b, hi: a }
   }, [rangeStart, rangeEnd])
 
+  const agendaStart = useMemo(() => parseAPIDate(todayKey), [todayKey])
+  const agendaEnd = useMemo(() => addDays(agendaStart, 6), [agendaStart])
+
   const [gridStartDate, gridEndDate] =
-    view === 'week' ? [weekStart, weekEnd] : [rangeBounds.lo, rangeBounds.hi]
+    view === 'week'
+      ? [weekStart, weekEnd]
+      : view === 'agenda'
+        ? [agendaStart, agendaEnd]
+        : [rangeBounds.lo, rangeBounds.hi]
 
   const {
     dayMap: rangeDayMap,
@@ -156,7 +161,11 @@ function CalendarPageContent({
     isFetching: rangeFetching,
     error: rangeError,
     refresh: rangeRefresh,
-  } = useCalendarRange(gridStartDate, gridEndDate, view === 'week' || view === 'range')
+  } = useCalendarRange(
+    gridStartDate,
+    gridEndDate,
+    view === 'week' || view === 'range' || view === 'agenda',
+  )
 
   const gridColumns = useMemo<TimeGridColumn[]>(() => {
     const days =
@@ -203,7 +212,7 @@ function CalendarPageContent({
     error: activeError,
     refresh: activeRefresh,
   } =
-    activeView === 'month'
+    view === 'month'
       ? { dayMap, isFetching, error, refresh }
       : {
           dayMap: rangeDayMap,
@@ -245,7 +254,7 @@ function CalendarPageContent({
     setWeekAnchor(new Date())
   }, [])
 
-  const showInlineDayPanel = isWideDesktop && activeView === 'month'
+  const showInlineDayPanel = isWideDesktop && view === 'month'
 
   const openDay = useCallback(
     (dateStr: string) => {
@@ -294,13 +303,15 @@ function CalendarPageContent({
     [monthStats, t],
   )
 
-  const viewOptions = useMemo(() => {
-    const month = { value: 'month' as const, label: t('calendar.view.month') }
-    const week = { value: 'week' as const, label: t('calendar.view.week') }
-    const range = { value: 'range' as const, label: t('calendar.view.range') }
-    if (!isDesktop) return [month, week, range] as const
-    return [month, week, range, { value: 'agenda' as const, label: t('calendar.view.agenda') }] as const
-  }, [t, isDesktop])
+  const viewOptions = useMemo(
+    () => [
+      { value: 'month' as const, label: t('calendar.view.month') },
+      { value: 'week' as const, label: t('calendar.view.week') },
+      { value: 'range' as const, label: t('calendar.view.range') },
+      { value: 'agenda' as const, label: t('calendar.view.agenda') },
+    ] as const,
+    [t],
+  )
 
   const touchStart = useRef<{ x: number; y: number } | null>(null)
 
@@ -350,7 +361,7 @@ function CalendarPageContent({
         <div style={{ padding: '12px 16px 16px' }}>
           <SegmentedControl<CalendarView>
             options={viewOptions}
-            value={activeView}
+            value={view}
             onChange={setView}
             label={t('calendar.view.switchLabel')}
           />
@@ -362,15 +373,15 @@ function CalendarPageContent({
           }`}
         />
 
-        {activeView === 'range' && calendarHeader}
+        {view === 'range' && calendarHeader}
 
-        {activeError && activeView !== 'agenda' ? (
+        {activeError ? (
           <div style={{ padding: '12px 16px 16px' }}>
             <CalendarLoadError onRetry={() => void activeRefresh()} />
           </div>
         ) : (
           <>
-            {activeView === 'month' && (
+            {view === 'month' && (
               <div className="lg:grid lg:grid-cols-[minmax(440px,55%)_minmax(0,1fr)] lg:items-start">
                 <div>
                   {calendarHeader}
@@ -489,12 +500,15 @@ function CalendarPageContent({
               />
             )}
 
-            {activeView === 'agenda' && (
+            {view === 'agenda' && (
               <CalendarAgendaView
+                startDate={agendaStart}
+                dayMap={rangeDayMap}
                 displayTime={displayTime}
-                dateFnsLocale={dateFnsLocale}
-                showRecurring={showRecurring}
-                onShowRecurringChange={setShowRecurring}
+                displayWeekdayDate={displayWeekdayDate}
+                todayKey={todayKey}
+                isLoading={rangeLoading}
+                loadingLabel={t('common.loading')}
               />
             )}
           </>

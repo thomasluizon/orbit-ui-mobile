@@ -5,7 +5,6 @@ import { formatAPIDate, formatAPIDateInTimeZone } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 let isWideDesktopValue = false
-let isDesktopValue = false
 const calendarGridProps: { selectedDateStr?: string | null; todayKey?: string } = {}
 const monthQueryState: {
   dayMap: Map<string, CalendarDayEntry[]>
@@ -26,6 +25,17 @@ const profileQueryState: {
   refetch: vi.fn(),
 }
 const calendarDataCalls = vi.fn()
+const agendaViewProps: {
+  dayMap?: ReadonlyMap<string, CalendarDayEntry[]>
+  isLoading?: boolean
+} = {}
+const rangeQueryState: {
+  dayMap: Map<string, CalendarDayEntry[]>
+  isLoading: boolean
+} = {
+  dayMap: new Map(),
+  isLoading: false,
+}
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -33,7 +43,6 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/hooks/use-is-desktop', () => ({
-  useIsDesktop: () => isDesktopValue,
   useIsWideDesktop: () => isWideDesktopValue,
 }))
 
@@ -49,8 +58,8 @@ vi.mock('@/hooks/use-calendar-data', () => ({
     })
   },
   useCalendarRange: () => ({
-    dayMap: new Map(),
-    isLoading: false,
+    dayMap: rangeQueryState.dayMap,
+    isLoading: rangeQueryState.isLoading,
     isFetching: false,
     error: null,
     refresh: vi.fn(),
@@ -134,7 +143,17 @@ vi.mock('@/components/calendar/calendar-day-detail', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-week-view', () => ({
-  CalendarWeekView: () => <div data-testid="week-view" />,
+  CalendarWeekView: ({
+    onShowRecurringChange,
+  }: {
+    onShowRecurringChange: (value: boolean) => void
+  }) => (
+    <button
+      type="button"
+      data-testid="week-view"
+      onClick={() => onShowRecurringChange(false)}
+    />
+  ),
 }))
 
 vi.mock('@/components/calendar/calendar-range-view', () => ({
@@ -142,7 +161,14 @@ vi.mock('@/components/calendar/calendar-range-view', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-agenda-view', () => ({
-  CalendarAgendaView: () => <div data-testid="agenda-view" />,
+  CalendarAgendaView: (props: {
+    dayMap: ReadonlyMap<string, CalendarDayEntry[]>
+    isLoading: boolean
+  }) => {
+    agendaViewProps.dayMap = props.dayMap
+    agendaViewProps.isLoading = props.isLoading
+    return <div data-testid="agenda-view" />
+  },
 }))
 
 import CalendarPage from '@/app/(app)/calendar/page'
@@ -168,7 +194,6 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 describe('CalendarPage view switcher', () => {
   beforeEach(() => {
     isWideDesktopValue = false
-    isDesktopValue = false
     calendarGridProps.selectedDateStr = undefined
     calendarGridProps.todayKey = undefined
     monthQueryState.dayMap = new Map()
@@ -178,6 +203,10 @@ describe('CalendarPage view switcher', () => {
     profileQueryState.error = null
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()
+    agendaViewProps.dayMap = undefined
+    agendaViewProps.isLoading = undefined
+    rangeQueryState.dayMap = new Map()
+    rangeQueryState.isLoading = false
   })
 
   it('loads calendar data concurrently while the profile resolves', () => {
@@ -199,14 +228,19 @@ describe('CalendarPage view switcher', () => {
     expect(profileQueryState.refetch).toHaveBeenCalledTimes(1)
   })
 
-  it('renders one three-option view switcher at phone width and opens the month on today', () => {
+  it('renders the agenda at phone width without folding it back to month', () => {
     render(<CalendarPage />)
 
     expect(screen.getAllByRole('radiogroup', { name: 'calendar.view.switchLabel' })).toHaveLength(1)
-    expect(screen.getAllByRole('radio')).toHaveLength(3)
+    expect(screen.getAllByRole('radio')).toHaveLength(4)
     expect(screen.getByRole('radio', { name: 'calendar.view.month' }).getAttribute('aria-checked')).toBe('true')
-    expect(screen.queryByRole('radio', { name: 'calendar.view.agenda' })).toBeNull()
     expect(calendarGridProps.selectedDateStr).toBe(formatAPIDate(new Date()))
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
+
+    expect(screen.getByRole('radio', { name: 'calendar.view.agenda' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByTestId('agenda-view')).toBeDefined()
+    expect(screen.queryByTestId('month-view')).toBeNull()
   })
 
   it('marks today in the account timezone when the browser-local date differs', () => {
@@ -266,16 +300,14 @@ describe('CalendarPage view switcher', () => {
     }
   })
 
-  it('adds the agenda option at desktop width', () => {
-    isDesktopValue = true
+  it('keeps the agenda option at desktop width', () => {
     render(<CalendarPage />)
 
     expect(screen.getAllByRole('radio')).toHaveLength(4)
     expect(screen.getAllByRole('radio', { name: 'calendar.view.agenda' })).toHaveLength(1)
   })
 
-  it('switches from the month heat-map to the agenda planner and back', () => {
-    isDesktopValue = true
+  it('switches from the month view to the agenda list and back', () => {
     render(<CalendarPage />)
 
     expect(screen.getByTestId('month-view')).toBeDefined()
@@ -290,6 +322,35 @@ describe('CalendarPage view switcher', () => {
 
     expect(screen.getByTestId('month-view')).toBeDefined()
     expect(screen.queryByTestId('agenda-view')).toBeNull()
+  })
+
+  it('passes the range loading state to the agenda view', () => {
+    rangeQueryState.isLoading = true
+    render(<CalendarPage />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
+
+    expect(agendaViewProps.isLoading).toBe(true)
+  })
+
+  it('shows all agenda habits after recurring entries are hidden in another view', () => {
+    const today = formatAPIDate(new Date())
+    rangeQueryState.dayMap = new Map([
+      [today, [
+        monthEntry('recurring', 'upcoming'),
+        { ...monthEntry('one-time', 'upcoming'), isOneTime: true },
+      ]],
+    ])
+    render(<CalendarPage />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+    fireEvent.click(screen.getByTestId('week-view'))
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
+
+    expect(agendaViewProps.dayMap?.get(today)?.map((entry) => entry.habitId)).toEqual([
+      'recurring',
+      'one-time',
+    ])
   })
 
   it('switches to the week and range time-grid views', () => {
