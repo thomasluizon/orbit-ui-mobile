@@ -14,6 +14,7 @@ tools/*.sh text eol=lf
 .claude/workorders/*.md text eol=lf
 CLAUDE.md text eol=lf
 .claude/rules/*.md text eol=lf
+.claude/pending-lessons.md text eol=lf
 # A skill file under a byte ceiling must measure the same on every platform: this
 # worktree reads CRLF and a Linux CI checkout reads LF, a 772 byte difference on
 # orchestrate/SKILL.md alone, so an unpinned ceiling is wrong on one of them by
