@@ -79,6 +79,11 @@
     "snapshot": "none",
     "constants": "none"
   },
+  ".github/workflows/guards.yml#lint-severity": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
   ".github/workflows/guards.yml#mobile-fonts": {
     "scope": "changed-files",
     "snapshot": "none",
@@ -380,6 +385,11 @@
     "constants": "none"
   },
   "tools/check-i18n-usage.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "tools/check-lint-severity.mjs": {
     "scope": "changed-files",
     "snapshot": "none",
     "constants": "none"

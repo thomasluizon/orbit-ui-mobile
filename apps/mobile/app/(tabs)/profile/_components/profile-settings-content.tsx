@@ -10,7 +10,6 @@ import {
   shouldRedirectProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
 import {
-  BellRing,
   Calendar,
   Clock,
   CreditCard,
@@ -18,18 +17,26 @@ import {
   Languages,
   Lock,
   LogOut,
-  MessageSquare,
   Moon,
   RotateCcw,
-  Satellite,
   User,
   UserX,
   type Icon,
 } from '@/components/ui/icons'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
-import { ProfileSettingsFrame } from '@/components/profile/profile-settings-frame'
+import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
+import {
+  AstraSettingsSwitch,
+  type AstraSettingsController,
+  useAstraSettingsController,
+} from '@/components/profile/astra-settings-controller'
+import {
+  ProfileSettingsFrame,
+  ProfileValueRow,
+} from '@/components/profile/profile-settings-frame'
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { ListRow } from '@/components/ui/list-row'
+import { RowList } from '@/components/ui/row-list'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { Toast } from '@/components/ui/app-toast'
 import { useLogout } from '@/hooks/use-logout'
@@ -52,6 +59,7 @@ import { useDataExport } from './use-data-export'
 interface ProfileSettingsContentProps {
   profile: Profile | undefined
   isLoading: boolean
+  patchProfile: (patch: Partial<Profile>) => void
 }
 
 type Translate = ReturnType<typeof useTranslation>['t']
@@ -101,15 +109,52 @@ function buildYouRows(
   ]
 }
 
-function buildAstraRows({ profile, router, t, tokens }: RowContext) {
-  return [
-    /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
-    <ListRow key="allowance" icon={icon(Satellite, tokens.fg1)} title={t('profile.settingsRows.dailyAllowance')} value={`${profile?.aiMessagesUsed ?? 0}/${profile?.aiMessagesLimit ?? 0}`} onClick={() => router.push(buildUpgradeHref('/profile'))} />,
-    <ListRow key="proactive" icon={icon(BellRing, tokens.fg1)} title={t('profile.proactiveAstra.title')} onClick={() => router.push('/ai-settings')} />,
-    <ListRow key="summary" icon={icon(MessageSquare, tokens.fg1)} title={t('profile.aiSummary.title')} onClick={() => router.push('/ai-settings')} />,
-    /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
-    <ListRow key="api-keys" icon={icon(Lock, tokens.fg1)} title={t('profile.settingsRows.apiKeysMcp')} onClick={() => router.push('/advanced')} />,
-  ]
+function buildAstraRows(
+  { profile, router, t, tokens }: RowContext,
+  settings: AstraSettingsController,
+) {
+  const onUpgrade = () => router.push(buildUpgradeHref('/profile'))
+  return (
+    <>
+      {profile ? (
+        <AstraAllowancePanel
+          profile={profile}
+          onPlanAction={() => router.push(buildUpgradeHref('/profile'))}
+        />
+      ) : null}
+      {profile ? (
+        <RowList>
+          {profile.hasProAccess ? (
+            <>
+              <ProfileValueRow
+                label={t('profile.proactiveAstra.title')}
+                control={(
+                  <AstraSettingsSwitch checked={settings.proactiveAstraEnabled} pending={settings.proactivePending} label={t('profile.proactiveAstra.title')} onToggle={settings.onToggleProactive} />
+                )}
+              />
+              <ProfileValueRow
+                label={t('profile.aiSummary.title')}
+                control={(
+                  <AstraSettingsSwitch checked={settings.aiSummaryEnabled} pending={settings.summaryPending} label={t('profile.aiSummary.title')} onToggle={settings.onToggleSummary} />
+                )}
+              />
+            </>
+          ) : (
+            <>
+              {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
+              <ListRow icon={icon(Lock, tokens.fg1)} title={t('profile.proactiveAstra.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
+              {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
+              <ListRow icon={icon(Lock, tokens.fg1)} title={t('profile.aiSummary.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
+            </>
+          )}
+        </RowList>
+      ) : null}
+      <RowList>
+        {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
+        <ListRow key="api-keys" icon={icon(Lock, tokens.fg1)} title={t('profile.settingsRows.apiKeysMcp')} onClick={() => router.push('/advanced')} />
+      </RowList>
+    </>
+  )
 }
 
 async function togglePush(push: ReturnType<typeof usePushNotifications>) {
@@ -259,6 +304,7 @@ function buildEndingRows({
 export function ProfileSettingsContent({
   profile,
   isLoading,
+  patchProfile,
 }: Readonly<ProfileSettingsContentProps>) {
   const { t } = useTranslation()
   const router = useRouter()
@@ -279,6 +325,7 @@ export function ProfileSettingsContent({
   const [showEditName, setShowEditName] = useState(false)
   const [showFreshStart, setShowFreshStart] = useState(false)
   const [showDeleteAccount, setShowDeleteAccount] = useState(false)
+  const astraSettings = useAstraSettingsController(profile, patchProfile)
   useShellNoticeSlot(
     exportDone,
     () => (
@@ -300,7 +347,7 @@ export function ProfileSettingsContent({
       () => void exportData(),
       () => preferenceControls.setActivePicker('timeZone'),
     ),
-    astra: buildAstraRows(context),
+    astra: buildAstraRows(context, astraSettings),
     notifications: buildNotificationRows(t, tokens, push),
     more: buildMoreRows(context),
     ending: buildEndingRows({
@@ -324,7 +371,7 @@ export function ProfileSettingsContent({
           ending: t('profile.groups.ending'),
         }}
         rows={rows}
-        uncontainedGroups={['notifications']}
+        uncontainedGroups={['astra', 'notifications']}
       />
       <EditNameSheet open={showEditName} onClose={() => setShowEditName(false)} />
       <FreshStartModal open={showFreshStart} onClose={() => setShowFreshStart(false)} />
