@@ -36,6 +36,10 @@ let autoSyncState: CalendarAutoSyncState = {
   lastSyncedAt: '2026-09-12T09:12:00Z',
   hasGoogleConnection: true,
 }
+let autoSyncQueryOptions: {
+  enabled?: boolean
+  initialData?: CalendarAutoSyncState
+} | undefined
 const setAutoSync = vi.fn(async ({ enabled }: { enabled: boolean }) => {
   autoSyncState = { ...autoSyncState, enabled }
 })
@@ -119,7 +123,13 @@ vi.mock('@/hooks/use-calendar-events', () => ({
 }))
 
 vi.mock('@/hooks/use-calendar-auto-sync', () => ({
-  useCalendarAutoSyncState: () => ({ data: autoSyncState }),
+  useCalendarAutoSyncState: (options?: {
+    enabled?: boolean
+    initialData?: CalendarAutoSyncState
+  }) => {
+    autoSyncQueryOptions = options
+    return { data: autoSyncState }
+  },
   useSetCalendarAutoSync: () => ({ mutateAsync: setAutoSync }),
 }))
 
@@ -333,6 +343,7 @@ describe('CalendarPage view switcher', () => {
       lastSyncedAt: '2026-09-12T09:12:00Z',
       hasGoogleConnection: true,
     }
+    autoSyncQueryOptions = undefined
     setAutoSync.mockClear()
     calendarGridProps.dayMap = undefined
     calendarGridProps.todayKey = undefined
@@ -667,6 +678,16 @@ describe('CalendarPage view switcher', () => {
       googleCalendarLastSyncedAt: '2026-09-12T09:12:00Z',
     }
     render(<CalendarPage />)
+
+    expect(autoSyncQueryOptions).toEqual({
+      enabled: true,
+      initialData: {
+        enabled: true,
+        status: 'Idle',
+        lastSyncedAt: '2026-09-12T09:12:00Z',
+        hasGoogleConnection: true,
+      },
+    })
 
     fireEvent.click(screen.getByTestId('month-view'))
     fireEvent.click(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))

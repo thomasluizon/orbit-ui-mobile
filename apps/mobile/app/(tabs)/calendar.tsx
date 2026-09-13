@@ -301,7 +301,16 @@ function CalendarProfileState({
 }
 
 interface CalendarScreenContentProps {
-  profile: Pick<Profile, 'weekStartDay' | 'timeZone' | 'hasProAccess'>;
+  profile: Pick<
+    Profile,
+    | 'weekStartDay'
+    | 'timeZone'
+    | 'hasProAccess'
+    | 'hasGoogleConnection'
+    | 'googleCalendarAutoSyncEnabled'
+    | 'googleCalendarAutoSyncStatus'
+    | 'googleCalendarLastSyncedAt'
+  >;
   currentMonth: Date;
   setCurrentMonth: Dispatch<SetStateAction<Date>>;
   monthQuery: ReturnType<typeof useCalendarData>;
@@ -373,6 +382,12 @@ function CalendarScreenContent({
   });
   const { data: autoSyncState } = useCalendarAutoSyncState({
     enabled: profile.hasProAccess,
+    initialData: {
+      enabled: profile.googleCalendarAutoSyncEnabled,
+      status: profile.googleCalendarAutoSyncStatus,
+      lastSyncedAt: profile.googleCalendarLastSyncedAt,
+      hasGoogleConnection: profile.hasGoogleConnection,
+    },
   });
   const setCalendarAutoSync = useSetCalendarAutoSync();
 

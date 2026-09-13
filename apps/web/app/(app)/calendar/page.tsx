@@ -270,6 +270,10 @@ interface CalendarPageContentProps {
     | 'weekStartDay'
     | 'timeZone'
     | 'hasProAccess'
+    | 'hasGoogleConnection'
+    | 'googleCalendarAutoSyncEnabled'
+    | 'googleCalendarAutoSyncStatus'
+    | 'googleCalendarLastSyncedAt'
   >
   currentMonth: Date
   setCurrentMonth: Dispatch<SetStateAction<Date>>
@@ -328,6 +332,12 @@ function CalendarPageContent({
   })
   const { data: autoSyncState } = useCalendarAutoSyncState({
     enabled: profile.hasProAccess,
+    initialData: {
+      enabled: profile.googleCalendarAutoSyncEnabled,
+      status: profile.googleCalendarAutoSyncStatus,
+      lastSyncedAt: profile.googleCalendarLastSyncedAt,
+      hasGoogleConnection: profile.hasGoogleConnection,
+    },
   })
   const setCalendarAutoSync = useSetCalendarAutoSync()
 

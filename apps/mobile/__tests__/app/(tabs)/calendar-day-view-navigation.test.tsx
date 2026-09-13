@@ -18,6 +18,10 @@ let autoSyncState: CalendarAutoSyncState = {
   lastSyncedAt: '2026-09-12T09:12:00Z',
   hasGoogleConnection: true,
 }
+let autoSyncQueryOptions: {
+  enabled?: boolean
+  initialData?: CalendarAutoSyncState
+} | undefined
 vi.mock('react-native', async () => {
   const ReactLib = require('react')
   const reactNative = await import('../../../test-mocks/react-native')
@@ -94,7 +98,13 @@ vi.mock('@/hooks/use-calendar-events', () => ({
 }))
 
 vi.mock('@/hooks/use-calendar-auto-sync', () => ({
-  useCalendarAutoSyncState: () => ({ data: autoSyncState }),
+  useCalendarAutoSyncState: (options?: {
+    enabled?: boolean
+    initialData?: CalendarAutoSyncState
+  }) => {
+    autoSyncQueryOptions = options
+    return { data: autoSyncState }
+  },
   useSetCalendarAutoSync: () => ({ mutateAsync: mockSetAutoSync }),
 }))
 
@@ -158,6 +168,7 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
       lastSyncedAt: '2026-09-12T09:12:00Z',
       hasGoogleConnection: true,
     }
+    autoSyncQueryOptions = undefined
     sheetTestControls.defer(true)
   })
 
@@ -234,6 +245,16 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     let tree!: TestTree
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />)
+    })
+
+    expect(autoSyncQueryOptions).toEqual({
+      enabled: true,
+      initialData: {
+        enabled: true,
+        status: 'Idle',
+        lastSyncedAt: '2026-09-12T09:12:00Z',
+        hasGoogleConnection: true,
+      },
     })
     TestRenderer.act(() => {
       ;(findGridDayCell(tree.root, '2026-08-15').props.onPress as () => void)()
