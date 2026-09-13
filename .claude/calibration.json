@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-09-11",
+  "calibratedAt": "2026-09-13",
   "workerEngine": "codex",
   "workerCommand": "codex",
   "workerModel": "gpt-5.6-sol",
@@ -123,8 +123,8 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "1f2a317d703d51be",
-      "calibratedAt": "2026-09-09",
+      "digest": "1c99a09df2ba50b6",
+      "calibratedAt": "2026-09-13",
       "verdict": "current: high effort, and it earns it: it decides what a fresh session cannot rediscover, and under-thinking it is how a handoff loses the one fact written nowhere else."
     },
     ".claude/skills/investigate/SKILL.md": {

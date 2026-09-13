@@ -1,7 +1,7 @@
 ---
 name: handoff
 description: Turn the current session into one prompt a fresh session can run to continue the work. Carries context by POINTING at the ADRs, docs, tickets and drawings that already hold it, and inlines only what this session established that is written nowhere else. Use at the end of a working session, when context is running out, or when the user says /handoff, hand this off, continue this in a new session. It writes a prompt; it never does the work the prompt describes.
-argument-hint: "[extra instructions for the NEXT session]"
+argument-hint: "[--sleep | /sleep] [extra instructions for the NEXT session]"
 effort: high
 ---
 
@@ -11,6 +11,26 @@ effort: high
 work for the NEXT session**, appended to the prompt you produce. **You never do that work now.**
 `/handoff refine the Perfil screen` writes a prompt that continues the plan AND refines Perfil; it
 does not refine Perfil.
+
+An argument always describes the next session. A slash command names the mode that session opens in.
+`/handoff --sleep` and `/handoff /sleep` therefore both write a prompt for an unattended run. Neither
+can mean continue the current run, because requesting a handoff means this session is finishing.
+
+### Sleep handoffs
+
+A sleep handoff is an ordinary handoff with this entry added, never a replacement for the standing
+contract, pointers, delta, durable naming rule, or task. Put this entry at the top and require the next
+session to:
+
+- Read and execute `.claude/skills/sleep/SKILL.md`, including its hard stops by pointer.
+- First write run state through `writeRunState` with its own session id, `sleep: true`, and the
+  admitted `remaining` queue. Read it back and confirm both identity and sleep mode before its first
+  turn ends. A previous session id leaves the Stop guard inert.
+- Take that id from the parent of `scratchpad` in the system prompt path, never `scratchpad` itself.
+- Append each decision immediately to `sleep-decisions.md` in that session's scratchpad, never batch
+  decisions at the end.
+- End every turn with a named, live background wake source. Only `tools/launch-worker.mjs` and
+  `submit-cloud-worker.mjs --watch` register one.
 
 ## Why this exists, and the one failure it prevents
 
@@ -106,9 +126,9 @@ reopened. Open questions travel as questions, each with the reason it is still o
 answer it. A question the next session cannot tell from a decision will get decided by accident.
 
 **D. Write the prompt.** Address the next session directly, in the second person, as a work order.
-Lead with the standing-contract block above, then the job in one or two sentences, then Read first,
-then state, then the delta, then what to do, then the extra instructions. Match the house voice:
-plain words, short sentences, no em dash and
+Lead with the sleep entry when requested, then the standing-contract block above, then the job in one
+or two sentences, then Read first, then state, then the delta, then what to do, then the extra
+instructions. Match the house voice: plain words, short sentences, no em dash and
 no en dash anywhere.
 
 Put this near the top of every prompt you write, in your own words:
