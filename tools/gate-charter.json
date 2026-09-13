@@ -39,6 +39,11 @@
     "snapshot": "none",
     "constants": "none"
   },
+  ".claude/hooks/surface-pending-lessons.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
   ".github/workflows/guards.yml#calibration": {
     "scope": "whole-tree-advisory",
     "snapshot": "node tools/reseed-calibration.mjs",
@@ -70,6 +75,11 @@
     "constants": "none"
   },
   ".github/workflows/guards.yml#i18n-usage": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#lint-severity": {
     "scope": "changed-files",
     "snapshot": "none",
     "constants": "none"
@@ -365,6 +375,11 @@
     "constants": "none"
   },
   "tools/check-i18n-usage.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "tools/check-lint-severity.mjs": {
     "scope": "changed-files",
     "snapshot": "none",
     "constants": "none"
