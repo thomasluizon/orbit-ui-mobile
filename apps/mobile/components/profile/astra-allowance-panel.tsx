@@ -18,15 +18,16 @@ export function AstraAllowancePanel({
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const isPaidPro = profile.hasProAccess && !profile.isTrialActive
+  const isNonTrialPro = profile.hasProAccess && !profile.isTrialActive
+  const canManageSubscription = isNonTrialPro && !profile.isLifetimePro
   const isSpent = profile.aiMessagesLimit > 0
     && profile.aiMessagesUsed >= profile.aiMessagesLimit
-  const actionLabel = isPaidPro
+  const actionLabel = canManageSubscription
     ? t('profile.allowance.manageSubscription')
     : t('profile.allowance.seePro')
   const planLabel = profile.isTrialActive
     ? t('profile.subscription.trial')
-    : isPaidPro
+    : isNonTrialPro
       ? t('profile.allowance.pro')
       : t('profile.allowance.free')
 
@@ -67,16 +68,18 @@ export function AstraAllowancePanel({
           {planLabel}
         </Text>
       </View>
-      <View style={styles.actionRow}>
-        <PillButton
-          variant="ghost"
-          size="sm"
-          onClick={onPlanAction}
-          accessibleName={actionLabel}
-        >
-          {actionLabel}
-        </PillButton>
-      </View>
+      {!profile.isLifetimePro ? (
+        <View style={styles.actionRow}>
+          <PillButton
+            variant="ghost"
+            size="sm"
+            onClick={onPlanAction}
+            accessibleName={actionLabel}
+          >
+            {actionLabel}
+          </PillButton>
+        </View>
+      ) : null}
     </View>
   )
 }

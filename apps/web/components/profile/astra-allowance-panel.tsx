@@ -14,15 +14,16 @@ export function AstraAllowancePanel({
   profile,
 }: Readonly<AstraAllowancePanelProps>) {
   const t = useTranslations()
-  const isPaidPro = profile.hasProAccess && !profile.isTrialActive
+  const isNonTrialPro = profile.hasProAccess && !profile.isTrialActive
+  const canManageSubscription = isNonTrialPro && !profile.isLifetimePro
   const isSpent = profile.aiMessagesLimit > 0
     && profile.aiMessagesUsed >= profile.aiMessagesLimit
-  const actionLabel = isPaidPro
+  const actionLabel = canManageSubscription
     ? t('profile.allowance.manageSubscription')
     : t('profile.allowance.seePro')
   const planLabel = profile.isTrialActive
     ? t('profile.subscription.trial')
-    : isPaidPro
+    : isNonTrialPro
       ? t('profile.allowance.pro')
       : t('profile.allowance.free')
 
@@ -66,20 +67,22 @@ export function AstraAllowancePanel({
           {planLabel}
         </p>
       </div>
-      <div className="flex">
-        <Link
-          href="/upgrade"
-          className="touch-target inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 bg-transparent font-medium text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-card)] active:scale-[0.96]"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            height: BUTTON_SIZES.sm.height,
-            paddingInline: BUTTON_SIZES.sm.paddingX,
-            fontSize: BUTTON_SIZES.sm.fontSize,
-          }}
-        >
-          {actionLabel}
-        </Link>
-      </div>
+      {!profile.isLifetimePro ? (
+        <div className="flex">
+          <Link
+            href="/upgrade"
+            className="touch-target inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-full border-0 bg-transparent font-medium text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] hover:bg-[var(--bg-card)] active:scale-[0.96]"
+            style={{
+              fontFamily: 'var(--font-sans)',
+              height: BUTTON_SIZES.sm.height,
+              paddingInline: BUTTON_SIZES.sm.paddingX,
+              fontSize: BUTTON_SIZES.sm.fontSize,
+            }}
+          >
+            {actionLabel}
+          </Link>
+        </div>
+      ) : null}
     </div>
   )
 }

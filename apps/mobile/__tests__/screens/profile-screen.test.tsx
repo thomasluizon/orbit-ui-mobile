@@ -658,6 +658,36 @@ describe('ProfileScreen', () => {
     }))
   })
 
+  it('shows lifetime Pro without advertising a subscription management action', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({
+        plan: 'pro',
+        hasProAccess: true,
+        isTrialActive: false,
+        isLifetimePro: true,
+        aiMessagesUsed: 2,
+        aiMessagesLimit: 50,
+      }),
+      isLoading: false,
+      error: null,
+    }
+    const tree = await renderProfileScreen()
+    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
+
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.allowance.pro')),
+    ).toHaveLength(1)
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.allowance.seePro')),
+    ).toHaveLength(0)
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.allowance.manageSubscription')),
+    ).toHaveLength(0)
+  })
+
   it('places export last in You instead of Ending things', async () => {
     const tree = await renderProfileScreen()
     const youGroup = tree.root.find(

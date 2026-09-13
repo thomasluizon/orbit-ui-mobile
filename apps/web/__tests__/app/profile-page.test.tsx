@@ -292,6 +292,27 @@ describe('ProfilePage', () => {
     expect(mockUpdateAiSummary).toHaveBeenCalledWith({ enabled: false })
   })
 
+  it('shows lifetime Pro without advertising a subscription management action', () => {
+    mockProfileState.current = {
+      profile: createMockProfile({
+        plan: 'pro',
+        hasProAccess: true,
+        isTrialActive: false,
+        isLifetimePro: true,
+        aiMessagesUsed: 2,
+        aiMessagesLimit: 50,
+      }),
+      isLoading: false,
+      error: null,
+    }
+    render(<ProfilePage />)
+
+    const astra = within(screen.getByTestId('profile-settings-group-astra'))
+    expect(astra.getByText('profile.allowance.pro')).toBeInTheDocument()
+    expect(astra.queryByRole('link', { name: 'profile.allowance.seePro' })).not.toBeInTheDocument()
+    expect(astra.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
+  })
+
   it('places export last in You instead of Ending things', () => {
     render(<ProfilePage />)
 
