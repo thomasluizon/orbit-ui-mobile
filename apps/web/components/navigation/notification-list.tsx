@@ -31,6 +31,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
           <li className="flex flex-col items-center gap-4 rounded-[var(--r-card)] p-8 text-center">
             {isError ? <>
               <p className="text-sm text-[var(--fg-3)]">{t('notifications.loadError')}</p>
+              {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
               <button type="button" className="chip" onClick={onRetry}>{t('common.retry')}</button>
             </> : <>
               <OrbitMark size={96} />

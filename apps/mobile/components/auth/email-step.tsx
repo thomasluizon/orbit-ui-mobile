@@ -45,6 +45,7 @@ export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmittin
       <View style={styles.dividerLine} /><Text style={styles.dividerText}>{t('auth.orContinueWith')}</Text><View style={styles.dividerLine} />
     </View>
     <View style={styles.titleBlock}>
+      {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
       <PillButton variant="ghost" onClick={onSignInWithGoogle} disabled={isGoogleLoading || isSubmitting || !isOnline}
         loading={isGoogleLoading}>{t('auth.signInWithGoogle')}</PillButton>
       {!isOnline && <Text style={styles.reason}>{t('auth.googleOffline')}</Text>}

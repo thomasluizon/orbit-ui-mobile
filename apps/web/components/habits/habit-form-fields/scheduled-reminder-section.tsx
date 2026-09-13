@@ -95,6 +95,7 @@ export function ScheduledReminderSection({
                   style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500 }}
                 >
                   {scheduledReminderLabel(sr)}
+                  {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
                   <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="grid place-items-center min-h-[44px] min-w-[44px] -my-2.5 -mr-2.5 -ml-1 hover:text-[var(--fg-2)] transition-colors" onClick={() => removeScheduledReminder(idx)}>
                     <X size={13} strokeWidth={2.2} aria-hidden="true" />
                   </button>
@@ -130,6 +131,7 @@ export function ScheduledReminderSection({
                   >
                     {t('habits.form.scheduledReminderDayBefore')}
                   </button>
+                  {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
                   <button
                     type="button"
                     aria-pressed={when === 'same_day'}

@@ -15,6 +15,7 @@ export default function NotFound() {
         <h1 className="error-surface-title">{t('notFoundPage.title')}</h1>
         <p className="error-surface-body">{t('notFoundPage.description')}</p>
         <div className="error-surface-action">
+          {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
           <PillButton onClick={() => router.push('/')}>{t('notFoundPage.action')}</PillButton>
         </div>
       </section>

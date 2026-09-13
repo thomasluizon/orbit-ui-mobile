@@ -149,6 +149,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     if (error) {
       return (
         <View style={styles.actions}>
+          {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
           <PillButton  onClick={() => void refetch()}>
             {t('habits.reschedule.retry')}
           </PillButton>
@@ -160,6 +161,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     }
     return (
       <View style={styles.actions}>
+        {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
         <PillButton
 
           disabled={!suggestion || updateHabit.isPending}

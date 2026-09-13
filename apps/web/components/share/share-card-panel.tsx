@@ -78,6 +78,7 @@ export function ShareCardPanel({ open, onOpenChange, displayName }: Readonly<Sha
             <p role="alert" style={{ margin: 0, textAlign: 'center', fontSize: 14, color: 'var(--status-bad-text)' }}>
               {t('shareCard.error')}
             </p>
+            {/* eslint-disable-next-line local/max-button-words -- ORB-66 owns this existing share label. */}
             <PillButton variant="ghost" onClick={() => void refetch()}>
               {t('common.retry')}
             </PillButton>

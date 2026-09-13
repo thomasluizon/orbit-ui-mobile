@@ -114,6 +114,7 @@ export function ScheduledReminderSection({
                   <Text style={sectionStyles.chipText}>
                     {scheduledReminderLabel(sr)}
                   </Text>
+                  {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
                   <Pressable
                     style={({ pressed }) =>
                       pressed ? { transform: [{ scale: 0.96 }] } : null
@@ -177,6 +178,7 @@ export function ScheduledReminderSection({
                     {t("habits.form.scheduledReminderDayBefore")}
                   </Text>
                 </Pressable>
+                {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
                 <Pressable
                   style={({ pressed }) => [
                     sectionStyles.whenButton,

@@ -109,6 +109,7 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
     >
       <div className="space-y-5 sm:mx-auto sm:w-full sm:max-w-[360px]">
         <div>
+          {/* eslint-disable-next-line local/max-button-words -- D69 deletes this onboarding tour surface. */}
           <PillButton onClick={handleReplayAll}>
             {t('tour.replay.replayAll')}
           </PillButton>

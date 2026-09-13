@@ -265,6 +265,7 @@ export function OnboardingCreateGoal({
         </PillButton>
       </View>
 
+      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       <Pressable
         disabled={isCreating}
         onPress={onSkip}

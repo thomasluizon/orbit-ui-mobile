@@ -273,6 +273,7 @@ export function ApiKeysSection({
       <div className="flex items-center justify-between">
         <SubsectionTitle>{t('orbitMcp.apiKeys')}</SubsectionTitle>
         {canCreateKey && (
+          /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
           <button
             type="button"
             disabled={!canCreateScopedKey}

@@ -182,6 +182,7 @@ function RescheduleBlock({ habit, slipping, hasPro, locale, tokens }: Readonly<{
           <Text style={[styles.proposedTitle, { color: tokens.fg1 }]}>{t('habits.detail.slipping')}</Text>
           <Text style={[styles.muted, { color: tokens.fg3 }]}>{query.suggestion?.rationale ?? (query.error ? t('habits.detail.rescheduleError') : t('habits.detail.rescheduleLoading'))}</Text>
         </View>
+        {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
         <View style={styles.proposedAction}><PillButton variant="secondary" size="sm" disabled={!query.suggestion} loading={updateHabit.isPending} onClick={() => void accept()}>{t('habits.detail.rescheduleAccept')}</PillButton></View>
       </View>
     </Proposed>

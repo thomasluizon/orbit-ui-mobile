@@ -103,6 +103,7 @@ export function HabitDrill({
         </View>
       </View>
       {drill.drillStack.length > 1 ? (
+        /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
         <ListRow
           icon="home"
           title={t('habits.backToHabits')}
@@ -134,6 +135,7 @@ export function HabitDrill({
       <Text style={styles.drillErrorText} accessibilityLiveRegion="polite">
         {drill.drillError}
       </Text>
+      {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
       <PillButton variant="ghost" onClick={() => void drill.refreshCurrent()}>
         {t('common.retry')}
       </PillButton>

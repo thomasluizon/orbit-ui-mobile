@@ -13,8 +13,10 @@ import { afterAll, describe, it } from 'vitest'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import webEslintConfig from '../../apps/web/eslint.config.mjs'
 
 const require = createRequire(import.meta.url)
+const mobileEslintConfig = require('../../apps/mobile/eslint.config.js')
 
 RuleTester.describe = describe
 RuleTester.it = it
@@ -25,11 +27,32 @@ const ruleTester = new RuleTester({
     parser: tsParser,
     ecmaVersion: 2022,
     sourceType: 'module',
-    parserOptions: { ecmaFeatures: { jsx: true } },
+    parserOptions: {
+      ecmaFeatures: { jsx: true },
+      tsconfigRootDir: dirname(fileURLToPath(import.meta.url)),
+    },
   },
 })
 
 const rule = (name) => require(`../${name}.cjs`)
+
+const maxButtonWordsOptionsFrom = (config, platform) => {
+  const registration = config
+    .flat()
+    .map((entry) => entry?.rules?.['local/max-button-words'])
+    .find((configuredRule) => Array.isArray(configuredRule) && configuredRule[0] === 'error')
+  if (!registration?.[1]) throw new Error(`${platform} must register local/max-button-words at error`)
+  return [registration[1]]
+}
+
+const webMaxButtonWordsOptions = maxButtonWordsOptionsFrom(webEslintConfig, 'web')
+const mobileMaxButtonWordsOptions = maxButtonWordsOptionsFrom(mobileEslintConfig, 'mobile')
+const maxButtonWordsOptions = webMaxButtonWordsOptions
+
+const maxWordsError = (control, label, locale, count) => ({
+  messageId: 'tooManyWords',
+  data: { control, label, locale, count: String(count), limit: '2' },
+})
 
 ruleTester.run('no-decorative-glow', rule('no-decorative-glow'), {
   valid: [
@@ -824,6 +847,178 @@ ruleTester.run('no-pill-radius-on-static', rule('no-pill-radius-on-static'), {
     {
       code: "const base = { borderRadius: 9999 }; const a = <View style={base}><Text>Pro</Text></View>",
       errors: [{ messageId: 'pillOnStatic' }],
+    },
+  ],
+})
+
+ruleTester.run('max-button-words', rule('max-button-words'), {
+  valid: [
+    { code: '<PillButton>Log all</PillButton>', options: maxButtonWordsOptions },
+    { code: '<PillButton>Set-up now</PillButton>', options: maxButtonWordsOptions },
+    { code: '<button aria-label="Open menu" />', options: maxButtonWordsOptions },
+    { code: '<Pressable accessibilityRole="button" accessibilityLabel="Open menu" />', options: maxButtonWordsOptions },
+    { code: '<EmptyState description="This sentence belongs in empty state body copy" />', options: maxButtonWordsOptions },
+    { code: '<Dialog><p>This sentence belongs in the dialog body</p></Dialog>', options: maxButtonWordsOptions },
+    { code: 'toast("This sentence belongs in toast body copy")', options: maxButtonWordsOptions },
+    { code: '<h2>This heading may use several useful words</h2>', options: maxButtonWordsOptions },
+    {
+      code: "const { t } = useTranslation(); const tab = <button role=\"tab\">{t('nav.progress')}</button>",
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: 'const { t } = useTranslation(); const key = getKey(); const button = <PillButton>{t(key)}</PillButton>',
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: "const { t } = useTranslation(); const button = <PillButton>{t('missing.locale.key')}</PillButton>",
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: "const { t } = useTranslation(); const button = <PillButton>{t('habits.detail.log')}</PillButton>",
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: "const { t } = useTranslation(); const button = <PillButton>{t('habits.search.count')}</PillButton>",
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: "const { t } = useTranslation(); const tabs = <BottomTabBar items={[{ id: 'today', label: t('nav.today') }]} />",
+      options: maxButtonWordsOptions,
+    },
+    {
+      code: '<div>\n{/* eslint-disable-next-line rule-to-test/max-button-words -- D69 deletes this surface. */}\n<PillButton>Open all insights</PillButton>\n</div>',
+      options: maxButtonWordsOptions,
+    },
+  ],
+  invalid: [
+    {
+      code: '<PillButton>Open all insights</PillButton>',
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('PillButton', 'Open all insights', 'source', 3)],
+    },
+    {
+      code: '<PillButton label="Open navigation menu" iconOnly />',
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('PillButton', 'Open navigation menu', 'source', 3)],
+    },
+    {
+      code: '<PillButton accessibleName="Open payment settings">Change</PillButton>',
+      options: webMaxButtonWordsOptions,
+      errors: [maxWordsError('PillButton', 'Open payment settings', 'source', 3)],
+    },
+    {
+      code: '<PillButton accessibleName="Open payment settings">Change</PillButton>',
+      options: mobileMaxButtonWordsOptions,
+      errors: [maxWordsError('PillButton', 'Open payment settings', 'source', 3)],
+    },
+    {
+      code: '<Button accessibleName="Open payment settings">Change</Button>',
+      options: webMaxButtonWordsOptions,
+      errors: [maxWordsError('Button', 'Open payment settings', 'source', 3)],
+    },
+    {
+      code: '<Button accessibleName="Open payment settings">Change</Button>',
+      options: mobileMaxButtonWordsOptions,
+      errors: [maxWordsError('Button', 'Open payment settings', 'source', 3)],
+    },
+    {
+      code: '<Chip ariaLabel="Open filter options">Filters</Chip>',
+      options: webMaxButtonWordsOptions,
+      errors: [maxWordsError('Chip', 'Open filter options', 'source', 3)],
+    },
+    {
+      code: '<Chip accessibilityLabel="Open filter options">Filters</Chip>',
+      options: mobileMaxButtonWordsOptions,
+      errors: [maxWordsError('Chip', 'Open filter options', 'source', 3)],
+    },
+    {
+      code: '<button aria-label="Open navigation menu" />',
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('button', 'Open navigation menu', 'source', 3)],
+    },
+    {
+      code: '<Pressable accessibilityRole="button" accessibilityLabel="Open navigation menu" />',
+      options: mobileMaxButtonWordsOptions,
+      errors: [maxWordsError('Pressable', 'Open navigation menu', 'source', 3)],
+    },
+    {
+      code: "const t = useTranslations(); const chip = <Chip>{t('chat.suggestion.exercise')}</Chip>",
+      options: maxButtonWordsOptions,
+      errors: [
+        maxWordsError('Chip', 'Create a habit to exercise every morning', 'en', 7),
+        maxWordsError('Chip', 'Criar um h\u00e1bito de exerc\u00edcio toda manh\u00e3', 'pt-BR', 7),
+      ],
+    },
+    {
+      code: "const { t } = useTranslation(); const button = <PillButton>{t('common.retry')}</PillButton>",
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('PillButton', 'Tentar de novo', 'pt-BR', 3)],
+    },
+    {
+      code: "const t = useTranslations(); const suggestions = useMemo(() => [t('chat.suggestion.exercise')], [t]); const view = suggestions.map((suggestion) => <button>{suggestion}</button>)",
+      options: maxButtonWordsOptions,
+      errors: [
+        maxWordsError('button', 'Create a habit to exercise every morning', 'en', 7),
+        maxWordsError('button', 'Criar um h\u00e1bito de exerc\u00edcio toda manh\u00e3', 'pt-BR', 7),
+      ],
+    },
+    {
+      code: "const { t } = useTranslation(); const suggestions = [t('chat.suggestion.exercise')]; const view = suggestions.map((suggestion) => <Pressable accessibilityRole=\"button\"><Text>{suggestion}</Text></Pressable>)",
+      options: maxButtonWordsOptions,
+      errors: [
+        maxWordsError('Pressable', 'Create a habit to exercise every morning', 'en', 7),
+        maxWordsError('Pressable', 'Criar um h\u00e1bito de exerc\u00edcio toda manh\u00e3', 'pt-BR', 7),
+      ],
+    },
+    {
+      code: "const { t } = useTranslation(); const control = <SegmentedControl options={[{ value: 'retry', label: t('common.retry') }]} />",
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('SegmentedControl', 'Tentar de novo', 'pt-BR', 3)],
+    },
+    {
+      code: "const { t } = useTranslation(); const row = <ListRow title={t('common.retry')} />",
+      options: maxButtonWordsOptions,
+      errors: [maxWordsError('ListRow', 'Tentar de novo', 'pt-BR', 3)],
+    },
+    {
+      code: '<ListRow title="Settings" accessibilityLabel="Open account settings" />',
+      options: webMaxButtonWordsOptions,
+      errors: [maxWordsError('ListRow', 'Open account settings', 'source', 3)],
+    },
+    {
+      code: '<ListRow title="Settings" accessibilityLabel="Open account settings" />',
+      options: mobileMaxButtonWordsOptions,
+      errors: [maxWordsError('ListRow', 'Open account settings', 'source', 3)],
+    },
+    {
+      code: '<ListRow title="Settings" action={{ icon: "trash", label: "Remove this account", onPress }} />',
+      options: webMaxButtonWordsOptions,
+      errors: [maxWordsError('ListRow', 'Remove this account', 'source', 3)],
+    },
+    {
+      code: '<ListRow title="Settings" action={{ icon: "trash", label: "Remove this account", onPress }} />',
+      options: mobileMaxButtonWordsOptions,
+      errors: [maxWordsError('ListRow', 'Remove this account', 'source', 3)],
+    },
+    {
+      code: "function InvoiceRow({ t }) { return <ListRow action={{ icon: 'download', label: t('upgrade.billing.invoices.downloadDated'), onPress }} /> }",
+      options: webMaxButtonWordsOptions,
+      errors: [
+        maxWordsError('ListRow', 'Download the invoice from {date}', 'en', 5),
+        maxWordsError('ListRow', 'Baixar a fatura de {date}', 'pt-BR', 5),
+      ],
+    },
+  ],
+})
+
+ruleTester.run('no-unjustified-disable', rule('no-unjustified-disable'), {
+  valid: [
+    '// eslint-disable-next-line no-console -- CLI output is required.\nconsole.log("ready")',
+  ],
+  invalid: [
+    {
+      code: '// eslint-disable-next-line no-console\nconsole.log("ready")',
+      errors: [{ messageId: 'missingReason' }],
     },
   ],
 })

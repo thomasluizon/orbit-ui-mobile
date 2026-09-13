@@ -80,6 +80,7 @@ function AccountBackState({ t, styles, loading, continueAccount, errorMessage }:
             <Text accessibilityRole="header" style={styles.stepTitle}>{t('auth.accountBack.title')}</Text>
             <Text accessibilityLiveRegion="polite" style={styles.stepSubtitle}>{t('auth.accountBack.body')}</Text>
           </View>
+          {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
           <PillButton onClick={continueAccount}
             loading={loading}>{t('auth.accountBack.action')}</PillButton>
           {errorMessage && <Text accessibilityRole="alert" style={styles.error}>{errorMessage}</Text>}

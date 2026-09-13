@@ -42,6 +42,7 @@ export function CodeStep({ email, codeDigits, isSubmitting, isResending, canRese
         <p className="wrap-anywhere text-base leading-normal text-[var(--fg-2)]">{t('auth.codeSentTo', { email })}</p>
         {successMessage && <p aria-hidden className="font-mono text-xs text-[var(--fg-3)]">{successMessage}</p>}
         <div className="self-start">
+          {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
           <PillButton variant="ghost" size="sm" disabled={isSubmitting} onClick={onBackToEmail}>{t('auth.changeEmail')}</PillButton>
         </div>
       </div>
@@ -59,7 +60,8 @@ export function CodeStep({ email, codeDigits, isSubmitting, isResending, canRese
       </form>
       {!waiting && <div className="flex flex-col items-start gap-2">
         {canResend || expired
-          ? <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting} loading={isResending}>
+          ? /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
+            <PillButton variant="ghost" size="sm" onClick={onResendCode} disabled={!isOnline || isSubmitting} loading={isResending}>
               {t('auth.resendCode')}
             </PillButton>
           : <p className="font-mono text-xs tabular-nums text-[var(--fg-3)]">

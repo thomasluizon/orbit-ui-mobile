@@ -33,6 +33,7 @@ export function NotificationList({ items, isLoading, isError, onRetry, onOpen, o
           <View style={styles.empty}>
             {isError ? <>
               <Text style={[styles.copy, { color: tokens.fg3 }]}>{t('notifications.loadError')}</Text>
+              {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
               <Pressable accessibilityRole="button" accessibilityLabel={t('common.retry')} onPress={onRetry}
                 style={({ pressed }) => [styles.retry, pressed && { backgroundColor: tokens.bgHover }]}>
                 <Text style={[styles.copy, { color: tokens.fg1 }]}>{t('common.retry')}</Text>

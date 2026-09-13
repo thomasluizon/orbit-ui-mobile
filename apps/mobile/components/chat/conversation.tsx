@@ -215,6 +215,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
                 {sendError}
               </Text>
               {canRetryLastSend ? (
+                /* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => void retryLastSend()}

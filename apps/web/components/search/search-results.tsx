@@ -25,6 +25,7 @@ export function SearchEmpty({ query, onCreate }: Readonly<{ query: string; onCre
   return <div className="flex flex-col items-start gap-3 p-3">
     <p className="text-[length:var(--fs-md)]">{t.rich('habits.search.emptyTitle', { query, queryText: renderQueryText })}</p>
     <p className="text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('habits.search.emptyBody')}</p>
+    {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
     <Button size="sm" variant={wide ? 'secondary' : 'primary'} onClick={onCreate}>{t('habits.search.create')}</Button>
   </div>
 }

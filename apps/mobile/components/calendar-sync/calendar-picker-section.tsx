@@ -72,6 +72,7 @@ export function CalendarPickerSection({
           >
             {t('calendar.calendars.error')}
           </Text>
+          {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
           <Pressable
             onPress={() => void refetch()}
             accessibilityRole="button"
