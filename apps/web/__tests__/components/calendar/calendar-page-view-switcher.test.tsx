@@ -47,6 +47,7 @@ const calendarDayDetailProps: {
   calendarEventsState?: string
   onRetryCalendarEvents?: () => void
   onReconnectCalendarEvents?: () => void
+  onViewPro?: () => void
   loggable?: boolean
   onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
   onShowRecurringChange?: (value: boolean) => void
@@ -309,6 +310,7 @@ describe('CalendarPage view switcher', () => {
     delete calendarDayDetailProps.calendarEventsState
     delete calendarDayDetailProps.onRetryCalendarEvents
     delete calendarDayDetailProps.onReconnectCalendarEvents
+    delete calendarDayDetailProps.onViewPro
     delete calendarDayDetailProps.loggable
     delete calendarDayDetailProps.onEntryChange
     agendaViewProps.dayMap = undefined
@@ -352,6 +354,9 @@ describe('CalendarPage view switcher', () => {
 
     expect(calendarEventsEnabled).toBe(false)
     expect(calendarDayDetailProps.calendarEvents).toEqual([])
+    expect(calendarDayDetailProps.calendarEventsState).toBe('pro-boundary')
+    calendarDayDetailProps.onViewPro?.()
+    expect(routerPush).toHaveBeenCalledWith('/upgrade')
   })
 
   it.each([

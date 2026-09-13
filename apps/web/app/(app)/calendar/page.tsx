@@ -147,6 +147,7 @@ interface CalendarInlineDayPanelProps {
   calendarEventsState: CalendarEventsDisplayState
   onRetryCalendarEvents: () => void
   onReconnectCalendarEvents: () => void
+  onViewPro: () => void
   loggable: boolean
   showRecurring: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
@@ -166,6 +167,7 @@ function CalendarInlineDayPanel({
   calendarEventsState,
   onRetryCalendarEvents,
   onReconnectCalendarEvents,
+  onViewPro,
   loggable,
   showRecurring,
   pendingEntryStates,
@@ -206,6 +208,7 @@ function CalendarInlineDayPanel({
             calendarEventsState={calendarEventsState}
             onRetryCalendarEvents={onRetryCalendarEvents}
             onReconnectCalendarEvents={onReconnectCalendarEvents}
+            onViewPro={onViewPro}
             loggable={loggable}
             showRecurring={showRecurring}
             pendingEntryStates={pendingEntryStates}
@@ -741,6 +744,7 @@ function CalendarPageContent({
                   calendarEventsState={calendarEventsState}
                   onRetryCalendarEvents={() => void refetchCalendarEvents()}
                   onReconnectCalendarEvents={() => router.push('/calendar-sync')}
+                  onViewPro={() => router.push('/upgrade')}
                   loggable={selectedDayLoggable}
                   showRecurring={showRecurring}
                   pendingEntryStates={pendingEntryStates}
@@ -820,6 +824,7 @@ function CalendarPageContent({
           calendarEventsState={calendarEventsState}
           onRetryCalendarEvents={() => void refetchCalendarEvents()}
           onReconnectCalendarEvents={() => router.push('/calendar-sync')}
+          onViewPro={() => router.push('/upgrade')}
           loggable={selectedDayLoggable}
           showRecurring={showRecurring}
           pendingEntryStates={pendingEntryStates}

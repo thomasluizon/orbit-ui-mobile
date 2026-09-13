@@ -569,6 +569,11 @@ describe("CalendarScreen views (mobile)", () => {
 
     expect(state.calendarEventsEnabled).toBe(false);
     expect(calendarDayDetailProps.current?.calendarEvents).toEqual([]);
+    expect(calendarDayDetailProps.current?.calendarEventsState).toBe("pro-boundary");
+    TestRenderer.act(() => {
+      calendarDayDetailProps.current?.onViewPro();
+    });
+    expect(state.routerPush).toHaveBeenCalledWith("/upgrade");
     TestRenderer.act(() => headerTree.update(<></>));
     TestRenderer.act(() => tree.update(<></>));
   });

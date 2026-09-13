@@ -11,6 +11,7 @@ import {
   type CalendarEventsDisplayState,
 } from '@orbit/shared/utils'
 import { CheckRow } from '@/components/ui/check-row'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { ErrorState } from '@/components/ui/error-state'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
@@ -30,6 +31,7 @@ interface CalendarDayDetailProps {
   calendarEventsState: CalendarEventsDisplayState
   onRetryCalendarEvents: () => void
   onReconnectCalendarEvents: () => void
+  onViewPro: () => void
   completedCount: number
   loggable: boolean
   showRecurring: boolean
@@ -47,6 +49,7 @@ function CalendarEventsSection({
   state,
   onRetry,
   onReconnect,
+  onViewPro,
   displayTime,
   t,
   tokens,
@@ -56,12 +59,28 @@ function CalendarEventsSection({
   state: CalendarEventsDisplayState
   onRetry: () => void
   onReconnect: () => void
+  onViewPro: () => void
   displayTime: (time: string) => string
   t: TFunction
   tokens: Tokens
   styles: ReturnType<typeof createStyles>
 }>) {
-  if (state === 'hidden') return null
+  if (state === 'pro-boundary') {
+    return (
+      <View testID="calendar-pro-boundary" style={styles.proBoundary}>
+        <CapacityNotice
+          message={t('calendar.proBoundary.title')}
+          body={t('calendar.proBoundary.body')}
+          action={
+            /* eslint-disable-next-line local/max-button-words -- ORB-50 owns this granted canvas label. */
+            <PillButton size="sm" onClick={onViewPro}>
+              {t('calendar.proBoundary.action')}
+            </PillButton>
+          }
+        />
+      </View>
+    )
+  }
 
   return (
     <View style={styles.eventSection}>
@@ -211,6 +230,7 @@ export function CalendarDayDetail({
   calendarEventsState,
   onRetryCalendarEvents,
   onReconnectCalendarEvents,
+  onViewPro,
   completedCount,
   loggable,
   showRecurring,
@@ -298,6 +318,7 @@ export function CalendarDayDetail({
         state={calendarEventsState}
         onRetry={onRetryCalendarEvents}
         onReconnect={onReconnectCalendarEvents}
+        onViewPro={onViewPro}
         displayTime={displayTime}
         t={t}
         tokens={tokens}
@@ -363,6 +384,9 @@ function createStyles(tokens: Tokens) {
       alignItems: 'center',
       gap: 12,
       paddingVertical: 24,
+    },
+    proBoundary: {
+      paddingHorizontal: 16,
     },
     reconnectTitle: {
       fontFamily: 'Geist_500Medium',

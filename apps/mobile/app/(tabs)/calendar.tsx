@@ -925,6 +925,7 @@ function CalendarScreenContent({
             calendarEventsState={calendarEventsState}
             onRetryCalendarEvents={() => void refetchCalendarEvents()}
             onReconnectCalendarEvents={() => router.push('/calendar-sync')}
+            onViewPro={() => router.push('/upgrade')}
             completedCount={completedCount}
             loggable={selectedDayLoggable}
             showRecurring={showRecurring}
