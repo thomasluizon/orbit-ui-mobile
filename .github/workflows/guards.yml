@@ -213,7 +213,7 @@ jobs:
         run: |
           if [ '${{ github.event_name }}' != 'pull_request' ] || \
              git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
-               | grep -Eq '(^|/)eslint\.config\.(cjs|cts|js|mjs|mts|ts)$|(^|/)eslint-suppressions\.json$|(^|/)package\.json$|^\.github/workflows/.*\.ya?ml$|^tools/check-lint-severity\.mjs$'; then
+               | grep -Eq '(^|/)eslint\.config\.(cjs|cts|js|mjs|mts|ts)$|(^|/)eslint-suppressions\.json$|(^|/)package\.json$|^package-lock\.json$|^\.github/workflows/.*\.ya?ml$|^tools/check-lint-severity\.mjs$'; then
             node tools/check-lint-severity.mjs --report-suppressions
           else
             echo "Lint severity skipped: no owned path changed."

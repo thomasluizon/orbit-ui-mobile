@@ -190,7 +190,7 @@ const suppressionFiles = new Set(
 const suppressionTargetPattern = /--suppressions-location(?:=|\s+)(?:"([^"]+)"|'([^']+)'|([^\s"']+))/g
 const hasShellExpansion = (target) =>
   /[$`*?\[]/.test(target)
-  || /^~(?:[\\/]|$|[A-Za-z0-9_.-])/.test(target)
+  || /^~(?:[\\/]|$|[+A-Za-z0-9_.-])/.test(target)
   || /%[^%\s]+%|![^!\s]+!|%(?:~[A-Za-z]*\d|\d)/.test(target)
   || /\{(?:[^{}]*,|\d+\.\.\d+)/.test(target)
   || /[<>]\(/.test(target)

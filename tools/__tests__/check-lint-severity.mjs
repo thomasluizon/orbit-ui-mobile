@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { BASH, check, REPO_ROOT, root, T } from "./_harness.mjs"
@@ -110,6 +110,14 @@ export const cases = () => {
     lintDefault: `${eslintCommand} \${SUPPRESSIONS_FILE:-custom-baseline.json}`,
     lintBacktick: `${eslintCommand} \`printf custom-baseline.json\``,
     lintSubshell: `${eslintCommand} $(printf custom-baseline.json)`,
+    lintTildeHome: `${eslintCommand} ~`,
+    lintTildeHomePath: `${eslintCommand} ~/custom-baseline.json`,
+    lintTildeUser: `${eslintCommand} ~root/custom-baseline.json`,
+    lintTildeCurrent: `${eslintCommand} ~+/tilde-plus-baseline.json`,
+    lintTildePrevious: `${eslintCommand} ~-/custom-baseline.json`,
+    lintTildeCurrentStack: `${eslintCommand} ~+0/custom-baseline.json`,
+    lintTildePreviousStack: `${eslintCommand} ~-0/custom-baseline.json`,
+    lintTildeStack: `${eslintCommand} ~0/custom-baseline.json`,
   }
   writeFileSync(join(shellExpandedBaseline, "package.json"), JSON.stringify({ scripts: shellExpansionCommands }))
   const shellExpandedEslint = spawnSync(BASH, ["-lc", shellExpansionCommands.lint], {
@@ -123,9 +131,20 @@ export const cases = () => {
     shellExpandedEslint.status === 0 && existsSync(join(shellExpandedBaseline, "custom-baseline.json")),
     `eslint exit ${shellExpandedEslint.status}; ${(shellExpandedEslint.stderr || shellExpandedEslint.stdout).trim()}`,
   )
+  const tildePlusEslint = spawnSync(BASH, ["-lc", shellExpansionCommands.lintTildeCurrent], {
+    cwd: shellExpandedBaseline,
+    encoding: "utf8",
+    env: process.env,
+    windowsHide: true,
+  })
+  T(
+    `${TOOL}: installed ESLint expands ~+ to the current directory`,
+    tildePlusEslint.status === 0 && existsSync(join(shellExpandedBaseline, "tilde-plus-baseline.json")),
+    `eslint exit ${tildePlusEslint.status}; ${(tildePlusEslint.stderr || tildePlusEslint.stdout).trim()}`,
+  )
   const shellExpansionResult = run("rejects shell-expanded suppressions-location targets", shellExpandedBaseline, {
     status: 1,
-    stderr: /5 unsafe target declaration\(s\)/,
+    stderr: /13 unsafe target declaration\(s\)/,
   })
   const shellExpansionTargets = [
     "$SUPPRESSIONS_FILE",
@@ -133,6 +152,14 @@ export const cases = () => {
     "${SUPPRESSIONS_FILE:-custom-baseline.json}",
     "`printf",
     "$(printf",
+    "~",
+    "~/custom-baseline.json",
+    "~root/custom-baseline.json",
+    "~+/tilde-plus-baseline.json",
+    "~-/custom-baseline.json",
+    "~+0/custom-baseline.json",
+    "~-0/custom-baseline.json",
+    "~0/custom-baseline.json",
   ]
   for (const target of shellExpansionTargets) {
     T(
@@ -221,4 +248,15 @@ jobs:
     status: 1,
     stderr: /local\/example is warn/,
   }, "--report-suppressions")
+
+  const guardsWorkflow = readFileSync(join(REPO_ROOT, ".github", "workflows", "guards.yml"), "utf8")
+  const lintSeverityJob = guardsWorkflow.slice(
+    guardsWorkflow.indexOf("  lint-severity:"),
+    guardsWorkflow.indexOf("\n  ratchet:", guardsWorkflow.indexOf("  lint-severity:")),
+  )
+  T(
+    `${TOOL}: the workflow predicate owns package-lock.json`,
+    /\^package-lock\\\.json\$/.test(lintSeverityJob),
+    lintSeverityJob.trim(),
+  )
 }

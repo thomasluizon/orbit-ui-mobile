@@ -39,6 +39,11 @@
     "snapshot": "none",
     "constants": "none"
   },
+  ".claude/hooks/surface-pending-lessons.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
   ".github/workflows/guards.yml#calibration": {
     "scope": "whole-tree-advisory",
     "snapshot": "node tools/reseed-calibration.mjs",
