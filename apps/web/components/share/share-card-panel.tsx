@@ -22,7 +22,7 @@ interface ShareCardPanelProps {
   displayName?: string
 }
 
-/** Recap share preview: period selector → recap fetch → branded ShareCard + share/download. Reused by Profile + Retrospective. */
+/** Recap share preview: period selector, recap fetch, branded ShareCard, and share or download. */
 export function ShareCardPanel({ open, onOpenChange, displayName }: Readonly<ShareCardPanelProps>) {
   const t = useTranslations()
   const [period, setPeriod] = useState<RecapSharePeriod>('week')

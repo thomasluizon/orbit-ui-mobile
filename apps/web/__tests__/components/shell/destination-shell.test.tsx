@@ -57,7 +57,7 @@ vi.mock('@/components/shell/shell-412', () => ({
     composer?: ReactNode
   }) => (
     <div data-testid="compact-shell">
-      {children}{notice}
+      {children}{notice ? <div data-shell-notice="">{notice}</div> : null}
       {composer ? <div data-shell-pinned-slot="">{composer}</div> : null}
       {tabBar}{fab}
     </div>
@@ -74,7 +74,7 @@ vi.mock('@/components/shell/shell-wide', () => ({
     account?: string
   }) => (
     <div data-testid="wide-shell">
-      {children}{notice}
+      {children}{notice ? <div data-shell-notice="">{notice}</div> : null}
       {account ? <span data-testid="wide-account">{account}</span> : null}
       {composer ? <div data-shell-pinned-slot="">{composer}</div> : null}
       {items?.map((item) => (
@@ -89,6 +89,7 @@ import {
   DestinationShell,
   useShellComposerSlot,
 } from '@/components/shell/destination-shell'
+import { useShellNoticeSlot } from '@orbit/shared/hooks'
 import { SelectionTray } from '@/components/habits/selection-tray'
 import { TodayOverlays } from '@/app/(app)/today-page-view'
 import type { TodayView } from '@/app/(app)/use-today-page'
@@ -133,6 +134,31 @@ describe('DestinationShell', () => {
     )
 
     expect(screen.getByTestId('selection-composer')).toBeInTheDocument()
+  })
+
+  it.each([false, true])('mounts destination feedback in the shell notice slot at wide=%s', async (wide) => {
+    mocks.wide = wide
+
+    function ProfileExportNotice() {
+      const [done, setDone] = useState(false)
+      useShellNoticeSlot(
+        done,
+        () => <div data-testid="export-done">Export done</div>,
+        done ? 'export-done' : 'export-idle',
+      )
+      return <button type="button" onClick={() => setDone(true)}>Export</button>
+    }
+
+    render(
+      <DestinationShell onCreate={() => {}} composer={<div>Composer</div>}>
+        <ProfileExportNotice />
+      </DestinationShell>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Export' }))
+
+    const notice = await screen.findByTestId('export-done')
+    expect(notice.parentElement).toHaveAttribute('data-shell-notice')
+    expect(document.querySelector('[data-shell-pinned-slot]')).toHaveTextContent('Composer')
   })
 
   it.each([
@@ -317,20 +343,7 @@ describe('DestinationShell', () => {
     if (!wide) expect(screen.getByRole('button', { name: 'nav.today' })).toHaveAttribute('aria-current', 'page')
   })
 
-  it.each(['/retrospective'])(
-    'selects Progresso for an absorbed route %s',
-    (pathname) => {
-      mocks.pathname = pathname
-      render(<DestinationShell onCreate={() => {}}><h1>Progress flow</h1></DestinationShell>)
-
-      expect(screen.getByRole('button', { name: 'nav.progress' })).toHaveAttribute(
-        'aria-current',
-        'page',
-      )
-    },
-  )
-
-  it.each(['/streak', '/unknown'])(
+  it.each(['/streak', '/retrospective', '/unknown'])(
     'selects no destination for the removed or unknown route %s',
     (pathname) => {
       mocks.pathname = pathname
@@ -354,6 +367,7 @@ describe('DestinationShell', () => {
     '/profile',
     '/progress',
     '/retrospective',
+    '/streak',
     '/support',
     '/upgrade',
     '/wrapped',

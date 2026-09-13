@@ -5,17 +5,17 @@ import { formatAPIDate } from '@orbit/shared/utils'
 
 let isWideDesktopValue = false
 let isDesktopValue = false
-const calendarGridProps: { selectedDateStr?: string | null } = {}
+const calendarGridProps: { selectedDateStr?: string | null; todayKey?: string } = {}
 const monthQueryState: { error: string | null; refresh: ReturnType<typeof vi.fn> } = {
   error: null,
   refresh: vi.fn(),
 }
 const profileQueryState: {
-  profile: { weekStartDay: number } | undefined
+  profile: { weekStartDay: number; timeZone: string | null } | undefined
   error: Error | null
   refetch: ReturnType<typeof vi.fn>
 } = {
-  profile: { weekStartDay: 1 },
+  profile: { weekStartDay: 1, timeZone: 'UTC' },
   error: null,
   refetch: vi.fn(),
 }
@@ -60,8 +60,9 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 
 vi.mock('@/app/(app)/today-provider', () => ({
-  useToday: () => {
+  useToday: (timeZone?: string | null) => {
     const today = new Date()
+    if (timeZone === 'Pacific/Kiritimati') return today.toISOString().slice(0, 10)
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   },
 }))
@@ -91,11 +92,14 @@ vi.mock('@/components/calendar/calendar-grid', () => ({
   CalendarGrid: ({
     onSelectDay,
     selectedDateStr,
+    todayKey,
   }: {
     onSelectDay?: (dateStr: string) => void
     selectedDateStr?: string | null
+    todayKey?: string
   }) => {
     calendarGridProps.selectedDateStr = selectedDateStr
+    calendarGridProps.todayKey = todayKey
     return (
       <button
         type="button"
@@ -133,9 +137,10 @@ describe('CalendarPage view switcher', () => {
     isWideDesktopValue = false
     isDesktopValue = false
     calendarGridProps.selectedDateStr = undefined
+    calendarGridProps.todayKey = undefined
     monthQueryState.error = null
     monthQueryState.refresh = vi.fn()
-    profileQueryState.profile = { weekStartDay: 1 }
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC' }
     profileQueryState.error = null
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()
@@ -168,6 +173,19 @@ describe('CalendarPage view switcher', () => {
     expect(screen.getByRole('radio', { name: 'calendar.view.month' }).getAttribute('aria-checked')).toBe('true')
     expect(screen.queryByRole('radio', { name: 'calendar.view.agenda' })).toBeNull()
     expect(calendarGridProps.selectedDateStr).toBe(formatAPIDate(new Date()))
+  })
+
+  it('marks today in the account timezone when the browser-local date differs', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-12T01:30:00.000Z'))
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'Pacific/Kiritimati' }
+    try {
+      render(<CalendarPage />)
+
+      expect(calendarGridProps.todayKey).toBe('2026-09-12')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('adds the agenda option at desktop width', () => {

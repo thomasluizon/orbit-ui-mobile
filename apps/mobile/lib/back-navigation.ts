@@ -52,7 +52,6 @@ export function getAndroidBackFallbackRoute(
     case '/ai-settings':
     case '/calendar-sync':
     case '/preferences':
-    case '/retrospective':
     case '/support':
       return '/profile'
     case '/privacy':

@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 import { contrastOnSurface, withAlpha } from './contrast'
 import { schemes } from '../theme/color-schemes'
@@ -178,64 +179,52 @@ const BAD_GRAPHIC_SOURCE_SITES = [
   },
 ] as const
 
-const BAD_FILL_SOURCE_COUNTS = {
-  'apps/mobile/app/(tabs)/calendar/_components/calendar-day-entry.tsx': 1,
-  'apps/mobile/app/(tabs)/calendar/_components/calendar-time-grid.tsx': 1,
-  'apps/mobile/app/(tabs)/profile/_components/delete-account-modal.tsx': 2,
-  'apps/mobile/app/(tabs)/profile/_components/fresh-start-modal.tsx': 1,
-  'apps/mobile/app/calendar-sync.tsx': 2,
-  'apps/mobile/components/chat/conflict-warning.tsx': 3,
-  'apps/mobile/components/goals/goal-detail-drawer.tsx': 1,
-  'apps/mobile/components/goals/goal-metrics-panel.tsx': 1,
-  'apps/mobile/components/habits/habit-checklist.tsx': 1,
-  'apps/mobile/components/habits/habit-detail-screen.tsx': 1,
-  'apps/mobile/components/habits/habit-row-trailing.tsx': 2,
-  'apps/mobile/components/habits/selection-tray.tsx': 1,
-  'apps/mobile/components/navigation/notification-row.tsx': 1,
-  'apps/mobile/components/offline-notice.tsx': 1,
-  'apps/mobile/components/shell/composer.tsx': 1,
-  'apps/mobile/components/ui/app-text-input.tsx': 1,
-  'apps/mobile/components/ui/block-frame.tsx': 1,
-  'apps/mobile/components/ui/checkbox.tsx': 1,
-  'apps/mobile/components/ui/input.tsx': 1,
-  'apps/mobile/components/ui/list-row.tsx': 2,
-  'apps/mobile/components/ui/otp-input.tsx': 1,
-  'apps/mobile/components/ui/pill-button.tsx': 2,
-  'apps/mobile/components/ui/settings-row.tsx': 1,
-  'apps/mobile/components/ui/status-dot.tsx': 1,
-  'apps/mobile/components/ui/status-ring.tsx': 1,
-  'apps/mobile/components/ui/time-field.tsx': 1,
-  'apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx': 1,
-  'apps/web/app/(app)/calendar-sync/page.tsx': 2,
-  'apps/web/app/(app)/profile/_components/delete-account-modal.tsx': 2,
-  'apps/web/app/(app)/profile/_components/fresh-start-modal.tsx': 1,
-  'apps/web/app/(app)/support/_components/support-field.tsx': 1,
-  'apps/web/app/globals.css': 5,
-  'apps/web/components/calendar/calendar-agenda-view.tsx': 1,
-  'apps/web/components/calendar/calendar-day-detail.tsx': 1,
-  'apps/web/components/calendar/calendar-time-grid.tsx': 1,
-  'apps/web/components/chat/conflict-warning.tsx': 3,
-  'apps/web/components/goals/goal-detail-sections.tsx': 1,
-  'apps/web/components/goals/goal-metrics-panel.tsx': 1,
-  'apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx': 1,
-  'apps/web/components/habits/habit-checklist.tsx': 2,
-  'apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx': 1,
-  'apps/web/components/habits/habit-form-fields/tag-picker-field.tsx': 1,
-  'apps/web/components/habits/habit-row-trailing.tsx': 2,
-  'apps/web/components/habits/selection-tray.tsx': 1,
-  'apps/web/components/navigation/notification-row.tsx': 1,
-  'apps/web/components/shell/composer.tsx': 1,
-  'apps/web/components/ui/block-frame.tsx': 1,
-  'apps/web/components/ui/checkbox.tsx': 1,
-  'apps/web/components/ui/input.tsx': 1,
-  'apps/web/components/ui/list-row.tsx': 2,
-  'apps/web/components/ui/otp-input.tsx': 1,
-  'apps/web/components/ui/pill-button.tsx': 2,
-  'apps/web/components/ui/settings-row.tsx': 1,
-  'apps/web/components/ui/status-dot.tsx': 1,
-  'apps/web/components/ui/status-ring.tsx': 1,
-  'apps/web/components/ui/time-field.tsx': 1,
-} as const
+const DIRECT_BAD_FILL_PATTERN = /\btokens\.statusBad\b|var\(--status-bad\)/g
+const GRAPHIC_ROLE_NAMES = new Set([
+  '--color-status-bad',
+  'background',
+  'backgroundColor',
+  'bg',
+  'border',
+  'borderColor',
+  'boxShadow',
+  'fill',
+  'graphic',
+  'graphicClassName',
+  'iconColor',
+  'ring',
+  'shadow',
+  'stroke',
+  'tintColor',
+  'trackColor',
+])
+interface DirectBadFillReference {
+  column: number
+  line: number
+  offset: number
+  path: string
+  source: string
+}
+
+interface BadFillInventory {
+  keys: string[]
+  referenceCount: number
+}
+
+function directBadFillReferencesInSource(path: string, source: string): DirectBadFillReference[] {
+  return [...source.matchAll(DIRECT_BAD_FILL_PATTERN)].map((match) => {
+    const offset = match.index
+    const precedingSource = source.slice(0, offset)
+    const lineStart = precedingSource.lastIndexOf('\n') + 1
+    return {
+      column: offset - lineStart + 1,
+      line: precedingSource.match(/\n/g)?.length ?? 0,
+      offset,
+      path,
+      source,
+    }
+  })
+}
 
 function productionSourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -248,17 +237,150 @@ function productionSourceFiles(directory: string): string[] {
   })
 }
 
-function directBadFillReferences(): Record<string, number> {
+function directBadFillReferences(): DirectBadFillReference[] {
   const sourceFiles = [
     ...productionSourceFiles(`${REPOSITORY_ROOT}apps/mobile`),
     ...productionSourceFiles(`${REPOSITORY_ROOT}apps/web`),
   ]
-  return Object.fromEntries(sourceFiles.flatMap((path) => {
+  return sourceFiles.flatMap((path) => {
     const source = readFileSync(path, 'utf8')
-    const count = [...source.matchAll(/\btokens\.statusBad\b|var\(--status-bad\)/g)].length
     const repositoryPath = relative(REPOSITORY_ROOT, path).replaceAll('\\', '/')
-    return count > 0 ? [[repositoryPath, count] as const] : []
-  }).sort(([left], [right]) => left.localeCompare(right)))
+    return directBadFillReferencesInSource(repositoryPath, source)
+  })
+}
+
+function jsxTagEnd(source: string, tagStart: number): number {
+  let braceDepth = 0
+  let quote: string | null = null
+  for (let index = tagStart; index < source.length; index += 1) {
+    const character = source[index]!
+    if (quote !== null) {
+      if (character === quote && source[index - 1] !== '\\') quote = null
+      continue
+    }
+    if (character === "'" || character === '"' || character === '`') {
+      quote = character
+    } else if (character === '{') {
+      braceDepth += 1
+    } else if (character === '}') {
+      braceDepth -= 1
+    } else if (character === '>' && braceDepth === 0) {
+      return index
+    }
+  }
+  return -1
+}
+
+function openingTagAt(reference: DirectBadFillReference): string | null {
+  const tagStart = reference.source.lastIndexOf('<', reference.offset)
+  const priorTagEnd = reference.source.lastIndexOf('>', reference.offset)
+  if (tagStart < 0 || tagStart < priorTagEnd) return null
+  const tagEnd = jsxTagEnd(reference.source, tagStart)
+  if (tagEnd < reference.offset) return null
+  return reference.source.slice(tagStart, tagEnd + 1)
+}
+
+function importedGraphicNames(source: string): Set<string> {
+  const names = new Set<string>()
+  const imports = source.matchAll(
+    /import\s*\{([^}]*)\}\s*from\s*['"]@\/components\/ui\/icons?['"]/g,
+  )
+  for (const match of imports) {
+    for (const specifier of match[1]!.split(',')) {
+      const importedName = specifier.trim().replace(/^type\s+/, '')
+      if (importedName === '') continue
+      names.add(importedName.split(/\s+as\s+/).at(-1)!)
+    }
+  }
+  return names
+}
+
+function openingTagIsImportedGraphic(openingTag: string, source: string): boolean {
+  const names = importedGraphicNames(source)
+  const componentName = openingTag.match(/^<([A-Z][\w]*)\b/)?.[1]
+  return componentName !== undefined && names.has(componentName)
+}
+
+function cssPropertyNameAt(reference: DirectBadFillReference): string | null {
+  if (!reference.path.endsWith('.css')) return null
+  const before = reference.source.slice(0, reference.offset)
+  const declarationStart = Math.max(before.lastIndexOf(';'), before.lastIndexOf('{')) + 1
+  return before.slice(declarationStart).match(/^\s*([\w-]+)\s*:/)?.[1] ?? null
+}
+
+function containingNodesAt(sourceFile: ts.SourceFile, offset: number): ts.Node[] {
+  const nodes: ts.Node[] = []
+  function visit(node: ts.Node): void {
+    if (node.getFullStart() > offset || node.getEnd() <= offset) return
+    nodes.push(node)
+    node.forEachChild(visit)
+  }
+  visit(sourceFile)
+  return nodes
+}
+
+function syntaxRoleNameAt(reference: DirectBadFillReference): string | null {
+  const sourceFile = ts.createSourceFile(
+    reference.path,
+    reference.source,
+    ts.ScriptTarget.Latest,
+    true,
+    reference.path.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+  )
+  for (const node of containingNodesAt(sourceFile, reference.offset).reverse()) {
+    if (ts.isJsxAttribute(node)) return node.name.getText(sourceFile)
+    if (ts.isPropertyAssignment(node)) return node.name.getText(sourceFile)
+  }
+  return null
+}
+
+function tailwindRoleNameAt(reference: DirectBadFillReference): string | null {
+  const utility = [...reference.source.matchAll(/\S+/g)].find((match) => {
+    const utilityStart = match.index
+    return utilityStart <= reference.offset
+      && reference.offset < utilityStart + match[0].length
+  })
+  if (utility === undefined) return null
+  const offsetInUtility = reference.offset - utility.index
+  const arbitraryValueStart = utility[0].lastIndexOf('-[', offsetInUtility)
+  const arbitraryValueEnd = utility[0].indexOf(']', offsetInUtility)
+  if (arbitraryValueStart < 0 || arbitraryValueEnd < offsetInUtility) return null
+  return utility[0].slice(0, arbitraryValueStart).match(/([\w-]+)$/)?.[1] ?? null
+}
+
+function hasDeclaredGraphicRole(reference: DirectBadFillReference): boolean {
+  const openingTag = openingTagAt(reference)
+  if (openingTag !== null && openingTagIsImportedGraphic(openingTag, reference.source)) return true
+  const syntaxRoleName = cssPropertyNameAt(reference) ?? syntaxRoleNameAt(reference)
+  if (syntaxRoleName !== null && GRAPHIC_ROLE_NAMES.has(syntaxRoleName)) return true
+  const tailwindRoleName = tailwindRoleNameAt(reference)
+  return tailwindRoleName !== null && GRAPHIC_ROLE_NAMES.has(tailwindRoleName)
+}
+
+function unreviewedBadFillReferences(
+  references = directBadFillReferences(),
+): string[] {
+  return references.flatMap((reference) => {
+    if (hasDeclaredGraphicRole(reference)) return []
+    const lineSource = reference.source.split('\n')[reference.line]?.trim() ?? ''
+    return [`${reference.path}:${reference.line + 1}:${reference.column} ${lineSource}`]
+  })
+}
+
+function unreviewedBadFillInventory(
+  references = directBadFillReferences(),
+): BadFillInventory {
+  const countsByPath = new Map<string, number>()
+  for (const reference of references) {
+    if (hasDeclaredGraphicRole(reference)) continue
+    countsByPath.set(reference.path, (countsByPath.get(reference.path) ?? 0) + 1)
+  }
+  return {
+    keys: [...countsByPath.entries()]
+      .sort(([leftPath], [rightPath]) => leftPath.localeCompare(rightPath))
+      .map(([path, count]) => `${path}:${count}`),
+    referenceCount: [...countsByPath.values()].reduce((total, count) => total + count, 0),
+  }
 }
 
 /** WHY: both ExpiryWarning mirrors paint their text on the overdue token at this alpha over --bg. */
@@ -512,8 +634,99 @@ describe('bad status source roles', () => {
     expect(source).toMatch(pattern)
   })
 
-  it('keeps every direct fill-token reference in the reviewed graphic and surface inventory', () => {
-    expect(directBadFillReferences()).toEqual(BAD_FILL_SOURCE_COUNTS)
+  it('derives direct fill-token references and rejects unreviewed text-role syntax', () => {
+    const inventory = unreviewedBadFillInventory()
+    expect(inventory.referenceCount).toBeLessThanOrEqual(31)
+    expect(inventory.keys).toMatchSnapshot()
+  })
+
+  it('keeps inventory keys stable when source lines are inserted above a reference', () => {
+    const path = 'apps/web/components/ui/title-probe.tsx'
+    const fillSource = '<TitleText color="var(--status-bad)" />'
+    const shiftedSource = `// Unrelated source line.\n${fillSource}`
+
+    expect(unreviewedBadFillInventory(directBadFillReferencesInSource(path, shiftedSource)))
+      .toEqual(unreviewedBadFillInventory(directBadFillReferencesInSource(path, fillSource)))
+  })
+
+  it('rejects a closed graphic utility before a token-bearing text-color prop', () => {
+    const path = 'apps/web/components/ui/title-probe.tsx'
+    const fillSource = '<TitleText className="bg-[white]" color="var(--status-bad)" />'
+    expect(unreviewedBadFillReferences(
+      directBadFillReferencesInSource(path, fillSource),
+    )).toEqual([
+      `${path}:1:42 ${fillSource}`,
+    ])
+  })
+
+  it('accepts a status token inside a graphic arbitrary-value utility', () => {
+    const path = 'apps/web/components/ui/surface-probe.tsx'
+    const fillSource = '<Surface className="bg-[var(--status-bad)]" />'
+    expect(unreviewedBadFillReferences(
+      directBadFillReferencesInSource(path, fillSource),
+    )).toEqual([])
+  })
+
+  it('rejects a text-color prop even when the component also receives an imported icon', () => {
+    const path = 'apps/web/components/ui/settings-row-probe.tsx'
+    const fillSource = [
+      "import { Mail } from '@/components/ui/icons'",
+      'return (',
+      '  <SettingsRow icon={Mail} value="Failed" valueColor="var(--status-bad)" />',
+      ')',
+    ].join('\n')
+    const fillReferences = directBadFillReferencesInSource(path, fillSource)
+    expect(unreviewedBadFillReferences(fillReferences)).toEqual([
+      `${path}:3:55 <SettingsRow icon={Mail} value="Failed" valueColor="var(--status-bad)" />`,
+    ])
+
+    const textSource = fillSource.replace('var(--status-bad)', 'var(--status-bad-text)')
+    expect(unreviewedBadFillReferences(directBadFillReferencesInSource(path, textSource))).toEqual([])
+  })
+
+  it('rejects an icon button whose text comes from a self-closing child component', () => {
+    const path = 'apps/web/components/ui/destructive-action.tsx'
+    const fillSource = [
+      "import { Trash2 } from '@/components/ui/icons'",
+      'return (',
+      '  <button aria-label={label} className="text-[var(--status-bad)]">',
+      '    <Trash2 size={16} aria-hidden="true" /><TitleText title={label} />',
+      '  </button>',
+      ')',
+    ].join('\n')
+    const fillReferences = directBadFillReferencesInSource(path, fillSource)
+    expect(unreviewedBadFillReferences(fillReferences)).toEqual([
+      `${path}:3:47 <button aria-label={label} className="text-[var(--status-bad)]">`,
+    ])
+
+    const textSource = fillSource.replace('var(--status-bad)', 'var(--status-bad-text)')
+    expect(unreviewedBadFillReferences(directBadFillReferencesInSource(path, textSource))).toEqual([])
+  })
+
+  it('rejects a graphic-looking variable without proof at the applying prop', () => {
+    const path = 'apps/web/components/ui/title-probe.tsx'
+    const fillSource = [
+      "const iconColor = 'var(--status-bad)'",
+      'return <TitleText title="Failed" color={iconColor} />',
+    ].join('\n')
+    expect(unreviewedBadFillReferences(
+      directBadFillReferencesInSource(path, fillSource),
+    )).toEqual([
+      `${path}:1:20 const iconColor = 'var(--status-bad)'`,
+    ])
+  })
+
+  it('accepts a graphic-role prop and a token on an imported icon element', () => {
+    const path = 'apps/web/components/ui/status-icon.tsx'
+    const fillSource = [
+      "import { AlertTriangle } from '@/components/ui/icons'",
+      'return (',
+      '  <><Surface backgroundColor="var(--status-bad)" /><AlertTriangle color="var(--status-bad)" /></>',
+      ')',
+    ].join('\n')
+    expect(unreviewedBadFillReferences(
+      directBadFillReferencesInSource(path, fillSource),
+    )).toEqual([])
   })
 
   it.each(BAD_GRAPHIC_SOURCE_SITES)(

@@ -157,8 +157,34 @@ T("admin-merge: reading the merge endpoint allows", checkAdminMerge("gh api repo
 T("admin-merge: another GraphQL mutation allows", checkAdminMerge("gh api graphql -f query='mutation{resolveReviewThread(input:{threadId:\"x\"}){thread{isResolved}}}'"), null)
 T(`admin-merge: a commit message naming ${ADMIN} allows`, checkAdminMerge(`git commit -m "forbid gh pr merge ${ADMIN}"`), null)
 T("admin-merge: the refusal says to ask Thomas", checkAdminMerge(`gh pr merge 1 ${ADMIN}`)?.message.includes("ask him to"), true)
+for (const redirect of [">$(printf worker.log)", "2>&$(printf 1)"]) {
+  T(
+    `admin-merge: leading dynamic redirect ${redirect} cannot hide an admin merge`,
+    blocks(checkAdminMerge(`${redirect} gh pr merge 667 ${ADMIN}`)),
+    true,
+  )
+}
 
 const engine = (command, options) => checkEngineInvocation(command, { repoRoots: [], ...options })
+const descriptorSuffixAllows = [
+  ["cloud read before a redirection", "codex cloud list 2>&1 >out.log"],
+  ["zero-cost query before a safe argument", "codex 2>&1 --version"],
+  ["cloud read before a safe argument", "codex cloud list 2>&1 --json"],
+  ["cloud read before another redirection", "codex cloud list 2>&1 3>trace.log"],
+]
+const descriptorSafetyRefusals = [
+  ["dollar command substitution", "2>&$(codex exec 'do work')"],
+  ["backtick command substitution", "2>&`codex exec 'do work'`"],
+  ["dynamic leading redirect", ">$(printf worker.log) codex exec"],
+  ["engine invocation before a pipeline", "codex exec | tee log"],
+  ["engine invocation after a list separator", "codex cloud list && codex exec"],
+]
+for (const [shape, command] of descriptorSuffixAllows) {
+  T(`engine: descriptor duplication ${shape} allows`, engine(command), null)
+}
+for (const [shape, command] of descriptorSafetyRefusals) {
+  T(`engine: descriptor safety ${shape} blocks`, blocks(engine(command)), true)
+}
 T("engine: codex exec blocks", blocks(engine('codex exec "do the thing"')), true)
 T("engine: bare claude blocks", blocks(engine("claude")), true)
 T("engine: claude -p blocks", blocks(engine('claude -p "summarize"')), true)
@@ -168,6 +194,19 @@ T("engine: the refusal names the launcher", engine("codex exec")?.message.includ
 T("engine: codex cloud list allows", engine("codex cloud list --json"), null)
 T("engine: codex cloud status allows", engine("codex cloud status task_123"), null)
 T("engine: codex cloud diff allows", engine("codex cloud diff task_123"), null)
+T("engine: a piped codex cloud list allows", engine("codex cloud list --env env_1 | head -20"), null)
+T("engine: an exported token before a piped cloud read allows", engine("export GH_TOKEN=; codex cloud list --env env_1 | head -20"), null)
+T("engine: a redirected codex cloud list allows", engine("codex cloud list --env env_1 > tasks.txt"), null)
+T("engine: a leading redirection does not hide codex exec", blocks(engine("> worker.log codex exec")), true)
+for (const redirect of [">$(printf worker.log)", "2>&$(printf 1)"]) {
+  T(`engine: leading dynamic redirect ${redirect} fails closed`, blocks(engine(`${redirect} codex exec`)), true)
+}
+T("engine: codex exec before a pipe blocks", blocks(engine("codex exec | tee worker.log")), true)
+T("engine: codex exec after a pipe blocks", blocks(engine("head -20 | codex exec")), true)
+for (const separator of ["&&", ";", "||"]) {
+  T(`engine: codex exec after ${separator} blocks`, blocks(engine(`codex cloud list ${separator} codex exec`)), true)
+}
+T("engine: a quoted pipeline is harmless argument text", engine('echo "codex exec | tee"'), null)
 T("engine: a nested dollar command substitution revokes the cloud read exemption", blocks(engine('codex cloud list "$(codex exec \'do work\')"')), true)
 T("engine: a nested backtick command substitution revokes the cloud read exemption", blocks(engine("codex cloud list `codex exec 'do work'`")), true)
 T("engine: a help flag cannot launder a nested engine call", blocks(engine('codex cloud list --help "$(codex exec \'do work\')"')), true)
@@ -217,6 +256,9 @@ T("staging: real linked worktree initializes", stagingGit(["worktree", "add", "-
 mkdirSync(join(stagingWorktree, "named-dir"), { recursive: true })
 rmSync(join(stagingWorktree, ".claude"), { recursive: true })
 const workerStaging = (command) => checkBroadStaging(command, { cwd: stagingWorktree, repoRoots: [stagingMain] })
+for (const redirect of [">$(printf worker.log)", "2>&$(printf 1)"]) {
+  T(`staging: leading dynamic redirect ${redirect} cannot hide broad staging`, blocks(workerStaging(`${redirect} git add -A`)), true)
+}
 for (const command of [
   "git add -A",
   "git add --all",
@@ -544,17 +586,33 @@ const runHook = (file, payload, env) =>
     env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env },
   }).status
 const bash = (command, cwd = root) => ({ tool_name: "Bash", tool_input: { command }, cwd })
+const powershell = (command, cwd = root) => ({ tool_name: "PowerShell", tool_input: { command }, cwd })
 
 T("adapter git-guardrails: push main -> 2", runHook("git-guardrails.mjs", bash("git push origin main")), 2)
 T("adapter git-guardrails: push feature -> 0", runHook("git-guardrails.mjs", bash("git push origin feature/x")), 0)
 T("adapter git-guardrails: worktree remove --force -> 2", runHook("git-guardrails.mjs", bash("git worktree remove --force .claude/worktrees/x")), 2)
 
 const ORCH = "orchestrator-guardrails.mjs"
+for (const [shape, command] of descriptorSuffixAllows) {
+  T(`adapter orchestrator: descriptor duplication ${shape} -> 0`, runHook(ORCH, bash(command)), 0)
+}
+for (const [shape, command] of descriptorSafetyRefusals) {
+  T(`adapter orchestrator: descriptor safety ${shape} -> 2`, runHook(ORCH, bash(command)), 2)
+}
 T("adapter orchestrator: codex exec -> 2", runHook(ORCH, bash('codex exec "do the thing"')), 2)
 T(`adapter orchestrator: gh pr merge ${ADMIN} -> 2`, runHook(ORCH, bash(`gh pr merge 1 --squash ${ADMIN}`)), 2)
 T("adapter orchestrator: gh pr merge --squash -> 0", runHook(ORCH, bash("gh pr merge 1 --squash")), 0)
 T("adapter orchestrator: codex --version -> 0", runHook(ORCH, bash("codex --version")), 0)
 T("adapter orchestrator: grep over a codex pattern -> 0", runHook(ORCH, bash("grep -rnE 'claude|codex' tools/")), 0)
+T("adapter orchestrator: piped codex cloud list -> 0", runHook(ORCH, bash("codex cloud list --env env_1 | head -20")), 0)
+T("adapter orchestrator: piped codex exec -> 2", runHook(ORCH, bash("codex exec | tee worker.log")), 2)
+for (const redirect of ["*>tasks.txt", "*>>tasks.txt", "*>&1"]) {
+  T(
+    `adapter orchestrator: PowerShell cloud read with ${redirect} -> 0`,
+    runHook(ORCH, powershell(`codex cloud list ${redirect}`)),
+    0,
+  )
+}
 T("adapter orchestrator: the launcher marker -> 0", runHook(ORCH, bash("codex exec"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
 T("adapter orchestrator: worker git add -A -> 2", runHook(ORCH, bash("git add -A"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter orchestrator: worker git add -u -> 2", runHook(ORCH, bash("git add -u"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
@@ -622,7 +680,7 @@ T("adapter identifier: the ledger is restored, so the id blocks again -> 2", run
  * a session id that does not match is treated as a previous run's and ignored.
  */
 const WAKE_HOOK = "require-wake-source.mjs"
-const { clearWakeSource, readWakeSources, registerWakeSource, runStatePath, wakeSourceDirectory } = await import("../../tools/lib/run-state.mjs")
+const { PENDING_WAKE_SOURCE_MAX_AGE_MS, clearWakeSource, readWakeSources, registerWakeSource, runStatePath, wakeSourceDirectory } = await import("../../tools/lib/run-state.mjs")
 const stopPayload = { session_id: "orbit-hooks-gate-session", stop_hook_active: false }
 const priorState = existsSync(runStatePath()) ? readFileSync(runStatePath(), "utf8") : null
 // The reader and the final predicate each prove the persisted process identity.
@@ -654,13 +712,50 @@ cpSync(join(hooksDir, "_lib"), join(wakeHooks, "_lib"), { recursive: true })
 cpSync(join(hooksDir, WAKE_HOOK), join(wakeHooks, WAKE_HOOK))
 writeFileSync(runStatePath(wakeCheckout), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }))
 const wakeFile = join(wakeSourceDirectory(wakeCheckout), `${process.pid}.json`)
-const isolatedWakeStop = () => spawnSync(process.execPath, [join(wakeHooks, WAKE_HOOK)], {
-  input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true,
-}).status
+const isolatedWakeStop = ({ preload = null, env = {} } = {}) => spawnSync(
+  process.execPath,
+  [...(preload ? ["--import", pathToFileURL(preload).href] : []), join(wakeHooks, WAKE_HOOK)],
+  { input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true, env: { ...process.env, ...env } },
+).status
 registerWakeSource({ pid: process.pid, what: "hook identity regression" }, wakeCheckout)
 const registeredWake = JSON.parse(readFileSync(wakeFile, "utf8"))
 T("wake identity: registration captures a real OS process start identity", typeof registeredWake.processStartIdentity, "string")
 T("wake identity: the same live process allows the real Stop adapter", isolatedWakeStop(), 0)
+
+/** A pending record is an admission window, not permission to claim a process that never began. */
+clearWakeSource(process.pid, wakeCheckout)
+const neverSpawnedPid = 2_147_483_647
+registerWakeSource({
+  pid: neverSpawnedPid,
+  what: "worker ORB-never-spawned",
+  pending: true,
+  pendingAt: "2026-09-12T00:00:00.000Z",
+}, wakeCheckout)
+T("wake pending: a registration whose process never starts blocks the real Stop adapter", isolatedWakeStop(), 2)
+clearWakeSource(neverSpawnedPid, wakeCheckout)
+
+/** Freeze the adapter's clock so both sides of the 45-second boundary run instantly. */
+const wakeTimePreload = join(wakeCheckout, "wake-time.mjs")
+writeFileSync(wakeTimePreload, "Date.now = () => Number(process.env.ORBIT_TEST_NOW)\n")
+const pendingAt = Date.parse("2026-09-12T00:00:00.000Z")
+registerWakeSource({
+  pid: process.pid,
+  what: "worker ORB-pending",
+  workerPid: null,
+  pending: true,
+  pendingAt: new Date(pendingAt).toISOString(),
+}, wakeCheckout)
+T(
+  "wake pending: a live registration inside the admission window allows the real Stop adapter",
+  isolatedWakeStop({ preload: wakeTimePreload, env: { ORBIT_TEST_NOW: String(pendingAt + PENDING_WAKE_SOURCE_MAX_AGE_MS) } }),
+  0,
+)
+T(
+  "wake pending: a registration past the admission window blocks without sleeping",
+  isolatedWakeStop({ preload: wakeTimePreload, env: { ORBIT_TEST_NOW: String(pendingAt + PENDING_WAKE_SOURCE_MAX_AGE_MS + 1) } }),
+  2,
+)
+writeFileSync(wakeFile, JSON.stringify(registeredWake))
 writeFileSync(wakeFile, JSON.stringify({ ...registeredWake, processStartIdentity: `${registeredWake.processStartIdentity}:different-start` }))
 T("wake identity: a live pid with a different start identity blocks the real Stop adapter", isolatedWakeStop(), 2)
 T("wake identity: a live mismatched record is left alone", existsSync(wakeFile), true)

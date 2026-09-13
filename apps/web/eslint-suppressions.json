@@ -1,9 +1,4 @@
 {
-  "__tests__/components/goals/goal-card-context-menu.test.tsx": {
-    "local/react19-api": {
-      "count": 1
-    }
-  },
   "__tests__/pages/login.test.tsx": {
     "local/react19-api": {
       "count": 1
@@ -194,19 +189,6 @@
       "count": 2
     }
   },
-  "components/calendar/calendar-time-grid.tsx": {
-    "local/no-raw-gradient": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 11
-    }
-  },
-  "components/calendar/calendar-week-view.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/charts/bar-chart.tsx": {
     "local/no-pill-radius-on-static": {
       "count": 1
@@ -231,70 +213,6 @@
     }
   },
   "components/chat/conflict-warning.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "components/goals/create-goal-modal.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "components/goals/create-goal-modal/goal-deadline-field.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/goals/create-goal-modal/goal-type-selector.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "components/goals/edit-goal-modal.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "components/goals/edit-goal-modal/edit-goal-deadline-field.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/goals/field-well.tsx": {
-    "local/require-focus-replacement": {
-      "count": 1
-    }
-  },
-  "components/goals/goal-card.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "components/goals/goal-detail-drawer/goal-load-error.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "components/goals/goal-list.tsx": {
-    "local/no-space-x-y": {
-      "count": 1
-    }
-  },
-  "components/goals/goal-metrics-panel.tsx": {
-    "local/spacing-scale": {
-      "count": 5
-    }
-  },
-  "components/goals/goal-status-badge.tsx": {
     "local/spacing-scale": {
       "count": 2
     }
@@ -587,11 +505,6 @@
   "components/ui/year-picker.tsx": {
     "local/spacing-scale": {
       "count": 2
-    }
-  },
-  "components/wrapped/wrapped-entry-button.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
     }
   }
 }

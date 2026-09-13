@@ -64,19 +64,6 @@ const mocks = vi.hoisted(() => {
     useTrialDaysLeft: vi.fn(() => 0),
     useTrialExpired: vi.fn(() => false),
     useTrialUrgent: vi.fn(() => false),
-    useRetrospective: vi.fn(() => ({
-      data: null,
-      setData: vi.fn(),
-      isLoading: false,
-      error: null,
-      setError: vi.fn(),
-      noData: false,
-      setNoData: vi.fn(),
-      fromCache: false,
-      period: 'week',
-      setPeriod: vi.fn(),
-      generate: vi.fn(),
-    })),
     useSubscriptionPlans: vi.fn(() => ({
       plans: null,
       isLoading: false,
@@ -234,10 +221,6 @@ vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: mocks.useGamificationProfile,
   useReportEvent: () => ({ mutate: vi.fn() }),
   useStreakInfo: () => ({ data: { currentStreak: 0, isFrozenToday: false } }),
-}))
-
-vi.mock('@/hooks/use-retrospective', () => ({
-  useRetrospective: mocks.useRetrospective,
 }))
 
 vi.mock('@/hooks/use-subscription-plans', () => ({
@@ -418,19 +401,6 @@ describe('intentional offline UX screens', () => {
     mocks.useTrialDaysLeft.mockReturnValue(0)
     mocks.useTrialExpired.mockReturnValue(false)
     mocks.useTrialUrgent.mockReturnValue(false)
-    mocks.useRetrospective.mockReturnValue({
-      data: null,
-      setData: vi.fn(),
-      isLoading: false,
-      error: null,
-      setError: vi.fn(),
-      noData: false,
-      setNoData: vi.fn(),
-      fromCache: false,
-      period: 'week',
-      setPeriod: vi.fn(),
-      generate: vi.fn(),
-    })
     mocks.useSubscriptionPlans.mockReturnValue({
       plans: null,
       isLoading: false,

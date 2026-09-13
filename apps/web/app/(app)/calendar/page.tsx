@@ -12,7 +12,6 @@ import {
   endOfWeek,
   eachDayOfInterval,
   isSameMonth,
-  isToday,
   format,
 } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
@@ -91,7 +90,7 @@ export default function CalendarPage() {
 }
 
 interface CalendarPageContentProps {
-  profile: Pick<Profile, 'weekStartDay'>
+  profile: Pick<Profile, 'weekStartDay' | 'timeZone'>
   currentMonth: Date
   setCurrentMonth: Dispatch<SetStateAction<Date>>
   monthQuery: ReturnType<typeof useCalendarData>
@@ -112,7 +111,7 @@ function CalendarPageContent({
   const weekStartsOn = profile.weekStartDay
   const isDesktop = useIsDesktop()
   const isWideDesktop = useIsWideDesktop()
-  const todayKey = useToday()
+  const todayKey = useToday(profile.timeZone)
 
   const [view, setView] = useState<CalendarView>('month')
   /** Agenda is desktop-width only until #56 stage 10 builds the mobile day groups. */
@@ -164,12 +163,16 @@ function CalendarPageContent({
       view === 'week'
         ? eachDayOfInterval({ start: weekStart, end: weekEnd })
         : eachDayOfInterval({ start: rangeBounds.lo, end: rangeBounds.hi })
-    return days.map((date) => ({
-      date,
-      dateStr: formatAPIDate(date),
-      isToday: isToday(date),
-    }))
-  }, [view, weekStart, weekEnd, rangeBounds])
+    return days.map((date) => {
+      const dateStr = formatAPIDate(date)
+      return {
+        date,
+        dateStr,
+        isToday: dateStr === todayKey,
+        isFuture: dateStr > todayKey,
+      }
+    })
+  }, [view, weekStart, weekEnd, rangeBounds, todayKey])
 
   const monthLabel = useMemo(
     () => capitalizeFirstLetter(format(currentMonth, 'MMMM', { locale: dateFnsLocale })),
@@ -450,8 +453,9 @@ function CalendarPageContent({
                 onSelectDay={openDay}
                 displayTime={displayTime}
                 dateFnsLocale={dateFnsLocale}
-                allDayLabel={t('calendar.timeGrid.allDay')}
+                allDayLabel={t('calendar.timeGrid.noSetTime')}
                 nowLabel={t('calendar.timeGrid.now')}
+                timeZone={profile.timeZone}
                 showRecurring={showRecurring}
                 onShowRecurringChange={setShowRecurring}
               />
@@ -477,6 +481,7 @@ function CalendarPageContent({
                 dateFnsLocale={dateFnsLocale}
                 allDayLabel={t('calendar.timeGrid.allDay')}
                 nowLabel={t('calendar.timeGrid.now')}
+                timeZone={profile.timeZone}
                 showRecurring={showRecurring}
                 onShowRecurringChange={setShowRecurring}
                 weekStartsOn={weekStartsOn}
