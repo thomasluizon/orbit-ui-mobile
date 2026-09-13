@@ -19,6 +19,8 @@ import {
   normalizeHabits,
   optimisticSetCalendarHabitLog,
   removeHabitDetailChild,
+  rollbackOptimisticCalendarHabitLog,
+  rollbackOptimisticHabitLogs,
 } from '@orbit/shared/utils'
 import type {
   HabitScheduleItem,
@@ -141,6 +143,44 @@ function shouldCelebrateStreak(startsStreak: boolean, streak: number): boolean {
   return startsStreak && isStreakCelebrationMilestone(streak)
 }
 
+function rollbackDatedHabitLists(
+  queryClient: ReturnType<typeof useQueryClient>,
+  previousLists: HabitListSnapshots,
+  habitId: string,
+  date: string,
+  optimisticLogId: string,
+): void {
+  for (const [key, previousItems] of previousLists) {
+    const previousHabit = previousItems && findHabitInList(previousItems, habitId)
+    if (!previousHabit) continue
+    const previousOccurrence = previousHabit.instances.find((instance) => instance.date === date)
+
+    queryClient.setQueryData<HabitScheduleItem[]>(key, (currentItems) => {
+      if (!currentItems) return currentItems
+      const currentHabit = findHabitInList(currentItems, habitId)
+      const currentOccurrence = currentHabit?.instances.find((instance) => instance.date === date)
+      const previousCompleted = previousOccurrence?.status === 'Completed'
+      const patchStillApplied = previousCompleted
+        ? currentOccurrence?.status !== 'Completed'
+        : currentOccurrence?.logId === optimisticLogId
+      if (!patchStillApplied) return currentItems
+
+      const restoredItems = optimisticSetDatedCompletion(
+        currentItems,
+        habitId,
+        date,
+        previousCompleted,
+        previousOccurrence?.logId ?? '',
+      )
+      const restoredHabit = findHabitInList(restoredItems, habitId)
+      if (restoredHabit && previousHabit.isLoggedInRange === undefined) {
+        delete restoredHabit.isLoggedInRange
+      }
+      return restoredItems
+    })
+  }
+}
+
 export function useLogHabit() {
   const queryClient = useQueryClient()
   const { t } = useTranslation()
@@ -231,7 +271,7 @@ export function useLogHabit() {
     },
 
     onError: (_err, variables, context) => {
-      if (context?.previousLists) {
+      if (context?.previousLists && !variables.date) {
         for (const [key, data] of context.previousLists) {
           if (data) {
             queryClient.setQueryData(key, data)
@@ -239,9 +279,36 @@ export function useLogHabit() {
         }
       }
       if (context && variables.date) {
-        queryClient.setQueryData(habitKeys.logs(variables.habitId), context.previousLogs)
-        for (const [key, calendar] of context.previousCalendars) {
-          if (calendar) queryClient.setQueryData(key, calendar)
+        const date = variables.date
+        const optimisticLogId = `optimistic-log:${variables.habitId}:${date}`
+        rollbackDatedHabitLists(
+          queryClient,
+          context.previousLists,
+          variables.habitId,
+          date,
+          optimisticLogId,
+        )
+        queryClient.setQueryData<HabitLog[] | undefined>(
+          habitKeys.logs(variables.habitId),
+          (currentLogs) => rollbackOptimisticHabitLogs(
+            currentLogs,
+            context.previousLogs,
+            date,
+            optimisticLogId,
+          ),
+        )
+        for (const [key, previousCalendar] of context.previousCalendars) {
+          if (!previousCalendar) continue
+          queryClient.setQueryData<CalendarMonthResponse>(key, (currentCalendar) =>
+            currentCalendar
+              ? rollbackOptimisticCalendarHabitLog(
+                  currentCalendar,
+                  previousCalendar,
+                  variables.habitId,
+                  date,
+                  optimisticLogId,
+                )
+              : currentCalendar)
         }
       }
     },

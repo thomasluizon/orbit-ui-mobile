@@ -1,6 +1,6 @@
 import { differenceInCalendarDays, isAfter, isSameDay } from 'date-fns'
 import { parseAPIDate } from './dates'
-import type { CalendarDayEntry, HabitDayStatus } from '../types/calendar'
+import type { CalendarDayEntry, HabitDayStatus, HabitLog } from '../types/calendar'
 import type { CalendarMonthResponse } from '../types/habit'
 
 interface HabitScheduleMatchSource {
@@ -96,6 +96,54 @@ export function optimisticSetCalendarHabitLog(
     logs: {
       ...calendarMonth.logs,
       [habitId]: nextLogs,
+    },
+  }
+}
+
+export function rollbackOptimisticHabitLogs(
+  currentLogs: HabitLog[] | undefined,
+  previousLogs: HabitLog[] | undefined,
+  date: string,
+  optimisticLogId: string,
+): HabitLog[] | undefined {
+  if (!currentLogs) return currentLogs
+
+  const previousActiveLogs = previousLogs?.filter(
+    (log) => log.date === date && log.value > 0,
+  ) ?? []
+  if (previousActiveLogs.length > 0) {
+    const hasLaterActiveLog = currentLogs.some(
+      (log) => log.date === date && log.value > 0,
+    )
+    return hasLaterActiveLog ? currentLogs : [...currentLogs, ...previousActiveLogs]
+  }
+
+  const nextLogs = currentLogs.filter((log) => log.id !== optimisticLogId)
+  if (nextLogs.length === currentLogs.length) return currentLogs
+  return nextLogs.length === 0 && previousLogs === undefined ? undefined : nextLogs
+}
+
+export function rollbackOptimisticCalendarHabitLog(
+  currentCalendar: CalendarMonthResponse,
+  previousCalendar: CalendarMonthResponse,
+  habitId: string,
+  date: string,
+  optimisticLogId: string,
+): CalendarMonthResponse {
+  const currentLogs = currentCalendar.logs[habitId] ?? []
+  const nextLogs = rollbackOptimisticHabitLogs(
+    currentLogs,
+    previousCalendar.logs[habitId] ?? [],
+    date,
+    optimisticLogId,
+  )
+  if (nextLogs === currentLogs) return currentCalendar
+
+  return {
+    ...currentCalendar,
+    logs: {
+      ...currentCalendar.logs,
+      [habitId]: nextLogs ?? [],
     },
   }
 }

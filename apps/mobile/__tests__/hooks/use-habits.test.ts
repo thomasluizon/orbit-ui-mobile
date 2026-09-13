@@ -362,9 +362,14 @@ function seedCalendarState(date: string): ReturnType<typeof habitKeys.calendar> 
   return key
 }
 
-function getCalendarStatus(key: ReturnType<typeof habitKeys.calendar>, date: string) {
+function getCalendarStatus(
+  key: ReturnType<typeof habitKeys.calendar>,
+  date: string,
+  habitId = 'habit-1',
+) {
   const calendar = mocks.queryClient.getQueryData(key) as CalendarMonthResponse
-  return buildCalendarDayMap(calendar, new Date('2025-01-16T12:00:00Z')).get(date)?.[0]?.status
+  return buildCalendarDayMap(calendar, new Date('2025-01-16T12:00:00Z'))
+    .get(date)?.find((entry) => entry.habitId === habitId)?.status
 }
 
 function getCount(): number {
@@ -564,6 +569,57 @@ describe('mobile habit hooks', () => {
     mutation.onError?.(new Error('request failed'), variables, context)
 
     expect(mocks.state.entries).toEqual(before)
+  })
+
+  it('keeps mutation B optimistic when mutation A fails later', async () => {
+    const date = '2025-01-15'
+    const calendarKey = habitKeys.calendar(date, date)
+    const listKey = habitKeys.list({ dateFrom: date, dateTo: date })
+    const habitA = makeHabit({
+      id: 'habit-1',
+      dueDate: date,
+      scheduledDates: [date],
+      instances: [{ date, status: 'Pending', logId: null }],
+    })
+    const habitB = makeHabit({
+      id: 'habit-2',
+      dueDate: date,
+      scheduledDates: [date],
+      instances: [{ date, status: 'Pending', logId: null }],
+    })
+    mocks.state.entries = [
+      { key: listKey, value: [habitA, habitB] },
+      {
+        key: calendarKey,
+        value: {
+          habits: [habitA, habitB],
+          logs: { 'habit-1': [], 'habit-2': [] },
+        } satisfies CalendarMonthResponse,
+      },
+      { key: habitKeys.logs('habit-1'), value: [] },
+      { key: habitKeys.logs('habit-2'), value: [] },
+    ]
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      LogHabitSnapshotContext
+    >
+    const mutationA = { habitId: 'habit-1', date, intent: 'log' as const }
+    const mutationB = { habitId: 'habit-2', date, intent: 'log' as const }
+
+    const contextA = await mutation.onMutate?.(mutationA)
+    await mutation.onMutate?.(mutationB)
+    expect(getCalendarStatus(calendarKey, date, 'habit-1')).toBe('completed')
+    expect(getCalendarStatus(calendarKey, date, 'habit-2')).toBe('completed')
+
+    mutation.onError?.(new Error('Mutation A failed'), mutationA, contextA)
+
+    expect(getCalendarStatus(calendarKey, date, 'habit-1')).toBe('missed')
+    expect(getCalendarStatus(calendarKey, date, 'habit-2')).toBe('completed')
+    expect(mocks.queryClient.getQueryData(listKey)).toEqual([
+      expect.objectContaining({ id: 'habit-1', isCompleted: false }),
+      expect.objectContaining({ id: 'habit-2', isCompleted: true }),
+    ])
   })
 
   it('tracks every confirmed bulk completion and no requested item before confirmation', async () => {

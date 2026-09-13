@@ -453,6 +453,8 @@ export type {
 export {
   buildCalendarDayMap,
   optimisticSetCalendarHabitLog,
+  rollbackOptimisticCalendarHabitLog,
+  rollbackOptimisticHabitLogs,
   buildUnresolvedBulkFailures,
   rebaseSelectedIds,
   computeHabitReorderPositions,

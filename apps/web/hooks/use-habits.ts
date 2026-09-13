@@ -18,6 +18,7 @@ import {
   normalizeHabits,
   optimisticSetCalendarHabitLog,
   removeHabitDetailChild,
+  rollbackOptimisticCalendarHabitLog,
 } from '@orbit/shared/utils'
 import {
   optimisticPatchHabit,
@@ -136,9 +137,10 @@ export function useLogHabit() {
     }: {
       habitId: string
       date?: string
+      intent: 'log' | 'unlog'
     }) => logHabitAction(habitId, date ? { date } : undefined),
 
-    onMutate: ({ habitId, date }) => {
+    onMutate: ({ habitId, date, intent }) => {
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
       if (date) void queryClient.cancelQueries({ queryKey: habitKeys.calendarPrefix() })
 
@@ -152,24 +154,21 @@ export function useLogHabit() {
         : []
 
       if (date) {
+        const completed = intent === 'log'
         const optimisticLogId = `optimistic-log:${habitId}:${date}`
         const createdAtUtc = new Date().toISOString()
         queryClient.setQueriesData<CalendarMonthResponse>(
           { queryKey: habitKeys.calendarPrefix() },
-          (old) => {
-            if (!old) return old
-            const logged = !old.logs[habitId]?.some(
-              (log) => log.date === date && log.value > 0,
-            )
-            return optimisticSetCalendarHabitLog(
-              old,
-              habitId,
-              date,
-              logged,
-              optimisticLogId,
-              createdAtUtc,
-            )
-          },
+          (old) => old
+            ? optimisticSetCalendarHabitLog(
+                old,
+                habitId,
+                date,
+                completed,
+                optimisticLogId,
+                createdAtUtc,
+              )
+            : old,
         )
       } else {
         queryClient.setQueriesData<HabitScheduleItem[], { queryKey: HabitListKey }>(
@@ -181,16 +180,30 @@ export function useLogHabit() {
       return { previousLists, previousCalendars }
     },
 
-    onError: (_err, _vars, context) => {
-      if (context?.previousLists) {
+    onError: (_err, variables, context) => {
+      if (!variables.date && context?.previousLists) {
         for (const [key, data] of context.previousLists) {
           if (data) {
             queryClient.setQueryData(key, data)
           }
         }
       }
-      for (const [key, calendar] of context?.previousCalendars ?? []) {
-        if (calendar) queryClient.setQueryData(key, calendar)
+      if (!variables.date) return
+
+      const date = variables.date
+      const optimisticLogId = `optimistic-log:${variables.habitId}:${date}`
+      for (const [key, previousCalendar] of context?.previousCalendars ?? []) {
+        if (!previousCalendar) continue
+        queryClient.setQueryData<CalendarMonthResponse>(key, (currentCalendar) =>
+          currentCalendar
+            ? rollbackOptimisticCalendarHabitLog(
+                currentCalendar,
+                previousCalendar,
+                variables.habitId,
+                date,
+                optimisticLogId,
+              )
+            : currentCalendar)
       }
     },
 
