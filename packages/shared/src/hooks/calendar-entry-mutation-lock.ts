@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 interface PendingCalendarEntryMutation {
   checked: boolean
   settled: boolean
-  sourceChecked: boolean
 }
 
 interface CalendarEntryMutationLock {
@@ -67,7 +66,6 @@ export function useCalendarEntryMutationLock(
     pendingEntryMutationsRef.current.set(entryKey, {
       checked,
       settled: false,
-      sourceChecked,
     })
     publishPendingEntryStates()
 
@@ -81,11 +79,7 @@ export function useCalendarEntryMutationLock(
         return result
       },
       (error: unknown) => {
-        const pendingMutation = pendingEntryMutationsRef.current.get(entryKey)
-        if (pendingMutation) {
-          pendingMutation.checked = pendingMutation.sourceChecked
-          pendingMutation.settled = true
-        }
+        pendingEntryMutationsRef.current.delete(entryKey)
         publishPendingEntryStates()
         throw error
       },

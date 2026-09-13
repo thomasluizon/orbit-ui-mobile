@@ -66,7 +66,7 @@ describe('calendar entry mutation lock', () => {
     lock.renderer.unmount()
   })
 
-  it('restores and locks a rejected mutation until its source reconciles', async () => {
+  it('releases a rejected mutation when the source identity stays unchanged', async () => {
     const lock = await renderMutationLock(false)
     const mutation = vi.fn().mockRejectedValue(new Error('write failed'))
     let request: Promise<unknown> | null = null
@@ -78,10 +78,6 @@ describe('calendar entry mutation lock', () => {
       await expect(request).rejects.toThrow('write failed')
     })
 
-    expect(lock.current().pendingEntryStates.get(lock.entryKey)).toBe(false)
-    expect(lock.current().startEntryMutation(lock.entryKey, true, mutation)).toBeNull()
-
-    await lock.reconcile(false)
     expect(lock.current().pendingEntryStates.has(lock.entryKey)).toBe(false)
     lock.renderer.unmount()
   })

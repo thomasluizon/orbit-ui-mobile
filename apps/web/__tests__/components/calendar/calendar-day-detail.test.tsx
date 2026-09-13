@@ -315,7 +315,7 @@ describe('CalendarDayDetail', () => {
     expect(screen.getByRole('checkbox', { name: 'Read' })).toBeEnabled()
   })
 
-  it('restores a returned day and keeps it locked until a rejected toggle reconciles', async () => {
+  it('restores and enables a returned day when rejected source data changes identity', async () => {
     let rejectChange: ((reason?: unknown) => void) | undefined
     const pendingChange = new Promise<void>((_resolve, reject) => {
       rejectChange = reject
@@ -351,9 +351,7 @@ describe('CalendarDayDetail', () => {
 
     const rejectedRow = screen.getByRole('checkbox', { name: 'Read' })
     expect(rejectedRow).toHaveAttribute('aria-checked', 'false')
-    expect(rejectedRow).toBeDisabled()
-    fireEvent.click(rejectedRow)
-    expect(onEntryChange).toHaveBeenCalledTimes(1)
+    expect(rejectedRow).toBeEnabled()
 
     rendered.rerender(
       <CalendarDayDetailHarness
@@ -366,6 +364,45 @@ describe('CalendarDayDetail', () => {
     )
 
     expect(screen.getByRole('checkbox', { name: 'Read' })).toBeEnabled()
+  })
+
+  it('restores and enables a returned day after rejection with identical source data', async () => {
+    let rejectChange: ((reason?: unknown) => void) | undefined
+    const pendingChange = new Promise<void>((_resolve, reject) => {
+      rejectChange = reject
+    })
+    const entry = makeEntry({ title: 'Read', status: 'missed' })
+    const onEntryChange = vi.fn(() => pendingChange)
+    const rendered = renderDetail({ entries: [entry], loggable: true, onEntryChange })
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Read' }))
+    rendered.rerender(
+      <CalendarDayDetailHarness
+        dateStr="2025-06-16"
+        entries={[entry]}
+        loggable
+        showRecurring
+        onEntryChange={onEntryChange}
+      />,
+    )
+    rendered.rerender(
+      <CalendarDayDetailHarness
+        dateStr="2025-06-15"
+        entries={[entry]}
+        loggable
+        showRecurring
+        onEntryChange={onEntryChange}
+      />,
+    )
+
+    await act(async () => {
+      rejectChange?.(new Error('write failed'))
+      await pendingChange.catch(() => {})
+    })
+
+    const rejectedRow = screen.getByRole('checkbox', { name: 'Read' })
+    expect(rejectedRow).toHaveAttribute('aria-checked', 'false')
+    expect(rejectedRow).toBeEnabled()
   })
 
   it('controls and serializes a row toggle, then rolls it back when the write fails', async () => {
@@ -392,7 +429,7 @@ describe('CalendarDayDetail', () => {
     })
 
     expect(row).toHaveAttribute('aria-checked', 'false')
-    expect(row).toBeDisabled()
+    expect(row).toBeEnabled()
     expect(within(row).getByText('08:00 · not logged')).toBeInTheDocument()
 
     rendered.rerender(
