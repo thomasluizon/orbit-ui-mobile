@@ -139,11 +139,11 @@ function objectPropertyValue(node, name, sourceCode, seen) {
 }
 
 function componentName(definition) {
-  if (definition.node.id?.type === 'Identifier') return definition.node.id.name
   const declarator = definition.node.parent
-  return declarator?.type === 'VariableDeclarator' && declarator.id.type === 'Identifier'
-    ? declarator.id.name
-    : null
+  if (declarator?.type === 'VariableDeclarator' && declarator.id.type === 'Identifier') {
+    return declarator.id.name
+  }
+  return definition.node.id?.type === 'Identifier' ? definition.node.id.name : null
 }
 
 function effectivePropValue(openingElement, propName, sourceCode, seen) {

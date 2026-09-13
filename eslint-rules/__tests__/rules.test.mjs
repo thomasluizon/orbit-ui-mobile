@@ -1019,6 +1019,16 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
       errors: [maxWordsError('PillButton', 'Sair da conta', 'pt-BR', 3)],
     },
     {
+      code: "const t = useTranslations('stepUp'); const StepUpSuccess = function ({ t }) { return <PillButton>{t('signOut')}</PillButton> }; const view = <StepUpSuccess t={t} />",
+      options: webMaxButtonWordsOptions,
+      errors: [maxWordsError('PillButton', 'Sair da conta', 'pt-BR', 3)],
+    },
+    {
+      code: "const t = useTranslations('stepUp'); const StepUpSuccess = function StepUpSuccessImpl({ t }) { return <PillButton>{t('signOut')}</PillButton> }; const view = <StepUpSuccess t={t} />",
+      options: webMaxButtonWordsOptions,
+      errors: [maxWordsError('PillButton', 'Sair da conta', 'pt-BR', 3)],
+    },
+    {
       code: "const rootT = useTranslations('nav'); const t = useTranslations('stepUp'); const sharedView = { t }; function StepUpSuccess({ t }) { return <PillButton>{t('signOut')}</PillButton> } const view = <StepUpSuccess t={rootT} {...sharedView} />",
       options: webMaxButtonWordsOptions,
       errors: [maxWordsError('PillButton', 'Sair da conta', 'pt-BR', 3)],
