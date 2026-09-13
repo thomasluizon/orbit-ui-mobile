@@ -111,7 +111,14 @@ jobs:
           git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...HEAD -z \
             | xargs -0 --no-run-if-empty node tools/check-dashes.mjs --files
       - name: Baseline only shrinks
-        run: node tools/check-dashes.mjs --check-baseline
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+               | grep -Eq '^tools/(check-dashes\.mjs|dash-baseline\.json)$'; then
+            node tools/check-dashes.mjs --check-baseline
+          else
+            echo "Dash baseline skipped: no baseline input changed."
+          fi
       - name: PR title and body carry no dashes
         # Human-authored prose only. A bot PR body is machine-copied upstream text
         # (Dependabot quotes the dependency's own changelog verbatim), which Orbit
@@ -328,7 +335,7 @@ jobs:
         run: |
           if [ '${{ github.event_name }}' != 'pull_request' ] || \
              git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
-               | grep -Eq '^\.github/workflows/guards\.yml$|^tools/(check-.*\.mjs|gate-charter\.json)$|^eslint-rules/[^/]+\.(cjs|js|mjs)$|^\.claude/hooks/[^/]+\.(cjs|js|mjs)$'; then
+               | grep -Eq '^\.github/workflows/(guards|test)\.yml$|^tools/(check-.*\.mjs|gate-charter\.json)$|^eslint-rules/[^/]+\.(cjs|js|mjs)$|^\.claude/hooks/[^/]+\.(cjs|js|mjs)$'; then
             node tools/check-gate-charter.mjs
           else
             echo "Gate charter skipped: no registered gate changed."
