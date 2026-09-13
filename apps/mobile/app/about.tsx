@@ -1,29 +1,45 @@
 import { useMemo, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
-import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import Constants from 'expo-constants'
-import { Compass, FileText, Mail, Shield } from '@/components/ui/icons'
-import { createTokensV2 } from '@/lib/theme'
-import { AppLogo } from '@/components/ui/app-logo'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
-import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
-import { SettingsRow } from '@/components/ui/settings-row'
+import { ListRow } from '@/components/ui/list-row'
+import { OrbitMark } from '@/components/ui/orbit-mark'
+import { RowList } from '@/components/ui/row-list'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useProfile } from '@/hooks/use-profile'
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
-function sectionEntrance(index: number) {
-  return FadeInDown.duration(280)
-    .delay(index * 50)
-    .reduceMotion(ReduceMotion.System)
+interface AboutFactProps {
+  id: 'version' | 'account'
+  label: string
+  value: string
+  labelColor: string
+  valueColor: string
+}
+
+function AboutFact({ id, label, value, labelColor, valueColor }: Readonly<AboutFactProps>) {
+  return (
+    <View testID={`about-fact-${id}`} style={styles.factRow}>
+      <Text testID={`about-fact-${id}-label`} style={[styles.factLabel, { color: labelColor }]}>
+        {label}
+      </Text>
+      <Text testID={`about-fact-${id}-value`} style={[styles.factValue, { color: valueColor }]}>
+        {value}
+      </Text>
+    </View>
+  )
 }
 
 export default function AboutScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
+  const { profile } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -47,68 +63,131 @@ export default function AboutScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={sectionEntrance(0)} style={styles.logoBlock}>
-          <AppLogo size={72} />
-          <Text style={[styles.appName, { color: tokens.fg1 }]}>
-            {t('common.appName')}
-          </Text>
-          {appVersion ? (
-            <Text style={[styles.appVersion, { color: tokens.fg3 }]}>
-              {t('about.version', { version: appVersion })}
+        <View testID="about-content" style={styles.content}>
+          <View testID="about-identity" style={styles.identity}>
+            <OrbitMark size={48} accent />
+            <Text accessibilityLanguage="en" style={[styles.appName, { color: tokens.fg1 }]}>
+              {t('common.appName')}
             </Text>
-          ) : null}
-        </Animated.View>
-        <Animated.View entering={sectionEntrance(1)}>
-          <SettingsRow
-            icon={Compass}
-            label={t('onboarding.featureGuide.openButton')}
-            onPress={() => setShowGuide(true)}
-          />
-          <SettingsRow
-            icon={Mail}
-            label={t('profile.support.title')}
-            onPress={() => router.push('/support')}
-          />
-          <SettingsRow
-            icon={FileText}
-            label={t('terms.title')}
-            onPress={() => router.push('/terms')}
-          />
-          <SettingsRow
-            icon={Shield}
-            label={t('privacy.title')}
-            onPress={() => router.push('/privacy')}
-          />
-        </Animated.View>
-        <View style={{ height: 24 }} />
+            <Text style={[styles.tagline, { color: tokens.fg2 }]}>
+              {t('about.tagline')}
+            </Text>
+          </View>
+
+          <View testID="about-destinations" style={styles.destinations}>
+            <RowList style={styles.rowList}>
+              {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
+              <ListRow
+                accessibilityLabel={t('onboarding.featureGuide.openButton')}
+                onClick={() => setShowGuide(true)}
+                title={t('onboarding.featureGuide.openButton')}
+                wrapTitle
+              />
+              <ListRow
+                accessibilityLabel={t('profile.support.title')}
+                onClick={() => router.push('/support')}
+                title={t('profile.support.title')}
+                wrapTitle
+              />
+              {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
+              <ListRow
+                accessibilityLabel={t('terms.title')}
+                onClick={() => router.push('/terms')}
+                title={t('terms.title')}
+                wrapTitle
+              />
+              {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
+              <ListRow
+                accessibilityLabel={t('privacy.title')}
+                onClick={() => router.push('/privacy')}
+                title={t('privacy.title')}
+                wrapTitle
+              />
+            </RowList>
+          </View>
+
+          <View testID="about-facts" style={styles.facts}>
+            {appVersion ? (
+              <AboutFact
+                id="version"
+                label={t('about.versionLabel')}
+                labelColor={tokens.fg3}
+                value={appVersion}
+                valueColor={tokens.fg2}
+              />
+            ) : null}
+            <AboutFact
+              id="account"
+              label={t('about.accountLabel')}
+              labelColor={tokens.fg3}
+              value={profile?.email ?? ''}
+              valueColor={tokens.fg2}
+            />
+          </View>
+
+          <Text style={[styles.credit, { color: tokens.fg4 }]}>
+            {t('about.credit')}
+          </Text>
+        </View>
       </ScrollView>
 
-      <FeatureGuideDrawer
-        open={showGuide}
-        onClose={() => setShowGuide(false)}
-      />
+      <FeatureGuideDrawer open={showGuide} onClose={() => setShowGuide(false)} />
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  container: { flex: 1 },
-  scrollContent: { paddingBottom: 40 },
-  logoBlock: {
-    alignItems: 'center',
-    gap: 10,
-    paddingTop: 24,
-    paddingBottom: 20,
-  },
+  safeArea: { flex: 1, minWidth: 0 },
+  container: { flex: 1, minWidth: 0 },
+  scrollContent: { minWidth: 0 },
+  content: { minWidth: 0, gap: 24, padding: 16, paddingBottom: 24 },
+  identity: { minWidth: 0, alignItems: 'flex-start', gap: 12 },
   appName: {
-    fontFamily: 'Geist_500Medium',
-    fontSize: 22,
-    letterSpacing: -0.22,
+    fontFamily: 'SpaceGrotesk_600SemiBold',
+    fontSize: 28,
+    fontWeight: '600',
+    lineHeight: 32.2,
+    letterSpacing: -0.56,
   },
-  appVersion: {
+  tagline: {
+    maxWidth: '100%',
+    fontFamily: 'Geist_400Regular',
+    fontSize: 16,
+    lineHeight: 24.8,
+  },
+  destinations: { minWidth: 0 },
+  rowList: { minWidth: 0 },
+  facts: { minWidth: 0, gap: 8 },
+  factRow: {
+    minWidth: 0,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    columnGap: 12,
+    rowGap: 4,
+  },
+  factLabel: {
+    minWidth: 0,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 'auto',
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  factValue: {
+    minWidth: 0,
+    maxWidth: '100%',
+    flexShrink: 1,
     fontFamily: 'GeistMono_400Regular',
-    fontSize: 13,
+    fontSize: 12,
+    lineHeight: 19.2,
     fontVariant: ['tabular-nums'],
+  },
+  credit: {
+    minWidth: 0,
+    maxWidth: '100%',
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    lineHeight: 21.7,
   },
 })

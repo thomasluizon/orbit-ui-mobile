@@ -2761,7 +2761,11 @@
   },
   "about": {
     "title": "Sobre e Ajuda",
-    "version": "Versão {version}"
+    "version": "Versão {version}",
+    "tagline": "Uma IA que acompanha hábitos, para quem não consegue manter uma rotina.",
+    "versionLabel": "Versão",
+    "accountLabel": "Conta",
+    "credit": "Orbit e Astra são nomes próprios e não são traduzidos."
   },
   "advancedSettings": {
     "title": "Avançado",
