@@ -1,21 +1,16 @@
 import { useMemo, useState } from 'react'
 import { View } from 'react-native'
-import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import type { RecapSharePeriod } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { AppBar } from '@/components/ui/app-bar'
 import { WrappedCover } from '@/components/wrapped/wrapped-cover'
 import { WrappedPlayer } from '@/components/wrapped/wrapped-player'
 import { styles } from './wrapped-styles'
 
 export default function WrappedScreen() {
-  const { t } = useTranslation()
-  const goBackOrFallback = useGoBackOrFallback()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -24,6 +19,7 @@ export default function WrappedScreen() {
   const { profile } = useProfile()
   const [period, setPeriod] = useState<RecapSharePeriod>('week')
   const [isPlaying, setIsPlaying] = useState(false)
+  const [isRetrying, setIsRetrying] = useState(false)
   const { recap, slides, isEmpty, isLoading, isError, refetch } = useWrapped(period, {
     active: isPlaying,
   })
@@ -33,7 +29,29 @@ export default function WrappedScreen() {
     setIsPlaying(false)
   }
 
-  if (isPlaying && recap) {
+  function startPlayer() {
+    if (!recap || isEmpty) return
+    setIsPlaying(true)
+  }
+
+  async function retryCover() {
+    setIsRetrying(true)
+    try {
+      await refetch()
+    } finally {
+      setIsRetrying(false)
+    }
+  }
+
+  const coverState = isLoading || isRetrying
+    ? 'loading'
+    : isError
+      ? 'failed'
+      : isEmpty
+        ? 'empty'
+        : 'ready'
+
+  if (isPlaying && recap && !isEmpty) {
     return (
       <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
         <WrappedPlayer
@@ -50,21 +68,13 @@ export default function WrappedScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top']}>
-      <AppBar
-        onBack={() => goBackOrFallback('/profile')}
-        backLabel={t('wrapped.back')}
-        title={t('wrapped.title')}
-      />
       <WrappedCover
         tokens={tokens}
         period={period}
         onSelectPeriod={selectPeriod}
-        isLoading={isLoading}
-        isError={isError}
-        isEmpty={isEmpty}
-        canStart={!!recap && !isEmpty}
-        onStart={() => setIsPlaying(true)}
-        onRetry={() => void refetch()}
+        state={coverState}
+        onStart={startPlayer}
+        onRetry={() => void retryCover()}
       />
     </SafeAreaView>
   )

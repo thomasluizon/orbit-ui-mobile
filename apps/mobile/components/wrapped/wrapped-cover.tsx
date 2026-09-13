@@ -1,95 +1,118 @@
-import { Text, View } from 'react-native'
+import { ScrollView, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
-import { RingMotif } from '@/components/gamification/ring-motif'
 import { Chip } from '@/components/ui/chip'
-import { PillButton } from '@/components/ui/pill-button'
+import { ErrorState } from '@/components/ui/error-state'
+import { Icon } from '@/components/ui/icon'
 import { OrbitMark } from '@/components/ui/orbit-mark'
+import { Button } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { styles, type Tokens } from '@/app/wrapped-styles'
+
+type WrappedCoverState = 'ready' | 'loading' | 'failed' | 'empty'
 
 interface WrappedCoverProps {
   tokens: Tokens
   period: RecapSharePeriod
   onSelectPeriod: (period: RecapSharePeriod) => void
-  isLoading: boolean
-  isError: boolean
-  isEmpty: boolean
-  canStart: boolean
+  state: WrappedCoverState
   onStart: () => void
   onRetry: () => void
 }
 
-/** Wrapped entry screen: period picker, Start CTA, and the loading / empty / error states before the player opens. */
-// react-doctor-disable-next-line no-many-boolean-props -- Deliberate presentational cover: independent loading/error/empty UI-state flags owned by the Wrapped screen; an options-object rewrite would churn the caller and the web parity mirror for no runtime benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function WrappedCover({
   tokens,
   period,
   onSelectPeriod,
-  isLoading,
-  isError,
-  isEmpty,
-  canStart,
+  state,
   onStart,
   onRetry,
 }: Readonly<WrappedCoverProps>) {
   const { t } = useTranslation()
 
   return (
-    <View style={styles.cover}>
-      <RingMotif
-        dashed
-        ringSize={300}
-        eyebrow={t('wrapped.coverEyebrow')}
-        anchor={
-          <View style={styles.coverHeader}>
-            <Text style={[styles.coverTitle, { color: tokens.fg1 }]}>{t('wrapped.title')}</Text>
-            <Text style={[styles.coverSubtitle, { color: tokens.fg2 }]}>
-              {t('wrapped.coverSubtitle')}
-            </Text>
-          </View>
-        }
-      />
+    <ScrollView
+      contentContainerStyle={styles.cover}
+      style={styles.coverScroller}
+      testID={`wrapped-cover-${state}`}
+    >
+      <OrbitMark size={96} />
 
-      <View style={styles.periodRow}>
+      <View style={styles.coverHeader}>
+        <Text style={[styles.coverEyebrow, { color: tokens.fg3 }]}>{t('wrapped.title')}</Text>
+        <Text accessibilityRole="header" style={[styles.coverTitle, { color: tokens.fg1 }]}>
+          {t(`wrapped.coverTitles.${period}`)}
+        </Text>
+        <Text style={[styles.coverSubtitle, { color: tokens.fg3 }]}>
+          {t('wrapped.coverSubtitle')}
+        </Text>
+      </View>
+
+      <View
+        style={styles.periodRow}
+        role="group"
+        accessibilityLabel={t('wrapped.periodGroup')}
+      >
         {RECAP_SHARE_PERIODS.map((value) => (
-          <Chip key={value} active={period === value} onPress={() => onSelectPeriod(value)}>
+          <Chip
+            key={value}
+            active={period === value}
+            onPress={() => onSelectPeriod(value)}
+            accessibilityLabel={t(`wrapped.periods.${value}`)}
+          >
             {t(`wrapped.periods.${value}`)}
           </Chip>
         ))}
       </View>
 
-      <View style={styles.ctaWrap}>
-        <PillButton
-          disabled={!canStart}
-          onClick={onStart}
+      <CoverBody
+        state={state}
+        tokens={tokens}
+        onStart={onStart}
+        onRetry={onRetry}
+      />
+    </ScrollView>
+  )
+}
 
-        >
-          {t('wrapped.start')}
-        </PillButton>
+function CoverBody({
+  state,
+  tokens,
+  onStart,
+  onRetry,
+}: Readonly<Pick<WrappedCoverProps, 'state' | 'tokens' | 'onStart' | 'onRetry'>>) {
+  const { t } = useTranslation()
 
-        {isLoading ? (
-          <Text style={[styles.stateText, { color: tokens.fg3 }]}>{t('wrapped.loading')}</Text>
-        ) : null}
-
-        {!isLoading && isError ? (
-          <>
-            <Text
-              style={[styles.stateText, { color: tokens.statusBadText }]}
-              accessibilityRole="alert"
-            >
-              {t('wrapped.error')}
-            </Text>
-            <Chip onPress={onRetry}>{t('wrapped.retry')}</Chip>
-          </>
-        ) : null}
-
-        {!isLoading && !isError && isEmpty ? (
-          <View style={styles.emptyState}>
-            <OrbitMark size={96} />
-            <Text style={[styles.stateText, { color: tokens.fg3 }]}>{t('wrapped.empty')}</Text>
-          </View>
-        ) : null}
+  if (state === 'loading') {
+    return <Skeleton variant="settings" rows={3} label={t('wrapped.loading')} />
+  }
+  if (state === 'failed') {
+    return (
+      <View style={styles.coverBody}>
+        <ErrorState
+          message={t('wrapped.error')}
+          action={<Button size="sm" onClick={onRetry}>{t('wrapped.retry')}</Button>}
+        />
       </View>
+    )
+  }
+  if (state === 'empty') {
+    return (
+      <View style={styles.coverBody}>
+        <View style={styles.emptyRow}>
+          <View style={[styles.emptyIcon, { backgroundColor: tokens.bgWell }]}>
+            <Icon name="satellite" size={24} color={tokens.fg3} />
+          </View>
+          <Text style={[styles.stateText, { color: tokens.fg2 }]}>{t('wrapped.empty')}</Text>
+        </View>
+        <Button disabled>{t('wrapped.start')}</Button>
+      </View>
+    )
+  }
+
+  return (
+    <View style={styles.coverBody}>
+      <Button onClick={onStart}>{t('wrapped.start')}</Button>
     </View>
   )
 }

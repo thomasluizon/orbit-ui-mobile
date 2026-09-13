@@ -111,11 +111,6 @@
       "count": 2
     }
   },
-  "app/(app)/wrapped/_components/wrapped-cover.tsx": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
   "app/(app)/wrapped/_components/wrapped-player.tsx": {
     "local/icon-size-grid": {
       "count": 2

@@ -85,7 +85,7 @@
   },
   "app/wrapped-styles.ts": {
     "local/spacing-scale": {
-      "count": 11
+      "count": 8
     }
   },
   "components/calendar-sync/calendar-sync-auto-section.tsx": {

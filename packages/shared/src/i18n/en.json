@@ -1512,6 +1512,12 @@
     "entry": "Your Wrapped",
     "coverEyebrow": "Your habits, replayed",
     "coverSubtitle": "Pick a period to begin.",
+    "coverTitles": {
+      "week": "Close the week.",
+      "month": "Close the month.",
+      "year": "Close the year."
+    },
+    "periodGroup": "Period",
     "start": "Start",
     "close": "Close Wrapped",
     "next": "Next",
