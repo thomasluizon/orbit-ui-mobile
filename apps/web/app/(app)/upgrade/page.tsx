@@ -181,6 +181,7 @@ export default function UpgradePage() {
       <ErrorState
         message={t('upgrade.billing.error')}
         action={
+          /* eslint-disable-next-line local/max-button-words -- ORB-66 owns this existing upgrade label. */
           <PillButton variant="ghost" onClick={retryLoad}>
             {t('upgrade.billing.retry')}
           </PillButton>

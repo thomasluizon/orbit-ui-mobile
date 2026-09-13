@@ -196,6 +196,7 @@ export function ApiKeysSection({
           {t('orbitMcp.apiKeys')}
         </Text>
         {canCreateKey ? (
+          /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
           <Pressable
             onPress={onCreateKey}
             disabled={!canCreateScopedKey}

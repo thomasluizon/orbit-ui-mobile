@@ -195,6 +195,7 @@ export function CalendarDayDetail({
         </View>
       ) : null}
 
+      {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
       <ListRow
         icon="external-link"
         title={t('calendar.goToDay')}

@@ -17,6 +17,7 @@ export function GoalLoadError({ onRetry, styles }: Readonly<GoalLoadErrorProps>)
   return (
     <View>
       <Text style={styles.warningText}>{t('goals.detail.loadError')}</Text>
+      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       <Pressable
         onPress={onRetry}
         accessibilityRole="button"

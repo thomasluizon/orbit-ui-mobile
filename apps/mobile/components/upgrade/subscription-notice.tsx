@@ -40,7 +40,10 @@ export function SubscriptionNotice({ status, locale, onResubscribe, t, tokens }:
             <Text style={[styles.billingSecondary, { color: tokens.fg3, flex: 1 }]}>{label}</Text>
           </View>)}
         </View>
-        {onResubscribe ? <View style={{ alignItems: 'flex-start', paddingTop: 8 }}><PillButton variant="primary" onClick={onResubscribe}>{t('upgrade.billing.lapsed.action')}</PillButton></View> : null}
+        {onResubscribe ? <View style={{ alignItems: 'flex-start', paddingTop: 8 }}>
+          {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
+          <PillButton variant="primary" onClick={onResubscribe}>{t('upgrade.billing.lapsed.action')}</PillButton>
+        </View> : null}
       </View>
       <UsageCard usagePercent={usagePercent} usageUrgent={usagePercent >= 80} profile={status} t={t} tokens={tokens} />
     </View>

@@ -55,6 +55,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
     <CommandSearchField search={search.text} setSearch={search.changeText} activePageLabel={page === null ? null : pageLabel} onBack={back} />
     <CommandList label={t('command.title')} aria-busy={search.busy} className="h-[min(60vh,400px)] overflow-y-auto overflow-x-hidden overscroll-contain p-2">
       {search.isSuccess && !search.busy && !showResults && <CommandEmpty className="p-3 text-[length:var(--fs-sm)] text-[var(--fg-3)]">{t('command.empty')}</CommandEmpty>}
+      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {search.isError && <div role="alert"><p>{t('habits.search.loadError')}</p><Button size="sm" variant="ghost" onClick={() => void search.refetch()}>{t('common.retry')}</Button></div>}
       {search.showLoading && <><Searching /><CommandHabitSkeleton heading={t('command.groups.search')} /></>}
       {!search.busy && !search.isError && <CommandResults showResults={showResults} entries={entries} totalCount={search.data?.totalCount ?? 0} query={search.query} onOpen={chooseHabit} onCreate={() => onCreateHabit(search.query)} disabled={logHabit.isPending || skipHabit.isPending} />}

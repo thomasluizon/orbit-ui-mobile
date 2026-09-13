@@ -197,6 +197,7 @@ export function OnboardingComplete({
       )}
 
       <Animated.View style={[styles.startBtnWrap, riseSlot(0.55, 1)]}>
+        {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
         <PillButton  onClick={onFinish}>
           {finishLabel ?? t('onboarding.flow.complete.start')}
         </PillButton>

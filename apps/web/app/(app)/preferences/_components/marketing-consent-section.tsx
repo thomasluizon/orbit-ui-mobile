@@ -52,6 +52,7 @@ export function MarketingConsentSection({
         disabled={mutation.isPending}
         className="m-0 flex flex-wrap gap-2 border-0 p-0"
       >
+        {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
         <PillButton size="sm" variant={acceptVariant} onClick={() => mutation.mutate(true)}>
           {t('profile.marketingEmails.accept')}
         </PillButton>
