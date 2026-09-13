@@ -44,7 +44,7 @@ export function LegalDocumentLayout({ title, lastUpdated, sections, closingNote,
             <p className="text-pretty font-display text-[var(--fs-xl)] font-medium leading-[1.2] tracking-[-0.02em] text-[var(--fg-1)] sm:text-[var(--fs-2xl)] sm:leading-[1.15]">
               {title}
             </p>
-            <p className="font-mono text-xs leading-[1.4] text-[var(--fg-4)]">{lastUpdated}</p>
+            <p className="font-mono text-xs leading-[1.4] text-[var(--fg-3)]">{lastUpdated}</p>
           </header>
           <div data-legal-document-sections="" className="flex min-w-0 flex-col gap-6">
             {sections.map((section) => <Section key={section.id} section={section} />)}
@@ -52,7 +52,7 @@ export function LegalDocumentLayout({ title, lastUpdated, sections, closingNote,
           <aside data-legal-document-closing="" className="flex min-w-0 flex-col gap-2 pb-6">
             <h2 className="font-sans text-[var(--fs-md)] font-medium leading-[1.4] text-[var(--fg-1)]">{closingNote.title}</h2>
             {closingNote.paragraphs.map((paragraph) => (
-              <p key={paragraph} className="min-w-0 text-pretty font-sans text-sm leading-[1.55] text-[var(--fg-4)] [overflow-wrap:anywhere]">
+              <p key={paragraph} className="min-w-0 text-pretty font-sans text-sm leading-[1.55] text-[var(--fg-3)] [overflow-wrap:anywhere]">
                 {paragraph}
               </p>
             ))}

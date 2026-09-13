@@ -32,7 +32,7 @@ export function LegalDocumentLayout({ title, lastUpdated, sections, closingNote,
         <View testID="legal-document" style={styles.document}>
           <View style={styles.titleBlock}>
             <Text style={[styles.title, width >= 640 ? styles.titleWide : undefined, { color: tokens.fg1 }]}>{title}</Text>
-            <Text style={[styles.updated, { color: tokens.fg4 }]}>{lastUpdated}</Text>
+            <Text style={[styles.updated, { color: tokens.fg3 }]}>{lastUpdated}</Text>
           </View>
           <View testID="legal-document-sections" style={styles.sections}>
             {sections.map((section) => (
@@ -49,7 +49,7 @@ export function LegalDocumentLayout({ title, lastUpdated, sections, closingNote,
           <View testID="legal-document-closing" style={styles.section}>
             <Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{closingNote.title}</Text>
             {closingNote.paragraphs.map((paragraph) => (
-              <Text key={paragraph} style={[styles.closingBody, { color: tokens.fg4 }]}>{paragraph}</Text>
+              <Text key={paragraph} style={[styles.closingBody, { color: tokens.fg3 }]}>{paragraph}</Text>
             ))}
           </View>
         </View>
