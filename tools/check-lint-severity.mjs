@@ -100,7 +100,7 @@ const scopedOffAllowlist = [
   {
     config: "apps/web/eslint.config.mjs",
     files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
-    rules: ["local/no-fullbleed-button", "local/no-double-assertion"],
+    rules: ["local/no-fullbleed-button", "local/max-button-words", "local/no-double-assertion"],
   },
   {
     config: "apps/mobile/eslint.config.js",
@@ -116,7 +116,7 @@ const scopedOffAllowlist = [
   {
     config: "apps/mobile/eslint.config.js",
     files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
-    rules: ["local/no-fullbleed-button", "local/no-double-assertion"],
+    rules: ["local/no-fullbleed-button", "local/max-button-words", "local/no-double-assertion"],
   },
   {
     config: "packages/shared/eslint.config.mjs",
