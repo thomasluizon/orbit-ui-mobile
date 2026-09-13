@@ -20,10 +20,13 @@ export function CalendarStats({
   loadingLabel,
   emptyLabel,
 }: Readonly<CalendarStatsProps>) {
+  const isLoading = state === 'loading'
+
   return (
     <div
       className="grid"
       data-testid="calendar-stats"
+      aria-hidden={isLoading || undefined}
       style={{
         gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
         gap: 12,
@@ -31,8 +34,8 @@ export function CalendarStats({
       }}
     >
       {stats.map((stat) => (
-        state === 'loading' ? (
-          <StatTile key={stat.key} state="loading" loadingLabel={loadingLabel ?? ''} label={stat.label} />
+        isLoading ? (
+          <StatTile key={stat.key} state="loading" loadingLabel={loadingLabel ?? ''} label="" />
         ) : state === 'empty' ? (
           <StatTile key={stat.key} state="empty" emptyLabel={emptyLabel ?? ''} label={stat.label} />
         ) : (

@@ -1,4 +1,5 @@
 import React from "react";
+import { addDays, differenceInCalendarDays } from "date-fns";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
@@ -23,6 +24,8 @@ const state = vi.hoisted(() => ({
   profileError: null as Error | null,
   profileRefetch: vi.fn(),
   calendarDataCalls: vi.fn(),
+  calendarRangeCalls: vi.fn(),
+  rangeLoading: false,
   routerPush: vi.fn(),
   setShowCreateModal: vi.fn(),
 }));
@@ -32,6 +35,13 @@ const calendarGridProps = vi.hoisted(() => ({
   current: null as Record<string, any> | null,
   header: null as Record<string, any> | null,
   stats: null as Record<string, any> | null,
+}));
+
+const calendarStatsProps = vi.hoisted(() => ({
+  current: null as {
+    stats: readonly { key: string; value: string | number }[];
+    state?: "default" | "loading" | "empty";
+  } | null,
 }));
 
 const tokensProxy: any = new Proxy({}, { get: () => "#222222" });
@@ -46,7 +56,11 @@ vi.mock("@/stores/ui-store", () => ({
 }));
 
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en" } }),
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, unknown>) =>
+      params ? `${key}:${JSON.stringify(params)}` : key,
+    i18n: { language: "en" },
+  }),
 }));
 
 vi.mock("@/hooks/use-profile", () => ({
@@ -82,7 +96,16 @@ vi.mock("@/hooks/use-habits", () => ({
       refresh: state.monthRefresh,
     })
   },
-  useCalendarRange: () => ({ dayMap: state.rangeMap }),
+  useCalendarRange: (start: Date, end: Date, enabled: boolean) => {
+    state.calendarRangeCalls(start, end, enabled);
+    return {
+      dayMap: state.rangeMap,
+      isLoading: state.rangeLoading,
+      isFetching: false,
+      error: null,
+      refresh: vi.fn(),
+    };
+  },
 }));
 
 vi.mock("@/lib/use-app-theme", () => ({
@@ -130,6 +153,10 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-stats", () => ({
   CalendarStats: (props: Record<string, any>) => {
     calendarGridProps.stats = props;
     const stats = props.stats as readonly { key: string; value: string | number }[];
+    calendarStatsProps.current = {
+      stats,
+      state: props.state as "default" | "loading" | "empty" | undefined,
+    };
     return (
       <View testID="calendar-stats">
         {stats.map((stat) => <Text key={stat.key}>{`${stat.key}:${stat.value}`}</Text>)}
@@ -233,6 +260,9 @@ describe("CalendarScreen views (mobile)", () => {
     state.profileError = null;
     state.profileRefetch = vi.fn();
     state.calendarDataCalls.mockClear();
+    state.calendarRangeCalls.mockClear();
+    state.rangeLoading = false;
+    calendarStatsProps.current = null;
     state.routerPush.mockClear();
     state.setShowCreateModal.mockClear();
     const todayStr = formatAPIDate(new Date());
@@ -574,7 +604,7 @@ describe("CalendarScreen views (mobile)", () => {
     expect(hostTexts(tree!)).toContain("OneTime");
   });
 
-  it("renders the interval clamp notice when a range is clamped", () => {
+  it("states a fourteen-day span and pages by the whole span", () => {
     let tree: Tree;
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />);
@@ -582,25 +612,82 @@ describe("CalendarScreen views (mobile)", () => {
 
     pressView(tree!, "range");
 
-    expect(hostTexts(tree!)).toContain("calendar.timeGrid.pickRangeHint");
+    expect(hostTexts(tree!).some((text) =>
+      typeof text === "string" && text.startsWith("calendar.range.label:") && text.includes('"start"') && text.includes('"end"'),
+    )).toBe(true);
+    const beforePage = state.calendarRangeCalls.mock.calls.at(-1)!;
+    const previous = tree!.root.findAll(
+      (node) =>
+        typeof node.type === "string" &&
+        node.props.accessibilityRole === "button" &&
+        node.props.accessibilityLabel === "calendar.range.previous",
+    )[0]!;
+    TestRenderer.act(() => previous.props.onPress());
+    const afterPage = state.calendarRangeCalls.mock.calls.at(-1)!;
+    expect(differenceInCalendarDays(beforePage[1], beforePage[0])).toBe(13);
+    expect(differenceInCalendarDays(beforePage[1], afterPage[1])).toBe(14);
   });
 
-  it("asks for the end day after the first interval pick", () => {
+  it("renders fourteen range days as read-only cells with span figures", () => {
+    const today = new Date();
+    state.rangeMap = new Map([
+      [formatAPIDate(addDays(today, -1)), [makeEntry({ status: "completed" })]],
+      [formatAPIDate(today), [makeEntry({ status: "missed" })]],
+    ]);
     let tree: Tree;
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />);
     });
 
     pressView(tree!, "range");
-    expect(hostTexts(tree!)).toContain("calendar.timeGrid.pickRangeHint");
-    expect(calendarGridProps.current).not.toBeNull();
+    const rangeDays = tree!.root.findAll(
+      (node) =>
+        typeof node.type === "string" &&
+        typeof node.props.testID === "string" &&
+        node.props.testID.startsWith("day-cell-"),
+    );
+    expect(rangeDays).toHaveLength(14);
+    for (const day of rangeDays) {
+      expect(day.props.accessibilityRole).toBe("image");
+      expect(day.props.onPress).toBeUndefined();
+    }
+    expect(calendarStatsProps.current?.stats.map((stat) => stat.value)).toEqual([1, 1, 1]);
+  });
 
+  it("keeps the pending range busy without exposing empty outcomes, then reveals the resolved span", () => {
+    state.rangeLoading = true;
+    let tree!: Tree;
     TestRenderer.act(() => {
-      calendarGridProps.current!.onSelectDay("2026-01-05");
+      tree = TestRenderer.create(<CalendarScreen />);
     });
 
-    expect(hostTexts(tree!)).toContain("calendar.timeGrid.pickEndHint");
-    expect(hostTexts(tree!)).not.toContain("calendar.timeGrid.pickRangeHint");
+    pressView(tree, "range");
+    const loadingGrid = tree.root.findAll(
+      (node) =>
+        typeof node.type === "string" &&
+        node.props.testID === "skeleton-unit-grid" &&
+        node.props.accessibilityRole === "progressbar",
+    );
+    expect(loadingGrid).toHaveLength(1);
+    expect(loadingGrid[0]!.props.accessibilityRole).toBe("progressbar");
+    expect(loadingGrid[0]!.props.accessibilityState).toEqual({ busy: true });
+    expect(tree.root.findAll(
+      (node) => typeof node.type === "string" && typeof node.props.testID === "string" && node.props.testID.startsWith("day-cell-"),
+    )).toHaveLength(0);
+    expect(calendarStatsProps.current?.state).toBe("loading");
+
+    state.rangeLoading = false;
+    TestRenderer.act(() => {
+      tree.update(<CalendarScreen />);
+    });
+
+    expect(tree.root.findAll(
+      (node) => typeof node.type === "string" && node.props.testID === "skeleton-unit-grid",
+    )).toHaveLength(0);
+    expect(tree.root.findAll(
+      (node) => typeof node.type === "string" && typeof node.props.testID === "string" && node.props.testID.startsWith("day-cell-"),
+    )).toHaveLength(14);
+    expect(calendarStatsProps.current?.state ?? "default").toBe("default");
   });
 
   it("keeps the calendar usable and offers habit creation for an empty current month", () => {

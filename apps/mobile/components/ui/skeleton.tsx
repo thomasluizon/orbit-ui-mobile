@@ -9,6 +9,7 @@ import {
 import { createTokensV2, radius, type AppTokensV2 } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { STAT_TILE_MIN_HEIGHT } from './stat-tile'
 
 function usePulseOpacity() {
   const opacity = useMemo(() => new Animated.Value(1), [])
@@ -69,7 +70,10 @@ function SettingsSkeleton({ rows = 1, tokens, opacity }: Readonly<{ rows?: numbe
 
 function StatTileSkeleton({ tokens, opacity }: Readonly<{ tokens: AppTokensV2; opacity: Animated.Value }>) {
   return (
-    <View style={[styles.statTile, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
+    <View
+      testID="skeleton-stat-tile-shape"
+      style={[styles.statTile, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}
+    >
       <Block style={styles.statValue} tokens={tokens} opacity={opacity} />
       <Block style={styles.statLabel} tokens={tokens} opacity={opacity} />
     </View>
@@ -161,7 +165,7 @@ const styles = StyleSheet.create({
   settingsMeta: { width: '66%', height: 12 },
   settingsValue: { width: 48, height: 16 },
   statTile: {
-    minHeight: 110,
+    minHeight: STAT_TILE_MIN_HEIGHT,
     borderRadius: radius.xl,
     borderWidth: 1,
     padding: 24,

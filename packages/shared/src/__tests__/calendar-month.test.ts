@@ -9,6 +9,7 @@ function entry(status: CalendarDayEntry['status'], habitId = 'h'): CalendarDayEn
 }
 
 const june = new Date(2026, 5, 1)
+const juneToday = '2026-06-30'
 const key = (date: Date) => formatAPIDate(date)
 
 function sampleMonth(): Map<string, CalendarDayEntry[]> {
@@ -25,7 +26,7 @@ describe('buildCalendarMonthModel', () => {
     const dayMap = sampleMonth()
     dayMap.set(key(new Date(2026, 4, 31)), [entry('completed')])
 
-    expect(buildCalendarMonthModel(june, dayMap, 1, '2026-06-30').monthStats).toEqual({
+    expect(buildCalendarMonthModel(june, dayMap, 1, juneToday).monthStats).toEqual({
       totalLogs: 5,
       missed: 1,
       bestStreak: 4,
@@ -34,7 +35,7 @@ describe('buildCalendarMonthModel', () => {
   })
 
   it('builds whole weeks with counts and ratios', () => {
-    const { gridDays } = buildCalendarMonthModel(june, sampleMonth(), 1, '2026-06-01')
+    const { gridDays } = buildCalendarMonthModel(june, sampleMonth(), 1, juneToday)
     const june1 = gridDays.find((day) => day.dateStr === key(new Date(2026, 5, 1)))
 
     expect(gridDays.length % 7).toBe(0)
@@ -48,7 +49,7 @@ describe('buildCalendarMonthModel', () => {
   })
 
   it('supports Sunday-first weeks and an empty month', () => {
-    const model = buildCalendarMonthModel(june, new Map(), 0, '2026-06-30')
+    const model = buildCalendarMonthModel(june, new Map(), 0, juneToday)
 
     expect(model.gridDays[0]?.date.getDay()).toBe(0)
     expect(model.monthStats).toEqual({

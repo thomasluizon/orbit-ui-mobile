@@ -40,7 +40,8 @@ describe('CalendarStats', () => {
       />,
     )
 
-    expect(screen.getAllByRole('status', { name: 'Loading' })).toHaveLength(3)
+    expect(screen.getByTestId('calendar-stats')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getAllByRole('status', { name: 'Loading', hidden: true })).toHaveLength(3)
     expect(screen.queryByText('0')).not.toBeInTheDocument()
   })
 

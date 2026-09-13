@@ -1,10 +1,11 @@
 import React from 'react'
-import { Pressable } from 'react-native'
+import { Pressable, StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
+import { StatTile } from '@/components/ui/stat-tile'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -60,6 +61,16 @@ describe('mobile feedback primitives', () => {
 
     expect(output).toContain('minHeight')
     expect(output).not.toMatch(/gradient|shimmer|sweep|spinner/i)
+  })
+
+  it('keeps the statistic placeholder at the loaded tile height', () => {
+    const placeholderTree = render(<Skeleton variant="stat-tile" label="Loading stats" />)
+    const loadedTree = render(<StatTile value={12} label="Logs" />)
+    const placeholder = placeholderTree.root.findByProps({ testID: 'skeleton-stat-tile-shape' })
+    const loaded = loadedTree.root.findByProps({ testID: 'stat-tile-default' })
+
+    expect(StyleSheet.flatten(placeholder.props.style).minHeight)
+      .toBe(StyleSheet.flatten(loaded.props.style).minHeight)
   })
 
   it('defaults an empty state to Orbit and switches to Astra', () => {

@@ -21,12 +21,19 @@ export function CalendarStats({
   loadingLabel,
   emptyLabel,
 }: Readonly<CalendarStatsProps>) {
+  const isLoading = state === 'loading';
+
   return (
-    <View testID="calendar-stats" style={styles.row}>
+    <View
+      accessibilityElementsHidden={isLoading || undefined}
+      importantForAccessibility={isLoading ? "no-hide-descendants" : undefined}
+      testID="calendar-stats"
+      style={styles.row}
+    >
       {stats.map((stat) => (
         <View key={stat.key} style={styles.cell}>
-          {state === 'loading' ? (
-            <StatTile state="loading" loadingLabel={loadingLabel ?? ''} label={stat.label} />
+          {isLoading ? (
+            <StatTile state="loading" loadingLabel={loadingLabel ?? ''} label="" />
           ) : state === 'empty' ? (
             <StatTile state="empty" emptyLabel={emptyLabel ?? ''} label={stat.label} />
           ) : (

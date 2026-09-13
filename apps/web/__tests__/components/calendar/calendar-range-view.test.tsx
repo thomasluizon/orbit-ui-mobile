@@ -1,92 +1,127 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
-import { enUS } from 'date-fns/locale'
+import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { buildCalendarRangeModel, parseAPIDate } from '@orbit/shared/utils'
+import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
-    if (params) return `${key}:${JSON.stringify(params)}`
-    return key
-  },
-}))
-
-vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { weekStartDay: 1 } }),
+  useTranslations: () => (key: string) => key,
 }))
 
 vi.mock('@/hooks/use-date-format', () => ({
   useDateFormat: () => ({
     displayWeekdayDate: (date: Date) => date.toDateString(),
-    displayMonthYear: (date: Date) => date.toDateString(),
   }),
 }))
 
 import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
-import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
-import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
-function column(year: number, month: number, day: number): TimeGridColumn {
-  const date = new Date(year, month, day)
-  return {
-    date,
-    dateStr: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-    isToday: false,
-    isFuture: false,
-  }
+function entry(status: CalendarDayEntry['status'], habitId = 'habit'): CalendarDayEntry {
+  return { habitId, title: 'Habit', status, isBadHabit: false, dueTime: null, isOneTime: false }
 }
 
-interface RenderOverrides {
-  isClamped?: boolean
-  isAwaitingEnd?: boolean
-}
+function renderRange(isLoading = false) {
+  const onPreviousRange = vi.fn()
+  const onNextRange = vi.fn()
+  const model = buildCalendarRangeModel(
+    parseAPIDate('2026-06-14'),
+    new Map([
+      ['2026-06-01', [entry('completed')]],
+      ['2026-06-02', [entry('completed')]],
+      ['2026-06-03', [entry('completed'), entry('completed', 'second'), entry('missed', 'missed')]],
+    ]),
+    1,
+    '2026-06-14',
+  )
 
-function renderRange({ isClamped = false, isAwaitingEnd = false }: RenderOverrides = {}) {
-  return render(
+  const view = render(
     <CalendarRangeView
-      currentMonth={new Date(2025, 5, 1)}
-      monthDayMap={new Map<string, CalendarDayEntry[]>()}
-      rangeStart="2025-06-10"
-      rangeEnd="2025-06-12"
-      onPickDay={vi.fn()}
-      columns={[column(2025, 5, 10), column(2025, 5, 11), column(2025, 5, 12)]}
-      rangeDayMap={new Map<string, CalendarDayEntry[]>()}
-      hint="pick-start-hint"
-      endHint="pick-end-hint"
-      clampedNotice="clamped-notice"
-      isClamped={isClamped}
-      isAwaitingEnd={isAwaitingEnd}
-      onSelectDay={vi.fn()}
-      displayTime={(time) => time}
-      dateFnsLocale={enUS}
-      allDayLabel="All-day"
-      nowLabel="Now"
-      timeZone="UTC"
-      showRecurring
-      onShowRecurringChange={vi.fn()}
-      weekStartsOn={1}
-      todayKey="2025-06-15"
+      model={model}
+      weekdayLabels={['M', 'T', 'W', 'T', 'F', 'S', 'S']}
+      rangeLabel="Jun 1 to Jun 14"
+      previousRangeLabel="Previous range"
+      nextRangeLabel="Next range"
+      onPreviousRange={onPreviousRange}
+      onNextRange={onNextRange}
+      nextRangeDisabled={false}
+      isLoading={isLoading}
+      loadingLabel="Loading range"
+      stats={[
+        { key: 'bestStreak', value: model.stats.bestStreak, label: 'Best streak' },
+        { key: 'totalLogs', value: model.stats.totalLogs, label: 'Logs' },
+        { key: 'missed', value: model.stats.missed, label: 'Missed' },
+      ]}
     />,
   )
+  return { onPreviousRange, onNextRange, ...view }
 }
 
 describe('CalendarRangeView', () => {
-  it('shows the start hint before any pick', () => {
+  it('states both span dates and pages through range controls', () => {
+    const callbacks = renderRange()
+
+    expect(screen.getByText('Jun 1 to Jun 14')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Previous range' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next range' }))
+    expect(callbacks.onPreviousRange).toHaveBeenCalledOnce()
+    expect(callbacks.onNextRange).toHaveBeenCalledOnce()
+  })
+
+  it('renders fourteen range days as read-only images and shows span figures', () => {
     renderRange()
 
-    expect(screen.getByText('pick-start-hint')).toBeInTheDocument()
-    expect(screen.queryByText('pick-end-hint')).toBeNull()
+    expect(screen.getAllByRole('img')).toHaveLength(14)
+    expect(screen.getAllByRole('button')).toHaveLength(2)
+    expect(screen.getByText('Logs').previousSibling).toHaveTextContent('4')
+    expect(screen.getByText('Missed').previousSibling).toHaveTextContent('1')
+    expect(screen.getByText('Best streak').previousSibling).toHaveTextContent('3')
   })
 
-  it('asks for the end day while awaiting the second tap', () => {
-    renderRange({ isAwaitingEnd: true })
+  it('keeps the range geometry busy without announcing empty outcomes, then reveals the resolved span', () => {
+    const view = renderRange(true)
 
-    expect(screen.getByText('pick-end-hint')).toBeInTheDocument()
-    expect(screen.queryByText('pick-start-hint')).toBeNull()
-  })
+    expect(screen.getByRole('region', { name: 'Jun 1 to Jun 14' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('progressbar', { name: 'Loading range' })).toBeInTheDocument()
+    expect(screen.getByTestId('month-grid-days').children).toHaveLength(14)
+    expect(screen.getByTestId('month-grid-days')).toHaveStyle({ gap: '4px' })
+    expect(screen.queryAllByRole('img')).toHaveLength(0)
+    expect(screen.queryByText('Logs')).not.toBeInTheDocument()
+    const loadingStats = screen.getByTestId('calendar-stats')
+    const loadingStatsStyle = loadingStats.style.cssText
+    expect(loadingStats.children).toHaveLength(3)
+    expect(loadingStats.querySelectorAll('[data-state="loading"]')).toHaveLength(3)
 
-  it('shows the clamped notice once a picked range was clamped', () => {
-    renderRange({ isClamped: true })
+    view.rerender(
+      <CalendarRangeView
+        model={buildCalendarRangeModel(
+          parseAPIDate('2026-06-14'),
+          new Map([['2026-06-01', [entry('completed')]]]),
+          1,
+          '2026-06-14',
+        )}
+        weekdayLabels={['M', 'T', 'W', 'T', 'F', 'S', 'S']}
+        rangeLabel="Jun 1 to Jun 14"
+        previousRangeLabel="Previous range"
+        nextRangeLabel="Next range"
+        onPreviousRange={vi.fn()}
+        onNextRange={vi.fn()}
+        nextRangeDisabled={false}
+        isLoading={false}
+        loadingLabel="Loading range"
+        stats={[
+          { key: 'bestStreak', value: 1, label: 'Best streak' },
+          { key: 'totalLogs', value: 1, label: 'Logs' },
+          { key: 'missed', value: 0, label: 'Missed' },
+        ]}
+      />,
+    )
 
-    expect(screen.getByText('clamped-notice')).toBeInTheDocument()
-    expect(screen.queryByText('pick-start-hint')).toBeNull()
+    expect(screen.getByRole('region', { name: 'Jun 1 to Jun 14' })).toHaveAttribute('aria-busy', 'false')
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(screen.getAllByRole('img')).toHaveLength(14)
+    expect(screen.getByText('Logs').previousSibling).toHaveTextContent('1')
+    const loadedStats = screen.getByTestId('calendar-stats')
+    expect(loadedStats.style.cssText).toBe(loadingStatsStyle)
+    expect(loadedStats.children).toHaveLength(3)
+    expect(loadedStats.querySelectorAll('[data-state="default"]')).toHaveLength(3)
   })
 })

@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useRef, type Dispatch, type SetStateAction } from 'react'
 import {
   addMonths,
+  addDays,
   subMonths,
   setYear,
   addWeeks,
@@ -21,8 +22,9 @@ import {
   parseAPIDate,
   capitalizeFirstLetter,
   filterRecurringEntries,
-  clampRangeToMaxDays,
+  buildCalendarRangeModel,
   MAX_RANGE_DAYS,
+  resolveCalendarRangeEnd,
   CALENDAR_MONTH_GRID_GEOMETRY,
   resolveCalendarMonthDisplayState,
   type CalendarMonthDisplayState,
@@ -264,10 +266,7 @@ function CalendarPageContent({
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
   const [weekAnchor, setWeekAnchor] = useState(() => new Date())
   const [weekSlide, setWeekSlide] = useState<MonthSlide>(null)
-  const [rangeStart, setRangeStart] = useState(() => formatAPIDate(new Date()))
-  const [rangeEnd, setRangeEnd] = useState(() => formatAPIDate(new Date()))
-  const [awaitingEnd, setAwaitingEnd] = useState(false)
-  const [rangeClamped, setRangeClamped] = useState(false)
+  const [rangeOffset, setRangeOffset] = useState(0)
   const [selectedDay, setSelectedDay] = useState<string | null>(() =>
     formatAPIDate(new Date()),
   )
@@ -286,11 +285,13 @@ function CalendarPageContent({
     // react-doctor-disable-next-line exhaustive-deps -- weekStartsOn is derived from profile.weekStartDay every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [weekAnchor, weekStartsOn],
   )
+  const rangeEnd = useMemo(
+    () => resolveCalendarRangeEnd(parseAPIDate(todayKey), rangeOffset),
+    [rangeOffset, todayKey],
+  )
   const rangeBounds = useMemo(() => {
-    const a = parseAPIDate(rangeStart)
-    const b = parseAPIDate(rangeEnd)
-    return rangeStart <= rangeEnd ? { lo: a, hi: b } : { lo: b, hi: a }
-  }, [rangeStart, rangeEnd])
+    return { lo: addDays(rangeEnd, -(MAX_RANGE_DAYS - 1)), hi: rangeEnd }
+  }, [rangeEnd])
 
   const [gridStartDate, gridEndDate] =
     view === 'week' ? [weekStart, weekEnd] : [rangeBounds.lo, rangeBounds.hi]
@@ -304,10 +305,7 @@ function CalendarPageContent({
   } = useCalendarRange(gridStartDate, gridEndDate, view === 'week' || view === 'range')
 
   const gridColumns = useMemo<TimeGridColumn[]>(() => {
-    const days =
-      view === 'week'
-        ? eachDayOfInterval({ start: weekStart, end: weekEnd })
-        : eachDayOfInterval({ start: rangeBounds.lo, end: rangeBounds.hi })
+    const days = eachDayOfInterval({ start: weekStart, end: weekEnd })
     return days.map((date) => {
       const dateStr = formatAPIDate(date)
       return {
@@ -317,7 +315,7 @@ function CalendarPageContent({
         isFuture: dateStr > todayKey,
       }
     })
-  }, [view, weekStart, weekEnd, rangeBounds, todayKey])
+  }, [weekStart, weekEnd, todayKey])
 
   const monthLabel = useMemo(
     () => capitalizeFirstLetter(format(currentMonth, 'MMMM', { locale: dateFnsLocale })),
@@ -400,20 +398,12 @@ function CalendarPageContent({
     [showInlineDayPanel],
   )
 
-  function handleRangePick(dateStr: string) {
-    if (!awaitingEnd) {
-      setRangeStart(dateStr)
-      setRangeEnd(dateStr)
-      setAwaitingEnd(true)
-      setRangeClamped(false)
-      return
-    }
-    const { start, end, clamped } = clampRangeToMaxDays(rangeStart, dateStr)
-    setRangeStart(start)
-    setRangeEnd(end)
-    setRangeClamped(clamped)
-    setAwaitingEnd(false)
-  }
+  const previousRange = useCallback(() => {
+    setRangeOffset((offset) => offset - 1)
+  }, [])
+  const nextRange = useCallback(() => {
+    setRangeOffset((offset) => Math.min(0, offset + 1))
+  }, [])
 
   const selectedEntries = useMemo(() => {
     if (!selectedDay) return []
@@ -436,6 +426,32 @@ function CalendarPageContent({
     isLoading,
   })
 
+  const rangeModel = useMemo(
+    () => buildCalendarRangeModel(rangeEnd, rangeDayMap, weekStartsOn, todayKey),
+    [rangeEnd, rangeDayMap, weekStartsOn, todayKey],
+  )
+
+  const weekdayLabels = useMemo(() => {
+    const mondayFirst = [
+      t('dates.daysShort.monday'),
+      t('dates.daysShort.tuesday'),
+      t('dates.daysShort.wednesday'),
+      t('dates.daysShort.thursday'),
+      t('dates.daysShort.friday'),
+      t('dates.daysShort.saturday'),
+      t('dates.daysShort.sunday'),
+    ]
+    return weekStartsOn === 0 ? [mondayFirst[6]!, ...mondayFirst.slice(0, 6)] : mondayFirst
+  }, [t, weekStartsOn])
+
+  const rangeLabel = useMemo(() => {
+    const pattern = locale === 'pt-BR' ? 'd MMM' : 'MMM d'
+    return t('calendar.range.label', {
+      start: format(rangeModel.start, pattern, { locale: dateFnsLocale }),
+      end: format(rangeModel.end, pattern, { locale: dateFnsLocale }),
+    })
+  }, [dateFnsLocale, locale, rangeModel.end, rangeModel.start, t])
+
   const monthStatTiles = useMemo(
     () => [
       { key: 'bestStreak', value: monthStats.bestStreak, label: t('calendar.bestStreak') },
@@ -443,6 +459,15 @@ function CalendarPageContent({
       { key: 'missed', value: monthStats.missed, label: t('calendar.missedCount') },
     ] as const,
     [monthStats, t],
+  )
+
+  const rangeStatTiles = useMemo(
+    () => [
+      { key: 'bestStreak', value: rangeModel.stats.bestStreak, label: t('calendar.bestStreak') },
+      { key: 'totalLogs', value: rangeModel.stats.totalLogs, label: t('calendar.totalLogs') },
+      { key: 'missed', value: rangeModel.stats.missed, label: t('calendar.missedCount') },
+    ] as const,
+    [rangeModel.stats, t],
   )
 
   const viewOptions = useMemo(() => {
@@ -516,8 +541,6 @@ function CalendarPageContent({
             activeFetching ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
         />
-
-        {activeView === 'range' && calendarHeader}
 
         {activeError && activeView !== 'agenda' ? (
           <div style={{ padding: '12px 16px 16px' }}>
@@ -610,29 +633,17 @@ function CalendarPageContent({
 
             {view === 'range' && (
               <CalendarRangeView
-                currentMonth={currentMonth}
-                monthDayMap={dayMap}
-                rangeStart={rangeStart}
-                rangeEnd={rangeEnd}
-                onPickDay={handleRangePick}
-                columns={gridColumns}
-                rangeDayMap={displayRangeDayMap}
-                hint={t('calendar.timeGrid.pickRangeHint')}
-                endHint={t('calendar.timeGrid.pickEndHint')}
-                clampedNotice={t('calendar.timeGrid.rangeMaxDays', { max: MAX_RANGE_DAYS })}
-                isClamped={rangeClamped}
-                isAwaitingEnd={awaitingEnd}
-                isRangeLoading={rangeLoading}
-                onSelectDay={openDay}
-                displayTime={displayTime}
-                dateFnsLocale={dateFnsLocale}
-                allDayLabel={t('calendar.timeGrid.allDay')}
-                nowLabel={t('calendar.timeGrid.now')}
-                timeZone={profile.timeZone}
-                showRecurring={showRecurring}
-                onShowRecurringChange={setShowRecurring}
-                weekStartsOn={weekStartsOn}
-                todayKey={todayKey}
+                model={rangeModel}
+                weekdayLabels={weekdayLabels}
+                rangeLabel={rangeLabel}
+                previousRangeLabel={t('calendar.range.previous')}
+                nextRangeLabel={t('calendar.range.next')}
+                onPreviousRange={previousRange}
+                onNextRange={nextRange}
+                nextRangeDisabled={rangeOffset === 0}
+                isLoading={rangeLoading}
+                loadingLabel={t('common.loading')}
+                stats={rangeStatTiles}
               />
             )}
 
