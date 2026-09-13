@@ -34,6 +34,7 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
 import { buildCalendarMonthModel } from '@orbit/shared/utils'
+import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { Profile } from '@orbit/shared/types/profile'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
@@ -129,6 +130,7 @@ interface CalendarInlineDayPanelProps {
   selectedDay: string | null
   entries: CalendarDayEntry[]
   showRecurring: boolean
+  showRecurringToggle: boolean
   onShowRecurringChange: (value: boolean) => void
 }
 
@@ -140,6 +142,7 @@ function CalendarInlineDayPanel({
   selectedDay,
   entries,
   showRecurring,
+  showRecurringToggle,
   onShowRecurringChange,
 }: Readonly<CalendarInlineDayPanelProps>) {
   if (!show) return null
@@ -173,7 +176,7 @@ function CalendarInlineDayPanel({
             entries={entries}
             showRecurring={showRecurring}
             onShowRecurringChange={onShowRecurringChange}
-            showRecurringToggle={false}
+            showRecurringToggle={showRecurringToggle}
             fitViewport
           />
         </>
@@ -612,6 +615,7 @@ function CalendarPageContent({
                   selectedDay={selectedDay}
                   entries={selectedEntries}
                   showRecurring={showRecurring}
+                  showRecurringToggle={!showMonthRecurringToggle}
                   onShowRecurringChange={setShowRecurring}
                 />
               </div>

@@ -11,7 +11,13 @@ import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 let isWideDesktopValue = false
 let isDesktopValue = false
-const calendarGridProps: Record<string, unknown> = {}
+let calendarGridSelectionDate = '2026-01-05'
+const calendarGridProps: Record<string, unknown> & {
+  currentMonth?: Date
+  dayMap?: Map<string, CalendarDayEntry[]>
+  selectedDateStr?: string | null
+  todayKey?: string
+} = {}
 const calendarStatsProps: Record<string, unknown> = {}
 const monthQueryState: {
   dayMap: Map<string, CalendarDayEntry[]>
@@ -123,7 +129,7 @@ vi.mock('@/components/calendar/calendar-grid', async (importOriginal) => {
           <button
             type="button"
             data-testid="month-view"
-            onClick={() => props.onSelectDay?.('2026-01-05')}
+            onClick={() => props.onSelectDay?.(calendarGridSelectionDate)}
           />
         </>
       )
@@ -224,6 +230,7 @@ describe('CalendarPage view switcher', () => {
   beforeEach(() => {
     isWideDesktopValue = false
     isDesktopValue = false
+    calendarGridSelectionDate = '2026-01-05'
     calendarGridProps.selectedDateStr = undefined
     calendarGridProps.dayMap = undefined
     calendarGridProps.todayKey = undefined
@@ -391,15 +398,29 @@ describe('CalendarPage view switcher', () => {
     expect(screen.getByTestId('range-view')).toBeDefined()
   })
 
-  it('keeps one recurring setting beside the persistent day panel at wide desktop', () => {
+  it('keeps exactly one recurring setting on an entry-bearing future day at wide desktop', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 0, 10))
     isWideDesktopValue = true
-    monthQueryState.dayMap = new Map([[formatAPIDate(new Date()), [
-      monthEntry('recurring', 'upcoming'),
-    ]]])
+    const todayKey = formatAPIDate(new Date())
+    const futureDay = '2026-02-05'
+    calendarGridSelectionDate = futureDay
+    monthQueryState.dayMap = new Map([
+      [todayKey, [monthEntry('current-recurring', 'upcoming')]],
+      [futureDay, [monthEntry('future-recurring', 'upcoming')]],
+    ])
     render(<CalendarPage />)
 
     expect(screen.getByTestId('calendar-day-panel')).toBeDefined()
     expect(screen.getByTestId('day-detail')).toBeDefined()
+    expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
+    fireEvent.click(screen.getByTestId('calendar-header'))
+    fireEvent.click(screen.getByTestId('month-view'))
+
+    expect(calendarGridProps.currentMonth).toEqual(new Date(2026, 1, 1))
+    expect(calendarGridProps.selectedDateStr).toBe(futureDay)
     expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
   })
 
