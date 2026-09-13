@@ -14,6 +14,7 @@ type TestNode = {
 
 const mocks = vi.hoisted(() => ({
   email: 'profile-account-with-a-long-address@example.com',
+  guideOpen: vi.fn(),
   push: vi.fn(),
 }))
 
@@ -35,7 +36,10 @@ vi.mock('@/hooks/use-profile', () => ({
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 vi.mock('@/components/onboarding/feature-guide-drawer', () => ({
-  FeatureGuideDrawer: () => null,
+  FeatureGuideDrawer: ({ open }: { open: boolean }) => {
+    mocks.guideOpen(open)
+    return null
+  },
 }))
 
 function flattenedStyle(node: TestNode) {
@@ -49,7 +53,10 @@ function textContent(node: TestNode): string {
 }
 
 describe('AboutScreen', () => {
-  beforeEach(() => mocks.push.mockClear())
+  beforeEach(() => {
+    mocks.guideOpen.mockClear()
+    mocks.push.mockClear()
+  })
 
   it('renders the About identity, real facts, and four destinations in order', () => {
     let tree!: { root: TestNode }
@@ -82,6 +89,15 @@ describe('AboutScreen', () => {
       'terms.title',
       'privacy.title',
     ])
+
+    TestRenderer.act(() => {
+      destinations.forEach((destination) => {
+        const onPress = destination.props.onPress as () => void
+        onPress()
+      })
+    })
+    expect(mocks.guideOpen).toHaveBeenLastCalledWith(true)
+    expect(mocks.push.mock.calls).toEqual([['/support'], ['/terms'], ['/privacy']])
   })
 
   it('keeps every 412px column shrinkable and lets fact values wrap', () => {

@@ -1,10 +1,11 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AboutPage from '@/app/(app)/about/page'
 
 const mocks = vi.hoisted(() => ({
   email: 'profile-account-with-a-long-address@example.com',
+  guideOpen: vi.fn(),
   push: vi.fn(),
 }))
 
@@ -26,11 +27,17 @@ vi.mock('@/hooks/use-profile', () => ({
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 vi.mock('@/components/onboarding/feature-guide-drawer', () => ({
-  FeatureGuideDrawer: () => null,
+  FeatureGuideDrawer: ({ open }: { open: boolean }) => {
+    mocks.guideOpen(open)
+    return null
+  },
 }))
 
 describe('AboutPage', () => {
-  beforeEach(() => mocks.push.mockClear())
+  beforeEach(() => {
+    mocks.guideOpen.mockClear()
+    mocks.push.mockClear()
+  })
 
   it('renders the About identity, real facts, and four destinations in order', () => {
     const { container } = render(<AboutPage />)
@@ -43,14 +50,23 @@ describe('AboutPage', () => {
     expect(screen.getByTestId('about-credit')).toHaveStyle({ color: 'var(--fg-3)' })
 
     const destinations = within(screen.getByTestId('about-destinations'))
+    const destinationLabels = destinations
       .getAllByRole('button')
       .map((row) => row.getAttribute('aria-label'))
-    expect(destinations).toEqual([
+    expect(destinationLabels).toEqual([
       'onboarding.featureGuide.openButton',
       'profile.support.title',
       'terms.title',
       'privacy.title',
     ])
+
+    fireEvent.click(destinations.getByRole('button', { name: 'onboarding.featureGuide.openButton' }))
+    expect(mocks.guideOpen).toHaveBeenLastCalledWith(true)
+
+    fireEvent.click(destinations.getByRole('button', { name: 'profile.support.title' }))
+    fireEvent.click(destinations.getByRole('button', { name: 'terms.title' }))
+    fireEvent.click(destinations.getByRole('button', { name: 'privacy.title' }))
+    expect(mocks.push.mock.calls).toEqual([['/support'], ['/terms'], ['/privacy']])
   })
 
   it('keeps every 412px column shrinkable and lets fact values wrap', () => {
