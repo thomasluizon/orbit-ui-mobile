@@ -30,7 +30,6 @@ interface CalendarDayDetailProps {
   dateStr: string | null
   entries: CalendarDayEntry[]
   calendarEvents: CalendarSyncEvent[]
-  hasProAccess: boolean
   autoSyncState: CalendarAutoSyncState | undefined
   calendarEventsState: CalendarEventsDisplayState
   onRetryCalendarEvents: () => void
@@ -41,7 +40,6 @@ interface CalendarDayDetailProps {
   pendingEntryStates: ReadonlyMap<string, boolean>
   onShowRecurringChange: (value: boolean) => void
   onCalendarAutoSyncChange: (value: boolean) => Promise<void>
-  onOpenPro: () => void
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   showRecurringToggle?: boolean
   /** Desktop side-panel mode: the entries list scrolls within the viewport and
@@ -283,7 +281,6 @@ export function CalendarDayDetail({
   dateStr,
   entries,
   calendarEvents,
-  hasProAccess,
   autoSyncState,
   calendarEventsState,
   onRetryCalendarEvents,
@@ -294,7 +291,6 @@ export function CalendarDayDetail({
   pendingEntryStates,
   onShowRecurringChange,
   onCalendarAutoSyncChange,
-  onOpenPro,
   onEntryChange,
   showRecurringToggle = true,
   fitViewport = false,
@@ -368,15 +364,12 @@ export function CalendarDayDetail({
         onViewPro={onViewPro}
         proActionVariant={fitViewport ? 'secondary' : 'primary'}
       />
-      {hasProAccess ? (
+      {calendarEventsState !== 'pro-boundary' ? (
         <div style={{ paddingInline: 16 }}>
           <CalendarSyncBoundary
-            hasProAccess={hasProAccess}
             autoSyncState={autoSyncState}
             displayTime={displayTime}
             onAutoSyncChange={onCalendarAutoSyncChange}
-            onOpenPro={onOpenPro}
-            wide={fitViewport}
           />
         </div>
       ) : null}

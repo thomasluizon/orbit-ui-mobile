@@ -76,11 +76,9 @@ interface RenderProps {
   dateStr?: string | null
   entries?: CalendarDayEntry[]
   calendarEvents?: CalendarSyncEvent[]
-  hasProAccess?: boolean
   autoSyncState?: CalendarAutoSyncState
   onShowRecurringChange?: (value: boolean) => void
   onCalendarAutoSyncChange?: (value: boolean) => Promise<void>
-  onOpenPro?: () => void
   calendarEventsState?: CalendarEventsDisplayState
   onRetryCalendarEvents?: () => void
   onReconnectCalendarEvents?: () => void
@@ -95,11 +93,9 @@ function CalendarDayDetailHarness({
   dateStr = '2025-06-15',
   entries = [],
   calendarEvents = [],
-  hasProAccess = true,
   autoSyncState = proAutoSyncState,
   onShowRecurringChange = () => {},
   onCalendarAutoSyncChange = async () => {},
-  onOpenPro = () => {},
   calendarEventsState = 'ready',
   onRetryCalendarEvents = () => {},
   onReconnectCalendarEvents = () => {},
@@ -140,7 +136,6 @@ function CalendarDayDetailHarness({
       dateStr={dateStr}
       entries={entries}
       calendarEvents={calendarEvents}
-      hasProAccess={hasProAccess}
       autoSyncState={autoSyncState}
       calendarEventsState={calendarEventsState}
       onRetryCalendarEvents={onRetryCalendarEvents}
@@ -151,7 +146,6 @@ function CalendarDayDetailHarness({
       pendingEntryStates={pendingEntryStates}
       onShowRecurringChange={onShowRecurringChange}
       onCalendarAutoSyncChange={onCalendarAutoSyncChange}
-      onOpenPro={onOpenPro}
       onEntryChange={changeEntry}
       fitViewport={fitViewport}
     />
@@ -235,7 +229,6 @@ describe('CalendarDayDetail', () => {
         startDate: '2025-06-15', startTime: '09:00', endTime: null,
         isRecurring: false, recurrenceRule: null, reminders: [],
       }],
-      hasProAccess: false,
       calendarEventsState: 'pro-boundary',
       onViewPro,
     })

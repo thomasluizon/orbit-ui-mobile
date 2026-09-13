@@ -29,7 +29,6 @@ interface CalendarDayDetailProps {
   selectedEntries: CalendarDayEntry[]
   filteredEntries: CalendarDayEntry[]
   calendarEvents: CalendarSyncEvent[]
-  hasProAccess: boolean
   autoSyncState: CalendarAutoSyncState | undefined
   calendarEventsState: CalendarEventsDisplayState
   onRetryCalendarEvents: () => void
@@ -41,7 +40,6 @@ interface CalendarDayDetailProps {
   pendingEntryStates: ReadonlyMap<string, boolean>
   onShowRecurringChange: (value: boolean) => void
   onCalendarAutoSyncChange: (value: boolean) => Promise<void>
-  onOpenPro: () => void
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   onGoToDay: () => void
   displayTime: (time: string) => string
@@ -232,7 +230,6 @@ export function CalendarDayDetail({
   selectedEntries,
   filteredEntries,
   calendarEvents,
-  hasProAccess,
   autoSyncState,
   calendarEventsState,
   onRetryCalendarEvents,
@@ -244,7 +241,6 @@ export function CalendarDayDetail({
   pendingEntryStates,
   onShowRecurringChange,
   onCalendarAutoSyncChange,
-  onOpenPro,
   onEntryChange,
   onGoToDay,
   displayTime,
@@ -334,14 +330,12 @@ export function CalendarDayDetail({
         styles={styles}
       />
 
-      {hasProAccess ? (
+      {calendarEventsState !== 'pro-boundary' ? (
         <View style={styles.syncBoundary}>
           <CalendarSyncBoundary
-            hasProAccess={hasProAccess}
             autoSyncState={autoSyncState}
             displayTime={displayTime}
             onAutoSyncChange={onCalendarAutoSyncChange}
-            onOpenPro={onOpenPro}
             t={t}
             tokens={tokens}
           />

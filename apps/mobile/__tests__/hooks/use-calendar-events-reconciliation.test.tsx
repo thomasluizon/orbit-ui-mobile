@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import TestRenderer from 'react-test-renderer'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
+import { calendarKeys } from '@orbit/shared/query'
 import { createApiClientError } from '@orbit/shared/utils'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
@@ -46,7 +47,9 @@ describe('mobile calendar events reconciliation', () => {
     mocks.apiClient.mockReset()
   })
 
-  it('removes the connected switch when a later events response reports a revoked grant', async () => {
+  it.each(['CALENDAR_NOT_CONNECTED', 'CALENDAR_RECONNECT_REQUIRED'])(
+    'does not let a pending connected state restore a revoked grant after %s',
+    async (errorCode) => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     })
@@ -57,6 +60,7 @@ describe('mobile calendar events reconciliation', () => {
       hasGoogleConnection: true,
     }
     let rejectEvents!: (error: unknown) => void
+    let resolveAutoSyncState!: () => void
     mocks.apiClient.mockImplementation((path: string) => {
       if (path === API.calendar.events) {
         return new Promise((_resolve, reject) => {
@@ -64,21 +68,21 @@ describe('mobile calendar events reconciliation', () => {
         })
       }
       if (path === API.calendar.autoSyncState) {
-        return Promise.resolve(connectedState)
+        return new Promise((resolve) => {
+          resolveAutoSyncState = () => resolve(connectedState)
+        })
       }
       throw new Error(`Unexpected API request: ${path}`)
     })
 
     function CalendarSyncHarness() {
-      useCalendarEvents()
+      useCalendarEvents({ timeZone: 'UTC' })
       const { data: autoSyncState } = useCalendarAutoSyncState()
       return (
         <CalendarSyncBoundary
-          hasProAccess
           autoSyncState={autoSyncState}
           displayTime={(time) => time}
           onAutoSyncChange={async () => {}}
-          onOpenPro={() => {}}
           t={((key: string) => key) as never}
           tokens={createTokensV2('purple', 'dark')}
         />
@@ -99,22 +103,41 @@ describe('mobile calendar events reconciliation', () => {
       (node) => node.type === 'SwitchMock',
     )
     await TestRenderer.act(async () => {
-      await vi.waitFor(() => expect(findSwitches()).toHaveLength(1))
+      await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(2))
     })
-    expect(findSwitches()[0]?.props.accessibilityState).toEqual({ checked: true })
 
     await TestRenderer.act(async () => {
       rejectEvents(createApiClientError(
         400,
         {
           error: 'Google Calendar connection expired. Please reconnect.',
-          errorCode: 'CALENDAR_NOT_CONNECTED',
+          errorCode,
         },
         'Request failed: 400',
       ))
       await Promise.resolve()
     })
 
-    await vi.waitFor(() => expect(findSwitches()).toHaveLength(0))
-  })
+    await vi.waitFor(() => {
+      expect(queryClient.getQueryData([
+        ...calendarKeys.all,
+        'manual-fetch',
+        'UTC',
+      ])).toEqual({ status: 'not-connected' })
+    })
+
+    await TestRenderer.act(async () => {
+      resolveAutoSyncState()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    await vi.waitFor(() => expect(queryClient.isFetching({
+      queryKey: calendarKeys.autoSyncState(),
+    })).toBe(0))
+
+    expect(queryClient.getQueryData(calendarKeys.autoSyncState()))
+      .not.toMatchObject({ hasGoogleConnection: true })
+    expect(findSwitches()).toHaveLength(0)
+    },
+  )
 })

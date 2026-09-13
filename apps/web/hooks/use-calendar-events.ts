@@ -7,9 +7,9 @@ import { API } from '@orbit/shared/api'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 import {
-  didCalendarEventsRevokeGrant,
   isCalendarSyncNotConnectedMessage,
   reconcileCalendarAutoSyncGrantRevocation,
+  resolveCalendarEventsGrantRevocation,
 } from '@orbit/shared/utils'
 
 interface CalendarEventsQueryOptions {
@@ -43,12 +43,18 @@ export function useCalendarEvents(options: CalendarEventsQueryOptions) {
         const currentAutoSyncState = queryClient.getQueryData<CalendarAutoSyncState>(
           calendarKeys.autoSyncState(),
         )
-        if (didCalendarEventsRevokeGrant(body?.errorCode, currentAutoSyncState)) {
+        const revocationAction = resolveCalendarEventsGrantRevocation(
+          body?.errorCode,
+          currentAutoSyncState,
+        )
+        if (revocationAction !== null) {
           await queryClient.cancelQueries({ queryKey: calendarKeys.autoSyncState() })
-          queryClient.setQueryData<CalendarAutoSyncState>(
-            calendarKeys.autoSyncState(),
-            reconcileCalendarAutoSyncGrantRevocation,
-          )
+          if (revocationAction === 'reconcile') {
+            queryClient.setQueryData<CalendarAutoSyncState>(
+              calendarKeys.autoSyncState(),
+              reconcileCalendarAutoSyncGrantRevocation,
+            )
+          }
           return { status: 'not-connected' }
         }
         if (isCalendarSyncNotConnectedMessage(msg.toLowerCase())) {

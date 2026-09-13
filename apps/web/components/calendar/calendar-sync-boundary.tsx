@@ -8,48 +8,21 @@ import {
   isCalendarSyncConnectionActive,
 } from '@orbit/shared/utils'
 import { RefreshCw } from '@/components/ui/icons'
-import { CapacityNotice } from '@/components/ui/capacity-notice'
-import { PillButton } from '@/components/ui/pill-button'
 import { Switch } from '@/components/ui/switch'
 
 interface CalendarSyncBoundaryProps {
-  hasProAccess: boolean
   autoSyncState: CalendarAutoSyncState | undefined
   displayTime: (time: string) => string
   onAutoSyncChange: (enabled: boolean) => Promise<void>
-  onOpenPro: () => void
-  wide?: boolean
 }
 
 export function CalendarSyncBoundary({
-  hasProAccess,
   autoSyncState,
   displayTime,
   onAutoSyncChange,
-  onOpenPro,
-  wide = false,
 }: Readonly<CalendarSyncBoundaryProps>) {
   const t = useTranslations()
   const [isSaving, setIsSaving] = useState(false)
-
-  if (!hasProAccess) {
-    return (
-      <CapacityNotice
-        message={t('calendar.dayDetail.syncBoundary')}
-        body={t('calendar.dayDetail.syncBoundaryBody')}
-        action={(
-          /* eslint-disable-next-line local/max-button-words -- ORB-50 owns this approved control copy. */
-          <PillButton
-            size="sm"
-            variant={wide ? 'secondary' : 'primary'}
-            onClick={onOpenPro}
-          >
-            {t('calendar.dayDetail.viewPro')}
-          </PillButton>
-        )}
-      />
-    )
-  }
 
   const connected = isCalendarSyncConnectionActive(
     autoSyncState?.hasGoogleConnection ?? false,

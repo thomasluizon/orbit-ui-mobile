@@ -118,7 +118,6 @@ interface RenderDetailProps {
   selectedDate?: string
   entries?: CalendarDayEntry[]
   calendarEvents?: CalendarSyncEvent[]
-  hasProAccess?: boolean
   autoSyncState?: CalendarAutoSyncState
   calendarEventsState?: CalendarEventsDisplayState
   onRetryCalendarEvents?: () => void
@@ -126,7 +125,6 @@ interface RenderDetailProps {
   onViewPro?: () => void
   loggable?: boolean
   onCalendarAutoSyncChange?: (value: boolean) => Promise<void>
-  onOpenPro?: () => void
   onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
   onGoToDay?: () => void
 }
@@ -135,7 +133,6 @@ function CalendarDayDetailHarness({
   selectedDate = '2025-06-15',
   entries = [],
   calendarEvents = [],
-  hasProAccess = true,
   autoSyncState = proAutoSyncState,
   calendarEventsState = 'ready',
   onRetryCalendarEvents = () => {},
@@ -143,7 +140,6 @@ function CalendarDayDetailHarness({
   onViewPro = () => {},
   loggable = false,
   onCalendarAutoSyncChange = async () => {},
-  onOpenPro = () => {},
   onEntryChange = async () => {},
   onGoToDay = () => {},
 }: RenderDetailProps): React.ReactElement {
@@ -174,7 +170,6 @@ function CalendarDayDetailHarness({
       selectedEntries={entries}
       filteredEntries={entries}
       calendarEvents={calendarEvents}
-      hasProAccess={hasProAccess}
       autoSyncState={autoSyncState}
       calendarEventsState={calendarEventsState}
       onRetryCalendarEvents={onRetryCalendarEvents}
@@ -186,7 +181,6 @@ function CalendarDayDetailHarness({
       pendingEntryStates={pendingEntryStates}
       onShowRecurringChange={() => {}}
       onCalendarAutoSyncChange={onCalendarAutoSyncChange}
-      onOpenPro={onOpenPro}
       onEntryChange={changeEntry}
       onGoToDay={onGoToDay}
       displayTime={(time) => time}
@@ -708,7 +702,6 @@ describe('CalendarDayDetail (mobile)', () => {
         startDate: '2025-06-15', startTime: '09:00', endTime: null,
         isRecurring: false, recurrenceRule: null, reminders: [],
       }],
-      hasProAccess: false,
       calendarEventsState: 'pro-boundary',
       onViewPro,
     })

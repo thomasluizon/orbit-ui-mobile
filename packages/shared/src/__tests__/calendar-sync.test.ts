@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
-  didCalendarEventsRevokeGrant,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
   getCalendarSyncClockValue,
@@ -10,6 +9,7 @@ import {
   isCalendarSyncConnectionActive,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
+  resolveCalendarEventsGrantRevocation,
 } from '../utils/calendar-sync'
 
 describe('calendar-sync utils', () => {
@@ -126,10 +126,14 @@ describe('calendar-sync utils', () => {
       hasGoogleConnection: true,
     }
 
-    expect(didCalendarEventsRevokeGrant('CALENDAR_RECONNECT_REQUIRED', undefined)).toBe(true)
-    expect(didCalendarEventsRevokeGrant('CALENDAR_NOT_CONNECTED', connectedState)).toBe(true)
-    expect(didCalendarEventsRevokeGrant('CALENDAR_NOT_CONNECTED', undefined)).toBe(false)
-    expect(didCalendarEventsRevokeGrant('CALENDAR_FETCH_FAILED', connectedState)).toBe(false)
+    expect(resolveCalendarEventsGrantRevocation('CALENDAR_RECONNECT_REQUIRED', undefined))
+      .toBe('reconcile')
+    expect(resolveCalendarEventsGrantRevocation('CALENDAR_NOT_CONNECTED', connectedState))
+      .toBe('reconcile')
+    expect(resolveCalendarEventsGrantRevocation('CALENDAR_NOT_CONNECTED', undefined))
+      .toBe('cancel-state-read')
+    expect(resolveCalendarEventsGrantRevocation('CALENDAR_FETCH_FAILED', connectedState))
+      .toBeNull()
   })
 
   it('derives the connection line from confirmed profile fields', () => {

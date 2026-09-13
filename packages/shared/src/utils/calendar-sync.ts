@@ -260,12 +260,15 @@ export function reconcileCalendarAutoSyncGrantRevocation(
   }
 }
 
-export function didCalendarEventsRevokeGrant(
+export type CalendarEventsGrantRevocationAction = 'cancel-state-read' | 'reconcile' | null
+
+export function resolveCalendarEventsGrantRevocation(
   errorCode: string | undefined,
   current: CalendarAutoSyncState | undefined,
-): boolean {
-  return errorCode === CALENDAR_RECONNECT_REQUIRED_ERROR_CODE
-    || (errorCode === CALENDAR_NOT_CONNECTED_ERROR_CODE && current?.hasGoogleConnection === true)
+): CalendarEventsGrantRevocationAction {
+  if (errorCode === CALENDAR_RECONNECT_REQUIRED_ERROR_CODE) return 'reconcile'
+  if (errorCode !== CALENDAR_NOT_CONNECTED_ERROR_CODE) return null
+  return current?.hasGoogleConnection === true ? 'reconcile' : 'cancel-state-read'
 }
 
 export function isCalendarSyncConnectionActive(

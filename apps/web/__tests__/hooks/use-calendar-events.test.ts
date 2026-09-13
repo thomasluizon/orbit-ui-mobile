@@ -7,6 +7,7 @@ import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { useCalendarAutoSyncState } from '@/hooks/use-calendar-auto-sync'
 import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
 import { API } from '@orbit/shared/api'
+import { calendarKeys } from '@orbit/shared/query'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 
 const mockFetch = vi.fn()
@@ -48,7 +49,9 @@ describe('useCalendarEvents', () => {
     expect(result.current.data).toEqual({ status: 'not-connected' })
   })
 
-  it('removes the connected switch when a later events response reports a revoked grant', async () => {
+  it.each(['CALENDAR_NOT_CONNECTED', 'CALENDAR_RECONNECT_REQUIRED'])(
+    'does not let a pending connected state restore a revoked grant after %s',
+    async (errorCode) => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     })
@@ -59,6 +62,7 @@ describe('useCalendarEvents', () => {
       hasGoogleConnection: true,
     }
     let resolveEvents!: (response: unknown) => void
+    let resolveAutoSyncState!: () => void
     mockFetch.mockImplementation((input: RequestInfo | URL) => {
       if (input === API.calendar.events) {
         return new Promise((resolve) => {
@@ -66,24 +70,24 @@ describe('useCalendarEvents', () => {
         })
       }
       if (input === API.calendar.autoSyncState) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(connectedState),
+        return new Promise((resolve) => {
+          resolveAutoSyncState = () => resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(connectedState),
+          })
         })
       }
       throw new Error('Unexpected fetch route')
     })
 
     function CalendarSyncHarness() {
-      useCalendarEvents()
+      useCalendarEvents({ timeZone: 'UTC' })
       const { data: autoSyncState } = useCalendarAutoSyncState()
       return React.createElement(CalendarSyncBoundary, {
-        hasProAccess: true,
         autoSyncState,
         displayTime: (time: string) => time,
         onAutoSyncChange: async () => {},
-        onOpenPro: () => {},
       })
     }
 
@@ -91,23 +95,36 @@ describe('useCalendarEvents', () => {
       React.createElement(QueryClientProvider, { client: queryClient }, children)
     render(React.createElement(CalendarSyncHarness), { wrapper: Wrapper })
 
-    expect(await screen.findByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
-      .toHaveAttribute('aria-checked', 'true')
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2))
 
     resolveEvents({
       ok: false,
       status: 400,
       json: () => Promise.resolve({
         error: 'Google Calendar connection expired. Please reconnect.',
-        errorCode: 'CALENDAR_NOT_CONNECTED',
+        errorCode,
       }),
     })
 
     await waitFor(() => {
-      expect(screen.queryByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
-        .not.toBeInTheDocument()
+      expect(queryClient.getQueryData([
+        ...calendarKeys.all,
+        'manual-fetch',
+        'UTC',
+      ])).toEqual({ status: 'not-connected' })
     })
-  })
+
+    resolveAutoSyncState()
+    await waitFor(() => expect(queryClient.isFetching({
+      queryKey: calendarKeys.autoSyncState(),
+    })).toBe(0))
+
+    expect(queryClient.getQueryData(calendarKeys.autoSyncState()))
+      .not.toMatchObject({ hasGoogleConnection: true })
+    expect(screen.queryByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
+      .not.toBeInTheDocument()
+    },
+  )
 
   it('throws other backend errors so the query surfaces them', async () => {
     mockFetch.mockResolvedValue({

@@ -968,7 +968,6 @@ function CalendarScreenContent({
             selectedEntries={selectedEntries}
             filteredEntries={filteredEntries}
             calendarEvents={selectedCalendarEvents}
-            hasProAccess={profile.hasProAccess}
             autoSyncState={autoSyncState}
             calendarEventsState={calendarEventsState}
             onRetryCalendarEvents={() => void refetchCalendarEvents()}
@@ -983,7 +982,6 @@ function CalendarScreenContent({
             pendingEntryStates={pendingEntryStates}
             onShowRecurringChange={setShowRecurring}
             onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
-            onOpenPro={openOrbitPro}
             onEntryChange={changeSelectedEntry}
             onGoToDay={goToSelectedDay}
             displayTime={displayTime}

@@ -150,7 +150,6 @@ interface CalendarInlineDayPanelProps {
   selectedDay: string | null
   entries: CalendarDayEntry[]
   calendarEvents: CalendarSyncEvent[]
-  hasProAccess: boolean
   autoSyncState: CalendarAutoSyncState | undefined
   calendarEventsState: CalendarEventsDisplayState
   onRetryCalendarEvents: () => void
@@ -162,7 +161,6 @@ interface CalendarInlineDayPanelProps {
   showRecurringToggle: boolean
   onShowRecurringChange: (value: boolean) => void
   onCalendarAutoSyncChange: (value: boolean) => Promise<void>
-  onOpenPro: () => void
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
 }
 
@@ -174,7 +172,6 @@ function CalendarInlineDayPanel({
   selectedDay,
   entries,
   calendarEvents,
-  hasProAccess,
   autoSyncState,
   calendarEventsState,
   onRetryCalendarEvents,
@@ -186,7 +183,6 @@ function CalendarInlineDayPanel({
   showRecurringToggle,
   onShowRecurringChange,
   onCalendarAutoSyncChange,
-  onOpenPro,
   onEntryChange,
 }: Readonly<CalendarInlineDayPanelProps>) {
   if (!show) return null
@@ -219,7 +215,6 @@ function CalendarInlineDayPanel({
             dateStr={selectedDay}
             entries={entries}
             calendarEvents={calendarEvents}
-            hasProAccess={hasProAccess}
             autoSyncState={autoSyncState}
             calendarEventsState={calendarEventsState}
             onRetryCalendarEvents={onRetryCalendarEvents}
@@ -230,7 +225,6 @@ function CalendarInlineDayPanel({
             pendingEntryStates={pendingEntryStates}
             onShowRecurringChange={onShowRecurringChange}
             onCalendarAutoSyncChange={onCalendarAutoSyncChange}
-            onOpenPro={onOpenPro}
             onEntryChange={onEntryChange}
             showRecurringToggle={showRecurringToggle}
             fitViewport
@@ -804,7 +798,6 @@ function CalendarPageContent({
                   selectedDay={selectedDay}
                   entries={selectedEntries}
                   calendarEvents={selectedCalendarEvents}
-                  hasProAccess={profile.hasProAccess}
                   autoSyncState={autoSyncState}
                   calendarEventsState={calendarEventsState}
                   onRetryCalendarEvents={() => void refetchCalendarEvents()}
@@ -816,7 +809,6 @@ function CalendarPageContent({
                   showRecurringToggle={!showMonthRecurringToggle}
                   onShowRecurringChange={setShowRecurring}
                   onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
-                  onOpenPro={openOrbitPro}
                   onEntryChange={changeSelectedEntry}
                 />
               </div>
@@ -889,7 +881,6 @@ function CalendarPageContent({
           dateStr={selectedDay}
           entries={selectedEntries}
           calendarEvents={selectedCalendarEvents}
-          hasProAccess={profile.hasProAccess}
           autoSyncState={autoSyncState}
           calendarEventsState={calendarEventsState}
           onRetryCalendarEvents={() => void refetchCalendarEvents()}
@@ -900,7 +891,6 @@ function CalendarPageContent({
           pendingEntryStates={pendingEntryStates}
           onShowRecurringChange={setShowRecurring}
           onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
-          onOpenPro={openOrbitPro}
           onEntryChange={changeSelectedEntry}
         />
       </Sheet>) : null}
