@@ -932,6 +932,11 @@
       "range": "Intervalo",
       "agenda": "Agenda"
     },
+    "range": {
+      "label": "{start} a {end}",
+      "previous": "Período anterior",
+      "next": "Período seguinte"
+    },
     "timeGrid": {
       "allDay": "Dia inteiro",
       "noSetTime": "Sem hora certa",
