@@ -43,13 +43,9 @@ const agendaViewProps: {
   dayMap?: ReadonlyMap<string, CalendarDayEntry[]>
   isLoading?: boolean
 } = {}
-const rangeQueryState: {
-  dayMap: Map<string, CalendarDayEntry[]>
-  isLoading: boolean
-} = {
-  dayMap: new Map(),
-  isLoading: false,
-}
+let rangeLoading = false
+let rangeDayMap = new Map<string, CalendarDayEntry[]>()
+const calendarRangeViewProps: { current: Record<string, unknown> | null } = { current: null }
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -72,8 +68,8 @@ vi.mock('@/hooks/use-calendar-data', () => ({
     })
   },
   useCalendarRange: () => ({
-    dayMap: rangeQueryState.dayMap,
-    isLoading: rangeQueryState.isLoading,
+    dayMap: rangeDayMap,
+    isLoading: rangeLoading,
     isFetching: false,
     error: null,
     refresh: vi.fn(),
@@ -197,28 +193,26 @@ vi.mock('@/components/calendar/calendar-week-view', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-range-view', () => ({
-  CalendarRangeView: ({
-    monthDayMap,
-    onShowRecurringChange,
-    showRecurring,
-  }: {
-    monthDayMap: Map<string, CalendarDayEntry[]>
-    onShowRecurringChange: (value: boolean) => void
-    showRecurring: boolean
-  }) => (
-    <div data-testid="range-view">
-      {[...monthDayMap.values()].flat().some((entry) => !entry.isOneTime) && (
-        <span data-testid="range-recurring-ring" />
-      )}
-      <button
-        type="button"
-        role="switch"
-        aria-checked={showRecurring}
-        aria-label="calendar.showRecurring"
-        onClick={() => onShowRecurringChange(!showRecurring)}
-      />
-    </div>
-  ),
+  CalendarRangeView: (props: Record<string, unknown>) => {
+    calendarRangeViewProps.current = props
+    const model = props.model as { days: readonly { totalCount: number }[] }
+    const showRecurring = props.showRecurring as boolean
+    const onShowRecurringChange = props.onShowRecurringChange as (value: boolean) => void
+    return (
+      <div data-testid="range-view">
+        {model.days.some((day) => day.totalCount > 0) && (
+          <span data-testid="range-recurring-ring" />
+        )}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showRecurring}
+          aria-label="calendar.showRecurring"
+          onClick={() => onShowRecurringChange(!showRecurring)}
+        />
+      </div>
+    )
+  },
 }))
 
 vi.mock('@/components/calendar/calendar-agenda-view', () => ({
@@ -270,8 +264,9 @@ describe('CalendarPage view switcher', () => {
     calendarDataCalls.mockClear()
     agendaViewProps.dayMap = undefined
     agendaViewProps.isLoading = undefined
-    rangeQueryState.dayMap = new Map()
-    rangeQueryState.isLoading = false
+    rangeLoading = false
+    rangeDayMap = new Map()
+    calendarRangeViewProps.current = null
   })
 
   afterEach(() => vi.useRealTimers())
@@ -420,7 +415,7 @@ describe('CalendarPage view switcher', () => {
   })
 
   it('passes the range loading state to the agenda view', () => {
-    rangeQueryState.isLoading = true
+    rangeLoading = true
     render(<CalendarPage />)
 
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
@@ -430,7 +425,7 @@ describe('CalendarPage view switcher', () => {
 
   it('shows all agenda habits after recurring entries are hidden in another view', () => {
     const today = formatAPIDate(new Date())
-    rangeQueryState.dayMap = new Map([
+    rangeDayMap = new Map([
       [today, [
         monthEntry('recurring', 'upcoming'),
         { ...monthEntry('one-time', 'upcoming'), isOneTime: true },
@@ -456,6 +451,18 @@ describe('CalendarPage view switcher', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
     expect(screen.getByTestId('range-view')).toBeDefined()
+  })
+
+  it('passes the pending range state through the owning composition', () => {
+    rangeLoading = true
+    const view = render(<CalendarPage />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
+    expect(calendarRangeViewProps.current?.isLoading).toBe(true)
+
+    rangeLoading = false
+    view.rerender(<CalendarPage />)
+    expect(calendarRangeViewProps.current?.isLoading).toBe(false)
   })
 
   it('keeps exactly one recurring setting on an entry-bearing future day at wide desktop', () => {
@@ -576,7 +583,7 @@ describe('CalendarPage view switcher', () => {
 
   it('removes recurring status rings from the range picker when recurring is turned off', () => {
     const todayKey = formatAPIDate(new Date())
-    monthQueryState.dayMap = new Map([[todayKey, [{
+    rangeDayMap = new Map([[todayKey, [{
       habitId: 'recurring',
       title: 'Recurring habit',
       status: 'upcoming',
