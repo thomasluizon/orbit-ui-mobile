@@ -4,7 +4,6 @@ import {
   endOfWeek,
   getDate,
   isSameMonth,
-  isToday,
   startOfMonth,
   startOfWeek,
 } from 'date-fns'
@@ -39,19 +38,23 @@ export function buildCalendarMonthModel(
   currentMonth: Date,
   dayMap: Map<string, CalendarDayEntry[]>,
   weekStartsOn: 0 | 1,
+  today: string,
 ): CalendarMonthModel {
-  const gridDays = buildMonthGridDays(currentMonth, dayMap, weekStartsOn)
+  const gridDays = buildMonthGridDays(currentMonth, dayMap, weekStartsOn, today)
   const monthDays = gridDays.filter((day) => day.isCurrentMonth)
-  const totalLogs = monthDays.reduce((total, day) => total + day.completedCount, 0)
-  const missed = monthDays.reduce(
-    (total, day) => total + day.entries.filter((entry) => entry.status === 'missed').length,
+  const countedDays = monthDays.filter(
+    (day) => day.dateStr <= today && day.totalCount > 0,
+  )
+  const totalLogs = countedDays.reduce((total, day) => total + day.completedCount, 0)
+  const missed = countedDays.reduce(
+    (total, day) => total + day.totalCount - day.completedCount,
     0,
   )
   let bestStreak = 0
   let currentStreak = 0
 
-  for (const day of monthDays) {
-    if (day.totalCount > 0 && day.completedCount === day.totalCount) {
+  for (const day of countedDays) {
+    if (day.completedCount > 0) {
       currentStreak += 1
       bestStreak = Math.max(bestStreak, currentStreak)
     } else {
@@ -65,7 +68,7 @@ export function buildCalendarMonthModel(
       totalLogs,
       missed,
       bestStreak,
-      hasEntries: monthDays.some((day) => day.totalCount > 0),
+      hasEntries: countedDays.length > 0,
     },
   }
 }
@@ -74,6 +77,7 @@ function buildMonthGridDays(
   currentMonth: Date,
   dayMap: Map<string, CalendarDayEntry[]>,
   weekStartsOn: 0 | 1,
+  today: string,
 ): CalendarMonthDay[] {
   const monthStart = startOfMonth(currentMonth)
   const monthEnd = endOfMonth(currentMonth)
@@ -91,7 +95,7 @@ function buildMonthGridDays(
       dateStr,
       day: getDate(date),
       isCurrentMonth: isSameMonth(date, currentMonth),
-      isToday: isToday(date),
+      isToday: dateStr === today,
       entries,
       completedCount,
       totalCount,

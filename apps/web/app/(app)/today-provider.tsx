@@ -4,13 +4,14 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useRef,
   useState,
   type ReactNode,
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { gamificationKeys } from '@orbit/shared/query'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { formatAPIDate, formatAPIDateInTimeZone } from '@orbit/shared/utils'
 import { useTodayTick } from './use-follow-today-sync'
 
 const TodayContext = createContext<string | null>(null)
@@ -45,11 +46,17 @@ export function TodayProvider({ children }: Readonly<{ children: ReactNode }>) {
   return <TodayContext.Provider value={today}>{children}</TodayContext.Provider>
 }
 
-/** The current local day as a `YYYY-MM-DD` string, advancing on day rollover. */
-export function useToday(): string {
+/** The current day as a `YYYY-MM-DD` string, optionally in the account timezone. */
+export function useToday(timeZone?: string | null): string {
   const today = useContext(TodayContext)
+  const [, setAccountDateTick] = useState(0)
+  useEffect(() => {
+    if (timeZone === undefined) return
+    const interval = globalThis.setInterval(() => setAccountDateTick((tick) => tick + 1), 60_000)
+    return () => globalThis.clearInterval(interval)
+  }, [timeZone])
   if (today === null) {
     throw new Error('useToday must be used within a TodayProvider')
   }
-  return today
+  return timeZone === undefined ? today : formatAPIDateInTimeZone(new Date(), timeZone)
 }
