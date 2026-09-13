@@ -129,16 +129,6 @@
       "count": 5
     }
   },
-  "app/(public)/privacy/page.tsx": {
-    "local/spacing-scale": {
-      "count": 5
-    }
-  },
-  "app/(public)/terms/page.tsx": {
-    "local/spacing-scale": {
-      "count": 5
-    }
-  },
   "app/layout.tsx": {
     "local/icon-size-grid": {
       "count": 3
