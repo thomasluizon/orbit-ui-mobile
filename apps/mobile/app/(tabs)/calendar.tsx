@@ -466,10 +466,10 @@ function CalendarScreenContent({
 
   const selectedCalendarEvents = useMemo(
     () =>
-      calendarEventsResult?.status === "connected"
+      profile.hasProAccess && calendarEventsResult?.status === "connected"
         ? filterCalendarSyncEventsByDate(calendarEventsResult.events, selectedDay)
         : [],
-    [calendarEventsResult, selectedDay],
+    [calendarEventsResult, profile.hasProAccess, selectedDay],
   );
 
   const filteredEntries = useMemo(

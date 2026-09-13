@@ -381,12 +381,37 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
   it("does not enable the calendar event request for a free profile", () => {
+    state.calendarEvents = [
+      {
+        id: "retained-event",
+        title: "Retained meeting",
+        description: null,
+        startDate: formatAPIDate(new Date()),
+        startTime: "09:00",
+        endTime: null,
+        isRecurring: false,
+        recurrenceRule: null,
+        reminders: [],
+      },
+    ];
     let tree!: Tree;
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />);
     });
+    const flatList = tree.root.findAll(
+      (node) => typeof node.type === "string" && node.type === "FlatList",
+    )[0]!;
+    let headerTree: import("react-test-renderer").ReactTestRenderer;
+    TestRenderer.act(() => {
+      headerTree = TestRenderer.create(flatList.props.ListHeaderComponent);
+    });
+    TestRenderer.act(() => {
+      calendarGridProps.current!.onSelectDay(formatAPIDate(new Date()));
+    });
 
     expect(state.calendarEventsEnabled).toBe(false);
+    expect(calendarDayDetailProps.current?.calendarEvents).toEqual([]);
+    TestRenderer.act(() => headerTree!.update(<></>));
     TestRenderer.act(() => tree.update(<></>));
   });
 

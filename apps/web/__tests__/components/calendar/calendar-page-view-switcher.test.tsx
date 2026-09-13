@@ -298,9 +298,28 @@ describe('CalendarPage view switcher', () => {
   })
 
   it('does not enable the calendar event request for a free profile', () => {
+    calendarEventsQueryState.data = {
+      status: 'connected',
+      events: [
+        {
+          id: 'retained-event',
+          title: 'Retained meeting',
+          description: null,
+          startDate: formatAPIDate(new Date()),
+          startTime: '09:00',
+          endTime: null,
+          isRecurring: false,
+          recurrenceRule: null,
+          reminders: [],
+        },
+      ],
+    }
+    isWideDesktopValue = true
+
     render(<CalendarPage />)
 
     expect(calendarEventsEnabled).toBe(false)
+    expect(calendarDayDetailProps.calendarEvents).toEqual([])
   })
 
   it.each([
