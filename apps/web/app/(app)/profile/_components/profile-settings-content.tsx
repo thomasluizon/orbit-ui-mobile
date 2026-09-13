@@ -11,7 +11,6 @@ import {
   shouldRedirectProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
 import {
-  BellRing,
   Calendar,
   Clock,
   CreditCard,
@@ -19,17 +18,25 @@ import {
   Languages,
   Lock,
   LogOut,
-  MessageSquare,
   Moon,
   RotateCcw,
-  Satellite,
   User,
   UserX,
 } from '@/components/ui/icons'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
-import { ProfileSettingsFrame } from '@/components/profile/profile-settings-frame'
+import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
+import {
+  AstraSettingsSwitch,
+  type AstraSettingsController,
+  useAstraSettingsController,
+} from '@/components/profile/astra-settings-controller'
+import {
+  ProfileSettingsFrame,
+  ProfileValueRow,
+} from '@/components/profile/profile-settings-frame'
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { ListRow } from '@/components/ui/list-row'
+import { RowList } from '@/components/ui/row-list'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { Toast } from '@/components/ui/toast'
 import { useAuthStore } from '@/stores/auth-store'
@@ -47,6 +54,7 @@ import { useDataExport } from './use-data-export'
 interface ProfileSettingsContentProps {
   profile: Profile | undefined
   isLoading: boolean
+  patchProfile: (patch: Partial<Profile>) => void
 }
 
 type Translate = ReturnType<typeof useTranslations>
@@ -90,13 +98,46 @@ function buildYouRows(
   ]
 }
 
-function buildAstraRows({ profile, router, t }: RowContext) {
-  return [
-    <ListRow key="allowance" icon={icon(Satellite)} title={t('profile.settingsRows.dailyAllowance')} value={`${profile?.aiMessagesUsed ?? 0}/${profile?.aiMessagesLimit ?? 0}`} onClick={() => router.push('/upgrade')} />,
-    <ListRow key="proactive" icon={icon(BellRing)} title={t('profile.proactiveAstra.title')} onClick={() => router.push('/ai-settings')} />,
-    <ListRow key="summary" icon={icon(MessageSquare)} title={t('profile.aiSummary.title')} onClick={() => router.push('/ai-settings')} />,
-    <ListRow key="api-keys" icon={icon(Lock)} title={t('profile.settingsRows.apiKeysMcp')} onClick={() => router.push('/advanced')} />,
-  ]
+function buildAstraRows(
+  { profile, router, t }: RowContext,
+  settings: AstraSettingsController,
+) {
+  const onUpgrade = () => router.push('/upgrade')
+  return (
+    <>
+      {profile ? (
+        <AstraAllowancePanel profile={profile} />
+      ) : null}
+      {profile ? (
+        <RowList>
+          {profile.hasProAccess ? (
+            <>
+              <ProfileValueRow
+                label={t('profile.proactiveAstra.title')}
+                control={(
+                  <AstraSettingsSwitch checked={settings.proactiveAstraEnabled} pending={settings.proactivePending} label={t('profile.proactiveAstra.title')} onToggle={settings.onToggleProactive} />
+                )}
+              />
+              <ProfileValueRow
+                label={t('profile.aiSummary.title')}
+                control={(
+                  <AstraSettingsSwitch checked={settings.aiSummaryEnabled} pending={settings.summaryPending} label={t('profile.aiSummary.title')} onToggle={settings.onToggleSummary} />
+                )}
+              />
+            </>
+          ) : (
+            <>
+              <ListRow icon={icon(Lock)} title={t('profile.proactiveAstra.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
+              <ListRow icon={icon(Lock)} title={t('profile.aiSummary.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
+            </>
+          )}
+        </RowList>
+      ) : null}
+      <RowList>
+        <ListRow key="api-keys" icon={icon(Lock)} title={t('profile.settingsRows.apiKeysMcp')} onClick={() => router.push('/advanced')} />
+      </RowList>
+    </>
+  )
 }
 
 function buildNotificationRows(
@@ -221,6 +262,7 @@ function buildEndingRows({
 export function ProfileSettingsContent({
   profile,
   isLoading,
+  patchProfile,
 }: Readonly<ProfileSettingsContentProps>) {
   const t = useTranslations()
   const router = useRouter()
@@ -238,6 +280,7 @@ export function ProfileSettingsContent({
   const [showEditName, setShowEditName] = useState(false)
   const [showFreshStart, setShowFreshStart] = useState(false)
   const [showDeleteAccount, setShowDeleteAccount] = useState(false)
+  const astraSettings = useAstraSettingsController(profile, patchProfile)
   useShellNoticeSlot(
     exportDone,
     () => (
@@ -259,7 +302,7 @@ export function ProfileSettingsContent({
       () => void exportData(),
       () => preferenceControls.setActivePicker('timeZone'),
     ),
-    astra: buildAstraRows(context),
+    astra: buildAstraRows(context, astraSettings),
     notifications: buildNotificationRows(t, push),
     more: buildMoreRows(context),
     ending: buildEndingRows({
@@ -283,7 +326,7 @@ export function ProfileSettingsContent({
           ending: t('profile.groups.ending'),
         }}
         rows={rows}
-        uncontainedGroups={['notifications']}
+        uncontainedGroups={['astra', 'notifications']}
       />
       <EditNameSheet open={showEditName} onOpenChange={setShowEditName} />
       <FreshStartModal open={showFreshStart} onOpenChange={setShowFreshStart} />
