@@ -105,8 +105,11 @@ export type {
 export { plural } from './plural'
 export { buildRecentChatHistory } from './chat-history'
 export {
+  CALENDAR_NOT_CONNECTED_ERROR_CODE,
+  CALENDAR_RECONNECT_REQUIRED_ERROR_CODE,
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
+  didCalendarEventsRevokeGrant,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
   filterCalendarSyncEventsByDate,
@@ -115,6 +118,7 @@ export {
   isCalendarSyncConnectionActive,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
+  reconcileCalendarAutoSyncGrantRevocation,
 } from './calendar-sync'
 export type {
   CalendarSyncEvent,

@@ -1,6 +1,13 @@
 import type { BulkCreateRequest, FrequencyUnit } from '../types/habit'
-import type { CalendarAutoSyncStatus, CalendarSyncSuggestion } from '../types/calendar'
+import type {
+  CalendarAutoSyncState,
+  CalendarAutoSyncStatus,
+  CalendarSyncSuggestion,
+} from '../types/calendar'
 import { plural } from './plural'
+
+export const CALENDAR_RECONNECT_REQUIRED_ERROR_CODE = 'CALENDAR_RECONNECT_REQUIRED'
+export const CALENDAR_NOT_CONNECTED_ERROR_CODE = 'CALENDAR_NOT_CONNECTED'
 
 export interface CalendarSyncEvent {
   id: string
@@ -240,6 +247,25 @@ export function isCalendarAutoSyncStatusReconnectRequired(
   status: CalendarAutoSyncStatus | null | undefined,
 ): boolean {
   return status === 'ReconnectRequired'
+}
+
+export function reconcileCalendarAutoSyncGrantRevocation(
+  current: CalendarAutoSyncState | undefined,
+): CalendarAutoSyncState {
+  return {
+    enabled: false,
+    status: 'ReconnectRequired',
+    lastSyncedAt: current?.lastSyncedAt ?? null,
+    hasGoogleConnection: false,
+  }
+}
+
+export function didCalendarEventsRevokeGrant(
+  errorCode: string | undefined,
+  current: CalendarAutoSyncState | undefined,
+): boolean {
+  return errorCode === CALENDAR_RECONNECT_REQUIRED_ERROR_CODE
+    || (errorCode === CALENDAR_NOT_CONNECTED_ERROR_CODE && current?.hasGoogleConnection === true)
 }
 
 export function isCalendarSyncConnectionActive(

@@ -1,8 +1,14 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { calendarKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { CalendarSyncEvent } from '@orbit/shared'
-import { isCalendarSyncNotConnectedMessage } from '@orbit/shared/utils'
+import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
+import {
+  didCalendarEventsRevokeGrant,
+  extractBackendErrorCode,
+  isCalendarSyncNotConnectedMessage,
+  reconcileCalendarAutoSyncGrantRevocation,
+} from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 
 interface CalendarEventsQueryOptions {
@@ -24,6 +30,8 @@ const CALENDAR_EVENTS_KEY = [...calendarKeys.all, 'manual-fetch'] as const
  * `error` field.
  */
 export function useCalendarEvents(options?: CalendarEventsQueryOptions) {
+  const queryClient = useQueryClient()
+
   return useQuery<CalendarEventsResult>({
     queryKey: CALENDAR_EVENTS_KEY,
     queryFn: async () => {
@@ -32,6 +40,20 @@ export function useCalendarEvents(options?: CalendarEventsQueryOptions) {
         return { status: 'connected', events: Array.isArray(data) ? data : [] }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : ''
+        const currentAutoSyncState = queryClient.getQueryData<CalendarAutoSyncState>(
+          calendarKeys.autoSyncState(),
+        )
+        if (didCalendarEventsRevokeGrant(
+          extractBackendErrorCode(err),
+          currentAutoSyncState,
+        )) {
+          await queryClient.cancelQueries({ queryKey: calendarKeys.autoSyncState() })
+          queryClient.setQueryData<CalendarAutoSyncState>(
+            calendarKeys.autoSyncState(),
+            reconcileCalendarAutoSyncGrantRevocation,
+          )
+          return { status: 'not-connected' }
+        }
         if (
           message === 'Unauthorized' ||
           isCalendarSyncNotConnectedMessage(message)

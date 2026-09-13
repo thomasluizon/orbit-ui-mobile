@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
+  didCalendarEventsRevokeGrant,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
   getCalendarSyncClockValue,
@@ -115,6 +116,20 @@ describe('calendar-sync utils', () => {
     expect(isCalendarAutoSyncStatusReconnectRequired('ReconnectRequired')).toBe(true)
     expect(isCalendarAutoSyncStatusReconnectRequired('Idle')).toBe(false)
     expect(isCalendarAutoSyncStatusReconnectRequired(null)).toBe(false)
+  })
+
+  it('recognizes the events signals that revoke a cached connection', () => {
+    const connectedState = {
+      enabled: true,
+      status: 'Idle' as const,
+      lastSyncedAt: null,
+      hasGoogleConnection: true,
+    }
+
+    expect(didCalendarEventsRevokeGrant('CALENDAR_RECONNECT_REQUIRED', undefined)).toBe(true)
+    expect(didCalendarEventsRevokeGrant('CALENDAR_NOT_CONNECTED', connectedState)).toBe(true)
+    expect(didCalendarEventsRevokeGrant('CALENDAR_NOT_CONNECTED', undefined)).toBe(false)
+    expect(didCalendarEventsRevokeGrant('CALENDAR_FETCH_FAILED', connectedState)).toBe(false)
   })
 
   it('derives the connection line from confirmed profile fields', () => {
