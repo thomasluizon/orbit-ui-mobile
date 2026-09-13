@@ -43,6 +43,7 @@ import {
   parseAPIDate,
   MAX_RANGE_DAYS,
   buildCalendarMonthModel,
+  formatLocaleDate,
   resolveCalendarRangeEnd,
   CALENDAR_MONTH_GRID_GEOMETRY,
   resolveCalendarMonthDisplayState,
@@ -60,6 +61,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Sheet, useSheetHost } from '@/components/ui/sheet';
 import { PillButton } from "@/components/ui/pill-button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { ListRow } from "@/components/ui/list-row";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CalendarHeader,
@@ -77,7 +79,7 @@ import { useCurrentDate } from "./use-today-date";
 import { useUIStore } from "@/stores/ui-store";
 
 type MonthSlide = "left" | "right" | null;
-type CalendarView = "month" | "week" | "range";
+type CalendarView = "month" | "week" | "range" | "agenda";
 
 function calendarStatState(
   state: CalendarMonthDisplayState,
@@ -128,6 +130,96 @@ function resolveMonthEntering(monthSlide: MonthSlide) {
   if (monthSlide === "left")
     return FadeInLeft.duration(220).reduceMotion(ReduceMotion.System);
   return undefined;
+}
+
+interface CalendarAgendaViewProps {
+  startDate: Date;
+  dayMap: ReadonlyMap<string, CalendarDayEntry[]>;
+  displayTime: (time: string) => string;
+  language: string;
+  todayKey: string;
+  isLoading: boolean;
+  loadingLabel: string;
+  todayLabel: string;
+  emptyLabel: string;
+  styles: ReturnType<typeof createStyles>;
+  tokens: ReturnType<typeof createTokensV2>;
+}
+
+function CalendarAgendaView({
+  startDate,
+  dayMap,
+  displayTime,
+  language,
+  todayKey,
+  isLoading,
+  loadingLabel,
+  todayLabel,
+  emptyLabel,
+  styles,
+  tokens,
+}: Readonly<CalendarAgendaViewProps>) {
+  const dates = eachDayOfInterval({ start: startDate, end: addDays(startDate, 6) });
+
+  return (
+    <View
+      testID="calendar-agenda-view"
+      accessibilityState={{ busy: isLoading }}
+      style={styles.agendaView}
+    >
+      {isLoading ? dates.map((date, index) => (
+        <View key={formatAPIDate(date)} testID="calendar-agenda-loading-day">
+          {index === 0 ? (
+            <Skeleton variant="habit-row" label={loadingLabel} />
+          ) : (
+            <Skeleton variant="habit-row" grouped />
+          )}
+        </View>
+      )) : dates.map((date) => {
+        const entries = dayMap.get(formatAPIDate(date)) ?? [];
+        const dateLabel = capitalizeFirstLetter(
+          formatLocaleDate(date, language, {
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+          }),
+        );
+        const heading = formatAPIDate(date) === todayKey ? `${todayLabel}, ${dateLabel}` : dateLabel;
+
+        return (
+          <View
+            key={formatAPIDate(date)}
+            testID="calendar-agenda-day"
+            style={styles.agendaDay}
+          >
+            <Text
+              accessibilityRole="header"
+              style={[styles.agendaHeading, { color: tokens.fg2 }]}
+            >
+              {heading}
+            </Text>
+            {entries.length === 0 ? (
+              <Text style={[styles.agendaEmpty, { color: tokens.fg3 }]}>
+                {emptyLabel}
+              </Text>
+            ) : (
+              <View>
+                {entries.map((entry) => (
+                  <ListRow
+                    key={entry.habitId}
+                    title={entry.title}
+                    value={entry.dueTime ? displayTime(entry.dueTime) : undefined}
+                    readOnly
+                    wrapTitle
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
 }
 
 export default function CalendarScreen() {
@@ -285,8 +377,15 @@ function CalendarScreenContent({
     return { lo: addDays(rangeEnd, -(MAX_RANGE_DAYS - 1)), hi: rangeEnd };
   }, [rangeEnd]);
 
+  const agendaStart = useMemo(() => parseAPIDate(todayKey), [todayKey]);
+  const agendaEnd = useMemo(() => addDays(agendaStart, 6), [agendaStart]);
+
   const [gridStartDate, gridEndDate] =
-    view === "week" ? [weekStart, weekEnd] : [rangeBounds.lo, rangeBounds.hi];
+    view === "week"
+      ? [weekStart, weekEnd]
+      : view === "agenda"
+        ? [agendaStart, agendaEnd]
+        : [rangeBounds.lo, rangeBounds.hi];
 
   const {
     dayMap: rangeDayMap,
@@ -297,7 +396,7 @@ function CalendarScreenContent({
   } = useCalendarRange(
     gridStartDate,
     gridEndDate,
-    view === "week" || view === "range",
+    view === "week" || view === "range" || view === "agenda",
   );
 
   const gridColumns = useMemo<TimeGridColumn[]>(() => {
@@ -400,6 +499,7 @@ function CalendarScreenContent({
       { value: "month" as const, label: t("calendar.view.month") },
       { value: "week" as const, label: t("calendar.view.week") },
       { value: "range" as const, label: t("calendar.view.range") },
+      { value: "agenda" as const, label: t("calendar.view.agenda") },
     ] as const,
     [t],
   );
@@ -707,7 +807,7 @@ function CalendarScreenContent({
               t={t}
               tokens={tokens}
             />
-          ) : (
+          ) : view === "range" ? (
             <CalendarRangeView
               model={rangeModel}
               weekdayLabels={weekdayHeaders.map((weekday) => weekday.label)}
@@ -725,6 +825,20 @@ function CalendarScreenContent({
               showRecurringLabel={t("calendar.showRecurring")}
               language={i18n.language}
               t={t}
+              tokens={tokens}
+            />
+          ) : (
+            <CalendarAgendaView
+              startDate={agendaStart}
+              dayMap={rangeDayMap}
+              displayTime={displayTime}
+              language={i18n.language}
+              todayKey={todayKey}
+              isLoading={rangeLoading}
+              loadingLabel={t("common.loading")}
+              todayLabel={t("calendar.agenda.today")}
+              emptyLabel={t("calendar.agenda.empty")}
+              styles={styles}
               tokens={tokens}
             />
           )}
@@ -769,6 +883,27 @@ function createStyles() {
 
     viewScrollContent: {
       paddingBottom: 24,
+    },
+
+    agendaView: {
+      alignSelf: "flex-start",
+      gap: 16,
+      maxWidth: 560,
+      paddingHorizontal: 16,
+      width: "100%",
+    },
+    agendaDay: {
+      gap: 4,
+    },
+    agendaHeading: {
+      fontFamily: "Geist_500Medium",
+      fontSize: 14,
+      lineHeight: 22,
+    },
+    agendaEmpty: {
+      fontFamily: "Geist_400Regular",
+      fontSize: 14,
+      lineHeight: 22,
     },
 
     listFooter: {

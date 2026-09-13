@@ -17,7 +17,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
   const [bodyPressed, setBodyPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { accessibilityLabel, icon, title, description, value, trailing, danger = false, action, chevron = true, onClick, readOnly = false } = props
+  const { accessibilityLabel, icon, title, wrapTitle, description, value, trailing, danger = false, action, chevron = true, onClick, readOnly = false } = props
   const iconColor = danger ? tokens.statusBad : tokens.fg1
   const titleColor = danger ? tokens.statusBadText : tokens.fg1
   const bodyStyle = [styles.body, action ? styles.bodyWithAction : null]
@@ -29,7 +29,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
         </View>
       ) : null}
       <View style={styles.textBlock}>
-        <Text numberOfLines={1} style={[styles.title, { color: titleColor }]}>{title}</Text>
+        <Text numberOfLines={wrapTitle ? undefined : 1} style={[styles.title, { color: titleColor }]}>{title}</Text>
         {description ? <Text style={[styles.description, { color: tokens.fg3 }]}>{description}</Text> : null}
       </View>
       {value ? <Text style={[styles.value, { color: tokens.fg3 }]} numberOfLines={1}>{value}</Text> : null}

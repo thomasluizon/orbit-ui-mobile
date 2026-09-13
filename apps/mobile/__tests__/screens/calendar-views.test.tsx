@@ -10,12 +10,14 @@ import { Text, View } from "react-native";
 
 import CalendarScreen from "@/app/(tabs)/calendar";
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { ListRow } from '@/components/ui/list-row'
 
 const TestRenderer = require("react-test-renderer");
 type CalendarGridComponent = typeof import("@/app/(tabs)/calendar/_components/calendar-grid")["CalendarGrid"];
 
 const state = vi.hoisted(() => ({
   rangeMap: new Map<string, CalendarDayEntry[]>(),
+  rangeLoading: false,
   monthMap: new Map<string, CalendarDayEntry[]>(),
   monthLoading: false,
   monthError: null as string | null,
@@ -25,7 +27,6 @@ const state = vi.hoisted(() => ({
   profileRefetch: vi.fn(),
   calendarDataCalls: vi.fn(),
   calendarRangeCalls: vi.fn(),
-  rangeLoading: false,
   routerPush: vi.fn(),
   setShowCreateModal: vi.fn(),
 }));
@@ -279,6 +280,7 @@ describe("CalendarScreen views (mobile)", () => {
     calendarGridProps.header = null;
     calendarGridProps.stats = null;
     state.monthMap = new Map();
+    state.rangeLoading = false;
     state.monthLoading = false;
     state.monthError = null;
     state.monthRefresh = () => {};
@@ -319,7 +321,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => tree.update(<></>))
   })
 
-  it("renders one three-option view switcher without agenda and opens the month on today", () => {
+  it("renders the agenda at phone width without folding it back to month", () => {
     let tree: Tree;
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />);
@@ -337,7 +339,7 @@ describe("CalendarScreen views (mobile)", () => {
     );
 
     expect(switchers).toHaveLength(1);
-    expect(segments).toHaveLength(3);
+    expect(segments).toHaveLength(4);
     expect(
       segments.find(
         (segment) => segment.props.testID === "segment-month-selected-enabled",
@@ -347,7 +349,7 @@ describe("CalendarScreen views (mobile)", () => {
       segments.some(
         (segment) => segment.props.testID === "segment-agenda-unselected-enabled",
       ),
-    ).toBe(false);
+    ).toBe(true);
 
     const flatLists = tree!.root.findAll(
       (node) => typeof node.type === "string" && node.type === "FlatList",
@@ -358,6 +360,52 @@ describe("CalendarScreen views (mobile)", () => {
     });
     expect(calendarGridProps.current?.selectedDay).toBe(formatAPIDate(new Date()));
     TestRenderer.act(() => headerTree.update(<></>));
+
+    pressView(tree!, "agenda");
+    expect(
+      tree!.root.findAll(
+        (node) =>
+          typeof node.type === "string" &&
+          node.props.testID === "calendar-agenda-view",
+      ),
+    ).toHaveLength(1);
+    expect(hostTexts(tree!).some((text) => String(text).startsWith("calendar.agenda.today,"))).toBe(true);
+    const agendaRows = tree!.root.findAll((node) => node.type === ListRow);
+    expect(agendaRows).toHaveLength(2);
+    expect(
+      tree!.root.findAll(
+        (node) =>
+          typeof node.type === "string" &&
+          node.props.accessibilityRole === "header",
+      ),
+    ).toHaveLength(7);
+    for (const row of agendaRows) {
+      expect(row.props.readOnly).toBe(true);
+      expect(row.props.wrapTitle).toBe(true);
+      expect(row.props.onPress).toBeUndefined();
+      expect(row.props.onClick).toBeUndefined();
+    }
+  });
+
+  it("renders agenda placeholders instead of empty-day copy while loading", () => {
+    state.rangeMap = new Map();
+    state.rangeLoading = true;
+    let tree!: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />);
+    });
+
+    pressView(tree, "agenda");
+
+    expect(
+      tree.root.findAll(
+        (node) =>
+          typeof node.type === "string" &&
+          node.props.testID === "calendar-agenda-loading-day",
+      ),
+    ).toHaveLength(7);
+    expect(hostTexts(tree)).not.toContain("calendar.agenda.empty");
+    TestRenderer.act(() => tree.update(<></>));
   });
 
   it("uses UTC when the mounted screen has a nullable account timezone", () => {
@@ -609,26 +657,46 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
   it("hides recurring habits from the week grid when show-recurring is turned off", () => {
-    let tree: Tree;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<CalendarScreen />);
-    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-13T12:00:00.000Z"));
+    state.rangeMap = new Map([
+      [
+        "2026-09-13",
+        [
+          makeEntry({ habitId: "r", title: "Recurring", isOneTime: false }),
+          makeEntry({ habitId: "o", title: "OneTime", isOneTime: true }),
+        ],
+      ],
+    ]);
+    let tree!: Tree;
+    try {
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(<CalendarScreen />);
+      });
 
-    pressView(tree!, "week");
-    expect(hostTexts(tree!)).toContain("Recurring");
+      pressView(tree, "week");
+      expect(hostTexts(tree)).toContain("Recurring");
 
-    const switches = tree!.root.findAll(
-      (node) =>
-        typeof node.type === "string" &&
-        node.props.accessibilityRole === "switch",
-    );
-    expect(switches.length).toBeGreaterThan(0);
-    TestRenderer.act(() => {
-      switches[0]!.props.onPress();
-    });
+      const switches = tree.root.findAll(
+        (node) =>
+          typeof node.type === "string" &&
+          node.props.accessibilityRole === "switch",
+      );
+      expect(switches.length).toBeGreaterThan(0);
+      TestRenderer.act(() => {
+        switches[0]!.props.onPress();
+      });
 
-    expect(hostTexts(tree!)).not.toContain("Recurring");
-    expect(hostTexts(tree!)).toContain("OneTime");
+      expect(hostTexts(tree)).not.toContain("Recurring");
+      expect(hostTexts(tree)).toContain("OneTime");
+
+      pressView(tree, "agenda");
+      expect(hostTexts(tree)).toContain("Recurring");
+      expect(hostTexts(tree)).toContain("OneTime");
+    } finally {
+      TestRenderer.act(() => tree.update(<></>));
+      vi.useRealTimers();
+    }
   });
 
   it("removes recurring habits from the month and shows its honest empty state", () => {
