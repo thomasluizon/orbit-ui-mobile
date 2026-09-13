@@ -140,18 +140,22 @@ vi.mock('@/components/calendar/calendar-day-detail', () => ({
   CalendarDayDetail: ({
     onShowRecurringChange,
     showRecurring,
+    showRecurringToggle = true,
   }: {
     onShowRecurringChange: (value: boolean) => void
     showRecurring: boolean
+    showRecurringToggle?: boolean
   }) => (
     <div data-testid="day-detail">
-      <button
-        type="button"
-        role="switch"
-        aria-checked={showRecurring}
-        aria-label="calendar.showRecurring"
-        onClick={() => onShowRecurringChange(!showRecurring)}
-      />
+      {showRecurringToggle && (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showRecurring}
+          aria-label="calendar.showRecurring"
+          onClick={() => onShowRecurringChange(!showRecurring)}
+        />
+      )}
     </div>
   ),
 }))
@@ -347,12 +351,16 @@ describe('CalendarPage view switcher', () => {
     expect(screen.getByTestId('range-view')).toBeDefined()
   })
 
-  it('renders the day detail as a persistent inline panel at wide desktop', () => {
+  it('keeps one recurring setting beside the persistent day panel at wide desktop', () => {
     isWideDesktopValue = true
+    monthQueryState.dayMap = new Map([[formatAPIDate(new Date()), [
+      monthEntry('recurring', 'upcoming'),
+    ]]])
     render(<CalendarPage />)
 
     expect(screen.getByTestId('calendar-day-panel')).toBeDefined()
     expect(screen.getByTestId('day-detail')).toBeDefined()
+    expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
   })
 
   it('opens the day detail as an overlay below the wide-desktop breakpoint', () => {

@@ -462,6 +462,7 @@ function CalendarPageContent({
                       entries={selectedEntries}
                       showRecurring={showRecurring}
                       onShowRecurringChange={setShowRecurring}
+                      showRecurringToggle={false}
                       fitViewport
                     />
                   </section>
