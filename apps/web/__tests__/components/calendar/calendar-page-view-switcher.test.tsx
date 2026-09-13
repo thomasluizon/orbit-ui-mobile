@@ -287,7 +287,6 @@ describe('CalendarPage view switcher', () => {
   })
 
   it('removes recurring habits from the month and shows its honest empty state', () => {
-    isWideDesktopValue = true
     const todayKey = formatAPIDate(new Date())
     monthQueryState.dayMap = new Map([[todayKey, [{
       habitId: 'recurring',
@@ -299,9 +298,13 @@ describe('CalendarPage view switcher', () => {
     }]]])
     render(<CalendarPage />)
 
+    expect(screen.queryByTestId('day-detail')).toBeNull()
+    expect(screen.getByTestId('month-stats')).toBeDefined()
+    expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
     fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
 
     expect(calendarGridProps.dayMap?.get(todayKey)).toEqual([])
+    expect(screen.queryByTestId('month-stats')).toBeNull()
     expect(screen.getByText('calendar.emptyMonth')).toBeDefined()
   })
 

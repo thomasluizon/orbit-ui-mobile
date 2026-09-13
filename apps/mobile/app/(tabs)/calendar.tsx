@@ -64,6 +64,7 @@ import { CalendarDayDetail } from "./calendar/_components/calendar-day-detail";
 import { CalendarStats } from "./calendar/_components/calendar-stats";
 import { CalendarWeekView } from "./calendar/_components/calendar-week-view";
 import { CalendarRangeView } from "./calendar/_components/calendar-range-view";
+import { ShowRecurringToggle } from "./calendar/_components/show-recurring-toggle";
 import type { TimeGridColumn } from "./calendar/_components/calendar-time-grid";
 import { useCurrentDate } from "./use-today-date";
 
@@ -349,6 +350,12 @@ function CalendarScreenContent({
     () => buildCalendarMonthModel(currentMonth, displayMonthDayMap, weekStartsOn),
     [currentMonth, displayMonthDayMap, weekStartsOn],
   );
+  const { monthStats: sourceMonthStats } = useMemo(
+    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn),
+    [currentMonth, dayMap, weekStartsOn],
+  );
+  const showMonthRecurringToggle =
+    !isLoading && currentMonth <= startOfMonth(parseAPIDate(todayKey)) && sourceMonthStats.hasEntries;
 
   const {
     dayMap: activeDayMap,
@@ -445,6 +452,17 @@ function CalendarScreenContent({
         noneLabel={t("calendar.dayCell.none")}
         tokens={tokens}
       />
+
+      {showMonthRecurringToggle ? (
+        <View style={styles.monthRecurringToggle}>
+          <ShowRecurringToggle
+            checked={showRecurring}
+            onChange={setShowRecurring}
+            label={t("calendar.showRecurring")}
+            tokens={tokens}
+          />
+        </View>
+      ) : null}
     </>
   );
 
@@ -634,6 +652,11 @@ function createStyles() {
 
     listFooter: {
       paddingTop: 4,
+    },
+
+    monthRecurringToggle: {
+      paddingHorizontal: 16,
+      paddingVertical: 4,
     },
 
     errorWrap: {

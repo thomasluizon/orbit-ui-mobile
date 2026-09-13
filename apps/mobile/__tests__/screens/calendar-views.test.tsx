@@ -120,7 +120,7 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-grid", () => ({
   },
 }));
 vi.mock("@/app/(tabs)/calendar/_components/calendar-stats", () => ({
-  CalendarStats: () => null,
+  CalendarStats: () => <View testID="month-stats" />,
 }));
 vi.mock("@/app/(tabs)/calendar/_components/calendar-day-detail", () => ({
   CalendarDayDetail: ({
@@ -355,12 +355,25 @@ describe("CalendarScreen views (mobile)", () => {
       headerTree = TestRenderer.create(flatList.props.ListHeaderComponent);
     });
 
-    TestRenderer.act(() => calendarGridProps.current?.onSelectDay(todayStr));
-    const switches = tree!.root.findAll(
+    expect(tree!.root.findAll(
+      (node) => typeof node.type === "string" && node.props.accessibilityRole === "switch",
+    )).toHaveLength(0);
+    const switches = headerTree.root.findAll(
       (node) => typeof node.type === "string" && node.props.accessibilityRole === "switch",
     );
     expect(switches).toHaveLength(1);
-    TestRenderer.act(() => switches[0]!.props.onPress());
+
+    let initialFooterTree!: Tree;
+    TestRenderer.act(() => {
+      initialFooterTree = TestRenderer.create(flatList.props.ListFooterComponent);
+    });
+    expect(initialFooterTree.root.findAll(
+      (node) => typeof node.type === "string" && node.props.testID === "month-stats",
+    )).toHaveLength(1);
+
+    TestRenderer.act(() => {
+      (switches[0]!.props as { onPress: () => void }).onPress();
+    });
 
     const updatedFlatList = tree!.root.findAll(
       (node) => typeof node.type === "string" && node.type === "FlatList",
@@ -371,11 +384,14 @@ describe("CalendarScreen views (mobile)", () => {
     expect(calendarGridProps.current?.gridDays.find(
       (day: { dateStr: string }) => day.dateStr === todayStr,
     )?.totalCount).toBe(0);
-    let footerTree!: Tree;
+    let updatedFooterTree!: Tree;
     TestRenderer.act(() => {
-      footerTree = TestRenderer.create(updatedFlatList.props.ListFooterComponent);
+      updatedFooterTree = TestRenderer.create(updatedFlatList.props.ListFooterComponent);
     });
-    expect(hostTexts(footerTree)).toContain("calendar.emptyMonth");
+    expect(updatedFooterTree.root.findAll(
+      (node) => typeof node.type === "string" && node.props.testID === "month-stats",
+    )).toHaveLength(0);
+    expect(hostTexts(updatedFooterTree)).toContain("calendar.emptyMonth");
   });
 
   it("matches web by paging a 61px by 45px drag after the 60px boundary", () => {

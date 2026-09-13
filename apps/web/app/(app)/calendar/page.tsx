@@ -40,6 +40,7 @@ import { CalendarWeekView } from '@/components/calendar/calendar-week-view'
 import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
 import { CalendarLoadError } from '@/components/calendar/calendar-load-error'
+import { ShowRecurringToggle } from '@/components/calendar/show-recurring-toggle'
 import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import { Sheet } from '@/components/ui/sheet'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -89,6 +90,24 @@ interface CalendarPageContentProps {
   currentMonth: Date
   setCurrentMonth: Dispatch<SetStateAction<Date>>
   monthQuery: ReturnType<typeof useCalendarData>
+}
+
+function MonthRecurringFilter({
+  visible,
+  checked,
+  onChange,
+}: Readonly<{
+  visible: boolean
+  checked: boolean
+  onChange: (checked: boolean) => void
+}>) {
+  if (!visible) return null
+
+  return (
+    <div style={{ padding: '4px 16px' }}>
+      <ShowRecurringToggle checked={checked} onChange={onChange} />
+    </div>
+  )
 }
 
 // react-doctor-disable-next-line no-giant-component -- calendar shell hosting four distinct views (month/week/range/agenda); extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -270,6 +289,12 @@ function CalendarPageContent({
     () => buildCalendarMonthModel(currentMonth, displayMonthDayMap, weekStartsOn),
     [currentMonth, displayMonthDayMap, weekStartsOn],
   )
+  const { monthStats: sourceMonthStats } = useMemo(
+    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn),
+    [currentMonth, dayMap, weekStartsOn],
+  )
+  const showMonthRecurringToggle =
+    !isLoading && currentMonth <= startOfMonth(parseAPIDate(todayKey)) && sourceMonthStats.hasEntries
 
   const monthStatTiles = useMemo(
     () => [
@@ -378,6 +403,12 @@ function CalendarPageContent({
                     fullLabel={t('calendar.dayCell.full')}
                     partialLabel={t('calendar.dayCell.partial')}
                     noneLabel={t('calendar.dayCell.none')}
+                  />
+
+                  <MonthRecurringFilter
+                    visible={showMonthRecurringToggle}
+                    checked={showRecurring}
+                    onChange={setShowRecurring}
                   />
 
                   {!isLoading && !monthStats.hasEntries ? (
