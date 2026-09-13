@@ -571,6 +571,41 @@ describe('mobile habit hooks', () => {
     expect(mocks.state.entries).toEqual(before)
   })
 
+  it('applies one dated log intent to every overlapping calendar cache', async () => {
+    const date = '2025-01-15'
+    const dayKey = habitKeys.calendar(date, date)
+    const monthKey = habitKeys.calendar('2025-01-01', '2025-01-31')
+    const habit = makeHabit({ dueDate: date, scheduledDates: [date] })
+    const activeLog: HabitLog = {
+      id: 'server-log-1',
+      date,
+      value: 1,
+      createdAtUtc: '2025-01-15T09:30:00Z',
+    }
+    mocks.state.entries = [
+      {
+        key: dayKey,
+        value: { habits: [habit], logs: { 'habit-1': [] } } satisfies CalendarMonthResponse,
+      },
+      {
+        key: monthKey,
+        value: { habits: [habit], logs: { 'habit-1': [activeLog] } } satisfies CalendarMonthResponse,
+      },
+      { key: habitKeys.logs('habit-1'), value: [activeLog] },
+    ]
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      LogHabitSnapshotContext
+    >
+
+    await mutation.onMutate?.({ habitId: 'habit-1', date, intent: 'log' })
+
+    expect(getCalendarStatus(dayKey, date)).toBe('completed')
+    expect(getCalendarStatus(monthKey, date)).toBe('completed')
+    expect(mocks.queryClient.getQueryData(habitKeys.logs('habit-1'))).toEqual([activeLog])
+  })
+
   it('keeps mutation B optimistic when mutation A fails later', async () => {
     const date = '2025-01-15'
     const calendarKey = habitKeys.calendar(date, date)
