@@ -39,6 +39,14 @@ const profileQueryState: {
   refetch: vi.fn(),
 }
 const calendarDataCalls = vi.fn()
+const logHabitMutateAsync = vi.fn(async () => {})
+const calendarDayDetailProps: {
+  loggable?: boolean
+  onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
+  onShowRecurringChange?: (value: boolean) => void
+  showRecurring?: boolean
+  showRecurringToggle?: boolean
+} = {}
 const agendaViewProps: {
   dayMap?: ReadonlyMap<string, CalendarDayEntry[]>
   isLoading?: boolean
@@ -74,6 +82,10 @@ vi.mock('@/hooks/use-calendar-data', () => ({
     error: null,
     refresh: vi.fn(),
   }),
+}))
+
+vi.mock('@/hooks/use-habits', () => ({
+  useLogHabit: () => ({ mutateAsync: logHabitMutateAsync }),
 }))
 
 vi.mock('@/hooks/use-time-format', () => ({
@@ -155,27 +167,22 @@ vi.mock('@/components/calendar/calendar-stats', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-day-detail', () => ({
-  CalendarDayDetail: ({
-    onShowRecurringChange,
-    showRecurring,
-    showRecurringToggle = true,
-  }: {
-    onShowRecurringChange: (value: boolean) => void
-    showRecurring: boolean
-    showRecurringToggle?: boolean
-  }) => (
-    <div data-testid="day-detail">
-      {showRecurringToggle && (
+  CalendarDayDetail: (props: typeof calendarDayDetailProps) => {
+    Object.assign(calendarDayDetailProps, props)
+    return (
+      <div data-testid="day-detail">
+        {props.showRecurringToggle !== false && (
         <button
           type="button"
           role="switch"
-          aria-checked={showRecurring}
+          aria-checked={props.showRecurring}
           aria-label="calendar.showRecurring"
-          onClick={() => onShowRecurringChange(!showRecurring)}
+          onClick={() => props.onShowRecurringChange?.(!props.showRecurring)}
         />
-      )}
-    </div>
-  ),
+        )}
+      </div>
+    )
+  },
 }))
 
 vi.mock('@/components/calendar/calendar-week-view', () => ({
@@ -262,6 +269,9 @@ describe('CalendarPage view switcher', () => {
     profileQueryState.error = null
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()
+    logHabitMutateAsync.mockClear()
+    delete calendarDayDetailProps.loggable
+    delete calendarDayDetailProps.onEntryChange
     agendaViewProps.dayMap = undefined
     agendaViewProps.isLoading = undefined
     rangeLoading = false
@@ -489,6 +499,29 @@ describe('CalendarPage view switcher', () => {
     expect(calendarGridProps.currentMonth).toEqual(new Date(2026, 1, 1))
     expect(calendarGridProps.selectedDateStr).toBe(futureDay)
     expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
+  })
+
+  it('logs a selected writable day with its selected date', async () => {
+    isWideDesktopValue = true
+    const entry: CalendarDayEntry = {
+      habitId: 'habit-1',
+      title: 'Read',
+      status: 'upcoming',
+      isBadHabit: false,
+      dueTime: null,
+      isOneTime: false,
+    }
+    const selectedDate = formatAPIDate(new Date())
+    monthQueryState.dayMap = new Map([[selectedDate, [entry]]])
+    render(<CalendarPage />)
+
+    await calendarDayDetailProps.onEntryChange?.(entry, true)
+
+    expect(calendarDayDetailProps.loggable).toBe(true)
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      date: selectedDate,
+    })
   })
 
   it('opens the day detail as an overlay below the wide-desktop breakpoint', () => {
