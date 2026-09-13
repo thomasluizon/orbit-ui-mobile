@@ -39,7 +39,7 @@ export {
   type HabitDetailChildDateModel,
   type HabitStripModel,
 } from './habit-detail-flow'
-export { buildCalendarMonthModel } from './calendar-month'
+export { buildCalendarMonthModel, deriveCalendarStats } from './calendar-month'
 export {
   CALENDAR_MONTH_GRID_GEOMETRY,
   CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
@@ -265,11 +265,12 @@ export {
 } from './calendar-entries'
 export {
   CALENDAR_MONTH_MAX_RANGE_DAYS,
-  clampRangeToMaxDays,
+  buildCalendarRangeModel,
   MAX_RANGE_DAYS,
+  resolveCalendarRangeEnd,
   splitCalendarMonthRange,
 } from './calendar-range'
-export type { CalendarRangeChunk, ClampedRange } from './calendar-range'
+export type { CalendarRangeChunk, CalendarRangeModel } from './calendar-range'
 export { fetchAllPaginatedItems } from './pagination'
 export {
   buildHabitQueryString,

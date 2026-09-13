@@ -12,11 +12,6 @@
       "count": 2
     }
   },
-  "app/(tabs)/calendar/_components/calendar-range-view.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "app/(tabs)/calendar/_components/calendar-shell.tsx": {
     "local/icon-size-grid": {
       "count": 4

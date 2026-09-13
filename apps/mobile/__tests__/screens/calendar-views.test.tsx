@@ -1,4 +1,5 @@
 import React from "react";
+import { addDays, differenceInCalendarDays } from "date-fns";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
@@ -9,12 +10,14 @@ import { Text, View } from "react-native";
 
 import CalendarScreen from "@/app/(tabs)/calendar";
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { ListRow } from '@/components/ui/list-row'
 
 const TestRenderer = require("react-test-renderer");
 type CalendarGridComponent = typeof import("@/app/(tabs)/calendar/_components/calendar-grid")["CalendarGrid"];
 
 const state = vi.hoisted(() => ({
   rangeMap: new Map<string, CalendarDayEntry[]>(),
+  rangeLoading: false,
   monthMap: new Map<string, CalendarDayEntry[]>(),
   monthLoading: false,
   monthError: null as string | null,
@@ -29,6 +32,7 @@ const state = vi.hoisted(() => ({
   calendarDataCalls: vi.fn(),
   calendarEvents: [] as Record<string, unknown>[],
   calendarEventsEnabled: undefined as boolean | undefined,
+  calendarRangeCalls: vi.fn(),
   routerPush: vi.fn(),
   setShowCreateModal: vi.fn(),
 }));
@@ -44,6 +48,13 @@ const calendarDayDetailProps = vi.hoisted(() => ({
   current: null as Record<string, any> | null,
 }));
 
+const calendarStatsProps = vi.hoisted(() => ({
+  current: null as {
+    stats: readonly { key: string; value: string | number }[];
+    state?: "default" | "loading" | "empty";
+  } | null,
+}));
+
 const tokensProxy: any = new Proxy({}, { get: () => "#222222" });
 
 vi.mock("expo-router", () => ({
@@ -56,7 +67,11 @@ vi.mock("@/stores/ui-store", () => ({
 }));
 
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en" } }),
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, unknown>) =>
+      params ? `${key}:${JSON.stringify(params)}` : key,
+    i18n: { language: "en" },
+  }),
 }));
 
 vi.mock("@/hooks/use-profile", () => ({
@@ -116,7 +131,16 @@ vi.mock("@/hooks/use-habits", () => ({
       refresh: state.monthRefresh,
     })
   },
-  useCalendarRange: () => ({ dayMap: state.rangeMap }),
+  useCalendarRange: (start: Date, end: Date, enabled: boolean) => {
+    state.calendarRangeCalls(start, end, enabled);
+    return {
+      dayMap: state.rangeMap,
+      isLoading: state.rangeLoading,
+      isFetching: false,
+      error: null,
+      refresh: vi.fn(),
+    };
+  },
 }));
 
 vi.mock("@/lib/use-app-theme", () => ({
@@ -164,6 +188,10 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-stats", () => ({
   CalendarStats: (props: Record<string, any>) => {
     calendarGridProps.stats = props;
     const stats = props.stats as readonly { key: string; value: string | number }[];
+    calendarStatsProps.current = {
+      stats,
+      state: props.state as "default" | "loading" | "empty" | undefined,
+    };
     return (
       <View testID="calendar-stats">
         {stats.map((stat) => <Text key={stat.key}>{`${stat.key}:${stat.value}`}</Text>)}
@@ -269,6 +297,7 @@ describe("CalendarScreen views (mobile)", () => {
     calendarGridProps.header = null;
     calendarGridProps.stats = null;
     state.monthMap = new Map();
+    state.rangeLoading = false;
     state.monthLoading = false;
     state.monthError = null;
     state.monthRefresh = () => {};
@@ -278,6 +307,9 @@ describe("CalendarScreen views (mobile)", () => {
     state.calendarDataCalls.mockClear();
     state.calendarEvents = [];
     state.calendarEventsEnabled = undefined;
+    state.calendarRangeCalls.mockClear();
+    state.rangeLoading = false;
+    calendarStatsProps.current = null;
     state.routerPush.mockClear();
     state.setShowCreateModal.mockClear();
     const todayStr = formatAPIDate(new Date());
@@ -308,7 +340,7 @@ describe("CalendarScreen views (mobile)", () => {
     TestRenderer.act(() => tree.update(<></>))
   })
 
-  it("renders one three-option view switcher without agenda and opens the month on today", () => {
+  it("renders the agenda at phone width without folding it back to month", () => {
     let tree: Tree;
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />);
@@ -326,7 +358,7 @@ describe("CalendarScreen views (mobile)", () => {
     );
 
     expect(switchers).toHaveLength(1);
-    expect(segments).toHaveLength(3);
+    expect(segments).toHaveLength(4);
     expect(
       segments.find(
         (segment) => segment.props.testID === "segment-month-selected-enabled",
@@ -336,7 +368,7 @@ describe("CalendarScreen views (mobile)", () => {
       segments.some(
         (segment) => segment.props.testID === "segment-agenda-unselected-enabled",
       ),
-    ).toBe(false);
+    ).toBe(true);
 
     const flatLists = tree!.root.findAll(
       (node) => typeof node.type === "string" && node.type === "FlatList",
@@ -347,6 +379,52 @@ describe("CalendarScreen views (mobile)", () => {
     });
     expect(calendarGridProps.current?.selectedDay).toBe(formatAPIDate(new Date()));
     TestRenderer.act(() => headerTree.update(<></>));
+
+    pressView(tree!, "agenda");
+    expect(
+      tree!.root.findAll(
+        (node) =>
+          typeof node.type === "string" &&
+          node.props.testID === "calendar-agenda-view",
+      ),
+    ).toHaveLength(1);
+    expect(hostTexts(tree!).some((text) => String(text).startsWith("calendar.agenda.today,"))).toBe(true);
+    const agendaRows = tree!.root.findAll((node) => node.type === ListRow);
+    expect(agendaRows).toHaveLength(2);
+    expect(
+      tree!.root.findAll(
+        (node) =>
+          typeof node.type === "string" &&
+          node.props.accessibilityRole === "header",
+      ),
+    ).toHaveLength(7);
+    for (const row of agendaRows) {
+      expect(row.props.readOnly).toBe(true);
+      expect(row.props.wrapTitle).toBe(true);
+      expect(row.props.onPress).toBeUndefined();
+      expect(row.props.onClick).toBeUndefined();
+    }
+  });
+
+  it("renders agenda placeholders instead of empty-day copy while loading", () => {
+    state.rangeMap = new Map();
+    state.rangeLoading = true;
+    let tree!: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />);
+    });
+
+    pressView(tree, "agenda");
+
+    expect(
+      tree.root.findAll(
+        (node) =>
+          typeof node.type === "string" &&
+          node.props.testID === "calendar-agenda-loading-day",
+      ),
+    ).toHaveLength(7);
+    expect(hostTexts(tree)).not.toContain("calendar.agenda.empty");
+    TestRenderer.act(() => tree.update(<></>));
   });
 
   it("passes only the selected day's Google events to the day detail", () => {
@@ -685,26 +763,46 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
   it("hides recurring habits from the week grid when show-recurring is turned off", () => {
-    let tree: Tree;
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(<CalendarScreen />);
-    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-13T12:00:00.000Z"));
+    state.rangeMap = new Map([
+      [
+        "2026-09-13",
+        [
+          makeEntry({ habitId: "r", title: "Recurring", isOneTime: false }),
+          makeEntry({ habitId: "o", title: "OneTime", isOneTime: true }),
+        ],
+      ],
+    ]);
+    let tree!: Tree;
+    try {
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(<CalendarScreen />);
+      });
 
-    pressView(tree!, "week");
-    expect(hostTexts(tree!)).toContain("Recurring");
+      pressView(tree, "week");
+      expect(hostTexts(tree)).toContain("Recurring");
 
-    const switches = tree!.root.findAll(
-      (node) =>
-        typeof node.type === "string" &&
-        node.props.accessibilityRole === "switch",
-    );
-    expect(switches.length).toBeGreaterThan(0);
-    TestRenderer.act(() => {
-      switches[0]!.props.onPress();
-    });
+      const switches = tree.root.findAll(
+        (node) =>
+          typeof node.type === "string" &&
+          node.props.accessibilityRole === "switch",
+      );
+      expect(switches.length).toBeGreaterThan(0);
+      TestRenderer.act(() => {
+        switches[0]!.props.onPress();
+      });
 
-    expect(hostTexts(tree!)).not.toContain("Recurring");
-    expect(hostTexts(tree!)).toContain("OneTime");
+      expect(hostTexts(tree)).not.toContain("Recurring");
+      expect(hostTexts(tree)).toContain("OneTime");
+
+      pressView(tree, "agenda");
+      expect(hostTexts(tree)).toContain("Recurring");
+      expect(hostTexts(tree)).toContain("OneTime");
+    } finally {
+      TestRenderer.act(() => tree.update(<></>));
+      vi.useRealTimers();
+    }
   });
 
   it("removes recurring habits from the month and shows its honest empty state", () => {
@@ -792,7 +890,7 @@ describe("CalendarScreen views (mobile)", () => {
       .toBe(initialMonth.getMonth());
   });
 
-  it("renders the interval clamp notice when a range is clamped", () => {
+  it("states a fourteen-day span and pages by the whole span", () => {
     let tree: Tree;
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />);
@@ -800,25 +898,82 @@ describe("CalendarScreen views (mobile)", () => {
 
     pressView(tree!, "range");
 
-    expect(hostTexts(tree!)).toContain("calendar.timeGrid.pickRangeHint");
+    expect(hostTexts(tree!).some((text) =>
+      typeof text === "string" && text.startsWith("calendar.range.label:") && text.includes('"start"') && text.includes('"end"'),
+    )).toBe(true);
+    const beforePage = state.calendarRangeCalls.mock.calls.at(-1)!;
+    const previous = tree!.root.findAll(
+      (node) =>
+        typeof node.type === "string" &&
+        node.props.accessibilityRole === "button" &&
+        node.props.accessibilityLabel === "calendar.range.previous",
+    )[0]!;
+    TestRenderer.act(() => previous.props.onPress());
+    const afterPage = state.calendarRangeCalls.mock.calls.at(-1)!;
+    expect(differenceInCalendarDays(beforePage[1], beforePage[0])).toBe(13);
+    expect(differenceInCalendarDays(beforePage[1], afterPage[1])).toBe(14);
   });
 
-  it("asks for the end day after the first interval pick", () => {
+  it("renders fourteen range days as read-only cells with span figures", () => {
+    const today = new Date();
+    state.rangeMap = new Map([
+      [formatAPIDate(addDays(today, -1)), [makeEntry({ status: "completed" })]],
+      [formatAPIDate(today), [makeEntry({ status: "missed" })]],
+    ]);
     let tree: Tree;
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />);
     });
 
     pressView(tree!, "range");
-    expect(hostTexts(tree!)).toContain("calendar.timeGrid.pickRangeHint");
-    expect(calendarGridProps.current).not.toBeNull();
+    const rangeDays = tree!.root.findAll(
+      (node) =>
+        typeof node.type === "string" &&
+        typeof node.props.testID === "string" &&
+        node.props.testID.startsWith("day-cell-"),
+    );
+    expect(rangeDays).toHaveLength(14);
+    for (const day of rangeDays) {
+      expect(day.props.accessibilityRole).toBe("image");
+      expect(day.props.onPress).toBeUndefined();
+    }
+    expect(calendarStatsProps.current?.stats.map((stat) => stat.value)).toEqual([1, 1, 1]);
+  });
 
+  it("keeps the pending range busy without exposing empty outcomes, then reveals the resolved span", () => {
+    state.rangeLoading = true;
+    let tree!: Tree;
     TestRenderer.act(() => {
-      calendarGridProps.current!.onSelectDay("2026-01-05");
+      tree = TestRenderer.create(<CalendarScreen />);
     });
 
-    expect(hostTexts(tree!)).toContain("calendar.timeGrid.pickEndHint");
-    expect(hostTexts(tree!)).not.toContain("calendar.timeGrid.pickRangeHint");
+    pressView(tree, "range");
+    const loadingGrid = tree.root.findAll(
+      (node) =>
+        typeof node.type === "string" &&
+        node.props.testID === "skeleton-unit-grid" &&
+        node.props.accessibilityRole === "progressbar",
+    );
+    expect(loadingGrid).toHaveLength(1);
+    expect(loadingGrid[0]!.props.accessibilityRole).toBe("progressbar");
+    expect(loadingGrid[0]!.props.accessibilityState).toEqual({ busy: true });
+    expect(tree.root.findAll(
+      (node) => typeof node.type === "string" && typeof node.props.testID === "string" && node.props.testID.startsWith("day-cell-"),
+    )).toHaveLength(0);
+    expect(calendarStatsProps.current?.state).toBe("loading");
+
+    state.rangeLoading = false;
+    TestRenderer.act(() => {
+      tree.update(<CalendarScreen />);
+    });
+
+    expect(tree.root.findAll(
+      (node) => typeof node.type === "string" && node.props.testID === "skeleton-unit-grid",
+    )).toHaveLength(0);
+    expect(tree.root.findAll(
+      (node) => typeof node.type === "string" && typeof node.props.testID === "string" && node.props.testID.startsWith("day-cell-"),
+    )).toHaveLength(14);
+    expect(calendarStatsProps.current?.state ?? "default").toBe("default");
   });
 
   it("keeps the calendar usable and offers habit creation for an empty current month", () => {
