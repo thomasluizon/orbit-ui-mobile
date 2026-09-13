@@ -4,11 +4,6 @@
       "count": 1
     }
   },
-  "app/(app)/about/page.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "app/(app)/advanced/page.tsx": {
     "local/icon-size-grid": {
       "count": 1
