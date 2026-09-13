@@ -1,6 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { DayCellWords } from '@orbit/shared/contracts/dates'
+import {
+  closeChrome,
+  registerChromeLaunchHook,
+  type Browser,
+  type BrowserLaunch,
+} from '@/__tests__/support/chromium'
 import { DayCell } from '@/components/dates/day-cell'
 import { DayStrip } from '@/components/dates/day-strip'
 import { EventRow } from '@/components/dates/event-row'
@@ -113,6 +119,52 @@ describe('DayCell', () => {
 })
 
 describe('MonthGrid', () => {
+  describe('reserved month geometry in Chromium', () => {
+    let browserLaunch: BrowserLaunch | undefined
+    let browser: Browser
+
+    registerChromeLaunchHook(beforeAll, async (launch) => {
+      browserLaunch = launch
+      browser = await browserLaunch
+    })
+
+    afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([5, 6])('keeps 44px rows and 4px gaps across a reserved %i-row month', async (rowCount) => {
+      const { container } = render(
+        <MonthGrid
+          weekdayLabels={['S', 'M', 'T', 'W', 'T', 'F', 'S']}
+          minimumDayGridHeight={284}
+          gap={4}
+        >
+          {Array.from({ length: rowCount * 7 }, (_, index) => (
+            <span key={index} style={{ display: 'block', height: 44, width: 44 }}>{index + 1}</span>
+          ))}
+        </MonthGrid>,
+      )
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<style>.grid { display: grid; }</style>${container.innerHTML}`)
+        const measured = await page.getByTestId('month-grid-days').evaluate((grid) => {
+          const children = [...grid.children]
+          const rowTops = [...new Set(children.map((child) => child.getBoundingClientRect().top))]
+          return {
+            height: grid.getBoundingClientRect().height,
+            rowSteps: rowTops.slice(1).map((top, index) => top - rowTops[index]!),
+            childHeights: [...new Set(children.map((child) => child.getBoundingClientRect().height))],
+          }
+        })
+
+        expect(measured.height).toBe(284)
+        expect(measured.childHeights).toEqual([44])
+        expect(measured.rowSteps).toHaveLength(rowCount - 1)
+        for (const rowStep of measured.rowSteps) expect(rowStep).toBeCloseTo(48, 5)
+      } finally {
+        await page.close()
+      }
+    })
+  })
+
   it('takes its columns from the weekday labels and renders children in order', () => {
     const { rerender } = render(
       <MonthGrid weekdayLabels={['M', 'T', 'W', 'T', 'F']} label="Work week">
