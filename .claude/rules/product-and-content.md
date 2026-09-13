@@ -41,7 +41,7 @@ Three causes, three different fixes:
 ### 3. Removing the last route to a capability is a defect, not simplification
 When a restraint pass removes an element or an option: **record why it was removed**, and **confirm the capability still has an access point**.
 
-Nothing else protects against a subtraction pass silently orphaning a feature. **Directly load-bearing for #539**, which is a restraint pass. Distinct from generated `gating-matrix.json` in `thomasluizon/orbit-api`, which maps what exists rather than what a pass removed.
+Nothing else protects against a subtraction pass silently orphaning a feature. **Directly load-bearing for #539**, which is a restraint pass. Distinct from generated `gating-matrix.json` in `thomasluizon/orbit-api`, which inventories plan-gating inputs rather than capability access paths.
 
 ## Copy & i18n
 

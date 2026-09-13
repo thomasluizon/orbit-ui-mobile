@@ -229,7 +229,9 @@ mirror file, or one that exists but was not updated, is **High** until proven in
 
 ### 9. i18n
 
-> Reference: root CLAUDE.md. No gate checks locale parity.
+> Reference: root CLAUDE.md and `packages/shared/src/i18n/en.json` plus `pt-BR.json`. The `i18n key
+> usage` gate checks catalog key parity, missing keys, and statically resolvable callsites. It does not
+> judge whether translated behaviour or meaning agrees.
 
 Every new user-facing string has a key in **both** `packages/shared/src/i18n/en.json` and `pt-BR.json`, in
 the same edit (`MISSING_PT` / `MISSING_EN`), and no callsite references a key that exists in neither
@@ -294,21 +296,41 @@ one-global-timezone behavior is a P1 finding. **Validator placement**: `Orbit.Ap
 catch block that swallows an error silently. **Test scope**: every new command or query handler, validator,
 and service has a unit test, and unit is all there is, so never ask for an integration or E2E suite.
 
-### 12. Generated gating matrix
+### 12. Feature-surface evidence
 
-> Reference: generated `gating-matrix.json` at the `thomasluizon/orbit-api` repository root. Run
-> `node tools/gating-matrix.mjs` there to create it. It contains PayGate methods, config keys, and feature
-> flags. **Gated: only when the diff changes plan gating.**
+> References: generated `architecture.json` in this repository, generated `gating-matrix.json` at the
+> `thomasluizon/orbit-api` repository root, `FEATURES.md`, the shared locale catalogs, and the
+> `Cross-Platform Parity` and `i18n key usage` jobs. **Gated: only when the diff changes the user-facing
+> feature surface.**
 
-Triggers: a plan-gating change in `PayGateService` or `AppConstants`, or UI behaviour that relies on those
-gates. Pure refactors, unrelated bugfixes, and visual polish are N/A. Generate `gating-matrix.json` from the
-candidate orbit-api tree and verify the affected `gates`, `appConfigs`, and `featureFlags` entry. Treat its
-compiled defaults as offline evidence only because live `AppConfigs` rows can override them. A stale gating
-claim is **High**. In the orbit-api repo, regenerate the matrix and verify the affected entry instead of
-guessing or requesting a hand-written frontend update.
+`gating-matrix.json` contains PayGate methods, config keys, and feature flags. It contains no route, screen,
+tab, tool, platform-availability, locale-behaviour, description, or guide-coverage field. Run
+`node tools/gating-matrix.mjs` in `thomasluizon/orbit-api` and use it only for plan-gating evidence.
 
-Non-gating feature inventory review is currently unverifiable because no authoritative generated source exists,
-so it does not trigger this rubric.
+Triggers and their evidence:
+
+- **Screen or route:** run `node tools/arch-map.mjs`, then verify `routes.web`, `routes.mobile`,
+  `routes.parityPairs`, and `routes.unpaired` in generated `architecture.json`. Route entries carry
+  `platform`, `routePath`, `sourceFile`, and `layouts`.
+- **Tab:** inspect the owning navigation composition in `apps/web/components/shell/destination-shell.tsx`,
+  `apps/mobile/components/navigation/destination-tab-bar.tsx`, and `apps/mobile/app/(tabs)/_layout.tsx`.
+  Apply dimension 8 and the `Cross-Platform Parity` job to any availability change.
+- **Astra or MCP tool:** update only the affected `FEATURES.md` tool section after re-verifying its count
+  against `orbit-api/src/Orbit.Api/Extensions/ServiceCollectionExtensions.AiServices.cs` or
+  `orbit-api/src/Orbit.Api/Mcp/Tools/*.cs`. No generated artifact currently carries tool inventory.
+- **Plan gating:** generate `gating-matrix.json` from the candidate API tree and verify the affected `gates`,
+  `appConfigs`, and `featureFlags` entry. Treat compiled defaults as offline evidence because live
+  `AppConfigs` rows can override them.
+- **Platform availability:** apply dimension 8 and the `Cross-Platform Parity` job. The job detects a
+  wholly one-sided UI change; the reviewer still verifies per-file mirrors and behavioural equivalence.
+- **Locale-specific behaviour:** compare the affected keys and values in
+  `packages/shared/src/i18n/en.json` and `packages/shared/src/i18n/pt-BR.json`, then require the
+  `i18n key usage` job. The job checks catalog parity, missing keys, and statically resolvable callsites.
+- **Guide drift:** compare the changed capability with both catalogs' `onboarding.featureGuide.*` entries.
+  The `i18n key usage` job proves key parity and usage, while the reviewer verifies semantic accuracy.
+
+Pure refactors, unrelated bugfixes, and visual polish are N/A. A stale gating, platform, or tool claim, or a
+missing required inventory update, is **High**. A change that makes the in-app guide wrong is **Medium**.
 
 ### 13. External-interface evidence
 
