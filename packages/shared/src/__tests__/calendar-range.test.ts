@@ -1,56 +1,62 @@
 import { describe, it, expect } from 'vitest'
 import { differenceInCalendarDays } from 'date-fns'
 import {
+  buildCalendarRangeModel,
   CALENDAR_MONTH_MAX_RANGE_DAYS,
-  clampRangeToMaxDays,
   MAX_RANGE_DAYS,
+  resolveCalendarRangeEnd,
   splitCalendarMonthRange,
 } from '../utils/calendar-range'
-import { parseAPIDate } from '../utils/dates'
+import { formatAPIDate, parseAPIDate } from '../utils/dates'
+import type { CalendarDayEntry } from '../types/calendar'
 
-describe('clampRangeToMaxDays', () => {
-  it('caps the interval at 14 days', () => {
+function entry(status: CalendarDayEntry['status'], habitId = 'habit'): CalendarDayEntry {
+  return { habitId, title: 'Habit', status, isBadHabit: false, dueTime: null, isOneTime: false }
+}
+
+describe('buildCalendarRangeModel', () => {
+  it('builds fourteen read-only day models and derives all three figures from them', () => {
     expect(MAX_RANGE_DAYS).toBe(14)
+
+    const dayMap = new Map<string, CalendarDayEntry[]>([
+      ['2026-06-01', [entry('completed')]],
+      ['2026-06-02', [entry('completed')]],
+      ['2026-06-03', [entry('completed'), entry('completed', 'second'), entry('missed', 'missed')]],
+    ])
+
+    const model = buildCalendarRangeModel(
+      parseAPIDate('2026-06-14'),
+      dayMap,
+      1,
+      '2026-06-14',
+    )
+
+    expect(model.startKey).toBe('2026-06-01')
+    expect(model.endKey).toBe('2026-06-14')
+    expect(model.days).toHaveLength(14)
+    expect(model.leadingEmptyDays).toBe(0)
+    expect(model.stats).toEqual({ totalLogs: 4, missed: 1, bestStreak: 3, hasEntries: true })
   })
 
-  it('leaves a short forward range untouched', () => {
-    expect(clampRangeToMaxDays('2025-06-01', '2025-06-10')).toEqual({
-      start: '2025-06-01',
-      end: '2025-06-10',
-      clamped: false,
-    })
+  it('uses today explicitly and excludes later days from the figures', () => {
+    const dayMap = new Map<string, CalendarDayEntry[]>([
+      ['2026-06-15', [entry('completed')]],
+    ])
+
+    const model = buildCalendarRangeModel(
+      parseAPIDate('2026-06-20'),
+      dayMap,
+      0,
+      '2026-06-14',
+    )
+
+    expect(model.leadingEmptyDays).toBe(0)
+    expect(model.stats).toEqual({ totalLogs: 0, missed: 0, bestStreak: 0, hasEntries: false })
   })
 
-  it('keeps an exactly-14-day range without clamping', () => {
-    expect(clampRangeToMaxDays('2025-06-01', '2025-06-14')).toEqual({
-      start: '2025-06-01',
-      end: '2025-06-14',
-      clamped: false,
-    })
-  })
-
-  it('clamps a forward range longer than 14 days to the anchor', () => {
-    expect(clampRangeToMaxDays('2025-06-01', '2025-06-30')).toEqual({
-      start: '2025-06-01',
-      end: '2025-06-14',
-      clamped: true,
-    })
-  })
-
-  it('clamps a backward range longer than 14 days, preserving the anchor end', () => {
-    expect(clampRangeToMaxDays('2025-06-20', '2025-06-01')).toEqual({
-      start: '2025-06-07',
-      end: '2025-06-20',
-      clamped: true,
-    })
-  })
-
-  it('orders a same-day pick without clamping', () => {
-    expect(clampRangeToMaxDays('2025-06-05', '2025-06-05')).toEqual({
-      start: '2025-06-05',
-      end: '2025-06-05',
-      clamped: false,
-    })
+  it('pages by one complete fourteen-day span', () => {
+    expect(formatAPIDate(resolveCalendarRangeEnd(parseAPIDate('2026-06-14'), -1))).toBe('2026-05-31')
+    expect(formatAPIDate(resolveCalendarRangeEnd(parseAPIDate('2026-06-14'), 1))).toBe('2026-06-28')
   })
 })
 

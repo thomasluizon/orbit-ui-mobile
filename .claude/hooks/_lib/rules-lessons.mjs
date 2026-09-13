@@ -8,7 +8,6 @@ export function countUnreviewedPendingLessons(markdown) {
   }
   return count
 }
-
 const DAY_MS = 24 * 60 * 60 * 1000
 
 export function isDriftReviewOverdue(stateJson, today = new Date()) {

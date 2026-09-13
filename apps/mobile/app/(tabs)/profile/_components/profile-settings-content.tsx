@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { Linking, StyleSheet, Text } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -10,7 +9,6 @@ import {
   shouldRedirectProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
 import {
-  BellRing,
   Calendar,
   Clock,
   CreditCard,
@@ -18,29 +16,35 @@ import {
   Languages,
   Lock,
   LogOut,
-  MessageSquare,
   Moon,
   RotateCcw,
-  Satellite,
   User,
   UserX,
   type Icon,
 } from '@/components/ui/icons'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
-import { ProfileSettingsFrame } from '@/components/profile/profile-settings-frame'
+import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
+import {
+  AstraSettingsSwitch,
+  type AstraSettingsController,
+  useAstraSettingsController,
+} from '@/components/profile/astra-settings-controller'
+import {
+  ProfileSettingsFrame,
+  ProfileValueRow,
+} from '@/components/profile/profile-settings-frame'
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { ListRow } from '@/components/ui/list-row'
+import { RowList } from '@/components/ui/row-list'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { Toast } from '@/components/ui/app-toast'
 import { useLogout } from '@/hooks/use-logout'
-import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { createTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { usePreferenceControls } from '@/app/use-preference-controls'
 import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
 import {
   PreferencePickerSheet,
-  PushNotificationSection,
   type PreferencePicker,
 } from '@/components/profile/preferences-sections'
 import { useSheetHost } from '@/components/ui/sheet'
@@ -52,6 +56,7 @@ import { useDataExport } from './use-data-export'
 interface ProfileSettingsContentProps {
   profile: Profile | undefined
   isLoading: boolean
+  patchProfile: (patch: Partial<Profile>) => void
 }
 
 type Translate = ReturnType<typeof useTranslation>['t']
@@ -97,68 +102,50 @@ function buildYouRows(
   ]
 }
 
-function buildAstraRows({ profile, router, t, tokens }: RowContext) {
-  return [
-    <ListRow key="allowance" icon={icon(Satellite, tokens.fg1)} title={t('profile.settingsRows.dailyAllowance')} value={`${profile?.aiMessagesUsed ?? 0}/${profile?.aiMessagesLimit ?? 0}`} onClick={() => router.push(buildUpgradeHref('/profile'))} />,
-    <ListRow key="proactive" icon={icon(BellRing, tokens.fg1)} title={t('profile.proactiveAstra.title')} onClick={() => router.push('/ai-settings')} />,
-    <ListRow key="summary" icon={icon(MessageSquare, tokens.fg1)} title={t('profile.aiSummary.title')} onClick={() => router.push('/ai-settings')} />,
-    <ListRow key="api-keys" icon={icon(Lock, tokens.fg1)} title={t('profile.settingsRows.apiKeysMcp')} onClick={() => router.push('/advanced')} />,
-  ]
-}
-
-async function togglePush(push: ReturnType<typeof usePushNotifications>) {
-  if (push.isEnabled) {
-    await push.disablePushNotifications()
-    return
-  }
-  if (push.permissionStatus === 'denied') {
-    await Linking.openSettings().catch(() => {})
-    return
-  }
-  await push.requestPermission()
-}
-
-function buildNotificationRows(
-  t: Translate,
-  tokens: Tokens,
-  push: ReturnType<typeof usePushNotifications>,
+function buildAstraRows(
+  { profile, router, t, tokens }: RowContext,
+  settings: AstraSettingsController,
 ) {
-  return [
-    <MarketingConsentSection key="product-email" showSectionLabel={false} contained />,
-    <PushNotificationSection
-      key="push"
-      tokens={tokens}
-      t={t}
-      showSectionLabel={false}
-      contained
-      deviceLabel={t('profile.settingsRows.currentDevice')}
-      deviceDescription={t('profile.settingsRows.pushDeviceLimit')}
-      pushSupported={push.isSupported}
-      pushEnabled={push.isEnabled}
-      pushRegistered={push.isRegistered}
-      pushLoading={push.isLoading}
-      permissionStatus={push.permissionStatus}
-      registrationStatus={push.registrationStatus}
-      onToggle={() => void togglePush(push)}
-      onOpenSettings={() => void Linking.openSettings().catch(() => {})}
-    />,
-    <Text
-      key="habit-notifications"
-      style={[styles.notificationGuidance, { color: tokens.fg3 }]}
-    >
-      {t('profile.settingsRows.remindersNote')}
-    </Text>,
-  ]
+  const onUpgrade = () => router.push(buildUpgradeHref('/profile'))
+  return (
+    <>
+      {profile ? (
+        <AstraAllowancePanel
+          profile={profile}
+          onPlanAction={() => router.push(buildUpgradeHref('/profile'))}
+        />
+      ) : null}
+      {profile ? (
+        <RowList>
+          {profile.hasProAccess ? (
+            <>
+              <ProfileValueRow
+                label={t('profile.proactiveAstra.title')}
+                control={(
+                  <AstraSettingsSwitch checked={settings.proactiveAstraEnabled} pending={settings.proactivePending} label={t('profile.proactiveAstra.title')} onToggle={settings.onToggleProactive} />
+                )}
+              />
+              <ProfileValueRow
+                label={t('profile.aiSummary.title')}
+                control={(
+                  <AstraSettingsSwitch checked={settings.aiSummaryEnabled} pending={settings.summaryPending} label={t('profile.aiSummary.title')} onToggle={settings.onToggleSummary} />
+                )}
+              />
+            </>
+          ) : (
+            <>
+              <ListRow icon={icon(Lock, tokens.fg1)} title={t('profile.proactiveAstra.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
+              <ListRow icon={icon(Lock, tokens.fg1)} title={t('profile.aiSummary.title')} trailing={<ProBadge alwaysVisible />} chevron={false} onClick={onUpgrade} />
+            </>
+          )}
+        </RowList>
+      ) : null}
+      <RowList>
+        <ListRow key="api-keys" icon={icon(Lock, tokens.fg1)} title={t('profile.settingsRows.apiKeysMcp')} onClick={() => router.push('/advanced')} />
+      </RowList>
+    </>
+  )
 }
-
-const styles = StyleSheet.create({
-  notificationGuidance: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 14,
-    lineHeight: 21.7,
-    paddingHorizontal: 4,
-  },
-})
 
 interface TimeZonePickerProps {
   controls: ReturnType<typeof usePreferenceControls>
@@ -253,12 +240,12 @@ function buildEndingRows({
 export function ProfileSettingsContent({
   profile,
   isLoading,
+  patchProfile,
 }: Readonly<ProfileSettingsContentProps>) {
   const { t } = useTranslation()
   const router = useRouter()
   const logout = useLogout()
   const preferenceControls = usePreferenceControls()
-  const push = usePushNotifications()
   const tokens = useMemo(
     () => createTokensV2(preferenceControls.currentScheme, preferenceControls.currentTheme),
     [preferenceControls.currentScheme, preferenceControls.currentTheme],
@@ -273,6 +260,7 @@ export function ProfileSettingsContent({
   const [showEditName, setShowEditName] = useState(false)
   const [showFreshStart, setShowFreshStart] = useState(false)
   const [showDeleteAccount, setShowDeleteAccount] = useState(false)
+  const astraSettings = useAstraSettingsController(profile, patchProfile)
   useShellNoticeSlot(
     exportDone,
     () => (
@@ -294,8 +282,10 @@ export function ProfileSettingsContent({
       () => void exportData(),
       () => preferenceControls.setActivePicker('timeZone'),
     ),
-    astra: buildAstraRows(context),
-    notifications: buildNotificationRows(t, tokens, push),
+    astra: buildAstraRows(context, astraSettings),
+    notifications: [
+      <MarketingConsentSection key="product-email" showSectionLabel={false} contained />,
+    ],
     more: buildMoreRows(context),
     ending: buildEndingRows({
       context,
@@ -318,7 +308,7 @@ export function ProfileSettingsContent({
           ending: t('profile.groups.ending'),
         }}
         rows={rows}
-        uncontainedGroups={['notifications']}
+        uncontainedGroups={['astra', 'notifications']}
       />
       <EditNameSheet open={showEditName} onClose={() => setShowEditName(false)} />
       <FreshStartModal open={showFreshStart} onClose={() => setShowFreshStart(false)} />

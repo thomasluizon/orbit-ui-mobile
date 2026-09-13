@@ -18,7 +18,7 @@ const readOptional = (path) => {
 }
 
 try {
-  readStdinJson()
+  if (readStdinJson() === null) process.exit(0)
   const hookDirectory = dirname(fileURLToPath(import.meta.url))
   const projectRoot = process.env.CLAUDE_PROJECT_DIR || join(hookDirectory, "..", "..")
   const pendingLessons = readOptional(join(projectRoot, ".claude", "pending-lessons.md"))
@@ -30,9 +30,7 @@ try {
   }
   if (isDriftReviewOverdue(driftState)) lines.push("Workflow drift review is overdue. Run /drift-review.")
   if (lines.length === 0) process.exit(0)
-  process.stdout.write(JSON.stringify({
-    hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: lines.join("\n") },
-  }))
+  process.stdout.write(lines.join("\n"))
   process.exit(0)
 } catch {
   process.exit(0)
