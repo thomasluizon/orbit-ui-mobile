@@ -92,7 +92,10 @@ export const cases = () => {
     { status: 1, stderr: /Gate Charter must run when \.github\/workflows\/test\.yml changes/ },
   )
 
-  const dependencyTrigger = (dependencyPattern) => "jobs:\n  existing:\n    steps:\n      - run: |\n          git diff --name-only origin/${{ github.base_ref }}...HEAD > changed.txt\n          node gate.mjs --changed-files-file changed.txt\n  gate-charter:\n    steps:\n      - run: |\n          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -Eq '^\\.github/workflows/test\\.yml$|${dependencyPattern}'; then\n            node tools/check-gate-charter.mjs\n          fi\n"
+  const dependencyTrigger = (dependencyPattern) =>
+    "jobs:\n  existing:\n    steps:\n      - run: |\n          git diff --name-only origin/${{ github.base_ref }}...HEAD > changed.txt\n          node gate.mjs --changed-files-file changed.txt\n  gate-charter:\n    steps:\n      - run: |\n          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -Eq '^\\.github/workflows/test\\.yml$|" +
+    dependencyPattern +
+    "'; then\n            node tools/check-gate-charter.mjs\n          fi\n"
   check(
     "check-gate-charter.mjs",
     "rejects a Gate Charter caller that skips package.json changes",
