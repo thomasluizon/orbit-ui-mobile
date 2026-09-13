@@ -62,7 +62,7 @@ function LoadedShareCard({
   )
 }
 
-/** Recap share preview: period selector → recap fetch → branded ShareCard + native share. Reused by Profile + Retrospective. */
+/** Recap share preview: period selector, recap fetch, branded ShareCard, and native share. */
 export function ShareCardPanel({ open, onClose, displayName }: Readonly<ShareCardPanelProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()

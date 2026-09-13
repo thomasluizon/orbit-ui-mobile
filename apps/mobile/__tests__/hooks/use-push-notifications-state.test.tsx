@@ -477,6 +477,7 @@ describe('usePushNotifications', () => {
     ['/calendar-sync?mode=review', '/calendar', false],
     ['/streak', '/progress', false],
     ['/achievements?earned=latest', '/progress', false],
+    ['/insights?range=year', '/progress', false],
     ['/retrospective/year', '/progress', false],
     ['/', '/', false],
     ['/calendar', '/calendar', false],

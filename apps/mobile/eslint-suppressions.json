@@ -30,16 +30,6 @@
       "count": 2
     }
   },
-  "app/(tabs)/calendar/_components/calendar-time-grid.tsx": {
-    "local/spacing-scale": {
-      "count": 6
-    }
-  },
-  "app/(tabs)/calendar/_components/calendar-week-view.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "app/(tabs)/index.tsx": {
     "local/spacing-scale": {
       "count": 1
@@ -142,46 +132,6 @@
     },
     "local/spacing-scale": {
       "count": 3
-    }
-  },
-  "components/goal-card.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "components/goals/create-goal-modal/goal-deadline-field.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "components/goals/create-goal-modal/goal-type-selector.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "components/goals/create-goal-modal/styles.ts": {
-    "local/spacing-scale": {
-      "count": 6
-    }
-  },
-  "components/goals/edit-goal-modal/edit-goal-deadline-field.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
-  "components/goals/edit-goal-modal/styles.ts": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "components/goals/goal-list.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "components/goals/goal-metrics-panel.tsx": {
-    "local/spacing-scale": {
-      "count": 5
     }
   },
   "components/habit-list/move-parent-dialog.tsx": {
@@ -431,11 +381,6 @@
   },
   "components/ui/year-picker.tsx": {
     "local/spacing-scale": {
-      "count": 1
-    }
-  },
-  "components/wrapped/wrapped-entry-button.tsx": {
-    "local/icon-size-grid": {
       "count": 1
     }
   },

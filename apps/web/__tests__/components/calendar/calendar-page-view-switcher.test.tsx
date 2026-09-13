@@ -24,11 +24,11 @@ const monthQueryState: {
   refresh: vi.fn(),
 }
 const profileQueryState: {
-  profile: { weekStartDay: number } | undefined
+  profile: { weekStartDay: number; timeZone: string | null } | undefined
   error: Error | null
   refetch: ReturnType<typeof vi.fn>
 } = {
-  profile: { weekStartDay: 1 },
+  profile: { weekStartDay: 1, timeZone: 'UTC' },
   error: null,
   refetch: vi.fn(),
 }
@@ -73,8 +73,9 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 
 vi.mock('@/app/(app)/today-provider', () => ({
-  useToday: () => {
+  useToday: (timeZone?: string | null) => {
     const today = new Date()
+    if (timeZone === 'Pacific/Kiritimati') return today.toISOString().slice(0, 10)
     return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   },
 }))
@@ -160,10 +161,11 @@ describe('CalendarPage view switcher', () => {
     calendarGridProps.selectedDateStr = undefined
     calendarStatsProps.state = undefined
     monthQueryState.dayMap = new Map()
+    calendarGridProps.todayKey = undefined
     monthQueryState.error = null
     monthQueryState.isLoading = false
     monthQueryState.refresh = vi.fn()
-    profileQueryState.profile = { weekStartDay: 1 }
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC' }
     profileQueryState.error = null
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()
@@ -192,7 +194,7 @@ describe('CalendarPage view switcher', () => {
     const loadingRows = Number(document.querySelector('[data-variant="grid"] > [data-rows]')?.getAttribute('data-rows'))
     const loadingHeight = loadingRows * 44 + (loadingRows - 1) * 4
 
-    profileQueryState.profile = { weekStartDay }
+    profileQueryState.profile = { weekStartDay, timeZone: 'UTC' }
     rerender(<CalendarPage />)
     const loadedMonth = calendarGridProps.currentMonth as Date
     const loadedRows = buildCalendarMonthModel(loadedMonth, new Map(), weekStartDay).gridDays.length / 7
@@ -221,6 +223,19 @@ describe('CalendarPage view switcher', () => {
     expect(screen.getByRole('radio', { name: 'calendar.view.month' }).getAttribute('aria-checked')).toBe('true')
     expect(screen.queryByRole('radio', { name: 'calendar.view.agenda' })).toBeNull()
     expect(calendarGridProps.selectedDateStr).toBe(formatAPIDate(new Date()))
+  })
+
+  it('marks today in the account timezone when the browser-local date differs', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-12T01:30:00.000Z'))
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'Pacific/Kiritimati' }
+    try {
+      render(<CalendarPage />)
+
+      expect(calendarGridProps.todayKey).toBe('2026-09-12')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('adds the agenda option at desktop width', () => {

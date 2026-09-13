@@ -1,5 +1,12 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
-import { parseAPIDate, formatAPIDate, nowDate, resolveHabitDetailRouteDate } from '../utils/dates'
+import {
+  parseAPIDate,
+  formatAPIDate,
+  formatAPIDateInTimeZone,
+  getAccountDateTime,
+  nowDate,
+  resolveHabitDetailRouteDate,
+} from '../utils/dates'
 import { getTimezoneList } from '../utils/timezones'
 import { isValidEmail } from '../utils/email'
 import {
@@ -75,6 +82,37 @@ describe('formatAPIDate', () => {
   it('handles first day of year', () => {
     const date = new Date(2025, 0, 1)
     expect(formatAPIDate(date)).toBe('2025-01-01')
+  })
+})
+
+describe('formatAPIDateInTimeZone', () => {
+  it('formats the account date when it differs from the browser-local date', () => {
+    const instant = new Date('2026-09-12T01:30:00.000Z')
+
+    expect(formatAPIDateInTimeZone(instant, 'Pacific/Kiritimati')).toBe('2026-09-12')
+    expect(formatAPIDateInTimeZone(instant, 'America/Sao_Paulo')).toBe('2026-09-11')
+  })
+
+  it('uses UTC for a nullable or invalid account timezone', () => {
+    const instant = new Date('2026-09-12T01:30:00.000Z')
+
+    expect(formatAPIDateInTimeZone(instant, null)).toBe('2026-09-12')
+    expect(formatAPIDateInTimeZone(instant, 'Invalid/Zone')).toBe('2026-09-12')
+  })
+})
+
+describe('getAccountDateTime', () => {
+  it('derives the account day and minute from one instant', () => {
+    const instant = new Date('2026-09-11T10:30:00.000Z')
+
+    expect(getAccountDateTime(instant, 'Pacific/Kiritimati')).toEqual({
+      date: '2026-09-12',
+      minutes: 30,
+    })
+    expect(getAccountDateTime(instant, 'America/Sao_Paulo')).toEqual({
+      date: '2026-09-11',
+      minutes: 450,
+    })
   })
 })
 

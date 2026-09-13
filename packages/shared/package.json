@@ -27,6 +27,8 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:theme": "vitest run src/__tests__/theme.test.ts",
+    "update:theme-inventory": "vitest run src/__tests__/theme.test.ts -u",
     "generate:zod": "orval --config ./orval.config.ts",
     "mutation": "stryker run",
     "clean": "rm -rf dist"

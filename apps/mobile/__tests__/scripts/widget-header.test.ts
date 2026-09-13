@@ -1,7 +1,13 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { SaxesParser } from 'saxes'
+import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
+import {
+  PICKER_PREVIEW_FIXTURE,
+  PICKER_PREVIEW_OUTPUTS,
+  buildWidgetPreviewSvgs,
+} from '../../scripts/generate-widget-preview'
 
 const widgetRoot = resolve(
   process.cwd(),
@@ -11,7 +17,6 @@ const widgetSourceRoot = resolve(
   process.cwd(),
   'modules/orbit-widget/android/src/main/java/org/useorbit/app/widget',
 )
-
 function resourceStrings(relativePath: string) {
   const strings = new Map<string, string>()
   let currentName: string | undefined
@@ -507,6 +512,51 @@ describe('Android widget header', () => {
     expect.soft(provider['android:minResizeHeight']).toBe('96dp')
     expect.soft(provider['android:targetCellWidth']).toBe('4')
     expect.soft(provider['android:targetCellHeight']).toBe('2')
+  })
+
+  it('keeps a static picker preview on every supported Android version', async () => {
+    const provider = rootAttributes('xml/orbit_widget_info.xml')
+    const generator = readFileSync(resolve(process.cwd(), 'scripts/generate-widget-preview.ts'), 'utf8')
+
+    expect(provider['android:previewImage']).toBe('@drawable/widget_picker_preview')
+    expect(provider['android:previewLayout']).toBeUndefined()
+    expect(PICKER_PREVIEW_FIXTURE).toMatchObject({
+      width: 336,
+      height: 192,
+      rows: [
+        { nameKey: 'widget_preview_done_name', status: 'done' },
+        { nameKey: 'widget_preview_overdue_name', status: 'overdue' },
+        { nameKey: 'widget_preview_pending_name', status: 'pending' },
+      ],
+    })
+    expect.soft(generator).toContain('width="34" height="18" rx="8"')
+
+    const requiredCopy = PICKER_PREVIEW_FIXTURE.rows.map(row => row.nameKey)
+    for (const resourcePath of [
+      'values/widget_strings.xml',
+      'values-pt-rBR/widget_strings.xml',
+    ]) {
+      const strings = resourceStrings(resourcePath)
+      for (const name of requiredCopy) expect(strings.get(name), `${resourcePath}:${name}`).toBeTruthy()
+    }
+
+    expect(PICKER_PREVIEW_OUTPUTS.map(output => output.directory)).toEqual([
+      'drawable-xxxhdpi',
+      'drawable-night-xxxhdpi',
+      'drawable-pt-rBR-xxxhdpi',
+      'drawable-pt-rBR-night-xxxhdpi',
+    ])
+    for (const output of PICKER_PREVIEW_OUTPUTS) {
+      const previewPath = resolve(widgetRoot, output.directory, 'widget_picker_preview.png')
+      const metadata = await sharp(previewPath).metadata()
+      expect(metadata).toMatchObject({ format: 'png', width: 1344, height: 768 })
+    }
+  })
+
+  it('matches the reproducible SVG source for every picker preview', async () => {
+    for (const { output, svg } of await buildWidgetPreviewSvgs()) {
+      expect(svg).toMatchSnapshot(output.directory)
+    }
   })
 
   it('routes every post-sync header and loading mutation through the full provider render', () => {
