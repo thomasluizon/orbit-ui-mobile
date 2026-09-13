@@ -1,6 +1,6 @@
 'use client'
 
-import { addDays, eachDayOfInterval, isToday } from 'date-fns'
+import { addDays, eachDayOfInterval } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { capitalizeFirstLetter, formatAPIDate } from '@orbit/shared/utils'
@@ -11,6 +11,7 @@ interface CalendarAgendaViewProps {
   dayMap: ReadonlyMap<string, CalendarDayEntry[]>
   displayTime: (time: string) => string
   displayWeekdayDate: (date: Date, long?: boolean) => string
+  todayKey: string
 }
 
 export function CalendarAgendaView({
@@ -18,6 +19,7 @@ export function CalendarAgendaView({
   dayMap,
   displayTime,
   displayWeekdayDate,
+  todayKey,
 }: Readonly<CalendarAgendaViewProps>) {
   const t = useTranslations()
   const dates = eachDayOfInterval({ start: startDate, end: addDays(startDate, 6) })
@@ -31,7 +33,7 @@ export function CalendarAgendaView({
       {dates.map((date) => {
         const entries = dayMap.get(formatAPIDate(date)) ?? []
         const dateLabel = capitalizeFirstLetter(displayWeekdayDate(date, true))
-        const heading = isToday(date)
+        const heading = formatAPIDate(date) === todayKey
           ? `${t('calendar.agenda.today')}, ${dateLabel}`
           : dateLabel
 

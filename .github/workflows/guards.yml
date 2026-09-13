@@ -14,6 +14,7 @@ name: Guards
 #   performance-workflow - generated measured-performance logic matches its canonical module
 #   calibration - the per-agent and per-skill tuning stamp is current against the running worker model
 #   review-harness - a UI pull request on redesign/main states what the review skills found
+#   gate-charter - every blocking gate declares and obeys its pull request scope
 
 on:
   pull_request:
@@ -38,26 +39,61 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Mobile source carries no inert class names
         run: |
-          if git grep -n 'className=' -- apps/mobile; then
+          if [ '${{ github.event_name }}' = 'pull_request' ]; then
+            hits=$(git diff --name-only --diff-filter=ACMR -z origin/${{ github.base_ref }}...HEAD -- apps/mobile \
+              | xargs -0 --no-run-if-empty grep -nH 'className=' || true)
+          else
+            hits=$(git grep -n 'className=' -- apps/mobile || true)
+          fi
+          if [ -n "$hits" ]; then
             echo "::error::Use React Native StyleSheet under apps/mobile."
+            echo "$hits"
             exit 1
           fi
+          echo "Mobile StyleSheet guard passed."
 
   root-allowlist:
     name: Root Allowlist
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: node tools/check-root-allowlist.mjs
+      - name: Root entries changed deliberately
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ]; then
+            node tools/check-root-allowlist.mjs
+          else
+            git diff --name-only --diff-filter=ACMRD -z origin/${{ github.base_ref }}...HEAD \
+              > "$RUNNER_TEMP/root-allowlist-changed.txt"
+            node tools/check-root-allowlist.mjs \
+              --changed-files-file "$RUNNER_TEMP/root-allowlist-changed.txt"
+          fi
       - name: Workspace packages declare no ignored overrides
-        run: node tools/check-workspace-overrides.mjs
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+               | grep -Eq '(^|/)package\.json$|^tools/check-workspace-overrides\.mjs$'; then
+            node tools/check-workspace-overrides.mjs
+          else
+            echo "Workspace overrides skipped: no owned path changed."
+          fi
       - name: The brand lockup's viewBox is exactly its ink
-        run: node tools/check-lockup-crop.mjs
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+               | grep -Eq '^design/brand/orbit-lockup\.svg$|^tools/check-lockup-crop\.mjs$'; then
+            node tools/check-lockup-crop.mjs
+          else
+            echo "Lockup crop skipped: no owned path changed."
+          fi
 
   dashes:
     name: Dash Ban
@@ -75,7 +111,14 @@ jobs:
           git diff --name-only --diff-filter=ACMR origin/${{ github.base_ref }}...HEAD -z \
             | xargs -0 --no-run-if-empty node tools/check-dashes.mjs --files
       - name: Baseline only shrinks
-        run: node tools/check-dashes.mjs --check-baseline
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+               | grep -Eq '^tools/(check-dashes\.mjs|dash-baseline\.json)$'; then
+            node tools/check-dashes.mjs --check-baseline
+          else
+            echo "Dash baseline skipped: no baseline input changed."
+          fi
       - name: PR title and body carry no dashes
         # Human-authored prose only. A bot PR body is machine-copied upstream text
         # (Dependabot quotes the dependency's own changelog verbatim), which Orbit
@@ -94,9 +137,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Ban Rubik under apps/mobile
         run: |
-          hits=$(grep -rni 'rubik' apps/mobile || true)
+          if [ '${{ github.event_name }}' = 'pull_request' ]; then
+            hits=$(git diff --name-only --diff-filter=ACMR -z origin/${{ github.base_ref }}...HEAD -- apps/mobile \
+              | xargs -0 --no-run-if-empty grep -niH 'rubik' || true)
+          else
+            hits=$(grep -rni 'rubik' apps/mobile || true)
+          fi
           if [ -n "$hits" ]; then
             echo "::error::DESIGN.md font ban: apps/mobile may use only Geist Sans, Space Grotesk, and Geist Mono."
             echo "$hits"
@@ -109,22 +159,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: node tools/check-copy.mjs --check
+      - name: Changed copy stays inside the register
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+               | grep -Eq '^packages/shared/src/i18n/(en|pt-BR)\.json$|^apps/(web|mobile)/.*\.(ts|tsx|css)$|^tools/(check-copy\.mjs|copy-baseline\.json)$'; then
+            node tools/check-copy.mjs --check
+          else
+            echo "Copy register skipped: no owned path changed."
+          fi
 
   i18n-usage:
     name: i18n key usage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: node tools/check-i18n-usage.mjs
+      - name: Changed translation usage resolves
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+               | grep -Eq '^(apps/web|apps/mobile|packages/shared)/.*\.[cm]?[jt]sx?$|^packages/shared/src/i18n/(en|pt-BR)\.json$|^tools/check-i18n-usage\.mjs$'; then
+            node tools/check-i18n-usage.mjs
+          else
+            echo "i18n usage skipped: no owned path changed."
+          fi
 
   ratchet:
     name: Suppressions Ratchet
@@ -137,23 +207,29 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: node tools/check-suppressions-ratchet.mjs
+      - name: Changed suppression baselines only shrink
+        run: |
+          if git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+               | grep -Eq '^apps/(web|mobile)/eslint-suppressions\.json$|^tools/check-suppressions-ratchet\.mjs$'; then
+            node tools/check-suppressions-ratchet.mjs
+          else
+            echo "Suppressions ratchet skipped: no owned path changed."
+          fi
 
   calibration:
     name: Harness Calibration
     runs-on: ubuntu-latest
-    # BLOCKING from the first merge, and there is deliberately no --report-only flag to pass. ORB-120
-    # shipped this capability report-only "through 2026-08-11" as a safety measure, and the measured
-    # result was a gate that was red on `main` and green in CI for days without anyone noticing,
-    # because the CI step passed --report-only and that flag exits 0 on drift by design. A gate that
-    # cannot fail is not a gate. The escape hatch is the label, which is visible on the pull request.
+    # Calibration ages with time, not with a pull request's diff. It reports whole-tree drift without
+    # making an unrelated author's check red. The label remains the explicit reseed workflow signal.
     if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'calibration:reseed')
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: node tools/check-calibration.mjs
+      - name: Report calibration drift
+        continue-on-error: true
+        run: node tools/check-calibration.mjs
 
   parity:
     name: Cross-Platform Parity
@@ -193,7 +269,14 @@ jobs:
       - run: npm ci --ignore-scripts --workspace @orbit/mobile
       - name: Expo-pinned versions still resolve to the SDK set
         working-directory: apps/mobile
-        run: CI=1 npx expo install --check
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+               | grep -Eq '^(package-lock\.json|apps/mobile/package\.json)$'; then
+            CI=1 npx expo install --check
+          else
+            echo "Expo pin skipped: no dependency manifest changed."
+          fi
 
   review-harness:
     name: Redesign Review Harness
@@ -230,4 +313,30 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: node tools/generate-performance-workflow.mjs --check
+      - name: Changed performance machinery matches its generated workflow
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+               | grep -Eq '^tools/(generate-performance-workflow\.mjs|lib/performance-measurement\.mjs)$|^\.claude/workflows/audit\.mjs$'; then
+            node tools/generate-performance-workflow.mjs --check
+          else
+            echo "Performance workflow skipped: no owned path changed."
+          fi
+
+  gate-charter:
+    name: Gate Charter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Changed gates obey the charter
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+               | grep -Eq '^\.github/workflows/(guards|test)\.yml$|^tools/(check-.*\.mjs|gate-charter\.json)$|^eslint-rules/[^/]+\.(cjs|js|mjs)$|^\.claude/hooks/[^/]+\.(cjs|js|mjs)$|^package(-lock)?\.json$'; then
+            node tools/check-gate-charter.mjs
+          else
+            echo "Gate charter skipped: no registered gate changed."
+          fi

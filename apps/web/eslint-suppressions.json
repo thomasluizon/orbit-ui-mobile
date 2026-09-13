@@ -178,24 +178,6 @@
       "count": 2
     }
   },
-  "components/calendar/calendar-stats.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "components/calendar/calendar-time-grid.tsx": {
-    "local/no-raw-gradient": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 11
-    }
-  },
-  "components/calendar/calendar-week-view.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/charts/bar-chart.tsx": {
     "local/no-pill-radius-on-static": {
       "count": 1

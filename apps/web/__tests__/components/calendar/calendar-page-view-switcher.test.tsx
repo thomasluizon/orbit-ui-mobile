@@ -1,20 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { formatAPIDate, formatAPIDateInTimeZone } from '@orbit/shared/utils'
+import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 let isWideDesktopValue = false
-const calendarGridProps: { selectedDateStr?: string | null } = {}
-const monthQueryState: { error: string | null; refresh: ReturnType<typeof vi.fn> } = {
+const calendarGridProps: { selectedDateStr?: string | null; todayKey?: string } = {}
+const monthQueryState: {
+  dayMap: Map<string, CalendarDayEntry[]>
+  error: string | null
+  refresh: ReturnType<typeof vi.fn>
+} = {
+  dayMap: new Map(),
   error: null,
   refresh: vi.fn(),
 }
 const profileQueryState: {
-  profile: { weekStartDay: number } | undefined
+  profile: { weekStartDay: number; timeZone: string | null } | undefined
   error: Error | null
   refetch: ReturnType<typeof vi.fn>
 } = {
-  profile: { weekStartDay: 1 },
+  profile: { weekStartDay: 1, timeZone: 'UTC' },
   error: null,
   refetch: vi.fn(),
 }
@@ -33,7 +39,7 @@ vi.mock('@/hooks/use-calendar-data', () => ({
   useCalendarData: (month: Date) => {
     calendarDataCalls(month)
     return ({
-    dayMap: new Map(),
+    dayMap: monthQueryState.dayMap,
     isLoading: false,
     isFetching: false,
     error: monthQueryState.error,
@@ -58,9 +64,11 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 
 vi.mock('@/app/(app)/today-provider', () => ({
-  useToday: () => {
+  useToday: (timeZone?: string | null) => {
     const today = new Date()
-    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    return timeZone === undefined
+      ? formatAPIDate(today)
+      : formatAPIDateInTimeZone(today, timeZone)
   },
 }))
 
@@ -89,11 +97,14 @@ vi.mock('@/components/calendar/calendar-grid', () => ({
   CalendarGrid: ({
     onSelectDay,
     selectedDateStr,
+    todayKey,
   }: {
     onSelectDay?: (dateStr: string) => void
     selectedDateStr?: string | null
+    todayKey?: string
   }) => {
     calendarGridProps.selectedDateStr = selectedDateStr
+    calendarGridProps.todayKey = todayKey
     return (
       <button
         type="button"
@@ -105,7 +116,15 @@ vi.mock('@/components/calendar/calendar-grid', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-stats', () => ({
-  CalendarStats: () => <div data-testid="month-stats" />,
+  CalendarStats: ({
+    stats,
+  }: {
+    stats: readonly { key: string; value: string | number }[]
+  }) => (
+    <div data-testid="month-stats">
+      {stats.map((stat) => <span key={stat.key}>{`${stat.key}:${stat.value}`}</span>)}
+    </div>
+  ),
 }))
 
 vi.mock('@/components/calendar/calendar-day-detail', () => ({
@@ -126,13 +145,33 @@ vi.mock('@/components/calendar/calendar-agenda-view', () => ({
 
 import CalendarPage from '@/app/(app)/calendar/page'
 
+function monthEntry(habitId: string, status: CalendarDayEntry['status']): CalendarDayEntry {
+  return {
+    habitId,
+    title: 'Habit',
+    status,
+    isBadHabit: false,
+    dueTime: null,
+    isOneTime: false,
+  }
+}
+
+function setBoundaryEntries(firstDay: string, secondDay: string) {
+  monthQueryState.dayMap = new Map([
+    [firstDay, [monthEntry('first', 'completed')]],
+    [secondDay, [monthEntry('second', 'completed'), monthEntry('missed', 'upcoming')]],
+  ])
+}
+
 describe('CalendarPage view switcher', () => {
   beforeEach(() => {
     isWideDesktopValue = false
     calendarGridProps.selectedDateStr = undefined
+    calendarGridProps.todayKey = undefined
+    monthQueryState.dayMap = new Map()
     monthQueryState.error = null
     monthQueryState.refresh = vi.fn()
-    profileQueryState.profile = { weekStartDay: 1 }
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC' }
     profileQueryState.error = null
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()
@@ -170,6 +209,63 @@ describe('CalendarPage view switcher', () => {
     expect(screen.getByRole('radio', { name: 'calendar.view.agenda' })).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByTestId('agenda-view')).toBeDefined()
     expect(screen.queryByTestId('month-view')).toBeNull()
+  })
+
+  it('marks today in the account timezone when the browser-local date differs', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-12T01:30:00.000Z'))
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'Pacific/Kiritimati' }
+    try {
+      render(<CalendarPage />)
+
+      expect(calendarGridProps.todayKey).toBe('2026-09-12')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it.each([
+    {
+      name: 'device date is one day ahead',
+      deviceTimeZone: 'Pacific/Kiritimati',
+      accountTimeZone: 'America/Los_Angeles',
+      now: '2026-09-12T10:30:00.000Z',
+      firstDay: '2026-09-12',
+      secondDay: '2026-09-13',
+      expected: ['bestStreak:1', 'totalLogs:1', 'missed:0'],
+    },
+    {
+      name: 'device date is one day behind',
+      deviceTimeZone: 'America/Los_Angeles',
+      accountTimeZone: 'UTC',
+      now: '2026-09-12T00:30:00.000Z',
+      firstDay: '2026-09-11',
+      secondDay: '2026-09-12',
+      expected: ['bestStreak:2', 'totalLogs:2', 'missed:1'],
+    },
+  ])('renders statistics through the account date when $name', ({
+    deviceTimeZone,
+    accountTimeZone,
+    now,
+    firstDay,
+    secondDay,
+    expected,
+  }) => {
+    const originalTimeZone = process.env.TZ
+    process.env.TZ = deviceTimeZone
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(now))
+    profileQueryState.profile = { weekStartDay: 1, timeZone: accountTimeZone }
+    setBoundaryEntries(firstDay, secondDay)
+    try {
+      render(<CalendarPage />)
+
+      for (const figure of expected) expect(screen.getByText(figure)).toBeDefined()
+    } finally {
+      vi.useRealTimers()
+      if (originalTimeZone === undefined) delete process.env.TZ
+      else process.env.TZ = originalTimeZone
+    }
   })
 
   it('keeps the agenda option at desktop width', () => {

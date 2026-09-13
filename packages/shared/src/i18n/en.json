@@ -906,9 +906,8 @@
       "selected": "Selected",
       "readOnly": "Read only"
     },
-    "thisMonth": "This month",
     "bestStreak": "Best streak",
-    "totalLogs": "Total logs",
+    "totalLogs": "Logs",
     "missedCount": "Missed",
     "emptyMonth": "Nothing logged this month yet. Your days will fill in here.",
     "loadError": "Could not load the calendar. Please try again.",
@@ -928,6 +927,7 @@
     },
     "timeGrid": {
       "allDay": "All-day",
+      "noSetTime": "No set time",
       "now": "Now",
       "pickRangeHint": "Pick a start and end day above to set your range.",
       "pickEndHint": "Now pick the end day",
@@ -1940,8 +1940,8 @@
       "astraSection": {
         "canDoTitle": "Create & Log",
         "canDoDesc": "Tell Astra what habits you want and it creates them. Say 'I ran today' to log completions. It can create one-time tasks too, like 'buy eggs tomorrow'.",
-        "toolsBreadthTitle": "61 Built-In Tools",
-        "toolsBreadthDesc": "Astra isn't only chat -- it can act. It has 61 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 5 AI messages a day; Pro raises it to 50.",
+        "toolsBreadthTitle": "63 Built-In Tools",
+        "toolsBreadthDesc": "Astra isn't only chat -- it can act. It has 63 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 5 AI messages a day; Pro raises it to 50.",
         "manageTitle": "Update & Delete",
         "manageDesc": "Ask Astra to modify habits: 'move my gym to tomorrow', 'rename running to jogging', 'change meditation to weekly', or 'delete my reading habit'. It can handle bulk operations too.",
         "insightsTitle": "Progress & Analysis",
@@ -1961,7 +1961,7 @@
         "mcpTitle": "Connect Your AI Assistant",
         "mcpDesc": "Orbit speaks MCP (Model Context Protocol), so you can connect Claude, ChatGPT, or any MCP-capable assistant straight to your Orbit account. Manage your habits and goals from wherever you already chat with AI -- no need to open the app.",
         "assistantCanDoTitle": "What Your Assistant Can Do",
-        "assistantCanDoDesc": "Once connected, your assistant can create and log habits, manage goals, tags, and checklists, read your progress, adjust notifications, and more -- 79 tools across 15 areas of the app. Every action is scoped to your account and follows the same permissions as the app.",
+        "assistantCanDoDesc": "Once connected, your assistant can create and log habits, manage goals, tags, and checklists, read your progress, adjust notifications, and more -- 81 tools across 15 areas of the app. Every action is scoped to your account and follows the same permissions as the app.",
         "apiKeysTitle": "API Keys (Pro)",
         "apiKeysDesc": "MCP access comes with Orbit Pro. Create and manage scoped API keys in AI Settings, then paste one into your assistant to link it. Keys can be read-only or full-access, and you can revoke them anytime.",
         "setupTitle": "Setting It Up",
