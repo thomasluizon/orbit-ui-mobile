@@ -103,6 +103,7 @@ export {
   buildCalendarSyncImportRequest,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
+  filterCalendarSyncEventsByDate,
   isCalendarAutoSyncStatusReconnectRequired,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,

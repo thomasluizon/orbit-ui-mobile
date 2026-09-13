@@ -9,11 +9,14 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { parseAPIDate, filterRecurringEntries } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarSyncEvent } from '@orbit/shared'
 import { ShowRecurringToggle } from '@/components/calendar/show-recurring-toggle'
+import { EventRow } from '@/components/dates/event-row'
 
 interface CalendarDayDetailProps {
   dateStr: string | null
   entries: CalendarDayEntry[]
+  calendarEvents: CalendarSyncEvent[]
   showRecurring: boolean
   onShowRecurringChange: (value: boolean) => void
   /** Desktop side-panel mode: the entries list scrolls within the viewport, a
@@ -48,6 +51,7 @@ function statusCircleStyle(entry: CalendarDayEntry): React.CSSProperties {
 export function CalendarDayDetail({
   dateStr,
   entries,
+  calendarEvents,
   showRecurring,
   onShowRecurringChange,
   fitViewport = false,
@@ -219,6 +223,36 @@ export function CalendarDayDetail({
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {calendarEvents.length > 0 && (
+        <div className="flex flex-col" style={{ gap: 8, marginTop: 16 }}>
+          <p
+            className="text-sm font-medium text-[var(--fg-2)]"
+            style={{ margin: 0, lineHeight: 1.4 }}
+          >
+            {t('calendar.dayDetail.eventsTitle')}
+          </p>
+          <div className="flex flex-col" style={{ gap: 4 }}>
+            {calendarEvents.map((event) =>
+              event.startTime ? (
+                <EventRow
+                  key={event.id}
+                  time={displayTime(event.startTime)}
+                  title={event.title}
+                  source={t('calendar.title')}
+                />
+              ) : (
+                <EventRow
+                  key={event.id}
+                  allDayLabel={t('calendar.timeGrid.allDay')}
+                  title={event.title}
+                  source={t('calendar.title')}
+                />
+              ),
+            )}
+          </div>
         </div>
       )}
     </>

@@ -39,6 +39,7 @@ vi.mock('next/link', () => ({
 
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarSyncEvent } from '@orbit/shared'
 
 function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
   return {
@@ -55,6 +56,7 @@ function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry 
 interface RenderProps {
   dateStr: string | null
   entries: CalendarDayEntry[]
+  calendarEvents?: CalendarSyncEvent[]
   showRecurring?: boolean
   onShowRecurringChange?: (value: boolean) => void
 }
@@ -62,6 +64,7 @@ interface RenderProps {
 function renderDetail({
   dateStr,
   entries,
+  calendarEvents = [],
   showRecurring = true,
   onShowRecurringChange = () => {},
 }: RenderProps) {
@@ -69,6 +72,7 @@ function renderDetail({
     <CalendarDayDetail
       dateStr={dateStr}
       entries={entries}
+      calendarEvents={calendarEvents}
       showRecurring={showRecurring}
       onShowRecurringChange={onShowRecurringChange}
     />,
@@ -97,6 +101,47 @@ describe('CalendarDayDetail', () => {
     })
     expect(screen.getByText('Read')).toBeInTheDocument()
     expect(screen.getByText('Exercise')).toBeInTheDocument()
+  })
+
+  it('renders timed and all-day Google events as read-only context', () => {
+    renderDetail({
+      dateStr: '2025-06-15',
+      entries: [makeEntry({ title: 'Read' })],
+      calendarEvents: [
+        {
+          id: 'event-1',
+          title: 'Team meeting',
+          description: null,
+          startDate: '2025-06-15',
+          startTime: '09:00',
+          endTime: null,
+          isRecurring: false,
+          recurrenceRule: null,
+          reminders: [],
+        },
+        {
+          id: 'event-2',
+          title: 'Company holiday',
+          description: null,
+          startDate: '2025-06-15',
+          startTime: null,
+          endTime: null,
+          isRecurring: false,
+          recurrenceRule: null,
+          reminders: [],
+        },
+      ],
+    })
+
+    expect(screen.getByText('calendar.dayDetail.eventsTitle')).toBeInTheDocument()
+    const timedEvent = screen.getByRole('img', {
+      name: '09:00, Team meeting, calendar.title',
+    })
+    const allDayEvent = screen.getByRole('img', {
+      name: 'calendar.timeGrid.allDay, Company holiday, calendar.title',
+    })
+    expect(within(timedEvent).queryByRole('button')).toBeNull()
+    expect(within(allDayEvent).queryByRole('button')).toBeNull()
   })
 
   it('shows completion summary', () => {
@@ -186,6 +231,7 @@ describe('CalendarDayDetail', () => {
         <CalendarDayDetail
           dateStr="2025-06-15"
           entries={entries}
+          calendarEvents={[]}
           showRecurring
           onShowRecurringChange={() => {}}
           fitViewport

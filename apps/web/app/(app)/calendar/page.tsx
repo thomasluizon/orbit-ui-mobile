@@ -21,10 +21,12 @@ import {
   parseAPIDate,
   capitalizeFirstLetter,
   filterRecurringEntries,
+  filterCalendarSyncEventsByDate,
   clampRangeToMaxDays,
   MAX_RANGE_DAYS,
 } from '@orbit/shared/utils'
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
+import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
@@ -90,7 +92,7 @@ export default function CalendarPage() {
 }
 
 interface CalendarPageContentProps {
-  profile: Pick<Profile, 'weekStartDay' | 'timeZone'>
+  profile: Pick<Profile, 'weekStartDay' | 'timeZone' | 'hasProAccess'>
   currentMonth: Date
   setCurrentMonth: Dispatch<SetStateAction<Date>>
   monthQuery: ReturnType<typeof useCalendarData>
@@ -128,6 +130,9 @@ function CalendarPageContent({
   )
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false)
   const [showRecurring, setShowRecurring] = useState(true)
+  const { data: calendarEventsResult } = useCalendarEvents({
+    enabled: profile.hasProAccess,
+  })
 
   const { dayMap, isLoading, isFetching, error, refresh } = monthQuery
 
@@ -274,6 +279,14 @@ function CalendarPageContent({
     if (!selectedDay) return []
     return activeDayMap.get(selectedDay) ?? []
   }, [selectedDay, activeDayMap])
+
+  const selectedCalendarEvents = useMemo(
+    () =>
+      calendarEventsResult?.status === 'connected'
+        ? filterCalendarSyncEventsByDate(calendarEventsResult.events, selectedDay)
+        : [],
+    [calendarEventsResult, selectedDay],
+  )
 
   const dayDetailTitle = useMemo(() => {
     if (!selectedDay) return ''
@@ -428,6 +441,7 @@ function CalendarPageContent({
                     <CalendarDayDetail
                       dateStr={selectedDay}
                       entries={selectedEntries}
+                      calendarEvents={selectedCalendarEvents}
                       showRecurring={showRecurring}
                       onShowRecurringChange={setShowRecurring}
                       fitViewport
@@ -509,6 +523,7 @@ function CalendarPageContent({
         <CalendarDayDetail
           dateStr={selectedDay}
           entries={selectedEntries}
+          calendarEvents={selectedCalendarEvents}
           showRecurring={showRecurring}
           onShowRecurringChange={setShowRecurring}
         />

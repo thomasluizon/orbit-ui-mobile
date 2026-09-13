@@ -36,6 +36,7 @@ import {
   capitalizeFirstLetter,
   clampRangeToMaxDays,
   filterRecurringEntries,
+  filterCalendarSyncEventsByDate,
   formatAPIDate,
   parseAPIDate,
   MAX_RANGE_DAYS,
@@ -45,6 +46,7 @@ import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import type { Profile } from "@orbit/shared/types/profile";
 import { useCalendarData, useCalendarRange } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
+import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { createTokensV2 } from "@/lib/theme";
@@ -131,7 +133,7 @@ function CalendarProfileState({ failed, onRetry }: Readonly<{ failed: boolean; o
 }
 
 interface CalendarScreenContentProps {
-  profile: Pick<Profile, 'weekStartDay' | 'timeZone'>;
+  profile: Pick<Profile, 'weekStartDay' | 'timeZone' | 'hasProAccess'>;
   currentMonth: Date;
   setCurrentMonth: Dispatch<SetStateAction<Date>>;
   monthQuery: ReturnType<typeof useCalendarData>;
@@ -198,6 +200,9 @@ function CalendarScreenContent({
   );
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
   const [showRecurring, setShowRecurring] = useState(true);
+  const { data: calendarEventsResult } = useCalendarEvents({
+    enabled: profile.hasProAccess,
+  });
 
   const { dayMap, isLoading, isFetching, error, refresh } = monthQuery;
 
@@ -386,6 +391,14 @@ function CalendarScreenContent({
     if (!selectedDay) return [];
     return activeDayMap.get(selectedDay) ?? [];
   }, [selectedDay, activeDayMap]);
+
+  const selectedCalendarEvents = useMemo(
+    () =>
+      calendarEventsResult?.status === "connected"
+        ? filterCalendarSyncEventsByDate(calendarEventsResult.events, selectedDay)
+        : [],
+    [calendarEventsResult, selectedDay],
+  );
 
   const filteredEntries = useMemo(
     () => filterRecurringEntries(selectedEntries, showRecurring),
@@ -620,6 +633,7 @@ function CalendarScreenContent({
           <CalendarDayDetail
             selectedEntries={selectedEntries}
             filteredEntries={filteredEntries}
+            calendarEvents={selectedCalendarEvents}
             completedCount={completedCount}
             showRecurring={showRecurring}
             onShowRecurringChange={setShowRecurring}

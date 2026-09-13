@@ -16,6 +16,14 @@ export interface CalendarSyncEvent {
   calendarName?: string
 }
 
+export function filterCalendarSyncEventsByDate(
+  events: CalendarSyncEvent[],
+  date: string | null,
+): CalendarSyncEvent[] {
+  if (!date) return []
+  return events.filter((event) => event.startDate === date)
+}
+
 export interface CalendarSyncParsedRecurrence {
   frequencyUnit?: FrequencyUnit
   frequencyQuantity?: number

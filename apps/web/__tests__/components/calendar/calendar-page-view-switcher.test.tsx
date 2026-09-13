@@ -2,11 +2,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
 import { formatAPIDate, formatAPIDateInTimeZone } from '@orbit/shared/utils'
+import type { CalendarSyncEvent } from '@orbit/shared'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 let isWideDesktopValue = false
 let isDesktopValue = false
 const calendarGridProps: { selectedDateStr?: string | null; todayKey?: string } = {}
+const calendarDayDetailProps: { calendarEvents?: CalendarSyncEvent[] } = {}
+const calendarEventsQueryState: {
+  data: { status: 'connected'; events: CalendarSyncEvent[] }
+} = {
+  data: { status: 'connected', events: [] },
+}
+let calendarEventsEnabled: boolean | undefined
 const monthQueryState: {
   dayMap: Map<string, CalendarDayEntry[]>
   error: string | null
@@ -17,11 +25,15 @@ const monthQueryState: {
   refresh: vi.fn(),
 }
 const profileQueryState: {
-  profile: { weekStartDay: number; timeZone: string | null } | undefined
+  profile: {
+    weekStartDay: number
+    timeZone: string | null
+    hasProAccess: boolean
+  } | undefined
   error: Error | null
   refetch: ReturnType<typeof vi.fn>
 } = {
-  profile: { weekStartDay: 1, timeZone: 'UTC' },
+  profile: { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false },
   error: null,
   refetch: vi.fn(),
 }
@@ -55,6 +67,13 @@ vi.mock('@/hooks/use-calendar-data', () => ({
     error: null,
     refresh: vi.fn(),
   }),
+}))
+
+vi.mock('@/hooks/use-calendar-events', () => ({
+  useCalendarEvents: (options?: { enabled?: boolean }) => {
+    calendarEventsEnabled = options?.enabled
+    return calendarEventsQueryState
+  },
 }))
 
 vi.mock('@/hooks/use-time-format', () => ({
@@ -130,7 +149,10 @@ vi.mock('@/components/calendar/calendar-stats', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-day-detail', () => ({
-  CalendarDayDetail: () => <div data-testid="day-detail" />,
+  CalendarDayDetail: (props: { calendarEvents?: CalendarSyncEvent[] }) => {
+    calendarDayDetailProps.calendarEvents = props.calendarEvents
+    return <div data-testid="day-detail" />
+  },
 }))
 
 vi.mock('@/components/calendar/calendar-week-view', () => ({
@@ -171,10 +193,13 @@ describe('CalendarPage view switcher', () => {
     isDesktopValue = false
     calendarGridProps.selectedDateStr = undefined
     calendarGridProps.todayKey = undefined
+    calendarDayDetailProps.calendarEvents = undefined
+    calendarEventsQueryState.data = { status: 'connected', events: [] }
+    calendarEventsEnabled = undefined
     monthQueryState.dayMap = new Map()
     monthQueryState.error = null
     monthQueryState.refresh = vi.fn()
-    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC' }
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false }
     profileQueryState.error = null
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()
@@ -212,7 +237,11 @@ describe('CalendarPage view switcher', () => {
   it('marks today in the account timezone when the browser-local date differs', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-12T01:30:00.000Z'))
-    profileQueryState.profile = { weekStartDay: 1, timeZone: 'Pacific/Kiritimati' }
+    profileQueryState.profile = {
+      weekStartDay: 1,
+      timeZone: 'Pacific/Kiritimati',
+      hasProAccess: false,
+    }
     try {
       render(<CalendarPage />)
 
@@ -220,6 +249,12 @@ describe('CalendarPage view switcher', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('does not enable the calendar event request for a free profile', () => {
+    render(<CalendarPage />)
+
+    expect(calendarEventsEnabled).toBe(false)
   })
 
   it.each([
@@ -253,7 +288,11 @@ describe('CalendarPage view switcher', () => {
     process.env.TZ = deviceTimeZone
     vi.useFakeTimers()
     vi.setSystemTime(new Date(now))
-    profileQueryState.profile = { weekStartDay: 1, timeZone: accountTimeZone }
+    profileQueryState.profile = {
+      weekStartDay: 1,
+      timeZone: accountTimeZone,
+      hasProAccess: false,
+    }
     setBoundaryEntries(firstDay, secondDay)
     try {
       render(<CalendarPage />)
@@ -308,6 +347,45 @@ describe('CalendarPage view switcher', () => {
 
     expect(screen.getByTestId('calendar-day-panel')).toBeDefined()
     expect(screen.getByTestId('day-detail')).toBeDefined()
+  })
+
+  it("passes only the selected day's Google events to the day detail", () => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true }
+    const selectedDay = formatAPIDate(new Date())
+    calendarEventsQueryState.data = {
+      status: 'connected',
+      events: [
+        {
+          id: 'selected-event',
+          title: 'Team meeting',
+          description: null,
+          startDate: selectedDay,
+          startTime: '09:00',
+          endTime: null,
+          isRecurring: false,
+          recurrenceRule: null,
+          reminders: [],
+        },
+        {
+          id: 'other-event',
+          title: 'Tomorrow',
+          description: null,
+          startDate: '2099-01-01',
+          startTime: '10:00',
+          endTime: null,
+          isRecurring: false,
+          recurrenceRule: null,
+          reminders: [],
+        },
+      ],
+    }
+    isWideDesktopValue = true
+
+    render(<CalendarPage />)
+
+    expect(calendarDayDetailProps.calendarEvents?.map((event) => event.id)).toEqual([
+      'selected-event',
+    ])
   })
 
   it('opens the day detail as an overlay below the wide-desktop breakpoint', () => {

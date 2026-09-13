@@ -6,17 +6,20 @@ import Animated, {
 } from "react-native-reanimated";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
+import type { CalendarSyncEvent } from "@orbit/shared";
 import { plural } from "@/lib/plural";
 import { PillButton } from "@/components/ui/pill-button";
 import { createTokensV2 } from "@/lib/theme";
 import { CalendarDayEntryRow } from "./calendar-day-entry";
 import { ShowRecurringToggle } from "./show-recurring-toggle";
+import { EventRow } from "@/components/dates/event-row";
 
 type Tokens = ReturnType<typeof createTokensV2>;
 
 interface CalendarDayDetailProps {
   selectedEntries: CalendarDayEntry[];
   filteredEntries: CalendarDayEntry[];
+  calendarEvents: CalendarSyncEvent[];
   completedCount: number;
   showRecurring: boolean;
   onShowRecurringChange: (value: boolean) => void;
@@ -50,6 +53,7 @@ function statusBadgeColor(entry: CalendarDayEntry, tokens: Tokens): string {
 export function CalendarDayDetail({
   selectedEntries,
   filteredEntries,
+  calendarEvents,
   completedCount,
   showRecurring,
   onShowRecurringChange,
@@ -133,6 +137,33 @@ export function CalendarDayDetail({
         </>
       )}
 
+      {calendarEvents.length > 0 ? (
+        <View style={styles.eventSection}>
+          <Text style={[styles.eventTitle, { color: tokens.fg2 }]}>
+            {t("calendar.dayDetail.eventsTitle")}
+          </Text>
+          <View style={styles.eventList}>
+            {calendarEvents.map((event) =>
+              event.startTime ? (
+                <EventRow
+                  key={event.id}
+                  time={displayTime(event.startTime)}
+                  title={event.title}
+                  source={t("calendar.title")}
+                />
+              ) : (
+                <EventRow
+                  key={event.id}
+                  allDayLabel={t("calendar.timeGrid.allDay")}
+                  title={event.title}
+                  source={t("calendar.title")}
+                />
+              ),
+            )}
+          </View>
+        </View>
+      ) : null}
+
       <PillButton
         variant="ghost"
 
@@ -154,6 +185,18 @@ function createStyles(tokens: Tokens) {
     summaryText: {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
+    },
+    eventSection: {
+      gap: 8,
+      marginTop: 16,
+    },
+    eventTitle: {
+      fontFamily: "Geist_500Medium",
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    eventList: {
+      gap: 4,
     },
     emptyDayCard: {
       alignItems: "center",
