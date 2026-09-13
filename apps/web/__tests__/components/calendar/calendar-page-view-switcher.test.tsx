@@ -521,6 +521,7 @@ describe('CalendarPage view switcher', () => {
     expect(logHabitMutateAsync).toHaveBeenCalledWith({
       habitId: 'habit-1',
       date: selectedDate,
+      intent: 'log',
     })
   })
 

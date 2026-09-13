@@ -5,7 +5,8 @@ import React from 'react'
 import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, useUpdateHabit, useReorderHabits, useDuplicateHabit, useUpdateChecklist, useCreateSubHabit, useMoveHabitParent, useBulkCreateHabits, useBulkDeleteHabits, useBulkLogHabits, useBulkSkipHabits } from '@/hooks/use-habits'
 import { useSearchHabits } from '@/hooks/use-habit-queries'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
-import type { HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
+import { buildCalendarDayMap } from '@orbit/shared/utils'
+import type { CalendarMonthResponse, HabitDetail, HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
 const mockFetch = vi.fn()
 
@@ -189,6 +190,29 @@ function makePaginatedResponse(items: HabitScheduleItem[]): PaginatedResponse<Ha
   }
 }
 
+function makeCalendarMonth(
+  date: string,
+  habitIds: string[] = ['h-1'],
+): CalendarMonthResponse {
+  return {
+    habits: habitIds.map((id) => makeScheduleItem({ id, dueDate: date, scheduledDates: [date] })),
+    logs: Object.fromEntries(habitIds.map((id) => [id, []])),
+  }
+}
+
+function getCalendarStatus(
+  queryClient: QueryClient,
+  key: ReturnType<typeof habitKeys.calendar>,
+  date: string,
+  habitId = 'h-1',
+) {
+  const calendar = queryClient.getQueryData<CalendarMonthResponse>(key)
+  return calendar
+    ? buildCalendarDayMap(calendar, new Date('2025-01-16T12:00:00Z'))
+        .get(date)?.find((entry) => entry.habitId === habitId)?.status
+    : undefined
+}
+
 function createQueryClient() {
   return new QueryClient({
     defaultOptions: {
@@ -347,7 +371,7 @@ describe('useLogHabit', () => {
     const { result } = renderHook(() => useLogHabit(), { wrapper })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'h-1' })
+      await result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })
     })
 
     expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined)
@@ -368,7 +392,7 @@ describe('useLogHabit', () => {
     })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'h-1' })
+      await result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })
     })
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
@@ -399,6 +423,7 @@ describe('useLogHabit', () => {
       await result.current.mutateAsync({
         habitId: 'h-1',
         date: '2025-01-15',
+        intent: 'log',
       })
     })
 
@@ -407,6 +432,108 @@ describe('useLogHabit', () => {
     })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.logs('h-1') })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.metrics('h-1') })
+  })
+
+  it('updates a dated calendar row immediately and restores it when logging fails', async () => {
+    const { logHabit } = await import('@/app/actions/habits')
+    let rejectLog: ((error: Error) => void) | undefined
+    vi.mocked(logHabit).mockImplementation(() => new Promise((_, reject) => {
+      rejectLog = reject
+    }))
+
+    const date = '2025-01-15'
+    const key = habitKeys.calendar(date, date)
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(key, makeCalendarMonth(date))
+    const { result } = renderHook(() => useLogHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    expect(getCalendarStatus(queryClient, key, date)).toBe('missed')
+    act(() => result.current.mutate({ habitId: 'h-1', date, intent: 'log' }))
+    expect(getCalendarStatus(queryClient, key, date)).toBe('completed')
+
+    await waitFor(() => expect(logHabit).toHaveBeenCalled())
+    rejectLog?.(new Error('Log failed'))
+    await waitFor(() => expect(getCalendarStatus(queryClient, key, date)).toBe('missed'))
+  })
+
+  it('applies one log intent to overlapping calendar caches that disagree', async () => {
+    const { logHabit } = await import('@/app/actions/habits')
+    let resolveLog: (() => void) | undefined
+    vi.mocked(logHabit).mockImplementation(() => new Promise((resolve) => {
+      resolveLog = () => resolve({
+        logId: 'log-1',
+        isFirstCompletionToday: false,
+        currentStreak: 1,
+      })
+    }))
+
+    const date = '2025-01-15'
+    const dayKey = habitKeys.calendar(date, date)
+    const monthKey = habitKeys.calendar('2025-01-01', '2025-01-31')
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(dayKey, makeCalendarMonth(date))
+    queryClient.setQueryData(monthKey, {
+      ...makeCalendarMonth(date),
+      logs: {
+        'h-1': [{
+          id: 'server-log-1',
+          date,
+          value: 1,
+          createdAtUtc: '2025-01-15T09:30:00Z',
+        }],
+      },
+    } satisfies CalendarMonthResponse)
+    const { result } = renderHook(() => useLogHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    act(() => result.current.mutate({ habitId: 'h-1', date, intent: 'log' }))
+
+    expect(getCalendarStatus(queryClient, dayKey, date)).toBe('completed')
+    expect(getCalendarStatus(queryClient, monthKey, date)).toBe('completed')
+    resolveLog?.()
+    await waitFor(() => expect(logHabit).toHaveBeenCalled())
+  })
+
+  it('keeps pending mutation B optimistic when mutation A fails later', async () => {
+    const { logHabit } = await import('@/app/actions/habits')
+    const previousCallCount = vi.mocked(logHabit).mock.calls.length
+    let rejectMutationA: ((error: Error) => void) | undefined
+    let resolveMutationB: (() => void) | undefined
+    vi.mocked(logHabit)
+      .mockImplementationOnce(() => new Promise((_, reject) => {
+        rejectMutationA = reject
+      }))
+      .mockImplementationOnce(() => new Promise((resolve) => {
+        resolveMutationB = () => resolve({
+          logId: 'log-b',
+          isFirstCompletionToday: false,
+          currentStreak: 1,
+        })
+      }))
+
+    const date = '2025-01-15'
+    const key = habitKeys.calendar(date, date)
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(key, makeCalendarMonth(date, ['h-1', 'h-2']))
+    const { result } = renderHook(() => useLogHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    act(() => result.current.mutate({ habitId: 'h-1', date, intent: 'log' }))
+    act(() => result.current.mutate({ habitId: 'h-2', date, intent: 'log' }))
+    expect(getCalendarStatus(queryClient, key, date, 'h-1')).toBe('completed')
+    expect(getCalendarStatus(queryClient, key, date, 'h-2')).toBe('completed')
+
+    await waitFor(() => expect(logHabit).toHaveBeenCalledTimes(previousCallCount + 2))
+    expect(resolveMutationB).toBeTypeOf('function')
+    rejectMutationA?.(new Error('Mutation A failed'))
+
+    await waitFor(() => expect(getCalendarStatus(queryClient, key, date, 'h-1')).toBe('missed'))
+    expect(getCalendarStatus(queryClient, key, date, 'h-2')).toBe('completed')
+    resolveMutationB?.()
   })
 
   it('optimistically completes before query cancellation resolves', async () => {
@@ -435,7 +562,7 @@ describe('useLogHabit', () => {
     })
 
     act(() => {
-      result.current.mutate({ habitId: 'h-1' })
+      result.current.mutate({ habitId: 'h-1', intent: 'log' })
     })
 
     expect(
@@ -716,7 +843,7 @@ describe('useLogHabit onSuccess', () => {
     })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'bad-child' })
+      await result.current.mutateAsync({ habitId: 'bad-child', intent: 'log' })
     })
 
     expect(mockSetStreakCelebration).not.toHaveBeenCalled()
@@ -753,7 +880,7 @@ describe('useLogHabit onSuccess', () => {
     })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'never-listed' })
+      await result.current.mutateAsync({ habitId: 'never-listed', intent: 'log' })
     })
 
     expect(
@@ -822,7 +949,7 @@ describe('useLogHabit onSuccess', () => {
     })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId })
+      await result.current.mutateAsync({ habitId, intent: 'log' })
     })
 
     if (celebrates) {
@@ -856,7 +983,7 @@ describe('useLogHabit onSuccess', () => {
     const { result } = renderHook(() => useLogHabit(), { wrapper })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'h-1' })
+      await result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })
     })
 
     expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined)
@@ -883,7 +1010,7 @@ describe('useLogHabit onSuccess', () => {
     const { result } = renderHook(() => useLogHabit(), { wrapper })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'h-1' })
+      await result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })
     })
 
     expect(mockedLogHabit).toHaveBeenCalled()
@@ -919,7 +1046,7 @@ describe('useLogHabit onSuccess', () => {
     })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'h-1' })
+      await result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })
     })
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
@@ -950,7 +1077,7 @@ describe('useLogHabit onSuccess', () => {
     const { result } = renderHook(() => useLogHabit(), { wrapper })
 
     await act(async () => {
-      await result.current.mutateAsync({ habitId: 'h-1' })
+      await result.current.mutateAsync({ habitId: 'h-1', intent: 'log' })
     })
 
     expect(mockedLogHabit).toHaveBeenCalled()

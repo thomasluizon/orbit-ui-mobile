@@ -483,7 +483,11 @@ function CalendarPageContent({
     return startEntryMutation(
       entryKey,
       checked,
-      () => logHabit.mutateAsync({ habitId: entry.habitId, date: selectedDay }),
+      () => logHabit.mutateAsync({
+        habitId: entry.habitId,
+        date: selectedDay,
+        intent: checked ? 'log' : 'unlog',
+      }),
     )
   }
 

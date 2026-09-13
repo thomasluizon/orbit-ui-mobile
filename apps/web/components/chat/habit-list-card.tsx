@@ -41,7 +41,7 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
       meta: item.status === 'overdue' ? t('chat.habitList.overdue') : undefined,
       control: occurrence ? (
         <button aria-label={t(logged ? 'chat.habitList.unlog' : 'chat.habitList.log', { name: item.title })} className="grid size-11 place-items-center rounded-full border-0 bg-transparent hover:bg-[var(--bg-hover)]" onClick={() => {
-          logHabit.mutate({ habitId: item.id })
+          logHabit.mutate({ habitId: item.id, intent: logged ? 'unlog' : 'log' })
         }} type="button">
           <StatusRing status={logged ? 'done' : item.status === 'overdue' ? 'overdue' : 'empty'} size={24} label={t(logged ? 'chat.habitList.logged' : 'chat.habitList.pending')} />
         </button>
