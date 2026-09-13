@@ -914,6 +914,9 @@
     "totalLogs": "Registros",
     "missedCount": "Sem registro",
     "emptyMonth": "Nenhum hábito estava programado neste mês.",
+    "futureMonth": "Este mês ainda não chegou.",
+    "emptyStat": "sem dados",
+    "loading": "Carregando",
     "loadError": "Não foi possível carregar o calendário. Tente de novo.",
     "dayDetail": {
       "completionSummary": "{done} de {total} hábito concluído | {done} de {total} hábitos concluídos"

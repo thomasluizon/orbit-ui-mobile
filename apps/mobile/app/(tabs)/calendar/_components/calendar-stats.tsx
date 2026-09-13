@@ -9,15 +9,29 @@ export interface CalendarStat {
 
 interface CalendarStatsProps {
   stats: readonly [CalendarStat, CalendarStat, CalendarStat];
+  state?: 'default' | 'loading' | 'empty';
+  loadingLabel?: string;
+  emptyLabel?: string;
 }
 
 /** The three month figures, kept in one row at every width. */
-export function CalendarStats({ stats }: Readonly<CalendarStatsProps>) {
+export function CalendarStats({
+  stats,
+  state = 'default',
+  loadingLabel,
+  emptyLabel,
+}: Readonly<CalendarStatsProps>) {
   return (
     <View testID="calendar-stats" style={styles.row}>
       {stats.map((stat) => (
         <View key={stat.key} style={styles.cell}>
-          <StatTile value={stat.value} label={stat.label} />
+          {state === 'loading' ? (
+            <StatTile state="loading" loadingLabel={loadingLabel ?? ''} label={stat.label} />
+          ) : state === 'empty' ? (
+            <StatTile state="empty" emptyLabel={emptyLabel ?? ''} label={stat.label} />
+          ) : (
+            <StatTile value={stat.value} label={stat.label} />
+          )}
         </View>
       ))}
     </View>
