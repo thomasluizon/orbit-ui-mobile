@@ -385,8 +385,10 @@ class Component extends DCLogic {
     const astra = group(t.gAstra, H(F, null,
       allowance,
       H(D.RowList, null,
-        this.padRow(H(D.Switch, { label: t.proactive, checked: s.proactive, onChange: (v) => this.setState({ proactive: v }) })),
-        this.padRow(H(D.Switch, { label: t.summary, checked: s.summary, onChange: (v) => this.setState({ summary: v }) }))),
+        pro ? this.padRow(H(D.Switch, { label: t.proactive, checked: s.proactive, onChange: (v) => this.setState({ proactive: v }) }))
+          : H(D.ListRow, { icon: 'lock', title: t.proactive, trailing: H(D.Badge, null, 'Pro'), chevron: false, onClick: this.goPro }),
+        pro ? this.padRow(H(D.Switch, { label: t.summary, checked: s.summary, onChange: (v) => this.setState({ summary: v }) }))
+          : H(D.ListRow, { icon: 'lock', title: t.summary, trailing: H(D.Badge, null, 'Pro'), chevron: false, onClick: this.goPro }))),
       keysSection));
 
     const notif = group(t.gNotif, H(F, null,
