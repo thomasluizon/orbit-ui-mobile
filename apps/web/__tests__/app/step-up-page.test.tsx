@@ -306,6 +306,6 @@ describe('web step up screen', () => {
       { method: 'POST', body: JSON.stringify({ code: '123456' }) },
     ))
     expect(mocks.clearTiming).toHaveBeenCalledWith('keys')
-    expect(mocks.replace).toHaveBeenCalledWith('/advanced?create-key=1')
+    expect(mocks.replace).toHaveBeenCalledWith('/profile?api-keys=1')
   })
 })

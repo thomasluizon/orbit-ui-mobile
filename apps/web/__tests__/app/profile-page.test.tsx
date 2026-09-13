@@ -12,6 +12,9 @@ const {
   mockPatchProfile,
   mockProfileState,
   mockRouterPush,
+  mockSearchParams,
+  mockApiKeys,
+  mockCreateApiKey,
 } = vi.hoisted(() => ({
   mockExportUserData: vi.fn(),
   mockUpdateAiSummary: vi.fn(),
@@ -20,6 +23,9 @@ const {
   mockUseGamificationProfile: vi.fn(() => ({ profile: null })),
   mockPatchProfile: vi.fn(),
   mockRouterPush: vi.fn(),
+  mockSearchParams: { current: '' },
+  mockApiKeys: { current: [] as Record<string, unknown>[] },
+  mockCreateApiKey: vi.fn(),
   mockProfileState: {
     current: {
       profile: undefined as ReturnType<typeof createMockProfile> | undefined,
@@ -33,6 +39,12 @@ vi.mock('@/app/actions/profile', () => ({
   exportUserData: mockExportUserData,
   updateAiSummary: mockUpdateAiSummary,
   updateProactiveAstra: mockUpdateProactiveAstra,
+}))
+
+vi.mock('@/app/actions/api-keys', () => ({
+  createApiKey: mockCreateApiKey,
+  revokeApiKey: vi.fn(),
+  requestApiKeyCreationChallenge: vi.fn(),
 }))
 
 vi.mock('@orbit/shared/hooks', async (importOriginal) => ({
@@ -56,11 +68,16 @@ vi.mock('next/navigation', () => ({
     back: vi.fn(),
     refresh: vi.fn(),
   }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(mockSearchParams.current),
 }))
 
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({ data: undefined, isLoading: false, isError: false }),
+  useQuery: ({ queryKey }: { queryKey?: string[] }) => ({
+    data: queryKey?.[0] === 'apiKeys' ? mockApiKeys.current : undefined,
+    error: null,
+    isLoading: false,
+    isError: false,
+  }),
   useQueryClient: () => ({
     invalidateQueries: vi.fn(),
   }),
@@ -152,6 +169,9 @@ describe('ProfilePage', () => {
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()
+    mockSearchParams.current = ''
+    mockApiKeys.current = []
+    mockCreateApiKey.mockReset()
     mockProfileState.current = {
       profile: createMockProfile({
         plan: 'free',
@@ -200,7 +220,6 @@ describe('ProfilePage', () => {
       'settings.weekStartDay.title',
       'preferences.themeMode',
       'profile.subscription.plan',
-      'profile.settingsRows.apiKeysMcp',
       'profile.wrappedTitle',
       'calendar.profileButton',
       'profile.sections.aboutHelp',
@@ -240,6 +259,85 @@ describe('ProfilePage', () => {
     fireEvent.click(summaryGate)
     expect(mockRouterPush).toHaveBeenNthCalledWith(1, '/upgrade')
     expect(mockRouterPush).toHaveBeenNthCalledWith(2, '/upgrade')
+  })
+
+  it('shows only the API key description and upgrade row to free accounts', () => {
+    render(<ProfilePage />)
+
+    const apiKeys = within(screen.getByTestId('profile-api-keys'))
+    expect(apiKeys.getByText('profile.apiKeys.description')).toBeInTheDocument()
+    const upgradeRow = apiKeys.getByRole('button', { name: 'profile.apiKeys.unlock' })
+    expect(apiKeys.queryByText('orbitMcp.noKeys')).not.toBeInTheDocument()
+
+    fireEvent.click(upgradeRow)
+    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
+  })
+
+  it('puts the step up before the API key list for Pro accounts', () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    render(<ProfilePage />)
+
+    const apiKeys = within(screen.getByTestId('profile-api-keys'))
+    expect(apiKeys.queryByText('orbitMcp.noKeys')).not.toBeInTheDocument()
+    fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.open' }))
+
+    expect(
+      apiKeys.getByRole('button', { name: 'profile.apiKeys.stepUpAction' }),
+    ).toBeInTheDocument()
+    expect(apiKeys.queryByText('orbitMcp.noKeys')).not.toBeInTheDocument()
+  })
+
+  it('shows verified keys and submits a free-text scope', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockSearchParams.current = 'api-keys=1'
+    mockApiKeys.current = [{
+      id: 'key-1',
+      name: 'Work key',
+      keyPrefix: 'orb_live_1234',
+      scopes: [],
+      isReadOnly: false,
+      expiresAtUtc: null,
+      createdAtUtc: '2026-09-14T12:00:00Z',
+      lastUsedAtUtc: null,
+      isRevoked: false,
+    }]
+    mockCreateApiKey.mockResolvedValue({
+      ...mockApiKeys.current[0],
+      id: 'key-2',
+      key: 'orb_secret',
+    })
+    render(<ProfilePage />)
+
+    const apiKeys = within(screen.getByTestId('profile-api-keys'))
+    expect(apiKeys.getByText('Work key')).toBeInTheDocument()
+    expect(apiKeys.getByText('orb_live_1234…')).toBeInTheDocument()
+    fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.revokeNamed' }))
+    expect(screen.getByRole('dialog', { name: 'profile.apiKeys.revokeNamedQuestion' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.cancel' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'profile.apiKeys.revokeNamedQuestion' })).not.toBeInTheDocument()
+    })
+
+    fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), {
+      target: { value: 'habits:read' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.scopeAction' }))
+
+    await waitFor(() => {
+      expect(mockCreateApiKey).toHaveBeenCalledWith({
+        name: 'profile.apiKeys.newKeyName',
+        scopes: ['habits:read'],
+      })
+    })
   })
 
   it('shows trial copy and routes its allowance action to the trial pitch', () => {

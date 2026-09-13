@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useShellNoticeSlot } from '@orbit/shared/hooks'
@@ -24,6 +24,7 @@ import {
   UserX,
 } from '@/components/ui/icons'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
+import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
 import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
 import {
   AstraSettingsSwitch,
@@ -103,6 +104,7 @@ function buildYouRows(
 function buildAstraRows(
   { profile, router, t }: RowContext,
   settings: AstraSettingsController,
+  apiKeysUnlocked: boolean,
 ) {
   const onUpgrade = () => router.push('/upgrade')
   return (
@@ -137,10 +139,7 @@ function buildAstraRows(
           )}
         </RowList>
       ) : null}
-      <RowList>
-        {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
-        <ListRow key="api-keys" icon={icon(Lock)} title={t('profile.settingsRows.apiKeysMcp')} onClick={() => router.push('/advanced')} />
-      </RowList>
+      <ProfileApiKeys profile={profile} unlocked={apiKeysUnlocked} />
     </>
   )
 }
@@ -235,6 +234,7 @@ export function ProfileSettingsContent({
 }: Readonly<ProfileSettingsContentProps>) {
   const t = useTranslations()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const mounted = useIsClient()
   const logout = useAuthStore((state) => state.logout)
   const preferenceControls = usePreferenceControls()
@@ -270,7 +270,7 @@ export function ProfileSettingsContent({
       () => void exportData(),
       () => preferenceControls.setActivePicker('timeZone'),
     ),
-    astra: buildAstraRows(context, astraSettings),
+    astra: buildAstraRows(context, astraSettings, searchParams.get('api-keys') === '1'),
     notifications: [
       <MarketingConsentSection
         key="product-email"

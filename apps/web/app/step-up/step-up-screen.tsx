@@ -130,7 +130,7 @@ export function StepUpScreen() {
           return
         }
         clearStepUpTiming(operation)
-        router.replace('/advanced?create-key=1')
+        router.replace('/profile?api-keys=1')
         return
       }
       const result = await confirmDeletion(code)

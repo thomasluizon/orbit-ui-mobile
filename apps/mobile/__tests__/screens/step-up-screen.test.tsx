@@ -345,6 +345,6 @@ describe('mobile step up screen', () => {
       expect.anything(),
     )
     expect(mocks.clearTiming).toHaveBeenCalledWith('keys')
-    expect(mocks.router.replace).toHaveBeenCalledWith('/advanced?create-key=1')
+    expect(mocks.router.replace).toHaveBeenCalledWith('/profile?api-keys=1')
   })
 })

@@ -164,7 +164,7 @@ export default function StepUpScreen() {
           stepUpMessageResponseSchema,
         )
         await clearStepUpTiming(operation)
-        router.replace('/advanced?create-key=1')
+        router.replace('/profile?api-keys=1')
         return
       }
       const response = await apiClient<AccountDeactivationResponse>(

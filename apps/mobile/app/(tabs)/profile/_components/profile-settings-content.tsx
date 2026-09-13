@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useShellNoticeSlot } from '@orbit/shared/hooks'
@@ -23,6 +23,7 @@ import {
   type Icon,
 } from '@/components/ui/icons'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
+import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
 import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
 import {
   AstraSettingsSwitch,
@@ -109,6 +110,7 @@ function buildYouRows(
 function buildAstraRows(
   { profile, router, t, tokens }: RowContext,
   settings: AstraSettingsController,
+  apiKeysUnlocked: boolean,
 ) {
   const onUpgrade = () => router.push(buildUpgradeHref('/profile'))
   return (
@@ -146,10 +148,7 @@ function buildAstraRows(
           )}
         </RowList>
       ) : null}
-      <RowList>
-        {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
-        <ListRow key="api-keys" icon={icon(Lock, tokens.fg1)} title={t('profile.settingsRows.apiKeysMcp')} onClick={() => router.push('/advanced')} />
-      </RowList>
+      <ProfileApiKeys profile={profile} unlocked={apiKeysUnlocked} />
     </>
   )
 }
@@ -251,6 +250,10 @@ export function ProfileSettingsContent({
 }: Readonly<ProfileSettingsContentProps>) {
   const { t } = useTranslation()
   const router = useRouter()
+  const searchParams = useLocalSearchParams<{ 'api-keys'?: string | string[] }>()
+  const apiKeysParam = Array.isArray(searchParams['api-keys'])
+    ? searchParams['api-keys'][0]
+    : searchParams['api-keys']
   const logout = useLogout()
   const preferenceControls = usePreferenceControls()
   const tokens = useMemo(
@@ -289,7 +292,7 @@ export function ProfileSettingsContent({
       () => void exportData(),
       () => preferenceControls.setActivePicker('timeZone'),
     ),
-    astra: buildAstraRows(context, astraSettings),
+    astra: buildAstraRows(context, astraSettings, apiKeysParam === '1'),
     notifications: [
       <MarketingConsentSection key="product-email" showSectionLabel={false} contained />,
     ],

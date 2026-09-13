@@ -1294,6 +1294,24 @@
       "seePro": "Ver o Pro",
       "manageSubscription": "Gerir assinatura"
     },
+    "apiKeys": {
+      "description": "Para ligar o Orbit a outras ferramentas pela API ou por um cliente MCP.",
+      "unlock": "Ver Pro",
+      "open": "Abrir as chaves",
+      "create": "Criar chave",
+      "createScoped": "Criar chave com escopo",
+      "newKeyName": "Nova chave",
+      "scopeTitle": "Chave com escopo",
+      "scopeLabel": "Escopo",
+      "scopeAction": "Criar",
+      "mcpTitle": "Conectar por MCP",
+      "mcpLine": "Cole uma chave ativa nas configurações do seu cliente MCP. As instruções completas ficam nesta seção no app.",
+      "stepUpBody": "Para mexer em chaves ou apagar a conta, entre de novo. O Orbit nunca pede a sua senha dentro de uma conversa.",
+      "stepUpAction": "Entrar de novo",
+      "revokeNamed": "Revogar {name}",
+      "revokeNamedQuestion": "Revogar {name}?",
+      "revokeBody": "O que usa esta chave para de funcionar na hora. Não há como restaurar a chave."
+    },
     "timezonePicker": {
       "search": "Buscar fusos horários",
       "noResults": "Nenhum fuso horário encontrado",

@@ -30,6 +30,8 @@ const {
   mockPatchProfile,
   mockRouterPush,
   mockProfileState,
+  mockSearchParams,
+  mockApiKeys,
 } = vi.hoisted(() => ({
   mockApiClient: vi.fn(),
   mockPerformQueuedApiMutation: vi.fn(),
@@ -43,6 +45,8 @@ const {
   mockPatchProfile: vi.fn(),
   mockShellNoticeSlot: vi.fn(),
   mockRouterPush: vi.fn(),
+  mockSearchParams: { current: {} },
+  mockApiKeys: { current: [] as Record<string, unknown>[] },
   mockProfileState: {
     current: {
       profile: undefined as ReturnType<typeof createMockProfile> | undefined,
@@ -56,6 +60,10 @@ vi.mock('expo-sharing', () => {
   return { shareAsync: mockShareAsync }
 })
 
+vi.mock('@react-native-clipboard/clipboard', () => ({
+  default: { setString: vi.fn() },
+}))
+
 vi.mock('expo-device', () => ({
   __esModule: true,
   default: { isDevice: true },
@@ -63,7 +71,7 @@ vi.mock('expo-device', () => ({
 }))
 
 vi.mock('expo-router', () => ({
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => mockSearchParams.current,
   useRouter: () => ({
     push: mockRouterPush,
     replace: vi.fn(),
@@ -82,7 +90,12 @@ vi.mock('react-i18next', () => ({
 }))
 
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({ data: undefined, isLoading: false, isError: false }),
+  useQuery: ({ queryKey }: { queryKey?: string[] }) => ({
+    data: queryKey?.[0] === 'apiKeys' ? mockApiKeys.current : undefined,
+    error: null,
+    isLoading: false,
+    isError: false,
+  }),
   useQueryClient: () => ({
     invalidateQueries: vi.fn(),
     clear: vi.fn(),
@@ -282,6 +295,7 @@ vi.mock('@/components/ui/list-row', () => ({
     onClick,
     accessibilityLabel,
     chevron = true,
+    action,
   }: {
     title: string
     description?: string
@@ -289,15 +303,24 @@ vi.mock('@/components/ui/list-row', () => ({
     onClick?: () => void
     accessibilityLabel?: string
     chevron?: boolean
-  }) => React.createElement('SettingsRowStub', {
-    label: title,
-    hint: description,
-    value,
-    onPress: onClick,
-    chevron,
-    accessibilityRole: onClick ? 'button' : undefined,
-    accessibilityLabel: accessibilityLabel ?? title,
-  }),
+    action?: { label: string; onPress: () => void }
+  }) => React.createElement(
+    'SettingsRowStub',
+    {
+      label: title,
+      hint: description,
+      value,
+      onPress: onClick,
+      chevron,
+      accessibilityRole: onClick ? 'button' : undefined,
+      accessibilityLabel: accessibilityLabel ?? title,
+    },
+    action ? React.createElement('RowActionStub', {
+      accessibilityRole: 'button',
+      accessibilityLabel: action.label,
+      onPress: action.onPress,
+    }) : null,
+  ),
 }))
 
 vi.mock('@/components/ui/icons', () => {
@@ -317,6 +340,7 @@ vi.mock('@/components/ui/icons', () => {
     User: createIcon('User'),
     ChevronLeft: createIcon('ChevronLeft'),
     Flame: createIcon('Flame'),
+    Key: createIcon('Key'),
     Lock: createIcon('Lock'),
     Download: createIcon('Download'),
     Share2: createIcon('Share2'),
@@ -332,6 +356,7 @@ vi.mock('@/components/ui/icons', () => {
     Moon: createIcon('Moon'),
     Satellite: createIcon('Satellite'),
     Search: createIcon('Search'),
+    Shield: createIcon('Shield'),
   }
 })
 
@@ -386,6 +411,8 @@ describe('ProfileScreen', () => {
     mockPatchProfile.mockReset()
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()
+    mockSearchParams.current = {}
+    mockApiKeys.current = []
     mockProfileState.current = {
       profile: createMockProfile({
         plan: 'free',
@@ -462,7 +489,6 @@ describe('ProfileScreen', () => {
       'settings.weekStartDay.title',
       'preferences.themeMode',
       'profile.subscription.plan',
-      'profile.settingsRows.apiKeysMcp',
       'profile.wrappedTitle',
       'calendar.profileButton',
       'profile.sections.aboutHelp',
@@ -499,9 +525,10 @@ describe('ProfileScreen', () => {
     ).toHaveLength(0)
     const proactiveGate = findRowByLabel(tree, 'profile.proactiveAstra.title')
     const summaryGate = findRowByLabel(tree, 'profile.aiSummary.title')
+    const allowance = tree.root.findByProps({ testID: 'astra-allowance-panel' })
 
     TestRenderer.act(() => {
-      tree.root.findByProps({
+      allowance.findByProps({
         accessibilityRole: 'button',
         accessibilityLabel: 'profile.allowance.seePro',
       }).props.onPress()
@@ -520,6 +547,79 @@ describe('ProfileScreen', () => {
       pathname: '/upgrade',
       params: { from: '/profile' },
     })
+  })
+
+  it('shows only the API key description and upgrade row to free accounts', async () => {
+    const tree = await renderProfileScreen()
+    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
+
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.apiKeys.description')),
+    ).toHaveLength(1)
+    expect(findRowByLabel(tree, 'profile.apiKeys.unlock')).toBeDefined()
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('orbitMcp.noKeys')),
+    ).toHaveLength(0)
+
+    TestRenderer.act(() => {
+      findRowByLabel(tree, 'profile.apiKeys.unlock').props.onPress?.()
+    })
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
+  })
+
+  it('puts the step up before the API key list for Pro accounts', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    const tree = await renderProfileScreen()
+
+    TestRenderer.act(() => {
+      findRowByLabel(tree, 'profile.apiKeys.open').props.onPress?.()
+    })
+    expect(
+      tree.root.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.apiKeys.stepUpAction')),
+    ).toHaveLength(1)
+  })
+
+  it('shows verified keys with a named revoke action', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockSearchParams.current = { 'api-keys': '1' }
+    mockApiKeys.current = [{
+      id: 'key-1',
+      name: 'Work key',
+      keyPrefix: 'orb_live_1234',
+      scopes: [],
+      isReadOnly: false,
+      expiresAtUtc: null,
+      createdAtUtc: '2026-09-14T12:00:00Z',
+      lastUsedAtUtc: null,
+      isRevoked: false,
+    }]
+    const tree = await renderProfileScreen()
+
+    const keyRow = findRowByLabel(tree, 'Work key')
+    expect(keyRow.props.value).toBe('orb_live_1234…')
+    const revoke = tree.root.findByProps({
+      accessibilityRole: 'button',
+      accessibilityLabel: 'profile.apiKeys.revokeNamed',
+    })
+    TestRenderer.act(() => revoke.props.onPress())
+    expect(
+      tree.root.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.apiKeys.revokeNamedQuestion')),
+    ).toHaveLength(1)
   })
 
   it('shows trial copy and routes its allowance action to the trial pitch', async () => {
