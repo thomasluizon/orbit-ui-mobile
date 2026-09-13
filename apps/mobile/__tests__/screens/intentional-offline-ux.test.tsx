@@ -319,6 +319,7 @@ vi.mock('@/components/ui/icons', () => {
     Pencil: createIcon('Pencil'),
     RefreshCw: createIcon('RefreshCw'),
     RotateCcw: createIcon('RotateCcw'),
+    Satellite: createIcon('Satellite'),
     Settings: createIcon('Settings'),
     ShieldCheck: createIcon('ShieldCheck'),
     Orbit: createIcon('Orbit'),
