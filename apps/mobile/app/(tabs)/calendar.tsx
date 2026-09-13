@@ -37,6 +37,7 @@ import {
   clampRangeToMaxDays,
   filterRecurringEntries,
   formatAPIDate,
+  isCalendarDayLoggable,
   parseAPIDate,
   MAX_RANGE_DAYS,
   buildCalendarMonthModel,
@@ -44,9 +45,13 @@ import {
   resolveCalendarMonthDisplayState,
   type CalendarMonthDisplayState,
 } from "@orbit/shared/utils";
+import {
+  getCalendarEntryMutationKey,
+  useCalendarEntryMutationLock,
+} from "@orbit/shared/hooks";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import type { Profile } from "@orbit/shared/types/profile";
-import { useCalendarData, useCalendarRange } from "@/hooks/use-habits";
+import { useCalendarData, useCalendarRange, useLogHabit } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
@@ -214,6 +219,7 @@ function CalendarScreenContent({
   const { displayTime } = useTimeFormat();
   const todayKey = useCurrentDate(profile.timeZone);
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal);
+  const logHabit = useLogHabit();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -476,6 +482,34 @@ function CalendarScreenContent({
     (entry: CalendarDayEntry) => entry.status === "completed",
   ).length;
 
+  const selectedDayLoggable = selectedDay !== null
+    && isCalendarDayLoggable(selectedDay, todayKey);
+
+  const selectedEntrySourceStates = useMemo(() => {
+    const sourceStates = new Map<string, boolean>();
+    if (!selectedDay) return sourceStates;
+    for (const entry of selectedEntries) {
+      sourceStates.set(
+        getCalendarEntryMutationKey(selectedDay, entry.habitId),
+        entry.status === "completed",
+      );
+    }
+    return sourceStates;
+  }, [selectedDay, selectedEntries]);
+  const { pendingEntryStates, startEntryMutation } = useCalendarEntryMutationLock(
+    selectedEntrySourceStates,
+  );
+
+  const changeSelectedEntry = (entry: CalendarDayEntry, checked: boolean) => {
+    if (!selectedDay) return null;
+    const entryKey = getCalendarEntryMutationKey(selectedDay, entry.habitId);
+    return startEntryMutation(entryKey, checked, () => logHabit.mutateAsync({
+      habitId: entry.habitId,
+      date: selectedDay,
+      intent: checked ? "log" : "unlog",
+    }));
+  };
+
   const { sheetRef, closeSheet } = useSheetHost();
 
   const goToSelectedDay = () => {
@@ -699,20 +733,24 @@ function CalendarScreenContent({
         </ScrollView>
       )}
 
-      {isDayDetailOpen ? (<Sheet
+      {isDayDetailOpen && selectedDay ? (<Sheet
         ref={sheetRef}
         open
         onClose={closeDayDetail}
         title={formattedSelectedDate}
-        key={selectedDay ?? undefined}
+        key={selectedDay}
       >
         <View style={styles.sheetContent}>
           <CalendarDayDetail
+            selectedDate={selectedDay}
             selectedEntries={selectedEntries}
             filteredEntries={filteredEntries}
             completedCount={completedCount}
+            loggable={selectedDayLoggable}
             showRecurring={showRecurring}
+            pendingEntryStates={pendingEntryStates}
             onShowRecurringChange={setShowRecurring}
+            onEntryChange={changeSelectedEntry}
             onGoToDay={goToSelectedDay}
             displayTime={displayTime}
             t={t}

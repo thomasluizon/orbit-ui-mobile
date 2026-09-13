@@ -21,13 +21,19 @@ import {
   parseAPIDate,
   capitalizeFirstLetter,
   filterRecurringEntries,
+  isCalendarDayLoggable,
   clampRangeToMaxDays,
   MAX_RANGE_DAYS,
   CALENDAR_MONTH_GRID_GEOMETRY,
   resolveCalendarMonthDisplayState,
   type CalendarMonthDisplayState,
 } from '@orbit/shared/utils'
+import {
+  getCalendarEntryMutationKey,
+  useCalendarEntryMutationLock,
+} from '@orbit/shared/hooks'
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
+import { useLogHabit } from '@/hooks/use-habits'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
@@ -128,8 +134,11 @@ interface CalendarInlineDayPanelProps {
   title: string
   selectedDay: string | null
   entries: CalendarDayEntry[]
+  loggable: boolean
   showRecurring: boolean
+  pendingEntryStates: ReadonlyMap<string, boolean>
   onShowRecurringChange: (value: boolean) => void
+  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
 }
 
 function CalendarInlineDayPanel({
@@ -139,8 +148,11 @@ function CalendarInlineDayPanel({
   title,
   selectedDay,
   entries,
+  loggable,
   showRecurring,
+  pendingEntryStates,
   onShowRecurringChange,
+  onEntryChange,
 }: Readonly<CalendarInlineDayPanelProps>) {
   if (!show) return null
   const loading = state === 'loading'
@@ -171,8 +183,11 @@ function CalendarInlineDayPanel({
           <CalendarDayDetail
             dateStr={selectedDay}
             entries={entries}
+            loggable={loggable}
             showRecurring={showRecurring}
+            pendingEntryStates={pendingEntryStates}
             onShowRecurringChange={onShowRecurringChange}
+            onEntryChange={onEntryChange}
             fitViewport
           />
         </>
@@ -257,6 +272,7 @@ function CalendarPageContent({
   const isWideDesktop = useIsWideDesktop()
   const todayKey = useToday(profile.timeZone)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
+  const logHabit = useLogHabit()
 
   const [view, setView] = useState<CalendarView>('month')
   /** Agenda is desktop-width only until #56 stage 10 builds the mobile day groups. */
@@ -420,6 +436,37 @@ function CalendarPageContent({
     return activeDayMap.get(selectedDay) ?? []
   }, [selectedDay, activeDayMap])
 
+  const selectedDayLoggable = selectedDay !== null
+    && isCalendarDayLoggable(selectedDay, todayKey)
+
+  const selectedEntrySourceStates = useMemo(() => {
+    const sourceStates = new Map<string, boolean>()
+    if (!selectedDay) return sourceStates
+    for (const entry of selectedEntries) {
+      sourceStates.set(
+        getCalendarEntryMutationKey(selectedDay, entry.habitId),
+        entry.status === 'completed',
+      )
+    }
+    return sourceStates
+  }, [selectedDay, selectedEntries])
+  const { pendingEntryStates, startEntryMutation } = useCalendarEntryMutationLock(
+    selectedEntrySourceStates,
+  )
+
+  function changeSelectedEntry(
+    entry: CalendarDayEntry,
+    checked: boolean,
+  ): Promise<unknown> | null {
+    if (!selectedDay) return null
+    const entryKey = getCalendarEntryMutationKey(selectedDay, entry.habitId)
+    return startEntryMutation(
+      entryKey,
+      checked,
+      () => logHabit.mutateAsync({ habitId: entry.habitId, date: selectedDay }),
+    )
+  }
+
   const dayDetailTitle = useMemo(() => {
     if (!selectedDay) return ''
     return capitalizeFirstLetter(displayWeekdayDate(parseAPIDate(selectedDay)))
@@ -578,8 +625,11 @@ function CalendarPageContent({
                   title={dayDetailTitle}
                   selectedDay={selectedDay}
                   entries={selectedEntries}
+                  loggable={selectedDayLoggable}
                   showRecurring={showRecurring}
+                  pendingEntryStates={pendingEntryStates}
                   onShowRecurringChange={setShowRecurring}
+                  onEntryChange={changeSelectedEntry}
                 />
               </div>
             )}
@@ -656,8 +706,11 @@ function CalendarPageContent({
         <CalendarDayDetail
           dateStr={selectedDay}
           entries={selectedEntries}
+          loggable={selectedDayLoggable}
           showRecurring={showRecurring}
+          pendingEntryStates={pendingEntryStates}
           onShowRecurringChange={setShowRecurring}
+          onEntryChange={changeSelectedEntry}
         />
       </Sheet>) : null}
     </div>

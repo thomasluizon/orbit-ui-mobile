@@ -1,192 +1,248 @@
-import { useMemo } from "react";
-import { View, Text, StyleSheet } from "react-native";
-import Animated, {
-  FadeInDown,
-  ReduceMotion,
-} from "react-native-reanimated";
-import type { TFunction } from "i18next";
-import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
-import { plural } from "@/lib/plural";
-import { PillButton } from "@/components/ui/pill-button";
-import { createTokensV2 } from "@/lib/theme";
-import { CalendarDayEntryRow } from "./calendar-day-entry";
-import { ShowRecurringToggle } from "./show-recurring-toggle";
+import { useMemo, useState } from 'react'
+import { StyleSheet, Text, View } from 'react-native'
+import type { TFunction } from 'i18next'
+import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { StatusRingProps } from '@orbit/shared/contracts/lists'
+import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
+import { determineHabitDayStatus, parseAPIDate } from '@orbit/shared/utils'
+import { CheckRow } from '@/components/ui/check-row'
+import { ListRow } from '@/components/ui/list-row'
+import { StatusRing } from '@/components/ui/status-ring'
+import { createTokensV2, radius } from '@/lib/theme'
+import { ShowRecurringToggle } from './show-recurring-toggle'
 
-type Tokens = ReturnType<typeof createTokensV2>;
+type Tokens = ReturnType<typeof createTokensV2>
 
 interface CalendarDayDetailProps {
-  selectedEntries: CalendarDayEntry[];
-  filteredEntries: CalendarDayEntry[];
-  completedCount: number;
-  showRecurring: boolean;
-  onShowRecurringChange: (value: boolean) => void;
-  onGoToDay: () => void;
-  displayTime: (time: string) => string;
-  t: TFunction;
-  tokens: Tokens;
+  selectedDate: string
+  selectedEntries: CalendarDayEntry[]
+  filteredEntries: CalendarDayEntry[]
+  completedCount: number
+  loggable: boolean
+  showRecurring: boolean
+  pendingEntryStates: ReadonlyMap<string, boolean>
+  onShowRecurringChange: (value: boolean) => void
+  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
+  onGoToDay: () => void
+  displayTime: (time: string) => string
+  t: TFunction
+  tokens: Tokens
 }
 
-function statusBadge(
-  entry: CalendarDayEntry,
-  t: (key: string) => string,
-): string | null {
-  if (entry.isBadHabit) {
-    if (entry.status === "completed") return t("calendar.status.indulged").toUpperCase();
-    if (entry.status === "missed") return t("calendar.status.resisted").toUpperCase();
-    return null;
-  }
-  if (entry.status === "completed") return t("calendar.status.completed").toUpperCase();
-  if (entry.status === "missed") return t("calendar.status.missed").toUpperCase();
-  return null;
+type EntryOutcome = {
+  label: string
+  status: NonNullable<StatusRingProps['status']>
 }
 
-function statusBadgeColor(entry: CalendarDayEntry, tokens: Tokens): string {
-  if (entry.isBadHabit) {
-    return entry.status === "completed" ? tokens.statusBadText : tokens.statusDone;
+function getEntryOutcome(entry: CalendarDayEntry, t: TFunction): EntryOutcome {
+  if (entry.status === 'upcoming') {
+    return {
+      label: t('calendar.status.upcoming'),
+      status: 'empty',
+    }
   }
-  return entry.status === "completed" ? tokens.statusDone : tokens.statusOverdueText;
+
+  const completed = entry.status === 'completed'
+
+  if (entry.isBadHabit) {
+    return {
+      label: t(completed ? 'calendar.status.indulged' : 'calendar.status.resisted'),
+      status: completed ? 'bad' : 'done',
+    }
+  }
+
+  return {
+    label: t(completed ? 'calendar.status.completed' : 'calendar.status.missed'),
+    status: completed ? 'done' : 'empty',
+  }
+}
+
+function CalendarDayCheckRow({
+  selectedDate,
+  entry,
+  displayTime,
+  isPending,
+  pendingChecked,
+  onEntryChange,
+  t,
+}: Readonly<{
+  selectedDate: string
+  entry: CalendarDayEntry
+  displayTime: (time: string) => string
+  isPending: boolean
+  pendingChecked: boolean | undefined
+  onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
+  t: TFunction
+}>) {
+  const sourceChecked = entry.status === 'completed'
+  const [optimisticChecked, setOptimisticChecked] = useState<boolean | null>(
+    () => pendingChecked ?? null,
+  )
+  const displayedChecked = optimisticChecked === sourceChecked ? null : optimisticChecked
+  const checked = displayedChecked ?? sourceChecked
+  const displayedEntry: CalendarDayEntry = displayedChecked === null
+    ? entry
+    : {
+        ...entry,
+        status: displayedChecked
+          ? 'completed'
+          : determineHabitDayStatus(parseAPIDate(selectedDate), false),
+      }
+  const outcome = getEntryOutcome(displayedEntry, t)
+  const value = entry.dueTime
+    ? `${displayTime(entry.dueTime)} · ${outcome.label}`
+    : outcome.label
+
+  async function changeChecked(nextChecked: boolean) {
+    const entryChange = onEntryChange(entry, nextChecked)
+    if (!entryChange) return
+    setOptimisticChecked(nextChecked)
+
+    try {
+      await entryChange
+    } catch {
+      setOptimisticChecked(null)
+    }
+  }
+
+  return (
+    <CheckRow
+      label={entry.title}
+      checked={checked}
+      value={value}
+      loading={isPending}
+      onChange={(nextChecked) => void changeChecked(nextChecked)}
+    />
+  )
 }
 
 export function CalendarDayDetail({
+  selectedDate,
   selectedEntries,
   filteredEntries,
   completedCount,
+  loggable,
   showRecurring,
+  pendingEntryStates,
   onShowRecurringChange,
+  onEntryChange,
   onGoToDay,
   displayTime,
   t,
   tokens,
 }: Readonly<CalendarDayDetailProps>) {
-  const styles = useMemo(() => createStyles(tokens), [tokens]);
-
-  const renderEntry = (item: CalendarDayEntry, index: number) => {
-    const badge = statusBadge(item, t);
-    const isFirst = index === 0;
-    const isLast = index === filteredEntries.length - 1;
-    return (
-      <Animated.View
-        key={item.habitId}
-        style={[
-          styles.entryRowFrame,
-          {
-            backgroundColor: tokens.bgCard,
-            borderColor: tokens.hairline,
-          },
-          isFirst && styles.entryRowFrameFirst,
-          isLast && styles.entryRowFrameLast,
-        ]}
-        entering={
-          index < 8
-            ? FadeInDown.duration(220)
-                .delay(index * 30)
-                .reduceMotion(ReduceMotion.System)
-            : undefined
-        }
-      >
-        <CalendarDayEntryRow
-          entry={item}
-          tokens={tokens}
-          statusText={badge}
-          statusColor={statusBadgeColor(item, tokens)}
-          statusAccessibilityLabel={badge ?? t("calendar.status.upcoming")}
-          displayTime={displayTime}
-          isLast={isLast}
-        />
-      </Animated.View>
-    );
-  };
+  const styles = useMemo(() => createStyles(tokens), [tokens])
+  const summary = filteredEntries.length > 0
+    ? t('calendar.dayDetail.completionSummary', {
+        done: completedCount,
+        total: filteredEntries.length,
+      })
+    : t('calendar.dayDetail.nothingDue')
 
   return (
-    <>
-      {selectedEntries.length > 0 ? (
-        <View style={styles.recurringToggleRow}>
-          <ShowRecurringToggle
-            checked={showRecurring}
-            onChange={onShowRecurringChange}
-            label={t("calendar.showRecurring")}
-            tokens={tokens}
-          />
+    <View style={styles.container}>
+      <View style={styles.copyBlock}>
+        {selectedEntries.length > 0 ? (
+          <View style={styles.recurringToggleRow}>
+            <ShowRecurringToggle
+              checked={showRecurring}
+              onChange={onShowRecurringChange}
+              label={t('calendar.showRecurring')}
+              tokens={tokens}
+            />
+          </View>
+        ) : null}
+
+        <Text style={[styles.summaryText, { color: tokens.fg3 }]}>{summary}</Text>
+
+        {filteredEntries.length === 0 ? (
+          <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
+            {t('calendar.noHabitsScheduled')}
+          </Text>
+        ) : null}
+      </View>
+
+      {filteredEntries.length > 0 ? (
+        <View>
+          {filteredEntries.map((entry) => {
+            const entryKey = getCalendarEntryMutationKey(selectedDate, entry.habitId)
+            const outcome = getEntryOutcome(entry, t)
+            const value = entry.dueTime
+              ? `${displayTime(entry.dueTime)} · ${outcome.label}`
+              : outcome.label
+
+            if (loggable) {
+              return (
+                <CalendarDayCheckRow
+                  key={`${selectedDate}:${entry.habitId}`}
+                  selectedDate={selectedDate}
+                  entry={entry}
+                  displayTime={displayTime}
+                  isPending={pendingEntryStates.has(entryKey)}
+                  pendingChecked={pendingEntryStates.get(entryKey)}
+                  onEntryChange={onEntryChange}
+                  t={t}
+                />
+              )
+            }
+
+            return (
+              <ListRow
+                key={`${selectedDate}:${entry.habitId}`}
+                title={entry.title}
+                value={value}
+                trailing={
+                  <StatusRing status={outcome.status} size={24} label={outcome.label} />
+                }
+                chevron={false}
+                readOnly
+              />
+            )
+          })}
         </View>
       ) : null}
 
-      {selectedEntries.length === 0 || filteredEntries.length === 0 ? (
-        <View style={styles.emptyDayCard}>
-          <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
-            {t("calendar.noHabitsScheduled")}
-          </Text>
-        </View>
-      ) : (
-        <>
-          <Text style={[styles.summaryText, { color: tokens.fg3 }]}>
-            {plural(
-              t("calendar.dayDetail.completionSummary", {
-                done: completedCount,
-                total: filteredEntries.length,
-              }),
-              filteredEntries.length,
-            )}
-          </Text>
-          <View>
-            {filteredEntries.map((entry, index) => renderEntry(entry, index))}
-          </View>
-        </>
-      )}
-
-      <PillButton
-        variant="ghost"
-
+      <ListRow
+        icon="external-link"
+        title={t('calendar.goToDay')}
+        accessibilityLabel={t('calendar.goToDay')}
+        chevron={false}
         onClick={onGoToDay}
-
-      >
-        {t("calendar.goToDay")}
-      </PillButton>
-    </>
-  );
+      />
+    </View>
+  )
 }
 
 function createStyles(tokens: Tokens) {
   return StyleSheet.create({
+    container: {
+      backgroundColor: tokens.bgCard,
+      borderColor: tokens.hairlineGhost,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      gap: 16,
+      paddingVertical: 16,
+    },
+    copyBlock: {
+      gap: 16,
+      paddingHorizontal: 16,
+    },
     recurringToggleRow: {
-      flexDirection: "row",
-      justifyContent: "flex-end",
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
     },
     summaryText: {
+      color: tokens.fg3,
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
-    },
-    emptyDayCard: {
-      alignItems: "center",
-      justifyContent: "center",
-      paddingVertical: 24,
-      paddingHorizontal: 18,
-      borderRadius: 18,
-      backgroundColor: tokens.bgCard,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
     },
     emptyDayText: {
+      color: tokens.fg3,
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
-      textAlign: "center",
+      lineHeight: 22,
+      paddingVertical: 24,
+      textAlign: 'center',
     },
-    entryRowFrame: {
-      borderLeftWidth: 1,
-      borderRightWidth: 1,
-    },
-    entryRowFrameFirst: {
-      borderTopWidth: 1,
-      borderTopLeftRadius: 18,
-      borderTopRightRadius: 18,
-    },
-    entryRowFrameLast: {
-      borderBottomWidth: 1,
-      borderBottomLeftRadius: 18,
-      borderBottomRightRadius: 18,
-    },
-    goToDayButton: {
-      marginTop: 4,
-      alignSelf: "stretch",
-    },
-  });
+  })
 }

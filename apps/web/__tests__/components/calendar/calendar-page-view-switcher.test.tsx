@@ -34,6 +34,11 @@ const profileQueryState: {
   refetch: vi.fn(),
 }
 const calendarDataCalls = vi.fn()
+const logHabitMutateAsync = vi.fn(async () => {})
+const calendarDayDetailProps: {
+  loggable?: boolean
+  onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
+} = {}
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -63,6 +68,10 @@ vi.mock('@/hooks/use-calendar-data', () => ({
     error: null,
     refresh: vi.fn(),
   }),
+}))
+
+vi.mock('@/hooks/use-habits', () => ({
+  useLogHabit: () => ({ mutateAsync: logHabitMutateAsync }),
 }))
 
 vi.mock('@/hooks/use-time-format', () => ({
@@ -144,7 +153,10 @@ vi.mock('@/components/calendar/calendar-stats', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-day-detail', () => ({
-  CalendarDayDetail: () => <div data-testid="day-detail" />,
+  CalendarDayDetail: (props: typeof calendarDayDetailProps) => {
+    Object.assign(calendarDayDetailProps, props)
+    return <div data-testid="day-detail" />
+  },
 }))
 
 vi.mock('@/components/calendar/calendar-week-view', () => ({
@@ -194,6 +206,9 @@ describe('CalendarPage view switcher', () => {
     profileQueryState.error = null
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()
+    logHabitMutateAsync.mockClear()
+    delete calendarDayDetailProps.loggable
+    delete calendarDayDetailProps.onEntryChange
   })
 
   afterEach(() => vi.useRealTimers())
@@ -354,6 +369,27 @@ describe('CalendarPage view switcher', () => {
 
     expect(screen.getByTestId('calendar-day-panel')).toBeDefined()
     expect(screen.getByTestId('day-detail')).toBeDefined()
+  })
+
+  it('logs a selected writable day with its selected date', async () => {
+    isWideDesktopValue = true
+    render(<CalendarPage />)
+
+    const entry: CalendarDayEntry = {
+      habitId: 'habit-1',
+      title: 'Read',
+      status: 'upcoming',
+      isBadHabit: false,
+      dueTime: null,
+      isOneTime: false,
+    }
+    await calendarDayDetailProps.onEntryChange?.(entry, true)
+
+    expect(calendarDayDetailProps.loggable).toBe(true)
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      date: formatAPIDate(new Date()),
+    })
   })
 
   it('opens the day detail as an overlay below the wide-desktop breakpoint', () => {
