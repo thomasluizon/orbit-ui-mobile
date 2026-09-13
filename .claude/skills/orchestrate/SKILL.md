@@ -792,8 +792,12 @@ the run asked Thomas. **A harness converting its own gap into an interruption is
 - **Re-run a CI job whose failure you have READ and attributed to infrastructure or flake**, naming
   the evidence: a failed STEP of `Set up job`, or an assertion that touches no file in the diff.
 
-**You MAY NOT, ever:** invent a green test receipt, write new implementation code yourself,
-force-push, or merge. Those are the line between finishing a delivery and doing the ticket.
+**You MAY NOT, ever, IN A SALVAGE:** invent a green test receipt, write new implementation code
+yourself, force-push, or merge. Those are the line between finishing a delivery and doing the ticket.
+
+**This prohibition is about salvage and nothing else.** Salvage asks whether a dead worker's ticket
+gets finished by hand, and the answer is never. Answering a Pullfrog finding at step 8 is a different
+act with its own rule; see **Who writes the fix** there.
 
 **Never push a worker's uncommitted work without running its tests first.** That is a precondition,
 not a preference. Both salvages that worked that night, ORB-39 and ORB-98, were verified before the
@@ -882,6 +886,23 @@ A body finding you FIX needs none of this. The fix moves the head, and the push 
   finding is never closed by a ticket.
 - **FILE it as an `orbit-tickets` issue** otherwise, name that issue in the reply, and drop it from
   this run.
+
+### Who writes the fix
+
+**The orchestrator edits the code for a review finding on a pull request it is already driving**,
+inside the `caps.reviewFixAttempts` bound. This is the ONE place D89's "Codex writes every code
+change, Claude never edits code" does not apply, and it is narrow on purpose: a review finding is
+usually a few lines, the context needed to answer it is the review itself, and spawning a worker per
+round is what turns a six-round review into a lost night.
+
+Everything else stays with a worker. A finding large enough to be its own work order is composed and
+dispatched, never typed here. Implementing a ticket is never this step.
+
+**Stated because it used to be left to inference.** Step 7 forbids writing implementation code during
+a SALVAGE and this step orders a fix, so the skill named two acts and no actor. Sessions filled that
+gap by carrying a claimed standing override forward in handoff prompts, where it lived in no decision
+record and drifted wider each time it was copied. Thomas deleted that override on 2026-09-10 and
+replaced it with the sentence above.
 
 **`isOutdated` is not evidence.** It means the code moved under the comment, not that anyone
 addressed the comment. Treat that thread like any other.
