@@ -25,11 +25,8 @@ describe('mobile i18n interpolation', () => {
       plural(i18n.t('habits.deleteListConfirmMessage', { name: 'Read', count: 2 }), 2),
     ).toBe('Read and 2 items inside it leave your list. This cannot be undone.')
     expect(
-      plural(
-        i18n.t('calendar.dayDetail.completionSummary', { done: 1, total: 1 }),
-        1,
-      ),
-    ).toBe('1 of 1 habit completed')
+      i18n.t('calendar.dayDetail.completionSummary', { done: 1, total: 1 }),
+    ).toBe('1 of 1 logged')
     expect(plural(i18n.t('goals.deadline.daysLeft', { n: 1 }), 1)).toBe('1 day left')
     expect(plural(i18n.t('goals.deadline.daysLeft', { n: 3 }), 3)).toBe('3 days left')
     expect(plural(i18n.t('habits.frequency.everyNWeeks', { n: 2 }), 2)).toBe('Every 2 weeks')

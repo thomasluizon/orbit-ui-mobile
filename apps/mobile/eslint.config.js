@@ -15,6 +15,7 @@ const iconSizeGrid = require("../../eslint-rules/icon-size-grid.cjs")
 const noPillRadiusOnStatic = require("../../eslint-rules/no-pill-radius-on-static.cjs")
 const noOklch = require("../../eslint-rules/no-oklch-outside-web-tokens.cjs")
 const noFullbleedButton = require("../../eslint-rules/no-fullbleed-button.cjs")
+const maxButtonWords = require("../../eslint-rules/max-button-words.cjs")
 const animatePresenceExit = require("../../eslint-rules/animate-presence-exit.cjs")
 const animatePresenceStableKey = require("../../eslint-rules/animate-presence-stable-key.cjs")
 const noArbitraryZindex = require("../../eslint-rules/no-arbitrary-zindex.cjs")
@@ -30,6 +31,17 @@ const noSideStripeBorder = require("../../eslint-rules/no-side-stripe-border.cjs
 const spacingScale = require("../../eslint-rules/spacing-scale.cjs")
 const noUnjustifiedDisable = require("../../eslint-rules/no-unjustified-disable.cjs")
 const mobileSupabaseLazy = require("../../eslint-rules/mobile-supabase-lazy.cjs")
+
+const maxButtonWordControls = [
+  { name: "button", labelProps: ["children"] },
+  { name: "PillButton", labelProps: ["children", "label", "accessibleName"] },
+  { name: "Button", labelProps: ["children", "label", "accessibleName"] },
+  { name: "Chip", labelProps: ["children", "accessibilityLabel"] },
+  { name: "Pressable", labelProps: ["children", "accessibilityLabel"], roles: ["button", "tab", "menuitem"] },
+  { name: "SegmentedControl", collectionProps: ["options"] },
+  { name: "BottomTabBar", collectionProps: ["items"] },
+  { name: "ListRow", labelProps: ["title", "accessibilityLabel", "action.label"] },
+]
 
 // https://github.com/expo/expo/issues/43758 — eslint-config-expo@56 bundles react-hooks v7 and
 // turns on its full recommended set (refs, immutability, purity, …) at error. This project owns
@@ -116,6 +128,7 @@ module.exports = defineConfig([
           "no-pill-radius-on-static": noPillRadiusOnStatic,
           "no-oklch-outside-web-tokens": noOklch,
           "mobile-supabase-lazy": mobileSupabaseLazy,
+          "max-button-words": maxButtonWords,
         },
       },
     },
@@ -185,6 +198,7 @@ module.exports = defineConfig([
 
       "local/no-decorative-glow": "error",
       "local/no-raw-gradient": "error",
+      "local/max-button-words": ["error", { controls: maxButtonWordControls }],
     },
   },
   {
@@ -247,6 +261,7 @@ module.exports = defineConfig([
     files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
     rules: {
       "local/no-fullbleed-button": "off",
+      "local/max-button-words": "off",
       "local/no-double-assertion": "off",
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-explicit-any": "off",

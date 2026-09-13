@@ -98,6 +98,7 @@ yarn-error.log*
 error.log
 
 .claude/sweeps/
+.claude/drift-review-state.json
 
 # foglamp scan (edit token in scan.lock.json is a secret)
 .foglamp/

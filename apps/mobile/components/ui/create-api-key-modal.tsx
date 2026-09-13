@@ -248,6 +248,7 @@ function ApiKeyCreateForm({
         >
           {t('common.cancel')}
         </PillButton>
+        {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
         <PillButton
           onClick={onSubmit}
           disabled={isSubmitting}

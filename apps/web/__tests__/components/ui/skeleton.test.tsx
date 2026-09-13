@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { Skeleton } from '@/components/ui/skeleton'
+import { StatTile } from '@/components/ui/stat-tile'
 
 function staticTokenValue(token: string): string {
   const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
@@ -59,6 +60,20 @@ describe('Skeleton', () => {
     })
     expect(grid.children).toHaveLength(21)
     expect(grid.firstElementChild).toHaveStyle({ width: '40px', height: '40px' })
+  })
+
+  it('keeps the statistic placeholder at the loaded tile height', () => {
+    const { container } = render(
+      <>
+        <Skeleton variant="stat-tile" label="Loading stats" />
+        <StatTile value={12} label="Logs" />
+      </>,
+    )
+
+    const placeholder = container.querySelector('[data-variant="stat-tile"] > div') as HTMLElement
+    const loaded = container.querySelector('[data-state="default"]') as HTMLElement
+    expect(placeholder.style.minHeight).toBe(loaded.style.minHeight)
+    expect(placeholder.style.minHeight).not.toBe('')
   })
 
   it('uses only an opacity pulse and no sweep or spinner', () => {

@@ -44,6 +44,7 @@ function MarketingConsentContent({
           {t('profile.marketingEmails.questionDescription')}
         </Text>
         <View style={styles.answers} pointerEvents={isPending ? 'none' : 'auto'}>
+          {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
           <PillButton size="sm" disabled={isPending} onClick={() => onChange(true)}>
             {t('profile.marketingEmails.accept')}
           </PillButton>

@@ -108,6 +108,7 @@ export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalPr
       title={t('tour.replay.modalTitle')}
     >
       <View style={styles.body}>
+        {/* eslint-disable-next-line local/max-button-words -- D69 deletes this onboarding tour surface. */}
         <PillButton onClick={handleReplayAll}>
           {t('tour.replay.replayAll')}
         </PillButton>

@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import { gamificationKeys, habitKeys, goalKeys, profileKeys, tagKeys } from '@orbit/shared/query'
-import { buildHabitHistoryMonth, isHabitCompletedOnDate } from '@orbit/shared/utils'
-import type { ChecklistItem, CreateHabitRequest, HabitDetail, HabitScheduleChild, HabitScheduleItem, LogHabitResponse, UpdateHabitRequest } from '@orbit/shared/types/habit'
+import { buildCalendarDayMap, buildHabitHistoryMonth, isHabitCompletedOnDate } from '@orbit/shared/utils'
+import type { CalendarMonthResponse, ChecklistItem, CreateHabitRequest, HabitDetail, HabitScheduleChild, HabitScheduleItem, LogHabitResponse, UpdateHabitRequest } from '@orbit/shared/types/habit'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import type { Goal } from '@orbit/shared/types/goal'
 
@@ -240,6 +240,7 @@ type HabitSnapshotContext = {
 
 type LogHabitSnapshotContext = HabitSnapshotContext & {
   previousLogs: HabitLog[] | undefined
+  previousCalendars: readonly (readonly [readonly unknown[], CalendarMonthResponse | undefined])[]
 }
 
 type BulkLogOutcome = {
@@ -347,6 +348,28 @@ function getHabitList(): HabitScheduleItem[] {
   return (
     mocks.state.entries.find((entry) => JSON.stringify(entry.key) === JSON.stringify(habitKeys.list({})))?.value as HabitScheduleItem[]
   )
+}
+
+function seedCalendarState(date: string): ReturnType<typeof habitKeys.calendar> {
+  const key = habitKeys.calendar(date, date)
+  mocks.state.entries.push({
+    key,
+    value: {
+      habits: [makeHabit({ dueDate: date, scheduledDates: [date] })],
+      logs: { 'habit-1': [] },
+    } satisfies CalendarMonthResponse,
+  })
+  return key
+}
+
+function getCalendarStatus(
+  key: ReturnType<typeof habitKeys.calendar>,
+  date: string,
+  habitId = 'habit-1',
+) {
+  const calendar = mocks.queryClient.getQueryData(key) as CalendarMonthResponse
+  return buildCalendarDayMap(calendar, new Date('2025-01-16T12:00:00Z'))
+    .get(date)?.find((entry) => entry.habitId === habitId)?.status
 }
 
 function getCount(): number {
@@ -492,7 +515,11 @@ describe('mobile habit hooks', () => {
     expect(mocks.queryClient.getQueryData(
       habitKeys.list({ dateFrom: '2025-01-16', dateTo: '2025-01-16' }),
     )).toEqual([otherDateHabit])
-    expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledOnce()
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.calendarPrefix(),
+      refetchType: 'none',
+    })
   })
 
   it('restores every cache patched by a failed dated log mutation', async () => {
@@ -542,6 +569,97 @@ describe('mobile habit hooks', () => {
     mutation.onError?.(new Error('request failed'), variables, context)
 
     expect(mocks.state.entries).toEqual(before)
+  })
+
+  it('applies one dated log intent to every overlapping calendar cache', async () => {
+    const date = '2025-01-15'
+    const dayKey = habitKeys.calendar(date, date)
+    const monthKey = habitKeys.calendar('2025-01-01', '2025-01-31')
+    const habit = makeHabit({ dueDate: date, scheduledDates: [date] })
+    const activeLog: HabitLog = {
+      id: 'server-log-1',
+      date,
+      value: 1,
+      createdAtUtc: '2025-01-15T09:30:00Z',
+    }
+    mocks.state.entries = [
+      {
+        key: dayKey,
+        value: { habits: [habit], logs: { 'habit-1': [] } } satisfies CalendarMonthResponse,
+      },
+      {
+        key: monthKey,
+        value: { habits: [habit], logs: { 'habit-1': [activeLog] } } satisfies CalendarMonthResponse,
+      },
+      { key: habitKeys.logs('habit-1'), value: [activeLog] },
+    ]
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      LogHabitSnapshotContext
+    >
+
+    await mutation.onMutate?.({ habitId: 'habit-1', date, intent: 'log' })
+
+    expect(getCalendarStatus(dayKey, date)).toBe('completed')
+    expect(getCalendarStatus(monthKey, date)).toBe('completed')
+    expect(mocks.queryClient.getQueryData(habitKeys.logs('habit-1'))).toEqual([activeLog])
+  })
+
+  it('keeps queued mutation B optimistic when mutation A fails later', async () => {
+    const date = '2025-01-15'
+    const calendarKey = habitKeys.calendar(date, date)
+    const listKey = habitKeys.list({ dateFrom: date, dateTo: date })
+    const habitA = makeHabit({
+      id: 'habit-1',
+      dueDate: date,
+      scheduledDates: [date],
+      instances: [{ date, status: 'Pending', logId: null }],
+    })
+    const habitB = makeHabit({
+      id: 'habit-2',
+      dueDate: date,
+      scheduledDates: [date],
+      instances: [{ date, status: 'Pending', logId: null }],
+    })
+    mocks.state.entries = [
+      { key: listKey, value: [habitA, habitB] },
+      {
+        key: calendarKey,
+        value: {
+          habits: [habitA, habitB],
+          logs: { 'habit-1': [], 'habit-2': [] },
+        } satisfies CalendarMonthResponse,
+      },
+      { key: habitKeys.logs('habit-1'), value: [] },
+      { key: habitKeys.logs('habit-2'), value: [] },
+    ]
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      LogHabitSnapshotContext
+    >
+    const mutationA = { habitId: 'habit-1', date, intent: 'log' as const }
+    const mutationB = { habitId: 'habit-2', date, intent: 'log' as const }
+
+    const contextA = await mutation.onMutate?.(mutationA)
+    await mutation.onMutate?.(mutationB)
+    const queuedMutationB = await mutation.mutationFn(mutationB)
+    expect(getCalendarStatus(calendarKey, date, 'habit-1')).toBe('completed')
+    expect(getCalendarStatus(calendarKey, date, 'habit-2')).toBe('completed')
+    expect(queuedMutationB).toEqual({
+      queued: true,
+      queuedMutationId: 'mutation-1',
+    })
+
+    mutation.onError?.(new Error('Mutation A failed'), mutationA, contextA)
+
+    expect(getCalendarStatus(calendarKey, date, 'habit-1')).toBe('missed')
+    expect(getCalendarStatus(calendarKey, date, 'habit-2')).toBe('completed')
+    expect(mocks.queryClient.getQueryData(listKey)).toEqual([
+      expect.objectContaining({ id: 'habit-1', isCompleted: false }),
+      expect.objectContaining({ id: 'habit-2', isCompleted: true }),
+    ])
   })
 
   it('tracks every confirmed bulk completion and no requested item before confirmation', async () => {
@@ -1349,6 +1467,47 @@ describe('mobile habit hooks', () => {
     expect(mocks.setStreakCelebration).not.toHaveBeenCalled()
     expect(mocks.checkAllDoneCelebration).not.toHaveBeenCalled()
     expect(mocks.showInfo).toHaveBeenCalledWith('todayAstra.offlineLog')
+  })
+
+  it('updates a dated calendar row immediately and restores it when logging fails', async () => {
+    const date = '2025-01-15'
+    seedHabitState([makeHabit({ id: 'habit-1' })], 1)
+    const calendarKey = seedCalendarState(date)
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      LogHabitSnapshotContext
+    >
+    const variables = { habitId: 'habit-1', date, intent: 'log' as const }
+
+    expect(getCalendarStatus(calendarKey, date)).toBe('missed')
+    const context = await mutation.onMutate?.(variables)
+    expect(getCalendarStatus(calendarKey, date)).toBe('completed')
+
+    mutation.onError?.(new Error('Log failed'), variables, context)
+    expect(getCalendarStatus(calendarKey, date)).toBe('missed')
+  })
+
+  it('keeps the dated calendar row patched when the write settles into the offline queue', async () => {
+    const date = '2025-01-15'
+    seedHabitState([makeHabit({ id: 'habit-1' })], 1)
+    const calendarKey = seedCalendarState(date)
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      LogHabitVariables,
+      LogHabitSnapshotContext
+    >
+    const variables = { habitId: 'habit-1', date, intent: 'log' as const }
+
+    const context = await mutation.onMutate?.(variables)
+    const queuedResult = await mutation.mutationFn(variables)
+    mutation.onSettled?.(queuedResult, null, variables, context)
+
+    expect(getCalendarStatus(calendarKey, date)).toBe('completed')
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.calendarPrefix(),
+      refetchType: 'none',
+    })
   })
 
   it('rolls back the optimistic completion when logging fails', async () => {

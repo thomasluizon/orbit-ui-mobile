@@ -24,6 +24,11 @@ A tool here is something an agent invokes without reading its source. That only 
 
 A tool whose job is to answer "is this work done?" obeys one extra rule: **the verdict is computed from artifacts on disk, never read from a status field.** A checklist an agent can edit is not a gate, it is a suggestion, and #539 proved it (five "done" reports over ~20% of the surfaces, every lint gate green).
 
+Every gate is registered in `gate-charter.json`. A pull request gate may fail only for changed files.
+A whole-tree scan reports findings without failing. A committed inventory declares its regeneration
+command, and every numeric threshold names the source that owns it. `check-gate-charter.mjs` enforces
+the closed registry across check tools, local ESLint rules, session hooks and `guards.yml` jobs.
+
 The pattern, as implemented by `surface-manifest.mjs` + `redesign-coverage.mjs`:
 
 - **Derive the expected inventory from the codebase**, not from a hand-written list. A hand-written list omits what the author forgot; a glob does not.

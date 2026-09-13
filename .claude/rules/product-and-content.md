@@ -41,7 +41,7 @@ Three causes, three different fixes:
 ### 3. Removing the last route to a capability is a defect, not simplification
 When a restraint pass removes an element or an option: **record why it was removed**, and **confirm the capability still has an access point**.
 
-Nothing else protects against a subtraction pass silently orphaning a feature. **Directly load-bearing for #539**, which is a restraint pass. Distinct from `FEATURES.md`, which maps what exists rather than what a pass removed.
+Nothing else protects against a subtraction pass silently orphaning a feature. **Directly load-bearing for #539**, which is a restraint pass. Distinct from generated `gating-matrix.json` in `thomasluizon/orbit-api`, which inventories plan-gating inputs rather than capability access paths.
 
 ## Copy & i18n
 
@@ -66,4 +66,3 @@ pt-BR pluralization and number/date formats (`1.000` vs `1,000`) diverge from en
 **Never invent ratings, reviews, prices, or organization details in JSON-LD.** Only add a structured-data block that maps to content **actually rendered on the page**. Verify a social card against a **real deployed URL, never localhost** — scrapers cannot reach localhost, so a local check proves nothing.
 
 Sharply relevant right now: **Orbit's public rating starts at ZERO on launch day**, so any `aggregateRating` in the landing's JSON-LD would be fabricated. The landing also renders price copy that must match the real R$14,90 / R$99,90 table.
-
