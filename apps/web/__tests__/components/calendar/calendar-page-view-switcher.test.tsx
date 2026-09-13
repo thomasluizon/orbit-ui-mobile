@@ -10,8 +10,13 @@ import {
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 let isWideDesktopValue = false
-let isDesktopValue = false
-const calendarGridProps: Record<string, unknown> = {}
+let calendarGridSelectionDate = '2026-01-05'
+const calendarGridProps: Record<string, unknown> & {
+  currentMonth?: Date
+  dayMap?: Map<string, CalendarDayEntry[]>
+  selectedDateStr?: string | null
+  todayKey?: string
+} = {}
 const calendarStatsProps: Record<string, unknown> = {}
 const monthQueryState: {
   dayMap: Map<string, CalendarDayEntry[]>
@@ -34,6 +39,13 @@ const profileQueryState: {
   refetch: vi.fn(),
 }
 const calendarDataCalls = vi.fn()
+const agendaViewProps: {
+  dayMap?: ReadonlyMap<string, CalendarDayEntry[]>
+  isLoading?: boolean
+} = {}
+let rangeLoading = false
+let rangeDayMap = new Map<string, CalendarDayEntry[]>()
+const calendarRangeViewProps: { current: Record<string, unknown> | null } = { current: null }
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -41,7 +53,6 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/hooks/use-is-desktop', () => ({
-  useIsDesktop: () => isDesktopValue,
   useIsWideDesktop: () => isWideDesktopValue,
 }))
 
@@ -57,8 +68,8 @@ vi.mock('@/hooks/use-calendar-data', () => ({
     })
   },
   useCalendarRange: () => ({
-    dayMap: new Map(),
-    isLoading: false,
+    dayMap: rangeDayMap,
+    isLoading: rangeLoading,
     isFetching: false,
     error: null,
     refresh: vi.fn(),
@@ -123,7 +134,7 @@ vi.mock('@/components/calendar/calendar-grid', async (importOriginal) => {
           <button
             type="button"
             data-testid="month-view"
-            onClick={() => props.onSelectDay?.('2026-01-05')}
+            onClick={() => props.onSelectDay?.(calendarGridSelectionDate)}
           />
         </>
       )
@@ -144,19 +155,75 @@ vi.mock('@/components/calendar/calendar-stats', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-day-detail', () => ({
-  CalendarDayDetail: () => <div data-testid="day-detail" />,
+  CalendarDayDetail: ({
+    onShowRecurringChange,
+    showRecurring,
+    showRecurringToggle = true,
+  }: {
+    onShowRecurringChange: (value: boolean) => void
+    showRecurring: boolean
+    showRecurringToggle?: boolean
+  }) => (
+    <div data-testid="day-detail">
+      {showRecurringToggle && (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showRecurring}
+          aria-label="calendar.showRecurring"
+          onClick={() => onShowRecurringChange(!showRecurring)}
+        />
+      )}
+    </div>
+  ),
 }))
 
 vi.mock('@/components/calendar/calendar-week-view', () => ({
-  CalendarWeekView: () => <div data-testid="week-view" />,
+  CalendarWeekView: ({
+    onShowRecurringChange,
+  }: {
+    onShowRecurringChange: (value: boolean) => void
+  }) => (
+    <button
+      type="button"
+      data-testid="week-view"
+      onClick={() => onShowRecurringChange(false)}
+    />
+  ),
 }))
 
 vi.mock('@/components/calendar/calendar-range-view', () => ({
-  CalendarRangeView: () => <div data-testid="range-view" />,
+  CalendarRangeView: (props: Record<string, unknown>) => {
+    calendarRangeViewProps.current = props
+    const model = props.model as { days: readonly { totalCount: number }[] }
+    const showRecurring = props.showRecurring as boolean
+    const onShowRecurringChange = props.onShowRecurringChange as (value: boolean) => void
+    return (
+      <div data-testid="range-view">
+        {model.days.some((day) => day.totalCount > 0) && (
+          <span data-testid="range-recurring-ring" />
+        )}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showRecurring}
+          aria-label="calendar.showRecurring"
+          onClick={() => onShowRecurringChange(!showRecurring)}
+        />
+      </div>
+    )
+  },
 }))
 
 vi.mock('@/components/calendar/calendar-agenda-view', () => ({
-  CalendarAgendaView: () => <div data-testid="agenda-view" />,
+  CalendarAgendaView: (props: {
+    dayMap: ReadonlyMap<string, CalendarDayEntry[]>
+    isLoading: boolean
+  }) => {
+    agendaViewProps.dayMap = props.dayMap
+    agendaViewProps.isLoading = props.isLoading
+    return <div data-testid="agenda-view" />
+  },
 }))
 
 import CalendarPage from '@/app/(app)/calendar/page'
@@ -182,11 +249,12 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 describe('CalendarPage view switcher', () => {
   beforeEach(() => {
     isWideDesktopValue = false
-    isDesktopValue = false
+    calendarGridSelectionDate = '2026-01-05'
     calendarGridProps.selectedDateStr = undefined
+    calendarGridProps.dayMap = undefined
+    calendarGridProps.todayKey = undefined
     calendarStatsProps.state = undefined
     monthQueryState.dayMap = new Map()
-    calendarGridProps.todayKey = undefined
     monthQueryState.error = null
     monthQueryState.isLoading = false
     monthQueryState.refresh = vi.fn()
@@ -194,6 +262,11 @@ describe('CalendarPage view switcher', () => {
     profileQueryState.error = null
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()
+    agendaViewProps.dayMap = undefined
+    agendaViewProps.isLoading = undefined
+    rangeLoading = false
+    rangeDayMap = new Map()
+    calendarRangeViewProps.current = null
   })
 
   afterEach(() => vi.useRealTimers())
@@ -245,14 +318,19 @@ describe('CalendarPage view switcher', () => {
     expect(profileQueryState.refetch).toHaveBeenCalledTimes(1)
   })
 
-  it('renders one three-option view switcher at phone width and opens the month on today', () => {
+  it('renders the agenda at phone width without folding it back to month', () => {
     render(<CalendarPage />)
 
     expect(screen.getAllByRole('radiogroup', { name: 'calendar.view.switchLabel' })).toHaveLength(1)
-    expect(screen.getAllByRole('radio')).toHaveLength(3)
+    expect(screen.getAllByRole('radio')).toHaveLength(4)
     expect(screen.getByRole('radio', { name: 'calendar.view.month' }).getAttribute('aria-checked')).toBe('true')
-    expect(screen.queryByRole('radio', { name: 'calendar.view.agenda' })).toBeNull()
     expect(calendarGridProps.selectedDateStr).toBe(formatAPIDate(new Date()))
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
+
+    expect(screen.getByRole('radio', { name: 'calendar.view.agenda' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByTestId('agenda-view')).toBeDefined()
+    expect(screen.queryByTestId('month-view')).toBeNull()
   })
 
   it('marks today in the account timezone when the browser-local date differs', () => {
@@ -312,16 +390,14 @@ describe('CalendarPage view switcher', () => {
     }
   })
 
-  it('adds the agenda option at desktop width', () => {
-    isDesktopValue = true
+  it('keeps the agenda option at desktop width', () => {
     render(<CalendarPage />)
 
     expect(screen.getAllByRole('radio')).toHaveLength(4)
     expect(screen.getAllByRole('radio', { name: 'calendar.view.agenda' })).toHaveLength(1)
   })
 
-  it('switches from the month heat-map to the agenda planner and back', () => {
-    isDesktopValue = true
+  it('switches from the month view to the agenda list and back', () => {
     render(<CalendarPage />)
 
     expect(screen.getByTestId('month-view')).toBeDefined()
@@ -338,6 +414,35 @@ describe('CalendarPage view switcher', () => {
     expect(screen.queryByTestId('agenda-view')).toBeNull()
   })
 
+  it('passes the range loading state to the agenda view', () => {
+    rangeLoading = true
+    render(<CalendarPage />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
+
+    expect(agendaViewProps.isLoading).toBe(true)
+  })
+
+  it('shows all agenda habits after recurring entries are hidden in another view', () => {
+    const today = formatAPIDate(new Date())
+    rangeDayMap = new Map([
+      [today, [
+        monthEntry('recurring', 'upcoming'),
+        { ...monthEntry('one-time', 'upcoming'), isOneTime: true },
+      ]],
+    ])
+    render(<CalendarPage />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+    fireEvent.click(screen.getByTestId('week-view'))
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
+
+    expect(agendaViewProps.dayMap?.get(today)?.map((entry) => entry.habitId)).toEqual([
+      'recurring',
+      'one-time',
+    ])
+  })
+
   it('switches to the week and range time-grid views', () => {
     render(<CalendarPage />)
 
@@ -348,12 +453,42 @@ describe('CalendarPage view switcher', () => {
     expect(screen.getByTestId('range-view')).toBeDefined()
   })
 
-  it('renders the day detail as a persistent inline panel at wide desktop', () => {
+  it('passes the pending range state through the owning composition', () => {
+    rangeLoading = true
+    const view = render(<CalendarPage />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
+    expect(calendarRangeViewProps.current?.isLoading).toBe(true)
+
+    rangeLoading = false
+    view.rerender(<CalendarPage />)
+    expect(calendarRangeViewProps.current?.isLoading).toBe(false)
+  })
+
+  it('keeps exactly one recurring setting on an entry-bearing future day at wide desktop', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 0, 10))
     isWideDesktopValue = true
+    const todayKey = formatAPIDate(new Date())
+    const futureDay = '2026-02-05'
+    calendarGridSelectionDate = futureDay
+    monthQueryState.dayMap = new Map([
+      [todayKey, [monthEntry('current-recurring', 'upcoming')]],
+      [futureDay, [monthEntry('future-recurring', 'upcoming')]],
+    ])
     render(<CalendarPage />)
 
     expect(screen.getByTestId('calendar-day-panel')).toBeDefined()
     expect(screen.getByTestId('day-detail')).toBeDefined()
+    expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
+    fireEvent.click(screen.getByTestId('calendar-header'))
+    fireEvent.click(screen.getByTestId('month-view'))
+
+    expect(calendarGridProps.currentMonth).toEqual(new Date(2026, 1, 1))
+    expect(calendarGridProps.selectedDateStr).toBe(futureDay)
+    expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
   })
 
   it('opens the day detail as an overlay below the wide-desktop breakpoint', () => {
@@ -422,5 +557,71 @@ describe('CalendarPage view switcher', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
     expect(monthQueryState.refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('removes recurring habits from the month and shows its honest empty state', () => {
+    const todayKey = formatAPIDate(new Date())
+    monthQueryState.dayMap = new Map([[todayKey, [{
+      habitId: 'recurring',
+      title: 'Recurring habit',
+      status: 'upcoming',
+      isBadHabit: false,
+      dueTime: '08:00',
+      isOneTime: false,
+    }]]])
+    render(<CalendarPage />)
+
+    expect(screen.queryByTestId('day-detail')).toBeNull()
+    expect(screen.getByTestId('month-stats')).toBeDefined()
+    expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
+
+    expect(calendarGridProps.dayMap?.get(todayKey)).toEqual([])
+    expect(screen.getByTestId('month-stats').getAttribute('data-state')).toBe('empty')
+    expect(screen.getByText('calendar.emptyMonth')).toBeDefined()
+  })
+
+  it('removes recurring status rings from the range picker when recurring is turned off', () => {
+    const todayKey = formatAPIDate(new Date())
+    rangeDayMap = new Map([[todayKey, [{
+      habitId: 'recurring',
+      title: 'Recurring habit',
+      status: 'upcoming',
+      isBadHabit: false,
+      dueTime: '08:00',
+      isOneTime: false,
+    }]]])
+    render(<CalendarPage />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
+    expect(screen.getByTestId('range-recurring-ring')).toBeDefined()
+
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
+
+    expect(screen.queryByTestId('range-recurring-ring')).toBeNull()
+  })
+
+  it('matches mobile by paging a 61px by 45px drag after the 60px boundary', () => {
+    render(<CalendarPage />)
+    const initialMonth = calendarDataCalls.mock.calls.at(-1)?.[0] as Date
+    const initialCallCount = calendarDataCalls.mock.calls.length
+    const drag = (deltaX: number, deltaY = 0) => {
+      const target = screen.getByTestId('month-view')
+      fireEvent.touchStart(target, { touches: [{ clientX: 100, clientY: 20 }] })
+      fireEvent.touchEnd(target, {
+        changedTouches: [{ clientX: 100 + deltaX, clientY: 20 + deltaY }],
+      })
+    }
+
+    drag(-59)
+    expect(calendarDataCalls).toHaveBeenCalledTimes(initialCallCount)
+
+    drag(-61, 45)
+    expect((calendarDataCalls.mock.calls.at(-1)?.[0] as Date).getMonth())
+      .toBe((initialMonth.getMonth() + 1) % 12)
+
+    drag(61)
+    expect((calendarDataCalls.mock.calls.at(-1)?.[0] as Date).getMonth())
+      .toBe(initialMonth.getMonth())
   })
 })

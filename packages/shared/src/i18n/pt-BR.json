@@ -884,12 +884,8 @@
     }
   },
   "calendar": {
-    "rescheduled": "Reagendado",
     "agenda": {
-      "previousDay": "Dia anterior",
-      "nextDay": "Próximo dia",
       "today": "Hoje",
-      "dragHint": "Arraste um item para reagendá-lo",
       "empty": "Nada agendado"
     },
     "legend": {
@@ -932,6 +928,11 @@
       "range": "Intervalo",
       "agenda": "Agenda"
     },
+    "range": {
+      "label": "{start} a {end}",
+      "previous": "Período anterior",
+      "next": "Período seguinte"
+    },
     "timeGrid": {
       "allDay": "Dia inteiro",
       "noSetTime": "Sem hora certa",
@@ -950,7 +951,7 @@
       "resisted": "Resistiu"
     },
     "completionHistory": "Histórico de Conclusão",
-    "showRecurring": "Mostrar recorrentes",
+    "showRecurring": "Mostrar hábitos recorrentes",
     "title": "Google Calendar",
     "profileButton": "Google Calendar",
     "profileHint": "Importe eventos como hábitos",
@@ -1282,6 +1283,16 @@
       "currentDevice": "Este aparelho",
       "pushDeviceLimit": "Até 5 aparelhos podem receber avisos."
     },
+    "allowance": {
+      "title": "Mensagens de hoje",
+      "usage": "{used} de {limit} usadas",
+      "spent": "As mensagens de hoje foram usadas. A sua lista continua funcionando sem elas.",
+      "plan": "Plano",
+      "free": "Grátis",
+      "pro": "Pro",
+      "seePro": "Ver o Pro",
+      "manageSubscription": "Gerir assinatura"
+    },
     "timezonePicker": {
       "search": "Buscar fusos horários",
       "noResults": "Nenhum fuso horário encontrado",
@@ -1315,11 +1326,11 @@
       "description": "Escolha seu idioma"
     },
     "aiSummary": {
-      "title": "Resumo diário",
+      "title": "Resumo do dia pelo Astra",
       "description": "Com isso ativado, o Orbit cria um resumo personalizado do seu dia na tela de hábitos."
     },
     "proactiveAstra": {
-      "title": "Check-ins proativos",
+      "title": "Astra avisa quando algo escapa",
       "description": "Deixe a Astra te procurar com um empurrãozinho personalizado quando você ficar para trás, mesmo que você esqueça de abrir o app."
     },
     "marketingEmails": {

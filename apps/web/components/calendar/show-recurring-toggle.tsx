@@ -23,15 +23,9 @@ export function ShowRecurringToggle({
         onChange={onChange}
         label={t('calendar.showRecurring')}
       />
-      <button
-        type="button"
-        tabIndex={-1}
-        aria-hidden="true"
-        onClick={() => onChange(!checked)}
-        className="appearance-none border-0 bg-transparent p-0 cursor-pointer select-none text-sm text-[var(--fg-2)]"
-      >
+      <span className="select-none text-sm text-[var(--fg-2)]">
         {t('calendar.showRecurring')}
-      </button>
+      </span>
     </span>
   )
 }

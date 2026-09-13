@@ -8,6 +8,7 @@ name: Guards
 #   dashes  - the cross-repo dash ban: changed files, the shrink-only baseline, and the PR title/body
 #   mobile-fonts - Rubik cannot re-enter the mobile source tree
 #   copy    - AI-cliche / placeholder / typed-uppercase locale values + hardcoded brand colors
+#   lint-severity - local rules stay blocking; suppression baselines report until #175 reaches zero
 #   ratchet - the eslint-suppressions.json baselines may only shrink
 #   parity  - a web-scope code change with zero mobile-scope change (or inverse) fails without the parity:exempt label
 #   expo-pin - apps/mobile/package.json changes must keep the Expo SDK pin resolution intact
@@ -194,6 +195,28 @@ jobs:
             node tools/check-i18n-usage.mjs
           else
             echo "i18n usage skipped: no owned path changed."
+          fi
+
+  lint-severity:
+    name: Lint Severity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Changed lint inputs keep local rules blocking
+        run: |
+          if [ '${{ github.event_name }}' != 'pull_request' ] || \
+             git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+               | grep -Eq '(^|/)eslint\.config\.(cjs|cts|js|mjs|mts|ts)$|(^|/)eslint-suppressions\.json$|(^|/)package\.json$|^package-lock\.json$|^\.github/workflows/.*\.ya?ml$|^tools/check-lint-severity\.mjs$'; then
+            node tools/check-lint-severity.mjs --report-suppressions
+          else
+            echo "Lint severity skipped: no owned path changed."
           fi
 
   ratchet:
