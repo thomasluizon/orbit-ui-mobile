@@ -299,9 +299,9 @@ and service has a unit test, and unit is all there is, so never ask for an integ
 ### 12. Feature-surface evidence
 
 > References: generated `architecture.json` in this repository, generated `gating-matrix.json` at the
-> `thomasluizon/orbit-api` repository root, `FEATURES.md`, the shared locale catalogs, and the
-> `Cross-Platform Parity` and `i18n key usage` jobs. **Gated: only when the diff changes the user-facing
-> feature surface.**
+> `thomasluizon/orbit-api` repository root, the count-only `FEATURES.md` tool inventory, the shared
+> locale catalogs, and the `Cross-Platform Parity` and `i18n key usage` jobs. **Gated: only when the
+> diff changes the user-facing feature surface.**
 
 `gating-matrix.json` contains PayGate methods, config keys, and feature flags. It contains no route, screen,
 tab, tool, platform-availability, locale-behaviour, description, or guide-coverage field. Run
@@ -315,9 +315,11 @@ Triggers and their evidence:
 - **Tab:** inspect the owning navigation composition in `apps/web/components/shell/destination-shell.tsx`,
   `apps/mobile/components/navigation/destination-tab-bar.tsx`, and `apps/mobile/app/(tabs)/_layout.tsx`.
   Apply dimension 8 and the `Cross-Platform Parity` job to any availability change.
-- **Astra or MCP tool:** update only the affected `FEATURES.md` tool section after re-verifying its count
-  against `orbit-api/src/Orbit.Api/Extensions/ServiceCollectionExtensions.AiServices.cs` or
-  `orbit-api/src/Orbit.Api/Mcp/Tools/*.cs`. No generated artifact currently carries tool inventory.
+- **Astra or MCP tool:** after the change reaches deployed `orbit-api` `main`, recount
+  `orbit-api/src/Orbit.Api/Extensions/ServiceCollectionExtensions.AiServices.cs` and every class in
+  `orbit-api/src/Orbit.Api/Mcp/Tools/*.cs`. Update the count-only `FEATURES.md` inventory and both
+  catalogs' guide counts in a paired UI pull request. No generated artifact currently carries tool
+  inventory.
 - **Plan gating:** generate `gating-matrix.json` from the candidate API tree and verify the affected `gates`,
   `appConfigs`, and `featureFlags` entry. Treat compiled defaults as offline evidence because live
   `AppConfigs` rows can override them.
