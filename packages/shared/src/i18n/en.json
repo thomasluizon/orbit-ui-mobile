@@ -910,9 +910,8 @@
       "selected": "Selected",
       "readOnly": "Read only"
     },
-    "thisMonth": "This month",
     "bestStreak": "Best streak",
-    "totalLogs": "Total logs",
+    "totalLogs": "Logs",
     "missedCount": "Missed",
     "emptyMonth": "Nothing logged this month yet. Your days will fill in here.",
     "loadError": "Could not load the calendar. Please try again.",
@@ -937,6 +936,7 @@
     },
     "timeGrid": {
       "allDay": "All-day",
+      "noSetTime": "No set time",
       "now": "Now",
       "pickRangeHint": "Pick a start and end day above to set your range.",
       "pickEndHint": "Now pick the end day",
@@ -1016,46 +1016,6 @@
       "enableSuccess": "Auto-sync enabled",
       "disableSuccess": "Auto-sync disabled",
       "syncFailed": "Sync failed. Please try again."
-    }
-  },
-  "insights": {
-    "title": "Insights",
-    "subtitle": "Trends and patterns across your habits",
-    "rangeWeek": "Week",
-    "rangeMonth": "Month",
-    "rangeQuarter": "Quarter",
-    "rangeYear": "Year",
-    "empty": "Not enough data yet. Keep logging habits to see your insights.",
-    "loading": "Loading insights...",
-    "error": "Couldn't load your insights.",
-    "lockedTitle": "Insights with Pro",
-    "lockedDescription": "Upgrade to Pro to see trends and patterns across your habits.",
-    "trendUp": "Up",
-    "trendDown": "Down",
-    "sections": {
-      "completionTrends": "Completion trends",
-      "multiHabitComparison": "Habit comparison",
-      "goalProgress": "Goal progress",
-      "monthlyHeatmap": "Monthly heatmap",
-      "streakHistory": "Streak history",
-      "achievementsTimeline": "Achievements timeline",
-      "xpOverTime": "XP over time",
-      "completionTrendsDesc": "How your completion rate moves over time",
-      "goalProgressDesc": "Progress toward each active goal",
-      "xpOverTimeDesc": "XP you've earned across the period",
-      "streakHistoryDesc": "Your streak length day by day",
-      "monthlyHeatmapDesc": "Habits you completed each day",
-      "achievementsTimelineDesc": "Badges you've earned, newest first",
-      "multiHabitComparisonDesc": "Your habits ranked by current streak",
-      "heatmapCell": "{date}: {count} completed",
-      "heatmapLess": "Less",
-      "heatmapMore": "More",
-      "achievementsOf": "of {total}",
-      "selectGoal": "Select a goal",
-      "noGoals": "No goals to show yet",
-      "goalProgressEmpty": "No progress recorded for this goal yet.",
-      "averageCaption": "avg",
-      "streakDaysShort": "{count}d"
     }
   },
   "explore": {
@@ -1391,8 +1351,6 @@
       "emailInvalid": "Please enter a valid email address."
     },
     "logout": "Log Out",
-    "retrospectiveTitle": "Retrospective",
-    "retrospectiveHint": "AI insights on your habits over time",
     "wrappedTitle": "Your Wrapped",
     "wrappedHint": "A shareable recap of your week, month, or year",
     "widgetTitle": "Home Screen Widget",
@@ -1521,6 +1479,7 @@
     "empty": "Log a few habits first to build a card worth sharing.",
     "error": "Couldn't load your recap. Please try again.",
     "shareError": "Couldn't share your card. Please try again.",
+    "weeklyBarLabel": "Completion on {day}: {percent}%",
     "periods": {
       "week": "Week",
       "month": "Month",
@@ -1726,45 +1685,6 @@
     "askAstra": "Ask Astra",
     "upgrade": "Upgrade",
     "freePrompt": "Pro gets a daily summary of your habits."
-  },
-  "retrospective": {
-    "title": "Retrospective",
-    "locked": "Retrospectives are a Pro feature",
-    "lockedHint": "Upgrade to Pro for AI retrospectives that analyze your habit data over time.",
-    "changePlan": "Change Plan",
-    "generate": "Generate Retrospective",
-    "generating": "Analyzing your habits...",
-    "error": "Couldn't generate your retrospective.",
-    "empty": "Choose a time period and generate a retrospective to see Astra's insights on your habits.",
-    "noData": "No habit activity for this period yet. Complete a few habits and check back.",
-    "cached": "Loaded from cache",
-    "astraEyebrow": "Astra",
-    "regenerate": "Regenerate",
-    "metrics": {
-      "completionRate": "Completion",
-      "logs": "Logs",
-      "currentStreak": "Streak",
-      "activeDays": "Active days"
-    },
-    "weeklyTitle": "Weekly consistency",
-    "weeklyBarLabel": "Completion on {day}: {percent}%",
-    "topHabitsTitle": "Top habits",
-    "needsAttentionTitle": "Needs attention",
-    "completed": "Completed",
-    "notCompleted": "Not completed",
-    "sections": {
-      "highlights": "Highlights",
-      "missed": "Missed opportunities",
-      "trends": "Trends",
-      "suggestion": "Suggestion"
-    },
-    "periods": {
-      "week": "Week",
-      "month": "Month",
-      "quarter": "Quarter",
-      "semester": "Semester",
-      "year": "Year"
-    }
   },
   "onboarding": {
     "flow": {
@@ -2029,8 +1949,8 @@
       "astraSection": {
         "canDoTitle": "Create & Log",
         "canDoDesc": "Tell Astra what habits you want and it creates them. Say 'I ran today' to log completions. It can create one-time tasks too, like 'buy eggs tomorrow'.",
-        "toolsBreadthTitle": "61 Built-In Tools",
-        "toolsBreadthDesc": "Astra isn't only chat -- it can act. It has 61 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 5 AI messages a day; Pro raises it to 50.",
+        "toolsBreadthTitle": "63 Built-In Tools",
+        "toolsBreadthDesc": "Astra isn't only chat -- it can act. It has 63 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 5 AI messages a day; Pro raises it to 50.",
         "manageTitle": "Update & Delete",
         "manageDesc": "Ask Astra to modify habits: 'move my gym to tomorrow', 'rename running to jogging', 'change meditation to weekly', or 'delete my reading habit'. It can handle bulk operations too.",
         "insightsTitle": "Progress & Analysis",
@@ -2050,7 +1970,7 @@
         "mcpTitle": "Connect Your AI Assistant",
         "mcpDesc": "Orbit speaks MCP (Model Context Protocol), so you can connect Claude, ChatGPT, or any MCP-capable assistant straight to your Orbit account. Manage your habits and goals from wherever you already chat with AI -- no need to open the app.",
         "assistantCanDoTitle": "What Your Assistant Can Do",
-        "assistantCanDoDesc": "Once connected, your assistant can create and log habits, manage goals, tags, and checklists, read your progress, adjust notifications, and more -- 79 tools across 15 areas of the app. Every action is scoped to your account and follows the same permissions as the app.",
+        "assistantCanDoDesc": "Once connected, your assistant can create and log habits, manage goals, tags, and checklists, read your progress, adjust notifications, and more -- 81 tools across 15 areas of the app. Every action is scoped to your account and follows the same permissions as the app.",
         "apiKeysTitle": "API Keys (Pro)",
         "apiKeysDesc": "MCP access comes with Orbit Pro. Create and manage scoped API keys in AI Settings, then paste one into your assistant to link it. Keys can be read-only or full-access, and you can revoke them anytime.",
         "setupTitle": "Setting It Up",
@@ -3048,10 +2968,6 @@
       "subscription": {
         "title": "Subscription",
         "description": "Free includes 5 Astra messages a day. Pro includes 50, which is ten times more."
-      },
-      "retrospective": {
-        "title": "AI Retrospective",
-        "description": "Get detailed AI analysis of your habit patterns over time. Available for weekly, monthly, quarterly, or yearly periods."
       },
       "achievements": {
         "title": "Achievements & Levels",

@@ -202,9 +202,13 @@ name belong to dimension 1; do not over-claim completeness here.
 
 ### 8. Cross-platform parity
 
-> Reference: root CLAUDE.md "Cross-platform parity (MANDATORY)". **The `Cross-Platform Parity` gate only
+> Reference: root CLAUDE.md "Cross-platform parity (MANDATORY)" and generated `architecture.json` at the
+> repository root. Run `node tools/arch-map.mjs` to create it. **The `Cross-Platform Parity` gate only
 > counts changed files per platform**, so it catches a wholly one-sided PR and nothing else. Per-file
 > mirrors and behavioural equivalence are yours.
+
+A new screen or route triggers this dimension. Verify its generated `routes.web` or `routes.mobile` entry,
+including `platform`, `routePath`, and `sourceFile`, then check `routes.parityPairs` and `routes.unpaired`.
 
 Every changed `apps/web/**` file has its `apps/mobile/**` mirror changed in the same PR and vice versa:
 `hooks/use-<x>.ts`, `stores/<x>-store.ts`, and `components/<feature>/<X>.tsx` map one to one,
@@ -225,7 +229,9 @@ mirror file, or one that exists but was not updated, is **High** until proven in
 
 ### 9. i18n
 
-> Reference: root CLAUDE.md. No gate checks locale parity.
+> Reference: root CLAUDE.md and `packages/shared/src/i18n/en.json` plus `pt-BR.json`. The `i18n key
+> usage` gate checks catalog key parity, missing keys, and statically resolvable callsites. It does not
+> judge whether translated behaviour or meaning agrees.
 
 Every new user-facing string has a key in **both** `packages/shared/src/i18n/en.json` and `pt-BR.json`, in
 the same edit (`MISSING_PT` / `MISSING_EN`), and no callsite references a key that exists in neither
@@ -290,19 +296,43 @@ one-global-timezone behavior is a P1 finding. **Validator placement**: `Orbit.Ap
 catch block that swallows an error silently. **Test scope**: every new command or query handler, validator,
 and service has a unit test, and unit is all there is, so never ask for an integration or E2E suite.
 
-### 12. FEATURES.md gating
+### 12. Feature-surface evidence
 
-> Reference: `FEATURES.md` at the orbit-ui-mobile root. **Gated: only when the diff changes the user-facing
-> feature surface.** Hand-maintained, so nothing generates it and no gate checks it.
+> References: generated `architecture.json` in this repository, generated `gating-matrix.json` at the
+> `thomasluizon/orbit-api` repository root, the count-only `FEATURES.md` tool inventory, the shared
+> locale catalogs, and the `Cross-Platform Parity` and `i18n key usage` jobs. **Gated: only when the
+> diff changes the user-facing feature surface.**
 
-Triggers: a new screen, route, or tab; a new or removed Astra (`IAiTool`) or MCP (`[McpServerTool]`) tool; a
-plan-gating change (`PayGateService`, `AppConstants`); a platform-availability or locale-specific behaviour
-change. Pure refactors, bugfixes, and visual polish are N/A. The same PR updates the row, keeping the
-Gating, Platform, and Locale columns accurate and the stated tool counts correct; a missing update is
-**High**, as is a gating or platform claim the diff makes stale, and a change that makes the in-app guide
-(`onboarding.featureGuide.*`) wrong is **Medium**. In the orbit-api repo the file is not checked out, so do
-not guess: emit "FEATURES.md update required in thomasluizon/orbit-ui-mobile" (**High**) so it lands in the
-paired frontend PR.
+`gating-matrix.json` contains PayGate methods, config keys, and feature flags. It contains no route, screen,
+tab, tool, platform-availability, locale-behaviour, description, or guide-coverage field. Run
+`node tools/gating-matrix.mjs` in `thomasluizon/orbit-api` and use it only for plan-gating evidence.
+
+Triggers and their evidence:
+
+- **Screen or route:** run `node tools/arch-map.mjs`, then verify `routes.web`, `routes.mobile`,
+  `routes.parityPairs`, and `routes.unpaired` in generated `architecture.json`. Route entries carry
+  `platform`, `routePath`, `sourceFile`, and `layouts`.
+- **Tab:** inspect the owning navigation composition in `apps/web/components/shell/destination-shell.tsx`,
+  `apps/mobile/components/navigation/destination-tab-bar.tsx`, and `apps/mobile/app/(tabs)/_layout.tsx`.
+  Apply dimension 8 and the `Cross-Platform Parity` job to any availability change.
+- **Astra or MCP tool:** after the change reaches deployed `orbit-api` `main`, recount
+  `orbit-api/src/Orbit.Api/Extensions/ServiceCollectionExtensions.AiServices.cs` and every class in
+  `orbit-api/src/Orbit.Api/Mcp/Tools/*.cs`. Update the count-only `FEATURES.md` inventory and both
+  catalogs' guide counts in a paired UI pull request. No generated artifact currently carries tool
+  inventory.
+- **Plan gating:** generate `gating-matrix.json` from the candidate API tree and verify the affected `gates`,
+  `appConfigs`, and `featureFlags` entry. Treat compiled defaults as offline evidence because live
+  `AppConfigs` rows can override them.
+- **Platform availability:** apply dimension 8 and the `Cross-Platform Parity` job. The job detects a
+  wholly one-sided UI change; the reviewer still verifies per-file mirrors and behavioural equivalence.
+- **Locale-specific behaviour:** compare the affected keys and values in
+  `packages/shared/src/i18n/en.json` and `packages/shared/src/i18n/pt-BR.json`, then require the
+  `i18n key usage` job. The job checks catalog parity, missing keys, and statically resolvable callsites.
+- **Guide drift:** compare the changed capability with both catalogs' `onboarding.featureGuide.*` entries.
+  The `i18n key usage` job proves key parity and usage, while the reviewer verifies semantic accuracy.
+
+Pure refactors, unrelated bugfixes, and visual polish are N/A. A stale gating, platform, or tool claim, or a
+missing required inventory update, is **High**. A change that makes the in-app guide wrong is **Medium**.
 
 ### 13. External-interface evidence
 

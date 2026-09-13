@@ -49,17 +49,17 @@ export function deriveCalendarStats(
   days: ReadonlyArray<CalendarMonthDay>,
   todayKey: string,
 ): CalendarMonthStats {
-  const livedDays = days.filter((day) => day.dateStr <= todayKey)
-  const totalLogs = livedDays.reduce((total, day) => total + day.completedCount, 0)
-  const missed = livedDays.reduce(
-    (total, day) => total + day.entries.filter((entry) => entry.status === 'missed').length,
+  const countedDays = days.filter((day) => day.dateStr <= todayKey && day.totalCount > 0)
+  const totalLogs = countedDays.reduce((total, day) => total + day.completedCount, 0)
+  const missed = countedDays.reduce(
+    (total, day) => total + day.totalCount - day.completedCount,
     0,
   )
   let bestStreak = 0
   let currentStreak = 0
 
-  for (const day of livedDays) {
-    if (day.totalCount > 0 && day.completedCount === day.totalCount) {
+  for (const day of countedDays) {
+    if (day.completedCount > 0) {
       currentStreak += 1
       bestStreak = Math.max(bestStreak, currentStreak)
     } else {
@@ -71,7 +71,7 @@ export function deriveCalendarStats(
     totalLogs,
     missed,
     bestStreak,
-    hasEntries: livedDays.some((day) => day.totalCount > 0),
+    hasEntries: countedDays.length > 0,
   }
 }
 

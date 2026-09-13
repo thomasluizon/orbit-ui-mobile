@@ -87,7 +87,6 @@ export function CalendarRangeView({
           <ChevronRight size={20} strokeWidth={1.8} color={tokens.fg2} />
         </PillButton>
       </View>
-
       {isLoading ? (
         <>
           <MonthGrid weekdayLabels={[...weekdayLabels]} gap={4} label={rangeLabel}>

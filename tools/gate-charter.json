@@ -1,0 +1,427 @@
+{
+  ".claude/hooks/forbid-ef-migration-raw-index.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".claude/hooks/forbid-invented-identifier.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "scratchpad scan bounds",
+        "source": ".claude/hooks/forbid-invented-identifier.mjs measured search-envelope rationale"
+      }
+    ]
+  },
+  ".claude/hooks/forbid-raw-ticket-mutation.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".claude/hooks/forbid-worker-browser.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".claude/hooks/git-guardrails.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".claude/hooks/orchestrator-guardrails.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".claude/hooks/require-wake-source.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".claude/hooks/surface-pending-lessons.mjs": {
+    "scope": "whole-tree-advisory",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#calibration": {
+    "scope": "whole-tree-advisory",
+    "snapshot": "node tools/reseed-calibration.mjs",
+    "constants": [
+      {
+        "name": "maximum calibration age",
+        "source": ".claude/calibration.json calibratedAt contract"
+      }
+    ]
+  },
+  ".github/workflows/guards.yml#copy": {
+    "scope": "changed-files",
+    "snapshot": "node tools/check-copy.mjs --write-baseline",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#dashes": {
+    "scope": "changed-files",
+    "snapshot": "node tools/check-dashes.mjs --write-baseline",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#expo-pin": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#gate-charter": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#i18n-usage": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#mobile-fonts": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#mobile-styles": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#parity": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#performance-workflow": {
+    "scope": "changed-files",
+    "snapshot": "node tools/generate-performance-workflow.mjs --write",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#ratchet": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#review-harness": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  ".github/workflows/guards.yml#root-allowlist": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/animate-presence-exit.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/animate-presence-stable-key.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/icon-size-grid.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "allowed icon sizes",
+        "source": "DESIGN.md Icons"
+      }
+    ]
+  },
+  "eslint-rules/mobile-supabase-lazy.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/no-arbitrary-zindex.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "local stacking ceiling",
+        "source": "DESIGN.md Stacking"
+      }
+    ]
+  },
+  "eslint-rules/no-calc-percentage-width.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "full-width percentage boundary",
+        "source": "CSS percentage width definition"
+      }
+    ]
+  },
+  "eslint-rules/no-comments.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/no-dead-href.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/no-decorative-glow.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "shadow blur and chroma classification",
+        "source": "DESIGN.md Shadows"
+      }
+    ]
+  },
+  "eslint-rules/no-double-assertion.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/no-draggable-onscroll.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/no-dynamic-tailwind-class.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/no-fullbleed-button.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "pill radius classification",
+        "source": "DESIGN.md Radius"
+      }
+    ]
+  },
+  "eslint-rules/no-gorhom-sheet.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/no-gradient-text.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/no-jsx-logical-and.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/no-nested-component-definition.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/no-oklch-outside-web-tokens.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/no-overshoot-easing.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "cubic-bezier non-overshoot bounds",
+        "source": "CSS Easing Level 2 cubic-bezier output range"
+      }
+    ]
+  },
+  "eslint-rules/no-pill-radius-on-static.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "pill radius threshold",
+        "source": "DESIGN.md Radius"
+      }
+    ]
+  },
+  "eslint-rules/no-placeholder-alt.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/no-raw-font-feature-tag.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "OpenType feature tag length",
+        "source": "OpenType feature tag specification"
+      }
+    ]
+  },
+  "eslint-rules/no-raw-gradient.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/no-scroll-listener-motion.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/no-side-stripe-border.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "decorative side-stripe width",
+        "source": "DESIGN.md Bans"
+      }
+    ]
+  },
+  "eslint-rules/no-space-x-y.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/no-sparkle-ai-marker.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/no-unjustified-disable.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/no-user-scalable-no.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "maximum-scale lock threshold",
+        "source": "WCAG 2.2 criterion 1.4.4"
+      }
+    ]
+  },
+  "eslint-rules/react19-api.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/require-dialog-title.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/require-focus-replacement.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "eslint-rules/spacing-scale.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "spacing scale and unit conversion",
+        "source": "DESIGN.md Spacing"
+      }
+    ]
+  },
+  "eslint-rules/will-change-discipline.cjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "tools/check-calibration.mjs": {
+    "scope": "whole-tree-advisory",
+    "snapshot": "node tools/reseed-calibration.mjs",
+    "constants": [
+      {
+        "name": "maximum calibration age",
+        "source": ".claude/calibration.json calibratedAt contract"
+      }
+    ]
+  },
+  "tools/check-copy.mjs": {
+    "scope": "changed-files",
+    "snapshot": "node tools/check-copy.mjs --write-baseline",
+    "constants": "none"
+  },
+  "tools/check-dashes.mjs": {
+    "scope": "changed-files",
+    "snapshot": "node tools/check-dashes.mjs --write-baseline",
+    "constants": "none"
+  },
+  "tools/check-gate-charter.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "tools/check-gradients.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "tools/check-i18n-usage.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "tools/check-lockup-crop.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "ink-bound tolerance",
+        "source": "SVG floating-point coordinate precision"
+      }
+    ]
+  },
+  "tools/check-push-target.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "tools/check-review-harness.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "minimum evidence length",
+        "source": ".claude/skills/orchestrate review evidence contract"
+      }
+    ]
+  },
+  "tools/check-root-allowlist.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "tools/check-suppressions-ratchet.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  },
+  "tools/check-surface-scope.mjs": {
+    "scope": "whole-tree-advisory",
+    "snapshot": "none",
+    "constants": [
+      {
+        "name": "surface role floors",
+        "source": "DESIGN.md Surface roles"
+      }
+    ]
+  },
+  "tools/check-workspace-overrides.mjs": {
+    "scope": "changed-files",
+    "snapshot": "none",
+    "constants": "none"
+  }
+}

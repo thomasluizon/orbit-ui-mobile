@@ -90,7 +90,6 @@ export function CalendarRangeView({
           <ChevronRight size={20} strokeWidth={1.8} aria-hidden="true" />
         </PillButton>
       </div>
-
       {isLoading ? (
         <>
           <MonthGrid weekdayLabels={[...weekdayLabels]} gap={4} label={rangeLabel}>

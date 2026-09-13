@@ -28,7 +28,7 @@ describe('buildCalendarMonthModel', () => {
     expect(buildCalendarMonthModel(june, dayMap, 1, juneToday).monthStats).toEqual({
       totalLogs: 5,
       missed: 1,
-      bestStreak: 2,
+      bestStreak: 4,
       hasEntries: true,
     })
   })
@@ -51,6 +51,51 @@ describe('buildCalendarMonthModel', () => {
     const model = buildCalendarMonthModel(june, new Map(), 0, juneToday)
 
     expect(model.gridDays[0]?.date.getDay()).toBe(0)
-    expect(model.monthStats.hasEntries).toBe(false)
+    expect(model.monthStats).toEqual({
+      totalLogs: 0,
+      missed: 0,
+      bestStreak: 0,
+      hasEntries: false,
+    })
+  })
+
+  it('computes tile counts from scheduled days through today', () => {
+    const august = new Date(2026, 7, 1)
+    const dayMap = new Map<string, CalendarDayEntry[]>([
+      [key(new Date(2026, 7, 1)), [entry('completed'), entry('completed', 'h2')]],
+      [key(new Date(2026, 7, 3)), [entry('completed'), entry('missed', 'h2')]],
+      [key(new Date(2026, 7, 4)), [entry('missed')]],
+      [key(new Date(2026, 7, 5)), [entry('completed')]],
+      [key(new Date(2026, 7, 17)), [entry('completed'), entry('upcoming', 'h2')]],
+      [key(new Date(2026, 7, 18)), [entry('completed')]],
+    ])
+
+    expect(buildCalendarMonthModel(august, dayMap, 1, '2026-08-17').monthStats).toEqual({
+      totalLogs: 5,
+      missed: 3,
+      bestStreak: 2,
+      hasEntries: true,
+    })
+  })
+
+  it('updates every statistic when today advances and other inputs stay unchanged', () => {
+    const august = new Date(2026, 7, 1)
+    const dayMap = new Map<string, CalendarDayEntry[]>([
+      [key(new Date(2026, 7, 17)), [entry('completed')]],
+      [key(new Date(2026, 7, 18)), [entry('completed'), entry('missed', 'h2')]],
+    ])
+
+    expect(buildCalendarMonthModel(august, dayMap, 1, '2026-08-17').monthStats).toEqual({
+      totalLogs: 1,
+      missed: 0,
+      bestStreak: 1,
+      hasEntries: true,
+    })
+    expect(buildCalendarMonthModel(august, dayMap, 1, '2026-08-18').monthStats).toEqual({
+      totalLogs: 2,
+      missed: 1,
+      bestStreak: 2,
+      hasEntries: true,
+    })
   })
 })

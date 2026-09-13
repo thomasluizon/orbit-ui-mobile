@@ -73,7 +73,7 @@ describe('CalendarRangeView', () => {
     expect(screen.getAllByRole('button')).toHaveLength(2)
     expect(screen.getByText('Logs').previousSibling).toHaveTextContent('4')
     expect(screen.getByText('Missed').previousSibling).toHaveTextContent('1')
-    expect(screen.getByText('Best streak').previousSibling).toHaveTextContent('2')
+    expect(screen.getByText('Best streak').previousSibling).toHaveTextContent('3')
   })
 
   it('keeps the range geometry busy without announcing empty outcomes, then reveals the resolved span', () => {

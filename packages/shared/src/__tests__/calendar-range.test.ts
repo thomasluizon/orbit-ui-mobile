@@ -35,7 +35,7 @@ describe('buildCalendarRangeModel', () => {
     expect(model.endKey).toBe('2026-06-14')
     expect(model.days).toHaveLength(14)
     expect(model.leadingEmptyDays).toBe(0)
-    expect(model.stats).toEqual({ totalLogs: 4, missed: 1, bestStreak: 2, hasEntries: true })
+    expect(model.stats).toEqual({ totalLogs: 4, missed: 1, bestStreak: 3, hasEntries: true })
   })
 
   it('uses today explicitly and excludes later days from the figures', () => {

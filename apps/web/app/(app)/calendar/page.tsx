@@ -13,7 +13,6 @@ import {
   endOfWeek,
   eachDayOfInterval,
   isSameMonth,
-  isToday,
   format,
 } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
@@ -44,7 +43,6 @@ import { CalendarLoadError } from '@/components/calendar/calendar-load-error'
 import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import { Sheet } from '@/components/ui/sheet'
 import { EmptyState } from '@/components/ui/empty-state'
-import { SectionLabel } from '@/components/ui/section-label'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useIsDesktop, useIsWideDesktop } from '@/hooks/use-is-desktop'
@@ -94,7 +92,7 @@ export default function CalendarPage() {
 }
 
 interface CalendarPageContentProps {
-  profile: Pick<Profile, 'weekStartDay'>
+  profile: Pick<Profile, 'weekStartDay' | 'timeZone'>
   currentMonth: Date
   setCurrentMonth: Dispatch<SetStateAction<Date>>
   monthQuery: ReturnType<typeof useCalendarData>
@@ -115,7 +113,7 @@ function CalendarPageContent({
   const weekStartsOn = profile.weekStartDay
   const isDesktop = useIsDesktop()
   const isWideDesktop = useIsWideDesktop()
-  const todayKey = useToday()
+  const todayKey = useToday(profile.timeZone)
 
   const [view, setView] = useState<CalendarView>('month')
   /** Agenda is desktop-width only until #56 stage 10 builds the mobile day groups. */
@@ -163,12 +161,16 @@ function CalendarPageContent({
 
   const gridColumns = useMemo<TimeGridColumn[]>(() => {
     const days = eachDayOfInterval({ start: weekStart, end: weekEnd })
-    return days.map((date) => ({
-      date,
-      dateStr: formatAPIDate(date),
-      isToday: isToday(date),
-    }))
-  }, [weekStart, weekEnd])
+    return days.map((date) => {
+      const dateStr = formatAPIDate(date)
+      return {
+        date,
+        dateStr,
+        isToday: dateStr === todayKey,
+        isFuture: dateStr > todayKey,
+      }
+    })
+  }, [weekStart, weekEnd, todayKey])
 
   const monthLabel = useMemo(
     () => capitalizeFirstLetter(format(currentMonth, 'MMMM', { locale: dateFnsLocale })),
@@ -301,10 +303,10 @@ function CalendarPageContent({
 
   const monthStatTiles = useMemo(
     () => [
-      { key: 'bestStreak', emoji: '🔥', value: monthStats.bestStreak, label: t('calendar.bestStreak') },
-      { key: 'totalLogs', emoji: '✅', value: monthStats.totalLogs, label: t('calendar.totalLogs') },
-      { key: 'missed', emoji: '⚠️', value: monthStats.missed, label: t('calendar.missedCount') },
-    ],
+      { key: 'bestStreak', value: monthStats.bestStreak, label: t('calendar.bestStreak') },
+      { key: 'totalLogs', value: monthStats.totalLogs, label: t('calendar.totalLogs') },
+      { key: 'missed', value: monthStats.missed, label: t('calendar.missedCount') },
+    ] as const,
     [monthStats, t],
   )
 
@@ -422,10 +424,7 @@ function CalendarPageContent({
                   {!isLoading && !monthStats.hasEntries ? (
                     <EmptyState title={t('calendar.emptyMonth')} />
                   ) : (
-                    <>
-                      <SectionLabel>{t('calendar.thisMonth')}</SectionLabel>
-                      <CalendarStats stats={monthStatTiles} />
-                    </>
+                    <CalendarStats stats={monthStatTiles} />
                   )}
                 </div>
 
@@ -477,16 +476,17 @@ function CalendarPageContent({
                 onSelectDay={openDay}
                 displayTime={displayTime}
                 dateFnsLocale={dateFnsLocale}
-                allDayLabel={t('calendar.timeGrid.allDay')}
+                allDayLabel={t('calendar.timeGrid.noSetTime')}
                 nowLabel={t('calendar.timeGrid.now')}
+                timeZone={profile.timeZone}
                 showRecurring={showRecurring}
                 onShowRecurringChange={setShowRecurring}
               />
             )}
 
-            {view === 'range' && (
-              <CalendarRangeView
-                model={rangeModel}
+              {view === 'range' && (
+                <CalendarRangeView
+                  model={rangeModel}
                 weekdayLabels={weekdayLabels}
                 rangeLabel={rangeLabel}
                 previousRangeLabel={t('calendar.range.previous')}
@@ -495,9 +495,9 @@ function CalendarPageContent({
                 onNextRange={nextRange}
                 nextRangeDisabled={rangeOffset === 0}
                 isLoading={rangeLoading}
-                loadingLabel={t('common.loading')}
-                stats={rangeStatTiles}
-              />
+                  loadingLabel={t('common.loading')}
+                  stats={rangeStatTiles}
+                />
             )}
 
             {activeView === 'agenda' && (
