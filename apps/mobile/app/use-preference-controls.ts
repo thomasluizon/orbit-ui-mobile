@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
-import { gamificationKeys, habitKeys } from '@orbit/shared/query'
+import { calendarKeys, gamificationKeys, habitKeys } from '@orbit/shared/query'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import {
   parseShowGeneralOnTodayPreference,
@@ -101,6 +101,7 @@ export function usePreferenceControls() {
       patchProfile({ timeZone: context?.previous ?? null })
     },
     onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: calendarKeys.all })
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.all, refetchType: 'none' })
       void queryClient.invalidateQueries({ queryKey: habitKeys.all })
     },
