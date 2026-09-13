@@ -4,7 +4,13 @@ import { StyleSheet, Text, View } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-export function MonthGrid({ weekdayLabels = [], children, gap = 8, label }: Readonly<MonthGridProps>) {
+export function MonthGrid({
+  weekdayLabels = [],
+  children,
+  gap = 8,
+  label,
+  minimumDayGridHeight,
+}: Readonly<MonthGridProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const columns = weekdayLabels.length
@@ -27,7 +33,7 @@ export function MonthGrid({ weekdayLabels = [], children, gap = 8, label }: Read
           ))}
         </View>
       ) : null}
-      <View testID="month-grid-days" style={{ rowGap: numericGap }}>
+      <View testID="month-grid-days" style={{ rowGap: numericGap, minHeight: minimumDayGridHeight }}>
         {columns > 0
           ? rows.map((row, rowIndex) => (
               <View key={rowIndex} testID={`month-grid-row-${rowIndex}`} style={[styles.row, { columnGap: numericGap }]}>

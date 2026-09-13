@@ -26,4 +26,39 @@ describe('CalendarStats', () => {
     expect(screen.getByText('Missed')).toBeInTheDocument()
     expect(screen.getByText('3')).toBeInTheDocument()
   })
+
+  it('uses each tile own loading state', () => {
+    render(
+      <CalendarStats
+        stats={[
+          { key: 'bestStreak', value: 5, label: 'Best streak' },
+          { key: 'totalLogs', value: 12, label: 'Total logs' },
+          { key: 'missed', value: 3, label: 'Missed' },
+        ]}
+        state="loading"
+        loadingLabel="Loading"
+      />,
+    )
+
+    expect(screen.getByTestId('calendar-stats')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getAllByRole('status', { name: 'Loading', hidden: true })).toHaveLength(3)
+    expect(screen.queryByText('0')).not.toBeInTheDocument()
+  })
+
+  it('states no data instead of zero for an empty month', () => {
+    render(
+      <CalendarStats
+        stats={[
+          { key: 'bestStreak', value: 0, label: 'Best streak' },
+          { key: 'totalLogs', value: 0, label: 'Total logs' },
+          { key: 'missed', value: 0, label: 'Missed' },
+        ]}
+        state="empty"
+        emptyLabel="no data"
+      />,
+    )
+
+    expect(screen.getAllByText('no data')).toHaveLength(3)
+    expect(screen.queryByText('0')).not.toBeInTheDocument()
+  })
 })

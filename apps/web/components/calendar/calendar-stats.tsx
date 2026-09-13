@@ -6,18 +6,21 @@ export interface CalendarStat {
   label: string
 }
 
-interface CalendarStatsBaseProps {
+interface CalendarStatsProps {
   stats: readonly [CalendarStat, CalendarStat, CalendarStat]
+  state?: 'default' | 'loading' | 'empty'
+  loadingLabel?: string
+  emptyLabel?: string
 }
 
-type CalendarStatsProps = CalendarStatsBaseProps & (
-  | { state?: 'default'; loadingLabel?: never }
-  | { state: 'loading'; loadingLabel: string }
-)
-
 /** The three month figures, kept in one row at every width. */
-export function CalendarStats(props: Readonly<CalendarStatsProps>) {
-  const isLoading = props.state === 'loading'
+export function CalendarStats({
+  stats,
+  state = 'default',
+  loadingLabel,
+  emptyLabel,
+}: Readonly<CalendarStatsProps>) {
+  const isLoading = state === 'loading'
 
   return (
     <div
@@ -30,9 +33,11 @@ export function CalendarStats(props: Readonly<CalendarStatsProps>) {
         padding: '0 16px',
       }}
     >
-      {props.stats.map((stat) => (
+      {stats.map((stat) => (
         isLoading ? (
-          <StatTile key={stat.key} state="loading" label="" loadingLabel={props.loadingLabel} />
+          <StatTile key={stat.key} state="loading" loadingLabel={loadingLabel ?? ''} label="" />
+        ) : state === 'empty' ? (
+          <StatTile key={stat.key} state="empty" emptyLabel={emptyLabel ?? ''} label={stat.label} />
         ) : (
           <StatTile key={stat.key} value={stat.value} label={stat.label} />
         )
