@@ -30,7 +30,8 @@ vi.mock("@/components/ui/icons", () => {
   };
 });
 
-vi.mock("@/components/ui/stat-tile", () => ({
+vi.mock("@/components/ui/stat-tile", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/ui/stat-tile")>()),
   StatTile: ({ value, label }: { value: string | number; label: string }) =>
     React.createElement(
       "View",

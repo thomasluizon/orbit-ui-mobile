@@ -162,7 +162,8 @@ vi.mock('@/components/ui/pro-badge', () => ({
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: (props: Record<string, unknown>) => React.createElement('PillButton', props, props.children as React.ReactNode),
 }))
-vi.mock('@/components/ui/stat-tile', () => ({
+vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/stat-tile')>()),
   StatTile: (props: Record<string, unknown>) => React.createElement('StatTile', props),
 }))
 

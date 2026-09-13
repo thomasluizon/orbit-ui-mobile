@@ -125,7 +125,8 @@ vi.mock('@/components/ui/list-row', () => ({
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, disabled, label, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void }) => <button type="button" disabled={disabled} aria-label={label} onClick={onClick}>{children}</button>,
 }))
-vi.mock('@/components/ui/stat-tile', () => ({
+vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/stat-tile')>()),
   StatTile: ({ label, value }: { label: string; value: string }) => <output data-testid={`stat-${label}`}>{value}</output>,
 }))
 vi.mock('@/components/dates/day-cell', () => ({
