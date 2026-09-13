@@ -34,9 +34,7 @@ import { ProBadge } from '@/components/ui/pro-badge'
 import { Toast } from '@/components/ui/toast'
 import { useAuthStore } from '@/stores/auth-store'
 import { useIsClient } from '@/hooks/use-is-client'
-import { usePushNotificationPreferences } from '@/hooks/use-push-notification-preferences'
 import { MarketingConsentSection } from '@/app/(app)/preferences/_components/marketing-consent-section'
-import { PushNotificationSection } from '@/app/(app)/preferences/_components/push-notification-section'
 import { PreferencePickerSheet, type PreferencePicker } from '@/app/(app)/preferences/_components/preference-picker-sheet'
 import { usePreferenceControls } from '@/app/(app)/preferences/_components/use-preference-controls'
 import { DeleteAccountModal } from './delete-account-modal'
@@ -96,42 +94,6 @@ function buildAstraRows({ profile, router, t }: RowContext) {
     <ListRow key="proactive" icon={icon(BellRing)} title={t('profile.proactiveAstra.title')} onClick={() => router.push('/ai-settings')} />,
     <ListRow key="summary" icon={icon(MessageSquare)} title={t('profile.aiSummary.title')} onClick={() => router.push('/ai-settings')} />,
     <ListRow key="api-keys" icon={icon(Lock)} title={t('profile.settingsRows.apiKeysMcp')} onClick={() => router.push('/advanced')} />,
-  ]
-}
-
-function buildNotificationRows(
-  t: Translate,
-  push: ReturnType<typeof usePushNotificationPreferences>,
-) {
-  return [
-    <MarketingConsentSection
-      key="product-email"
-      showSectionLabel={false}
-      contained
-      acceptVariant="secondary"
-    />,
-    <PushNotificationSection
-      key="push"
-      showSectionLabel={false}
-      contained
-      deviceLabel={t('profile.settingsRows.currentDevice')}
-      deviceDescription={t('profile.settingsRows.pushDeviceLimit')}
-      push={{
-        supported: push.supported,
-        subscribed: push.subscribed,
-        permission: push.permission,
-        loading: push.loading,
-        status: push.status,
-        onToggle: () => void push.togglePush(),
-      }}
-    />,
-    <p
-      key="habit-notifications"
-      data-profile-notification-guidance
-      className="m-0 px-1 font-sans text-sm leading-[1.55] text-[var(--fg-3)] [text-wrap:pretty]"
-    >
-      {t('profile.settingsRows.remindersNote')}
-    </p>,
   ]
 }
 
@@ -227,7 +189,6 @@ export function ProfileSettingsContent({
   const mounted = useIsClient()
   const logout = useAuthStore((state) => state.logout)
   const preferenceControls = usePreferenceControls()
-  const push = usePushNotificationPreferences()
   const {
     isExporting,
     exportDone,
@@ -260,7 +221,14 @@ export function ProfileSettingsContent({
       () => preferenceControls.setActivePicker('timeZone'),
     ),
     astra: buildAstraRows(context),
-    notifications: buildNotificationRows(t, push),
+    notifications: [
+      <MarketingConsentSection
+        key="product-email"
+        showSectionLabel={false}
+        contained
+        acceptVariant="secondary"
+      />,
+    ],
     more: buildMoreRows(context),
     ending: buildEndingRows({
       context,
