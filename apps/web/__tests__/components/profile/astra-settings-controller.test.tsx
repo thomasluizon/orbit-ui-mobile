@@ -25,6 +25,7 @@ describe('useAstraSettingsController', () => {
 
   it('owns optimistic updates, rollback, pending state, and summary invalidation', async () => {
     let rejectSummary!: (error: Error) => void
+    let rejectProactive!: (error: Error) => void
     mocks.updateAiSummary.mockReturnValue(
       new Promise((_resolve, reject) => {
         rejectSummary = reject
@@ -59,6 +60,25 @@ describe('useAstraSettingsController', () => {
     })
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.summaryPrefix(),
+    })
+
+    mocks.updateProactiveAstra.mockReturnValue(
+      new Promise((_resolve, reject) => {
+        rejectProactive = reject
+      }),
+    )
+    act(() => result.current.onToggleProactive())
+
+    await waitFor(() => {
+      expect(mocks.updateProactiveAstra).toHaveBeenCalledWith({ enabled: true })
+      expect(patchProfile).toHaveBeenLastCalledWith({ proactiveAstraEnabled: true })
+      expect(result.current.proactivePending).toBe(true)
+    })
+
+    rejectProactive(new Error('offline'))
+
+    await waitFor(() => {
+      expect(patchProfile).toHaveBeenLastCalledWith({ proactiveAstraEnabled: false })
     })
   })
 })
