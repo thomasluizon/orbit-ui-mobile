@@ -53,7 +53,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Sheet, useSheetHost } from '@/components/ui/sheet';
 import { EmptyState } from "@/components/ui/empty-state";
 import { PillButton } from "@/components/ui/pill-button";
-import { SectionLabel } from "@/components/ui/section-label";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -364,8 +363,8 @@ function CalendarScreenContent({
   }, [t, weekStartsOn]);
 
   const { gridDays, monthStats } = useMemo(
-    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn),
-    [currentMonth, dayMap, weekStartsOn],
+    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn, todayKey),
+    [currentMonth, dayMap, weekStartsOn, todayKey],
   );
 
   const {
@@ -419,23 +418,20 @@ function CalendarScreenContent({
     () => [
       {
         key: "bestStreak",
-        emoji: "🔥",
         value: monthStats.bestStreak,
         label: t("calendar.bestStreak"),
       },
       {
         key: "totalLogs",
-        emoji: "✅",
         value: monthStats.totalLogs,
         label: t("calendar.totalLogs"),
       },
       {
         key: "missed",
-        emoji: "⚠️",
         value: monthStats.missed,
         label: t("calendar.missedCount"),
       },
-    ],
+    ] as const,
     [monthStats, t],
   );
 
@@ -475,10 +471,7 @@ function CalendarScreenContent({
       {!isLoading && !monthStats.hasEntries ? (
         <EmptyState title={t("calendar.emptyMonth")} />
       ) : (
-        <>
-          <SectionLabel>{t("calendar.thisMonth")}</SectionLabel>
-          <CalendarStats stats={monthStatTiles} />
-        </>
+        <CalendarStats stats={monthStatTiles} />
       )}
 
       <View style={{ height: 24 }} />

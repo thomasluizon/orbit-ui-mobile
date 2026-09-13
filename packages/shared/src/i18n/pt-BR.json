@@ -910,10 +910,9 @@
       "selected": "Selecionado",
       "readOnly": "Somente leitura"
     },
-    "thisMonth": "Este mês",
     "bestStreak": "Melhor sequência",
-    "totalLogs": "Total de registros",
-    "missedCount": "Perdidos",
+    "totalLogs": "Registros",
+    "missedCount": "Sem registro",
     "emptyMonth": "Nada registrado neste mês ainda. Seus dias vão aparecer aqui.",
     "loadError": "Não foi possível carregar o calendário. Tente de novo.",
     "dayDetail": {

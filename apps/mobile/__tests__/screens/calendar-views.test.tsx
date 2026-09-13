@@ -2,7 +2,7 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { formatAPIDate } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 
 import CalendarScreen from "@/app/(tabs)/calendar";
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -11,6 +11,7 @@ const TestRenderer = require("react-test-renderer");
 
 const state = vi.hoisted(() => ({
   rangeMap: new Map<string, CalendarDayEntry[]>(),
+  monthMap: new Map<string, CalendarDayEntry[]>(),
   monthError: null as string | null,
   monthRefresh: () => {},
   profile: undefined as { weekStartDay: 0 | 1; timeZone: string | null } | undefined,
@@ -59,7 +60,7 @@ vi.mock("@/hooks/use-habits", () => ({
   useCalendarData: (month: Date) => {
     state.calendarDataCalls(month)
     return ({
-      dayMap: new Map(),
+      dayMap: state.monthMap,
       isLoading: false,
       isFetching: false,
       error: state.monthError,
@@ -104,7 +105,15 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-grid", () => ({
   },
 }));
 vi.mock("@/app/(tabs)/calendar/_components/calendar-stats", () => ({
-  CalendarStats: () => null,
+  CalendarStats: ({
+    stats,
+  }: {
+    stats: readonly { key: string; value: string | number }[];
+  }) => (
+    <View testID="calendar-stats">
+      {stats.map((stat) => <Text key={stat.key}>{`${stat.key}:${stat.value}`}</Text>)}
+    </View>
+  ),
 }));
 vi.mock("@/app/(tabs)/calendar/_components/calendar-day-detail", () => ({
   CalendarDayDetail: () => null,
@@ -165,9 +174,34 @@ function renderMonthHeader(tree: Tree): import("react-test-renderer").ReactTestR
   return headerTree;
 }
 
+function renderMonthFooter(tree: Tree): import("react-test-renderer").ReactTestRenderer {
+  const flatList = tree.root.findAll(
+    (node) => typeof node.type === "string" && node.type === "FlatList",
+  )[0];
+  let footerTree!: import("react-test-renderer").ReactTestRenderer;
+  TestRenderer.act(() => {
+    footerTree = TestRenderer.create(flatList!.props.ListFooterComponent);
+  });
+  return footerTree;
+}
+
+function setBoundaryEntries(firstDay: string, secondDay: string) {
+  state.monthMap = new Map([
+    [firstDay, [makeEntry({ habitId: "first", status: "completed" })]],
+    [
+      secondDay,
+      [
+        makeEntry({ habitId: "second", status: "completed" }),
+        makeEntry({ habitId: "missed", status: "upcoming" }),
+      ],
+    ],
+  ]);
+}
+
 describe("CalendarScreen views (mobile)", () => {
   beforeEach(() => {
     calendarGridProps.current = null;
+    state.monthMap = new Map();
     state.monthError = null;
     state.monthRefresh = () => {};
     state.profile = { weekStartDay: 1, timeZone: "UTC" };
@@ -326,6 +360,57 @@ describe("CalendarScreen views (mobile)", () => {
     } finally {
       TestRenderer.act(() => tree.update(<></>));
       TestRenderer.act(() => headerTree.update(<></>));
+      vi.useRealTimers();
+      if (originalTimeZone === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTimeZone;
+    }
+  });
+
+  it.each([
+    {
+      name: "device date is one day ahead",
+      deviceTimeZone: "Pacific/Kiritimati",
+      accountTimeZone: "America/Los_Angeles",
+      now: "2026-09-12T10:30:00.000Z",
+      firstDay: "2026-09-12",
+      secondDay: "2026-09-13",
+      expected: ["bestStreak:1", "totalLogs:1", "missed:0"],
+    },
+    {
+      name: "device date is one day behind",
+      deviceTimeZone: "America/Los_Angeles",
+      accountTimeZone: "UTC",
+      now: "2026-09-12T00:30:00.000Z",
+      firstDay: "2026-09-11",
+      secondDay: "2026-09-12",
+      expected: ["bestStreak:2", "totalLogs:2", "missed:1"],
+    },
+  ])("renders statistics through the account date when $name", ({
+    deviceTimeZone,
+    accountTimeZone,
+    now,
+    firstDay,
+    secondDay,
+    expected,
+  }) => {
+    const originalTimeZone = process.env.TZ;
+    process.env.TZ = deviceTimeZone;
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(now));
+    state.profile = { weekStartDay: 1, timeZone: accountTimeZone };
+    setBoundaryEntries(firstDay, secondDay);
+    let tree!: Tree;
+    let footerTree!: import("react-test-renderer").ReactTestRenderer;
+    try {
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(<CalendarScreen />);
+      });
+      footerTree = renderMonthFooter(tree);
+
+      for (const figure of expected) expect(hostTexts(footerTree)).toContain(figure);
+    } finally {
+      TestRenderer.act(() => footerTree.update(<></>));
+      TestRenderer.act(() => tree.update(<></>));
       vi.useRealTimers();
       if (originalTimeZone === undefined) delete process.env.TZ;
       else process.env.TZ = originalTimeZone;
