@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { Linking, StyleSheet, Text } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -33,14 +32,12 @@ import { ListRow } from '@/components/ui/list-row'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { Toast } from '@/components/ui/app-toast'
 import { useLogout } from '@/hooks/use-logout'
-import { usePushNotifications } from '@/hooks/use-push-notifications'
 import { createTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { usePreferenceControls } from '@/app/use-preference-controls'
 import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
 import {
   PreferencePickerSheet,
-  PushNotificationSection,
   type PreferencePicker,
 } from '@/components/profile/preferences-sections'
 import { useSheetHost } from '@/components/ui/sheet'
@@ -105,60 +102,6 @@ function buildAstraRows({ profile, router, t, tokens }: RowContext) {
     <ListRow key="api-keys" icon={icon(Lock, tokens.fg1)} title={t('profile.settingsRows.apiKeysMcp')} onClick={() => router.push('/advanced')} />,
   ]
 }
-
-async function togglePush(push: ReturnType<typeof usePushNotifications>) {
-  if (push.isEnabled) {
-    await push.disablePushNotifications()
-    return
-  }
-  if (push.permissionStatus === 'denied') {
-    await Linking.openSettings().catch(() => {})
-    return
-  }
-  await push.requestPermission()
-}
-
-function buildNotificationRows(
-  t: Translate,
-  tokens: Tokens,
-  push: ReturnType<typeof usePushNotifications>,
-) {
-  return [
-    <MarketingConsentSection key="product-email" showSectionLabel={false} contained />,
-    <PushNotificationSection
-      key="push"
-      tokens={tokens}
-      t={t}
-      showSectionLabel={false}
-      contained
-      deviceLabel={t('profile.settingsRows.currentDevice')}
-      deviceDescription={t('profile.settingsRows.pushDeviceLimit')}
-      pushSupported={push.isSupported}
-      pushEnabled={push.isEnabled}
-      pushRegistered={push.isRegistered}
-      pushLoading={push.isLoading}
-      permissionStatus={push.permissionStatus}
-      registrationStatus={push.registrationStatus}
-      onToggle={() => void togglePush(push)}
-      onOpenSettings={() => void Linking.openSettings().catch(() => {})}
-    />,
-    <Text
-      key="habit-notifications"
-      style={[styles.notificationGuidance, { color: tokens.fg3 }]}
-    >
-      {t('profile.settingsRows.remindersNote')}
-    </Text>,
-  ]
-}
-
-const styles = StyleSheet.create({
-  notificationGuidance: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 14,
-    lineHeight: 21.7,
-    paddingHorizontal: 4,
-  },
-})
 
 interface TimeZonePickerProps {
   controls: ReturnType<typeof usePreferenceControls>
@@ -258,7 +201,6 @@ export function ProfileSettingsContent({
   const router = useRouter()
   const logout = useLogout()
   const preferenceControls = usePreferenceControls()
-  const push = usePushNotifications()
   const tokens = useMemo(
     () => createTokensV2(preferenceControls.currentScheme, preferenceControls.currentTheme),
     [preferenceControls.currentScheme, preferenceControls.currentTheme],
@@ -295,7 +237,9 @@ export function ProfileSettingsContent({
       () => preferenceControls.setActivePicker('timeZone'),
     ),
     astra: buildAstraRows(context),
-    notifications: buildNotificationRows(t, tokens, push),
+    notifications: [
+      <MarketingConsentSection key="product-email" showSectionLabel={false} contained />,
+    ],
     more: buildMoreRows(context),
     ending: buildEndingRows({
       context,

@@ -1,6 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
 const {
@@ -250,19 +250,28 @@ describe('ProfilePage', () => {
     ).toBeInTheDocument()
   })
 
-  it('renders habit notification guidance without action semantics or chevrons', () => {
+  it('renders only the unanswered product email consent in Notifications', () => {
     render(<ProfilePage />)
 
+    const notificationsGroup = screen.getByTestId('profile-settings-group-notifications')
     expect(
-      screen.queryByRole('button', { name: 'profile.settingsRows.reminders' }),
+      within(notificationsGroup).getByRole('button', {
+        name: 'profile.marketingEmails.accept',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      within(notificationsGroup).getByRole('button', {
+        name: 'profile.marketingEmails.decline',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      within(notificationsGroup).queryByText('profile.settingsRows.remindersNote'),
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'habits.form.slipAlert' }),
+      within(notificationsGroup).queryByRole('switch', {
+        name: 'profile.settingsRows.currentDevice',
+      }),
     ).not.toBeInTheDocument()
-
-    const guidance = screen.getByText('profile.settingsRows.remindersNote')
-    expect(guidance.closest('button, a')).toBeNull()
-    expect(guidance.closest('[data-profile-notification-guidance]')?.querySelector('svg')).toBeNull()
   })
 
   it('shows one eight-row settings skeleton before the groups arrive', () => {
