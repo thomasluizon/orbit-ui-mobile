@@ -10,6 +10,7 @@ import { OrbitMark } from '@/components/ui/orbit-mark'
 import { RowList } from '@/components/ui/row-list'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useProfile } from '@/hooks/use-profile'
+import { useAuthStore } from '@/stores/auth-store'
 import packageJson from '@/package.json'
 
 interface AboutFactProps {
@@ -56,11 +57,17 @@ function AboutFact({ id, label, value }: Readonly<AboutFactProps>) {
   )
 }
 
+function ProfileAccountFact({ label }: Readonly<{ label: string }>) {
+  const { profile } = useProfile()
+
+  return <AboutFact id="account" label={label} value={profile?.email ?? ''} />
+}
+
 export default function AboutPage() {
   const t = useTranslations()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
-  const { profile } = useProfile()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const [showGuide, setShowGuide] = useState(false)
 
   return (
@@ -151,11 +158,9 @@ export default function AboutPage() {
                 label={t('about.versionLabel')}
                 value={packageJson.version}
               />
-              <AboutFact
-                id="account"
-                label={t('about.accountLabel')}
-                value={profile?.email ?? ''}
-              />
+              {isAuthenticated ? (
+                <ProfileAccountFact label={t('about.accountLabel')} />
+              ) : null}
             </div>
 
             <p

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AboutPage from '@/app/(app)/about/page'
+import { useAuthStore } from '@/stores/auth-store'
 
 const mocks = vi.hoisted(() => ({
   email: 'profile-account-with-a-long-address@example.com',
@@ -37,6 +38,7 @@ describe('AboutPage', () => {
   beforeEach(() => {
     mocks.guideOpen.mockClear()
     mocks.push.mockClear()
+    useAuthStore.setState({ isAuthenticated: true })
   })
 
   it('renders the About identity, real facts, and four destinations in order', () => {

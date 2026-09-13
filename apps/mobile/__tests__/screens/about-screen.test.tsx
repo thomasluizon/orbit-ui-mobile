@@ -15,7 +15,9 @@ type TestNode = {
 const mocks = vi.hoisted(() => ({
   email: 'profile-account-with-a-long-address@example.com',
   guideOpen: vi.fn(),
+  isAuthenticated: true,
   push: vi.fn(),
+  useProfile: vi.fn(() => ({ profile: { email: 'profile-account-with-a-long-address@example.com' } })),
 }))
 
 vi.mock('react-i18next', () => ({
@@ -30,8 +32,13 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
   useGoBackOrFallback: () => vi.fn(),
 }))
 
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: (selector: (state: { isAuthenticated: boolean }) => boolean) =>
+    selector({ isAuthenticated: mocks.isAuthenticated }),
+}))
+
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { email: mocks.email } }),
+  useProfile: mocks.useProfile,
 }))
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
@@ -56,6 +63,8 @@ describe('AboutScreen', () => {
   beforeEach(() => {
     mocks.guideOpen.mockClear()
     mocks.push.mockClear()
+    mocks.useProfile.mockClear()
+    mocks.isAuthenticated = true
   })
 
   it('renders the About identity, real facts, and four destinations in order', () => {
@@ -129,5 +138,19 @@ describe('AboutScreen', () => {
         maxWidth: '100%',
       })
     }
+  })
+
+  it('hides the account fact and skips the profile hook while signed out', () => {
+    mocks.isAuthenticated = false
+
+    let tree!: { root: TestNode }
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<AboutScreen />)
+    })
+
+    expect(
+      tree.root.findAll((node) => node.props.testID === 'about-fact-account'),
+    ).toHaveLength(0)
+    expect(mocks.useProfile).not.toHaveBeenCalled()
   })
 })

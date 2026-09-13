@@ -13,6 +13,7 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useProfile } from '@/hooks/use-profile'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useAuthStore } from '@/stores/auth-store'
 
 interface AboutFactProps {
   id: 'version' | 'account'
@@ -35,11 +36,29 @@ function AboutFact({ id, label, value, labelColor, valueColor }: Readonly<AboutF
   )
 }
 
+function ProfileAccountFact({
+  label,
+  labelColor,
+  valueColor,
+}: Readonly<Pick<AboutFactProps, 'label' | 'labelColor' | 'valueColor'>>) {
+  const { profile } = useProfile()
+
+  return (
+    <AboutFact
+      id="account"
+      label={label}
+      labelColor={labelColor}
+      value={profile?.email ?? ''}
+      valueColor={valueColor}
+    />
+  )
+}
+
 export default function AboutScreen() {
   const { t } = useTranslation()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
-  const { profile } = useProfile()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -116,13 +135,13 @@ export default function AboutScreen() {
                 valueColor={tokens.fg2}
               />
             ) : null}
-            <AboutFact
-              id="account"
-              label={t('about.accountLabel')}
-              labelColor={tokens.fg3}
-              value={profile?.email ?? ''}
-              valueColor={tokens.fg2}
-            />
+            {isAuthenticated ? (
+              <ProfileAccountFact
+                label={t('about.accountLabel')}
+                labelColor={tokens.fg3}
+                valueColor={tokens.fg2}
+              />
+            ) : null}
           </View>
 
           <Text testID="about-credit" style={[styles.credit, { color: tokens.fg3 }]}>
