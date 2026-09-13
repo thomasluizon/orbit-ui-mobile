@@ -143,7 +143,6 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-day-detail", () => ({
 
 type TestNode = { type: unknown; props: Record<string, any> };
 type Tree = {
-  update: (element: React.ReactElement) => void;
   root: { findAll: (predicate: (node: TestNode) => boolean) => TestNode[] };
   update: (element: React.ReactElement) => void;
 };
@@ -483,7 +482,7 @@ describe("CalendarScreen views (mobile)", () => {
       .flat(Infinity)
       .find((style: Record<string, unknown>) => typeof style.height === 'number')?.height;
 
-    state.profile = { weekStartDay };
+    state.profile = { weekStartDay, timeZone: "UTC" };
     TestRenderer.act(() => { tree.update(<CalendarScreen />); });
     const flatList = tree.root.findAll(
       (node) => typeof node.type === 'string' && node.type === 'FlatList',

@@ -33,7 +33,7 @@ export function MonthGrid({
       ) : null}
       <div
         className="grid justify-items-center"
-        style={{ ...gridStyle, gap, minHeight: minimumDayGridHeight }}
+        style={{ ...gridStyle, alignContent: 'start', gap, minHeight: minimumDayGridHeight }}
         data-testid="month-grid-days"
       >
         {children}

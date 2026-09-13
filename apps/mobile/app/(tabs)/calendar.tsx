@@ -181,9 +181,9 @@ function CalendarProfileState({
             <Skeleton variant="settings" rows={5} label={t('calendar.loading')} />
             <CalendarStats
               stats={[
-                { key: 'bestStreak', emoji: '🔥', value: 0, label: t('calendar.bestStreak') },
-                { key: 'totalLogs', emoji: '✅', value: 0, label: t('calendar.totalLogs') },
-                { key: 'missed', emoji: '⚠️', value: 0, label: t('calendar.missedCount') },
+                { key: 'bestStreak', value: 0, label: t('calendar.bestStreak') },
+                { key: 'totalLogs', value: 0, label: t('calendar.totalLogs') },
+                { key: 'missed', value: 0, label: t('calendar.missedCount') },
               ]}
               state="loading"
               loadingLabel={t('calendar.loading')}

@@ -31,9 +31,9 @@ describe('CalendarStats', () => {
     render(
       <CalendarStats
         stats={[
-          { key: 'bestStreak', emoji: '🔥', value: 5, label: 'Best streak' },
-          { key: 'totalLogs', emoji: '✅', value: 12, label: 'Total logs' },
-          { key: 'missed', emoji: '⚠️', value: 3, label: 'Missed' },
+          { key: 'bestStreak', value: 5, label: 'Best streak' },
+          { key: 'totalLogs', value: 12, label: 'Total logs' },
+          { key: 'missed', value: 3, label: 'Missed' },
         ]}
         state="loading"
         loadingLabel="Loading"
@@ -48,9 +48,9 @@ describe('CalendarStats', () => {
     render(
       <CalendarStats
         stats={[
-          { key: 'bestStreak', emoji: '🔥', value: 0, label: 'Best streak' },
-          { key: 'totalLogs', emoji: '✅', value: 0, label: 'Total logs' },
-          { key: 'missed', emoji: '⚠️', value: 0, label: 'Missed' },
+          { key: 'bestStreak', value: 0, label: 'Best streak' },
+          { key: 'totalLogs', value: 0, label: 'Total logs' },
+          { key: 'missed', value: 0, label: 'Missed' },
         ]}
         state="empty"
         emptyLabel="no data"

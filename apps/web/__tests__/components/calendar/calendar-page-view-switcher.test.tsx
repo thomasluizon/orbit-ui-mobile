@@ -222,7 +222,12 @@ describe('CalendarPage view switcher', () => {
     profileQueryState.profile = { weekStartDay, timeZone: 'UTC' }
     rerender(<CalendarPage />)
     const loadedMonth = calendarGridProps.currentMonth as Date
-    const loadedRows = buildCalendarMonthModel(loadedMonth, new Map(), weekStartDay).gridDays.length / 7
+    const loadedRows = buildCalendarMonthModel(
+      loadedMonth,
+      new Map(),
+      weekStartDay,
+      formatAPIDate(now),
+    ).gridDays.length / 7
     const loadedHeight = Number(screen.getByTestId('month-grid-days').style.minHeight.replace('px', ''))
 
     expect(loadedRows).toBe(expectedRows)
