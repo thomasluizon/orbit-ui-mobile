@@ -461,7 +461,11 @@ describe('HabitDetailScreen', () => {
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     expect(screen.getByTestId('child-child-1')).toHaveAttribute('data-state', 'done')
     fireEvent.click(screen.getByTestId('child-child-1'))
-    expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date: '2026-08-28' })
+    expect(mocks.log).toHaveBeenLastCalledWith({
+      habitId: 'child-1',
+      date: '2026-08-28',
+      intent: 'unlog',
+    })
   })
 
   it('announces full dates for logged and unlogged history cells and keeps the log time', () => {
@@ -490,7 +494,7 @@ describe('HabitDetailScreen', () => {
       expect(child).toHaveAttribute('data-read-only', 'false')
 
       fireEvent.click(child)
-      expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date })
+      expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date, intent: 'unlog' })
     },
   )
 
@@ -772,7 +776,11 @@ describe('HabitDetailScreen', () => {
     fireEvent.click(screen.getByTestId('confirm-habits.checklistCompleteTitle'))
     await act(async () => Promise.resolve())
 
-    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-28' })
+    expect(mocks.log).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      date: '2026-08-28',
+      intent: 'log',
+    })
     expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
   })
 

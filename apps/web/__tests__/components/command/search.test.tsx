@@ -175,7 +175,10 @@ describe('habit search', () => {
     expect(mocks[page]).not.toHaveBeenCalled()
     expect(screen.queryByText('Create habit')).toBeNull()
     fireEvent.click(screen.getByRole('option', { name: 'Walk' }))
-    expect(mocks[page]).toHaveBeenCalledWith({ habitId: 'habit' }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    expect(mocks[page]).toHaveBeenCalledWith(
+      page === 'log' ? { habitId: 'habit', intent: 'log' } : { habitId: 'habit' },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    )
     mocks.pending = true
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'walk' } })
     const pendingOption = await screen.findByRole('option', { name: /^Walk/ })
@@ -192,7 +195,10 @@ describe('habit search', () => {
     await waitFor(() => expect(mocks.query).toHaveBeenLastCalledWith({ search: 'walk', page: 1, pageSize: 20 }))
     await waitFor(() => expect(screen.getByRole('listbox')).toHaveAttribute('aria-busy', 'false'))
     fireEvent.click(screen.getAllByRole('option')[0]!)
-    expect(mocks[page]).toHaveBeenCalledWith({ habitId: 'child' }, expect.objectContaining({ onSuccess: expect.any(Function) }))
+    expect(mocks[page]).toHaveBeenCalledWith(
+      page === 'log' ? { habitId: 'child', intent: 'log' } : { habitId: 'child' },
+      expect.objectContaining({ onSuccess: expect.any(Function) }),
+    )
     expect(screen.getAllByRole('option')).toHaveLength(1)
     expect(screen.getByRole('option')).toHaveTextContent('Walk to the shop')
     expect(mocks.push).not.toHaveBeenCalled()

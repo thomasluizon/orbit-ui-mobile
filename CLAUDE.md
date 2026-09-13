@@ -66,7 +66,9 @@ Grep a doc's `At a glance` header before loading it; update this table when a do
 | `.claude/calibration.json` | The per-agent and per-skill `model`/`effort` stamp, one verdict per file, with the worker model it was taken against. `Harness Calibration` fails on drift or at 90 days; recalibrate in the pull request that moves a model. |
 | `.claude/skills/ticket/SKILL.md` | GitHub ticket creation, labels, relations, and milestone rules. |
 | `.claude/skills/orchestrate/SKILL.md` | Ticket queue, worker, review and readiness contract; D89 caps, terminal Cloud handoff failures with staged work preserved, and Cloud test results carried into the PR body's Test evidence section. |
-| `.claude/skills/handoff/SKILL.md` | Handoff prompts with the required standing-contract block before the task. |
+| `.claude/skills/handoff/SKILL.md` | Spec-driven handoff: one living spec per effort under `.claude/specs/`, a short prompt that points at it, and a full in-flight inventory with a disposition per item. |
+| `.claude/skills/questions/SKILL.md` | The filter every question passes before it reaches Thomas; each one leaves answered, decided, or asked. |
+| `.claude/skills/progress/SKILL.md` | Progress updates in product terms, read from live git and ticket state, never as ticket or pull request numbers. |
 | `.claude/playbooks/redesign-screen.md` | Thirteen-screen D76 loop; D90 suspends human steps 1/3/7/8, keeps 2/4/5/6 and the ui-skills sweep. |
 | `.claude/rules/visual-delivery.md` | Visual inventory and critic gates; D90 moves human inspection to the whole-redesign review. |
 | `.claude/skills/android-generate/SKILL.md` | Local APK build, and the emulator install path. Read before building or running the Android app. |

@@ -42,7 +42,7 @@ export function CommandMenu({ navItems, onCreateHabit, onClose, resultsMode = fa
   }
   function chooseHabit(id: string) {
     if (logHabit.isPending || skipHabit.isPending) return
-    if (page === 'log') logHabit.mutate({ habitId: id }, { onSuccess: () => { back(); onClose() }, onError: onActionError })
+    if (page === 'log') logHabit.mutate({ habitId: id, intent: 'log' }, { onSuccess: () => { back(); onClose() }, onError: onActionError })
     else if (page === 'skip') skipHabit.mutate({ habitId: id }, { onSuccess: () => { back(); onClose() }, onError: onActionError })
     else run(() => router.push(`/habits/${id}`))
   }
