@@ -925,6 +925,11 @@
       "lastSynced": "Last synced {time}",
       "autoSync": "Sync on its own"
     },
+    "proBoundary": {
+      "title": "Syncing with Google Calendar is part of Orbit Pro.",
+      "body": "With it, your commitments show up beside the habits for the day.",
+      "action": "See Pro"
+    },
     "noHabitsScheduled": "No habit was scheduled on this day.",
     "goToDay": "Open this day on Today",
     "goToCurrentMonth": "Go to current month",

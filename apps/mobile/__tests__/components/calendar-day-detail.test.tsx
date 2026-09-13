@@ -18,8 +18,10 @@ vi.mock('@/components/ui/list-row', () => ({
 }))
 
 vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: ({ children, ...props }: { children?: React.ReactNode }) =>
-    React.createElement('PillButtonMock', props, children),
+  PillButton: ({ children, variant = 'primary', ...props }: {
+    children?: React.ReactNode
+    variant?: string
+  }) => React.createElement('PillButtonMock', { ...props, variant }, children),
 }))
 
 vi.mock('@/components/ui/capacity-notice', () => ({
@@ -58,6 +60,7 @@ vi.mock('@/components/dates/event-row', () => ({
 type TestNode = {
   type: unknown
   props: Record<string, unknown>
+  findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
 
 type Tree = {
@@ -79,6 +82,9 @@ const translations: Record<string, string> = {
   'calendar.autoSync.reconnectTitle': 'Google Calendar disconnected',
   'calendar.autoSync.reconnectBody': 'Auto-sync paused. Reconnect to resume.',
   'calendar.autoSync.reconnectCta': 'Reconnect',
+  'calendar.proBoundary.title': 'Syncing with Google Calendar is part of Orbit Pro.',
+  'calendar.proBoundary.body': 'With it, your commitments show up beside the habits for the day.',
+  'calendar.proBoundary.action': 'See Pro',
 }
 
 const translate = ((key: string, params?: Record<string, unknown>) => {
@@ -116,6 +122,7 @@ interface RenderDetailProps {
   calendarEventsState?: CalendarEventsDisplayState
   onRetryCalendarEvents?: () => void
   onReconnectCalendarEvents?: () => void
+  onViewPro?: () => void
   loggable?: boolean
   onCalendarAutoSyncChange?: (value: boolean) => Promise<void>
   onOpenPro?: () => void
@@ -129,9 +136,10 @@ function CalendarDayDetailHarness({
   calendarEvents = [],
   hasProAccess = true,
   autoSyncState = proAutoSyncState,
-  calendarEventsState = 'hidden',
+  calendarEventsState = 'ready',
   onRetryCalendarEvents = () => {},
   onReconnectCalendarEvents = () => {},
+  onViewPro = () => {},
   loggable = false,
   onCalendarAutoSyncChange = async () => {},
   onOpenPro = () => {},
@@ -170,6 +178,7 @@ function CalendarDayDetailHarness({
       calendarEventsState={calendarEventsState}
       onRetryCalendarEvents={onRetryCalendarEvents}
       onReconnectCalendarEvents={onReconnectCalendarEvents}
+      onViewPro={onViewPro}
       completedCount={entries.filter((entry) => entry.status === 'completed').length}
       loggable={loggable}
       showRecurring
@@ -313,6 +322,37 @@ describe('CalendarDayDetail (mobile)', () => {
     expect(typeof onClick).toBe('function')
     if (typeof onClick === 'function') TestRenderer.act(() => onClick())
     expect(onReconnectCalendarEvents).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders the free sync boundary with one route to Orbit Pro', () => {
+    const onViewPro = vi.fn()
+    const tree = renderDetail({
+      entries: [makeEntry()],
+      calendarEventsState: 'pro-boundary',
+      onViewPro,
+    })
+    const boundary = tree.root.findAll(
+      (node) => node.props.testID === 'calendar-pro-boundary',
+    )[0]
+    const notices = boundary?.findAll(
+      (node: TestNode) => node.type === 'CapacityNoticeMock',
+    ) ?? []
+    const actions = boundary?.findAll(
+      (node: TestNode) => node.type === 'PillButtonMock',
+    ) ?? []
+
+    expect(notices).toHaveLength(1)
+    expect(notices[0]?.props).toMatchObject({
+      message: 'Syncing with Google Calendar is part of Orbit Pro.',
+      body: 'With it, your commitments show up beside the habits for the day.',
+    })
+    expect(actions).toHaveLength(1)
+    expect(actions[0]?.props.disabled).not.toBe(true)
+    expect(actions[0]?.props.variant).toBe('primary')
+    const onClick = actions[0]?.props.onClick
+    expect(typeof onClick).toBe('function')
+    if (typeof onClick === 'function') TestRenderer.act(() => onClick())
+    expect(onViewPro).toHaveBeenCalledTimes(1)
   })
 
   it('renders the empty events state after an empty response resolves', () => {
@@ -659,7 +699,7 @@ describe('CalendarDayDetail (mobile)', () => {
   })
 
   it('keeps habits visible while replacing events with the free plan boundary', () => {
-    const onOpenPro = vi.fn()
+    const onViewPro = vi.fn()
     const tree = renderDetail({
       entries: [makeEntry({ title: 'Read' })],
       calendarEvents: [{
@@ -668,7 +708,8 @@ describe('CalendarDayDetail (mobile)', () => {
         isRecurring: false, recurrenceRule: null, reminders: [],
       }],
       hasProAccess: false,
-      onOpenPro,
+      calendarEventsState: 'pro-boundary',
+      onViewPro,
     })
 
     expect(nodes(tree, 'ListRowMock').map((row) => row.props.title)).toContain('Read')
@@ -677,7 +718,7 @@ describe('CalendarDayDetail (mobile)', () => {
     const action = nodes(tree, 'PillButtonMock')[0]
     expect(action?.props.variant).toBe('primary')
     TestRenderer.act(() => (action?.props.onClick as () => void)())
-    expect(onOpenPro).toHaveBeenCalledOnce()
+    expect(onViewPro).toHaveBeenCalledOnce()
   })
 
   it('builds the Pro sync line and switch from the profile fields', () => {

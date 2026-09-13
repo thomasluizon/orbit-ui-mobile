@@ -22,6 +22,9 @@ const translations: Record<string, string> = {
   'calendar.autoSync.reconnectTitle': 'Google Calendar disconnected',
   'calendar.autoSync.reconnectBody': 'Auto-sync paused. Reconnect to resume.',
   'calendar.autoSync.reconnectCta': 'Reconnect',
+  'calendar.proBoundary.title': 'Syncing with Google Calendar is part of Orbit Pro.',
+  'calendar.proBoundary.body': 'With it, your commitments show up beside the habits for the day.',
+  'calendar.proBoundary.action': 'See Pro',
 }
 
 vi.mock('next-intl', () => ({
@@ -80,6 +83,7 @@ interface RenderProps {
   calendarEventsState?: CalendarEventsDisplayState
   onRetryCalendarEvents?: () => void
   onReconnectCalendarEvents?: () => void
+  onViewPro?: () => void
   loggable?: boolean
   showRecurring?: boolean
   onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
@@ -95,9 +99,10 @@ function CalendarDayDetailHarness({
   onShowRecurringChange = () => {},
   onCalendarAutoSyncChange = async () => {},
   onOpenPro = () => {},
-  calendarEventsState = 'hidden',
+  calendarEventsState = 'ready',
   onRetryCalendarEvents = () => {},
   onReconnectCalendarEvents = () => {},
+  onViewPro = () => {},
   loggable = false,
   showRecurring = true,
   onEntryChange = async () => {},
@@ -139,6 +144,7 @@ function CalendarDayDetailHarness({
       calendarEventsState={calendarEventsState}
       onRetryCalendarEvents={onRetryCalendarEvents}
       onReconnectCalendarEvents={onReconnectCalendarEvents}
+      onViewPro={onViewPro}
       loggable={loggable}
       showRecurring={showRecurring}
       pendingEntryStates={pendingEntryStates}
@@ -219,7 +225,7 @@ describe('CalendarDayDetail', () => {
   })
 
   it('keeps habit data visible while replacing Google events with the free plan boundary', () => {
-    const onOpenPro = vi.fn()
+    const onViewPro = vi.fn()
     renderDetail({
       dateStr: '2025-06-15',
       entries: [makeEntry({ title: 'Read' })],
@@ -229,19 +235,25 @@ describe('CalendarDayDetail', () => {
         isRecurring: false, recurrenceRule: null, reminders: [],
       }],
       hasProAccess: false,
-      onOpenPro,
+      calendarEventsState: 'pro-boundary',
+      onViewPro,
     })
 
     expect(screen.getByText('Read')).toBeInTheDocument()
     expect(screen.queryByText('Team meeting')).not.toBeInTheDocument()
-    expect(screen.getByText('calendar.dayDetail.syncBoundary')).toBeInTheDocument()
-    expect(screen.getByText('calendar.dayDetail.syncBoundaryBody')).toBeInTheDocument()
-    const upgradeAction = screen.getByRole('button', { name: 'calendar.dayDetail.viewPro' })
+    const boundary = screen.getByTestId('calendar-pro-boundary')
+    expect(within(boundary).getByText(
+      'Syncing with Google Calendar is part of Orbit Pro.',
+    )).toBeInTheDocument()
+    expect(within(boundary).getByText(
+      'With it, your commitments show up beside the habits for the day.',
+    )).toBeInTheDocument()
+    const upgradeAction = within(boundary).getByRole('button', { name: 'See Pro' })
     expect(upgradeAction).toHaveAttribute('data-variant', 'primary')
     expect(upgradeAction).not.toBeDisabled()
-    expect(screen.getAllByRole('switch')).toHaveLength(1)
+    expect(within(boundary).queryAllByRole('switch')).toHaveLength(0)
     fireEvent.click(upgradeAction)
-    expect(onOpenPro).toHaveBeenCalledOnce()
+    expect(onViewPro).toHaveBeenCalledOnce()
   })
 
   it('builds the Pro sync line and switch from the profile fields', () => {
@@ -300,6 +312,39 @@ describe('CalendarDayDetail', () => {
     expect(onReconnectCalendarEvents).toHaveBeenCalledTimes(1)
     expect(screen.queryByText('calendar.noEvents')).not.toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('renders the free sync boundary with one route to Orbit Pro', () => {
+    const onViewPro = vi.fn()
+    renderDetail({
+      entries: [makeEntry()],
+      calendarEventsState: 'pro-boundary',
+      onViewPro,
+    })
+
+    const boundary = screen.getByTestId('calendar-pro-boundary')
+    expect(boundary).toHaveTextContent('Syncing with Google Calendar is part of Orbit Pro.')
+    expect(boundary).toHaveTextContent(
+      'With it, your commitments show up beside the habits for the day.',
+    )
+    const actions = within(boundary).getAllByRole('button')
+    expect(actions).toHaveLength(1)
+    expect(actions[0]).toBeEnabled()
+    expect(actions[0]).toHaveAttribute('data-variant', 'primary')
+    fireEvent.click(actions[0]!)
+    expect(onViewPro).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses the neutral Pro action beside the wide sidebar action', () => {
+    renderDetail({
+      entries: [makeEntry()],
+      calendarEventsState: 'pro-boundary',
+      fitViewport: true,
+    })
+
+    expect(
+      within(screen.getByTestId('calendar-pro-boundary')).getByRole('button'),
+    ).toHaveAttribute('data-variant', 'secondary')
   })
 
   it('renders the empty events state after an empty response resolves', () => {

@@ -1,7 +1,7 @@
 import type { CalendarDayEntry } from '../types/calendar'
 
 export type CalendarEventsDisplayState =
-  | 'hidden'
+  | 'pro-boundary'
   | 'loading'
   | 'failed'
   | 'not-connected'
@@ -50,7 +50,7 @@ export function resolveCalendarEventsDisplayState({
   error: Error | null
   resultStatus: 'connected' | 'not-connected' | undefined
 }>): CalendarEventsDisplayState {
-  if (!enabled) return 'hidden'
+  if (!enabled) return 'pro-boundary'
   if (error !== null) return 'failed'
   if (isPending) return 'loading'
   if (resultStatus === 'not-connected') return 'not-connected'

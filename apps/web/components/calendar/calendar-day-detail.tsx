@@ -16,6 +16,7 @@ import type { CalendarSyncEvent } from '@orbit/shared'
 import type { StatusRingProps } from '@orbit/shared/contracts/lists'
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import { CheckRow } from '@/components/ui/check-row'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
 import { ErrorState } from '@/components/ui/error-state'
 import { ListRow } from '@/components/ui/list-row'
 import { PillButton } from '@/components/ui/pill-button'
@@ -34,6 +35,7 @@ interface CalendarDayDetailProps {
   calendarEventsState: CalendarEventsDisplayState
   onRetryCalendarEvents: () => void
   onReconnectCalendarEvents: () => void
+  onViewPro: () => void
   loggable: boolean
   showRecurring: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
@@ -52,16 +54,35 @@ function CalendarEventsSection({
   state,
   onRetry,
   onReconnect,
+  onViewPro,
+  proActionVariant,
 }: Readonly<{
   calendarEvents: CalendarSyncEvent[]
   state: CalendarEventsDisplayState
   onRetry: () => void
   onReconnect: () => void
+  onViewPro: () => void
+  proActionVariant: 'primary' | 'secondary'
 }>) {
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
 
-  if (state === 'hidden') return null
+  if (state === 'pro-boundary') {
+    return (
+      <div data-testid="calendar-pro-boundary" style={{ paddingInline: 16 }}>
+        <CapacityNotice
+          message={t('calendar.proBoundary.title')}
+          body={t('calendar.proBoundary.body')}
+          action={
+            /* eslint-disable-next-line local/max-button-words -- ORB-50 owns this granted canvas label. */
+            <PillButton variant={proActionVariant} size="sm" onClick={onViewPro}>
+              {t('calendar.proBoundary.action')}
+            </PillButton>
+          }
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col" style={{ gap: 8, paddingInline: 16 }}>
@@ -267,6 +288,7 @@ export function CalendarDayDetail({
   calendarEventsState,
   onRetryCalendarEvents,
   onReconnectCalendarEvents,
+  onViewPro,
   loggable,
   showRecurring,
   pendingEntryStates,
@@ -343,17 +365,21 @@ export function CalendarDayDetail({
         state={calendarEventsState}
         onRetry={onRetryCalendarEvents}
         onReconnect={onReconnectCalendarEvents}
+        onViewPro={onViewPro}
+        proActionVariant={fitViewport ? 'secondary' : 'primary'}
       />
-      <div style={{ paddingInline: 16 }}>
-        <CalendarSyncBoundary
-          hasProAccess={hasProAccess}
-          autoSyncState={autoSyncState}
-          displayTime={displayTime}
-          onAutoSyncChange={onCalendarAutoSyncChange}
-          onOpenPro={onOpenPro}
-          wide={fitViewport}
-        />
-      </div>
+      {hasProAccess ? (
+        <div style={{ paddingInline: 16 }}>
+          <CalendarSyncBoundary
+            hasProAccess={hasProAccess}
+            autoSyncState={autoSyncState}
+            displayTime={displayTime}
+            onAutoSyncChange={onCalendarAutoSyncChange}
+            onOpenPro={onOpenPro}
+            wide={fitViewport}
+          />
+        </div>
+      ) : null}
     </div>
   )
 
