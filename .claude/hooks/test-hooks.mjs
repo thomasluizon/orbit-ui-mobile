@@ -627,6 +627,13 @@ const lessonsFixtureRoot = join(root, "lessons-project")
 const lessonsFixtureFile = join(lessonsFixtureRoot, ".claude", "pending-lessons.md")
 mkdirSync(dirname(lessonsFixtureFile), { recursive: true })
 const runLessonsHook = (input) => runHookResult(LESSONS_HOOK, input, { CLAUDE_PROJECT_DIR: lessonsFixtureRoot })
+const isWellFormedLessonsReminder = (output) =>
+  /^\d+ unreviewed pending lessons? in \.claude\/pending-lessons\.md\. Review (?:it|them) with \/lesson\.$/.test(output)
+const isContentIndependentLessonsResult = (result) => ({
+  status: result.status,
+  stderr: result.stderr,
+  output: result.stdout === "" || isWellFormedLessonsReminder(result.stdout),
+})
 writeFileSync(lessonsFixtureFile, [
   "# Pending lessons",
   datedEntry("2026-09-10", "first lesson"),
@@ -635,8 +642,8 @@ writeFileSync(lessonsFixtureFile, [
 const oneSurfacedLesson = runLessonsHook("{}")
 T("adapter lessons: one pending entry emits one line with the count and action", {
   lines: oneSurfacedLesson.stdout.split(/\r?\n/).length,
-  count: JSON.parse(oneSurfacedLesson.stdout).hookSpecificOutput.additionalContext.includes("1"),
-  action: JSON.parse(oneSurfacedLesson.stdout).hookSpecificOutput.additionalContext.includes("/lesson"),
+  count: oneSurfacedLesson.stdout.includes("1"),
+  action: oneSurfacedLesson.stdout.includes("/lesson"),
 }, { lines: 1, count: true, action: true })
 writeFileSync(lessonsFixtureFile, [
   "# Pending lessons",
@@ -647,14 +654,15 @@ writeFileSync(lessonsFixtureFile, [
 const surfacedLessons = runLessonsHook("{}")
 T("adapter lessons: two pending entries exit 0", surfacedLessons.status, 0)
 T("adapter lessons: two pending entries emit no stderr", surfacedLessons.stderr, "")
-const surfacedEnvelope = JSON.parse(surfacedLessons.stdout)
 T("adapter lessons: output names the count and file", {
-  count: surfacedEnvelope.hookSpecificOutput.additionalContext.includes("2"),
-  file: surfacedEnvelope.hookSpecificOutput.additionalContext.includes("pending-lessons.md"),
+  count: surfacedLessons.stdout.includes("2"),
+  file: surfacedLessons.stdout.includes("pending-lessons.md"),
 }, { count: true, file: true })
-T("adapter lessons: output uses the SessionStart envelope", surfacedEnvelope.hookSpecificOutput.hookEventName, "SessionStart")
-const nullPayloadLessons = runLessonsHook("null")
-T("adapter lessons: a null payload still surfaces pending entries", nullPayloadLessons.stdout, surfacedLessons.stdout)
+T("adapter lessons: output is one plain-text reminder", isWellFormedLessonsReminder(surfacedLessons.stdout), true)
+const malformedInputLessons = runLessonsHook("not json")
+T("adapter lessons: malformed stdin exits 0 and emits nothing", {
+  status: malformedInputLessons.status, stdout: malformedInputLessons.stdout, stderr: malformedInputLessons.stderr,
+}, { status: 0, stdout: "", stderr: "" })
 writeFileSync(lessonsFixtureFile, [
   "# Pending lessons",
   "## DROPPED 2026-09-10 - rejected lesson",
@@ -676,18 +684,27 @@ T("adapter lessons: an unreadable file exits 0 and emits nothing", {
 }, { status: 0, stdout: "", stderr: "" })
 rmSync(lessonsFixtureFile, { recursive: true })
 writeFileSync(lessonsFixtureFile, "# Pending lessons\n## Graduated\n")
-const malformedInputLessons = runLessonsHook("not json")
-T("adapter lessons: malformed stdin exits 0 and emits nothing", {
-  status: malformedInputLessons.status, stdout: malformedInputLessons.stdout, stderr: malformedInputLessons.stderr,
-}, { status: 0, stdout: "", stderr: "" })
 const realFileLessons = runHookResult(LESSONS_HOOK, "{}", { CLAUDE_PROJECT_DIR: repoRoot })
-T("adapter lessons: the real file exits 0 and emits nothing", {
-  status: realFileLessons.status, stdout: realFileLessons.stdout, stderr: realFileLessons.stderr,
-}, { status: 0, stdout: "", stderr: "" })
-const fallbackLessons = runHookResult(LESSONS_HOOK, "null", { CLAUDE_PROJECT_DIR: "" })
-T("adapter lessons: an empty project environment falls back to the hook location", {
-  status: fallbackLessons.status, stdout: fallbackLessons.stdout, stderr: fallbackLessons.stderr,
-}, { status: 0, stdout: "", stderr: "" })
+T("adapter lessons: the real file result is content-independent", isContentIndependentLessonsResult(realFileLessons), {
+  status: 0, stderr: "", output: true,
+})
+const realLessons = readFileSync(join(repoRoot, ".claude", "pending-lessons.md"), "utf8")
+const stagedRealLessons = /^## Graduated\r?$/m.test(realLessons)
+  ? realLessons.replace(/^## Graduated\r?$/m, `${datedEntry("2099-12-31", "staged harness proof")}\n## Graduated`)
+  : `${realLessons}\n${datedEntry("2099-12-31", "staged harness proof")}\n`
+writeFileSync(lessonsFixtureFile, stagedRealLessons)
+const stagedRealFileLessons = runLessonsHook("{}")
+T("adapter lessons: the real file with a staged entry emits one well-formed line", {
+  status: stagedRealFileLessons.status,
+  stderr: stagedRealFileLessons.stderr,
+  output: isWellFormedLessonsReminder(stagedRealFileLessons.stdout),
+}, { status: 0, stderr: "", output: true })
+const fallbackLessons = runHookResult(LESSONS_HOOK, "{}", { CLAUDE_PROJECT_DIR: "" })
+T(
+  "adapter lessons: an empty project environment falls back to the hook location",
+  isContentIndependentLessonsResult(fallbackLessons),
+  { status: 0, stderr: "", output: true },
+)
 
 T("adapter git-guardrails: push main -> 2", runHook("git-guardrails.mjs", bash("git push origin main")), 2)
 T("adapter git-guardrails: push feature -> 0", runHook("git-guardrails.mjs", bash("git push origin feature/x")), 0)
