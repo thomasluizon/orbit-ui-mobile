@@ -2,29 +2,45 @@ import { StatTile } from '@/components/ui/stat-tile'
 
 export interface CalendarStat {
   key: string
-  emoji: string
   value: string | number
   label: string
 }
 
 interface CalendarStatsProps {
-  stats: ReadonlyArray<CalendarStat>
+  stats: readonly [CalendarStat, CalendarStat, CalendarStat]
+  state?: 'default' | 'loading' | 'empty'
+  loadingLabel?: string
+  emptyLabel?: string
 }
 
-/** At-a-glance month stat tiles. Data-driven so new stats drop in as array
- *  entries; the auto-fit grid reflows them without a layout rewrite. */
-export function CalendarStats({ stats }: Readonly<CalendarStatsProps>) {
+/** The three month figures, kept in one row at every width. */
+export function CalendarStats({
+  stats,
+  state = 'default',
+  loadingLabel,
+  emptyLabel,
+}: Readonly<CalendarStatsProps>) {
+  const isLoading = state === 'loading'
+
   return (
     <div
       className="grid"
+      data-testid="calendar-stats"
+      aria-hidden={isLoading || undefined}
       style={{
-        gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))',
-        gap: 8,
+        gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+        gap: 12,
         padding: '0 16px',
       }}
     >
       {stats.map((stat) => (
-        <StatTile key={stat.key}  value={stat.value} label={stat.label} />
+        isLoading ? (
+          <StatTile key={stat.key} state="loading" loadingLabel={loadingLabel ?? ''} label="" />
+        ) : state === 'empty' ? (
+          <StatTile key={stat.key} state="empty" emptyLabel={emptyLabel ?? ''} label={stat.label} />
+        ) : (
+          <StatTile key={stat.key} value={stat.value} label={stat.label} />
+        )
       ))}
     </div>
   )

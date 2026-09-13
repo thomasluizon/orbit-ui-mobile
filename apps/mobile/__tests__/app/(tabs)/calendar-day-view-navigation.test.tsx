@@ -197,7 +197,7 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1)
   })
 
-  it('allows a future day to become a range endpoint', () => {
+  it('keeps range days read only and does not open day detail', () => {
     let tree!: TestTree
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />)
@@ -206,31 +206,33 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     TestRenderer.act(() => {
       pressButton(tree.root, 'calendar.view.range')
     })
-    TestRenderer.act(() => {
-      ;(findGridDayCell(tree.root, '2026-08-20').props.onPress as () => void)()
-    })
-    const selectedDates = tree.root.findAll(
-      (node) => node.type === 'Pressable' &&
+    const rangeDays = tree.root.findAll(
+      (node) =>
+        node.type === 'View' &&
         typeof node.props.testID === 'string' &&
-        node.props.testID.startsWith('calendar-day-select-') &&
-        (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true,
+        node.props.testID.startsWith('day-cell-'),
     )
-    expect(selectedDates).toHaveLength(1)
-    expect(selectedDates[0]?.props.accessibilityLabel).toContain('20')
+    expect(rangeDays).toHaveLength(14)
+    expect(rangeDays.every((day) => day.props.accessibilityRole === 'image')).toBe(true)
+    expect(rangeDays.every((day) => day.props.onPress === undefined)).toBe(true)
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
   })
 
-  it('shows only neutral same-size day placeholders while the month is loading', () => {
+  it('shows one stable grid skeleton while the month is loading', () => {
     calendarIsLoading = true
     let tree!: TestTree
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />)
     })
 
-    const skeletons = tree.root.findAll((node) => node.props.testID === 'calendar-day-skeleton')
-    expect(skeletons.length).toBeGreaterThanOrEqual(35)
-    expect(skeletons[0]?.props.style).toEqual(
-      expect.arrayContaining([expect.objectContaining({ width: 44, height: 44 })]),
+    const shapes = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-grid-shape',
     )
+    expect(shapes).toHaveLength(1)
+    expect(shapes[0]?.props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ width: 332, height: 284, gap: 4 })]),
+    )
+    expect(tree.root.findAll((node) => node.props.testID === 'month-grid-header')).toHaveLength(0)
     expect(tree.root.findAll((node) => String(node.props.testID).startsWith('day-cell-'))).toHaveLength(0)
   })
 })
