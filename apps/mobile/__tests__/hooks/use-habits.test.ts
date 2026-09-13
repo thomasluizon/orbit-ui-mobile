@@ -606,7 +606,7 @@ describe('mobile habit hooks', () => {
     expect(mocks.queryClient.getQueryData(habitKeys.logs('habit-1'))).toEqual([activeLog])
   })
 
-  it('keeps mutation B optimistic when mutation A fails later', async () => {
+  it('keeps queued mutation B optimistic when mutation A fails later', async () => {
     const date = '2025-01-15'
     const calendarKey = habitKeys.calendar(date, date)
     const listKey = habitKeys.list({ dateFrom: date, dateTo: date })
@@ -644,8 +644,13 @@ describe('mobile habit hooks', () => {
 
     const contextA = await mutation.onMutate?.(mutationA)
     await mutation.onMutate?.(mutationB)
+    const queuedMutationB = await mutation.mutationFn(mutationB)
     expect(getCalendarStatus(calendarKey, date, 'habit-1')).toBe('completed')
     expect(getCalendarStatus(calendarKey, date, 'habit-2')).toBe('completed')
+    expect(queuedMutationB).toEqual({
+      queued: true,
+      queuedMutationId: 'mutation-1',
+    })
 
     mutation.onError?.(new Error('Mutation A failed'), mutationA, contextA)
 

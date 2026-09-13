@@ -497,7 +497,7 @@ describe('useLogHabit', () => {
     await waitFor(() => expect(logHabit).toHaveBeenCalled())
   })
 
-  it('keeps mutation B optimistic when mutation A fails later', async () => {
+  it('keeps pending mutation B optimistic when mutation A fails later', async () => {
     const { logHabit } = await import('@/app/actions/habits')
     const previousCallCount = vi.mocked(logHabit).mock.calls.length
     let rejectMutationA: ((error: Error) => void) | undefined
@@ -528,6 +528,7 @@ describe('useLogHabit', () => {
     expect(getCalendarStatus(queryClient, key, date, 'h-2')).toBe('completed')
 
     await waitFor(() => expect(logHabit).toHaveBeenCalledTimes(previousCallCount + 2))
+    expect(resolveMutationB).toBeTypeOf('function')
     rejectMutationA?.(new Error('Mutation A failed'))
 
     await waitFor(() => expect(getCalendarStatus(queryClient, key, date, 'h-1')).toBe('missed'))
