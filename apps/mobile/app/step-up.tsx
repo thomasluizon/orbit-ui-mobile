@@ -371,6 +371,7 @@ interface MobileStepUpChallengeProps extends SharedMobileStepUpProps {
 function MobileStepUpChallenge(props: Readonly<MobileStepUpChallengeProps>) {
   const { checking, code, cooldownSeconds, email, expired, onCancel, onCodeChange, onConfirm, onResend, operationLabel, otpError, requestError, requesting, t, tokens } = props
   const action = expired ? (
+    /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
     <PillButton loading={requesting} onClick={onResend}>{t('stepUp.resend')}</PillButton>
   ) : (
     <PillButton disabled={code.length !== STEP_UP_CODE_LENGTH} loading={checking} onClick={onConfirm}>{t('stepUp.confirm')}</PillButton>
