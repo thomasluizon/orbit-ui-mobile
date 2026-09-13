@@ -121,7 +121,7 @@ vi.mock('@/components/calendar/calendar-stats', () => ({
   CalendarStats: ({
     stats,
   }: {
-    stats: ReadonlyArray<{ key: string; value: string | number }>
+    stats: readonly { key: string; value: string | number }[]
   }) => (
     <div data-testid="month-stats">
       {stats.map((stat) => <span key={stat.key}>{`${stat.key}:${stat.value}`}</span>)}

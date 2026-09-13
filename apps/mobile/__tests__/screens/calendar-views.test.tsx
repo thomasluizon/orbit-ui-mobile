@@ -108,7 +108,7 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-stats", () => ({
   CalendarStats: ({
     stats,
   }: {
-    stats: ReadonlyArray<{ key: string; value: string | number }>;
+    stats: readonly { key: string; value: string | number }[];
   }) => (
     <View testID="calendar-stats">
       {stats.map((stat) => <Text key={stat.key}>{`${stat.key}:${stat.value}`}</Text>)}
