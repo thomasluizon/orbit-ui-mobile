@@ -6,6 +6,8 @@ import { enUS, ptBR } from 'date-fns/locale'
 import type { DayCellWords, ReadOnlyDayCellProps } from '@orbit/shared/contracts/dates'
 import {
   buildDayCellAccessibleName,
+  CALENDAR_MONTH_GRID_GEOMETRY,
+  CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
   isCalendarDayLoggable,
   resolveDayCellOutcome,
   type CalendarMonthDay,
@@ -14,6 +16,7 @@ import { GestureDetector, type PanGesture } from 'react-native-gesture-handler'
 import type { AppTokensV2 } from '@/lib/theme'
 import { DayCell } from '@/components/dates/day-cell'
 import { MonthGrid } from '@/components/dates/month-grid'
+import { Skeleton } from '@/components/ui/skeleton'
 
 export type GridDay = CalendarMonthDay
 
@@ -26,7 +29,7 @@ interface CalendarGridProps {
   gridDays: GridDay[]
   weekdayHeaders: WeekdayHeader[]
   selectedDay: string | null
-  isLoading: boolean
+  isLoading?: boolean
   rangeStart?: string | null
   rangeEnd?: string | null
   monthKey?: string
@@ -54,7 +57,6 @@ interface CalendarGridDayProps {
   future: boolean
   futureWord: string
   inRange: boolean
-  isLoading: boolean
   locale: Locale
   onSelectDay: (dateStr: string) => void
   selected: boolean
@@ -108,7 +110,6 @@ function CalendarGridDayBody({
   cell,
   dayCell,
   future,
-  isLoading,
   onSelectDay,
   selected,
   tokens,
@@ -117,21 +118,10 @@ function CalendarGridDayBody({
   cell: GridDay
   dayCell: ReadOnlyDayCellProps
   future: boolean
-  isLoading: boolean
   onSelectDay: (dateStr: string) => void
   selected: boolean
   tokens: AppTokensV2
 }>) {
-  if (isLoading) {
-    return (
-      <View
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        testID="calendar-day-skeleton"
-        style={[styles.skeleton, { backgroundColor: tokens.bgWell, opacity: cell.isCurrentMonth ? 1 : 0 }]}
-      />
-    )
-  }
   const contents = future && cell.isCurrentMonth
     ? <CalendarFutureDay accessibleName={accessibleName} cell={cell} tokens={tokens} />
     : <DayCell {...dayCell} />
@@ -159,7 +149,6 @@ function CalendarGridDay({
   future,
   futureWord,
   inRange,
-  isLoading,
   locale,
   onSelectDay,
   selected,
@@ -216,7 +205,6 @@ function CalendarGridDay({
         cell={cell}
         dayCell={dayCell}
         future={future}
-        isLoading={isLoading}
         onSelectDay={onSelectDay}
         selected={selected}
         tokens={tokens}
@@ -255,6 +243,26 @@ export function CalendarGrid({
     readOnly: t('calendar.dayCell.readOnly'),
   }
 
+  if (isLoading) {
+    const loadingGrid = (
+      <View ref={gridRef} collapsable={false} testID="calendar-grid" style={styles.calendarGrid}>
+        <View style={styles.loadingGrid}>
+          <Skeleton
+            variant="grid"
+            rows={CALENDAR_MONTH_GRID_GEOMETRY.maximumRows}
+            cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
+            cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
+            gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
+            label={t('calendar.loading')}
+          />
+        </View>
+      </View>
+    )
+    return swipeGesture
+      ? <GestureDetector gesture={swipeGesture}>{loadingGrid}</GestureDetector>
+      : loadingGrid
+  }
+
   const grid = (
     <View ref={gridRef} collapsable={false} testID="calendar-grid" style={styles.calendarGrid}>
       <Animated.View
@@ -263,7 +271,11 @@ export function CalendarGrid({
         testID="calendar-grid-card"
         style={[styles.gridCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}
       >
-        <MonthGrid weekdayLabels={weekdayHeaders.map((weekday) => weekday.label)} gap={0}>
+        <MonthGrid
+          weekdayLabels={weekdayHeaders.map((weekday) => weekday.label)}
+          gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
+          minimumDayGridHeight={CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT}
+        >
           {gridDays.map((cell) => {
             const future = cell.dateStr > todayKey
             const selected = cell.isCurrentMonth && (
@@ -279,7 +291,6 @@ export function CalendarGrid({
                 future={future}
                 futureWord={t('calendar.dayCell.future')}
                 inRange={inRange}
-                isLoading={isLoading}
                 locale={locale}
                 onSelectDay={onSelectDay}
                 selected={selected}
@@ -302,7 +313,19 @@ export function CalendarGrid({
 
 const styles = StyleSheet.create({
   calendarGrid: { paddingHorizontal: 4, paddingTop: 16, paddingBottom: 8 },
-  gridCard: { borderRadius: 20, padding: 0, borderWidth: 1 },
+  gridCard: {
+    width: CALENDAR_MONTH_GRID_GEOMETRY.columns * CALENDAR_MONTH_GRID_GEOMETRY.cell
+      + (CALENDAR_MONTH_GRID_GEOMETRY.columns - 1) * CALENDAR_MONTH_GRID_GEOMETRY.gap,
+    alignSelf: 'center',
+    borderRadius: 20,
+    padding: 0,
+    borderWidth: 1,
+  },
+  loadingGrid: {
+    width: CALENDAR_MONTH_GRID_GEOMETRY.columns * CALENDAR_MONTH_GRID_GEOMETRY.cell
+      + (CALENDAR_MONTH_GRID_GEOMETRY.columns - 1) * CALENDAR_MONTH_GRID_GEOMETRY.gap,
+    alignSelf: 'center',
+  },
   daySlot: {
     position: 'relative',
     width: 44,
@@ -312,7 +335,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   selectionRing: { position: 'absolute', inset: 0, borderRadius: 999, borderWidth: 2 },
-  skeleton: { width: 44, height: 44, borderRadius: 999 },
   futureNumeral: { fontFamily: 'GeistMono_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
   futureControl: { width: 44, height: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   dayButton: { position: 'absolute', inset: 0, borderRadius: 999, backgroundColor: 'transparent' },
