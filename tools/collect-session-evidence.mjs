@@ -139,13 +139,13 @@ async function readTranscript(path, sessionId, cutoff, now, clusters, metrics) {
     const userBlocks = textBlocks(record.message?.content, "text", true)
     const userText = userBlocks.join("\n").trim()
     if (!userText || INJECTED_USER_TURNS.has(userText)) continue
+    const normalizedIdentity = normalizedClusterText(userText)
+    if (!normalizedIdentity) continue
+    const id = clusterId(normalizedIdentity)
     const safeUserText = boundedText(userText, metrics)
     const safeAssistantText = precedingAssistantText === null ? null : boundedText(precedingAssistantText, metrics)
     precedingAssistantText = null
-    const normalized = normalizedClusterText(safeUserText)
-    if (!normalized) continue
     metrics.humanTurns++
-    const id = clusterId(normalized)
     const cluster = clusters.get(id) ?? {
       id,
       userText: safeUserText,

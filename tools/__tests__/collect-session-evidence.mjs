@@ -118,6 +118,35 @@ export async function cases() {
     atThreshold: thresholdDigest.clusters[0].atThreshold,
   }, { count: 3, sessions: ["session-a", "session-b", "session-c"], occurrences: 4, atThreshold: true })
 
+  const emailIdentityDirectory = join(root, "session-evidence-email-identity")
+  mkdirSync(emailIdentityDirectory, { recursive: true })
+  for (const [sessionId, email] of [
+    ["email-a", "alpha@example.test"],
+    ["email-b", "bravo@example.test"],
+    ["email-c", "charlie@example.test"],
+  ]) {
+    writeTranscript(emailIdentityDirectory, sessionId, [record("user", INSIDE, `Contact ${email}`)])
+  }
+  const emailIdentityDigest = parse(collect(emailIdentityDirectory))
+  expectEqual("collect-session-evidence: distinct emails do not become one exact cluster after redaction", {
+    clusters: emailIdentityDigest.metrics.clustersFound,
+    atThreshold: emailIdentityDigest.metrics.clustersAtThreshold,
+    displayTexts: [...new Set(emailIdentityDigest.clusters.map((cluster) => cluster.userText))],
+  }, { clusters: 3, atThreshold: 0, displayTexts: ["Contact [REDACTED:email]"] })
+
+  const longIdentityDirectory = join(root, "session-evidence-long-identity")
+  mkdirSync(longIdentityDirectory, { recursive: true })
+  const sharedPrefix = "x".repeat(2_000)
+  for (const [sessionId, suffix] of [["long-a", "alpha"], ["long-b", "bravo"], ["long-c", "charlie"]]) {
+    writeTranscript(longIdentityDirectory, sessionId, [record("user", INSIDE, `${sharedPrefix}${suffix}`)])
+  }
+  const longIdentityDigest = parse(collect(longIdentityDirectory))
+  expectEqual("collect-session-evidence: text after the display limit remains part of exact identity", {
+    clusters: longIdentityDigest.metrics.clustersFound,
+    atThreshold: longIdentityDigest.metrics.clustersAtThreshold,
+    displayLengths: [...new Set(longIdentityDigest.clusters.map((cluster) => cluster.userText.length))],
+  }, { clusters: 3, atThreshold: 0, displayLengths: [2_000] })
+
   const boundedDirectory = join(root, "session-evidence-bounded")
   mkdirSync(boundedDirectory, { recursive: true })
   const uniqueTurns = Array.from({ length: 150 }, (_, index) => record("user", INSIDE, `${String(index).padStart(3, "0")}:${"x".repeat(2_050)}`))

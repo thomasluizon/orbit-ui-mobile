@@ -611,7 +611,8 @@ const DRIFT_TODAY = new Date("2026-09-12T12:00:00.000Z")
 T("lessons: absent drift state is overdue", isDriftReviewOverdue(undefined, DRIFT_TODAY), true)
 T("lessons: today's drift state is current", isDriftReviewOverdue('{"lastRun":"2026-09-12"}', DRIFT_TODAY), false)
 T("lessons: state from eight days ago is overdue", isDriftReviewOverdue('{"lastRun":"2026-09-04"}', DRIFT_TODAY), true)
-T("lessons: malformed drift state stays silent", isDriftReviewOverdue("not json", DRIFT_TODAY), false)
+T("lessons: malformed drift state is overdue", isDriftReviewOverdue("not json", DRIFT_TODAY), true)
+T("lessons: invalid drift state is overdue", isDriftReviewOverdue('{"lastRun":"2026-02-30"}', DRIFT_TODAY), true)
 
 // ---------------------------------------------------------------------------
 // 3. The real hook files: stdin payload in, exit code out
@@ -713,9 +714,11 @@ const overdueDriftState = runLessonsHook("{}")
 T("adapter lessons: eight-day-old drift state emits the overdue line", JSON.parse(overdueDriftState.stdout).hookSpecificOutput.additionalContext, "Workflow drift review is overdue. Run /drift-review.")
 writeFileSync(driftStateFixtureFile, "not json")
 const malformedDriftState = runLessonsHook("{}")
-T("adapter lessons: malformed drift state exits 0 and emits nothing", {
-  status: malformedDriftState.status, stdout: malformedDriftState.stdout, stderr: malformedDriftState.stderr,
-}, { status: 0, stdout: "", stderr: "" })
+T("adapter lessons: malformed drift state exits 0 and emits the overdue line", {
+  status: malformedDriftState.status,
+  context: JSON.parse(malformedDriftState.stdout).hookSpecificOutput.additionalContext,
+  stderr: malformedDriftState.stderr,
+}, { status: 0, context: "Workflow drift review is overdue. Run /drift-review.", stderr: "" })
 
 T("adapter git-guardrails: push main -> 2", runHook("git-guardrails.mjs", bash("git push origin main")), 2)
 T("adapter git-guardrails: push feature -> 0", runHook("git-guardrails.mjs", bash("git push origin feature/x")), 0)
