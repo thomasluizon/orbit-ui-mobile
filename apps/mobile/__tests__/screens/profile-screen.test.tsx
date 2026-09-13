@@ -28,13 +28,17 @@ const TestRenderer = require('react-test-renderer')
 
 const {
   mockApiClient,
+  mockPerformQueuedApiMutation,
   mockAuthState,
   mockShareAsync,
   mockShellNoticeSlot,
   mockUseGamificationProfile,
+  mockPatchProfile,
   mockRouterPush,
+  mockProfileState,
 } = vi.hoisted(() => ({
   mockApiClient: vi.fn(),
+  mockPerformQueuedApiMutation: vi.fn(),
   mockShareAsync: vi.fn(),
   mockAuthState: {
     isAuthenticated: true,
@@ -42,8 +46,16 @@ const {
     logout: vi.fn(),
   },
   mockUseGamificationProfile: vi.fn(() => ({ profile: null })),
+  mockPatchProfile: vi.fn(),
   mockShellNoticeSlot: vi.fn(),
   mockRouterPush: vi.fn(),
+  mockProfileState: {
+    current: {
+      profile: undefined as ReturnType<typeof createMockProfile> | undefined,
+      isLoading: false,
+      error: null as Error | null,
+    },
+  },
 }))
 
 vi.mock('expo-sharing', () => {
@@ -81,18 +93,14 @@ vi.mock('@tanstack/react-query', () => ({
     invalidateQueries: vi.fn(),
     clear: vi.fn(),
   }),
-  useMutation: () => ({
-    mutate: vi.fn(),
+  useMutation: (options: { mutationFn?: (value: boolean) => unknown }) => ({
+    mutate: (value: boolean) => options.mutationFn?.(value),
     isPending: false,
   }),
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({
-    profile: createMockProfile({ hasProAccess: false }),
-    isLoading: false,
-    error: null,
-  }),
+  useProfile: () => ({ ...mockProfileState.current, patchProfile: mockPatchProfile }),
   useTrialDaysLeft: () => 0,
   useTrialExpired: () => true,
 }))
@@ -165,6 +173,10 @@ vi.mock('@/lib/theme', () => ({
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: mockApiClient,
+}))
+
+vi.mock('@/lib/queued-api-mutation', () => ({
+  performQueuedApiMutation: mockPerformQueuedApiMutation,
 }))
 
 vi.mock('@orbit/shared/hooks', async (importOriginal) => ({
@@ -396,8 +408,10 @@ function findRowByLabel(
 describe('ProfileScreen', () => {
   beforeEach(() => {
     mockApiClient.mockReset()
+    mockPerformQueuedApiMutation.mockReset()
     mockShareAsync.mockReset().mockResolvedValue(undefined)
     mockShellNoticeSlot.mockReset()
+    mockPatchProfile.mockReset()
     vi.mocked(ExpoNotifications.getPermissionsAsync).mockReset()
     vi.mocked(ExpoNotifications.getPermissionsAsync).mockResolvedValue({
       status: 'undetermined',
@@ -422,6 +436,16 @@ describe('ProfileScreen', () => {
     __setNotificationsModuleForTests(ExpoNotifications)
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()
+    mockProfileState.current = {
+      profile: createMockProfile({
+        plan: 'free',
+        hasProAccess: false,
+        aiMessagesUsed: 2,
+        aiMessagesLimit: 5,
+      }),
+      isLoading: false,
+      error: null,
+    }
   })
 
   it('renders every feature destination as a grouped settings row with its hint', async () => {
@@ -488,9 +512,6 @@ describe('ProfileScreen', () => {
       'settings.weekStartDay.title',
       'preferences.themeMode',
       'profile.subscription.plan',
-      'profile.settingsRows.dailyAllowance',
-      'profile.proactiveAstra.title',
-      'profile.aiSummary.title',
       'profile.settingsRows.apiKeysMcp',
       'profile.wrappedTitle',
       'calendar.profileButton',
@@ -512,6 +533,129 @@ describe('ProfileScreen', () => {
         `missing accessible profile row: ${accessibilityLabel}`,
       ).toHaveLength(1)
     }
+  })
+
+  it('shows the free daily allowance and routes its only plan action to Pro', async () => {
+    const tree = await renderProfileScreen()
+    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
+    const progress = astra.findByProps({
+      accessibilityRole: 'progressbar',
+      accessibilityLabel: 'profile.allowance.title',
+    })
+    expect(progress.props.accessibilityValue).toEqual({ min: 0, max: 5, now: 2 })
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.allowance.spent')),
+    ).toHaveLength(0)
+    const proactiveGate = findRowByLabel(tree, 'profile.proactiveAstra.title')
+    const summaryGate = findRowByLabel(tree, 'profile.aiSummary.title')
+
+    TestRenderer.act(() => {
+      findButtonByText(tree, 'profile.allowance.seePro').props.onPress()
+      proactiveGate.props.onPress?.()
+      summaryGate.props.onPress?.()
+    })
+    expect(mockRouterPush).toHaveBeenNthCalledWith(1, {
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
+    expect(mockRouterPush).toHaveBeenNthCalledWith(2, {
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
+    expect(mockRouterPush).toHaveBeenNthCalledWith(3, {
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
+  })
+
+  it('shows trial copy and routes its allowance action to the trial pitch', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({
+        plan: 'pro',
+        hasProAccess: true,
+        isTrialActive: true,
+        aiMessagesUsed: 2,
+        aiMessagesLimit: 50,
+      }),
+      isLoading: false,
+      error: null,
+    }
+    const tree = await renderProfileScreen()
+    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.subscription.trial')),
+    ).toHaveLength(1)
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.allowance.manageSubscription')),
+    ).toHaveLength(0)
+
+    TestRenderer.act(() => {
+      findButtonByText(tree, 'profile.allowance.seePro').props.onPress()
+    })
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
+  })
+
+  it('shows a spent Pro allowance and hands subscription management off directly', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({
+        plan: 'pro',
+        hasProAccess: true,
+        aiMessagesUsed: 50,
+        aiMessagesLimit: 50,
+      }),
+      isLoading: false,
+      error: null,
+    }
+    const tree = await renderProfileScreen()
+    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
+    const progress = astra.findByProps({
+      accessibilityRole: 'progressbar',
+      accessibilityLabel: 'profile.allowance.title',
+    })
+    expect(progress.props.accessibilityValue).toEqual({ min: 0, max: 50, now: 50 })
+    expect(astra.findByProps({ testID: 'progress-bar-complete' })).toBeDefined()
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.allowance.spent')),
+    ).toHaveLength(1)
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.allowance.seePro')),
+    ).toHaveLength(0)
+
+    TestRenderer.act(() => {
+      findButtonByText(tree, 'profile.allowance.manageSubscription').props.onPress()
+    })
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
+    const proactiveSwitch = astra.findByProps({
+      accessibilityRole: 'switch',
+      accessibilityLabel: 'profile.proactiveAstra.title',
+    })
+    const summarySwitch = astra.findByProps({
+      accessibilityRole: 'switch',
+      accessibilityLabel: 'profile.aiSummary.title',
+    })
+    TestRenderer.act(() => {
+      proactiveSwitch.props.onPress()
+      summarySwitch.props.onPress()
+    })
+    expect(mockPerformQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'setProactiveAstra',
+      payload: { enabled: true },
+    }))
+    expect(mockPerformQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'setAiSummary',
+      payload: { enabled: false },
+    }))
   })
 
   it('places export last in You instead of Ending things', async () => {
