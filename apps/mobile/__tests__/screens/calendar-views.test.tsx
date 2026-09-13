@@ -32,6 +32,14 @@ const state = vi.hoisted(() => ({
   calendarDataCalls: vi.fn(),
   calendarEvents: [] as Record<string, unknown>[],
   calendarEventsEnabled: undefined as boolean | undefined,
+  autoSyncState: {
+    enabled: true,
+    status: "Idle",
+    lastSyncedAt: "2026-09-12T09:12:00Z",
+    hasGoogleConnection: true,
+  },
+  setAutoSync: vi.fn(() => Promise.resolve()),
+  showError: vi.fn(),
   calendarRangeCalls: vi.fn(),
   routerPush: vi.fn(),
   setShowCreateModal: vi.fn(),
@@ -93,6 +101,15 @@ vi.mock("@/hooks/use-calendar-events", () => ({
       data: { status: "connected", events: state.calendarEvents },
     };
   },
+}));
+
+vi.mock("@/hooks/use-calendar-auto-sync", () => ({
+  useCalendarAutoSyncState: () => ({ data: state.autoSyncState }),
+  useSetCalendarAutoSync: () => ({ mutateAsync: state.setAutoSync }),
+}));
+
+vi.mock("@/hooks/use-app-toast", () => ({
+  useAppToast: () => ({ showError: state.showError }),
 }));
 
 vi.mock("@/hooks/use-tour-target", () => ({ useTourTarget: () => {} }));
@@ -307,6 +324,8 @@ describe("CalendarScreen views (mobile)", () => {
     state.calendarDataCalls.mockClear();
     state.calendarEvents = [];
     state.calendarEventsEnabled = undefined;
+    state.setAutoSync.mockClear();
+    state.showError.mockClear();
     state.calendarRangeCalls.mockClear();
     state.rangeLoading = false;
     calendarStatsProps.current = null;
