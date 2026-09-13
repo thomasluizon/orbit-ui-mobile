@@ -223,6 +223,7 @@ export type DateContractTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<MonthGridProps['children'], ReactNode>>,
   Assert<IsExactWidth<MonthGridProps['gap'], string | number | undefined>>,
   Assert<IsExactWidth<MonthGridProps['label'], string | undefined>>,
+  Assert<IsExactWidth<MonthGridProps['minimumDayGridHeight'], number | undefined>>,
   Assert<IsExactWidth<EventRowProps['title'], string>>,
   Assert<IsExactWidth<EventRowProps['source'], string | undefined>>,
   Assert<IsExactWidth<EventRowProps['time'], string | undefined>>,
