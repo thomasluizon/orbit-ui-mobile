@@ -3,6 +3,7 @@
 import { existsSync, readFileSync, realpathSync, readdirSync, statSync } from "node:fs"
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
+import yaml from "js-yaml"
 
 const USAGE = `usage: check-lint-severity.mjs (--report-suppressions | --enforce-suppressions) [--root <path>]
 
@@ -187,23 +188,84 @@ const suppressionFiles = new Set(
 )
 
 const suppressionTargetPattern = /--suppressions-location(?:=|\s+)(?:"([^"]+)"|'([^']+)'|([^\s"'`]+))/g
-const commandSources = repositoryFiles.filter((path) =>
-  basename(path) === "package.json" || /[\\/]\.github[\\/]workflows[\\/].+\.ya?ml$/.test(path),
-)
 const declaredTargets = new Map()
-for (const sourcePath of commandSources) {
-  const body = readFileSync(sourcePath, "utf8")
-  for (const match of body.matchAll(suppressionTargetPattern)) {
+const suppressionLocationProblems = []
+const recordDeclaredTargets = (sourcePath, command, basePath) => {
+  suppressionTargetPattern.lastIndex = 0
+  let declarationCount = 0
+  for (const match of command.matchAll(suppressionTargetPattern)) {
+    declarationCount++
     const target = match[1] ?? match[2] ?? match[3]
-    const basePath = basename(sourcePath) === "package.json" ? dirname(sourcePath) : repositoryRoot
+    if (target.includes("${{")) {
+      suppressionLocationProblems.push(
+        `${normalizedRelativePath(sourcePath)}: --suppressions-location ${target} is dynamic and cannot be resolved safely`,
+      )
+      continue
+    }
     const absoluteTarget = resolvedPath(resolve(basePath, target))
+    if (!isInsideRepository(absoluteTarget)) {
+      suppressionLocationProblems.push(
+        `${normalizedRelativePath(sourcePath)}: --suppressions-location ${target} resolves outside the repository`,
+      )
+      continue
+    }
+    if (/[\\/]$/.test(target) || (existsSync(absoluteTarget) && statSync(absoluteTarget).isDirectory())) {
+      suppressionLocationProblems.push(
+        `${normalizedRelativePath(sourcePath)}: --suppressions-location ${target} is a directory target and cannot be resolved safely`,
+      )
+      continue
+    }
     declaredTargets.set(absoluteTarget, { sourcePath, target })
+  }
+  if (command.includes("--suppressions-location") && declarationCount === 0) {
+    suppressionLocationProblems.push(
+      `${normalizedRelativePath(sourcePath)}: --suppressions-location declaration cannot be resolved safely`,
+    )
+  }
+}
+
+for (const sourcePath of repositoryFiles.filter((path) => basename(path) === "package.json")) {
+  const body = readFileSync(sourcePath, "utf8")
+  recordDeclaredTargets(sourcePath, body, dirname(sourcePath))
+}
+
+const workflowPaths = repositoryFiles.filter((path) => /[\\/]\.github[\\/]workflows[\\/].+\.ya?ml$/.test(path))
+for (const sourcePath of workflowPaths) {
+  let workflow
+  try {
+    workflow = yaml.load(readFileSync(sourcePath, "utf8"))
+  } catch (error) {
+    fail(2, `check-lint-severity: cannot parse ${normalizedRelativePath(sourcePath)}: ${error.message}`)
+  }
+  if (!workflow || typeof workflow !== "object" || !workflow.jobs || typeof workflow.jobs !== "object") continue
+  const workflowDirectory = workflow.defaults?.run?.["working-directory"]
+  for (const job of Object.values(workflow.jobs)) {
+    if (!job || typeof job !== "object" || !Array.isArray(job.steps)) continue
+    const jobDirectory = job.defaults?.run?.["working-directory"] ?? workflowDirectory
+    for (const step of job.steps) {
+      if (!step || typeof step !== "object" || typeof step.run !== "string") continue
+      if (!step.run.includes("--suppressions-location")) continue
+      const workingDirectory = step["working-directory"] ?? jobDirectory ?? "."
+      if (typeof workingDirectory !== "string" || workingDirectory.includes("${{")) {
+        suppressionLocationProblems.push(
+          `${normalizedRelativePath(sourcePath)}: suppression command has a dynamic working-directory and cannot be resolved safely`,
+        )
+        continue
+      }
+      const basePath = resolvedPath(resolve(repositoryRoot, workingDirectory))
+      if (!isInsideRepository(basePath)) {
+        suppressionLocationProblems.push(
+          `${normalizedRelativePath(sourcePath)}: working-directory ${workingDirectory} resolves outside the repository`,
+        )
+        continue
+      }
+      recordDeclaredTargets(sourcePath, step.run, basePath)
+    }
   }
 }
 const repositoryFilesByResolvedPath = new Map(
   repositoryFiles.map((path) => [resolvedPath(path), normalizedRelativePath(path)]),
 )
-const suppressionLocationProblems = []
 for (const [absoluteTarget, declaration] of declaredTargets) {
   if (!isInsideRepository(absoluteTarget)) {
     suppressionLocationProblems.push(
@@ -230,7 +292,7 @@ if (hasSuppressionFindings) {
     for (const path of paths) stream(`  ${path}`)
   }
   if (suppressionLocationProblems.length > 0) {
-    stream(`Lint suppression locations ${label}: ${suppressionLocationProblems.length} target(s) resolve outside the repository.`)
+    stream(`Lint suppression locations ${label}: ${suppressionLocationProblems.length} unsafe target declaration(s).`)
     for (const problem of suppressionLocationProblems) stream(`  ${problem}`)
   }
   if (suppressionMode === "report") {

@@ -1,7 +1,8 @@
-import { mkdirSync, writeFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { mkdirSync, readdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { check, root } from "./_harness.mjs"
+import { check, REPO_ROOT, root, T } from "./_harness.mjs"
 
 const TOOL = "check-lint-severity.mjs"
 
@@ -93,6 +94,71 @@ export const cases = () => {
   run("rejects an existing custom suppressions-location target", customBaseline, {
     status: 1,
     stderr: /apps\/web\/custom-lint-baseline\.json/,
+  })
+
+  const workflowBaseline = stageConfig("workflow-baseline", 'export default [{ rules: { "local/example": "error" } }]\n')
+  for (const directory of ["workflow", "job", "step"]) {
+    mkdirSync(join(workflowBaseline, "apps", directory), { recursive: true })
+    writeFileSync(join(workflowBaseline, "apps", directory, "workflow-baseline.json"), "{}\n")
+  }
+  mkdirSync(join(workflowBaseline, ".github", "workflows"), { recursive: true })
+  writeFileSync(join(workflowBaseline, ".github", "workflows", "lint.yml"), `name: lint
+on: push
+defaults:
+  run:
+    working-directory: apps/workflow
+jobs:
+  workflow-default:
+    steps:
+      - run: eslint . --suppressions-location workflow-baseline.json
+  job-default:
+    defaults:
+      run:
+        working-directory: apps/job
+    steps:
+      - run: eslint . --suppressions-location workflow-baseline.json
+  step-override:
+    defaults:
+      run:
+        working-directory: apps/job
+    steps:
+      - run: eslint . --suppressions-location workflow-baseline.json
+        working-directory: apps/step
+`)
+  const workflowResult = run("resolves workflow suppression targets from their effective working directories", workflowBaseline, {
+    status: 1,
+    stderr: /apps\/workflow\/workflow-baseline\.json/,
+  })
+  T(
+    `${TOOL}: job and step working directories override the workflow default`,
+    /apps\/job\/workflow-baseline\.json/.test(workflowResult.stderr)
+      && /apps\/step\/workflow-baseline\.json/.test(workflowResult.stderr),
+    workflowResult.stderr.trim(),
+  )
+
+  const directoryBaseline = stageConfig(
+    "directory-baseline",
+    'export default [{ files: ["target.js"], rules: { "no-unused-vars": "error" } }]\n',
+  )
+  writeFileSync(join(directoryBaseline, "target.js"), "const unused = 1\n")
+  mkdirSync(join(directoryBaseline, "suppressions"), { recursive: true })
+  writeFileSync(join(directoryBaseline, "package.json"), JSON.stringify({
+    scripts: { lint: "eslint target.js --suppressions-location suppressions" },
+  }))
+  const eslint = spawnSync(
+    process.execPath,
+    [join(REPO_ROOT, "node_modules", "eslint", "bin", "eslint.js"), "target.js", "--suppress-all", "--suppressions-location", "suppressions"],
+    { cwd: directoryBaseline, encoding: "utf8", windowsHide: true },
+  )
+  const generatedSuppressions = readdirSync(join(directoryBaseline, "suppressions"))
+  T(
+    `${TOOL}: the directory fixture was created by installed ESLint`,
+    eslint.status === 0 && generatedSuppressions.length === 1 && /^suppressions_.+$/.test(generatedSuppressions[0]),
+    `eslint exit ${eslint.status}; files: ${generatedSuppressions.join(", ")}; ${(eslint.stderr || eslint.stdout).trim()}`,
+  )
+  run("rejects a directory-valued suppressions-location", directoryBaseline, {
+    status: 1,
+    stderr: /suppressions is a directory target/,
   })
 
   const escapedBaseline = stageConfig("escaped-baseline", 'export default [{ rules: { "local/example": "error" } }]\n')
