@@ -189,11 +189,6 @@
       "count": 2
     }
   },
-  "components/calendar/calendar-stats.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
   "components/charts/bar-chart.tsx": {
     "local/no-pill-radius-on-static": {
       "count": 1
