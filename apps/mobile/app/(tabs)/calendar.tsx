@@ -36,6 +36,8 @@ import { enUS, ptBR } from "date-fns/locale";
 import {
   capitalizeFirstLetter,
   buildCalendarRangeModel,
+  CALENDAR_MONTH_SWIPE_THRESHOLD,
+  filterRecurringDayMap,
   filterRecurringEntries,
   formatAPIDate,
   parseAPIDate,
@@ -69,6 +71,7 @@ import { CalendarDayDetail } from "./calendar/_components/calendar-day-detail";
 import { CalendarStats } from "./calendar/_components/calendar-stats";
 import { CalendarWeekView } from "./calendar/_components/calendar-week-view";
 import { CalendarRangeView } from "./calendar/_components/calendar-range-view";
+import { ShowRecurringToggle } from "./calendar/_components/show-recurring-toggle";
 import type { TimeGridColumn } from "./calendar/_components/calendar-time-grid";
 import { useCurrentDate } from "./use-today-date";
 import { useUIStore } from "@/stores/ui-store";
@@ -310,14 +313,14 @@ function CalendarScreenContent({
     });
   }, [weekStart, weekEnd, todayKey]);
 
-  const displayRangeDayMap = useMemo(() => {
-    if (showRecurring) return rangeDayMap;
-    const filtered = new Map<string, CalendarDayEntry[]>();
-    for (const [key, entries] of rangeDayMap) {
-      filtered.set(key, filterRecurringEntries(entries, false));
-    }
-    return filtered;
-  }, [rangeDayMap, showRecurring]);
+  const displayMonthDayMap = useMemo(
+    () => filterRecurringDayMap(dayMap, showRecurring),
+    [dayMap, showRecurring],
+  );
+  const displayRangeDayMap = useMemo(
+    () => filterRecurringDayMap(rangeDayMap, showRecurring),
+    [rangeDayMap, showRecurring],
+  );
 
   const monthLabel = useMemo(
     () =>
@@ -372,6 +375,8 @@ function CalendarScreenContent({
   const swipeGesture = useHorizontalSwipe({
     onSwipeLeft: nextMonth,
     onSwipeRight: prevMonth,
+    minDistance: CALENDAR_MONTH_SWIPE_THRESHOLD,
+    minVelocity: 0,
   });
 
   const onSelectDay = useCallback((dateStr: string) => {
@@ -416,9 +421,15 @@ function CalendarScreenContent({
   }, [t, weekStartsOn]);
 
   const { gridDays, monthStats } = useMemo(
+    () => buildCalendarMonthModel(currentMonth, displayMonthDayMap, weekStartsOn, todayKey),
+    [currentMonth, displayMonthDayMap, weekStartsOn, todayKey],
+  );
+  const { monthStats: sourceMonthStats } = useMemo(
     () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn, todayKey),
     [currentMonth, dayMap, weekStartsOn, todayKey],
   );
+  const showMonthRecurringToggle =
+    !isLoading && currentMonth <= startOfMonth(parseAPIDate(todayKey)) && sourceMonthStats.hasEntries;
   const monthDisplayState = resolveCalendarMonthDisplayState({
     currentMonth,
     today: todayKey,
@@ -427,8 +438,8 @@ function CalendarScreenContent({
   });
 
   const rangeModel = useMemo(
-    () => buildCalendarRangeModel(rangeEnd, rangeDayMap, weekStartsOn, todayKey),
-    [rangeEnd, rangeDayMap, weekStartsOn, todayKey],
+    () => buildCalendarRangeModel(rangeEnd, displayRangeDayMap, weekStartsOn, todayKey),
+    [rangeEnd, displayRangeDayMap, weekStartsOn, todayKey],
   );
 
   const rangeLabel = useMemo(() => {
@@ -573,6 +584,16 @@ function CalendarScreenContent({
         tokens={tokens}
       />
 
+      {showMonthRecurringToggle ? (
+        <View style={styles.monthRecurringToggle}>
+          <ShowRecurringToggle
+            checked={showRecurring}
+            onChange={setShowRecurring}
+            label={t("calendar.showRecurring")}
+            tokens={tokens}
+          />
+        </View>
+      ) : null}
     </>
   );
 
@@ -699,6 +720,9 @@ function CalendarScreenContent({
               isLoading={rangeLoading}
               loadingLabel={t("common.loading")}
               stats={rangeStatTiles}
+              showRecurring={showRecurring}
+              onShowRecurringChange={setShowRecurring}
+              showRecurringLabel={t("calendar.showRecurring")}
               language={i18n.language}
               t={t}
               tokens={tokens}
@@ -749,6 +773,11 @@ function createStyles() {
 
     listFooter: {
       paddingTop: 4,
+    },
+
+    monthRecurringToggle: {
+      paddingHorizontal: 16,
+      paddingVertical: 4,
     },
 
     errorWrap: {

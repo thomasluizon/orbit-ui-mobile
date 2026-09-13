@@ -21,8 +21,10 @@ import {
   formatAPIDate,
   parseAPIDate,
   capitalizeFirstLetter,
-  filterRecurringEntries,
   buildCalendarRangeModel,
+  CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO,
+  CALENDAR_MONTH_SWIPE_THRESHOLD,
+  filterRecurringDayMap,
   MAX_RANGE_DAYS,
   resolveCalendarRangeEnd,
   CALENDAR_MONTH_GRID_GEOMETRY,
@@ -43,6 +45,7 @@ import { CalendarWeekView } from '@/components/calendar/calendar-week-view'
 import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
 import { CalendarLoadError } from '@/components/calendar/calendar-load-error'
+import { ShowRecurringToggle } from '@/components/calendar/show-recurring-toggle'
 import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
@@ -55,8 +58,6 @@ import {
   CalendarHeader,
   CalendarLegend,
 } from './_components/calendar-shell'
-
-const SWIPE_THRESHOLD = 50
 
 type MonthSlide = 'left' | 'right' | null
 type CalendarView = 'month' | 'week' | 'range' | 'agenda'
@@ -131,6 +132,7 @@ interface CalendarInlineDayPanelProps {
   selectedDay: string | null
   entries: CalendarDayEntry[]
   showRecurring: boolean
+  showRecurringToggle: boolean
   onShowRecurringChange: (value: boolean) => void
 }
 
@@ -142,6 +144,7 @@ function CalendarInlineDayPanel({
   selectedDay,
   entries,
   showRecurring,
+  showRecurringToggle,
   onShowRecurringChange,
 }: Readonly<CalendarInlineDayPanelProps>) {
   if (!show) return null
@@ -175,6 +178,7 @@ function CalendarInlineDayPanel({
             entries={entries}
             showRecurring={showRecurring}
             onShowRecurringChange={onShowRecurringChange}
+            showRecurringToggle={showRecurringToggle}
             fitViewport
           />
         </>
@@ -240,6 +244,24 @@ interface CalendarPageContentProps {
   currentMonth: Date
   setCurrentMonth: Dispatch<SetStateAction<Date>>
   monthQuery: ReturnType<typeof useCalendarData>
+}
+
+function MonthRecurringFilter({
+  visible,
+  checked,
+  onChange,
+}: Readonly<{
+  visible: boolean
+  checked: boolean
+  onChange: (checked: boolean) => void
+}>) {
+  if (!visible) return null
+
+  return (
+    <div style={{ padding: '4px 16px' }}>
+      <ShowRecurringToggle checked={checked} onChange={onChange} />
+    </div>
+  )
 }
 
 // react-doctor-disable-next-line no-giant-component -- calendar shell hosting four distinct views (month/week/range/agenda); extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
@@ -323,14 +345,14 @@ function CalendarPageContent({
   )
   const currentYear = currentMonth.getFullYear()
 
-  const displayRangeDayMap = useMemo(() => {
-    if (showRecurring) return rangeDayMap
-    const filtered = new Map<string, CalendarDayEntry[]>()
-    for (const [key, entries] of rangeDayMap) {
-      filtered.set(key, filterRecurringEntries(entries, false))
-    }
-    return filtered
-  }, [rangeDayMap, showRecurring])
+  const displayMonthDayMap = useMemo(
+    () => filterRecurringDayMap(dayMap, showRecurring),
+    [dayMap, showRecurring],
+  )
+  const displayRangeDayMap = useMemo(
+    () => filterRecurringDayMap(rangeDayMap, showRecurring),
+    [rangeDayMap, showRecurring],
+  )
 
   const weekLabel = useMemo(() => {
     const startLabel = format(weekStart, 'MMM d', { locale: dateFnsLocale })
@@ -416,9 +438,15 @@ function CalendarPageContent({
   }, [selectedDay, displayWeekdayDate])
 
   const { monthStats } = useMemo(
+    () => buildCalendarMonthModel(currentMonth, displayMonthDayMap, weekStartsOn, todayKey),
+    [currentMonth, displayMonthDayMap, weekStartsOn, todayKey],
+  )
+  const { monthStats: sourceMonthStats } = useMemo(
     () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn, todayKey),
     [currentMonth, dayMap, weekStartsOn, todayKey],
   )
+  const showMonthRecurringToggle =
+    !isLoading && currentMonth <= startOfMonth(parseAPIDate(todayKey)) && sourceMonthStats.hasEntries
   const monthDisplayState = resolveCalendarMonthDisplayState({
     currentMonth,
     today: todayKey,
@@ -427,8 +455,8 @@ function CalendarPageContent({
   })
 
   const rangeModel = useMemo(
-    () => buildCalendarRangeModel(rangeEnd, rangeDayMap, weekStartsOn, todayKey),
-    [rangeEnd, rangeDayMap, weekStartsOn, todayKey],
+    () => buildCalendarRangeModel(rangeEnd, displayRangeDayMap, weekStartsOn, todayKey),
+    [rangeEnd, displayRangeDayMap, weekStartsOn, todayKey],
   )
 
   const weekdayLabels = useMemo(() => {
@@ -488,12 +516,13 @@ function CalendarPageContent({
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
     if (touchStart.current === null) return
     const touch = e.changedTouches[0]
-    if (!touch) return
-    const deltaX = touch.clientX - touchStart.current.x
-    const deltaY = touch.clientY - touchStart.current.y
+    const start = touchStart.current
     touchStart.current = null
-    if (Math.abs(deltaX) < SWIPE_THRESHOLD) return
-    if (Math.abs(deltaX) <= Math.abs(deltaY) * 1.2) return
+    if (!touch) return
+    const deltaX = touch.clientX - start.x
+    const deltaY = touch.clientY - start.y
+    if (Math.abs(deltaX) <= CALENDAR_MONTH_SWIPE_THRESHOLD) return
+    if (Math.abs(deltaX) <= Math.abs(deltaY) * CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO) return
     if (deltaX < 0) {
       setMonthSlide('right')
       setCurrentMonth((m) => addMonths(m, 1))
@@ -557,10 +586,11 @@ function CalendarPageContent({
                     className={monthSlideClass}
                     onTouchStart={handleTouchStart}
                     onTouchEnd={handleTouchEnd}
+                    style={{ touchAction: 'pan-y' }}
                   >
                     <CalendarGrid
                       currentMonth={currentMonth}
-                      dayMap={dayMap}
+                      dayMap={displayMonthDayMap}
                       onSelectDay={openDay}
                       selectedDateStr={selectedDay}
                       isLoading={isLoading}
@@ -575,6 +605,12 @@ function CalendarPageContent({
                     fullLabel={t('calendar.dayCell.full')}
                     partialLabel={t('calendar.dayCell.partial')}
                     noneLabel={t('calendar.dayCell.none')}
+                  />
+
+                  <MonthRecurringFilter
+                    visible={showMonthRecurringToggle}
+                    checked={showRecurring}
+                    onChange={setShowRecurring}
                   />
 
                   <CalendarMonthFeedback
@@ -602,6 +638,7 @@ function CalendarPageContent({
                   selectedDay={selectedDay}
                   entries={selectedEntries}
                   showRecurring={showRecurring}
+                  showRecurringToggle={!showMonthRecurringToggle}
                   onShowRecurringChange={setShowRecurring}
                 />
               </div>
@@ -644,6 +681,8 @@ function CalendarPageContent({
                 isLoading={rangeLoading}
                 loadingLabel={t('common.loading')}
                 stats={rangeStatTiles}
+                showRecurring={showRecurring}
+                onShowRecurringChange={setShowRecurring}
               />
             )}
 

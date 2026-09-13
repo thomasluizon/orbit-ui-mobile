@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ChevronLeft, ChevronRight } from '@/components/ui/icons'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { CalendarStats, type CalendarStat } from './calendar-stats'
+import { ShowRecurringToggle } from './show-recurring-toggle'
 
 interface CalendarRangeViewProps {
   model: CalendarRangeModel
@@ -22,6 +23,8 @@ interface CalendarRangeViewProps {
   isLoading: boolean
   loadingLabel: string
   stats: readonly [CalendarStat, CalendarStat, CalendarStat]
+  showRecurring: boolean
+  onShowRecurringChange: (value: boolean) => void
 }
 
 /** A fixed fourteen-day, read-only orientation view with span-level figures. */
@@ -37,6 +40,8 @@ export function CalendarRangeView({
   isLoading,
   loadingLabel,
   stats,
+  showRecurring,
+  onShowRecurringChange,
 }: Readonly<CalendarRangeViewProps>) {
   const t = useTranslations()
   const { displayWeekdayDate } = useDateFormat()
@@ -89,6 +94,9 @@ export function CalendarRangeView({
         >
           <ChevronRight size={20} strokeWidth={1.8} aria-hidden="true" />
         </PillButton>
+      </div>
+      <div className="flex justify-end" style={{ padding: '0 12px' }}>
+        <ShowRecurringToggle checked={showRecurring} onChange={onShowRecurringChange} />
       </div>
       {isLoading ? (
         <>

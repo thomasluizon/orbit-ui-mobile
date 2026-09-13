@@ -11,7 +11,13 @@ import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 let isWideDesktopValue = false
 let isDesktopValue = false
-const calendarGridProps: Record<string, unknown> = {}
+let calendarGridSelectionDate = '2026-01-05'
+const calendarGridProps: Record<string, unknown> & {
+  currentMonth?: Date
+  dayMap?: Map<string, CalendarDayEntry[]>
+  selectedDateStr?: string | null
+  todayKey?: string
+} = {}
 const calendarStatsProps: Record<string, unknown> = {}
 const monthQueryState: {
   dayMap: Map<string, CalendarDayEntry[]>
@@ -35,6 +41,7 @@ const profileQueryState: {
 }
 const calendarDataCalls = vi.fn()
 let rangeLoading = false
+let rangeDayMap = new Map<string, CalendarDayEntry[]>()
 const calendarRangeViewProps: { current: Record<string, unknown> | null } = { current: null }
 
 vi.mock('next-intl', () => ({
@@ -59,7 +66,7 @@ vi.mock('@/hooks/use-calendar-data', () => ({
     })
   },
   useCalendarRange: () => ({
-    dayMap: new Map(),
+    dayMap: rangeDayMap,
     isLoading: rangeLoading,
     isFetching: false,
     error: null,
@@ -125,7 +132,7 @@ vi.mock('@/components/calendar/calendar-grid', async (importOriginal) => {
           <button
             type="button"
             data-testid="month-view"
-            onClick={() => props.onSelectDay?.('2026-01-05')}
+            onClick={() => props.onSelectDay?.(calendarGridSelectionDate)}
           />
         </>
       )
@@ -146,7 +153,27 @@ vi.mock('@/components/calendar/calendar-stats', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-day-detail', () => ({
-  CalendarDayDetail: () => <div data-testid="day-detail" />,
+  CalendarDayDetail: ({
+    onShowRecurringChange,
+    showRecurring,
+    showRecurringToggle = true,
+  }: {
+    onShowRecurringChange: (value: boolean) => void
+    showRecurring: boolean
+    showRecurringToggle?: boolean
+  }) => (
+    <div data-testid="day-detail">
+      {showRecurringToggle && (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showRecurring}
+          aria-label="calendar.showRecurring"
+          onClick={() => onShowRecurringChange(!showRecurring)}
+        />
+      )}
+    </div>
+  ),
 }))
 
 vi.mock('@/components/calendar/calendar-week-view', () => ({
@@ -156,7 +183,23 @@ vi.mock('@/components/calendar/calendar-week-view', () => ({
 vi.mock('@/components/calendar/calendar-range-view', () => ({
   CalendarRangeView: (props: Record<string, unknown>) => {
     calendarRangeViewProps.current = props
-    return <div data-testid="range-view" />
+    const model = props.model as { days: readonly { totalCount: number }[] }
+    const showRecurring = props.showRecurring as boolean
+    const onShowRecurringChange = props.onShowRecurringChange as (value: boolean) => void
+    return (
+      <div data-testid="range-view">
+        {model.days.some((day) => day.totalCount > 0) && (
+          <span data-testid="range-recurring-ring" />
+        )}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showRecurring}
+          aria-label="calendar.showRecurring"
+          onClick={() => onShowRecurringChange(!showRecurring)}
+        />
+      </div>
+    )
   },
 }))
 
@@ -188,7 +231,10 @@ describe('CalendarPage view switcher', () => {
   beforeEach(() => {
     isWideDesktopValue = false
     isDesktopValue = false
+    calendarGridSelectionDate = '2026-01-05'
     calendarGridProps.selectedDateStr = undefined
+    calendarGridProps.dayMap = undefined
+    calendarGridProps.todayKey = undefined
     calendarStatsProps.state = undefined
     monthQueryState.dayMap = new Map()
     calendarGridProps.todayKey = undefined
@@ -200,6 +246,7 @@ describe('CalendarPage view switcher', () => {
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()
     rangeLoading = false
+    rangeDayMap = new Map()
     calendarRangeViewProps.current = null
   })
 
@@ -367,12 +414,30 @@ describe('CalendarPage view switcher', () => {
     expect(calendarRangeViewProps.current?.isLoading).toBe(false)
   })
 
-  it('renders the day detail as a persistent inline panel at wide desktop', () => {
+  it('keeps exactly one recurring setting on an entry-bearing future day at wide desktop', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 0, 10))
     isWideDesktopValue = true
+    const todayKey = formatAPIDate(new Date())
+    const futureDay = '2026-02-05'
+    calendarGridSelectionDate = futureDay
+    monthQueryState.dayMap = new Map([
+      [todayKey, [monthEntry('current-recurring', 'upcoming')]],
+      [futureDay, [monthEntry('future-recurring', 'upcoming')]],
+    ])
     render(<CalendarPage />)
 
     expect(screen.getByTestId('calendar-day-panel')).toBeDefined()
     expect(screen.getByTestId('day-detail')).toBeDefined()
+    expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
+    fireEvent.click(screen.getByTestId('calendar-header'))
+    fireEvent.click(screen.getByTestId('month-view'))
+
+    expect(calendarGridProps.currentMonth).toEqual(new Date(2026, 1, 1))
+    expect(calendarGridProps.selectedDateStr).toBe(futureDay)
+    expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
   })
 
   it('opens the day detail as an overlay below the wide-desktop breakpoint', () => {
@@ -441,5 +506,71 @@ describe('CalendarPage view switcher', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
     expect(monthQueryState.refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('removes recurring habits from the month and shows its honest empty state', () => {
+    const todayKey = formatAPIDate(new Date())
+    monthQueryState.dayMap = new Map([[todayKey, [{
+      habitId: 'recurring',
+      title: 'Recurring habit',
+      status: 'upcoming',
+      isBadHabit: false,
+      dueTime: '08:00',
+      isOneTime: false,
+    }]]])
+    render(<CalendarPage />)
+
+    expect(screen.queryByTestId('day-detail')).toBeNull()
+    expect(screen.getByTestId('month-stats')).toBeDefined()
+    expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
+
+    expect(calendarGridProps.dayMap?.get(todayKey)).toEqual([])
+    expect(screen.getByTestId('month-stats').getAttribute('data-state')).toBe('empty')
+    expect(screen.getByText('calendar.emptyMonth')).toBeDefined()
+  })
+
+  it('removes recurring status rings from the range picker when recurring is turned off', () => {
+    const todayKey = formatAPIDate(new Date())
+    rangeDayMap = new Map([[todayKey, [{
+      habitId: 'recurring',
+      title: 'Recurring habit',
+      status: 'upcoming',
+      isBadHabit: false,
+      dueTime: '08:00',
+      isOneTime: false,
+    }]]])
+    render(<CalendarPage />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
+    expect(screen.getByTestId('range-recurring-ring')).toBeDefined()
+
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
+
+    expect(screen.queryByTestId('range-recurring-ring')).toBeNull()
+  })
+
+  it('matches mobile by paging a 61px by 45px drag after the 60px boundary', () => {
+    render(<CalendarPage />)
+    const initialMonth = calendarDataCalls.mock.calls.at(-1)?.[0] as Date
+    const initialCallCount = calendarDataCalls.mock.calls.length
+    const drag = (deltaX: number, deltaY = 0) => {
+      const target = screen.getByTestId('month-view')
+      fireEvent.touchStart(target, { touches: [{ clientX: 100, clientY: 20 }] })
+      fireEvent.touchEnd(target, {
+        changedTouches: [{ clientX: 100 + deltaX, clientY: 20 + deltaY }],
+      })
+    }
+
+    drag(-59)
+    expect(calendarDataCalls).toHaveBeenCalledTimes(initialCallCount)
+
+    drag(-61, 45)
+    expect((calendarDataCalls.mock.calls.at(-1)?.[0] as Date).getMonth())
+      .toBe((initialMonth.getMonth() + 1) % 12)
+
+    drag(61)
+    expect((calendarDataCalls.mock.calls.at(-1)?.[0] as Date).getMonth())
+      .toBe(initialMonth.getMonth())
   })
 })
