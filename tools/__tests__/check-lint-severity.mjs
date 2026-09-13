@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process"
-import { mkdirSync, readdirSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { check, REPO_ROOT, root, T } from "./_harness.mjs"
+import { BASH, check, REPO_ROOT, root, T } from "./_harness.mjs"
 
 const TOOL = "check-lint-severity.mjs"
 
@@ -95,6 +95,52 @@ export const cases = () => {
     status: 1,
     stderr: /apps\/web\/custom-lint-baseline\.json/,
   })
+
+  const shellExpandedBaseline = stageConfig(
+    "shell-expanded-baseline",
+    'export default [{ files: ["target.js"], rules: { "no-unused-vars": "error" } }]\n',
+  )
+  writeFileSync(join(shellExpandedBaseline, "target.js"), "const unused = 1\n")
+  const eslintPath = join(REPO_ROOT, "node_modules", "eslint", "bin", "eslint.js").replaceAll("\\", "/")
+  const nodePath = process.execPath.replaceAll("\\", "/")
+  const eslintCommand = `"${nodePath}" "${eslintPath}" target.js --suppress-all --suppressions-location`
+  const shellExpansionCommands = {
+    lint: `${eslintCommand} $SUPPRESSIONS_FILE`,
+    lintBraced: `${eslintCommand} "\${SUPPRESSIONS_FILE}"`,
+    lintDefault: `${eslintCommand} \${SUPPRESSIONS_FILE:-custom-baseline.json}`,
+    lintBacktick: `${eslintCommand} \`printf custom-baseline.json\``,
+    lintSubshell: `${eslintCommand} $(printf custom-baseline.json)`,
+  }
+  writeFileSync(join(shellExpandedBaseline, "package.json"), JSON.stringify({ scripts: shellExpansionCommands }))
+  const shellExpandedEslint = spawnSync(BASH, ["-lc", shellExpansionCommands.lint], {
+    cwd: shellExpandedBaseline,
+    encoding: "utf8",
+    env: { ...process.env, SUPPRESSIONS_FILE: "custom-baseline.json" },
+    windowsHide: true,
+  })
+  T(
+    `${TOOL}: installed ESLint uses the shell-expanded custom baseline`,
+    shellExpandedEslint.status === 0 && existsSync(join(shellExpandedBaseline, "custom-baseline.json")),
+    `eslint exit ${shellExpandedEslint.status}; ${(shellExpandedEslint.stderr || shellExpandedEslint.stdout).trim()}`,
+  )
+  const shellExpansionResult = run("rejects shell-expanded suppressions-location targets", shellExpandedBaseline, {
+    status: 1,
+    stderr: /5 unsafe target declaration\(s\)/,
+  })
+  const shellExpansionTargets = [
+    "$SUPPRESSIONS_FILE",
+    "${SUPPRESSIONS_FILE}",
+    "${SUPPRESSIONS_FILE:-custom-baseline.json}",
+    "`printf",
+    "$(printf",
+  ]
+  for (const target of shellExpansionTargets) {
+    T(
+      `${TOOL}: rejects the ${target} expansion form`,
+      shellExpansionResult.stderr.includes(`--suppressions-location ${target}`),
+      shellExpansionResult.stderr.trim(),
+    )
+  }
 
   const workflowBaseline = stageConfig("workflow-baseline", 'export default [{ rules: { "local/example": "error" } }]\n')
   for (const directory of ["workflow", "job", "step"]) {

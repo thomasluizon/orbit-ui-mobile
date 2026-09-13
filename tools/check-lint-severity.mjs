@@ -187,7 +187,13 @@ const suppressionFiles = new Set(
     .map(normalizedRelativePath),
 )
 
-const suppressionTargetPattern = /--suppressions-location(?:=|\s+)(?:"([^"]+)"|'([^']+)'|([^\s"'`]+))/g
+const suppressionTargetPattern = /--suppressions-location(?:=|\s+)(?:"([^"]+)"|'([^']+)'|([^\s"']+))/g
+const hasShellExpansion = (target) =>
+  /[$`*?\[]/.test(target)
+  || /^~(?:[\\/]|$|[A-Za-z0-9_.-])/.test(target)
+  || /%[^%\s]+%|![^!\s]+!|%(?:~[A-Za-z]*\d|\d)/.test(target)
+  || /\{(?:[^{}]*,|\d+\.\.\d+)/.test(target)
+  || /[<>]\(/.test(target)
 const declaredTargets = new Map()
 const suppressionLocationProblems = []
 const recordDeclaredTargets = (sourcePath, command, basePath) => {
@@ -196,7 +202,7 @@ const recordDeclaredTargets = (sourcePath, command, basePath) => {
   for (const match of command.matchAll(suppressionTargetPattern)) {
     declarationCount++
     const target = match[1] ?? match[2] ?? match[3]
-    if (target.includes("${{")) {
+    if (hasShellExpansion(target)) {
       suppressionLocationProblems.push(
         `${normalizedRelativePath(sourcePath)}: --suppressions-location ${target} is dynamic and cannot be resolved safely`,
       )
@@ -226,7 +232,16 @@ const recordDeclaredTargets = (sourcePath, command, basePath) => {
 
 for (const sourcePath of repositoryFiles.filter((path) => basename(path) === "package.json")) {
   const body = readFileSync(sourcePath, "utf8")
-  recordDeclaredTargets(sourcePath, body, dirname(sourcePath))
+  let packageJson
+  try {
+    packageJson = JSON.parse(body)
+  } catch (error) {
+    fail(2, `check-lint-severity: cannot parse ${normalizedRelativePath(sourcePath)}: ${error.message}`)
+  }
+  if (!packageJson.scripts || typeof packageJson.scripts !== "object") continue
+  for (const command of Object.values(packageJson.scripts)) {
+    if (typeof command === "string") recordDeclaredTargets(sourcePath, command, dirname(sourcePath))
+  }
 }
 
 const workflowPaths = repositoryFiles.filter((path) => /[\\/]\.github[\\/]workflows[\\/].+\.ya?ml$/.test(path))
