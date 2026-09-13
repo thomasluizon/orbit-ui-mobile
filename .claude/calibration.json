@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-09-11",
+  "calibratedAt": "2026-09-13",
   "workerEngine": "codex",
   "workerCommand": "codex",
   "workerModel": "gpt-5.6-sol",
@@ -15,6 +15,27 @@
   ],
   "workerModelSource": "resolveWorkerInvocation(config.worker, ..., \"default\") in tools/lib/orchestrator-config.mjs, the exact vector launch-worker.mjs launches: engine args, then models.default args, then the model",
   "entries": {
+    ".agents/skills/merge-prs/SKILL.md": {
+      "model": null,
+      "effort": null,
+      "digest": "fa4a10a59a391992",
+      "calibratedAt": "2026-09-09",
+      "verdict": "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict: the frontmatter name and description decide whether Codex finds this skill at all, and the body names the one canonical definition both hosts read."
+    },
+    ".agents/skills/orchestrate/SKILL.md": {
+      "model": null,
+      "effort": null,
+      "digest": "d55e8bc268758fcb",
+      "calibratedAt": "2026-09-09",
+      "verdict": "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict, and it matters most here: orchestrate is the entry point every other piece of work passes through, so a pointer that stops resolving takes the whole queue with it."
+    },
+    ".agents/skills/ticket/SKILL.md": {
+      "model": null,
+      "effort": null,
+      "digest": "e1f13a268ec17004",
+      "calibratedAt": "2026-09-09",
+      "verdict": "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict, because a ticket is the prompt (D2) and a host that reads a forked definition writes a forked ticket."
+    },
     ".claude/agents/Explore.md": {
       "model": "haiku",
       "effort": null,
@@ -123,9 +144,9 @@
     ".claude/skills/handoff/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "1f2a317d703d51be",
-      "calibratedAt": "2026-09-09",
-      "verdict": "current: high effort, and it earns it: it decides what a fresh session cannot rediscover, and under-thinking it is how a handoff loses the one fact written nowhere else."
+      "digest": "3f7239924dc41147",
+      "calibratedAt": "2026-09-13",
+      "verdict": "current: high effort, and it earns it. It decides what survives into a spec that outlives every session, and under-thinking it is how a rule Thomas set in week one disappears by week four."
     },
     ".claude/skills/investigate/SKILL.md": {
       "model": null,
@@ -162,6 +183,20 @@
       "calibratedAt": "2026-09-09",
       "verdict": "undeclared, inherits the session: it consolidates four child audits into one honest launch verdict, which is judgement, so this is a follow-up candidate."
     },
+    ".claude/skills/progress/SKILL.md": {
+      "model": null,
+      "effort": "medium",
+      "digest": "976dcf419b3253d8",
+      "calibratedAt": "2026-09-13",
+      "verdict": "current: medium effort, because it reads live git and ticket state and must judge whether a part-built screen is honestly described, which low effort gets wrong by rounding up."
+    },
+    ".claude/skills/questions/SKILL.md": {
+      "model": null,
+      "effort": "high",
+      "digest": "430ce323de282429",
+      "calibratedAt": "2026-09-13",
+      "verdict": "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes his attention or ships a guess as a decision."
+    },
     ".claude/skills/second-opinion/SKILL.md": {
       "model": null,
       "effort": null,
@@ -189,27 +224,6 @@
       "digest": "e1ef5a36050d37f1",
       "calibratedAt": "2026-09-09",
       "verdict": "current: runs lint, type-check and tests across both repos, so low effort is right."
-    },
-    ".agents/skills/merge-prs/SKILL.md": {
-      "model": null,
-      "effort": null,
-      "digest": "fa4a10a59a391992",
-      "calibratedAt": "2026-09-09",
-      "verdict": "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict: the frontmatter name and description decide whether Codex finds this skill at all, and the body names the one canonical definition both hosts read."
-    },
-    ".agents/skills/orchestrate/SKILL.md": {
-      "model": null,
-      "effort": null,
-      "digest": "d55e8bc268758fcb",
-      "calibratedAt": "2026-09-09",
-      "verdict": "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict, and it matters most here: orchestrate is the entry point every other piece of work passes through, so a pointer that stops resolving takes the whole queue with it."
-    },
-    ".agents/skills/ticket/SKILL.md": {
-      "model": null,
-      "effort": null,
-      "digest": "e1f13a268ec17004",
-      "calibratedAt": "2026-09-09",
-      "verdict": "current: a pointer with no behaviour, so it declares no model and no effort and inherits whatever the Codex host runs. Its digest is the whole verdict, because a ticket is the prompt (D2) and a host that reads a forked definition writes a forked ticket."
     }
   }
 }
