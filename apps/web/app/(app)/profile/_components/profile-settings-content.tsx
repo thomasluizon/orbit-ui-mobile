@@ -3,10 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useShellNoticeSlot } from '@orbit/shared/hooks'
-import { habitKeys } from '@orbit/shared/query'
 import { buildWeekStartOptions } from '@orbit/shared/utils'
 import {
   PROFILE_NAV_ITEMS,
@@ -28,6 +26,11 @@ import {
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
 import {
+  AstraSettingsSwitch,
+  type AstraSettingsController,
+  useAstraSettingsController,
+} from '@/components/profile/astra-settings-controller'
+import {
   ProfileSettingsFrame,
   ProfileValueRow,
 } from '@/components/profile/profile-settings-frame'
@@ -35,7 +38,6 @@ import { ShareCardEntryButton } from '@/components/share/share-card-entry-button
 import { ListRow } from '@/components/ui/list-row'
 import { RowList } from '@/components/ui/row-list'
 import { ProBadge } from '@/components/ui/pro-badge'
-import { Switch } from '@/components/ui/switch'
 import { Toast } from '@/components/ui/toast'
 import { useAuthStore } from '@/stores/auth-store'
 import { useIsClient } from '@/hooks/use-is-client'
@@ -44,7 +46,6 @@ import { MarketingConsentSection } from '@/app/(app)/preferences/_components/mar
 import { PushNotificationSection } from '@/app/(app)/preferences/_components/push-notification-section'
 import { PreferencePickerSheet, type PreferencePicker } from '@/app/(app)/preferences/_components/preference-picker-sheet'
 import { usePreferenceControls } from '@/app/(app)/preferences/_components/use-preference-controls'
-import { updateAiSummary, updateProactiveAstra } from '@/app/actions/profile'
 import { DeleteAccountModal } from './delete-account-modal'
 import { EditNameSheet } from './edit-name-sheet'
 import { FreshStartModal } from './fresh-start-modal'
@@ -97,60 +98,9 @@ function buildYouRows(
   ]
 }
 
-interface AstraSettings {
-  aiSummaryEnabled: boolean
-  proactiveAstraEnabled: boolean
-  summaryPending: boolean
-  proactivePending: boolean
-  onToggleSummary: (enabled: boolean) => void
-  onToggleProactive: (enabled: boolean) => void
-}
-
-function useAstraSettings(
-  profile: Profile | undefined,
-  patchProfile: (patch: Partial<Profile>) => void,
-): AstraSettings {
-  const queryClient = useQueryClient()
-  const aiSummaryMutation = useMutation({
-    mutationFn: (enabled: boolean) => updateAiSummary({ enabled }),
-    onMutate: (enabled) => {
-      const previous = profile?.aiSummaryEnabled
-      patchProfile({ aiSummaryEnabled: enabled })
-      return { previous }
-    },
-    onError: (_error, _enabled, context) => {
-      if (context?.previous !== undefined) patchProfile({ aiSummaryEnabled: context.previous })
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
-    },
-  })
-  // react-doctor-disable-next-line query-mutation-missing-invalidation -- The optimistic profile cache update mirrors the stored boolean and rolls back on error. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  const proactiveMutation = useMutation({
-    mutationFn: (enabled: boolean) => updateProactiveAstra({ enabled }),
-    onMutate: (enabled) => {
-      const previous = profile?.proactiveAstraEnabled
-      patchProfile({ proactiveAstraEnabled: enabled })
-      return { previous }
-    },
-    onError: (_error, _enabled, context) => {
-      if (context?.previous !== undefined) patchProfile({ proactiveAstraEnabled: context.previous })
-    },
-  })
-
-  return {
-    aiSummaryEnabled: profile?.aiSummaryEnabled ?? false,
-    proactiveAstraEnabled: profile?.proactiveAstraEnabled ?? false,
-    summaryPending: aiSummaryMutation.isPending,
-    proactivePending: proactiveMutation.isPending,
-    onToggleSummary: (enabled) => aiSummaryMutation.mutate(enabled),
-    onToggleProactive: (enabled) => proactiveMutation.mutate(enabled),
-  }
-}
-
 function buildAstraRows(
   { profile, router, t }: RowContext,
-  settings: AstraSettings,
+  settings: AstraSettingsController,
 ) {
   const onUpgrade = () => router.push('/upgrade')
   return (
@@ -165,25 +115,13 @@ function buildAstraRows(
               <ProfileValueRow
                 label={t('profile.proactiveAstra.title')}
                 control={(
-                  <fieldset disabled={settings.proactivePending} className="m-0 border-0 p-0">
-                    <Switch
-                      checked={settings.proactiveAstraEnabled}
-                      onChange={settings.onToggleProactive}
-                      label={t('profile.proactiveAstra.title')}
-                    />
-                  </fieldset>
+                  <AstraSettingsSwitch checked={settings.proactiveAstraEnabled} pending={settings.proactivePending} label={t('profile.proactiveAstra.title')} onToggle={settings.onToggleProactive} />
                 )}
               />
               <ProfileValueRow
                 label={t('profile.aiSummary.title')}
                 control={(
-                  <fieldset disabled={settings.summaryPending} className="m-0 border-0 p-0">
-                    <Switch
-                      checked={settings.aiSummaryEnabled}
-                      onChange={settings.onToggleSummary}
-                      label={t('profile.aiSummary.title')}
-                    />
-                  </fieldset>
+                  <AstraSettingsSwitch checked={settings.aiSummaryEnabled} pending={settings.summaryPending} label={t('profile.aiSummary.title')} onToggle={settings.onToggleSummary} />
                 )}
               />
             </>
@@ -342,7 +280,7 @@ export function ProfileSettingsContent({
   const [showEditName, setShowEditName] = useState(false)
   const [showFreshStart, setShowFreshStart] = useState(false)
   const [showDeleteAccount, setShowDeleteAccount] = useState(false)
-  const astraSettings = useAstraSettings(profile, patchProfile)
+  const astraSettings = useAstraSettingsController(profile, patchProfile)
   useShellNoticeSlot(
     exportDone,
     () => (
