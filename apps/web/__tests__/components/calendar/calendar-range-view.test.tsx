@@ -45,6 +45,8 @@ function renderRange(isLoading = false) {
       nextRangeDisabled={false}
       isLoading={isLoading}
       loadingLabel="Loading range"
+      showRecurring={true}
+      onShowRecurringChange={vi.fn()}
       stats={[
         { key: 'bestStreak', value: model.stats.bestStreak, label: 'Best streak' },
         { key: 'totalLogs', value: model.stats.totalLogs, label: 'Logs' },
@@ -107,6 +109,8 @@ describe('CalendarRangeView', () => {
         nextRangeDisabled={false}
         isLoading={false}
         loadingLabel="Loading range"
+        showRecurring={true}
+        onShowRecurringChange={vi.fn()}
         stats={[
           { key: 'bestStreak', value: 1, label: 'Best streak' },
           { key: 'totalLogs', value: 1, label: 'Logs' },

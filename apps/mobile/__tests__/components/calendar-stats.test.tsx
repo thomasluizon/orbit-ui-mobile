@@ -5,16 +5,25 @@ import { CalendarStats } from '@/app/(tabs)/calendar/_components/calendar-stats'
 
 const TestRenderer = require('react-test-renderer')
 type LayoutStyle = ViewStyle & TextStyle
+type TestInstance = import('react-test-renderer').ReactTestInstance
+type TestInstanceWithChildren = TestInstance & {
+  children: (TestInstance | string)[]
+}
 
-function measureChildHeight(node: import('react-test-renderer').ReactTestInstance): number {
+function measureChildHeight(node: TestInstance): number {
   const style = StyleSheet.flatten(node.props.style) as LayoutStyle | undefined
   return Math.max(Number(style?.height ?? 0), Number(style?.minHeight ?? 0), Number(style?.lineHeight ?? 0))
 }
 
-function measureTileHeight(node: import('react-test-renderer').ReactTestInstance): number {
+function hasChildren(node: TestInstance): node is TestInstanceWithChildren {
+  return 'children' in node && Array.isArray(node.children)
+}
+
+function measureTileHeight(node: TestInstance): number {
   const style = StyleSheet.flatten(node.props.style) as LayoutStyle
+  if (!hasChildren(node)) throw new TypeError('ReactTestInstance must expose its rendered children')
   const children = node.children.filter(
-    (child): child is import('react-test-renderer').ReactTestInstance => typeof child !== 'string',
+    (child): child is TestInstance => typeof child !== 'string',
   )
   const padding = Number(style.paddingVertical ?? style.padding ?? 0) * 2
   const gaps = Number(style.gap ?? 0) * Math.max(0, children.length - 1)
