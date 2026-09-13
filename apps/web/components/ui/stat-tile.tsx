@@ -19,10 +19,7 @@ export function StatTile(props: Readonly<StatTileProps>) {
       aria-busy={isLoading || undefined}
     >
       {isLoading ? (
-        <>
-          <span className="h-6 w-16 animate-pulse rounded-[8px] bg-[var(--bg-elev-2)]" aria-hidden="true" />
-          <span className="h-5 w-20 animate-pulse rounded-[8px] bg-[var(--bg-elev-2)]" aria-hidden="true" />
-        </>
+        <span className="h-6 w-16 animate-pulse rounded-[8px] bg-[var(--bg-elev-2)]" aria-hidden="true" />
       ) : (
         <span
           className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap"

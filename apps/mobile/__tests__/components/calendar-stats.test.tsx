@@ -1,8 +1,26 @@
 import React from 'react'
+import { StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 import { describe, expect, it } from 'vitest'
 import { CalendarStats } from '@/app/(tabs)/calendar/_components/calendar-stats'
 
 const TestRenderer = require('react-test-renderer')
+type LayoutStyle = ViewStyle & TextStyle
+
+function measureChildHeight(node: import('react-test-renderer').ReactTestInstance): number {
+  const style = StyleSheet.flatten(node.props.style) as LayoutStyle | undefined
+  return Math.max(Number(style?.height ?? 0), Number(style?.minHeight ?? 0), Number(style?.lineHeight ?? 0))
+}
+
+function measureTileHeight(node: import('react-test-renderer').ReactTestInstance): number {
+  const style = StyleSheet.flatten(node.props.style) as LayoutStyle
+  const children = node.children.filter(
+    (child): child is import('react-test-renderer').ReactTestInstance => typeof child !== 'string',
+  )
+  const padding = Number(style.paddingVertical ?? style.padding ?? 0) * 2
+  const gaps = Number(style.gap ?? 0) * Math.max(0, children.length - 1)
+  const content = children.reduce((height, child) => height + measureChildHeight(child), 0)
+  return Math.max(Number(style.minHeight ?? 0), padding + gaps + content)
+}
 
 const stats = [
   { key: 'bestStreak', emoji: '🔥', value: 0, label: 'Best streak' },
@@ -25,6 +43,29 @@ describe('CalendarStats (mobile)', () => {
       node.props.accessibilityLabel === 'Loading',
     )).toHaveLength(3)
     expect(tree.root.findAll((node) => node.props.children === 0)).toHaveLength(0)
+  })
+
+  it('keeps every pending tile at its loaded height', () => {
+    let loadedTree!: import('react-test-renderer').ReactTestRenderer
+    let pendingTree!: import('react-test-renderer').ReactTestRenderer
+    TestRenderer.act(() => {
+      loadedTree = TestRenderer.create(<CalendarStats stats={stats} />)
+      pendingTree = TestRenderer.create(
+        <CalendarStats stats={stats} state="loading" loadingLabel="Loading" />,
+      )
+    })
+
+    const loadedHeights = loadedTree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.testID === 'stat-tile-default',
+    )
+      .map(measureTileHeight)
+    const pendingHeights = pendingTree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.testID === 'stat-tile-loading',
+    )
+      .map(measureTileHeight)
+
+    expect(loadedHeights).toHaveLength(3)
+    expect(pendingHeights).toEqual(loadedHeights)
   })
 
   it('states no data instead of zero for an empty month', () => {
