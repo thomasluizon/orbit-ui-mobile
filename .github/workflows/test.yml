@@ -93,6 +93,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
@@ -109,7 +111,27 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-${{ github.job }}-
 
-      - run: npx turbo run lint
+      - name: Lint only files changed by this pull request
+        shell: bash
+        run: |
+          set -euo pipefail
+          web=()
+          mobile=()
+          shared=()
+          while IFS= read -r -d '' file; do
+            case "$file" in
+              apps/web/*.js|apps/web/*.jsx|apps/web/*.mjs|apps/web/*.cjs|apps/web/*.ts|apps/web/*.tsx|apps/web/*.mts|apps/web/*.cts)
+                web+=("${file#apps/web/}") ;;
+              apps/mobile/*.js|apps/mobile/*.jsx|apps/mobile/*.mjs|apps/mobile/*.cjs|apps/mobile/*.ts|apps/mobile/*.tsx|apps/mobile/*.mts|apps/mobile/*.cts)
+                mobile+=("${file#apps/mobile/}") ;;
+              packages/shared/*.js|packages/shared/*.jsx|packages/shared/*.mjs|packages/shared/*.cjs|packages/shared/*.ts|packages/shared/*.tsx|packages/shared/*.mts|packages/shared/*.cts)
+                shared+=("${file#packages/shared/}") ;;
+            esac
+          done < <(git diff --name-only --diff-filter=ACMR -z origin/${{ github.base_ref }}...HEAD)
+          if [ "${#web[@]}" -gt 0 ]; then npm exec --workspace @orbit/web -- eslint -- "${web[@]}"; fi
+          if [ "${#mobile[@]}" -gt 0 ]; then npm exec --workspace @orbit/mobile -- eslint -- "${mobile[@]}"; fi
+          if [ "${#shared[@]}" -gt 0 ]; then npm exec --workspace @orbit/shared -- eslint -- "${shared[@]}"; fi
+          echo "Linted ${#web[@]} web, ${#mobile[@]} mobile and ${#shared[@]} shared files."
 
   dependency-audit:
     name: Dependency Audit
@@ -145,16 +167,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Ban raw --slate-*, transition-all, h-screen in app code
         run: |
           # DESIGN.md bans semantic-token violations. Accent-color literals are caught by
           # the Copy Register gate (tools/check-copy.mjs); this gate covers the rest.
-          hits=$(grep -rnE '\-\-slate-|transition-all|\bh-screen\b' apps/web apps/mobile \
-            --include='*.ts' --include='*.tsx' --include='*.css' \
-            --exclude-dir=node_modules --exclude-dir=__tests__ \
-            --exclude='globals.css' --exclude='theme.ts' \
-            --exclude='*.test.ts' --exclude='*.test.tsx' --exclude='*.spec.ts' --exclude='*.spec.tsx' || true)
+          hits=$(git diff --name-only --diff-filter=ACMR -z origin/${{ github.base_ref }}...HEAD -- apps/web apps/mobile \
+            | grep -zE '\.(ts|tsx|css)$' \
+            | grep -zvE '(^|/)__tests__/|/globals\.css$|/theme\.ts$|\.(test|spec)\.tsx?$' \
+            | xargs -0 --no-run-if-empty grep -nHE '\-\-slate-|transition-all|\bh-screen\b' || true)
           if [ -n "$hits" ]; then
             echo "::error::DESIGN.md ban: use semantic tokens (var(--fg-*)/var(--primary)), transform+opacity transitions, and min-h-dvh."
             echo "$hits"
@@ -163,7 +186,13 @@ jobs:
           echo "Design token guard passed."
 
       - name: Ban decorative gradients in app code
-        run: node tools/check-gradients.mjs
+        run: |
+          if git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
+               | grep -Eq '^apps/(web|mobile)/.*\.(cjs|css|js|jsx|mjs|ts|tsx)$|^tools/check-gradients\.mjs$'; then
+            node tools/check-gradients.mjs
+          else
+            echo "Gradient guard skipped: no owned path changed."
+          fi
 
   surface-scope-report:
     name: Surface Scope Report

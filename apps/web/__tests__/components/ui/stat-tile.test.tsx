@@ -13,7 +13,7 @@ describe('StatTile', () => {
 
   it('renders numeric values', () => {
     render(<StatTile  value={12} label="Total" />)
-    expect(screen.getByText('12')).toBeInTheDocument()
+    expect(screen.getByText('12')).toHaveStyle({ fontVariantNumeric: 'tabular-nums' })
   })
 
   it.each(['dark', 'light'] as const)('keeps empty text above the normal-text contrast floor in %s', (mode) => {

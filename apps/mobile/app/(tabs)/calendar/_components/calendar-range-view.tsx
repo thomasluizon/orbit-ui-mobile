@@ -34,6 +34,7 @@ interface CalendarRangeViewProps {
   language: string;
   allDayLabel: string;
   nowLabel: string;
+  timeZone: string | null;
   showRecurring: boolean;
   onShowRecurringChange: (value: boolean) => void;
   showRecurringLabel: string;
@@ -65,6 +66,7 @@ export function CalendarRangeView({
   language,
   allDayLabel,
   nowLabel,
+  timeZone,
   showRecurring,
   onShowRecurringChange,
   showRecurringLabel,
@@ -120,6 +122,7 @@ export function CalendarRangeView({
         language={language}
         allDayLabel={allDayLabel}
         nowLabel={nowLabel}
+        timeZone={timeZone}
         isLoading={isRangeLoading}
         t={t}
         tokens={tokens}

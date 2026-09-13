@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Switch } from "@/components/ui/switch";
 import { createTokensV2 } from "@/lib/theme";
 
@@ -29,14 +29,7 @@ export function ShowRecurringToggle({
         onChange={onChange}
         label={label}
       />
-      <Pressable
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        onPress={() => onChange(!checked)}
-        hitSlop={{ top: 12, bottom: 12 }}
-      >
-        <Text style={styles.label}>{label}</Text>
-      </Pressable>
+      <Text style={styles.label}>{label}</Text>
     </View>
   );
 }

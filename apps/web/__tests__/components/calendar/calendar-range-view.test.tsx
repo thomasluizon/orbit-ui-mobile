@@ -30,6 +30,7 @@ function column(year: number, month: number, day: number): TimeGridColumn {
     date,
     dateStr: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
     isToday: false,
+    isFuture: false,
   }
 }
 
@@ -58,6 +59,7 @@ function renderRange({ isClamped = false, isAwaitingEnd = false }: RenderOverrid
       dateFnsLocale={enUS}
       allDayLabel="All-day"
       nowLabel="Now"
+      timeZone="UTC"
       showRecurring
       onShowRecurringChange={vi.fn()}
       weekStartsOn={1}

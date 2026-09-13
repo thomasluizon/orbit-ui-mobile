@@ -77,7 +77,6 @@
   "eslint-rules/require-dialog-title.cjs": 3,
   "eslint-rules/require-focus-replacement.cjs": 3,
   "eslint-rules/will-change-discipline.cjs": 6,
-  "FEATURES.md": 154,
   "packages/shared/CLAUDE.md": 6,
   "packages/shared/CONTRACT_DRIFT.md": 5,
   "packages/shared/eslint.config.mjs": 1,

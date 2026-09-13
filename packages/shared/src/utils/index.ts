@@ -1,6 +1,14 @@
 export { achievementEmoji } from './achievement-emoji'
 export { createClientId } from './client-id'
-export { parseAPIDate, formatAPIDate, resolveHabitDetailRouteDate } from './dates'
+export {
+  parseAPIDate,
+  formatAPIDate,
+  formatAPIDateInTimeZone,
+  getAccountDateTime,
+  nowDate,
+  resolveHabitDetailRouteDate,
+  type AccountDateTime,
+} from './dates'
 export {
   buildHabitHistoryMonth,
   appendHabitDetailChild,
@@ -32,6 +40,12 @@ export {
   type HabitStripModel,
 } from './habit-detail-flow'
 export { buildCalendarMonthModel } from './calendar-month'
+export {
+  CALENDAR_MONTH_GRID_GEOMETRY,
+  CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
+  resolveCalendarMonthDisplayState,
+  type CalendarMonthDisplayState,
+} from './calendar-month-state'
 export {
   buildDayCellAccessibleName,
   getDayStripStateWord,
@@ -242,7 +256,12 @@ export {
 } from './time-parts'
 export type { DayPeriod, TimeParts } from './time-parts'
 export { buildYearRange } from './year-range'
-export { filterRecurringEntries } from './calendar-entries'
+export {
+  CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO,
+  CALENDAR_MONTH_SWIPE_THRESHOLD,
+  filterRecurringDayMap,
+  filterRecurringEntries,
+} from './calendar-entries'
 export {
   CALENDAR_MONTH_MAX_RANGE_DAYS,
   clampRangeToMaxDays,
