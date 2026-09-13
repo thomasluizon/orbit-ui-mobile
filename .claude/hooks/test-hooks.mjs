@@ -629,6 +629,7 @@ const bash = (command, cwd = root) => ({ tool_name: "Bash", tool_input: { comman
 const powershell = (command, cwd = root) => ({ tool_name: "PowerShell", tool_input: { command }, cwd })
 
 const LESSONS_HOOK = "surface-pending-lessons.mjs"
+const DRIFT_REVIEW_REMINDER = "Workflow drift review is overdue. Run /drift-review."
 const lessonsFixtureRoot = join(root, "lessons-project")
 const lessonsFixtureFile = join(lessonsFixtureRoot, ".claude", "pending-lessons.md")
 const driftStateFixtureFile = join(lessonsFixtureRoot, ".claude", "drift-review-state.json")
@@ -636,11 +637,28 @@ mkdirSync(dirname(lessonsFixtureFile), { recursive: true })
 const runLessonsHook = (input) => runHookResult(LESSONS_HOOK, input, { CLAUDE_PROJECT_DIR: lessonsFixtureRoot })
 const isWellFormedLessonsReminder = (output) =>
   /^\d+ unreviewed pending lessons? in \.claude\/pending-lessons\.md\. Review (?:it|them) with \/lesson\.$/.test(output)
+const isCombinedLessonsReminder = (output) => {
+  const driftSuffix = `\n${DRIFT_REVIEW_REMINDER}`
+  return output.endsWith(driftSuffix) && isWellFormedLessonsReminder(output.slice(0, -driftSuffix.length))
+}
 const isContentIndependentLessonsResult = (result) => ({
   status: result.status,
   stderr: result.stderr,
-  output: result.stdout === "" || isWellFormedLessonsReminder(result.stdout),
+  output: result.stdout === ""
+    || isWellFormedLessonsReminder(result.stdout)
+    || result.stdout === DRIFT_REVIEW_REMINDER
+    || isCombinedLessonsReminder(result.stdout),
 })
+const validReminderShapes = {
+  lessonsOnly: "1 unreviewed pending lesson in .claude/pending-lessons.md. Review it with /lesson.",
+  driftOnly: DRIFT_REVIEW_REMINDER,
+  combined: `1 unreviewed pending lesson in .claude/pending-lessons.md. Review it with /lesson.\n${DRIFT_REVIEW_REMINDER}`,
+}
+T("adapter lessons: the content-independent validator accepts every valid reminder shape", {
+  lessonsOnly: isContentIndependentLessonsResult({ status: 0, stderr: "", stdout: validReminderShapes.lessonsOnly }).output,
+  driftOnly: isContentIndependentLessonsResult({ status: 0, stderr: "", stdout: validReminderShapes.driftOnly }).output,
+  combined: isContentIndependentLessonsResult({ status: 0, stderr: "", stdout: validReminderShapes.combined }).output,
+}, { lessonsOnly: true, driftOnly: true, combined: true })
 writeFileSync(driftStateFixtureFile, JSON.stringify({ lastRun: new Date().toISOString().slice(0, 10) }))
 writeFileSync(lessonsFixtureFile, [
   "# Pending lessons",
