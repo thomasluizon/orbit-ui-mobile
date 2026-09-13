@@ -28,7 +28,10 @@ const calendarGridProps = vi.hoisted(() => ({
 }));
 
 const calendarStatsProps = vi.hoisted(() => ({
-  current: null as readonly { key: string; value: string | number }[] | null,
+  current: null as {
+    stats: readonly { key: string; value: string | number }[];
+    state?: "default" | "loading";
+  } | null,
 }));
 
 const tokensProxy: any = new Proxy({}, { get: () => "#222222" });
@@ -127,10 +130,12 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-grid", () => ({
 vi.mock("@/app/(tabs)/calendar/_components/calendar-stats", () => ({
   CalendarStats: ({
     stats,
+    state: statsState,
   }: {
     stats: readonly { key: string; value: string | number }[];
+    state?: "default" | "loading";
   }) => {
-    calendarStatsProps.current = stats;
+    calendarStatsProps.current = { stats, state: statsState };
     return (
       <View testID="calendar-stats">
         {stats.map((stat) => <Text key={stat.key}>{`${stat.key}:${stat.value}`}</Text>)}
@@ -572,7 +577,7 @@ describe("CalendarScreen views (mobile)", () => {
       expect(day.props.accessibilityRole).toBe("image");
       expect(day.props.onPress).toBeUndefined();
     }
-    expect(calendarStatsProps.current?.map((stat) => stat.value)).toEqual([1, 1, 1]);
+    expect(calendarStatsProps.current?.stats.map((stat) => stat.value)).toEqual([1, 1, 1]);
   });
 
   it("keeps the pending range busy without exposing empty outcomes, then reveals the resolved span", () => {
@@ -595,7 +600,7 @@ describe("CalendarScreen views (mobile)", () => {
     expect(tree.root.findAll(
       (node) => typeof node.type === "string" && typeof node.props.testID === "string" && node.props.testID.startsWith("day-cell-"),
     )).toHaveLength(0);
-    expect(calendarStatsProps.current).toBeNull();
+    expect(calendarStatsProps.current?.state).toBe("loading");
 
     state.rangeLoading = false;
     TestRenderer.act(() => {
@@ -608,7 +613,7 @@ describe("CalendarScreen views (mobile)", () => {
     expect(tree.root.findAll(
       (node) => typeof node.type === "string" && typeof node.props.testID === "string" && node.props.testID.startsWith("day-cell-"),
     )).toHaveLength(14);
-    expect(calendarStatsProps.current).not.toBeNull();
+    expect(calendarStatsProps.current?.state ?? "default").toBe("default");
   });
 
   it("shows the empty-month state in place of the stat tiles when nothing is logged", () => {

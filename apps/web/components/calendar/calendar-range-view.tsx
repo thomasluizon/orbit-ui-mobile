@@ -21,7 +21,7 @@ interface CalendarRangeViewProps {
   nextRangeDisabled: boolean
   isLoading: boolean
   loadingLabel: string
-  stats: readonly CalendarStat[]
+  stats: readonly [CalendarStat, CalendarStat, CalendarStat]
 }
 
 /** A fixed fourteen-day, read-only orientation view with span-level figures. */
@@ -103,19 +103,7 @@ export function CalendarRangeView({
               </span>
             ))}
           </MonthGrid>
-          <div
-            aria-hidden="true"
-            className="grid"
-            style={{
-              gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))',
-              gap: 12,
-              padding: '0 16px',
-            }}
-          >
-            {Array.from({ length: 3 }, (_, index) => (
-              <Skeleton key={index} variant="stat-tile" grouped />
-            ))}
-          </div>
+          <CalendarStats stats={stats} state="loading" loadingLabel={loadingLabel} />
         </>
       ) : (
         <>

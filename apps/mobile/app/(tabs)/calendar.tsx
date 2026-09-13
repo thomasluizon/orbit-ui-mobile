@@ -439,23 +439,20 @@ function CalendarScreenContent({
     () => [
       {
         key: "bestStreak",
-        emoji: "🔥",
         value: rangeModel.stats.bestStreak,
         label: t("calendar.bestStreak"),
       },
       {
         key: "totalLogs",
-        emoji: "✅",
         value: rangeModel.stats.totalLogs,
         label: t("calendar.totalLogs"),
       },
       {
         key: "missed",
-        emoji: "⚠️",
         value: rangeModel.stats.missed,
         label: t("calendar.missedCount"),
       },
-    ],
+    ] as const,
     [rangeModel.stats, t],
   );
 

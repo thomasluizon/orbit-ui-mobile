@@ -304,13 +304,13 @@ describe("CalendarLegend (mobile)", () => {
 });
 
 describe("CalendarStats (mobile)", () => {
-  it("renders the three month figures in one row", () => {
-    const stats = [
-      { key: "bestStreak", value: 5, label: "Best streak" },
-      { key: "totalLogs", value: 42, label: "Logs" },
-      { key: "missed", value: 3, label: "Missed" },
-    ] as const satisfies readonly [CalendarStat, CalendarStat, CalendarStat];
+  const stats = [
+    { key: "bestStreak", value: 5, label: "Best streak" },
+    { key: "totalLogs", value: 42, label: "Logs" },
+    { key: "missed", value: 3, label: "Missed" },
+  ] as const satisfies readonly [CalendarStat, CalendarStat, CalendarStat];
 
+  it("renders the three month figures in one row", () => {
     let tree: Tree;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
@@ -330,5 +330,24 @@ describe("CalendarStats (mobile)", () => {
     expect(texts).toContain("Best streak");
     expect(texts).toContain("Logs");
     expect(texts).toContain("Missed");
+  });
+
+  it("keeps loading and loaded row spacing identical", () => {
+    let loadingTree: Tree;
+    let loadedTree: Tree;
+    TestRenderer.act(() => {
+      loadingTree = TestRenderer.create(
+        <CalendarStats stats={stats} state="loading" loadingLabel="Loading stats" />,
+      );
+      loadedTree = TestRenderer.create(<CalendarStats stats={stats} />);
+    });
+
+    const row = (tree: Tree) => tree.root.findAll(
+      (node) => node.type === "View" && node.props.testID === "calendar-stats",
+    )[0]!;
+    expect(StyleSheet.flatten(row(loadingTree!).props.style))
+      .toEqual(StyleSheet.flatten(row(loadedTree!).props.style));
+    expect(row(loadingTree!).props.children).toHaveLength(3);
+    expect(row(loadedTree!).props.children).toHaveLength(3);
   });
 });

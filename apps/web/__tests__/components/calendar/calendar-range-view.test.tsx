@@ -46,9 +46,9 @@ function renderRange(isLoading = false) {
       isLoading={isLoading}
       loadingLabel="Loading range"
       stats={[
-        { key: 'bestStreak', emoji: '🔥', value: model.stats.bestStreak, label: 'Best streak' },
-        { key: 'totalLogs', emoji: '✅', value: model.stats.totalLogs, label: 'Logs' },
-        { key: 'missed', emoji: '⚠️', value: model.stats.missed, label: 'Missed' },
+        { key: 'bestStreak', value: model.stats.bestStreak, label: 'Best streak' },
+        { key: 'totalLogs', value: model.stats.totalLogs, label: 'Logs' },
+        { key: 'missed', value: model.stats.missed, label: 'Missed' },
       ]}
     />,
   )
@@ -85,6 +85,10 @@ describe('CalendarRangeView', () => {
     expect(screen.getByTestId('month-grid-days')).toHaveStyle({ gap: '4px' })
     expect(screen.queryAllByRole('img')).toHaveLength(0)
     expect(screen.queryByText('Logs')).not.toBeInTheDocument()
+    const loadingStats = screen.getByTestId('calendar-stats')
+    const loadingStatsStyle = loadingStats.style.cssText
+    expect(loadingStats.children).toHaveLength(3)
+    expect(loadingStats.querySelectorAll('[data-state="loading"]')).toHaveLength(3)
 
     view.rerender(
       <CalendarRangeView
@@ -104,9 +108,9 @@ describe('CalendarRangeView', () => {
         isLoading={false}
         loadingLabel="Loading range"
         stats={[
-          { key: 'bestStreak', emoji: '🔥', value: 1, label: 'Best streak' },
-          { key: 'totalLogs', emoji: '✅', value: 1, label: 'Logs' },
-          { key: 'missed', emoji: '⚠️', value: 0, label: 'Missed' },
+          { key: 'bestStreak', value: 1, label: 'Best streak' },
+          { key: 'totalLogs', value: 1, label: 'Logs' },
+          { key: 'missed', value: 0, label: 'Missed' },
         ]}
       />,
     )
@@ -115,5 +119,9 @@ describe('CalendarRangeView', () => {
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
     expect(screen.getAllByRole('img')).toHaveLength(14)
     expect(screen.getByText('Logs').previousSibling).toHaveTextContent('1')
+    const loadedStats = screen.getByTestId('calendar-stats')
+    expect(loadedStats.style.cssText).toBe(loadingStatsStyle)
+    expect(loadedStats.children).toHaveLength(3)
+    expect(loadedStats.querySelectorAll('[data-state="default"]')).toHaveLength(3)
   })
 })

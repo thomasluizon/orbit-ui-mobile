@@ -22,7 +22,7 @@ interface CalendarRangeViewProps {
   nextRangeDisabled: boolean
   isLoading: boolean
   loadingLabel: string
-  stats: readonly CalendarStat[]
+  stats: readonly [CalendarStat, CalendarStat, CalendarStat]
   language: string
   t: TFunction
   tokens: AppTokensV2
@@ -100,13 +100,7 @@ export function CalendarRangeView({
               </View>
             ))}
           </MonthGrid>
-          <View accessibilityElementsHidden style={styles.statsRow}>
-            {Array.from({ length: 3 }, (_, index) => (
-              <View key={index} style={styles.statCell}>
-                <Skeleton variant="stat-tile" grouped />
-              </View>
-            ))}
-          </View>
+          <CalendarStats stats={stats} state="loading" loadingLabel={loadingLabel} />
         </>
       ) : (
         <>
@@ -145,6 +139,4 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   daySlot: { width: 44, height: 44 },
-  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 16 },
-  statCell: { flexGrow: 1, flexBasis: '30%', minWidth: 96 },
 })

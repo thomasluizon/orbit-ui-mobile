@@ -7,17 +7,33 @@ export interface CalendarStat {
   label: string;
 }
 
-interface CalendarStatsProps {
+interface CalendarStatsBaseProps {
   stats: readonly [CalendarStat, CalendarStat, CalendarStat];
 }
 
+type CalendarStatsProps = CalendarStatsBaseProps & (
+  | { state?: "default"; loadingLabel?: never }
+  | { state: "loading"; loadingLabel: string }
+);
+
 /** The three month figures, kept in one row at every width. */
-export function CalendarStats({ stats }: Readonly<CalendarStatsProps>) {
+export function CalendarStats(props: Readonly<CalendarStatsProps>) {
+  const isLoading = props.state === "loading";
+
   return (
-    <View testID="calendar-stats" style={styles.row}>
-      {stats.map((stat) => (
+    <View
+      accessibilityElementsHidden={isLoading || undefined}
+      importantForAccessibility={isLoading ? "no-hide-descendants" : undefined}
+      testID="calendar-stats"
+      style={styles.row}
+    >
+      {props.stats.map((stat) => (
         <View key={stat.key} style={styles.cell}>
-          <StatTile value={stat.value} label={stat.label} />
+          {isLoading ? (
+            <StatTile state="loading" label="" loadingLabel={props.loadingLabel} />
+          ) : (
+            <StatTile value={stat.value} label={stat.label} />
+          )}
         </View>
       ))}
     </View>
