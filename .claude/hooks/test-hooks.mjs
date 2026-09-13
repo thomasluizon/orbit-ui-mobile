@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Regression suite for the seven surviving session hooks. Three layers:
+// Regression suite for the eight surviving session hooks. Three layers:
 //   1. Wiring: settings.json and the hooks directory must agree in BOTH
 //      directions. A hook deleted while settings.json still names it is exactly
 //      how this suite was broken on 2026-08-04, and nothing else catches it.
@@ -16,6 +16,7 @@ import { dirname, join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
+import { countUnreviewedPendingLessons, isDriftReviewOverdue } from "./_lib/rules-lessons.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
 import { checkTicketMutation } from "./_lib/rules-tickets.mjs"
 import { checkInventedIdentifier, extractNodeIds } from "./_lib/rules-identifier.mjs"
@@ -575,18 +576,146 @@ T(
   true,
 )
 
+console.log("\n# pending lessons (_lib/rules-lessons.mjs)")
+const datedEntry = (date, lesson) => `## ${date} - ${lesson}`
+T("lessons: one dated entry before Graduated is pending", countUnreviewedPendingLessons([
+  "# Pending lessons",
+  datedEntry("2026-09-10", "first lesson"),
+  "## Graduated",
+].join("\n")), 1)
+T("lessons: several dated entries before Graduated are pending", countUnreviewedPendingLessons([
+  datedEntry("2026-09-10", "first lesson"),
+  "details",
+  datedEntry("2026-09-11", "second lesson"),
+  "## Graduated",
+].join("\n")), 2)
+T("lessons: entries after Graduated are ignored", countUnreviewedPendingLessons([
+  "## Graduated",
+  datedEntry("2026-09-10", "already reviewed"),
+].join("\n")), 0)
+T("lessons: DROPPED and Original entry headings are ignored", countUnreviewedPendingLessons([
+  "## DROPPED 2026-09-10 - rejected lesson",
+  "### Original entry",
+  "## Graduated",
+].join("\n")), 0)
+T("lessons: without Graduated the whole file is pending", countUnreviewedPendingLessons([
+  datedEntry("2026-09-10", "first lesson"),
+  datedEntry("2026-09-11", "second lesson"),
+].join("\n")), 2)
+T("lessons: an empty file has no pending entries", countUnreviewedPendingLessons(""), 0)
+T("lessons: the title alone has no pending entries", countUnreviewedPendingLessons("# Pending lessons\n"), 0)
+T("lessons: the real pending-lessons.md parses", Number.isInteger(countUnreviewedPendingLessons(
+  readFileSync(join(repoRoot, ".claude", "pending-lessons.md"), "utf8"),
+)), true)
+const DRIFT_TODAY = new Date("2026-09-12T12:00:00.000Z")
+T("lessons: absent drift state is overdue", isDriftReviewOverdue(undefined, DRIFT_TODAY), true)
+T("lessons: today's drift state is current", isDriftReviewOverdue('{"lastRun":"2026-09-12"}', DRIFT_TODAY), false)
+T("lessons: state from eight days ago is overdue", isDriftReviewOverdue('{"lastRun":"2026-09-04"}', DRIFT_TODAY), true)
+T("lessons: malformed drift state stays silent", isDriftReviewOverdue("not json", DRIFT_TODAY), false)
+
 // ---------------------------------------------------------------------------
 // 3. The real hook files: stdin payload in, exit code out
 // ---------------------------------------------------------------------------
 console.log("\n# hook adapters (real files, real exit codes)")
-const runHook = (file, payload, env) =>
+const runHookResult = (file, input, env) =>
   spawnSync(process.execPath, [join(hooksDir, file)], {
-    input: JSON.stringify(payload),
+    input,
     encoding: "utf8",
     env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env },
-  }).status
+  })
+const runHook = (file, payload, env) => runHookResult(file, JSON.stringify(payload), env).status
 const bash = (command, cwd = root) => ({ tool_name: "Bash", tool_input: { command }, cwd })
 const powershell = (command, cwd = root) => ({ tool_name: "PowerShell", tool_input: { command }, cwd })
+
+const LESSONS_HOOK = "surface-pending-lessons.mjs"
+const lessonsFixtureRoot = join(root, "lessons-project")
+const lessonsFixtureFile = join(lessonsFixtureRoot, ".claude", "pending-lessons.md")
+const driftStateFixtureFile = join(lessonsFixtureRoot, ".claude", "drift-review-state.json")
+mkdirSync(dirname(lessonsFixtureFile), { recursive: true })
+const runLessonsHook = (input) => runHookResult(LESSONS_HOOK, input, { CLAUDE_PROJECT_DIR: lessonsFixtureRoot })
+writeFileSync(driftStateFixtureFile, JSON.stringify({ lastRun: new Date().toISOString().slice(0, 10) }))
+writeFileSync(lessonsFixtureFile, [
+  "# Pending lessons",
+  datedEntry("2026-09-10", "first lesson"),
+  "## Graduated",
+].join("\n"))
+const oneSurfacedLesson = runLessonsHook("{}")
+T("adapter lessons: one pending entry emits one line with the count and action", {
+  lines: oneSurfacedLesson.stdout.split(/\r?\n/).length,
+  count: JSON.parse(oneSurfacedLesson.stdout).hookSpecificOutput.additionalContext.includes("1"),
+  action: JSON.parse(oneSurfacedLesson.stdout).hookSpecificOutput.additionalContext.includes("/lesson"),
+}, { lines: 1, count: true, action: true })
+writeFileSync(lessonsFixtureFile, [
+  "# Pending lessons",
+  datedEntry("2026-09-10", "first lesson"),
+  datedEntry("2026-09-11", "second lesson"),
+  "## Graduated",
+].join("\n"))
+const surfacedLessons = runLessonsHook("{}")
+T("adapter lessons: two pending entries exit 0", surfacedLessons.status, 0)
+T("adapter lessons: two pending entries emit no stderr", surfacedLessons.stderr, "")
+const surfacedEnvelope = JSON.parse(surfacedLessons.stdout)
+T("adapter lessons: output names the count and file", {
+  count: surfacedEnvelope.hookSpecificOutput.additionalContext.includes("2"),
+  file: surfacedEnvelope.hookSpecificOutput.additionalContext.includes("pending-lessons.md"),
+}, { count: true, file: true })
+T("adapter lessons: output uses the SessionStart envelope", surfacedEnvelope.hookSpecificOutput.hookEventName, "SessionStart")
+const nullPayloadLessons = runLessonsHook("null")
+T("adapter lessons: a null payload still surfaces pending entries", nullPayloadLessons.stdout, surfacedLessons.stdout)
+writeFileSync(lessonsFixtureFile, [
+  "# Pending lessons",
+  "## DROPPED 2026-09-10 - rejected lesson",
+  "## Graduated",
+  datedEntry("2026-09-11", "already reviewed"),
+].join("\n"))
+const silentLessons = runLessonsHook("{}")
+T("adapter lessons: reviewed and dropped entries exit 0", silentLessons.status, 0)
+T("adapter lessons: reviewed and dropped entries emit nothing", { stdout: silentLessons.stdout, stderr: silentLessons.stderr }, { stdout: "", stderr: "" })
+rmSync(lessonsFixtureFile)
+const absentLessons = runLessonsHook("{}")
+T("adapter lessons: an absent file exits 0 and emits nothing", {
+  status: absentLessons.status, stdout: absentLessons.stdout, stderr: absentLessons.stderr,
+}, { status: 0, stdout: "", stderr: "" })
+mkdirSync(lessonsFixtureFile)
+const malformedLessons = runLessonsHook("{}")
+T("adapter lessons: an unreadable file exits 0 and emits nothing", {
+  status: malformedLessons.status, stdout: malformedLessons.stdout, stderr: malformedLessons.stderr,
+}, { status: 0, stdout: "", stderr: "" })
+rmSync(lessonsFixtureFile, { recursive: true })
+writeFileSync(lessonsFixtureFile, "# Pending lessons\n## Graduated\n")
+const malformedInputLessons = runLessonsHook("not json")
+T("adapter lessons: malformed stdin exits 0 and emits nothing", {
+  status: malformedInputLessons.status, stdout: malformedInputLessons.stdout, stderr: malformedInputLessons.stderr,
+}, { status: 0, stdout: "", stderr: "" })
+const realFileLessons = runHookResult(LESSONS_HOOK, "{}", { CLAUDE_PROJECT_DIR: repoRoot })
+T("adapter lessons: the real project state exits 0 with valid optional output", {
+  status: realFileLessons.status,
+  validOutput: realFileLessons.stdout === "" || JSON.parse(realFileLessons.stdout).hookSpecificOutput.hookEventName === "SessionStart",
+  stderr: realFileLessons.stderr,
+}, { status: 0, validOutput: true, stderr: "" })
+const fallbackLessons = runHookResult(LESSONS_HOOK, "null", { CLAUDE_PROJECT_DIR: "" })
+T("adapter lessons: an empty project environment falls back to the hook location", {
+  status: fallbackLessons.status,
+  validOutput: fallbackLessons.stdout === "" || JSON.parse(fallbackLessons.stdout).hookSpecificOutput.hookEventName === "SessionStart",
+  stderr: fallbackLessons.stderr,
+}, { status: 0, validOutput: true, stderr: "" })
+
+writeFileSync(lessonsFixtureFile, "# Pending lessons\n## Graduated\n")
+rmSync(driftStateFixtureFile)
+const absentDriftState = runLessonsHook("{}")
+T("adapter lessons: absent drift state emits the overdue line", JSON.parse(absentDriftState.stdout).hookSpecificOutput.additionalContext, "Workflow drift review is overdue. Run /drift-review.")
+writeFileSync(driftStateFixtureFile, JSON.stringify({ lastRun: new Date().toISOString().slice(0, 10) }))
+const currentDriftState = runLessonsHook("{}")
+T("adapter lessons: current drift state emits nothing", { status: currentDriftState.status, stdout: currentDriftState.stdout }, { status: 0, stdout: "" })
+const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+writeFileSync(driftStateFixtureFile, JSON.stringify({ lastRun: eightDaysAgo }))
+const overdueDriftState = runLessonsHook("{}")
+T("adapter lessons: eight-day-old drift state emits the overdue line", JSON.parse(overdueDriftState.stdout).hookSpecificOutput.additionalContext, "Workflow drift review is overdue. Run /drift-review.")
+writeFileSync(driftStateFixtureFile, "not json")
+const malformedDriftState = runLessonsHook("{}")
+T("adapter lessons: malformed drift state exits 0 and emits nothing", {
+  status: malformedDriftState.status, stdout: malformedDriftState.stdout, stderr: malformedDriftState.stderr,
+}, { status: 0, stdout: "", stderr: "" })
 
 T("adapter git-guardrails: push main -> 2", runHook("git-guardrails.mjs", bash("git push origin main")), 2)
 T("adapter git-guardrails: push feature -> 0", runHook("git-guardrails.mjs", bash("git push origin feature/x")), 0)
