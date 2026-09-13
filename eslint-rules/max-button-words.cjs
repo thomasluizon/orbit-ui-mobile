@@ -41,6 +41,7 @@ const PLACEHOLDER = /\{[^{}]+\}/gu
 const WORD = /[\p{L}\p{N}]+(?:[-'’\u2010-\u2015][\p{L}\p{N}]+)*/gu
 
 const localeCache = new Map()
+const openingElementsCache = new WeakMap()
 
 function locales() {
   return LOCALE_PATHS.map(([locale, path]) => {
@@ -102,38 +103,106 @@ function callName(node) {
   return null
 }
 
-function translationPrefix(call, sourceCode) {
-  const callee = unwrap(call)?.callee
-  if (callee?.type !== 'Identifier') return null
-  const variable = variableFor(callee.name, sourceCode.getScope(call))
-  const definition = variable?.defs.at(-1)
-  if (!definition) return null
-  if (definition.type === 'Parameter') return ''
-  if (definition.type !== 'Variable') return null
+function openingElementsByName(sourceCode) {
+  if (openingElementsCache.has(sourceCode)) return openingElementsCache.get(sourceCode)
+  const elements = new Map()
+  const visit = (node) => {
+    if (!node) return
+    if (node.type === 'JSXOpeningElement') {
+      const name = getElementName(node)
+      if (!elements.has(name)) elements.set(name, [])
+      elements.get(name).push(node)
+    }
+    for (const key of sourceCode.visitorKeys[node.type] ?? []) {
+      const child = node[key]
+      if (Array.isArray(child)) child.forEach(visit)
+      else visit(child)
+    }
+  }
+  visit(sourceCode.ast)
+  openingElementsCache.set(sourceCode, elements)
+  return elements
+}
+
+function objectPropertyValue(node, name, sourceCode, seen) {
+  const value = unwrap(node)
+  if (!value || seen.has(value)) return null
+  seen.add(value)
+  if (value.type === 'Identifier') {
+    return objectPropertyValue(bindingValue(value, sourceCode), name, sourceCode, seen)
+  }
+  if (value.type !== 'ObjectExpression') return null
+  const property = value.properties.findLast((candidate) =>
+    candidate.type === 'Property' && getPropertyKeyName(candidate) === name,
+  )
+  return property?.type === 'Property' ? property.value : null
+}
+
+function componentPropValues(definition, sourceCode, seen) {
+  const componentName = definition.node.id?.name
+  const propName = definition.name?.name
+  if (!componentName || !propName) return []
+  const openings = openingElementsByName(sourceCode).get(componentName) ?? []
+  return openings.flatMap((openingElement) => {
+    const direct = getAttributeValueNode(getAttribute(openingElement, propName))
+    if (direct) return [direct]
+    return openingElement.attributes.flatMap((attribute) => {
+      if (attribute.type !== 'JSXSpreadAttribute') return []
+      const property = objectPropertyValue(attribute.argument, propName, sourceCode, new Set(seen))
+      return property ? [property] : []
+    })
+  })
+}
+
+function variableTranslationPrefixes(definition, calleeName) {
   const declarator = definition.node
   const init = unwrap(declarator.init)
 
   if (declarator.id.type === 'Identifier' && callName(init) === 'useTranslations') {
-    return staticString(init.arguments[0]) ?? ''
+    return [staticString(init.arguments[0]) ?? '']
   }
-  if (declarator.id.type !== 'ObjectPattern' || callName(init) !== 'useTranslation') return null
+  if (declarator.id.type !== 'ObjectPattern' || callName(init) !== 'useTranslation') return []
   const bindsTranslation = declarator.id.properties.some((property) =>
     property.type === 'Property' &&
     getPropertyKeyName(property) === 't' &&
     property.value.type === 'Identifier' &&
-    property.value.name === callee.name,
+    property.value.name === calleeName,
   )
-  return bindsTranslation ? staticString(init.arguments[0]) ?? '' : null
+  return bindsTranslation ? [staticString(init.arguments[0]) ?? ''] : []
+}
+
+function translatorPrefixes(node, sourceCode, seen = new Set()) {
+  const value = unwrap(node)
+  if (value?.type !== 'Identifier' || seen.has(value)) return []
+  seen.add(value)
+  const variable = variableFor(value.name, sourceCode.getScope(value))
+  const definition = variable?.defs.at(-1)
+  if (!definition) return []
+  if (definition.type === 'Variable') {
+    const direct = variableTranslationPrefixes(definition, value.name)
+    return direct.length ? direct : translatorPrefixes(definition.node.init, sourceCode, seen)
+  }
+  if (definition.type !== 'Parameter') return []
+  const forwarded = componentPropValues(definition, sourceCode, seen)
+    .flatMap((candidate) => translatorPrefixes(candidate, sourceCode, new Set(seen)))
+  return forwarded.length ? [...new Set(forwarded)] : ['']
+}
+
+function translationPrefixes(call, sourceCode) {
+  const callee = unwrap(call)?.callee
+  return callee?.type === 'Identifier' ? translatorPrefixes(callee, sourceCode) : []
 }
 
 function translatedCandidates(call, sourceCode) {
-  const prefix = translationPrefix(call, sourceCode)
+  const prefixes = translationPrefixes(call, sourceCode)
   const key = staticString(unwrap(call).arguments[0])
-  if (prefix === null || key === null) return []
-  const fullKey = prefix ? `${prefix}.${key}` : key
-  return locales().flatMap(([locale, messages]) => {
-    const label = localeValue(messages, fullKey)
-    return label === null ? [] : [{ label, locale }]
+  if (prefixes.length === 0 || key === null) return []
+  return prefixes.flatMap((prefix) => {
+    const fullKey = prefix ? `${prefix}.${key}` : key
+    return locales().flatMap(([locale, messages]) => {
+      const label = localeValue(messages, fullKey)
+      return label === null ? [] : [{ label, locale }]
+    })
   })
 }
 

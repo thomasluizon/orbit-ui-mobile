@@ -1008,6 +1008,11 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
         maxWordsError('ListRow', 'Baixar a fatura de {date}', 'pt-BR', 5),
       ],
     },
+    {
+      code: "const t = useTranslations('stepUp'); const sharedView = { t }; function StepUpSuccess({ t }) { return <PillButton>{t('signOut')}</PillButton> } const view = <StepUpSuccess {...sharedView} />",
+      options: webMaxButtonWordsOptions,
+      errors: [maxWordsError('PillButton', 'Sair da conta', 'pt-BR', 3)],
+    },
   ],
 })
 
