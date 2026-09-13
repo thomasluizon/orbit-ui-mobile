@@ -54,19 +54,7 @@
       "route-root",
       "m-overlay-today-today-date-control"
     ],
-    "R6-screen-goals": [
-      "m-overlay-create-goal-modal-goal-deadline-field",
-      "m-overlay-edit-goal-modal-edit-goal-deadline-field",
-      "m-overlay-habits-create-goal-from-habit-sheet",
-      "m-overlay-goals-edit-goal-modal",
-      "m-overlay-goals-goal-detail-drawer",
-      "overlay-create-goal-modal-goal-deadline-field",
-      "overlay-edit-goal-modal-edit-goal-deadline-field",
-      "overlay-habits-create-goal-from-habit-sheet",
-      "overlay-goals-edit-goal-modal",
-      "overlay-goals-goal-card",
-      "overlay-goals-goal-detail-drawer"
-    ],
+    "R6-screen-goals": [],
     "R7-screen-habits-crud": [
       "m-overlay-habit-form-fields-habit-emoji-selector",
       "m-overlay-habit-form-fields-scheduled-reminder-section",
@@ -93,7 +81,11 @@
       "overlay-habits-goal-linking-field",
       "overlay-habits-habit-detail-fields",
       "overlay-habits-habit-detail-screen",
-      "route-habits-id"
+      "route-habits-id",
+      "m-overlay-create-goal-from-habit-goal-deadline-field",
+      "m-overlay-habits-create-goal-from-habit-sheet",
+      "overlay-create-goal-from-habit-goal-deadline-field",
+      "overlay-habits-create-goal-from-habit-sheet"
     ],
     "R8-screen-calendar": [
       "route-calendar-sync",
@@ -103,14 +95,8 @@
       "m-route-calendar-sync",
       "m-overlay-components-calendar-shell"
     ],
-    "R9-screen-streak": [
-      "route-streak",
-      "m-route-streak"
-    ],
-    "R10-screen-achievements": [
-      "route-achievements",
-      "m-route-achievements"
-    ],
+    "R9-screen-streak": [],
+    "R10-screen-achievements": [],
     "R11-screen-astra": [
       "route-ai-settings",
       "route-chat",
@@ -148,10 +134,14 @@
     "R12-screen-insights": [
       "route-progress",
       "m-route-tabs-progress",
-      "route-retrospective",
       "route-wrapped",
-      "m-route-retrospective",
-      "m-route-wrapped"
+      "m-route-wrapped",
+      "m-overlay-edit-goal-modal-edit-goal-deadline-field",
+      "m-overlay-goals-edit-goal-modal",
+      "m-overlay-goals-goal-detail-drawer",
+      "overlay-edit-goal-modal-edit-goal-deadline-field",
+      "overlay-goals-edit-goal-modal",
+      "overlay-goals-goal-detail-drawer"
     ],
     "R13-screen-social": [],
     "R14-screen-onboarding": [

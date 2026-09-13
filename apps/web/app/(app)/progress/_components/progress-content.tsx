@@ -107,7 +107,7 @@ function WindowFrame({ children, title }: Readonly<{ children: ReactNode; title:
 function LockedCard({ title, body, action }: Readonly<{ title: string; body: string; action: string }>) {
   const router = useRouter()
   return (
-    <div className="flex flex-col items-start gap-3 rounded-[20px] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]">
+    <div data-testid="progress-locked-card" className="flex flex-col items-start gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
       <div className="flex items-center gap-3">
         <Lock size={20} strokeWidth={2} aria-hidden="true" className="text-[var(--fg-2)]" />
         <ProBadge alwaysVisible />

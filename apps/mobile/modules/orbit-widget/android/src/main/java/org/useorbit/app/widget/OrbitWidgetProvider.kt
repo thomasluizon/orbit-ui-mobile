@@ -79,8 +79,16 @@ class OrbitWidgetProvider : AppWidgetProvider() {
 
         /** Signed in and idle: the refresh returns and its spinner goes. */
         fun showRefresh(views: RemoteViews) {
-            views.setViewVisibility(R.id.widget_refresh, View.VISIBLE)
-            views.setViewVisibility(R.id.widget_refresh_loading, View.GONE)
+            applyRefreshingState(views, false)
+        }
+
+        /** Refreshing swaps the control for its spinner and dims only the existing rows. */
+        private fun applyRefreshingState(views: RemoteViews, refreshing: Boolean) {
+            views.setViewVisibility(R.id.widget_refresh, if (refreshing) View.GONE else View.VISIBLE)
+            views.setViewVisibility(
+                R.id.widget_refresh_loading, if (refreshing) View.VISIBLE else View.GONE
+            )
+            views.setFloat(R.id.widget_list, "setAlpha", if (refreshing) 0.6f else 1f)
         }
 
         fun isSignedOut(context: Context): Boolean = OrbitWidgetModule.getToken(context) == null
@@ -303,8 +311,12 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 R.id.widget_refresh_loading,
                 OrbitWidgetFactory.tr(context, lang, WidgetString.REFRESHING)
             )
+            views.setContentDescription(
+                R.id.widget_loading,
+                OrbitWidgetFactory.tr(context, lang, WidgetString.LOADING)
+            )
 
-            views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streak }
+            views.setModeAwareColor(R.id.widget_streak, "setTextColor", colorModes) { it.streakText }
             if (signedOut) {
                 // The drawn signed-out card carries no control at all: its one action is the whole
                 // card, and a refresh that cannot sign anyone in is a control that does not work.
@@ -329,12 +341,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                     R.id.widget_empty_text,
                     OrbitWidgetFactory.tr(context, lang, WidgetString.ALL_CLEAR)
                 )
-                if (refreshing) {
-                    views.setViewVisibility(R.id.widget_refresh, View.GONE)
-                    views.setViewVisibility(R.id.widget_refresh_loading, View.VISIBLE)
-                } else {
-                    showRefresh(views)
-                }
+                applyRefreshingState(views, refreshing)
             }
 
             views.setViewVisibility(

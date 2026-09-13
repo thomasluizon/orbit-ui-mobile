@@ -19,8 +19,8 @@ export const widgetColorPalette = {
     fg4: '#5D5D60',
     /** WHY: --track-empty. */
     trackEmpty: '#7A7A7D',
-    /** WHY: --primary. */
-    primary: '#C4530F',
+    /** WHY: --primary-text. */
+    primaryText: '#E16D33',
     /** WHY: --status-overdue. */
     overdue: '#FE9A00',
   },
@@ -43,8 +43,8 @@ export const widgetColorPalette = {
     fg4: '#89898D',
     /** WHY: --track-empty. */
     trackEmpty: '#7F7F83',
-    /** WHY: --primary. */
-    primary: '#C4530F',
+    /** WHY: --primary-text. */
+    primaryText: '#B64900',
     /** WHY: --status-overdue. */
     overdue: '#886100',
   },

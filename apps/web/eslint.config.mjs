@@ -193,9 +193,8 @@ export default [
       "jsx-a11y/alt-text": "error",
       "react-hooks/exhaustive-deps": "error",
 
-      // Staged at `warn`: one violation — a `draggable` <section> carrying drag handlers
-      // (components/goals/goal-list.tsx). Making drag-and-drop keyboard-operable is a real
-      // a11y feature, not a lint fix; flips to `error` once that lands.
+      // Staged at `warn` until remaining drag interactions are keyboard-operable.
+      // This becomes `error` once that accessibility work lands.
       // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
       "jsx-a11y/no-noninteractive-element-interactions": "warn",
     },

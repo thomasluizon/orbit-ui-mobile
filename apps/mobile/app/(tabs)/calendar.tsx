@@ -29,7 +29,6 @@ import {
   endOfWeek,
   eachDayOfInterval,
   isSameMonth,
-  isToday,
   format,
 } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
@@ -42,6 +41,9 @@ import {
   parseAPIDate,
   MAX_RANGE_DAYS,
   buildCalendarMonthModel,
+  CALENDAR_MONTH_GRID_GEOMETRY,
+  resolveCalendarMonthDisplayState,
+  type CalendarMonthDisplayState,
 } from "@orbit/shared/utils";
 import {
   getCalendarEntryMutationKey,
@@ -57,9 +59,7 @@ import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Sheet, useSheetHost } from '@/components/ui/sheet';
-import { EmptyState } from "@/components/ui/empty-state";
 import { PillButton } from "@/components/ui/pill-button";
-import { SectionLabel } from "@/components/ui/section-label";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -74,9 +74,51 @@ import { CalendarWeekView } from "./calendar/_components/calendar-week-view";
 import { CalendarRangeView } from "./calendar/_components/calendar-range-view";
 import type { TimeGridColumn } from "./calendar/_components/calendar-time-grid";
 import { useCurrentDate } from "./use-today-date";
+import { useUIStore } from "@/stores/ui-store";
 
 type MonthSlide = "left" | "right" | null;
 type CalendarView = "month" | "week" | "range";
+
+function calendarStatState(
+  state: CalendarMonthDisplayState,
+): 'default' | 'loading' | 'empty' {
+  if (state === 'loading') return 'loading';
+  if (state === 'ready') return 'default';
+  return 'empty';
+}
+
+interface CalendarMonthFeedbackProps {
+  state: CalendarMonthDisplayState;
+  emptyText: string;
+  futureText: string;
+  createLabel: string;
+  onCreate: () => void;
+  tokens: ReturnType<typeof createTokensV2>;
+}
+
+function CalendarMonthFeedback({
+  state,
+  emptyText,
+  futureText,
+  createLabel,
+  onCreate,
+  tokens,
+}: Readonly<CalendarMonthFeedbackProps>) {
+  const styles = useMemo(() => createStyles(), []);
+  if (state !== 'empty' && state !== 'future') return null;
+  return (
+    <View style={styles.emptyMonth} testID="calendar-month-empty">
+      <Text style={[styles.emptyMonthText, { color: tokens.fg2 }]}>
+        {state === 'future' ? futureText : emptyText}
+      </Text>
+      {state === 'empty' ? (
+        <PillButton variant="primary" size="sm" onClick={onCreate}>
+          {createLabel}
+        </PillButton>
+      ) : null}
+    </View>
+  );
+}
 
 const EMPTY_LIST: readonly CalendarDayEntry[] = [];
 
@@ -92,7 +134,6 @@ export default function CalendarScreen() {
   const { profile, error: profileError, refetch: refetchProfile } = useProfile();
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
   const monthQuery = useCalendarData(currentMonth);
-
   if (!profile) {
     return (
       <CalendarProfileState
@@ -112,7 +153,10 @@ export default function CalendarScreen() {
   );
 }
 
-function CalendarProfileState({ failed, onRetry }: Readonly<{ failed: boolean; onRetry: () => void }>) {
+function CalendarProfileState({
+  failed,
+  onRetry,
+}: Readonly<{ failed: boolean; onRetry: () => void }>) {
   const { t } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
@@ -130,7 +174,26 @@ function CalendarProfileState({ failed, onRetry }: Readonly<{ failed: boolean; o
             <PillButton variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
           </View>
         ) : (
-          <Skeleton variant="grid" rows={6} cols={7} cell={44} gap={0} label={t('common.loading')} />
+          <View style={styles.profileLoading}>
+            <Skeleton
+              variant="grid"
+              rows={CALENDAR_MONTH_GRID_GEOMETRY.maximumRows}
+              cols={CALENDAR_MONTH_GRID_GEOMETRY.columns}
+              cell={CALENDAR_MONTH_GRID_GEOMETRY.cell}
+              gap={CALENDAR_MONTH_GRID_GEOMETRY.gap}
+              label={t('calendar.loading')}
+            />
+            <Skeleton variant="settings" rows={5} label={t('calendar.loading')} />
+            <CalendarStats
+              stats={[
+                { key: 'bestStreak', value: 0, label: t('calendar.bestStreak') },
+                { key: 'totalLogs', value: 0, label: t('calendar.totalLogs') },
+                { key: 'missed', value: 0, label: t('calendar.missedCount') },
+              ]}
+              state="loading"
+              loadingLabel={t('calendar.loading')}
+            />
+          </View>
         )}
       </View>
     </SafeAreaView>
@@ -138,7 +201,7 @@ function CalendarProfileState({ failed, onRetry }: Readonly<{ failed: boolean; o
 }
 
 interface CalendarScreenContentProps {
-  profile: Pick<Profile, 'weekStartDay'>;
+  profile: Pick<Profile, 'weekStartDay' | 'timeZone'>;
   currentMonth: Date;
   setCurrentMonth: Dispatch<SetStateAction<Date>>;
   monthQuery: ReturnType<typeof useCalendarData>;
@@ -154,7 +217,8 @@ function CalendarScreenContent({
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { displayTime } = useTimeFormat();
-  const todayKey = useCurrentDate();
+  const todayKey = useCurrentDate(profile.timeZone);
+  const setShowCreateModal = useUIStore((state) => state.setShowCreateModal);
   const logHabit = useLogHabit();
   const { inFlightEntryKeys, startEntryMutation } = useCalendarEntryMutationLock();
   const { currentScheme, currentTheme } = useAppTheme();
@@ -244,12 +308,16 @@ function CalendarScreenContent({
       view === "week"
         ? eachDayOfInterval({ start: weekStart, end: weekEnd })
         : eachDayOfInterval({ start: rangeBounds.lo, end: rangeBounds.hi });
-    return days.map((date) => ({
-      date,
-      dateStr: formatAPIDate(date),
-      isToday: isToday(date),
-    }));
-  }, [view, weekStart, weekEnd, rangeBounds]);
+    return days.map((date) => {
+      const dateStr = formatAPIDate(date);
+      return {
+        date,
+        dateStr,
+        isToday: dateStr === todayKey,
+        isFuture: dateStr > todayKey,
+      };
+    });
+  }, [view, weekStart, weekEnd, rangeBounds, todayKey]);
 
   const displayRangeDayMap = useMemo(() => {
     if (showRecurring) return rangeDayMap;
@@ -368,9 +436,15 @@ function CalendarScreenContent({
   }, [t, weekStartsOn]);
 
   const { gridDays, monthStats } = useMemo(
-    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn),
-    [currentMonth, dayMap, weekStartsOn],
+    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn, todayKey),
+    [currentMonth, dayMap, weekStartsOn, todayKey],
   );
+  const monthDisplayState = resolveCalendarMonthDisplayState({
+    currentMonth,
+    today: todayKey,
+    hasEntries: monthStats.hasEntries,
+    isLoading,
+  });
 
   const {
     dayMap: activeDayMap,
@@ -436,27 +510,29 @@ function CalendarScreenContent({
     () => [
       {
         key: "bestStreak",
-        emoji: "🔥",
         value: monthStats.bestStreak,
         label: t("calendar.bestStreak"),
       },
       {
         key: "totalLogs",
-        emoji: "✅",
         value: monthStats.totalLogs,
         label: t("calendar.totalLogs"),
       },
       {
         key: "missed",
-        emoji: "⚠️",
         value: monthStats.missed,
         label: t("calendar.missedCount"),
       },
-    ],
+    ] as const,
     [monthStats, t],
   );
 
   const monthEntering = resolveMonthEntering(monthSlide);
+
+  const openHabitCreation = useCallback(() => {
+    setShowCreateModal(true);
+    router.push('/');
+  }, [router, setShowCreateModal]);
 
   const listHeader = (
     <>
@@ -477,26 +553,36 @@ function CalendarScreenContent({
         todayKey={todayKey}
       />
 
-      <CalendarLegend
-        loggableLabel={t("calendar.legend.loggable")}
-        fullLabel={t("calendar.dayCell.full")}
-        partialLabel={t("calendar.dayCell.partial")}
-        noneLabel={t("calendar.dayCell.none")}
+      {monthDisplayState === 'ready' ? (
+        <CalendarLegend
+          loggableLabel={t("calendar.legend.loggable")}
+          fullLabel={t("calendar.dayCell.full")}
+          partialLabel={t("calendar.dayCell.partial")}
+          noneLabel={t("calendar.dayCell.none")}
+          tokens={tokens}
+        />
+      ) : null}
+
+      <CalendarMonthFeedback
+        state={monthDisplayState}
+        emptyText={t('calendar.emptyMonth')}
+        futureText={t('calendar.futureMonth')}
+        createLabel={t('habits.createHabit')}
+        onCreate={openHabitCreation}
         tokens={tokens}
       />
+
     </>
   );
 
   const listFooter = (
     <View style={styles.listFooter}>
-      {!isLoading && !monthStats.hasEntries ? (
-        <EmptyState title={t("calendar.emptyMonth")} />
-      ) : (
-        <>
-          <SectionLabel>{t("calendar.thisMonth")}</SectionLabel>
-          <CalendarStats stats={monthStatTiles} />
-        </>
-      )}
+      <CalendarStats
+        stats={monthStatTiles}
+        state={calendarStatState(monthDisplayState)}
+        loadingLabel={t('calendar.loading')}
+        emptyLabel={t('calendar.emptyStat')}
+      />
 
       <View style={{ height: 24 }} />
     </View>
@@ -590,8 +676,9 @@ function CalendarScreenContent({
               onSelectDay={onSelectDay}
               displayTime={displayTime}
               language={i18n.language}
-              allDayLabel={t("calendar.timeGrid.allDay")}
+              allDayLabel={t("calendar.timeGrid.noSetTime")}
               nowLabel={t("calendar.timeGrid.now")}
+              timeZone={profile.timeZone}
               showRecurring={showRecurring}
               onShowRecurringChange={setShowRecurring}
               showRecurringLabel={t("calendar.showRecurring")}
@@ -620,6 +707,7 @@ function CalendarScreenContent({
               language={i18n.language}
               allDayLabel={t("calendar.timeGrid.allDay")}
               nowLabel={t("calendar.timeGrid.now")}
+              timeZone={profile.timeZone}
               showRecurring={showRecurring}
               onShowRecurringChange={setShowRecurring}
               showRecurringLabel={t("calendar.showRecurring")}
@@ -686,6 +774,20 @@ function createStyles() {
     profileStateWrap: {
       paddingHorizontal: 4,
       paddingVertical: 12,
+    },
+    profileLoading: {
+      gap: 24,
+    },
+    emptyMonth: {
+      alignItems: 'flex-start',
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+    },
+    emptyMonthText: {
+      fontFamily: 'Geist_400Regular',
+      fontSize: 16,
+      lineHeight: 24,
     },
     errorCard: {
       alignItems: "center",

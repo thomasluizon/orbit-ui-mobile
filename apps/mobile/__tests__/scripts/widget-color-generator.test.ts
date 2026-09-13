@@ -26,7 +26,7 @@ describe('widget color generator', () => {
   it.each(['light', 'dark'] as const)('generates parseable %s XML', mode => {
     const xml = generatedXml(mode)
 
-    expect(xml.match(/<!-- WHY:/g)).toHaveLength(12)
+    expect(xml.match(/<!-- WHY:/g)).toHaveLength(11)
     expect(xml).not.toContain('<!-- WHY: --')
     expect(() => new SaxesParser().write(xml).close()).not.toThrow()
   })
@@ -84,4 +84,23 @@ describe('widget color generator', () => {
       [generatedColor(xml, surface)],
     )).toBeGreaterThanOrEqual(3)
   })
+
+  it.each([
+    ['dark', '#E16D33', 'widget_card'],
+    ['dark', '#E16D33', 'widget_well'],
+    ['light', '#B64900', 'widget_card'],
+    ['light', '#B64900', 'widget_well'],
+  ] as const)(
+    'keeps the %s streak text token AA on %s',
+    (mode, expectedText, surface) => {
+      const xml = generatedXml(mode)
+      const streakText = generatedColor(xml, 'widget_streak_text')
+
+      expect(contrastOnSurface(
+        streakText,
+        [generatedColor(xml, surface)],
+      )).toBeGreaterThanOrEqual(4.5)
+      expect(streakText).toBe(expectedText)
+    },
+  )
 })

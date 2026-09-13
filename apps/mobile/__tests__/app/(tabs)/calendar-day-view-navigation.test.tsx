@@ -235,18 +235,21 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     expect(selectedDates[0]?.props.accessibilityLabel).toContain('20')
   })
 
-  it('shows only neutral same-size day placeholders while the month is loading', () => {
+  it('shows one stable grid skeleton while the month is loading', () => {
     calendarIsLoading = true
     let tree!: TestTree
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />)
     })
 
-    const skeletons = tree.root.findAll((node) => node.props.testID === 'calendar-day-skeleton')
-    expect(skeletons.length).toBeGreaterThanOrEqual(35)
-    expect(skeletons[0]?.props.style).toEqual(
-      expect.arrayContaining([expect.objectContaining({ width: 44, height: 44 })]),
+    const shapes = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-grid-shape',
     )
+    expect(shapes).toHaveLength(1)
+    expect(shapes[0]?.props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ width: 332, height: 284, gap: 4 })]),
+    )
+    expect(tree.root.findAll((node) => node.props.testID === 'month-grid-header')).toHaveLength(0)
     expect(tree.root.findAll((node) => String(node.props.testID).startsWith('day-cell-'))).toHaveLength(0)
   })
 })

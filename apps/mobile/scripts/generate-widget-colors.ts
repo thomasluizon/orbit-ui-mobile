@@ -19,7 +19,7 @@ type PaletteKey =
   | 'fg3'
   | 'fg4'
   | 'trackEmpty'
-  | 'primary'
+  | 'primaryText'
   | 'overdue'
 type PaletteEntry = readonly [value: string, token: string]
 type Palette = Record<PaletteKey, PaletteEntry>
@@ -34,8 +34,7 @@ const COLOR_ROLES = [
   ['border', 'hairline'],
   ['borderMuted', 'hairline'],
   ['overdue', 'overdue'],
-  ['streak', 'primary'],
-  ['streakText', 'fg1'],
+  ['streakText', 'primaryText'],
   ['statusEmpty', 'trackEmpty'],
 ] as const satisfies readonly (readonly [string, PaletteKey])[]
 
@@ -51,7 +50,7 @@ const PALETTES = {
     fg3: ['#8F8F93', '--fg-3'],
     fg4: ['#5D5D60', '--fg-4'],
     trackEmpty: ['#7A7A7D', '--track-empty'],
-    primary: ['#C4530F', '--primary'],
+    primaryText: ['#E16D33', '--primary-text'],
     overdue: ['#FE9A00', '--status-overdue'],
   },
   light: {
@@ -64,7 +63,7 @@ const PALETTES = {
     fg3: ['#68686D', '--fg-3'],
     fg4: ['#89898D', '--fg-4'],
     trackEmpty: ['#7F7F83', '--track-empty'],
-    primary: ['#C4530F', '--primary'],
+    primaryText: ['#B64900', '--primary-text'],
     overdue: ['#886100', '--status-overdue'],
   },
 } as const satisfies Record<'dark' | 'light', Palette>
@@ -105,8 +104,7 @@ const RESOURCE_ROLES = [
   ['widget_fg_3', 'fg3'],
   ['widget_fg_4', 'fg4'],
   ['widget_track_empty', 'trackEmpty'],
-  ['widget_primary', 'primary'],
-  ['widget_streak_text', 'fg1'],
+  ['widget_streak_text', 'primaryText'],
   ['widget_overdue', 'overdue'],
 ] as const satisfies readonly (readonly [string, PaletteKey])[]
 

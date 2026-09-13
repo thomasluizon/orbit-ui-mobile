@@ -24,10 +24,10 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import type { GoalType } from '@orbit/shared/types/goal'
 import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
-import { GoalDeadlineField } from '@/components/goals/create-goal-modal/goal-deadline-field'
-import { GoalTargetFields } from '@/components/goals/create-goal-modal/goal-target-fields'
-import { GoalTypeSelector } from '@/components/goals/create-goal-modal/goal-type-selector'
-import { createStyles } from '@/components/goals/create-goal-modal/styles'
+import { GoalDeadlineField } from './create-goal-from-habit/goal-deadline-field'
+import { GoalTargetFields } from './create-goal-from-habit/goal-target-fields'
+import { GoalTypeSelector } from './create-goal-from-habit/goal-type-selector'
+import { createStyles } from './create-goal-from-habit/styles'
 
 interface CreateGoalFromHabitSheetProps {
   open: boolean

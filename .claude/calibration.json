@@ -1,5 +1,5 @@
 {
-  "calibratedAt": "2026-09-09",
+  "calibratedAt": "2026-09-11",
   "workerEngine": "codex",
   "workerCommand": "codex",
   "workerModel": "gpt-5.6-sol",
@@ -172,8 +172,8 @@
     ".claude/skills/sleep/SKILL.md": {
       "model": null,
       "effort": null,
-      "digest": "37b5e1a9a9ca119e",
-      "calibratedAt": "2026-09-09",
+      "digest": "3acd8155b2528682",
+      "calibratedAt": "2026-09-11",
       "verdict": "undeclared, inherits the session: it takes every decision alone overnight, which is the strongest argument for an explicit high in the follow-up, and the weakest place to guess it in this pass."
     },
     ".claude/skills/ticket/SKILL.md": {

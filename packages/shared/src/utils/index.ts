@@ -1,6 +1,14 @@
 export { achievementEmoji } from './achievement-emoji'
 export { createClientId } from './client-id'
-export { parseAPIDate, formatAPIDate, resolveHabitDetailRouteDate } from './dates'
+export {
+  parseAPIDate,
+  formatAPIDate,
+  formatAPIDateInTimeZone,
+  getAccountDateTime,
+  nowDate,
+  resolveHabitDetailRouteDate,
+  type AccountDateTime,
+} from './dates'
 export {
   buildHabitHistoryMonth,
   appendHabitDetailChild,
@@ -32,6 +40,12 @@ export {
   type HabitStripModel,
 } from './habit-detail-flow'
 export { buildCalendarMonthModel } from './calendar-month'
+export {
+  CALENDAR_MONTH_GRID_GEOMETRY,
+  CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
+  resolveCalendarMonthDisplayState,
+  type CalendarMonthDisplayState,
+} from './calendar-month-state'
 export {
   buildDayCellAccessibleName,
   getDayStripStateWord,
@@ -391,7 +405,6 @@ export {
 } from './goal-mutations'
 export {
   formatGoalMetricsDate,
-  getGoalHabitAdherenceTone,
   getGoalMetricsStatusPresentation,
 } from './goal-metrics'
 export { normalizeGoalQueryData } from './goal-query'
@@ -421,7 +434,6 @@ export type { AgentOperationOutcome } from './agent-operation-outcomes'
 export {
   calculateXpProgress,
   deriveGamificationProfileState,
-  deriveNextRewardCarrot,
   detectCrossedStreakMilestones,
   detectGamificationMilestones,
   deriveStreakFreezeState,
@@ -435,7 +447,6 @@ export {
 export type {
   GamificationMilestoneState,
   GamificationProfileDerivedState,
-  NextRewardCarrotState,
   StreakFreezeDerivedState,
   StreakFreezeFallback,
 } from './gamification-selectors'
@@ -524,9 +535,6 @@ export type {
 export {
   buildRetrospectiveRequestUrl,
   getBestRetrospectiveWeekdayKey,
-  getRetrospectiveCacheKey,
-  RETROSPECTIVE_CACHE_PREFIX,
-  RETROSPECTIVE_PERIODS,
 } from './retrospective'
 export type {
   RetrospectivePeriod,

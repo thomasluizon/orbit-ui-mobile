@@ -453,6 +453,9 @@ describe('mobile ProgressContent', () => {
       'progressScreen.window.lockedBody',
     ]))
     expect(text).not.toContain('progressScreen.achievements.lockedBody')
+    const lockedCards = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'progress-locked-card')
+    expect(lockedCards).toHaveLength(2)
+    expect(lockedCards.map((card) => StyleSheet.flatten(card.props.style as ViewStyle).padding)).toEqual([16, 16])
     expect(tree.root.findAll((node) => node.type === 'ProBadge')).toHaveLength(2)
     const labels = tree.root.findAll((node) => node.type === 'StatTile').map((node) => node.props.label)
     expect(labels).toContain('progressScreen.streak.longest')

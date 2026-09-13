@@ -1,0 +1,29 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`bad status source roles > derives direct fill-token references and rejects unreviewed text-role syntax 1`] = `
+[
+  "apps/mobile/components/goals/goal-detail-drawer.tsx:1",
+  "apps/mobile/components/habits/habit-row-trailing.tsx:2",
+  "apps/mobile/components/ui/block-frame.tsx:1",
+  "apps/mobile/components/ui/input.tsx:1",
+  "apps/mobile/components/ui/list-row.tsx:1",
+  "apps/mobile/components/ui/settings-row.tsx:1",
+  "apps/mobile/components/ui/status-dot.tsx:1",
+  "apps/mobile/components/ui/status-ring.tsx:1",
+  "apps/web/app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx:1",
+  "apps/web/app/globals.css:3",
+  "apps/web/components/calendar/calendar-agenda-view.tsx:1",
+  "apps/web/components/habits/create-habit-modal/sub-habit-editor.tsx:1",
+  "apps/web/components/habits/habit-checklist.tsx:2",
+  "apps/web/components/habits/habit-form-fields/habit-emoji-selector.tsx:1",
+  "apps/web/components/habits/habit-form-fields/tag-picker-field.tsx:1",
+  "apps/web/components/habits/habit-row-trailing.tsx:2",
+  "apps/web/components/habits/selection-tray.tsx:1",
+  "apps/web/components/navigation/notification-row.tsx:1",
+  "apps/web/components/ui/block-frame.tsx:1",
+  "apps/web/components/ui/list-row.tsx:2",
+  "apps/web/components/ui/settings-row.tsx:1",
+  "apps/web/components/ui/status-dot.tsx:1",
+  "apps/web/components/ui/status-ring.tsx:1",
+]
+`;

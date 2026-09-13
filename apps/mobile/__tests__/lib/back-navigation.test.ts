@@ -63,19 +63,20 @@ describe('mobile back navigation helpers', () => {
   it('reuses the upgrade origin route when available', () => {
     expect(
       getAndroidBackFallbackRoute('/upgrade', {
-        upgradeFrom: '/achievements',
+        upgradeFrom: '/progress',
       }),
-    ).toBe('/achievements')
+    ).toBe('/progress')
     expect(
       getAndroidBackFallbackRoute('/upgrade', {
-        upgradeFrom: ['/retrospective'],
+        upgradeFrom: ['/progress'],
       }),
-    ).toBe('/retrospective')
+    ).toBe('/progress')
     expect(getAndroidBackFallbackRoute('/upgrade')).toBe('/profile')
   })
 
   it('leaves unknown routes to the native back behavior', () => {
     expect(getAndroidBackFallbackRoute('/login')).toBeNull()
+    expect(getAndroidBackFallbackRoute('/streak')).toBeNull()
     expect(getAndroidBackFallbackRoute('/unknown')).toBeNull()
   })
 })

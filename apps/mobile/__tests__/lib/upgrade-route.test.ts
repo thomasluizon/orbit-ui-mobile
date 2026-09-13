@@ -10,12 +10,12 @@ describe("upgrade route helpers", () => {
   });
 
   it("prefers the preserved source route when present", () => {
-    expect(getUpgradeFallbackRoute("/retrospective", "/profile")).toBe(
-      "/retrospective",
+    expect(getUpgradeFallbackRoute("/progress", "/profile")).toBe(
+      "/progress",
     );
     expect(
-      getUpgradeFallbackRoute(["/achievements", "/profile"], "/profile"),
-    ).toBe("/achievements");
+      getUpgradeFallbackRoute(["/progress", "/profile"], "/profile"),
+    ).toBe("/progress");
   });
 
   it("falls back to the default route on direct upgrade entry", () => {

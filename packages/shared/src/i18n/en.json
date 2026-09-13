@@ -910,11 +910,13 @@
       "selected": "Selected",
       "readOnly": "Read only"
     },
-    "thisMonth": "This month",
     "bestStreak": "Best streak",
-    "totalLogs": "Total logs",
+    "totalLogs": "Logs",
     "missedCount": "Missed",
-    "emptyMonth": "Nothing logged this month yet. Your days will fill in here.",
+    "emptyMonth": "No habit was scheduled in this month.",
+    "futureMonth": "This month has not arrived yet.",
+    "emptyStat": "no data",
+    "loading": "Loading",
     "loadError": "Could not load the calendar. Please try again.",
     "dayDetail": {
       "completionSummary": "{done} of {total} logged",
@@ -933,6 +935,7 @@
     },
     "timeGrid": {
       "allDay": "All-day",
+      "noSetTime": "No set time",
       "now": "Now",
       "pickRangeHint": "Pick a start and end day above to set your range.",
       "pickEndHint": "Now pick the end day",
@@ -1012,46 +1015,6 @@
       "enableSuccess": "Auto-sync enabled",
       "disableSuccess": "Auto-sync disabled",
       "syncFailed": "Sync failed. Please try again."
-    }
-  },
-  "insights": {
-    "title": "Insights",
-    "subtitle": "Trends and patterns across your habits",
-    "rangeWeek": "Week",
-    "rangeMonth": "Month",
-    "rangeQuarter": "Quarter",
-    "rangeYear": "Year",
-    "empty": "Not enough data yet. Keep logging habits to see your insights.",
-    "loading": "Loading insights...",
-    "error": "Couldn't load your insights.",
-    "lockedTitle": "Insights with Pro",
-    "lockedDescription": "Upgrade to Pro to see trends and patterns across your habits.",
-    "trendUp": "Up",
-    "trendDown": "Down",
-    "sections": {
-      "completionTrends": "Completion trends",
-      "multiHabitComparison": "Habit comparison",
-      "goalProgress": "Goal progress",
-      "monthlyHeatmap": "Monthly heatmap",
-      "streakHistory": "Streak history",
-      "achievementsTimeline": "Achievements timeline",
-      "xpOverTime": "XP over time",
-      "completionTrendsDesc": "How your completion rate moves over time",
-      "goalProgressDesc": "Progress toward each active goal",
-      "xpOverTimeDesc": "XP you've earned across the period",
-      "streakHistoryDesc": "Your streak length day by day",
-      "monthlyHeatmapDesc": "Habits you completed each day",
-      "achievementsTimelineDesc": "Badges you've earned, newest first",
-      "multiHabitComparisonDesc": "Your habits ranked by current streak",
-      "heatmapCell": "{date}: {count} completed",
-      "heatmapLess": "Less",
-      "heatmapMore": "More",
-      "achievementsOf": "of {total}",
-      "selectGoal": "Select a goal",
-      "noGoals": "No goals to show yet",
-      "goalProgressEmpty": "No progress recorded for this goal yet.",
-      "averageCaption": "avg",
-      "streakDaysShort": "{count}d"
     }
   },
   "explore": {
@@ -1387,8 +1350,6 @@
       "emailInvalid": "Please enter a valid email address."
     },
     "logout": "Log Out",
-    "retrospectiveTitle": "Retrospective",
-    "retrospectiveHint": "AI insights on your habits over time",
     "wrappedTitle": "Your Wrapped",
     "wrappedHint": "A shareable recap of your week, month, or year",
     "widgetTitle": "Home Screen Widget",
@@ -1517,6 +1478,7 @@
     "empty": "Log a few habits first to build a card worth sharing.",
     "error": "Couldn't load your recap. Please try again.",
     "shareError": "Couldn't share your card. Please try again.",
+    "weeklyBarLabel": "Completion on {day}: {percent}%",
     "periods": {
       "week": "Week",
       "month": "Month",
@@ -1723,45 +1685,6 @@
     "upgrade": "Upgrade",
     "freePrompt": "Pro gets a daily summary of your habits."
   },
-  "retrospective": {
-    "title": "Retrospective",
-    "locked": "Retrospectives are a Pro feature",
-    "lockedHint": "Upgrade to Pro for AI retrospectives that analyze your habit data over time.",
-    "changePlan": "Change Plan",
-    "generate": "Generate Retrospective",
-    "generating": "Analyzing your habits...",
-    "error": "Couldn't generate your retrospective.",
-    "empty": "Choose a time period and generate a retrospective to see Astra's insights on your habits.",
-    "noData": "No habit activity for this period yet. Complete a few habits and check back.",
-    "cached": "Loaded from cache",
-    "astraEyebrow": "Astra",
-    "regenerate": "Regenerate",
-    "metrics": {
-      "completionRate": "Completion",
-      "logs": "Logs",
-      "currentStreak": "Streak",
-      "activeDays": "Active days"
-    },
-    "weeklyTitle": "Weekly consistency",
-    "weeklyBarLabel": "Completion on {day}: {percent}%",
-    "topHabitsTitle": "Top habits",
-    "needsAttentionTitle": "Needs attention",
-    "completed": "Completed",
-    "notCompleted": "Not completed",
-    "sections": {
-      "highlights": "Highlights",
-      "missed": "Missed opportunities",
-      "trends": "Trends",
-      "suggestion": "Suggestion"
-    },
-    "periods": {
-      "week": "Week",
-      "month": "Month",
-      "quarter": "Quarter",
-      "semester": "Semester",
-      "year": "Year"
-    }
-  },
   "onboarding": {
     "flow": {
       "templatePacks": {
@@ -1962,7 +1885,7 @@
       "connect": "Connect",
       "rewards": "Rewards",
       "settings": "Settings",
-      "goals": "Goals",
+      "progress": "Progress",
       "notifications": "Notifications",
       "habitsSection": {
         "creatingTitle": "Creating Habits",
@@ -2010,15 +1933,13 @@
         "skipTitle": "Skip vs Log",
         "skipDesc": "Skip marks a habit as intentionally skipped for the day without breaking your streak. Use it when you consciously chose not to do a habit (rest day, travel, etc.) rather than simply forgetting."
       },
-      "goalsSection": {
-        "creatingTitle": "Creating Goals",
-        "creatingDesc": "Create goals with a title, target value, unit, and optional deadline. Goals give your habits a bigger purpose and help you measure long-term progress.",
+      "progressSection": {
+        "goalsTitle": "Goals in Progress",
+        "goalsDesc": "Create a goal from a habit or ask Astra, then find it in Progress with your streak, figures, and achievements.",
         "trackingTitle": "Tracking Progress",
-        "trackingDesc": "Update your current value, add notes, and see your full progress history. Each update moves you closer to your target.",
+        "trackingDesc": "Open a goal to see notes and progress history. Update standard goals manually; streak goals follow linked habit logs.",
         "linkingTitle": "Linking Habits",
         "linkingDesc": "Connect habits to goals for adherence tracking. See how consistently you follow through on the habits that matter most for each goal.",
-        "dashboardTitle": "Goal Metrics Dashboard",
-        "dashboardDesc": "View velocity, projected completion date, and tracking status (on track, at risk, or behind) for each goal. Data-driven insight into your progress.",
         "aiReviewTitle": "AI Goal Review",
         "aiReviewDesc": "Get AI-generated reviews of your goal progress with analysis of what's working, what needs attention, and suggestions for staying on track.",
         "statusTitle": "Goal Lifecycle",
@@ -2027,8 +1948,8 @@
       "astraSection": {
         "canDoTitle": "Create & Log",
         "canDoDesc": "Tell Astra what habits you want and it creates them. Say 'I ran today' to log completions. It can create one-time tasks too, like 'buy eggs tomorrow'.",
-        "toolsBreadthTitle": "61 Built-In Tools",
-        "toolsBreadthDesc": "Astra isn't only chat -- it can act. It has 61 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 5 AI messages a day; Pro raises it to 50.",
+        "toolsBreadthTitle": "63 Built-In Tools",
+        "toolsBreadthDesc": "Astra isn't only chat -- it can act. It has 63 tools spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, and your account, so almost anything you can do by tapping, you can do by asking. The free plan includes 5 AI messages a day; Pro raises it to 50.",
         "manageTitle": "Update & Delete",
         "manageDesc": "Ask Astra to modify habits: 'move my gym to tomorrow', 'rename running to jogging', 'change meditation to weekly', or 'delete my reading habit'. It can handle bulk operations too.",
         "insightsTitle": "Progress & Analysis",
@@ -2048,15 +1969,13 @@
         "mcpTitle": "Connect Your AI Assistant",
         "mcpDesc": "Orbit speaks MCP (Model Context Protocol), so you can connect Claude, ChatGPT, or any MCP-capable assistant straight to your Orbit account. Manage your habits and goals from wherever you already chat with AI -- no need to open the app.",
         "assistantCanDoTitle": "What Your Assistant Can Do",
-        "assistantCanDoDesc": "Once connected, your assistant can create and log habits, manage goals, tags, and checklists, read your progress, adjust notifications, and more -- 79 tools across 15 areas of the app. Every action is scoped to your account and follows the same permissions as the app.",
+        "assistantCanDoDesc": "Once connected, your assistant can create and log habits, manage goals, tags, and checklists, read your progress, adjust notifications, and more -- 81 tools across 15 areas of the app. Every action is scoped to your account and follows the same permissions as the app.",
         "apiKeysTitle": "API Keys (Pro)",
         "apiKeysDesc": "MCP access comes with Orbit Pro. Create and manage scoped API keys in AI Settings, then paste one into your assistant to link it. Keys can be read-only or full-access, and you can revoke them anytime.",
         "setupTitle": "Setting It Up",
         "setupDesc": "Open AI Settings, create an API key, and add Orbit's MCP endpoint to your assistant. The connection uses a secure OAuth or API-key handshake -- full setup steps live in AI Settings."
       },
       "calendarSection": {
-        "colorsTitle": "Color Coding",
-        "colorsDesc": "Green means all habits completed for that day. Orange means you missed some habits. Purple means habits are upcoming (today or future). Each day with habits shows a small dot indicator.",
         "dayDetailsTitle": "Day Details",
         "dayDetailsDesc": "Tap any day on the calendar to see which habits were scheduled and their completion status.",
         "navigationTitle": "Navigation",
@@ -2070,7 +1989,7 @@
         "xpLevelsTitle": "XP & Levels",
         "xpLevelsDesc": "Earn XP every time you complete habits and goals, and level up as you go. Free for everyone -- no Pro needed.",
         "achievementsTitle": "Achievements & Badges",
-        "achievementsDesc": "Earn achievement badges for streaks, consistency, and milestones. Track everything you've earned on the Achievements page from your Profile.",
+        "achievementsDesc": "Earn achievement badges for streaks, consistency, and milestones. Track everything you've earned on the Progress page.",
         "streaksTitle": "Streaks",
         "streaksDesc": "Every habit tracks a current and best streak. Keep the chain going day after day to watch your streaks climb.",
         "streakFreezeTitle": "Streak Freeze",
@@ -2079,10 +1998,6 @@
         "wrappedDesc": "A shareable recap of your habits -- your best streaks, biggest wins, and standout stats, wrapped up to look back on and share.",
         "widgetTitle": "Home Screen Widget",
         "widgetDesc": "Android only. Add the Orbit widget to your home screen to see today's habits at a glance -- completion status, due times, and checklist progress. When nothing is scheduled for today, it shows tomorrow's habits instead.",
-        "insightsTitle": "Insights & Analytics",
-        "insightsDesc": "Web only, Pro. A deep analytics dashboard with completion trends, goal velocity, and progress charts across custom time ranges.",
-        "retrospectiveTitle": "AI Retrospective",
-        "retrospectiveDesc": "Orbit Pro. Generate AI-powered retrospectives that analyze your habits over any period (week, month, quarter, year) -- highlights, missed opportunities, trends, and actionable suggestions. Accessible from your Profile.",
         "milestoneShareTitle": "Milestone Sharing",
         "milestoneShareDesc": "When you hit a big streak or achievement, share a milestone card with friends inside Orbit or anywhere else.",
         "referralsTitle": "Invite Links & Referrals",
@@ -2346,7 +2261,6 @@
     "failedToStop": "Failed to stop recording."
   },
   "goals": {
-    "tab": "Goals",
     "empty": "No goals yet",
     "create": "New Goal",
     "dragItem": "draggable item",
@@ -2444,17 +2358,10 @@
     "linkedHabits": "Linked Habits",
     "noLinkedHabits": "No linked habits yet",
     "metrics": {
-      "title": "Goal Insights",
       "onTrack": "On Track",
       "atRisk": "At Risk",
       "behind": "Behind Schedule",
-      "noDeadline": "No Deadline",
-      "projectedCompletion": "Projected Completion",
-      "velocity": "Progress Rate",
-      "daysToDeadline": "Days to Deadline",
-      "habitAdherence": "Linked Habit Performance",
-      "noData": "No data",
-      "perDay": "day"
+      "noDeadline": "No Deadline"
     }
   },
   "progressScreen": {
@@ -2556,32 +2463,6 @@
     }
   },
   "gamification": {
-    "title": "Achievements",
-    "profileCard": {
-      "title": "Achievements & Level",
-      "tileLabel": "Achievements",
-      "hint": "Track your progress and earn achievements",
-      "level": "Level {level}",
-      "xp": "{current} / {next} XP",
-      "totalXp": "{total} XP",
-      "earned": "{count}/{total} achievements"
-    },
-    "page": {
-      "lockedTitle": "Achievements with Pro",
-      "lockedDescription": "Upgrade to Pro to track your progress, earn XP, and collect achievements.",
-      "upgradeButton": "Upgrade to Pro"
-    },
-    "tile": {
-      "earned": "Earned · {date}"
-    },
-    "carrot": {
-      "title": "Next reward",
-      "toNextLevel": "{xp} XP to Level {level}",
-      "proTeaser": {
-        "title": "Included with Pro",
-        "achievements": "Achievements & badges"
-      }
-    },
     "categories": {
       "GettingStarted": "Getting Started",
       "Consistency": "Consistency",
@@ -2763,62 +2644,15 @@
     }
   },
   "streakDisplay": {
-    "title": "Streak",
-    "daysSuffix": "day | days",
     "badge": {
       "tooltip": "1 day streak | {count} day streak"
     },
-    "profile": {
-      "currentStreak": "1 day streak | {count} day streak",
-      "encouragement1": "Day one done",
-      "encouragement7": "One week",
-      "encouragement14": "Two weeks",
-      "encouragement30": "A full month",
-      "encouragement100": "Triple digits",
-      "encouragement365": "A whole year"
-    },
-    "freeze": {
-      "title": "Streak freeze",
-      "activeToday": "Freeze active today",
-      "auto": {
-        "explainer": "If you miss a day, the freeze is used automatically to keep your streak alive."
-      },
-      "banked": {
-        "label": "Banked"
-      },
-      "usedThisMonth": {
-        "label": "Used this month"
-      },
-      "nextFreeze": {
-        "label": "Next freeze",
-        "inDays": "in {days} days",
-        "full": "Banked full"
-      },
-      "protected": {
-        "label": "Protected days",
-        "empty": "No freezes used yet.",
-        "today": "Today",
-        "todayValue": "Protected"
-      },
-      "pro": {
-        "gate": "Streak freezes are part of Pro."
-      }
-    },
     "detail": {
-      "title": "Streak Details",
-      "thisWeek": "This Week",
-      "stats": "Stats",
-      "currentStreak": "Current",
-      "longestStreak": "Longest",
       "tierLegendary": "Legendary",
       "tierStrong": "Strong",
       "tierSteady": "Steady",
       "tierNormal": "Normal",
-      "tierTileLabel": "Rank",
-      "dayActive": "Active",
-      "dayFrozen": "Frozen",
-      "dayMissed": "Missed",
-      "daysUnit": "day | days"
+      "tierTileLabel": "Rank"
     }
   },
   "stepUp": {
@@ -3066,7 +2900,7 @@
       },
       "tabs": {
         "title": "View Tabs",
-        "description": "Switch between Today (scheduled habits), All (everything), General (always available), and Goals (your long-term targets)."
+        "description": "Use the four destinations for Today, Calendar, Progress, and Profile. Goals live inside Progress."
       },
       "dateNav": {
         "title": "Date Navigation",
@@ -3074,7 +2908,7 @@
       },
       "fab": {
         "title": "Create New",
-        "description": "Tap here to create a new habit. Choose from recurring, flexible, general, or one-time tasks. You can also create goals from the Goals tab."
+        "description": "Tap here to create a new habit. Create a goal from a habit or by asking Astra."
       },
       "streak": {
         "title": "Streak Counter",
@@ -3083,20 +2917,6 @@
       "notifications": {
         "title": "Notifications",
         "description": "Check reminders, achievement alerts, and updates here. Set up push notifications in settings to never miss a habit."
-      }
-    },
-    "goals": {
-      "tab": {
-        "title": "Goals Tab",
-        "description": "Switch to Goals to see your long-term objectives. Goals give direction to your habits by linking daily actions to bigger targets."
-      },
-      "card": {
-        "title": "Goal Card",
-        "description": "Each goal shows its progress bar, deadline, and linked habits. Track it from start to completion."
-      },
-      "progress": {
-        "title": "Goal Progress",
-        "description": "Update progress manually or let linked habits auto-track it. The progress bar shows how close you are to your target."
       }
     },
     "chat": {
@@ -3147,10 +2967,6 @@
       "subscription": {
         "title": "Subscription",
         "description": "Free includes 5 Astra messages a day. Pro includes 50, which is ten times more."
-      },
-      "retrospective": {
-        "title": "AI Retrospective",
-        "description": "Get detailed AI analysis of your habit patterns over time. Available for weekly, monthly, quarterly, or yearly periods."
       },
       "achievements": {
         "title": "Achievements & Levels",
@@ -3247,8 +3063,9 @@
     }
   },
   "dataExport": {
-    "button": "Download my data",
-    "preparing": "Preparing your export...",
+    "button": "Export my data",
+    "preparing": "Preparing",
+    "done": "Your data has been downloaded.",
     "error": "We couldn't prepare your export. Please try again.",
     "shareTitle": "Orbit data export"
   },
