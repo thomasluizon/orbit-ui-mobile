@@ -19,6 +19,7 @@ interface CalendarDayDetailProps {
   calendarEvents: CalendarSyncEvent[]
   showRecurring: boolean
   onShowRecurringChange: (value: boolean) => void
+  showRecurringToggle?: boolean
   /** Desktop side-panel mode: the entries list scrolls within the viewport, a
    *  bottom fade hints at more content, and the go-to-day CTA stays pinned below. */
   fitViewport?: boolean
@@ -54,6 +55,7 @@ export function CalendarDayDetail({
   calendarEvents,
   showRecurring,
   onShowRecurringChange,
+  showRecurringToggle = true,
   fitViewport = false,
 }: Readonly<CalendarDayDetailProps>) {
   const t = useTranslations()
@@ -86,7 +88,7 @@ export function CalendarDayDetail({
 
   if (!dateStr) return null
 
-  const recurringToggle = entries.length > 0 && (
+  const recurringToggle = showRecurringToggle && entries.length > 0 && (
     <div className="flex shrink-0 justify-end" style={{ marginBottom: 12 }}>
       <ShowRecurringToggle
         checked={showRecurring}
