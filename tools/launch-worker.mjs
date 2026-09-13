@@ -13,7 +13,7 @@
  */
 
 import { spawn, spawnSync } from "node:child_process"
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, statSync } from "node:fs"
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, extname, join, resolve } from "node:path"
 
@@ -154,6 +154,36 @@ if (measurement && !(Number.isFinite(measurementNoProgressMinutes) && measuremen
 }
 const noProgressMinutes = measurement ? measurementNoProgressMinutes : config.timeouts.noProgressMinutes
 const noProgressMs = noProgressMinutes * 60 * 1000
+const supervisionClockPath = process.env.ORBIT_TEST_SUPERVISION_CLOCK
+let lastCompleteSupervisionTime = null
+let supervisionSample = null
+const publishSupervisionMarker = (path, contents) => {
+  const unpublishedPath = `${path}.${process.pid}.unpublished`
+  writeFileSync(unpublishedPath, contents)
+  renameSync(unpublishedPath, path)
+}
+const supervisionNow = () => {
+  if (!supervisionClockPath) return Date.now()
+  const clockContents = readFileSync(supervisionClockPath, "utf8")
+  const records = clockContents.split("\n")
+  records.pop()
+  let sampledTime = lastCompleteSupervisionTime
+  for (let index = records.length - 1; index >= 0; index -= 1) {
+    if (records[index].trim() === "") continue
+    const clockValue = Number(records[index])
+    if (!Number.isFinite(clockValue)) continue
+    lastCompleteSupervisionTime = clockValue
+    sampledTime = clockValue
+    break
+  }
+  supervisionSample = { byteLength: Buffer.byteLength(clockContents), sampledTime }
+  return sampledTime
+}
+
+const acknowledgeSupervisionSample = () => {
+  if (!supervisionClockPath || supervisionSample === null) return
+  publishSupervisionMarker(`${supervisionClockPath}.sampled-${supervisionSample.byteLength}`, String(supervisionSample.sampledTime))
+}
 
 const workerPointer = (worktreePath, branch) =>
   `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now.`
@@ -440,10 +470,11 @@ const logByteCap = Number.isFinite(logMegabyteCap) && logMegabyteCap > 0 ? logMe
  * A tree that is idle on all three for noProgressMinutes is still killed, as it must be.
  */
 let progress = progressFingerprint()
-let lastProgressAt = Date.now()
+let lastProgressAt = supervisionNow() ?? Date.now()
+if (supervisionClockPath) publishSupervisionMarker(`${supervisionClockPath}.ready`, "ready")
 let lastLogSize = 0
 let cpuBaseline = null
-const sampler = setInterval(() => {
+const sampleProgress = () => {
   let logSize = null
   try {
     logSize = statSync(logFile).size
@@ -457,7 +488,8 @@ const sampler = setInterval(() => {
     return
   }
   const noteProgress = () => {
-    lastProgressAt = Date.now()
+    const now = supervisionNow()
+    if (now !== null) lastProgressAt = now
     if (logSize !== null) lastLogSize = logSize
     cpuBaseline = null
   }
@@ -474,8 +506,11 @@ const sampler = setInterval(() => {
     noteProgress()
     return
   }
-  const cpuMs = cpuMillisecondsOfTree(child.pid)
-  const now = Date.now()
+  // An injected wall clock has no relationship to live process CPU. Clock-driven cases isolate
+  // the filesystem and log signals rather than letting real CPU reset a virtual stall interval.
+  const cpuMs = supervisionClockPath ? null : cpuMillisecondsOfTree(child.pid)
+  const now = supervisionNow()
+  if (now === null) return
   if (cpuMs !== null) {
     if (cpuBaseline === null || cpuMs < cpuBaseline.cpuMs) {
       // First silent sample, or a child exited and took its CPU time out of the snapshot. Rebase
@@ -492,6 +527,11 @@ const sampler = setInterval(() => {
   outcome = "KILLED_NO_PROGRESS"
   console.error(`${issue} has not moved HEAD, written a file, grown its log or burned CPU for ${noProgressMinutes} minutes${measurement ? " (measurement cap)" : ""}; killing the worker process tree`)
   killTree(child.pid)
+}
+const sampler = setInterval(() => {
+  supervisionSample = null
+  sampleProgress()
+  acknowledgeSupervisionSample()
 }, config.timeouts.pollSeconds * 1000)
 
 child.on("error", (error) => {
