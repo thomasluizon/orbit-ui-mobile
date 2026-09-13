@@ -5,7 +5,7 @@ import React from 'react'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { useCalendarAutoSyncState } from '@/hooks/use-calendar-auto-sync'
 import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
-import { calendarKeys } from '@orbit/shared/query'
+import { API } from '@orbit/shared/api'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 
 const mockFetch = vi.fn()
@@ -57,16 +57,26 @@ describe('useCalendarEvents', () => {
       lastSyncedAt: '2026-09-12T09:12:00Z',
       hasGoogleConnection: true,
     }
-    queryClient.setQueryData(calendarKeys.autoSyncState(), connectedState)
-
     let resolveEvents!: (response: unknown) => void
-    mockFetch.mockReturnValue(new Promise((resolve) => {
-      resolveEvents = resolve
-    }))
+    mockFetch.mockImplementation((input: RequestInfo | URL) => {
+      if (input === API.calendar.events) {
+        return new Promise((resolve) => {
+          resolveEvents = resolve
+        })
+      }
+      if (input === API.calendar.autoSyncState) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve(connectedState),
+        })
+      }
+      throw new Error('Unexpected fetch route')
+    })
 
     function CalendarSyncHarness() {
       useCalendarEvents()
-      const { data: autoSyncState } = useCalendarAutoSyncState({ enabled: false })
+      const { data: autoSyncState } = useCalendarAutoSyncState()
       return React.createElement(CalendarSyncBoundary, {
         hasProAccess: true,
         autoSyncState,
@@ -80,7 +90,7 @@ describe('useCalendarEvents', () => {
       React.createElement(QueryClientProvider, { client: queryClient }, children)
     render(React.createElement(CalendarSyncHarness), { wrapper: Wrapper })
 
-    expect(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
+    expect(await screen.findByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
       .toHaveAttribute('aria-checked', 'true')
 
     resolveEvents({

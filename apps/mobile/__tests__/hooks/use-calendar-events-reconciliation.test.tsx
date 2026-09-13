@@ -2,7 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import TestRenderer from 'react-test-renderer'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { calendarKeys } from '@orbit/shared/query'
+import { API } from '@orbit/shared/api'
 import { createApiClientError } from '@orbit/shared/utils'
 import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
@@ -56,16 +56,22 @@ describe('mobile calendar events reconciliation', () => {
       lastSyncedAt: '2026-09-12T09:12:00Z',
       hasGoogleConnection: true,
     }
-    queryClient.setQueryData(calendarKeys.autoSyncState(), connectedState)
-
     let rejectEvents!: (error: unknown) => void
-    mocks.apiClient.mockReturnValue(new Promise((_resolve, reject) => {
-      rejectEvents = reject
-    }))
+    mocks.apiClient.mockImplementation((path: string) => {
+      if (path === API.calendar.events) {
+        return new Promise((_resolve, reject) => {
+          rejectEvents = reject
+        })
+      }
+      if (path === API.calendar.autoSyncState) {
+        return Promise.resolve(connectedState)
+      }
+      throw new Error(`Unexpected API request: ${path}`)
+    })
 
     function CalendarSyncHarness() {
       useCalendarEvents()
-      const { data: autoSyncState } = useCalendarAutoSyncState({ enabled: false })
+      const { data: autoSyncState } = useCalendarAutoSyncState()
       return (
         <CalendarSyncBoundary
           hasProAccess
@@ -92,7 +98,9 @@ describe('mobile calendar events reconciliation', () => {
     const findSwitches = () => (tree.root as unknown as TestNode).findAll(
       (node) => node.type === 'SwitchMock',
     )
-    expect(findSwitches()).toHaveLength(1)
+    await TestRenderer.act(async () => {
+      await vi.waitFor(() => expect(findSwitches()).toHaveLength(1))
+    })
     expect(findSwitches()[0]?.props.accessibilityState).toEqual({ checked: true })
 
     await TestRenderer.act(async () => {
