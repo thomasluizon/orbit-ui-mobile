@@ -84,6 +84,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
         <Sheet ref={sheetRef} open title={t('habits.form.templates')} onClose={() => setOpen(false)}>
           <div className="flex flex-col" style={{ gap: 4 }}>
             {templates.length > 0 && items.length > 0 && !showSave ? (
+              /* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */
               <ListRow
                 icon="device-floppy"
                 title={t('habits.form.saveAsTemplate')}
@@ -151,6 +152,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
               <div className="flex flex-col items-center py-8 text-center" style={{ gap: 12 }}>
                 <p className="max-w-full truncate text-xl font-medium text-[var(--fg-1)]">{t('habits.form.noTemplates')}</p>
                 <p className="text-sm text-[var(--fg-3)]">{t('habits.form.noTemplatesDescription')}</p>
+                {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
                 <button type="button" className="chip mt-2" disabled={items.length === 0} onClick={() => setShowSave(true)}>{t('habits.form.saveCurrentList')}</button>
                 {items.length === 0 ? <p className="text-xs text-[var(--fg-3)]">{t('habits.form.saveCurrentListDisabled')}</p> : null}
               </div>

@@ -153,6 +153,7 @@ export function DateField({
 
   return (
     <div className="relative">
+      {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
       <button
         type="button"
         aria-label={displayValue ? t('common.selectedDate', { date: displayValue }) : t('common.selectDate')}

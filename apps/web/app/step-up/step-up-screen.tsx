@@ -283,7 +283,10 @@ function StepUpSuccess({
   showProNotice: boolean
 }>) {
   return (
-    <FlowShell nav={false} action={<PillButton onClick={onSignOut}>{t('signOut')}</PillButton>}>
+    <FlowShell nav={false} action={
+      /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
+      <PillButton onClick={onSignOut}>{t('signOut')}</PillButton>
+    }>
       <StepUpHeader operationLabel={operationLabel} t={t} title={t('successTitle', { date: deletionDate })} />
       <div className="flex flex-col" style={{ gap: 16 }}>
         <p role="status" style={{ color: 'var(--fg-2)', fontSize: 16, lineHeight: 1.55 }}>{t('successBody')}</p>

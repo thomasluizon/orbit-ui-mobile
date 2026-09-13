@@ -271,6 +271,7 @@ function CalendarProfileState({
         {failed ? (
           <View style={[styles.errorCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
             <Text style={[styles.errorText, { color: tokens.fg2 }]}>{t('calendar.loadError')}</Text>
+            {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
             <PillButton variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
           </View>
         ) : (
@@ -811,6 +812,7 @@ function CalendarScreenContent({
             <Text style={[styles.errorText, { color: tokens.fg2 }]}>
               {t("calendar.loadError")}
             </Text>
+            {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
             <PillButton variant="ghost" onClick={() => void activeRefresh()}>
               {t("common.retry")}
             </PillButton>

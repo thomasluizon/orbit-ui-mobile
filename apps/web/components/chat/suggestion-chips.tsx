@@ -19,6 +19,7 @@ export function SuggestionChips({ onSelect }: Readonly<SuggestionChipsProps>) {
   return (
     <div data-tour="tour-chat-suggestions" className="flex gap-2 flex-wrap justify-center">
       {suggestions.map((suggestion, index) => (
+        /* eslint-disable-next-line local/max-button-words -- D69 replaces this pre-redesign chip surface. */
         <button
           type="button"
           key={suggestion}

@@ -74,7 +74,10 @@ function CalendarEventsSection({
       {state === 'failed' ? (
         <ErrorState
           message={t('calendar.fetchError')}
-          action={<PillButton variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>}
+          action={
+            /* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */
+            <PillButton variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
+          }
         />
       ) : null}
       {state === 'not-connected' ? (
@@ -301,6 +304,7 @@ export function CalendarDayDetail({
         styles={styles}
       />
 
+      {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
       <ListRow
         icon="external-link"
         title={t('calendar.goToDay')}
