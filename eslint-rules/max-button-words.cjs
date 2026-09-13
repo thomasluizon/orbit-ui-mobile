@@ -138,19 +138,35 @@ function objectPropertyValue(node, name, sourceCode, seen) {
   return property?.type === 'Property' ? property.value : null
 }
 
+function componentName(definition) {
+  if (definition.node.id?.type === 'Identifier') return definition.node.id.name
+  const declarator = definition.node.parent
+  return declarator?.type === 'VariableDeclarator' && declarator.id.type === 'Identifier'
+    ? declarator.id.name
+    : null
+}
+
+function effectivePropValue(openingElement, propName, sourceCode, seen) {
+  for (let index = openingElement.attributes.length - 1; index >= 0; index -= 1) {
+    const attribute = openingElement.attributes[index]
+    if (attribute.type === 'JSXAttribute' && attribute.name.name === propName) {
+      return getAttributeValueNode(attribute)
+    }
+    if (attribute.type !== 'JSXSpreadAttribute') continue
+    const property = objectPropertyValue(attribute.argument, propName, sourceCode, new Set(seen))
+    if (property) return property
+  }
+  return null
+}
+
 function componentPropValues(definition, sourceCode, seen) {
-  const componentName = definition.node.id?.name
+  const name = componentName(definition)
   const propName = definition.name?.name
-  if (!componentName || !propName) return []
-  const openings = openingElementsByName(sourceCode).get(componentName) ?? []
+  if (!name || !propName) return []
+  const openings = openingElementsByName(sourceCode).get(name) ?? []
   return openings.flatMap((openingElement) => {
-    const direct = getAttributeValueNode(getAttribute(openingElement, propName))
-    if (direct) return [direct]
-    return openingElement.attributes.flatMap((attribute) => {
-      if (attribute.type !== 'JSXSpreadAttribute') return []
-      const property = objectPropertyValue(attribute.argument, propName, sourceCode, new Set(seen))
-      return property ? [property] : []
-    })
+    const value = effectivePropValue(openingElement, propName, sourceCode, seen)
+    return value ? [value] : []
   })
 }
 
