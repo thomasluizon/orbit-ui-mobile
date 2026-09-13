@@ -503,10 +503,12 @@ function CalendarPageContent({
             {view === 'agenda' && (
               <CalendarAgendaView
                 startDate={agendaStart}
-                dayMap={displayRangeDayMap}
+                dayMap={rangeDayMap}
                 displayTime={displayTime}
                 displayWeekdayDate={displayWeekdayDate}
                 todayKey={todayKey}
+                isLoading={rangeLoading}
+                loadingLabel={t('common.loading')}
               />
             )}
           </>

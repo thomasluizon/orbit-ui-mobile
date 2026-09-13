@@ -27,13 +27,16 @@ const dayMap = new Map<string, CalendarDayEntry[]>([
   [formatAPIDate(startDate), [entry()]],
 ])
 
-function renderAgenda() {
+function renderAgenda(isLoading = false) {
   return render(
     <CalendarAgendaView
       startDate={startDate}
       dayMap={dayMap}
       displayTime={(time) => time}
       displayWeekdayDate={(date) => `Day ${date.getDate()}`}
+      todayKey={formatAPIDate(startDate)}
+      isLoading={isLoading}
+      loadingLabel="common.loading"
     />,
   )
 }
@@ -43,6 +46,7 @@ describe('CalendarAgendaView', () => {
     renderAgenda()
 
     expect(screen.getAllByTestId('calendar-agenda-day')).toHaveLength(7)
+    expect(screen.getByText('calendar.agenda.today, Day 12')).toBeDefined()
     expect(screen.getByText('Morning walk')).toBeDefined()
     expect(screen.getAllByText('calendar.agenda.empty')).toHaveLength(6)
   })
@@ -54,5 +58,13 @@ describe('CalendarAgendaView', () => {
     expect(screen.getByText('Morning walk')).toHaveClass('break-words')
     expect(screen.getByText('Morning walk')).not.toHaveClass('truncate')
     expect(screen.queryByRole('button')).toBeNull()
+  })
+
+  it('renders a shaped placeholder instead of definitive empty days while loading', () => {
+    renderAgenda(true)
+
+    expect(screen.getAllByTestId('calendar-agenda-loading-day')).toHaveLength(7)
+    expect(screen.getByRole('progressbar', { name: 'common.loading' })).toBeDefined()
+    expect(screen.queryByText('calendar.agenda.empty')).toBeNull()
   })
 })

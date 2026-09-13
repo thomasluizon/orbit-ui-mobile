@@ -90,6 +90,8 @@ interface CalendarAgendaViewProps {
   displayTime: (time: string) => string;
   language: string;
   todayKey: string;
+  isLoading: boolean;
+  loadingLabel: string;
   todayLabel: string;
   emptyLabel: string;
   styles: ReturnType<typeof createStyles>;
@@ -102,6 +104,8 @@ function CalendarAgendaView({
   displayTime,
   language,
   todayKey,
+  isLoading,
+  loadingLabel,
   todayLabel,
   emptyLabel,
   styles,
@@ -110,8 +114,20 @@ function CalendarAgendaView({
   const dates = eachDayOfInterval({ start: startDate, end: addDays(startDate, 6) });
 
   return (
-    <View testID="calendar-agenda-view" style={styles.agendaView}>
-      {dates.map((date) => {
+    <View
+      testID="calendar-agenda-view"
+      accessibilityState={{ busy: isLoading }}
+      style={styles.agendaView}
+    >
+      {isLoading ? dates.map((date, index) => (
+        <View key={formatAPIDate(date)} testID="calendar-agenda-loading-day">
+          {index === 0 ? (
+            <Skeleton variant="habit-row" label={loadingLabel} />
+          ) : (
+            <Skeleton variant="habit-row" grouped />
+          )}
+        </View>
+      )) : dates.map((date) => {
         const entries = dayMap.get(formatAPIDate(date)) ?? [];
         const dateLabel = capitalizeFirstLetter(
           formatLocaleDate(date, language, {
@@ -693,10 +709,12 @@ function CalendarScreenContent({
           ) : (
             <CalendarAgendaView
               startDate={agendaStart}
-              dayMap={displayRangeDayMap}
+              dayMap={rangeDayMap}
               displayTime={displayTime}
               language={i18n.language}
               todayKey={todayKey}
+              isLoading={rangeLoading}
+              loadingLabel={t("common.loading")}
               todayLabel={t("calendar.agenda.today")}
               emptyLabel={t("calendar.agenda.empty")}
               styles={styles}

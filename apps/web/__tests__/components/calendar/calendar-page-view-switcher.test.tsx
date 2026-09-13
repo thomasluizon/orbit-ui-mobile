@@ -25,6 +25,17 @@ const profileQueryState: {
   refetch: vi.fn(),
 }
 const calendarDataCalls = vi.fn()
+const agendaViewProps: {
+  dayMap?: ReadonlyMap<string, CalendarDayEntry[]>
+  isLoading?: boolean
+} = {}
+const rangeQueryState: {
+  dayMap: Map<string, CalendarDayEntry[]>
+  isLoading: boolean
+} = {
+  dayMap: new Map(),
+  isLoading: false,
+}
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -47,8 +58,8 @@ vi.mock('@/hooks/use-calendar-data', () => ({
     })
   },
   useCalendarRange: () => ({
-    dayMap: new Map(),
-    isLoading: false,
+    dayMap: rangeQueryState.dayMap,
+    isLoading: rangeQueryState.isLoading,
     isFetching: false,
     error: null,
     refresh: vi.fn(),
@@ -132,7 +143,17 @@ vi.mock('@/components/calendar/calendar-day-detail', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-week-view', () => ({
-  CalendarWeekView: () => <div data-testid="week-view" />,
+  CalendarWeekView: ({
+    onShowRecurringChange,
+  }: {
+    onShowRecurringChange: (value: boolean) => void
+  }) => (
+    <button
+      type="button"
+      data-testid="week-view"
+      onClick={() => onShowRecurringChange(false)}
+    />
+  ),
 }))
 
 vi.mock('@/components/calendar/calendar-range-view', () => ({
@@ -140,7 +161,14 @@ vi.mock('@/components/calendar/calendar-range-view', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-agenda-view', () => ({
-  CalendarAgendaView: () => <div data-testid="agenda-view" />,
+  CalendarAgendaView: (props: {
+    dayMap: ReadonlyMap<string, CalendarDayEntry[]>
+    isLoading: boolean
+  }) => {
+    agendaViewProps.dayMap = props.dayMap
+    agendaViewProps.isLoading = props.isLoading
+    return <div data-testid="agenda-view" />
+  },
 }))
 
 import CalendarPage from '@/app/(app)/calendar/page'
@@ -175,6 +203,10 @@ describe('CalendarPage view switcher', () => {
     profileQueryState.error = null
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()
+    agendaViewProps.dayMap = undefined
+    agendaViewProps.isLoading = undefined
+    rangeQueryState.dayMap = new Map()
+    rangeQueryState.isLoading = false
   })
 
   it('loads calendar data concurrently while the profile resolves', () => {
@@ -290,6 +322,35 @@ describe('CalendarPage view switcher', () => {
 
     expect(screen.getByTestId('month-view')).toBeDefined()
     expect(screen.queryByTestId('agenda-view')).toBeNull()
+  })
+
+  it('passes the range loading state to the agenda view', () => {
+    rangeQueryState.isLoading = true
+    render(<CalendarPage />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
+
+    expect(agendaViewProps.isLoading).toBe(true)
+  })
+
+  it('shows all agenda habits after recurring entries are hidden in another view', () => {
+    const today = formatAPIDate(new Date())
+    rangeQueryState.dayMap = new Map([
+      [today, [
+        monthEntry('recurring', 'upcoming'),
+        { ...monthEntry('one-time', 'upcoming'), isOneTime: true },
+      ]],
+    ])
+    render(<CalendarPage />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+    fireEvent.click(screen.getByTestId('week-view'))
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
+
+    expect(agendaViewProps.dayMap?.get(today)?.map((entry) => entry.habitId)).toEqual([
+      'recurring',
+      'one-time',
+    ])
   })
 
   it('switches to the week and range time-grid views', () => {
