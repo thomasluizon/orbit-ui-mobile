@@ -30,6 +30,7 @@ interface CalendarDayDetailProps {
   calendarEvents: CalendarSyncEvent[]
   calendarEventsState: CalendarEventsDisplayState
   onRetryCalendarEvents: () => void
+  onReconnectCalendarEvents: () => void
   loggable: boolean
   showRecurring: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
@@ -45,10 +46,12 @@ function CalendarEventsSection({
   calendarEvents,
   state,
   onRetry,
+  onReconnect,
 }: Readonly<{
   calendarEvents: CalendarSyncEvent[]
   state: CalendarEventsDisplayState
   onRetry: () => void
+  onReconnect: () => void
 }>) {
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
@@ -68,6 +71,19 @@ function CalendarEventsSection({
           message={t('calendar.fetchError')}
           action={<PillButton variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>}
         />
+      ) : null}
+      {state === 'not-connected' ? (
+        <div className="flex flex-col items-center text-center" style={{ gap: 12, paddingBlock: 24 }}>
+          <p className="text-sm font-medium text-[var(--fg-1)]" style={{ margin: 0 }}>
+            {t('calendar.autoSync.reconnectTitle')}
+          </p>
+          <p className="text-sm text-[var(--fg-3)]" style={{ margin: 0, lineHeight: 1.5 }}>
+            {t('calendar.autoSync.reconnectBody')}
+          </p>
+          <PillButton variant="ghost" onClick={onReconnect}>
+            {t('calendar.autoSync.reconnectCta')}
+          </PillButton>
+        </div>
       ) : null}
       {state === 'ready' && calendarEvents.length === 0 ? (
         <p className="text-center text-sm text-[var(--fg-3)]" style={{ margin: 0, paddingBlock: 24 }}>
@@ -240,6 +256,7 @@ export function CalendarDayDetail({
   calendarEvents,
   calendarEventsState,
   onRetryCalendarEvents,
+  onReconnectCalendarEvents,
   loggable,
   showRecurring,
   pendingEntryStates,
@@ -313,6 +330,7 @@ export function CalendarDayDetail({
         calendarEvents={calendarEvents}
         state={calendarEventsState}
         onRetry={onRetryCalendarEvents}
+        onReconnect={onReconnectCalendarEvents}
       />
     </div>
   )

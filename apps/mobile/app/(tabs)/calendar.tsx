@@ -379,6 +379,7 @@ function CalendarScreenContent({
     enabled: profile.hasProAccess,
     isPending: calendarEventsPending,
     error: calendarEventsError,
+    resultStatus: calendarEventsResult?.status,
   });
 
   const { dayMap, isLoading, isFetching, error, refresh } = monthQuery;
@@ -921,6 +922,7 @@ function CalendarScreenContent({
             calendarEvents={selectedCalendarEvents}
             calendarEventsState={calendarEventsState}
             onRetryCalendarEvents={() => void refetchCalendarEvents()}
+            onReconnectCalendarEvents={() => router.push('/calendar-sync')}
             completedCount={completedCount}
             loggable={selectedDayLoggable}
             showRecurring={showRecurring}

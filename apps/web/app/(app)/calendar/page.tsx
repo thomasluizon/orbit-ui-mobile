@@ -17,6 +17,7 @@ import {
 } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { useLocale, useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import {
   formatAPIDate,
   parseAPIDate,
@@ -145,6 +146,7 @@ interface CalendarInlineDayPanelProps {
   calendarEvents: CalendarSyncEvent[]
   calendarEventsState: CalendarEventsDisplayState
   onRetryCalendarEvents: () => void
+  onReconnectCalendarEvents: () => void
   loggable: boolean
   showRecurring: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
@@ -163,6 +165,7 @@ function CalendarInlineDayPanel({
   calendarEvents,
   calendarEventsState,
   onRetryCalendarEvents,
+  onReconnectCalendarEvents,
   loggable,
   showRecurring,
   pendingEntryStates,
@@ -202,6 +205,7 @@ function CalendarInlineDayPanel({
             calendarEvents={calendarEvents}
             calendarEventsState={calendarEventsState}
             onRetryCalendarEvents={onRetryCalendarEvents}
+            onReconnectCalendarEvents={onReconnectCalendarEvents}
             loggable={loggable}
             showRecurring={showRecurring}
             pendingEntryStates={pendingEntryStates}
@@ -300,6 +304,7 @@ function CalendarPageContent({
   setCurrentMonth,
   monthQuery,
 }: Readonly<CalendarPageContentProps>) {
+  const router = useRouter()
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
@@ -333,6 +338,7 @@ function CalendarPageContent({
     enabled: profile.hasProAccess,
     isPending: calendarEventsPending,
     error: calendarEventsError,
+    resultStatus: calendarEventsResult?.status,
   })
 
   const { dayMap, isLoading, isFetching, error, refresh } = monthQuery
@@ -734,10 +740,11 @@ function CalendarPageContent({
                   calendarEvents={selectedCalendarEvents}
                   calendarEventsState={calendarEventsState}
                   onRetryCalendarEvents={() => void refetchCalendarEvents()}
-                    loggable={selectedDayLoggable}
-                    showRecurring={showRecurring}
-                    pendingEntryStates={pendingEntryStates}
-                    showRecurringToggle={!showMonthRecurringToggle}
+                  onReconnectCalendarEvents={() => router.push('/calendar-sync')}
+                  loggable={selectedDayLoggable}
+                  showRecurring={showRecurring}
+                  pendingEntryStates={pendingEntryStates}
+                  showRecurringToggle={!showMonthRecurringToggle}
                   onShowRecurringChange={setShowRecurring}
                   onEntryChange={changeSelectedEntry}
                 />
@@ -812,6 +819,7 @@ function CalendarPageContent({
           calendarEvents={selectedCalendarEvents}
           calendarEventsState={calendarEventsState}
           onRetryCalendarEvents={() => void refetchCalendarEvents()}
+          onReconnectCalendarEvents={() => router.push('/calendar-sync')}
           loggable={selectedDayLoggable}
           showRecurring={showRecurring}
           pendingEntryStates={pendingEntryStates}

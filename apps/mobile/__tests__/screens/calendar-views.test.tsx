@@ -31,6 +31,7 @@ const state = vi.hoisted(() => ({
   profileRefetch: vi.fn(),
   calendarDataCalls: vi.fn(),
   calendarEvents: [] as Record<string, unknown>[],
+  calendarEventsNotConnected: false,
   calendarEventsEnabled: undefined as boolean | undefined,
   calendarEventsPending: false,
   calendarEventsError: null as Error | null,
@@ -93,7 +94,9 @@ vi.mock("@/hooks/use-calendar-events", () => ({
   useCalendarEvents: (options?: { enabled?: boolean }) => {
     state.calendarEventsEnabled = options?.enabled;
     return {
-      data: { status: "connected", events: state.calendarEvents },
+      data: state.calendarEventsNotConnected
+        ? { status: "not-connected" }
+        : { status: "connected", events: state.calendarEvents },
       isPending: state.calendarEventsPending,
       error: state.calendarEventsError,
       refetch: state.calendarEventsRefetch,
@@ -324,10 +327,12 @@ describe("CalendarScreen views (mobile)", () => {
     state.profileRefetch = vi.fn();
     state.calendarDataCalls.mockClear();
     state.calendarEvents = [];
+    state.calendarEventsNotConnected = false;
     state.calendarEventsEnabled = undefined;
     state.calendarEventsPending = false;
     state.calendarEventsError = null;
     state.calendarEventsRefetch = vi.fn();
+    state.routerPush.mockClear();
     state.calendarRangeCalls.mockClear();
     state.rangeLoading = false;
     calendarStatsProps.current = null;
@@ -505,6 +510,25 @@ describe("CalendarScreen views (mobile)", () => {
       calendarDayDetailProps.current?.onRetryCalendarEvents();
     });
     expect(state.calendarEventsRefetch).toHaveBeenCalledTimes(1);
+    TestRenderer.act(() => headerTree.update(<></>));
+    TestRenderer.act(() => tree.update(<></>));
+  });
+
+  it("passes a revoked Google authorization to the selected-day panel", () => {
+    state.profile = { weekStartDay: 1, timeZone: "UTC", hasProAccess: true };
+    state.calendarEventsNotConnected = true;
+    let tree!: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />);
+    });
+    const headerTree = openSelectedDay(tree, formatAPIDate(new Date()));
+
+    expect(calendarDayDetailProps.current?.calendarEventsState).toBe("not-connected");
+    expect(calendarDayDetailProps.current?.calendarEvents).toEqual([]);
+    TestRenderer.act(() => {
+      calendarDayDetailProps.current?.onReconnectCalendarEvents();
+    });
+    expect(state.routerPush).toHaveBeenCalledWith("/calendar-sync");
     TestRenderer.act(() => headerTree.update(<></>));
     TestRenderer.act(() => tree.update(<></>));
   });

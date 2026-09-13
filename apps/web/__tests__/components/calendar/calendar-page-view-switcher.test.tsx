@@ -41,10 +41,12 @@ const profileQueryState: {
 }
 const calendarDataCalls = vi.fn()
 const logHabitMutateAsync = vi.fn(async () => {})
+const routerPush = vi.fn()
 const calendarDayDetailProps: {
   calendarEvents?: CalendarSyncEvent[]
   calendarEventsState?: string
   onRetryCalendarEvents?: () => void
+  onReconnectCalendarEvents?: () => void
   loggable?: boolean
   onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
   onShowRecurringChange?: (value: boolean) => void
@@ -52,7 +54,7 @@ const calendarDayDetailProps: {
   showRecurringToggle?: boolean
 } = {}
 const calendarEventsQueryState: {
-  data: { status: 'connected'; events: CalendarSyncEvent[] }
+  data: { status: 'connected'; events: CalendarSyncEvent[] } | { status: 'not-connected' }
   isPending: boolean
   error: Error | null
   refetch: ReturnType<typeof vi.fn>
@@ -98,6 +100,10 @@ vi.mock('@/hooks/use-calendar-data', () => ({
     error: null,
     refresh: vi.fn(),
   }),
+}))
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: routerPush }),
 }))
 
 vi.mock('@/hooks/use-calendar-events', () => ({
@@ -293,6 +299,7 @@ describe('CalendarPage view switcher', () => {
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()
     logHabitMutateAsync.mockClear()
+    routerPush.mockClear()
     calendarEventsQueryState.data = { status: 'connected', events: [] }
     calendarEventsQueryState.isPending = false
     calendarEventsQueryState.error = null
@@ -301,6 +308,7 @@ describe('CalendarPage view switcher', () => {
     delete calendarDayDetailProps.calendarEvents
     delete calendarDayDetailProps.calendarEventsState
     delete calendarDayDetailProps.onRetryCalendarEvents
+    delete calendarDayDetailProps.onReconnectCalendarEvents
     delete calendarDayDetailProps.loggable
     delete calendarDayDetailProps.onEntryChange
     agendaViewProps.dayMap = undefined
@@ -637,6 +645,19 @@ describe('CalendarPage view switcher', () => {
     expect(calendarDayDetailProps.calendarEventsState).toBe('failed')
     calendarDayDetailProps.onRetryCalendarEvents?.()
     expect(calendarEventsQueryState.refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes a revoked Google authorization to the selected-day panel', () => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true }
+    calendarEventsQueryState.data = { status: 'not-connected' }
+    isWideDesktopValue = true
+
+    render(<CalendarPage />)
+
+    expect(calendarDayDetailProps.calendarEventsState).toBe('not-connected')
+    expect(calendarDayDetailProps.calendarEvents).toEqual([])
+    calendarDayDetailProps.onReconnectCalendarEvents?.()
+    expect(routerPush).toHaveBeenCalledWith('/calendar-sync')
   })
 
   it('passes a resolved empty Google events query as ready', () => {

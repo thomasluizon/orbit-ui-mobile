@@ -19,6 +19,9 @@ const translations: Record<string, string> = {
   'calendar.status.indulged': 'indulged',
   'calendar.status.resisted': 'resisted',
   'calendar.status.upcoming': 'Upcoming',
+  'calendar.autoSync.reconnectTitle': 'Google Calendar disconnected',
+  'calendar.autoSync.reconnectBody': 'Auto-sync paused. Reconnect to resume.',
+  'calendar.autoSync.reconnectCta': 'Reconnect',
 }
 
 vi.mock('next-intl', () => ({
@@ -64,6 +67,7 @@ interface RenderProps {
   calendarEvents?: CalendarSyncEvent[]
   calendarEventsState?: CalendarEventsDisplayState
   onRetryCalendarEvents?: () => void
+  onReconnectCalendarEvents?: () => void
   loggable?: boolean
   showRecurring?: boolean
   onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
@@ -76,6 +80,7 @@ function CalendarDayDetailHarness({
   calendarEvents = [],
   calendarEventsState = 'hidden',
   onRetryCalendarEvents = () => {},
+  onReconnectCalendarEvents = () => {},
   loggable = false,
   showRecurring = true,
   onEntryChange = async () => {},
@@ -114,6 +119,7 @@ function CalendarDayDetailHarness({
       calendarEvents={calendarEvents}
       calendarEventsState={calendarEventsState}
       onRetryCalendarEvents={onRetryCalendarEvents}
+      onReconnectCalendarEvents={onReconnectCalendarEvents}
       loggable={loggable}
       showRecurring={showRecurring}
       pendingEntryStates={pendingEntryStates}
@@ -196,6 +202,30 @@ describe('CalendarDayDetail', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('calendar.fetchError')
     expect(screen.queryByText('calendar.noEvents')).not.toBeInTheDocument()
+  })
+
+  it('renders the events loading treatment alone', () => {
+    renderDetail({ entries: [makeEntry()], calendarEventsState: 'loading' })
+
+    expect(screen.getByRole('progressbar', { name: 'calendar.fetchingEvents' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText('calendar.noEvents')).not.toBeInTheDocument()
+  })
+
+  it('offers reconnection without rendering the connected-empty treatment', () => {
+    const onReconnectCalendarEvents = vi.fn()
+    renderDetail({
+      entries: [makeEntry()],
+      calendarEventsState: 'not-connected',
+      onReconnectCalendarEvents,
+    })
+
+    expect(screen.getByText('Google Calendar disconnected')).toBeInTheDocument()
+    expect(screen.getByText('Auto-sync paused. Reconnect to resume.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }))
+    expect(onReconnectCalendarEvents).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('calendar.noEvents')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('renders the empty events state after an empty response resolves', () => {

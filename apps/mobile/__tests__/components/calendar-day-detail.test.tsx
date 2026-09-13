@@ -54,6 +54,9 @@ const translations: Record<string, string> = {
   'calendar.status.indulged': 'indulged',
   'calendar.status.resisted': 'resisted',
   'calendar.status.upcoming': 'Upcoming',
+  'calendar.autoSync.reconnectTitle': 'Google Calendar disconnected',
+  'calendar.autoSync.reconnectBody': 'Auto-sync paused. Reconnect to resume.',
+  'calendar.autoSync.reconnectCta': 'Reconnect',
 }
 
 const translate = ((key: string, params?: Record<string, unknown>) => {
@@ -81,6 +84,7 @@ interface RenderDetailProps {
   calendarEvents?: CalendarSyncEvent[]
   calendarEventsState?: CalendarEventsDisplayState
   onRetryCalendarEvents?: () => void
+  onReconnectCalendarEvents?: () => void
   loggable?: boolean
   onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
   onGoToDay?: () => void
@@ -92,6 +96,7 @@ function CalendarDayDetailHarness({
   calendarEvents = [],
   calendarEventsState = 'hidden',
   onRetryCalendarEvents = () => {},
+  onReconnectCalendarEvents = () => {},
   loggable = false,
   onEntryChange = async () => {},
   onGoToDay = () => {},
@@ -125,6 +130,7 @@ function CalendarDayDetailHarness({
       calendarEvents={calendarEvents}
       calendarEventsState={calendarEventsState}
       onRetryCalendarEvents={onRetryCalendarEvents}
+      onReconnectCalendarEvents={onReconnectCalendarEvents}
       completedCount={entries.filter((entry) => entry.status === 'completed').length}
       loggable={loggable}
       showRecurring
@@ -229,6 +235,45 @@ describe('CalendarDayDetail (mobile)', () => {
 
     expect(errors).toHaveLength(1)
     expect(empty).toHaveLength(0)
+  })
+
+  it('renders the events loading treatment alone', () => {
+    const tree = renderDetail({ entries: [makeEntry()], calendarEventsState: 'loading' })
+    const loading = tree.root.findAll(
+      (node) =>
+        node.props.accessibilityRole === 'progressbar'
+        && node.props.testID === 'skeleton-unit-settings',
+    )
+    const errors = nodes(tree, 'Text').filter(
+      (node) => node.props.accessibilityLabel === 'calendar.fetchError',
+    )
+
+    expect(loading.length).toBeGreaterThan(0)
+    expect(loading.every(
+      (node) => node.props.accessibilityLabel === 'calendar.fetchingEvents',
+    )).toBe(true)
+    expect(errors).toHaveLength(0)
+  })
+
+  it('offers reconnection without rendering the connected-empty treatment', () => {
+    const onReconnectCalendarEvents = vi.fn()
+    const tree = renderDetail({
+      entries: [makeEntry()],
+      calendarEventsState: 'not-connected',
+      onReconnectCalendarEvents,
+    })
+    const text = nodes(tree, 'Text').map((node) => node.props.children)
+    const reconnectButton = tree.root.findAll(
+      (node) => node.props.accessibilityRole === 'button',
+    ).find((node) => node.props.testID === 'button-ghost-md')
+
+    expect(text).toContain('Google Calendar disconnected')
+    expect(text).toContain('Auto-sync paused. Reconnect to resume.')
+    expect(text).not.toContain('calendar.noEvents')
+    const onPress = reconnectButton?.props.onPress
+    expect(typeof onPress).toBe('function')
+    if (typeof onPress === 'function') TestRenderer.act(() => onPress())
+    expect(onReconnectCalendarEvents).toHaveBeenCalledTimes(1)
   })
 
   it('renders the empty events state after an empty response resolves', () => {

@@ -1,6 +1,11 @@
 import type { CalendarDayEntry } from '../types/calendar'
 
-export type CalendarEventsDisplayState = 'hidden' | 'loading' | 'failed' | 'ready'
+export type CalendarEventsDisplayState =
+  | 'hidden'
+  | 'loading'
+  | 'failed'
+  | 'not-connected'
+  | 'ready'
 
 export const CALENDAR_MONTH_SWIPE_THRESHOLD = 60
 export const CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO = 1.2
@@ -38,13 +43,16 @@ export function resolveCalendarEventsDisplayState({
   enabled,
   isPending,
   error,
+  resultStatus,
 }: Readonly<{
   enabled: boolean
   isPending: boolean
   error: Error | null
+  resultStatus: 'connected' | 'not-connected' | undefined
 }>): CalendarEventsDisplayState {
   if (!enabled) return 'hidden'
   if (error !== null) return 'failed'
   if (isPending) return 'loading'
+  if (resultStatus === 'not-connected') return 'not-connected'
   return 'ready'
 }

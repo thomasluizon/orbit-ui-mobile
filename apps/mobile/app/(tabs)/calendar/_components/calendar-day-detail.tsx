@@ -29,6 +29,7 @@ interface CalendarDayDetailProps {
   calendarEvents: CalendarSyncEvent[]
   calendarEventsState: CalendarEventsDisplayState
   onRetryCalendarEvents: () => void
+  onReconnectCalendarEvents: () => void
   completedCount: number
   loggable: boolean
   showRecurring: boolean
@@ -45,6 +46,7 @@ function CalendarEventsSection({
   calendarEvents,
   state,
   onRetry,
+  onReconnect,
   displayTime,
   t,
   tokens,
@@ -53,6 +55,7 @@ function CalendarEventsSection({
   calendarEvents: CalendarSyncEvent[]
   state: CalendarEventsDisplayState
   onRetry: () => void
+  onReconnect: () => void
   displayTime: (time: string) => string
   t: TFunction
   tokens: Tokens
@@ -73,6 +76,19 @@ function CalendarEventsSection({
           message={t('calendar.fetchError')}
           action={<PillButton variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>}
         />
+      ) : null}
+      {state === 'not-connected' ? (
+        <View style={styles.reconnectState}>
+          <Text style={[styles.reconnectTitle, { color: tokens.fg1 }]}>
+            {t('calendar.autoSync.reconnectTitle')}
+          </Text>
+          <Text style={[styles.reconnectBody, { color: tokens.fg3 }]}>
+            {t('calendar.autoSync.reconnectBody')}
+          </Text>
+          <PillButton variant="ghost" onClick={onReconnect}>
+            {t('calendar.autoSync.reconnectCta')}
+          </PillButton>
+        </View>
       ) : null}
       {state === 'ready' && calendarEvents.length === 0 ? (
         <Text style={[styles.emptyEventText, { color: tokens.fg3 }]}>
@@ -191,6 +207,7 @@ export function CalendarDayDetail({
   calendarEvents,
   calendarEventsState,
   onRetryCalendarEvents,
+  onReconnectCalendarEvents,
   completedCount,
   loggable,
   showRecurring,
@@ -277,6 +294,7 @@ export function CalendarDayDetail({
         calendarEvents={calendarEvents}
         state={calendarEventsState}
         onRetry={onRetryCalendarEvents}
+        onReconnect={onReconnectCalendarEvents}
         displayTime={displayTime}
         t={t}
         tokens={tokens}
@@ -336,6 +354,22 @@ function createStyles(tokens: Tokens) {
     },
     eventList: {
       gap: 4,
+    },
+    reconnectState: {
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 24,
+    },
+    reconnectTitle: {
+      fontFamily: 'Geist_500Medium',
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    reconnectBody: {
+      fontFamily: 'Geist_400Regular',
+      fontSize: 14,
+      lineHeight: 21,
+      textAlign: 'center',
     },
     emptyEventText: {
       fontFamily: 'Geist_400Regular',
