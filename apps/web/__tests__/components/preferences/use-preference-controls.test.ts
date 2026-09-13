@@ -8,7 +8,7 @@ const mockPatchProfile = vi.fn()
 const mockApplyTheme = vi.fn()
 
 const profileRef = vi.hoisted(() => ({
-  value: {} as { hasProAccess: boolean; weekStartDay: 0 | 1; colorScheme: string } | undefined,
+  value: {} as { hasProAccess: boolean; weekStartDay: 0 | 1; colorScheme: string; timeZone: string } | undefined,
 }))
 const authRef = vi.hoisted(() => ({ isAuthenticated: true }))
 
@@ -30,6 +30,7 @@ vi.mock('@/stores/auth-store', () => ({
 vi.mock('@/app/actions/profile', () => ({
   updateWeekStartDay: vi.fn(),
   updateLanguage: vi.fn(),
+  updateTimezone: vi.fn(),
 }))
 
 const reloadMock = vi.fn()
@@ -46,7 +47,7 @@ describe('usePreferenceControls', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
-    profileRef.value = { hasProAccess: true, weekStartDay: 0, colorScheme: 'purple' }
+    profileRef.value = { hasProAccess: true, weekStartDay: 0, colorScheme: 'purple', timeZone: 'UTC' }
     authRef.isAuthenticated = true
     Object.defineProperty(globalThis, 'location', {
       configurable: true,
@@ -131,6 +132,19 @@ describe('usePreferenceControls', () => {
     })
 
     expect(mockPatchProfile).toHaveBeenLastCalledWith({ weekStartDay: 0 })
+  })
+
+  it('writes the selected timezone and updates the profile optimistically', async () => {
+    const { updateTimezone } = await import('@/app/actions/profile')
+    vi.mocked(updateTimezone).mockResolvedValue(undefined)
+    const { result } = renderHook(() => usePreferenceControls(), { wrapper })
+
+    await act(async () => {
+      await result.current.timeZoneMutation.mutateAsync('America/Sao_Paulo')
+    })
+
+    expect(mockPatchProfile).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
+    expect(updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
   })
 
   it('ignores a theme change to the already-active mode', () => {

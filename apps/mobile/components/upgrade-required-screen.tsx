@@ -42,6 +42,7 @@ export function UpgradeRequiredScreen() {
             {currentVersion && minVersion ? t('forceUpdate.versions', { currentVersion, minVersion }) : t('forceUpdate.description')}
           </Text>
           {failed ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.fg2 }]}>{t('forceUpdate.storeFailure')}</Text> : null}
+          {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
           <View><PillButton loading={busy} onClick={() => { void openStore() }}>{t('forceUpdate.cta')}</PillButton></View>
         </ScrollView>
       </SafeAreaView>

@@ -9,6 +9,7 @@ import {
 import { createTokensV2, radius, type AppTokensV2 } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { STAT_TILE_MIN_HEIGHT } from './stat-tile'
 
 function usePulseOpacity() {
   const opacity = useMemo(() => new Animated.Value(1), [])
@@ -50,22 +51,29 @@ function HabitRowSkeleton({ tokens, opacity }: Readonly<{ tokens: AppTokensV2; o
   )
 }
 
-function SettingsSkeleton({ tokens, opacity }: Readonly<{ tokens: AppTokensV2; opacity: Animated.Value }>) {
+function SettingsSkeleton({ rows = 1, tokens, opacity }: Readonly<{ rows?: number; tokens: AppTokensV2; opacity: Animated.Value }>) {
   return (
-    <View style={styles.settingsRow}>
-      <Block style={styles.settingsIcon} tokens={tokens} opacity={opacity} />
-      <View style={styles.copy}>
-        <Block style={styles.settingsTitle} tokens={tokens} opacity={opacity} />
-        <Block style={styles.settingsMeta} tokens={tokens} opacity={opacity} />
-      </View>
-      <Block style={styles.settingsValue} tokens={tokens} opacity={opacity} />
+    <View>
+      {Array.from({ length: rows }, (_, index) => (
+        <View key={index} testID="settings-skeleton-row" style={styles.settingsRow}>
+          <Block style={styles.settingsIcon} tokens={tokens} opacity={opacity} />
+          <View style={styles.copy}>
+            <Block style={styles.settingsTitle} tokens={tokens} opacity={opacity} />
+            <Block style={styles.settingsMeta} tokens={tokens} opacity={opacity} />
+          </View>
+          <Block style={styles.settingsValue} tokens={tokens} opacity={opacity} />
+        </View>
+      ))}
     </View>
   )
 }
 
 function StatTileSkeleton({ tokens, opacity }: Readonly<{ tokens: AppTokensV2; opacity: Animated.Value }>) {
   return (
-    <View style={[styles.statTile, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
+    <View
+      testID="skeleton-stat-tile-shape"
+      style={[styles.statTile, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}
+    >
       <Block style={styles.statValue} tokens={tokens} opacity={opacity} />
       <Block style={styles.statLabel} tokens={tokens} opacity={opacity} />
     </View>
@@ -122,7 +130,7 @@ export function Skeleton(props: Readonly<SkeletonProps>) {
       testID={`skeleton-unit-${props.variant}`}
     >
       {props.variant === 'habit-row' ? <HabitRowSkeleton tokens={tokens} opacity={opacity} /> : null}
-      {props.variant === 'settings' ? <SettingsSkeleton tokens={tokens} opacity={opacity} /> : null}
+      {props.variant === 'settings' ? <SettingsSkeleton rows={props.rows} tokens={tokens} opacity={opacity} /> : null}
       {props.variant === 'stat-tile' ? <StatTileSkeleton tokens={tokens} opacity={opacity} /> : null}
       {props.variant === 'grid' ? <GridSkeleton props={props} tokens={tokens} opacity={opacity} /> : null}
     </View>
@@ -157,7 +165,7 @@ const styles = StyleSheet.create({
   settingsMeta: { width: '66%', height: 12 },
   settingsValue: { width: 48, height: 16 },
   statTile: {
-    minHeight: 110,
+    minHeight: STAT_TILE_MIN_HEIGHT,
     borderRadius: radius.xl,
     borderWidth: 1,
     padding: 24,

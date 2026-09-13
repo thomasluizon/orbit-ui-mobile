@@ -71,6 +71,7 @@ import { AstraConversation } from '@/components/chat/conversation'
 import { Composer } from '@/components/shell/composer'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useOffline } from '@/hooks/use-offline'
+import { PushNotificationsProvider } from '@/hooks/use-push-notifications'
 import { captureError } from '@/lib/sentry'
 import { ThrottleScreen } from '@/components/throttle-screen'
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
@@ -86,10 +87,7 @@ const SLIDE_FROM_RIGHT_SCREENS = [
   'ai-settings',
   'advanced',
   'support',
-  'achievements',
-  'streak',
   'upgrade',
-  'retrospective',
   'wrapped',
   'calendar-sync',
   'step-up',
@@ -557,7 +555,9 @@ function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Providers>
-        <RootLayoutContent />
+        <PushNotificationsProvider>
+          <RootLayoutContent />
+        </PushNotificationsProvider>
       </Providers>
     </GestureHandlerRootView>
   )

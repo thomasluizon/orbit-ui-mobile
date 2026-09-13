@@ -20,9 +20,46 @@ vi.mock('@/components/referral/referral-drawer', () => ({
 
 const TestRenderer = require('react-test-renderer')
 
-const { mockUseGamificationProfile, mockRouterPush } = vi.hoisted(() => ({
+const {
+  mockApiClient,
+  mockPerformQueuedApiMutation,
+  mockAuthState,
+  mockShareAsync,
+  mockShellNoticeSlot,
+  mockUseGamificationProfile,
+  mockPatchProfile,
+  mockRouterPush,
+  mockProfileState,
+} = vi.hoisted(() => ({
+  mockApiClient: vi.fn(),
+  mockPerformQueuedApiMutation: vi.fn(),
+  mockShareAsync: vi.fn(),
+  mockAuthState: {
+    isAuthenticated: true,
+    user: { userId: 'user-1' },
+    logout: vi.fn(),
+  },
   mockUseGamificationProfile: vi.fn(() => ({ profile: null })),
+  mockPatchProfile: vi.fn(),
+  mockShellNoticeSlot: vi.fn(),
   mockRouterPush: vi.fn(),
+  mockProfileState: {
+    current: {
+      profile: undefined as ReturnType<typeof createMockProfile> | undefined,
+      isLoading: false,
+      error: null as Error | null,
+    },
+  },
+}))
+
+vi.mock('expo-sharing', () => {
+  return { shareAsync: mockShareAsync }
+})
+
+vi.mock('expo-device', () => ({
+  __esModule: true,
+  default: { isDevice: true },
+  isDevice: true,
 }))
 
 vi.mock('expo-router', () => ({
@@ -34,6 +71,10 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: {
+    type: '3rdParty',
+    init: () => {},
+  },
   useTranslation: () => ({
     t: (key: string) => key,
     i18n: { language: 'en' },
@@ -46,18 +87,14 @@ vi.mock('@tanstack/react-query', () => ({
     invalidateQueries: vi.fn(),
     clear: vi.fn(),
   }),
-  useMutation: () => ({
-    mutate: vi.fn(),
+  useMutation: (options: { mutationFn?: (value: boolean) => unknown }) => ({
+    mutate: (value: boolean) => options.mutationFn?.(value),
     isPending: false,
   }),
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({
-    profile: createMockProfile({ hasProAccess: false }),
-    isLoading: false,
-    error: null,
-  }),
+  useProfile: () => ({ ...mockProfileState.current, patchProfile: mockPatchProfile }),
   useTrialDaysLeft: () => 0,
   useTrialExpired: () => true,
 }))
@@ -68,9 +105,16 @@ vi.mock('@/hooks/use-gamification', () => ({
   useStreakInfo: () => ({ data: { currentStreak: 0, isFrozenToday: false } }),
 }))
 
-vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: (selector: (state: { logout: () => void }) => unknown) =>
-    selector({ logout: vi.fn() }),
+vi.mock('@/stores/auth-store', () => {
+  const useAuthStore = (selector: (state: typeof mockAuthState) => unknown) =>
+    selector(mockAuthState)
+  useAuthStore.getState = () => mockAuthState
+  return { useAuthStore }
+})
+
+vi.mock('@/stores/ui-store', () => ({
+  useUIStore: (selector: (state: { setAstraConversationOpen: () => void }) => unknown) =>
+    selector({ setAstraConversationOpen: vi.fn() }),
 }))
 
 vi.mock('@/hooks/use-offline', () => ({
@@ -82,6 +126,7 @@ vi.mock('@/lib/use-app-theme', () => ({
     colors: new Proxy({}, { get: () => '#111111' }),
     currentScheme: 'purple',
     currentTheme: 'dark',
+    applyTheme: vi.fn(),
   }),
 }))
 
@@ -121,7 +166,16 @@ vi.mock('@/lib/theme', () => ({
 }))
 
 vi.mock('@/lib/api-client', () => ({
-  apiClient: vi.fn(),
+  apiClient: mockApiClient,
+}))
+
+vi.mock('@/lib/queued-api-mutation', () => ({
+  performQueuedApiMutation: mockPerformQueuedApiMutation,
+}))
+
+vi.mock('@orbit/shared/hooks', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useShellNoticeSlot: mockShellNoticeSlot,
 }))
 
 vi.mock('@/lib/checklist-template-storage', () => ({
@@ -157,7 +211,10 @@ vi.mock('@/components/ui/theme-toggle', () => ({
 }))
 
 vi.mock('@/components/marketing-consent/marketing-consent-section', () => ({
-  MarketingConsentSection: () => null,
+  MarketingConsentSection: () =>
+    React.createElement('MarketingConsentSectionStub', {
+      testID: 'marketing-consent-section',
+    }),
 }))
 
 vi.mock('@/components/ui/offline-unavailable-state', () => ({
@@ -170,6 +227,7 @@ vi.mock('@/components/ui/app-text-input', () => ({
 
 vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
   KeyboardAwareScrollView: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useKeyboardAwareInputReveal: () => null,
 }))
 
 
@@ -180,10 +238,6 @@ vi.mock('@/components/tour/tour-replay-modal', () => ({
 
 vi.mock('@/app/(tabs)/profile/_components/profile-nav-card', () => ({
   ProfileNavCard: () => null,
-}))
-
-vi.mock('@/app/(tabs)/profile/_components/profile-action-button', () => ({
-  ProfileActionButton: () => null,
 }))
 
 vi.mock('@/components/profile/profile-nav-icon', () => ({
@@ -216,6 +270,36 @@ vi.mock('@/components/ui/settings-group', () => ({
   }) => React.createElement('SettingsRowStub', { label, hint, onPress }),
 }))
 
+vi.mock('@/components/ui/row-list', () => ({
+  RowList: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}))
+
+vi.mock('@/components/ui/list-row', () => ({
+  ListRow: ({
+    title,
+    description,
+    value,
+    onClick,
+    accessibilityLabel,
+    chevron = true,
+  }: {
+    title: string
+    description?: string
+    value?: string
+    onClick?: () => void
+    accessibilityLabel?: string
+    chevron?: boolean
+  }) => React.createElement('SettingsRowStub', {
+    label: title,
+    hint: description,
+    value,
+    onPress: onClick,
+    chevron,
+    accessibilityRole: onClick ? 'button' : undefined,
+    accessibilityLabel: accessibilityLabel ?? title,
+  }),
+}))
+
 vi.mock('@/components/ui/icons', () => {
   const createIcon = (name: string) => () => React.createElement(name)
   return {
@@ -239,9 +323,14 @@ vi.mock('@/components/ui/icons', () => {
     Pencil: createIcon('Pencil'),
     UserX: createIcon('UserX'),
     TriangleAlert: createIcon('TriangleAlert'),
+    BellRing: createIcon('BellRing'),
+    Bell: createIcon('Bell'),
     Calendar: createIcon('Calendar'),
     Languages: createIcon('Languages'),
+    Mail: createIcon('Mail'),
+    MessageSquare: createIcon('MessageSquare'),
     Moon: createIcon('Moon'),
+    Satellite: createIcon('Satellite'),
     Search: createIcon('Search'),
   }
 })
@@ -260,7 +349,10 @@ interface SettingsRowStubNode {
   props: {
     label?: string
     hint?: string
+    value?: string
     onPress?: () => void
+    chevron?: boolean
+    accessibilityRole?: string
   }
 }
 
@@ -286,62 +378,44 @@ function findRowByLabel(
 }
 
 describe('ProfileScreen', () => {
-  it('keeps all three controls outside the centred header and before scrolling content', async () => {
-    const tree = await renderProfileScreen()
-    const header = tree.root.findByProps({ testID: 'nav-header-plain' })
-    const actions = tree.root.findByProps({ testID: 'profile-header-actions' })
-    for (const control of ['ThemeToggle', 'StreakBadge', 'NotificationBell']) {
-      expect(header.findAllByType(control)).toHaveLength(0)
-      expect(actions.findAllByType(control)).toHaveLength(1)
-    }
-    expect(actions.findAllByType('ScrollView')).toHaveLength(0)
-  })
-
   beforeEach(() => {
+    mockApiClient.mockReset()
+    mockPerformQueuedApiMutation.mockReset()
+    mockShareAsync.mockReset().mockResolvedValue(undefined)
+    mockShellNoticeSlot.mockReset()
+    mockPatchProfile.mockReset()
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()
-  })
-
-  it('disables the gamification profile query for free users', async () => {
-    await TestRenderer.act(async () => {
-      TestRenderer.create(<ProfileScreen />)
-      await Promise.resolve()
-    })
-
-    expect(mockUseGamificationProfile).toHaveBeenCalledWith(false)
-  })
-
-  it('mounts the referral card on profile and opens the drawer when pressed', async () => {
-    let tree: ReturnType<typeof TestRenderer.create>
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<ProfileScreen />)
-      await Promise.resolve()
-    })
-
-    const [card] = tree!.root.findAll(
-      (node: { type: unknown }) => node.type === 'ReferralCardStub',
-    )
-    expect(card).toBeTruthy()
-    expect(
-      tree!.root.findAll((node: { type: unknown }) => node.type === 'ReferralDrawerOpen'),
-    ).toHaveLength(0)
-
-    await TestRenderer.act(async () => {
-      card.props.onPress()
-      await Promise.resolve()
-    })
-
-    expect(
-      tree!.root.findAll((node: { type: unknown }) => node.type === 'ReferralDrawerOpen'),
-    ).toHaveLength(1)
+    mockProfileState.current = {
+      profile: createMockProfile({
+        plan: 'free',
+        hasProAccess: false,
+        aiMessagesUsed: 2,
+        aiMessagesLimit: 5,
+      }),
+      isLoading: false,
+      error: null,
+    }
   })
 
   it('renders every feature destination as a grouped settings row with its hint', async () => {
     const tree = await renderProfileScreen()
 
-    expect(findRowByLabel(tree, 'tour.replay.title').props.hint).toBe(
-      'explore.tourHint',
-    )
+    const groupLabels = [
+      'profile.groups.you',
+      'profile.groups.astra',
+      'profile.groups.notifications',
+      'profile.groups.more',
+      'profile.groups.ending',
+    ]
+    for (const label of groupLabels) {
+      expect(
+        tree.root.findAll(
+          (node: { children?: unknown[] }) => node.children?.includes(label),
+        ).length,
+      ).toBeGreaterThan(0)
+    }
+
     expect(findRowByLabel(tree, 'profile.wrappedTitle').props.hint).toBe(
       'profile.wrappedHint',
     )
@@ -351,9 +425,19 @@ describe('ProfileScreen', () => {
     expect(findRowByLabel(tree, 'profile.sections.aboutHelp').props.hint).toBe(
       'profile.sections.aboutHelpHint',
     )
-    expect(findRowByLabel(tree, 'profile.sections.advanced').props.hint).toBe(
-      'profile.sections.advancedHint',
-    )
+
+    for (const movedLabel of [
+      'profile.sections.preferences',
+      'profile.sections.aiFeatures',
+      'profile.sections.advanced',
+    ]) {
+      expect(
+        tree.root.findAll(
+          (node: SettingsRowStubNode) =>
+            node.type === 'SettingsRowStub' && node.props.label === movedLabel,
+        ),
+      ).toHaveLength(0)
+    }
 
     const removedLabels = [
       ['so', 'cial.profileNav.title'].join(''),
@@ -369,21 +453,307 @@ describe('ProfileScreen', () => {
     }
   })
 
-  it('opens the tour replay modal from the discover row', async () => {
+  it('keeps every profile setting reachable by its accessible name', async () => {
     const tree = await renderProfileScreen()
+    const accessibleNames = [
+      'profile.settingsRows.editName',
+      'profile.language.title',
+      'profile.settingsRows.timezoneValue',
+      'settings.weekStartDay.title',
+      'preferences.themeMode',
+      'profile.subscription.plan',
+      'profile.settingsRows.apiKeysMcp',
+      'profile.wrappedTitle',
+      'calendar.profileButton',
+      'profile.sections.aboutHelp',
+      'dataExport.button',
+      'shareCard.entry',
+      'profile.freshStart.button',
+      'profile.logout',
+      'profile.deleteAccount.button',
+    ]
 
+    for (const accessibilityLabel of accessibleNames) {
+      expect(
+        tree.root.findAll(
+          (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+            node.props.accessibilityRole === 'button' &&
+            node.props.accessibilityLabel === accessibilityLabel,
+        ),
+        `missing accessible profile row: ${accessibilityLabel}`,
+      ).toHaveLength(1)
+    }
+  })
+
+  it('shows the free daily allowance and routes its only plan action to Pro', async () => {
+    const tree = await renderProfileScreen()
+    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
+    const progress = astra.findByProps({
+      accessibilityRole: 'progressbar',
+      accessibilityLabel: 'profile.allowance.title',
+    })
+    expect(progress.props.accessibilityValue).toEqual({ min: 0, max: 5, now: 2 })
     expect(
-      tree.root.findAll((node: { type: unknown }) => node.type === 'TourReplayModalOpen'),
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.allowance.spent')),
+    ).toHaveLength(0)
+    const proactiveGate = findRowByLabel(tree, 'profile.proactiveAstra.title')
+    const summaryGate = findRowByLabel(tree, 'profile.aiSummary.title')
+
+    TestRenderer.act(() => {
+      tree.root.findByProps({
+        accessibilityRole: 'button',
+        accessibilityLabel: 'profile.allowance.seePro',
+      }).props.onPress()
+      proactiveGate.props.onPress?.()
+      summaryGate.props.onPress?.()
+    })
+    expect(mockRouterPush).toHaveBeenNthCalledWith(1, {
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
+    expect(mockRouterPush).toHaveBeenNthCalledWith(2, {
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
+    expect(mockRouterPush).toHaveBeenNthCalledWith(3, {
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
+  })
+
+  it('shows trial copy and routes its allowance action to the trial pitch', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({
+        plan: 'pro',
+        hasProAccess: true,
+        isTrialActive: true,
+        aiMessagesUsed: 2,
+        aiMessagesLimit: 50,
+      }),
+      isLoading: false,
+      error: null,
+    }
+    const tree = await renderProfileScreen()
+    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.subscription.trial')),
+    ).toHaveLength(1)
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.allowance.manageSubscription')),
     ).toHaveLength(0)
 
+    TestRenderer.act(() => {
+      tree.root.findByProps({
+        accessibilityRole: 'button',
+        accessibilityLabel: 'profile.allowance.seePro',
+      }).props.onPress()
+    })
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
+  })
+
+  it('shows a spent Pro allowance and hands subscription management off directly', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({
+        plan: 'pro',
+        hasProAccess: true,
+        aiMessagesUsed: 50,
+        aiMessagesLimit: 50,
+      }),
+      isLoading: false,
+      error: null,
+    }
+    const tree = await renderProfileScreen()
+    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
+    const progress = astra.findByProps({
+      accessibilityRole: 'progressbar',
+      accessibilityLabel: 'profile.allowance.title',
+    })
+    expect(progress.props.accessibilityValue).toEqual({ min: 0, max: 50, now: 50 })
+    expect(astra.findByProps({ testID: 'progress-bar-complete' })).toBeDefined()
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.allowance.spent')),
+    ).toHaveLength(1)
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.allowance.seePro')),
+    ).toHaveLength(0)
+
+    TestRenderer.act(() => {
+      tree.root.findByProps({
+        accessibilityRole: 'button',
+        accessibilityLabel: 'profile.allowance.manageSubscription',
+      }).props.onPress()
+    })
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
+    const proactiveSwitch = astra.findByProps({
+      accessibilityRole: 'switch',
+      accessibilityLabel: 'profile.proactiveAstra.title',
+    })
+    const summarySwitch = astra.findByProps({
+      accessibilityRole: 'switch',
+      accessibilityLabel: 'profile.aiSummary.title',
+    })
+    TestRenderer.act(() => {
+      proactiveSwitch.props.onPress()
+      summarySwitch.props.onPress()
+    })
+    expect(mockPerformQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'setProactiveAstra',
+      payload: { enabled: true },
+    }))
+    expect(mockPerformQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'setAiSummary',
+      payload: { enabled: false },
+    }))
+  })
+
+  it('shows lifetime Pro without advertising a subscription management action', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({
+        plan: 'pro',
+        hasProAccess: true,
+        isTrialActive: false,
+        isLifetimePro: true,
+        aiMessagesUsed: 2,
+        aiMessagesLimit: 50,
+      }),
+      isLoading: false,
+      error: null,
+    }
+    const tree = await renderProfileScreen()
+    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
+
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.allowance.pro')),
+    ).toHaveLength(1)
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.allowance.seePro')),
+    ).toHaveLength(0)
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.allowance.manageSubscription')),
+    ).toHaveLength(0)
+  })
+
+  it('places export last in You instead of Ending things', async () => {
+    const tree = await renderProfileScreen()
+    const youGroup = tree.root.find(
+      (node: { props: { testID?: string } }) =>
+        node.props.testID === 'profile-settings-group-you',
+    )
+    const endingGroup = tree.root.find(
+      (node: { props: { testID?: string } }) =>
+        node.props.testID === 'profile-settings-group-ending',
+    )
+    const youRows = youGroup.findAll(
+      (node: SettingsRowStubNode) => node.type === 'SettingsRowStub',
+    ) as SettingsRowStubNode[]
+
+    expect(youRows.at(-1)?.props.label).toBe('dataExport.button')
+    expect(
+      endingGroup.findAll(
+        (node: SettingsRowStubNode) =>
+          node.type === 'SettingsRowStub' && node.props.label === 'dataExport.button',
+      ),
+    ).toHaveLength(0)
+  })
+
+  it('shows Preparing on the row and registers completion in the shell notice slot', async () => {
+    let finishExport!: (value: Record<string, never>) => void
+    mockApiClient.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishExport = resolve
+      }),
+    )
+    const tree = await renderProfileScreen()
+
     await TestRenderer.act(async () => {
-      findRowByLabel(tree, 'tour.replay.title').props.onPress?.()
+      findRowByLabel(tree, 'dataExport.button').props.onPress?.()
+      await Promise.resolve()
+    })
+    expect(findRowByLabel(tree, 'dataExport.button').props.value).toBe(
+      'dataExport.preparing',
+    )
+
+    await TestRenderer.act(async () => {
+      finishExport({})
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(mockShellNoticeSlot.mock.calls.some(([enabled]) => enabled)).toBe(true)
+    const noticeCall = [...mockShellNoticeSlot.mock.calls]
+      .reverse()
+      .find((call) => call[0] === true)
+    const notice = noticeCall?.[1]() as React.ReactElement<{ kind: string; message: string }>
+    expect(notice.props).toMatchObject({ kind: 'done', message: 'dataExport.done' })
+  })
+
+  it('opens the timezone picker from the timezone row', async () => {
+    const tree = await renderProfileScreen()
+
+    await TestRenderer.act(async () => {
+      findRowByLabel(tree, 'profile.settingsRows.timezone').props.onPress?.()
       await Promise.resolve()
     })
 
+    expect(mockRouterPush).not.toHaveBeenCalled()
     expect(
-      tree.root.findAll((node: { type: unknown }) => node.type === 'TourReplayModalOpen'),
+      tree.root.findAll(
+        (node: { props: { accessibilityRole?: string; accessibilityState?: { checked?: boolean } } }) =>
+          node.props.accessibilityRole === 'radio' &&
+          node.props.accessibilityState?.checked === true,
+      ).length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('renders only product email consent in Notifications', async () => {
+    const tree = await renderProfileScreen()
+    const notificationsGroup = tree.root.find(
+      (node: { props: { testID?: string } }) =>
+        node.props.testID === 'profile-settings-group-notifications',
+    )
+
+    expect(
+      notificationsGroup.findAll(
+        (node: { props: { testID?: string } }) =>
+          node.props.testID === 'marketing-consent-section',
+      ),
     ).toHaveLength(1)
+    expect(
+      notificationsGroup.findAll(
+        (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+          node.props.accessibilityRole === 'button' &&
+          ['profile.settingsRows.reminders', 'habits.form.slipAlert'].includes(
+            node.props.accessibilityLabel ?? '',
+          ),
+      ),
+    ).toHaveLength(0)
+
+    expect(
+      notificationsGroup.findAll(
+        (node: { children: unknown[] }) =>
+          node.children.includes('profile.settingsRows.remindersNote'),
+      ),
+    ).toHaveLength(0)
+    expect(
+      notificationsGroup.findAll(
+        (node: { props: { accessibilityRole?: string; accessibilityLabel?: string } }) =>
+          node.props.accessibilityRole === 'switch' &&
+          node.props.accessibilityLabel === 'profile.settingsRows.currentDevice',
+      ),
+    ).toHaveLength(0)
   })
 
   it('redirects gated feature rows to upgrade for free users', async () => {

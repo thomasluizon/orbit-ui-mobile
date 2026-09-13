@@ -23,7 +23,7 @@ interface SettingsRowProps {
   leadingDot?: string
   /** Leading Tabler icon, rendered 22/1.8 centered in a 26px slot. */
   icon?: IconComponent
-  /** Destructive row: title and icon render in status-bad. */
+  /** Destructive row: the icon uses the graphic role and the title uses the text role. */
   danger?: boolean
   /** Slot rendered between the value and the chevron (e.g. Switch, ProTag). */
   children?: ReactNode
@@ -51,7 +51,8 @@ export function SettingsRow({
 }: Readonly<SettingsRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const titleColor = danger ? tokens.statusBad : tokens.fg1
+  const iconColor = danger ? tokens.statusBad : tokens.fg1
+  const titleColor = danger ? tokens.statusBadText : tokens.fg1
 
   return (
     <Pressable
@@ -71,7 +72,7 @@ export function SettingsRow({
     >
       {LeadingIcon ? (
         <View style={styles.iconSlot}>
-          <LeadingIcon size={22} color={titleColor} strokeWidth={1.8} />
+          <LeadingIcon size={22} color={iconColor} strokeWidth={1.8} />
         </View>
       ) : null}
       {leadingDot ? (

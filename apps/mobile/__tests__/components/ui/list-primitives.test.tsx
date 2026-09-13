@@ -175,11 +175,18 @@ describe('list primitives on mobile', () => {
       )
     })
     actionContent(tree.root.findByType(Pressable), true)
+    const dangerTitle = tree.root.findAllByType(Text).find((node) => node.props.children === 'Danger zone')
+    expect(StyleSheet.flatten(dangerTitle?.props.style)).toMatchObject({
+      color: createTokensV2('purple', 'dark').statusBadText,
+    })
 
     void act(() => {
-      tree.update(<ListRow title="Read only" readOnly />)
+      tree.update(<ListRow title="A complete read only title" readOnly wrapTitle />)
     })
     expect(tree.root.findAllByType(Pressable)).toHaveLength(0)
+    const wrappedTitle = tree.root.findAllByType(Text).find((node) =>
+      node.props.children === 'A complete read only title')
+    expect(wrappedTitle?.props.numberOfLines).toBeUndefined()
   })
 
   it('renders RadioRow selection details and disables unavailable choices', () => {

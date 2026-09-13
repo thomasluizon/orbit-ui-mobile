@@ -128,9 +128,10 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
 
       <div className="shrink-0">
         {sendError ? (
-          <div role="alert" aria-live="assertive" className="flex items-center justify-center gap-3 px-4 pt-3 text-sm text-[var(--status-bad)]">
+          <div role="alert" aria-live="assertive" className="flex items-center justify-center gap-3 px-4 pt-3 text-sm text-[var(--status-bad-text)]">
             <p className="m-0">{sendError}</p>
             {canRetryLastSend && isOnline ? (
+              /* eslint-disable-next-line local/max-button-words -- ORB-55 owns this existing Astra label. */
               <button
                 type="button"
                 onClick={() => void retryLastSend()}

@@ -1,19 +1,41 @@
 ---
 name: sleep
-description: Enter /orchestrate --sleep with a decision log; unattended continuation exists only through that orchestrator lifecycle. Take every decision yourself, always the best approach and never the easiest, write each decision to a log, and keep shipping until he says stop. On stop, report every decision and everything that shipped. Use when he says /sleep, I am going to sleep, keep working while I sleep, or good night.
+description: Put /orchestrate in --sleep mode with a decision log; unattended continuation exists only through that orchestrator lifecycle. Take every decision yourself, always the best approach and never the easiest, write each decision to a log, and keep shipping until he says stop. On stop, report every decision and everything that shipped. Use when he says /sleep, I am going to sleep, keep working while I sleep, or good night.
 argument-hint: [optional focus, for example "finish 814 then groundwork tickets"]
 ---
 
 # Sleep mode
 
 **At a glance:** Thomas is asleep. Nobody answers a question tonight. You decide, you record, you
-enter `/orchestrate --sleep`, keep working through its lifecycle, and account for it when he wakes.
+put the current `/orchestrate` run in `--sleep` mode or enter a new one, keep working through its
+lifecycle, and account for it when he wakes.
 This skill is an entry policy for that path, not a standalone continuation mechanism.
 
 Sleep mode does not lower the bar. It raises it, because the reviewer who normally catches a bad
 call is unconscious.
 
 ## 1. Open the log and enter the canonical orchestrator
+
+Read the existing run record with `readRunState` before you act. Take the exact `sessionId` from the
+parent directory of `scratchpad` in the system prompt's path. For example, a path ending in
+`.../79719f66-9e44-4f76-b8b2-30bcd6d279be/scratchpad` has the session id
+`79719f66-9e44-4f76-b8b2-30bcd6d279be`, never `scratchpad`. This rule was verified on 2026-09-11
+when the record id matched a sibling scratchpad directory whose parent had that name.
+
+Your first action must write the run state through `writeRunState` with this session id and
+`sleep: true`. Do this before queue work or log setup. A record with a different `sessionId` makes
+the Stop guard inert until this write replaces it. Read the state back with `readRunState`, and
+confirm the session id and `sleep: true` before the first turn ends. The stale record made the Stop
+guard inert for six hours on 2026-09-11.
+
+If an `/orchestrate` run is active, change that run to `--sleep` in place. Do not enter the
+orchestrator again, and do not plan the queue again. Keep its admitted `remaining` queue. Preserve
+its repository-qualified `pullRequests` and append-only `readinessLedger`.
+
+`writeRunState` in `tools/lib/run-state.mjs:66` unions the previous `pullRequests` and
+`readinessLedger` forward only when the previous and new session ids match. If the write replaces a
+different session id, pass every pull request that this session owns in the same call. Otherwise,
+the write drops those ledger rows.
 
 Write the decision log to `sleep-decisions.md` in this session's scratchpad directory, the one named
 in your system prompt. Keep it outside every repository, so no gate and no commit ever sees it.
@@ -34,13 +56,14 @@ One entry per decision, in this shape:
     Cost:     <what this gives up, or "nothing found">
     Reversible: yes | no, and how to undo it
 
-**Invoking `/sleep` must enter `/orchestrate <scope> --sleep` in this session.** Read and execute
-`.claude/skills/orchestrate/SKILL.md`, including preflight and step 2b, before starting work or
-ending a turn. Use the supplied focus to select its scope; without a focus, use its `--auto` queue
-selection. Apply `--cloud --parallel` only for the repository bound by `cloud.repositoryKey`.
-Do not run a separate loop from this document. If the runtime cannot execute that lifecycle with
-a background task that re-invokes this session, report that unattended continuation is unavailable.
-A decision log or a run record alone never establishes a working sleep run.
+If no `/orchestrate` run is active, `/sleep` must enter `/orchestrate <scope> --sleep` in this
+session. Read and execute `.claude/skills/orchestrate/SKILL.md`, including preflight and step 2b,
+before you start queue work or end a turn. Use the supplied focus to select its scope. Without a
+focus, use its `--auto` queue selection. Apply `--cloud --parallel` only for the repository bound by
+`cloud.repositoryKey`. Do not run a separate loop from this document. If the runtime cannot execute
+that lifecycle with a background task that re-invokes this session, report that unattended
+continuation is unavailable. A decision log or a run record alone never establishes a working
+sleep run.
 
 ## 2. What counts as a decision
 
@@ -84,9 +107,14 @@ Follow `/orchestrate`'s "Every turn under `--sleep` ends with a live wake source
 - Preserve repository-qualified `pullRequests` and the append-only `readinessLedger`, with actual
   receipt paths. Update state at step 9 as work lands. Never clear the ledger to claim completion.
 - While actionable work or readiness debt remains, always leave a live background wake source
-  that will re-invoke this session and name it on the turn's last line. `launch-worker.mjs`
-  registers local workers; `submit-cloud-worker.mjs --watch <receiptPath>` registers Cloud watchers.
-  A remote Cloud task or a GitHub check by itself cannot wake this session.
+  that will re-invoke this session and name it on the turn's last line. Only
+  `tools/launch-worker.mjs:268` and `tools/submit-cloud-worker.mjs:201` call `registerWakeSource`.
+  The Cloud command reaches that call only through
+  `submit-cloud-worker.mjs --watch <receiptPath>`. These calls write
+  `.git/orbit-wake-sources/<pid>.json`. A background shell command does not register a wake source,
+  however long it runs. A 2026-09-11 session treated a background `npm install` as a wake source.
+  It was not one, and the Stop hook caught it. A remote Cloud task or a GitHub check by itself cannot
+  wake this session.
 - If all slots are free and work remains, launch the next worker or readiness task before yielding.
   Verify the wake source is live; a stale pid file or an unscheduled promise to watch CI is not one.
 - When Thomas says stop, clear `sleep` for this session and report. On queue exhaustion write

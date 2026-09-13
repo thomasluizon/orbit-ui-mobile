@@ -60,10 +60,6 @@ vi.mock('@/components/goals/edit-goal-modal', () => ({
   EditGoalModal: () => null,
 }))
 
-vi.mock('@/components/goals/goal-metrics-panel', () => ({
-  GoalMetricsPanel: () => React.createElement('div', { 'data-testid': 'metrics-panel' }),
-}))
-
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 
 describe('GoalDetailDrawer', () => {

@@ -125,11 +125,15 @@ vi.mock('@/components/ui/list-row', () => ({
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, disabled, label, onClick }: { children?: React.ReactNode; disabled?: boolean; label?: string; onClick?: () => void }) => <button type="button" disabled={disabled} aria-label={label} onClick={onClick}>{children}</button>,
 }))
-vi.mock('@/components/ui/stat-tile', () => ({
+vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/stat-tile')>()),
   StatTile: ({ label, value }: { label: string; value: string }) => <output data-testid={`stat-${label}`}>{value}</output>,
 }))
 vi.mock('@/components/dates/day-cell', () => ({
-  DayCell: ({ day, outcome, outsideMonth, label }: { day: number; outcome: string; outsideMonth: boolean; label: string }) => <span aria-label={label} data-testid={`history-day-${day}-${outsideMonth ? 'outside' : 'inside'}`}>{outcome}</span>,
+  DayCell: ({ day, done, scheduled, outsideMonth, label }: { day: number; done?: number; scheduled?: number; outsideMonth: boolean; label: string }) => {
+    const outcome = scheduled === 0 ? 'not-scheduled' : done !== undefined && scheduled !== undefined && done >= scheduled ? 'full' : 'none'
+    return <span aria-label={label} data-testid={`history-day-${day}-${outsideMonth ? 'outside' : 'inside'}`}>{outcome}</span>
+  },
 }))
 vi.mock('@/components/dates/day-strip', () => ({ DayStrip: () => null }))
 vi.mock('@/components/dates/month-grid', () => ({
@@ -457,7 +461,11 @@ describe('HabitDetailScreen', () => {
     view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
     expect(screen.getByTestId('child-child-1')).toHaveAttribute('data-state', 'done')
     fireEvent.click(screen.getByTestId('child-child-1'))
-    expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date: '2026-08-28' })
+    expect(mocks.log).toHaveBeenLastCalledWith({
+      habitId: 'child-1',
+      date: '2026-08-28',
+      intent: 'unlog',
+    })
   })
 
   it('announces full dates for logged and unlogged history cells and keeps the log time', () => {
@@ -486,7 +494,7 @@ describe('HabitDetailScreen', () => {
       expect(child).toHaveAttribute('data-read-only', 'false')
 
       fireEvent.click(child)
-      expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date })
+      expect(mocks.log).toHaveBeenLastCalledWith({ habitId: 'child-1', date, intent: 'unlog' })
     },
   )
 
@@ -768,7 +776,11 @@ describe('HabitDetailScreen', () => {
     fireEvent.click(screen.getByTestId('confirm-habits.checklistCompleteTitle'))
     await act(async () => Promise.resolve())
 
-    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-28' })
+    expect(mocks.log).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      date: '2026-08-28',
+      intent: 'log',
+    })
     expect(screen.queryByTestId('confirm-habits.checklistCompleteTitle')).not.toBeInTheDocument()
   })
 

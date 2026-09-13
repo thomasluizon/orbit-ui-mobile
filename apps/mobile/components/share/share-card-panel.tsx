@@ -62,7 +62,7 @@ function LoadedShareCard({
   )
 }
 
-/** Recap share preview: period selector → recap fetch → branded ShareCard + native share. Reused by Profile + Retrospective. */
+/** Recap share preview: period selector, recap fetch, branded ShareCard, and native share. */
 export function ShareCardPanel({ open, onClose, displayName }: Readonly<ShareCardPanelProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -100,6 +100,7 @@ export function ShareCardPanel({ open, onClose, displayName }: Readonly<ShareCar
         {!isLoading && isError ? (
           <View style={styles.errorState}>
             <Text style={styles.errorText}>{t('shareCard.error')}</Text>
+            {/* eslint-disable-next-line local/max-button-words -- ORB-66 owns this existing share label. */}
             <PillButton variant="ghost" onClick={() => void refetch()}>
               {t('common.retry')}
             </PillButton>
@@ -180,7 +181,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       textAlign: 'center',
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
-      color: tokens.statusBad,
+      color: tokens.statusBadText,
     },
   })
 }

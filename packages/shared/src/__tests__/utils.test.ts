@@ -1,5 +1,12 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
-import { parseAPIDate, formatAPIDate, nowDate, resolveHabitDetailRouteDate } from '../utils/dates'
+import {
+  parseAPIDate,
+  formatAPIDate,
+  formatAPIDateInTimeZone,
+  getAccountDateTime,
+  nowDate,
+  resolveHabitDetailRouteDate,
+} from '../utils/dates'
 import { getTimezoneList } from '../utils/timezones'
 import { isValidEmail } from '../utils/email'
 import {
@@ -78,6 +85,37 @@ describe('formatAPIDate', () => {
   })
 })
 
+describe('formatAPIDateInTimeZone', () => {
+  it('formats the account date when it differs from the browser-local date', () => {
+    const instant = new Date('2026-09-12T01:30:00.000Z')
+
+    expect(formatAPIDateInTimeZone(instant, 'Pacific/Kiritimati')).toBe('2026-09-12')
+    expect(formatAPIDateInTimeZone(instant, 'America/Sao_Paulo')).toBe('2026-09-11')
+  })
+
+  it('uses UTC for a nullable or invalid account timezone', () => {
+    const instant = new Date('2026-09-12T01:30:00.000Z')
+
+    expect(formatAPIDateInTimeZone(instant, null)).toBe('2026-09-12')
+    expect(formatAPIDateInTimeZone(instant, 'Invalid/Zone')).toBe('2026-09-12')
+  })
+})
+
+describe('getAccountDateTime', () => {
+  it('derives the account day and minute from one instant', () => {
+    const instant = new Date('2026-09-11T10:30:00.000Z')
+
+    expect(getAccountDateTime(instant, 'Pacific/Kiritimati')).toEqual({
+      date: '2026-09-12',
+      minutes: 30,
+    })
+    expect(getAccountDateTime(instant, 'America/Sao_Paulo')).toEqual({
+      date: '2026-09-11',
+      minutes: 450,
+    })
+  })
+})
+
 describe('resolveHabitDetailRouteDate', () => {
   const today = new Date(2026, 7, 30)
 
@@ -136,10 +174,24 @@ describe('getTimezoneList', () => {
     }
   })
 
-  it('falls back to an empty list when Intl.supportedValuesOf is unavailable', () => {
+  it('includes the UTC value accepted by the profile API exactly once', () => {
+    vi.stubGlobal('Intl', {
+      supportedValuesOf: () => ['Etc/UTC', 'UTC', 'Europe/London'],
+    })
+
+    const list = getTimezoneList()
+    expect(list).toContain('UTC')
+    expect(list.filter((timeZone) => ['UTC', 'Etc/UTC'].includes(timeZone))).toEqual(['UTC'])
+  })
+
+  it('falls back to the bundled IANA list when Intl.supportedValuesOf is unavailable', () => {
     vi.stubGlobal('Intl', {})
 
-    expect(getTimezoneList()).toEqual([])
+    const list = getTimezoneList()
+    expect(list.length).toBeGreaterThan(0)
+    expect(list).toContain('UTC')
+    expect(list).toContain('America/Sao_Paulo')
+    expect(list).toContain('Europe/London')
   })
 })
 

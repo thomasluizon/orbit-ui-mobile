@@ -14,7 +14,7 @@ export function ProgressBar({ value = 0, max = 100, label }: Readonly<ProgressBa
       aria-valuemax={safeMax}
       aria-valuenow={clampedValue}
       aria-label={label}
-      className="h-2 overflow-hidden rounded-full bg-[var(--fg-4)]"
+      className="h-2 overflow-hidden rounded-full bg-[var(--track-empty)]"
       data-complete={complete || undefined}
     >
       <div

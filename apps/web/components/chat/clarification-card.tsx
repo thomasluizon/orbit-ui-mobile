@@ -33,7 +33,7 @@ export function ClarificationCard({ clarificationRequest, entityName }: Readonly
             return <Button key={action.value} variant="ghost" size="sm" disabled={resolve.isPending} onClick={() => void choose(label, action.value)}>{label}</Button>
           })}</div>
         )}
-        {errorKey ? <p role="alert" className="text-sm text-[var(--status-bad)]">{t(errorKey)}</p> : null}
+        {errorKey ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t(errorKey)}</p> : null}
       </div>
     )} />
   )

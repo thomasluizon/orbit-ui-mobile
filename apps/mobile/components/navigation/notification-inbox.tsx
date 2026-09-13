@@ -46,6 +46,7 @@ export function NotificationInbox() {
           <NotificationBellDisplay count={inbox.visibleUnreadCount} />
         </View>
         <View style={styles.actions}>
+          {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
           {inbox.visibleUnreadCount > 0 ? <Button variant="ghost" size="sm" accessibleName={t('notifications.markAllRead')}
             onClick={() => markAllAsRead.mutate()}>{t('notifications.markAllRead')}</Button> : null}
           {inbox.visibleNotifications.length > 0 ? <Button variant="ghost" size="sm" accessibleName={t('notifications.deleteAll')}

@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { Shell412Props } from '@orbit/shared/contracts/shell'
+import { ShellNoticeSlotProvider, useShellNoticeHost } from '@orbit/shared/hooks'
 import { zLayers } from '@orbit/shared/theme'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -59,8 +60,12 @@ function ShellBottomChrome({
 
 export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean }>) {
   const registeredComposer = useShellComposerHost()
+  const registeredNotice = useShellNoticeHost()
   const navigationEnabled = props.nav !== false
   const pinnedSlot = navigationEnabled ? (registeredComposer.content ?? props.composer) : props.action
+  const notice = registeredNotice.content === undefined
+    ? props.notice
+    : <>{props.notice}{registeredNotice.content}</>
   const conversationOpen = props.conversation !== undefined && props.conversationOpen !== false
   const insets = useSafeAreaInsets()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -70,51 +75,53 @@ export function Shell412(props: Readonly<Shell412Props & { safeAreaTop?: boolean
   )
 
   return (
-    <ShellComposerSlotProvider value={registeredComposer.value}>
-    <View
-      testID="shell-412"
-      style={[styles.root, { backgroundColor: tokens.bg }]}
-    >
-      <View
-        testID="shell-background"
-        style={[styles.background, { paddingTop: (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0 }]}
-        importantForAccessibility={conversationOpen ? 'no-hide-descendants' : 'auto'}
-      >
-        {props.header !== undefined ? (
-          <View testID="shell-header">{props.header}</View>
-        ) : null}
-
-        <View testID="shell-scroller" style={styles.scroller}>
-          {props.children}
-        </View>
-
-        <ShellBottomChrome
-          navigationEnabled={navigationEnabled}
-          pinnedSlot={pinnedSlot}
-          notice={props.notice}
-          tabBar={props.tabBar}
-          fab={props.fab}
-          backgroundColor={tokens.bg}
-          borderTopColor={tokens.hairline}
-          safeAreaBottom={insets.bottom}
-        />
-
-        {props.sheets}
-      </View>
-
-      {conversationOpen ? (
+    <ShellNoticeSlotProvider value={registeredNotice.value}>
+      <ShellComposerSlotProvider value={registeredComposer.value}>
         <View
-          accessibilityRole="none"
-          accessibilityLabel={props.conversationLabel}
-          accessibilityViewIsModal
-          testID="shell-conversation"
-          style={[styles.conversation, { backgroundColor: tokens.bg }]}
+          testID="shell-412"
+          style={[styles.root, { backgroundColor: tokens.bg }]}
         >
-          {props.conversation}
+          <View
+            testID="shell-background"
+            style={[styles.background, { paddingTop: (props.safeAreaTop ?? navigationEnabled) ? insets.top : 0 }]}
+            importantForAccessibility={conversationOpen ? 'no-hide-descendants' : 'auto'}
+          >
+            {props.header !== undefined ? (
+              <View testID="shell-header">{props.header}</View>
+            ) : null}
+
+            <View testID="shell-scroller" style={styles.scroller}>
+              {props.children}
+            </View>
+
+            <ShellBottomChrome
+              navigationEnabled={navigationEnabled}
+              pinnedSlot={pinnedSlot}
+              notice={notice}
+              tabBar={props.tabBar}
+              fab={props.fab}
+              backgroundColor={tokens.bg}
+              borderTopColor={tokens.hairline}
+              safeAreaBottom={insets.bottom}
+            />
+
+            {props.sheets}
+          </View>
+
+          {conversationOpen ? (
+            <View
+              accessibilityRole="none"
+              accessibilityLabel={props.conversationLabel}
+              accessibilityViewIsModal
+              testID="shell-conversation"
+              style={[styles.conversation, { backgroundColor: tokens.bg }]}
+            >
+              {props.conversation}
+            </View>
+          ) : null}
         </View>
-      ) : null}
-    </View>
-    </ShellComposerSlotProvider>
+      </ShellComposerSlotProvider>
+    </ShellNoticeSlotProvider>
   )
 }
 

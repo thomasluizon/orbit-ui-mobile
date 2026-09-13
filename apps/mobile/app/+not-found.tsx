@@ -17,6 +17,7 @@ export default function NotFoundScreen() {
       <OrbitMark size={40} />
       <Text accessibilityRole="header" style={[styles.title, { color: tokens.fg1 }]}>{t('notFoundPage.title')}</Text>
       <Text style={[styles.body, { color: tokens.fg2 }]}>{t('notFoundPage.description')}</Text>
+      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       <PillButton onClick={() => router.replace('/')}>{t('notFoundPage.action')}</PillButton>
     </ScrollView>
   )

@@ -34,7 +34,7 @@ export function ClarificationCard({ clarificationRequest, entityName }: Readonly
             return <Button key={action.value} variant="ghost" size="sm" disabled={resolve.isPending} onClick={() => void choose(label, action.value)}>{label}</Button>
           })}</View>
         )}
-        {errorKey ? <Text accessibilityRole="alert" style={{ color: tokens.statusBad }}>{t(errorKey)}</Text> : null}
+        {errorKey ? <Text accessibilityRole="alert" style={{ color: tokens.statusBadText }}>{t(errorKey)}</Text> : null}
       </View>
     )} />
   )

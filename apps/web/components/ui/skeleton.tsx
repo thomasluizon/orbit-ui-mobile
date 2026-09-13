@@ -1,4 +1,5 @@
 import type { SkeletonProps } from '@orbit/shared/contracts/feedback'
+import { STAT_TILE_MIN_HEIGHT } from './stat-tile'
 
 const blockClass = 'skeleton-pulse rounded-[var(--r-well)] bg-[var(--bg-well)]'
 
@@ -15,22 +16,33 @@ function HabitRowSkeleton() {
   )
 }
 
-function SettingsSkeleton() {
+function SettingsSkeleton({ rows = 1 }: Readonly<{ rows?: number }>) {
   return (
-    <div className="flex h-[52px] items-center gap-3 px-4">
-      <span className={`${blockClass} size-6 shrink-0`} />
-      <span className="flex flex-1 flex-col gap-2">
-        <span className={`${blockClass} h-4 w-1/2`} />
-        <span className={`${blockClass} h-3 w-2/3`} />
-      </span>
-      <span className={`${blockClass} h-4 w-12 shrink-0`} />
+    <div>
+      {Array.from({ length: rows }, (_, index) => (
+        <div
+          key={index}
+          data-settings-skeleton-row
+          className="flex h-[52px] items-center gap-3 px-4"
+        >
+          <span className={`${blockClass} size-6 shrink-0`} />
+          <span className="flex flex-1 flex-col gap-2">
+            <span className={`${blockClass} h-4 w-1/2`} />
+            <span className={`${blockClass} h-3 w-2/3`} />
+          </span>
+          <span className={`${blockClass} h-4 w-12 shrink-0`} />
+        </div>
+      ))}
     </div>
   )
 }
 
 function StatTileSkeleton() {
   return (
-    <div className="flex min-h-[110px] flex-col gap-3 rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]">
+    <div
+      className="flex flex-col gap-3 rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]"
+      style={{ minHeight: STAT_TILE_MIN_HEIGHT }}
+    >
       <span className={`${blockClass} h-6 w-1/2`} />
       <span className={`${blockClass} h-4 w-2/3`} />
     </div>
@@ -70,7 +82,7 @@ export function Skeleton(props: Readonly<SkeletonProps>) {
       className="w-full"
     >
       {props.variant === 'habit-row' ? <HabitRowSkeleton /> : null}
-      {props.variant === 'settings' ? <SettingsSkeleton /> : null}
+      {props.variant === 'settings' ? <SettingsSkeleton rows={props.rows} /> : null}
       {props.variant === 'stat-tile' ? <StatTileSkeleton /> : null}
       {props.variant === 'grid' ? <GridSkeleton {...props} /> : null}
     </div>

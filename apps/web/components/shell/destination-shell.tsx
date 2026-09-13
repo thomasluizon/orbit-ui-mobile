@@ -13,6 +13,7 @@ import {
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { ShellWideItem } from '@orbit/shared/contracts/shell'
+import { ShellNoticeSlotProvider, useShellNoticeHost } from '@orbit/shared/hooks'
 import { resolveShellDestination } from '@orbit/shared/utils'
 import { CalendarDays, ChartLine, Home, Plus, User } from '@/components/ui/icons'
 import { CommandPalette, type CommandNavigationItem } from '@/components/command/command-palette'
@@ -101,20 +102,26 @@ export function DestinationShell({
   onCreate,
 }: Readonly<DestinationShellProps>) {
   const registeredComposer = useShellComposerHost()
+  const registeredNotice = useShellNoticeHost()
+  const hostedNotice = registeredNotice.content === undefined
+    ? notice
+    : <>{notice}{registeredNotice.content}</>
 
   return (
-    <ShellComposerSlotContext.Provider value={registeredComposer.value}>
-      <DestinationShellContent
-        notice={notice}
-        composer={registeredComposer.content ?? composer}
-        conversation={conversation}
-        conversationOpen={conversationOpen}
-        conversationLabel={conversationLabel}
-        onCreate={onCreate}
-      >
-        {children}
-      </DestinationShellContent>
-    </ShellComposerSlotContext.Provider>
+    <ShellNoticeSlotProvider value={registeredNotice.value}>
+      <ShellComposerSlotContext.Provider value={registeredComposer.value}>
+        <DestinationShellContent
+          notice={hostedNotice}
+          composer={registeredComposer.content ?? composer}
+          conversation={conversation}
+          conversationOpen={conversationOpen}
+          conversationLabel={conversationLabel}
+          onCreate={onCreate}
+        >
+          {children}
+        </DestinationShellContent>
+      </ShellComposerSlotContext.Provider>
+    </ShellNoticeSlotProvider>
   )
 }
 

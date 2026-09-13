@@ -8,7 +8,7 @@
  */
 
 import { execFileSync, spawnSync } from "node:child_process"
-import { existsSync } from "node:fs"
+import { existsSync, lstatSync, renameSync, rmSync } from "node:fs"
 import { resolve } from "node:path"
 import { assertRepositoryLabel, readTicket, resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig } from "./lib/orchestrator-config.mjs"
@@ -160,14 +160,100 @@ if (unmet.length > 0) {
 }
 
 const commonDir = resolve(path, git(path, ["rev-parse", "--git-common-dir"]))
+const runGitCommon = (args) => spawnSync(GIT, [`--git-dir=${commonDir}`, ...args], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
 const gitCommon = (args) => {
-  const result = spawnSync(GIT, [`--git-dir=${commonDir}`, ...args], { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 })
+  const result = runGitCommon(args)
   return result.status === 0 ? result.stdout.trim() : null
 }
-if (gitCommon(["worktree", "remove", path]) === null) fail(1, `git refused to remove worktree ${path}`)
-gitCommon(["worktree", "prune"])
-const stillListed = (gitCommon(["worktree", "list", "--porcelain"]) ?? "").split("\n").some((line) => line.startsWith("worktree ") && normalize(line.slice("worktree ".length)) === normalize(path))
-if (existsSync(path) || stillListed) fail(1, `removal verification failed: filesystem=${existsSync(path) ? "present" : "gone"}, git-worktree-list=${stillListed ? "present" : "gone"}`)
+/** Distinguishes "git says it is gone" from "git could not be read". Collapsing the second into
+ * the first is how a teardown reports REMOVED over a registration that is still there. */
+const listWorktrees = () => {
+  const listing = gitCommon(["worktree", "list", "--porcelain"])
+  if (listing === null) fail(3, `git worktree list failed against ${commonDir}; refusing to guess whether ${path} is still registered`)
+  return listing
+}
+const isStillListed = () => listWorktrees().split("\n").some((line) => line.startsWith("worktree ") && normalize(line.slice("worktree ".length)) === normalize(path))
+
+/** A path can be replaced after Git releases the registration. Device, inode, and birth time are
+ * read before removal and again from the staged directory entry, so only the same filesystem object
+ * that passed the work-loss checks can be deleted. */
+const filesystemIdentityOf = (candidate) => {
+  const stat = lstatSync(candidate, { bigint: true })
+  return { device: stat.dev, inode: stat.ino, birthtime: stat.birthtimeNs }
+}
+const sameFilesystemIdentity = (left, right) => left.device === right.device
+  && left.inode === right.inode
+  && left.birthtime === right.birthtime
+
+let checkedIdentity
+try {
+  checkedIdentity = filesystemIdentityOf(path)
+} catch (error) {
+  fail(1, `worktree ${path} changed before Git could remove it: ${error.message}`)
+}
+
+const LOCK_REFUSAL = (reason) => `worktree ${path} is LOCKED (${reason}); git refuses to remove or prune a locked worktree, and nothing was touched`
+const removal = runGitCommon(["worktree", "remove", path])
+const stillRegistered = isStillListed()
+const removalDetail = (removal.stderr || removal.stdout || removal.error?.message || "unknown error").trim()
+if (stillRegistered) {
+  const lockMatch = removal.status === 128
+    ? removalDetail.match(/^fatal: cannot remove a locked working tree(?:, lock reason: (.+)|;)$/m)
+    : null
+  if (lockMatch) fail(1, LOCK_REFUSAL(lockMatch[1] ?? "no reason given"))
+  if (removal.status !== 0) fail(3, `git worktree remove ${path} failed without deregistering it: ${removalDetail}`)
+  fail(1, `git worktree remove ${path} returned success but the worktree is still registered; nothing was touched`)
+}
+
+const removalPath = `${path}.teardown-${process.pid}-${Date.now()}`
+
+/** Git for Windows can leave junction residue after successfully deregistering a worktree. Stage
+ * the directory entry first, then prove it is the object checked before Git ran. A recreated path
+ * is restored and refused, never deleted. */
+process.chdir(repositoryPath)
+if (existsSync(path)) {
+  try {
+    renameSync(path, removalPath)
+  } catch (error) {
+    fail(1, `Git released worktree ${path}, but the filesystem refused to stage its residue: ${error.message}`)
+  }
+  let stagedIdentity
+  try {
+    stagedIdentity = filesystemIdentityOf(removalPath)
+  } catch (error) {
+    try {
+      if (!existsSync(path)) renameSync(removalPath, path)
+    } catch (restoreError) {
+      fail(1, `Git released worktree ${path}, but the unreadable staged path remains at ${removalPath}: ${restoreError.message}`)
+    }
+    fail(1, `Git released worktree ${path}, but its staged residue could not be identified and was not removed: ${error.message}`)
+  }
+  if (!sameFilesystemIdentity(checkedIdentity, stagedIdentity)) {
+    try {
+      if (!existsSync(path)) renameSync(removalPath, path)
+    } catch (restoreError) {
+      fail(1, `Git released worktree ${path}, but unrelated content remains at ${removalPath}: ${restoreError.message}`)
+    }
+    if (existsSync(removalPath)) fail(1, `Git released worktree ${path}, but unrelated content remains at ${removalPath}; its files were NOT removed`)
+    fail(1, `${path} was replaced during teardown; its files were NOT removed`)
+  }
+  try {
+    rmSync(removalPath, { recursive: true, force: true })
+  } catch (error) {
+    try {
+      if (existsSync(removalPath) && !existsSync(path)) renameSync(removalPath, path)
+    } catch (restoreError) {
+      fail(1, `Git released worktree ${path}, but its files remain at ${removalPath}: ${restoreError.message}`)
+    }
+    fail(1, `Git released worktree ${path}, but the filesystem refused to remove its residue: ${error.message}`)
+  }
+}
+
+/** Only the residue this run staged may be deleted. Anything at the original path afterward was put
+ * there by something else, and removing it would destroy data this tool never checked. */
+if (existsSync(path)) fail(1, `${path} was recreated during teardown; its files were NOT removed and git registration may be stale`)
+if (existsSync(removalPath)) fail(1, `Git has released worktree ${path}, but its staged files remain at ${removalPath}`)
+if (isStillListed()) fail(1, `filesystem removed worktree ${path}, but git still holds this worktree`)
 
 console.log(`REMOVED worktree ${path}`)
 console.log(`RETAINED local branch ${branch} (it may be the base of a stacked pull request)`)

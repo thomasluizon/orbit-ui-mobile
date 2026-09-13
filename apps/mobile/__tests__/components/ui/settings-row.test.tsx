@@ -2,6 +2,7 @@ import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { Switch } from '@/components/ui/switch'
+import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -21,6 +22,8 @@ describe('Switch', () => {
     )
     expect(control.props.accessibilityLabel).toBe('Dark theme')
     expect(control.props.accessibilityState).toEqual({ checked: false })
+    const track = control.findAllByType('View')[0]
+    expect(track.props.style[1].backgroundColor).toBe(createTokensV2('purple', 'dark').trackEmpty)
 
     TestRenderer.act(() => {
       control.props.onPress()

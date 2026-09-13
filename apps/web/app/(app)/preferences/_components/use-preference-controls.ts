@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useLocale } from 'next-intl'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { habitKeys } from '@orbit/shared/query'
+import { gamificationKeys, habitKeys } from '@orbit/shared/query'
 import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
 import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
@@ -12,6 +12,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import {
   updateWeekStartDay,
   updateLanguage,
+  updateTimezone,
 } from '@/app/actions/profile'
 import type { PreferencePicker } from './preference-picker-sheet'
 
@@ -75,6 +76,22 @@ export function usePreferenceControls() {
     },
   })
 
+  const timeZoneMutation = useMutation({
+    mutationFn: (timeZone: string) => updateTimezone({ timeZone }),
+    onMutate: (timeZone) => {
+      const previous = profile?.timeZone ?? null
+      patchProfile({ timeZone })
+      return { previous }
+    },
+    onError: (_error, _timeZone, context) => {
+      patchProfile({ timeZone: context?.previous ?? null })
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: gamificationKeys.all, refetchType: 'none' })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.all })
+    },
+  })
+
   function handleThemeModeChange(mode: ThemeMode) {
     if (mode === currentTheme) return
     applyTheme(mode)
@@ -101,6 +118,7 @@ export function usePreferenceControls() {
     handleLanguageChange,
     handleThemeModeChange,
     toggleShowGeneral,
+    timeZoneMutation,
     weekStartMutation,
   }
 }

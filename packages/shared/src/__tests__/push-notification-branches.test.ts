@@ -27,7 +27,7 @@ describe('getPushStatusToneClass', () => {
 describe('getNativePushStatusTone', () => {
   it('is critical for denied/failed states, accent when registered, otherwise muted', () => {
     expect(getNativePushStatusTone('token-missing', 'granted')).toBe('critical')
-    expect(getNativePushStatusTone('registered', 'granted')).toBe('accent')
+    expect(getNativePushStatusTone('registered', 'granted')).toBe('muted')
     expect(getNativePushStatusTone('idle', 'undetermined')).toBe('muted')
   })
 })

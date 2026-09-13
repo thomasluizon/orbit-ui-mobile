@@ -124,6 +124,7 @@ export interface AppTokensV2 {
   fg2: string
   fg3: string
   fg4: string
+  trackEmpty: string
   fgOnPrimary: string
   primary: string
   primaryHover: string
@@ -132,6 +133,8 @@ export interface AppTokensV2 {
   primaryRgb: string
   /** Soft accent foreground resolved for the active canvas. */
   primarySoft: string
+  /** Accent foreground resolved for raised surfaces. */
+  primaryText: string
   primaryDim: string
   statusDone: string
   statusEmpty: string
@@ -207,15 +210,17 @@ export function createTokensV2(
     fg2: neutral.fg2,
     fg3: neutral.fg3,
     fg4: neutral.fg4,
+    trackEmpty: neutral.trackEmpty,
     fgOnPrimary,
     primary: accent.primary,
     primaryHover: accent.primaryHover,
     primaryPressed: accent.primaryPressed,
     primaryRgb: accent.primaryRgb,
     primarySoft: accent.primarySoft,
+    primaryText: accent.primaryText,
     primaryDim: accent.primaryDim,
     statusDone: neutral.fg1,
-    statusEmpty: neutral.fg4,
+    statusEmpty: neutral.trackEmpty,
     statusFrozen: neutral.fg2,
     statusOverdue: status.overdue,
     statusBad: status.bad,

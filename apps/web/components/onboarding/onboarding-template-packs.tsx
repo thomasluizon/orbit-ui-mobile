@@ -172,6 +172,7 @@ export function OnboardingTemplatePacks({
       </div>
 
       <div className="flex flex-col items-center" style={{ gap: 4 }}>
+        {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
         <PillButton
 
           disabled={enabledCount === 0 || isCreating}

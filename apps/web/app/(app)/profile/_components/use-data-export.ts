@@ -7,11 +7,13 @@ import { exportUserData } from '@/app/actions/profile'
 export function useDataExport() {
   const t = useTranslations()
   const [isExporting, setIsExporting] = useState(false)
+  const [exportDone, setExportDone] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
 
   async function exportData() {
     if (isExporting) return
     setIsExporting(true)
+    setExportDone(false)
     setExportError(null)
     try {
       const data = await exportUserData()
@@ -24,6 +26,7 @@ export function useDataExport() {
       anchor.download = `orbit-data-export-${new Date().toISOString().slice(0, 10)}.json`
       anchor.click()
       URL.revokeObjectURL(url)
+      setExportDone(true)
     } catch {
       setExportError(t('dataExport.error'))
     } finally {
@@ -31,5 +34,11 @@ export function useDataExport() {
     }
   }
 
-  return { isExporting, exportError, exportData }
+  return {
+    isExporting,
+    exportDone,
+    exportError,
+    exportData,
+    clearExportDone: () => setExportDone(false),
+  }
 }

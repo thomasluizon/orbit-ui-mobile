@@ -4,9 +4,14 @@ import { withSentryConfig } from '@sentry/nextjs'
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
 
+export function getLegacyRedirects() {
+  return [{ source: '/streak', destination: '/progress', permanent: true }]
+}
+
 const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
   transpilePackages: ['@orbit/shared'],
+  redirects: getLegacyRedirects,
   async headers() {
     return [{
       source: '/(.*)',

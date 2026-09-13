@@ -42,8 +42,16 @@ describe('MarketingConsentSection', () => {
 
   afterEach(() => cleanup())
 
-  it('reflects consent off when the profile has not opted in', () => {
+  it('asks for an explicit answer when consent has never been decided', () => {
     profileValue = { marketingEmailConsent: null }
+    renderSection()
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'profile.marketingEmails.accept' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'profile.marketingEmails.decline' })).toBeInTheDocument()
+  })
+
+  it('reflects explicit consent off', () => {
+    profileValue = { marketingEmailConsent: false }
     renderSection()
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false')
   })

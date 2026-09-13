@@ -113,6 +113,7 @@ function InvoiceRow({ invoice, locale, state, t, tokens }: Readonly<{
   return (
     <View>
       {url && state !== 'offline' ? (
+        /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
         <ListRow title={title} description={description} chevron={false} action={{
           icon: 'download',
           label: t('upgrade.billing.invoices.downloadDated', { date: formatBillingDate(invoice.date, locale) }),

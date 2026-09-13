@@ -2,10 +2,13 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import CalendarScreen from '@/app/(tabs)/calendar'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 const mockPush = vi.fn()
 
 let calendarIsLoading = false
+let calendarDayMap = new Map<string, CalendarDayEntry[]>()
+const mockLogHabit = vi.fn(async () => {})
 vi.mock('react-native', async () => {
   const ReactLib = require('react')
   const reactNative = await import('../../../test-mocks/react-native')
@@ -42,7 +45,7 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 
 vi.mock('@/hooks/use-habits', () => ({
   useCalendarData: () => ({
-    dayMap: new Map(),
+    dayMap: calendarDayMap,
     isLoading: calendarIsLoading,
     isFetching: false,
     error: null,
@@ -55,6 +58,7 @@ vi.mock('@/hooks/use-habits', () => ({
     error: null,
     refresh: vi.fn(),
   }),
+  useLogHabit: () => ({ mutateAsync: mockLogHabit }),
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -100,9 +104,10 @@ function pressButton(root: TestNode, label: string) {
 }
 
 function findGridDayCell(root: TestNode, dateStr: string) {
-  const cell = root.findAll(
-    (candidate) => candidate.props.testID === `calendar-day-button-${dateStr}`,
+  const slot = root.findAll(
+    (candidate) => candidate.props.testID === `calendar-day-slot-${dateStr}`,
   )[0]
+  const cell = slot?.findAll((candidate) => candidate.type === 'Pressable')[0]
   if (!cell) throw new Error(`Day cell not found: ${dateStr}`)
   return cell
 }
@@ -113,6 +118,7 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     vi.setSystemTime(new Date(2026, 7, 15))
     vi.clearAllMocks()
     calendarIsLoading = false
+    calendarDayMap = new Map()
     sheetTestControls.defer(true)
   })
 
@@ -159,19 +165,55 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     expect(mockPush).toHaveBeenCalledTimes(1)
   })
 
-  it('opens an older current-month day', () => {
+  it('opens an older current-month day through its read-only selection path', () => {
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />)
+    })
+
+    const olderDay = findGridDayCell(tree.root, '2026-08-01')
+    expect(olderDay.props.accessibilityLabel).toContain('calendar.dayCell.readOnly')
+    TestRenderer.act(() => {
+      ;(olderDay.props.onPress as () => void)()
+    })
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1)
+  })
+
+  it('logs a selected writable day with its selected date', () => {
+    calendarDayMap = new Map([
+      ['2026-08-15', [{
+        habitId: 'habit-1',
+        title: 'Read',
+        status: 'upcoming',
+        isBadHabit: false,
+        dueTime: null,
+        isOneTime: false,
+      }]],
+    ])
     let tree!: TestTree
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />)
     })
 
     TestRenderer.act(() => {
-      ;(findGridDayCell(tree.root, '2026-08-01').props.onPress as () => void)()
+      ;(findGridDayCell(tree.root, '2026-08-15').props.onPress as () => void)()
     })
-    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(1)
+    const checkRow = tree.root.findAll(
+      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'checkbox',
+    )[0]
+    if (!checkRow) throw new Error('Writable day checkbox not found')
+    TestRenderer.act(() => {
+      ;(checkRow.props.onPress as () => void)()
+    })
+
+    expect(mockLogHabit).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      date: '2026-08-15',
+      intent: 'log',
+    })
   })
 
-  it('allows a future day to become a range endpoint', () => {
+  it('keeps range days read only and does not open day detail', () => {
     let tree!: TestTree
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />)
@@ -180,27 +222,33 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     TestRenderer.act(() => {
       pressButton(tree.root, 'calendar.view.range')
     })
-    TestRenderer.act(() => {
-      ;(findGridDayCell(tree.root, '2026-08-20').props.onPress as () => void)()
-    })
-    const selectedDates = tree.root.findAll(
-      (node) => node.type === 'Pressable' && (node.props.accessibilityState as { selected?: boolean } | undefined)?.selected === true,
-    ).map((node) => node.props.testID)
-    expect(selectedDates).toContain('calendar-day-button-2026-08-20')
+    const rangeDays = tree.root.findAll(
+      (node) =>
+        node.type === 'View' &&
+        typeof node.props.testID === 'string' &&
+        node.props.testID.startsWith('day-cell-'),
+    )
+    expect(rangeDays).toHaveLength(14)
+    expect(rangeDays.every((day) => day.props.accessibilityRole === 'image')).toBe(true)
+    expect(rangeDays.every((day) => day.props.onPress === undefined)).toBe(true)
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
   })
 
-  it('shows only neutral same-size day placeholders while the month is loading', () => {
+  it('shows one stable grid skeleton while the month is loading', () => {
     calendarIsLoading = true
     let tree!: TestTree
     TestRenderer.act(() => {
       tree = TestRenderer.create(<CalendarScreen />)
     })
 
-    const skeletons = tree.root.findAll((node) => node.props.testID === 'calendar-day-skeleton')
-    expect(skeletons.length).toBeGreaterThanOrEqual(35)
-    expect(skeletons[0]?.props.style).toEqual(
-      expect.arrayContaining([expect.objectContaining({ width: 44, height: 44 })]),
+    const shapes = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.testID === 'skeleton-grid-shape',
     )
+    expect(shapes).toHaveLength(1)
+    expect(shapes[0]?.props.style).toEqual(
+      expect.arrayContaining([expect.objectContaining({ width: 332, height: 284, gap: 4 })]),
+    )
+    expect(tree.root.findAll((node) => node.props.testID === 'month-grid-header')).toHaveLength(0)
     expect(tree.root.findAll((node) => String(node.props.testID).startsWith('day-cell-'))).toHaveLength(0)
   })
 })

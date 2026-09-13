@@ -1,0 +1,281 @@
+'use client'
+
+import { useState, useCallback, useMemo } from 'react'
+import { useTranslations } from 'next-intl'
+import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
+import { Sheet, useSheetHost } from '@/components/ui/sheet'
+
+import { PillButton } from '@/components/ui/pill-button'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { useDismissGuard } from '@/hooks/use-dismiss-guard'
+import { useCreateGoal } from '@/hooks/use-goals'
+import {
+  getFriendlyErrorMessage,
+  translateErrorKey,
+} from '@orbit/shared/utils'
+import {
+  buildGoalTitle,
+  isStreakGoal,
+  parseGoalTargetValue,
+  validateGoalDraftInput,
+} from '@orbit/shared/utils/goal-form'
+import type { GoalType } from '@orbit/shared/types/goal'
+import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
+import { FieldWell } from '@/components/goals/field-well'
+import { GoalDeadlineField } from './create-goal-from-habit/goal-deadline-field'
+import { GoalTargetFields } from './create-goal-from-habit/goal-target-fields'
+import { GoalTypeSelector } from './create-goal-from-habit/goal-type-selector'
+
+interface CreateGoalFromHabitSheetProps {
+  open: boolean
+  onClose: () => void
+}
+
+interface CreateGoalRequest {
+  title: string
+  targetValue: number
+  unit: string
+  deadline?: string
+  type?: GoalType
+}
+
+type GoalModalTranslateValues = Record<string, string | number | Date>
+type GoalModalTranslateFn = (
+  key: string,
+  values?: GoalModalTranslateValues,
+) => string
+
+function buildGoalFieldErrors(
+  submitted: boolean,
+  description: string,
+  targetValue: string,
+  unit: string,
+  translate: GoalModalTranslateFn,
+): Record<string, string> {
+  if (!submitted) return {}
+
+  const errorKey = validateGoalDraftInput(description, targetValue, unit)
+  if (!errorKey) return {}
+
+  const translated = translateErrorKey(translate, errorKey)
+  if (!translated) return {}
+
+  if (errorKey === 'goals.form.targetValueRequired') {
+    return { targetValue: translated }
+  }
+
+  if (
+    errorKey === 'goals.form.unitRequired' ||
+    errorKey === 'goals.form.unitTooLong'
+  ) {
+    return { unit: translated }
+  }
+
+  if (
+    errorKey === 'goals.form.titleRequired' ||
+    errorKey === 'goals.form.titleTooLong'
+  ) {
+    return { description: translated }
+  }
+
+  return { _form: translated }
+}
+
+function buildCreateGoalRequest(
+  title: string,
+  parsedTargetValue: number,
+  unit: string,
+  goalType: GoalType,
+  deadline: string,
+): CreateGoalRequest {
+  return {
+    title,
+    targetValue: parsedTargetValue,
+    unit: unit.trim(),
+    type: goalType,
+    ...(deadline ? { deadline } : {}),
+  }
+}
+
+export function CreateGoalFromHabitSheet({ open, onClose }: Readonly<CreateGoalFromHabitSheetProps>) {
+  const t = useTranslations()
+  const translate = useCallback(
+    (key: string, values?: GoalModalTranslateValues) => t(key, values),
+    [t],
+  )
+  const createGoal = useCreateGoal()
+  const { showError } = useAppToast()
+
+  const [goalType, setGoalType] = useState<GoalType>('Standard')
+  const [description, setDescription] = useState('')
+  const [targetValue, setTargetValue] = useState('')
+  const [unit, setUnit] = useState('')
+  const [deadline, setDeadline] = useState('')
+  const [submitted, setSubmitted] = useState(false)
+
+  const isSubmitting = createGoal.isPending
+  const isStreak = isStreakGoal(goalType)
+  const isDirty =
+    goalType !== 'Standard' ||
+    description.trim().length > 0 ||
+    targetValue.trim().length > 0 ||
+    unit.trim().length > 0 ||
+    deadline.length > 0
+
+  const resetForm = useCallback(() => {
+    setGoalType('Standard')
+    setDescription('')
+    setTargetValue('')
+    setUnit('')
+    setDeadline('')
+    setSubmitted(false)
+  }, [])
+
+  const { sheetRef, closeSheet } = useSheetHost()
+  const dismissGuard = useDismissGuard({
+    isDirty,
+    onDismiss: () =>
+      closeSheet(() => {
+        resetForm()
+        onClose()
+      }),
+  })
+
+  const fieldErrors = useMemo(
+    () =>
+      buildGoalFieldErrors(
+        submitted,
+        description,
+        targetValue,
+        unit,
+        translate,
+      ),
+    [submitted, description, targetValue, unit, translate],
+  )
+
+  const handleTypeChange = useCallback(
+    (type: GoalType) => {
+      setGoalType(type)
+      if (type === 'Streak') {
+        setUnit(t('goals.form.streakUnit'))
+      } else {
+        setUnit('')
+      }
+    },
+    [t],
+  )
+
+  const onSubmit = useCallback(
+    async (e: React.SubmitEvent<HTMLFormElement>) => {
+      e.preventDefault()
+      setSubmitted(true)
+
+      const err = translateErrorKey(
+        translate,
+        validateGoalDraftInput(description, targetValue, unit),
+      )
+      if (err) {
+        showError(err)
+        return
+      }
+
+      const parsedTargetValue = parseGoalTargetValue(targetValue)
+      if (parsedTargetValue === null) return
+
+      try {
+        const title = buildGoalTitle(description, targetValue, unit)
+        const request = buildCreateGoalRequest(
+          title,
+          parsedTargetValue,
+          unit,
+          goalType,
+          deadline,
+        )
+
+        await createGoal.mutateAsync(request)
+        closeSheet(() => {
+          onClose()
+          resetForm()
+        })
+      } catch (error: unknown) {
+        showError(getFriendlyErrorMessage(error, translate, 'goals.errors.create', 'goal'))
+      }
+    },
+    [closeSheet, createGoal, deadline, description, goalType, onClose, resetForm, showError, targetValue, translate, unit],
+  )
+
+  return (
+    <>
+      {open ? (<Sheet
+        ref={sheetRef}
+        open
+        onClose={dismissGuard.canDismiss ? onClose : undefined}
+        title={t('goals.create')}
+      >
+        <form id="create-goal-from-habit-form" onSubmit={(e) => void onSubmit(e)} noValidate>
+          <div style={{ padding: '4px 0 0' }}>
+            <FieldWell
+              label={t('goals.form.description')}
+              id="create-goal-description"
+              type="text"
+              value={description}
+              placeholder={
+                isStreak
+                  ? t('goals.form.streakDescriptionPlaceholder')
+                  : t('goals.form.descriptionPlaceholder')
+              }
+              maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
+              error={fieldErrors.description}
+              onChange={setDescription}
+            />
+          </div>
+
+          <div style={{ padding: '12px 0 0' }}>
+            <GoalTypeSelector goalType={goalType} onTypeChange={handleTypeChange} />
+          </div>
+
+          <GoalTargetFields
+            isStreak={isStreak}
+            targetValue={targetValue}
+            unit={unit}
+            fieldErrors={fieldErrors}
+            onChangeTarget={setTargetValue}
+            onChangeUnit={setUnit}
+          />
+
+          <GoalDeadlineField deadline={deadline} onChangeDeadline={setDeadline} />
+
+          <div
+            className="flex items-center"
+            style={{
+              gap: 12,
+              padding: '16px 0 8px',
+            }}
+          >
+            <PillButton
+              variant="ghost"
+
+              onClick={dismissGuard.requestDismiss}
+            >
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton
+
+
+              disabled={isSubmitting}
+              loading={isSubmitting}
+
+            >
+              {t('goals.create')}
+            </PillButton>
+          </div>
+        </form>
+      </Sheet>) : null}
+      <DiscardChangesSheet
+        open={dismissGuard.showDiscardDialog}
+        onKeepEditing={dismissGuard.cancelDismiss}
+        onDiscard={dismissGuard.confirmDismiss}
+      />
+    </>
+  )
+}

@@ -12,7 +12,7 @@ export function StatusRing({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const color = {
-    empty: tokens.fg4,
+    empty: tokens.statusEmpty,
     done: tokens.fg1,
     overdue: tokens.statusOverdue,
     bad: tokens.statusBad,

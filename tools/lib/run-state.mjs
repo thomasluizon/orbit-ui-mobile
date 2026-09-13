@@ -31,6 +31,7 @@ import { fileURLToPath } from "node:url"
 const GITDIR_LINE = /^gitdir:[ \t]*(.+?)[ \t]*$/m
 // Linux proc_pid_stat(5): Z is zombie; x is the historical spelling of dead state X.
 const LINUX_DEAD_PROCESS_STATES = new Set(["Z", "X", "x"])
+export const PENDING_WAKE_SOURCE_MAX_AGE_MS = 45_000
 
 /**
  * The directory git itself keeps state in. An ordinary checkout carries a `.git` DIRECTORY; a linked
@@ -149,6 +150,13 @@ export const isWakeSourceAlive = (source) =>
   typeof source.processStartIdentity === "string" &&
   source.processStartIdentity === processStartIdentity(source.pid)
 
+const isPendingWakeSourceFresh = (source) => {
+  if (source?.pending !== true) return true
+  const pendingAt = Date.parse(source.pendingAt)
+  const age = Date.now() - pendingAt
+  return Number.isFinite(pendingAt) && age >= 0 && age <= PENDING_WAKE_SOURCE_MAX_AGE_MS
+}
+
 /** Only registrations that still identify their live process. Sweep only proven missing pids. */
 export const readWakeSources = (repoRoot = REPO_ROOT) => {
   const directory = wakeSourceDirectory(repoRoot)
@@ -171,7 +179,7 @@ export const readWakeSources = (repoRoot = REPO_ROOT) => {
         // A denied or otherwise failed probe proves neither death nor a matching identity.
         continue
       }
-      if (isWakeSourceAlive(source)) sources.push(source)
+      if (isPendingWakeSourceFresh(source) && isWakeSourceAlive(source)) sources.push(source)
     } catch {
       /* an unreadable entry is not a live wake source, and must not mask the readable ones */
     }

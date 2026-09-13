@@ -254,7 +254,7 @@ export function createStyles(tokens: AppTokens) {
     fieldError: {
       fontFamily: "Geist_400Regular",
       fontSize: 13,
-      color: tokens.statusBad,
+      color: tokens.statusBadText,
       marginTop: 2,
     },
     hintText: {

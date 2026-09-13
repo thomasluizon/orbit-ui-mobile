@@ -13,6 +13,7 @@ function severityColors(
   tokens: AppTokens,
 ): {
   text: string;
+  graphic: string;
   bg: string;
   border: string;
 } {
@@ -20,24 +21,28 @@ function severityColors(
     case "HIGH":
       return {
         text: tokens.statusBadText,
+        graphic: tokens.statusBad,
         bg: `${tokens.statusBad}1A`,
         border: `${tokens.statusBad}4D`,
       };
     case "MEDIUM":
       return {
         text: tokens.statusOverdueText,
+        graphic: tokens.statusOverdue,
         bg: `${tokens.statusOverdue}1A`,
         border: `${tokens.statusOverdue}4D`,
       };
     case "LOW":
       return {
         text: tokens.primary,
+        graphic: tokens.primary,
         bg: tintFromPrimary(tokens, 0.1),
         border: tintFromPrimary(tokens, 0.3),
       };
     default:
       return {
         text: tokens.fg2,
+        graphic: tokens.fg2,
         bg: tokens.bgElev,
         border: tokens.hairline,
       };
@@ -68,7 +73,7 @@ export function ConflictWarning({ warning }: Readonly<ConflictWarningProps>) {
       ]}
     >
       <View style={styles.titleRow}>
-        <AlertTriangle size={14} color={sColors.text} />
+        <AlertTriangle size={14} color={sColors.graphic} />
         <Text style={[styles.title, { color: sColors.text }]}>
           {t("chat.conflict.title")}
         </Text>
@@ -130,7 +135,6 @@ const styles = StyleSheet.create({
   },
   recommendation: {
     fontFamily: 'Geist_400Regular',
-    fontSize: 11,
-    opacity: 0.8,
+    fontSize: 12,
   },
 });

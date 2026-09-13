@@ -30,6 +30,7 @@ import {
   refreshReceipt,
   reservationPathFor,
   runCodex,
+  updateCloudCircuitBreaker,
 } from "./lib/cloud-worker.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
@@ -47,7 +48,8 @@ derive the current in-flight set and enforce caps.cloudParallelTasks. The worktr
 the repository bound to the cloud environment. The named remote branch is resolved first, and the
 remote SHA must match the worktree HEAD. The cloud checkout is pinned to that commit while the
 receipt keeps the branch as context. An unresolved receipt blocks the same ticket.
-An empty-diff failure permits exactly one resubmission of the unchanged order, worktree, and base.
+One empty-diff failure permits one resubmission of the unchanged order, worktree, and base.
+Two empty results in one session open a durable circuit breaker and route later tickets locally.
 The retry begins with the commit instruction and is reserved before contacting Cloud. A failed or
 uncertain retry keeps the ticket unfinished, including after an unknown reservation is cleared.
 Submission mode never waits for completion, applies a diff, commits, pushes, or opens a pull request.
@@ -65,7 +67,8 @@ A known task remains a reservation until the scheduler observes a terminal statu
 exit codes: 0 submitted and receipt persisted, 1 cloud or Git command failed,
             2 usage, configuration, order, or worktree error,
             3 cloud capacity is full or recovery safety blocks clearing,
-            4 a Codex cloud command timed out, 5 receipt lock acquisition timed out
+            4 a Codex cloud command timed out, 5 receipt lock acquisition timed out,
+            6 the session Cloud circuit breaker routed the ticket to the local lane
 
   --clear-unknown <file>      select an unknown reservation for explicit human release
   --assert-no-task-exists     assert that the Codex UI shows no task for that reservation
@@ -557,6 +560,25 @@ if (existsSync(receiptsDirectory)) {
     if (error instanceof ReceiptLockTimeoutError) fail(5, error.message)
     fail(2, error.message)
   }
+}
+
+let breaker
+try {
+  breaker = updateCloudCircuitBreaker(stateRoot, existingReceipts, orderFile, { ticket, orderSha256 }, receiptLockOptions)
+} catch (error) {
+  if (error instanceof ReceiptLockTimeoutError) fail(5, error.message)
+  fail(2, error.message)
+}
+if (breaker) {
+  const report = {
+    outcome: "CLOUD_CIRCUIT_OPEN",
+    ticket,
+    route: "local",
+    reason: breaker.state.reason,
+    breakerPath: breaker.path,
+  }
+  console.log(JSON.stringify(report))
+  fail(6, breaker.state.reason)
 }
 
 if (existingReceipts.length > 0) {

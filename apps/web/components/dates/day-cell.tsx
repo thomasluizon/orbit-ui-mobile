@@ -6,9 +6,8 @@ import { buildDayCellAccessibleName, resolveDayCellOutcome } from '@orbit/shared
 
 function ringStyle(outcome: DayOutcome): CSSProperties {
   if (outcome === 'full') return { background: 'var(--fg-1)' }
-  if (outcome === 'not-scheduled' || outcome === 'unavailable') return { background: 'var(--bg-well)' }
-  if (outcome === 'future') return { boxShadow: 'inset 0 0 0 1px var(--hairline-strong)' }
-  if (outcome === 'none') return { boxShadow: 'inset 0 0 0 2px var(--fg-4)' }
+  if (outcome === 'not-scheduled') return { background: 'transparent' }
+  if (outcome === 'none') return { boxShadow: 'inset 0 0 0 2px var(--status-empty)' }
   return {}
 }
 
@@ -19,7 +18,7 @@ function PartialArc({ fraction, size }: Readonly<{ fraction: number; size: numbe
   const sweep = Math.max(0, Math.min(1, fraction)) * 100
   return (
     <svg aria-hidden="true" width={size} height={size} className="absolute inset-0 -rotate-90">
-      <circle cx={center} cy={center} r={radius} fill="none" stroke="var(--fg-4)" strokeWidth={stroke} />
+      <circle cx={center} cy={center} r={radius} fill="none" stroke="var(--status-empty)" strokeWidth={stroke} />
       <circle
         cx={center}
         cy={center}
@@ -62,10 +61,9 @@ function DayCellContents({ props, outcome, size }: Readonly<{ props: DayCellProp
 
 function HabitHistoryContents({ props, outcome, size }: Readonly<{ props: DayCellProps; outcome: DayOutcome; size: number }>) {
   const missed = outcome === 'none' || outcome === 'partial'
-  const dimmed = outcome === 'not-scheduled' || outcome === 'unavailable'
+  const dimmed = outcome === 'not-scheduled'
   let textColor = 'var(--fg-2)'
   if (outcome === 'full') textColor = 'var(--bg)'
-  else if (outcome === 'future') textColor = 'var(--fg-4)'
   else if (missed) textColor = 'var(--fg-3)'
   return (
     <span
@@ -74,7 +72,7 @@ function HabitHistoryContents({ props, outcome, size }: Readonly<{ props: DayCel
       style={{ width: size, height: size, background: outcome === 'full' ? 'var(--fg-1)' : 'transparent', opacity: dimmed ? 0.4 : 1 }}
     >
       <span style={{ color: textColor, fontFamily: 'var(--font-mono)', fontSize: 14, fontVariantNumeric: 'tabular-nums', fontWeight: props.today ? 500 : 400 }}>{props.day}</span>
-      {missed ? <span className="absolute rounded-full bg-[var(--fg-4)]" style={{ width: 3, height: 3, bottom: 4 }} /> : null}
+      {missed ? <span className="absolute rounded-full bg-[var(--status-empty)]" style={{ width: 3, height: 3, bottom: 4 }} /> : null}
     </span>
   )
 }
@@ -87,13 +85,12 @@ export function DayCell(props: Readonly<DayCellProps>) {
     'aria-label': buildDayCellAccessibleName(props, outcome),
     'data-outcome': outcome,
     'data-outside-month': props.outsideMonth ? '' : undefined,
-    'data-selected': props.selected ? '' : undefined,
     'data-state': outcome,
     style: {
       width: size,
       height: size,
-      background: props.selected ? 'var(--selection-bg)' : 'transparent',
-      boxShadow: props.selected || props.today ? 'inset 0 0 0 2px var(--primary)' : 'none',
+      background: 'transparent',
+      boxShadow: props.today ? 'inset 0 0 0 2px var(--primary)' : 'none',
       opacity: props.outsideMonth ? 0 : 1,
     },
   }

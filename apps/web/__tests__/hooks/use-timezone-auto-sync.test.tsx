@@ -78,8 +78,8 @@ describe('web useTimezoneAutoSync', () => {
     )
   })
 
-  it('updates the cached profile when the detected timezone changes on mount', async () => {
-    mocks.state.profile = createMockProfile({ timeZone: 'UTC' })
+  it('sets the detected timezone when the account has none', async () => {
+    mocks.state.profile = createMockProfile({ timeZone: null })
     detectedTimeZone = 'America/Sao_Paulo'
 
     const renderer = await renderHookHarness(mocks.state.profile)
@@ -100,14 +100,14 @@ describe('web useTimezoneAutoSync', () => {
     })
   })
 
-  it('does not update when the timezone is unchanged or still UTC', async () => {
+  it('does not overwrite a saved timezone', async () => {
     mocks.state.profile = createMockProfile({ timeZone: 'Europe/London' })
-    detectedTimeZone = 'Europe/London'
+    detectedTimeZone = 'America/New_York'
 
     const renderer = await renderHookHarness(mocks.state.profile)
     expect(mocks.updateTimezone).not.toHaveBeenCalled()
 
-    detectedTimeZone = 'UTC'
+    detectedTimeZone = 'Pacific/Kiritimati'
     await TestRenderer.act(async () => {
       globalThis.window.dispatchEvent(new Event('focus'))
       await Promise.resolve()
@@ -119,7 +119,7 @@ describe('web useTimezoneAutoSync', () => {
     })
   })
 
-  it('syncs again when the browser regains focus in a new timezone', async () => {
+  it('preserves a saved timezone when the browser regains focus elsewhere', async () => {
     mocks.state.profile = createMockProfile({ timeZone: 'Europe/London' })
     detectedTimeZone = 'Europe/London'
 
@@ -132,8 +132,8 @@ describe('web useTimezoneAutoSync', () => {
       await Promise.resolve()
     })
 
-    expect(mocks.updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/New_York' })
-    expect(mocks.state.profile.timeZone).toBe('America/New_York')
+    expect(mocks.updateTimezone).not.toHaveBeenCalled()
+    expect(mocks.state.profile.timeZone).toBe('Europe/London')
 
     await TestRenderer.act(async () => {
       renderer?.unmount()

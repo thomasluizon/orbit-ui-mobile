@@ -1,4 +1,5 @@
 import React from "react";
+import { StyleSheet } from "react-native";
 import { describe, it, expect, vi } from "vitest";
 
 import { createTokensV2 } from "@/lib/theme";
@@ -29,7 +30,8 @@ vi.mock("@/components/ui/icons", () => {
   };
 });
 
-vi.mock("@/components/ui/stat-tile", () => ({
+vi.mock("@/components/ui/stat-tile", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/ui/stat-tile")>()),
   StatTile: ({ value, label }: { value: string | number; label: string }) =>
     React.createElement(
       "View",
@@ -263,7 +265,7 @@ describe("CalendarLegend (mobile)", () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(
         <CalendarLegend
-          todayLabel="Today"
+          loggableLabel="Can log"
           fullLabel="All done"
           partialLabel="Partial"
           noneLabel="None logged"
@@ -274,7 +276,7 @@ describe("CalendarLegend (mobile)", () => {
 
     const texts = hostTextValues(tree!);
     expect(texts).toEqual(
-      expect.arrayContaining(["Today", "All done", "Partial", "None logged"]),
+      expect.arrayContaining(["Can log", "All done", "Partial", "None logged"]),
     );
     expect(tree!.root.findAll((node) => node.type === "View" && node.props.testID === "calendar-legend-full")).toHaveLength(1);
     expect(tree!.root.findAll((node) => node.type === "Svg" && node.props.testID === "calendar-legend-partial")).toHaveLength(1);
@@ -282,18 +284,34 @@ describe("CalendarLegend (mobile)", () => {
     const partialArc = tree!.root.findAll(
       (node) => node.type === "Circle" && node.props.stroke === tokens.primary,
     );
+    const partialTrack = tree!.root.findAll(
+      (node) => node.type === "Circle" && node.props.stroke === tokens.statusEmpty,
+    );
+    expect(partialTrack).toHaveLength(1);
     expect(partialArc).toHaveLength(1);
+    const noneMark = tree!.root.findAll(
+      (node) => node.type === "View" && node.props.testID === "calendar-legend-none",
+    )[0];
+    expect(StyleSheet.flatten(noneMark?.props.style).borderColor).toBe(tokens.statusEmpty);
+    const loggableMark = tree!.root.findAll(
+      (node) => node.type === "View" && node.props.testID === "calendar-legend-loggable",
+    )[0];
+    expect(StyleSheet.flatten(loggableMark?.props.style)).toMatchObject({
+      backgroundColor: tokens.bgWell,
+      borderColor: tokens.hairline,
+      borderWidth: 1,
+    });
   });
 });
 
 describe("CalendarStats (mobile)", () => {
-  it("renders a tile for each stat, surfacing its label", () => {
-    const stats: readonly CalendarStat[] = [
-      { key: "bestStreak", emoji: "🔥", value: 5, label: "Best streak" },
-      { key: "totalLogs", emoji: "✅", value: 42, label: "Total logs" },
-      { key: "missed", emoji: "⚠️", value: 3, label: "Missed" },
-    ];
+  const stats = [
+    { key: "bestStreak", value: 5, label: "Best streak" },
+    { key: "totalLogs", value: 42, label: "Logs" },
+    { key: "missed", value: 3, label: "Missed" },
+  ] as const satisfies readonly [CalendarStat, CalendarStat, CalendarStat];
 
+  it("renders the three month figures in one row", () => {
     let tree: Tree;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
@@ -302,8 +320,35 @@ describe("CalendarStats (mobile)", () => {
     });
 
     const texts = hostTextValues(tree!);
+    const statsRow = tree!.root.findAll(
+      (node) => node.type === "View" && node.props.testID === "calendar-stats",
+    )[0]!;
+    expect(StyleSheet.flatten(statsRow.props.style)).toMatchObject({
+      flexDirection: "row",
+      gap: 12,
+    });
+    expect(statsRow.props.children).toHaveLength(3);
     expect(texts).toContain("Best streak");
-    expect(texts).toContain("Total logs");
+    expect(texts).toContain("Logs");
     expect(texts).toContain("Missed");
+  });
+
+  it("keeps loading and loaded row spacing identical", () => {
+    let loadingTree: Tree;
+    let loadedTree: Tree;
+    TestRenderer.act(() => {
+      loadingTree = TestRenderer.create(
+        <CalendarStats stats={stats} state="loading" loadingLabel="Loading stats" />,
+      );
+      loadedTree = TestRenderer.create(<CalendarStats stats={stats} />);
+    });
+
+    const row = (tree: Tree) => tree.root.findAll(
+      (node) => node.type === "View" && node.props.testID === "calendar-stats",
+    )[0]!;
+    expect(StyleSheet.flatten(row(loadingTree!).props.style))
+      .toEqual(StyleSheet.flatten(row(loadedTree!).props.style));
+    expect(row(loadingTree!).props.children).toHaveLength(3);
+    expect(row(loadedTree!).props.children).toHaveLength(3);
   });
 });

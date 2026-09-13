@@ -1,7 +1,12 @@
-import { beforeEach, describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
+
+vi.mock('@/components/habits/create-goal-from-habit-sheet', () => ({
+  CreateGoalFromHabitSheet: ({ open, onClose }: { open: boolean; onClose: () => void }) =>
+    open ? <button type="button" onClick={onClose}>contextual-goal-creator</button> : null,
+}))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -11,7 +16,6 @@ const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 import { GoalLinkingField } from '@/components/habits/goal-linking-field'
-import { useUIStore } from '@/stores/ui-store'
 
 function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -21,9 +25,6 @@ function createWrapper() {
 }
 
 describe('GoalLinkingField', () => {
-  beforeEach(() => {
-    useUIStore.getState().setShowCreateGoalModal(false)
-  })
   it('renders label', () => {
     mockFetch.mockResolvedValue({
       ok: true,
@@ -89,7 +90,7 @@ describe('GoalLinkingField', () => {
     expect(onToggleGoal).toHaveBeenCalledWith('g1')
   })
 
-  it('retires the empty picker before opening goal creation and can reopen it', async () => {
+  it('opens goal creation inside the habit surface and returns to the picker', async () => {
     mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve([]) })
     render(
       <GoalLinkingField selectedGoalIds={[]} atGoalLimit={false} onToggleGoal={vi.fn()} />,
@@ -100,9 +101,9 @@ describe('GoalLinkingField', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'habits.form.createGoal' }))
 
     await waitFor(() => expect(screen.queryByText('habits.form.noGoals')).not.toBeInTheDocument())
-    expect(useUIStore.getState().showCreateGoalModal).toBe(true)
+    expect(screen.getByRole('button', { name: 'contextual-goal-creator' })).toBeInTheDocument()
 
-    useUIStore.getState().setShowCreateGoalModal(false)
+    fireEvent.click(screen.getByRole('button', { name: 'contextual-goal-creator' }))
     fireEvent.click(screen.getByRole('button', { name: /habits\.form\.goals/ }))
     expect(await screen.findByText('habits.form.noGoals')).toBeInTheDocument()
   })

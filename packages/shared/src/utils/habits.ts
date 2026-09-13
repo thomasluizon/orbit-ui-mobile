@@ -1,6 +1,6 @@
 import { differenceInCalendarDays, isAfter, isSameDay } from 'date-fns'
 import { parseAPIDate } from './dates'
-import type { CalendarDayEntry, HabitDayStatus } from '../types/calendar'
+import type { CalendarDayEntry, HabitDayStatus, HabitLog } from '../types/calendar'
 import type { CalendarMonthResponse } from '../types/habit'
 
 interface HabitScheduleMatchSource {
@@ -37,12 +37,14 @@ export function buildCalendarDayMap(
   for (const [habitId, habitLogs] of Object.entries(calendarMonth.logs)) {
     const dateSet = new Set<string>()
     for (const log of habitLogs) {
-      dateSet.add(log.date)
+      if (log.value > 0) dateSet.add(log.date)
     }
     logsByHabit.set(habitId, dateSet)
   }
 
   for (const habit of calendarMonth.habits) {
+    if (habit.isGeneral) continue
+
     const instanceDates =
       Array.isArray(habit.instances) && habit.instances.length > 0
         ? habit.instances.map((instance) => instance.date)
@@ -71,6 +73,79 @@ export function buildCalendarDayMap(
   }
 
   return map
+}
+
+export function optimisticSetCalendarHabitLog(
+  calendarMonth: CalendarMonthResponse,
+  habitId: string,
+  date: string,
+  logged: boolean,
+  optimisticLogId: string,
+  createdAtUtc: string,
+): CalendarMonthResponse {
+  const currentLogs = calendarMonth.logs[habitId] ?? []
+  const hasActiveLog = currentLogs.some((log) => log.date === date && log.value > 0)
+  if (logged === hasActiveLog) return calendarMonth
+
+  const nextLogs = logged
+    ? [...currentLogs, { id: optimisticLogId, date, value: 1, createdAtUtc }]
+    : currentLogs.filter((log) => log.date !== date || log.value <= 0)
+
+  return {
+    ...calendarMonth,
+    logs: {
+      ...calendarMonth.logs,
+      [habitId]: nextLogs,
+    },
+  }
+}
+
+export function rollbackOptimisticHabitLogs(
+  currentLogs: HabitLog[] | undefined,
+  previousLogs: HabitLog[] | undefined,
+  date: string,
+  optimisticLogId: string,
+): HabitLog[] | undefined {
+  if (!currentLogs) return currentLogs
+
+  const previousActiveLogs = previousLogs?.filter(
+    (log) => log.date === date && log.value > 0,
+  ) ?? []
+  if (previousActiveLogs.length > 0) {
+    const hasLaterActiveLog = currentLogs.some(
+      (log) => log.date === date && log.value > 0,
+    )
+    return hasLaterActiveLog ? currentLogs : [...currentLogs, ...previousActiveLogs]
+  }
+
+  const nextLogs = currentLogs.filter((log) => log.id !== optimisticLogId)
+  if (nextLogs.length === currentLogs.length) return currentLogs
+  return nextLogs.length === 0 && previousLogs === undefined ? undefined : nextLogs
+}
+
+export function rollbackOptimisticCalendarHabitLog(
+  currentCalendar: CalendarMonthResponse,
+  previousCalendar: CalendarMonthResponse,
+  habitId: string,
+  date: string,
+  optimisticLogId: string,
+): CalendarMonthResponse {
+  const currentLogs = currentCalendar.logs[habitId] ?? []
+  const nextLogs = rollbackOptimisticHabitLogs(
+    currentLogs,
+    previousCalendar.logs[habitId] ?? [],
+    date,
+    optimisticLogId,
+  )
+  if (nextLogs === currentLogs) return currentCalendar
+
+  return {
+    ...currentCalendar,
+    logs: {
+      ...currentCalendar.logs,
+      [habitId]: nextLogs ?? [],
+    },
+  }
 }
 
 export function hasHabitScheduleOnDate(

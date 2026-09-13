@@ -715,6 +715,7 @@ describe('HabitList', () => {
     expect(logHabitMutateAsync).toHaveBeenCalledWith({
       habitId: 'h-1',
       date: '2026-04-08',
+      intent: 'log',
     })
   })
 
@@ -754,6 +755,7 @@ describe('HabitList', () => {
     expect(logHabitMutateAsync).toHaveBeenCalledWith({
       habitId: 'h-1',
       date: YESTERDAY,
+      intent: 'unlog',
     })
     expect(occurrences).toContainEqual({
       date: TODAY,
@@ -899,7 +901,7 @@ describe('HabitList', () => {
       fireEvent.click(screen.getByTestId('log-parent'))
     })
 
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent' })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', intent: 'log' })
   })
 
   it('asks before settling the next parent after logging its final unresolved child', async () => {
@@ -916,8 +918,8 @@ describe('HabitList', () => {
     })
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child' })
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'grandparent', date: TODAY })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'child', intent: 'log' })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'grandparent', date: TODAY, intent: 'log' })
   })
 
   it('asks before settling the parent when the last child is marked completed', async () => {
@@ -949,7 +951,7 @@ describe('HabitList', () => {
     })
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY, intent: 'log' })
   })
 
   it('does not settle the parent before the current snapshot reflects the final child completion', async () => {
@@ -988,7 +990,7 @@ describe('HabitList', () => {
     })
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY, intent: 'log' })
   })
 
   it('does not settle the parent when a refetch makes a child incomplete while confirmation is open', async () => {
@@ -1021,7 +1023,7 @@ describe('HabitList', () => {
     })
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, intent: 'log' })
     expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
   })
 
@@ -1059,7 +1061,7 @@ describe('HabitList', () => {
     })
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, intent: 'log' })
     expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
   })
 
@@ -1099,7 +1101,7 @@ describe('HabitList', () => {
     })
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, intent: 'log' })
     expect(skipHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
   })
 
@@ -1141,7 +1143,7 @@ describe('HabitList', () => {
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
     expect(skipHabitMutateAsync).toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
-    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id })
+    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, intent: 'log' })
   })
 
   it('settles the parent exactly once for a burst of sibling completions', async () => {
@@ -1239,7 +1241,7 @@ describe('HabitList', () => {
     })
 
     expect(logHabitMutateAsync.mock.calls.filter(([input]) => input.habitId === loggedParent.id))
-      .toEqual([[{ habitId: loggedParent.id, date: YESTERDAY }]])
+      .toEqual([[{ habitId: loggedParent.id, date: YESTERDAY, intent: 'log' }]])
     expect(skipHabitMutateAsync.mock.calls.filter(([input]) => input.habitId === skippedParent.id))
       .toEqual([[{ habitId: skippedParent.id, date: YESTERDAY }]])
   })
@@ -1307,9 +1309,9 @@ describe('HabitList', () => {
       .filter(({ habitId }) => [parentA.id, parentB.id, grandparent.id].includes(habitId))
     expect(hierarchyMutations).toHaveLength(3)
     expect(hierarchyMutations).toEqual(expect.arrayContaining([
-      { habitId: parentA.id, date: YESTERDAY },
-      { habitId: parentB.id, date: YESTERDAY },
-      { habitId: grandparent.id, date: YESTERDAY },
+      { habitId: parentA.id, date: YESTERDAY, intent: 'log' },
+      { habitId: parentB.id, date: YESTERDAY, intent: 'log' },
+      { habitId: grandparent.id, date: YESTERDAY, intent: 'log' },
     ]))
   })
 
@@ -1384,8 +1386,8 @@ describe('HabitList', () => {
       .map(([input]) => input)
       .filter(({ habitId }) => [parentA.id, parentB.id, grandparent.id].includes(habitId))
     expect(hierarchyMutations).toEqual([
-      { habitId: parentA.id, date: YESTERDAY },
-      { habitId: parentB.id, date: YESTERDAY },
+      { habitId: parentA.id, date: YESTERDAY, intent: 'log' },
+      { habitId: parentB.id, date: YESTERDAY, intent: 'log' },
     ])
   })
 
@@ -1468,9 +1470,9 @@ describe('HabitList', () => {
       .filter(({ habitId }) => [parentA.id, parentB.id, grandparent.id].includes(habitId))
     expect(hierarchyMutations).toHaveLength(3)
     expect(hierarchyMutations).toEqual(expect.arrayContaining([
-      { habitId: parentA.id, date: YESTERDAY },
-      { habitId: parentB.id, date: YESTERDAY },
-      { habitId: grandparent.id, date: YESTERDAY },
+      { habitId: parentA.id, date: YESTERDAY, intent: 'log' },
+      { habitId: parentB.id, date: YESTERDAY, intent: 'log' },
+      { habitId: grandparent.id, date: YESTERDAY, intent: 'log' },
     ]))
   })
 
@@ -1549,8 +1551,8 @@ describe('HabitList', () => {
       .map(([input]) => input)
       .filter(({ habitId }) => [parentA.id, parentB.id, grandparent.id].includes(habitId))
     expect(hierarchyMutations).toEqual([
-      { habitId: parentA.id, date: YESTERDAY },
-      { habitId: parentB.id, date: YESTERDAY },
+      { habitId: parentA.id, date: YESTERDAY, intent: 'log' },
+      { habitId: parentB.id, date: YESTERDAY, intent: 'log' },
     ])
   })
 
@@ -1609,7 +1611,7 @@ describe('HabitList', () => {
     })
 
     expect(logHabitMutateAsync.mock.calls.map(([input]) => input)).toEqual([
-      { habitId: parent.id, date: YESTERDAY },
+      { habitId: parent.id, date: YESTERDAY, intent: 'log' },
     ])
   })
 
@@ -1684,8 +1686,8 @@ describe('HabitList', () => {
       .map(([input]) => input)
       .filter(({ habitId }) => habitId === parent.id))
       .toEqual([
-        { habitId: parent.id, date: YESTERDAY },
-        { habitId: parent.id, date: TODAY },
+        { habitId: parent.id, date: YESTERDAY, intent: 'log' },
+        { habitId: parent.id, date: TODAY, intent: 'log' },
       ])
 
     await act(async () => {
@@ -1754,8 +1756,8 @@ describe('HabitList', () => {
       .map(([input]) => input)
       .filter(({ habitId }) => habitId === parent.id))
       .toEqual([
-        { habitId: parent.id, date: TODAY },
-        { habitId: parent.id, date: TODAY },
+        { habitId: parent.id, date: TODAY, intent: 'log' },
+        { habitId: parent.id, date: TODAY, intent: 'log' },
       ])
     expect(screen.getByTestId(`habit-card-${parent.id}`)).toHaveAttribute('data-state', 'done')
     renderResult.unmount()
@@ -1854,7 +1856,7 @@ describe('HabitList', () => {
     })
 
     expect(logHabitMutateAsync.mock.calls.filter(([input]) => input.habitId === parent.id))
-      .toEqual([[{ habitId: parent.id, date: TODAY }]])
+      .toEqual([[{ habitId: parent.id, date: TODAY, intent: 'log' }]])
   })
 
   it('does not treat a rejected sibling as logged in a mixed bulk skip', async () => {
@@ -1962,7 +1964,7 @@ describe('HabitList', () => {
     })
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
 
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'parent', date: TODAY, intent: 'log' })
   })
 
   it('does not prompt a parent that is only due in the future', () => {
@@ -2045,9 +2047,9 @@ describe('HabitList', () => {
 
     expect(logHabitMutateAsync).toHaveBeenCalledTimes(3)
     expect(logHabitMutateAsync.mock.calls).toEqual([
-      [{ habitId: 'child', date: YESTERDAY }],
-      [{ habitId: 'parent', date: YESTERDAY }],
-      [{ habitId: 'grandparent', date: YESTERDAY }],
+      [{ habitId: 'child', date: YESTERDAY, intent: 'log' }],
+      [{ habitId: 'parent', date: YESTERDAY, intent: 'log' }],
+      [{ habitId: 'grandparent', date: YESTERDAY, intent: 'log' }],
     ])
   })
 
@@ -2221,9 +2223,9 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
+    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, date: TODAY, intent: 'log' })
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: parent.id, date: TODAY })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: parent.id, date: TODAY, intent: 'log' })
   })
 
   it('queues confirmations when concurrent row skips complete two mixed parents', async () => {
@@ -2305,8 +2307,8 @@ describe('HabitList', () => {
       await Promise.resolve()
     })
 
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: parentA.id, date: TODAY })
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: parentB.id, date: TODAY })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: parentA.id, date: TODAY, intent: 'log' })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: parentB.id, date: TODAY, intent: 'log' })
   })
 
   it('keeps a cascaded grandparent confirmation actionable after stale settlement data', async () => {
@@ -2375,7 +2377,7 @@ describe('HabitList', () => {
     expect(await screen.findByText('habits.autoLogParentMessage({"name":"Grandparent"})'))
       .toBeDefined()
     await confirmVisibleSheet('habits.autoLogParentTitle', 'habits.autoLogParentConfirm')
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: grandparent.id, date: TODAY })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: grandparent.id, date: TODAY, intent: 'log' })
   })
 
   it('does not settle a parent when a row skip resolves after the viewed date changes', async () => {
@@ -2422,7 +2424,7 @@ describe('HabitList', () => {
     expect(skipHabitMutateAsync.mock.calls).toEqual([
       [{ habitId: child.id, date: YESTERDAY }],
     ])
-    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, date: YESTERDAY })
+    expect(logHabitMutateAsync).not.toHaveBeenCalledWith({ habitId: parent.id, date: YESTERDAY, intent: 'log' })
     expect(screen.queryByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeNull()
   })
 
@@ -2550,7 +2552,7 @@ describe('HabitList', () => {
 
     fireEvent.click(screen.getByTestId('log-overdue-1'))
 
-    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1' })
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({ habitId: 'overdue-1', intent: 'log' })
   })
 
   /**

@@ -32,7 +32,13 @@ export function isViewableNotificationUrl(
     /^\/habits\/[^/\\.%]+$/.test(pathname)
 }
 
-const ABSORBED_PROGRESS_ROUTES = ['/streak', '/achievements', '/retrospective'] as const
+const ABSORBED_PROGRESS_ROUTES = [
+  '/goals',
+  '/streak',
+  '/achievements',
+  '/insights',
+  '/retrospective',
+] as const
 
 export function resolveNotificationUrl(url: string): string {
   const pathname = url.split(/[?#]/, 1)[0] ?? url

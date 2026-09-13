@@ -70,7 +70,7 @@ export function SupportField({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 12,
-            color: 'var(--status-bad)',
+            color: 'var(--status-bad-text)',
           }}
         >
           {error}

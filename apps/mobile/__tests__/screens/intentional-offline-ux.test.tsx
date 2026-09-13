@@ -4,7 +4,6 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
 import UpgradeScreen from '@/app/upgrade'
 import SupportScreen from '@/app/support'
-import ProfileScreen from '@/app/(tabs)/profile'
 
 vi.mock('@/components/referral/referral-card', () => ({
   ReferralCard: () => null,
@@ -65,19 +64,6 @@ const mocks = vi.hoisted(() => {
     useTrialDaysLeft: vi.fn(() => 0),
     useTrialExpired: vi.fn(() => false),
     useTrialUrgent: vi.fn(() => false),
-    useRetrospective: vi.fn(() => ({
-      data: null,
-      setData: vi.fn(),
-      isLoading: false,
-      error: null,
-      setError: vi.fn(),
-      noData: false,
-      setNoData: vi.fn(),
-      fromCache: false,
-      period: 'week',
-      setPeriod: vi.fn(),
-      generate: vi.fn(),
-    })),
     useSubscriptionPlans: vi.fn(() => ({
       plans: null,
       isLoading: false,
@@ -235,10 +221,6 @@ vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: mocks.useGamificationProfile,
   useReportEvent: () => ({ mutate: vi.fn() }),
   useStreakInfo: () => ({ data: { currentStreak: 0, isFrozenToday: false } }),
-}))
-
-vi.mock('@/hooks/use-retrospective', () => ({
-  useRetrospective: mocks.useRetrospective,
 }))
 
 vi.mock('@/hooks/use-subscription-plans', () => ({
@@ -419,19 +401,6 @@ describe('intentional offline UX screens', () => {
     mocks.useTrialDaysLeft.mockReturnValue(0)
     mocks.useTrialExpired.mockReturnValue(false)
     mocks.useTrialUrgent.mockReturnValue(false)
-    mocks.useRetrospective.mockReturnValue({
-      data: null,
-      setData: vi.fn(),
-      isLoading: false,
-      error: null,
-      setError: vi.fn(),
-      noData: false,
-      setNoData: vi.fn(),
-      fromCache: false,
-      period: 'week',
-      setPeriod: vi.fn(),
-      generate: vi.fn(),
-    })
     mocks.useSubscriptionPlans.mockReturnValue({
       plans: null,
       isLoading: false,
@@ -449,23 +418,6 @@ describe('intentional offline UX screens', () => {
     mocks.router.replace.mockClear()
     mocks.apiClient.mockClear()
     mocks.logout.mockClear()
-  })
-
-  it('shows an explicit offline-unavailable state for delete-account instead of live actions', async () => {
-    const tree = await renderScreen(<ProfileScreen />)
-
-    const deleteButton = tree.root.findAll((node: any) =>
-      typeof node.props?.onPress === 'function' &&
-      node.props?.accessibilityLabel === 'profile.deleteAccount.button',
-    )[0]
-
-    await TestRenderer.act(async () => {
-      deleteButton.props.onPress()
-      await Promise.resolve()
-    })
-
-    expect(tree.root.findAll((node: any) => node.props?.testID === 'error-state').length).toBeGreaterThan(0)
-    expect(tree.root.findAllByType('TextInput')).toHaveLength(0)
   })
 
   it('suppresses live-only billing and plan error cards while offline', async () => {

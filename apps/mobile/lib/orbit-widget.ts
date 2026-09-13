@@ -67,9 +67,8 @@ export function toWidgetColors(
     border: generated.hairline,
     borderMuted: generated.hairline,
     overdue: tokens.statusOverdue,
-    streak: tokens.primary,
-    streakText: tokens.fg1,
-    statusEmpty: tokens.fg4,
+    streakText: generated.primaryText,
+    statusEmpty: tokens.statusEmpty,
   }
 }
 

@@ -19,7 +19,7 @@ export function Switch({ label, checked, onChange }: Readonly<SwitchProps>) {
       <View
         style={[
           styles.track,
-          { backgroundColor: checked ? tokens.primary : tokens.fg4 },
+          { backgroundColor: checked ? tokens.primary : tokens.trackEmpty },
         ]}
       >
         <View

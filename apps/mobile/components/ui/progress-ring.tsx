@@ -30,7 +30,7 @@ export function ProgressRing({ value = 0, size = 64, label }: Readonly<ProgressR
       accessibilityValue={{ min: 0, max: 100, now: clamped }}
       testID={complete ? 'progress-ring-complete' : 'progress-ring-unfinished'}
     >
-      <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={tokens.fg4} strokeWidth={strokeWidth} />
+      <Circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={tokens.trackEmpty} strokeWidth={strokeWidth} />
       <Circle
         ref={circle}
         opacity={circumference > 0 ? 1 : 0}

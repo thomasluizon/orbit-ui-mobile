@@ -156,7 +156,7 @@ export function PlanSelection({
               </TierReservation>
             ))}
           </View>
-          <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.errorText, { color: tokens.statusBad }]}>{checkoutError}</Text>
+          <Text accessibilityRole="alert" accessibilityLiveRegion="assertive" style={[styles.errorText, { color: tokens.statusBadText }]}>{checkoutError}</Text>
         </View>
       </PlanLoadMotion>
     )
@@ -169,7 +169,10 @@ export function PlanSelection({
           {intervalControl}
           <ErrorState
             message={t('upgrade.plans.error')}
-            action={<PillButton variant="ghost" onClick={onRetry}>{t('upgrade.plans.retry')}</PillButton>}
+            action={
+              /* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */
+              <PillButton variant="ghost" onClick={onRetry}>{t('upgrade.plans.retry')}</PillButton>
+            }
           />
         </View>
       </PlanLoadMotion>

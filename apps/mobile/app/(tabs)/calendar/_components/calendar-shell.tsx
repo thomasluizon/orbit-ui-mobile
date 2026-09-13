@@ -41,7 +41,7 @@ interface CalendarWeekNavProps {
 }
 
 interface CalendarLegendProps {
-  todayLabel: string;
+  loggableLabel: string;
   fullLabel: string;
   partialLabel: string;
   noneLabel: string;
@@ -144,12 +144,13 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       alignItems: "center",
       gap: 6,
     },
-    legendDotToday: {
+    legendWellLoggable: {
       width: 12,
       height: 12,
       borderRadius: 999,
-      borderWidth: 2,
-      borderColor: tokens.primary,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgWell,
     },
     legendDotFull: {
       width: 12,
@@ -162,7 +163,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       height: 12,
       borderRadius: 999,
       borderWidth: 2,
-      borderColor: tokens.fg4,
+      borderColor: tokens.statusEmpty,
     },
     legendLabel: {
       fontFamily: 'Geist_400Regular',
@@ -331,7 +332,7 @@ export function CalendarWeekNav({
 }
 
 export function CalendarLegend({
-  todayLabel,
+  loggableLabel,
   fullLabel,
   partialLabel,
   noneLabel,
@@ -344,16 +345,12 @@ export function CalendarLegend({
   return (
     <View ref={legendRef} collapsable={false} style={styles.legend}>
       <View style={styles.legendItem}>
-        <View testID="calendar-legend-today" style={styles.legendDotToday} />
-        <Text style={styles.legendLabel}>{todayLabel}</Text>
-      </View>
-      <View style={styles.legendItem}>
         <View testID="calendar-legend-full" style={styles.legendDotFull} />
         <Text style={styles.legendLabel}>{fullLabel}</Text>
       </View>
       <View style={styles.legendItem}>
         <Svg testID="calendar-legend-partial" width={12} height={12}>
-          <Circle cx={6} cy={6} r={5} fill="none" stroke={tokens.fg4} strokeWidth={2} />
+          <Circle cx={6} cy={6} r={5} fill="none" stroke={tokens.statusEmpty} strokeWidth={2} />
           <Circle cx={6} cy={6} r={5} fill="none" stroke={tokens.primary} strokeDasharray={[Math.PI * 5, Math.PI * 10]} strokeLinecap="round" strokeWidth={2} rotation={-90} origin="6, 6" />
         </Svg>
         <Text style={styles.legendLabel}>{partialLabel}</Text>
@@ -361,6 +358,10 @@ export function CalendarLegend({
       <View style={styles.legendItem}>
         <View testID="calendar-legend-none" style={styles.legendDotNone} />
         <Text style={styles.legendLabel}>{noneLabel}</Text>
+      </View>
+      <View style={styles.legendItem}>
+        <View testID="calendar-legend-loggable" style={styles.legendWellLoggable} />
+        <Text style={styles.legendLabel}>{loggableLabel}</Text>
       </View>
     </View>
   );

@@ -13,7 +13,7 @@ async function syncTimezoneIfNeeded(
   if (!current) return
 
   const detected = Intl.DateTimeFormat().resolvedOptions().timeZone
-  if (!detected || detected === 'UTC' || current.timeZone === detected) return
+  if (!detected || detected === 'UTC' || current.timeZone != null) return
 
   try {
     await updateTimezone({ timeZone: detected })

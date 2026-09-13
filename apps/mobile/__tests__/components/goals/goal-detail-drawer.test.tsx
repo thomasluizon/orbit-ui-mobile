@@ -113,10 +113,6 @@ vi.mock('@/components/goals/edit-goal-modal', () => ({
   EditGoalModal: () => null,
 }))
 
-vi.mock('@/components/goals/goal-metrics-panel', () => ({
-  GoalMetricsPanel: () => React.createElement('GoalMetricsPanel'),
-}))
-
 vi.mock('@/components/ui/icons', () => {
   const createIcon = (name: string) => (props: any) => React.createElement(name, props)
   return {
