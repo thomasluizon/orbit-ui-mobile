@@ -884,12 +884,8 @@
     }
   },
   "calendar": {
-    "rescheduled": "Reagendado",
     "agenda": {
-      "previousDay": "Dia anterior",
-      "nextDay": "Próximo dia",
       "today": "Hoje",
-      "dragHint": "Arraste um item para reagendá-lo",
       "empty": "Nada agendado"
     },
     "legend": {
