@@ -335,7 +335,7 @@ jobs:
         run: |
           if [ '${{ github.event_name }}' != 'pull_request' ] || \
              git diff --name-only --diff-filter=ACMRD origin/${{ github.base_ref }}...HEAD \
-               | grep -Eq '^\.github/workflows/(guards|test)\.yml$|^tools/(check-.*\.mjs|gate-charter\.json)$|^eslint-rules/[^/]+\.(cjs|js|mjs)$|^\.claude/hooks/[^/]+\.(cjs|js|mjs)$'; then
+               | grep -Eq '^\.github/workflows/(guards|test)\.yml$|^tools/(check-.*\.mjs|gate-charter\.json)$|^eslint-rules/[^/]+\.(cjs|js|mjs)$|^\.claude/hooks/[^/]+\.(cjs|js|mjs)$|^package(-lock)?\.json$'; then
             node tools/check-gate-charter.mjs
           else
             echo "Gate charter skipped: no registered gate changed."

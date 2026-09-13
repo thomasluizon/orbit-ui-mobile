@@ -195,7 +195,7 @@ function lintCallerUsesChangedFiles(repositoryRoot) {
   })
 }
 
-function gateCharterRunsForLintWorkflow(guardJobs) {
+function gateCharterRunsForPath(guardJobs, path) {
   const gateCharter = guardJobs["gate-charter"]
   if (!gateCharter) return true
   return runSteps(gateCharter).some((step) => {
@@ -206,7 +206,7 @@ function gateCharterRunsForLintWorkflow(guardJobs) {
       if (!conditionUsesChangedFiles(range.condition)) return false
       for (const match of range.condition.matchAll(/\bgrep\s+-Eq\s+(['"])(.*?)\1/g)) {
         try {
-          if (new RegExp(match[2]).test(".github/workflows/test.yml")) return true
+          if (new RegExp(match[2]).test(path)) return true
         } catch {
           return false
         }
@@ -301,8 +301,11 @@ function run(repositoryRoot) {
   if (changedFileRules.length > 0 && !lintCallerUsesChangedFiles(repositoryRoot)) {
     changedFileRules.forEach((id) => problems.push(`${id}: pull request lint must pass only changed workspace files to ESLint`))
   }
-  if (!gateCharterRunsForLintWorkflow(guardJobs)) {
+  if (!gateCharterRunsForPath(guardJobs, ".github/workflows/test.yml")) {
     problems.push(".github/workflows/guards.yml#gate-charter: Gate Charter must run when .github/workflows/test.yml changes")
+  }
+  if (["package.json", "package-lock.json"].some((path) => !gateCharterRunsForPath(guardJobs, path))) {
+    problems.push(".github/workflows/guards.yml#gate-charter: Gate Charter must run when package.json or package-lock.json changes")
   }
   if (problems.length > 0) {
     console.error("Gate charter violations:")

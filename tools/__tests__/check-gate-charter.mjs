@@ -92,6 +92,20 @@ export const cases = () => {
     { status: 1, stderr: /Gate Charter must run when \.github\/workflows\/test\.yml changes/ },
   )
 
+  const dependencyTrigger = (dependencyPattern) => "jobs:\n  existing:\n    steps:\n      - run: |\n          git diff --name-only origin/${{ github.base_ref }}...HEAD > changed.txt\n          node gate.mjs --changed-files-file changed.txt\n  gate-charter:\n    steps:\n      - run: |\n          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -Eq '^\\.github/workflows/test\\.yml$|${dependencyPattern}'; then\n            node tools/check-gate-charter.mjs\n          fi\n"
+  check(
+    "check-gate-charter.mjs",
+    "rejects a Gate Charter caller that skips package.json changes",
+    ["--root", stageRepository("missing-package-json", triggerCharter, { guardWorkflow: dependencyTrigger("^package-lock\\.json$") })],
+    { status: 1, stderr: /Gate Charter must run when package\.json or package-lock\.json changes/ },
+  )
+  check(
+    "check-gate-charter.mjs",
+    "rejects a Gate Charter caller that skips package-lock.json changes",
+    ["--root", stageRepository("missing-package-lock", triggerCharter, { guardWorkflow: dependencyTrigger("^package\\.json$") })],
+    { status: 1, stderr: /Gate Charter must run when package\.json or package-lock\.json changes/ },
+  )
+
   const unregenerable = completeCharter()
   unregenerable["tools/check-existing.mjs"] = entry({ snapshot: "" })
   check(
