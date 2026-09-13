@@ -1,4 +1,5 @@
 import type { SkeletonProps } from '@orbit/shared/contracts/feedback'
+import { STAT_TILE_MIN_HEIGHT } from './stat-tile'
 
 const blockClass = 'skeleton-pulse rounded-[var(--r-well)] bg-[var(--bg-well)]'
 
@@ -38,7 +39,10 @@ function SettingsSkeleton({ rows = 1 }: Readonly<{ rows?: number }>) {
 
 function StatTileSkeleton() {
   return (
-    <div className="flex min-h-[110px] flex-col gap-3 rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]">
+    <div
+      className="flex flex-col gap-3 rounded-[var(--r-card)] bg-[var(--bg-card)] p-6 shadow-[inset_0_0_0_1px_var(--hairline)]"
+      style={{ minHeight: STAT_TILE_MIN_HEIGHT }}
+    >
       <span className={`${blockClass} h-6 w-1/2`} />
       <span className={`${blockClass} h-4 w-2/3`} />
     </div>

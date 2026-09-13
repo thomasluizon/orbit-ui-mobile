@@ -884,12 +884,8 @@
     }
   },
   "calendar": {
-    "rescheduled": "Reagendado",
     "agenda": {
-      "previousDay": "Dia anterior",
-      "nextDay": "Próximo dia",
       "today": "Hoje",
-      "dragHint": "Arraste um item para reagendá-lo",
       "empty": "Nada agendado"
     },
     "legend": {
@@ -931,6 +927,11 @@
       "week": "Semana",
       "range": "Intervalo",
       "agenda": "Agenda"
+    },
+    "range": {
+      "label": "{start} a {end}",
+      "previous": "Período anterior",
+      "next": "Período seguinte"
     },
     "timeGrid": {
       "allDay": "Dia inteiro",
