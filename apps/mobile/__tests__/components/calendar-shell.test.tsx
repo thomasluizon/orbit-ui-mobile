@@ -304,12 +304,12 @@ describe("CalendarLegend (mobile)", () => {
 });
 
 describe("CalendarStats (mobile)", () => {
-  it("renders a tile for each stat, surfacing its label", () => {
-    const stats: readonly CalendarStat[] = [
-      { key: "bestStreak", emoji: "🔥", value: 5, label: "Best streak" },
-      { key: "totalLogs", emoji: "✅", value: 42, label: "Total logs" },
-      { key: "missed", emoji: "⚠️", value: 3, label: "Missed" },
-    ];
+  it("renders the three month figures in one row", () => {
+    const stats = [
+      { key: "bestStreak", value: 5, label: "Best streak" },
+      { key: "totalLogs", value: 42, label: "Logs" },
+      { key: "missed", value: 3, label: "Missed" },
+    ] as const satisfies readonly [CalendarStat, CalendarStat, CalendarStat];
 
     let tree: Tree;
     TestRenderer.act(() => {
@@ -319,8 +319,16 @@ describe("CalendarStats (mobile)", () => {
     });
 
     const texts = hostTextValues(tree!);
+    const statsRow = tree!.root.findAll(
+      (node) => node.type === "View" && node.props.testID === "calendar-stats",
+    )[0]!;
+    expect(StyleSheet.flatten(statsRow.props.style)).toMatchObject({
+      flexDirection: "row",
+      gap: 12,
+    });
+    expect(statsRow.props.children).toHaveLength(3);
     expect(texts).toContain("Best streak");
-    expect(texts).toContain("Total logs");
+    expect(texts).toContain("Logs");
     expect(texts).toContain("Missed");
   });
 });

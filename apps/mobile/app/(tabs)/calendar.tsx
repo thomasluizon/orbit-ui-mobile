@@ -11,6 +11,11 @@ import {
   type NativeSyntheticEvent,
 } from "react-native";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
+import {
+  FadeInLeft,
+  FadeInRight,
+  ReduceMotion,
+} from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
 import {
@@ -24,7 +29,6 @@ import {
   endOfWeek,
   eachDayOfInterval,
   isSameMonth,
-  isToday,
   format,
 } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
@@ -51,7 +55,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Sheet, useSheetHost } from '@/components/ui/sheet';
 import { EmptyState } from "@/components/ui/empty-state";
 import { PillButton } from "@/components/ui/pill-button";
-import { SectionLabel } from "@/components/ui/section-label";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -68,9 +71,18 @@ import { ShowRecurringToggle } from "./calendar/_components/show-recurring-toggl
 import type { TimeGridColumn } from "./calendar/_components/calendar-time-grid";
 import { useCurrentDate } from "./use-today-date";
 
+type MonthSlide = "left" | "right" | null;
 type CalendarView = "month" | "week" | "range";
 
 const EMPTY_LIST: readonly CalendarDayEntry[] = [];
+
+function resolveMonthEntering(monthSlide: MonthSlide) {
+  if (monthSlide === "right")
+    return FadeInRight.duration(220).reduceMotion(ReduceMotion.System);
+  if (monthSlide === "left")
+    return FadeInLeft.duration(220).reduceMotion(ReduceMotion.System);
+  return undefined;
+}
 
 export default function CalendarScreen() {
   const { profile, error: profileError, refetch: refetchProfile } = useProfile();
@@ -122,7 +134,7 @@ function CalendarProfileState({ failed, onRetry }: Readonly<{ failed: boolean; o
 }
 
 interface CalendarScreenContentProps {
-  profile: Pick<Profile, 'weekStartDay'>;
+  profile: Pick<Profile, 'weekStartDay' | 'timeZone'>;
   currentMonth: Date;
   setCurrentMonth: Dispatch<SetStateAction<Date>>;
   monthQuery: ReturnType<typeof useCalendarData>;
@@ -138,7 +150,7 @@ function CalendarScreenContent({
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { displayTime } = useTimeFormat();
-  const todayKey = useCurrentDate();
+  const todayKey = useCurrentDate(profile.timeZone);
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -177,8 +189,9 @@ function CalendarScreenContent({
     setScrollTopResetView(view);
     setShowScrollTop(false);
   }
+  const [monthSlide, setMonthSlide] = useState<MonthSlide>(null);
   const [weekAnchor, setWeekAnchor] = useState(() => new Date());
-  const [weekSlide, setWeekSlide] = useState<"left" | "right" | null>(null);
+  const [weekSlide, setWeekSlide] = useState<MonthSlide>(null);
   const [rangeStart, setRangeStart] = useState(() => formatAPIDate(new Date()));
   const [rangeEnd, setRangeEnd] = useState(() => formatAPIDate(new Date()));
   const [awaitingEnd, setAwaitingEnd] = useState(false);
@@ -225,12 +238,16 @@ function CalendarScreenContent({
       view === "week"
         ? eachDayOfInterval({ start: weekStart, end: weekEnd })
         : eachDayOfInterval({ start: rangeBounds.lo, end: rangeBounds.hi });
-    return days.map((date) => ({
-      date,
-      dateStr: formatAPIDate(date),
-      isToday: isToday(date),
-    }));
-  }, [view, weekStart, weekEnd, rangeBounds]);
+    return days.map((date) => {
+      const dateStr = formatAPIDate(date);
+      return {
+        date,
+        dateStr,
+        isToday: dateStr === todayKey,
+        isFuture: dateStr > todayKey,
+      };
+    });
+  }, [view, weekStart, weekEnd, rangeBounds, todayKey]);
 
   const displayMonthDayMap = useMemo(
     () => filterRecurringDayMap(dayMap, showRecurring),
@@ -259,18 +276,22 @@ function CalendarScreenContent({
   }, [weekStart, weekEnd, dateFnsLocale]);
 
   const prevMonth = useCallback(() => {
+    setMonthSlide("left");
     setCurrentMonth((m) => subMonths(m, 1));
   }, [setCurrentMonth]);
 
   const nextMonth = useCallback(() => {
+    setMonthSlide("right");
     setCurrentMonth((m) => addMonths(m, 1));
   }, [setCurrentMonth]);
 
   const selectYear = useCallback((year: number) => {
+    setMonthSlide(null);
     setCurrentMonth((m) => startOfMonth(setYear(m, year)));
   }, [setCurrentMonth]);
 
   const goToCurrentMonth = useCallback(() => {
+    setMonthSlide(null);
     setCurrentMonth(startOfMonth(new Date()));
   }, [setCurrentMonth]);
 
@@ -347,12 +368,12 @@ function CalendarScreenContent({
   }, [t, weekStartsOn]);
 
   const { gridDays, monthStats } = useMemo(
-    () => buildCalendarMonthModel(currentMonth, displayMonthDayMap, weekStartsOn),
-    [currentMonth, displayMonthDayMap, weekStartsOn],
+    () => buildCalendarMonthModel(currentMonth, displayMonthDayMap, weekStartsOn, todayKey),
+    [currentMonth, displayMonthDayMap, weekStartsOn, todayKey],
   );
   const { monthStats: sourceMonthStats } = useMemo(
-    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn),
-    [currentMonth, dayMap, weekStartsOn],
+    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn, todayKey),
+    [currentMonth, dayMap, weekStartsOn, todayKey],
   );
   const showMonthRecurringToggle =
     !isLoading && currentMonth <= startOfMonth(parseAPIDate(todayKey)) && sourceMonthStats.hasEntries;
@@ -408,25 +429,24 @@ function CalendarScreenContent({
     () => [
       {
         key: "bestStreak",
-        emoji: "🔥",
         value: monthStats.bestStreak,
         label: t("calendar.bestStreak"),
       },
       {
         key: "totalLogs",
-        emoji: "✅",
         value: monthStats.totalLogs,
         label: t("calendar.totalLogs"),
       },
       {
         key: "missed",
-        emoji: "⚠️",
         value: monthStats.missed,
         label: t("calendar.missedCount"),
       },
-    ],
+    ] as const,
     [monthStats, t],
   );
+
+  const monthEntering = resolveMonthEntering(monthSlide);
 
   const listHeader = (
     <>
@@ -435,6 +455,8 @@ function CalendarScreenContent({
         weekdayHeaders={weekdayHeaders}
         selectedDay={selectedDay}
         isLoading={isLoading}
+        monthKey={format(currentMonth, "yyyy-MM")}
+        monthEntering={monthEntering}
         swipeGesture={swipeGesture}
         gridRef={calendarGridRef}
         todayRef={calendarDayRef}
@@ -471,10 +493,7 @@ function CalendarScreenContent({
       {!isLoading && !monthStats.hasEntries ? (
         <EmptyState title={t("calendar.emptyMonth")} />
       ) : (
-        <>
-          <SectionLabel>{t("calendar.thisMonth")}</SectionLabel>
-          <CalendarStats stats={monthStatTiles} />
-        </>
+        <CalendarStats stats={monthStatTiles} />
       )}
 
       <View style={{ height: 24 }} />
@@ -569,8 +588,9 @@ function CalendarScreenContent({
               onSelectDay={onSelectDay}
               displayTime={displayTime}
               language={i18n.language}
-              allDayLabel={t("calendar.timeGrid.allDay")}
+              allDayLabel={t("calendar.timeGrid.noSetTime")}
               nowLabel={t("calendar.timeGrid.now")}
+              timeZone={profile.timeZone}
               showRecurring={showRecurring}
               onShowRecurringChange={setShowRecurring}
               showRecurringLabel={t("calendar.showRecurring")}
@@ -599,6 +619,7 @@ function CalendarScreenContent({
               language={i18n.language}
               allDayLabel={t("calendar.timeGrid.allDay")}
               nowLabel={t("calendar.timeGrid.now")}
+              timeZone={profile.timeZone}
               showRecurring={showRecurring}
               onShowRecurringChange={setShowRecurring}
               showRecurringLabel={t("calendar.showRecurring")}

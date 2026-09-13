@@ -34,6 +34,9 @@ Gates: `.claude/hooks/forbid-invented-identifier.mjs`, `tools/lib/github-target.
 If ESLint `local/*`, a `guards.yml` job (Dash Ban, Copy Register, Suppressions Ratchet, Expo SDK
 Pin, Cross-Platform Parity), or Roslyn `ORBIT0001..0005` fails on it, saying it by hand is noise.
 
+A gate fails only on files the pull request changed. Whole-tree findings are advisory.
+Every committed gate inventory names its regeneration command. Every threshold names its real source.
+
 ### 5. Load-bearing strings need approval before they change
 
 Never silently change a URL slug, anchor id, primary nav label, or a form field's `name` or order.

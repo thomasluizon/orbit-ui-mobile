@@ -1,6 +1,14 @@
 export { achievementEmoji } from './achievement-emoji'
 export { createClientId } from './client-id'
-export { parseAPIDate, formatAPIDate, resolveHabitDetailRouteDate } from './dates'
+export {
+  parseAPIDate,
+  formatAPIDate,
+  formatAPIDateInTimeZone,
+  getAccountDateTime,
+  nowDate,
+  resolveHabitDetailRouteDate,
+  type AccountDateTime,
+} from './dates'
 export {
   buildHabitHistoryMonth,
   appendHabitDetailChild,
@@ -396,7 +404,6 @@ export {
 } from './goal-mutations'
 export {
   formatGoalMetricsDate,
-  getGoalHabitAdherenceTone,
   getGoalMetricsStatusPresentation,
 } from './goal-metrics'
 export { normalizeGoalQueryData } from './goal-query'
@@ -527,9 +534,6 @@ export type {
 export {
   buildRetrospectiveRequestUrl,
   getBestRetrospectiveWeekdayKey,
-  getRetrospectiveCacheKey,
-  RETROSPECTIVE_CACHE_PREFIX,
-  RETROSPECTIVE_PERIODS,
 } from './retrospective'
 export type {
   RetrospectivePeriod,

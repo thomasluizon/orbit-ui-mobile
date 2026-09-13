@@ -58,9 +58,6 @@ vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: 'ExpiryWarning
 vi.mock('@/components/ui/trial-expired-modal', () => ({
   TrialExpiredModal: 'TrialExpiredModal',
 }))
-vi.mock('@/components/goals/create-goal-modal', () => ({
-  CreateGoalModal: 'CreateGoalModal',
-}))
 vi.mock('@/components/version-update-drawer', () => ({
   VersionUpdateDrawer: 'VersionUpdateDrawer',
 }))
@@ -127,12 +124,6 @@ describe('OverlayLayer mount matrix', () => {
       expect(isMounted(preOnboarding, overlay)).toBe(true)
       expect(isMounted(postOnboarding, overlay)).toBe(true)
     }
-  })
-
-  it('does not mount standalone goal creation in the global overlay layer', async () => {
-    const instance = await renderLayer({ hasCompletedOnboarding: true })
-
-    expect(isMounted(instance, 'CreateGoalModal')).toBe(false)
   })
 
   it('does not mount post-onboarding prompts before onboarding completes', async () => {

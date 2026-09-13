@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Regression suite for the seven surviving session hooks. Three layers:
+// Regression suite for the eight surviving session hooks. Three layers:
 //   1. Wiring: settings.json and the hooks directory must agree in BOTH
 //      directions. A hook deleted while settings.json still names it is exactly
 //      how this suite was broken on 2026-08-04, and nothing else catches it.
@@ -16,6 +16,7 @@ import { dirname, join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { checkGitCommand, checkGitWorktreeRemove } from "./_lib/rules-git.mjs"
+import { countUnreviewedPendingLessons } from "./_lib/rules-lessons.mjs"
 import { checkEfMigrationRawIndex } from "./_lib/rules-source.mjs"
 import { checkTicketMutation } from "./_lib/rules-tickets.mjs"
 import { checkInventedIdentifier, extractNodeIds } from "./_lib/rules-identifier.mjs"
@@ -157,8 +158,34 @@ T("admin-merge: reading the merge endpoint allows", checkAdminMerge("gh api repo
 T("admin-merge: another GraphQL mutation allows", checkAdminMerge("gh api graphql -f query='mutation{resolveReviewThread(input:{threadId:\"x\"}){thread{isResolved}}}'"), null)
 T(`admin-merge: a commit message naming ${ADMIN} allows`, checkAdminMerge(`git commit -m "forbid gh pr merge ${ADMIN}"`), null)
 T("admin-merge: the refusal says to ask Thomas", checkAdminMerge(`gh pr merge 1 ${ADMIN}`)?.message.includes("ask him to"), true)
+for (const redirect of [">$(printf worker.log)", "2>&$(printf 1)"]) {
+  T(
+    `admin-merge: leading dynamic redirect ${redirect} cannot hide an admin merge`,
+    blocks(checkAdminMerge(`${redirect} gh pr merge 667 ${ADMIN}`)),
+    true,
+  )
+}
 
 const engine = (command, options) => checkEngineInvocation(command, { repoRoots: [], ...options })
+const descriptorSuffixAllows = [
+  ["cloud read before a redirection", "codex cloud list 2>&1 >out.log"],
+  ["zero-cost query before a safe argument", "codex 2>&1 --version"],
+  ["cloud read before a safe argument", "codex cloud list 2>&1 --json"],
+  ["cloud read before another redirection", "codex cloud list 2>&1 3>trace.log"],
+]
+const descriptorSafetyRefusals = [
+  ["dollar command substitution", "2>&$(codex exec 'do work')"],
+  ["backtick command substitution", "2>&`codex exec 'do work'`"],
+  ["dynamic leading redirect", ">$(printf worker.log) codex exec"],
+  ["engine invocation before a pipeline", "codex exec | tee log"],
+  ["engine invocation after a list separator", "codex cloud list && codex exec"],
+]
+for (const [shape, command] of descriptorSuffixAllows) {
+  T(`engine: descriptor duplication ${shape} allows`, engine(command), null)
+}
+for (const [shape, command] of descriptorSafetyRefusals) {
+  T(`engine: descriptor safety ${shape} blocks`, blocks(engine(command)), true)
+}
 T("engine: codex exec blocks", blocks(engine('codex exec "do the thing"')), true)
 T("engine: bare claude blocks", blocks(engine("claude")), true)
 T("engine: claude -p blocks", blocks(engine('claude -p "summarize"')), true)
@@ -168,6 +195,19 @@ T("engine: the refusal names the launcher", engine("codex exec")?.message.includ
 T("engine: codex cloud list allows", engine("codex cloud list --json"), null)
 T("engine: codex cloud status allows", engine("codex cloud status task_123"), null)
 T("engine: codex cloud diff allows", engine("codex cloud diff task_123"), null)
+T("engine: a piped codex cloud list allows", engine("codex cloud list --env env_1 | head -20"), null)
+T("engine: an exported token before a piped cloud read allows", engine("export GH_TOKEN=; codex cloud list --env env_1 | head -20"), null)
+T("engine: a redirected codex cloud list allows", engine("codex cloud list --env env_1 > tasks.txt"), null)
+T("engine: a leading redirection does not hide codex exec", blocks(engine("> worker.log codex exec")), true)
+for (const redirect of [">$(printf worker.log)", "2>&$(printf 1)"]) {
+  T(`engine: leading dynamic redirect ${redirect} fails closed`, blocks(engine(`${redirect} codex exec`)), true)
+}
+T("engine: codex exec before a pipe blocks", blocks(engine("codex exec | tee worker.log")), true)
+T("engine: codex exec after a pipe blocks", blocks(engine("head -20 | codex exec")), true)
+for (const separator of ["&&", ";", "||"]) {
+  T(`engine: codex exec after ${separator} blocks`, blocks(engine(`codex cloud list ${separator} codex exec`)), true)
+}
+T("engine: a quoted pipeline is harmless argument text", engine('echo "codex exec | tee"'), null)
 T("engine: a nested dollar command substitution revokes the cloud read exemption", blocks(engine('codex cloud list "$(codex exec \'do work\')"')), true)
 T("engine: a nested backtick command substitution revokes the cloud read exemption", blocks(engine("codex cloud list `codex exec 'do work'`")), true)
 T("engine: a help flag cannot launder a nested engine call", blocks(engine('codex cloud list --help "$(codex exec \'do work\')"')), true)
@@ -217,6 +257,9 @@ T("staging: real linked worktree initializes", stagingGit(["worktree", "add", "-
 mkdirSync(join(stagingWorktree, "named-dir"), { recursive: true })
 rmSync(join(stagingWorktree, ".claude"), { recursive: true })
 const workerStaging = (command) => checkBroadStaging(command, { cwd: stagingWorktree, repoRoots: [stagingMain] })
+for (const redirect of [">$(printf worker.log)", "2>&$(printf 1)"]) {
+  T(`staging: leading dynamic redirect ${redirect} cannot hide broad staging`, blocks(workerStaging(`${redirect} git add -A`)), true)
+}
 for (const command of [
   "git add -A",
   "git add --all",
@@ -533,28 +576,161 @@ T(
   true,
 )
 
+console.log("\n# pending lessons (_lib/rules-lessons.mjs)")
+const datedEntry = (date, lesson) => `## ${date} - ${lesson}`
+T("lessons: one dated entry before Graduated is pending", countUnreviewedPendingLessons([
+  "# Pending lessons",
+  datedEntry("2026-09-10", "first lesson"),
+  "## Graduated",
+].join("\n")), 1)
+T("lessons: several dated entries before Graduated are pending", countUnreviewedPendingLessons([
+  datedEntry("2026-09-10", "first lesson"),
+  "details",
+  datedEntry("2026-09-11", "second lesson"),
+  "## Graduated",
+].join("\n")), 2)
+T("lessons: entries after Graduated are ignored", countUnreviewedPendingLessons([
+  "## Graduated",
+  datedEntry("2026-09-10", "already reviewed"),
+].join("\n")), 0)
+T("lessons: DROPPED and Original entry headings are ignored", countUnreviewedPendingLessons([
+  "## DROPPED 2026-09-10 - rejected lesson",
+  "### Original entry",
+  "## Graduated",
+].join("\n")), 0)
+T("lessons: without Graduated the whole file is pending", countUnreviewedPendingLessons([
+  datedEntry("2026-09-10", "first lesson"),
+  datedEntry("2026-09-11", "second lesson"),
+].join("\n")), 2)
+T("lessons: an empty file has no pending entries", countUnreviewedPendingLessons(""), 0)
+T("lessons: the title alone has no pending entries", countUnreviewedPendingLessons("# Pending lessons\n"), 0)
+T("lessons: the real pending-lessons.md parses", Number.isInteger(countUnreviewedPendingLessons(
+  readFileSync(join(repoRoot, ".claude", "pending-lessons.md"), "utf8"),
+)), true)
+
 // ---------------------------------------------------------------------------
 // 3. The real hook files: stdin payload in, exit code out
 // ---------------------------------------------------------------------------
 console.log("\n# hook adapters (real files, real exit codes)")
-const runHook = (file, payload, env) =>
+const runHookResult = (file, input, env) =>
   spawnSync(process.execPath, [join(hooksDir, file)], {
-    input: JSON.stringify(payload),
+    input,
     encoding: "utf8",
     env: { ...process.env, ORBIT_LAUNCH_WORKER: "", ...env },
-  }).status
+  })
+const runHook = (file, payload, env) => runHookResult(file, JSON.stringify(payload), env).status
 const bash = (command, cwd = root) => ({ tool_name: "Bash", tool_input: { command }, cwd })
+const powershell = (command, cwd = root) => ({ tool_name: "PowerShell", tool_input: { command }, cwd })
+
+const LESSONS_HOOK = "surface-pending-lessons.mjs"
+const lessonsFixtureRoot = join(root, "lessons-project")
+const lessonsFixtureFile = join(lessonsFixtureRoot, ".claude", "pending-lessons.md")
+mkdirSync(dirname(lessonsFixtureFile), { recursive: true })
+const runLessonsHook = (input) => runHookResult(LESSONS_HOOK, input, { CLAUDE_PROJECT_DIR: lessonsFixtureRoot })
+const isWellFormedLessonsReminder = (output) =>
+  /^\d+ unreviewed pending lessons? in \.claude\/pending-lessons\.md\. Review (?:it|them) with \/lesson\.$/.test(output)
+const isContentIndependentLessonsResult = (result) => ({
+  status: result.status,
+  stderr: result.stderr,
+  output: result.stdout === "" || isWellFormedLessonsReminder(result.stdout),
+})
+writeFileSync(lessonsFixtureFile, [
+  "# Pending lessons",
+  datedEntry("2026-09-10", "first lesson"),
+  "## Graduated",
+].join("\n"))
+const oneSurfacedLesson = runLessonsHook("{}")
+T("adapter lessons: one pending entry emits one line with the count and action", {
+  lines: oneSurfacedLesson.stdout.split(/\r?\n/).length,
+  count: oneSurfacedLesson.stdout.includes("1"),
+  action: oneSurfacedLesson.stdout.includes("/lesson"),
+}, { lines: 1, count: true, action: true })
+writeFileSync(lessonsFixtureFile, [
+  "# Pending lessons",
+  datedEntry("2026-09-10", "first lesson"),
+  datedEntry("2026-09-11", "second lesson"),
+  "## Graduated",
+].join("\n"))
+const surfacedLessons = runLessonsHook("{}")
+T("adapter lessons: two pending entries exit 0", surfacedLessons.status, 0)
+T("adapter lessons: two pending entries emit no stderr", surfacedLessons.stderr, "")
+T("adapter lessons: output names the count and file", {
+  count: surfacedLessons.stdout.includes("2"),
+  file: surfacedLessons.stdout.includes("pending-lessons.md"),
+}, { count: true, file: true })
+T("adapter lessons: output is one plain-text reminder", isWellFormedLessonsReminder(surfacedLessons.stdout), true)
+const malformedInputLessons = runLessonsHook("not json")
+T("adapter lessons: malformed stdin exits 0 and emits nothing", {
+  status: malformedInputLessons.status, stdout: malformedInputLessons.stdout, stderr: malformedInputLessons.stderr,
+}, { status: 0, stdout: "", stderr: "" })
+writeFileSync(lessonsFixtureFile, [
+  "# Pending lessons",
+  "## DROPPED 2026-09-10 - rejected lesson",
+  "## Graduated",
+  datedEntry("2026-09-11", "already reviewed"),
+].join("\n"))
+const silentLessons = runLessonsHook("{}")
+T("adapter lessons: reviewed and dropped entries exit 0", silentLessons.status, 0)
+T("adapter lessons: reviewed and dropped entries emit nothing", { stdout: silentLessons.stdout, stderr: silentLessons.stderr }, { stdout: "", stderr: "" })
+rmSync(lessonsFixtureFile)
+const absentLessons = runLessonsHook("{}")
+T("adapter lessons: an absent file exits 0 and emits nothing", {
+  status: absentLessons.status, stdout: absentLessons.stdout, stderr: absentLessons.stderr,
+}, { status: 0, stdout: "", stderr: "" })
+mkdirSync(lessonsFixtureFile)
+const malformedLessons = runLessonsHook("{}")
+T("adapter lessons: an unreadable file exits 0 and emits nothing", {
+  status: malformedLessons.status, stdout: malformedLessons.stdout, stderr: malformedLessons.stderr,
+}, { status: 0, stdout: "", stderr: "" })
+rmSync(lessonsFixtureFile, { recursive: true })
+writeFileSync(lessonsFixtureFile, "# Pending lessons\n## Graduated\n")
+const realFileLessons = runHookResult(LESSONS_HOOK, "{}", { CLAUDE_PROJECT_DIR: repoRoot })
+T("adapter lessons: the real file result is content-independent", isContentIndependentLessonsResult(realFileLessons), {
+  status: 0, stderr: "", output: true,
+})
+const realLessons = readFileSync(join(repoRoot, ".claude", "pending-lessons.md"), "utf8")
+const stagedRealLessons = /^## Graduated\r?$/m.test(realLessons)
+  ? realLessons.replace(/^## Graduated\r?$/m, `${datedEntry("2099-12-31", "staged harness proof")}\n## Graduated`)
+  : `${realLessons}\n${datedEntry("2099-12-31", "staged harness proof")}\n`
+writeFileSync(lessonsFixtureFile, stagedRealLessons)
+const stagedRealFileLessons = runLessonsHook("{}")
+T("adapter lessons: the real file with a staged entry emits one well-formed line", {
+  status: stagedRealFileLessons.status,
+  stderr: stagedRealFileLessons.stderr,
+  output: isWellFormedLessonsReminder(stagedRealFileLessons.stdout),
+}, { status: 0, stderr: "", output: true })
+const fallbackLessons = runHookResult(LESSONS_HOOK, "{}", { CLAUDE_PROJECT_DIR: "" })
+T(
+  "adapter lessons: an empty project environment falls back to the hook location",
+  isContentIndependentLessonsResult(fallbackLessons),
+  { status: 0, stderr: "", output: true },
+)
 
 T("adapter git-guardrails: push main -> 2", runHook("git-guardrails.mjs", bash("git push origin main")), 2)
 T("adapter git-guardrails: push feature -> 0", runHook("git-guardrails.mjs", bash("git push origin feature/x")), 0)
 T("adapter git-guardrails: worktree remove --force -> 2", runHook("git-guardrails.mjs", bash("git worktree remove --force .claude/worktrees/x")), 2)
 
 const ORCH = "orchestrator-guardrails.mjs"
+for (const [shape, command] of descriptorSuffixAllows) {
+  T(`adapter orchestrator: descriptor duplication ${shape} -> 0`, runHook(ORCH, bash(command)), 0)
+}
+for (const [shape, command] of descriptorSafetyRefusals) {
+  T(`adapter orchestrator: descriptor safety ${shape} -> 2`, runHook(ORCH, bash(command)), 2)
+}
 T("adapter orchestrator: codex exec -> 2", runHook(ORCH, bash('codex exec "do the thing"')), 2)
 T(`adapter orchestrator: gh pr merge ${ADMIN} -> 2`, runHook(ORCH, bash(`gh pr merge 1 --squash ${ADMIN}`)), 2)
 T("adapter orchestrator: gh pr merge --squash -> 0", runHook(ORCH, bash("gh pr merge 1 --squash")), 0)
 T("adapter orchestrator: codex --version -> 0", runHook(ORCH, bash("codex --version")), 0)
 T("adapter orchestrator: grep over a codex pattern -> 0", runHook(ORCH, bash("grep -rnE 'claude|codex' tools/")), 0)
+T("adapter orchestrator: piped codex cloud list -> 0", runHook(ORCH, bash("codex cloud list --env env_1 | head -20")), 0)
+T("adapter orchestrator: piped codex exec -> 2", runHook(ORCH, bash("codex exec | tee worker.log")), 2)
+for (const redirect of ["*>tasks.txt", "*>>tasks.txt", "*>&1"]) {
+  T(
+    `adapter orchestrator: PowerShell cloud read with ${redirect} -> 0`,
+    runHook(ORCH, powershell(`codex cloud list ${redirect}`)),
+    0,
+  )
+}
 T("adapter orchestrator: the launcher marker -> 0", runHook(ORCH, bash("codex exec"), { ORBIT_LAUNCH_WORKER: "1" }), 0)
 T("adapter orchestrator: worker git add -A -> 2", runHook(ORCH, bash("git add -A"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
 T("adapter orchestrator: worker git add -u -> 2", runHook(ORCH, bash("git add -u"), { ORBIT_LAUNCH_WORKER: "1" }), 2)
@@ -622,7 +798,7 @@ T("adapter identifier: the ledger is restored, so the id blocks again -> 2", run
  * a session id that does not match is treated as a previous run's and ignored.
  */
 const WAKE_HOOK = "require-wake-source.mjs"
-const { clearWakeSource, readWakeSources, registerWakeSource, runStatePath, wakeSourceDirectory } = await import("../../tools/lib/run-state.mjs")
+const { PENDING_WAKE_SOURCE_MAX_AGE_MS, clearWakeSource, readWakeSources, registerWakeSource, runStatePath, wakeSourceDirectory } = await import("../../tools/lib/run-state.mjs")
 const stopPayload = { session_id: "orbit-hooks-gate-session", stop_hook_active: false }
 const priorState = existsSync(runStatePath()) ? readFileSync(runStatePath(), "utf8") : null
 // The reader and the final predicate each prove the persisted process identity.
@@ -654,13 +830,50 @@ cpSync(join(hooksDir, "_lib"), join(wakeHooks, "_lib"), { recursive: true })
 cpSync(join(hooksDir, WAKE_HOOK), join(wakeHooks, WAKE_HOOK))
 writeFileSync(runStatePath(wakeCheckout), JSON.stringify({ sessionId: stopPayload.session_id, sleep: true, remaining: ["ORB-2"] }))
 const wakeFile = join(wakeSourceDirectory(wakeCheckout), `${process.pid}.json`)
-const isolatedWakeStop = () => spawnSync(process.execPath, [join(wakeHooks, WAKE_HOOK)], {
-  input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true,
-}).status
+const isolatedWakeStop = ({ preload = null, env = {} } = {}) => spawnSync(
+  process.execPath,
+  [...(preload ? ["--import", pathToFileURL(preload).href] : []), join(wakeHooks, WAKE_HOOK)],
+  { input: JSON.stringify(stopPayload), encoding: "utf8", windowsHide: true, env: { ...process.env, ...env } },
+).status
 registerWakeSource({ pid: process.pid, what: "hook identity regression" }, wakeCheckout)
 const registeredWake = JSON.parse(readFileSync(wakeFile, "utf8"))
 T("wake identity: registration captures a real OS process start identity", typeof registeredWake.processStartIdentity, "string")
 T("wake identity: the same live process allows the real Stop adapter", isolatedWakeStop(), 0)
+
+/** A pending record is an admission window, not permission to claim a process that never began. */
+clearWakeSource(process.pid, wakeCheckout)
+const neverSpawnedPid = 2_147_483_647
+registerWakeSource({
+  pid: neverSpawnedPid,
+  what: "worker ORB-never-spawned",
+  pending: true,
+  pendingAt: "2026-09-12T00:00:00.000Z",
+}, wakeCheckout)
+T("wake pending: a registration whose process never starts blocks the real Stop adapter", isolatedWakeStop(), 2)
+clearWakeSource(neverSpawnedPid, wakeCheckout)
+
+/** Freeze the adapter's clock so both sides of the 45-second boundary run instantly. */
+const wakeTimePreload = join(wakeCheckout, "wake-time.mjs")
+writeFileSync(wakeTimePreload, "Date.now = () => Number(process.env.ORBIT_TEST_NOW)\n")
+const pendingAt = Date.parse("2026-09-12T00:00:00.000Z")
+registerWakeSource({
+  pid: process.pid,
+  what: "worker ORB-pending",
+  workerPid: null,
+  pending: true,
+  pendingAt: new Date(pendingAt).toISOString(),
+}, wakeCheckout)
+T(
+  "wake pending: a live registration inside the admission window allows the real Stop adapter",
+  isolatedWakeStop({ preload: wakeTimePreload, env: { ORBIT_TEST_NOW: String(pendingAt + PENDING_WAKE_SOURCE_MAX_AGE_MS) } }),
+  0,
+)
+T(
+  "wake pending: a registration past the admission window blocks without sleeping",
+  isolatedWakeStop({ preload: wakeTimePreload, env: { ORBIT_TEST_NOW: String(pendingAt + PENDING_WAKE_SOURCE_MAX_AGE_MS + 1) } }),
+  2,
+)
+writeFileSync(wakeFile, JSON.stringify(registeredWake))
 writeFileSync(wakeFile, JSON.stringify({ ...registeredWake, processStartIdentity: `${registeredWake.processStartIdentity}:different-start` }))
 T("wake identity: a live pid with a different start identity blocks the real Stop adapter", isolatedWakeStop(), 2)
 T("wake identity: a live mismatched record is left alone", existsSync(wakeFile), true)
