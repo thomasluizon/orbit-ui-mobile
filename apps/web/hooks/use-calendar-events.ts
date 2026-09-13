@@ -13,14 +13,13 @@ import {
 } from '@orbit/shared/utils'
 
 interface CalendarEventsQueryOptions {
+  timeZone: string | null
   enabled?: boolean
 }
 
 export type CalendarEventsResult =
   | { status: 'connected'; events: CalendarSyncEvent[] }
   | { status: 'not-connected' }
-
-const CALENDAR_EVENTS_KEY = [...calendarKeys.all, 'manual-fetch'] as const
 
 /**
  * Fetches the user's upcoming Google Calendar events for the manual import flow.
@@ -29,11 +28,10 @@ const CALENDAR_EVENTS_KEY = [...calendarKeys.all, 'manual-fetch'] as const
  * not-connected prompt vs the event list. Other network errors surface via
  * the query's `error` field.
  */
-export function useCalendarEvents(options?: CalendarEventsQueryOptions) {
+export function useCalendarEvents(options: CalendarEventsQueryOptions) {
   const queryClient = useQueryClient()
-
   return useQuery<CalendarEventsResult>({
-    queryKey: CALENDAR_EVENTS_KEY,
+    queryKey: [...calendarKeys.all, 'manual-fetch', options.timeZone],
     queryFn: async () => {
       const res = await fetchWithThrottle(API.calendar.events)
       if (!res.ok) {
@@ -61,7 +59,7 @@ export function useCalendarEvents(options?: CalendarEventsQueryOptions) {
       const data = (await res.json()) as CalendarSyncEvent[]
       return { status: 'connected', events: data }
     },
-    enabled: options?.enabled ?? true,
+    enabled: options.enabled ?? true,
     retry: false,
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,

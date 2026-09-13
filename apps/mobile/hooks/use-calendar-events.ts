@@ -12,14 +12,13 @@ import {
 import { apiClient } from '@/lib/api-client'
 
 interface CalendarEventsQueryOptions {
+  timeZone: string | null
   enabled?: boolean
 }
 
 export type CalendarEventsResult =
   | { status: 'connected'; events: CalendarSyncEvent[] }
   | { status: 'not-connected' }
-
-const CALENDAR_EVENTS_KEY = [...calendarKeys.all, 'manual-fetch'] as const
 
 /**
  * Fetches the user's upcoming Google Calendar events for the manual import flow.
@@ -29,11 +28,10 @@ const CALENDAR_EVENTS_KEY = [...calendarKeys.all, 'manual-fetch'] as const
  * prompt vs the event list. Other network errors surface via the query's
  * `error` field.
  */
-export function useCalendarEvents(options?: CalendarEventsQueryOptions) {
+export function useCalendarEvents(options: CalendarEventsQueryOptions) {
   const queryClient = useQueryClient()
-
   return useQuery<CalendarEventsResult>({
-    queryKey: CALENDAR_EVENTS_KEY,
+    queryKey: [...calendarKeys.all, 'manual-fetch', options.timeZone],
     queryFn: async () => {
       try {
         const data = await apiClient<CalendarSyncEvent[]>(API.calendar.events)
@@ -63,7 +61,7 @@ export function useCalendarEvents(options?: CalendarEventsQueryOptions) {
         throw err
       }
     },
-    enabled: options?.enabled ?? true,
+    enabled: options.enabled ?? true,
     retry: false,
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,

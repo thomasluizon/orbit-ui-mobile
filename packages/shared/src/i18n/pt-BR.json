@@ -923,7 +923,10 @@
       "viewPro": "Ver o Pro",
       "googleConnected": "Google Calendar conectado",
       "lastSynced": "Última sincronização {time}",
-      "autoSync": "Sincronizar sozinho"
+      "autoSync": "Sincronizar sozinho",
+      "disconnectedTitle": "Google Calendar desconectado",
+      "disconnectedBody": "Reconecte para ver os eventos que você pode importar.",
+      "noEventsToImport": "Nada para importar do Google Calendar neste dia."
     },
     "proBoundary": {
       "title": "Sincronizar com o Google Calendar faz parte do Orbit Pro.",

@@ -392,6 +392,7 @@ function CalendarScreenContent({
     refetch: refetchCalendarEvents,
   } = useCalendarEvents({
     enabled: profile.hasProAccess,
+    timeZone: profile.timeZone,
   });
   const { data: autoSyncState } = useCalendarAutoSyncState({
     enabled: profile.hasProAccess,
@@ -971,7 +972,10 @@ function CalendarScreenContent({
             autoSyncState={autoSyncState}
             calendarEventsState={calendarEventsState}
             onRetryCalendarEvents={() => void refetchCalendarEvents()}
-            onReconnectCalendarEvents={() => router.push('/calendar-sync')}
+            onReconnectCalendarEvents={() => closeSheet(() => {
+              setIsDayDetailOpen(false);
+              router.push('/calendar-sync');
+            })}
             onViewPro={openOrbitPro}
             completedCount={completedCount}
             loggable={selectedDayLoggable}

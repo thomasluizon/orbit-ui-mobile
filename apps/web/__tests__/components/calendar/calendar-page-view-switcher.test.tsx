@@ -90,6 +90,7 @@ const calendarEventsQueryState: {
   refetch: vi.fn(),
 }
 let calendarEventsEnabled: boolean | undefined
+let calendarEventsTimeZone: string | null | undefined
 const agendaViewProps: {
   dayMap?: ReadonlyMap<string, CalendarDayEntry[]>
   isLoading?: boolean
@@ -134,8 +135,9 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/hooks/use-calendar-events', () => ({
-  useCalendarEvents: (options?: { enabled?: boolean }) => {
+  useCalendarEvents: (options?: { enabled?: boolean; timeZone?: string | null }) => {
     calendarEventsEnabled = options?.enabled
+    calendarEventsTimeZone = options?.timeZone
     return calendarEventsQueryState
   },
 }))
@@ -375,6 +377,7 @@ describe('CalendarPage view switcher', () => {
     calendarEventsQueryState.error = null
     calendarEventsQueryState.refetch = vi.fn()
     calendarEventsEnabled = undefined
+    calendarEventsTimeZone = undefined
     delete calendarDayDetailProps.calendarEvents
     delete calendarDayDetailProps.calendarEventsState
     delete calendarDayDetailProps.onRetryCalendarEvents
@@ -668,6 +671,7 @@ describe('CalendarPage view switcher', () => {
     expect(logHabitMutateAsync).toHaveBeenCalledWith({
       habitId: 'habit-1',
       date: selectedDate,
+      intent: 'log',
     })
   })
 
@@ -708,6 +712,7 @@ describe('CalendarPage view switcher', () => {
     expect(calendarDayDetailProps.calendarEvents?.map((event) => event.id)).toEqual([
       'selected-event',
     ])
+    expect(calendarEventsTimeZone).toBe('UTC')
   })
 
   it('passes a failed Google events query to the selected-day panel', () => {

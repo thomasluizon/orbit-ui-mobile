@@ -19,8 +19,9 @@ const translations: Record<string, string> = {
   'calendar.status.indulged': 'indulged',
   'calendar.status.resisted': 'resisted',
   'calendar.status.upcoming': 'Upcoming',
-  'calendar.autoSync.reconnectTitle': 'Google Calendar disconnected',
-  'calendar.autoSync.reconnectBody': 'Auto-sync paused. Reconnect to resume.',
+  'calendar.dayDetail.disconnectedTitle': 'Google Calendar disconnected',
+  'calendar.dayDetail.disconnectedBody': 'Reconnect to see the events you can import.',
+  'calendar.dayDetail.noEventsToImport': 'Nothing left to import from Google Calendar on this day.',
   'calendar.autoSync.reconnectCta': 'Reconnect',
   'calendar.proBoundary.title': 'Syncing with Google Calendar is part of Orbit Pro.',
   'calendar.proBoundary.body': 'With it, your commitments show up beside the habits for the day.',
@@ -307,7 +308,7 @@ describe('CalendarDayDetail', () => {
       onReconnectCalendarEvents,
     })
     expect(screen.getByText('Google Calendar disconnected')).toBeInTheDocument()
-    expect(screen.getByText('Auto-sync paused. Reconnect to resume.')).toBeInTheDocument()
+    expect(screen.getByText('Reconnect to see the events you can import.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }))
     expect(onReconnectCalendarEvents).toHaveBeenCalledTimes(1)
     expect(screen.queryByText('calendar.noEvents')).not.toBeInTheDocument()
@@ -350,7 +351,9 @@ describe('CalendarDayDetail', () => {
   it('renders the empty events state after an empty response resolves', () => {
     renderDetail({ entries: [makeEntry()], calendarEventsState: 'ready' })
 
-    expect(screen.getByText('calendar.noEvents')).toBeInTheDocument()
+    expect(
+      screen.getByText('Nothing left to import from Google Calendar on this day.'),
+    ).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 

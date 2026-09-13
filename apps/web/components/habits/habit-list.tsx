@@ -853,7 +853,11 @@ export function HabitList({
         if (mode === 'skip') {
           await skipHabit.mutateAsync({ habitId: parentId, date: operation.date })
         } else {
-          await logHabit.mutateAsync({ habitId: parentId, date: operation.date })
+          await logHabit.mutateAsync({
+            habitId: parentId,
+            date: operation.date,
+            intent: 'log',
+          })
         }
       } catch {
         if (confirmedResolutionsRef.current === operation.confirmedResolutions) {
@@ -1108,7 +1112,7 @@ export function HabitList({
 
     try {
       await logHabit.mutateAsync(
-        selectedDate ? { habitId, date: selectedDateStr } : { habitId },
+        selectedDate ? { habitId, date: selectedDateStr, intent } : { habitId, intent },
       )
       mutationSucceeded = true
       if (intent === 'log') handleLogged(habitId, false)

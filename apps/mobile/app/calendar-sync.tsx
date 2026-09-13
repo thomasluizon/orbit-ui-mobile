@@ -128,6 +128,7 @@ export default function CalendarSyncScreen() {
 
   const eventsQuery = useCalendarEvents({
     enabled: hasProAccess && !isReviewMode && isOnline,
+    timeZone: profile?.timeZone ?? null,
   })
 
   const incomingEvents = useMemo<CalendarEvent[]>(() => {

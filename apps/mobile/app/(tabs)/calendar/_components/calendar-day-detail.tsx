@@ -107,10 +107,10 @@ function CalendarEventsSection({
       {state === 'not-connected' ? (
         <View style={styles.reconnectState}>
           <Text style={[styles.reconnectTitle, { color: tokens.fg1 }]}>
-            {t('calendar.autoSync.reconnectTitle')}
+            {t('calendar.dayDetail.disconnectedTitle')}
           </Text>
           <Text style={[styles.reconnectBody, { color: tokens.fg3 }]}>
-            {t('calendar.autoSync.reconnectBody')}
+          {t('calendar.dayDetail.disconnectedBody')}
           </Text>
           <PillButton variant="ghost" onClick={onReconnect}>
             {t('calendar.autoSync.reconnectCta')}
@@ -119,7 +119,7 @@ function CalendarEventsSection({
       ) : null}
       {state === 'ready' && calendarEvents.length === 0 ? (
         <Text style={[styles.emptyEventText, { color: tokens.fg3 }]}>
-          {t('calendar.noEvents')}
+          {t('calendar.dayDetail.noEventsToImport')}
         </Text>
       ) : null}
       {state === 'ready' && calendarEvents.length > 0 ? (

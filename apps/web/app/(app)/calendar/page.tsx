@@ -364,6 +364,7 @@ function CalendarPageContent({
     refetch: refetchCalendarEvents,
   } = useCalendarEvents({
     enabled: profile.hasProAccess,
+    timeZone: profile.timeZone,
   })
   const { data: autoSyncState } = useCalendarAutoSyncState({
     enabled: profile.hasProAccess,
@@ -585,7 +586,11 @@ function CalendarPageContent({
     return startEntryMutation(
       entryKey,
       checked,
-      () => logHabit.mutateAsync({ habitId: entry.habitId, date: selectedDay }),
+      () => logHabit.mutateAsync({
+        habitId: entry.habitId,
+        date: selectedDay,
+        intent: checked ? 'log' : 'unlog',
+      }),
     )
   }
 

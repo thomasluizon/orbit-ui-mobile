@@ -755,6 +755,10 @@ export function finalizeHabitMutation(
 ): void {
   if (isQueuedResult(data)) {
     discardCachedHabitSearches(queryClient)
+    void queryClient.invalidateQueries({
+      queryKey: habitKeys.calendarPrefix(),
+      refetchType: 'none',
+    })
     return
   }
 

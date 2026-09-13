@@ -148,7 +148,7 @@ describe('live onboarding actions', () => {
     await result.current.logHabit('h-9')
     await result.current.createGoal({ title: 'Run 100km', targetValue: 100, unit: 'km' })
     expect(mocks.bulkCreate).toHaveBeenCalledWith({ habits: [{ title: 'Stretch' }] })
-    expect(mocks.logHabit).toHaveBeenCalledWith({ habitId: 'h-9' })
+    expect(mocks.logHabit).toHaveBeenCalledWith({ habitId: 'h-9', intent: 'log' })
     expect(mocks.createGoal).toHaveBeenCalledWith({ title: 'Run 100km', targetValue: 100, unit: 'km' })
   })
 
