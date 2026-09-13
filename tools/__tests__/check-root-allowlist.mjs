@@ -132,6 +132,32 @@ export const cases = () => {
     { path: plainDirectory.script, cwd: plainDirectory.repository },
   )
 
+  const nestedNewRoot = stageRepository("changed-nested-new-root")
+  mkdirSync(join(nestedNewRoot.repository, "new-root"), { recursive: true })
+  writeFileSync(join(nestedNewRoot.repository, "new-root", "file.txt"), "new root\n")
+  const nestedNewRootChanges = join(nestedNewRoot.repository, "tools", "changed-files.txt")
+  writeFileSync(nestedNewRootChanges, "new-root/file.txt\0")
+  check(
+    "check-root-allowlist.mjs",
+    "runs and rejects when a changed path introduces an undeclared first segment",
+    ["--changed-files-file", nestedNewRootChanges],
+    { status: 1, stderr: /new-root\// },
+    { path: nestedNewRoot.script, cwd: nestedNewRoot.repository },
+  )
+
+  const unchangedViolation = stageRepository("unchanged-root-violation", [], ["apps"])
+  mkdirSync(join(unchangedViolation.repository, "apps"), { recursive: true })
+  mkdirSync(join(unchangedViolation.repository, "old-root"), { recursive: true })
+  const unrelatedChanges = join(unchangedViolation.repository, "tools", "changed-files.txt")
+  writeFileSync(unrelatedChanges, "apps/screen.tsx\0")
+  check(
+    "check-root-allowlist.mjs",
+    "skips an unchanged root violation when only a declared first segment changed",
+    ["--changed-files-file", unrelatedChanges],
+    { status: 0, stdout: /skipped/ },
+    { path: unchangedViolation.script, cwd: unchangedViolation.repository },
+  )
+
   const declaredDirectory = stageRepository("declared-directory", [], ["apps", "node_modules"])
   mkdirSync(join(declaredDirectory.repository, "apps"), { recursive: true })
   mkdirSync(join(declaredDirectory.repository, "node_modules"), { recursive: true })
