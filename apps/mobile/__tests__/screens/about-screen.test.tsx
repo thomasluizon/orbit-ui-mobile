@@ -66,6 +66,9 @@ describe('AboutScreen', () => {
     expect(textContent(tree.root)).toContain('about.tagline')
     expect(textContent(tree.root)).toContain('1.0.0')
     expect(textContent(tree.root)).toContain(mocks.email)
+    expect(
+      flattenedStyle(tree.root.findAll((node) => node.props.testID === 'about-credit')[0]!),
+    ).toMatchObject({ color: '#8F8F93' })
 
     const destinations = tree.root.findAll(
       (node) =>

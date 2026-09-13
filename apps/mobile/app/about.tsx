@@ -125,7 +125,7 @@ export default function AboutScreen() {
             />
           </View>
 
-          <Text style={[styles.credit, { color: tokens.fg4 }]}>
+          <Text testID="about-credit" style={[styles.credit, { color: tokens.fg3 }]}>
             {t('about.credit')}
           </Text>
         </View>

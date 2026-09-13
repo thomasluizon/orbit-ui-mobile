@@ -159,8 +159,9 @@ export default function AboutPage() {
             </div>
 
             <p
+              data-testid="about-credit"
               style={{
-                color: 'var(--fg-4)',
+                color: 'var(--fg-3)',
                 fontSize: 14,
                 lineHeight: 1.55,
                 overflowWrap: 'anywhere',
