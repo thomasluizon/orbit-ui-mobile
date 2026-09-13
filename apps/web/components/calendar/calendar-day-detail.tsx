@@ -23,7 +23,7 @@ interface CalendarDayDetailProps {
   entries: CalendarDayEntry[]
   loggable: boolean
   showRecurring: boolean
-  inFlightEntryKeys: ReadonlySet<string>
+  pendingEntryStates: ReadonlyMap<string, boolean>
   onShowRecurringChange: (value: boolean) => void
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   /** Desktop side-panel mode: the entries list scrolls within the viewport and
@@ -67,6 +67,7 @@ function CalendarDayCheckRow({
   entry,
   displayTime,
   isPending,
+  pendingChecked,
   onEntryChange,
   t,
 }: Readonly<{
@@ -74,11 +75,14 @@ function CalendarDayCheckRow({
   entry: CalendarDayEntry
   displayTime: (time: string) => string
   isPending: boolean
+  pendingChecked: boolean | undefined
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   t: ReturnType<typeof useTranslations>
 }>) {
   const sourceChecked = entry.status === 'completed'
-  const [optimisticChecked, setOptimisticChecked] = useState<boolean | null>(null)
+  const [optimisticChecked, setOptimisticChecked] = useState<boolean | null>(
+    () => pendingChecked ?? null,
+  )
   const displayedChecked = optimisticChecked === sourceChecked ? null : optimisticChecked
   const checked = displayedChecked ?? sourceChecked
   const displayedEntry: CalendarDayEntry = displayedChecked === null
@@ -122,7 +126,7 @@ function CalendarDayRows({
   entries,
   loggable,
   displayTime,
-  inFlightEntryKeys,
+  pendingEntryStates,
   onEntryChange,
   t,
 }: Readonly<{
@@ -130,11 +134,12 @@ function CalendarDayRows({
   entries: CalendarDayEntry[]
   loggable: boolean
   displayTime: (time: string) => string
-  inFlightEntryKeys: ReadonlySet<string>
+  pendingEntryStates: ReadonlyMap<string, boolean>
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   t: ReturnType<typeof useTranslations>
 }>) {
   return entries.map((entry) => {
+    const entryKey = getCalendarEntryMutationKey(dateStr, entry.habitId)
     const outcome = getEntryOutcome(entry, t)
     const value = entry.dueTime
       ? `${displayTime(entry.dueTime)} · ${outcome.label}`
@@ -147,7 +152,8 @@ function CalendarDayRows({
           dateStr={dateStr}
           entry={entry}
           displayTime={displayTime}
-          isPending={inFlightEntryKeys.has(getCalendarEntryMutationKey(dateStr, entry.habitId))}
+          isPending={pendingEntryStates.has(entryKey)}
+          pendingChecked={pendingEntryStates.get(entryKey)}
           onEntryChange={onEntryChange}
           t={t}
         />
@@ -172,7 +178,7 @@ export function CalendarDayDetail({
   entries,
   loggable,
   showRecurring,
-  inFlightEntryKeys,
+  pendingEntryStates,
   onShowRecurringChange,
   onEntryChange,
   fitViewport = false,
@@ -232,7 +238,7 @@ export function CalendarDayDetail({
             entries={filteredEntries}
             loggable={loggable}
             displayTime={displayTime}
-            inFlightEntryKeys={inFlightEntryKeys}
+            pendingEntryStates={pendingEntryStates}
             onEntryChange={onEntryChange}
             t={t}
           />

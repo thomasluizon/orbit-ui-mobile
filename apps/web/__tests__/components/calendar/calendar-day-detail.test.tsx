@@ -72,12 +72,24 @@ function CalendarDayDetailHarness({
   onEntryChange = async () => {},
   fitViewport = false,
 }: RenderProps) {
-  const { inFlightEntryKeys, startEntryMutation } = useCalendarEntryMutationLock()
+  const sourceEntryStates = new Map<string, boolean>()
+  if (dateStr) {
+    for (const entry of entries) {
+      sourceEntryStates.set(
+        getCalendarEntryMutationKey(dateStr, entry.habitId),
+        entry.status === 'completed',
+      )
+    }
+  }
+  const { pendingEntryStates, startEntryMutation } = useCalendarEntryMutationLock(
+    sourceEntryStates,
+  )
 
   function changeEntry(entry: CalendarDayEntry, checked: boolean) {
     if (!dateStr) return null
     return startEntryMutation(
       getCalendarEntryMutationKey(dateStr, entry.habitId),
+      checked,
       () => onEntryChange(entry, checked),
     )
   }
@@ -89,7 +101,7 @@ function CalendarDayDetailHarness({
       entries={entries}
       loggable={loggable}
       showRecurring={showRecurring}
-      inFlightEntryKeys={inFlightEntryKeys}
+      pendingEntryStates={pendingEntryStates}
       onShowRecurringChange={() => {}}
       onEntryChange={changeEntry}
       fitViewport={fitViewport}
@@ -281,7 +293,22 @@ describe('CalendarDayDetail', () => {
       await pendingChange
     })
 
-    expect(returnedRow).toBeEnabled()
+    const settledReturnedRow = screen.getByRole('checkbox', { name: 'Read' })
+    expect(settledReturnedRow).toBeDisabled()
+    fireEvent.click(settledReturnedRow)
+    expect(onEntryChange).toHaveBeenCalledTimes(1)
+
+    rendered.rerender(
+      <CalendarDayDetailHarness
+        dateStr="2025-06-15"
+        entries={[{ ...entry, status: 'completed' }]}
+        loggable
+        showRecurring
+        onEntryChange={onEntryChange}
+      />,
+    )
+
+    expect(screen.getByRole('checkbox', { name: 'Read' })).toBeEnabled()
   })
 
   it('controls and serializes a row toggle, then rolls it back when the write fails', async () => {

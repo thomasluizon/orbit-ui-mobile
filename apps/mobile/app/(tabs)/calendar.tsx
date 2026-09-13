@@ -220,7 +220,6 @@ function CalendarScreenContent({
   const todayKey = useCurrentDate(profile.timeZone);
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal);
   const logHabit = useLogHabit();
-  const { inFlightEntryKeys, startEntryMutation } = useCalendarEntryMutationLock();
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -486,10 +485,25 @@ function CalendarScreenContent({
   const selectedDayLoggable = selectedDay !== null
     && isCalendarDayLoggable(selectedDay, todayKey);
 
+  const selectedEntrySourceStates = useMemo(() => {
+    const sourceStates = new Map<string, boolean>();
+    if (!selectedDay) return sourceStates;
+    for (const entry of selectedEntries) {
+      sourceStates.set(
+        getCalendarEntryMutationKey(selectedDay, entry.habitId),
+        entry.status === "completed",
+      );
+    }
+    return sourceStates;
+  }, [selectedDay, selectedEntries]);
+  const { pendingEntryStates, startEntryMutation } = useCalendarEntryMutationLock(
+    selectedEntrySourceStates,
+  );
+
   const changeSelectedEntry = (entry: CalendarDayEntry, checked: boolean) => {
     if (!selectedDay) return null;
     const entryKey = getCalendarEntryMutationKey(selectedDay, entry.habitId);
-    return startEntryMutation(entryKey, () => logHabit.mutateAsync({
+    return startEntryMutation(entryKey, checked, () => logHabit.mutateAsync({
       habitId: entry.habitId,
       date: selectedDay,
       intent: checked ? "log" : "unlog",
@@ -734,7 +748,7 @@ function CalendarScreenContent({
             completedCount={completedCount}
             loggable={selectedDayLoggable}
             showRecurring={showRecurring}
-            inFlightEntryKeys={inFlightEntryKeys}
+            pendingEntryStates={pendingEntryStates}
             onShowRecurringChange={setShowRecurring}
             onEntryChange={changeSelectedEntry}
             onGoToDay={goToSelectedDay}

@@ -136,7 +136,7 @@ interface CalendarInlineDayPanelProps {
   entries: CalendarDayEntry[]
   loggable: boolean
   showRecurring: boolean
-  inFlightEntryKeys: ReadonlySet<string>
+  pendingEntryStates: ReadonlyMap<string, boolean>
   onShowRecurringChange: (value: boolean) => void
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
 }
@@ -150,7 +150,7 @@ function CalendarInlineDayPanel({
   entries,
   loggable,
   showRecurring,
-  inFlightEntryKeys,
+  pendingEntryStates,
   onShowRecurringChange,
   onEntryChange,
 }: Readonly<CalendarInlineDayPanelProps>) {
@@ -185,7 +185,7 @@ function CalendarInlineDayPanel({
             entries={entries}
             loggable={loggable}
             showRecurring={showRecurring}
-            inFlightEntryKeys={inFlightEntryKeys}
+            pendingEntryStates={pendingEntryStates}
             onShowRecurringChange={onShowRecurringChange}
             onEntryChange={onEntryChange}
             fitViewport
@@ -273,7 +273,6 @@ function CalendarPageContent({
   const todayKey = useToday(profile.timeZone)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const logHabit = useLogHabit()
-  const { inFlightEntryKeys, startEntryMutation } = useCalendarEntryMutationLock()
 
   const [view, setView] = useState<CalendarView>('month')
   /** Agenda is desktop-width only until #56 stage 10 builds the mobile day groups. */
@@ -440,11 +439,30 @@ function CalendarPageContent({
   const selectedDayLoggable = selectedDay !== null
     && isCalendarDayLoggable(selectedDay, todayKey)
 
-  function changeSelectedEntry(entry: CalendarDayEntry): Promise<unknown> | null {
+  const selectedEntrySourceStates = useMemo(() => {
+    const sourceStates = new Map<string, boolean>()
+    if (!selectedDay) return sourceStates
+    for (const entry of selectedEntries) {
+      sourceStates.set(
+        getCalendarEntryMutationKey(selectedDay, entry.habitId),
+        entry.status === 'completed',
+      )
+    }
+    return sourceStates
+  }, [selectedDay, selectedEntries])
+  const { pendingEntryStates, startEntryMutation } = useCalendarEntryMutationLock(
+    selectedEntrySourceStates,
+  )
+
+  function changeSelectedEntry(
+    entry: CalendarDayEntry,
+    checked: boolean,
+  ): Promise<unknown> | null {
     if (!selectedDay) return null
     const entryKey = getCalendarEntryMutationKey(selectedDay, entry.habitId)
     return startEntryMutation(
       entryKey,
+      checked,
       () => logHabit.mutateAsync({ habitId: entry.habitId, date: selectedDay }),
     )
   }
@@ -609,7 +627,7 @@ function CalendarPageContent({
                   entries={selectedEntries}
                   loggable={selectedDayLoggable}
                   showRecurring={showRecurring}
-                  inFlightEntryKeys={inFlightEntryKeys}
+                  pendingEntryStates={pendingEntryStates}
                   onShowRecurringChange={setShowRecurring}
                   onEntryChange={changeSelectedEntry}
                 />
@@ -690,7 +708,7 @@ function CalendarPageContent({
           entries={selectedEntries}
           loggable={selectedDayLoggable}
           showRecurring={showRecurring}
-          inFlightEntryKeys={inFlightEntryKeys}
+          pendingEntryStates={pendingEntryStates}
           onShowRecurringChange={setShowRecurring}
           onEntryChange={changeSelectedEntry}
         />

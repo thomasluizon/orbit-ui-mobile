@@ -20,7 +20,7 @@ interface CalendarDayDetailProps {
   completedCount: number
   loggable: boolean
   showRecurring: boolean
-  inFlightEntryKeys: ReadonlySet<string>
+  pendingEntryStates: ReadonlyMap<string, boolean>
   onShowRecurringChange: (value: boolean) => void
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   onGoToDay: () => void
@@ -62,6 +62,7 @@ function CalendarDayCheckRow({
   entry,
   displayTime,
   isPending,
+  pendingChecked,
   onEntryChange,
   t,
 }: Readonly<{
@@ -69,11 +70,14 @@ function CalendarDayCheckRow({
   entry: CalendarDayEntry
   displayTime: (time: string) => string
   isPending: boolean
+  pendingChecked: boolean | undefined
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   t: TFunction
 }>) {
   const sourceChecked = entry.status === 'completed'
-  const [optimisticChecked, setOptimisticChecked] = useState<boolean | null>(null)
+  const [optimisticChecked, setOptimisticChecked] = useState<boolean | null>(
+    () => pendingChecked ?? null,
+  )
   const displayedChecked = optimisticChecked === sourceChecked ? null : optimisticChecked
   const checked = displayedChecked ?? sourceChecked
   const displayedEntry: CalendarDayEntry = displayedChecked === null
@@ -119,7 +123,7 @@ export function CalendarDayDetail({
   completedCount,
   loggable,
   showRecurring,
-  inFlightEntryKeys,
+  pendingEntryStates,
   onShowRecurringChange,
   onEntryChange,
   onGoToDay,
@@ -161,6 +165,7 @@ export function CalendarDayDetail({
       {filteredEntries.length > 0 ? (
         <View>
           {filteredEntries.map((entry) => {
+            const entryKey = getCalendarEntryMutationKey(selectedDate, entry.habitId)
             const outcome = getEntryOutcome(entry, t)
             const value = entry.dueTime
               ? `${displayTime(entry.dueTime)} · ${outcome.label}`
@@ -173,9 +178,8 @@ export function CalendarDayDetail({
                   selectedDate={selectedDate}
                   entry={entry}
                   displayTime={displayTime}
-                  isPending={inFlightEntryKeys.has(
-                    getCalendarEntryMutationKey(selectedDate, entry.habitId),
-                  )}
+                  isPending={pendingEntryStates.has(entryKey)}
+                  pendingChecked={pendingEntryStates.get(entryKey)}
                   onEntryChange={onEntryChange}
                   t={t}
                 />

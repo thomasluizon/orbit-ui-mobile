@@ -85,11 +85,18 @@ function CalendarDayDetailHarness({
   onGoToDay = () => {},
 }: RenderDetailProps): React.ReactElement {
   const tokens = createTokensV2('purple', 'dark')
-  const { inFlightEntryKeys, startEntryMutation } = useCalendarEntryMutationLock()
+  const sourceEntryStates = new Map(entries.map((entry) => [
+    getCalendarEntryMutationKey(selectedDate, entry.habitId),
+    entry.status === 'completed',
+  ]))
+  const { pendingEntryStates, startEntryMutation } = useCalendarEntryMutationLock(
+    sourceEntryStates,
+  )
 
   function changeEntry(entry: CalendarDayEntry, checked: boolean) {
     return startEntryMutation(
       getCalendarEntryMutationKey(selectedDate, entry.habitId),
+      checked,
       () => onEntryChange(entry, checked),
     )
   }
@@ -103,7 +110,7 @@ function CalendarDayDetailHarness({
       completedCount={entries.filter((entry) => entry.status === 'completed').length}
       loggable={loggable}
       showRecurring
-      inFlightEntryKeys={inFlightEntryKeys}
+      pendingEntryStates={pendingEntryStates}
       onShowRecurringChange={() => {}}
       onEntryChange={changeEntry}
       onGoToDay={onGoToDay}
@@ -318,6 +325,21 @@ describe('CalendarDayDetail (mobile)', () => {
     await TestRenderer.act(async () => {
       resolveChange?.()
       await pendingChange
+    })
+
+    returnedRow = nodes(tree, 'CheckRowMock')[0]
+    expect(returnedRow?.props.loading).toBe(true)
+    TestRenderer.act(() => {
+      ;(returnedRow?.props.onChange as (checked: boolean) => void)(true)
+    })
+    expect(onEntryChange).toHaveBeenCalledTimes(1)
+
+    TestRenderer.act(() => {
+      tree.update(detailElement({
+        entries: [{ ...entry, status: 'completed' }],
+        loggable: true,
+        onEntryChange,
+      }))
     })
 
     returnedRow = nodes(tree, 'CheckRowMock')[0]
