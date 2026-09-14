@@ -544,9 +544,8 @@ describe('ProfileScreen', () => {
       'profile.support.title',
       'profile.sections.aboutHelp',
       'dataExport.button',
-      'shareCard.entry',
-      'profile.freshStart.button',
       'profile.logout',
+      'profile.freshStart.button',
       'profile.deleteAccount.button',
     ]
 
@@ -560,6 +559,40 @@ describe('ProfileScreen', () => {
         `missing accessible profile row: ${accessibilityLabel}`,
       ).toHaveLength(1)
     }
+  })
+
+  it('puts Sign out first in Ending things', async () => {
+    const tree = await renderProfileScreen()
+    const ending = tree.root.findByProps({ testID: 'profile-settings-group-ending' })
+    const rows = ending.findAll(
+      (node: SettingsRowStubNode) => node.type === 'SettingsRowStub',
+    ) as SettingsRowStubNode[]
+
+    expect(rows[0]?.props.label).toBe('profile.logout')
+  })
+
+  it('puts Fresh Start directly after Sign out', async () => {
+    const tree = await renderProfileScreen()
+    const ending = tree.root.findByProps({ testID: 'profile-settings-group-ending' })
+    const labels = ending.findAll(
+      (node: SettingsRowStubNode) => node.type === 'SettingsRowStub',
+    ).map((node: SettingsRowStubNode) => node.props.label)
+
+    expect(labels.slice(0, 2)).toEqual(['profile.logout', 'profile.freshStart.button'])
+  })
+
+  it('keeps Delete account last in the three-row ending group', async () => {
+    const tree = await renderProfileScreen()
+    const ending = tree.root.findByProps({ testID: 'profile-settings-group-ending' })
+    const labels = ending.findAll(
+      (node: SettingsRowStubNode) => node.type === 'SettingsRowStub',
+    ).map((node: SettingsRowStubNode) => node.props.label)
+
+    expect(labels).toEqual([
+      'profile.logout',
+      'profile.freshStart.button',
+      'profile.deleteAccount.button',
+    ])
   })
 
   it('shows the free daily allowance and routes its only plan action to Pro', async () => {

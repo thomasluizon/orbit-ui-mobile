@@ -79,6 +79,7 @@ describe('DeleteAccountModal', () => {
     render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
 
     expect(screen.getByText('profile.deleteAccount.headingAreYouSure')).toBeInTheDocument()
+    expect(screen.getByText('profile.deleteAccount.warning')).toBeInTheDocument()
     expect(screen.getByText('profile.deleteAccount.warningFree')).toBeInTheDocument()
     expect(screen.getByText('profile.deleteAccount.warningDetail')).toBeInTheDocument()
     expect(screen.getByText('profile.deleteAccount.sendCode')).toBeInTheDocument()

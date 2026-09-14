@@ -105,6 +105,9 @@ export function DeleteAccountModal({
               <TriangleAlert size={34} color={tokens.statusBad} strokeWidth={1.8} />
             </View>
             <View style={styles.copy}>
+              <Text style={[styles.title, { color: tokens.statusBadText }]}>
+                {t('profile.deleteAccount.warning')}
+              </Text>
               <Text style={[styles.title, { color: tokens.fg1 }]}>{warningMessage}</Text>
               <Text style={[styles.description, { color: tokens.fg2 }]}>
                 {t('profile.deleteAccount.warningDetail')}

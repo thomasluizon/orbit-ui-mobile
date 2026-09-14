@@ -94,6 +94,9 @@ export function DeleteAccountModal({
             <TriangleAlert size={34} strokeWidth={1.8} color="var(--status-bad)" />
           </div>
           <div className="flex flex-col" style={{ gap: 8 }}>
+            <p style={{ color: 'var(--status-bad-text)', fontSize: 15, fontWeight: 500, lineHeight: 1.5 }}>
+              {t('profile.deleteAccount.warning')}
+            </p>
             <p style={{ color: 'var(--fg-1)', fontSize: 15, fontWeight: 500, lineHeight: 1.5 }}>
               {warningMessage}
             </p>

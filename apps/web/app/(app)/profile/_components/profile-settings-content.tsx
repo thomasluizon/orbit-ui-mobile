@@ -35,7 +35,6 @@ import {
   ProfileSettingsFrame,
   ProfileValueRow,
 } from '@/components/profile/profile-settings-frame'
-import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { ListRow } from '@/components/ui/list-row'
 import { RowList } from '@/components/ui/row-list'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -218,15 +217,14 @@ interface EndingRowsOptions {
 }
 
 function buildEndingRows({
-  context: { profile, t },
+  context: { t },
   onDeleteAccount,
   onFreshStart,
   onLogout,
 }: EndingRowsOptions) {
   return [
-    <ShareCardEntryButton key="share" displayName={profile?.name} />,
-    <ListRow key="fresh-start" icon={icon(RotateCcw)} title={t('profile.freshStart.button')} chevron={false} onClick={onFreshStart} />,
     <ListRow key="logout" icon={icon(LogOut)} title={t('profile.logout')} chevron={false} onClick={onLogout} />,
+    <ListRow key="fresh-start" icon={icon(RotateCcw)} title={t('profile.freshStart.button')} chevron={false} onClick={onFreshStart} />,
     <ListRow key="delete" icon={icon(UserX)} title={t('profile.deleteAccount.button')} danger chevron={false} onClick={onDeleteAccount} />,
   ]
 }
