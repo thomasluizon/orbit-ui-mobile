@@ -13,6 +13,8 @@ import {
   buildSupportRequestBody,
   getFriendlyErrorMessage,
   isValidEmail,
+  SUPPORT_API_MESSAGE_MAX_LENGTH,
+  SUPPORT_API_SUBJECT_MAX_LENGTH,
 } from '@orbit/shared/utils'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
@@ -132,7 +134,7 @@ function SupportForm({
         onChange={onChangeSubject}
         placeholder={t('profile.support.subjectPlaceholder')}
         disabled={sending}
-        maxLength={100}
+        maxLength={SUPPORT_API_SUBJECT_MAX_LENGTH}
       />
       <Input
         label={t('profile.support.message')}
@@ -140,7 +142,7 @@ function SupportForm({
         onChange={onChangeMessage}
         placeholder={t('profile.support.messagePlaceholder')}
         disabled={sending}
-        maxLength={2000}
+        maxLength={SUPPORT_API_MESSAGE_MAX_LENGTH}
         multiline
         rows={6}
       />
@@ -188,6 +190,7 @@ export default function SupportScreen() {
   const [emailError, setEmailError] = useState<string | null>(null)
   const [nameFocusRequest, setNameFocusRequest] = useState(0)
   const [emailFocusRequest, setEmailFocusRequest] = useState(0)
+  const resolvedEmail = profile?.email || email
 
   useEffect(() => {
     let isMounted = true
@@ -224,7 +227,7 @@ export default function SupportScreen() {
 
   const validateContact = useCallback(() => {
     const effectiveName = name.trim() || profile?.name || ''
-    const effectiveEmail = email.trim() || profile?.email || ''
+    const effectiveEmail = resolvedEmail.trim()
     const nextNameError = effectiveName ? null : t('profile.support.nameRequired')
     const nextEmailError = !effectiveEmail
       ? t('profile.support.emailRequired')
@@ -234,7 +237,7 @@ export default function SupportScreen() {
     if (nextNameError) setNameFocusRequest((request) => request + 1)
     else if (nextEmailError) setEmailFocusRequest((request) => request + 1)
     return !nextNameError && !nextEmailError
-  }, [email, name, profile, t])
+  }, [name, profile, resolvedEmail, t])
 
   const handleSend = useCallback(async () => {
     if (!isOnline) {
@@ -254,7 +257,7 @@ export default function SupportScreen() {
         body: JSON.stringify(
           buildSupportRequestBody(profile, {
             name,
-            email,
+            email: resolvedEmail,
             subject,
             message,
           }),
@@ -270,7 +273,7 @@ export default function SupportScreen() {
     } finally {
       setSending(false)
     }
-  }, [email, isOnline, message, name, profile, subject, t, validateContact])
+  }, [isOnline, message, name, profile, resolvedEmail, subject, t, validateContact])
 
   const canSend =
     subject.trim().length > 0 && message.trim().length > 0 && isOnline && !sending
@@ -300,7 +303,7 @@ export default function SupportScreen() {
             isOnline={isOnline}
             sending={sending}
             name={name || profile?.name || ''}
-            email={email || profile?.email || ''}
+            email={resolvedEmail}
             subject={subject}
             message={message}
             error={error}

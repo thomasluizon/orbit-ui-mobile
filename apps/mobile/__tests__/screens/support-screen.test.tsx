@@ -57,7 +57,7 @@ vi.mock('@/components/ui/offline-unavailable-state', () => ({
 }))
 
 async function renderScreen() {
-  let tree: { root: TestNode } | undefined
+  let tree: { root: TestNode; update: (element: React.ReactElement) => void } | undefined
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(<SupportScreen />)
     await Promise.resolve()
@@ -77,6 +77,12 @@ function findSendButton(root: TestNode) {
   return root.findAll(
     (node) => node.props.testID === 'button-primary-md',
   )[0]
+}
+
+function sentRequestBody() {
+  const request = mocks.apiClient.mock.calls[0]?.[1] as { body: string } | undefined
+  if (!request) throw new Error('Expected a support request')
+  return JSON.parse(request.body) as Record<string, unknown>
 }
 
 describe('SupportScreen', () => {
@@ -109,6 +115,63 @@ describe('SupportScreen', () => {
       'thomas@example.com',
     )
     expect(findInputByLabel(tree.root, 'profile.support.email')!.props.editable).toBe(false)
+  })
+
+  it('accepts the API subject and message length boundaries', async () => {
+    const tree = await renderScreen()
+    const subjectInput = findInputByLabel(tree.root, 'profile.support.subject')!
+    const messageInput = findInputByLabel(tree.root, 'profile.support.message')!
+    const subject = 's'.repeat(200)
+    const message = 'm'.repeat(5000)
+
+    expect(subjectInput.props.maxLength).toBe(200)
+    expect(messageInput.props.maxLength).toBe(5000)
+    await TestRenderer.act(async () => {
+      ;(subjectInput.props.onChangeText as (value: string) => void)(subject)
+      ;(messageInput.props.onChangeText as (value: string) => void)(message)
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      ;(findSendButton(tree.root)!.props.onPress as () => void)()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(sentRequestBody()).toMatchObject({
+      subject,
+      message,
+    })
+  })
+
+  it('replaces an email typed while loading with the resolved profile email', async () => {
+    mocks.profile = null
+    const tree = await renderScreen()
+
+    await TestRenderer.act(async () => {
+      ;(findInputByLabel(tree.root, 'profile.support.name')!.props.onChangeText as (value: string) => void)('Orbit User')
+      ;(findInputByLabel(tree.root, 'profile.support.email')!.props.onChangeText as (value: string) => void)('stale@example.com')
+      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (value: string) => void)('Subject')
+      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('Message')
+      await Promise.resolve()
+    })
+    mocks.profile = { ...createMockProfile(), email: 'profile@example.com' }
+    await TestRenderer.act(async () => {
+      tree.update(<SupportScreen />)
+      await Promise.resolve()
+    })
+
+    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.value).toBe(
+      'profile@example.com',
+    )
+    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.editable).toBe(false)
+    await TestRenderer.act(async () => {
+      ;(findSendButton(tree.root)!.props.onPress as () => void)()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(sentRequestBody().email).toBe(
+      'profile@example.com',
+    )
   })
 
   it('discards a corrupted draft', async () => {

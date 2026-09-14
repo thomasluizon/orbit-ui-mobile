@@ -1,6 +1,10 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import {
+  SUPPORT_API_MESSAGE_MAX_LENGTH,
+  SUPPORT_API_SUBJECT_MAX_LENGTH,
+} from '@orbit/shared/utils'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
 
@@ -90,7 +94,7 @@ export function SupportForm({
         onChange={onSubjectChange}
         placeholder={t('profile.support.subjectPlaceholder')}
         disabled={isSending}
-        maxLength={100}
+        maxLength={SUPPORT_API_SUBJECT_MAX_LENGTH}
       />
       <Input
         label={t('profile.support.message')}
@@ -98,7 +102,7 @@ export function SupportForm({
         onChange={onMessageChange}
         placeholder={t('profile.support.messagePlaceholder')}
         disabled={isSending}
-        maxLength={2000}
+        maxLength={SUPPORT_API_MESSAGE_MAX_LENGTH}
         multiline
         rows={6}
       />

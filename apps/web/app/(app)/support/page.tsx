@@ -50,6 +50,7 @@ export default function SupportPage() {
   const [emailError, setEmailError] = useState<string | null>(null)
   const [nameFocusRequest, setNameFocusRequest] = useState(0)
   const [emailFocusRequest, setEmailFocusRequest] = useState(0)
+  const resolvedEmail = profile?.email || email
 
   const persistDraft = useCallback((change: Partial<typeof initialDraft>) => {
     draftRef.current = { ...draftRef.current, ...change }
@@ -61,7 +62,7 @@ export default function SupportPage() {
 
   const validateContact = useCallback(() => {
     const effectiveName = name.trim() || profile?.name || ''
-    const effectiveEmail = email.trim() || profile?.email || ''
+    const effectiveEmail = resolvedEmail.trim()
     const nextNameError = effectiveName ? null : t('profile.support.nameRequired')
     const nextEmailError = !effectiveEmail
       ? t('profile.support.emailRequired')
@@ -71,7 +72,7 @@ export default function SupportPage() {
     if (nextNameError) setNameFocusRequest((request) => request + 1)
     else if (nextEmailError) setEmailFocusRequest((request) => request + 1)
     return !nextNameError && !nextEmailError
-  }, [email, name, profile, t])
+  }, [name, profile, resolvedEmail, t])
 
   const handleSend = useCallback(async () => {
     if (!isOnline) return
@@ -85,7 +86,7 @@ export default function SupportPage() {
     try {
       const payload = buildSupportRequestBody(profile, {
         name,
-        email,
+        email: resolvedEmail,
         subject,
         message,
       })
@@ -100,7 +101,7 @@ export default function SupportPage() {
     } finally {
       setIsSending(false)
     }
-  }, [email, isOnline, message, name, profile, subject, t, validateContact])
+  }, [isOnline, message, name, profile, resolvedEmail, subject, t, validateContact])
 
   const disabled = isSending || !subject.trim() || !message.trim() || !isOnline
 
@@ -125,7 +126,7 @@ export default function SupportPage() {
             <div className="min-w-0 md:max-w-[520px]">
               <SupportForm
                 name={name || profile?.name || ''}
-                email={email || profile?.email || ''}
+                email={resolvedEmail}
                 subject={subject}
                 message={message}
                 error={error}

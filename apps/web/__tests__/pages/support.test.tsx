@@ -31,19 +31,23 @@ vi.mock('@/app/actions/support', () => ({
   sendSupportMessage: (...args: unknown[]) => mockSendSupportMessage(...args),
 }))
 
-vi.mock('@orbit/shared/utils', () => ({
-  buildSupportRequestBody: (
-    profile: Record<string, unknown> | null,
-    fields: { name: string; email: string; subject: string; message: string },
-  ) => ({
-    name: fields.name.trim() || profile?.name,
-    email: fields.email.trim() || profile?.email,
-    subject: fields.subject.trim(),
-    message: fields.message.trim(),
-  }),
-  getFriendlyErrorMessage: (_err: unknown, _t: unknown, _fallbackKey: string, _kind: string) =>
-    'support.sendError',
-}))
+vi.mock('@orbit/shared/utils', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>()
+  return {
+    ...actual,
+    buildSupportRequestBody: (
+      profile: Record<string, unknown> | null,
+      fields: { name: string; email: string; subject: string; message: string },
+    ) => ({
+      name: fields.name.trim() || profile?.name,
+      email: fields.email.trim() || profile?.email,
+      subject: fields.subject.trim(),
+      message: fields.message.trim(),
+    }),
+    getFriendlyErrorMessage: (_err: unknown, _t: unknown, _fallbackKey: string, _kind: string) =>
+      'support.sendError',
+  }
+})
 
 import SupportPage from '@/app/(app)/support/page'
 
@@ -106,6 +110,51 @@ describe('SupportPage', () => {
     expect(sendButton().parentElement).toHaveClass(
       'md:[&_button]:bg-[var(--fg-1)]',
     )
+  })
+
+  it('accepts the API subject and message length boundaries', async () => {
+    mockSendSupportMessage.mockResolvedValue(undefined)
+    render(<SupportPage />)
+
+    const subject = 's'.repeat(200)
+    const message = 'm'.repeat(5000)
+    expect(subjectField()).toHaveAttribute('maxlength', '200')
+    expect(messageField()).toHaveAttribute('maxlength', '5000')
+
+    fireEvent.change(subjectField(), { target: { value: subject } })
+    fireEvent.change(messageField(), { target: { value: message } })
+    fireEvent.click(sendButton())
+
+    await waitFor(() => expect(mockSendSupportMessage).toHaveBeenCalledWith({
+      name: 'Orbit User',
+      email: 'orbit@example.com',
+      subject,
+      message,
+    }))
+  })
+
+  it('replaces an email typed while loading with the resolved profile email', async () => {
+    mockProfile = null
+    mockSendSupportMessage.mockResolvedValue(undefined)
+    const view = render(<SupportPage />)
+
+    fireEvent.change(nameField(), { target: { value: 'Orbit User' } })
+    fireEvent.change(emailField(), { target: { value: 'stale@example.com' } })
+    fireEvent.change(subjectField(), { target: { value: 'Subject' } })
+    fireEvent.change(messageField(), { target: { value: 'Message' } })
+
+    mockProfile = { name: 'Profile User', email: 'profile@example.com' }
+    view.rerender(<SupportPage />)
+    expect(emailField()).toHaveValue('profile@example.com')
+    expect(emailField()).toBeDisabled()
+    fireEvent.click(sendButton())
+
+    await waitFor(() => expect(mockSendSupportMessage).toHaveBeenCalledWith({
+      name: 'Orbit User',
+      email: 'profile@example.com',
+      subject: 'Subject',
+      message: 'Message',
+    }))
   })
 
   it('places the existing contact errors beside their system inputs', async () => {
