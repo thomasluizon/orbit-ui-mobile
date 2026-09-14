@@ -454,8 +454,25 @@ function AchievementTile({ achievement }: Readonly<{ achievement: Achievement }>
   )
 }
 
-function AchievementsSection({ profile, xpProgress }: Readonly<{ profile: ReturnType<typeof useGamificationProfile>['profile']; xpProgress: number }>) {
+function AchievementsSection({ hasProAccess, profile, xpProgress }: Readonly<{
+  hasProAccess: boolean
+  profile: ReturnType<typeof useGamificationProfile>['profile']
+  xpProgress: number
+}>) {
   const t = useTranslations()
+  if (!hasProAccess) {
+    return (
+      <Section compact title={t('progressScreen.sections.achievements')}>
+        <div className="max-w-[560px]">
+          <LockedCard
+            title={t('progressScreen.achievements.lockedTitle')}
+            body={t('progressScreen.achievements.lockedBody')}
+            action={t('progressScreen.achievements.lockedAction')}
+          />
+        </div>
+      </Section>
+    )
+  }
   if (!profile) return null
   const achievements = visibleProgressAchievements(profile.achievements)
   const categories = Array.from(new Set(achievements.map((achievement) => achievement.category)))
@@ -500,7 +517,7 @@ export function ProgressContent() {
       {error ? <div className="w-full max-w-[620px]"><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
       {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {empty ? <div className="pt-12"><EmptyState title={t('progressScreen.empty')} action={<PillButton variant="ghost" size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></div> : null}
-      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} /><AchievementsSection profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
+      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} /><AchievementsSection hasProAccess={account.profile?.hasProAccess ?? false} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
       </div>
     </main>
   )

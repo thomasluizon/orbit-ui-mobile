@@ -2472,7 +2472,10 @@
         "admiral": "Almirante",
         "elite": "Elite",
         "legend": "Lenda"
-      }
+      },
+      "lockedTitle": "Conquistas",
+      "lockedBody": "O Orbit Pro acompanha conquistas e XP.",
+      "lockedAction": "Ver o Orbit Pro"
     }
   },
   "gamification": {

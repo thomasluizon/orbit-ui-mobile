@@ -493,7 +493,7 @@ describe('ProgressContent', () => {
 
     expect(screen.getByText('progressScreen.streak.lockedBody')).toBeInTheDocument()
     expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
-    expect(screen.queryByText('progressScreen.achievements.lockedBody')).not.toBeInTheDocument()
+    expect(screen.getByText('progressScreen.achievements.lockedBody')).toBeInTheDocument()
     expect(screen.getAllByText('progressScreen.streak.lockedAction').length).toBeGreaterThan(0)
     expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
     expect(screen.getByText('streakDisplay.detail.tierTileLabel')).toBeInTheDocument()
@@ -512,13 +512,14 @@ describe('ProgressContent', () => {
       expect(insets).toEqual([
         ['16px', '16px', '16px', '16px'],
         ['16px', '16px', '16px', '16px'],
+        ['16px', '16px', '16px', '16px'],
       ])
     } finally {
       await page.close()
     }
   })
 
-  it('keeps free gamification cohorts open while locking only the Pro figures', () => {
+  it('keeps the free streak open while locking the Pro figures and achievements', () => {
     mocks.account.profile.canViewGamification = true
     mocks.account.profile.hasProAccess = false
 
@@ -527,9 +528,10 @@ describe('ProgressContent', () => {
     expect(screen.getByText('progressScreen.streak.currentLabel:{"count":4}')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
     expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.achievements.lockedBody')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.lockedBody')).not.toBeInTheDocument()
-    expect(screen.queryByText('progressScreen.achievements.lockedBody')).not.toBeInTheDocument()
-    const route = screen.getAllByRole('button', { name: 'progressScreen.window.lockedAction' })
+    expect(screen.queryByTestId('progress-xp-summary')).not.toBeInTheDocument()
+    const route = screen.getAllByRole('button', { name: 'progressScreen.achievements.lockedAction' })
     expect(route).toHaveLength(1)
     expect(route[0]).not.toBeDisabled()
     expect(route[0]).not.toHaveAttribute('aria-disabled')
@@ -603,7 +605,10 @@ describe('ProgressContent', () => {
     })
     expect(earnedMark).toHaveAttribute('data-state', 'earned')
     expect(earnedMark).toHaveStyle({ background: 'var(--status-done)' })
+    expect(earnedMark.style.boxShadow).toBe('')
     expect(unearnedMark).toHaveAttribute('data-state', 'unearned')
+    expect(unearnedMark).toHaveStyle({ boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)' })
+    expect(unearnedMark.style.background).toBe('')
     expect(within(earned as HTMLElement).getByText('progressScreen.achievements.earnedLabel')).toBeInTheDocument()
     expect(screen.queryByText('gamification.achievements.first_friend.name')).not.toBeInTheDocument()
   })

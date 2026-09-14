@@ -356,9 +356,28 @@ function AchievementTile({ achievement, tokens, wide }: Readonly<{ achievement: 
   )
 }
 
-function AchievementsSection({ profile, xpProgress, tokens }: Readonly<{ profile: ReturnType<typeof useGamificationProfile>['profile']; xpProgress: number; tokens: AppTokensV2 }>) {
+function AchievementsSection({ hasProAccess, profile, xpProgress, tokens }: Readonly<{
+  hasProAccess: boolean
+  profile: ReturnType<typeof useGamificationProfile>['profile']
+  xpProgress: number
+  tokens: AppTokensV2
+}>) {
   const { t } = useTranslation()
   const { width } = useWindowDimensions()
+  if (!hasProAccess) {
+    return (
+      <Section compact title={t('progressScreen.sections.achievements')} tokens={tokens}>
+        <View style={styles.windowLock}>
+          <LockedCard
+            title={t('progressScreen.achievements.lockedTitle')}
+            body={t('progressScreen.achievements.lockedBody')}
+            action={t('progressScreen.achievements.lockedAction')}
+            tokens={tokens}
+          />
+        </View>
+      </Section>
+    )
+  }
   if (!profile) return null
   const achievements = visibleProgressAchievements(profile.achievements)
   const categories = Array.from(new Set(achievements.map((achievement) => achievement.category)))
@@ -427,7 +446,7 @@ export function ProgressContent() {
       {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
       {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {empty ? <View style={styles.empty}><EmptyState title={t('progressScreen.empty')} action={<PillButton variant="ghost" size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></View> : null}
-      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} tokens={tokens} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} tokens={tokens} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} tokens={tokens} /><AchievementsSection profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
+      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} tokens={tokens} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} tokens={tokens} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} tokens={tokens} /><AchievementsSection hasProAccess={account.profile?.hasProAccess ?? false} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
     </NestableScrollContainer>
     </>
   )

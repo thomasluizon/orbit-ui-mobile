@@ -521,18 +521,18 @@ describe('mobile ProgressContent', () => {
     expect(text).toEqual(expect.arrayContaining([
       'progressScreen.streak.lockedBody',
       'progressScreen.window.lockedBody',
+      'progressScreen.achievements.lockedBody',
     ]))
-    expect(text).not.toContain('progressScreen.achievements.lockedBody')
     const lockedCards = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'progress-locked-card')
-    expect(lockedCards).toHaveLength(2)
-    expect(lockedCards.map((card) => StyleSheet.flatten(card.props.style as ViewStyle).padding)).toEqual([16, 16])
-    expect(tree.root.findAll((node) => node.type === 'ProBadge')).toHaveLength(2)
+    expect(lockedCards).toHaveLength(3)
+    expect(lockedCards.map((card) => StyleSheet.flatten(card.props.style as ViewStyle).padding)).toEqual([16, 16, 16])
+    expect(tree.root.findAll((node) => node.type === 'ProBadge')).toHaveLength(3)
     const labels = tree.root.findAll((node) => node.type === 'StatTile').map((node) => node.props.label)
     expect(labels).toContain('progressScreen.streak.longest')
     expect(labels).toContain('streakDisplay.detail.tierTileLabel')
   })
 
-  it('keeps free gamification cohorts open while locking only the Pro figures', async () => {
+  it('keeps the free streak open while locking the Pro figures and achievements', async () => {
     mocks.account.profile.canViewGamification = true
     mocks.account.profile.hasProAccess = false
 
@@ -543,10 +543,11 @@ describe('mobile ProgressContent', () => {
       'progressScreen.streak.currentLabel:{"count":4}',
       'progressScreen.sections.goals',
       'progressScreen.window.lockedBody',
+      'progressScreen.achievements.lockedBody',
     ]))
     expect(text).not.toContain('progressScreen.streak.lockedBody')
-    expect(text).not.toContain('progressScreen.achievements.lockedBody')
-    const routes = tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.window.lockedAction')
+    expect(tree.root.findAll((node) => node.props.testID === 'progress-xp-summary')).toHaveLength(0)
+    const routes = tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.achievements.lockedAction')
     expect(routes).toHaveLength(1)
     const routeProps = routes[0]!.props as Readonly<{ onClick?: unknown; disabled?: boolean; accessibilityState?: { disabled?: boolean } }>
     expect(routeProps.onClick).toEqual(expect.any(Function))
@@ -631,7 +632,12 @@ describe('mobile ProgressContent', () => {
     const unearnedMark = progressive.findAll((node) => node.props.testID === 'achievement-mark-unearned')[0]!
     expect(earnedMark.props.accessibilityLabel).toBe('progressScreen.achievements.earnedState:{"name":"gamification.achievements.first_orbit.name"}')
     expect(unearnedMark.props.accessibilityLabel).toBe('progressScreen.achievements.unearnedState:{"name":"gamification.achievements.week_warrior.name"}')
-    expect(StyleSheet.flatten(earnedMark.props.style as ViewStyle).backgroundColor).toBe(createTokensV2('purple', 'dark').statusDone)
+    const earnedStyle = StyleSheet.flatten(earnedMark.props.style as ViewStyle)
+    const unearnedStyle = StyleSheet.flatten(unearnedMark.props.style as ViewStyle)
+    expect(earnedStyle.backgroundColor).toBe(createTokensV2('purple', 'dark').statusDone)
+    expect(earnedStyle.borderWidth).toBeUndefined()
+    expect(unearnedStyle.borderWidth).toBe(1.5)
+    expect(unearnedStyle.backgroundColor).toBeUndefined()
     expect(earned.findAll((node) => node.props.children === 'progressScreen.achievements.earnedLabel').length).toBeGreaterThan(0)
     expect(tree.root.findAll((node) => node.props.children === 'gamification.achievements.first_friend.name')).toHaveLength(0)
 
