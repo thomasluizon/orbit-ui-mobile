@@ -151,6 +151,18 @@ vi.mock('@/hooks/use-is-desktop', () => ({ useIsDesktop: () => mocks.isDesktop }
 import ProgressPage from '@/app/(app)/progress/page'
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
 
+function captureGoalCardRendering(card: HTMLElement) {
+  const elements = [card, ...card.querySelectorAll<HTMLElement>('*')]
+  return {
+    structure: card.outerHTML,
+    styles: elements.map((element) => {
+      const style = getComputedStyle(element)
+      return Object.fromEntries(Array.from(style).sort((left, right) => left.localeCompare(right))
+        .map((property) => [property, style.getPropertyValue(property)]))
+    }),
+  }
+}
+
 describe('ProgressContent', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
@@ -237,19 +249,16 @@ describe('ProgressContent', () => {
   })
 
   it('ignores goal colour, icon and emoji adornments from an oversized response', () => {
-    mocks.goals.data.allGoals = [{
-      ...createMockGoal(),
-      color: '#ff0000',
-      emoji: '🚀',
-      icon: 'forbidden-goal-icon',
-    }]
-    render(<ProgressPage />)
+    const goal = createMockGoal()
+    mocks.goals.data.allGoals = [goal]
+    const { rerender } = render(<ProgressPage />)
+    const unadorned = captureGoalCardRendering(screen.getByRole('button', { name: goal.title }))
+    mocks.goals.data.allGoals = [{ ...goal, color: 'blue', emoji: '🎯', icon: 'target' }]
+    rerender(<ProgressPage />)
+    const oversized = captureGoalCardRendering(screen.getByRole('button', { name: goal.title }))
 
-    const card = screen.getByRole('button', { name: 'Read 12 Books' })
-    expect(card.outerHTML).not.toContain('#ff0000')
-    expect(card.outerHTML).not.toContain('🚀')
-    expect(card.outerHTML).not.toContain('forbidden-goal-icon')
-    expect(within(card).queryByRole('img')).not.toBeInTheDocument()
+    expect.soft(oversized.structure).toBe(unadorned.structure)
+    expect.soft(oversized.styles).toEqual(unadorned.styles)
   })
 
   it('keeps reached targets active with a done disc and opens detail from the whole card', () => {

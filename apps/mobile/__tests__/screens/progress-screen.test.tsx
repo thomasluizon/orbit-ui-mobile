@@ -17,7 +17,13 @@ type TestNode = {
   type: unknown
   props: Record<string, unknown>
   parent: TestNode | null
+  children: (TestNode | string | number)[]
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
+}
+
+type TestTree = {
+  root: TestNode
+  update: (element: React.ReactElement) => void
 }
 
 const mocks = vi.hoisted(() => ({
@@ -167,13 +173,35 @@ vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
   StatTile: (props: Record<string, unknown>) => React.createElement('StatTile', props),
 }))
 
-async function renderProgress(): Promise<{ root: TestNode }> {
-  let tree: { root: TestNode } | undefined
+async function renderProgress(): Promise<TestTree> {
+  let tree: TestTree | undefined
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(<ProgressScreen />)
     await Promise.resolve()
   })
   return tree!
+}
+
+function captureGoalCardRendering(card: TestNode) {
+  const structure = (node: TestNode | string | number): unknown[] => {
+    if (typeof node !== 'object') return [node]
+    if (typeof node.type !== 'string') return node.children.flatMap(structure)
+    return [{
+      type: node.type,
+      props: Object.fromEntries(Object.entries(node.props).filter(([key, value]) =>
+        key !== 'children' && key !== 'style' && typeof value !== 'function')),
+      children: node.children.flatMap(structure),
+    }]
+  }
+  const styles = card.findAll((node) => typeof node.type === 'string').map((node) => {
+    const rawStyle = node.props.style
+    if (!rawStyle) return undefined
+    const resolve = (pressed: boolean) => StyleSheet.flatten(typeof rawStyle === 'function'
+      ? (rawStyle as (state: { pressed: boolean }) => ViewStyle)({ pressed })
+      : rawStyle)
+    return { resting: resolve(false), pressed: resolve(true) }
+  })
+  return { structure: structure(card)[0], styles }
 }
 
 function findPill(root: TestNode, label: string): TestNode {
@@ -245,30 +273,21 @@ describe('mobile ProgressContent', () => {
   })
 
   it('ignores goal colour, icon and emoji adornments from an oversized response', async () => {
-    mocks.goals.data.allGoals = [{
-      ...createMockGoal(),
-      color: '#ff0000',
-      emoji: '🚀',
-      icon: 'forbidden-goal-icon',
-    }]
+    const goal = createMockGoal()
+    mocks.goals.data.allGoals = [goal]
     const tree = await renderProgress()
-    const card = tree.root.findAll((node) => typeof node.type === 'string'
-      && node.props.accessibilityLabel === 'Read 12 Books')[0]!
-    const forbiddenColour = card.findAll((node) => {
-      const rawStyle = node.props.style
-      if (!rawStyle) return false
-      const resolvedStyle = typeof rawStyle === 'function'
-        ? (rawStyle as (state: { pressed: boolean }) => ViewStyle)({ pressed: false })
-        : rawStyle
-      const style = StyleSheet.flatten(resolvedStyle) as (ViewStyle & TextStyle) | undefined
-      if (!style) return false
-      return style.color === '#ff0000' || style.backgroundColor === '#ff0000' || style.borderColor === '#ff0000'
+    const findCard = () => tree.root.findAll((node) => typeof node.type === 'string'
+      && node.props.accessibilityLabel === goal.title)[0]!
+    const unadorned = captureGoalCardRendering(findCard())
+    mocks.goals.data.allGoals = [{ ...goal, color: 'blue', emoji: '🎯', icon: 'target' }]
+    await TestRenderer.act(async () => {
+      tree.update(<ProgressScreen />)
+      await Promise.resolve()
     })
+    const oversized = captureGoalCardRendering(findCard())
 
-    expect(forbiddenColour).toHaveLength(0)
-    expect(card.findAll((node) => node.props.children === '🚀')).toHaveLength(0)
-    expect(card.findAll((node) => node.props.accessibilityLabel === 'forbidden-goal-icon')).toHaveLength(0)
-    expect(card.findAll((node) => node.props.accessibilityRole === 'image')).toHaveLength(0)
+    expect.soft(oversized.structure).toEqual(unadorned.structure)
+    expect.soft(oversized.styles).toEqual(unadorned.styles)
   })
 
   it('renders a reached target as a done disc with one badge and no finish entry', async () => {
