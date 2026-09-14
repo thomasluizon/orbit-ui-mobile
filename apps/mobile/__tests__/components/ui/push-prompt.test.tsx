@@ -3,18 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { PushPrompt } from '@/components/ui/push-prompt'
 
-vi.mock('@/components/ui/icons', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/components/ui/icons')>()
-  const createIcon = (name: string) => (props: Record<string, unknown>) =>
-    React.createElement(name, props)
-
-  return {
-    ...actual,
-    Bell: createIcon('Bell'),
-    X: createIcon('X'),
-  }
-})
-
 const TestRenderer = require('react-test-renderer')
 
 const storage = new Map<string, string>()

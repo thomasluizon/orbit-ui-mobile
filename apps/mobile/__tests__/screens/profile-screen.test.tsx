@@ -5,40 +5,6 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import ProfileScreen from '@/app/(tabs)/profile'
 import { PreferenceSettingsList } from '@/components/profile/preferences-sections'
 
-vi.mock('@/components/ui/icons', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/components/ui/icons')>()
-  const createIcon = (name: string) => () => React.createElement(name)
-  return {
-    ...actual,
-    LogOut: createIcon('LogOut'),
-    RotateCcw: createIcon('RotateCcw'),
-    Trash2: createIcon('Trash2'),
-    ChevronRight: createIcon('ChevronRight'),
-    Clock: createIcon('Clock'),
-    Check: createIcon('Check'),
-    Compass: createIcon('Compass'),
-    CreditCard: createIcon('CreditCard'),
-    User: createIcon('User'),
-    ChevronLeft: createIcon('ChevronLeft'),
-    Flame: createIcon('Flame'),
-    Lock: createIcon('Lock'),
-    Download: createIcon('Download'),
-    Share2: createIcon('Share2'),
-    Pencil: createIcon('Pencil'),
-    UserX: createIcon('UserX'),
-    TriangleAlert: createIcon('TriangleAlert'),
-    BellRing: createIcon('BellRing'),
-    Bell: createIcon('Bell'),
-    Calendar: createIcon('Calendar'),
-    Languages: createIcon('Languages'),
-    Mail: createIcon('Mail'),
-    MessageSquare: createIcon('MessageSquare'),
-    Moon: createIcon('Moon'),
-    Satellite: createIcon('Satellite'),
-    Search: createIcon('Search'),
-  }
-})
-
 vi.mock('@/components/referral/referral-card', () => ({
   ReferralCard: ({ onOpen }: { onOpen: () => void; onDismiss?: () => void }) =>
     React.createElement('ReferralCardStub', {

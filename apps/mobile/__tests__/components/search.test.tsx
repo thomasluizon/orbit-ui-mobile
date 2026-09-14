@@ -14,11 +14,6 @@ import { dismissTopOverlay } from '@/lib/overlay-stack'
 
 vi.unmock('react-i18next')
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
-vi.mock('@/components/ui/icons', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/components/ui/icons')>()),
-  Circle: () => null,
-  SkipForward: () => null,
-}))
 const mocks = vi.hoisted(() => ({ query: vi.fn(), showError: vi.fn(), pending: false, push: vi.fn(), back: vi.fn(), log: vi.fn(), skip: vi.fn(), retry: vi.fn() }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.push, back: mocks.back }) }))
 vi.mock('@/hooks/use-habit-queries', () => ({ useSearchHabits: (filters: HabitsFilter) => mocks.query(filters) }))

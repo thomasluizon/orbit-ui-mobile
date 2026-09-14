@@ -13,38 +13,6 @@ import { useUIStore } from "@/stores/ui-store";
 const TestRenderer: typeof import("react-test-renderer") = require("react-test-renderer");
 type RenderedTree = import("react-test-renderer").ReactTestRenderer;
 
-vi.mock("@/components/ui/icons", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/components/ui/icons")>();
-  const Icon = () => null;
-  return {
-    ...actual,
-    AdjustmentsHorizontal: Icon,
-    AlertTriangle: Icon,
-    ArrowLeft: Icon,
-    ArrowUpRight: Icon,
-    Check: Icon,
-    CheckCircle2: Icon,
-    ChevronLeft: Icon,
-    ChevronRight: Icon,
-    ChevronsDownUp: Icon,
-    ChevronsUpDown: Icon,
-    CreditCard: Icon,
-    Download: Icon,
-    Eye: Icon,
-    Filter: Icon,
-    Home: Icon,
-    Minus: Icon,
-    MoreVertical: Icon,
-    Plus: Icon,
-    RefreshCw: Icon,
-    Search: Icon,
-    Snowflake: Icon,
-    Target: Icon,
-    WifiOff: Icon,
-    X: Icon,
-  };
-});
-
 vi.mock("expo-router", () => ({
   usePathname: () => "/",
   useRouter: () => ({ push: vi.fn() }),

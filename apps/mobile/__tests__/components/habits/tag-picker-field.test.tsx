@@ -4,12 +4,6 @@ import { FlatList, StyleSheet, TextInput } from 'react-native'
 import { TagPickerField } from '@/components/habits/habit-form-fields/tag-picker-field'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 
-vi.mock('@/components/ui/icons', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/components/ui/icons')>()),
-  Pencil: 'Pencil',
-  Trash2: 'Trash2',
-}))
-
 const TestRenderer = require('react-test-renderer')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true

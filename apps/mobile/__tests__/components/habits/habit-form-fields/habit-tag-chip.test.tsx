@@ -5,12 +5,6 @@ import { HabitTagChip } from '@/components/habits/habit-form-fields/habit-tag-ch
 import { createStyles } from '@/components/habits/habit-form-fields/styles'
 import { createTokensV2 } from '@/lib/theme'
 
-vi.mock('@/components/ui/icons', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/components/ui/icons')>()),
-  PenSquare: (props: Record<string, unknown>) => React.createElement('PenSquare', props),
-  X: (props: Record<string, unknown>) => React.createElement('X', props),
-}))
-
 interface TestNode {
   props: Record<string, unknown>
   findAll(predicate: (node: TestNode) => boolean): TestNode[]

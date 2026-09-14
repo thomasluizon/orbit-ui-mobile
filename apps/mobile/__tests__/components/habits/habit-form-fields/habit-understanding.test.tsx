@@ -3,12 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import { HabitUnderstanding } from "@/components/habits/habit-form-fields/habit-understanding";
 import { createTokensV2 } from "@/lib/theme";
 
-vi.mock("@/components/ui/icons", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/components/ui/icons")>()),
-  Minus: (props: Record<string, unknown>) => React.createElement("Minus", props),
-  Plus: (props: Record<string, unknown>) => React.createElement("Plus", props),
-}));
-
 vi.mock("@/lib/use-app-theme", () => ({
   useAppTheme: () => ({ currentScheme: "orange", currentTheme: "light" }),
 }));
