@@ -1,7 +1,9 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { TFunction } from 'i18next'
-import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarSyncEvent } from '@orbit/shared'
+import type { CalendarEventsDisplayState } from '@orbit/shared/utils'
 import {
   getCalendarEntryMutationKey,
   useCalendarEntryMutationLock,
@@ -13,6 +15,30 @@ const TestRenderer = require('react-test-renderer')
 
 vi.mock('@/components/ui/list-row', () => ({
   ListRow: (props: Record<string, unknown>) => React.createElement('ListRowMock', props),
+}))
+
+vi.mock('@/components/ui/pill-button', () => ({
+  PillButton: ({ children, variant = 'primary', ...props }: {
+    children?: React.ReactNode
+    variant?: string
+  }) => React.createElement('PillButtonMock', { ...props, variant }, children),
+}))
+
+vi.mock('@/components/ui/capacity-notice', () => ({
+  CapacityNotice: ({ message, body, action }: Record<string, unknown>) =>
+    React.createElement('CapacityNoticeMock', { message, body }, action as React.ReactNode),
+}))
+
+vi.mock('@/components/ui/switch', () => ({
+  Switch: ({ checked, label, onChange }: {
+    checked: boolean
+    label: string
+    onChange: (value: boolean) => void
+  }) => React.createElement('SwitchMock', {
+    accessibilityLabel: label,
+    accessibilityState: { checked },
+    onPress: () => onChange(!checked),
+  }),
 }))
 
 vi.mock('@/components/ui/check-row', () => ({
@@ -27,9 +53,14 @@ vi.mock('@/app/(tabs)/calendar/_components/show-recurring-toggle', () => ({
   ShowRecurringToggle: () => React.createElement('ShowRecurringToggleMock'),
 }))
 
+vi.mock('@/components/dates/event-row', () => ({
+  EventRow: (props: Record<string, unknown>) => React.createElement('EventRowMock', props),
+}))
+
 type TestNode = {
   type: unknown
   props: Record<string, unknown>
+  findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
 
 type Tree = {
@@ -48,6 +79,13 @@ const translations: Record<string, string> = {
   'calendar.status.indulged': 'indulged',
   'calendar.status.resisted': 'resisted',
   'calendar.status.upcoming': 'Upcoming',
+  'calendar.dayDetail.disconnectedTitle': 'Google Calendar disconnected',
+  'calendar.dayDetail.disconnectedBody': 'Reconnect to see the events you can import.',
+  'calendar.dayDetail.noEventsToImport': 'Nothing left to import from Google Calendar on this day.',
+  'calendar.autoSync.reconnectCta': 'Reconnect',
+  'calendar.proBoundary.title': 'Syncing with Google Calendar is part of Orbit Pro.',
+  'calendar.proBoundary.body': 'With it, your commitments show up beside the habits for the day.',
+  'calendar.proBoundary.action': 'See Pro',
 }
 
 const translate = ((key: string, params?: Record<string, unknown>) => {
@@ -56,6 +94,13 @@ const translate = ((key: string, params?: Record<string, unknown>) => {
   }
   return translations[key] ?? key
 }) as unknown as TFunction
+
+const proAutoSyncState: CalendarAutoSyncState = {
+  hasGoogleConnection: true,
+  enabled: true,
+  status: "Idle",
+  lastSyncedAt: "2026-09-12T09:12:00Z",
+};
 
 function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
   return {
@@ -72,7 +117,14 @@ function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry 
 interface RenderDetailProps {
   selectedDate?: string
   entries?: CalendarDayEntry[]
+  calendarEvents?: CalendarSyncEvent[]
+  autoSyncState?: CalendarAutoSyncState
+  calendarEventsState?: CalendarEventsDisplayState
+  onRetryCalendarEvents?: () => void
+  onReconnectCalendarEvents?: () => void
+  onViewPro?: () => void
   loggable?: boolean
+  onCalendarAutoSyncChange?: (value: boolean) => Promise<void>
   onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
   onGoToDay?: () => void
 }
@@ -80,7 +132,14 @@ interface RenderDetailProps {
 function CalendarDayDetailHarness({
   selectedDate = '2025-06-15',
   entries = [],
+  calendarEvents = [],
+  autoSyncState = proAutoSyncState,
+  calendarEventsState = 'ready',
+  onRetryCalendarEvents = () => {},
+  onReconnectCalendarEvents = () => {},
+  onViewPro = () => {},
   loggable = false,
+  onCalendarAutoSyncChange = async () => {},
   onEntryChange = async () => {},
   onGoToDay = () => {},
 }: RenderDetailProps): React.ReactElement {
@@ -110,11 +169,18 @@ function CalendarDayDetailHarness({
       selectedDate={selectedDate}
       selectedEntries={entries}
       filteredEntries={entries}
+      calendarEvents={calendarEvents}
+      autoSyncState={autoSyncState}
+      calendarEventsState={calendarEventsState}
+      onRetryCalendarEvents={onRetryCalendarEvents}
+      onReconnectCalendarEvents={onReconnectCalendarEvents}
+      onViewPro={onViewPro}
       completedCount={entries.filter((entry) => entry.status === 'completed').length}
       loggable={loggable}
       showRecurring
       pendingEntryStates={pendingEntryStates}
       onShowRecurringChange={() => {}}
+      onCalendarAutoSyncChange={onCalendarAutoSyncChange}
       onEntryChange={changeEntry}
       onGoToDay={onGoToDay}
       displayTime={(time) => time}
@@ -157,6 +223,144 @@ describe('CalendarDayDetail (mobile)', () => {
       borderWidth: 1,
       paddingVertical: 16,
     })
+  })
+
+  it('renders timed and all-day Google events through the read-only event row', () => {
+    const tree = renderDetail({
+      entries: [makeEntry()],
+      calendarEventsState: 'ready',
+      calendarEvents: [
+        {
+          id: 'event-1',
+          title: 'Team meeting',
+          description: null,
+          startDate: '2025-06-15',
+          startTime: '09:00',
+          endTime: null,
+          isRecurring: false,
+          recurrenceRule: null,
+          reminders: [],
+        },
+        {
+          id: 'event-2',
+          title: 'Company holiday',
+          description: null,
+          startDate: '2025-06-15',
+          startTime: null,
+          endTime: null,
+          isRecurring: false,
+          recurrenceRule: null,
+          reminders: [],
+        },
+      ],
+    })
+
+    expect(nodes(tree, 'EventRowMock').map((event) => event.props)).toEqual([
+      expect.objectContaining({
+        time: '09:00',
+        title: 'Team meeting',
+        source: 'calendar.title',
+      }),
+      expect.objectContaining({
+        allDayLabel: 'calendar.timeGrid.allDay',
+        title: 'Company holiday',
+        source: 'calendar.title',
+      }),
+    ])
+  })
+
+  it('renders a failed events request instead of the empty result', () => {
+    const tree = renderDetail({ entries: [makeEntry()], calendarEventsState: 'failed' })
+    const errors = nodes(tree, 'Text').filter(
+      (node) => node.props.accessibilityLabel === 'calendar.fetchError',
+    )
+    const empty = nodes(tree, 'Text').filter(
+      (node) => node.props.children === 'calendar.noEvents',
+    )
+
+    expect(errors).toHaveLength(1)
+    expect(empty).toHaveLength(0)
+  })
+
+  it('renders the events loading treatment alone', () => {
+    const tree = renderDetail({ entries: [makeEntry()], calendarEventsState: 'loading' })
+    const loading = tree.root.findAll(
+      (node) =>
+        node.props.accessibilityRole === 'progressbar'
+        && node.props.testID === 'skeleton-unit-settings',
+    )
+    const errors = nodes(tree, 'Text').filter(
+      (node) => node.props.accessibilityLabel === 'calendar.fetchError',
+    )
+
+    expect(loading.length).toBeGreaterThan(0)
+    expect(loading.every(
+      (node) => node.props.accessibilityLabel === 'calendar.fetchingEvents',
+    )).toBe(true)
+    expect(errors).toHaveLength(0)
+  })
+
+  it('offers reconnection without rendering the connected-empty treatment', () => {
+    const onReconnectCalendarEvents = vi.fn()
+    const tree = renderDetail({
+      entries: [makeEntry()],
+      calendarEventsState: 'not-connected',
+      onReconnectCalendarEvents,
+    })
+    const text = nodes(tree, 'Text').map((node) => node.props.children)
+    const reconnectButton = nodes(tree, 'PillButtonMock')[0]
+
+    expect(text).toContain('Google Calendar disconnected')
+    expect(text).toContain('Reconnect to see the events you can import.')
+    expect(text).not.toContain('calendar.noEvents')
+    const onClick = reconnectButton?.props.onClick
+    expect(typeof onClick).toBe('function')
+    if (typeof onClick === 'function') TestRenderer.act(() => onClick())
+    expect(onReconnectCalendarEvents).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders the free sync boundary with one route to Orbit Pro', () => {
+    const onViewPro = vi.fn()
+    const tree = renderDetail({
+      entries: [makeEntry()],
+      calendarEventsState: 'pro-boundary',
+      onViewPro,
+    })
+    const boundary = tree.root.findAll(
+      (node) => node.props.testID === 'calendar-pro-boundary',
+    )[0]
+    const notices = boundary?.findAll(
+      (node: TestNode) => node.type === 'CapacityNoticeMock',
+    ) ?? []
+    const actions = boundary?.findAll(
+      (node: TestNode) => node.type === 'PillButtonMock',
+    ) ?? []
+
+    expect(notices).toHaveLength(1)
+    expect(notices[0]?.props).toMatchObject({
+      message: 'Syncing with Google Calendar is part of Orbit Pro.',
+      body: 'With it, your commitments show up beside the habits for the day.',
+    })
+    expect(actions).toHaveLength(1)
+    expect(actions[0]?.props.disabled).not.toBe(true)
+    expect(actions[0]?.props.variant).toBe('primary')
+    const onClick = actions[0]?.props.onClick
+    expect(typeof onClick).toBe('function')
+    if (typeof onClick === 'function') TestRenderer.act(() => onClick())
+    expect(onViewPro).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders the empty events state after an empty response resolves', () => {
+    const tree = renderDetail({ entries: [makeEntry()], calendarEventsState: 'ready' })
+    const empty = nodes(tree, 'Text').filter(
+      (node) => node.props.children === 'Nothing left to import from Google Calendar on this day.',
+    )
+    const errors = nodes(tree, 'Text').filter(
+      (node) => node.props.accessibilityLabel === 'calendar.fetchError',
+    )
+
+    expect(empty).toHaveLength(1)
+    expect(errors).toHaveLength(0)
   })
 
   it('keeps ordinary upcoming rows distinct from completed and missed outcomes', () => {
@@ -487,5 +691,52 @@ describe('CalendarDayDetail (mobile)', () => {
       chevron: false,
       onClick: onGoToDay,
     })
+  })
+
+  it('keeps habits visible while replacing events with the free plan boundary', () => {
+    const onViewPro = vi.fn()
+    const tree = renderDetail({
+      entries: [makeEntry({ title: 'Read' })],
+      calendarEvents: [{
+        id: 'event-1', title: 'Team meeting', description: null,
+        startDate: '2025-06-15', startTime: '09:00', endTime: null,
+        isRecurring: false, recurrenceRule: null, reminders: [],
+      }],
+      calendarEventsState: 'pro-boundary',
+      onViewPro,
+    })
+
+    expect(nodes(tree, 'ListRowMock').map((row) => row.props.title)).toContain('Read')
+    expect(nodes(tree, 'EventRowMock')).toHaveLength(0)
+    expect(nodes(tree, 'CapacityNoticeMock')).toHaveLength(1)
+    const action = nodes(tree, 'PillButtonMock')[0]
+    expect(action?.props.variant).toBe('primary')
+    TestRenderer.act(() => (action?.props.onClick as () => void)())
+    expect(onViewPro).toHaveBeenCalledOnce()
+  })
+
+  it('builds the Pro sync line and switch from the profile fields', () => {
+    const onCalendarAutoSyncChange = vi.fn(async () => {})
+    const tree = renderDetail({
+      entries: [makeEntry()],
+      autoSyncState: proAutoSyncState,
+      onCalendarAutoSyncChange,
+    })
+
+    const text = nodes(tree, 'Text').map((node) => node.props.children)
+    expect(text).toContain('calendar.dayDetail.googleConnected')
+    const autoSync = nodes(tree, 'SwitchMock')[0]
+    expect(autoSync?.props.accessibilityState).toEqual({ checked: true })
+    TestRenderer.act(() => (autoSync?.props.onPress as () => void)())
+    expect(onCalendarAutoSyncChange).toHaveBeenCalledWith(false)
+  })
+
+  it('does not offer auto-sync as enabled without a Google connection', () => {
+    const tree = renderDetail({
+      entries: [makeEntry()],
+      autoSyncState: { ...proAutoSyncState, hasGoogleConnection: false },
+    })
+
+    expect(nodes(tree, 'SwitchMock')).toHaveLength(0)
   })
 })

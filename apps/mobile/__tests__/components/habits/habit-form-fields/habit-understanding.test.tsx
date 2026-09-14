@@ -7,12 +7,6 @@ vi.mock("@/lib/use-app-theme", () => ({
   useAppTheme: () => ({ currentScheme: "orange", currentTheme: "light" }),
 }));
 
-vi.mock("@/components/ui/icons", () => ({
-  Minus: (props: Record<string, unknown>) =>
-    React.createElement("Minus", props),
-  Plus: (props: Record<string, unknown>) => React.createElement("Plus", props),
-}));
-
 vi.mock("@/components/ui/proposed", () => ({
   Proposed: (props: Record<string, unknown>) =>
     React.createElement("Proposed", props, props.children as React.ReactNode),

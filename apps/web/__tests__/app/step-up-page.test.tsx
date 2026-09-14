@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   logout: vi.fn(),
   markAttemptFailed: vi.fn(),
   markExhausted: vi.fn(),
+  markVerified: vi.fn(),
   operation: 'delete',
   profile: {
     email: 'person@example.com',
@@ -53,6 +54,7 @@ vi.mock('@/lib/step-up-storage', () => ({
   clearStepUpTiming: (operation: string) => mocks.clearTiming(operation),
   markStepUpAttemptFailed: (record: unknown) => mocks.markAttemptFailed(record),
   markStepUpExhausted: (record: unknown) => mocks.markExhausted(record),
+  markStepUpVerified: (operation: string) => mocks.markVerified(operation),
   readStepUpTiming: (operation: string) => mocks.readTiming(operation),
 }))
 vi.mock('@/components/shell/flow-shell', () => ({
@@ -306,6 +308,7 @@ describe('web step up screen', () => {
       { method: 'POST', body: JSON.stringify({ code: '123456' }) },
     ))
     expect(mocks.clearTiming).toHaveBeenCalledWith('keys')
-    expect(mocks.replace).toHaveBeenCalledWith('/advanced?create-key=1')
+    expect(mocks.markVerified).toHaveBeenCalledWith('keys')
+    expect(mocks.replace).toHaveBeenCalledWith('/profile')
   })
 })

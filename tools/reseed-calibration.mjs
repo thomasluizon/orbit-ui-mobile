@@ -95,7 +95,7 @@ const VERDICTS = {
   ".claude/skills/drift-review/SKILL.md":
     "undeclared, inherits the session: it judges repeated evidence against the current workflow files, but every result remains a staged candidate for human review.",
   ".claude/skills/handoff/SKILL.md":
-    "current: high effort, and it earns it: it decides what a fresh session cannot rediscover, and under-thinking it is how a handoff loses the one fact written nowhere else.",
+    "current: high effort, and it earns it. It decides what survives into a spec that outlives every session, and under-thinking it is how a rule Thomas set in week one disappears by week four.",
   ".claude/skills/investigate/SKILL.md":
     "undeclared, inherits the session: root-causing a production incident across Sentry, Render, Postgres and the LSP is judgement, so this is a follow-up candidate.",
   ".claude/skills/lesson/SKILL.md":
@@ -106,6 +106,10 @@ const VERDICTS = {
     "current: high effort, and it earns it: it plans the queue, verifies delivery from artifacts and clears the review, and it is the entry point every other piece of work passes through.",
   ".claude/skills/prod-readiness/SKILL.md":
     "undeclared, inherits the session: it consolidates four child audits into one honest launch verdict, which is judgement, so this is a follow-up candidate.",
+  ".claude/skills/progress/SKILL.md":
+    "current: medium effort, because it reads live git and ticket state and must judge whether a part-built screen is honestly described, which low effort gets wrong by rounding up.",
+  ".claude/skills/questions/SKILL.md":
+    "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes his attention or ships a guess as a decision.",
   ".claude/skills/second-opinion/SKILL.md":
     "current with nothing to declare: the reasoning happens in the other model, by construction. Declaring an effort here would tune the wrong side of the call.",
   ".claude/skills/sleep/SKILL.md":

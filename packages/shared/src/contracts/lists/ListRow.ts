@@ -17,6 +17,7 @@ export interface ListRowBase {
   trailing?: ReactNode
   danger?: boolean
   chevron?: boolean
+  href?: string
   onClick?: () => void
   inset?: boolean
 }

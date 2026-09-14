@@ -4,16 +4,6 @@
       "count": 1
     }
   },
-  "app/(app)/about/page.tsx": {
-    "local/spacing-scale": {
-      "count": 2
-    }
-  },
-  "app/(app)/advanced/page.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    }
-  },
   "app/(app)/ai-settings/_components/ai-feature-toggles.tsx": {
     "local/icon-size-grid": {
       "count": 2
@@ -22,45 +12,6 @@
   "app/(app)/ai-settings/_components/pro-upgrade-link.tsx": {
     "local/icon-size-grid": {
       "count": 1
-    }
-  },
-  "app/(app)/calendar-sync/_components/auto-sync-settings-card.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 10
-    }
-  },
-  "app/(app)/calendar-sync/_components/calendar-picker-section.tsx": {
-    "local/spacing-scale": {
-      "count": 6
-    }
-  },
-  "app/(app)/calendar-sync/_components/calendar-sync-event-row.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "app/(app)/calendar-sync/_components/select-all-toggle.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    }
-  },
-  "app/(app)/calendar-sync/page.tsx": {
-    "local/spacing-scale": {
-      "count": 7
-    }
-  },
-  "app/(app)/calendar/_components/calendar-shell.tsx": {
-    "local/icon-size-grid": {
-      "count": 4
-    },
-    "local/spacing-scale": {
-      "count": 8
     }
   },
   "app/(app)/layout.tsx": {
@@ -111,22 +62,9 @@
       "count": 2
     }
   },
-  "app/(app)/wrapped/_components/wrapped-cover.tsx": {
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "app/(app)/wrapped/_components/wrapped-player.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
   "app/(app)/wrapped/_components/wrapped-slide.tsx": {
     "local/spacing-scale": {
-      "count": 7
+      "count": 6
     }
   },
   "app/(public)/delete-account/page.tsx": {
@@ -134,34 +72,8 @@
       "count": 5
     }
   },
-  "app/(public)/privacy/page.tsx": {
-    "local/spacing-scale": {
-      "count": 5
-    }
-  },
-  "app/(public)/terms/page.tsx": {
-    "local/spacing-scale": {
-      "count": 5
-    }
-  },
   "app/layout.tsx": {
     "local/icon-size-grid": {
-      "count": 3
-    }
-  },
-  "components/advanced/advanced-sections.tsx": {
-    "local/icon-size-grid": {
-      "count": 3
-    },
-    "local/no-space-x-y": {
-      "count": 10
-    },
-    "local/spacing-scale": {
-      "count": 8
-    }
-  },
-  "components/calendar/calendar-load-error.tsx": {
-    "local/spacing-scale": {
       "count": 3
     }
   },
@@ -373,11 +285,6 @@
       "count": 3
     }
   },
-  "components/profile/profile-nav-icon.tsx": {
-    "local/no-sparkle-ai-marker": {
-      "count": 1
-    }
-  },
   "components/tour/tour-provider.tsx": {
     "local/no-scroll-listener-motion": {
       "count": 1
@@ -413,14 +320,6 @@
     },
     "local/spacing-scale": {
       "count": 1
-    }
-  },
-  "components/ui/create-api-key-modal.tsx": {
-    "local/require-focus-replacement": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 7
     }
   },
   "components/ui/expiry-warning.tsx": {
