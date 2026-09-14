@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { API } from '@orbit/shared/api'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { DeleteAccountModal } from '@/app/(tabs)/profile/_components/delete-account-modal'
 
 const TestRenderer = require('react-test-renderer')
@@ -19,7 +20,18 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({
+    t: (key: string, params?: Record<string, unknown>) => {
+      const warningKey = key.slice('profile.deleteAccount.'.length)
+      const warning = key.startsWith('profile.deleteAccount.warning')
+        ? Reflect.get(ptBR.profile.deleteAccount, warningKey) as unknown
+        : undefined
+      if (typeof warning === 'string') {
+        return warning.replace(/\{(\w+)\}/g, (_, token: string) => String(params?.[token]))
+      }
+      return key
+    },
+  }),
 }))
 
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
@@ -78,16 +90,13 @@ describe('DeleteAccountModal', () => {
     mocks.apiClient.mockResolvedValue({ message: 'sent' })
   })
 
-  it('shows the irreversible warning without requesting deletion on mount', async () => {
+  it('keeps the cancellation path in the pre-confirmation copy', async () => {
     const tree = await renderModal()
     const copy = textContent(tree.root)
 
-    expect(
-      tree.root.findAll((node: { children: unknown[] }) =>
-        node.children.includes('profile.deleteAccount.warning')),
-    ).toHaveLength(1)
-    expect(copy).toContain('profile.deleteAccount.warningFree')
-    expect(copy).toContain('profile.deleteAccount.warningDetail')
+    expect(copy).toMatch(/tempo para mudar de ideia/i)
+    expect(copy).toMatch(/entre de novo.*cancelar/i)
+    expect(copy).toContain(ptBR.profile.deleteAccount.warningDetail)
     expect(mocks.apiClient).not.toHaveBeenCalled()
     expect(mocks.beginChallenge).not.toHaveBeenCalled()
   })

@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import en from '@orbit/shared/i18n/en.json'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
@@ -14,8 +15,16 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
-    params ? `${key}:${JSON.stringify(params)}` : key,
+  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+    const warningKey = key.slice('profile.deleteAccount.'.length)
+    const warning = key.startsWith('profile.deleteAccount.warning')
+      ? Reflect.get(en.profile.deleteAccount, warningKey) as unknown
+      : undefined
+    if (typeof warning === 'string') {
+      return warning.replace(/\{(\w+)\}/g, (_, token: string) => String(params?.[token]))
+    }
+    return params ? `${key}:${JSON.stringify(params)}` : key
+  },
   useLocale: () => 'en',
 }))
 
@@ -75,13 +84,13 @@ describe('DeleteAccountModal', () => {
     mocks.requestDeletion.mockResolvedValue(undefined)
   })
 
-  it('keeps the confirmation and warning as the first gate', () => {
+  it('keeps the cancellation path in the pre-confirmation copy', () => {
     render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
 
     expect(screen.getByText('profile.deleteAccount.headingAreYouSure')).toBeInTheDocument()
-    expect(screen.getByText('profile.deleteAccount.warning')).toBeInTheDocument()
-    expect(screen.getByText('profile.deleteAccount.warningFree')).toBeInTheDocument()
-    expect(screen.getByText('profile.deleteAccount.warningDetail')).toBeInTheDocument()
+    expect(screen.getByText(/time to change your mind/i)).toBeInTheDocument()
+    expect(screen.getByText(/log back in.*cancel/i)).toBeInTheDocument()
+    expect(screen.getByText(en.profile.deleteAccount.warningDetail)).toBeInTheDocument()
     expect(screen.getByText('profile.deleteAccount.sendCode')).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
@@ -100,7 +109,7 @@ describe('DeleteAccountModal', () => {
       />,
     )
 
-    expect(document.body.textContent).toContain('profile.deleteAccount.warningPro')
+    expect(document.body.textContent).toMatch(/log back in.*cancel/i)
   })
 
   it('persists the send time and routes to the deletion step up screen', async () => {
