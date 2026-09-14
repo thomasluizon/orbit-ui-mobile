@@ -231,7 +231,7 @@ export function createMockRecap(overrides: Partial<Recap> = {}): Recap {
     period: 'week',
     metrics: createMockRetrospectiveMetrics(),
     shareDeepLink: 'https://app.useorbit.org/r/ABC123?recap=week',
-    goalCompletions: 3,
+    goalCompletions: 4,
     ...overrides,
   }
 }
