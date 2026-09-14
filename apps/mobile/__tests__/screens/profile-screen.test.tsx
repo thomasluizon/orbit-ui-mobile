@@ -500,6 +500,7 @@ describe('ProfileScreen', () => {
       'calendar.profileButton',
       'profile.support.title',
       'profile.sections.aboutHelp',
+      'shareCard.entry',
     ])
 
     for (const movedLabel of [
