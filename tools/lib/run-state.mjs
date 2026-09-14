@@ -25,8 +25,8 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { randomUUID } from "node:crypto"
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { createHash, randomUUID } from "node:crypto"
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -80,41 +80,61 @@ const readWorkerLaunchRecords = (repoRoot = REPO_ROOT) => {
 
 export const readWorkerLaunches = (repoRoot = REPO_ROOT) => readWorkerLaunchRecords(repoRoot).map((record) => record.launch)
 
-/** Reserve first, then count. Recording remains fail-soft, while a proven cap refuses the launch. */
+const readLaunchFiles = (paths) => paths.flatMap((path) => {
+  try {
+    return [JSON.parse(readFileSync(path, "utf8"))]
+  } catch {
+    return []
+  }
+})
+
+const claimLaunchFile = (path, launch) => {
+  let fileDescriptor
+  try {
+    fileDescriptor = openSync(path, "wx")
+  } catch {
+    return { claimed: false, occupied: existsSync(path), recorded: false }
+  }
+  try {
+    writeFileSync(fileDescriptor, `${JSON.stringify(launch, null, 2)}\n`)
+    return { claimed: true, occupied: true, recorded: true }
+  } catch {
+    return { claimed: true, occupied: true, recorded: false }
+  } finally {
+    try {
+      closeSync(fileDescriptor)
+    } catch {
+      /* the exclusive create already claimed the slot, so closing remains fail-soft */
+    }
+  }
+}
+
+/** Each exact slot name can be claimed once, so no read-then-decide race can exceed the cap. */
 export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
   const directory = workerLaunchDirectory(repoRoot)
-  const processIdentity = processStartIdentity(process.pid)?.replace(/[^a-zA-Z0-9-]/g, "-") ?? "unknown"
-  const name = [
-    String(Date.now()).padStart(13, "0"),
-    process.hrtime.bigint().toString().padStart(20, "0"),
-    processIdentity,
-    String(process.pid).padStart(10, "0"),
-    randomUUID(),
-  ].join("-") + ".json"
-  const path = join(directory, name)
   try {
     mkdirSync(directory, { recursive: true })
-    writeFileSync(path, `${JSON.stringify(launch, null, 2)}\n`, { flag: "wx" })
   } catch {
-    const earlierLaunches = readWorkerLaunches(repoRoot)
-      .filter((entry) => entry?.repositoryKey === launch.repositoryKey && entry?.branch === launch.branch)
-    return earlierLaunches.length >= cap && launch.relaunchReason === null
-      ? { allowed: false, earlierLaunches, recorded: false }
-      : { allowed: true, earlierLaunches, recorded: false }
+    return { allowed: true, earlierLaunches: [], recorded: false }
   }
-  const records = readWorkerLaunchRecords(repoRoot)
-  const earlierLaunches = records
-    .filter((record) => record.name.localeCompare(name) < 0 && record.launch?.repositoryKey === launch.repositoryKey && record.launch?.branch === launch.branch)
-    .map((record) => record.launch)
-  if (earlierLaunches.length < cap || launch.relaunchReason !== null) {
-    return { allowed: true, earlierLaunches, recorded: true }
+  const branchKey = createHash("sha256").update(`${launch.repositoryKey}\0${launch.branch}`).digest("hex")
+  const slotPaths = Array.from({ length: cap }, (_, index) => join(directory, `${branchKey}-slot-${index + 1}.json`))
+  for (let index = 0; index < slotPaths.length; index++) {
+    const claim = claimLaunchFile(slotPaths[index], launch)
+    if (claim.claimed) {
+      return { allowed: true, earlierLaunches: readLaunchFiles(slotPaths.slice(0, index)), recorded: claim.recorded }
+    }
+    if (!claim.occupied) {
+      return { allowed: true, earlierLaunches: readLaunchFiles(slotPaths.slice(0, index)), recorded: false }
+    }
   }
-  try {
-    rmSync(path, { force: true })
-  } catch {
-    /* a rejected launch never starts, so a leaked reservation only makes the cap stricter */
+  const earlierLaunches = readLaunchFiles(slotPaths)
+  if (launch.relaunchReason === null) {
+    return { allowed: false, earlierLaunches, recorded: false }
   }
-  return { allowed: false, earlierLaunches, recorded: false }
+  const overridePath = join(directory, `${branchKey}-override-${randomUUID()}.json`)
+  const override = claimLaunchFile(overridePath, launch)
+  return { allowed: true, earlierLaunches, recorded: override.recorded }
 }
 
 /** The orchestrator's own run record, or null when no run has written one. */

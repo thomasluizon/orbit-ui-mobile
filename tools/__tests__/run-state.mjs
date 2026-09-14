@@ -16,20 +16,17 @@ const stageCheckout = (label) => {
 }
 
 const reserveTogether = (moduleUrl, repoRoot, launch, cap) => {
-  const signal = new SharedArrayBuffer(3 * Int32Array.BYTES_PER_ELEMENT)
+  const signal = new SharedArrayBuffer(2 * Int32Array.BYTES_PER_ELEMENT)
   const workerSource = `
 const fs = require("node:fs")
 const { syncBuiltinESMExports } = require("node:module")
 const { parentPort, workerData } = require("node:worker_threads")
 const signal = new Int32Array(workerData.signal)
-const originalWriteFileSync = fs.writeFileSync
-const originalReaddirSync = fs.readdirSync
-const originalReadFileSync = fs.readFileSync
-let expectedReads = 0
-let completedReads = 0
-fs.writeFileSync = (...args) => {
-  const result = originalWriteFileSync(...args)
-  if (String(args[0]).includes("orbit-worker-launches") && args[2]?.flag === "wx") {
+const originalOpenSync = fs.openSync
+let synchronized = false
+fs.openSync = (...args) => {
+  if (!synchronized && String(args[0]).includes("orbit-worker-launches") && args[1] === "wx") {
+    synchronized = true
     if (Atomics.add(signal, 0, 1) + 1 === 2) {
       Atomics.store(signal, 1, 1)
       Atomics.notify(signal, 1, 2)
@@ -37,23 +34,7 @@ fs.writeFileSync = (...args) => {
       while (Atomics.load(signal, 1) === 0) Atomics.wait(signal, 1, 0)
     }
   }
-  return result
-}
-fs.readdirSync = (...args) => {
-  const names = originalReaddirSync(...args)
-  if (String(args[0]).includes("orbit-worker-launches")) expectedReads = names.length
-  return names
-}
-fs.readFileSync = (...args) => {
-  const result = originalReadFileSync(...args)
-  if (String(args[0]).includes("orbit-worker-launches") && ++completedReads === expectedReads) {
-    if (Atomics.add(signal, 2, 1) + 1 === 2) {
-      Atomics.notify(signal, 2, 2)
-    } else {
-      while (Atomics.load(signal, 2) < 2) Atomics.wait(signal, 2, 1)
-    }
-  }
-  return result
+  return originalOpenSync(...args)
 }
 syncBuiltinESMExports()
 import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
@@ -70,6 +51,53 @@ import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
         repoRoot,
         cap,
         launch: { ...launch, timestamp: `2026-09-14T00:0${index}:00.000Z` },
+      },
+    })
+    worker.once("message", resolve)
+    worker.once("error", reject)
+  })))
+}
+
+const reserveAfterLaterReturns = (moduleUrl, repoRoot, launch) => {
+  const signal = new SharedArrayBuffer(2 * Int32Array.BYTES_PER_ELEMENT)
+  const workerSource = `
+const fs = require("node:fs")
+const { syncBuiltinESMExports } = require("node:module")
+const { parentPort, workerData } = require("node:worker_threads")
+const signal = new Int32Array(workerData.signal)
+if (workerData.earlier) {
+  const originalOpenSync = fs.openSync
+  fs.openSync = (...args) => {
+    if (String(args[0]).includes("orbit-worker-launches") && args[1] === "wx") {
+      Atomics.store(signal, 0, 1)
+      Atomics.notify(signal, 0)
+      while (Atomics.load(signal, 1) === 0) Atomics.wait(signal, 1, 0)
+    }
+    return originalOpenSync(...args)
+  }
+  syncBuiltinESMExports()
+} else {
+  while (Atomics.load(signal, 0) === 0) Atomics.wait(signal, 0, 0)
+}
+import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
+  const reservation = reserveWorkerLaunch(workerData.launch, 1, workerData.repoRoot)
+  if (!workerData.earlier) {
+    Atomics.store(signal, 1, 1)
+    Atomics.notify(signal, 1)
+  }
+  parentPort.postMessage(reservation)
+})
+`
+  return Promise.all([true, false].map((earlier) => new Promise((resolve, reject) => {
+    const worker = new Worker(workerSource, {
+      eval: true,
+      execArgv: [],
+      workerData: {
+        signal,
+        moduleUrl,
+        repoRoot,
+        earlier,
+        launch: { ...launch, timestamp: earlier ? "2026-09-14T00:01:00.000Z" : "2026-09-14T00:02:00.000Z" },
       },
     })
     worker.once("message", resolve)
@@ -154,6 +182,15 @@ export const cases = async () => {
       contenders.filter((reservation) => !reservation.allowed).length === 1 &&
       freeSlotLedger.length === 2,
     JSON.stringify({ contenders, freeSlotLedger }),
+  )
+
+  const delayedCreateRoot = stageCheckout("launch-race-delayed-create")
+  const delayedCreateReservations = await reserveAfterLaterReturns(new URL("../lib/run-state.mjs", import.meta.url).href, delayedCreateRoot, launch)
+  const delayedCreateLedger = readWorkerLaunches(delayedCreateRoot)
+  T(
+    `${TOOL}: a contender returning before an earlier contender creates cannot exceed the cap`,
+    delayedCreateReservations.filter((reservation) => reservation.allowed).length === 1 && delayedCreateLedger.length === 1,
+    JSON.stringify({ delayedCreateReservations, delayedCreateLedger }),
   )
 
   registerWakeSource({ pid: process.pid, what: "worker ORB-1" }, repoRoot)
