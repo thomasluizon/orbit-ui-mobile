@@ -19,14 +19,6 @@ let mockReschedule: {
   refetch: () => void
 }
 
-vi.mock('@/components/ui/icons', () => {
-  const ReactLib = require('react')
-  return {
-    Sparkles: (props: Record<string, unknown>) => ReactLib.createElement('Sparkles', props),
-    CalendarClock: (props: Record<string, unknown>) => ReactLib.createElement('CalendarClock', props),
-  }
-})
-
 vi.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn(), back: vi.fn() }),
 }))

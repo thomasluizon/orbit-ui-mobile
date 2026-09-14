@@ -3,6 +3,10 @@ import React from 'react'
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
+vi.mock('@/components/ui/icons', async (importOriginal) =>
+  importOriginal<typeof import('@/components/ui/icons')>(),
+)
+
 ;(globalThis as { __DEV__?: boolean }).__DEV__ = true
 
 vi.mock('react-native', async () => {

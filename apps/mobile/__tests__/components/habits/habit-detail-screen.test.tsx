@@ -234,17 +234,6 @@ vi.mock('@/components/ui/skeleton', () => ({
 vi.mock('@/components/ui/switch', () => ({
   Switch: ({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) => React.createElement('Switch', { testID: 'slip-alert-switch', checked, onChange }),
 }))
-vi.mock('@/components/ui/icons', () => ({
-  Calendar: () => null,
-  ChevronDown: () => null,
-  ChevronLeft: () => null,
-  ChevronRight: () => null,
-  Clock3: () => null,
-  ListTree: () => null,
-  Plus: () => null,
-  Trash2: () => null,
-  X: () => null,
-}))
 vi.mock('@/components/ui/time-field', () => ({
   TimeField: ({ label, value, onChange, onClear }: { label: string; value: Time24 | ''; onChange: (value: Time24) => void; onClear: () => void }) => React.createElement('TextInput', {
     accessibilityLabel: label,
