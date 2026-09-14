@@ -139,7 +139,15 @@ export function getGamificationLevelTitleKey(level: number): string {
   return `progressScreen.achievements.levelTitles.${GAMIFICATION_LEVEL_TITLE_KEYS[index]}`
 }
 
-type StreakRepairSource = Pick<StreakInfo, 'currentStreak' | 'isRepairAvailable' | 'lastActiveDate' | 'longestStreak' | 'repairDate'>
+type StreakRepairSource = Pick<
+  StreakInfo,
+  | 'currentStreak'
+  | 'isRepairAvailable'
+  | 'lastActiveDate'
+  | 'longestStreak'
+  | 'repairDate'
+  | 'repairableGapDates'
+>
 
 export type StreakRepairState = {
   dates: string[]
@@ -178,12 +186,13 @@ export function deriveStreakRepairState({
   now?: Date
   accountTimeZone?: string | null
 }): StreakRepairState {
-  const dates = streak?.isRepairAvailable === true && isApiDate(streak.repairDate)
-    ? [streak.repairDate]
-    : []
+  const dates = streak?.repairableGapDates !== undefined
+    ? streak.repairableGapDates.filter(isApiDate)
+    : streak?.isRepairAvailable === true && isApiDate(streak.repairDate)
+      ? [streak.repairDate]
+      : []
   const count = dates.length
   const canRepair = count > 0 && freezesAvailable >= count
-  // WHY: https://github.com/thomasluizon/orbit-tickets/issues/505 will add server-derived multi-day gap dates.
   const gapUnavailable = count === 0
     && streak?.currentStreak === 1
     && streak.longestStreak > 1

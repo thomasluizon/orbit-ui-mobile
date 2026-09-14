@@ -101,6 +101,7 @@ const mocks = vi.hoisted(() => ({
       canEarnMore: true,
       isRepairAvailable: false,
       repairDate: null as string | null,
+      repairableGapDates: undefined as string[] | undefined,
     },
     streakQuery: { isError: false, refetch: vi.fn() },
     isFrozenToday: false,
@@ -320,6 +321,7 @@ describe('ProgressContent', () => {
       lastActiveDate: null,
       isRepairAvailable: false,
       repairDate: null,
+      repairableGapDates: undefined,
       streakFreezesAccumulated: 2,
       maxStreakFreezesAccumulated: 3,
       daysUntilNextFreeze: 3,
@@ -600,8 +602,9 @@ describe('ProgressContent', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
     mocks.freeze.streakInfo.currentStreak = 0
-    mocks.freeze.streakInfo.isRepairAvailable = true
-    mocks.freeze.streakInfo.repairDate = '2026-09-09'
+    mocks.freeze.streakInfo.isRepairAvailable = false
+    mocks.freeze.streakInfo.repairDate = null
+    mocks.freeze.streakInfo.repairableGapDates = ['2026-09-09']
     mocks.freeze.streakInfo.streakFreezesAccumulated = 0
     mocks.freeze.freezesAvailable = 0
     mocks.freeze.streakFreezesAccumulated = 0
