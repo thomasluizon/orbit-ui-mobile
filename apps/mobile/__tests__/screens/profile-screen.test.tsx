@@ -300,41 +300,6 @@ vi.mock('@/components/ui/list-row', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/icons', () => {
-  const createIcon = (name: string) => () => React.createElement(name)
-  return {
-    LogOut: createIcon('LogOut'),
-    RotateCcw: createIcon('RotateCcw'),
-    Trash2: createIcon('Trash2'),
-    ChevronRight: createIcon('ChevronRight'),
-    Clock: createIcon('Clock'),
-    BadgeCheck: createIcon('BadgeCheck'),
-    Orbit: createIcon('Orbit'),
-    X: createIcon('X'),
-    Check: createIcon('Check'),
-    Compass: createIcon('Compass'),
-    CreditCard: createIcon('CreditCard'),
-    User: createIcon('User'),
-    ChevronLeft: createIcon('ChevronLeft'),
-    Flame: createIcon('Flame'),
-    Lock: createIcon('Lock'),
-    Download: createIcon('Download'),
-    Share2: createIcon('Share2'),
-    Pencil: createIcon('Pencil'),
-    UserX: createIcon('UserX'),
-    TriangleAlert: createIcon('TriangleAlert'),
-    BellRing: createIcon('BellRing'),
-    Bell: createIcon('Bell'),
-    Calendar: createIcon('Calendar'),
-    Languages: createIcon('Languages'),
-    Mail: createIcon('Mail'),
-    MessageSquare: createIcon('MessageSquare'),
-    Moon: createIcon('Moon'),
-    Satellite: createIcon('Satellite'),
-    Search: createIcon('Search'),
-  }
-})
-
 vi.mock('react-native-svg', () => ({
   __esModule: true,
   default: () => null,

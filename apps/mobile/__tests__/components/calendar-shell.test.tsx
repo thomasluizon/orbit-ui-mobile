@@ -19,17 +19,6 @@ vi.mock("@/hooks/use-tour-target", () => ({
   useTourTarget: () => {},
 }));
 
-vi.mock("@/components/ui/icons", () => {
-  const makeIcon = (name: string) => (props: Record<string, unknown>) =>
-    React.createElement(name, props);
-  return {
-    ChevronLeft: makeIcon("ChevronLeft"),
-    ChevronRight: makeIcon("ChevronRight"),
-    ChevronsLeft: makeIcon("ChevronsLeft"),
-    ChevronsRight: makeIcon("ChevronsRight"),
-  };
-});
-
 vi.mock("@/components/ui/stat-tile", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/components/ui/stat-tile")>()),
   StatTile: ({ value, label }: { value: string | number; label: string }) =>

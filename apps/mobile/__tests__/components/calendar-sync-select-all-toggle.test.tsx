@@ -3,16 +3,6 @@ import { describe, expect, it, vi } from 'vitest'
 import { createTokensV2 } from '@/lib/theme'
 import { SelectAllToggle } from '@/components/calendar-sync/calendar-sync-select-all-toggle'
 
-vi.mock('@/components/ui/icons', () => {
-  const ReactModule = require('react')
-  const createIcon = (name: string) => (props: Record<string, unknown>) =>
-    ReactModule.createElement(name, props)
-  return {
-    CheckCheck: createIcon('CheckCheck'),
-    SquareX: createIcon('SquareX'),
-  }
-})
-
 const TestRenderer = require('react-test-renderer')
 
 const tokens = createTokensV2('purple', 'dark')
