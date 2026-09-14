@@ -52,19 +52,6 @@ vi.mock('@/lib/theme', () => ({
   tintFromPrimary: () => 'rgba(17, 17, 17, 0.18)',
 }))
 
-vi.mock('@/components/ui/icons', () => {
-
-  const React = require('react')
-  return {
-    Sparkles: (props: Record<string, unknown>) =>
-      React.createElement('Sparkles', props),
-    ArrowUpRight: (props: Record<string, unknown>) =>
-      React.createElement('ArrowUpRight', props),
-    Copy: (props: Record<string, unknown>) => React.createElement('Copy', props),
-    Check: (props: Record<string, unknown>) => React.createElement('Check', props),
-  }
-})
-
 vi.mock('expo-clipboard', () => ({ setStringAsync: vi.fn().mockResolvedValue(undefined) }))
 
 const push = vi.fn()

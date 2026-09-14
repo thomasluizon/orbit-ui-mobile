@@ -32,12 +32,6 @@ vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (time: string) => time }),
 }))
 
-vi.mock('@/components/ui/icons', () => ({
-  ChevronLeft: () => null,
-  ChevronRight: () => null,
-  X: () => null,
-}))
-
 vi.mock('@/components/dates/month-grid', () => ({
   MonthGrid: ({ children }: { children: React.ReactNode }) => React.createElement('MonthGrid', null, children),
 }))
