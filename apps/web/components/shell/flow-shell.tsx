@@ -11,7 +11,7 @@ interface FlowShellProps {
   action?: ReactNode
   children: ReactNode
   header?: ReactNode
-  mode?: 'card' | 'detail' | 'full'
+  mode?: 'card' | 'detail' | 'document' | 'full'
   notice?: ReactNode
 }
 
@@ -32,17 +32,20 @@ export function FlowShell({ action, children, header, mode = 'card', notice }: R
   }
 
   const detail = mode === 'detail'
+  const document = mode === 'document'
   const content = (
     <div
       data-shell="flow"
-      data-flow-mode="card"
+      data-flow-mode={document ? 'document' : 'card'}
       data-nav={false}
-      className={detail
+      className={document
+        ? 'min-h-full w-full'
+        : detail
         ? 'mx-auto flex min-h-full w-full max-w-[740px] flex-col px-4 py-6'
         : 'mx-auto flex min-h-full w-full max-w-[440px] flex-col px-4 py-8 md:justify-center md:px-0'}
     >
       <div
-        className={detail
+        className={detail || document
           ? 'flex flex-col'
           : 'flex flex-col md:rounded-[20px] md:bg-[var(--bg-card)] md:p-8 md:shadow-[inset_0_0_0_1px_var(--hairline)]'}
         style={{ gap: 24 }}
