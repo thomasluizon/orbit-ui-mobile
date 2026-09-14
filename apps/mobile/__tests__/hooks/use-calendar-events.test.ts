@@ -42,7 +42,7 @@ function useCapturedQueryFn(): () => Promise<CalendarEventsResult> {
       return { data: undefined }
     },
   )
-  useCalendarEvents()
+  useCalendarEvents({ timeZone: 'UTC' })
   return captured!
 }
 
@@ -52,14 +52,22 @@ describe('mobile useCalendarEvents', () => {
     mocks.apiClient.mockReset()
   })
 
-  it('registers the shared manual-fetch query key with retry disabled', () => {
+  it('separates cached event projections by account timezone', () => {
     mocks.useQuery.mockReturnValue({ data: undefined })
-    useCalendarEvents()
+    useCalendarEvents({ timeZone: 'UTC' })
+    useCalendarEvents({ timeZone: 'America/Los_Angeles' })
 
-    expect(mocks.useQuery).toHaveBeenCalledWith(
+    expect(mocks.useQuery).toHaveBeenNthCalledWith(
+      1,
       expect.objectContaining({
-        queryKey: [...calendarKeys.all, 'manual-fetch'],
+        queryKey: [...calendarKeys.all, 'manual-fetch', 'UTC'],
         retry: false,
+      }),
+    )
+    expect(mocks.useQuery).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        queryKey: [...calendarKeys.all, 'manual-fetch', 'America/Los_Angeles'],
       }),
     )
   })

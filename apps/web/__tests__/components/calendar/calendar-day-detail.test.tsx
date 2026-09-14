@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarSyncEvent } from '@orbit/shared'
+import type { CalendarEventsDisplayState } from '@orbit/shared/utils'
 import {
   getCalendarEntryMutationKey,
   useCalendarEntryMutationLock,
@@ -17,6 +19,13 @@ const translations: Record<string, string> = {
   'calendar.status.indulged': 'indulged',
   'calendar.status.resisted': 'resisted',
   'calendar.status.upcoming': 'Upcoming',
+  'calendar.dayDetail.disconnectedTitle': 'Google Calendar disconnected',
+  'calendar.dayDetail.disconnectedBody': 'Reconnect to see the events you can import.',
+  'calendar.dayDetail.noEventsToImport': 'Nothing left to import from Google Calendar on this day.',
+  'calendar.autoSync.reconnectCta': 'Reconnect',
+  'calendar.proBoundary.title': 'Syncing with Google Calendar is part of Orbit Pro.',
+  'calendar.proBoundary.body': 'With it, your commitments show up beside the habits for the day.',
+  'calendar.proBoundary.action': 'See Pro',
 }
 
 vi.mock('next-intl', () => ({
@@ -59,6 +68,11 @@ function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry 
 interface RenderProps {
   dateStr?: string | null
   entries?: CalendarDayEntry[]
+  calendarEvents?: CalendarSyncEvent[]
+  calendarEventsState?: CalendarEventsDisplayState
+  onRetryCalendarEvents?: () => void
+  onReconnectCalendarEvents?: () => void
+  onViewPro?: () => void
   loggable?: boolean
   showRecurring?: boolean
   onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
@@ -68,6 +82,11 @@ interface RenderProps {
 function CalendarDayDetailHarness({
   dateStr = '2025-06-15',
   entries = [],
+  calendarEvents = [],
+  calendarEventsState = 'ready',
+  onRetryCalendarEvents = () => {},
+  onReconnectCalendarEvents = () => {},
+  onViewPro = () => {},
   loggable = false,
   showRecurring = true,
   onEntryChange = async () => {},
@@ -103,6 +122,11 @@ function CalendarDayDetailHarness({
       key={dateStr ?? 'no-date'}
       dateStr={dateStr}
       entries={entries}
+      calendarEvents={calendarEvents}
+      calendarEventsState={calendarEventsState}
+      onRetryCalendarEvents={onRetryCalendarEvents}
+      onReconnectCalendarEvents={onReconnectCalendarEvents}
+      onViewPro={onViewPro}
       loggable={loggable}
       showRecurring={showRecurring}
       pendingEntryStates={pendingEntryStates}
@@ -137,6 +161,120 @@ describe('CalendarDayDetail', () => {
       'bg-[var(--bg-card)]',
       'shadow-[inset_0_0_0_1px_var(--hairline-ghost)]',
     )
+  })
+
+  it('renders timed and all-day Google events as read-only context', () => {
+    renderDetail({
+      entries: [makeEntry({ title: 'Read' })],
+      calendarEventsState: 'ready',
+      calendarEvents: [
+        {
+          id: 'event-1',
+          title: 'Team meeting',
+          description: null,
+          startDate: '2025-06-15',
+          startTime: '09:00',
+          endTime: null,
+          isRecurring: false,
+          recurrenceRule: null,
+          reminders: [],
+        },
+        {
+          id: 'event-2',
+          title: 'Company holiday',
+          description: null,
+          startDate: '2025-06-15',
+          startTime: null,
+          endTime: null,
+          isRecurring: false,
+          recurrenceRule: null,
+          reminders: [],
+        },
+      ],
+    })
+
+    expect(screen.getByText('calendar.dayDetail.eventsTitle')).toBeInTheDocument()
+    const timedEvent = screen.getByRole('img', {
+      name: '09:00, Team meeting, calendar.title',
+    })
+    const allDayEvent = screen.getByRole('img', {
+      name: 'calendar.timeGrid.allDay, Company holiday, calendar.title',
+    })
+    expect(within(timedEvent).queryByRole('button')).toBeNull()
+    expect(within(allDayEvent).queryByRole('button')).toBeNull()
+  })
+
+  it('renders a failed events request instead of the empty result', () => {
+    renderDetail({ entries: [makeEntry()], calendarEventsState: 'failed' })
+
+    expect(screen.getByRole('alert')).toHaveTextContent('calendar.fetchError')
+    expect(screen.queryByText('calendar.noEvents')).not.toBeInTheDocument()
+  })
+
+  it('renders the events loading treatment alone', () => {
+    renderDetail({ entries: [makeEntry()], calendarEventsState: 'loading' })
+
+    expect(screen.getByRole('progressbar', { name: 'calendar.fetchingEvents' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText('calendar.noEvents')).not.toBeInTheDocument()
+  })
+
+  it('offers reconnection without rendering the connected-empty treatment', () => {
+    const onReconnectCalendarEvents = vi.fn()
+    renderDetail({
+      entries: [makeEntry()],
+      calendarEventsState: 'not-connected',
+      onReconnectCalendarEvents,
+    })
+
+    expect(screen.getByText('Google Calendar disconnected')).toBeInTheDocument()
+    expect(screen.getByText('Reconnect to see the events you can import.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }))
+    expect(onReconnectCalendarEvents).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('calendar.noEvents')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('renders the free sync boundary with one route to Orbit Pro', () => {
+    const onViewPro = vi.fn()
+    renderDetail({
+      entries: [makeEntry()],
+      calendarEventsState: 'pro-boundary',
+      onViewPro,
+    })
+
+    const boundary = screen.getByTestId('calendar-pro-boundary')
+    expect(boundary).toHaveTextContent('Syncing with Google Calendar is part of Orbit Pro.')
+    expect(boundary).toHaveTextContent(
+      'With it, your commitments show up beside the habits for the day.',
+    )
+    const actions = within(boundary).getAllByRole('button')
+    expect(actions).toHaveLength(1)
+    expect(actions[0]).toBeEnabled()
+    expect(actions[0]).toHaveAttribute('data-variant', 'primary')
+    fireEvent.click(actions[0]!)
+    expect(onViewPro).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses the neutral Pro action beside the wide sidebar action', () => {
+    renderDetail({
+      entries: [makeEntry()],
+      calendarEventsState: 'pro-boundary',
+      fitViewport: true,
+    })
+
+    expect(
+      within(screen.getByTestId('calendar-pro-boundary')).getByRole('button'),
+    ).toHaveAttribute('data-variant', 'secondary')
+  })
+
+  it('renders the empty events state after an empty response resolves', () => {
+    renderDetail({ entries: [makeEntry()], calendarEventsState: 'ready' })
+
+    expect(
+      screen.getByText('Nothing left to import from Google Calendar on this day.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('keeps ordinary upcoming rows distinct from completed and missed outcomes', () => {

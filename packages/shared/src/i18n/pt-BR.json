@@ -916,7 +916,16 @@
     "loadError": "Não foi possível carregar o calendário. Tente de novo.",
     "dayDetail": {
       "completionSummary": "{done} de {total} registrados",
-      "nothingDue": "nada programado"
+      "nothingDue": "nada programado",
+      "eventsTitle": "Disponíveis para importar",
+      "disconnectedTitle": "Google Calendar desconectado",
+      "disconnectedBody": "Reconecte para ver os eventos que você pode importar.",
+      "noEventsToImport": "Nada para importar do Google Calendar neste dia."
+    },
+    "proBoundary": {
+      "title": "Sincronizar com o Google Calendar faz parte do Orbit Pro.",
+      "body": "Com ele, os seus compromissos aparecem ao lado dos hábitos do dia.",
+      "action": "Ver o Pro"
     },
     "noHabitsScheduled": "Nenhum hábito estava programado neste dia.",
     "goToDay": "Abrir este dia no Hoje",

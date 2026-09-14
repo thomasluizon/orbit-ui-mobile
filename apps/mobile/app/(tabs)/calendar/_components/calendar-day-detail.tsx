@@ -2,12 +2,22 @@ import { useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarSyncEvent } from '@orbit/shared'
 import type { StatusRingProps } from '@orbit/shared/contracts/lists'
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
-import { determineHabitDayStatus, parseAPIDate } from '@orbit/shared/utils'
+import {
+  determineHabitDayStatus,
+  parseAPIDate,
+  type CalendarEventsDisplayState,
+} from '@orbit/shared/utils'
 import { CheckRow } from '@/components/ui/check-row'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { ErrorState } from '@/components/ui/error-state'
 import { ListRow } from '@/components/ui/list-row'
+import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { StatusRing } from '@/components/ui/status-ring'
+import { EventRow } from '@/components/dates/event-row'
 import { createTokensV2, radius } from '@/lib/theme'
 import { ShowRecurringToggle } from './show-recurring-toggle'
 
@@ -17,6 +27,11 @@ interface CalendarDayDetailProps {
   selectedDate: string
   selectedEntries: CalendarDayEntry[]
   filteredEntries: CalendarDayEntry[]
+  calendarEvents: CalendarSyncEvent[]
+  calendarEventsState: CalendarEventsDisplayState
+  onRetryCalendarEvents: () => void
+  onReconnectCalendarEvents: () => void
+  onViewPro: () => void
   completedCount: number
   loggable: boolean
   showRecurring: boolean
@@ -27,6 +42,104 @@ interface CalendarDayDetailProps {
   displayTime: (time: string) => string
   t: TFunction
   tokens: Tokens
+}
+
+function CalendarEventsSection({
+  calendarEvents,
+  state,
+  onRetry,
+  onReconnect,
+  onViewPro,
+  displayTime,
+  t,
+  tokens,
+  styles,
+}: Readonly<{
+  calendarEvents: CalendarSyncEvent[]
+  state: CalendarEventsDisplayState
+  onRetry: () => void
+  onReconnect: () => void
+  onViewPro: () => void
+  displayTime: (time: string) => string
+  t: TFunction
+  tokens: Tokens
+  styles: ReturnType<typeof createStyles>
+}>) {
+  if (state === 'pro-boundary') {
+    return (
+      <View testID="calendar-pro-boundary" style={styles.proBoundary}>
+        <CapacityNotice
+          message={t('calendar.proBoundary.title')}
+          body={t('calendar.proBoundary.body')}
+          action={
+            /* eslint-disable-next-line local/max-button-words -- ORB-50 owns this granted canvas label. */
+            <PillButton size="sm" onClick={onViewPro}>
+              {t('calendar.proBoundary.action')}
+            </PillButton>
+          }
+        />
+      </View>
+    )
+  }
+
+  return (
+    <View style={styles.eventSection}>
+      <Text style={[styles.eventTitle, { color: tokens.fg2 }]}>
+        {t('calendar.dayDetail.eventsTitle')}
+      </Text>
+      {state === 'loading' ? (
+        <Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} />
+      ) : null}
+      {state === 'failed' ? (
+        <ErrorState
+          message={t('calendar.fetchError')}
+          action={
+            /* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */
+            <PillButton variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
+          }
+        />
+      ) : null}
+      {state === 'not-connected' ? (
+        <View style={styles.reconnectState}>
+          <Text style={[styles.reconnectTitle, { color: tokens.fg1 }]}>
+            {t('calendar.dayDetail.disconnectedTitle')}
+          </Text>
+          <Text style={[styles.reconnectBody, { color: tokens.fg3 }]}>
+          {t('calendar.dayDetail.disconnectedBody')}
+          </Text>
+          <PillButton variant="ghost" onClick={onReconnect}>
+            {t('calendar.autoSync.reconnectCta')}
+          </PillButton>
+        </View>
+      ) : null}
+      {state === 'ready' && calendarEvents.length === 0 ? (
+        <Text style={[styles.emptyEventText, { color: tokens.fg3 }]}>
+          {t('calendar.dayDetail.noEventsToImport')}
+        </Text>
+      ) : null}
+      {state === 'ready' && calendarEvents.length > 0 ? (
+        <View style={styles.eventList}>
+          {calendarEvents.map((event) =>
+            event.startTime ? (
+              <EventRow
+                key={event.id}
+                time={displayTime(event.startTime)}
+                title={event.title}
+                source={t('calendar.title')}
+              />
+            ) : (
+              <EventRow
+                key={event.id}
+                allDayLabel={t('calendar.timeGrid.allDay')}
+                title={event.title}
+                source={t('calendar.title')}
+              />
+            ),
+          )}
+        </View>
+      ) : null}
+    </View>
+  )
 }
 
 type EntryOutcome = {
@@ -113,6 +226,11 @@ export function CalendarDayDetail({
   selectedDate,
   selectedEntries,
   filteredEntries,
+  calendarEvents,
+  calendarEventsState,
+  onRetryCalendarEvents,
+  onReconnectCalendarEvents,
+  onViewPro,
   completedCount,
   loggable,
   showRecurring,
@@ -195,6 +313,18 @@ export function CalendarDayDetail({
         </View>
       ) : null}
 
+      <CalendarEventsSection
+        calendarEvents={calendarEvents}
+        state={calendarEventsState}
+        onRetry={onRetryCalendarEvents}
+        onReconnect={onReconnectCalendarEvents}
+        onViewPro={onViewPro}
+        displayTime={displayTime}
+        t={t}
+        tokens={tokens}
+        styles={styles}
+      />
+
       {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
       <ListRow
         icon="external-link"
@@ -232,6 +362,44 @@ function createStyles(tokens: Tokens) {
     },
     emptyDayText: {
       color: tokens.fg3,
+      fontFamily: 'Geist_400Regular',
+      fontSize: 14,
+      lineHeight: 22,
+      paddingVertical: 24,
+      textAlign: 'center',
+    },
+    eventSection: {
+      gap: 8,
+      paddingHorizontal: 16,
+    },
+    eventTitle: {
+      fontFamily: 'Geist_500Medium',
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    eventList: {
+      gap: 4,
+    },
+    reconnectState: {
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 24,
+    },
+    proBoundary: {
+      paddingHorizontal: 16,
+    },
+    reconnectTitle: {
+      fontFamily: 'Geist_500Medium',
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    reconnectBody: {
+      fontFamily: 'Geist_400Regular',
+      fontSize: 14,
+      lineHeight: 21,
+      textAlign: 'center',
+    },
+    emptyEventText: {
       fontFamily: 'Geist_400Regular',
       fontSize: 14,
       lineHeight: 22,

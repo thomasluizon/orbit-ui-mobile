@@ -9,18 +9,30 @@ import {
   determineHabitDayStatus,
   filterRecurringEntries,
   parseAPIDate,
+  type CalendarEventsDisplayState,
 } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarSyncEvent } from '@orbit/shared'
 import type { StatusRingProps } from '@orbit/shared/contracts/lists'
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
 import { CheckRow } from '@/components/ui/check-row'
+import { CapacityNotice } from '@/components/ui/capacity-notice'
+import { ErrorState } from '@/components/ui/error-state'
 import { ListRow } from '@/components/ui/list-row'
+import { PillButton } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { StatusRing } from '@/components/ui/status-ring'
 import { ShowRecurringToggle } from '@/components/calendar/show-recurring-toggle'
+import { EventRow } from '@/components/dates/event-row'
 
 interface CalendarDayDetailProps {
   dateStr: string | null
   entries: CalendarDayEntry[]
+  calendarEvents: CalendarSyncEvent[]
+  calendarEventsState: CalendarEventsDisplayState
+  onRetryCalendarEvents: () => void
+  onReconnectCalendarEvents: () => void
+  onViewPro: () => void
   loggable: boolean
   showRecurring: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
@@ -30,6 +42,101 @@ interface CalendarDayDetailProps {
   /** Desktop side-panel mode: the entries list scrolls within the viewport and
    * the go-to-day row stays pinned below it. */
   fitViewport?: boolean
+}
+
+function CalendarEventsSection({
+  calendarEvents,
+  state,
+  onRetry,
+  onReconnect,
+  onViewPro,
+  proActionVariant,
+}: Readonly<{
+  calendarEvents: CalendarSyncEvent[]
+  state: CalendarEventsDisplayState
+  onRetry: () => void
+  onReconnect: () => void
+  onViewPro: () => void
+  proActionVariant: 'primary' | 'secondary'
+}>) {
+  const t = useTranslations()
+  const { displayTime } = useTimeFormat()
+
+  if (state === 'pro-boundary') {
+    return (
+      <div data-testid="calendar-pro-boundary" style={{ paddingInline: 16 }}>
+        <CapacityNotice
+          message={t('calendar.proBoundary.title')}
+          body={t('calendar.proBoundary.body')}
+          action={
+            /* eslint-disable-next-line local/max-button-words -- ORB-50 owns this granted canvas label. */
+            <PillButton variant={proActionVariant} size="sm" onClick={onViewPro}>
+              {t('calendar.proBoundary.action')}
+            </PillButton>
+          }
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col" style={{ gap: 8, paddingInline: 16 }}>
+      <p className="text-sm font-medium text-[var(--fg-2)]" style={{ margin: 0, lineHeight: 1.4 }}>
+        {t('calendar.dayDetail.eventsTitle')}
+      </p>
+      {state === 'loading' ? (
+        <Skeleton variant="settings" rows={1} label={t('calendar.fetchingEvents')} />
+      ) : null}
+      {state === 'failed' ? (
+        <ErrorState
+          message={t('calendar.fetchError')}
+          action={
+            /* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */
+            <PillButton variant="ghost" onClick={onRetry}>{t('common.retry')}</PillButton>
+          }
+        />
+      ) : null}
+      {state === 'not-connected' ? (
+        <div className="flex flex-col items-center text-center" style={{ gap: 12, paddingBlock: 24 }}>
+          <p className="text-sm font-medium text-[var(--fg-1)]" style={{ margin: 0 }}>
+            {t('calendar.dayDetail.disconnectedTitle')}
+          </p>
+          <p className="text-sm text-[var(--fg-3)]" style={{ margin: 0, lineHeight: 1.5 }}>
+            {t('calendar.dayDetail.disconnectedBody')}
+          </p>
+          <PillButton variant="ghost" onClick={onReconnect}>
+            {t('calendar.autoSync.reconnectCta')}
+          </PillButton>
+        </div>
+      ) : null}
+      {state === 'ready' && calendarEvents.length === 0 ? (
+        <p className="text-center text-sm text-[var(--fg-3)]" style={{ margin: 0, paddingBlock: 24 }}>
+          {t('calendar.dayDetail.noEventsToImport')}
+        </p>
+      ) : null}
+      {state === 'ready' && calendarEvents.length > 0 ? (
+        <div className="flex flex-col" style={{ gap: 4 }}>
+          {calendarEvents.map((event) =>
+            event.startTime ? (
+              <EventRow
+                key={event.id}
+                time={displayTime(event.startTime)}
+                title={event.title}
+                source={t('calendar.title')}
+              />
+            ) : (
+              <EventRow
+                key={event.id}
+                allDayLabel={t('calendar.timeGrid.allDay')}
+                title={event.title}
+                source={t('calendar.title')}
+              />
+            ),
+          )}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 type EntryOutcome = {
@@ -170,6 +277,11 @@ function CalendarDayRows({
 export function CalendarDayDetail({
   dateStr,
   entries,
+  calendarEvents,
+  calendarEventsState,
+  onRetryCalendarEvents,
+  onReconnectCalendarEvents,
+  onViewPro,
   loggable,
   showRecurring,
   pendingEntryStates,
@@ -239,6 +351,14 @@ export function CalendarDayDetail({
           />
         </div>
       ) : null}
+      <CalendarEventsSection
+        calendarEvents={calendarEvents}
+        state={calendarEventsState}
+        onRetry={onRetryCalendarEvents}
+        onReconnect={onReconnectCalendarEvents}
+        onViewPro={onViewPro}
+        proActionVariant={fitViewport ? 'secondary' : 'primary'}
+      />
     </div>
   )
 

@@ -39,6 +39,7 @@ import {
   CALENDAR_MONTH_SWIPE_THRESHOLD,
   filterRecurringDayMap,
   filterRecurringEntries,
+  filterCalendarSyncEventsByDate,
   formatAPIDate,
   isCalendarDayLoggable,
   parseAPIDate,
@@ -48,6 +49,7 @@ import {
   resolveCalendarRangeEnd,
   CALENDAR_MONTH_GRID_GEOMETRY,
   resolveCalendarMonthDisplayState,
+  resolveCalendarEventsDisplayState,
   type CalendarMonthDisplayState,
 } from "@orbit/shared/utils";
 import {
@@ -58,6 +60,7 @@ import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import type { Profile } from "@orbit/shared/types/profile";
 import { useCalendarData, useCalendarRange, useLogHabit } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
+import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { createTokensV2 } from "@/lib/theme";
@@ -299,7 +302,7 @@ function CalendarProfileState({
 }
 
 interface CalendarScreenContentProps {
-  profile: Pick<Profile, 'weekStartDay' | 'timeZone'>;
+  profile: Pick<Profile, 'weekStartDay' | 'timeZone' | 'hasProAccess'>;
   currentMonth: Date;
   setCurrentMonth: Dispatch<SetStateAction<Date>>;
   monthQuery: ReturnType<typeof useCalendarData>;
@@ -365,6 +368,21 @@ function CalendarScreenContent({
   );
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
   const [showRecurring, setShowRecurring] = useState(true);
+  const {
+    data: calendarEventsResult,
+    isPending: calendarEventsPending,
+    error: calendarEventsError,
+    refetch: refetchCalendarEvents,
+  } = useCalendarEvents({
+    enabled: profile.hasProAccess,
+    timeZone: profile.timeZone,
+  });
+  const calendarEventsState = resolveCalendarEventsDisplayState({
+    enabled: profile.hasProAccess,
+    isPending: calendarEventsPending,
+    error: calendarEventsError,
+    resultStatus: calendarEventsResult?.status,
+  });
 
   const { dayMap, isLoading, isFetching, error, refresh } = monthQuery;
 
@@ -579,6 +597,14 @@ function CalendarScreenContent({
     if (!selectedDay) return [];
     return activeDayMap.get(selectedDay) ?? [];
   }, [selectedDay, activeDayMap]);
+
+  const selectedCalendarEvents = useMemo(
+    () =>
+      profile.hasProAccess && calendarEventsResult?.status === "connected"
+        ? filterCalendarSyncEventsByDate(calendarEventsResult.events, selectedDay)
+        : [],
+    [calendarEventsResult, profile.hasProAccess, selectedDay],
+  );
 
   const filteredEntries = useMemo(
     () => filterRecurringEntries(selectedEntries, showRecurring),
@@ -896,6 +922,17 @@ function CalendarScreenContent({
             selectedDate={selectedDay}
             selectedEntries={selectedEntries}
             filteredEntries={filteredEntries}
+            calendarEvents={selectedCalendarEvents}
+            calendarEventsState={calendarEventsState}
+            onRetryCalendarEvents={() => void refetchCalendarEvents()}
+            onReconnectCalendarEvents={() => closeSheet(() => {
+              setIsDayDetailOpen(false);
+              router.push('/calendar-sync');
+            })}
+            onViewPro={() => closeSheet(() => {
+              setIsDayDetailOpen(false);
+              router.push('/upgrade');
+            })}
             completedCount={completedCount}
             loggable={selectedDayLoggable}
             showRecurring={showRecurring}
