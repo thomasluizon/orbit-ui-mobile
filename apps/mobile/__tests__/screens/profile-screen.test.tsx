@@ -347,6 +347,7 @@ vi.mock('@/components/ui/list-row', () => ({
     accessibilityLabel,
     chevron = true,
     action,
+    readOnly = false,
   }: {
     title: string
     description?: string
@@ -356,6 +357,7 @@ vi.mock('@/components/ui/list-row', () => ({
     accessibilityLabel?: string
     chevron?: boolean
     action?: { label: string; onPress: () => void }
+    readOnly?: boolean
   }) => React.createElement(
     'SettingsRowStub',
     {
@@ -363,9 +365,9 @@ vi.mock('@/components/ui/list-row', () => ({
       hint: description,
       value,
       hasTrailing: Boolean(trailing),
-      onPress: onClick,
+      onPress: readOnly ? undefined : onClick,
       chevron,
-      accessibilityRole: onClick ? 'button' : undefined,
+      accessibilityRole: !readOnly && onClick ? 'button' : undefined,
       accessibilityLabel: accessibilityLabel ?? title,
     },
     action ? React.createElement('RowActionStub', {
