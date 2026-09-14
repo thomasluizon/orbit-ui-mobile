@@ -58,6 +58,7 @@ type CoverProps = Parameters<typeof WrappedCover>[0]
 
 const baseProps: CoverProps = {
   tokens,
+  topInset: 0,
   period: RECAP_SHARE_PERIODS[0],
   onSelectPeriod: vi.fn(),
   state: 'ready',

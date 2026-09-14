@@ -26,6 +26,7 @@ import {
   clearStepUpTiming,
   markStepUpAttemptFailed,
   markStepUpExhausted,
+  markStepUpVerified,
   readStepUpTiming,
 } from '@/lib/step-up-storage'
 import { FlowShell } from '@/components/shell/flow-shell'
@@ -130,7 +131,8 @@ export function StepUpScreen() {
           return
         }
         clearStepUpTiming(operation)
-        router.replace('/advanced?create-key=1')
+        markStepUpVerified(operation)
+        router.replace('/profile')
         return
       }
       const result = await confirmDeletion(code)

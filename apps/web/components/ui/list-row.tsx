@@ -1,6 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import Link from 'next/link'
 import type { ListRowProps } from '@orbit/shared/contracts/lists'
 import { ChevronRight } from '@/components/ui/icons'
 import { Icon } from '@/components/ui/icon'
@@ -26,15 +27,18 @@ function RowBody({ title, wrapTitle, description, icon, value, danger, trailing 
 }
 
 export function ListRow(props: Readonly<ListRowProps>) {
-  const { accessibilityLabel, action, chevron = true, onClick, readOnly = false } = props
+  const { accessibilityLabel, action, chevron = true, href, onClick, readOnly = false } = props
   const body: ReactNode = <RowBody {...props} />
-  const content = <span className={`flex min-w-0 flex-1 items-center ${!readOnly && onClick ? 'orbit-list-row group-active/list-body:scale-[0.96]' : ''}`} style={{ minHeight: 44, gap: 12 }}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}><ChevronRight size={24} color="var(--fg-4)" strokeWidth={1.8} /></span> : null}</span>
+  const interactive = !readOnly && (href || onClick)
+  const content = <span className={`flex min-w-0 flex-1 items-center ${interactive ? 'orbit-list-row group-active/list-body:scale-[0.96]' : ''}`} style={{ minHeight: 44, gap: 12 }}>{body}{!readOnly && chevron ? <span className="flex shrink-0 items-center justify-center" style={{ width: 44, height: 44 }}><ChevronRight size={24} color="var(--fg-4)" strokeWidth={1.8} /></span> : null}</span>
   const bodyStyle = { minHeight: 76, padding: 16, paddingInlineEnd: action ? 0 : 16 } as const
 
   return (
     <div className="flex items-stretch" style={{ minHeight: 52 }}>
-      {readOnly || !onClick ? (
+      {readOnly || (!href && !onClick) ? (
         <div className="flex min-w-0 flex-1 items-center" style={bodyStyle}>{content}</div>
+      ) : href ? (
+        <Link href={href} aria-label={accessibilityLabel} className="orbit-list-row-body group/list-body flex min-w-0 flex-1 cursor-pointer items-center text-left no-underline" style={bodyStyle}>{content}</Link>
       ) : (
         <button type="button" aria-label={accessibilityLabel} onClick={onClick} className="orbit-list-row-body group/list-body flex min-w-0 flex-1 cursor-pointer items-center border-0 bg-transparent text-left" style={bodyStyle}>{content}</button>
       )}
