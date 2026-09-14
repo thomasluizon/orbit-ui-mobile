@@ -13,8 +13,10 @@ describe('buildWrappedSlides', () => {
       'consistency',
       'streak',
       'topHabit',
+      'goals',
       'share',
     ])
+    expect(slides).toHaveLength(8)
   })
 
   it('omits the standout-habit slide when there are no top habits, keeping share last', () => {
@@ -28,8 +30,10 @@ describe('buildWrappedSlides', () => {
       'activeDays',
       'consistency',
       'streak',
+      'goals',
       'share',
     ])
+    expect(slides).toHaveLength(7)
     expect(slides.at(-1)?.id).toBe('share')
   })
 
@@ -56,6 +60,7 @@ describe('buildWrappedSlides', () => {
     expect(byId.streak).toMatchObject({ bestStreak: 18, currentStreak: 9 })
     expect(byId.consistency).toMatchObject({ weeklyConsistency: [10, 20, 30, 40, 50, 60, 70] })
     expect(byId.topHabit).toMatchObject({ habit: { name: 'Read' } })
+    expect(byId.goals).toMatchObject({ closedGoals: 0 })
   })
 
   it('caps the consistency slide at seven days', () => {

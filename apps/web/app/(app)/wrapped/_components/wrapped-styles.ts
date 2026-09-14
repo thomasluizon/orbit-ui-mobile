@@ -71,13 +71,3 @@ export const coverEyebrowStyle: CSSProperties = {
   textTransform: 'uppercase',
   color: 'var(--fg-3)',
 }
-
-export const dayLabelStyle: CSSProperties = {
-  fontFamily: 'var(--font-mono)',
-  fontSize: 12,
-  fontWeight: 400,
-  letterSpacing: '0.02em',
-  color: 'var(--fg-3)',
-  fontVariantNumeric: 'tabular-nums',
-  textAlign: 'center',
-}

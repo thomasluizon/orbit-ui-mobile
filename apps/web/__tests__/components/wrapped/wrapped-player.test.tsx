@@ -50,6 +50,7 @@ describe('WrappedPlayer', () => {
       screen.getByTestId('wrapped-slide-intro').compareDocumentPosition(pager)
       & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
+    expect(within(pager).getAllByRole('listitem')).toHaveLength(8)
   })
 
   it('pages forward and back through the Pager controls', () => {
@@ -108,6 +109,6 @@ describe('WrappedPlayer', () => {
     )
 
     expect(screen.queryByTestId('wrapped-slide-topHabit')).not.toBeInTheDocument()
-    expect(within(screen.getByTestId('wrapped-pager')).getAllByRole('listitem')).toHaveLength(6)
+    expect(within(screen.getByTestId('wrapped-pager')).getAllByRole('listitem')).toHaveLength(7)
   })
 })

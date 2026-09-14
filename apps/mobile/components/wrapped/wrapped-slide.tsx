@@ -1,5 +1,5 @@
 import type { Ref } from 'react'
-import { Text, View } from 'react-native'
+import { View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import type { Recap } from '@orbit/shared/types/gamification'
@@ -9,6 +9,7 @@ import {
   type WrappedSlide as WrappedSlideModel,
 } from '@orbit/shared/utils'
 import { ShareCard } from '@/components/share/share-card'
+import { Columns } from '@/components/ui/columns'
 import { styles, type Tokens } from '@/app/wrapped-styles'
 
 const WEEKDAY_KEYS = [
@@ -47,7 +48,7 @@ export function WrappedSlide({ slide, recap, period, tokens, displayName, shareR
           <Animated.Text entering={enter(0)} style={[styles.eyebrow, { color: tokens.fg3 }]}>
             {t('wrapped.slides.intro.eyebrow')}
           </Animated.Text>
-          <Animated.Text entering={enter(1)} style={[styles.title, { color: tokens.fg1 }]}>
+          <Animated.Text testID="wrapped-figure" entering={enter(1)} style={[styles.title, { color: tokens.fg1 }]}>
             {t(`wrapped.slides.intro.${period}`)}
           </Animated.Text>
           <Animated.Text entering={enter(2)} style={[styles.caption, { color: tokens.fg2 }]}>
@@ -88,10 +89,7 @@ export function WrappedSlide({ slide, recap, period, tokens, displayName, shareR
           <Animated.Text entering={enter(1)} style={[styles.title, { color: tokens.fg1 }]}>
             {t('wrapped.slides.consistency.title')}
           </Animated.Text>
-          <WeeklyRhythm tokens={tokens} values={slide.weeklyConsistency} />
-          <Animated.Text entering={enter(3)} style={[styles.caption, { color: tokens.fg2 }]}>
-            {t('wrapped.slides.consistency.caption')}
-          </Animated.Text>
+          <WeekdayColumns values={slide.weeklyConsistency} />
         </View>
       )
     case 'streak':
@@ -111,7 +109,7 @@ export function WrappedSlide({ slide, recap, period, tokens, displayName, shareR
           <Animated.Text entering={enter(0)} style={[styles.eyebrow, { color: tokens.fg3 }]}>
             {t('wrapped.slides.topHabit.eyebrow')}
           </Animated.Text>
-          <Animated.Text entering={enter(1)} style={styles.bigEmoji}>
+          <Animated.Text testID="wrapped-figure" entering={enter(1)} style={styles.bigEmoji}>
             {slide.habit.emoji ?? '⭐'}
           </Animated.Text>
           <Animated.Text
@@ -125,6 +123,17 @@ export function WrappedSlide({ slide, recap, period, tokens, displayName, shareR
             {t('wrapped.slides.topHabit.caption', {
               rate: formatCompletionRate(slide.habit.completionRate),
             })}
+          </Animated.Text>
+        </View>
+      )
+    case 'goals':
+      return (
+        <View style={styles.slide} testID="wrapped-slide-goals">
+          <Animated.Text testID="wrapped-figure" entering={enter(0)} style={[styles.heroNumeral, { color: tokens.fg1 }]}>
+            {slide.closedGoals}
+          </Animated.Text>
+          <Animated.Text entering={enter(1)} style={[styles.label, { color: tokens.fg2 }]}>
+            {t('progressScreen.sections.goals')}
           </Animated.Text>
         </View>
       )
@@ -148,7 +157,7 @@ function HeroStatSlide({ tokens, testID, eyebrow, value, label, caption }: Reado
       <Animated.Text entering={enter(0)} style={[styles.eyebrow, { color: tokens.fg3 }]}>
         {eyebrow}
       </Animated.Text>
-      <Animated.Text entering={enter(1)} style={[styles.heroNumeral, { color: tokens.fg1 }]}>
+      <Animated.Text testID="wrapped-figure" entering={enter(1)} style={[styles.heroNumeral, { color: tokens.fg1 }]}>
         {value}
       </Animated.Text>
       <Animated.Text entering={enter(2)} style={[styles.label, { color: tokens.fg2 }]}>
@@ -161,32 +170,20 @@ function HeroStatSlide({ tokens, testID, eyebrow, value, label, caption }: Reado
   )
 }
 
-function WeeklyRhythm({ tokens, values }: Readonly<{ tokens: Tokens; values: number[] }>) {
+function WeekdayColumns({ values }: Readonly<{ values: number[] }>) {
   const { t } = useTranslation()
   return (
-    <Animated.View style={styles.barsRow} entering={enter(2)}>
-      {values.slice(0, 7).map((value, index) => {
-        const clamped = Math.max(0, Math.min(100, value))
-        return (
-          <View key={WEEKDAY_KEYS[index]} style={styles.barColumn}>
-            <View style={styles.barTrack}>
-              <View
-                style={[
-                  styles.bar,
-                  {
-                    height: Math.max(8, (clamped / 100) * 132),
-                    backgroundColor: tokens.primary,
-                    opacity: clamped === 0 ? 0.25 : 1,
-                  },
-                ]}
-              />
-            </View>
-            <Text style={[styles.dayLabel, { color: tokens.fg3 }]}>
-              {t(`dates.daysShort.${WEEKDAY_KEYS[index]}`)}
-            </Text>
-          </View>
-        )
-      })}
+    <Animated.View testID="wrapped-figure" style={styles.figureWidth} entering={enter(2)}>
+      <Columns
+        columns={values.slice(0, 7).map((value, index) => {
+          const weekday = WEEKDAY_KEYS[index]!
+          return { id: weekday, label: t(`dates.daysShort.${weekday}`), value }
+        })}
+        height={160}
+        showValues
+        label={t('wrapped.slides.consistency.title')}
+        emptyLabel={t('calendar.emptyStat')}
+      />
     </Animated.View>
   )
 }
@@ -207,7 +204,7 @@ function WrappedShareSlide({ recap, tokens, displayName, shareRef, hasError }: R
       <Animated.Text entering={enter(0)} style={[styles.eyebrow, { color: tokens.fg3 }]}>
         {t('wrapped.slides.share.eyebrow')}
       </Animated.Text>
-      <Animated.View entering={enter(1)}>
+      <Animated.View testID="wrapped-figure" entering={enter(1)}>
         <ShareCard ref={shareRef} recap={recap} displayName={displayName} />
       </Animated.View>
 

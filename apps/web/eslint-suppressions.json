@@ -67,11 +67,6 @@
       "count": 2
     }
   },
-  "app/(app)/wrapped/_components/wrapped-slide.tsx": {
-    "local/spacing-scale": {
-      "count": 6
-    }
-  },
   "app/(public)/delete-account/page.tsx": {
     "local/spacing-scale": {
       "count": 5
