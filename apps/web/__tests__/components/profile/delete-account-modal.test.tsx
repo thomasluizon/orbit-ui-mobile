@@ -1,4 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { parseISO } from 'date-fns'
+import { createLocaleDateFormatters } from '@orbit/shared/hooks'
 import en from '@orbit/shared/i18n/en.json'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
@@ -40,6 +42,10 @@ vi.mock('@/components/ui/sheet', async () =>
   await import('@/__tests__/support/sheet-double'))
 
 import { DeleteAccountModal } from '@/app/(app)/profile/_components/delete-account-modal'
+
+const PLAN_EXPIRY = '2026-09-30T12:00:00Z'
+const formattedPlanExpiry = createLocaleDateFormatters('en').displayDate(parseISO(PLAN_EXPIRY))
+const proWarning = en.profile.deleteAccount.warningPro.replace('{date}', formattedPlanExpiry)
 
 const profile = {
   name: 'Thomas',
@@ -89,7 +95,10 @@ describe('DeleteAccountModal', () => {
 
     expect(screen.getByText('profile.deleteAccount.headingAreYouSure')).toBeInTheDocument()
     expect(screen.getByText(/time to change your mind/i)).toBeInTheDocument()
-    expect(screen.getByText(/log back in.*cancel/i)).toBeInTheDocument()
+    expect(screen.getByText(en.profile.deleteAccount.warningFree)).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain(
+      en.profile.deleteAccount.warningPro.split('{date}')[0],
+    )
     expect(screen.getByText(en.profile.deleteAccount.warningDetail)).toBeInTheDocument()
     expect(screen.getByText('profile.deleteAccount.sendCode')).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
@@ -104,12 +113,13 @@ describe('DeleteAccountModal', () => {
           ...profile,
           plan: 'pro',
           hasProAccess: true,
-          planExpiresAt: '2026-09-30T00:00:00Z',
+          planExpiresAt: PLAN_EXPIRY,
         }}
       />,
     )
 
-    expect(document.body.textContent).toMatch(/log back in.*cancel/i)
+    expect(screen.getByText(proWarning)).toHaveTextContent(formattedPlanExpiry)
+    expect(screen.queryByText(en.profile.deleteAccount.warningFree)).not.toBeInTheDocument()
   })
 
   it('persists the send time and routes to the deletion step up screen', async () => {

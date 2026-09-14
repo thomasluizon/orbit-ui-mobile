@@ -7,6 +7,10 @@ import { DeleteAccountModal } from '@/app/(tabs)/profile/_components/delete-acco
 
 const TestRenderer = require('react-test-renderer')
 
+const PLAN_EXPIRY = '2026-09-30T12:00:00Z'
+const formattedPlanExpiry = new Date(PLAN_EXPIRY).toISOString()
+const proWarning = ptBR.profile.deleteAccount.warningPro.replace('{date}', formattedPlanExpiry)
+
 const mocks = vi.hoisted(() => ({
   apiClient: vi.fn(),
   beginChallenge: vi.fn(),
@@ -55,14 +59,16 @@ vi.mock('@/lib/theme', () => ({
 vi.mock('@/components/ui/sheet', async () =>
   await import('@/__tests__/support/sheet-double'))
 
-async function renderModal() {
+async function renderModal(
+  profile = createMockProfile({ hasProAccess: false, plan: 'free' }),
+) {
   let tree!: ReturnType<typeof TestRenderer.create>
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(
       <DeleteAccountModal
         open
         onClose={mocks.onClose}
-        profile={createMockProfile({ hasProAccess: false, plan: 'free' })}
+        profile={profile}
       />,
     )
     await Promise.resolve()
@@ -95,10 +101,24 @@ describe('DeleteAccountModal', () => {
     const copy = textContent(tree.root)
 
     expect(copy).toMatch(/tempo para mudar de ideia/i)
-    expect(copy).toMatch(/entre de novo.*cancelar/i)
+    expect(copy).toContain(ptBR.profile.deleteAccount.warningFree)
+    expect(copy).not.toContain(ptBR.profile.deleteAccount.warningPro.split('{date}')[0])
     expect(copy).toContain(ptBR.profile.deleteAccount.warningDetail)
     expect(mocks.apiClient).not.toHaveBeenCalled()
     expect(mocks.beginChallenge).not.toHaveBeenCalled()
+  })
+
+  it('shows the Pro warning with the formatted plan date', async () => {
+    const tree = await renderModal(createMockProfile({
+      hasProAccess: true,
+      plan: 'pro',
+      planExpiresAt: PLAN_EXPIRY,
+    }))
+    const copy = textContent(tree.root)
+
+    expect(copy).toContain(proWarning)
+    expect(copy).toContain(formattedPlanExpiry)
+    expect(copy).not.toContain(ptBR.profile.deleteAccount.warningFree)
   })
 
   it('requests the code before entering the deletion step up', async () => {
