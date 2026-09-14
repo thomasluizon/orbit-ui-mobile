@@ -6,6 +6,7 @@ import {
   isRecapShareEmpty,
   RECAP_SHARE_PERIODS,
   recapPeriodLabelKey,
+  parseWrappedRouteSelection,
 } from '../utils/share-card'
 import { createMockRetrospectiveMetrics } from './factories'
 
@@ -25,6 +26,16 @@ describe('buildRecapRequestUrl', () => {
   it('targets the recap endpoint with the period query', () => {
     expect(buildRecapRequestUrl('week')).toBe('/api/gamification/recap?period=week')
     expect(buildRecapRequestUrl('year')).toBe('/api/gamification/recap?period=year')
+  })
+
+  it('targets the carried closed month without changing the selected period', () => {
+    expect(buildRecapRequestUrl('month', { year: 2026, month: 8 })).toBe(
+      '/api/gamification/recap?period=month&year=2026&month=8',
+    )
+    expect(parseWrappedRouteSelection('month', '2026', '8')).toEqual({
+      period: 'month',
+      closedMonth: { year: 2026, month: 8 },
+    })
   })
 })
 

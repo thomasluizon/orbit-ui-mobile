@@ -1,5 +1,5 @@
 import React from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import WrappedScreen from '@/app/wrapped'
 
 const TestRenderer = require('react-test-renderer')
@@ -12,6 +12,8 @@ type TestNode = {
 }
 
 const mocks = vi.hoisted<{
+  params: Record<string, string>
+  useWrapped: Mock<(...args: unknown[]) => void>
   wrapped: {
     recap: { id: string } | null
     slides: unknown[]
@@ -20,6 +22,8 @@ const mocks = vi.hoisted<{
     isError: boolean
   }
 }>(() => ({
+  params: {},
+  useWrapped: vi.fn(),
   wrapped: {
     recap: { id: 'recap-1' },
     slides: [] as unknown[],
@@ -29,6 +33,8 @@ const mocks = vi.hoisted<{
   },
 }))
 
+vi.mock('expo-router', () => ({ useLocalSearchParams: () => mocks.params }))
+
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { name: 'Ada' } }),
 }))
@@ -36,7 +42,10 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
   useGoBackOrFallback: () => goBackOrFallback,
 }))
 vi.mock('@/hooks/use-wrapped', () => ({
-  useWrapped: () => ({ ...mocks.wrapped, refetch: vi.fn() }),
+  useWrapped: (...args: unknown[]) => {
+    mocks.useWrapped(...args)
+    return { ...mocks.wrapped, refetch: vi.fn() }
+  },
 }))
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
@@ -67,6 +76,8 @@ function firstByType(root: TestNode, type: string) {
 describe('WrappedScreen', () => {
   beforeEach(() => {
     goBackOrFallback.mockClear()
+    mocks.params = {}
+    mocks.useWrapped.mockClear()
     mocks.wrapped = {
       recap: { id: 'recap-1' },
       slides: [],
@@ -85,6 +96,17 @@ describe('WrappedScreen', () => {
     })
 
     expect(firstByType(tree.root, 'WrappedPlayer')).toBeTruthy()
+  })
+
+  it('opens a notification-carried closed month instead of the current period', () => {
+    mocks.params = { period: 'month', year: '2026', month: '8' }
+    const tree = renderScreen()
+
+    expect(firstByType(tree.root, 'WrappedCover')?.props.period).toBe('month')
+    expect(mocks.useWrapped).toHaveBeenLastCalledWith('month', {
+      active: false,
+      closedMonth: { year: 2026, month: 8 },
+    })
   })
 
   it('refuses to open the player for an empty recap', () => {

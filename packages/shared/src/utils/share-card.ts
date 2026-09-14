@@ -6,6 +6,16 @@ export const RECAP_SHARE_PERIODS = ['week', 'month', 'year'] as const
 
 export type RecapSharePeriod = (typeof RECAP_SHARE_PERIODS)[number]
 
+export interface ClosedRecapMonth {
+  year: number
+  month: number
+}
+
+export interface WrappedRouteSelection {
+  period: RecapSharePeriod
+  closedMonth?: ClosedRecapMonth
+}
+
 export const SHARE_CARD_WIDTH = 360
 export const SHARE_CARD_HEIGHT = 640
 export const SHARE_CARD_FILE_NAME = 'orbit-recap.png'
@@ -32,9 +42,36 @@ export interface ShareCardWeekday {
 }
 
 /** Builds the recap read URL for a share-card period (mirrors `buildRetrospectiveRequestUrl`). */
-export function buildRecapRequestUrl(period: RecapSharePeriod): string {
+export function buildRecapRequestUrl(
+  period: RecapSharePeriod,
+  closedMonth?: ClosedRecapMonth,
+): string {
   const params = new URLSearchParams({ period })
+  if (period === 'month' && closedMonth) {
+    params.set('year', String(closedMonth.year))
+    params.set('month', String(closedMonth.month))
+  }
   return `${API.gamification.recap}?${params.toString()}`
+}
+
+export function parseWrappedRouteSelection(
+  periodValue: unknown,
+  yearValue: unknown,
+  monthValue: unknown,
+): WrappedRouteSelection {
+  const period = typeof periodValue === 'string' && RECAP_SHARE_PERIODS.includes(periodValue as RecapSharePeriod)
+    ? periodValue as RecapSharePeriod
+    : 'week'
+  if (period !== 'month' || typeof yearValue !== 'string' || typeof monthValue !== 'string') {
+    return { period }
+  }
+
+  const year = Number(yearValue)
+  const month = Number(monthValue)
+  if (!/^\d{4}$/.test(yearValue) || !/^\d{1,2}$/.test(monthValue) || month < 1 || month > 12) {
+    return { period }
+  }
+  return { period, closedMonth: { year, month } }
 }
 
 /** Returns the i18n key for a recap period label (`shareCard.periods.{period}`), covering the full backend period set. */

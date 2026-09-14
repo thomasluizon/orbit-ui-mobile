@@ -481,7 +481,7 @@ describe('usePushNotifications', () => {
     ['/retrospective/year', '/progress', false],
     ['/', '/', false],
     ['/calendar', '/calendar', false],
-    ['/progress?wrapped=month&year=2026&month=8', '/progress?wrapped=month&year=2026&month=8', false],
+    ['/progress?wrapped=month&year=2026&month=8', '/wrapped?period=month&year=2026&month=8', false],
     ['/profile', '/profile', false],
   ])('routes the accepted push %s and applies its Astra overlay intent', async (url, destination, opensAstra) => {
     await renderHarness()

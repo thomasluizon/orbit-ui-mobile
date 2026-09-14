@@ -190,6 +190,17 @@ function isAccessibilityHidden(node: TestNode): boolean {
 }
 
 describe('mobile ProgressContent', () => {
+  it('keeps the Wrapped fallback as the first Progresso entry', async () => {
+    const tree = await renderProgress()
+    const firstAction = tree.root.findAll(
+      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
+    )[0]!
+
+    expect(firstAction.props.accessibilityLabel).toBe('profile.wrappedTitle')
+    TestRenderer.act(() => (firstAction.props.onPress as () => void)())
+    expect(mocks.router.push).toHaveBeenCalledWith('/wrapped')
+  })
+
   it.each(['dark', 'light'] as const)('keeps goal metadata legible in resting and pressed states in %s', async (mode) => {
     theme.mode = mode
     mocks.goals.data.allGoals = [createMockGoal()]

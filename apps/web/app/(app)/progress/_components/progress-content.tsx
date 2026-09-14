@@ -42,6 +42,7 @@ import { FreezeBank } from '@/components/ui/freeze-bank'
 import {
   Calendar,
   Flame,
+  Gift,
   Lock,
   Satellite,
   Shield,
@@ -54,6 +55,8 @@ import {
   type IconProps,
 } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
+import { ListRow } from '@/components/ui/list-row'
+import { RowList } from '@/components/ui/row-list'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -463,6 +466,15 @@ export function ProgressContent() {
       {detailGoalId ? <GoalDetailDrawer key={detailGoalId} inline open onOpenChange={(open) => { if (!open) setDetailGoalId(null) }} goalId={detailGoalId} /> : null}
       <div hidden={detailGoalId !== null} className="flex flex-col gap-8">
       <h1 className="sr-only" tabIndex={-1}>{t('progressScreen.title')}</h1>
+      <RowList>
+        <ListRow
+          accessibilityLabel={t('profile.wrappedTitle')}
+          icon={<Gift size={24} strokeWidth={1.8} aria-hidden="true" />}
+          title={t('profile.wrappedTitle')}
+          description={t('profile.wrappedHint')}
+          onClick={() => router.push('/wrapped')}
+        />
+      </RowList>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {error ? <div className="w-full max-w-[620px]"><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
       {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}

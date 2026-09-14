@@ -2,7 +2,12 @@ import { useMemo, useState } from 'react'
 import { View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import type { RecapSharePeriod } from '@orbit/shared/utils'
+import { useLocalSearchParams } from 'expo-router'
+import {
+  parseWrappedRouteSelection,
+  type RecapSharePeriod,
+  type WrappedRouteSelection,
+} from '@orbit/shared/utils'
 import { Button } from '@/components/ui/pill-button'
 import { ChevronLeft } from '@/components/ui/icons'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -14,6 +19,26 @@ import { WrappedPlayer } from '@/components/wrapped/wrapped-player'
 import { styles } from './wrapped-styles'
 
 export default function WrappedScreen() {
+  const routeParams = useLocalSearchParams<{
+    period?: string | string[]
+    year?: string | string[]
+    month?: string | string[]
+  }>()
+  const initialSelection = parseWrappedRouteSelection(
+    routeParams.period,
+    routeParams.year,
+    routeParams.month,
+  )
+  const routeKey = initialSelection.closedMonth
+    ? `${initialSelection.period}:${initialSelection.closedMonth.year}:${initialSelection.closedMonth.month}`
+    : initialSelection.period
+
+  return <WrappedScreenContent key={routeKey} initialSelection={initialSelection} />
+}
+
+function WrappedScreenContent({ initialSelection }: Readonly<{
+  initialSelection: WrappedRouteSelection
+}>) {
   const { t } = useTranslation()
   const goBackOrFallback = useGoBackOrFallback()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -21,15 +46,17 @@ export default function WrappedScreen() {
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const [period, setPeriod] = useState<RecapSharePeriod>('week')
+  const [selection, setSelection] = useState(initialSelection)
+  const { period, closedMonth } = selection
   const [isPlaying, setIsPlaying] = useState(false)
   const [isRetrying, setIsRetrying] = useState(false)
   const { recap, slides, isEmpty, isLoading, isError, refetch } = useWrapped(period, {
     active: isPlaying,
+    closedMonth,
   })
 
   function selectPeriod(next: RecapSharePeriod) {
-    setPeriod(next)
+    setSelection({ period: next })
     setIsPlaying(false)
   }
 
