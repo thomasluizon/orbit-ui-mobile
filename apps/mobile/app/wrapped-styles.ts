@@ -9,14 +9,15 @@ export const styles = StyleSheet.create({
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'flex-end',
+    gap: 8,
     paddingHorizontal: 16,
     paddingBottom: 4,
   },
   slideScrollContent: { flexGrow: 1 },
-  progressRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  progressSegment: { flex: 1, height: 3, borderRadius: 2 },
-  closeBtn: { width: 36, height: 36, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  page: { flex: 1, position: 'relative' },
+  pager: { paddingHorizontal: 16, paddingTop: 16 },
+  closeBtn: { width: 44, height: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
   closeBtnPressed: { transform: [{ scale: 0.96 }] },
   slide: {
     flex: 1,
@@ -79,7 +80,6 @@ export const styles = StyleSheet.create({
     gap: 16,
   },
   shareError: { fontFamily: 'Geist_400Regular', fontSize: 13, textAlign: 'center' },
-  shareCtaWrap: { width: '100%', maxWidth: 360 },
   coverScroller: { flex: 1 },
   coverExit: { position: 'absolute', left: 16, top: 8, zIndex: 1 },
   cover: {
