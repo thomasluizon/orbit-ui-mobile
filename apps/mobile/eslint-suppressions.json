@@ -42,7 +42,7 @@
   },
   "app/wrapped-styles.ts": {
     "local/spacing-scale": {
-      "count": 8
+      "count": 6
     }
   },
   "components/chat/conflict-warning.tsx": {
@@ -283,11 +283,6 @@
   "components/ui/year-picker.tsx": {
     "local/spacing-scale": {
       "count": 1
-    }
-  },
-  "components/wrapped/wrapped-player.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
     }
   }
 }
