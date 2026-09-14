@@ -135,13 +135,13 @@ export function WrappedSlide({ slide, recap, period, tokens, displayName, shareR
             {slide.closedGoals}
           </Animated.Text>
           <Animated.Text entering={enter(1)} style={[styles.label, { color: tokens.fg2 }]}>
-            {t('progressScreen.sections.goals')}
+            {t('shareCard.stats.goalsClosed')}
           </Animated.Text>
-          {slide.closedGoals === 0 ? (
-            <Animated.Text entering={enter(2)} style={[styles.caption, { color: tokens.fg2 }]}>
-              {t('wrapped.slides.goals.zero')}
-            </Animated.Text>
-          ) : null}
+          <Animated.Text entering={enter(2)} style={[styles.caption, { color: tokens.fg2 }]}>
+            {slide.closedGoals > 0
+              ? t('wrapped.slides.goals.some', { count: slide.closedGoals })
+              : t('wrapped.slides.goals.zero')}
+          </Animated.Text>
         </View>
       )
     case 'share':
@@ -218,13 +218,11 @@ function WeekdayInterpretation({ values, tokens }: Readonly<{ values: number[]; 
       )
     case 'compared': {
       const strongestWeekday = WEEKDAY_KEYS[reading.strongestIndex]!
-      const weakestWeekday = WEEKDAY_KEYS[reading.weakestIndex]!
       return (
         <>
           <Animated.Text entering={enter(3)} style={[styles.caption, { color: tokens.fg2 }]}>
             {t('wrapped.slides.consistency.summary', {
               strong: t(`dates.daysShort.${strongestWeekday}`),
-              weak: t(`dates.daysShort.${weakestWeekday}`),
             })}
           </Animated.Text>
           <Animated.Text entering={enter(4)} style={[styles.caption, { color: tokens.fg2 }]}>

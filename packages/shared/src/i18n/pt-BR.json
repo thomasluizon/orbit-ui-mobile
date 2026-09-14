@@ -1532,7 +1532,8 @@
       "completions": "Conclusões",
       "bestStreak": "Melhor sequência",
       "activeDays": "Dias ativos",
-      "topHabits": "Principais hábitos"
+      "topHabits": "Principais hábitos",
+      "goalsClosed": "Metas fechadas"
     },
     "streak": "Sequência de {count} dias"
   },
@@ -1584,8 +1585,8 @@
         "eyebrow": "Seu ritmo",
         "title": "Seu ritmo semanal",
         "caption": "Como foram seus últimos sete dias.",
-        "summary": "{strong} é o seu dia mais forte. {weak} é o mais calmo.",
-        "even": "Seus dias estão parelhos. Nenhum dia se destaca.",
+        "summary": "{strong} é o seu dia mais forte.",
+        "even": "Nenhum dia se destaca.",
         "note": "Cada barra é a média daquele dia no período.",
         "thin": "Ainda não há registros suficientes para comparar os seus dias."
       },
@@ -1599,7 +1600,8 @@
         "caption": "{rate} de conclusão, seu hábito mais consistente."
       },
       "goals": {
-        "zero": "Nenhuma meta fechada desta vez."
+        "zero": "Nenhuma meta fechada desta vez.",
+        "some": "{count, plural, one {Você fechou uma meta neste período.} other {Você fechou # metas neste período.}}"
       },
       "share": {
         "eyebrow": "É isso aí",

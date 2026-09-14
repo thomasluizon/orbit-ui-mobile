@@ -41,22 +41,26 @@ function renderSlide(slide: ReturnType<typeof buildWrappedSlides>[number]) {
 }
 
 describe('WrappedSlide', () => {
-  it('renders the nonzero goal completion count from the recap', () => {
+  it('renders the positive goal count with its specific label and caption', () => {
     const recapWithGoalCompletions = { ...recap, goalCompletions: 4 }
     const goals = buildWrappedSlides(recapWithGoalCompletions).find((slide) => slide.id === 'goals')!
     renderSlide(goals)
 
-    expect(screen.getByTestId('wrapped-slide-goals')).toHaveTextContent('4')
+    const slide = screen.getByTestId('wrapped-slide-goals')
+    expect(slide).toHaveTextContent('4')
+    expect(slide).toHaveTextContent('shareCard.stats.goalsClosed')
+    expect(slide).toHaveTextContent('wrapped.slides.goals.some:{"count":4}')
   })
 
-  it('explains a zero goal completion count without renaming its label', () => {
+  it('renders the zero goal caption under the specific label', () => {
     const recapWithNoGoalCompletions = { ...recap, goalCompletions: 0 }
     const goals = buildWrappedSlides(recapWithNoGoalCompletions).find((slide) => slide.id === 'goals')!
     renderSlide(goals)
 
     const slide = screen.getByTestId('wrapped-slide-goals')
-    expect(slide).toHaveTextContent('progressScreen.sections.goals')
+    expect(slide).toHaveTextContent('shareCard.stats.goalsClosed')
     expect(slide).toHaveTextContent('wrapped.slides.goals.zero')
+    expect(slide).not.toHaveTextContent('wrapped.slides.goals.some')
   })
 
   it('renders the weekday average as Monday-first Columns with initials and no date copy', () => {
@@ -70,22 +74,24 @@ describe('WrappedSlide', () => {
     expect(screen.queryByText('wrapped.slides.consistency.caption')).not.toBeInTheDocument()
   })
 
-  it('interprets exactly two logged weekdays and explains their averages', () => {
+  it('names only the strongest weekday when one maximum stands alone', () => {
     const comparisonRecap = createMockRecap({
-      metrics: createMockRetrospectiveMetrics({ weeklyConsistency: [0, 20, 0, 0, 0, 60, 0] }),
+      metrics: createMockRetrospectiveMetrics({ weeklyConsistency: [0, 20, 0, 0, 60, 0, 0] }),
     })
     const consistency = buildWrappedSlides(comparisonRecap).find((slide) => slide.id === 'consistency')!
     renderSlide(consistency)
 
-    expect(screen.getByTestId('wrapped-slide-consistency')).toHaveTextContent(
-      'wrapped.slides.consistency.summary:{"strong":"dates.daysShort.saturday","weak":"dates.daysShort.tuesday"}',
+    const summary = screen.getByText(/^wrapped\.slides\.consistency\.summary:/)
+    expect(summary).toHaveTextContent(
+      'wrapped.slides.consistency.summary:{"strong":"dates.daysShort.friday"}',
     )
+    expect(summary).not.toHaveTextContent('dates.daysShort.tuesday')
     expect(screen.getByTestId('wrapped-slide-consistency')).toHaveTextContent('wrapped.slides.consistency.note')
   })
 
-  it('explains that exactly one logged weekday is too thin to compare', () => {
+  it('explains that no logged weekday is too thin to compare', () => {
     const thinRecap = createMockRecap({
-      metrics: createMockRetrospectiveMetrics({ weeklyConsistency: [0, 20, 0, 0, 0, 0, 0] }),
+      metrics: createMockRetrospectiveMetrics({ weeklyConsistency: [0, 0, 0, 0, 0, 0, 0] }),
     })
     const consistency = buildWrappedSlides(thinRecap).find((slide) => slide.id === 'consistency')!
     renderSlide(consistency)

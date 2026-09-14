@@ -120,8 +120,12 @@ export function WrappedSlide({ slide, recap, period, displayName, captureRef, sh
       return (
         <SlideShell testId="wrapped-slide-goals">
           <span data-wrapped-figure="primary" style={heroNumeralStyle}>{slide.closedGoals}</span>
-          <span style={labelStyle}>{t('progressScreen.sections.goals')}</span>
-          {slide.closedGoals === 0 && <p style={captionStyle}>{t('wrapped.slides.goals.zero')}</p>}
+          <span style={labelStyle}>{t('shareCard.stats.goalsClosed')}</span>
+          <p style={captionStyle}>
+            {slide.closedGoals > 0
+              ? t('wrapped.slides.goals.some', { count: slide.closedGoals })
+              : t('wrapped.slides.goals.zero')}
+          </p>
         </SlideShell>
       )
     case 'share':
@@ -198,13 +202,11 @@ function WeekdayInterpretation({ values }: Readonly<{ values: number[] }>) {
       )
     case 'compared': {
       const strongestWeekday = WEEKDAY_KEYS[reading.strongestIndex]!
-      const weakestWeekday = WEEKDAY_KEYS[reading.weakestIndex]!
       return (
         <>
           <p style={captionStyle}>
             {t('wrapped.slides.consistency.summary', {
               strong: t(`dates.daysShort.${strongestWeekday}`),
-              weak: t(`dates.daysShort.${weakestWeekday}`),
             })}
           </p>
           <p style={captionStyle}>{t('wrapped.slides.consistency.note')}</p>
