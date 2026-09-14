@@ -3,7 +3,7 @@ import { join } from "node:path"
 
 import { T, root } from "./_harness.mjs"
 
-const { clearWakeSource, readRunState, readWakeSources, registerWakeSource, runStatePath, wakeSourceDirectory, writeRunState } = await import("../lib/run-state.mjs")
+const { clearWakeSource, readRunState, readWakeSources, readWorkerLaunches, registerWakeSource, reserveWorkerLaunch, runStatePath, wakeSourceDirectory, workerLaunchLedgerPath, writeRunState } = await import("../lib/run-state.mjs")
 
 const TOOL = "lib/run-state.mjs"
 
@@ -59,6 +59,19 @@ export const cases = () => {
   writeRunState({ sessionId: "s2", sleep: true, remaining: ["ORB-9"], pullRequests: [] }, repoRoot)
   T(`${TOOL}: a new session starts with a fresh readiness ledger`, readRunState(repoRoot)?.readinessLedger?.length === 0, JSON.stringify(readRunState(repoRoot)))
 
+  const launch = { repositoryKey: "ui", branch: "chore/test", headSha: "a".repeat(40), tier: "default", timestamp: "2026-09-14T00:00:00.000Z", relaunchReason: null }
+  const firstReservation = reserveWorkerLaunch(launch, 1, repoRoot)
+  const refusedReservation = reserveWorkerLaunch({ ...launch, timestamp: "2026-09-14T00:01:00.000Z" }, 1, repoRoot)
+  const reasonedReservation = reserveWorkerLaunch({ ...launch, timestamp: "2026-09-14T00:02:00.000Z", relaunchReason: "known conflict list" }, 1, repoRoot)
+  T(
+    `${TOOL}: the worker ledger records below-cap launches, refuses the cap, and records a deliberate override`,
+    firstReservation.allowed && !refusedReservation.allowed && reasonedReservation.allowed &&
+      readWorkerLaunches(repoRoot).length === 2 &&
+      readWorkerLaunches(repoRoot)[1].relaunchReason === "known conflict list" &&
+      existsSync(workerLaunchLedgerPath(repoRoot)),
+    JSON.stringify(readWorkerLaunches(repoRoot)),
+  )
+
   registerWakeSource({ pid: process.pid, what: "worker ORB-1" }, repoRoot)
   registerWakeSource({ pid: process.ppid, what: "worker ORB-2" }, repoRoot)
   T(
@@ -100,6 +113,7 @@ export const cases = () => {
   try {
     registerWakeSource({ pid: 5252, what: "worker ORB-9" }, notADirectory)
     clearWakeSource(5252, notADirectory)
+    reserveWorkerLaunch(launch, 1, notADirectory)
   } catch {
     threw = true
   }

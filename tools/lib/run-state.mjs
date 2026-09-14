@@ -24,7 +24,7 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -54,6 +54,40 @@ export const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url))
 
 export const runStatePath = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-orchestrate-run.json")
 export const wakeSourceDirectory = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-wake-sources")
+export const workerLaunchLedgerPath = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-worker-launches.json")
+
+export const readWorkerLaunches = (repoRoot = REPO_ROOT) => {
+  try {
+    const launches = JSON.parse(readFileSync(workerLaunchLedgerPath(repoRoot), "utf8"))
+    return Array.isArray(launches) ? launches : []
+  } catch {
+    return []
+  }
+}
+
+/** Refuse only a cap proven by readable rows. Recording remains fail-soft like every other run-state write. */
+export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
+  const launches = readWorkerLaunches(repoRoot)
+  const earlierLaunches = launches.filter((entry) => entry?.repositoryKey === launch.repositoryKey && entry?.branch === launch.branch)
+  if (earlierLaunches.length >= cap && launch.relaunchReason === null) {
+    return { allowed: false, earlierLaunches, recorded: false }
+  }
+  const path = workerLaunchLedgerPath(repoRoot)
+  const unpublishedPath = `${path}.${process.pid}.${Date.now()}.unpublished`
+  try {
+    mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
+    writeFileSync(unpublishedPath, `${JSON.stringify([...launches, launch], null, 2)}\n`)
+    renameSync(unpublishedPath, path)
+    return { allowed: true, earlierLaunches, recorded: true }
+  } catch {
+    try {
+      rmSync(unpublishedPath, { force: true })
+    } catch {
+      /* cleanup is part of the same fail-soft status write */
+    }
+    return { allowed: true, earlierLaunches, recorded: false }
+  }
+}
 
 /** The orchestrator's own run record, or null when no run has written one. */
 export const readRunState = (repoRoot = REPO_ROOT) => {
