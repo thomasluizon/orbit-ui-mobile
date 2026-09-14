@@ -2,14 +2,11 @@ import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { parseISO } from 'date-fns'
-import type { Profile } from '@orbit/shared/types/profile'
 import { stepUpMessageResponseSchema } from '@orbit/shared/types/step-up'
 import { API } from '@orbit/shared/api'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
-import { useDateFormat } from '@/hooks/use-date-format'
 import { useOffline } from '@/hooks/use-offline'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -21,32 +18,20 @@ import { ErrorState } from '@/components/ui/error-state'
 interface DeleteAccountModalProps {
   open: boolean
   onClose: () => void
-  profile: Profile | undefined
 }
 
 export function DeleteAccountModal({
   open,
   onClose,
-  profile,
 }: Readonly<DeleteAccountModalProps>) {
   const { t } = useTranslation()
   const router = useRouter()
-  const { displayDate } = useDateFormat()
   const { isOnline } = useOffline()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { sheetRef, closeSheet } = useSheetHost()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-
-  const warningMessage = (() => {
-    if (profile?.hasProAccess && profile.planExpiresAt) {
-      return t('profile.deleteAccount.warningPro', {
-        date: displayDate(parseISO(profile.planExpiresAt)),
-      })
-    }
-    return t('profile.deleteAccount.warningFree')
-  })()
 
   function handleClose() {
     setLoading(false)
@@ -108,7 +93,6 @@ export function DeleteAccountModal({
               <Text style={[styles.title, { color: tokens.statusBadText }]}>
                 {t('profile.deleteAccount.warning')}
               </Text>
-              <Text style={[styles.title, { color: tokens.fg1 }]}>{warningMessage}</Text>
               <Text style={[styles.description, { color: tokens.fg2 }]}>
                 {t('profile.deleteAccount.warningDetail')}
               </Text>
