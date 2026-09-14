@@ -58,14 +58,14 @@ const BAD_TEXT_SOURCE_SITES = [
     pattern: /hasError[\s\S]*?fontSize: 13, color: 'var\(--status-bad-text\)'/,
   },
   {
-    name: 'web API-key validation error',
-    path: 'apps/web/components/ui/create-api-key-modal.tsx',
-    pattern: /\{validationError && \([\s\S]*?color: 'var\(--status-bad-text\)'/,
+    name: 'web API-key list load error',
+    path: 'apps/web/components/profile/profile-api-keys.tsx',
+    pattern: /if \(loadError\)[\s\S]*?text-\[var\(--status-bad-text\)\][\s\S]*?\{t\('orbitMcp\.apiKeysError'\)\}/,
   },
   {
-    name: 'web API-key request error',
-    path: 'apps/web/components/ui/create-api-key-modal.tsx',
-    pattern: /\{apiError && \([\s\S]*?color: 'var\(--status-bad-text\)'/,
+    name: 'web API-key create request error',
+    path: 'apps/web/components/profile/profile-api-keys.tsx',
+    pattern: /\{management\.createKeyError && !scopeOpen \? \(\s*<p role="alert" className="text-sm text-\[var\(--status-bad-text\)\]">\{management\.createKeyError\}<\/p>/,
   },
   {
     name: 'web list row title',
@@ -128,9 +128,9 @@ const BAD_TEXT_SOURCE_SITES = [
     pattern: /fieldError[\s\S]*?color: tokens\.statusBadText/,
   },
   {
-    name: 'mobile API-key error',
-    path: 'apps/mobile/components/ui/create-api-key-modal.styles.ts',
-    pattern: /errorText[\s\S]*?color: tokens\.statusBadText/,
+    name: 'mobile API-key create request error',
+    path: 'apps/mobile/components/profile/profile-api-keys.tsx',
+    pattern: /\{management\.createKeyError && !scopeOpen \? \(\s*<Text accessibilityRole="alert" style=\{\[styles\.message, \{ color: tokens\.statusBadText \}\]\}>\{management\.createKeyError\}<\/Text>/,
   },
   {
     name: 'mobile habit understanding error',
