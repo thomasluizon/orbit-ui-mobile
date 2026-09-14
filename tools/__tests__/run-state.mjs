@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { Worker } from "node:worker_threads"
 
 import { T, root } from "./_harness.mjs"
 
@@ -14,7 +15,69 @@ const stageCheckout = (label) => {
   return repoRoot
 }
 
-export const cases = () => {
+const reserveTogether = (moduleUrl, repoRoot, launch, cap) => {
+  const signal = new SharedArrayBuffer(3 * Int32Array.BYTES_PER_ELEMENT)
+  const workerSource = `
+const fs = require("node:fs")
+const { syncBuiltinESMExports } = require("node:module")
+const { parentPort, workerData } = require("node:worker_threads")
+const signal = new Int32Array(workerData.signal)
+const originalWriteFileSync = fs.writeFileSync
+const originalReaddirSync = fs.readdirSync
+const originalReadFileSync = fs.readFileSync
+let expectedReads = 0
+let completedReads = 0
+fs.writeFileSync = (...args) => {
+  const result = originalWriteFileSync(...args)
+  if (String(args[0]).includes("orbit-worker-launches") && args[2]?.flag === "wx") {
+    if (Atomics.add(signal, 0, 1) + 1 === 2) {
+      Atomics.store(signal, 1, 1)
+      Atomics.notify(signal, 1, 2)
+    } else {
+      while (Atomics.load(signal, 1) === 0) Atomics.wait(signal, 1, 0)
+    }
+  }
+  return result
+}
+fs.readdirSync = (...args) => {
+  const names = originalReaddirSync(...args)
+  if (String(args[0]).includes("orbit-worker-launches")) expectedReads = names.length
+  return names
+}
+fs.readFileSync = (...args) => {
+  const result = originalReadFileSync(...args)
+  if (String(args[0]).includes("orbit-worker-launches") && ++completedReads === expectedReads) {
+    if (Atomics.add(signal, 2, 1) + 1 === 2) {
+      Atomics.notify(signal, 2, 2)
+    } else {
+      while (Atomics.load(signal, 2) < 2) Atomics.wait(signal, 2, 1)
+    }
+  }
+  return result
+}
+syncBuiltinESMExports()
+import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
+  parentPort.postMessage(reserveWorkerLaunch(workerData.launch, workerData.cap, workerData.repoRoot))
+})
+`
+  return Promise.all([1, 2].map((index) => new Promise((resolve, reject) => {
+    const worker = new Worker(workerSource, {
+      eval: true,
+      execArgv: [],
+      workerData: {
+        signal,
+        moduleUrl,
+        repoRoot,
+        cap,
+        launch: { ...launch, timestamp: `2026-09-14T00:0${index}:00.000Z` },
+      },
+    })
+    worker.once("message", resolve)
+    worker.once("error", reject)
+  })))
+}
+
+export const cases = async () => {
   const repoRoot = stageCheckout("basic")
   T(`${TOOL}: no run has written a record, so there is no state and no wake source`, readRunState(repoRoot) === null && readWakeSources(repoRoot).length === 0)
 
@@ -73,26 +136,24 @@ export const cases = () => {
   )
 
   const raceRoot = stageCheckout("launch-race")
-  reserveWorkerLaunch(launch, 2, raceRoot)
-  let nestedReservation
-  let nestedStarted = false
-  const racingLaunch = {
-    ...launch,
-    get repositoryKey() {
-      if (!nestedStarted) {
-        nestedStarted = true
-        nestedReservation = reserveWorkerLaunch({ ...launch, timestamp: "2026-09-14T00:01:00.000Z" }, 2, raceRoot)
-      }
-      return launch.repositoryKey
-    },
-    timestamp: "2026-09-14T00:02:00.000Z",
-  }
-  const outerReservation = reserveWorkerLaunch(racingLaunch, 2, raceRoot)
+  const racingReservations = await reserveTogether(new URL("../lib/run-state.mjs", import.meta.url).href, raceRoot, launch, 1)
   const raceLedger = readWorkerLaunches(raceRoot)
   T(
-    `${TOOL}: simultaneous reservations admit exactly one launch and retain both admitted records`,
-    [outerReservation.allowed, nestedReservation?.allowed].filter(Boolean).length === 1 && raceLedger.length === 2,
-    JSON.stringify({ outerReservation, nestedReservation, raceLedger }),
+    `${TOOL}: simultaneous reservations admit exactly one launch and retain its record`,
+    racingReservations.filter((reservation) => reservation.allowed).length === 1 && raceLedger.length === 1,
+    JSON.stringify({ racingReservations, raceLedger }),
+  )
+
+  const freeSlotRoot = stageCheckout("launch-race-free-slot")
+  reserveWorkerLaunch(launch, 2, freeSlotRoot)
+  const contenders = await reserveTogether(new URL("../lib/run-state.mjs", import.meta.url).href, freeSlotRoot, launch, 2)
+  const freeSlotLedger = readWorkerLaunches(freeSlotRoot)
+  T(
+    `${TOOL}: simultaneous contenders use the one free slot instead of both yielding it`,
+    contenders.filter((reservation) => reservation.allowed).length === 1 &&
+      contenders.filter((reservation) => !reservation.allowed).length === 1 &&
+      freeSlotLedger.length === 2,
+    JSON.stringify({ contenders, freeSlotLedger }),
   )
 
   registerWakeSource({ pid: process.pid, what: "worker ORB-1" }, repoRoot)

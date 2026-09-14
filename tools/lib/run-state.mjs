@@ -83,7 +83,14 @@ export const readWorkerLaunches = (repoRoot = REPO_ROOT) => readWorkerLaunchReco
 /** Reserve first, then count. Recording remains fail-soft, while a proven cap refuses the launch. */
 export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
   const directory = workerLaunchDirectory(repoRoot)
-  const name = `${Date.now()}-${process.pid}-${randomUUID()}.json`
+  const processIdentity = processStartIdentity(process.pid)?.replace(/[^a-zA-Z0-9-]/g, "-") ?? "unknown"
+  const name = [
+    String(Date.now()).padStart(13, "0"),
+    process.hrtime.bigint().toString().padStart(20, "0"),
+    processIdentity,
+    String(process.pid).padStart(10, "0"),
+    randomUUID(),
+  ].join("-") + ".json"
   const path = join(directory, name)
   try {
     mkdirSync(directory, { recursive: true })
@@ -97,7 +104,7 @@ export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
   }
   const records = readWorkerLaunchRecords(repoRoot)
   const earlierLaunches = records
-    .filter((record) => record.name !== name && record.launch?.repositoryKey === launch.repositoryKey && record.launch?.branch === launch.branch)
+    .filter((record) => record.name.localeCompare(name) < 0 && record.launch?.repositoryKey === launch.repositoryKey && record.launch?.branch === launch.branch)
     .map((record) => record.launch)
   if (earlierLaunches.length < cap || launch.relaunchReason !== null) {
     return { allowed: true, earlierLaunches, recorded: true }
