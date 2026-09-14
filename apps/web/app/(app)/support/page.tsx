@@ -48,8 +48,12 @@ export default function SupportPage() {
   const [error, setError] = useState<string | null>(null)
   const [nameError, setNameError] = useState<string | null>(null)
   const [emailError, setEmailError] = useState<string | null>(null)
+  const [subjectError, setSubjectError] = useState<string | null>(null)
+  const [messageError, setMessageError] = useState<string | null>(null)
   const [nameFocusRequest, setNameFocusRequest] = useState(0)
   const [emailFocusRequest, setEmailFocusRequest] = useState(0)
+  const [subjectFocusRequest, setSubjectFocusRequest] = useState(0)
+  const [messageFocusRequest, setMessageFocusRequest] = useState(0)
   const resolvedEmail = profile?.email || email
 
   const persistDraft = useCallback((change: Partial<typeof initialDraft>) => {
@@ -60,24 +64,29 @@ export default function SupportPage() {
     )
   }, [])
 
-  const validateContact = useCallback(() => {
+  const validateFields = useCallback(() => {
     const effectiveName = name.trim() || profile?.name || ''
     const effectiveEmail = resolvedEmail.trim()
     const nextNameError = effectiveName ? null : t('profile.support.nameRequired')
     const nextEmailError = !effectiveEmail
       ? t('profile.support.emailRequired')
       : isValidEmail(effectiveEmail) ? null : t('profile.support.emailInvalid')
+    const nextSubjectError = subject.trim() ? null : t('profile.support.subjectRequired')
+    const nextMessageError = message.trim() ? null : t('profile.support.messageRequired')
     setNameError(nextNameError)
     setEmailError(nextEmailError)
+    setSubjectError(nextSubjectError)
+    setMessageError(nextMessageError)
     if (nextNameError) setNameFocusRequest((request) => request + 1)
     else if (nextEmailError) setEmailFocusRequest((request) => request + 1)
-    return !nextNameError && !nextEmailError
-  }, [name, profile, resolvedEmail, t])
+    else if (nextSubjectError) setSubjectFocusRequest((request) => request + 1)
+    else if (nextMessageError) setMessageFocusRequest((request) => request + 1)
+    return !nextNameError && !nextEmailError && !nextSubjectError && !nextMessageError
+  }, [message, name, profile, resolvedEmail, subject, t])
 
   const handleSend = useCallback(async () => {
     if (!isOnline) return
-    if (!subject.trim() || !message.trim()) return
-    if (!validateContact()) return
+    if (!validateFields()) return
 
     setIsSending(true)
     setError(null)
@@ -101,9 +110,9 @@ export default function SupportPage() {
     } finally {
       setIsSending(false)
     }
-  }, [isOnline, message, name, profile, resolvedEmail, subject, t, validateContact])
+  }, [isOnline, message, name, profile, resolvedEmail, subject, t, validateFields])
 
-  const disabled = isSending || !subject.trim() || !message.trim() || !isOnline
+  const disabled = isSending || !isOnline
 
   return (
     <div className="min-w-0 md:mx-auto md:w-full md:max-w-[620px]">
@@ -132,11 +141,15 @@ export default function SupportPage() {
                 error={error}
                 nameError={nameError}
                 emailError={emailError}
+                subjectError={subjectError}
+                messageError={messageError}
                 isSending={isSending}
                 disabled={disabled}
                 emailDisabled={Boolean(profile?.email)}
                 nameFocusRequest={nameFocusRequest}
                 emailFocusRequest={emailFocusRequest}
+                subjectFocusRequest={subjectFocusRequest}
+                messageFocusRequest={messageFocusRequest}
                 onNameChange={(next) => {
                   setName(next)
                   setNameError(null)
@@ -147,10 +160,12 @@ export default function SupportPage() {
                 }}
                 onSubjectChange={(next) => {
                   setSubject(next)
+                  setSubjectError(null)
                   persistDraft({ subject: next })
                 }}
                 onMessageChange={(next) => {
                   setMessage(next)
+                  setMessageError(null)
                   persistDraft({ message: next })
                 }}
                 onSend={() => void handleSend()}

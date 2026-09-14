@@ -1388,7 +1388,10 @@
       "successHint": "We'll reply within a day.",
       "nameRequired": "Name is required.",
       "emailRequired": "Email is required.",
-      "emailInvalid": "Please enter a valid email address."
+      "emailInvalid": "Please enter a valid email address.",
+      "subjectRequired": "Subject is required.",
+      "messageRequired": "Message is required.",
+      "emailLockedReason": "We reply to the email on your account."
     },
     "logout": "Log Out",
     "wrappedTitle": "Your Wrapped",

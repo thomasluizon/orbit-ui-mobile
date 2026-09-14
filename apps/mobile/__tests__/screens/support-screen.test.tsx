@@ -20,7 +20,22 @@ const mocks = vi.hoisted(() => ({
   isOnline: true,
   profile: null as ReturnType<typeof createMockProfile> | null,
   goBack: vi.fn(),
+  focusInput: vi.fn(),
 }))
+
+vi.mock('react-native', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-native')>()
+  const ReactModule = await import('react')
+  return {
+    ...actual,
+    TextInput: ReactModule.forwardRef((props: Record<string, unknown>, ref) => {
+      ReactModule.useImperativeHandle(ref, () => ({
+        focus: () => mocks.focusInput(props.accessibilityLabel),
+      }))
+      return ReactModule.createElement('TextInput', props)
+    }),
+  }
+})
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -115,6 +130,61 @@ describe('SupportScreen', () => {
       'thomas@example.com',
     )
     expect(findInputByLabel(tree.root, 'profile.support.email')!.props.editable).toBe(false)
+    expect(
+      tree.root.findAll(
+        (node) => node.props.children === 'profile.support.emailLockedReason',
+      ),
+    ).not.toHaveLength(0)
+  })
+
+  it('does not show the locked email reason when the account email is editable', async () => {
+    mocks.profile = null
+    const tree = await renderScreen()
+
+    expect(findInputByLabel(tree.root, 'profile.support.email')!.props.editable).toBe(true)
+    expect(
+      tree.root.findAll(
+        (node) => node.props.children === 'profile.support.emailLockedReason',
+      ),
+    ).toHaveLength(0)
+  })
+
+  it('shows the required subject error and focuses the subject', async () => {
+    const tree = await renderScreen()
+    await TestRenderer.act(async () => {
+      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('Message')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      ;(findSendButton(tree.root)!.props.onPress as () => void)()
+      await Promise.resolve()
+    })
+
+    expect(
+      tree.root.findAll((node) => node.props.children === 'profile.support.subjectRequired'),
+    ).not.toHaveLength(0)
+    expect(mocks.focusInput).toHaveBeenLastCalledWith('profile.support.subject')
+    expect(findSendButton(tree.root)!.props.disabled).toBe(false)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('shows the required message error and focuses the message', async () => {
+    const tree = await renderScreen()
+    await TestRenderer.act(async () => {
+      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (value: string) => void)('Subject')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      ;(findSendButton(tree.root)!.props.onPress as () => void)()
+      await Promise.resolve()
+    })
+
+    expect(
+      tree.root.findAll((node) => node.props.children === 'profile.support.messageRequired'),
+    ).not.toHaveLength(0)
+    expect(mocks.focusInput).toHaveBeenLastCalledWith('profile.support.message')
+    expect(findSendButton(tree.root)!.props.disabled).toBe(false)
+    expect(mocks.apiClient).not.toHaveBeenCalled()
   })
 
   it('accepts the API subject and message length boundaries', async () => {
@@ -311,13 +381,4 @@ describe('SupportScreen', () => {
     })
   })
 
-  it('keeps the send button disabled until both fields are filled', async () => {
-    const tree = await renderScreen()
-    expect(findSendButton(tree.root)!.props.disabled).toBe(true)
-    await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (v: string) => void)('Only subject')
-      await Promise.resolve()
-    })
-    expect(findSendButton(tree.root)!.props.disabled).toBe(true)
-  })
 })

@@ -1388,7 +1388,10 @@
       "successHint": "A gente responde em até um dia.",
       "nameRequired": "Digite seu nome.",
       "emailRequired": "Digite seu e-mail.",
-      "emailInvalid": "Digite um e-mail válido."
+      "emailInvalid": "Digite um e-mail válido.",
+      "subjectRequired": "Digite um assunto.",
+      "messageRequired": "Escreva sua mensagem.",
+      "emailLockedReason": "A gente responde no e-mail da sua conta."
     },
     "logout": "Sair",
     "wrappedTitle": "Seu Wrapped",

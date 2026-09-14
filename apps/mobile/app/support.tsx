@@ -65,10 +65,14 @@ interface SupportFormProps {
   error: string | null
   nameError: string | null
   emailError: string | null
+  subjectError: string | null
+  messageError: string | null
   canSend: boolean
   emailDisabled: boolean
   nameFocusRequest: number
   emailFocusRequest: number
+  subjectFocusRequest: number
+  messageFocusRequest: number
   onChangeName: (value: string) => void
   onChangeEmail: (value: string) => void
   onChangeSubject: (value: string) => void
@@ -87,10 +91,14 @@ function SupportForm({
   error,
   nameError,
   emailError,
+  subjectError,
+  messageError,
   canSend,
   emailDisabled,
   nameFocusRequest,
   emailFocusRequest,
+  subjectFocusRequest,
+  messageFocusRequest,
   onChangeName,
   onChangeEmail,
   onChangeSubject,
@@ -116,25 +124,34 @@ function SupportForm({
         autoComplete="name"
         focusRequest={nameFocusRequest}
       />
-      <Input
-        label={t('profile.support.email')}
-        value={email}
-        onChange={onChangeEmail}
-        placeholder={t('profile.support.emailPlaceholder')}
-        disabled={sending || emailDisabled}
-        error={emailError ?? undefined}
-        kind="email"
-        inputMode="email"
-        autoComplete="email"
-        focusRequest={emailFocusRequest}
-      />
+      <View style={styles.fieldWithHelper}>
+        <Input
+          label={t('profile.support.email')}
+          value={email}
+          onChange={onChangeEmail}
+          placeholder={t('profile.support.emailPlaceholder')}
+          disabled={sending || emailDisabled}
+          error={emailError ?? undefined}
+          kind="email"
+          inputMode="email"
+          autoComplete="email"
+          focusRequest={emailFocusRequest}
+        />
+        {emailDisabled ? (
+          <Text style={[styles.fieldHelper, { color: tokens.fg2 }]}>
+            {t('profile.support.emailLockedReason')}
+          </Text>
+        ) : null}
+      </View>
       <Input
         label={t('profile.support.subject')}
         value={subject}
         onChange={onChangeSubject}
         placeholder={t('profile.support.subjectPlaceholder')}
         disabled={sending}
+        error={subjectError ?? undefined}
         maxLength={SUPPORT_API_SUBJECT_MAX_LENGTH}
+        focusRequest={subjectFocusRequest}
       />
       <Input
         label={t('profile.support.message')}
@@ -142,9 +159,11 @@ function SupportForm({
         onChange={onChangeMessage}
         placeholder={t('profile.support.messagePlaceholder')}
         disabled={sending}
+        error={messageError ?? undefined}
         maxLength={SUPPORT_API_MESSAGE_MAX_LENGTH}
         multiline
         rows={6}
+        focusRequest={messageFocusRequest}
       />
       {error ? (
         <Text
@@ -188,8 +207,12 @@ export default function SupportScreen() {
   const [error, setError] = useState<string | null>(null)
   const [nameError, setNameError] = useState<string | null>(null)
   const [emailError, setEmailError] = useState<string | null>(null)
+  const [subjectError, setSubjectError] = useState<string | null>(null)
+  const [messageError, setMessageError] = useState<string | null>(null)
   const [nameFocusRequest, setNameFocusRequest] = useState(0)
   const [emailFocusRequest, setEmailFocusRequest] = useState(0)
+  const [subjectFocusRequest, setSubjectFocusRequest] = useState(0)
+  const [messageFocusRequest, setMessageFocusRequest] = useState(0)
   const resolvedEmail = profile?.email || email
 
   useEffect(() => {
@@ -225,27 +248,32 @@ export default function SupportScreen() {
     )
   }, [])
 
-  const validateContact = useCallback(() => {
+  const validateFields = useCallback(() => {
     const effectiveName = name.trim() || profile?.name || ''
     const effectiveEmail = resolvedEmail.trim()
     const nextNameError = effectiveName ? null : t('profile.support.nameRequired')
     const nextEmailError = !effectiveEmail
       ? t('profile.support.emailRequired')
       : isValidEmail(effectiveEmail) ? null : t('profile.support.emailInvalid')
+    const nextSubjectError = subject.trim() ? null : t('profile.support.subjectRequired')
+    const nextMessageError = message.trim() ? null : t('profile.support.messageRequired')
     setNameError(nextNameError)
     setEmailError(nextEmailError)
+    setSubjectError(nextSubjectError)
+    setMessageError(nextMessageError)
     if (nextNameError) setNameFocusRequest((request) => request + 1)
     else if (nextEmailError) setEmailFocusRequest((request) => request + 1)
-    return !nextNameError && !nextEmailError
-  }, [name, profile, resolvedEmail, t])
+    else if (nextSubjectError) setSubjectFocusRequest((request) => request + 1)
+    else if (nextMessageError) setMessageFocusRequest((request) => request + 1)
+    return !nextNameError && !nextEmailError && !nextSubjectError && !nextMessageError
+  }, [message, name, profile, resolvedEmail, subject, t])
 
   const handleSend = useCallback(async () => {
     if (!isOnline) {
       setError(t('offline.title'))
       return
     }
-    if (!subject.trim() || !message.trim()) return
-    if (!validateContact()) return
+    if (!validateFields()) return
 
     setSending(true)
     setError(null)
@@ -273,10 +301,9 @@ export default function SupportScreen() {
     } finally {
       setSending(false)
     }
-  }, [isOnline, message, name, profile, resolvedEmail, subject, t, validateContact])
+  }, [isOnline, message, name, profile, resolvedEmail, subject, t, validateFields])
 
-  const canSend =
-    subject.trim().length > 0 && message.trim().length > 0 && isOnline && !sending
+  const canSend = isOnline && !sending
 
   return (
     <SafeAreaView
@@ -309,10 +336,14 @@ export default function SupportScreen() {
             error={error}
             nameError={nameError}
             emailError={emailError}
+            subjectError={subjectError}
+            messageError={messageError}
             canSend={canSend}
             emailDisabled={Boolean(profile?.email)}
             nameFocusRequest={nameFocusRequest}
             emailFocusRequest={emailFocusRequest}
+            subjectFocusRequest={subjectFocusRequest}
+            messageFocusRequest={messageFocusRequest}
             onChangeName={(next) => {
               setName(next)
               setNameError(null)
@@ -323,10 +354,12 @@ export default function SupportScreen() {
             }}
             onChangeSubject={(next) => {
               setSubject(next)
+              setSubjectError(null)
               persistDraft({ subject: next })
             }}
             onChangeMessage={(next) => {
               setMessage(next)
+              setMessageError(null)
               persistDraft({ message: next })
             }}
             onSend={() => {
@@ -350,6 +383,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist_400Regular',
     fontSize: 16,
     lineHeight: 24,
+  },
+  fieldWithHelper: { gap: 8 },
+  fieldHelper: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 12,
+    lineHeight: 18,
   },
   formErrorText: {
     fontFamily: 'Geist_400Regular',

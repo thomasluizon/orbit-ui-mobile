@@ -89,16 +89,6 @@ describe('SupportPage', () => {
     expect(sendButton()).toBeDisabled()
   })
 
-  it('keeps the send button disabled until both subject and message are filled', () => {
-    render(<SupportPage />)
-
-    expect(sendButton()).toBeDisabled()
-    fireEvent.change(subjectField(), { target: { value: 'Bug' } })
-    expect(sendButton()).toBeDisabled()
-    fireEvent.change(messageField(), { target: { value: 'It broke' } })
-    expect(sendButton()).toBeEnabled()
-  })
-
   it('uses the system inputs, including a six-row message and the disabled account email', () => {
     render(<SupportPage />)
 
@@ -107,9 +97,42 @@ describe('SupportPage', () => {
     expect(nameField()).toHaveValue('Orbit User')
     expect(emailField()).toHaveValue('orbit@example.com')
     expect(emailField()).toBeDisabled()
+    expect(screen.getByText('profile.support.emailLockedReason')).toBeInTheDocument()
     expect(sendButton().parentElement).toHaveClass(
       'md:[&_button]:bg-[var(--fg-1)]',
     )
+  })
+
+  it('does not show the locked email reason when the account email is editable', () => {
+    mockProfile = null
+    render(<SupportPage />)
+
+    expect(emailField()).toBeEnabled()
+    expect(screen.queryByText('profile.support.emailLockedReason')).not.toBeInTheDocument()
+  })
+
+  it('shows the required subject error and focuses the subject', async () => {
+    render(<SupportPage />)
+    fireEvent.change(messageField(), { target: { value: 'Message' } })
+
+    fireEvent.submit(subjectField().closest('form')!)
+
+    expect(await screen.findByText('profile.support.subjectRequired')).toBeInTheDocument()
+    expect(subjectField()).toHaveFocus()
+    expect(sendButton()).toBeEnabled()
+    expect(mockSendSupportMessage).not.toHaveBeenCalled()
+  })
+
+  it('shows the required message error and focuses the message', async () => {
+    render(<SupportPage />)
+    fireEvent.change(subjectField(), { target: { value: 'Subject' } })
+
+    fireEvent.submit(messageField().closest('form')!)
+
+    expect(await screen.findByText('profile.support.messageRequired')).toBeInTheDocument()
+    expect(messageField()).toHaveFocus()
+    expect(sendButton()).toBeEnabled()
+    expect(mockSendSupportMessage).not.toHaveBeenCalled()
   })
 
   it('accepts the API subject and message length boundaries', async () => {

@@ -16,11 +16,15 @@ interface SupportFormProps {
   error: string | null
   nameError: string | null
   emailError: string | null
+  subjectError: string | null
+  messageError: string | null
   isSending: boolean
   disabled: boolean
   emailDisabled: boolean
   nameFocusRequest: number
   emailFocusRequest: number
+  subjectFocusRequest: number
+  messageFocusRequest: number
   onNameChange: (next: string) => void
   onEmailChange: (next: string) => void
   onSubjectChange: (next: string) => void
@@ -36,11 +40,15 @@ export function SupportForm({
   error,
   nameError,
   emailError,
+  subjectError,
+  messageError,
   isSending,
   disabled,
   emailDisabled,
   nameFocusRequest,
   emailFocusRequest,
+  subjectFocusRequest,
+  messageFocusRequest,
   onNameChange,
   onEmailChange,
   onSubjectChange,
@@ -76,25 +84,34 @@ export function SupportForm({
         autoComplete="name"
         focusRequest={nameFocusRequest}
       />
-      <Input
-        label={t('profile.support.email')}
-        value={email}
-        onChange={onEmailChange}
-        placeholder={t('profile.support.emailPlaceholder')}
-        disabled={isSending || emailDisabled}
-        error={emailError ?? undefined}
-        kind="email"
-        inputMode="email"
-        autoComplete="email"
-        focusRequest={emailFocusRequest}
-      />
+      <div className="flex flex-col gap-2">
+        <Input
+          label={t('profile.support.email')}
+          value={email}
+          onChange={onEmailChange}
+          placeholder={t('profile.support.emailPlaceholder')}
+          disabled={isSending || emailDisabled}
+          error={emailError ?? undefined}
+          kind="email"
+          inputMode="email"
+          autoComplete="email"
+          focusRequest={emailFocusRequest}
+        />
+        {emailDisabled ? (
+          <p className="text-xs text-[var(--fg-2)]">
+            {t('profile.support.emailLockedReason')}
+          </p>
+        ) : null}
+      </div>
       <Input
         label={t('profile.support.subject')}
         value={subject}
         onChange={onSubjectChange}
         placeholder={t('profile.support.subjectPlaceholder')}
         disabled={isSending}
+        error={subjectError ?? undefined}
         maxLength={SUPPORT_API_SUBJECT_MAX_LENGTH}
+        focusRequest={subjectFocusRequest}
       />
       <Input
         label={t('profile.support.message')}
@@ -102,9 +119,11 @@ export function SupportForm({
         onChange={onMessageChange}
         placeholder={t('profile.support.messagePlaceholder')}
         disabled={isSending}
+        error={messageError ?? undefined}
         maxLength={SUPPORT_API_MESSAGE_MAX_LENGTH}
         multiline
         rows={6}
+        focusRequest={messageFocusRequest}
       />
       {error && (
         <div
