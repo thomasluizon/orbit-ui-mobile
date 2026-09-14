@@ -49,7 +49,9 @@ export default function WrappedScreen() {
       ? 'failed'
       : isEmpty
         ? 'empty'
-        : 'ready'
+        : recap
+          ? 'ready'
+          : 'loading'
 
   if (isPlaying && recap && !isEmpty) {
     return (

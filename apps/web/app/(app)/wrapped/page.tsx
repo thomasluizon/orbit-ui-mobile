@@ -41,10 +41,12 @@ export default function WrappedPage() {
       ? 'failed'
       : isEmpty
         ? 'empty'
-        : 'ready'
+        : recap
+          ? 'ready'
+          : 'loading'
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <main className="flex min-h-dvh flex-col">
       <WrappedCover
         period={period}
         onSelectPeriod={selectPeriod}
@@ -62,6 +64,6 @@ export default function WrappedPage() {
           onClose={() => setIsPlaying(false)}
         />
       )}
-    </div>
+    </main>
   )
 }

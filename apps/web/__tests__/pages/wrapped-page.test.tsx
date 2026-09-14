@@ -72,4 +72,17 @@ describe('WrappedPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'start' }))
     expect(screen.queryByTestId('player')).not.toBeInTheDocument()
   })
+
+  it('keeps a missing paused recap non-actionable', () => {
+    mocks.wrapped = { recap: null, slides: [], isEmpty: false, isLoading: false, isError: false }
+    render(<WrappedPage />)
+    expect(screen.getByTestId('cover-state')).toHaveTextContent('loading')
+    fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    expect(screen.queryByTestId('player')).not.toBeInTheDocument()
+  })
+
+  it('provides exactly one main landmark', () => {
+    render(<WrappedPage />)
+    expect(screen.getAllByRole('main')).toHaveLength(1)
+  })
 })

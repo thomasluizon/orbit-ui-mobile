@@ -10,7 +10,15 @@ type TestNode = {
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
 }
 
-const mocks = vi.hoisted(() => ({
+const mocks = vi.hoisted<{
+  wrapped: {
+    recap: { id: string } | null
+    slides: unknown[]
+    isEmpty: boolean
+    isLoading: boolean
+    isError: boolean
+  }
+}>(() => ({
   wrapped: {
     recap: { id: 'recap-1' },
     slides: [] as unknown[],
@@ -78,6 +86,18 @@ describe('WrappedScreen', () => {
     mocks.wrapped = { ...mocks.wrapped, recap: { id: 'recap-empty' }, isEmpty: true }
     const tree = renderScreen()
     expect(firstByType(tree.root, 'WrappedCover')?.props.state).toBe('empty')
+
+    TestRenderer.act(() => {
+      ;(firstByType(tree.root, 'WrappedCover')?.props.onStart as () => void)()
+    })
+
+    expect(firstByType(tree.root, 'WrappedPlayer')).toBeUndefined()
+  })
+
+  it('keeps a missing paused recap non-actionable', () => {
+    mocks.wrapped = { recap: null, slides: [], isEmpty: false, isLoading: false, isError: false }
+    const tree = renderScreen()
+    expect(firstByType(tree.root, 'WrappedCover')?.props.state).toBe('loading')
 
     TestRenderer.act(() => {
       ;(firstByType(tree.root, 'WrappedCover')?.props.onStart as () => void)()
