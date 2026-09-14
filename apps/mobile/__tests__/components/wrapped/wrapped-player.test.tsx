@@ -248,6 +248,10 @@ describe('WrappedPlayer', () => {
     advanceToLastSlide(tree, slides.length)
     press(byTestId(tree, 'button-primary-md'))
 
-    expect(shareCardMock.share).toHaveBeenCalledWith('shareCard.shareTitle')
+    expect(shareCardMock.share).toHaveBeenCalledWith({
+      shareTitle: 'shareCard.shareTitle',
+      shareText: 'shareCard.shareText',
+      url: createMockRecap().shareDeepLink,
+    })
   })
 })

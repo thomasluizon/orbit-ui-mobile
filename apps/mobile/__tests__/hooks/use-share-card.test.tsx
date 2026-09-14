@@ -5,16 +5,12 @@ import { expoFileSystemMock } from '@/test-mocks/expo-file-system'
 
 const mocks = vi.hoisted(() => ({
   captureRef: vi.fn(),
-  isAvailableAsync: vi.fn(),
-  shareAsync: vi.fn(),
+  open: vi.fn(),
   reportEvent: vi.fn(),
 }))
 
 vi.mock('react-native-view-shot', () => ({ captureRef: mocks.captureRef }))
-vi.mock('expo-sharing', () => ({
-  isAvailableAsync: mocks.isAvailableAsync,
-  shareAsync: mocks.shareAsync,
-}))
+vi.mock('react-native-share', () => ({ default: { open: mocks.open } }))
 vi.mock('@/hooks/use-gamification', () => ({ useReportEvent: () => ({ mutate: mocks.reportEvent }) }))
 
 const TestRenderer = require('react-test-renderer')
@@ -45,8 +41,7 @@ async function renderHookValue<T>(hook: () => T): Promise<{ readonly current: T 
 describe('mobile useShareCard', () => {
   beforeEach(() => {
     mocks.captureRef.mockReset().mockResolvedValue('file:///cache/share-card.png')
-    mocks.isAvailableAsync.mockReset().mockResolvedValue(true)
-    mocks.shareAsync.mockReset().mockResolvedValue(undefined)
+    mocks.open.mockReset().mockResolvedValue({ success: true, message: 'OK' })
     mocks.reportEvent.mockReset()
     expoFileSystemMock.reset()
   })
@@ -55,23 +50,31 @@ describe('mobile useShareCard', () => {
     const hook = await renderHookValue(() => useShareCard())
 
     await TestRenderer.act(async () => {
-      await hook.current.share('Share progress')
+      await hook.current.share({
+        shareTitle: 'Share progress',
+        shareText: 'I am building better habits',
+        url: 'https://app.useorbit.org/r/ABC123?recap=week',
+      })
     })
 
     expect(mocks.captureRef).toHaveBeenCalledTimes(1)
-    expect(mocks.shareAsync).toHaveBeenCalledTimes(1)
-    expect(mocks.shareAsync.mock.calls[0]![0]).toBe('file:///cache/share-card.png')
+    expect(mocks.open).toHaveBeenCalledWith({
+      title: 'Share progress',
+      message: 'I am building better habits https://app.useorbit.org/r/ABC123?recap=week',
+      url: 'file:///cache/share-card.png',
+      type: 'image/png',
+      failOnCancel: false,
+    })
     expect(mocks.reportEvent).toHaveBeenCalledTimes(1)
     expect(mocks.reportEvent).toHaveBeenCalledWith('card_shared')
     expect(hook.current.hasError).toBe(false)
   })
 
-  it('reports the unsupported state without treating it as a failed share', async () => {
-    mocks.isAvailableAsync.mockResolvedValue(false)
+  it('reports native share support when its open API is present', async () => {
     const hook = await renderHookValue(() => useShareCard())
 
-    expect(hook.current.canShareFiles).toBe(false)
-    expect(mocks.shareAsync).not.toHaveBeenCalled()
+    expect(hook.current.canShareFiles).toBe(true)
+    expect(mocks.open).not.toHaveBeenCalled()
     expect(mocks.reportEvent).not.toHaveBeenCalled()
     expect(hook.current.hasError).toBe(false)
   })

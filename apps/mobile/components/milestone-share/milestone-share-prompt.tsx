@@ -128,7 +128,11 @@ export function MilestoneSharePrompt() {
 
               loading={isSharing}
               disabled={isSharing}
-              onClick={() => void share(t('milestoneShare.shareTitle'))}
+              onClick={() => void share({
+                shareTitle: t('milestoneShare.shareTitle'),
+                shareText: t('milestoneShare.shareText'),
+                url: referralUrl,
+              })}
 
 
             >

@@ -59,7 +59,11 @@ function LoadedShareCard({
           <PillButton
             loading={isSharing}
             disabled={isSharing}
-            onClick={() => void share(t('shareCard.shareTitle'))}
+            onClick={() => void share({
+              shareTitle: t('shareCard.shareTitle'),
+              shareText: t('shareCard.shareText'),
+              url: recap.shareDeepLink,
+            })}
           >
             {t('shareCard.share')}
           </PillButton>
