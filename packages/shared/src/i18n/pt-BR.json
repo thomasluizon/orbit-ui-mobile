@@ -1583,7 +1583,11 @@
       "consistency": {
         "eyebrow": "Seu ritmo",
         "title": "Seu ritmo semanal",
-        "caption": "Como foram seus últimos sete dias."
+        "caption": "Como foram seus últimos sete dias.",
+        "summary": "{strong} é o seu dia mais forte. {weak} é o mais calmo.",
+        "even": "Seus dias estão parelhos. Nenhum dia se destaca.",
+        "note": "Cada barra é a média daquele dia no período.",
+        "thin": "Ainda não há registros suficientes para comparar os seus dias."
       },
       "streak": {
         "eyebrow": "Melhor sequência",
@@ -1593,6 +1597,9 @@
       "topHabit": {
         "eyebrow": "Seu destaque",
         "caption": "{rate} de conclusão, seu hábito mais consistente."
+      },
+      "goals": {
+        "zero": "Nenhuma meta fechada desta vez."
       },
       "share": {
         "eyebrow": "É isso aí",

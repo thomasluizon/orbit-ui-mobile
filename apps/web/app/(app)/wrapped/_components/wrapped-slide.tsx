@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
 import {
   formatCompletionRate,
+  getWeeklyConsistencyReading,
   WRAPPED_WEEKDAY_KEYS,
   type RecapSharePeriod,
   type WrappedSlide as WrappedSlideModel,
@@ -67,6 +68,7 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError }: R
           <span style={eyebrowStyle}>{t('wrapped.slides.consistency.eyebrow')}</span>
           <h2 style={titleStyle}>{t('wrapped.slides.consistency.title')}</h2>
           <WeekdayColumns values={slide.weeklyConsistency} />
+          <WeekdayInterpretation values={slide.weeklyConsistency} />
         </SlideShell>
       )
     case 'streak':
@@ -109,6 +111,7 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError }: R
         <SlideShell testId="wrapped-slide-goals">
           <span data-wrapped-figure="primary" style={heroNumeralStyle}>{slide.closedGoals}</span>
           <span style={labelStyle}>{t('progressScreen.sections.goals')}</span>
+          {slide.closedGoals === 0 && <p style={captionStyle}>{t('wrapped.slides.goals.zero')}</p>}
         </SlideShell>
       )
     case 'share':
@@ -168,6 +171,37 @@ function WeekdayColumns({ values }: Readonly<{ values: number[] }>) {
       />
     </div>
   )
+}
+
+function WeekdayInterpretation({ values }: Readonly<{ values: number[] }>) {
+  const t = useTranslations()
+  const reading = getWeeklyConsistencyReading(values)
+  switch (reading.kind) {
+    case 'thin':
+      return <p style={captionStyle}>{t('wrapped.slides.consistency.thin')}</p>
+    case 'even':
+      return (
+        <>
+          <p style={captionStyle}>{t('wrapped.slides.consistency.even')}</p>
+          <p style={captionStyle}>{t('wrapped.slides.consistency.note')}</p>
+        </>
+      )
+    case 'compared': {
+      const strongestWeekday = WRAPPED_WEEKDAY_KEYS[reading.strongestIndex]!
+      const weakestWeekday = WRAPPED_WEEKDAY_KEYS[reading.weakestIndex]!
+      return (
+        <>
+          <p style={captionStyle}>
+            {t('wrapped.slides.consistency.summary', {
+              strong: t(`dates.daysShort.${strongestWeekday}`),
+              weak: t(`dates.daysShort.${weakestWeekday}`),
+            })}
+          </p>
+          <p style={captionStyle}>{t('wrapped.slides.consistency.note')}</p>
+        </>
+      )
+    }
+  }
 }
 
 interface WrappedShareSlideProps {

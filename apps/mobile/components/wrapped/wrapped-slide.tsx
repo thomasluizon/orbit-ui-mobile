@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import type { Recap } from '@orbit/shared/types/gamification'
 import {
   formatCompletionRate,
+  getWeeklyConsistencyReading,
   WRAPPED_WEEKDAY_KEYS,
   type RecapSharePeriod,
   type WrappedSlide as WrappedSlideModel,
@@ -80,6 +81,7 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
             {t('wrapped.slides.consistency.title')}
           </Animated.Text>
           <WeekdayColumns values={slide.weeklyConsistency} />
+          <WeekdayInterpretation values={slide.weeklyConsistency} tokens={tokens} />
         </View>
       )
     case 'streak':
@@ -125,6 +127,11 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
           <Animated.Text entering={enter(1)} style={[styles.label, { color: tokens.fg2 }]}>
             {t('progressScreen.sections.goals')}
           </Animated.Text>
+          {slide.closedGoals === 0 ? (
+            <Animated.Text entering={enter(2)} style={[styles.caption, { color: tokens.fg2 }]}>
+              {t('wrapped.slides.goals.zero')}
+            </Animated.Text>
+          ) : null}
         </View>
       )
     case 'share':
@@ -176,6 +183,47 @@ function WeekdayColumns({ values }: Readonly<{ values: number[] }>) {
       />
     </Animated.View>
   )
+}
+
+function WeekdayInterpretation({ values, tokens }: Readonly<{ values: number[]; tokens: Tokens }>) {
+  const { t } = useTranslation()
+  const reading = getWeeklyConsistencyReading(values)
+  switch (reading.kind) {
+    case 'thin':
+      return (
+        <Animated.Text entering={enter(3)} style={[styles.caption, { color: tokens.fg2 }]}>
+          {t('wrapped.slides.consistency.thin')}
+        </Animated.Text>
+      )
+    case 'even':
+      return (
+        <>
+          <Animated.Text entering={enter(3)} style={[styles.caption, { color: tokens.fg2 }]}>
+            {t('wrapped.slides.consistency.even')}
+          </Animated.Text>
+          <Animated.Text entering={enter(4)} style={[styles.caption, { color: tokens.fg2 }]}>
+            {t('wrapped.slides.consistency.note')}
+          </Animated.Text>
+        </>
+      )
+    case 'compared': {
+      const strongestWeekday = WRAPPED_WEEKDAY_KEYS[reading.strongestIndex]!
+      const weakestWeekday = WRAPPED_WEEKDAY_KEYS[reading.weakestIndex]!
+      return (
+        <>
+          <Animated.Text entering={enter(3)} style={[styles.caption, { color: tokens.fg2 }]}>
+            {t('wrapped.slides.consistency.summary', {
+              strong: t(`dates.daysShort.${strongestWeekday}`),
+              weak: t(`dates.daysShort.${weakestWeekday}`),
+            })}
+          </Animated.Text>
+          <Animated.Text entering={enter(4)} style={[styles.caption, { color: tokens.fg2 }]}>
+            {t('wrapped.slides.consistency.note')}
+          </Animated.Text>
+        </>
+      )
+    }
+  }
 }
 
 interface WrappedShareSlideProps {

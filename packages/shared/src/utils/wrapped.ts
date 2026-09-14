@@ -17,6 +17,35 @@ export type WrappedSlide =
 
 export type WrappedSlideId = WrappedSlide['id']
 
+export type WeeklyConsistencyReading =
+  | { kind: 'thin' }
+  | { kind: 'even' }
+  | { kind: 'compared'; strongestIndex: number; weakestIndex: number }
+
+export function getWeeklyConsistencyReading(
+  weeklyConsistency: readonly number[],
+): WeeklyConsistencyReading {
+  const loggedWeekdays = weeklyConsistency
+    .slice(0, 7)
+    .map((value, index) => ({ index, value }))
+    .filter(({ value }) => value > 0)
+  if (loggedWeekdays.length < 2) return { kind: 'thin' }
+
+  let strongest = loggedWeekdays[0]!
+  let weakest = strongest
+  for (const weekday of loggedWeekdays.slice(1)) {
+    if (weekday.value > strongest.value) strongest = weekday
+    if (weekday.value < weakest.value) weakest = weekday
+  }
+
+  if (strongest.value === weakest.value) return { kind: 'even' }
+  return {
+    kind: 'compared',
+    strongestIndex: strongest.index,
+    weakestIndex: weakest.index,
+  }
+}
+
 /**
  * Builds the ordered Orbit Wrapped story from a recap: a fixed positive-only
  * sequence (intro → completions → active days → consistency → best streak →
