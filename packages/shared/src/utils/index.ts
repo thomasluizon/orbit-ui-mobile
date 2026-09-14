@@ -86,6 +86,7 @@ export {
   extractBackendFieldErrors,
   extractBackendRequestId,
   extractBackendStatus,
+  isPayGateError,
   getErrorMessage,
   getFriendlyErrorKey,
   getFriendlyErrorMessage,

@@ -58,6 +58,7 @@ const mocks = vi.hoisted(() => ({
     xpProgress: 50,
     isLoading: false,
     isError: false,
+    error: { status: 500, data: { error: 'Server error', errorCode: 'INTERNAL_SERVER_ERROR' } },
     refetch: vi.fn(),
   },
   retrospective: {
@@ -346,6 +347,10 @@ describe('ProgressContent', () => {
       query.isLoading = false
       query.isError = false
     }
+    mocks.gamification.error = {
+      status: 500,
+      data: { error: 'Server error', errorCode: 'INTERNAL_SERVER_ERROR' },
+    }
     Object.assign(mocks.account.profile, { currentStreak: 4, longestStreak: 9, totalXp: 150 })
     Object.assign(mocks.gamification.profile, { currentStreak: 4, longestStreak: 9, totalXp: 150, achievementsEarned: 0 })
     mocks.account.profile.canViewGamification = true
@@ -423,14 +428,14 @@ describe('ProgressContent', () => {
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
   })
 
-  it('does not retry a disabled gamification query', () => {
+  it('retries gamification when the account capability hint is false', () => {
     mocks.account.profile.canViewGamification = false
     mocks.goals.isError = true
     render(<ProgressPage />)
     fireEvent.click(screen.getByRole('button', { name: 'progressScreen.retry' }))
     expect(mocks.account.refetch).toHaveBeenCalledTimes(1)
     expect(mocks.goals.refetch).toHaveBeenCalledTimes(1)
-    expect(mocks.gamification.refetch).not.toHaveBeenCalled()
+    expect(mocks.gamification.refetch).toHaveBeenCalledTimes(1)
   })
 
   it.each([false, true])('renders one orbital empty invitation for Pro access %s', (hasProAccess) => {
@@ -486,11 +491,16 @@ describe('ProgressContent', () => {
     ])
   })
 
-  it('renders the remaining routed boundaries with a 16px locked-card inset', async () => {
-    mocks.account.profile.canViewGamification = false
+  it('renders a pay-gate refusal as the three locked sections', async () => {
     mocks.account.profile.hasProAccess = false
+    mocks.gamification.isError = true
+    mocks.gamification.error = {
+      status: 403,
+      data: { error: 'Gamification is a Pro feature. Upgrade to unlock!', errorCode: 'PAY_GATE' },
+    }
     const { container, unmount } = render(<ProgressContent />)
 
+    expect(screen.queryByTestId('error-state')).not.toBeInTheDocument()
     expect(screen.getByText('progressScreen.streak.lockedBody')).toBeInTheDocument()
     expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
     expect(screen.getByText('progressScreen.achievements.lockedBody')).toBeInTheDocument()
@@ -519,7 +529,7 @@ describe('ProgressContent', () => {
     }
   })
 
-  it('keeps the free streak open while locking the Pro figures and achievements', () => {
+  it('unlocks every gamification section when a free account receives a profile', () => {
     mocks.account.profile.canViewGamification = true
     mocks.account.profile.hasProAccess = false
 
@@ -527,17 +537,11 @@ describe('ProgressContent', () => {
 
     expect(screen.getByText('progressScreen.streak.currentLabel:{"count":4}')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
-    expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
-    expect(screen.getByText('progressScreen.achievements.lockedBody')).toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.window.lockedBody')).not.toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.achievements.lockedBody')).not.toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.lockedBody')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('progress-xp-summary')).not.toBeInTheDocument()
-    const route = screen.getAllByRole('button', { name: 'progressScreen.achievements.lockedAction' })
-    expect(route).toHaveLength(1)
-    expect(route[0]).not.toBeDisabled()
-    expect(route[0]).not.toHaveAttribute('aria-disabled')
-    expect(route[0]!.closest('[data-testid="progress-locked-card"]')).not.toHaveAttribute('inert')
-    fireEvent.click(route[0]!)
-    expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/upgrade')
+    expect(screen.getByTestId('progress-xp-summary')).toBeInTheDocument()
+    expect(screen.getByText('75%')).toBeInTheDocument()
   })
 
   it('renders empty weekly and habit figures without substituting unrelated totals', () => {

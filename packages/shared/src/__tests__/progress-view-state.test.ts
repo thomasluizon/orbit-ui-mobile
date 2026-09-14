@@ -10,11 +10,11 @@ function readyProgress() {
     gamification: {
       isLoading: false,
       isError: false,
+      error: null as unknown,
       profile: createMockGamificationProfile({
         currentStreak: 0, longestStreak: 0, totalXp: 0, achievementsEarned: 0,
       }),
     },
-    canView: true,
   }
 }
 
@@ -38,26 +38,21 @@ describe('deriveProgressViewState', () => {
     },
   )
 
-  it.each(['isError', 'isLoading'] as const)(
-    'ignores gamification %s when access is disabled', (flag) => {
-      const input = readyProgress()
-      input.canView = false
-      input.gamification[flag] = true
+  it('treats a pay-gate refusal as locked instead of failed', () => {
+    const input = readyProgress()
+    input.gamification.isError = true
+    input.gamification.error = {
+      status: 403,
+      data: { error: 'Gamification is a Pro feature. Upgrade to unlock!', errorCode: 'PAY_GATE' },
+    }
 
-      expect(deriveProgressViewState(input)).toEqual({ error: false, loading: false, empty: true })
-    },
-  )
-
-  it.each([false, true])('shows empty zero progress with canView=%s', (canView) => {
-    expect(deriveProgressViewState({ ...readyProgress(), canView }))
-      .toEqual({ error: false, loading: false, empty: true })
+    expect(deriveProgressViewState(input)).toEqual({ error: false, loading: false, empty: true })
   })
 
-  it.each([false, true])('consults earned progress only with canView=%s', (canView) => {
+  it('consults earned progress from an available gamification profile', () => {
     const input = readyProgress()
-    input.canView = canView
     input.gamification.profile.achievementsEarned = 1
 
-    expect(deriveProgressViewState(input)).toEqual({ error: false, loading: false, empty: !canView })
+    expect(deriveProgressViewState(input)).toEqual({ error: false, loading: false, empty: false })
   })
 })
