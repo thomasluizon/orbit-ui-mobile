@@ -180,6 +180,7 @@ export const cases = () => {
   for (const [name, issueReference, pr] of [
     ["a fully qualified ticket reference", "ORB-215", pullRequest({ headRefName: "fix/something-else", title: "fix: x", body: "Refs thomasluizon/orbit-tickets#221" })],
     ["a ticket-number branch reference", "#221", pullRequest({ headRefName: "feature/ticket-221-work", title: "fix: x", body: "no reference" })],
+    ["a numeric issue argument with only its mapped ORB reference", "#221", pullRequest({ headRefName: "fix/something-else", title: "fix: x", body: "Refs ORB-215" })],
   ]) {
     const referenceStatus = stage(`sync-issue-state/reference-status-${issueReference}`, "status")
     const referenceComment = stage(`sync-issue-state/reference-comment-${issueReference}`, "comment")
