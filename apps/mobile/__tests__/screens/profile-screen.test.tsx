@@ -561,6 +561,20 @@ describe('ProfileScreen', () => {
     }
   })
 
+  it('keeps the share card reachable outside Ending things', async () => {
+    const tree = await renderProfileScreen()
+    const shareCardEntry = findRowByLabel(tree, 'shareCard.entry')
+    const ending = tree.root.findByProps({ testID: 'profile-settings-group-ending' })
+
+    expect(shareCardEntry).toBeDefined()
+    expect(
+      ending.findAll(
+        (node: SettingsRowStubNode) =>
+          node.type === 'SettingsRowStub' && node.props.label === 'shareCard.entry',
+      ),
+    ).toHaveLength(0)
+  })
+
   it('puts Sign out first in Ending things', async () => {
     const tree = await renderProfileScreen()
     const ending = tree.root.findByProps({ testID: 'profile-settings-group-ending' })

@@ -35,6 +35,7 @@ import {
   ProfileSettingsFrame,
   ProfileValueRow,
 } from '@/components/profile/profile-settings-frame'
+import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { ListRow } from '@/components/ui/list-row'
 import { RowList } from '@/components/ui/row-list'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -192,7 +193,7 @@ function TimeZonePicker({ controls, mounted, profile, t }: Readonly<TimeZonePick
 }
 
 function buildMoreRows({ profile, t }: RowContext) {
-  return PROFILE_NAV_ITEMS.map((item) => {
+  const navigationRows = PROFILE_NAV_ITEMS.map((item) => {
     const redirectsToUpgrade = shouldRedirectProfileNavItem(item, profile)
     const href = redirectsToUpgrade ? '/upgrade' : item.route
     return (
@@ -207,6 +208,11 @@ function buildMoreRows({ profile, t }: RowContext) {
       />
     )
   })
+
+  return [
+    ...navigationRows,
+    <ShareCardEntryButton key="share" displayName={profile?.name} />,
+  ]
 }
 
 interface EndingRowsOptions {

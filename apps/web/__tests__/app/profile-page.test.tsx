@@ -271,6 +271,16 @@ describe('ProfilePage', () => {
     ).toBeInTheDocument()
   })
 
+  it('keeps the share card reachable outside Ending things', () => {
+    render(<ProfilePage />)
+
+    const shareCardEntry = screen.getByRole('button', { name: /shareCard\.entry/i })
+    const ending = screen.getByTestId('profile-settings-group-ending')
+
+    expect(shareCardEntry).toBeInTheDocument()
+    expect(ending).not.toContainElement(shareCardEntry)
+  })
+
   it('puts Sign out first in Ending things', () => {
     render(<ProfilePage />)
     const ending = screen.getByTestId('profile-settings-group-ending')
