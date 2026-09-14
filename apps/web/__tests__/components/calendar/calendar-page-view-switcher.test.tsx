@@ -10,6 +10,12 @@ import {
 import type { CalendarSyncEvent } from '@orbit/shared'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
+const MOCK_ACCOUNT_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+function getMockAccountDateKey(): string {
+  return formatAPIDateInTimeZone(new Date(), MOCK_ACCOUNT_TIME_ZONE)
+}
+
 let isWideDesktopValue = false
 let calendarGridSelectionDate = '2026-01-05'
 const calendarGridProps: Record<string, unknown> & {
@@ -35,7 +41,7 @@ const profileQueryState: {
   error: Error | null
   refetch: ReturnType<typeof vi.fn>
 } = {
-  profile: { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false },
+  profile: { weekStartDay: 1, timeZone: MOCK_ACCOUNT_TIME_ZONE, hasProAccess: false },
   error: null,
   refetch: vi.fn(),
 }
@@ -297,7 +303,11 @@ describe('CalendarPage view switcher', () => {
     monthQueryState.error = null
     monthQueryState.isLoading = false
     monthQueryState.refresh = vi.fn()
-    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: false }
+    profileQueryState.profile = {
+      weekStartDay: 1,
+      timeZone: MOCK_ACCOUNT_TIME_ZONE,
+      hasProAccess: false,
+    }
     profileQueryState.error = null
     profileQueryState.refetch = vi.fn()
     calendarDataCalls.mockClear()
@@ -342,7 +352,7 @@ describe('CalendarPage view switcher', () => {
           id: 'retained-event',
           title: 'Retained meeting',
           description: null,
-          startDate: formatAPIDate(new Date()),
+          startDate: getMockAccountDateKey(),
           startTime: '09:00',
           endTime: null,
           isRecurring: false,
@@ -514,7 +524,7 @@ describe('CalendarPage view switcher', () => {
   })
 
   it('shows all agenda habits after recurring entries are hidden in another view', () => {
-    const today = formatAPIDate(new Date())
+    const today = getMockAccountDateKey()
     rangeDayMap = new Map([
       [today, [
         monthEntry('recurring', 'upcoming'),
@@ -559,7 +569,7 @@ describe('CalendarPage view switcher', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 0, 10))
     isWideDesktopValue = true
-    const todayKey = formatAPIDate(new Date())
+    const todayKey = getMockAccountDateKey()
     const futureDay = '2026-02-05'
     calendarGridSelectionDate = futureDay
     monthQueryState.dayMap = new Map([
@@ -591,7 +601,7 @@ describe('CalendarPage view switcher', () => {
       dueTime: null,
       isOneTime: false,
     }
-    const selectedDate = formatAPIDate(new Date())
+    const selectedDate = getMockAccountDateKey()
     monthQueryState.dayMap = new Map([[selectedDate, [entry]]])
     render(<CalendarPage />)
 
@@ -723,7 +733,7 @@ describe('CalendarPage view switcher', () => {
   })
 
   it('shows the legend once the month has a scheduled entry', () => {
-    monthQueryState.dayMap = new Map([[formatAPIDate(new Date()), [{
+    monthQueryState.dayMap = new Map([[getMockAccountDateKey(), [{
       habitId: 'habit-1',
       title: 'Habit',
       status: 'upcoming',
@@ -749,7 +759,7 @@ describe('CalendarPage view switcher', () => {
   })
 
   it('removes recurring habits from the month and shows its honest empty state', () => {
-    const todayKey = formatAPIDate(new Date())
+    const todayKey = getMockAccountDateKey()
     monthQueryState.dayMap = new Map([[todayKey, [{
       habitId: 'recurring',
       title: 'Recurring habit',
@@ -771,7 +781,7 @@ describe('CalendarPage view switcher', () => {
   })
 
   it('removes recurring status rings from the range picker when recurring is turned off', () => {
-    const todayKey = formatAPIDate(new Date())
+    const todayKey = getMockAccountDateKey()
     rangeDayMap = new Map([[todayKey, [{
       habitId: 'recurring',
       title: 'Recurring habit',

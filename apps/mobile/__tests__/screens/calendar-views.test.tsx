@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
   formatAPIDate,
+  formatAPIDateInTimeZone,
+  parseAPIDate,
 } from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { Text, View } from "react-native";
@@ -15,6 +17,12 @@ import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const TestRenderer = require("react-test-renderer");
 type CalendarGridComponent = typeof import("@/app/(tabs)/calendar/_components/calendar-grid")["CalendarGrid"];
+
+const MOCK_ACCOUNT_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+function getMockAccountDateKey(): string {
+  return formatAPIDateInTimeZone(new Date(), MOCK_ACCOUNT_TIME_ZONE);
+}
 
 const state = vi.hoisted(() => ({
   rangeMap: new Map<string, CalendarDayEntry[]>(),
@@ -327,7 +335,7 @@ describe("CalendarScreen views (mobile)", () => {
     state.monthLoading = false;
     state.monthError = null;
     state.monthRefresh = () => {};
-    state.profile = { weekStartDay: 1, timeZone: "UTC", hasProAccess: false };
+    state.profile = { weekStartDay: 1, timeZone: MOCK_ACCOUNT_TIME_ZONE, hasProAccess: false };
     state.profileError = null;
     state.profileRefetch = vi.fn();
     state.calendarDataCalls.mockClear();
@@ -344,7 +352,7 @@ describe("CalendarScreen views (mobile)", () => {
     calendarStatsProps.current = null;
     state.routerPush.mockClear();
     state.setShowCreateModal.mockClear();
-    const todayStr = formatAPIDate(new Date());
+    const todayStr = getMockAccountDateKey();
     state.monthMap = new Map();
     state.rangeMap = new Map<string, CalendarDayEntry[]>([
       [
@@ -853,7 +861,7 @@ describe("CalendarScreen views (mobile)", () => {
     vi.setSystemTime(new Date("2026-09-13T12:00:00.000Z"));
     state.rangeMap = new Map([
       [
-        "2026-09-13",
+        getMockAccountDateKey(),
         [
           makeEntry({ habitId: "r", title: "Recurring", isOneTime: false }),
           makeEntry({ habitId: "o", title: "OneTime", isOneTime: true }),
@@ -892,7 +900,7 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
   it("removes recurring habits from the month and shows its honest empty state", () => {
-    const todayStr = formatAPIDate(new Date());
+    const todayStr = getMockAccountDateKey();
     state.monthMap = new Map([[todayStr, [
       makeEntry({ habitId: "r", title: "Recurring", isOneTime: false }),
     ]]]);
@@ -1001,7 +1009,7 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
   it("renders fourteen range days as read-only cells with span figures", () => {
-    const today = new Date();
+    const today = parseAPIDate(getMockAccountDateKey());
     state.rangeMap = new Map([
       [formatAPIDate(addDays(today, -1)), [makeEntry({ status: "completed" })]],
       [formatAPIDate(today), [makeEntry({ status: "missed" })]],
@@ -1145,7 +1153,7 @@ describe("CalendarScreen views (mobile)", () => {
   });
 
   it("shows the legend once the month has a scheduled entry", () => {
-    state.monthMap = new Map([[formatAPIDate(new Date()), [makeEntry({})]]]);
+    state.monthMap = new Map([[getMockAccountDateKey(), [makeEntry({})]]]);
     let tree!: Tree;
     TestRenderer.act(() => { tree = TestRenderer.create(<CalendarScreen />); });
     const flatList = tree.root.findAll(
