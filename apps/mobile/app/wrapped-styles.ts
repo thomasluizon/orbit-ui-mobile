@@ -81,7 +81,7 @@ export const styles = StyleSheet.create({
   shareError: { fontFamily: 'Geist_400Regular', fontSize: 13, textAlign: 'center' },
   shareCtaWrap: { width: '100%', maxWidth: 360 },
   coverScroller: { flex: 1 },
-  coverExit: { position: 'absolute', left: 16, top: 8, zIndex: 1 },
+  coverExit: { position: 'absolute', left: 16, zIndex: 1 },
   cover: {
     flexGrow: 1,
     alignItems: 'flex-start',
