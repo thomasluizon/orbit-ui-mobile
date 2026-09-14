@@ -271,8 +271,6 @@ function StreakSlide(props: Readonly<Omit<HeroStatSlideProps, 'testId'>>) {
           <circle cx="17" cy="17" r="15.5" fill="none" stroke="var(--status-empty)" strokeWidth="1.5" />
           <motion.circle
             data-testid="wrapped-streak-ring"
-            data-ring-state="complete"
-            data-sweep-count={props.reducedMotion ? 0 : 1}
             cx="17"
             cy="17"
             r="15.5"

@@ -6,6 +6,7 @@ import Animated, {
   useAnimatedProps,
   useReducedMotion,
   useSharedValue,
+  withDelay,
   withTiming,
 } from 'react-native-reanimated'
 import Svg, { Circle } from 'react-native-svg'
@@ -231,10 +232,13 @@ function StreakRing({ tokens, reducedMotion }: Readonly<{ tokens: Tokens; reduce
 
   useEffect(() => {
     if (!reducedMotion) {
-      dashOffset.value = withTiming(0, {
-        duration: motionDurations.slow,
-        easing: Easing.bezier(...motionEasings.enter),
-      })
+      dashOffset.value = withDelay(
+        orbitalMotion.list.staggerMs,
+        withTiming(0, {
+          duration: motionDurations.slow,
+          easing: Easing.bezier(...motionEasings.enter),
+        }),
+      )
     }
   }, [dashOffset, reducedMotion])
 

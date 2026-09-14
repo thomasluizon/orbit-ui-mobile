@@ -119,10 +119,10 @@ describe('WrappedSlide', () => {
     const streak = buildWrappedSlides(recap).find((slide) => slide.id === 'streak')!
     const firstArrival = renderSlide(streak)
 
-    expect(screen.getByTestId('wrapped-streak-ring')).toHaveAttribute('data-sweep-count', '1')
+    assertStreakRingSweep()
     firstArrival.unmount()
     renderSlide(streak)
-    expect(screen.getByTestId('wrapped-streak-ring')).toHaveAttribute('data-sweep-count', '1')
+    assertStreakRingSweep()
   })
 
   it('animates page entry with transform and opacity only', () => {
@@ -145,7 +145,20 @@ describe('WrappedSlide', () => {
       expect(JSON.parse(part.dataset.motionAnimate!)).toEqual({ y: 0, opacity: 1 })
       expect(part.dataset.motionTransition).toBeUndefined()
     }
-    expect(screen.getByTestId('wrapped-streak-ring')).toHaveAttribute('data-ring-state', 'complete')
-    expect(screen.getByTestId('wrapped-streak-ring')).toHaveAttribute('data-sweep-count', '0')
+    const ring = screen.getByTestId('wrapped-streak-ring')
+    expect(JSON.parse(ring.dataset.motionInitial!)).toBe(false)
+    expect(JSON.parse(ring.dataset.motionAnimate!)).toEqual({ pathLength: 1 })
+    expect(ring.dataset.motionTransition).toBeUndefined()
   })
 })
+
+function assertStreakRingSweep() {
+  const ring = screen.getByTestId('wrapped-streak-ring')
+  expect(JSON.parse(ring.dataset.motionInitial!)).toEqual({ pathLength: 0 })
+  expect(JSON.parse(ring.dataset.motionAnimate!)).toEqual({ pathLength: 1 })
+  expect(JSON.parse(ring.dataset.motionTransition!)).toEqual({
+    duration: 0.28,
+    delay: 0.04,
+    ease: [0.16, 1, 0.3, 1],
+  })
+}
