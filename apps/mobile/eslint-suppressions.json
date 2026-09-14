@@ -30,11 +30,6 @@
       "count": 2
     }
   },
-  "app/about.tsx": {
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
   "app/ai-settings-styles.ts": {
     "local/spacing-scale": {
       "count": 1

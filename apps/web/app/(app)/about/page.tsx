@@ -3,81 +3,178 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Compass, FileText, Mail, Shield } from '@/components/ui/icons'
-import { AppBar } from '@/components/ui/app-bar'
-import { AppLogo } from '@/components/ui/app-logo'
-import { SettingsRow } from '@/components/ui/settings-row'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
+import { AppBar } from '@/components/ui/app-bar'
+import { ListRow } from '@/components/ui/list-row'
+import { OrbitMark } from '@/components/ui/orbit-mark'
+import { RowList } from '@/components/ui/row-list'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useProfile } from '@/hooks/use-profile'
+import { useAuthStore } from '@/stores/auth-store'
 import packageJson from '@/package.json'
+
+interface AboutFactProps {
+  id: 'version' | 'account'
+  label: string
+  value: string
+}
+
+function AboutFact({ id, label, value }: Readonly<AboutFactProps>) {
+  return (
+    <div
+      className="flex min-w-0 flex-wrap"
+      data-testid={`about-fact-${id}`}
+      style={{ columnGap: 12, rowGap: 4 }}
+    >
+      <span
+        data-testid={`about-fact-${id}-label`}
+        style={{
+          flex: '1 1 auto',
+          minWidth: 0,
+          color: 'var(--fg-3)',
+          fontSize: 14,
+          lineHeight: 1.5,
+        }}
+      >
+        {label}
+      </span>
+      <span
+        data-testid={`about-fact-${id}-value`}
+        style={{
+          flex: '0 1 auto',
+          minWidth: 0,
+          color: 'var(--fg-2)',
+          fontFamily: 'var(--font-mono)',
+          fontSize: 12,
+          fontVariantNumeric: 'tabular-nums',
+          lineHeight: 1.6,
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  )
+}
+
+function ProfileAccountFact({ label }: Readonly<{ label: string }>) {
+  const { profile } = useProfile()
+
+  return <AboutFact id="account" label={label} value={profile?.email ?? ''} />
+}
 
 export default function AboutPage() {
   const t = useTranslations()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   const [showGuide, setShowGuide] = useState(false)
 
   return (
-    <div className="md:mx-auto md:max-w-[760px]">
-      <div className="flex flex-col min-h-[100dvh]">
+    <div className="min-w-0 md:mx-auto md:w-full md:max-w-[620px]">
+      <div className="flex min-h-[100dvh] min-w-0 flex-col">
         <AppBar
           backLabel={t('common.backToProfile')}
           onBack={() => goBackOrFallback('/profile')}
           title={t('about.title')}
         />
-        <div className="flex-1 min-h-0 overflow-y-auto stagger-enter">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
           <div
-            className="flex flex-col items-center"
-            style={{ gap: 10, padding: '24px 0 20px' }}
+            className="flex min-w-0 flex-col p-4"
+            data-testid="about-content"
+            style={{ gap: 24 }}
           >
-            <AppLogo size={72} />
-            <span
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 22,
-                fontWeight: 500,
-                letterSpacing: '-0.01em',
-                color: 'var(--fg-1)',
-              }}
+            <div
+              className="flex min-w-0 flex-col items-start"
+              data-testid="about-identity"
+              style={{ gap: 12 }}
             >
-              {t('common.appName')}
-            </span>
-            <span
+              <OrbitMark size={48} accent />
+              <p
+                className="text-[28px] leading-[1.15] md:text-[34px] md:leading-[1.12]"
+                translate="no"
+                style={{
+                  color: 'var(--fg-1)',
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 600,
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                {t('common.appName')}
+              </p>
+              <p
+                className="max-w-[38ch] md:max-w-[46ch]"
+                style={{
+                  color: 'var(--fg-2)',
+                  fontSize: 16,
+                  lineHeight: 1.55,
+                  overflowWrap: 'anywhere',
+                  textWrap: 'pretty',
+                }}
+              >
+                {t('about.tagline')}
+              </p>
+            </div>
+
+            <div className="min-w-0" data-testid="about-destinations">
+              <RowList style={{ minWidth: 0 }}>
+                {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
+                <ListRow
+                  accessibilityLabel={t('onboarding.featureGuide.openButton')}
+                  onClick={() => setShowGuide(true)}
+                  title={t('onboarding.featureGuide.openButton')}
+                  wrapTitle
+                />
+                <ListRow
+                  accessibilityLabel={t('profile.support.title')}
+                  onClick={() => router.push('/support')}
+                  title={t('profile.support.title')}
+                  wrapTitle
+                />
+                {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
+                <ListRow
+                  accessibilityLabel={t('terms.title')}
+                  onClick={() => router.push('/terms')}
+                  title={t('terms.title')}
+                  wrapTitle
+                />
+                {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
+                <ListRow
+                  accessibilityLabel={t('privacy.title')}
+                  onClick={() => router.push('/privacy')}
+                  title={t('privacy.title')}
+                  wrapTitle
+                />
+              </RowList>
+            </div>
+
+            <div
+              className="flex min-w-0 flex-col"
+              data-testid="about-facts"
+              style={{ gap: 8 }}
+            >
+              <AboutFact
+                id="version"
+                label={t('about.versionLabel')}
+                value={packageJson.version}
+              />
+              {isAuthenticated ? (
+                <ProfileAccountFact label={t('about.accountLabel')} />
+              ) : null}
+            </div>
+
+            <p
+              data-testid="about-credit"
               style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 13,
                 color: 'var(--fg-3)',
-                fontVariantNumeric: 'tabular-nums',
+                fontSize: 14,
+                lineHeight: 1.55,
+                overflowWrap: 'anywhere',
+                textWrap: 'pretty',
               }}
             >
-              {t('about.version', { version: packageJson.version })}
-            </span>
-          </div>
-          <div>
-            <SettingsRow
-              icon={Compass}
-              label={t('onboarding.featureGuide.openButton')}
-              onClick={() => setShowGuide(true)}
-              ariaLabel={t('onboarding.featureGuide.openButton')}
-            />
-            <SettingsRow
-              icon={Mail}
-              label={t('profile.support.title')}
-              onClick={() => router.push('/support')}
-              ariaLabel={t('profile.support.title')}
-            />
-            <SettingsRow
-              icon={FileText}
-              label={t('terms.title')}
-              onClick={() => router.push('/terms')}
-              ariaLabel={t('terms.title')}
-            />
-            <SettingsRow
-              icon={Shield}
-              label={t('privacy.title')}
-              onClick={() => router.push('/privacy')}
-              ariaLabel={t('privacy.title')}
-            />
+              {t('about.credit')}
+            </p>
           </div>
         </div>
         <FeatureGuideDrawer open={showGuide} onOpenChange={setShowGuide} />
