@@ -56,6 +56,16 @@ These stay until he changes them. Keep his words.
   should have literally no more questions after i answer all of them ... why the fuck do you
   gatekeep QUESTIONS??" Asking four of six and closing the rest yourself is the failure. Ask every
   survivor, in rounds of four, and say how many rounds are left.
+- **2026-09-14** **Any run ends only when this spec is done.** "ANY RUN ends only when the original
+  spec is done ... anytime i run /handoff, the handoff needs to list a clear goal: finish the
+  original spec. if its not done, then your work is not done, and if it means fixing blockers, taking
+  decisions, whathever it takes, you will do it, until the spec is finished with the best approach
+  possible." A blocker is the next piece of work, never an ending: "theres no blocker impossible of
+  being fixed by you, you create the blockers, you fix them, always doing the best approach." Waiting
+  on CI is waiting. A stacked child's blocker is its parent, which is the work. A finding too big for
+  one pull request becomes a ticket AND gets picked up. A missing branch, gate or tool gets built. The
+  only honest early ending is external: the allowance runs out, the machine stops, or he says stop,
+  and you say which.
 - **Standing** Ticket `#74` owns existing copy.
 - **Standing** Never boot the Android emulator. It is his visual testing surface.
 - **Standing** `redesign/main` stays unprotected. Settled; never raise it.

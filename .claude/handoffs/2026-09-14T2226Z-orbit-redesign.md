@@ -135,6 +135,39 @@ durable fact is in the spec. It dies with the session.
 **Do not stop because the pull requests ran out.** That is the middle of the job, not the end. The
 end is every screen ticket closed and the coverage mapping clean.
 
+## When this run is allowed to end
+
+**Only when `.claude/specs/orbit-redesign.md` is done.** Nothing else is an ending, and a blocker
+least of all. This is not a `--sleep` rule; it is how every run against a spec works.
+
+His words, 2026-09-14: "ANY RUN ends only when the original spec is done ... anytime i run /handoff,
+the handoff needs to list a clear goal: finish the original spec. if its not done, then your work is
+not done, and if it means fixing blockers, taking decisions, whathever it takes, you will do it,
+until the spec is finished with the best approach possible ... theres no blocker impossible of being
+fixed by you, you create the blockers, you fix them, always doing the best approach."
+
+So:
+
+- **Waiting on CI or a review is waiting, not blocking.** Start the next thing while it runs.
+- **A stacked child is not blocked; its parent is the work.** Go do the parent.
+- **A finding too large for the pull request it appeared in becomes its own ticket AND you pick that
+  ticket up.** Filing it is not a disposition.
+- **A missing capability is built.** A missing branch, gate, tier, test harness or tool is created,
+  not reported. `orbit-api` had no `redesign/main` on 2026-09-14 and that was treated as a blocker
+  for hours; creating it took one command.
+- **A recorded blocker in the readiness ledger is a TODO, not a finish line.** This session ended a
+  turn as BLOCKED with six ledger rows. That was wrong, and it is why you are reading this section.
+
+Re-derive what is left rather than trusting this prompt:
+
+    gh issue list --repo thomasluizon/orbit-tickets --state open --label "repo:ui" --limit 200
+
+Every open ticket whose scope falls inside `.claude/specs/orbit-redesign.md` is still your work. The
+spec is the goal; this prompt is only where to start.
+
+The only honest early ending is external: the Codex allowance is exhausted, the machine stops, or
+Thomas says stop. Say which one it was, and never report it as the work being finished.
+
 ## --sleep
 
 This run continues unattended. Take every decision yourself, always the best approach and never the
