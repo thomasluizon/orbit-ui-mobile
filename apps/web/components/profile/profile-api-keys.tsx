@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
@@ -76,18 +76,32 @@ interface ScopeSheetProps {
   busy: boolean
   error: string | null
   onClose: () => void
-  onCreate: (scope: string) => Promise<ApiKeyCreateResponse | null>
+  onCreate: (
+    scope: string,
+    onCreateGrantRequired: () => Promise<void>,
+  ) => Promise<ApiKeyCreateResponse | null>
+  onCreateGrantRequired: () => void
   onCreated: (createdKey: ApiKeyCreateResponse) => void
 }
 
-function ScopeSheet({ busy, error, onClose, onCreate, onCreated }: Readonly<ScopeSheetProps>) {
+function ScopeSheet({
+  busy,
+  error,
+  onClose,
+  onCreate,
+  onCreateGrantRequired,
+  onCreated,
+}: Readonly<ScopeSheetProps>) {
   const t = useTranslations()
   const { sheetRef, closeSheet } = useSheetHost()
   const [scope, setScope] = useState('')
   async function submit() {
     const trimmedScope = scope.trim()
     if (!trimmedScope) return
-    const result = await onCreate(trimmedScope)
+    const result = await onCreate(
+      trimmedScope,
+      () => Promise.resolve(closeSheet(onCreateGrantRequired)),
+    )
     if (result) closeSheet(() => onCreated(result))
   }
 
@@ -157,25 +171,15 @@ function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
   )
 }
 
-function ApiKeyGate() {
-  const t = useTranslations()
-  const router = useRouter()
-  const [showStepUp, setShowStepUp] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState(false)
+interface ApiKeyGateProps {
+  busy: boolean
+  error: boolean
+  onStartStepUp: () => Promise<void>
+}
 
-  async function startStepUp() {
-    setBusy(true)
-    setError(false)
-    try {
-      await requestApiKeyCreationChallenge()
-      beginStepUpChallenge('keys')
-      router.push('/step-up?operation=keys')
-    } catch {
-      setError(true)
-      setBusy(false)
-    }
-  }
+function ApiKeyGate({ busy, error, onStartStepUp }: Readonly<ApiKeyGateProps>) {
+  const t = useTranslations()
+  const [showStepUp, setShowStepUp] = useState(false)
 
   if (!showStepUp) {
     return (
@@ -196,11 +200,123 @@ function ApiKeyGate() {
         message={t('profile.apiKeys.stepUpBody')}
         actionLabel={t('profile.apiKeys.stepUpAction')}
         busy={busy}
-        onAction={() => void startStepUp()}
+        onAction={() => void onStartStepUp()}
       />
       {error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('stepUp.requestError')}</p> : null}
     </>
   )
+}
+
+interface ApiKeyAccessContentProps extends ApiKeyGateProps {
+  children: ReactNode
+  hasProAccess: boolean
+  onUpgrade: () => void
+  unlocked: boolean
+}
+
+function ApiKeyAccessContent({
+  busy,
+  children,
+  error,
+  hasProAccess,
+  onStartStepUp,
+  onUpgrade,
+  unlocked,
+}: Readonly<ApiKeyAccessContentProps>) {
+  const t = useTranslations()
+  if (!hasProAccess) {
+    return (
+      <RowList>
+        <ListRow
+          icon={<Lock size={24} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
+          title={t('profile.apiKeys.unlock')}
+          accessibilityLabel={t('profile.apiKeys.unlock')}
+          trailing={<ProBadge alwaysVisible />}
+          chevron={false}
+          onClick={onUpgrade}
+        />
+      </RowList>
+    )
+  }
+  if (!unlocked) {
+    return <ApiKeyGate busy={busy} error={error} onStartStepUp={onStartStepUp} />
+  }
+  return children
+}
+
+interface ApiKeyCreateControlsProps {
+  canCreate: boolean
+  creating: boolean
+  onCreate: () => void
+  onCreateScoped: () => void
+  scopeOpen: boolean
+  stepUpBusy: boolean
+}
+
+function ApiKeyCreateControls({
+  canCreate,
+  creating,
+  onCreate,
+  onCreateScoped,
+  scopeOpen,
+  stepUpBusy,
+}: Readonly<ApiKeyCreateControlsProps>) {
+  const t = useTranslations()
+  if (!canCreate) {
+    return <p className="text-sm text-[var(--fg-3)]">{t('orbitMcp.maxKeysReached')}</p>
+  }
+  return (
+    <div className="flex flex-wrap" style={{ gap: 8 }}>
+      <PillButton
+        variant="secondary"
+        size="sm"
+        loading={creating && !scopeOpen}
+        onClick={onCreate}
+      >
+        {t('profile.apiKeys.create')}
+      </PillButton>
+      {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
+      <PillButton variant="ghost" size="sm" loading={stepUpBusy} onClick={onCreateScoped}>
+        {t('profile.apiKeys.createScoped')}
+      </PillButton>
+    </div>
+  )
+}
+
+function useApiKeyStepUp() {
+  const router = useRouter()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(false)
+
+  async function start() {
+    if (busy) return
+    setBusy(true)
+    setError(false)
+    try {
+      await requestApiKeyCreationChallenge()
+      beginStepUpChallenge('keys')
+      router.push('/step-up?operation=keys')
+    } catch {
+      setError(true)
+      setBusy(false)
+    }
+  }
+
+  return { busy, error, start }
+}
+
+function openScopeOrStartStepUp(
+  createGrantAvailable: boolean,
+  clearCreateKeyError: () => void,
+  openScope: () => void,
+  startStepUp: () => Promise<void>,
+): void {
+  clearCreateKeyError()
+  if (!createGrantAvailable) {
+    void startStepUp()
+    return
+  }
+  openScope()
 }
 
 export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysProps>) {
@@ -208,19 +324,24 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
   const router = useRouter()
   const queryClient = useQueryClient()
   const hasProAccess = profile?.hasProAccess ?? false
+  const [scopeOpen, setScopeOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [createdKey, setCreatedKey] = useState<ApiKeyCreateResponse | null>(null)
+  const stepUp = useApiKeyStepUp()
+
   const management = useApiKeyManagement({
     hasProAccess: hasProAccess && unlocked,
     queryClient,
     t,
   })
-  const [scopeOpen, setScopeOpen] = useState(false)
-  const [creating, setCreating] = useState(false)
-  const [createdKey, setCreatedKey] = useState<ApiKeyCreateResponse | null>(null)
 
-  async function createKey(request: ApiKeyCreateRequest) {
+  async function createKey(
+    request: ApiKeyCreateRequest,
+    onCreateGrantRequired: () => Promise<void> = stepUp.start,
+  ) {
     setCreating(true)
     try {
-      return await management.handleCreateKey(request)
+      return await management.handleCreateKey(request, onCreateGrantRequired)
     } finally {
       setCreating(false)
     }
@@ -229,11 +350,6 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
   async function createSimpleKey() {
     const result = await createKey({ name: t('profile.apiKeys.newKeyName') })
     if (result) setCreatedKey(result)
-  }
-
-  function openScopeSheet() {
-    management.clearCreateKeyError()
-    setScopeOpen(true)
   }
 
   const revokingKey = management.apiKeys.find((apiKey) => apiKey.id === management.revokingKeyId)
@@ -255,21 +371,14 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
         {t('profile.apiKeys.description')}
       </p>
 
-      {!hasProAccess ? (
-        <RowList>
-          { }
-          <ListRow
-            icon={<Lock size={24} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
-            title={t('profile.apiKeys.unlock')}
-            accessibilityLabel={t('profile.apiKeys.unlock')}
-            trailing={<ProBadge alwaysVisible />}
-            chevron={false}
-            onClick={() => router.push('/upgrade')}
-          />
-        </RowList>
-      ) : !unlocked ? (
-        <ApiKeyGate />
-      ) : (
+      <ApiKeyAccessContent
+        busy={stepUp.busy}
+        error={stepUp.error}
+        hasProAccess={hasProAccess}
+        onStartStepUp={stepUp.start}
+        onUpgrade={() => router.push('/upgrade')}
+        unlocked={unlocked}
+      >
         <>
           <ApiKeyList
             apiKeys={management.apiKeys}
@@ -278,40 +387,43 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
             onRevoke={management.setRevokingKeyId}
             onRetry={() => void management.apiKeysQuery.refetch()}
           />
-          {!management.canCreateKey ? (
-            <p className="text-sm text-[var(--fg-3)]">{t('orbitMcp.maxKeysReached')}</p>
-          ) : (
-            <div className="flex flex-wrap" style={{ gap: 8 }}>
-              <PillButton
-                variant="secondary"
-                size="sm"
-                loading={creating && !scopeOpen}
-                onClick={() => void createSimpleKey()}
-              >
-                {t('profile.apiKeys.create')}
-              </PillButton>
-              {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
-              <PillButton variant="ghost" size="sm" onClick={openScopeSheet}>
-                {t('profile.apiKeys.createScoped')}
-              </PillButton>
-            </div>
-          )}
+          <ApiKeyCreateControls
+            canCreate={management.canCreateKey}
+            creating={creating}
+            onCreate={() => void createSimpleKey()}
+            onCreateScoped={() => openScopeOrStartStepUp(
+              management.createGrantAvailable,
+              management.clearCreateKeyError,
+              () => setScopeOpen(true),
+              stepUp.start,
+            )}
+            scopeOpen={scopeOpen}
+            stepUpBusy={stepUp.busy}
+          />
           {management.createKeyError && !scopeOpen ? (
             <p role="alert" className="text-sm text-[var(--status-bad-text)]">{management.createKeyError}</p>
           ) : null}
+          {stepUp.error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{t('stepUp.requestError')}</p> : null}
           <div className="flex flex-col rounded-[12px] bg-[var(--bg-well)]" style={{ gap: 4, padding: 16 }}>
             <p className="font-sans text-[14px] font-medium text-[var(--fg-1)]">{t('profile.apiKeys.mcpTitle')}</p>
             <p className="font-sans text-[14px] leading-[1.5] text-[var(--fg-3)]">{t('profile.apiKeys.mcpLine')}</p>
           </div>
         </>
-      )}
+      </ApiKeyAccessContent>
 
       {scopeOpen ? (
         <ScopeSheet
           busy={creating}
           error={management.createKeyError}
           onClose={() => setScopeOpen(false)}
-          onCreate={(scope) => createKey({ name: t('profile.apiKeys.newKeyName'), scopes: [scope] })}
+          onCreate={(scope, onCreateGrantRequired) => createKey(
+            { name: t('profile.apiKeys.newKeyName'), scopes: [scope] },
+            onCreateGrantRequired,
+          )}
+          onCreateGrantRequired={() => {
+            setScopeOpen(false)
+            void stepUp.start()
+          }}
           onCreated={(result) => {
             setScopeOpen(false)
             setCreatedKey(result)

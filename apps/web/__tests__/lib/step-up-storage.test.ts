@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { STEP_UP_ATTEMPT_WINDOW_MS } from '@orbit/shared/utils'
 import {
   beginStepUpChallenge,
+  bindStepUpStateToAccount,
+  clearStepUpState,
+  consumeApiKeyCreationGrant,
+  hasApiKeyCreationGrant,
   isStepUpVerified,
   markStepUpAttemptFailed,
   markStepUpExhausted,
@@ -10,7 +14,10 @@ import {
 } from '@/lib/step-up-storage'
 
 describe('web step up timing storage', () => {
-  beforeEach(() => localStorage.clear())
+  beforeEach(() => {
+    localStorage.clear()
+    clearStepUpState()
+  })
 
   it('does not let a new code reset an active exhausted window', () => {
     const first = beginStepUpChallenge('delete', 1_000)
@@ -40,5 +47,24 @@ describe('web step up timing storage', () => {
 
     expect(isStepUpVerified('keys')).toBe(true)
     expect(isStepUpVerified('keys')).toBe(true)
+  })
+
+  it('consumes the create grant without hiding key management', () => {
+    markStepUpVerified('keys')
+
+    consumeApiKeyCreationGrant()
+
+    expect(hasApiKeyCreationGrant()).toBe(false)
+    expect(isStepUpVerified('keys')).toBe(true)
+  })
+
+  it('clears visibility and the create grant when the account changes', () => {
+    bindStepUpStateToAccount('account-a')
+    markStepUpVerified('keys')
+
+    bindStepUpStateToAccount('account-b')
+
+    expect(isStepUpVerified('keys')).toBe(false)
+    expect(hasApiKeyCreationGrant()).toBe(false)
   })
 })

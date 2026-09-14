@@ -5,6 +5,12 @@ import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/s
 import { apiKeyKeys } from '@orbit/shared/query'
 import { apiClient } from '@/lib/api-client'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import {
+  clearApiKeyCreationGrant,
+  consumeApiKeyCreationGrant,
+  hasApiKeyCreationGrant,
+} from '@/lib/step-up-storage'
+import { extractBackendErrorCode, extractBackendStatus } from '@orbit/shared/utils'
 
 const MAX_API_KEYS = 5
 
@@ -32,6 +38,7 @@ export function useApiKeyManagement({
   const apiKeys = apiKeysQuery.data ?? []
   const canCreateKey = apiKeys.length < MAX_API_KEYS
   const [createKeyError, setCreateKeyError] = useState<string | null>(null)
+  const [createGrantAvailable, setCreateGrantAvailable] = useState(hasApiKeyCreationGrant)
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
 
   const revokeKeyMutation = useMutation({
@@ -68,8 +75,13 @@ export function useApiKeyManagement({
 
   async function handleCreateKey(
     request: ApiKeyCreateRequest,
+    onCreateGrantRequired: () => Promise<void>,
   ): Promise<ApiKeyCreateResponse | null> {
     setCreateKeyError(null)
+    if (!createGrantAvailable) {
+      await onCreateGrantRequired()
+      return null
+    }
     if (!isOnline) {
       setCreateKeyError(t('errors.offline'))
       return null
@@ -79,9 +91,20 @@ export function useApiKeyManagement({
         method: 'POST',
         body: JSON.stringify(request),
       })
+      consumeApiKeyCreationGrant()
+      setCreateGrantAvailable(false)
       await queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       return result
-    } catch {
+    } catch (caught: unknown) {
+      if (
+        extractBackendStatus(caught) === 428
+        && extractBackendErrorCode(caught) === 'API_KEY_CREATION_CHALLENGE_REQUIRED'
+      ) {
+        clearApiKeyCreationGrant()
+        setCreateGrantAvailable(false)
+        await onCreateGrantRequired()
+        return null
+      }
       setCreateKeyError(t('orbitMcp.createKeyError'))
       return null
     }
@@ -91,6 +114,7 @@ export function useApiKeyManagement({
     apiKeysQuery,
     apiKeys,
     canCreateKey,
+    createGrantAvailable,
     createKeyError,
     clearCreateKeyError: () => setCreateKeyError(null),
     revokingKeyId,

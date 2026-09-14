@@ -14,8 +14,10 @@ const {
   mockRouterPush,
   mockSearchParams,
   mockStepUpVerified,
+  mockCreateGrant,
   mockApiKeys,
   mockCreateApiKey,
+  mockRequestApiKeyCreationChallenge,
 } = vi.hoisted(() => ({
   mockExportUserData: vi.fn(),
   mockUpdateAiSummary: vi.fn(),
@@ -26,8 +28,10 @@ const {
   mockRouterPush: vi.fn(),
   mockSearchParams: { current: '' },
   mockStepUpVerified: { current: false },
+  mockCreateGrant: { consumed: false },
   mockApiKeys: { current: [] as Record<string, unknown>[] },
   mockCreateApiKey: vi.fn(),
+  mockRequestApiKeyCreationChallenge: vi.fn(),
   mockProfileState: {
     current: {
       profile: undefined as ReturnType<typeof createMockProfile> | undefined,
@@ -46,12 +50,19 @@ vi.mock('@/app/actions/profile', () => ({
 vi.mock('@/app/actions/api-keys', () => ({
   createApiKey: mockCreateApiKey,
   revokeApiKey: vi.fn(),
-  requestApiKeyCreationChallenge: vi.fn(),
+  requestApiKeyCreationChallenge: mockRequestApiKeyCreationChallenge,
 }))
 
 vi.mock('@/lib/step-up-storage', () => ({
   beginStepUpChallenge: vi.fn(),
   isStepUpVerified: () => mockStepUpVerified.current,
+  hasApiKeyCreationGrant: () => mockStepUpVerified.current && !mockCreateGrant.consumed,
+  consumeApiKeyCreationGrant: () => {
+    mockCreateGrant.consumed = true
+  },
+  clearApiKeyCreationGrant: () => {
+    mockCreateGrant.consumed = true
+  },
 }))
 
 vi.mock('@orbit/shared/hooks', async (importOriginal) => ({
@@ -178,8 +189,10 @@ describe('ProfilePage', () => {
     mockRouterPush.mockClear()
     mockSearchParams.current = ''
     mockStepUpVerified.current = false
+    mockCreateGrant.consumed = false
     mockApiKeys.current = []
     mockCreateApiKey.mockReset()
+    mockRequestApiKeyCreationChallenge.mockReset().mockResolvedValue(undefined)
     mockProfileState.current = {
       profile: createMockProfile({
         plan: 'free',
@@ -338,9 +351,12 @@ describe('ProfilePage', () => {
       isRevoked: false,
     }]
     mockCreateApiKey.mockResolvedValue({
-      ...mockApiKeys.current[0],
-      id: 'key-2',
-      key: 'orb_secret',
+      success: true,
+      response: {
+        ...mockApiKeys.current[0],
+        id: 'key-2',
+        key: 'orb_secret',
+      },
     })
     render(<ProfilePage />)
 
@@ -377,8 +393,11 @@ describe('ProfilePage', () => {
     mockStepUpVerified.current = true
     mockCreateApiKey
       .mockRejectedValueOnce(new Error('failed'))
-      .mockResolvedValueOnce({ id: 'key-2', key: 'orb_secret' })
-    render(<ProfilePage />)
+      .mockResolvedValueOnce({
+        success: true,
+        response: { id: 'key-2', key: 'orb_secret' },
+      })
+    const firstView = render(<ProfilePage />)
 
     const apiKeys = within(screen.getByTestId('profile-api-keys'))
     fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
@@ -405,11 +424,14 @@ describe('ProfilePage', () => {
       expect(screen.queryByRole('dialog', { name: 'orbitMcp.revealHeading' })).not.toBeInTheDocument()
     })
 
-    fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
+    firstView.unmount()
+    mockCreateGrant.consumed = false
+    render(<ProfilePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
     expect(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' })).toHaveValue('')
   })
 
-  it('starts each newly revealed key in the not copied state', async () => {
+  it('requires a fresh verified grant before creating a second key', async () => {
     mockProfileState.current = {
       profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
       isLoading: false,
@@ -417,13 +439,19 @@ describe('ProfilePage', () => {
     }
     mockStepUpVerified.current = true
     mockCreateApiKey
-      .mockResolvedValueOnce({ id: 'key-1', key: 'orb_first' })
-      .mockResolvedValueOnce({ id: 'key-2', key: 'orb_second' })
+      .mockResolvedValueOnce({
+        success: true,
+        response: { id: 'key-1', key: 'orb_first' },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        response: { id: 'key-2', key: 'orb_second' },
+      })
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
     })
-    render(<ProfilePage />)
+    const firstView = render(<ProfilePage />)
 
     const create = screen.getByRole('button', { name: 'profile.apiKeys.create' })
     fireEvent.click(create)
@@ -434,9 +462,37 @@ describe('ProfilePage', () => {
     await waitFor(() => expect(screen.queryByText('orb_first')).not.toBeInTheDocument())
 
     fireEvent.click(create)
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith('/step-up?operation=keys')
+    })
+    expect(mockCreateApiKey).toHaveBeenCalledTimes(1)
+
+    firstView.unmount()
+    mockStepUpVerified.current = true
+    mockCreateGrant.consumed = false
+    render(<ProfilePage />)
+    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.create' }))
     await screen.findByText('orb_second')
     expect(screen.getByRole('button', { name: 'orbitMcp.copy' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'orbitMcp.copied' })).not.toBeInTheDocument()
+  })
+
+  it('restarts step up when the API rejects a stale create grant', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockStepUpVerified.current = true
+    mockCreateApiKey.mockResolvedValue({ success: false, challengeRequired: true })
+    render(<ProfilePage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.create' }))
+
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith('/step-up?operation=keys')
+    })
+    expect(mockCreateGrant.consumed).toBe(true)
+    expect(screen.queryByText('orbitMcp.createKeyError')).not.toBeInTheDocument()
   })
 
   it('shows trial copy and routes its allowance action to the trial pitch', () => {

@@ -6,6 +6,11 @@ import { ApiClientError } from '@orbit/shared/utils'
 import type { ApiKey, ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types'
 import { apiKeyKeys } from '@orbit/shared/query'
 import { createApiKey, revokeApiKey } from '@/app/actions/api-keys'
+import {
+  clearApiKeyCreationGrant,
+  consumeApiKeyCreationGrant,
+  hasApiKeyCreationGrant,
+} from '@/lib/step-up-storage'
 
 const MAX_API_KEYS = 5
 
@@ -39,6 +44,7 @@ export function useApiKeyManagement({
   const apiKeys = apiKeysQuery.data ?? []
   const canCreateKey = apiKeys.length < MAX_API_KEYS
   const [createKeyError, setCreateKeyError] = useState<string | null>(null)
+  const [createGrantAvailable, setCreateGrantAvailable] = useState(hasApiKeyCreationGrant)
   const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
 
   const revokeKeyMutation = useMutation({
@@ -51,12 +57,25 @@ export function useApiKeyManagement({
 
   async function handleCreateKey(
     request: ApiKeyCreateRequest,
+    onCreateGrantRequired: () => Promise<void>,
   ): Promise<ApiKeyCreateResponse | null> {
     setCreateKeyError(null)
+    if (!createGrantAvailable) {
+      await onCreateGrantRequired()
+      return null
+    }
     try {
       const result = await createApiKey(request)
+      if (!result.success) {
+        clearApiKeyCreationGrant()
+        setCreateGrantAvailable(false)
+        await onCreateGrantRequired()
+        return null
+      }
+      consumeApiKeyCreationGrant()
+      setCreateGrantAvailable(false)
       void queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
-      return result
+      return result.response
     } catch {
       setCreateKeyError(t('orbitMcp.createKeyError'))
       return null
@@ -67,6 +86,7 @@ export function useApiKeyManagement({
     apiKeysQuery,
     apiKeys,
     canCreateKey,
+    createGrantAvailable,
     createKeyError,
     clearCreateKeyError: () => setCreateKeyError(null),
     revokingKeyId,

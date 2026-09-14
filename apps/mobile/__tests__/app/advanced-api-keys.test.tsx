@@ -62,6 +62,12 @@ vi.mock('@/lib/queued-api-mutation', () => ({
   performQueuedApiMutation: mocks.performQueuedApiMutation,
 }))
 
+vi.mock('@/lib/step-up-storage', () => ({
+  hasApiKeyCreationGrant: () => true,
+  consumeApiKeyCreationGrant: vi.fn(),
+  clearApiKeyCreationGrant: vi.fn(),
+}))
+
 type ApiKeyManagement = ReturnType<typeof useApiKeyManagement>
 
 function apiKey(id: string): ApiKey {
@@ -171,7 +177,7 @@ describe('useApiKeyManagement', () => {
     let result: unknown
     const request: ApiKeyCreateRequest = { name: 'CI key' }
     await TestRenderer.act(async () => {
-      result = await hook.current.handleCreateKey(request)
+      result = await hook.current.handleCreateKey(request, () => Promise.resolve())
     })
 
     expect(result).toBeNull()
@@ -187,7 +193,7 @@ describe('useApiKeyManagement', () => {
     const request: ApiKeyCreateRequest = { name: 'CI key', scopes: ['goals.read'] }
     let result: unknown
     await TestRenderer.act(async () => {
-      result = await hook.current.handleCreateKey(request)
+      result = await hook.current.handleCreateKey(request, () => Promise.resolve())
     })
 
     expect(result).toBe(created)
@@ -207,7 +213,10 @@ describe('useApiKeyManagement', () => {
 
     let result: unknown
     await TestRenderer.act(async () => {
-      result = await hook.current.handleCreateKey({ name: 'CI key' })
+      result = await hook.current.handleCreateKey(
+        { name: 'CI key' },
+        () => Promise.resolve(),
+      )
     })
 
     expect(result).toBeNull()

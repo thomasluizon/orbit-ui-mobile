@@ -1,6 +1,8 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { API } from '@orbit/shared/api'
+import { createApiClientError } from '@orbit/shared/utils'
 
 import ProfileScreen from '@/app/(tabs)/profile'
 import { PreferenceSettingsList } from '@/components/profile/preferences-sections'
@@ -32,6 +34,7 @@ const {
   mockProfileState,
   mockSearchParams,
   mockStepUpVerified,
+  mockCreateGrant,
   mockApiKeys,
 } = vi.hoisted(() => ({
   mockApiClient: vi.fn(),
@@ -48,6 +51,7 @@ const {
   mockRouterPush: vi.fn(),
   mockSearchParams: { current: {} },
   mockStepUpVerified: { current: false },
+  mockCreateGrant: { consumed: false },
   mockApiKeys: { current: [] as Record<string, unknown>[] },
   mockProfileState: {
     current: {
@@ -187,6 +191,13 @@ vi.mock('@/lib/api-client', () => ({
 vi.mock('@/lib/step-up-storage', () => ({
   beginStepUpChallenge: vi.fn(),
   isStepUpVerified: () => mockStepUpVerified.current,
+  hasApiKeyCreationGrant: () => mockStepUpVerified.current && !mockCreateGrant.consumed,
+  consumeApiKeyCreationGrant: () => {
+    mockCreateGrant.consumed = true
+  },
+  clearApiKeyCreationGrant: () => {
+    mockCreateGrant.consumed = true
+  },
 }))
 
 vi.mock('@/lib/queued-api-mutation', () => ({
@@ -468,6 +479,7 @@ describe('ProfileScreen', () => {
     mockRouterPush.mockClear()
     mockSearchParams.current = {}
     mockStepUpVerified.current = false
+    mockCreateGrant.consumed = false
     mockApiKeys.current = []
     mockProfileState.current = {
       profile: createMockProfile({
@@ -744,20 +756,26 @@ describe('ProfileScreen', () => {
     expect(nodeText(tree.root)).toContain('orb_secret')
     TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.done').props.onPress())
 
-    TestRenderer.act(() => findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress())
-    expect(tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.value).toBe('')
+    tree.unmount()
+    mockCreateGrant.consumed = false
+    const secondTree = await renderProfileScreen()
+    TestRenderer.act(() => findButtonByText(secondTree, 'profile.apiKeys.createScoped').props.onPress())
+    expect(secondTree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.value).toBe('')
   })
 
-  it('starts each newly revealed key in the not copied state', async () => {
+  it('requires a fresh verified grant before creating a second key', async () => {
     mockProfileState.current = {
       profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
       isLoading: false,
       error: null,
     }
     mockStepUpVerified.current = true
-    mockApiClient
-      .mockResolvedValueOnce({ id: 'key-1', key: 'orb_first' })
-      .mockResolvedValueOnce({ id: 'key-2', key: 'orb_second' })
+    const createdKeys = [
+      { id: 'key-1', key: 'orb_first' },
+      { id: 'key-2', key: 'orb_second' },
+    ]
+    mockApiClient.mockImplementation((endpoint: string) =>
+      Promise.resolve(endpoint === API.apiKeys.create ? createdKeys.shift() : undefined))
     const tree = await renderProfileScreen()
 
     await TestRenderer.act(async () => {
@@ -774,9 +792,47 @@ describe('ProfileScreen', () => {
       await Promise.resolve()
       await Promise.resolve()
     })
-    expect(nodeText(tree.root)).toContain('orb_second')
-    expect(nodeText(tree.root)).toContain('orbitMcp.copy')
-    expect(nodeText(tree.root)).not.toContain('orbitMcp.copied')
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/step-up?operation=keys')
+    expect(mockApiClient.mock.calls.filter(([endpoint]) => endpoint === API.apiKeys.create)).toHaveLength(1)
+
+    tree.unmount()
+    mockStepUpVerified.current = true
+    mockCreateGrant.consumed = false
+    const secondTree = await renderProfileScreen()
+    await TestRenderer.act(async () => {
+      findButtonByText(secondTree, 'profile.apiKeys.create').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(nodeText(secondTree.root)).toContain('orb_second')
+    expect(nodeText(secondTree.root)).toContain('orbitMcp.copy')
+  })
+
+  it('restarts step up when the API rejects a stale create grant', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockStepUpVerified.current = true
+    mockApiClient
+      .mockRejectedValueOnce(createApiClientError(428, {
+        error: 'Confirm the emailed code before creating an API key.',
+        errorCode: 'API_KEY_CREATION_CHALLENGE_REQUIRED',
+      }, 'Challenge required'))
+      .mockResolvedValueOnce(undefined)
+    const tree = await renderProfileScreen()
+
+    await TestRenderer.act(async () => {
+      findButtonByText(tree, 'profile.apiKeys.create').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/step-up?operation=keys')
+    expect(mockCreateGrant.consumed).toBe(true)
+    expect(nodeText(tree.root)).not.toContain('orbitMcp.createKeyError')
   })
 
   it('shows trial copy and routes its allowance action to the trial pitch', async () => {
