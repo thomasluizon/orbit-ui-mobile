@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { View } from 'react-native'
 import { captureRef } from 'react-native-view-shot'
 import * as Sharing from 'expo-sharing'
+import { Directory, File } from 'expo-file-system'
 import { ACHIEVEMENT_EVENT_KEYS } from '@orbit/shared/types/gamification'
+import { SHARE_CARD_FILE_NAME } from '@orbit/shared/utils'
 import { useReportEvent } from '@/hooks/use-gamification'
 
 /** Captures a ShareCard View to a temp PNG and opens the native share sheet via expo-sharing. */
@@ -10,7 +12,26 @@ export function useShareCard() {
   const shareRef = useRef<View>(null)
   const [isSharing, setIsSharing] = useState(false)
   const [hasError, setHasError] = useState(false)
+  const [canShareFiles, setCanShareFiles] = useState(true)
   const { mutate: reportEvent } = useReportEvent()
+
+  useEffect(() => {
+    let active = true
+    void Sharing.isAvailableAsync()
+      .then((available) => {
+        if (active) setCanShareFiles(available)
+      })
+      .catch(() => {
+        if (active) setCanShareFiles(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  function captureCard() {
+    return captureRef(shareRef, { format: 'png', quality: 1, result: 'tmpfile' })
+  }
 
   async function share(dialogTitle: string) {
     if (isSharing) {
@@ -21,10 +42,10 @@ export function useShareCard() {
     try {
       const available = await Sharing.isAvailableAsync()
       if (!available) {
-        setHasError(true)
+        setCanShareFiles(false)
         return
       }
-      const uri = await captureRef(shareRef, { format: 'png', quality: 1, result: 'tmpfile' })
+      const uri = await captureCard()
       await Sharing.shareAsync(uri, {
         mimeType: 'image/png',
         dialogTitle,
@@ -38,5 +59,25 @@ export function useShareCard() {
     }
   }
 
-  return { shareRef, isSharing, hasError, share }
+  async function download() {
+    if (isSharing) {
+      return
+    }
+    setIsSharing(true)
+    setHasError(false)
+    try {
+      const uri = await captureCard()
+      const directory = await Directory.pickDirectoryAsync()
+      const source = new File(uri)
+      const destination = new File(directory, SHARE_CARD_FILE_NAME)
+      await source.copy(destination)
+      reportEvent(ACHIEVEMENT_EVENT_KEYS.cardShared)
+    } catch {
+      setHasError(true)
+    } finally {
+      setIsSharing(false)
+    }
+  }
+
+  return { shareRef, isSharing, hasError, canShareFiles, share, download }
 }

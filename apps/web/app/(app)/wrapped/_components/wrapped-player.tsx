@@ -15,7 +15,6 @@ interface WrappedPlayerProps {
   slides: WrappedSlideModel[]
   recap: Recap
   period: RecapSharePeriod
-  displayName?: string
   onClose: () => void
 }
 
@@ -25,7 +24,6 @@ export function WrappedPlayer({
   slides,
   recap,
   period,
-  displayName,
   onClose,
 }: Readonly<WrappedPlayerProps>) {
   const t = useTranslations()
@@ -105,7 +103,6 @@ export function WrappedPlayer({
             slide={current}
             recap={recap}
             period={period}
-            displayName={displayName}
             captureRef={captureRef}
             shareError={hasError}
           />

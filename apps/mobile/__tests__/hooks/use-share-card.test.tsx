@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   captureRef: vi.fn(),
   isAvailableAsync: vi.fn(),
   shareAsync: vi.fn(),
+  pickDirectoryAsync: vi.fn(),
+  copy: vi.fn(),
   reportEvent: vi.fn(),
 }))
 
@@ -13,6 +15,24 @@ vi.mock('react-native-view-shot', () => ({ captureRef: mocks.captureRef }))
 vi.mock('expo-sharing', () => ({
   isAvailableAsync: mocks.isAvailableAsync,
   shareAsync: mocks.shareAsync,
+}))
+vi.mock('expo-file-system', () => ({
+  Directory: {
+    pickDirectoryAsync: mocks.pickDirectoryAsync,
+  },
+  File: class MockFile {
+    readonly uri: string
+
+    constructor(...segments: ({ uri: string } | string)[]) {
+      this.uri = segments
+        .map((segment) => (typeof segment === 'string' ? segment : segment.uri))
+        .join('/')
+    }
+
+    copy(destination: { uri: string }) {
+      return mocks.copy(destination)
+    }
+  },
 }))
 vi.mock('@/hooks/use-gamification', () => ({ useReportEvent: () => ({ mutate: mocks.reportEvent }) }))
 
@@ -46,6 +66,8 @@ describe('mobile useShareCard', () => {
     mocks.captureRef.mockReset().mockResolvedValue('file:///cache/share-card.png')
     mocks.isAvailableAsync.mockReset().mockResolvedValue(true)
     mocks.shareAsync.mockReset().mockResolvedValue(undefined)
+    mocks.pickDirectoryAsync.mockReset().mockResolvedValue({ uri: 'content://downloads' })
+    mocks.copy.mockReset().mockResolvedValue(undefined)
     mocks.reportEvent.mockReset()
   })
 
@@ -64,16 +86,28 @@ describe('mobile useShareCard', () => {
     expect(hook.current.hasError).toBe(false)
   })
 
-  it('flags an error and skips sharing when the native share sheet is unavailable', async () => {
+  it('reports the unsupported state without treating it as a failed share', async () => {
     mocks.isAvailableAsync.mockResolvedValue(false)
     const hook = await renderHookValue(() => useShareCard())
 
-    await TestRenderer.act(async () => {
-      await hook.current.share('Share progress')
-    })
-
+    expect(hook.current.canShareFiles).toBe(false)
     expect(mocks.shareAsync).not.toHaveBeenCalled()
     expect(mocks.reportEvent).not.toHaveBeenCalled()
-    expect(hook.current.hasError).toBe(true)
+    expect(hook.current.hasError).toBe(false)
+  })
+
+  it('saves the composed PNG to the directory selected by the person', async () => {
+    const hook = await renderHookValue(() => useShareCard())
+
+    await TestRenderer.act(async () => {
+      await hook.current.download()
+    })
+
+    expect(mocks.pickDirectoryAsync).toHaveBeenCalledWith()
+    expect(mocks.copy).toHaveBeenCalledWith(
+      expect.objectContaining({ uri: 'content://downloads/orbit-recap.png' }),
+    )
+    expect(mocks.reportEvent).toHaveBeenCalledWith('card_shared')
+    expect(hook.current.hasError).toBe(false)
   })
 })

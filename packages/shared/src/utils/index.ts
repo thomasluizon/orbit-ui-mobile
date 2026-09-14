@@ -563,12 +563,17 @@ export type {
 export {
   buildRecapRequestUrl,
   buildShareCardStats,
+  buildShareCardWeekday,
   formatCompletionRate,
   isRecapShareEmpty,
   RECAP_SHARE_PERIODS,
+  SHARE_CARD_FILE_NAME,
+  SHARE_CARD_HEIGHT,
+  SHARE_CARD_WIDTH,
+  WRAPPED_WEEKDAY_KEYS,
   recapPeriodLabelKey,
 } from './share-card'
-export type { RecapSharePeriod, ShareCardStat } from './share-card'
+export type { RecapSharePeriod, ShareCardStat, ShareCardWeekday } from './share-card'
 export { buildWrappedSlides } from './wrapped'
 export type { WrappedSlide, WrappedSlideId } from './wrapped'
 export {

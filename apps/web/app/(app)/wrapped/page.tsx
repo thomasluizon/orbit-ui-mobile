@@ -6,7 +6,6 @@ import type { RecapSharePeriod } from '@orbit/shared/utils'
 import { Button } from '@/components/ui/pill-button'
 import { ChevronLeft } from '@/components/ui/icons'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { useProfile } from '@/hooks/use-profile'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { WrappedCover } from './_components/wrapped-cover'
 import { WrappedPlayer } from './_components/wrapped-player'
@@ -14,7 +13,6 @@ import { WrappedPlayer } from './_components/wrapped-player'
 export default function WrappedPage() {
   const t = useTranslations()
   const goBackOrFallback = useGoBackOrFallback()
-  const { profile } = useProfile()
   const [period, setPeriod] = useState<RecapSharePeriod>('week')
   const [isPlaying, setIsPlaying] = useState(false)
   const [isRetrying, setIsRetrying] = useState(false)
@@ -80,7 +78,6 @@ export default function WrappedPage() {
           slides={slides}
           recap={recap}
           period={period}
-          displayName={profile?.name ?? undefined}
           onClose={() => setIsPlaying(false)}
         />
       )}

@@ -68,4 +68,28 @@ describe('mobile WrappedSlide', () => {
       tree.update(<></>)
     }
   })
+
+  it('renders the share failure state without leaving the final page blank', () => {
+    const share = buildWrappedSlides(recap).find((slide) => slide.id === 'share')!
+    let tree!: ReactTestRenderer
+    void renderer.act(() => {
+      tree = renderer.create(
+        <WrappedSlide
+          slide={share}
+          recap={recap}
+          period="week"
+          tokens={tokens}
+          shareRef={{ current: null }}
+          shareError
+        />,
+      )
+    })
+
+    expect(
+      tree.root.findAll(
+        (node) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert',
+      ),
+    ).toHaveLength(1)
+    expect(tree.root.findAll((node) => String(node.type) === 'ShareCard')).toHaveLength(1)
+  })
 })

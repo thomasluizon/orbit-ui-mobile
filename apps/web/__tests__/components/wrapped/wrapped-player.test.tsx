@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { buildWrappedSlides } from '@orbit/shared/utils'
@@ -12,14 +12,18 @@ vi.mock('@/components/share/share-card-qr', () => ({
   ShareCardQr: () => null,
 }))
 
+const shareCardMock = vi.hoisted(() => ({
+  isSharing: false,
+  hasError: false,
+  canShareFiles: true,
+  share: vi.fn(),
+  download: vi.fn(),
+}))
+
 vi.mock('@/hooks/use-share-card', () => ({
   useShareCard: () => ({
     captureRef: { current: null },
-    isSharing: false,
-    hasError: false,
-    canShareFiles: true,
-    share: vi.fn(),
-    download: vi.fn(),
+    ...shareCardMock,
   }),
 }))
 
@@ -33,14 +37,28 @@ function renderPlayer(onClose = vi.fn()) {
       slides={slides}
       recap={recap}
       period="week"
-      displayName="Ada"
       onClose={onClose}
     />,
   )
   return { onClose, slides }
 }
 
+function advanceToLastSlide() {
+  const lastIndex = buildWrappedSlides(createMockRecap()).length - 1
+  for (let step = 0; step < lastIndex; step += 1) {
+    fireEvent.click(screen.getByTestId('wrapped-next-zone'))
+  }
+}
+
 describe('WrappedPlayer', () => {
+  beforeEach(() => {
+    shareCardMock.isSharing = false
+    shareCardMock.hasError = false
+    shareCardMock.canShareFiles = true
+    shareCardMock.share.mockReset()
+    shareCardMock.download.mockReset()
+  })
+
   it('opens on the intro slide and puts one segment per slide in the foot pager', () => {
     const { slides } = renderPlayer()
     const pager = screen.getByTestId('wrapped-pager')
@@ -75,15 +93,44 @@ describe('WrappedPlayer', () => {
 
   it('replaces the Pager forward control with the share action on the final slide', () => {
     renderPlayer()
-    const lastIndex = buildWrappedSlides(createMockRecap()).length - 1
-    for (let step = 0; step < lastIndex; step += 1) {
-      fireEvent.click(screen.getByTestId('wrapped-next-zone'))
-    }
+    advanceToLastSlide()
     const pager = screen.getByTestId('wrapped-pager')
     expect(within(pager).queryByRole('button', { name: 'wrapped.next' })).not.toBeInTheDocument()
-    expect(within(pager).getByRole('button', { name: 'shareCard.share' })).toBeInTheDocument()
-    expect(within(pager).getByRole('button', { name: 'shareCard.download' })).toBeInTheDocument()
+    expect(within(pager).getByRole('button', { name: 'shareCard.share' })).toHaveAttribute('data-variant', 'primary')
+    expect(within(pager).getByRole('button', { name: 'shareCard.download' })).toHaveAttribute('data-variant', 'ghost')
     expect(screen.queryByTestId('wrapped-next-zone')).not.toBeInTheDocument()
+  })
+
+  it('shows both final actions as busy while the card renders', () => {
+    shareCardMock.isSharing = true
+    renderPlayer()
+    advanceToLastSlide()
+
+    const pager = screen.getByTestId('wrapped-pager')
+    expect(within(pager).getByRole('button', { name: 'shareCard.share' })).toHaveAttribute('aria-busy', 'true')
+    expect(within(pager).getByRole('button', { name: 'shareCard.download' })).toHaveAttribute('aria-busy', 'true')
+  })
+
+  it('makes download the primary action when file sharing is unsupported', () => {
+    shareCardMock.canShareFiles = false
+    renderPlayer()
+    advanceToLastSlide()
+
+    const pager = screen.getByTestId('wrapped-pager')
+    expect(within(pager).queryByRole('button', { name: 'shareCard.share' })).not.toBeInTheDocument()
+    expect(within(pager).getByRole('button', { name: 'shareCard.download' })).toHaveAttribute('data-variant', 'primary')
+  })
+
+  it('hands the composed image to the platform share sheet', () => {
+    renderPlayer()
+    advanceToLastSlide()
+
+    fireEvent.click(within(screen.getByTestId('wrapped-pager')).getByRole('button', { name: 'shareCard.share' }))
+    expect(shareCardMock.share).toHaveBeenCalledWith({
+      shareTitle: 'shareCard.shareTitle',
+      shareText: 'shareCard.shareText',
+      url: 'https://app.useorbit.org/r/ABC123?recap=week',
+    })
   })
 
   it('responds to ArrowRight / ArrowLeft and closes on Escape', () => {

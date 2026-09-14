@@ -59,4 +59,20 @@ describe('WrappedSlide', () => {
       view.unmount()
     }
   })
+
+  it('renders the share failure state without leaving the final page blank', () => {
+    const share = buildWrappedSlides(recap).find((slide) => slide.id === 'share')!
+    render(
+      <WrappedSlide
+        slide={share}
+        recap={recap}
+        period="week"
+        captureRef={{ current: null }}
+        shareError
+      />,
+    )
+
+    expect(screen.getByRole('alert')).toHaveTextContent('shareCard.shareError')
+    expect(screen.getByTestId('share-card')).toBeInTheDocument()
+  })
 })

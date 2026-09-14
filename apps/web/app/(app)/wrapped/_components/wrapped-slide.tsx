@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
 import {
   formatCompletionRate,
+  WRAPPED_WEEKDAY_KEYS,
   type RecapSharePeriod,
   type WrappedSlide as WrappedSlideModel,
 } from '@orbit/shared/utils'
@@ -18,26 +19,15 @@ import {
   titleStyle,
 } from './wrapped-styles'
 
-const WEEKDAY_KEYS = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
-] as const
-
 interface WrappedSlideProps {
   slide: WrappedSlideModel
   recap: Recap
   period: RecapSharePeriod
-  displayName?: string
   captureRef: Ref<HTMLDivElement>
   shareError: boolean
 }
 
-export function WrappedSlide({ slide, recap, period, displayName, captureRef, shareError }: Readonly<WrappedSlideProps>) {
+export function WrappedSlide({ slide, recap, period, captureRef, shareError }: Readonly<WrappedSlideProps>) {
   const t = useTranslations()
 
   switch (slide.id) {
@@ -122,7 +112,7 @@ export function WrappedSlide({ slide, recap, period, displayName, captureRef, sh
         </SlideShell>
       )
     case 'share':
-      return <WrappedShareSlide recap={recap} displayName={displayName} captureRef={captureRef} hasError={shareError} />
+      return <WrappedShareSlide recap={recap} captureRef={captureRef} hasError={shareError} />
   }
 }
 
@@ -168,7 +158,7 @@ function WeekdayColumns({ values }: Readonly<{ values: number[] }>) {
     <div data-wrapped-figure="primary" className="w-full max-w-sm">
       <Columns
         columns={values.slice(0, 7).map((value, index) => {
-          const weekday = WEEKDAY_KEYS[index]!
+          const weekday = WRAPPED_WEEKDAY_KEYS[index]!
           return { id: weekday, label: t(`dates.daysShort.${weekday}`), value }
         })}
         height={160}
@@ -182,12 +172,11 @@ function WeekdayColumns({ values }: Readonly<{ values: number[] }>) {
 
 interface WrappedShareSlideProps {
   recap: Recap
-  displayName?: string
   captureRef: Ref<HTMLDivElement>
   hasError: boolean
 }
 
-function WrappedShareSlide({ recap, displayName, captureRef, hasError }: Readonly<WrappedShareSlideProps>) {
+function WrappedShareSlide({ recap, captureRef, hasError }: Readonly<WrappedShareSlideProps>) {
   const t = useTranslations()
 
   return (
@@ -197,8 +186,13 @@ function WrappedShareSlide({ recap, displayName, captureRef, hasError }: Readonl
       style={{ gap: 16, padding: '8px 24px 24px' }}
     >
       <span style={eyebrowStyle}>{t('wrapped.slides.share.eyebrow')}</span>
-      <div data-wrapped-figure="primary">
-        <ShareCard ref={captureRef} recap={recap} displayName={displayName} />
+      <div
+        data-wrapped-figure="primary"
+        style={{ width: 216, height: 384, overflow: 'hidden' }}
+      >
+        <div style={{ transform: 'scale(0.6)', transformOrigin: 'top left' }}>
+          <ShareCard ref={captureRef} recap={recap} />
+        </div>
       </div>
 
       {hasError && (

@@ -65,6 +65,9 @@ export const styles = StyleSheet.create({
     gap: 16,
   },
   shareError: { fontFamily: 'Geist_400Regular', fontSize: 13, textAlign: 'center' },
+  sharePreview: { width: 216, height: 384, overflow: 'hidden' },
+  sharePreviewCard: { width: 360, height: 640, transform: [{ scale: 0.6 }], transformOrigin: 'top left' },
+  shareActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   coverScroller: { flex: 1 },
   coverExit: { position: 'absolute', left: 16, top: 8, zIndex: 1 },
   cover: {

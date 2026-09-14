@@ -215,13 +215,13 @@ interface EndingRowsOptions {
 }
 
 function buildEndingRows({
-  context: { profile, t },
+  context: { t },
   onDeleteAccount,
   onFreshStart,
   onLogout,
 }: EndingRowsOptions) {
   return [
-    <ShareCardEntryButton key="share" displayName={profile?.name} />,
+    <ShareCardEntryButton key="share" />,
     <ListRow key="fresh-start" icon={icon(RotateCcw)} title={t('profile.freshStart.button')} chevron={false} onClick={onFreshStart} />,
     <ListRow key="logout" icon={icon(LogOut)} title={t('profile.logout')} chevron={false} onClick={onLogout} />,
     <ListRow key="delete" icon={icon(UserX)} title={t('profile.deleteAccount.button')} danger chevron={false} onClick={onDeleteAccount} />,

@@ -15,6 +15,22 @@ export class File extends Blob {
   create() {}
 
   write() {}
+
+  async copy(_destination: File | Directory) {}
+}
+
+export class Directory {
+  readonly uri: string
+
+  constructor(...segments: ({ uri: string } | string)[]) {
+    this.uri = segments
+      .map((segment) => (typeof segment === 'string' ? segment : segment.uri))
+      .join('/')
+  }
+
+  static pickDirectoryAsync() {
+    return Promise.resolve(new Directory('content://downloads'))
+  }
 }
 
 export const Paths = {
