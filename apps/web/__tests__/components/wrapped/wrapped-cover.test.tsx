@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { RECAP_SHARE_PERIODS } from '@orbit/shared/utils'
 
 vi.mock('next-intl', () => ({
@@ -20,66 +20,86 @@ vi.mock('@/components/ui/chip', () => ({
   ),
 }))
 vi.mock('@/components/ui/pill-button', () => ({
+  Button: ({ disabled, onClick, children, size = 'md', variant = 'primary' }: {
+    disabled?: boolean; onClick: () => void; children: React.ReactNode; size?: string; variant?: string
+  }) => <button type="button" disabled={disabled} onClick={onClick} data-size={size} data-variant={variant}>{children}</button>,
   PillButton: ({ disabled, onClick, children }: {
     disabled?: boolean; onClick: () => void; children: React.ReactNode
-  }) => (
-    <button type="button" disabled={disabled} onClick={onClick}>{children}</button>
+  }) => <button type="button" disabled={disabled} onClick={onClick}>{children}</button>,
+}))
+vi.mock('@/components/ui/orbit-mark', () => ({ OrbitMark: () => <span data-testid="orbit-mark" /> }))
+vi.mock('@/components/ui/icon', () => ({
+  Icon: ({ name }: { name: string }) => <span data-icon={name} />,
+}))
+vi.mock('@/components/ui/skeleton', () => ({
+  Skeleton: ({ variant, rows, label }: { variant: string; rows: number; label: string }) => (
+    <div role="progressbar" data-variant={variant} data-rows={rows} aria-label={label} />
   ),
 }))
-vi.mock('@/components/ui/orbit-mark', () => ({ OrbitMark: () => <span data-testid="glyph" /> }))
-vi.mock('@/app/(app)/wrapped/_components/wrapped-styles', () => ({ coverTitleStyle: {}, coverSubtitleStyle: {} }))
+vi.mock('@/components/ui/error-state', () => ({
+  ErrorState: ({ message, action }: { message: string; action: React.ReactNode }) => (
+    <div role="alert"><span>{message}</span>{action}</div>
+  ),
+}))
+vi.mock('@/app/(app)/wrapped/_components/wrapped-styles', () => ({
+  coverEyebrowStyle: {},
+  coverTitleStyle: {},
+  coverSubtitleStyle: {},
+}))
 
 import { WrappedCover } from '@/app/(app)/wrapped/_components/wrapped-cover'
 
 const baseProps = {
   period: RECAP_SHARE_PERIODS[0]!,
   onSelectPeriod: vi.fn(),
-  isLoading: false,
-  isError: false,
-  isEmpty: false,
-  canStart: true,
+  state: 'ready' as const,
   onStart: vi.fn(),
   onRetry: vi.fn(),
 }
 
 describe('WrappedCover', () => {
-  it('renders a period chip per supported period and forwards the selection', () => {
+  it('renders the ready cover and starts the player', () => {
     const onSelectPeriod = vi.fn()
-    render(<WrappedCover {...baseProps} onSelectPeriod={onSelectPeriod} />)
-    const chips = screen.getAllByRole('button', { pressed: false }).concat(screen.getAllByRole('button', { pressed: true }))
-    expect(chips.length).toBeGreaterThanOrEqual(RECAP_SHARE_PERIODS.length)
+    const onStart = vi.fn()
+    render(<WrappedCover {...baseProps} onSelectPeriod={onSelectPeriod} onStart={onStart} />)
+
+    expect(screen.getByText('wrapped.coverTitles.week')).toBeInTheDocument()
+    const periodGroup = screen.getByRole('group', { name: 'wrapped.periodGroup' })
+    expect(within(periodGroup).getAllByRole('button')).toHaveLength(RECAP_SHARE_PERIODS.length)
     fireEvent.click(screen.getByRole('button', { name: `wrapped.periods.${RECAP_SHARE_PERIODS[1]}` }))
     expect(onSelectPeriod).toHaveBeenCalledWith(RECAP_SHARE_PERIODS[1])
-  })
-
-  it('enables Start and fires onStart when data is ready', () => {
-    const onStart = vi.fn()
-    render(<WrappedCover {...baseProps} canStart onStart={onStart} />)
     const start = screen.getByRole('button', { name: 'wrapped.start' })
     expect(start).not.toBeDisabled()
     fireEvent.click(start)
     expect(onStart).toHaveBeenCalledTimes(1)
   })
 
-  it('disables Start and shows the loading hint while fetching', () => {
-    render(<WrappedCover {...baseProps} isLoading canStart={false} />)
-    expect(screen.getByRole('button', { name: 'wrapped.start' })).toBeDisabled()
-    expect(screen.getByText('wrapped.loading')).toBeInTheDocument()
-    expect(screen.queryByText('wrapped.empty')).not.toBeInTheDocument()
+  it('renders the loading treatment without a Start action', () => {
+    render(<WrappedCover {...baseProps} state="loading" />)
+
+    const skeleton = screen.getByRole('progressbar', { name: 'wrapped.loading' })
+    expect(skeleton).toHaveAttribute('data-variant', 'settings')
+    expect(skeleton).toHaveAttribute('data-rows', '3')
+    expect(screen.queryByRole('button', { name: 'wrapped.start' })).not.toBeInTheDocument()
   })
 
-  it('shows a retryable error and calls onRetry', () => {
+  it('renders the failed treatment and retries without showing Start', () => {
     const onRetry = vi.fn()
-    render(<WrappedCover {...baseProps} isError canStart={false} onRetry={onRetry} />)
+    render(<WrappedCover {...baseProps} state="failed" onRetry={onRetry} />)
+
     expect(screen.getByRole('alert')).toHaveTextContent('wrapped.error')
-    fireEvent.click(screen.getByRole('button', { name: 'wrapped.retry' }))
+    const retry = screen.getByRole('button', { name: 'wrapped.retry' })
+    expect(retry).toHaveAttribute('data-size', 'sm')
+    fireEvent.click(retry)
     expect(onRetry).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('button', { name: 'wrapped.start' })).not.toBeInTheDocument()
   })
 
-  it('shows the empty state only when not loading and not errored', () => {
-    render(<WrappedCover {...baseProps} isEmpty canStart={false} />)
+  it('renders the empty reason with a satellite and a visible disabled Start action', () => {
+    render(<WrappedCover {...baseProps} state="empty" />)
+
     expect(screen.getByText('wrapped.empty')).toBeInTheDocument()
-    expect(screen.getByTestId('glyph')).toBeInTheDocument()
-    expect(screen.queryByText('wrapped.loading')).not.toBeInTheDocument()
+    expect(document.querySelector('[data-icon="satellite"]')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'wrapped.start' })).toBeDisabled()
   })
 })
