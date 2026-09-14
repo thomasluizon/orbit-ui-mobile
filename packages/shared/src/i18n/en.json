@@ -916,7 +916,16 @@
     "loadError": "Could not load the calendar. Please try again.",
     "dayDetail": {
       "completionSummary": "{done} of {total} logged",
-      "nothingDue": "nothing due"
+      "nothingDue": "nothing due",
+      "eventsTitle": "Available to import",
+      "disconnectedTitle": "Google Calendar disconnected",
+      "disconnectedBody": "Reconnect to see the events you can import.",
+      "noEventsToImport": "Nothing left to import from Google Calendar on this day."
+    },
+    "proBoundary": {
+      "title": "Syncing with Google Calendar is part of Orbit Pro.",
+      "body": "With it, your commitments show up beside the habits for the day.",
+      "action": "See Pro"
     },
     "noHabitsScheduled": "No habit was scheduled on this day.",
     "goToDay": "Open this day on Today",

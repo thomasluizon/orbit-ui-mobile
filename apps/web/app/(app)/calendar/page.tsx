@@ -17,10 +17,12 @@ import {
 } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { useLocale, useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import {
   formatAPIDate,
   parseAPIDate,
   capitalizeFirstLetter,
+  filterCalendarSyncEventsByDate,
   isCalendarDayLoggable,
   buildCalendarRangeModel,
   CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO,
@@ -30,13 +32,16 @@ import {
   resolveCalendarRangeEnd,
   CALENDAR_MONTH_GRID_GEOMETRY,
   resolveCalendarMonthDisplayState,
+  resolveCalendarEventsDisplayState,
   type CalendarMonthDisplayState,
+  type CalendarEventsDisplayState,
 } from '@orbit/shared/utils'
 import {
   getCalendarEntryMutationKey,
   useCalendarEntryMutationLock,
 } from '@orbit/shared/hooks'
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
+import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { useLogHabit } from '@/hooks/use-habits'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
@@ -44,6 +49,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { buildCalendarMonthModel } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { Profile } from '@orbit/shared/types/profile'
+import type { CalendarSyncEvent } from '@orbit/shared'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 import { CalendarStats } from '@/components/calendar/calendar-stats'
@@ -137,6 +143,11 @@ interface CalendarInlineDayPanelProps {
   title: string
   selectedDay: string | null
   entries: CalendarDayEntry[]
+  calendarEvents: CalendarSyncEvent[]
+  calendarEventsState: CalendarEventsDisplayState
+  onRetryCalendarEvents: () => void
+  onReconnectCalendarEvents: () => void
+  onViewPro: () => void
   loggable: boolean
   showRecurring: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
@@ -152,6 +163,11 @@ function CalendarInlineDayPanel({
   title,
   selectedDay,
   entries,
+  calendarEvents,
+  calendarEventsState,
+  onRetryCalendarEvents,
+  onReconnectCalendarEvents,
+  onViewPro,
   loggable,
   showRecurring,
   pendingEntryStates,
@@ -188,6 +204,11 @@ function CalendarInlineDayPanel({
           <CalendarDayDetail
             dateStr={selectedDay}
             entries={entries}
+            calendarEvents={calendarEvents}
+            calendarEventsState={calendarEventsState}
+            onRetryCalendarEvents={onRetryCalendarEvents}
+            onReconnectCalendarEvents={onReconnectCalendarEvents}
+            onViewPro={onViewPro}
             loggable={loggable}
             showRecurring={showRecurring}
             pendingEntryStates={pendingEntryStates}
@@ -255,7 +276,7 @@ export default function CalendarPage() {
 }
 
 interface CalendarPageContentProps {
-  profile: Pick<Profile, 'weekStartDay' | 'timeZone'>
+  profile: Pick<Profile, 'weekStartDay' | 'timeZone' | 'hasProAccess'>
   currentMonth: Date
   setCurrentMonth: Dispatch<SetStateAction<Date>>
   monthQuery: ReturnType<typeof useCalendarData>
@@ -286,6 +307,7 @@ function CalendarPageContent({
   setCurrentMonth,
   monthQuery,
 }: Readonly<CalendarPageContentProps>) {
+  const router = useRouter()
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
@@ -307,6 +329,21 @@ function CalendarPageContent({
   )
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false)
   const [showRecurring, setShowRecurring] = useState(true)
+  const {
+    data: calendarEventsResult,
+    isPending: calendarEventsPending,
+    error: calendarEventsError,
+    refetch: refetchCalendarEvents,
+  } = useCalendarEvents({
+    enabled: profile.hasProAccess,
+    timeZone: profile.timeZone,
+  })
+  const calendarEventsState = resolveCalendarEventsDisplayState({
+    enabled: profile.hasProAccess,
+    isPending: calendarEventsPending,
+    error: calendarEventsError,
+    resultStatus: calendarEventsResult?.status,
+  })
 
   const { dayMap, isLoading, isFetching, error, refresh } = monthQuery
 
@@ -455,6 +492,14 @@ function CalendarPageContent({
     if (!selectedDay) return []
     return activeDayMap.get(selectedDay) ?? []
   }, [selectedDay, activeDayMap])
+
+  const selectedCalendarEvents = useMemo(
+    () =>
+      profile.hasProAccess && calendarEventsResult?.status === 'connected'
+        ? filterCalendarSyncEventsByDate(calendarEventsResult.events, selectedDay)
+        : [],
+    [calendarEventsResult, profile.hasProAccess, selectedDay],
+  )
 
   const selectedDayLoggable = selectedDay !== null
     && isCalendarDayLoggable(selectedDay, todayKey)
@@ -700,10 +745,15 @@ function CalendarPageContent({
                   title={dayDetailTitle}
                   selectedDay={selectedDay}
                   entries={selectedEntries}
-                    loggable={selectedDayLoggable}
-                    showRecurring={showRecurring}
-                    pendingEntryStates={pendingEntryStates}
-                    showRecurringToggle={!showMonthRecurringToggle}
+                  calendarEvents={selectedCalendarEvents}
+                  calendarEventsState={calendarEventsState}
+                  onRetryCalendarEvents={() => void refetchCalendarEvents()}
+                  onReconnectCalendarEvents={() => router.push('/calendar-sync')}
+                  onViewPro={() => router.push('/upgrade')}
+                  loggable={selectedDayLoggable}
+                  showRecurring={showRecurring}
+                  pendingEntryStates={pendingEntryStates}
+                  showRecurringToggle={!showMonthRecurringToggle}
                   onShowRecurringChange={setShowRecurring}
                   onEntryChange={changeSelectedEntry}
                 />
@@ -775,6 +825,11 @@ function CalendarPageContent({
         <CalendarDayDetail
           dateStr={selectedDay}
           entries={selectedEntries}
+          calendarEvents={selectedCalendarEvents}
+          calendarEventsState={calendarEventsState}
+          onRetryCalendarEvents={() => void refetchCalendarEvents()}
+          onReconnectCalendarEvents={() => router.push('/calendar-sync')}
+          onViewPro={() => router.push('/upgrade')}
           loggable={selectedDayLoggable}
           showRecurring={showRecurring}
           pendingEntryStates={pendingEntryStates}

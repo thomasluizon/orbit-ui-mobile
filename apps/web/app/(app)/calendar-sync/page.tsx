@@ -88,7 +88,10 @@ function CalendarSyncPageContent() {
   const [previousEventsKey, setPreviousEventsKey] = useState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(EVENTS_PAGE_SIZE)
 
-  const eventsQuery = useCalendarEvents({ enabled: isProUser && !isReviewMode })
+  const eventsQuery = useCalendarEvents({
+    enabled: isProUser && !isReviewMode,
+    timeZone: profile?.timeZone ?? null,
+  })
   const autoSyncStateQuery = useCalendarAutoSyncState({ enabled: isProUser })
   const googleConnected = autoSyncStateQuery.data?.hasGoogleConnection === true
   const suggestionsQuery = useCalendarSyncSuggestions({ enabled: isProUser && isReviewMode })
