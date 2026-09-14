@@ -3,8 +3,18 @@ import { StyleSheet } from 'react-native'
 import type { ReactTestRenderer } from 'react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { buildWrappedSlides } from '@orbit/shared/utils'
 import { WrappedPlayer } from '@/components/wrapped/wrapped-player'
+
+const translationMock = vi.hoisted<{ labels: Record<string, string> }>(() => ({ labels: {} }))
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => translationMock.labels[key] ?? key,
+  }),
+}))
 
 vi.mock('react-native-gesture-handler', () => {
   const GestureDetector = ({ children }: Readonly<{ children?: React.ReactNode }>) => children
@@ -106,6 +116,7 @@ function advanceToLastSlide(tree: ReactTestRenderer, slideCount: number) {
 
 describe('WrappedPlayer', () => {
   beforeEach(() => {
+    translationMock.labels = {}
     shareCardMock.isSharing = false
     shareCardMock.hasError = false
     shareCardMock.canShareFiles = true
@@ -172,13 +183,36 @@ describe('WrappedPlayer', () => {
     expect(byTestId(tree, 'wrapped-next-zone')).toBeUndefined()
   })
 
-  it('keeps share and download side by side on the final slide', () => {
+  it.each([
+    ['en', en],
+    ['pt-BR', ptBR],
+  ] as const)('keeps localized closing actions stacked beside Back in %s', (_locale, messages) => {
+    translationMock.labels = {
+      'wrapped.previous': messages.wrapped.previous,
+      'shareCard.share': messages.shareCard.share,
+      'shareCard.download': messages.shareCard.download,
+    }
     const { slides, tree } = renderPlayer()
     advanceToLastSlide(tree, slides.length)
 
-    expect(StyleSheet.flatten(byTestId(tree, 'wrapped-share-actions')?.props.style)).toMatchObject({
-      flexDirection: 'row',
+    const actions = byTestId(tree, 'wrapped-share-actions')
+    expect(hasText(tree, messages.wrapped.previous)).toBe(true)
+    expect(hasText(tree, messages.shareCard.share)).toBe(true)
+    expect(hasText(tree, messages.shareCard.download)).toBe(true)
+    expect(StyleSheet.flatten(actions?.props.style)).toMatchObject({
+      flexDirection: 'column',
+      alignItems: 'stretch',
+      gap: 8,
     })
+    expect(
+      hosts(tree).some((node) => {
+        const style = StyleSheet.flatten(node.props.style) as Record<string, unknown> | undefined
+        return style?.flexDirection === 'row'
+          && style.justifyContent === 'space-between'
+          && node.findAll((child) => child === actions).length > 0
+          && node.findAll((child) => child.props.children === messages.wrapped.previous).length > 0
+      }),
+    ).toBe(true)
   })
 
   it('shows both final actions as busy while the card renders', () => {
@@ -214,6 +248,10 @@ describe('WrappedPlayer', () => {
     advanceToLastSlide(tree, slides.length)
     press(byTestId(tree, 'button-primary-md'))
 
-    expect(shareCardMock.share).toHaveBeenCalledWith('shareCard.shareTitle')
+    expect(shareCardMock.share).toHaveBeenCalledWith({
+      shareTitle: 'shareCard.shareTitle',
+      shareText: 'shareCard.shareText',
+      url: createMockRecap().shareDeepLink,
+    })
   })
 })

@@ -1,6 +1,9 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { createMockRecap } from '@orbit/shared/__tests__/factories'
+import {
+  createMockRecap,
+  createMockRetrospectiveMetrics,
+} from '@orbit/shared/__tests__/factories'
 
 import { ShareCardPanel } from '@/components/share/share-card-panel'
 
@@ -12,6 +15,10 @@ vi.mock('react-i18next', () => ({
 }))
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
+
+vi.mock('@/components/share/share-card', () => ({
+  ShareCard: () => React.createElement('ShareCardStub'),
+}))
 
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({
@@ -98,6 +105,29 @@ describe('ShareCardPanel (mobile)', () => {
     expect(buttons.map((node) => node.props.children)).toEqual(['shareCard.download'])
     ;(buttons[0]!.props.onClick as () => void)()
     expect(shareCardState.download).toHaveBeenCalledTimes(1)
+
+    TestRenderer.act(() => tree!.unmount())
+    recapState.data = undefined
+    recapState.isError = true
+  })
+
+  it('shows the share card for a goal-only recap', async () => {
+    recapState.data = createMockRecap({
+      goalCompletions: 2,
+      metrics: createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
+    })
+    recapState.isError = false
+    let tree: RenderedTree | null = null
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<ShareCardPanel open onClose={vi.fn()} />)
+      await Promise.resolve()
+    })
+
+    expect(tree!.root.findAll((node) => node.type === 'ShareCardStub')).toHaveLength(1)
+    expect(
+      tree!.root.findAll((node) => node.type === 'PillButtonStub')
+        .map((node) => node.props.children),
+    ).toEqual(['shareCard.download'])
 
     TestRenderer.act(() => tree!.unmount())
     recapState.data = undefined

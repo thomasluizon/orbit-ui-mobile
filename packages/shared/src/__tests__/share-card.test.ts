@@ -58,14 +58,15 @@ describe('buildShareCardStats', () => {
         bestStreak: 18,
         activeDays: 5,
       }),
+      3,
     )
 
     expect(stats.map((stat) => stat.labelKey)).toEqual([
       'shareCard.stats.completions',
       'shareCard.stats.bestStreak',
-      'shareCard.stats.activeDays',
+      'progressScreen.sections.goals',
     ])
-    expect(stats.map((stat) => stat.value)).toEqual(['40', '18', '5'])
+    expect(stats.map((stat) => stat.value)).toEqual(['40', '18', '3'])
   })
 
   it('handles all-zero metrics without throwing', () => {
@@ -76,6 +77,7 @@ describe('buildShareCardStats', () => {
         bestStreak: 0,
         activeDays: 0,
       }),
+      0,
     )
 
     expect(stats.map((stat) => stat.value)).toEqual(['0', '0', '0'])
@@ -83,15 +85,30 @@ describe('buildShareCardStats', () => {
 })
 
 describe('isRecapShareEmpty', () => {
-  it('is true only when there is no logged activity', () => {
+  it('is true only when there are no habit or goal completions', () => {
     expect(
-      isRecapShareEmpty(createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 })),
+      isRecapShareEmpty(
+        createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
+        0,
+      ),
     ).toBe(true)
     expect(
-      isRecapShareEmpty(createMockRetrospectiveMetrics({ totalCompletions: 3, activeDays: 0 })),
+      isRecapShareEmpty(
+        createMockRetrospectiveMetrics({ totalCompletions: 3, activeDays: 0 }),
+        0,
+      ),
     ).toBe(false)
     expect(
-      isRecapShareEmpty(createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 2 })),
+      isRecapShareEmpty(
+        createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 2 }),
+        0,
+      ),
+    ).toBe(false)
+    expect(
+      isRecapShareEmpty(
+        createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
+        3,
+      ),
     ).toBe(false)
   })
 })

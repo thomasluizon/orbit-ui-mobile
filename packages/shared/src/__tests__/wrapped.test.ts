@@ -40,6 +40,7 @@ describe('buildWrappedSlides', () => {
   it('carries the recap metric values on each stat slide', () => {
     const slides = buildWrappedSlides(
       createMockRecap({
+        goalCompletions: 4,
         metrics: createMockRetrospectiveMetrics({
           totalCompletions: 42,
           activeDays: 5,
@@ -60,7 +61,7 @@ describe('buildWrappedSlides', () => {
     expect(byId.streak).toMatchObject({ bestStreak: 18, currentStreak: 9 })
     expect(byId.consistency).toMatchObject({ weeklyConsistency: [10, 20, 30, 40, 50, 60, 70] })
     expect(byId.topHabit).toMatchObject({ habit: { name: 'Read' } })
-    expect(byId.goals).toMatchObject({ closedGoals: 0 })
+    expect(byId.goals).toMatchObject({ closedGoals: 4 })
   })
 
   it('caps the consistency slide at seven days', () => {

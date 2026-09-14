@@ -51,6 +51,7 @@ export function useAnimatedScrollHandler() {
 }
 
 export const withTimingCalls: { value: unknown; config: unknown }[] = []
+export const withDelayCalls: { delayMs: number; value: unknown }[] = []
 
 export function withTiming<Value>(value: Value, config?: unknown) {
   withTimingCalls.push({ value, config })
@@ -61,7 +62,8 @@ export function withSpring<Value>(value: Value) {
   return value
 }
 
-export function withDelay<Value>(_delayMs: number, value: Value) {
+export function withDelay<Value>(delayMs: number, value: Value) {
+  withDelayCalls.push({ delayMs, value })
   return value
 }
 

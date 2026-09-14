@@ -124,10 +124,34 @@ describe('streakInfoSchema repair offer', () => {
 })
 
 describe('recapResponseSchema', () => {
+  it('preserves the API goal completion count', () => {
+    const parsed = recapResponseSchema.parse({
+      period: 'month',
+      shareDeepLink: 'https://app.useorbit.org/r/ABCD2345?recap=month',
+      goalCompletions: 4,
+      metrics: {
+        completionRate: 0,
+        totalCompletions: 0,
+        totalScheduled: 0,
+        activeDays: 0,
+        periodDays: 30,
+        currentStreak: 0,
+        bestStreak: 0,
+        badHabitSlips: 0,
+        weeklyConsistency: [0, 0, 0, 0, 0, 0, 0],
+        topHabits: [],
+        needsAttention: [],
+      },
+    })
+
+    expect(parsed.goalCompletions).toBe(4)
+  })
+
   it('parses a metrics-only recap with a share deep link', () => {
     const parsed = recapResponseSchema.parse({
       period: 'week',
       shareDeepLink: 'https://app.useorbit.org/r/ABCD2345?recap=week',
+      goalCompletions: 3,
       metrics: {
         completionRate: 80,
         totalCompletions: 12,
@@ -147,7 +171,30 @@ describe('recapResponseSchema', () => {
 
     expect(parsed.period).toBe('week')
     expect(parsed.shareDeepLink).toContain('?recap=week')
+    expect(parsed.goalCompletions).toBe(3)
     expect(parsed.metrics.topHabits).toHaveLength(1)
+  })
+
+  it('defaults goal completions for API instances predating the additive field', () => {
+    const parsed = recapResponseSchema.parse({
+      period: 'week',
+      shareDeepLink: 'https://app.useorbit.org/r/ABCD2345?recap=week',
+      metrics: {
+        completionRate: 0,
+        totalCompletions: 0,
+        totalScheduled: 0,
+        activeDays: 0,
+        periodDays: 7,
+        currentStreak: 0,
+        bestStreak: 0,
+        badHabitSlips: 0,
+        weeklyConsistency: [0, 0, 0, 0, 0, 0, 0],
+        topHabits: [],
+        needsAttention: [],
+      },
+    })
+
+    expect(parsed.goalCompletions).toBe(0)
   })
 
   it('accepts the full backend period set, including quarter and semester', () => {

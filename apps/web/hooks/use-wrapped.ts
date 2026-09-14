@@ -37,7 +37,7 @@ export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions 
   const recap = query.data ?? null
   // react-doctor-disable-next-line exhaustive-deps -- recap aliases query.data and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   const slides = useMemo(() => (recap ? buildWrappedSlides(recap) : []), [recap])
-  const isEmpty = recap ? isRecapShareEmpty(recap.metrics) : false
+  const isEmpty = recap ? isRecapShareEmpty(recap.metrics, recap.goalCompletions) : false
 
   useEffect(() => {
     if (!active || period !== 'year' || !recap || isEmpty) return

@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '@/stores/auth-store'
 import type { LoginResponse } from '@orbit/shared/types/auth'
+import { clearStepUpState, isStepUpVerified, markStepUpVerified } from '@/lib/step-up-storage'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 describe('auth store', () => {
   beforeEach(() => {
+    clearStepUpState()
     useAuthStore.setState({
       isAuthenticated: false,
       user: null,
@@ -63,6 +65,16 @@ describe('auth store', () => {
     })
   })
 
+  it('does not carry API key visibility into a replacement account', async () => {
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-a' }))
+    markStepUpVerified('keys')
+
+    await useAuthStore.getState().logout()
+    useAuthStore.getState().setAuth(makeLoginResponse({ userId: 'account-b' }))
+
+    expect(isStepUpVerified('keys')).toBe(false)
+  })
+
   it('updates expiresAt from the session response', async () => {
     const expiresAt = Date.now() + 3600000
     mockFetch.mockResolvedValue({
@@ -85,6 +97,7 @@ describe('auth store', () => {
       json: () => Promise.resolve({ expiresAt: null }),
     })
     useAuthStore.getState().setAuth(makeLoginResponse())
+    markStepUpVerified('keys')
 
     await useAuthStore.getState().checkSession()
 
@@ -93,6 +106,7 @@ describe('auth store', () => {
       user: null,
       expiresAt: null,
     })
+    expect(isStepUpVerified('keys')).toBe(false)
   })
 
   it('keeps the current state on network errors', async () => {
@@ -114,6 +128,7 @@ describe('auth store', () => {
       json: () => Promise.resolve({ expiresAt: null }),
     })
     useAuthStore.getState().setAuth(makeLoginResponse())
+    markStepUpVerified('keys')
 
     await useAuthStore.getState().checkSession()
 
@@ -122,6 +137,7 @@ describe('auth store', () => {
       user: null,
       expiresAt: null,
     })
+    expect(isStepUpVerified('keys')).toBe(false)
   })
 
   it('keeps the current state on a transient server error', async () => {

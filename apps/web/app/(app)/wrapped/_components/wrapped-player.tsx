@@ -134,22 +134,36 @@ interface ShareActionsProps {
 }
 
 function ShareActions(props: Readonly<ShareActionsProps>) {
+  const downloadButton = (
+    <PillButton
+      variant={props.canShareFiles ? 'ghost' : 'primary'}
+      loading={props.isSharing}
+      disabled={props.isSharing}
+      onClick={props.onDownload}
+    >
+      {props.downloadLabel}
+    </PillButton>
+  )
+
+  if (!props.canShareFiles) return downloadButton
+
+  const shareButton = (
+    <PillButton loading={props.isSharing} disabled={props.isSharing} onClick={props.onShare}>
+      {props.shareLabel}
+    </PillButton>
+  )
+
   return (
-    <div className="flex items-center gap-2">
-      {props.canShareFiles && (
-        <PillButton loading={props.isSharing} disabled={props.isSharing} onClick={props.onShare}>
-          {props.shareLabel}
-        </PillButton>
-      )}
-      <PillButton
-        variant={props.canShareFiles ? 'ghost' : 'primary'}
-        loading={props.isSharing}
-        disabled={props.isSharing}
-        onClick={props.onDownload}
-      >
-        {props.downloadLabel}
-      </PillButton>
-    </div>
+    <>
+      <div data-testid="wrapped-share-actions-narrow" className="flex flex-col items-stretch gap-2 sm:hidden">
+        {shareButton}
+        {downloadButton}
+      </div>
+      <div data-testid="wrapped-share-actions-wide" className="hidden items-center gap-2 sm:flex">
+        {downloadButton}
+        {shareButton}
+      </div>
+    </>
   )
 }
 

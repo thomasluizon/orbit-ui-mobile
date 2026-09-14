@@ -4,7 +4,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { buildWrappedSlides } from '@orbit/shared/utils'
 import { WrappedSlide } from '@/components/wrapped/wrapped-slide'
-import { reanimatedTestState, withTimingCalls } from '@/test-mocks/react-native-reanimated'
+import {
+  reanimatedTestState,
+  withDelayCalls,
+  withTimingCalls,
+} from '@/test-mocks/react-native-reanimated'
 
 vi.mock('@/components/share/share-card', () => ({
   ShareCard: () => React.createElement('ShareCard'),
@@ -43,7 +47,17 @@ function renderSlide(slide: ReturnType<typeof buildWrappedSlides>[number]) {
 describe('mobile WrappedSlide', () => {
   afterEach(() => {
     reanimatedTestState.reducedMotion = false
+    withDelayCalls.length = 0
     withTimingCalls.length = 0
+  })
+
+  it('renders the nonzero goal completion count from the recap', () => {
+    const recapWithGoalCompletions = { ...recap, goalCompletions: 4 }
+    const goals = buildWrappedSlides(recapWithGoalCompletions).find((slide) => slide.id === 'goals')!
+    const tree = renderSlide(goals)
+    const figure = tree.root.findAll((node) => node.props.testID === 'wrapped-figure')[0]!
+
+    expect(figure.props.children).toBe(4)
   })
 
   it('renders the weekday average as Monday-first Columns with initials and no date copy', () => {
@@ -126,10 +140,15 @@ describe('mobile WrappedSlide', () => {
     expect(firstArrival.root.findAll((node) => node.props.testID === 'wrapped-streak-ring')).toHaveLength(2)
     expect(withTimingCalls).toHaveLength(1)
     expect(withTimingCalls[0]).toMatchObject({ value: 0, config: { duration: 280 } })
+    expect(withDelayCalls).toEqual([{ delayMs: 40, value: 0 }])
     firstArrival.update(<></>)
     const secondArrival = renderSlide(streak)
     expect(secondArrival.root.findAll((node) => node.props.testID === 'wrapped-streak-ring')).toHaveLength(2)
     expect(withTimingCalls).toHaveLength(2)
+    expect(withDelayCalls).toEqual([
+      { delayMs: 40, value: 0 },
+      { delayMs: 40, value: 0 },
+    ])
   })
 
   it('animates page entry with transform and opacity only', () => {
@@ -170,5 +189,6 @@ describe('mobile WrappedSlide', () => {
     )[0]!
     expect((ring.props.animatedProps as { strokeDashoffset: number }).strokeDashoffset).toBe(0)
     expect(withTimingCalls).toHaveLength(0)
+    expect(withDelayCalls).toHaveLength(0)
   })
 })

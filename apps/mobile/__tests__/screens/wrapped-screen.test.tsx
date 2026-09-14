@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import WrappedScreen from '@/app/wrapped'
 
@@ -21,6 +22,7 @@ const mocks = vi.hoisted<{
     isLoading: boolean
     isError: boolean
   }
+  safeAreaTop: number
 }>(() => ({
   params: {},
   useWrapped: vi.fn(),
@@ -31,9 +33,18 @@ const mocks = vi.hoisted<{
     isLoading: false,
     isError: false,
   },
+  safeAreaTop: 0,
 }))
 
 vi.mock('expo-router', () => ({ useLocalSearchParams: () => mocks.params }))
+
+vi.mock('react-native-safe-area-context', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>()
+  return {
+    ...actual,
+    useSafeAreaInsets: () => ({ top: mocks.safeAreaTop, right: 0, bottom: 0, left: 0 }),
+  }
+})
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { name: 'Ada' } }),
@@ -73,11 +84,22 @@ function firstByType(root: TestNode, type: string) {
   return root.findAll((node) => node.type === type)[0]
 }
 
+function coverExitTop(root: TestNode) {
+  const exitContainer = root.findAll((node) => {
+    if (node.type !== 'View') return false
+    const style = StyleSheet.flatten(node.props.style) as Record<string, unknown> | undefined
+    return style?.position === 'absolute' && style.left === 16 && style.zIndex === 1
+  })[0]
+
+  return (StyleSheet.flatten(exitContainer?.props.style) as Record<string, unknown> | undefined)?.top
+}
+
 describe('WrappedScreen', () => {
   beforeEach(() => {
     goBackOrFallback.mockClear()
     mocks.params = {}
     mocks.useWrapped.mockClear()
+    mocks.safeAreaTop = 0
     mocks.wrapped = {
       recap: { id: 'recap-1' },
       slides: [],
@@ -85,6 +107,19 @@ describe('WrappedScreen', () => {
       isLoading: false,
       isError: false,
     }
+  })
+
+  it('positions the cover exit below a non-zero top inset', () => {
+    mocks.safeAreaTop = 24
+    const tree = renderScreen()
+
+    expect(coverExitTop(tree.root)).toBe(32)
+  })
+
+  it('keeps the cover exit offset at eight when the top inset is zero', () => {
+    const tree = renderScreen()
+
+    expect(coverExitTop(tree.root)).toBe(8)
   })
 
   it('opens the player from the ready cover', () => {

@@ -20,7 +20,7 @@ interface ShareCardProps {
 /** The 9 by 16 composed Wrapped image captured by html-to-image. */
 export function ShareCard({ recap, ref }: Readonly<ShareCardProps>) {
   const t = useTranslations()
-  const stats = buildShareCardStats(recap.metrics)
+  const stats = buildShareCardStats(recap.metrics, recap.goalCompletions)
   const weekday = buildShareCardWeekday(recap.metrics.weeklyConsistency)
 
   return (

@@ -12,7 +12,7 @@ export type WrappedSlide =
   | { id: 'consistency'; weeklyConsistency: number[] }
   | { id: 'streak'; bestStreak: number; currentStreak: number }
   | { id: 'topHabit'; habit: RetrospectiveHabitStat }
-  | { id: 'goals'; closedGoals: 0 }
+  | { id: 'goals'; closedGoals: number }
   | { id: 'share' }
 
 export type WrappedSlideId = WrappedSlide['id']
@@ -43,6 +43,6 @@ export function buildWrappedSlides(recap: Recap): WrappedSlide[] {
     slides.push({ id: 'topHabit', habit: topHabit })
   }
 
-  slides.push({ id: 'goals', closedGoals: 0 }, { id: 'share' })
+  slides.push({ id: 'goals', closedGoals: recap.goalCompletions }, { id: 'share' })
   return slides
 }

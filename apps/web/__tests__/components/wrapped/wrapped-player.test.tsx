@@ -91,13 +91,30 @@ describe('WrappedPlayer', () => {
     expect(screen.getByTestId('wrapped-slide-intro')).toBeInTheDocument()
   })
 
-  it('replaces the Pager forward control with the share action on the final slide', () => {
+  it('replaces the Pager forward control with responsive share actions on the final slide', () => {
     renderPlayer()
     advanceToLastSlide()
     const pager = screen.getByTestId('wrapped-pager')
     expect(within(pager).queryByRole('button', { name: 'wrapped.next' })).not.toBeInTheDocument()
-    expect(within(pager).getByRole('button', { name: 'shareCard.share' })).toHaveAttribute('data-variant', 'primary')
-    expect(within(pager).getByRole('button', { name: 'shareCard.download' })).toHaveAttribute('data-variant', 'ghost')
+    const narrowActions = within(pager).getByTestId('wrapped-share-actions-narrow')
+    const wideActions = within(pager).getByTestId('wrapped-share-actions-wide')
+    const controls = within(pager).getByRole('button', { name: 'wrapped.previous' }).parentElement
+    expect(narrowActions).toHaveClass('flex', 'flex-col', 'items-stretch', 'sm:hidden')
+    expect(wideActions).toHaveClass('hidden', 'items-center', 'sm:flex')
+    expect(controls).toHaveClass(
+      'flex',
+      'flex-col',
+      'items-stretch',
+      'sm:flex-row',
+      'sm:items-center',
+      'sm:justify-between',
+    )
+    expect(within(narrowActions).getAllByRole('button').map((button) => button.textContent))
+      .toEqual(['shareCard.share', 'shareCard.download'])
+    expect(within(wideActions).getAllByRole('button').map((button) => button.textContent))
+      .toEqual(['shareCard.download', 'shareCard.share'])
+    expect(within(narrowActions).getByRole('button', { name: 'shareCard.share' })).toHaveAttribute('data-variant', 'primary')
+    expect(within(narrowActions).getByRole('button', { name: 'shareCard.download' })).toHaveAttribute('data-variant', 'ghost')
     expect(screen.queryByTestId('wrapped-next-zone')).not.toBeInTheDocument()
   })
 
@@ -107,8 +124,12 @@ describe('WrappedPlayer', () => {
     advanceToLastSlide()
 
     const pager = screen.getByTestId('wrapped-pager')
-    expect(within(pager).getByRole('button', { name: 'shareCard.share' })).toHaveAttribute('aria-busy', 'true')
-    expect(within(pager).getByRole('button', { name: 'shareCard.download' })).toHaveAttribute('aria-busy', 'true')
+    for (const button of within(pager).getAllByRole('button', { name: 'shareCard.share' })) {
+      expect(button).toHaveAttribute('aria-busy', 'true')
+    }
+    for (const button of within(pager).getAllByRole('button', { name: 'shareCard.download' })) {
+      expect(button).toHaveAttribute('aria-busy', 'true')
+    }
   })
 
   it('makes download the primary action when file sharing is unsupported', () => {
@@ -125,7 +146,9 @@ describe('WrappedPlayer', () => {
     renderPlayer()
     advanceToLastSlide()
 
-    fireEvent.click(within(screen.getByTestId('wrapped-pager')).getByRole('button', { name: 'shareCard.share' }))
+    const narrowActions = within(screen.getByTestId('wrapped-pager'))
+      .getByTestId('wrapped-share-actions-narrow')
+    fireEvent.click(within(narrowActions).getByRole('button', { name: 'shareCard.share' }))
     expect(shareCardMock.share).toHaveBeenCalledWith({
       shareTitle: 'shareCard.shareTitle',
       shareText: 'shareCard.shareText',

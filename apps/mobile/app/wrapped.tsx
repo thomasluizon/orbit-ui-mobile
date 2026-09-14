@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { useLocalSearchParams } from 'expo-router'
 import {
@@ -40,6 +40,7 @@ function WrappedScreenContent({ initialSelection }: Readonly<{
   initialSelection: WrappedRouteSelection
 }>) {
   const { t } = useTranslation()
+  const insets = useSafeAreaInsets()
   const goBackOrFallback = useGoBackOrFallback()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -99,8 +100,8 @@ function WrappedScreenContent({ initialSelection }: Readonly<{
   }
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top']}>
-      <View style={styles.coverExit}>
+    <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+      <View style={[styles.coverExit, { top: insets.top + 8 }]}>
         {/* eslint-disable-next-line local/max-button-words -- ORB-57 requires the existing common.backToProfile copy. */}
         <Button
           variant="ghost"
@@ -114,12 +115,13 @@ function WrappedScreenContent({ initialSelection }: Readonly<{
       </View>
       <WrappedCover
         tokens={tokens}
+        topInset={insets.top}
         period={period}
         onSelectPeriod={selectPeriod}
         state={coverState}
         onStart={startPlayer}
         onRetry={() => void retryCover()}
       />
-    </SafeAreaView>
+    </View>
   )
 }
