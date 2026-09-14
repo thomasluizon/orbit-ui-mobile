@@ -218,6 +218,7 @@ function RootLayoutNav() {
     topSegment === 'chat' ||
     topSegment === 'step-up' ||
     topSegment === 'upgrade' ||
+    topSegment === 'wrapped' ||
     topSegment === 'privacy' ||
     topSegment === 'terms' ||
     topSegment === 'r'

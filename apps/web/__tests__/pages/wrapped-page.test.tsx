@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
 const refetch = vi.fn()
+const goBackOrFallback = vi.fn()
 
 const mocks = vi.hoisted(() => ({
   wrapped: {
@@ -16,6 +17,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { name: 'Ada' } }) }))
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({
+  useGoBackOrFallback: () => goBackOrFallback,
+}))
 vi.mock('@/hooks/use-wrapped', () => ({
   useWrapped: () => ({ ...mocks.wrapped, refetch }),
 }))
@@ -32,7 +36,11 @@ vi.mock('@/app/(app)/wrapped/_components/wrapped-cover', () => ({
   ),
 }))
 vi.mock('@/app/(app)/wrapped/_components/wrapped-player', () => ({
-  WrappedPlayer: () => <div data-testid="player" />,
+  WrappedPlayer: ({ onClose }: { onClose: () => void }) => (
+    <div data-testid="player">
+      <button type="button" aria-label="close-player" onClick={onClose} />
+    </div>
+  ),
 }))
 
 import WrappedPage from '@/app/(app)/wrapped/page'
@@ -40,6 +48,7 @@ import WrappedPage from '@/app/(app)/wrapped/page'
 describe('WrappedPage', () => {
   beforeEach(() => {
     refetch.mockClear()
+    goBackOrFallback.mockClear()
     mocks.wrapped = { recap: { id: 'recap-1' }, slides: [], isEmpty: false, isLoading: false, isError: false }
   })
 
@@ -84,5 +93,17 @@ describe('WrappedPage', () => {
   it('provides exactly one main landmark', () => {
     render(<WrappedPage />)
     expect(screen.getAllByRole('main')).toHaveLength(1)
+  })
+
+  it('exits the cover to Profile while player close only returns to the cover', () => {
+    render(<WrappedPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.backToProfile' }))
+    expect(goBackOrFallback).toHaveBeenCalledExactlyOnceWith('/profile')
+
+    fireEvent.click(screen.getByRole('button', { name: 'start' }))
+    fireEvent.click(screen.getByRole('button', { name: 'close-player' }))
+    expect(screen.queryByTestId('player')).not.toBeInTheDocument()
+    expect(goBackOrFallback).toHaveBeenCalledTimes(1)
   })
 })

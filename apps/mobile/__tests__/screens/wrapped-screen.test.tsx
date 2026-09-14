@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import WrappedScreen from '@/app/wrapped'
 
 const TestRenderer = require('react-test-renderer')
+const goBackOrFallback = vi.fn()
 
 type TestNode = {
   type: unknown
@@ -30,6 +31,9 @@ const mocks = vi.hoisted<{
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { name: 'Ada' } }),
+}))
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({
+  useGoBackOrFallback: () => goBackOrFallback,
 }))
 vi.mock('@/hooks/use-wrapped', () => ({
   useWrapped: () => ({ ...mocks.wrapped, refetch: vi.fn() }),
@@ -62,6 +66,7 @@ function firstByType(root: TestNode, type: string) {
 
 describe('WrappedScreen', () => {
   beforeEach(() => {
+    goBackOrFallback.mockClear()
     mocks.wrapped = {
       recap: { id: 'recap-1' },
       slides: [],
@@ -104,5 +109,26 @@ describe('WrappedScreen', () => {
     })
 
     expect(firstByType(tree.root, 'WrappedPlayer')).toBeUndefined()
+  })
+
+  it('exits the cover to Profile while player close only returns to the cover', () => {
+    const tree = renderScreen()
+    const exit = tree.root.findAll((node) =>
+      node.props.accessibilityLabel === 'common.backToProfile',
+    )[0]
+
+    TestRenderer.act(() => {
+      ;(exit?.props.onPress as () => void)()
+    })
+    expect(goBackOrFallback).toHaveBeenCalledExactlyOnceWith('/profile')
+
+    TestRenderer.act(() => {
+      ;(firstByType(tree.root, 'WrappedCover')?.props.onStart as () => void)()
+    })
+    TestRenderer.act(() => {
+      ;(firstByType(tree.root, 'WrappedPlayer')?.props.onClose as () => void)()
+    })
+    expect(firstByType(tree.root, 'WrappedPlayer')).toBeUndefined()
+    expect(goBackOrFallback).toHaveBeenCalledTimes(1)
   })
 })
