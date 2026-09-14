@@ -82,6 +82,17 @@ describe('WrappedPlayer', () => {
     expect(within(pager).queryByRole('button', { name: 'wrapped.next' })).not.toBeInTheDocument()
     const narrowActions = within(pager).getByTestId('wrapped-share-actions-narrow')
     const wideActions = within(pager).getByTestId('wrapped-share-actions-wide')
+    const controls = within(pager).getByRole('button', { name: 'wrapped.previous' }).parentElement
+    expect(narrowActions).toHaveClass('flex', 'flex-col', 'items-stretch', 'sm:hidden')
+    expect(wideActions).toHaveClass('hidden', 'items-center', 'sm:flex')
+    expect(controls).toHaveClass(
+      'flex',
+      'flex-col',
+      'items-stretch',
+      'sm:flex-row',
+      'sm:items-center',
+      'sm:justify-between',
+    )
     expect(within(narrowActions).getAllByRole('button').map((button) => button.textContent))
       .toEqual(['shareCard.share', 'shareCard.download'])
     expect(within(wideActions).getAllByRole('button').map((button) => button.textContent))
