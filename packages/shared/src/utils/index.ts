@@ -569,8 +569,12 @@ export {
   recapPeriodLabelKey,
 } from './share-card'
 export type { RecapSharePeriod, ShareCardStat } from './share-card'
-export { buildWrappedSlides } from './wrapped'
-export type { WrappedSlide, WrappedSlideId } from './wrapped'
+export {
+  buildWrappedSlides,
+  getWeeklyConsistencyComparison,
+  hasEnoughWeeklyConsistencyToCompare,
+} from './wrapped'
+export type { WeeklyConsistencyComparison, WrappedSlide, WrappedSlideId } from './wrapped'
 export {
   canAccessEntitlement,
   DEFAULT_FREE_COLOR_SCHEME,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildWrappedSlides } from '../utils/wrapped'
+import { buildWrappedSlides, hasEnoughWeeklyConsistencyToCompare } from '../utils/wrapped'
 import { createMockRecap, createMockRetrospectiveMetrics } from './factories'
 
 describe('buildWrappedSlides', () => {
@@ -75,5 +75,15 @@ describe('buildWrappedSlides', () => {
 
     const consistency = slides.find((slide) => slide.id === 'consistency')
     expect(consistency).toMatchObject({ weeklyConsistency: [1, 2, 3, 4, 5, 6, 7] })
+  })
+})
+
+describe('hasEnoughWeeklyConsistencyToCompare', () => {
+  it('allows a comparison when exactly two weekdays carry completions', () => {
+    expect(hasEnoughWeeklyConsistencyToCompare([0, 20, 0, 0, 0, 60, 0])).toBe(true)
+  })
+
+  it('rejects a comparison when exactly one weekday carries completions', () => {
+    expect(hasEnoughWeeklyConsistencyToCompare([0, 20, 0, 0, 0, 0, 0])).toBe(false)
   })
 })
