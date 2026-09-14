@@ -9,7 +9,8 @@ Orbit is being rebuilt screen by screen against a granted design canvas. Every s
 web and Android together. Nothing reaches a real person until the whole redesign ships, so
 `redesign/main` is the branch and `main` stays untouched.
 
-Thirteen screens. Seven are done or retired. The rest are listed under State.
+Thirteen screens. The calendar, About, Privacy and Terms, and the Android widget are finished. The
+rest are listed under State.
 
 ## Standing instructions from Thomas
 
@@ -54,155 +55,193 @@ Pointers, not restatements. The reasoning lives in the ADR.
 - D92: the Gate Charter closes every gate into one registry that fails closed.
 - D42: `design/canvas/` outranks `DESIGN.md` prose, except `## Information architecture` and
   `## Bans`.
-- 2026-09-13: `Lint Severity` is changed-files scoped AND blocking. The charter allows only two
-  scopes and forces a whole-tree job to be advisory, which would gut `#175`. A severity regression
-  can only arrive through an eslint config, a `package.json` script, a workflow, or the lockfile,
-  which `npm ci` installs the gate's own runtime from.
+- 2026-09-13: `Lint Severity` is changed-files scoped AND blocking.
 - **2026-09-14: no `orbit-api` pull request merges unattended.** The repository has no deploy
   workflow in `.github/workflows/`, so whether a push to `main` deploys is configured in the Render
-  console, which an unattended run cannot read. Sleep rule 6.4 forbids touching what a real person
-  sees, and rule 8 forbids assuming an external interface, so an API merge is Thomas's.
+  console, which an unattended run cannot read. Building an API pull request IS allowed; only the
+  merge is his.
+- **2026-09-14: a worker never writes a user-facing string.** It stops with a `NEEDS_DECISION`
+  naming the key path and what the string has to say. This is enforced in every worker order, in
+  capitals, because a worker ignored it once (see `progressScreen.achievements.lockedBody` under
+  Copy waiting on Thomas).
+- **2026-09-14: every new guard is proven by breaking what it guards.** A test that has only ever
+  been green has not been shown to notice anything. Three stages reported "nothing was broken" while
+  carrying a case that could not have seen a break, and two of those blind spots were real.
 
 ## Constraints that are not obvious from the code
 
 - **No display-complete calendar events endpoint.** `useCalendarEvents` is the manual-import feed:
   bounded to 60 days ahead, keeps only the first occurrence of a repeating event, and strips
   already-imported ids. Recorded as a comment on ticket `#56`.
-- **The calendar event feed reports the EVENT's timezone, not the account's.**
-  `GoogleCalendarEventFetcher.cs:124` and `:132` format `DateTimeOffset` values in their own offset,
-  and `calendarSyncEventSchema` in `packages/shared/src/types/calendar.ts` carries no offset and no
-  instant, so no client can convert. Ticket `#526`, orbit-api pull request 521.
+- **`/api/calendar/events` reports the EVENT's timezone, not the account's.** Ticket `#526`,
+  orbit-api pull request 521.
 - **Listing and revoking API keys are protected by Pro entitlement only.** `GetApiKeysQuery.cs:30`
   and `RevokeApiKeyCommand.cs:22` check no step-up grant, while `CreateApiKeyCommand.cs:40-75`
-  verifies and consumes one exactly once. Ticket `#529`. Until it deploys, the Perfil key surface
-  cannot honestly claim its boundary.
-- **No device list.** The push APIs only subscribe, unsubscribe and test, and `PushSubscription`
-  carries no device name. Perfil stage 5 ships the consent question alone.
-- **No `uses24HourClock` write.** It is response-only, computed at `GetProfileQuery.cs:147`. Perfil
-  stage 2 needs an `orbit-api` change first, deployed before the UI.
-- **No Astra eval trace.** `/api/chat` omits tool arguments, so `#26`'s assertion cannot be written
-  against anything real.
-- A stale eslint cache at `apps/mobile/.expo/cache/eslint` blocks every commit in a worktree and
-  looks like a stalled worker. Delete it before believing a lint error in a file the diff never
-  touched.
+  verifies and consumes one exactly once. Ticket `#529`, and see the deploy-order conflict recorded
+  as a comment on it: its own `## Deploy order` section contradicts `CLAUDE.md`'s expand-contract
+  plus `MinSupportedVersion` rule, and shipping it as written breaks every Pro account already on
+  the store.
+- **The API's create-key grant is one use AND expires.** `ConfirmApiKeyCreationChallengeCommand.cs:31-34`
+  calls `AuthorizeOnce` with the challenge's remaining lifetime, `CreateApiKeyCommand.cs:72-75`
+  consumes it, and `ResultActionResultExtensions.cs:49` maps the failure to `428` with
+  `errorCode = API_KEY_CREATION_CHALLENGE_REQUIRED`. The failure body is exactly
+  `{ error, errorCode }`, two keys.
+- **`send_support_request` activates only on five literal phrases.** `ChatToolGroups.cs:28-29` lists
+  `["support", "contact the team", "report a bug", "suporte", "fale conosco"]`, and
+  `ProcessUserChatCommand.Ai.cs:56-64` filters tool declarations BEFORE the first model call. So a
+  conversation opened from a Support row cannot send a support request unless the person happens to
+  type a trigger word. Tickets `#532` (api) and `#533` (ui, blocked by it).
+- **Confirming account deletion DEACTIVATES, it does not delete.**
+  `ConfirmAccountDeletionCommand.cs:30-40` schedules seven days out, or for active Pro the earlier of
+  plan expiry plus seven days and `AppConstants.MaxDeletionGraceDays`, then calls
+  `user.Deactivate(scheduledDate)`. `VerifyCodeCommand.cs:104-110` and `GoogleAuthCommand.cs:139-149`
+  call `user.CancelDeactivation()` on sign in. **`#71` stage 8's instruction to say "there is no way
+  back" is wrong about the product.**
+- **The support API accepts more than the form allows.** `SendSupportCommandValidator.cs` allows a
+  200 character subject and a 5,000 character message. Pull request 951 raises the client to match.
+- **No device list.** The push APIs only subscribe, unsubscribe and test.
+- **No `uses24HourClock` write.** Response-only at `GetProfileQuery.cs:147`. Perfil stage 2 needs an
+  `orbit-api` change first.
+- **No Astra eval trace.** `/api/chat` omits tool arguments, so `#26`'s assertion cannot be written.
+- **`GitHub's `reviewDecision` is not the Pullfrog verdict.** Pull request 947 reads `APPROVED` while
+  its latest Pullfrog review is `COMMENTED` with an unresolved thread and `pullfrog-approval` is
+  FAILURE. Read `list-bot-threads.mjs` and the `pullfrog-approval` check, never the aggregate.
+- **`tools/resolve-bot-thread.mjs` has no reply-only mode.** It replies and resolves in one step, so
+  a thread you only wanted to answer closes. When the finding is not fixed, post a separate pull
+  request comment saying so.
+- **`list-bot-threads.mjs` truncates `reviewBody` to 4,000 characters**, and findings live there as
+  well as in threads. `counts.unresolved = 0` with a non-null body is not a clean review. Read the
+  full bodies with `gh api repos/.../pulls/<n>/reviews` when it matters.
+- **Cloud has a circuit breaker.** Two empty diffs in one session open it and every later ticket
+  routes local. It fired on 2026-09-14; the file names itself in the refusal.
+- **The local worker pool is ONE at a time in practice.** The harness killed three background tasks
+  at once for low memory with 12 GB free of 32 GB. Two workers plus a GitHub poller was too many.
+- A stale eslint cache at `apps/mobile/.expo/cache/eslint` blocks every commit in a worktree.
 - **`apps/mobile/__tests__/scripts/__snapshots__/widget-header.test.ts.snap` flips its line endings
-  on its own.** It appeared as modified with a CRLF-only diff in three separate worktrees on
-  2026-09-13. Restore it and keep it out of every commit; a `git diff --stat` printing only the
-  LF-to-CRLF warning and no hunks is the tell.
-- **`calendar-views.test.tsx` is green in CI and red locally.** Its
-  `renders the agenda at phone width` case reads `formatAPIDate(new Date())` and never pins the
-  clock, unlike every sibling in the same file. Ticket `#530`. A red local mobile suite on that one
-  case is not a defect in whatever branch you are holding.
-- Two local Codex workers is the cap. A third gets killed for low memory, and so does a second when
-  a full test suite is running beside it.
-- **A screen stage needs more than the 45 minute default ceiling.** Perfil stage 6 was killed at 55
-  minutes at step 5 of 6 with both type checks passing. Pass `--hard-ceiling-minutes 75` for a screen
-  stage that covers both platforms.
-- The calendar stages all touch the same files, so each merge conflicts the next and costs a
-  base-merge round that finds no defects.
-- Worktree and branch debt is large and harmless. Read 2026-09-14: four dirty worktrees, four
-  stashes, two detached HEADs whose commits are already in `redesign/main`, and one branch
-  (`feature/ticket-335-avisos`) 11 commits ahead whose pull request 843 already merged at the same
-  tip. None of it blocks the redesign, and none holds work that exists nowhere else.
+  on its own.** Restore it and keep it out of every commit.
+- The calendar stages all touched the same files, so each merge conflicted the next. The same is now
+  true of the Perfil, Progresso and Wrapped stacks.
+- Worktree and branch debt is large and harmless. Read 2026-09-14: five dirty worktrees, four
+  stashes, three detached HEADs whose commits are already reachable.
 
-## How to run a stage, learned 2026-09-13
+## How to run a stage, learned 2026-09-13 and 2026-09-14
 
-- **List the open pull requests in the target repository before starting a ticket.** Ticket `#505`
-  already had orbit-api pull request 518, APPROVED since 2026-09-11, and a whole worker run was spent
-  producing a duplicate before anyone looked.
-- **A review order names the tests that pass with the bug present.** Pullfrog repeatedly found a
-  green suite hiding a live defect: About mocked `useProfile` away, the calendar revocation tests
-  resolved their responses in the favourable order, and the Progresso gap tests paired an available
-  offer with a zero bank the API cannot emit. Requiring a red run first is what makes the fix real.
-- **Capture a test run to a file, never through `tail`.** A piped `tail -8` kept only the npm error
-  footer and named no failing test, costing a full re-run.
+- **List the open pull requests in the target repository before starting a ticket.**
+- **A review order names the tests that pass with the bug present.** Requiring a red run first is
+  what makes the fix real.
+- **Capture a test run to a file, never through `tail`.**
 - **A generated inventory conflict is resolved by keeping BOTH sides' deletions**, then proving it
-  with `GITHUB_BASE_REF=redesign/main node tools/check-suppressions-ratchet.mjs`. Never regenerate it
-  with a bulk eslint run.
+  with `GITHUB_BASE_REF=redesign/main node tools/check-suppressions-ratchet.mjs`.
+- **Read the worker's `## Assumptions` at EVERY exit, including a clean one.** A worker deleted the
+  share card's only entry point on Perfil and filed it as an assumption. Its tests went with the row,
+  so every suite stayed green.
+- **Check the ticket's requirements against the tree, not against the worker's report.** A stage
+  reported success with a whole named requirement absent.
+- **Grep for the BEHAVIOUR, not the identifier you expect.** Searching for `reorderGoals` and
+  `onReorder` found nothing and the reorder existed as `useGoalDrag` with `DndContext`. That produced
+  a wrong claim to Thomas.
+- **A stacked child is not blocked by a blocked parent.** Wrapped and Progresso stages were both
+  written off as blocked when only their base branch was.
 
 ## State
 
-Built and merged to `redesign/main`:
+Built and merged to `redesign/main`, which is `b9855b91`:
 
-- The calendar has month, week, range and agenda views, logs the last seven days, computes its
-  statistics on the account timezone, and handles loading and empty months without claiming an empty
-  month is a finished one.
-- Perfil has its five-group frame, data export, the Astra allowance panel with both switches behind
-  Pro, and the product email consent question as a real three-state question.
+- **The calendar is finished**, all twelve stages, including the Google import candidates beside
+  habits, the sync Pro boundary, and the timezone-partitioned event cache with its cancel-then-
+  invalidate fix.
+- **About is finished** for the screen itself, and **Privacy and Terms** ship with the 62ch measure
+  reaching the live route, one `main` landmark, and the Android bottom inset reserved.
+- **Perfil** has its five-group frame, data export, the Astra allowance panel, the product email
+  consent question, the API keys and MCP surface behind the plan gate with step-up bound to the auth
+  session, and the more-of-Orbit routes group.
 - Progresso exists as the fourth destination with XP and achievements.
-- **About is finished** (pull request 945, merged 2026-09-13 at `e7026d8d`): the orbital mark, the
-  name, the tagline, then exactly four rows in the shipping order, the version, an account email line
-  for a signed-in person and none for a signed-out one, and the 412px pt-BR clipping fixed by
-  structure rather than by shorter words. The public route renders without a query client.
 - The Android widget is finished.
-- The harness is finished: every gate self-registers or the charter reds the pull request, the lint
-  gate fails closed on every unresolvable suppression target, pending lessons reach a real session,
-  the drift proposer cannot invent a repeated pattern, and button labels over the cap are blocked.
+- The harness is finished.
+- The mobile test suite reads correctly at any device timezone, and one centralized icon double means
+  a new icon export can no longer break an unrelated suite.
 
-In flight, read 2026-09-14. Every one of these is unapproved except 940, so each needs its findings
-cleared before it can merge:
+In flight. **Every stack below sits behind ONE blocker.** Read `## Open questions` for what each is.
 
-| pull request | head | base | state |
+| pull request | base | head | state |
 |---|---|---|---|
-| ui 948, privacy and terms | `7f1fe011` | `redesign/main` | opened, review not yet read |
-| ui 947, Wrapped cover | `ead94f5a` | `redesign/main` | opened, review not yet read |
-| ui 946, Perfil API keys | `20d729c6` | `redesign/main` | three findings fixed, re-review pending |
-| ui 940, calendar stage 12 | `7b1ef8c0` | `feature/ticket-56-calendar-s11` | APPROVED, zero threads, held behind 939 |
-| ui 939, calendar stage 11 | `f1c747bb` | `redesign/main` | BLOCKED at the review bound by `#527` |
-| ui 894, Progresso stage 3 | `53c49044` | `redesign/main` | blocked on `#505` deploying |
-| ui 890, orchestrate docs | `df2d862d` | `redesign/main` | untouched by policy, see below |
-| api 521, calendar timezone | `cc86c612` | `main` | two rounds fixed, re-review pending |
-| api 518, repairable gaps | `6ac02c2a` | `main` | was APPROVED, arch map just pushed, re-review pending |
+| ui 953, Perfil stage 8 | `redesign/main` | `57b82334` | structurally complete, blocked on copy |
+| ui 954, Perfil stage 9 | 953's branch | `1c156658` | APPROVED, zero threads, waits on 953 |
+| ui 951, About stage 5 | `redesign/main` | `90c49dce` | blocked on copy |
+| ui 947, Wrapped cover | `redesign/main` | `f5a373e3` | bounded fixer exhausted, one finding open |
+| ui 955, Wrapped stage 3 | 947's branch | `8fc85676` | opened, retires suppressions |
+| ui 960, Wrapped stage 4 | 955's branch | `e0ac75a0` | opened, four strings blocked on copy |
+| ui 961, Wrapped stage 5 | 960's branch | `748056b3` | CHANGES_REQUESTED, three P1 findings |
+| ui 962, Wrapped stage 6 | 961's branch | `511a1145` | opened, reviewing |
+| ui 894, Progresso stage 3 | `redesign/main` | `53c49044` | blocked on orbit-api 518 deploying |
+| ui 956, Progresso stage 4 | 894's branch | `a1ea421f` | opened, reviewing |
+| ui 957, Progresso stage 6 | 956's branch | `747fd066` | opened, reviewing |
+| ui 958, Progresso stage 7 | 957's branch | `a754796e` | opened, one authored string flagged |
+| ui 959, Progresso stage 5 | 958's branch | `4557939f` | APPROVED |
+| ui 890, orchestrate docs | `redesign/main` | `df2d862d` | untouched by policy, see below |
+| api 523, `#532` | `main` | `1ccb2d8f` | opened 2026-09-14, ready for Thomas |
+| api 521, `#526` | `main` | `cc86c612` | CHANGES_REQUESTED |
+| api 518, `#505` | `main` | `6ac02c2a` | unblocks 894 |
 
-Thirty tickets carry `repo:ui` and thirty carry `repo:api`. Reproduce with
+**Wrapped stage 7 exists but has no pull request.** Branch `feature/ticket-63-wrapped-s7` carries
+`dd337cc3 feat: add Wrapped entry routes`, pushed on 2026-09-14 after its worker was stopped. Its
+worktree also holds two dirty snapshot files. Nobody has verified it.
+
+Open tickets: 100 carry `repo:ui` and 65 carry `repo:api`. Reproduce with
 `gh issue list --repo thomasluizon/orbit-tickets --state open --label "repo:ui" --limit 100`.
 
-Not started or barely started:
+Not started:
 
-- Perfil: stage 7 the routes group, stage 8 the ending group, stage 9 the plan gate sweep. Stage 2
-  is blocked on an `orbit-api` write.
-- About: stage 3 the feature guide subjects, stages 5 to 8 the support form.
-- Wrapped: stages 3 to 7, everything after the cover.
-- Progresso: everything after stage 3, plus six accessibility sweeps.
-- Onboarding, the tour and the feature guide: nothing built.
+- About: stage 3 the feature guide subjects, stages 6, 7 and 8. **All four are copy work.**
+- Onboarding, the tour and the feature guide: nothing built, and almost entirely copy.
+- Progresso's six accessibility sweeps.
 
 Decided 2026-09-13, ready to build:
 
 - Onboarding chips fill the in-flow field only; the Hoje composer chips are a separate ticket.
 - The skipped onboarding ending renders its empty state with one action that creates a habit.
-- Wrapped pages turn by hand: Pager's forward control, the tap zones and the keys. No timer.
-- Progresso already ships as the fourth destination, so Wrapped's W5 entry at its top is unblocked.
-- `#442` closed, so Progresso's multi-day gap repairs and needs no undrawn third variant.
+- Wrapped pages turn by hand. No timer.
 
 ## Pull request 890 is deliberately untouched
 
 890 edits `.claude/skills/orchestrate/SKILL.md`, the contract a run is executing, and that skill's
 own hard prohibition forbids editing it from inside a run. Its one Pullfrog finding is real and
-small: the new "Who writes the fix" section attributes the actor split to D89, and D89 covers queue
-invocation and capacity. The attribution belongs to the operating contract in `.claude/rules/core.md`
-instead. An attended session fixes that line and merges it; an unattended one leaves it.
+small: the new "Who writes the fix" section attributes the actor split to D89, and the attribution
+belongs to `.claude/rules/core.md` instead. An attended session fixes that line and merges it.
 
 ## Open questions
 
-None for Thomas that block work. Two things are his and only his:
+Four things are his and only his.
 
-- **Merging any `orbit-api` pull request.** See the decision above. 518 and 521 are both waiting.
-- **The copy he has to review**, listed under Copy waiting on Thomas.
+1. **The copy below.** It blocks 951, 953, and parts of 958 and 960.
+2. **Merging any `orbit-api` pull request.** 523, 521 and 518 are all waiting. 518 unblocks 894 and
+   the whole Progresso stack.
+3. **`#529`'s deploy order.** Its own body says to ship before the carrying build reaches Play, which
+   breaks every Pro account already on the store. The conflict and two workable shapes are recorded
+   as a comment on the ticket.
+4. **947's last finding**, which the bounded fixer cannot take: `apps/mobile/app/wrapped-styles.ts:84`
+   positions `coverExit` absolutely at `top: 8` inside a `SafeAreaView`, which applies its inset as
+   Yoga padding that an absolutely positioned child never receives, so on edge-to-edge Android the
+   route's only visible exit sits under the status bar. The fix is the top inset from
+   `useSafeAreaInsets()` plus a test at a non-zero inset. Unblocking 947 unblocks 955, 960, 961, 962
+   and the stage 7 branch.
 
 ## Copy waiting on Thomas
 
-- **The 32 shortened control labels**, drafted in both locales as a comment on ticket `#74` on
-  2026-09-13. It is 32 unique i18n keys across 58 suppression sites, not the 53 `hot.md` records,
-  because pull request 927 merged 53 and more landed after it. Five of the 58 keys are already inside
-  the two-word cap, so their suppression can go with no copy change. Three rows need his eye:
-  `profile.proactiveAstra.title` and `profile.settingsRows.apiKeysMcp` are settings ROW titles where
-  the sentence is the explanation of the switch, and `auth.signInWithGoogle` is the Google button
-  whose wording Google's branding terms constrain.
-- **`profile.apiKeys.unlock`**, changed on pull request 946 from "Unlock with Pro" to "See Pro" and
-  "Ver Pro". `node tools/check-copy.mjs --check` refused the original as `[ai-cliche] "Unlock"`, and
-  the replacement is this product's existing phrase at `profile.allowance.seePro` and
-  `calendar.proBoundary.action`.
-- **The calendar day panel's empty line**, now `calendar.dayDetail.noEventsToImport`: "Nothing left
-  to import from Google Calendar on this day." and "Nada para importar do Google Calendar neste dia."
-  It replaces a line that claimed the whole Google Calendar was empty when the panel had checked one
-  day and the feed offers only events not yet imported. On pull request 939.
+1. **`profile.deleteAccount.warning`**, on 953. It reads "This action is irreversible." above
+   `warningFree`, "Log back in anytime before then to cancel." The second is true.
+2. **`profile.freshStart.description`**, on 953. Says all data is deleted while the preserved-item
+   keys say the account, the subscription and the preferences stay.
+3. **`profile.support.subjectRequired`** and **`profile.support.messageRequired`**, on 951. Neither
+   exists; `nameRequired`, `emailRequired` and `emailInvalid` do.
+4. **The disabled account field's reason** on the support form, on 951. `DESIGN.md` requires it.
+5. **`progressScreen.achievements.lockedBody`**, on 958. A worker wrote "Orbit Pro tracks achievements
+   and XP." and its pt-BR against instructions. Its siblings are `progressScreen.streak.lockedBody`
+   and `progressScreen.window.lockedBody`.
+6. **The goals filter-empty duplication**, on 956. `progressScreen.goals.filterEmpty` plus
+   `clearFilter` versus `emptyFiltered` plus `clearFilter`. Two live sets for one state.
+7. **Four Wrapped strings**, on 960: `wrapped.slides.goals.zero`,
+   `wrapped.slides.consistency.summary`, `.note` and `.thin`.
+8. **`profile.apiKeys.unlock`**, changed on 946 from "Unlock with Pro" to "See Pro" and "Ver Pro"
+   because `check-copy.mjs` refused "Unlock" as an AI cliche.
+9. **The 32 shortened control labels** drafted on ticket `#74`, outstanding from before 2026-09-14.

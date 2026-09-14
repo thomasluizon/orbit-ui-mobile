@@ -69,7 +69,7 @@ export const styles = StyleSheet.create({
   sharePreviewCard: { width: 360, height: 640, transform: [{ scale: 0.6 }], transformOrigin: 'top left' },
   shareActions: { flexDirection: 'column', alignItems: 'stretch', gap: 8 },
   coverScroller: { flex: 1 },
-  coverExit: { position: 'absolute', left: 16, top: 8, zIndex: 1 },
+  coverExit: { position: 'absolute', left: 16, zIndex: 1 },
   cover: {
     flexGrow: 1,
     alignItems: 'flex-start',

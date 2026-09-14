@@ -19,14 +19,25 @@ describe('profile-navigation', () => {
   it('keeps only the outbound rows that remain in the profile frame', () => {
     expect(PROFILE_NAV_ITEMS.map((item) => item.id)).toEqual([
       'wrapped',
+      'android-widget',
       'calendar-sync',
+      'support',
       'about',
     ])
 
     expect(PROFILE_NAV_ITEMS.map((item) => item.route)).toEqual([
       '/wrapped',
+      '/advanced',
       '/calendar-sync',
+      '/support',
       '/about',
+    ])
+    expect(PROFILE_NAV_ITEMS.map(({ titleKey, hintKey }) => [titleKey, hintKey])).toEqual([
+      ['profile.wrappedTitle', null],
+      ['profile.widgetTitle', 'profile.widgetHint'],
+      ['calendar.profileButton', 'calendar.profileHint'],
+      ['profile.support.title', 'profile.support.description'],
+      ['profile.sections.aboutHelp', null],
     ])
   })
 
@@ -44,7 +55,7 @@ describe('profile-navigation', () => {
     const account = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
     const features = PROFILE_NAV_ITEMS.filter((item) => item.section === 'features')
     expect(account).toHaveLength(0)
-    expect(features).toHaveLength(3)
+    expect(features).toHaveLength(5)
   })
 
   it('marks locked destinations and mixed screens explicitly', () => {
