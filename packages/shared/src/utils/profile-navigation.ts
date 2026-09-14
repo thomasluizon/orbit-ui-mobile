@@ -36,16 +36,12 @@ export type ProfileNavIconKey =
   | 'support'
   | 'info'
 
-export type ProfileNavDestination =
-  | { type: 'route'; route: string }
-  | { type: 'conversation' }
-
 export type ProfileNavHintMode = 'static' | 'gamificationProfile'
 
 export interface ProfileNavItem {
   id: string
   section: ProfileNavSection
-  destination: ProfileNavDestination
+  route: string
   iconKey: ProfileNavIconKey
   titleKey: string
   hintKey: string | null
@@ -60,7 +56,7 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
   {
     id: 'wrapped',
     section: 'features',
-    destination: { type: 'route', route: '/wrapped' },
+    route: '/wrapped',
     iconKey: 'wrapped',
     titleKey: 'profile.wrappedTitle',
     hintKey: null,
@@ -73,7 +69,7 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
   {
     id: 'android-widget',
     section: 'features',
-    destination: { type: 'route', route: '/advanced' },
+    route: '/advanced',
     iconKey: 'widget',
     titleKey: 'profile.widgetTitle',
     hintKey: 'profile.widgetHint',
@@ -86,7 +82,7 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
   {
     id: 'calendar-sync',
     section: 'features',
-    destination: { type: 'route', route: '/calendar-sync' },
+    route: '/calendar-sync',
     iconKey: 'calendar',
     titleKey: 'calendar.profileButton',
     hintKey: 'calendar.profileHint',
@@ -99,7 +95,7 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
   {
     id: 'support',
     section: 'features',
-    destination: { type: 'conversation' },
+    route: '/support',
     iconKey: 'support',
     titleKey: 'profile.support.title',
     hintKey: 'profile.support.description',
@@ -112,7 +108,7 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
   {
     id: 'about',
     section: 'features',
-    destination: { type: 'route', route: '/about' },
+    route: '/about',
     iconKey: 'info',
     titleKey: 'profile.sections.aboutHelp',
     hintKey: null,

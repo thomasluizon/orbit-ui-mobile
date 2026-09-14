@@ -40,7 +40,6 @@ import { RowList } from '@/components/ui/row-list'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { Toast } from '@/components/ui/app-toast'
 import { useLogout } from '@/hooks/use-logout'
-import { useUIStore } from '@/stores/ui-store'
 import { createTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { usePreferenceControls } from '@/app/use-preference-controls'
@@ -205,10 +204,7 @@ function TimeZonePicker({ controls, profile, t, tokens }: Readonly<TimeZonePicke
   )
 }
 
-function buildMoreRows(
-  { profile, router, t, tokens }: RowContext,
-  openConversation: () => void,
-) {
+function buildMoreRows({ profile, router, t, tokens }: RowContext) {
   return PROFILE_NAV_ITEMS.map((item) => {
     const redirectsToUpgrade = shouldRedirectProfileNavItem(item, profile)
     return (
@@ -224,11 +220,7 @@ function buildMoreRows(
             router.push(buildUpgradeHref('/profile'))
             return
           }
-          if (item.destination.type === 'conversation') {
-            openConversation()
-            return
-          }
-          router.push(item.destination.route)
+          router.push(item.route)
         }}
       />
     )
@@ -264,7 +256,6 @@ export function ProfileSettingsContent({
   const { t } = useTranslation()
   const router = useRouter()
   const logout = useLogout()
-  const openConversation = useUIStore((state) => state.setAstraConversationOpen)
   const preferenceControls = usePreferenceControls()
   const tokens = useMemo(
     () => createTokensV2(preferenceControls.currentScheme, preferenceControls.currentTheme),
@@ -307,7 +298,7 @@ export function ProfileSettingsContent({
     notifications: [
       <MarketingConsentSection key="product-email" showSectionLabel={false} contained />,
     ],
-    more: buildMoreRows(context, () => openConversation(true)),
+    more: buildMoreRows(context),
     ending: buildEndingRows({
       context,
       onDeleteAccount: () => setShowDeleteAccount(true),

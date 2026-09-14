@@ -18,7 +18,6 @@ const {
   mockApiKeys,
   mockCreateApiKey,
   mockRequestApiKeyCreationChallenge,
-  mockSetAstraConversationOpen,
 } = vi.hoisted(() => ({
   mockExportUserData: vi.fn(),
   mockUpdateAiSummary: vi.fn(),
@@ -33,7 +32,6 @@ const {
   mockApiKeys: { current: [] as Record<string, unknown>[] },
   mockCreateApiKey: vi.fn(),
   mockRequestApiKeyCreationChallenge: vi.fn(),
-  mockSetAstraConversationOpen: vi.fn(),
   mockProfileState: {
     current: {
       profile: undefined as ReturnType<typeof createMockProfile> | undefined,
@@ -124,11 +122,6 @@ vi.mock('@/stores/auth-store', () => ({
     selector({ logout: vi.fn() }),
 }))
 
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: { setAstraConversationOpen: typeof mockSetAstraConversationOpen }) => unknown) =>
-    selector({ setAstraConversationOpen: mockSetAstraConversationOpen }),
-}))
-
 vi.mock('@/components/ui/theme-toggle', () => ({
   ThemeToggle: () => null,
 }))
@@ -200,7 +193,6 @@ describe('ProfilePage', () => {
     mockApiKeys.current = []
     mockCreateApiKey.mockReset()
     mockRequestApiKeyCreationChallenge.mockReset().mockResolvedValue(undefined)
-    mockSetAstraConversationOpen.mockReset()
     mockProfileState.current = {
       profile: createMockProfile({
         plan: 'free',
@@ -253,7 +245,6 @@ describe('ProfilePage', () => {
       'settings.weekStartDay.title',
       'preferences.themeMode',
       'profile.subscription.plan',
-      'profile.support.title',
       'dataExport.button',
       'shareCard.entry',
       'profile.freshStart.button',
@@ -268,6 +259,7 @@ describe('ProfilePage', () => {
       'profile.wrappedTitle',
       'profile.widgetTitle',
       'calendar.profileButton',
+      'profile.support.title',
       'profile.sections.aboutHelp',
     ]) {
       expect(screen.getByRole('link', { name: new RegExp(name, 'i') })).toBeInTheDocument()
@@ -280,19 +272,16 @@ describe('ProfilePage', () => {
     ).toBeInTheDocument()
   })
 
-  it('routes every More of Orbit row and opens support in the conversation', () => {
+  it('routes every More of Orbit row', () => {
     const view = render(<ProfilePage />)
     const freeMore = within(screen.getByTestId('profile-settings-group-more'))
 
     expect(freeMore.getByRole('link', { name: /profile\.wrappedTitle/i })).toHaveAttribute('href', '/wrapped')
     expect(freeMore.getByRole('link', { name: /profile\.widgetTitle/i })).toHaveAttribute('href', '/advanced')
     expect(freeMore.getByRole('link', { name: /calendar\.profileButton/i })).toHaveAttribute('href', '/upgrade')
+    expect(freeMore.getByRole('link', { name: /profile\.support\.title/i })).toHaveAttribute('href', '/support')
     expect(freeMore.getByRole('link', { name: /profile\.sections\.aboutHelp/i })).toHaveAttribute('href', '/about')
     expect(freeMore.getByText('common.proBadge')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: /profile\.support\.title/i }))
-    expect(mockSetAstraConversationOpen).toHaveBeenCalledWith(true)
-    expect(mockRouterPush).not.toHaveBeenCalled()
 
     view.unmount()
     mockRouterPush.mockClear()

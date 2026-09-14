@@ -25,12 +25,12 @@ describe('profile-navigation', () => {
       'about',
     ])
 
-    expect(PROFILE_NAV_ITEMS.map((item) => item.destination)).toEqual([
-      { type: 'route', route: '/wrapped' },
-      { type: 'route', route: '/advanced' },
-      { type: 'route', route: '/calendar-sync' },
-      { type: 'conversation' },
-      { type: 'route', route: '/about' },
+    expect(PROFILE_NAV_ITEMS.map((item) => item.route)).toEqual([
+      '/wrapped',
+      '/advanced',
+      '/calendar-sync',
+      '/support',
+      '/about',
     ])
     expect(PROFILE_NAV_ITEMS.map(({ titleKey, hintKey }) => [titleKey, hintKey])).toEqual([
       ['profile.wrappedTitle', null],
@@ -44,7 +44,7 @@ describe('profile-navigation', () => {
   it('exposes Wrapped as a free, ungated feature entry', () => {
     const wrapped = PROFILE_NAV_ITEMS.find((item) => item.id === 'wrapped')
     expect(wrapped?.section).toBe('features')
-    expect(wrapped?.destination).toEqual({ type: 'route', route: '/wrapped' })
+    expect(wrapped?.route).toBe('/wrapped')
     expect(wrapped?.iconKey).toBe('wrapped')
     expect(wrapped?.proBadge).toBe(false)
     expect(wrapped?.entitlementRequirement).toBeNull()

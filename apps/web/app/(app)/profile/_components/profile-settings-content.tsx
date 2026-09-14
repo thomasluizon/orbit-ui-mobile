@@ -41,7 +41,6 @@ import { RowList } from '@/components/ui/row-list'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { Toast } from '@/components/ui/toast'
 import { useAuthStore } from '@/stores/auth-store'
-import { useUIStore } from '@/stores/ui-store'
 import { useIsClient } from '@/hooks/use-is-client'
 import { isStepUpVerified } from '@/lib/step-up-storage'
 import { MarketingConsentSection } from '@/app/(app)/preferences/_components/marketing-consent-section'
@@ -193,17 +192,10 @@ function TimeZonePicker({ controls, mounted, profile, t }: Readonly<TimeZonePick
   )
 }
 
-function buildMoreRows(
-  { profile, t }: RowContext,
-  openConversation: () => void,
-) {
+function buildMoreRows({ profile, t }: RowContext) {
   return PROFILE_NAV_ITEMS.map((item) => {
     const redirectsToUpgrade = shouldRedirectProfileNavItem(item, profile)
-    const href = redirectsToUpgrade
-      ? '/upgrade'
-      : item.destination.type === 'route'
-        ? item.destination.route
-        : undefined
+    const href = redirectsToUpgrade ? '/upgrade' : item.route
     return (
       <ListRow
         key={item.id}
@@ -213,7 +205,6 @@ function buildMoreRows(
         trailing={item.proBadge && redirectsToUpgrade ? <ProBadge alwaysVisible /> : undefined}
         chevron={!redirectsToUpgrade}
         href={href}
-        onClick={item.destination.type === 'conversation' ? openConversation : undefined}
       />
     )
   })
@@ -249,7 +240,6 @@ export function ProfileSettingsContent({
   const router = useRouter()
   const mounted = useIsClient()
   const logout = useAuthStore((state) => state.logout)
-  const openConversation = useUIStore((state) => state.setAstraConversationOpen)
   const preferenceControls = usePreferenceControls()
   const {
     isExporting,
@@ -293,7 +283,7 @@ export function ProfileSettingsContent({
         acceptVariant="secondary"
       />,
     ],
-    more: buildMoreRows(context, () => openConversation(true)),
+    more: buildMoreRows(context),
     ending: buildEndingRows({
       context,
       onDeleteAccount: () => setShowDeleteAccount(true),

@@ -36,7 +36,6 @@ const {
   mockStepUpVerified,
   mockCreateGrant,
   mockApiKeys,
-  mockSetAstraConversationOpen,
 } = vi.hoisted(() => ({
   mockApiClient: vi.fn(),
   mockPerformQueuedApiMutation: vi.fn(),
@@ -54,7 +53,6 @@ const {
   mockStepUpVerified: { current: false },
   mockCreateGrant: { consumed: false },
   mockApiKeys: { current: [] as Record<string, unknown>[] },
-  mockSetAstraConversationOpen: vi.fn(),
   mockProfileState: {
     current: {
       profile: undefined as ReturnType<typeof createMockProfile> | undefined,
@@ -134,8 +132,8 @@ vi.mock('@/stores/auth-store', () => {
 })
 
 vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: { setAstraConversationOpen: typeof mockSetAstraConversationOpen }) => unknown) =>
-    selector({ setAstraConversationOpen: mockSetAstraConversationOpen }),
+  useUIStore: (selector: (state: { setAstraConversationOpen: () => void }) => unknown) =>
+    selector({ setAstraConversationOpen: vi.fn() }),
 }))
 
 vi.mock('@/hooks/use-offline', () => ({
@@ -446,7 +444,6 @@ describe('ProfileScreen', () => {
     mockPatchProfile.mockReset()
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()
-    mockSetAstraConversationOpen.mockReset()
     mockSearchParams.current = {}
     mockStepUpVerified.current = false
     mockCreateGrant.consumed = false
@@ -1072,7 +1069,7 @@ describe('ProfileScreen', () => {
     })
   })
 
-  it('routes every More of Orbit row and opens support in the conversation', async () => {
+  it('routes every More of Orbit row', async () => {
     const tree = await renderProfileScreen()
 
     await TestRenderer.act(async () => {
@@ -1093,8 +1090,8 @@ describe('ProfileScreen', () => {
       findRowByLabel(tree, 'profile.support.title').props.onPress?.()
       await Promise.resolve()
     })
-    expect(mockSetAstraConversationOpen).toHaveBeenCalledWith(true)
-    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockRouterPush).toHaveBeenCalledWith('/support')
+    mockRouterPush.mockClear()
 
     await TestRenderer.act(async () => {
       findRowByLabel(tree, 'profile.sections.aboutHelp').props.onPress?.()
