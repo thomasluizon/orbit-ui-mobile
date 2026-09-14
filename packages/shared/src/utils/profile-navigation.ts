@@ -30,23 +30,25 @@ export const PROFILE_SETTINGS_GROUPS: readonly ProfileSettingsGroupDefinition[] 
 export type ProfileNavVariant = 'default' | 'primary'
 
 export type ProfileNavIconKey =
-  | 'settings'
-  | 'orbit'
   | 'wrapped'
+  | 'widget'
   | 'calendar'
+  | 'support'
   | 'info'
-  | 'wrench'
-  | 'compass'
+
+export type ProfileNavDestination =
+  | { type: 'route'; route: string }
+  | { type: 'conversation' }
 
 export type ProfileNavHintMode = 'static' | 'gamificationProfile'
 
 export interface ProfileNavItem {
   id: string
   section: ProfileNavSection
-  route: string
+  destination: ProfileNavDestination
   iconKey: ProfileNavIconKey
   titleKey: string
-  hintKey: string
+  hintKey: string | null
   variant: ProfileNavVariant
   proBadge: boolean
   hintMode: ProfileNavHintMode
@@ -58,11 +60,24 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
   {
     id: 'wrapped',
     section: 'features',
-    route: '/wrapped',
+    destination: { type: 'route', route: '/wrapped' },
     iconKey: 'wrapped',
     titleKey: 'profile.wrappedTitle',
-    hintKey: 'profile.wrappedHint',
+    hintKey: null,
     variant: 'primary',
+    proBadge: false,
+    hintMode: 'static',
+    entitlementRequirement: null,
+    entitlementMode: null,
+  },
+  {
+    id: 'android-widget',
+    section: 'features',
+    destination: { type: 'route', route: '/advanced' },
+    iconKey: 'widget',
+    titleKey: 'profile.widgetTitle',
+    hintKey: 'profile.widgetHint',
+    variant: 'default',
     proBadge: false,
     hintMode: 'static',
     entitlementRequirement: null,
@@ -71,7 +86,7 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
   {
     id: 'calendar-sync',
     section: 'features',
-    route: '/calendar-sync',
+    destination: { type: 'route', route: '/calendar-sync' },
     iconKey: 'calendar',
     titleKey: 'calendar.profileButton',
     hintKey: 'calendar.profileHint',
@@ -82,12 +97,25 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     entitlementMode: 'redirect',
   },
   {
+    id: 'support',
+    section: 'features',
+    destination: { type: 'conversation' },
+    iconKey: 'support',
+    titleKey: 'profile.support.title',
+    hintKey: 'profile.support.description',
+    variant: 'default',
+    proBadge: false,
+    hintMode: 'static',
+    entitlementRequirement: null,
+    entitlementMode: null,
+  },
+  {
     id: 'about',
     section: 'features',
-    route: '/about',
+    destination: { type: 'route', route: '/about' },
     iconKey: 'info',
     titleKey: 'profile.sections.aboutHelp',
-    hintKey: 'profile.sections.aboutHelpHint',
+    hintKey: null,
     variant: 'default',
     proBadge: false,
     hintMode: 'static',

@@ -36,6 +36,7 @@ const {
   mockStepUpVerified,
   mockCreateGrant,
   mockApiKeys,
+  mockSetAstraConversationOpen,
 } = vi.hoisted(() => ({
   mockApiClient: vi.fn(),
   mockPerformQueuedApiMutation: vi.fn(),
@@ -53,6 +54,7 @@ const {
   mockStepUpVerified: { current: false },
   mockCreateGrant: { consumed: false },
   mockApiKeys: { current: [] as Record<string, unknown>[] },
+  mockSetAstraConversationOpen: vi.fn(),
   mockProfileState: {
     current: {
       profile: undefined as ReturnType<typeof createMockProfile> | undefined,
@@ -132,8 +134,8 @@ vi.mock('@/stores/auth-store', () => {
 })
 
 vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: { setAstraConversationOpen: () => void }) => unknown) =>
-    selector({ setAstraConversationOpen: vi.fn() }),
+  useUIStore: (selector: (state: { setAstraConversationOpen: typeof mockSetAstraConversationOpen }) => unknown) =>
+    selector({ setAstraConversationOpen: mockSetAstraConversationOpen }),
 }))
 
 vi.mock('@/hooks/use-offline', () => ({
@@ -342,6 +344,7 @@ vi.mock('@/components/ui/list-row', () => ({
     title,
     description,
     value,
+    trailing,
     onClick,
     accessibilityLabel,
     chevron = true,
@@ -350,6 +353,7 @@ vi.mock('@/components/ui/list-row', () => ({
     title: string
     description?: string
     value?: string
+    trailing?: React.ReactNode
     onClick?: () => void
     accessibilityLabel?: string
     chevron?: boolean
@@ -360,6 +364,7 @@ vi.mock('@/components/ui/list-row', () => ({
       label: title,
       hint: description,
       value,
+      hasTrailing: Boolean(trailing),
       onPress: onClick,
       chevron,
       accessibilityRole: onClick ? 'button' : undefined,
@@ -388,6 +393,7 @@ interface SettingsRowStubNode {
     label?: string
     hint?: string
     value?: string
+    hasTrailing?: boolean
     onPress?: () => void
     chevron?: boolean
     accessibilityRole?: string
@@ -440,6 +446,7 @@ describe('ProfileScreen', () => {
     mockPatchProfile.mockReset()
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()
+    mockSetAstraConversationOpen.mockReset()
     mockSearchParams.current = {}
     mockStepUpVerified.current = false
     mockCreateGrant.consumed = false
@@ -474,15 +481,29 @@ describe('ProfileScreen', () => {
       ).toBeGreaterThan(0)
     }
 
-    expect(findRowByLabel(tree, 'profile.wrappedTitle').props.hint).toBe(
-      'profile.wrappedHint',
+    expect(findRowByLabel(tree, 'profile.wrappedTitle').props.hint).toBeUndefined()
+    expect(findRowByLabel(tree, 'profile.widgetTitle').props.hint).toBe(
+      'profile.widgetHint',
     )
     expect(findRowByLabel(tree, 'calendar.profileButton').props.hint).toBe(
       'calendar.profileHint',
     )
-    expect(findRowByLabel(tree, 'profile.sections.aboutHelp').props.hint).toBe(
-      'profile.sections.aboutHelpHint',
+    expect(findRowByLabel(tree, 'profile.support.title').props.hint).toBe(
+      'profile.support.description',
     )
+    expect(findRowByLabel(tree, 'profile.sections.aboutHelp').props.hint).toBeUndefined()
+
+    const more = tree.root.findByProps({ testID: 'profile-settings-group-more' })
+    expect(
+      more.findAll((node: SettingsRowStubNode) => node.type === 'SettingsRowStub')
+        .map((node: SettingsRowStubNode) => node.props.label),
+    ).toEqual([
+      'profile.wrappedTitle',
+      'profile.widgetTitle',
+      'calendar.profileButton',
+      'profile.support.title',
+      'profile.sections.aboutHelp',
+    ])
 
     for (const movedLabel of [
       'profile.sections.preferences',
@@ -521,7 +542,9 @@ describe('ProfileScreen', () => {
       'preferences.themeMode',
       'profile.subscription.plan',
       'profile.wrappedTitle',
+      'profile.widgetTitle',
       'calendar.profileButton',
+      'profile.support.title',
       'profile.sections.aboutHelp',
       'dataExport.button',
       'shareCard.entry',
@@ -1034,27 +1057,69 @@ describe('ProfileScreen', () => {
 
   it('redirects gated feature rows to upgrade for free users', async () => {
     const tree = await renderProfileScreen()
+    const calendarRow = findRowByLabel(tree, 'calendar.profileButton')
 
     await TestRenderer.act(async () => {
-      findRowByLabel(tree, 'calendar.profileButton').props.onPress?.()
+      calendarRow.props.onPress?.()
       await Promise.resolve()
     })
 
+    expect(calendarRow.props.chevron).toBe(false)
+    expect(calendarRow.props.hasTrailing).toBe(true)
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/upgrade',
       params: { from: '/profile' },
     })
   })
 
-  it('navigates directly to ungated feature rows', async () => {
+  it('routes every More of Orbit row and opens support in the conversation', async () => {
     const tree = await renderProfileScreen()
 
     await TestRenderer.act(async () => {
       findRowByLabel(tree, 'profile.wrappedTitle').props.onPress?.()
       await Promise.resolve()
     })
-
     expect(mockRouterPush).toHaveBeenCalledWith('/wrapped')
+    mockRouterPush.mockClear()
+
+    await TestRenderer.act(async () => {
+      findRowByLabel(tree, 'profile.widgetTitle').props.onPress?.()
+      await Promise.resolve()
+    })
+    expect(mockRouterPush).toHaveBeenCalledWith('/advanced')
+    mockRouterPush.mockClear()
+
+    await TestRenderer.act(async () => {
+      findRowByLabel(tree, 'profile.support.title').props.onPress?.()
+      await Promise.resolve()
+    })
+    expect(mockSetAstraConversationOpen).toHaveBeenCalledWith(true)
+    expect(mockRouterPush).not.toHaveBeenCalled()
+
+    await TestRenderer.act(async () => {
+      findRowByLabel(tree, 'profile.sections.aboutHelp').props.onPress?.()
+      await Promise.resolve()
+    })
+    expect(mockRouterPush).toHaveBeenCalledWith('/about')
+  })
+
+  it('opens calendar sync directly for Pro', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    const tree = await renderProfileScreen()
+    const calendarRow = findRowByLabel(tree, 'calendar.profileButton')
+
+    await TestRenderer.act(async () => {
+      calendarRow.props.onPress?.()
+      await Promise.resolve()
+    })
+
+    expect(calendarRow.props.chevron).toBe(true)
+    expect(calendarRow.props.hasTrailing).toBe(false)
+    expect(mockRouterPush).toHaveBeenCalledWith('/calendar-sync')
   })
 })
 

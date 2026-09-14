@@ -12,6 +12,7 @@ export {
   IconCalendar as Calendar,
   IconCalendarCheck as CalendarCheck,
   IconCalendarClock as CalendarClock,
+  IconCalendarPlus as CalendarPlus,
   IconCalendarWeek as CalendarDays,
   IconChartLine as ChartLine,
   IconCheck as Check,

@@ -40,6 +40,7 @@ import { RowList } from '@/components/ui/row-list'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { Toast } from '@/components/ui/app-toast'
 import { useLogout } from '@/hooks/use-logout'
+import { useUIStore } from '@/stores/ui-store'
 import { createTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { usePreferenceControls } from '@/app/use-preference-controls'
@@ -204,23 +205,34 @@ function TimeZonePicker({ controls, profile, t, tokens }: Readonly<TimeZonePicke
   )
 }
 
-function buildMoreRows({ profile, router, t, tokens }: RowContext) {
-  return PROFILE_NAV_ITEMS.map((item) => (
-    <ListRow
-      key={item.id}
-      icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
-      title={t(item.titleKey)}
-      description={t(item.hintKey)}
-      trailing={item.proBadge ? <ProBadge alwaysVisible /> : undefined}
-      onClick={() => {
-        router.push(
-          shouldRedirectProfileNavItem(item, profile)
-            ? buildUpgradeHref('/profile')
-            : item.route,
-        )
-      }}
-    />
-  ))
+function buildMoreRows(
+  { profile, router, t, tokens }: RowContext,
+  openConversation: () => void,
+) {
+  return PROFILE_NAV_ITEMS.map((item) => {
+    const redirectsToUpgrade = shouldRedirectProfileNavItem(item, profile)
+    return (
+      <ListRow
+        key={item.id}
+        icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
+        title={t(item.titleKey)}
+        description={item.hintKey ? t(item.hintKey) : undefined}
+        trailing={item.proBadge && redirectsToUpgrade ? <ProBadge alwaysVisible /> : undefined}
+        chevron={!redirectsToUpgrade}
+        onClick={() => {
+          if (redirectsToUpgrade) {
+            router.push(buildUpgradeHref('/profile'))
+            return
+          }
+          if (item.destination.type === 'conversation') {
+            openConversation()
+            return
+          }
+          router.push(item.destination.route)
+        }}
+      />
+    )
+  })
 }
 
 interface EndingRowsOptions {
@@ -252,6 +264,7 @@ export function ProfileSettingsContent({
   const { t } = useTranslation()
   const router = useRouter()
   const logout = useLogout()
+  const openConversation = useUIStore((state) => state.setAstraConversationOpen)
   const preferenceControls = usePreferenceControls()
   const tokens = useMemo(
     () => createTokensV2(preferenceControls.currentScheme, preferenceControls.currentTheme),
@@ -294,7 +307,7 @@ export function ProfileSettingsContent({
     notifications: [
       <MarketingConsentSection key="product-email" showSectionLabel={false} contained />,
     ],
-    more: buildMoreRows(context),
+    more: buildMoreRows(context, () => openConversation(true)),
     ending: buildEndingRows({
       context,
       onDeleteAccount: () => setShowDeleteAccount(true),
