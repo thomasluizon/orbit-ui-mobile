@@ -253,7 +253,7 @@ describe('mobile useWrappedStory', () => {
       createMockRecap({ metrics: createMockRetrospectiveMetrics({ topHabits: [] }) }),
     )
 
-    expect(slides).toHaveLength(6)
+    expect(slides).toHaveLength(7)
     expect(slides.at(-1)?.id).toBe('share')
   })
 })
