@@ -74,15 +74,30 @@ describe('buildShareCardStats', () => {
 })
 
 describe('isRecapShareEmpty', () => {
-  it('is true only when there is no logged activity', () => {
+  it('is true only when there are no habit or goal completions', () => {
     expect(
-      isRecapShareEmpty(createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 })),
+      isRecapShareEmpty(
+        createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
+        0,
+      ),
     ).toBe(true)
     expect(
-      isRecapShareEmpty(createMockRetrospectiveMetrics({ totalCompletions: 3, activeDays: 0 })),
+      isRecapShareEmpty(
+        createMockRetrospectiveMetrics({ totalCompletions: 3, activeDays: 0 }),
+        0,
+      ),
     ).toBe(false)
     expect(
-      isRecapShareEmpty(createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 2 })),
+      isRecapShareEmpty(
+        createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 2 }),
+        0,
+      ),
+    ).toBe(false)
+    expect(
+      isRecapShareEmpty(
+        createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
+        3,
+      ),
     ).toBe(false)
   })
 })

@@ -84,6 +84,9 @@ export function buildShareCardWeekday(weeklyConsistency: readonly number[]): Sha
 }
 
 /** True when the recap has no logged activity, so the share sheet can show an empty state instead of a blank card. */
-export function isRecapShareEmpty(metrics: RetrospectiveMetrics): boolean {
-  return metrics.totalCompletions === 0 && metrics.activeDays === 0
+export function isRecapShareEmpty(
+  metrics: RetrospectiveMetrics,
+  goalCompletions: number,
+): boolean {
+  return metrics.totalCompletions === 0 && metrics.activeDays === 0 && goalCompletions === 0
 }
