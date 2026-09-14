@@ -50,7 +50,10 @@ export function useAnimatedScrollHandler() {
   return () => {}
 }
 
-export function withTiming<Value>(value: Value) {
+export const withTimingCalls: { value: unknown; config: unknown }[] = []
+
+export function withTiming<Value>(value: Value, config?: unknown) {
+  withTimingCalls.push({ value, config })
   return value
 }
 
@@ -68,6 +71,12 @@ export function withRepeat<Value>(value: Value, _count?: number, _reverse?: bool
 
 export function withSequence<Value>(...values: Value[]) {
   return values[values.length - 1] as Value
+}
+
+export const reanimatedTestState = { reducedMotion: false }
+
+export function useReducedMotion() {
+  return reanimatedTestState.reducedMotion
 }
 
 export function interpolate(
@@ -124,10 +133,20 @@ export const ZoomIn = makeChainableEntering()
 export const LinearTransition = makeChainableEntering()
 
 export class Keyframe {
-  duration(): this {
+  readonly definitions: Record<number, Record<string, unknown>>
+  durationMs?: number
+  delayMs?: number
+
+  constructor(definitions: Record<number, Record<string, unknown>>) {
+    this.definitions = definitions
+  }
+
+  duration(durationMs: number): this {
+    this.durationMs = durationMs
     return this
   }
-  delay(): this {
+  delay(delayMs: number): this {
+    this.delayMs = delayMs
     return this
   }
   reduceMotion(): this {
