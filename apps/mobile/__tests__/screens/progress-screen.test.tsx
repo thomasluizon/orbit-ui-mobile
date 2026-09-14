@@ -312,6 +312,8 @@ describe('mobile ProgressContent', () => {
     const tab = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'segment-active-unselected-enabled')[0]!
     await TestRenderer.act(() => (tab.props.onPress as () => void)())
     expect(tree.root.findAll((node) => node.type === 'DraggableFlatList')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Read 12 Books')[0]!.props.accessibilityActions).toBeUndefined()
+    expect(mocks.reorder.mutate).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -799,10 +801,12 @@ describe('mobile ProgressContent', () => {
 
     expect(list.props.activationDistance).toBe(5)
     expect(firstGoal.props.accessibilityActions).toHaveLength(2)
+    expect(mocks.reorder.mutate).not.toHaveBeenCalled()
 
     await TestRenderer.act(() => {
       ;(list.props.onDragEnd as (params: unknown) => void)({ from: 0, to: 1, data: [goalTwo, goalOne] })
     })
+    expect(mocks.reorder.mutate).toHaveBeenCalledTimes(1)
     expect(mocks.reorder.mutate).toHaveBeenCalledWith([
       { id: 'goal-2', position: 0 },
       { id: 'goal-1', position: 1 },

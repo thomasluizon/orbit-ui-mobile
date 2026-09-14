@@ -330,6 +330,7 @@ describe('ProgressContent', () => {
     expect(mocks.reorder.mutate).not.toHaveBeenCalled()
     await act(() => vi.advanceTimersByTime(50))
     fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.active' }))
+    expect(card).not.toHaveAttribute('aria-roledescription')
     fireEvent.mouseDown(card, { clientX: 0, clientY: 0, button: 0 })
     fireEvent.mouseMove(document, { clientX: 0, clientY: 100 })
     fireEvent.mouseUp(document)
