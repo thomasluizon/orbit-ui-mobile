@@ -1,5 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { API } from '@orbit/shared/api'
 import { DeleteAccountModal } from '@/app/(tabs)/profile/_components/delete-account-modal'
 
@@ -49,6 +50,7 @@ async function renderModal() {
       <DeleteAccountModal
         open
         onClose={mocks.onClose}
+        profile={createMockProfile({ hasProAccess: false, plan: 'free' })}
       />,
     )
     await Promise.resolve()
@@ -84,9 +86,8 @@ describe('DeleteAccountModal', () => {
       tree.root.findAll((node: { children: unknown[] }) =>
         node.children.includes('profile.deleteAccount.warning')),
     ).toHaveLength(1)
+    expect(copy).toContain('profile.deleteAccount.warningFree')
     expect(copy).toContain('profile.deleteAccount.warningDetail')
-    expect(copy).not.toContain('profile.deleteAccount.warningFree')
-    expect(copy).not.toContain('profile.deleteAccount.warningPro')
     expect(mocks.apiClient).not.toHaveBeenCalled()
     expect(mocks.beginChallenge).not.toHaveBeenCalled()
   })

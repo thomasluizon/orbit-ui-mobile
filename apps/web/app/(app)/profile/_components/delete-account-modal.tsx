@@ -3,8 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { parseISO } from 'date-fns'
+import type { Profile } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { requestDeletion } from '@/app/actions/auth'
+import { useDateFormat } from '@/hooks/use-date-format'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
@@ -13,17 +16,29 @@ import { TriangleAlert } from '@/components/ui/icons'
 interface DeleteAccountModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  profile: Profile | undefined
 }
 
 export function DeleteAccountModal({
   open,
   onOpenChange,
+  profile,
 }: Readonly<DeleteAccountModalProps>) {
   const t = useTranslations()
   const router = useRouter()
+  const { displayDate } = useDateFormat()
   const { sheetRef, closeSheet } = useSheetHost()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const warningMessage = (() => {
+    if (profile?.hasProAccess && profile.planExpiresAt) {
+      return t('profile.deleteAccount.warningPro', {
+        date: displayDate(parseISO(profile.planExpiresAt)),
+      })
+    }
+    return t('profile.deleteAccount.warningFree')
+  })()
 
   function handleOpenChange(value: boolean) {
     if (!value) {
@@ -81,6 +96,9 @@ export function DeleteAccountModal({
           <div className="flex flex-col" style={{ gap: 8 }}>
             <p style={{ color: 'var(--status-bad-text)', fontSize: 15, fontWeight: 500, lineHeight: 1.5 }}>
               {t('profile.deleteAccount.warning')}
+            </p>
+            <p style={{ color: 'var(--fg-1)', fontSize: 15, fontWeight: 500, lineHeight: 1.5 }}>
+              {warningMessage}
             </p>
             <p style={{ color: 'var(--fg-2)', fontSize: 15, lineHeight: 1.5 }}>
               {t('profile.deleteAccount.warningDetail')}

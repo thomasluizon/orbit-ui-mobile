@@ -328,7 +328,7 @@ export function ProfileSettingsContent({
       />
       <EditNameSheet open={showEditName} onClose={() => setShowEditName(false)} />
       <FreshStartModal open={showFreshStart} onClose={() => setShowFreshStart(false)} />
-      <DeleteAccountModal open={showDeleteAccount} onClose={() => setShowDeleteAccount(false)} />
+      <DeleteAccountModal open={showDeleteAccount} onClose={() => setShowDeleteAccount(false)} profile={profile} />
       <TimeZonePicker
         controls={preferenceControls}
         profile={profile}
