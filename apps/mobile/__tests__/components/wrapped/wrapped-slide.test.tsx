@@ -40,6 +40,15 @@ function renderSlide(slide: ReturnType<typeof buildWrappedSlides>[number]) {
 }
 
 describe('mobile WrappedSlide', () => {
+  it('renders the nonzero goal completion count from the recap', () => {
+    const recapWithGoalCompletions = { ...recap, goalCompletions: 4 }
+    const goals = buildWrappedSlides(recapWithGoalCompletions).find((slide) => slide.id === 'goals')!
+    const tree = renderSlide(goals)
+    const figure = tree.root.findAll((node) => node.props.testID === 'wrapped-figure')[0]!
+
+    expect(figure.props.children).toBe(4)
+  })
+
   it('renders the weekday average as Monday-first Columns with initials and no date copy', () => {
     const consistency = buildWrappedSlides(recap).find((slide) => slide.id === 'consistency')!
     const tree = renderSlide(consistency)
