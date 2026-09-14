@@ -26,10 +26,12 @@ export function GoalDetailCollections({
 
   return (
     <>
-      <div className="flex flex-col gap-3">
-        {linkedHabits.length >= MAX_HABITS_PER_GOAL ? <CapacityNotice message={t('goals.detail.linkedLimit', { count: MAX_HABITS_PER_GOAL })} /> : null}
-        <GoalLinkedHabitsSection title={t('goals.linkedHabits')} emptyLabel={t('goals.noLinkedHabits')} linkedHabits={linkedHabits} />
-      </div>
+      <GoalLinkedHabitsSection
+        title={t('goals.linkedHabits')}
+        emptyLabel={t('goals.noLinkedHabits')}
+        linkedHabits={linkedHabits}
+        notice={linkedHabits.length >= MAX_HABITS_PER_GOAL ? <CapacityNotice message={t('goals.detail.linkedLimit', { count: MAX_HABITS_PER_GOAL })} /> : null}
+      />
       <GoalProgressHistorySection title={t('goals.progressHistory')} entries={entries} formatDate={formatDate}
         renderEntryLabel={(entry) => t('goals.progressEntry', { previous: entry.previousValue, value: entry.value, unit })}
         showAllLabel={t('goals.detail.showAllHistory', { count: entries.length })} showLessLabel={t('goals.detail.showLessHistory')} />
