@@ -205,22 +205,26 @@ function TimeZonePicker({ controls, profile, t, tokens }: Readonly<TimeZonePicke
 }
 
 function buildMoreRows({ profile, router, t, tokens }: RowContext) {
-  return PROFILE_NAV_ITEMS.map((item) => (
-    <ListRow
-      key={item.id}
-      icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
-      title={t(item.titleKey)}
-      description={t(item.hintKey)}
-      trailing={item.proBadge ? <ProBadge alwaysVisible /> : undefined}
-      onClick={() => {
-        router.push(
-          shouldRedirectProfileNavItem(item, profile)
-            ? buildUpgradeHref('/profile')
-            : item.route,
-        )
-      }}
-    />
-  ))
+  return PROFILE_NAV_ITEMS.map((item) => {
+    const redirectsToUpgrade = shouldRedirectProfileNavItem(item, profile)
+    return (
+      <ListRow
+        key={item.id}
+        icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
+        title={t(item.titleKey)}
+        description={item.hintKey ? t(item.hintKey) : undefined}
+        trailing={item.proBadge && redirectsToUpgrade ? <ProBadge alwaysVisible /> : undefined}
+        chevron={!redirectsToUpgrade}
+        onClick={() => {
+          if (redirectsToUpgrade) {
+            router.push(buildUpgradeHref('/profile'))
+            return
+          }
+          router.push(item.route)
+        }}
+      />
+    )
+  })
 }
 
 interface EndingRowsOptions {

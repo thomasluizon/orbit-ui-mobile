@@ -1,13 +1,20 @@
 import {
-  Calendar,
-  Compass,
+  CalendarPlus,
   Gift,
-  Settings,
-  Sparkles,
-  CircleHelp,
-  Wrench,
+  HelpCircle,
+  Info,
+  Smartphone,
+  type Icon,
 } from '@/components/ui/icons'
 import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
+
+const ICON_BY_KEY: Record<ProfileNavIconKey, Icon> = {
+  wrapped: Gift,
+  widget: Smartphone,
+  calendar: CalendarPlus,
+  support: HelpCircle,
+  info: Info,
+}
 
 export function ProfileNavIcon({
   iconKey,
@@ -16,22 +23,6 @@ export function ProfileNavIcon({
   iconKey: ProfileNavIconKey
   color: string
 }>) {
-  switch (iconKey) {
-    case 'settings':
-      return <Settings size={22} color={color} strokeWidth={1.8} />
-    case 'orbit':
-      return <Sparkles size={22} color={color} strokeWidth={1.8} />
-    case 'wrapped':
-      return <Gift size={22} color={color} strokeWidth={1.8} />
-    case 'calendar':
-      return <Calendar size={22} color={color} strokeWidth={1.8} />
-    case 'info':
-      return <CircleHelp size={22} color={color} strokeWidth={1.8} />
-    case 'wrench':
-      return <Wrench size={22} color={color} strokeWidth={1.8} />
-    case 'compass':
-      return <Compass size={22} color={color} strokeWidth={1.8} />
-    default:
-      return null
-  }
+  const IconComponent = ICON_BY_KEY[iconKey]
+  return <IconComponent size={24} color={color} strokeWidth={1.5} />
 }

@@ -217,8 +217,12 @@ describe('ProfilePage', () => {
       'profile.groups.ending',
     ])
     expect(screen.getByText('profile.wrappedTitle')).toBeInTheDocument()
+    expect(screen.queryByText('profile.wrappedHint')).not.toBeInTheDocument()
+    expect(screen.getByText('profile.widgetTitle')).toBeInTheDocument()
     expect(screen.getByText('calendar.profileButton')).toBeInTheDocument()
+    expect(screen.getByText('profile.support.title')).toBeInTheDocument()
     expect(screen.getByText('profile.sections.aboutHelp')).toBeInTheDocument()
+    expect(screen.queryByText('profile.sections.aboutHelpHint')).not.toBeInTheDocument()
     expect(screen.queryByText('profile.sections.preferences')).not.toBeInTheDocument()
     expect(screen.queryByText('profile.sections.aiFeatures')).not.toBeInTheDocument()
     expect(screen.queryByText('profile.sections.advanced')).not.toBeInTheDocument()
@@ -241,9 +245,6 @@ describe('ProfilePage', () => {
       'settings.weekStartDay.title',
       'preferences.themeMode',
       'profile.subscription.plan',
-      'profile.wrappedTitle',
-      'calendar.profileButton',
-      'profile.sections.aboutHelp',
       'dataExport.button',
       'shareCard.entry',
       'profile.freshStart.button',
@@ -254,12 +255,45 @@ describe('ProfilePage', () => {
     for (const name of accessibleNames) {
       expect(screen.getByRole('button', { name: new RegExp(name, 'i') })).toBeInTheDocument()
     }
+    for (const name of [
+      'profile.wrappedTitle',
+      'profile.widgetTitle',
+      'calendar.profileButton',
+      'profile.support.title',
+      'profile.sections.aboutHelp',
+    ]) {
+      expect(screen.getByRole('link', { name: new RegExp(name, 'i') })).toBeInTheDocument()
+    }
     expect(
       screen.getByRole('button', { name: 'profile.marketingEmails.accept' }),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'profile.marketingEmails.decline' }),
     ).toBeInTheDocument()
+  })
+
+  it('routes every More of Orbit row', () => {
+    const view = render(<ProfilePage />)
+    const freeMore = within(screen.getByTestId('profile-settings-group-more'))
+
+    expect(freeMore.getByRole('link', { name: /profile\.wrappedTitle/i })).toHaveAttribute('href', '/wrapped')
+    expect(freeMore.getByRole('link', { name: /profile\.widgetTitle/i })).toHaveAttribute('href', '/advanced')
+    expect(freeMore.getByRole('link', { name: /calendar\.profileButton/i })).toHaveAttribute('href', '/upgrade')
+    expect(freeMore.getByRole('link', { name: /profile\.support\.title/i })).toHaveAttribute('href', '/support')
+    expect(freeMore.getByRole('link', { name: /profile\.sections\.aboutHelp/i })).toHaveAttribute('href', '/about')
+    expect(freeMore.getByText('common.proBadge')).toBeInTheDocument()
+
+    view.unmount()
+    mockRouterPush.mockClear()
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    render(<ProfilePage />)
+    const proMore = within(screen.getByTestId('profile-settings-group-more'))
+    expect(proMore.getByRole('link', { name: /calendar\.profileButton/i })).toHaveAttribute('href', '/calendar-sync')
+    expect(proMore.queryByText('common.proBadge')).not.toBeInTheDocument()
   })
 
   it('shows the free daily allowance and routes its only plan action to Pro', () => {
