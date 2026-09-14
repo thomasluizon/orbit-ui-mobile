@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process"
-import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, watch, writeFileSync } from "node:fs"
+import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, watch, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
@@ -312,8 +312,10 @@ export const cases = async () => {
     { path: capped.path, env: githubAuthEnv() },
   )
   discardLog(allowedLaunch.stdout)
-  const ledgerPath = join(capped.worktree, ".git", "orbit-worker-launches.json")
-  const launchLedger = JSON.parse(readFileSync(ledgerPath, "utf8"))
+  const ledgerPath = join(capped.worktree, ".git", "orbit-worker-launches")
+  const launchLedger = readdirSync(ledgerPath)
+    .map((name) => JSON.parse(readFileSync(join(ledgerPath, name), "utf8")))
+    .sort((left, right) => left.timestamp.localeCompare(right.timestamp))
   T(
     `${TOOL}: the checkout-local ledger records required fields and the override reason`,
     launchLedger.length === 3 &&

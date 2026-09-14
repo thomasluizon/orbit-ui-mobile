@@ -3,7 +3,7 @@ import { join } from "node:path"
 
 import { T, root } from "./_harness.mjs"
 
-const { clearWakeSource, readRunState, readWakeSources, readWorkerLaunches, registerWakeSource, reserveWorkerLaunch, runStatePath, wakeSourceDirectory, workerLaunchLedgerPath, writeRunState } = await import("../lib/run-state.mjs")
+const { clearWakeSource, readRunState, readWakeSources, readWorkerLaunches, registerWakeSource, reserveWorkerLaunch, runStatePath, wakeSourceDirectory, workerLaunchDirectory, writeRunState } = await import("../lib/run-state.mjs")
 
 const TOOL = "lib/run-state.mjs"
 
@@ -68,8 +68,31 @@ export const cases = () => {
     firstReservation.allowed && !refusedReservation.allowed && reasonedReservation.allowed &&
       readWorkerLaunches(repoRoot).length === 2 &&
       readWorkerLaunches(repoRoot)[1].relaunchReason === "known conflict list" &&
-      existsSync(workerLaunchLedgerPath(repoRoot)),
+      existsSync(workerLaunchDirectory(repoRoot)),
     JSON.stringify(readWorkerLaunches(repoRoot)),
+  )
+
+  const raceRoot = stageCheckout("launch-race")
+  reserveWorkerLaunch(launch, 2, raceRoot)
+  let nestedReservation
+  let nestedStarted = false
+  const racingLaunch = {
+    ...launch,
+    get repositoryKey() {
+      if (!nestedStarted) {
+        nestedStarted = true
+        nestedReservation = reserveWorkerLaunch({ ...launch, timestamp: "2026-09-14T00:01:00.000Z" }, 2, raceRoot)
+      }
+      return launch.repositoryKey
+    },
+    timestamp: "2026-09-14T00:02:00.000Z",
+  }
+  const outerReservation = reserveWorkerLaunch(racingLaunch, 2, raceRoot)
+  const raceLedger = readWorkerLaunches(raceRoot)
+  T(
+    `${TOOL}: simultaneous reservations admit exactly one launch and retain both admitted records`,
+    [outerReservation.allowed, nestedReservation?.allowed].filter(Boolean).length === 1 && raceLedger.length === 2,
+    JSON.stringify({ outerReservation, nestedReservation, raceLedger }),
   )
 
   registerWakeSource({ pid: process.pid, what: "worker ORB-1" }, repoRoot)

@@ -7,13 +7,14 @@
  * artifact trail identical to a run that finished. A queue that ends silently is worse than one that
  * fails loudly, because nobody looks for it.
  *
- * Two files, in `.git/`, because that directory is per-checkout, never committed, always writable,
+ * These records live in `.git/`, because that directory is per-checkout, never committed, writable,
  * and needs no gitignore entry:
  *
  *   .git/orbit-orchestrate-run.json     the ORCHESTRATOR is its only writer: which session, whether
  *                                       --sleep is on, and which tickets remain.
  *   .git/orbit-wake-sources/<pid>.json  one file per live wake source, written by launch-worker.mjs
  *                                       when it starts and removed when it exits.
+ *   .git/orbit-worker-launches/<id>.json one file per attempted worker launch that was admitted.
  *
  * One file per wake source rather than an array in one file: under `--parallel` three launchers write
  * at once, and a read-modify-write on a shared array loses entries. A crashed launcher leaks its file
@@ -24,7 +25,8 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { randomUUID } from "node:crypto"
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -54,39 +56,58 @@ export const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url))
 
 export const runStatePath = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-orchestrate-run.json")
 export const wakeSourceDirectory = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-wake-sources")
-export const workerLaunchLedgerPath = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-worker-launches.json")
+export const workerLaunchDirectory = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-worker-launches")
 
-export const readWorkerLaunches = (repoRoot = REPO_ROOT) => {
+const readWorkerLaunchRecords = (repoRoot = REPO_ROOT) => {
+  const directory = workerLaunchDirectory(repoRoot)
+  let names
   try {
-    const launches = JSON.parse(readFileSync(workerLaunchLedgerPath(repoRoot), "utf8"))
-    return Array.isArray(launches) ? launches : []
+    names = readdirSync(directory).filter((name) => name.endsWith(".json"))
   } catch {
     return []
   }
+  const records = []
+  for (const name of names) {
+    try {
+      records.push({ name, launch: JSON.parse(readFileSync(join(directory, name), "utf8")) })
+    } catch {
+      /* an unreadable launch cannot prove that the branch cap was reached */
+    }
+  }
+  return records.sort((left, right) =>
+    String(left.launch?.timestamp).localeCompare(String(right.launch?.timestamp)) || left.name.localeCompare(right.name))
 }
 
-/** Refuse only a cap proven by readable rows. Recording remains fail-soft like every other run-state write. */
+export const readWorkerLaunches = (repoRoot = REPO_ROOT) => readWorkerLaunchRecords(repoRoot).map((record) => record.launch)
+
+/** Reserve first, then count. Recording remains fail-soft, while a proven cap refuses the launch. */
 export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
-  const launches = readWorkerLaunches(repoRoot)
-  const earlierLaunches = launches.filter((entry) => entry?.repositoryKey === launch.repositoryKey && entry?.branch === launch.branch)
-  if (earlierLaunches.length >= cap && launch.relaunchReason === null) {
-    return { allowed: false, earlierLaunches, recorded: false }
-  }
-  const path = workerLaunchLedgerPath(repoRoot)
-  const unpublishedPath = `${path}.${process.pid}.${Date.now()}.unpublished`
+  const directory = workerLaunchDirectory(repoRoot)
+  const name = `${Date.now()}-${process.pid}-${randomUUID()}.json`
+  const path = join(directory, name)
   try {
-    mkdirSync(gitDirectoryOf(repoRoot), { recursive: true })
-    writeFileSync(unpublishedPath, `${JSON.stringify([...launches, launch], null, 2)}\n`)
-    renameSync(unpublishedPath, path)
-    return { allowed: true, earlierLaunches, recorded: true }
+    mkdirSync(directory, { recursive: true })
+    writeFileSync(path, `${JSON.stringify(launch, null, 2)}\n`, { flag: "wx" })
   } catch {
-    try {
-      rmSync(unpublishedPath, { force: true })
-    } catch {
-      /* cleanup is part of the same fail-soft status write */
-    }
-    return { allowed: true, earlierLaunches, recorded: false }
+    const earlierLaunches = readWorkerLaunches(repoRoot)
+      .filter((entry) => entry?.repositoryKey === launch.repositoryKey && entry?.branch === launch.branch)
+    return earlierLaunches.length >= cap && launch.relaunchReason === null
+      ? { allowed: false, earlierLaunches, recorded: false }
+      : { allowed: true, earlierLaunches, recorded: false }
   }
+  const records = readWorkerLaunchRecords(repoRoot)
+  const earlierLaunches = records
+    .filter((record) => record.name !== name && record.launch?.repositoryKey === launch.repositoryKey && record.launch?.branch === launch.branch)
+    .map((record) => record.launch)
+  if (earlierLaunches.length < cap || launch.relaunchReason !== null) {
+    return { allowed: true, earlierLaunches, recorded: true }
+  }
+  try {
+    rmSync(path, { force: true })
+  } catch {
+    /* a rejected launch never starts, so a leaked reservation only makes the cap stricter */
+  }
+  return { allowed: false, earlierLaunches, recorded: false }
 }
 
 /** The orchestrator's own run record, or null when no run has written one. */
