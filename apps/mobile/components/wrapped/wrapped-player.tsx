@@ -113,7 +113,11 @@ export function WrappedPlayer({
           downloadLabel={t('shareCard.download')}
           canShareFiles={canShareFiles}
           isSharing={isSharing}
-          onShare={() => void share(t('shareCard.shareTitle'))}
+          onShare={() => void share({
+            shareTitle: t('shareCard.shareTitle'),
+            shareText: t('shareCard.shareText'),
+            url: recap.shareDeepLink,
+          })}
           onDownload={() => void download()}
           onPage={page}
         />

@@ -59,7 +59,11 @@ function LoadedShareCard({
           <PillButton
             loading={isSharing}
             disabled={isSharing}
-            onClick={() => void share(t('shareCard.shareTitle'))}
+            onClick={() => void share({
+              shareTitle: t('shareCard.shareTitle'),
+              shareText: t('shareCard.shareText'),
+              url: recap.shareDeepLink,
+            })}
           >
             {t('shareCard.share')}
           </PillButton>
@@ -87,7 +91,7 @@ export function ShareCardPanel({ open, onClose }: Readonly<ShareCardPanelProps>)
   const { data: recap, isLoading, isError, refetch } = useRecap(period, open)
   const { shareRef, isSharing, hasError, canShareFiles, share, download } = useShareCard()
 
-  const isEmpty = recap ? isRecapShareEmpty(recap.metrics) : false
+  const isEmpty = recap ? isRecapShareEmpty(recap.metrics, recap.goalCompletions) : false
   const showCard = !isLoading && !isError && recap && !isEmpty
 
   return (
