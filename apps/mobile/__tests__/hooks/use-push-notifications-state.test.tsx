@@ -102,6 +102,7 @@ vi.mock('@/stores/auth-store', () => {
 
 type NotificationsModule = typeof import('expo-notifications')
 type PermissionResponse = Awaited<ReturnType<NotificationsModule['getPermissionsAsync']>>
+type NotificationResponse = NonNullable<ReturnType<NotificationsModule['getLastNotificationResponse']>>
 type UsePushNotificationsHook = typeof import('@/hooks/use-push-notifications')['usePushNotifications']
 type UsePushNotificationsModule = typeof import('@/hooks/use-push-notifications')
 type PushNotificationsResult = ReturnType<UsePushNotificationsHook>
@@ -115,6 +116,20 @@ function createPermissionResponse(
     granted: status === 'granted',
     canAskAgain,
   } as PermissionResponse
+}
+
+function createNotificationResponse(identifier: string, url: string): NotificationResponse {
+  return {
+    actionIdentifier: 'expo.modules.notifications.actions.DEFAULT',
+    notification: {
+      date: 1788670800000,
+      request: {
+        identifier,
+        trigger: { type: 'push', channelId: null },
+        content: { title: 'Reminder', data: { url } },
+      },
+    },
+  } as unknown as NotificationResponse
 }
 
 describe('usePushNotifications', () => {
@@ -201,6 +216,8 @@ describe('usePushNotifications', () => {
       type: 'fcm',
       data: 'native-token',
     })
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReset()
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(null)
     vi.mocked(notificationsModule.addNotificationResponseReceivedListener).mockReset()
     vi.mocked(notificationsModule.addNotificationResponseReceivedListener).mockImplementation(() => ({
       remove: vi.fn(),
@@ -502,6 +519,58 @@ describe('usePushNotifications', () => {
     expect(mocks.router.push).toHaveBeenCalledWith(destination)
     if (opensAstra) expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(true)
     else expect(mocks.setAstraConversationOpen).not.toHaveBeenCalled()
+  })
+
+  it('routes the Wrapped response that launched the app before listener registration', async () => {
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(
+      createNotificationResponse('wrapped-startup', '/progress?wrapped=month&year=2026&month=8'),
+    )
+
+    await renderHarness()
+    await flush()
+
+    expect(mocks.router.push).toHaveBeenCalledWith('/wrapped?period=month&year=2026&month=8')
+  })
+
+  it('navigates once when startup recovery and the live listener receive the same response', async () => {
+    const response = createNotificationResponse(
+      'wrapped-duplicate',
+      '/progress?wrapped=month&year=2026&month=8',
+    )
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(response)
+
+    await renderHarness()
+    await flush()
+    const listener = vi.mocked(
+      notificationsModule.addNotificationResponseReceivedListener,
+    ).mock.calls.at(-1)![0]
+    await TestRenderer.act(() => listener(response))
+
+    expect(notificationsModule.getLastNotificationResponse).toHaveBeenCalledTimes(1)
+    expect(mocks.router.push).toHaveBeenCalledTimes(1)
+    expect(mocks.router.push).toHaveBeenCalledWith('/wrapped?period=month&year=2026&month=8')
+  })
+
+  it('navigates for a startup response followed by a different live response', async () => {
+    const startupResponse = createNotificationResponse(
+      'wrapped-startup',
+      '/progress?wrapped=month&year=2026&month=8',
+    )
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(startupResponse)
+
+    await renderHarness()
+    await flush()
+    const listener = vi.mocked(
+      notificationsModule.addNotificationResponseReceivedListener,
+    ).mock.calls.at(-1)![0]
+    await TestRenderer.act(() => listener(createNotificationResponse('chat-live', '/chat')))
+
+    expect(mocks.router.push).toHaveBeenNthCalledWith(
+      1,
+      '/wrapped?period=month&year=2026&month=8',
+    )
+    expect(mocks.router.push).toHaveBeenNthCalledWith(2, '/')
+    expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(true)
   })
 
   it('reports unsupported and no-ops the actions when the module is unavailable', async () => {

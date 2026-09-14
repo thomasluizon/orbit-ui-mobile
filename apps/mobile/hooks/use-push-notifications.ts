@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -28,6 +29,17 @@ import {
 import { useAuthStore } from '@/stores/auth-store'
 import { useUIStore } from '@/stores/ui-store'
 
+interface ExpoNotificationResponse {
+  notification: {
+    request: {
+      identifier: string
+      content?: {
+        data?: Record<string, unknown>
+      }
+    }
+  }
+}
+
 interface ExpoNotificationsModule {
   AndroidImportance: {
     MAX: number
@@ -50,16 +62,9 @@ interface ExpoNotificationsModule {
   requestPermissionsAsync: () => Promise<NotificationPermissionsResponse>
   getExpoPushTokenAsync: (options: { projectId: string }) => Promise<{ data: string }>
   getDevicePushTokenAsync: () => Promise<{ type?: string; data: string }>
+  getLastNotificationResponse: () => ExpoNotificationResponse | null
   addNotificationResponseReceivedListener: (
-    listener: (response: {
-      notification: {
-        request: {
-          content?: {
-            data?: Record<string, unknown>
-          }
-        }
-      }
-    }) => void,
+    listener: (response: ExpoNotificationResponse) => void,
   ) => { remove: () => void }
 }
 type PushRegistrationStatus = NativePushRegistrationStatus
@@ -102,6 +107,7 @@ function isExpoNotificationsModule(value: unknown): value is ExpoNotificationsMo
     hasFunctionProperty(value, 'requestPermissionsAsync') &&
     hasFunctionProperty(value, 'getExpoPushTokenAsync') &&
     hasFunctionProperty(value, 'getDevicePushTokenAsync') &&
+    hasFunctionProperty(value, 'getLastNotificationResponse') &&
     hasFunctionProperty(value, 'addNotificationResponseReceivedListener')
   )
 }
@@ -271,6 +277,7 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
   const [permissionCanAskAgain, setPermissionCanAskAgain] = useState(true)
   const [registrationStatus, setRegistrationStatus] = useState<PushRegistrationStatus>('idle')
   const [isRegistered, setIsRegistered] = useState(false)
+  const handledNotificationResponseIdentifiers = useRef(new Set<string>())
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const userId = useAuthStore((s) => s.user?.userId ?? null)
   const isSupported = !!notificationsModule && isPhysicalDevice()
@@ -531,16 +538,24 @@ function usePushNotificationsController(): UsePushNotificationsReturn {
       }
     })
 
+    const routeNotificationResponse = (response: ExpoNotificationResponse) => {
+      const maybeUrl = response.notification.request.content?.data?.url
+      if (typeof maybeUrl !== 'string') return
+      const destination = getNotificationDestination(maybeUrl)
+      if (!destination) return
+
+      const responseIdentifier = response.notification.request.identifier
+      if (handledNotificationResponseIdentifiers.current.has(responseIdentifier)) return
+      handledNotificationResponseIdentifiers.current.add(responseIdentifier)
+      router.push(destination.url)
+      if (destination.opensAstra) setAstraConversationOpen(true)
+    }
+
     const responseSubscription = activeNotificationsModule.addNotificationResponseReceivedListener(
-      (response) => {
-        const maybeUrl = response.notification.request.content?.data?.url
-        if (typeof maybeUrl !== 'string') return
-        const destination = getNotificationDestination(maybeUrl)
-        if (!destination) return
-        router.push(destination.url)
-        if (destination.opensAstra) setAstraConversationOpen(true)
-      },
+      routeNotificationResponse,
     )
+    const initialResponse = activeNotificationsModule.getLastNotificationResponse()
+    if (initialResponse) routeNotificationResponse(initialResponse)
 
     return () => {
       appStateSubscription.remove()
