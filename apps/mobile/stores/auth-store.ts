@@ -26,6 +26,7 @@ import {
   type JwtSessionPayload,
 } from '@/lib/jwt-session'
 import { setRuntimeTheme } from '@/lib/theme'
+import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
 import { useChatStore } from './chat-store'
 import { useReviewReminderStore } from './review-reminder-store'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
@@ -104,6 +105,7 @@ function isTokenExpired(token: string): boolean {
 }
 
 export async function clearSessionAndResetAuth(): Promise<void> {
+  clearStepUpState()
   await clearAllTokens()
   await clearWidgetToken().catch(() => {})
   queryClient.clear()
@@ -196,6 +198,7 @@ export async function refreshSession(options?: {
 
   const currentUser = useAuthStore.getState().user
   const tokenUser = getUserFromToken(data.token, currentUser?.name)
+  if (tokenUser) bindStepUpStateToAccount(tokenUser.userId)
   useAuthStore.setState({
     isAuthenticated: true,
     user: currentUser ?? tokenUser,
@@ -257,6 +260,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   login: async (token, refreshToken, user) => {
     authTransitionInFlight = true
+    bindStepUpStateToAccount(user.userId)
     try {
       await setToken(token)
       if (refreshToken) {
@@ -298,6 +302,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       } catch {}
 
+      bindStepUpStateToAccount(user.userId)
       set({
         isAuthenticated: true,
         user: hydratedUser,
@@ -310,6 +315,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    clearStepUpState()
     const refreshToken = await getRefreshToken()
 
     await import('@/hooks/use-push-notifications')
@@ -342,6 +348,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   checkAuth: async () => {
     let token = await getToken()
     if (!token) {
+      clearStepUpState()
       await clearWidgetToken().catch(() => {})
       await cancelPersistentReminder().catch(() => {})
       useReviewReminderStore.getState().setAccountScope(null)
@@ -353,6 +360,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const outcome = await refreshSession()
       if (outcome.status === 'network-error') {
         const payload = decodeJwtPayload(token)
+        const accountId = getAccountIdFromPayload(payload)
+        if (accountId) bindStepUpStateToAccount(accountId)
         set((state) => ({
           isAuthenticated: true,
           user: state.user ?? getUserFromPayload(payload),
@@ -368,6 +377,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     const payload = decodeJwtPayload(token)
+    const accountId = getAccountIdFromPayload(payload)
+    if (accountId) bindStepUpStateToAccount(accountId)
     await saveWidgetToken(token).catch(() => {})
     set((state) => ({
       isAuthenticated: true,
@@ -397,6 +408,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       })()
       void profileHydrationInFlight
     } catch {
+      clearStepUpState()
       set({ isAuthenticated: false, user: null, isLoading: false, expiresAt: null })
     }
   },

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
+import { bindStepUpStateToAccount, clearStepUpState } from '@/lib/step-up-storage'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
@@ -21,6 +22,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   expiresAt: null,
 
   setAuth: (loginResponse: LoginResponse) => {
+    bindStepUpStateToAccount(loginResponse.userId)
     set({
       isAuthenticated: true,
       user: {
@@ -40,6 +42,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     if (response.status === 401 || response.status === 403) {
+      clearStepUpState()
       set({ isAuthenticated: false, user: null, expiresAt: null })
       return
     }
@@ -52,6 +55,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (data.expiresAt) {
       set({ isAuthenticated: true, expiresAt: data.expiresAt })
     } else {
+      clearStepUpState()
       set({ isAuthenticated: false, user: null, expiresAt: null })
     }
   },
@@ -72,6 +76,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    clearStepUpState()
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
     } catch {

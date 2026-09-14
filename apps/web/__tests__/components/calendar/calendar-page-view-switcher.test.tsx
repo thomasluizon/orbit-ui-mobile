@@ -515,6 +515,7 @@ describe('CalendarPage view switcher', () => {
   it.each([
     {
       name: 'device date is one day ahead',
+      initialTimeZone: 'UTC',
       deviceTimeZone: 'Pacific/Kiritimati',
       accountTimeZone: 'America/Los_Angeles',
       now: '2026-09-12T10:30:00.000Z',
@@ -524,6 +525,7 @@ describe('CalendarPage view switcher', () => {
     },
     {
       name: 'device date is one day behind',
+      initialTimeZone: undefined,
       deviceTimeZone: 'America/Los_Angeles',
       accountTimeZone: 'UTC',
       now: '2026-09-12T00:30:00.000Z',
@@ -532,6 +534,7 @@ describe('CalendarPage view switcher', () => {
       expected: ['bestStreak:2', 'totalLogs:2', 'missed:1'],
     },
   ])('renders statistics through the account date when $name', ({
+    initialTimeZone,
     deviceTimeZone,
     accountTimeZone,
     now,
@@ -539,24 +542,38 @@ describe('CalendarPage view switcher', () => {
     secondDay,
     expected,
   }) => {
-    const originalTimeZone = process.env.TZ
-    process.env.TZ = deviceTimeZone
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date(now))
-    profileQueryState.profile = {
-      weekStartDay: 1,
-      timeZone: accountTimeZone,
-      hasProAccess: false,
-    }
-    setBoundaryEntries(firstDay, secondDay)
+    const workerTimeZone = process.env.TZ
+    const workerResolvedTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (initialTimeZone === undefined) delete process.env.TZ
+    else process.env.TZ = initialTimeZone
     try {
-      render(<CalendarPage />)
+      const originalTimeZone = process.env.TZ
+      process.env.TZ = deviceTimeZone
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(now))
+      profileQueryState.profile = {
+        weekStartDay: 1,
+        timeZone: accountTimeZone,
+        hasProAccess: false,
+      }
+      setBoundaryEntries(firstDay, secondDay)
+      try {
+        render(<CalendarPage />)
 
-      for (const figure of expected) expect(screen.getByText(figure)).toBeDefined()
+        for (const figure of expected) expect(screen.getByText(figure)).toBeDefined()
+      } finally {
+        vi.useRealTimers()
+        if (originalTimeZone === undefined) delete process.env.TZ
+        else process.env.TZ = originalTimeZone
+      }
+
+      expect(Object.hasOwn(process.env, 'TZ')).toBe(initialTimeZone !== undefined)
+      expect(process.env.TZ).toBe(initialTimeZone)
     } finally {
-      vi.useRealTimers()
-      if (originalTimeZone === undefined) delete process.env.TZ
-      else process.env.TZ = originalTimeZone
+      if (workerTimeZone === undefined) {
+        process.env.TZ = workerResolvedTimeZone
+        delete process.env.TZ
+      } else process.env.TZ = workerTimeZone
     }
   })
 

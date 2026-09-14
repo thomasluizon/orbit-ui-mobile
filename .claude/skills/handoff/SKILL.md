@@ -143,7 +143,9 @@ Short. It points at the spec and says what to do next.
 
 1. The spec path, first line, as the thing to read before anything else.
 2. The entry point, singular: the one skill the next session works through.
-3. The job, in one or two sentences.
+3. **The goal: finish that spec.** Say it in one line, with the condition that proves it done and the
+   query that lists what is left. Never scope the goal to the open pull requests or to whatever this
+   session was mid-way through.
 4. The in-flight inventory, one row per item with its disposition.
 5. What to do, in the order it has to happen.
 6. `$ARGUMENTS`, if any, as its own section.
@@ -157,6 +159,42 @@ together is the failure mode; keep the pointer.
 
 Under `--sleep` the entry point is the sleep skill, and it is the only one. It invokes the work
 skill itself, so the prompt must not present the two as siblings.
+
+## The goal is always the same: finish the spec
+
+**Every run ends when its spec is done, and at no other point.** This is not a `--sleep` rule and it
+is not about any one effort. A session working a spec is not finished while that spec has work left.
+
+Thomas, 2026-09-14: "ANY RUN ends only when the original spec is done ... anytime i run /handoff, the
+handoff needs to list a clear goal: finish the original spec. if its not done, then your work is not
+done, and if it means fixing blockers, taking decisions, whathever it takes, you will do it, until
+the spec is finished with the best approach possible."
+
+So every prompt this skill writes states ONE goal, and it is finishing that spec. Not the open pull
+requests, not the tickets this session happened to touch. Give it the termination condition in the
+spec's own terms, and the query that re-derives what is left, so the next session never has to trust
+your list:
+
+    gh issue list --repo <ticket repo> --state open --label <the effort's label> --limit 200
+
+**A blocker is not an ending. A blocker is the next piece of work.** "theres no blocker impossible of
+being fixed by you, you create the blockers, you fix them, always doing the best approach."
+
+- Waiting on CI or a review is waiting, not blocking. Start the next thing while it runs.
+- A stacked branch is not blocked; its parent is the work.
+- A finding too large for the pull request it appeared in becomes its own ticket AND that ticket gets
+  picked up. Filing it is not a disposition.
+- A missing capability is built. A missing branch, gate, tier, harness or tool is created, not
+  reported.
+- A decision nobody has taken is taken, with the best approach, and written down.
+- A recorded blocker in a readiness ledger is a TODO, not a finish line.
+
+The only honest ending short of a finished spec is EXTERNAL: the model allowance is exhausted, the
+machine stops, or Thomas says stop. Those are not decisions the run makes. Say which one it was, and
+never report it as the work being finished.
+
+A prompt that permits a session to stop with its spec unfinished is a defective prompt. Check yours
+against that before you commit it.
 
 ## Hand over
 

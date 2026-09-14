@@ -1306,6 +1306,24 @@
       "seePro": "See Pro",
       "manageSubscription": "Manage subscription"
     },
+    "apiKeys": {
+      "description": "To connect Orbit to other tools through the API or an MCP client.",
+      "unlock": "See Pro",
+      "open": "Open the keys",
+      "create": "Create key",
+      "createScoped": "Create a scoped key",
+      "newKeyName": "New key",
+      "scopeTitle": "Scoped key",
+      "scopeLabel": "Scope",
+      "scopeAction": "Create",
+      "mcpTitle": "Connect over MCP",
+      "mcpLine": "Paste an active key into your MCP client's settings. The full instructions live in this section in the app.",
+      "stepUpBody": "To change keys or delete the account, sign in again. Orbit never asks for your password inside a conversation.",
+      "stepUpAction": "Sign in again",
+      "revokeNamed": "Revoke {name}",
+      "revokeNamedQuestion": "Revoke {name}?",
+      "revokeBody": "Whatever uses this key stops working right away. There is no way to restore the key."
+    },
     "timezonePicker": {
       "search": "Search timezones",
       "noResults": "No timezones found",
@@ -1524,6 +1542,12 @@
     "entry": "Your Wrapped",
     "coverEyebrow": "Your habits, replayed",
     "coverSubtitle": "Pick a period to begin.",
+    "coverTitles": {
+      "week": "Close the week.",
+      "month": "Close the month.",
+      "year": "Close the year."
+    },
+    "periodGroup": "Period",
     "start": "Start",
     "close": "Close Wrapped",
     "next": "Next",

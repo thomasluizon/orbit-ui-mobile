@@ -156,9 +156,9 @@ export const cases = () => {
 
 export const resolveTicket = (reference) => {
   const value = String(reference).toUpperCase()
-  if (value === "ORB-200") return { identifier: "ORB-200", number: 200 }
-  if (value === "#393") return { identifier: null, number: 393 }
-  if (value === "#9001" || value === "9001") return { identifier: null, number: 9001 }
+  if (value === "ORB-200") return { identifier: "ORB-200", number: 200, reference: "ORB-200" }
+  if (value === "#393") return { identifier: null, number: 393, reference: "#393" }
+  if (value === "#9001" || value === "9001") return { identifier: null, number: 9001, reference: "#9001" }
   throw new Error("Unknown migrated ticket " + reference)
 }
 /**

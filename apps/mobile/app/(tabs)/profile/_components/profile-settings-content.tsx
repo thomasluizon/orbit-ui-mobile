@@ -23,6 +23,7 @@ import {
   type Icon,
 } from '@/components/ui/icons'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
+import { ProfileApiKeys } from '@/components/profile/profile-api-keys'
 import { AstraAllowancePanel } from '@/components/profile/astra-allowance-panel'
 import {
   AstraSettingsSwitch,
@@ -52,6 +53,7 @@ import { DeleteAccountModal } from './delete-account-modal'
 import { EditNameSheet } from './edit-name-sheet'
 import { FreshStartModal } from './fresh-start-modal'
 import { useDataExport } from './use-data-export'
+import { isStepUpVerified } from '@/lib/step-up-storage'
 
 interface ProfileSettingsContentProps {
   profile: Profile | undefined
@@ -109,6 +111,7 @@ function buildYouRows(
 function buildAstraRows(
   { profile, router, t, tokens }: RowContext,
   settings: AstraSettingsController,
+  apiKeysUnlocked: boolean,
 ) {
   const onUpgrade = () => router.push(buildUpgradeHref('/profile'))
   return (
@@ -146,10 +149,7 @@ function buildAstraRows(
           )}
         </RowList>
       ) : null}
-      <RowList>
-        {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
-        <ListRow key="api-keys" icon={icon(Lock, tokens.fg1)} title={t('profile.settingsRows.apiKeysMcp')} onClick={() => router.push('/advanced')} />
-      </RowList>
+      <ProfileApiKeys profile={profile} unlocked={apiKeysUnlocked} />
     </>
   )
 }
@@ -205,22 +205,26 @@ function TimeZonePicker({ controls, profile, t, tokens }: Readonly<TimeZonePicke
 }
 
 function buildMoreRows({ profile, router, t, tokens }: RowContext) {
-  return PROFILE_NAV_ITEMS.map((item) => (
-    <ListRow
-      key={item.id}
-      icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
-      title={t(item.titleKey)}
-      description={t(item.hintKey)}
-      trailing={item.proBadge ? <ProBadge alwaysVisible /> : undefined}
-      onClick={() => {
-        router.push(
-          shouldRedirectProfileNavItem(item, profile)
-            ? buildUpgradeHref('/profile')
-            : item.route,
-        )
-      }}
-    />
-  ))
+  return PROFILE_NAV_ITEMS.map((item) => {
+    const redirectsToUpgrade = shouldRedirectProfileNavItem(item, profile)
+    return (
+      <ListRow
+        key={item.id}
+        icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
+        title={t(item.titleKey)}
+        description={item.hintKey ? t(item.hintKey) : undefined}
+        trailing={item.proBadge && redirectsToUpgrade ? <ProBadge alwaysVisible /> : undefined}
+        chevron={!redirectsToUpgrade}
+        onClick={() => {
+          if (redirectsToUpgrade) {
+            router.push(buildUpgradeHref('/profile'))
+            return
+          }
+          router.push(item.route)
+        }}
+      />
+    )
+  })
 }
 
 interface EndingRowsOptions {
@@ -267,6 +271,7 @@ export function ProfileSettingsContent({
   const [showEditName, setShowEditName] = useState(false)
   const [showFreshStart, setShowFreshStart] = useState(false)
   const [showDeleteAccount, setShowDeleteAccount] = useState(false)
+  const [apiKeysUnlocked] = useState(() => isStepUpVerified('keys'))
   const astraSettings = useAstraSettingsController(profile, patchProfile)
   useShellNoticeSlot(
     exportDone,
@@ -289,7 +294,7 @@ export function ProfileSettingsContent({
       () => void exportData(),
       () => preferenceControls.setActivePicker('timeZone'),
     ),
-    astra: buildAstraRows(context, astraSettings),
+    astra: buildAstraRows(context, astraSettings, apiKeysUnlocked),
     notifications: [
       <MarketingConsentSection key="product-email" showSectionLabel={false} contained />,
     ],
