@@ -4,19 +4,19 @@ export function createStyles() {
   return StyleSheet.create({
     safeArea: { flex: 1 },
     container: { flex: 1 },
-    scrollContent: { paddingBottom: 40 },
+    scrollContent: { paddingBottom: 32 },
     cardPad: {
-      paddingHorizontal: 20,
-      paddingBottom: 14,
+      paddingHorizontal: 16,
+      paddingBottom: 12,
     },
     connectionCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 14,
+      gap: 12,
       borderRadius: 16,
       borderWidth: 1,
       paddingVertical: 16,
-      paddingHorizontal: 18,
+      paddingHorizontal: 16,
     },
     connectionIconSlot: {
       width: 26,
@@ -41,12 +41,12 @@ export function createStyles() {
     syncNowRow: {
       flexDirection: 'row',
       justifyContent: 'flex-end',
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingTop: 16,
-      paddingBottom: 6,
+      paddingBottom: 4,
     },
     reconnectBlock: {
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingVertical: 12,
       gap: 8,
       alignItems: 'flex-start',
@@ -84,14 +84,14 @@ export function createStyles() {
       paddingHorizontal: 24,
       paddingVertical: 32,
       alignItems: 'center',
-      gap: 14,
+      gap: 12,
     },
     eventRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingHorizontal: 20,
-      paddingVertical: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
       borderBottomWidth: StyleSheet.hairlineWidth,
     },
     eventBody: {
@@ -157,15 +157,15 @@ export function createStyles() {
       justifyContent: 'center',
     },
     actionPad: {
-      paddingHorizontal: 20,
-      paddingVertical: 18,
+      paddingHorizontal: 16,
+      paddingVertical: 16,
     },
     pickerStateRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      paddingHorizontal: 20,
-      paddingTop: 6,
+      paddingHorizontal: 16,
+      paddingTop: 4,
     },
     pickerStateText: {
       fontFamily: 'Geist_400Regular',
@@ -175,8 +175,8 @@ export function createStyles() {
     showMoreRow: {
       alignItems: 'center',
       gap: 8,
-      paddingHorizontal: 20,
-      paddingTop: 14,
+      paddingHorizontal: 16,
+      paddingTop: 12,
     },
     showingCountText: {
       fontFamily: 'GeistMono_400Regular',
@@ -190,7 +190,7 @@ export function createStyles() {
     errorActions: {
       flexDirection: 'row',
       gap: 12,
-      marginTop: 6,
+      marginTop: 4,
     },
   })
 }

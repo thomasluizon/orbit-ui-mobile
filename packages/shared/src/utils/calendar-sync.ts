@@ -1,6 +1,13 @@
 import type { BulkCreateRequest, FrequencyUnit } from '../types/habit'
-import type { CalendarAutoSyncStatus, CalendarSyncSuggestion } from '../types/calendar'
+import type {
+  CalendarAutoSyncState,
+  CalendarAutoSyncStatus,
+  CalendarSyncSuggestion,
+} from '../types/calendar'
 import { plural } from './plural'
+
+export const CALENDAR_RECONNECT_REQUIRED_ERROR_CODE = 'CALENDAR_RECONNECT_REQUIRED'
+export const CALENDAR_NOT_CONNECTED_ERROR_CODE = 'CALENDAR_NOT_CONNECTED'
 
 export interface CalendarSyncEvent {
   id: string
@@ -14,6 +21,14 @@ export interface CalendarSyncEvent {
   reminders: number[]
   calendarId?: string
   calendarName?: string
+}
+
+export function filterCalendarSyncEventsByDate(
+  events: CalendarSyncEvent[],
+  date: string | null,
+): CalendarSyncEvent[] {
+  if (!date) return []
+  return events.filter((event) => event.startDate === date)
 }
 
 export interface CalendarSyncParsedRecurrence {
@@ -232,6 +247,44 @@ export function isCalendarAutoSyncStatusReconnectRequired(
   status: CalendarAutoSyncStatus | null | undefined,
 ): boolean {
   return status === 'ReconnectRequired'
+}
+
+export function reconcileCalendarAutoSyncGrantRevocation(
+  current: CalendarAutoSyncState | undefined,
+): CalendarAutoSyncState {
+  return {
+    enabled: false,
+    status: 'ReconnectRequired',
+    lastSyncedAt: current?.lastSyncedAt ?? null,
+    hasGoogleConnection: false,
+  }
+}
+
+export type CalendarEventsGrantRevocationAction = 'cancel-state-read' | 'reconcile' | null
+
+export function resolveCalendarEventsGrantRevocation(
+  errorCode: string | undefined,
+  current: CalendarAutoSyncState | undefined,
+): CalendarEventsGrantRevocationAction {
+  if (errorCode === CALENDAR_RECONNECT_REQUIRED_ERROR_CODE) return 'reconcile'
+  if (errorCode !== CALENDAR_NOT_CONNECTED_ERROR_CODE) return null
+  return current?.hasGoogleConnection === true ? 'reconcile' : 'cancel-state-read'
+}
+
+export function isCalendarSyncConnectionActive(
+  hasGoogleConnection: boolean,
+  status: CalendarAutoSyncStatus,
+): boolean {
+  return hasGoogleConnection && status !== 'ReconnectRequired'
+}
+
+export function getCalendarSyncClockValue(isoTimestamp: string | null): string | null {
+  if (!isoTimestamp) return null
+  const syncedAt = new Date(isoTimestamp)
+  if (Number.isNaN(syncedAt.getTime())) return null
+  const hours = String(syncedAt.getHours()).padStart(2, '0')
+  const minutes = String(syncedAt.getMinutes()).padStart(2, '0')
+  return `${hours}:${minutes}`
 }
 
 /**
