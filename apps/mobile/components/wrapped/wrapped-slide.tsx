@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next'
 import type { Recap } from '@orbit/shared/types/gamification'
 import {
   formatCompletionRate,
+  getWeeklyConsistencyComparison,
+  hasEnoughWeeklyConsistencyToCompare,
   type RecapSharePeriod,
   type WrappedSlide as WrappedSlideModel,
 } from '@orbit/shared/utils'
@@ -90,6 +92,7 @@ export function WrappedSlide({ slide, recap, period, tokens, displayName, shareR
             {t('wrapped.slides.consistency.title')}
           </Animated.Text>
           <WeekdayColumns values={slide.weeklyConsistency} />
+          <WeekdayInterpretation values={slide.weeklyConsistency} tokens={tokens} />
         </View>
       )
     case 'streak':
@@ -135,6 +138,11 @@ export function WrappedSlide({ slide, recap, period, tokens, displayName, shareR
           <Animated.Text entering={enter(1)} style={[styles.label, { color: tokens.fg2 }]}>
             {t('progressScreen.sections.goals')}
           </Animated.Text>
+          {slide.closedGoals === 0 ? (
+            <Animated.Text entering={enter(2)} style={[styles.caption, { color: tokens.fg2 }]}>
+              {t('wrapped.slides.goals.zero')}
+            </Animated.Text>
+          ) : null}
         </View>
       )
     case 'share':
@@ -185,6 +193,35 @@ function WeekdayColumns({ values }: Readonly<{ values: number[] }>) {
         emptyLabel={t('calendar.emptyStat')}
       />
     </Animated.View>
+  )
+}
+
+function WeekdayInterpretation({ values, tokens }: Readonly<{ values: number[]; tokens: Tokens }>) {
+  const { t } = useTranslation()
+  if (!hasEnoughWeeklyConsistencyToCompare(values)) {
+    return (
+      <Animated.Text entering={enter(3)} style={[styles.caption, { color: tokens.fg2 }]}>
+        {t('wrapped.slides.consistency.thin')}
+      </Animated.Text>
+    )
+  }
+
+  const { strongestIndex, weakestIndex } = getWeeklyConsistencyComparison(values)
+  const strongestWeekday = WEEKDAY_KEYS[strongestIndex]!
+  const weakestWeekday = WEEKDAY_KEYS[weakestIndex]!
+
+  return (
+    <>
+      <Animated.Text entering={enter(3)} style={[styles.caption, { color: tokens.fg2 }]}>
+        {t('wrapped.slides.consistency.summary', {
+          strong: t(`dates.daysShort.${strongestWeekday}`),
+          weak: t(`dates.daysShort.${weakestWeekday}`),
+        })}
+      </Animated.Text>
+      <Animated.Text entering={enter(4)} style={[styles.caption, { color: tokens.fg2 }]}>
+        {t('wrapped.slides.consistency.note')}
+      </Animated.Text>
+    </>
   )
 }
 

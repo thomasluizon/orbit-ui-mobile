@@ -49,6 +49,15 @@ describe('mobile WrappedSlide', () => {
     expect(figure.props.children).toBe(4)
   })
 
+  it('explains a zero goal completion count without renaming its label', () => {
+    const recapWithNoGoalCompletions = { ...recap, goalCompletions: 0 }
+    const goals = buildWrappedSlides(recapWithNoGoalCompletions).find((slide) => slide.id === 'goals')!
+    const tree = renderSlide(goals)
+
+    expect(tree.root.findAll((node) => node.props.children === 'progressScreen.sections.goals')[0]).toBeTruthy()
+    expect(tree.root.findAll((node) => node.props.children === 'wrapped.slides.goals.zero')[0]).toBeTruthy()
+  })
+
   it('renders the weekday average as Monday-first Columns with initials and no date copy', () => {
     const consistency = buildWrappedSlides(recap).find((slide) => slide.id === 'consistency')!
     const tree = renderSlide(consistency)
@@ -65,6 +74,36 @@ describe('mobile WrappedSlide', () => {
       'dates.daysShort.sunday',
     ])
     expect(tree.root.findAll((node) => node.props.children === 'wrapped.slides.consistency.caption')).toHaveLength(0)
+  })
+
+  it('interprets exactly two logged weekdays and explains their averages', () => {
+    const comparisonRecap = createMockRecap({
+      metrics: createMockRetrospectiveMetrics({ weeklyConsistency: [0, 20, 0, 0, 0, 60, 0] }),
+    })
+    const consistency = buildWrappedSlides(comparisonRecap).find((slide) => slide.id === 'consistency')!
+    const tree = renderSlide(consistency)
+
+    expect(
+      tree.root.findAll((node) =>
+        node.props.children ===
+        'wrapped.slides.consistency.summary:{"strong":"dates.daysShort.saturday","weak":"dates.daysShort.tuesday"}')[0],
+    ).toBeTruthy()
+    expect(tree.root.findAll((node) => node.props.children === 'wrapped.slides.consistency.note')[0]).toBeTruthy()
+  })
+
+  it('explains that exactly one logged weekday is too thin to compare', () => {
+    const thinRecap = createMockRecap({
+      metrics: createMockRetrospectiveMetrics({ weeklyConsistency: [0, 20, 0, 0, 0, 0, 0] }),
+    })
+    const consistency = buildWrappedSlides(thinRecap).find((slide) => slide.id === 'consistency')!
+    const tree = renderSlide(consistency)
+
+    expect(tree.root.findAll((node) => node.props.children === 'wrapped.slides.consistency.thin')[0]).toBeTruthy()
+    expect(
+      tree.root.findAll((node) =>
+        typeof node.props.children === 'string' &&
+        node.props.children.startsWith('wrapped.slides.consistency.summary')),
+    ).toHaveLength(0)
   })
 
   it('gives every page exactly one focal figure', () => {
