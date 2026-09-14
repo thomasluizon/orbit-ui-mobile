@@ -180,6 +180,14 @@ function RootStackScreens({
   )
 }
 
+function getNoNavigationNotice(
+  isAuthenticated: boolean,
+  topSegment: string | undefined,
+) {
+  if (!isAuthenticated || topSegment === 'wrapped') return undefined
+  return <OfflineNotice />
+}
+
 function RootLayoutNav() {
   const { t } = useTranslation()
   const router = useRouter()
@@ -324,7 +332,7 @@ function RootLayoutNav() {
           <Shell412
             nav={false}
             safeAreaTop={pathname === '/search'}
-            notice={isAuthenticated ? <OfflineNotice /> : undefined}
+            notice={getNoNavigationNotice(isAuthenticated, topSegment)}
           >
             <RootStackScreens
               screenBackgroundColor={surfaces.screen.backgroundColor}
