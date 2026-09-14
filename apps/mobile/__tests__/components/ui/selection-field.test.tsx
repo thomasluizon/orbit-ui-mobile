@@ -10,13 +10,6 @@ vi.mock('@/lib/theme', () => ({
   radius: new Proxy({}, { get: () => 12 }),
 }))
 
-vi.mock('@/components/ui/icons', () => {
-  const React = require('react')
-  return {
-    ChevronDown: (props: any) => React.createElement('ChevronDown', props),
-  }
-})
-
 const OPTIONS = [
   { value: 'daily', label: 'Every day' },
   { value: 'weekly', label: 'Every week' },

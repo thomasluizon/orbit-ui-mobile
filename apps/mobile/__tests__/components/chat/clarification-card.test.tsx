@@ -67,14 +67,6 @@ vi.mock('@/lib/theme', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/icons', () => {
-   
-  const React = require('react')
-  return {
-    Check: (props: Record<string, unknown>) => React.createElement('Check', props),
-  }
-})
-
 const mutateAsync = vi.fn()
 const isPendingRef = { current: false }
 
