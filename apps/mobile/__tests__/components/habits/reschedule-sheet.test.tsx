@@ -5,6 +5,16 @@ import type { RescheduleSuggestion } from '@orbit/shared/types/habit'
 import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
+vi.mock('@/components/ui/icons', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/icons')>()
+  const ReactLib = require('react')
+  return {
+    ...actual,
+    Sparkles: (props: Record<string, unknown>) => ReactLib.createElement('Sparkles', props),
+    CalendarClock: (props: Record<string, unknown>) => ReactLib.createElement('CalendarClock', props),
+  }
+})
+
 const TestRenderer = require('react-test-renderer')
 
 const mockPush = vi.fn()

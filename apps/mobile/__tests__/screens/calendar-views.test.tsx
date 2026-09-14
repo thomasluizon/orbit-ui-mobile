@@ -277,6 +277,8 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 
 describe("CalendarScreen views (mobile)", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-14T12:00:00.000Z"));
     calendarGridProps.current = null;
     calendarGridProps.header = null;
     calendarGridProps.stats = null;

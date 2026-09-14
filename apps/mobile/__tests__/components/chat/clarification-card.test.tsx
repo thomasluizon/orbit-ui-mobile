@@ -3,6 +3,15 @@ import type { ClarificationRequest } from '@orbit/shared/types'
 
 import { ClarificationCard } from '@/components/chat/clarification-card'
 
+vi.mock('@/components/ui/icons', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/icons')>()
+  const React = require('react')
+  return {
+    ...actual,
+    Check: (props: Record<string, unknown>) => React.createElement('Check', props),
+  }
+})
+
 interface TestNode {
   type: unknown
   props: {

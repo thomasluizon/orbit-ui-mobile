@@ -18,6 +18,19 @@ import { flushQueuedMutations } from '@/lib/offline-mutations'
 import { clear as clearOfflineQueue, getAll as getQueuedMutations } from '@/lib/offline-queue'
 import { useChatStore } from '@/stores/chat-store'
 
+vi.mock('@/components/ui/icons', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/icons')>()),
+  Calendar: () => null,
+  ChevronDown: () => null,
+  ChevronLeft: () => null,
+  ChevronRight: () => null,
+  Clock3: () => null,
+  ListTree: () => null,
+  Plus: () => null,
+  Trash2: () => null,
+  X: () => null,
+}))
+
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
 const TestRenderer = require('react-test-renderer')

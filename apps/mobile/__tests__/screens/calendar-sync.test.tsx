@@ -5,6 +5,29 @@ import type { CalendarSyncEvent } from "@orbit/shared/utils";
 
 import CalendarSyncScreen from "@/app/calendar-sync";
 
+vi.mock("@/components/ui/icons", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/ui/icons")>();
+  const createIcon = (name: string) => (props: Record<string, unknown>) =>
+    React.createElement(name, props);
+
+  return {
+    ...actual,
+    AlertTriangle: createIcon("AlertTriangle"),
+    ArrowLeft: createIcon("ArrowLeft"),
+    Bell: createIcon("Bell"),
+    CalendarDays: createIcon("CalendarDays"),
+    Check: createIcon("Check"),
+    CheckCheck: createIcon("CheckCheck"),
+    ChevronLeft: createIcon("ChevronLeft"),
+    ChevronRight: createIcon("ChevronRight"),
+    Link: createIcon("Link"),
+    RefreshCw: createIcon("RefreshCw"),
+    SquareX: createIcon("SquareX"),
+    WifiOff: createIcon("WifiOff"),
+    X: createIcon("X"),
+  };
+});
+
 const TestRenderer = require("react-test-renderer");
 
 type TestNode = {

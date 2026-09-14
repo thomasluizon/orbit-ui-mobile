@@ -5,6 +5,67 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import UpgradeScreen from '@/app/upgrade'
 import SupportScreen from '@/app/support'
 
+vi.mock('@/components/ui/icons', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/icons')>()
+  const createIcon = (name: string) => (props: Record<string, unknown>) =>
+    React.createElement(name, props)
+
+  return {
+    ...actual,
+    AdjustmentsHorizontal: createIcon('AdjustmentsHorizontal'),
+    AlertTriangle: createIcon('AlertTriangle'),
+    ArrowLeft: createIcon('ArrowLeft'),
+    ArrowUpRight: createIcon('ArrowUpRight'),
+    BarChart3: createIcon('BarChart3'),
+    Calendar: createIcon('Calendar'),
+    CalendarDays: createIcon('CalendarDays'),
+    Check: createIcon('Check'),
+    CheckCircle: createIcon('CheckCircle'),
+    CheckCircle2: createIcon('CheckCircle2'),
+    ChevronLeft: createIcon('ChevronLeft'),
+    ChevronRight: createIcon('ChevronRight'),
+    Compass: createIcon('Compass'),
+    Clock: createIcon('Clock'),
+    CreditCard: createIcon('CreditCard'),
+    Download: createIcon('Download'),
+    Eye: createIcon('Eye'),
+    FileText: createIcon('FileText'),
+    Share2: createIcon('Share2'),
+    Flame: createIcon('Flame'),
+    Gift: createIcon('Gift'),
+    Home: createIcon('Home'),
+    Info: createIcon('Info'),
+    Lightbulb: createIcon('Lightbulb'),
+    Lock: createIcon('Lock'),
+    LogOut: createIcon('LogOut'),
+    MessageCircle: createIcon('MessageCircle'),
+    MessageSquare: createIcon('MessageSquare'),
+    Minus: createIcon('Minus'),
+    Palette: createIcon('Palette'),
+    Pencil: createIcon('Pencil'),
+    RefreshCw: createIcon('RefreshCw'),
+    RotateCcw: createIcon('RotateCcw'),
+    Settings: createIcon('Settings'),
+    ShieldCheck: createIcon('ShieldCheck'),
+    Orbit: createIcon('Orbit'),
+    Sparkles: createIcon('Sparkles'),
+    Star: createIcon('Star'),
+    Play: createIcon('Play'),
+    Plus: createIcon('Plus'),
+    Snowflake: createIcon('Snowflake'),
+    Tag: createIcon('Tag'),
+    Target: createIcon('Target'),
+    TrendingUp: createIcon('TrendingUp'),
+    TriangleAlert: createIcon('TriangleAlert'),
+    User: createIcon('User'),
+    UserX: createIcon('UserX'),
+    Trash2: createIcon('Trash2'),
+    WifiOff: createIcon('WifiOff'),
+    Wrench: createIcon('Wrench'),
+    X: createIcon('X'),
+  }
+})
+
 vi.mock('@/components/referral/referral-card', () => ({
   ReferralCard: () => null,
 }))

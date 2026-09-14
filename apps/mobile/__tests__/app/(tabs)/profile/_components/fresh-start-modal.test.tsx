@@ -4,6 +4,13 @@ import { FreshStartModal } from '@/app/(tabs)/profile/_components/fresh-start-mo
 import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import type { DroppedMutation } from '@/lib/offline-mutations'
 
+vi.mock('@/components/ui/icons', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/icons')>()
+  const icon = (name: string) => (props: Record<string, unknown>) =>
+    React.createElement(name, props)
+  return { ...actual, Check: icon('Check'), RotateCcw: icon('RotateCcw'), X: icon('X') }
+})
+
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
 const replace = vi.fn()

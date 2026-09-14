@@ -13,6 +13,19 @@ import {
   type CalendarStat,
 } from "@/app/(tabs)/calendar/_components/calendar-stats";
 
+vi.mock("@/components/ui/icons", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/ui/icons")>();
+  const makeIcon = (name: string) => (props: Record<string, unknown>) =>
+    React.createElement(name, props);
+  return {
+    ...actual,
+    ChevronLeft: makeIcon("ChevronLeft"),
+    ChevronRight: makeIcon("ChevronRight"),
+    ChevronsLeft: makeIcon("ChevronsLeft"),
+    ChevronsRight: makeIcon("ChevronsRight"),
+  };
+});
+
 const TestRenderer = require("react-test-renderer");
 
 vi.mock("@/hooks/use-tour-target", () => ({

@@ -8,6 +8,27 @@ import { buildTempGoal } from '@/lib/goal-mutation-helpers'
 import { useChatStore } from '@/stores/chat-store'
 import { useUIStore } from '@/stores/ui-store'
 
+vi.mock('@/components/ui/icons', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/icons')>()
+  const createIcon = (name: string) => (props: Record<string, unknown>) => React.createElement(name, props)
+  return {
+    ...actual,
+    Minus: createIcon('Minus'),
+    Check: createIcon('Check'),
+    ChevronLeft: createIcon('ChevronLeft'),
+    ArchiveX: createIcon('ArchiveX'),
+    CheckCircle2: createIcon('CheckCircle2'),
+    ChevronRight: createIcon('ChevronRight'),
+    Flame: createIcon('Flame'),
+    PencilLine: createIcon('PencilLine'),
+    Plus: createIcon('Plus'),
+    Repeat: createIcon('Repeat'),
+    RotateCw: createIcon('RotateCw'),
+    Orbit: createIcon('Orbit'),
+    Trash2: createIcon('Trash2'),
+  }
+})
+
 const TestRenderer = require('react-test-renderer')
 
 function flattenText(node: unknown): string {

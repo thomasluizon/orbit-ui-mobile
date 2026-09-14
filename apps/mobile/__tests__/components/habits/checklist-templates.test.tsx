@@ -3,6 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ChecklistTemplate } from '@orbit/shared/types/checklist-template'
 import { ChecklistTemplates } from '@/components/habits/checklist-templates'
 
+vi.mock('@/components/ui/icons', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/icons')>()),
+  X: (props: Record<string, unknown>) => React.createElement('X', props),
+}))
+
 const mocks = vi.hoisted(() => ({
   templates: [] as ChecklistTemplate[],
   create: vi.fn(),

@@ -3,6 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { HabitCalendar } from '@/components/habits/habit-calendar'
 
+vi.mock('@/components/ui/icons', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/components/ui/icons')>()),
+  ChevronLeft: () => null,
+  ChevronRight: () => null,
+  X: () => null,
+}))
+
 const TestRenderer = require('react-test-renderer')
 
 vi.mock('react-i18next', () => ({

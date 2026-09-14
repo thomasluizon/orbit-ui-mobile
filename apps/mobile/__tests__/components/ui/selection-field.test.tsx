@@ -5,6 +5,15 @@ import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 const TestRenderer = require('react-test-renderer')
 
+vi.mock('@/components/ui/icons', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/icons')>()
+  const React = require('react')
+  return {
+    ...actual,
+    ChevronDown: (props: Record<string, unknown>) => React.createElement('ChevronDown', props),
+  }
+})
+
 vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
   radius: new Proxy({}, { get: () => 12 }),

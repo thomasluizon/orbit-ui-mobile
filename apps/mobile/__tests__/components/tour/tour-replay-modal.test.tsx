@@ -3,6 +3,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TourReplayModal } from '@/components/tour/tour-replay-modal'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
+vi.mock('@/components/ui/icons', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/ui/icons')>()
+  const React = require('react')
+  const createIcon = (name: string) => (props: Record<string, unknown>) => React.createElement(name, props)
+  return {
+    ...actual,
+    CheckCircle: createIcon('CheckCircle'),
+    Target: createIcon('Target'),
+    MessageCircle: createIcon('MessageCircle'),
+    CalendarDays: createIcon('CalendarDays'),
+    User: createIcon('User'),
+    Play: createIcon('Play'),
+  }
+})
+
 const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
