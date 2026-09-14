@@ -548,6 +548,10 @@ describe('mobile ProgressContent', () => {
     expect(text).not.toContain('progressScreen.achievements.lockedBody')
     const routes = tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.window.lockedAction')
     expect(routes).toHaveLength(1)
+    const routeProps = routes[0]!.props as Readonly<{ onClick?: unknown; disabled?: boolean; accessibilityState?: { disabled?: boolean } }>
+    expect(routeProps.onClick).toEqual(expect.any(Function))
+    expect(routeProps.disabled).not.toBe(true)
+    expect(routeProps.accessibilityState?.disabled).not.toBe(true)
     await TestRenderer.act(() => {
       ;(routes[0]!.props.onClick as () => void)()
     })
