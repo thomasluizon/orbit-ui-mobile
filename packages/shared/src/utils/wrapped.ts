@@ -17,39 +17,33 @@ export type WrappedSlide =
 
 export type WrappedSlideId = WrappedSlide['id']
 
-export interface WeeklyConsistencyComparison {
-  strongestIndex: number
-  weakestIndex: number
-}
+export type WeeklyConsistencyReading =
+  | { kind: 'thin' }
+  | { kind: 'even' }
+  | { kind: 'compared'; strongestIndex: number; weakestIndex: number }
 
-/** A weekday comparison needs completion averages from at least two weekdays. */
-export function hasEnoughWeeklyConsistencyToCompare(weeklyConsistency: readonly number[]): boolean {
-  return weeklyConsistency.slice(0, 7).filter((value) => value > 0).length >= 2
-}
-
-/** Finds the first strongest and quietest logged weekdays in Monday-first order. */
-export function getWeeklyConsistencyComparison(
+export function getWeeklyConsistencyReading(
   weeklyConsistency: readonly number[],
-): WeeklyConsistencyComparison {
-  let strongestIndex = -1
-  let strongestValue = Number.NEGATIVE_INFINITY
-  let weakestIndex = -1
-  let weakestValue = Number.POSITIVE_INFINITY
+): WeeklyConsistencyReading {
+  const loggedWeekdays = weeklyConsistency
+    .slice(0, 7)
+    .map((value, index) => ({ index, value }))
+    .filter(({ value }) => value > 0)
+  if (loggedWeekdays.length < 2) return { kind: 'thin' }
 
-  for (let index = 0; index < Math.min(weeklyConsistency.length, 7); index++) {
-    const value = weeklyConsistency[index]!
-    if (value <= 0) continue
-    if (value > strongestValue) {
-      strongestIndex = index
-      strongestValue = value
-    }
-    if (value < weakestValue) {
-      weakestIndex = index
-      weakestValue = value
-    }
+  let strongest = loggedWeekdays[0]!
+  let weakest = strongest
+  for (const weekday of loggedWeekdays.slice(1)) {
+    if (weekday.value > strongest.value) strongest = weekday
+    if (weekday.value < weakest.value) weakest = weekday
   }
 
-  return { strongestIndex, weakestIndex }
+  if (strongest.value === weakest.value) return { kind: 'even' }
+  return {
+    kind: 'compared',
+    strongestIndex: strongest.index,
+    weakestIndex: weakest.index,
+  }
 }
 
 /**

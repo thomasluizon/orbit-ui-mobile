@@ -5,8 +5,7 @@ import { useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
 import {
   formatCompletionRate,
-  getWeeklyConsistencyComparison,
-  hasEnoughWeeklyConsistencyToCompare,
+  getWeeklyConsistencyReading,
   type RecapSharePeriod,
   type WrappedSlide as WrappedSlideModel,
 } from '@orbit/shared/utils'
@@ -186,25 +185,33 @@ function WeekdayColumns({ values }: Readonly<{ values: number[] }>) {
 
 function WeekdayInterpretation({ values }: Readonly<{ values: number[] }>) {
   const t = useTranslations()
-  if (!hasEnoughWeeklyConsistencyToCompare(values)) {
-    return <p style={captionStyle}>{t('wrapped.slides.consistency.thin')}</p>
+  const reading = getWeeklyConsistencyReading(values)
+  switch (reading.kind) {
+    case 'thin':
+      return <p style={captionStyle}>{t('wrapped.slides.consistency.thin')}</p>
+    case 'even':
+      return (
+        <>
+          <p style={captionStyle}>{t('wrapped.slides.consistency.even')}</p>
+          <p style={captionStyle}>{t('wrapped.slides.consistency.note')}</p>
+        </>
+      )
+    case 'compared': {
+      const strongestWeekday = WEEKDAY_KEYS[reading.strongestIndex]!
+      const weakestWeekday = WEEKDAY_KEYS[reading.weakestIndex]!
+      return (
+        <>
+          <p style={captionStyle}>
+            {t('wrapped.slides.consistency.summary', {
+              strong: t(`dates.daysShort.${strongestWeekday}`),
+              weak: t(`dates.daysShort.${weakestWeekday}`),
+            })}
+          </p>
+          <p style={captionStyle}>{t('wrapped.slides.consistency.note')}</p>
+        </>
+      )
+    }
   }
-
-  const { strongestIndex, weakestIndex } = getWeeklyConsistencyComparison(values)
-  const strongestWeekday = WEEKDAY_KEYS[strongestIndex]!
-  const weakestWeekday = WEEKDAY_KEYS[weakestIndex]!
-
-  return (
-    <>
-      <p style={captionStyle}>
-        {t('wrapped.slides.consistency.summary', {
-          strong: t(`dates.daysShort.${strongestWeekday}`),
-          weak: t(`dates.daysShort.${weakestWeekday}`),
-        })}
-      </p>
-      <p style={captionStyle}>{t('wrapped.slides.consistency.note')}</p>
-    </>
-  )
 }
 
 interface WrappedShareSlideProps {

@@ -1585,6 +1585,7 @@
         "title": "Your weekly rhythm",
         "caption": "How your last seven days landed.",
         "summary": "{strong} is your strongest day. {weak} is your quietest.",
+        "even": "Your days are even. No single day stands out.",
         "note": "Each bar is that day's average across the period.",
         "thin": "Not enough logged yet to compare your days."
       },

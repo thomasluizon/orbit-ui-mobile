@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildWrappedSlides, hasEnoughWeeklyConsistencyToCompare } from '../utils/wrapped'
+import { buildWrappedSlides, getWeeklyConsistencyReading } from '../utils/wrapped'
 import { createMockRecap, createMockRetrospectiveMetrics } from './factories'
 
 describe('buildWrappedSlides', () => {
@@ -78,12 +78,20 @@ describe('buildWrappedSlides', () => {
   })
 })
 
-describe('hasEnoughWeeklyConsistencyToCompare', () => {
-  it('allows a comparison when exactly two weekdays carry completions', () => {
-    expect(hasEnoughWeeklyConsistencyToCompare([0, 20, 0, 0, 0, 60, 0])).toBe(true)
+describe('getWeeklyConsistencyReading', () => {
+  it('returns thin when exactly one weekday carries completions', () => {
+    expect(getWeeklyConsistencyReading([0, 20, 0, 0, 0, 0, 0])).toEqual({ kind: 'thin' })
   })
 
-  it('rejects a comparison when exactly one weekday carries completions', () => {
-    expect(hasEnoughWeeklyConsistencyToCompare([0, 20, 0, 0, 0, 0, 0])).toBe(false)
+  it('returns even when all logged weekdays carry the same average', () => {
+    expect(getWeeklyConsistencyReading([50, 50, 0, 0, 0, 0, 0])).toEqual({ kind: 'even' })
+  })
+
+  it('returns different strongest and weakest weekdays when their averages differ', () => {
+    expect(getWeeklyConsistencyReading([90, 20, 0, 0, 0, 0, 0])).toEqual({
+      kind: 'compared',
+      strongestIndex: 0,
+      weakestIndex: 1,
+    })
   })
 })

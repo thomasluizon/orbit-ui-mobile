@@ -1585,6 +1585,7 @@
         "title": "Seu ritmo semanal",
         "caption": "Como foram seus últimos sete dias.",
         "summary": "{strong} é o seu dia mais forte. {weak} é o mais calmo.",
+        "even": "Seus dias estão parelhos. Nenhum dia se destaca.",
         "note": "Cada barra é a média daquele dia no período.",
         "thin": "Ainda não há registros suficientes para comparar os seus dias."
       },

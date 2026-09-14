@@ -571,10 +571,13 @@ export {
 export type { RecapSharePeriod, ShareCardStat } from './share-card'
 export {
   buildWrappedSlides,
-  getWeeklyConsistencyComparison,
-  hasEnoughWeeklyConsistencyToCompare,
+  getWeeklyConsistencyReading,
 } from './wrapped'
-export type { WeeklyConsistencyComparison, WrappedSlide, WrappedSlideId } from './wrapped'
+export type {
+  WeeklyConsistencyReading,
+  WrappedSlide,
+  WrappedSlideId,
+} from './wrapped'
 export {
   canAccessEntitlement,
   DEFAULT_FREE_COLOR_SCHEME,

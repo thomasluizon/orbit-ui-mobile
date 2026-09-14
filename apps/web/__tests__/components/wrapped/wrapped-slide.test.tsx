@@ -95,6 +95,18 @@ describe('WrappedSlide', () => {
     expect(slide).not.toHaveTextContent('wrapped.slides.consistency.summary')
   })
 
+  it('explains equal logged weekdays without naming one as strongest and quietest', () => {
+    const evenRecap = createMockRecap({
+      metrics: createMockRetrospectiveMetrics({ weeklyConsistency: [50, 50, 0, 0, 0, 0, 0] }),
+    })
+    const consistency = buildWrappedSlides(evenRecap).find((slide) => slide.id === 'consistency')!
+    renderSlide(consistency)
+
+    const slide = screen.getByTestId('wrapped-slide-consistency')
+    expect(slide).toHaveTextContent('wrapped.slides.consistency.even')
+    expect(slide).not.toHaveTextContent('wrapped.slides.consistency.summary')
+  })
+
   it('gives every page exactly one focal figure', () => {
     for (const slide of buildWrappedSlides(recap)) {
       const view = renderSlide(slide)
