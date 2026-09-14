@@ -3,8 +3,10 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { STEP_UP_ATTEMPT_WINDOW_MS } from '@orbit/shared/utils'
 import {
   beginStepUpChallenge,
+  isStepUpVerified,
   markStepUpAttemptFailed,
   markStepUpExhausted,
+  markStepUpVerified,
   readStepUpTiming,
 } from '@/lib/step-up-storage'
 
@@ -52,5 +54,14 @@ describe('mobile step up timing storage', () => {
       sentAt: 2_000,
     })
     expect(failedTwice.failedAttempts).toBe(2)
+  })
+
+  it('holds a verified result in memory for the session', () => {
+    expect(isStepUpVerified('keys')).toBe(false)
+
+    markStepUpVerified('keys')
+
+    expect(isStepUpVerified('keys')).toBe(true)
+    expect(isStepUpVerified('keys')).toBe(true)
   })
 })

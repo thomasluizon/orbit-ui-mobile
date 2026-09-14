@@ -13,6 +13,7 @@ const {
   mockProfileState,
   mockRouterPush,
   mockSearchParams,
+  mockStepUpVerified,
   mockApiKeys,
   mockCreateApiKey,
 } = vi.hoisted(() => ({
@@ -24,6 +25,7 @@ const {
   mockPatchProfile: vi.fn(),
   mockRouterPush: vi.fn(),
   mockSearchParams: { current: '' },
+  mockStepUpVerified: { current: false },
   mockApiKeys: { current: [] as Record<string, unknown>[] },
   mockCreateApiKey: vi.fn(),
   mockProfileState: {
@@ -45,6 +47,11 @@ vi.mock('@/app/actions/api-keys', () => ({
   createApiKey: mockCreateApiKey,
   revokeApiKey: vi.fn(),
   requestApiKeyCreationChallenge: vi.fn(),
+}))
+
+vi.mock('@/lib/step-up-storage', () => ({
+  beginStepUpChallenge: vi.fn(),
+  isStepUpVerified: () => mockStepUpVerified.current,
 }))
 
 vi.mock('@orbit/shared/hooks', async (importOriginal) => ({
@@ -170,6 +177,7 @@ describe('ProfilePage', () => {
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()
     mockSearchParams.current = ''
+    mockStepUpVerified.current = false
     mockApiKeys.current = []
     mockCreateApiKey.mockReset()
     mockProfileState.current = {
@@ -291,13 +299,33 @@ describe('ProfilePage', () => {
     expect(apiKeys.queryByText('orbitMcp.noKeys')).not.toBeInTheDocument()
   })
 
-  it('shows verified keys and submits a free-text scope', async () => {
+  it('does not unlock API keys from a manually typed return hint', () => {
     mockProfileState.current = {
       profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
       isLoading: false,
       error: null,
     }
     mockSearchParams.current = 'api-keys=1'
+    mockApiKeys.current = [{
+      id: 'key-1',
+      name: 'Work key',
+      keyPrefix: 'orb_live_1234',
+    }]
+
+    render(<ProfilePage />)
+
+    const apiKeys = within(screen.getByTestId('profile-api-keys'))
+    expect(apiKeys.getByRole('button', { name: 'profile.apiKeys.open' })).toBeInTheDocument()
+    expect(apiKeys.queryByText('Work key')).not.toBeInTheDocument()
+  })
+
+  it('shows verified keys and submits a free-text scope', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockStepUpVerified.current = true
     mockApiKeys.current = [{
       id: 'key-1',
       name: 'Work key',
@@ -338,6 +366,77 @@ describe('ProfilePage', () => {
         scopes: ['habits:read'],
       })
     })
+  })
+
+  it('resets scoped creation after cancellation and successful creation', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockStepUpVerified.current = true
+    mockCreateApiKey
+      .mockRejectedValueOnce(new Error('failed'))
+      .mockResolvedValueOnce({ id: 'key-2', key: 'orb_secret' })
+    render(<ProfilePage />)
+
+    const apiKeys = within(screen.getByTestId('profile-api-keys'))
+    fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), {
+      target: { value: 'stale:scope' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.scopeAction' }))
+    expect(await screen.findByText('orbitMcp.createKeyError')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'profile.apiKeys.scopeTitle' })).not.toBeInTheDocument()
+    })
+
+    fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
+    expect(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' })).toHaveValue('')
+    expect(screen.queryByText('orbitMcp.createKeyError')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' }), {
+      target: { value: 'fresh:scope' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'profile.apiKeys.scopeAction' }))
+    expect(await screen.findByRole('dialog', { name: 'orbitMcp.revealHeading' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.done' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: 'orbitMcp.revealHeading' })).not.toBeInTheDocument()
+    })
+
+    fireEvent.click(apiKeys.getByRole('button', { name: 'profile.apiKeys.createScoped' }))
+    expect(screen.getByRole('textbox', { name: 'profile.apiKeys.scopeLabel' })).toHaveValue('')
+  })
+
+  it('starts each newly revealed key in the not copied state', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockStepUpVerified.current = true
+    mockCreateApiKey
+      .mockResolvedValueOnce({ id: 'key-1', key: 'orb_first' })
+      .mockResolvedValueOnce({ id: 'key-2', key: 'orb_second' })
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+    })
+    render(<ProfilePage />)
+
+    const create = screen.getByRole('button', { name: 'profile.apiKeys.create' })
+    fireEvent.click(create)
+    await screen.findByText('orb_first')
+    fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.copy' }))
+    expect(await screen.findByRole('button', { name: 'orbitMcp.copied' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'orbitMcp.done' }))
+    await waitFor(() => expect(screen.queryByText('orb_first')).not.toBeInTheDocument())
+
+    fireEvent.click(create)
+    await screen.findByText('orb_second')
+    expect(screen.getByRole('button', { name: 'orbitMcp.copy' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'orbitMcp.copied' })).not.toBeInTheDocument()
   })
 
   it('shows trial copy and routes its allowance action to the trial pitch', () => {

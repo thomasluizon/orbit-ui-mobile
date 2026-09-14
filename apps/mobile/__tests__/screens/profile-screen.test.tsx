@@ -31,6 +31,7 @@ const {
   mockRouterPush,
   mockProfileState,
   mockSearchParams,
+  mockStepUpVerified,
   mockApiKeys,
 } = vi.hoisted(() => ({
   mockApiClient: vi.fn(),
@@ -46,6 +47,7 @@ const {
   mockShellNoticeSlot: vi.fn(),
   mockRouterPush: vi.fn(),
   mockSearchParams: { current: {} },
+  mockStepUpVerified: { current: false },
   mockApiKeys: { current: [] as Record<string, unknown>[] },
   mockProfileState: {
     current: {
@@ -182,6 +184,11 @@ vi.mock('@/lib/api-client', () => ({
   apiClient: mockApiClient,
 }))
 
+vi.mock('@/lib/step-up-storage', () => ({
+  beginStepUpChallenge: vi.fn(),
+  isStepUpVerified: () => mockStepUpVerified.current,
+}))
+
 vi.mock('@/lib/queued-api-mutation', () => ({
   performQueuedApiMutation: mockPerformQueuedApiMutation,
 }))
@@ -285,6 +292,38 @@ vi.mock('@/components/ui/settings-group', () => ({
 
 vi.mock('@/components/ui/row-list', () => ({
   RowList: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}))
+
+vi.mock('@/components/ui/sheet', () => ({
+  useSheetHost: () => {
+    const sheetRef = React.useRef<{ requestClose: (exitAction?: () => void) => void } | null>(null)
+    return {
+      sheetRef,
+      closeSheet: (exitAction?: () => void) => sheetRef.current?.requestClose(exitAction),
+    }
+  },
+  Sheet: React.forwardRef(function SheetStub(
+    {
+      title,
+      actions,
+      onClose,
+      children,
+    }: {
+      title: string
+      actions?: React.ReactNode
+      onClose?: () => void
+      children: React.ReactNode
+    },
+    ref: React.ForwardedRef<{ requestClose: (exitAction?: () => void) => void }>,
+  ) {
+    React.useImperativeHandle(ref, () => ({
+      requestClose: (exitAction?: () => void) => {
+        if (exitAction) exitAction()
+        else onClose?.()
+      },
+    }), [onClose])
+    return React.createElement('SheetStub', { title }, children, actions)
+  }),
 }))
 
 vi.mock('@/components/ui/list-row', () => ({
@@ -402,6 +441,22 @@ function findRowByLabel(
   return row
 }
 
+function nodeText(node: unknown): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (!node || typeof node !== 'object' || !('children' in node)) return ''
+  return (node as { children: unknown[] }).children.map(nodeText).join('')
+}
+
+function findButtonByText(
+  tree: ReturnType<typeof TestRenderer.create>,
+  label: string,
+) {
+  return tree.root.find(
+    (node: { props: { accessibilityRole?: string }; children: unknown[] }) =>
+      node.props.accessibilityRole === 'button' && nodeText(node) === label,
+  )
+}
+
 describe('ProfileScreen', () => {
   beforeEach(() => {
     mockApiClient.mockReset()
@@ -412,6 +467,7 @@ describe('ProfileScreen', () => {
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()
     mockSearchParams.current = {}
+    mockStepUpVerified.current = false
     mockApiKeys.current = []
     mockProfileState.current = {
       profile: createMockProfile({
@@ -589,13 +645,35 @@ describe('ProfileScreen', () => {
     ).toHaveLength(1)
   })
 
-  it('shows verified keys with a named revoke action', async () => {
+  it('does not unlock API keys from a manually typed return hint', async () => {
     mockProfileState.current = {
       profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
       isLoading: false,
       error: null,
     }
     mockSearchParams.current = { 'api-keys': '1' }
+    mockApiKeys.current = [{
+      id: 'key-1',
+      name: 'Work key',
+      keyPrefix: 'orb_live_1234',
+    }]
+
+    const tree = await renderProfileScreen()
+
+    expect(findRowByLabel(tree, 'profile.apiKeys.open')).toBeDefined()
+    expect(
+      tree.root.findAll((node: { children: unknown[] }) =>
+        node.children.includes('Work key')),
+    ).toHaveLength(0)
+  })
+
+  it('shows verified keys with a named revoke action', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockStepUpVerified.current = true
     mockApiKeys.current = [{
       id: 'key-1',
       name: 'Work key',
@@ -617,9 +695,88 @@ describe('ProfileScreen', () => {
     })
     TestRenderer.act(() => revoke.props.onPress())
     expect(
-      tree.root.findAll((node: { children: unknown[] }) =>
-        node.children.includes('profile.apiKeys.revokeNamedQuestion')),
+      tree.root.findAll((node: { type: unknown; props: { title?: string } }) =>
+        node.type === 'SheetStub' && node.props.title === 'profile.apiKeys.revokeNamedQuestion'),
     ).toHaveLength(1)
+  })
+
+  it('resets scoped creation after cancellation and successful creation', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockStepUpVerified.current = true
+    mockApiClient
+      .mockRejectedValueOnce(new Error('failed'))
+      .mockResolvedValueOnce({ id: 'key-2', key: 'orb_secret' })
+    const tree = await renderProfileScreen()
+
+    await TestRenderer.act(async () => {
+      findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress()
+      await Promise.resolve()
+    })
+    const firstInput = tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' })
+    await TestRenderer.act(async () => {
+      firstInput.props.onChangeText('stale:scope')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      findButtonByText(tree, 'profile.apiKeys.scopeAction').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(nodeText(tree.root)).toContain('orbitMcp.createKeyError')
+    TestRenderer.act(() => findButtonByText(tree, 'common.cancel').props.onPress())
+
+    TestRenderer.act(() => findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress())
+    expect(tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.value).toBe('')
+    expect(nodeText(tree.root)).not.toContain('orbitMcp.createKeyError')
+    await TestRenderer.act(async () => {
+      tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('fresh:scope')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      findButtonByText(tree, 'profile.apiKeys.scopeAction').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(nodeText(tree.root)).toContain('orb_secret')
+    TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.done').props.onPress())
+
+    TestRenderer.act(() => findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress())
+    expect(tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.value).toBe('')
+  })
+
+  it('starts each newly revealed key in the not copied state', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockStepUpVerified.current = true
+    mockApiClient
+      .mockResolvedValueOnce({ id: 'key-1', key: 'orb_first' })
+      .mockResolvedValueOnce({ id: 'key-2', key: 'orb_second' })
+    const tree = await renderProfileScreen()
+
+    await TestRenderer.act(async () => {
+      findButtonByText(tree, 'profile.apiKeys.create').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.copy').props.onPress())
+    expect(nodeText(tree.root)).toContain('orbitMcp.copied')
+    TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.done').props.onPress())
+
+    await TestRenderer.act(async () => {
+      findButtonByText(tree, 'profile.apiKeys.create').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(nodeText(tree.root)).toContain('orb_second')
+    expect(nodeText(tree.root)).toContain('orbitMcp.copy')
+    expect(nodeText(tree.root)).not.toContain('orbitMcp.copied')
   })
 
   it('shows trial copy and routes its allowance action to the trial pitch', async () => {

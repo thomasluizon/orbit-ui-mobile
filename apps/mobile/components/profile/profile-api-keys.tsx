@@ -80,7 +80,6 @@ function ApiKeyList({ apiKeys, isLoading, loadError, onRevoke, onRetry }: Readon
 }
 
 interface ScopeSheetProps {
-  open: boolean
   busy: boolean
   error: string | null
   onClose: () => void
@@ -88,12 +87,10 @@ interface ScopeSheetProps {
   onCreated: (createdKey: ApiKeyCreateResponse) => void
 }
 
-function ScopeSheet({ open, busy, error, onClose, onCreate, onCreated }: Readonly<ScopeSheetProps>) {
+function ScopeSheet({ busy, error, onClose, onCreate, onCreated }: Readonly<ScopeSheetProps>) {
   const { t } = useTranslation()
   const { sheetRef, closeSheet } = useSheetHost()
   const [scope, setScope] = useState('')
-  if (!open) return null
-
   async function submit() {
     const trimmedScope = scope.trim()
     if (!trimmedScope) return
@@ -126,7 +123,7 @@ function ScopeSheet({ open, busy, error, onClose, onCreate, onCreated }: Readonl
 }
 
 interface RevealSheetProps {
-  createdKey: ApiKeyCreateResponse | null
+  createdKey: ApiKeyCreateResponse
   onClose: () => void
 }
 
@@ -135,7 +132,6 @@ function RevealSheet({ createdKey, onClose }: Readonly<RevealSheetProps>) {
   const tokens = useTokens()
   const { sheetRef, closeSheet } = useSheetHost()
   const [copied, setCopied] = useState(false)
-  if (!createdKey) return null
 
   return (
     <Sheet
@@ -254,6 +250,11 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
     if (result) setCreatedKey(result)
   }
 
+  function openScopeSheet() {
+    management.clearCreateKeyError()
+    setScopeOpen(true)
+  }
+
   const revokingKey = management.apiKeys.find((apiKey) => apiKey.id === management.revokingKeyId)
 
   return (
@@ -272,7 +273,6 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
 
       {!hasProAccess ? (
         <RowList>
-          {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
           <ListRow
             icon={<Lock size={24} strokeWidth={1.8} color={tokens.fg1} />}
             title={t('profile.apiKeys.unlock')}
@@ -306,7 +306,7 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
                 {t('profile.apiKeys.create')}
               </PillButton>
               {/* eslint-disable-next-line local/max-button-words -- Canvas-owned control copy. */}
-              <PillButton variant="ghost" size="sm" onClick={() => setScopeOpen(true)}>
+              <PillButton variant="ghost" size="sm" onClick={openScopeSheet}>
                 {t('profile.apiKeys.createScoped')}
               </PillButton>
             </View>
@@ -321,18 +321,21 @@ export function ProfileApiKeys({ profile, unlocked }: Readonly<ProfileApiKeysPro
         </>
       )}
 
-      <ScopeSheet
-        open={scopeOpen}
-        busy={creating}
-        error={management.createKeyError}
-        onClose={() => setScopeOpen(false)}
-        onCreate={(scope) => createKey({ name: t('profile.apiKeys.newKeyName'), scopes: [scope] })}
-        onCreated={(result) => {
-          setScopeOpen(false)
-          setCreatedKey(result)
-        }}
-      />
-      <RevealSheet createdKey={createdKey} onClose={() => setCreatedKey(null)} />
+      {scopeOpen ? (
+        <ScopeSheet
+          busy={creating}
+          error={management.createKeyError}
+          onClose={() => setScopeOpen(false)}
+          onCreate={(scope) => createKey({ name: t('profile.apiKeys.newKeyName'), scopes: [scope] })}
+          onCreated={(result) => {
+            setScopeOpen(false)
+            setCreatedKey(result)
+          }}
+        />
+      ) : null}
+      {createdKey ? (
+        <RevealSheet createdKey={createdKey} onClose={() => setCreatedKey(null)} />
+      ) : null}
       <ConfirmSheet
         open={revokingKey != null}
         title={revokingKey ? t('profile.apiKeys.revokeNamedQuestion', { name: revokingKey.name }) : ''}

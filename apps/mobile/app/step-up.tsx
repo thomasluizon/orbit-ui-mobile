@@ -28,6 +28,7 @@ import {
   clearStepUpTiming,
   markStepUpAttemptFailed,
   markStepUpExhausted,
+  markStepUpVerified,
   readStepUpTiming,
 } from '@/lib/step-up-storage'
 import { useProfile } from '@/hooks/use-profile'
@@ -164,7 +165,8 @@ export default function StepUpScreen() {
           stepUpMessageResponseSchema,
         )
         await clearStepUpTiming(operation)
-        router.replace('/profile?api-keys=1')
+        markStepUpVerified(operation)
+        router.replace('/profile')
         return
       }
       const response = await apiClient<AccountDeactivationResponse>(

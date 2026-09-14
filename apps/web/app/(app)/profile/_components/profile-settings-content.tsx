@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useShellNoticeSlot } from '@orbit/shared/hooks'
@@ -42,6 +42,7 @@ import { ProBadge } from '@/components/ui/pro-badge'
 import { Toast } from '@/components/ui/toast'
 import { useAuthStore } from '@/stores/auth-store'
 import { useIsClient } from '@/hooks/use-is-client'
+import { isStepUpVerified } from '@/lib/step-up-storage'
 import { MarketingConsentSection } from '@/app/(app)/preferences/_components/marketing-consent-section'
 import { PreferencePickerSheet, type PreferencePicker } from '@/app/(app)/preferences/_components/preference-picker-sheet'
 import { usePreferenceControls } from '@/app/(app)/preferences/_components/use-preference-controls'
@@ -234,7 +235,6 @@ export function ProfileSettingsContent({
 }: Readonly<ProfileSettingsContentProps>) {
   const t = useTranslations()
   const router = useRouter()
-  const searchParams = useSearchParams()
   const mounted = useIsClient()
   const logout = useAuthStore((state) => state.logout)
   const preferenceControls = usePreferenceControls()
@@ -248,6 +248,7 @@ export function ProfileSettingsContent({
   const [showEditName, setShowEditName] = useState(false)
   const [showFreshStart, setShowFreshStart] = useState(false)
   const [showDeleteAccount, setShowDeleteAccount] = useState(false)
+  const [apiKeysUnlocked] = useState(() => isStepUpVerified('keys'))
   const astraSettings = useAstraSettingsController(profile, patchProfile)
   useShellNoticeSlot(
     exportDone,
@@ -270,7 +271,7 @@ export function ProfileSettingsContent({
       () => void exportData(),
       () => preferenceControls.setActivePicker('timeZone'),
     ),
-    astra: buildAstraRows(context, astraSettings, searchParams.get('api-keys') === '1'),
+    astra: buildAstraRows(context, astraSettings, apiKeysUnlocked),
     notifications: [
       <MarketingConsentSection
         key="product-email"

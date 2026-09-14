@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   logout: vi.fn(),
   markAttemptFailed: vi.fn(),
   markExhausted: vi.fn(),
+  markVerified: vi.fn(),
   operation: 'delete',
   profile: {
     email: 'person@example.com',
@@ -64,6 +65,7 @@ vi.mock('@/lib/step-up-storage', () => ({
   clearStepUpTiming: (operation: string) => mocks.clearTiming(operation),
   markStepUpAttemptFailed: (record: unknown) => mocks.markAttemptFailed(record),
   markStepUpExhausted: (record: unknown) => mocks.markExhausted(record),
+  markStepUpVerified: (operation: string) => mocks.markVerified(operation),
   readStepUpTiming: (operation: string) => mocks.readTiming(operation),
 }))
 vi.mock('@/components/shell/flow-shell', () => ({
@@ -345,6 +347,7 @@ describe('mobile step up screen', () => {
       expect.anything(),
     )
     expect(mocks.clearTiming).toHaveBeenCalledWith('keys')
-    expect(mocks.router.replace).toHaveBeenCalledWith('/profile?api-keys=1')
+    expect(mocks.markVerified).toHaveBeenCalledWith('keys')
+    expect(mocks.router.replace).toHaveBeenCalledWith('/profile')
   })
 })

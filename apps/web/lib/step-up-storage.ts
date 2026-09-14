@@ -6,6 +6,16 @@ import {
   type StepUpTimingRecord,
 } from '@orbit/shared/utils'
 
+const verifiedOperations = new Set<StepUpOperation>()
+
+export function markStepUpVerified(operation: StepUpOperation): void {
+  verifiedOperations.add(operation)
+}
+
+export function isStepUpVerified(operation: StepUpOperation): boolean {
+  return verifiedOperations.has(operation)
+}
+
 export function readStepUpTiming(operation: StepUpOperation): StepUpTimingRecord | null {
   if (!('localStorage' in globalThis)) return null
   const record = parseStepUpTimingRecord(globalThis.localStorage.getItem(getStepUpStorageKey(operation)))

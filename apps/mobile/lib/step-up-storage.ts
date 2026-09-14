@@ -7,6 +7,16 @@ import {
   type StepUpTimingRecord,
 } from '@orbit/shared/utils'
 
+const verifiedOperations = new Set<StepUpOperation>()
+
+export function markStepUpVerified(operation: StepUpOperation): void {
+  verifiedOperations.add(operation)
+}
+
+export function isStepUpVerified(operation: StepUpOperation): boolean {
+  return verifiedOperations.has(operation)
+}
+
 export async function readStepUpTiming(
   operation: StepUpOperation,
 ): Promise<StepUpTimingRecord | null> {

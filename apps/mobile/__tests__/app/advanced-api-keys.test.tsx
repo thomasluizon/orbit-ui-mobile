@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { apiKeyKeys } from '@orbit/shared/query'
 import type {
-  AgentCapability,
   ApiKey,
   ApiKeyCreateRequest,
 } from '@orbit/shared/types'
@@ -36,13 +35,11 @@ const mocks = vi.hoisted(() => {
   }
   const queryConfigs: { queryKey: readonly unknown[]; queryFn: () => unknown }[] = []
   const apiKeysResult: QueryResult = { data: [] }
-  const capabilitiesResult: QueryResult = { data: [], isLoading: false, error: null }
   return {
     store,
     queryClient,
     queryConfigs,
     apiKeysResult,
-    capabilitiesResult,
     apiClient: vi.fn(),
     performQueuedApiMutation: vi.fn(() => Promise.resolve(undefined)),
   }
@@ -51,7 +48,6 @@ const mocks = vi.hoisted(() => {
 vi.mock('@tanstack/react-query', () => ({
   useQuery: vi.fn((config: { queryKey: readonly unknown[]; queryFn: () => unknown }) => {
     mocks.queryConfigs.push(config)
-    if (config.queryKey.includes('capabilities')) return mocks.capabilitiesResult
     if (config.queryKey.includes('apiKeys')) return mocks.apiKeysResult
     return { data: undefined }
   }),
@@ -70,10 +66,6 @@ type ApiKeyManagement = ReturnType<typeof useApiKeyManagement>
 
 function apiKey(id: string): ApiKey {
   return { id } as ApiKey
-}
-
-function capability(scope: string, displayName: string): AgentCapability {
-  return { scope, displayName } as AgentCapability
 }
 
 function translate(key: string): string {
@@ -125,7 +117,6 @@ describe('useApiKeyManagement', () => {
     mocks.store.clear()
     mocks.queryConfigs = []
     mocks.apiKeysResult = { data: [] }
-    mocks.capabilitiesResult = { data: [], isLoading: false, error: null }
     mocks.queryClient.cancelQueries.mockClear()
     mocks.queryClient.invalidateQueries.mockClear()
     mocks.queryClient.getQueryData.mockClear()
@@ -134,21 +125,17 @@ describe('useApiKeyManagement', () => {
     mocks.performQueuedApiMutation.mockClear()
   })
 
-  it('fetches keys and capabilities from their endpoints', async () => {
+  it('fetches only the API keys needed by the relocated surface', async () => {
     mocks.apiClient.mockResolvedValue([])
     renderApiKeys()
 
     const listConfig = mocks.queryConfigs.find(
       (config) => config.queryKey.includes('apiKeys') && config.queryKey.includes('list'),
     )
-    const capabilitiesConfig = mocks.queryConfigs.find((config) =>
-      config.queryKey.includes('capabilities'),
-    )
     await listConfig?.queryFn()
-    await capabilitiesConfig?.queryFn()
 
     expect(mocks.apiClient).toHaveBeenCalledWith(API.apiKeys.list)
-    expect(mocks.apiClient).toHaveBeenCalledWith(API.ai.capabilities)
+    expect(mocks.queryConfigs).toHaveLength(1)
   })
 
   it('wires the revoke mutation to the queued delete endpoint', async () => {
@@ -166,28 +153,6 @@ describe('useApiKeyManagement', () => {
     )
   })
 
-  it('groups capabilities by scope, joins display names, and sorts alphabetically', () => {
-    mocks.capabilitiesResult = {
-      data: [
-        capability('habits.write', 'Create habit'),
-        capability('habits.write', 'Update habit'),
-        capability('goals.read', 'List goals'),
-      ],
-      isLoading: false,
-      error: null,
-    }
-    const hook = renderApiKeys()
-
-    expect(hook.current.scopeOptions).toEqual([
-      { scope: 'goals.read', label: 'goals.read', description: 'List goals' },
-      {
-        scope: 'habits.write',
-        label: 'habits.write',
-        description: 'Create habit, Update habit',
-      },
-    ])
-  })
-
   it('caps key creation at the maximum of five keys', () => {
     mocks.apiKeysResult = {
       data: Array.from({ length: 5 }, (_unused, index) => apiKey(String(index))),
@@ -198,32 +163,6 @@ describe('useApiKeyManagement', () => {
       data: Array.from({ length: 4 }, (_unused, index) => apiKey(String(index))),
     }
     expect(renderApiKeys().current.canCreateKey).toBe(true)
-  })
-
-  it('only allows scoped creation when capabilities are loaded and non-empty', () => {
-    mocks.capabilitiesResult = {
-      data: [capability('goals.read', 'List goals')],
-      isLoading: false,
-      error: null,
-    }
-    expect(renderApiKeys().current.canCreateScopedKey).toBe(true)
-
-    mocks.capabilitiesResult = { data: [], isLoading: false, error: null }
-    expect(renderApiKeys().current.canCreateScopedKey).toBe(false)
-
-    mocks.capabilitiesResult = {
-      data: [capability('goals.read', 'List goals')],
-      isLoading: true,
-      error: null,
-    }
-    expect(renderApiKeys().current.canCreateScopedKey).toBe(false)
-
-    mocks.capabilitiesResult = {
-      data: [capability('goals.read', 'List goals')],
-      isLoading: false,
-      error: new Error('down'),
-    }
-    expect(renderApiKeys().current.canCreateScopedKey).toBe(false)
   })
 
   it('short-circuits create when offline and never calls the API', async () => {

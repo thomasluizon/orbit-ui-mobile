@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useShellNoticeSlot } from '@orbit/shared/hooks'
@@ -53,6 +53,7 @@ import { DeleteAccountModal } from './delete-account-modal'
 import { EditNameSheet } from './edit-name-sheet'
 import { FreshStartModal } from './fresh-start-modal'
 import { useDataExport } from './use-data-export'
+import { isStepUpVerified } from '@/lib/step-up-storage'
 
 interface ProfileSettingsContentProps {
   profile: Profile | undefined
@@ -250,10 +251,6 @@ export function ProfileSettingsContent({
 }: Readonly<ProfileSettingsContentProps>) {
   const { t } = useTranslation()
   const router = useRouter()
-  const searchParams = useLocalSearchParams<{ 'api-keys'?: string | string[] }>()
-  const apiKeysParam = Array.isArray(searchParams['api-keys'])
-    ? searchParams['api-keys'][0]
-    : searchParams['api-keys']
   const logout = useLogout()
   const preferenceControls = usePreferenceControls()
   const tokens = useMemo(
@@ -270,6 +267,7 @@ export function ProfileSettingsContent({
   const [showEditName, setShowEditName] = useState(false)
   const [showFreshStart, setShowFreshStart] = useState(false)
   const [showDeleteAccount, setShowDeleteAccount] = useState(false)
+  const [apiKeysUnlocked] = useState(() => isStepUpVerified('keys'))
   const astraSettings = useAstraSettingsController(profile, patchProfile)
   useShellNoticeSlot(
     exportDone,
@@ -292,7 +290,7 @@ export function ProfileSettingsContent({
       () => void exportData(),
       () => preferenceControls.setActivePicker('timeZone'),
     ),
-    astra: buildAstraRows(context, astraSettings, apiKeysParam === '1'),
+    astra: buildAstraRows(context, astraSettings, apiKeysUnlocked),
     notifications: [
       <MarketingConsentSection key="product-email" showSectionLabel={false} contained />,
     ],
