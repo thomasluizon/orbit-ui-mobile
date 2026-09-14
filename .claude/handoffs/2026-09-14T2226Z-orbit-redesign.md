@@ -21,8 +21,35 @@ was caught by the Stop hook.
 
 ## The job
 
-`redesign/main` is `35c17cf3`. Two pull requests merged tonight, 947 and 955. **Nothing in flight
-waits on Thomas any more.** The whole queue is yours.
+**Finish the redesign.** Not the open pull requests, the redesign. The run ends when every screen
+ticket is closed and the whole thing is ready to ship, and until then the queue is never empty: when
+you land the last thing in flight, take the next screen.
+
+`redesign/main` is `35c17cf3`. Two pull requests merged tonight, 947 and 955. **Nothing waits on
+Thomas any more.** Copy is yours and api merges are yours, so there is no human gate left in this
+effort.
+
+Ten screen tickets are still open, read live 2026-09-14 at 22:26 UTC:
+
+    53  Goals: view, card, create, edit and detail (R6)
+    56  calendar and calendar sync (R8)
+    57  streak page, sections and freeze surfaces (R9)
+    58  achievements (R10)
+    63  insights, retrospective and wrapped (R12)
+    67  onboarding, tour and feature guide (R14)
+    71  settings: preferences, advanced, profile, account, notifications, API keys (R16)
+    73  about, privacy, terms and support (R18)
+    74  the whole-app copy voice pass over 2,905 i18n keys (R19)
+    76  the Android home-screen widget (R21)
+
+The spec calls some of these finished. **Verify each against the tree and its own stage list before
+you believe either the spec or the ticket**, then close the ones that are genuinely done. A ticket
+left open because nobody closed it and a ticket open because work remains look identical from here.
+
+Plus, on Progresso: `#472`, `#473`, `#476`, `#477`, `#478` and `#480`, the six accessibility and
+interaction sweeps, and `#356`, regenerating the redesign coverage mapping against the 21 canvas
+documents. `#356` is how you check your own completion claim, so run it before declaring anything
+done.
 
 Run local, batched. `caps.workerLaunchesPerBranch` is 2 once 964 merges, and the reason is real: this
 session spent 1.39M Codex tokens over 14 worker runs at `gpt-5.6-sol` with
@@ -97,7 +124,16 @@ durable fact is in the spec. It dies with the session.
 5. **Merge-forward 951, write its two strings, merge it.**
 6. **Drive Progresso once 518 is in**: 894, then 956, 957, 958, 959.
 7. **Merge 965, then 964** once its review lands.
-8. **Then About stages 3, 6, 7 and 8, and onboarding.** All copy, all yours, none blocked.
+8. **Then About stages 3, 6, 7 and 8, and onboarding, the tour and the feature guide.** All copy,
+   all yours, none blocked.
+9. **Then keep going down the screen list above** until every R ticket is closed. Take them in the
+   order that unblocks the most: a screen nothing is stacked on before one that is.
+10. **Then run `node tools/redesign-coverage.mjs --json`** and close the effort against what it
+    reports, not against this prompt. If it lists a surface nobody rebuilt, that surface is the next
+    ticket.
+
+**Do not stop because the pull requests ran out.** That is the middle of the job, not the end. The
+end is every screen ticket closed and the coverage mapping clean.
 
 ## --sleep
 
