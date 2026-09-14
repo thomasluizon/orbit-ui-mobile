@@ -51,6 +51,7 @@ import {
   resolveCalendarMonthDisplayState,
   resolveCalendarEventsDisplayState,
   type CalendarMonthDisplayState,
+  getFriendlyErrorMessage,
 } from "@orbit/shared/utils";
 import {
   getCalendarEntryMutationKey,
@@ -61,6 +62,11 @@ import type { Profile } from "@orbit/shared/types/profile";
 import { useCalendarData, useCalendarRange, useLogHabit } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
+import {
+  useCalendarAutoSyncState,
+  useSetCalendarAutoSync,
+} from "@/hooks/use-calendar-auto-sync";
+import { useAppToast } from "@/hooks/use-app-toast";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { createTokensV2 } from "@/lib/theme";
@@ -302,7 +308,16 @@ function CalendarProfileState({
 }
 
 interface CalendarScreenContentProps {
-  profile: Pick<Profile, 'weekStartDay' | 'timeZone' | 'hasProAccess'>;
+  profile: Pick<
+    Profile,
+    | 'weekStartDay'
+    | 'timeZone'
+    | 'hasProAccess'
+    | 'hasGoogleConnection'
+    | 'googleCalendarAutoSyncEnabled'
+    | 'googleCalendarAutoSyncStatus'
+    | 'googleCalendarLastSyncedAt'
+  >;
   currentMonth: Date;
   setCurrentMonth: Dispatch<SetStateAction<Date>>;
   monthQuery: ReturnType<typeof useCalendarData>;
@@ -317,6 +332,8 @@ function CalendarScreenContent({
 }: Readonly<CalendarScreenContentProps>) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const { sheetRef, closeSheet } = useSheetHost();
+  const { showError } = useAppToast();
   const { displayTime } = useTimeFormat();
   const todayKey = useCurrentDate(profile.timeZone);
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal);
@@ -377,6 +394,36 @@ function CalendarScreenContent({
     enabled: profile.hasProAccess,
     timeZone: profile.timeZone,
   });
+  const { data: autoSyncState } = useCalendarAutoSyncState({
+    enabled: profile.hasProAccess,
+    initialData: {
+      enabled: profile.googleCalendarAutoSyncEnabled,
+      status: profile.googleCalendarAutoSyncStatus,
+      lastSyncedAt: profile.googleCalendarLastSyncedAt,
+      hasGoogleConnection: profile.hasGoogleConnection,
+    },
+  });
+  const setCalendarAutoSync = useSetCalendarAutoSync();
+
+  const handleCalendarAutoSyncChange = useCallback(async (enabled: boolean) => {
+    try {
+      await setCalendarAutoSync.mutateAsync({ enabled });
+    } catch (error: unknown) {
+      showError(getFriendlyErrorMessage(
+        error,
+        t,
+        'calendar.autoSync.syncFailed',
+        'generic',
+      ));
+    }
+  }, [setCalendarAutoSync, showError, t]);
+
+  const openOrbitPro = useCallback(() => {
+    closeSheet(() => {
+      setIsDayDetailOpen(false);
+      router.push('/upgrade');
+    });
+  }, [closeSheet, router]);
   const calendarEventsState = resolveCalendarEventsDisplayState({
     enabled: profile.hasProAccess,
     isPending: calendarEventsPending,
@@ -651,8 +698,6 @@ function CalendarScreenContent({
     }));
   };
 
-  const { sheetRef, closeSheet } = useSheetHost();
-
   const goToSelectedDay = () => {
     if (!selectedDay) return;
     closeSheet(() => {
@@ -923,21 +968,20 @@ function CalendarScreenContent({
             selectedEntries={selectedEntries}
             filteredEntries={filteredEntries}
             calendarEvents={selectedCalendarEvents}
+            autoSyncState={autoSyncState}
             calendarEventsState={calendarEventsState}
             onRetryCalendarEvents={() => void refetchCalendarEvents()}
             onReconnectCalendarEvents={() => closeSheet(() => {
               setIsDayDetailOpen(false);
               router.push('/calendar-sync');
             })}
-            onViewPro={() => closeSheet(() => {
-              setIsDayDetailOpen(false);
-              router.push('/upgrade');
-            })}
+            onViewPro={openOrbitPro}
             completedCount={completedCount}
             loggable={selectedDayLoggable}
             showRecurring={showRecurring}
             pendingEntryStates={pendingEntryStates}
             onShowRecurringChange={setShowRecurring}
+            onCalendarAutoSyncChange={handleCalendarAutoSyncChange}
             onEntryChange={changeSelectedEntry}
             onGoToDay={goToSelectedDay}
             displayTime={displayTime}

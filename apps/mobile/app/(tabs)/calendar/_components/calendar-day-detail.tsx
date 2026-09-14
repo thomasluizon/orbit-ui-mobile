@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
-import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import type { StatusRingProps } from '@orbit/shared/contracts/lists'
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
@@ -20,6 +20,7 @@ import { StatusRing } from '@/components/ui/status-ring'
 import { EventRow } from '@/components/dates/event-row'
 import { createTokensV2, radius } from '@/lib/theme'
 import { ShowRecurringToggle } from './show-recurring-toggle'
+import { CalendarSyncBoundary } from './calendar-sync-boundary'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
@@ -28,6 +29,7 @@ interface CalendarDayDetailProps {
   selectedEntries: CalendarDayEntry[]
   filteredEntries: CalendarDayEntry[]
   calendarEvents: CalendarSyncEvent[]
+  autoSyncState: CalendarAutoSyncState | undefined
   calendarEventsState: CalendarEventsDisplayState
   onRetryCalendarEvents: () => void
   onReconnectCalendarEvents: () => void
@@ -37,6 +39,7 @@ interface CalendarDayDetailProps {
   showRecurring: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
   onShowRecurringChange: (value: boolean) => void
+  onCalendarAutoSyncChange: (value: boolean) => Promise<void>
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   onGoToDay: () => void
   displayTime: (time: string) => string
@@ -227,6 +230,7 @@ export function CalendarDayDetail({
   selectedEntries,
   filteredEntries,
   calendarEvents,
+  autoSyncState,
   calendarEventsState,
   onRetryCalendarEvents,
   onReconnectCalendarEvents,
@@ -236,6 +240,7 @@ export function CalendarDayDetail({
   showRecurring,
   pendingEntryStates,
   onShowRecurringChange,
+  onCalendarAutoSyncChange,
   onEntryChange,
   onGoToDay,
   displayTime,
@@ -325,6 +330,17 @@ export function CalendarDayDetail({
         styles={styles}
       />
 
+      {calendarEventsState !== 'pro-boundary' ? (
+        <View style={styles.syncBoundary}>
+          <CalendarSyncBoundary
+            autoSyncState={autoSyncState}
+            displayTime={displayTime}
+            onAutoSyncChange={onCalendarAutoSyncChange}
+            t={t}
+            tokens={tokens}
+          />
+        </View>
+      ) : null}
       {/* eslint-disable-next-line local/max-button-words -- #74 owns this existing control copy. */}
       <ListRow
         icon="external-link"
@@ -405,6 +421,9 @@ function createStyles(tokens: Tokens) {
       lineHeight: 22,
       paddingVertical: 24,
       textAlign: 'center',
+    },
+    syncBoundary: {
+      paddingHorizontal: 16,
     },
   })
 }

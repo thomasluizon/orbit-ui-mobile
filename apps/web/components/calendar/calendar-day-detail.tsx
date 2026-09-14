@@ -11,7 +11,7 @@ import {
   parseAPIDate,
   type CalendarEventsDisplayState,
 } from '@orbit/shared/utils'
-import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import type { StatusRingProps } from '@orbit/shared/contracts/lists'
 import { getCalendarEntryMutationKey } from '@orbit/shared/hooks'
@@ -24,11 +24,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { StatusRing } from '@/components/ui/status-ring'
 import { ShowRecurringToggle } from '@/components/calendar/show-recurring-toggle'
 import { EventRow } from '@/components/dates/event-row'
+import { CalendarSyncBoundary } from '@/components/calendar/calendar-sync-boundary'
 
 interface CalendarDayDetailProps {
   dateStr: string | null
   entries: CalendarDayEntry[]
   calendarEvents: CalendarSyncEvent[]
+  autoSyncState: CalendarAutoSyncState | undefined
   calendarEventsState: CalendarEventsDisplayState
   onRetryCalendarEvents: () => void
   onReconnectCalendarEvents: () => void
@@ -37,6 +39,7 @@ interface CalendarDayDetailProps {
   showRecurring: boolean
   pendingEntryStates: ReadonlyMap<string, boolean>
   onShowRecurringChange: (value: boolean) => void
+  onCalendarAutoSyncChange: (value: boolean) => Promise<void>
   onEntryChange: (entry: CalendarDayEntry, checked: boolean) => Promise<unknown> | null
   showRecurringToggle?: boolean
   /** Desktop side-panel mode: the entries list scrolls within the viewport and
@@ -278,6 +281,7 @@ export function CalendarDayDetail({
   dateStr,
   entries,
   calendarEvents,
+  autoSyncState,
   calendarEventsState,
   onRetryCalendarEvents,
   onReconnectCalendarEvents,
@@ -286,6 +290,7 @@ export function CalendarDayDetail({
   showRecurring,
   pendingEntryStates,
   onShowRecurringChange,
+  onCalendarAutoSyncChange,
   onEntryChange,
   showRecurringToggle = true,
   fitViewport = false,
@@ -359,6 +364,15 @@ export function CalendarDayDetail({
         onViewPro={onViewPro}
         proActionVariant={fitViewport ? 'secondary' : 'primary'}
       />
+      {calendarEventsState !== 'pro-boundary' ? (
+        <div style={{ paddingInline: 16 }}>
+          <CalendarSyncBoundary
+            autoSyncState={autoSyncState}
+            displayTime={displayTime}
+            onAutoSyncChange={onCalendarAutoSyncChange}
+          />
+        </div>
+      ) : null}
     </div>
   )
 

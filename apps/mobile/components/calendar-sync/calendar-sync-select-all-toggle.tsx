@@ -36,9 +36,9 @@ export function SelectAllToggle({
       ]}
     >
       {allSelected ? (
-        <SquareX size={18} color={tokens.fg2} strokeWidth={2} />
+        <SquareX size={20} color={tokens.fg2} strokeWidth={2} />
       ) : (
-        <CheckCheck size={18} color={tokens.fg2} strokeWidth={2} />
+        <CheckCheck size={20} color={tokens.fg2} strokeWidth={2} />
       )}
     </Pressable>
   )

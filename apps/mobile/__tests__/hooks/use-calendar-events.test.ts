@@ -9,11 +9,17 @@ import {
 
 const mocks = vi.hoisted(() => ({
   useQuery: vi.fn(),
+  useQueryClient: vi.fn(() => ({
+    cancelQueries: vi.fn(async () => {}),
+    getQueryData: vi.fn(),
+    setQueryData: vi.fn(),
+  })),
   apiClient: vi.fn(),
 }))
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: mocks.useQuery,
+  useQueryClient: mocks.useQueryClient,
 }))
 
 vi.mock('@/lib/api-client', () => ({

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import type { CalendarEventsDisplayState } from '@orbit/shared/utils'
 import {
@@ -53,6 +53,13 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 
+const proAutoSyncState: CalendarAutoSyncState = {
+  hasGoogleConnection: true,
+  enabled: true,
+  status: 'Idle',
+  lastSyncedAt: '2026-09-12T09:12:00Z',
+}
+
 function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry {
   return {
     habitId: '1',
@@ -69,6 +76,9 @@ interface RenderProps {
   dateStr?: string | null
   entries?: CalendarDayEntry[]
   calendarEvents?: CalendarSyncEvent[]
+  autoSyncState?: CalendarAutoSyncState
+  onShowRecurringChange?: (value: boolean) => void
+  onCalendarAutoSyncChange?: (value: boolean) => Promise<void>
   calendarEventsState?: CalendarEventsDisplayState
   onRetryCalendarEvents?: () => void
   onReconnectCalendarEvents?: () => void
@@ -83,6 +93,9 @@ function CalendarDayDetailHarness({
   dateStr = '2025-06-15',
   entries = [],
   calendarEvents = [],
+  autoSyncState = proAutoSyncState,
+  onShowRecurringChange = () => {},
+  onCalendarAutoSyncChange = async () => {},
   calendarEventsState = 'ready',
   onRetryCalendarEvents = () => {},
   onReconnectCalendarEvents = () => {},
@@ -123,6 +136,7 @@ function CalendarDayDetailHarness({
       dateStr={dateStr}
       entries={entries}
       calendarEvents={calendarEvents}
+      autoSyncState={autoSyncState}
       calendarEventsState={calendarEventsState}
       onRetryCalendarEvents={onRetryCalendarEvents}
       onReconnectCalendarEvents={onReconnectCalendarEvents}
@@ -130,7 +144,8 @@ function CalendarDayDetailHarness({
       loggable={loggable}
       showRecurring={showRecurring}
       pendingEntryStates={pendingEntryStates}
-      onShowRecurringChange={() => {}}
+      onShowRecurringChange={onShowRecurringChange}
+      onCalendarAutoSyncChange={onCalendarAutoSyncChange}
       onEntryChange={changeEntry}
       fitViewport={fitViewport}
     />
@@ -204,6 +219,65 @@ describe('CalendarDayDetail', () => {
     expect(within(allDayEvent).queryByRole('button')).toBeNull()
   })
 
+  it('keeps habit data visible while replacing Google events with the free plan boundary', () => {
+    const onViewPro = vi.fn()
+    renderDetail({
+      dateStr: '2025-06-15',
+      entries: [makeEntry({ title: 'Read' })],
+      calendarEvents: [{
+        id: 'event-1', title: 'Team meeting', description: null,
+        startDate: '2025-06-15', startTime: '09:00', endTime: null,
+        isRecurring: false, recurrenceRule: null, reminders: [],
+      }],
+      calendarEventsState: 'pro-boundary',
+      onViewPro,
+    })
+
+    expect(screen.getByText('Read')).toBeInTheDocument()
+    expect(screen.queryByText('Team meeting')).not.toBeInTheDocument()
+    const boundary = screen.getByTestId('calendar-pro-boundary')
+    expect(within(boundary).getByText(
+      'Syncing with Google Calendar is part of Orbit Pro.',
+    )).toBeInTheDocument()
+    expect(within(boundary).getByText(
+      'With it, your commitments show up beside the habits for the day.',
+    )).toBeInTheDocument()
+    const upgradeAction = within(boundary).getByRole('button', { name: 'See Pro' })
+    expect(upgradeAction).toHaveAttribute('data-variant', 'primary')
+    expect(upgradeAction).not.toBeDisabled()
+    expect(within(boundary).queryAllByRole('switch')).toHaveLength(0)
+    fireEvent.click(upgradeAction)
+    expect(onViewPro).toHaveBeenCalledOnce()
+  })
+
+  it('builds the Pro sync line and switch from the profile fields', () => {
+    const onCalendarAutoSyncChange = vi.fn(async () => {})
+    renderDetail({
+      dateStr: '2025-06-15',
+      entries: [makeEntry()],
+      autoSyncState: proAutoSyncState,
+      onCalendarAutoSyncChange,
+    })
+
+    expect(screen.getByText('calendar.dayDetail.googleConnected')).toBeInTheDocument()
+    expect(document.body.textContent).toContain('calendar.dayDetail.lastSynced')
+    const autoSync = screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' })
+    expect(autoSync).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(autoSync)
+    expect(onCalendarAutoSyncChange).toHaveBeenCalledWith(false)
+  })
+
+  it('does not offer auto-sync as enabled without a Google connection', () => {
+    renderDetail({
+      dateStr: '2025-06-15',
+      entries: [makeEntry()],
+      autoSyncState: { ...proAutoSyncState, hasGoogleConnection: false },
+    })
+
+    const switches = screen.queryAllByRole('switch', { name: 'calendar.dayDetail.autoSync' })
+    expect(switches.every((control) => control.getAttribute('aria-checked') !== 'true')).toBe(true)
+  })
+
   it('renders a failed events request instead of the empty result', () => {
     renderDetail({ entries: [makeEntry()], calendarEventsState: 'failed' })
 
@@ -226,7 +300,6 @@ describe('CalendarDayDetail', () => {
       calendarEventsState: 'not-connected',
       onReconnectCalendarEvents,
     })
-
     expect(screen.getByText('Google Calendar disconnected')).toBeInTheDocument()
     expect(screen.getByText('Reconnect to see the events you can import.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }))

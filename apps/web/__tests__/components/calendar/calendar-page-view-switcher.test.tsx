@@ -1,5 +1,5 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import {
   buildCalendarMonthModel,
@@ -9,6 +9,7 @@ import {
 } from '@orbit/shared/utils'
 import type { CalendarSyncEvent } from '@orbit/shared'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 
 let isWideDesktopValue = false
 let calendarGridSelectionDate = '2026-01-05'
@@ -19,6 +20,19 @@ const calendarGridProps: Record<string, unknown> & {
   todayKey?: string
 } = {}
 const calendarStatsProps: Record<string, unknown> = {}
+let autoSyncState: CalendarAutoSyncState = {
+  enabled: true,
+  status: 'Idle',
+  lastSyncedAt: '2026-09-12T09:12:00Z',
+  hasGoogleConnection: true,
+}
+let autoSyncQueryOptions: {
+  enabled?: boolean
+  initialData?: CalendarAutoSyncState
+} | undefined
+const setAutoSync = vi.fn(async ({ enabled }: { enabled: boolean }) => {
+  autoSyncState = { ...autoSyncState, enabled }
+})
 const monthQueryState: {
   dayMap: Map<string, CalendarDayEntry[]>
   error: string | null
@@ -31,7 +45,15 @@ const monthQueryState: {
   refresh: vi.fn(),
 }
 const profileQueryState: {
-  profile: { weekStartDay: number; timeZone: string | null; hasProAccess: boolean } | undefined
+  profile: {
+    weekStartDay: number
+    timeZone: string | null
+    hasProAccess: boolean
+    hasGoogleConnection?: boolean
+    googleCalendarAutoSyncEnabled?: boolean
+    googleCalendarAutoSyncStatus?: 'Idle' | 'ReconnectRequired' | 'TransientError'
+    googleCalendarLastSyncedAt?: string | null
+  } | undefined
   error: Error | null
   refetch: ReturnType<typeof vi.fn>
 } = {
@@ -44,12 +66,14 @@ const logHabitMutateAsync = vi.fn(async () => {})
 const routerPush = vi.fn()
 const calendarDayDetailProps: {
   calendarEvents?: CalendarSyncEvent[]
+  autoSyncState?: CalendarAutoSyncState
   calendarEventsState?: string
   onRetryCalendarEvents?: () => void
   onReconnectCalendarEvents?: () => void
   onViewPro?: () => void
   loggable?: boolean
   onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
+  onCalendarAutoSyncChange?: (enabled: boolean) => Promise<void>
   onShowRecurringChange?: (value: boolean) => void
   showRecurring?: boolean
   showRecurringToggle?: boolean
@@ -74,6 +98,8 @@ const agendaViewProps: {
 let rangeLoading = false
 let rangeDayMap = new Map<string, CalendarDayEntry[]>()
 const calendarRangeViewProps: { current: Record<string, unknown> | null } = { current: null }
+
+vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -116,6 +142,17 @@ vi.mock('@/hooks/use-calendar-events', () => ({
   },
 }))
 
+vi.mock('@/hooks/use-calendar-auto-sync', () => ({
+  useCalendarAutoSyncState: (options?: {
+    enabled?: boolean
+    initialData?: CalendarAutoSyncState
+  }) => {
+    autoSyncQueryOptions = options
+    return { data: autoSyncState }
+  },
+  useSetCalendarAutoSync: () => ({ mutateAsync: setAutoSync }),
+}))
+
 vi.mock('@/hooks/use-habits', () => ({
   useLogHabit: () => ({ mutateAsync: logHabitMutateAsync }),
 }))
@@ -142,8 +179,20 @@ vi.mock('@/components/ui/section-label', () => ({
 }))
 
 vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
-    open ? <div>{children}</div> : null,
+  useSheetHost: () => ({
+    sheetRef: { current: null },
+    closeSheet: (exitAction?: () => void) => exitAction?.(),
+  }),
+  Sheet: ({ children, open, onClose }: {
+    children: React.ReactNode
+    open: boolean
+    onClose?: () => void
+  }) => open ? (
+    <div>
+      <button type="button" aria-label="close-day-detail" onClick={onClose} />
+      {children}
+    </div>
+  ) : null,
 }))
 
 vi.mock('./_components/calendar-shell', () => ({
@@ -201,6 +250,7 @@ vi.mock('@/components/calendar/calendar-stats', () => ({
 vi.mock('@/components/calendar/calendar-day-detail', () => ({
   CalendarDayDetail: (props: typeof calendarDayDetailProps) => {
     Object.assign(calendarDayDetailProps, props)
+    const displayedAutoSyncState = props.autoSyncState
     return (
       <div data-testid="day-detail">
         {props.showRecurringToggle !== false && (
@@ -212,6 +262,15 @@ vi.mock('@/components/calendar/calendar-day-detail', () => ({
           onClick={() => props.onShowRecurringChange?.(!props.showRecurring)}
         />
         )}
+        {displayedAutoSyncState?.hasGoogleConnection ? (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={displayedAutoSyncState.enabled}
+            aria-label="calendar.dayDetail.autoSync"
+            onClick={() => void props.onCalendarAutoSyncChange?.(!displayedAutoSyncState.enabled)}
+          />
+        ) : null}
       </div>
     )
   },
@@ -290,6 +349,16 @@ describe('CalendarPage view switcher', () => {
     isWideDesktopValue = false
     calendarGridSelectionDate = '2026-01-05'
     calendarGridProps.selectedDateStr = undefined
+    calendarDayDetailProps.calendarEvents = undefined
+    calendarDayDetailProps.autoSyncState = undefined
+    autoSyncState = {
+      enabled: true,
+      status: 'Idle',
+      lastSyncedAt: '2026-09-12T09:12:00Z',
+      hasGoogleConnection: true,
+    }
+    autoSyncQueryOptions = undefined
+    setAutoSync.mockClear()
     calendarGridProps.dayMap = undefined
     calendarGridProps.todayKey = undefined
     calendarStatsProps.state = undefined
@@ -316,6 +385,7 @@ describe('CalendarPage view switcher', () => {
     delete calendarDayDetailProps.onViewPro
     delete calendarDayDetailProps.loggable
     delete calendarDayDetailProps.onEntryChange
+    delete calendarDayDetailProps.onCalendarAutoSyncChange
     agendaViewProps.dayMap = undefined
     agendaViewProps.isLoading = undefined
     rangeLoading = false
@@ -688,6 +758,38 @@ describe('CalendarPage view switcher', () => {
 
     fireEvent.click(screen.getByTestId('month-view'))
     expect(screen.getByTestId('day-detail')).toBeDefined()
+  })
+
+  it('keeps the changed auto-sync value after closing and reopening day detail', async () => {
+    profileQueryState.profile = {
+      weekStartDay: 1,
+      timeZone: 'UTC',
+      hasProAccess: true,
+      hasGoogleConnection: true,
+      googleCalendarAutoSyncEnabled: true,
+      googleCalendarAutoSyncStatus: 'Idle',
+      googleCalendarLastSyncedAt: '2026-09-12T09:12:00Z',
+    }
+    render(<CalendarPage />)
+
+    expect(autoSyncQueryOptions).toEqual({
+      enabled: true,
+      initialData: {
+        enabled: true,
+        status: 'Idle',
+        lastSyncedAt: '2026-09-12T09:12:00Z',
+        hasGoogleConnection: true,
+      },
+    })
+
+    fireEvent.click(screen.getByTestId('month-view'))
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
+    await waitFor(() => expect(setAutoSync).toHaveBeenCalledWith({ enabled: false }))
+    fireEvent.click(screen.getByRole('button', { name: 'close-day-detail' }))
+    fireEvent.click(screen.getByTestId('month-view'))
+
+    expect(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
+      .toHaveAttribute('aria-checked', 'false')
   })
 
   it('keeps the calendar usable and offers habit creation for an empty current month', () => {

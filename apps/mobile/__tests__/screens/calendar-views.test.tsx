@@ -34,6 +34,14 @@ const state = vi.hoisted(() => ({
   calendarEvents: [] as Record<string, unknown>[],
   calendarEventsNotConnected: false,
   calendarEventsEnabled: undefined as boolean | undefined,
+  autoSyncState: {
+    enabled: true,
+    status: "Idle",
+    lastSyncedAt: "2026-09-12T09:12:00Z",
+    hasGoogleConnection: true,
+  },
+  setAutoSync: vi.fn(() => Promise.resolve()),
+  showError: vi.fn(),
   calendarEventsTimeZone: undefined as string | null | undefined,
   calendarEventsPending: false,
   calendarEventsError: null as Error | null,
@@ -105,6 +113,15 @@ vi.mock("@/hooks/use-calendar-events", () => ({
       refetch: state.calendarEventsRefetch,
     };
   },
+}));
+
+vi.mock("@/hooks/use-calendar-auto-sync", () => ({
+  useCalendarAutoSyncState: () => ({ data: state.autoSyncState }),
+  useSetCalendarAutoSync: () => ({ mutateAsync: state.setAutoSync }),
+}));
+
+vi.mock("@/hooks/use-app-toast", () => ({
+  useAppToast: () => ({ showError: state.showError }),
 }));
 
 vi.mock("@/hooks/use-tour-target", () => ({ useTourTarget: () => {} }));
@@ -316,6 +333,8 @@ function setBoundaryEntries(firstDay: string, secondDay: string) {
 
 describe("CalendarScreen views (mobile)", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-12T12:00:00.000Z"));
     calendarGridProps.current = null;
     calendarDayDetailProps.current = null;
     calendarGridProps.header = null;
@@ -332,6 +351,8 @@ describe("CalendarScreen views (mobile)", () => {
     state.calendarEvents = [];
     state.calendarEventsNotConnected = false;
     state.calendarEventsEnabled = undefined;
+    state.setAutoSync.mockClear();
+    state.showError.mockClear();
     state.calendarEventsTimeZone = undefined;
     state.calendarEventsPending = false;
     state.calendarEventsError = null;

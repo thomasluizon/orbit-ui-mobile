@@ -918,6 +918,9 @@
       "completionSummary": "{done} of {total} logged",
       "nothingDue": "nothing due",
       "eventsTitle": "Available to import",
+      "googleConnected": "Google Calendar connected",
+      "lastSynced": "Last synced {time}",
+      "autoSync": "Sync on its own",
       "disconnectedTitle": "Google Calendar disconnected",
       "disconnectedBody": "Reconnect to see the events you can import.",
       "noEventsToImport": "Nothing left to import from Google Calendar on this day."
