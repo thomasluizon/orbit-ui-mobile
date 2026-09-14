@@ -49,7 +49,10 @@ export function formatCompletionRate(rate: number): string {
 }
 
 /** Derives the ordered stat-tile model for the share card so web and mobile render identical content. */
-export function buildShareCardStats(metrics: RetrospectiveMetrics): ShareCardStat[] {
+export function buildShareCardStats(
+  metrics: RetrospectiveMetrics,
+  goalCompletions: number,
+): ShareCardStat[] {
   return [
     {
       labelKey: 'shareCard.stats.completions',
@@ -60,8 +63,8 @@ export function buildShareCardStats(metrics: RetrospectiveMetrics): ShareCardSta
       value: String(metrics.bestStreak),
     },
     {
-      labelKey: 'shareCard.stats.activeDays',
-      value: String(metrics.activeDays),
+      labelKey: 'progressScreen.sections.goals',
+      value: String(goalCompletions),
     },
   ]
 }

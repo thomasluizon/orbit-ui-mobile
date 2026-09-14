@@ -47,14 +47,15 @@ describe('buildShareCardStats', () => {
         bestStreak: 18,
         activeDays: 5,
       }),
+      3,
     )
 
     expect(stats.map((stat) => stat.labelKey)).toEqual([
       'shareCard.stats.completions',
       'shareCard.stats.bestStreak',
-      'shareCard.stats.activeDays',
+      'progressScreen.sections.goals',
     ])
-    expect(stats.map((stat) => stat.value)).toEqual(['40', '18', '5'])
+    expect(stats.map((stat) => stat.value)).toEqual(['40', '18', '3'])
   })
 
   it('handles all-zero metrics without throwing', () => {
@@ -65,6 +66,7 @@ describe('buildShareCardStats', () => {
         bestStreak: 0,
         activeDays: 0,
       }),
+      0,
     )
 
     expect(stats.map((stat) => stat.value)).toEqual(['0', '0', '0'])

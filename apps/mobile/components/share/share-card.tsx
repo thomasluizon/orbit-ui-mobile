@@ -23,7 +23,7 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard({ r
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const stats = buildShareCardStats(recap.metrics)
+  const stats = buildShareCardStats(recap.metrics, recap.goalCompletions)
   const weekday = buildShareCardWeekday(recap.metrics.weeklyConsistency)
 
   return (
