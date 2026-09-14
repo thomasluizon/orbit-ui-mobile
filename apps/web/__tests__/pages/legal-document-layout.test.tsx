@@ -5,6 +5,13 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import PrivacyPage from '@/app/(public)/privacy/page'
 import TermsPage from '@/app/(public)/terms/page'
+import PublicLayout from '@/app/(public)/layout'
+
+const navigation = vi.hoisted(() => ({ pathname: '/privacy' }))
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => navigation.pathname,
+}))
 
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({
   useGoBackOrFallback: () => vi.fn(),
@@ -68,10 +75,13 @@ describe.each([
   { locale: 'pt-BR', messages: ptBR },
 ])('legal document layout in $locale', ({ locale, messages }) => {
   it.each(cases)('renders $key through the shared measured layout', ({ Page, key, sectionKeys }) => {
+    navigation.pathname = `/${key}`
     const document = messages[key] as DocumentMessages
     const { container } = render(
       <NextIntlClientProvider locale={locale} messages={messages}>
-        <Page />
+        <PublicLayout>
+          <Page />
+        </PublicLayout>
       </NextIntlClientProvider>,
     )
 
@@ -81,8 +91,13 @@ describe.each([
 
     expect(layout).toHaveAttribute('data-measure', '62ch')
     expect(layout).toHaveAttribute('data-reflow', 'wrap')
+    expect(container.querySelector('[data-shell="flow"]')).toHaveAttribute(
+      'data-flow-mode',
+      'document',
+    )
+    expect(container.querySelectorAll('main')).toHaveLength(1)
     expect(layout).toHaveClass('min-w-0')
-    expect(layout!.querySelector('main')).toHaveClass('min-w-0', 'px-4')
+    expect(layout!.querySelector('[data-legal-document-content]')).toHaveClass('min-w-0', 'px-4')
     expect(layout).toHaveTextContent(document.title)
     expect(layout).toHaveTextContent(document.lastUpdated)
     expect(closingNote).toHaveTextContent(document.contact.title)

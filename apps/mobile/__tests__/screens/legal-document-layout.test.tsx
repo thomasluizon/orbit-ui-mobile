@@ -31,8 +31,8 @@ vi.mock('react-i18next', () => ({
 }))
 
 vi.mock('react-native-safe-area-context', () => ({
-  SafeAreaView: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('SafeAreaView', null, children),
+  SafeAreaView: (props: React.PropsWithChildren<{ edges?: string[] }>) =>
+    React.createElement('SafeAreaView', props, props.children),
 }))
 
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({
@@ -124,6 +124,8 @@ describe.each([
 
     const document = messages[key] as DocumentMessages
     const layout = nodeByTestId(tree!.root, 'legal-document')
+    const safeArea = tree!.root.findAll((node) => node.type === 'SafeAreaView')[0]
+    if (!safeArea) throw new Error('Missing SafeAreaView')
     const sections = nodeByTestId(tree!.root, 'legal-document-sections')
     const closingNote = nodeByTestId(tree!.root, 'legal-document-closing')
 
@@ -133,6 +135,7 @@ describe.each([
       padding: 16,
       width: '100%',
     })
+    expect(safeArea.props.edges).toEqual(['top', 'bottom'])
     expect(directText(layout)).toEqual(expect.arrayContaining([
       document.title,
       document.lastUpdated,
