@@ -1,13 +1,12 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useShareCard } from '@/hooks/use-share-card'
+import { expoFileSystemMock } from '@/test-mocks/expo-file-system'
 
 const mocks = vi.hoisted(() => ({
   captureRef: vi.fn(),
   isAvailableAsync: vi.fn(),
   shareAsync: vi.fn(),
-  pickDirectoryAsync: vi.fn(),
-  copy: vi.fn(),
   reportEvent: vi.fn(),
 }))
 
@@ -15,24 +14,6 @@ vi.mock('react-native-view-shot', () => ({ captureRef: mocks.captureRef }))
 vi.mock('expo-sharing', () => ({
   isAvailableAsync: mocks.isAvailableAsync,
   shareAsync: mocks.shareAsync,
-}))
-vi.mock('expo-file-system', () => ({
-  Directory: {
-    pickDirectoryAsync: mocks.pickDirectoryAsync,
-  },
-  File: class MockFile {
-    readonly uri: string
-
-    constructor(...segments: ({ uri: string } | string)[]) {
-      this.uri = segments
-        .map((segment) => (typeof segment === 'string' ? segment : segment.uri))
-        .join('/')
-    }
-
-    copy(destination: { uri: string }) {
-      return mocks.copy(destination)
-    }
-  },
 }))
 vi.mock('@/hooks/use-gamification', () => ({ useReportEvent: () => ({ mutate: mocks.reportEvent }) }))
 
@@ -66,9 +47,8 @@ describe('mobile useShareCard', () => {
     mocks.captureRef.mockReset().mockResolvedValue('file:///cache/share-card.png')
     mocks.isAvailableAsync.mockReset().mockResolvedValue(true)
     mocks.shareAsync.mockReset().mockResolvedValue(undefined)
-    mocks.pickDirectoryAsync.mockReset().mockResolvedValue({ uri: 'content://downloads' })
-    mocks.copy.mockReset().mockResolvedValue(undefined)
     mocks.reportEvent.mockReset()
+    expoFileSystemMock.reset()
   })
 
   it('captures the card and opens the native share sheet, firing the seam once', async () => {
@@ -103,11 +83,49 @@ describe('mobile useShareCard', () => {
       await hook.current.download()
     })
 
-    expect(mocks.pickDirectoryAsync).toHaveBeenCalledWith()
-    expect(mocks.copy).toHaveBeenCalledWith(
-      expect.objectContaining({ uri: 'content://downloads/orbit-recap.png' }),
-    )
+    expect(expoFileSystemMock.copyCalls).toEqual([
+      expect.objectContaining({ destinationUri: 'content://downloads/orbit-recap.png' }),
+    ])
     expect(mocks.reportEvent).toHaveBeenCalledWith('card_shared')
     expect(hook.current.hasError).toBe(false)
+  })
+
+  it('leaves picker cancellation neutral without reporting a share', async () => {
+    expoFileSystemMock.cancelNextDirectoryPick()
+    const hook = await renderHookValue(() => useShareCard())
+
+    await TestRenderer.act(async () => {
+      await hook.current.download()
+    })
+
+    expect(expoFileSystemMock.copyCalls).toEqual([])
+    expect(mocks.reportEvent).not.toHaveBeenCalled()
+    expect(hook.current.hasError).toBe(false)
+  })
+
+  it('overwrites the fixed file when the same directory is selected again', async () => {
+    const hook = await renderHookValue(() => useShareCard())
+
+    await TestRenderer.act(async () => {
+      await hook.current.download()
+      await hook.current.download()
+    })
+
+    expect(expoFileSystemMock.copyCalls).toHaveLength(2)
+    expect(expoFileSystemMock.copyCalls[1]?.options).toEqual({ overwrite: true })
+    expect(mocks.reportEvent).toHaveBeenCalledTimes(2)
+    expect(hook.current.hasError).toBe(false)
+  })
+
+  it('still reports a non-cancellation download failure', async () => {
+    expoFileSystemMock.failNextCopy(new Error('storage unavailable'))
+    const hook = await renderHookValue(() => useShareCard())
+
+    await TestRenderer.act(async () => {
+      await hook.current.download()
+    })
+
+    expect(mocks.reportEvent).not.toHaveBeenCalled()
+    expect(hook.current.hasError).toBe(true)
   })
 })

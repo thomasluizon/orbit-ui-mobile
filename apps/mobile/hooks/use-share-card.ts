@@ -7,6 +7,15 @@ import { ACHIEVEMENT_EVENT_KEYS } from '@orbit/shared/types/gamification'
 import { SHARE_CARD_FILE_NAME } from '@orbit/shared/utils'
 import { useReportEvent } from '@/hooks/use-gamification'
 
+const PICKER_CANCELLED_CODE = 'ERR_PICKER_CANCELLED'
+
+function isPickerCancellation(error: unknown) {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && error.code === PICKER_CANCELLED_CODE
+}
+
 /** Captures a ShareCard View to a temp PNG and opens the native share sheet via expo-sharing. */
 export function useShareCard() {
   const shareRef = useRef<View>(null)
@@ -67,10 +76,16 @@ export function useShareCard() {
     setHasError(false)
     try {
       const uri = await captureCard()
-      const directory = await Directory.pickDirectoryAsync()
+      let directory: Directory
+      try {
+        directory = await Directory.pickDirectoryAsync()
+      } catch (error) {
+        if (isPickerCancellation(error)) return
+        throw error
+      }
       const source = new File(uri)
       const destination = new File(directory, SHARE_CARD_FILE_NAME)
-      await source.copy(destination)
+      await source.copy(destination, { overwrite: true })
       reportEvent(ACHIEVEMENT_EVENT_KEYS.cardShared)
     } catch {
       setHasError(true)
