@@ -47,6 +47,7 @@ export {
   IconPhoto as Image,
   IconInfinity as Infinity,
   IconInfoCircle as Info,
+  IconKey as Key,
   IconLanguage as Languages,
   IconBulb as Lightbulb,
   IconLink as Link,
