@@ -1,26 +1,44 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
-import { SupportField } from './support-field'
 
 interface SupportFormProps {
+  name: string
+  email: string
   subject: string
   message: string
   error: string | null
+  nameError: string | null
+  emailError: string | null
   isSending: boolean
   disabled: boolean
+  emailDisabled: boolean
+  nameFocusRequest: number
+  emailFocusRequest: number
+  onNameChange: (next: string) => void
+  onEmailChange: (next: string) => void
   onSubjectChange: (next: string) => void
   onMessageChange: (next: string) => void
   onSend: () => void
 }
 
 export function SupportForm({
+  name,
+  email,
   subject,
   message,
   error,
-  isSending: _isSending,
+  nameError,
+  emailError,
+  isSending,
   disabled,
+  emailDisabled,
+  nameFocusRequest,
+  emailFocusRequest,
+  onNameChange,
+  onEmailChange,
   onSubjectChange,
   onMessageChange,
   onSend,
@@ -28,36 +46,65 @@ export function SupportForm({
   const t = useTranslations()
 
   return (
-    <div className="flex flex-col stagger-enter" style={{ gap: 16 }}>
+    <form
+      noValidate
+      className="flex min-w-0 flex-col gap-6"
+      onSubmit={(event) => {
+        event.preventDefault()
+        onSend()
+      }}
+    >
       <p
-        className="md:hidden"
+        className="text-pretty text-[16px] leading-[1.55] text-[var(--fg-2)]"
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 14,
-          lineHeight: 1.55,
-          color: 'var(--fg-3)',
         }}
       >
         {t('profile.support.description')}
       </p>
-      <SupportField
+      <Input
+        label={t('profile.support.name')}
+        value={name}
+        onChange={onNameChange}
+        placeholder={t('profile.support.namePlaceholder')}
+        disabled={isSending}
+        error={nameError ?? undefined}
+        autoComplete="name"
+        focusRequest={nameFocusRequest}
+      />
+      <Input
+        label={t('profile.support.email')}
+        value={email}
+        onChange={onEmailChange}
+        placeholder={t('profile.support.emailPlaceholder')}
+        disabled={isSending || emailDisabled}
+        error={emailError ?? undefined}
+        kind="email"
+        inputMode="email"
+        autoComplete="email"
+        focusRequest={emailFocusRequest}
+      />
+      <Input
         label={t('profile.support.subject')}
         value={subject}
         onChange={onSubjectChange}
         placeholder={t('profile.support.subjectPlaceholder')}
-        ariaLabel={t('profile.support.subject')}
+        disabled={isSending}
+        maxLength={100}
       />
-      <SupportField
+      <Input
         label={t('profile.support.message')}
         value={message}
         onChange={onMessageChange}
         placeholder={t('profile.support.messagePlaceholder')}
-        ariaLabel={t('profile.support.message')}
+        disabled={isSending}
+        maxLength={2000}
         multiline
         rows={6}
       />
       {error && (
         <div
+          role="alert"
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 14,
@@ -67,14 +114,14 @@ export function SupportForm({
           {error}
         </div>
       )}
-      <div style={{ paddingTop: 8 }}>
+      <div className="[&_button]:w-full md:[&_button]:bg-[var(--fg-1)] md:[&_button]:text-[var(--bg)] md:[&_button:enabled:hover]:opacity-90 md:[&_button:enabled:active]:opacity-85">
         <PillButton
-          onClick={onSend}
           disabled={disabled}
+          loading={isSending}
         >
           {t('profile.support.send')}
         </PillButton>
       </div>
-    </div>
+    </form>
   )
 }

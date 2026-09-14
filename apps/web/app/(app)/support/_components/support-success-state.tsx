@@ -8,6 +8,7 @@ export function SupportSuccessState() {
 
   return (
     <div
+      role="status"
       className="flex flex-col items-center text-center animate-scale-in"
       style={{ padding: '48px 24px', gap: 16 }}
     >
@@ -20,7 +21,7 @@ export function SupportSuccessState() {
         }}
         aria-hidden="true"
       >
-        <Check size={34} strokeWidth={1.8} color="var(--primary)" />
+        <Check size={24} strokeWidth={1.8} color="var(--primary)" />
       </span>
       <span
         style={{

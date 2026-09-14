@@ -55,6 +55,12 @@ function subjectField() {
 function messageField() {
   return screen.getByRole('textbox', { name: 'profile.support.message' })
 }
+function nameField() {
+  return screen.getByRole('textbox', { name: 'profile.support.name' })
+}
+function emailField() {
+  return screen.getByRole('textbox', { name: 'profile.support.email' })
+}
 function sendButton() {
   return screen.getByRole('button', { name: 'profile.support.send' })
 }
@@ -89,6 +95,36 @@ describe('SupportPage', () => {
     expect(sendButton()).toBeEnabled()
   })
 
+  it('uses the system inputs, including a six-row message and the disabled account email', () => {
+    render(<SupportPage />)
+
+    expect(messageField()).toHaveAttribute('rows', '6')
+    expect(messageField().closest('[data-multiline]')).toHaveAttribute('data-multiline', '')
+    expect(nameField()).toHaveValue('Orbit User')
+    expect(emailField()).toHaveValue('orbit@example.com')
+    expect(emailField()).toBeDisabled()
+    expect(sendButton().parentElement).toHaveClass(
+      'md:[&_button]:bg-[var(--fg-1)]',
+    )
+  })
+
+  it('places the existing contact errors beside their system inputs', async () => {
+    mockProfile = null
+    render(<SupportPage />)
+
+    fireEvent.change(subjectField(), { target: { value: 'Subject' } })
+    fireEvent.change(messageField(), { target: { value: 'Message' } })
+    fireEvent.click(sendButton())
+
+    expect(await screen.findByText('profile.support.nameRequired')).toBeInTheDocument()
+    expect(screen.getByText('profile.support.emailRequired')).toBeInTheDocument()
+    fireEvent.change(nameField(), { target: { value: 'Orbit User' } })
+    fireEvent.change(emailField(), { target: { value: 'invalid' } })
+    fireEvent.click(sendButton())
+    expect(await screen.findByText('profile.support.emailInvalid')).toBeInTheDocument()
+    expect(mockSendSupportMessage).not.toHaveBeenCalled()
+  })
+
   it('sends the built payload, shows success, and clears the draft', async () => {
     mockSendSupportMessage.mockResolvedValue(undefined)
     localStorage.setItem(DRAFT_KEY, JSON.stringify({ subject: 'x', message: 'y' }))
@@ -120,6 +156,10 @@ describe('SupportPage', () => {
 
     await waitFor(() => expect(screen.getByText('support.sendError')).toBeInTheDocument())
     expect(screen.queryByText('profile.support.success')).not.toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem(DRAFT_KEY) ?? '{}')).toEqual({
+      subject: 'Subject',
+      message: 'Message body',
+    })
   })
 
   it('hydrates the form from a stored draft', () => {
@@ -138,7 +178,7 @@ describe('SupportPage', () => {
     expect(localStorage.getItem(DRAFT_KEY)).toBeNull()
   })
 
-  it('persists the draft while typing and removes it once emptied', () => {
+  it('persists the draft on every keystroke, including when both fields are emptied', () => {
     render(<SupportPage />)
 
     fireEvent.change(subjectField(), { target: { value: 'Draft subject' } })
@@ -147,7 +187,28 @@ describe('SupportPage', () => {
     })
 
     fireEvent.change(subjectField(), { target: { value: '' } })
-    expect(localStorage.getItem(DRAFT_KEY)).toBeNull()
+    expect(JSON.parse(localStorage.getItem(DRAFT_KEY) ?? '{}')).toEqual({
+      subject: '',
+      message: '',
+    })
+  })
+
+  it('shows loading and disables the controls while sending', async () => {
+    let finishSend: (() => void) | undefined
+    mockSendSupportMessage.mockImplementation(
+      () => new Promise<void>((resolve) => { finishSend = resolve }),
+    )
+    render(<SupportPage />)
+
+    fireEvent.change(subjectField(), { target: { value: 'Subject' } })
+    fireEvent.change(messageField(), { target: { value: 'Message' } })
+    fireEvent.click(sendButton())
+
+    await waitFor(() => expect(sendButton()).toHaveAttribute('aria-busy', 'true'))
+    expect(subjectField()).toBeDisabled()
+    expect(messageField()).toBeDisabled()
+    finishSend?.()
+    await waitFor(() => expect(screen.getByText('profile.support.success')).toBeInTheDocument())
   })
 
   it('ignores clicks while offline even with a valid form', () => {
