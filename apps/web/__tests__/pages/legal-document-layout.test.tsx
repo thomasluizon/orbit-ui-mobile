@@ -81,6 +81,8 @@ describe.each([
 
     expect(layout).toHaveAttribute('data-measure', '62ch')
     expect(layout).toHaveAttribute('data-reflow', 'wrap')
+    expect(layout).toHaveClass('min-w-0')
+    expect(layout!.querySelector('main')).toHaveClass('min-w-0', 'px-4')
     expect(layout).toHaveTextContent(document.title)
     expect(layout).toHaveTextContent(document.lastUpdated)
     expect(closingNote).toHaveTextContent(document.contact.title)
@@ -98,5 +100,6 @@ describe.each([
         return section.title
       }),
     )
+    expect(layout!.querySelectorAll('[class*="overflow-wrap:anywhere"]')).not.toHaveLength(0)
   })
 })

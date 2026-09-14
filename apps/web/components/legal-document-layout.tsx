@@ -38,7 +38,7 @@ export function LegalDocumentLayout({ title, lastUpdated, sections, closingNote,
   return (
     <div data-legal-document="" data-measure="62ch" data-reflow="wrap" className="mx-auto flex min-h-[100dvh] min-w-0 max-w-[620px] flex-col">
       <AppBar backLabel={backLabel} onBack={onBack} title={title} />
-      <main className="min-h-0 min-w-0 flex-1 overflow-y-auto pb-6">
+      <main className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 pb-6">
         <div className="flex min-w-0 max-w-[62ch] flex-col gap-6">
           <header className="flex min-w-0 flex-col gap-2 pt-4">
             <p className="text-pretty font-display text-[var(--fs-xl)] font-medium leading-[1.2] tracking-[-0.02em] text-[var(--fg-1)] sm:text-[var(--fs-2xl)] sm:leading-[1.15]">
@@ -49,14 +49,14 @@ export function LegalDocumentLayout({ title, lastUpdated, sections, closingNote,
           <div data-legal-document-sections="" className="flex min-w-0 flex-col gap-6">
             {sections.map((section) => <Section key={section.id} section={section} />)}
           </div>
-          <aside data-legal-document-closing="" className="flex min-w-0 flex-col gap-2 pb-6">
+          <section data-legal-document-closing="" className="flex min-w-0 flex-col gap-2 pb-6">
             <h2 className="font-sans text-[var(--fs-md)] font-medium leading-[1.4] text-[var(--fg-1)]">{closingNote.title}</h2>
             {closingNote.paragraphs.map((paragraph) => (
               <p key={paragraph} className="min-w-0 text-pretty font-sans text-sm leading-[1.55] text-[var(--fg-3)] [overflow-wrap:anywhere]">
                 {paragraph}
               </p>
             ))}
-          </aside>
+          </section>
         </div>
       </main>
     </div>

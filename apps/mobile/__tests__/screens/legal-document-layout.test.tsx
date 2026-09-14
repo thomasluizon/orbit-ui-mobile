@@ -1,5 +1,5 @@
 import React from 'react'
-import { StyleSheet } from 'react-native'
+import * as ReactNative from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
@@ -111,6 +111,12 @@ describe.each([
 ])('legal document layout in $locale', ({ messages }) => {
   it.each(cases)('renders $key through the shared measured layout', ({ Screen, key, sectionKeys }) => {
     translations.messages = messages
+    const dimensions = vi.spyOn(ReactNative, 'useWindowDimensions').mockReturnValue({
+      width: 412,
+      height: 915,
+      scale: 1,
+      fontScale: 1,
+    })
     let tree: { root: TestNode; unmount: () => void } | undefined
     TestRenderer.act(() => {
       tree = TestRenderer.create(<Screen />)
@@ -121,9 +127,10 @@ describe.each([
     const sections = nodeByTestId(tree!.root, 'legal-document-sections')
     const closingNote = nodeByTestId(tree!.root, 'legal-document-closing')
 
-    expect(StyleSheet.flatten(layout.props.style)).toMatchObject({
+    expect(ReactNative.StyleSheet.flatten(layout.props.style)).toMatchObject({
       maxWidth: 620,
       minWidth: 0,
+      padding: 16,
       width: '100%',
     })
     expect(directText(layout)).toEqual(expect.arrayContaining([
@@ -149,5 +156,6 @@ describe.each([
       }),
     )
     tree!.unmount()
+    dimensions.mockRestore()
   })
 })
