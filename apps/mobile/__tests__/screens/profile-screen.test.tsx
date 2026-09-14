@@ -395,6 +395,7 @@ interface SettingsRowStubNode {
     onPress?: () => void
     chevron?: boolean
     accessibilityRole?: string
+    accessibilityState?: { disabled?: boolean }
   }
 }
 
@@ -610,7 +611,7 @@ describe('ProfileScreen', () => {
     ])
   })
 
-  it('shows the free daily allowance and routes its only plan action to Pro', async () => {
+  it('shows the free daily allowance as an enabled route to Pro', async () => {
     const tree = await renderProfileScreen()
     const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
     const progress = astra.findByProps({
@@ -622,15 +623,32 @@ describe('ProfileScreen', () => {
       astra.findAll((node: { children: unknown[] }) =>
         node.children.includes('profile.allowance.spent')),
     ).toHaveLength(0)
-    const proactiveGate = findRowByLabel(tree, 'profile.proactiveAstra.title')
-    const summaryGate = findRowByLabel(tree, 'profile.aiSummary.title')
     const allowance = tree.root.findByProps({ testID: 'astra-allowance-panel' })
+    const allowanceGate = allowance.findByProps({
+      accessibilityRole: 'button',
+      accessibilityLabel: 'profile.allowance.seePro',
+    })
 
     TestRenderer.act(() => {
-      allowance.findByProps({
-        accessibilityRole: 'button',
-        accessibilityLabel: 'profile.allowance.seePro',
-      }).props.onPress()
+      allowanceGate.props.onPress()
+    })
+    expect(allowanceGate.props.accessibilityState.disabled).toBe(false)
+    expect(mockRouterPush).toHaveBeenNthCalledWith(1, {
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
+  })
+
+  it('shows both free Astra switch gates as enabled routes to Pro', async () => {
+    const tree = await renderProfileScreen()
+    const proactiveGate = findRowByLabel(tree, 'profile.proactiveAstra.title')
+    const summaryGate = findRowByLabel(tree, 'profile.aiSummary.title')
+
+    expect(proactiveGate.props.accessibilityRole).toBe('button')
+    expect(summaryGate.props.accessibilityRole).toBe('button')
+    expect(proactiveGate.props.onPress).toEqual(expect.any(Function))
+    expect(summaryGate.props.onPress).toEqual(expect.any(Function))
+    TestRenderer.act(() => {
       proactiveGate.props.onPress?.()
       summaryGate.props.onPress?.()
     })
@@ -639,10 +657,6 @@ describe('ProfileScreen', () => {
       params: { from: '/profile' },
     })
     expect(mockRouterPush).toHaveBeenNthCalledWith(2, {
-      pathname: '/upgrade',
-      params: { from: '/profile' },
-    })
-    expect(mockRouterPush).toHaveBeenNthCalledWith(3, {
       pathname: '/upgrade',
       params: { from: '/profile' },
     })
@@ -656,15 +670,40 @@ describe('ProfileScreen', () => {
       astra.findAll((node: { children: unknown[] }) =>
         node.children.includes('profile.apiKeys.description')),
     ).toHaveLength(1)
-    expect(findRowByLabel(tree, 'profile.apiKeys.unlock')).toBeDefined()
+    const upgradeRow = findRowByLabel(tree, 'profile.apiKeys.unlock')
+    expect(upgradeRow.props.accessibilityRole).toBe('button')
+    expect(upgradeRow.props.onPress).toEqual(expect.any(Function))
     expect(
       astra.findAll((node: { children: unknown[] }) =>
         node.children.includes('orbitMcp.noKeys')),
     ).toHaveLength(0)
 
     TestRenderer.act(() => {
-      findRowByLabel(tree, 'profile.apiKeys.unlock').props.onPress?.()
+      upgradeRow.props.onPress?.()
     })
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
+  })
+
+  it('keeps every free API key state on the enabled lock route', async () => {
+    mockStepUpVerified.current = true
+    mockApiKeys.current = [{
+      id: 'key-1',
+      name: 'Work key',
+      keyPrefix: 'orb_live_1234',
+    }]
+    const tree = await renderProfileScreen()
+
+    const upgradeRow = findRowByLabel(tree, 'profile.apiKeys.unlock')
+    expect(upgradeRow.props.accessibilityRole).toBe('button')
+    expect(upgradeRow.props.onPress).toEqual(expect.any(Function))
+    expect(
+      tree.root.findAll((node: { children: unknown[] }) =>
+        node.children.includes('Work key')),
+    ).toHaveLength(0)
+    TestRenderer.act(() => upgradeRow.props.onPress?.())
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/upgrade',
       params: { from: '/profile' },
@@ -1111,6 +1150,8 @@ describe('ProfileScreen', () => {
 
     expect(calendarRow.props.chevron).toBe(false)
     expect(calendarRow.props.hasTrailing).toBe(true)
+    expect(calendarRow.props.accessibilityRole).toBe('button')
+    expect(calendarRow.props.onPress).toEqual(expect.any(Function))
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/upgrade',
       params: { from: '/profile' },
