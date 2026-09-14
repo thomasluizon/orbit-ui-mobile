@@ -42,7 +42,7 @@
   },
   "app/wrapped-styles.ts": {
     "local/spacing-scale": {
-      "count": 11
+      "count": 8
     }
   },
   "components/chat/conflict-warning.tsx": {

@@ -319,6 +319,18 @@ describe('DestinationShell', () => {
     expect(mocks.keyboardEnabled).toHaveBeenCalledWith(false)
   })
 
+  it('lets Wrapped replace the destination shell', () => {
+    mocks.pathname = '/wrapped'
+    mocks.wide = true
+    render(<DestinationShell onCreate={() => {}}><h1>Wrapped</h1></DestinationShell>)
+
+    expect(screen.getByRole('heading', { name: 'Wrapped' })).toBeInTheDocument()
+    expect(screen.queryByTestId('wide-shell')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('compact-shell')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
+    expect(mocks.keyboardEnabled).toHaveBeenCalledWith(false)
+  })
+
   it.each([
     '/preferences',
     '/advanced',

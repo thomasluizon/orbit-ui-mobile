@@ -1542,6 +1542,12 @@
     "entry": "Seu Wrapped",
     "coverEyebrow": "Seus hábitos em replay",
     "coverSubtitle": "Escolha um período para começar.",
+    "coverTitles": {
+      "week": "Feche a semana.",
+      "month": "Feche o mês.",
+      "year": "Feche o ano."
+    },
+    "periodGroup": "Período",
     "start": "Começar",
     "close": "Fechar Wrapped",
     "next": "Próximo",
