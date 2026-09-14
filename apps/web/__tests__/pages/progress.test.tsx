@@ -214,6 +214,44 @@ describe('ProgressContent', () => {
     expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '25')
   })
 
+  it('filters the same goal list through all four views', () => {
+    mocks.goals.data.allGoals = [
+      createMockGoal({ id: 'active', title: 'Active goal', status: 'Active', position: 0 }),
+      createMockGoal({ id: 'completed', title: 'Completed goal', status: 'Completed', position: 1 }),
+      createMockGoal({ id: 'abandoned', title: 'Abandoned goal', status: 'Abandoned', position: 2 }),
+    ]
+    render(<ProgressPage />)
+
+    expect(screen.getAllByRole('button', { name: / goal$/ })).toHaveLength(3)
+    for (const [view, visible] of [
+      ['active', 'Active goal'],
+      ['completed', 'Completed goal'],
+      ['abandoned', 'Abandoned goal'],
+    ] as const) {
+      fireEvent.click(screen.getByRole('radio', { name: `progressScreen.goals.${view}` }))
+      expect(screen.getByRole('button', { name: visible })).toBeInTheDocument()
+      expect(screen.getAllByRole('button', { name: / goal$/ })).toHaveLength(1)
+    }
+    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.all' }))
+    expect(screen.getAllByRole('button', { name: / goal$/ })).toHaveLength(3)
+  })
+
+  it('ignores goal colour, icon and emoji adornments from an oversized response', () => {
+    mocks.goals.data.allGoals = [{
+      ...createMockGoal(),
+      color: '#ff0000',
+      emoji: '🚀',
+      icon: 'forbidden-goal-icon',
+    }]
+    render(<ProgressPage />)
+
+    const card = screen.getByRole('button', { name: 'Read 12 Books' })
+    expect(card.outerHTML).not.toContain('#ff0000')
+    expect(card.outerHTML).not.toContain('🚀')
+    expect(card.outerHTML).not.toContain('forbidden-goal-icon')
+    expect(within(card).queryByRole('img')).not.toBeInTheDocument()
+  })
+
   it('keeps reached targets active with a done disc and opens detail from the whole card', () => {
     mocks.goals.data.allGoals = [createMockGoal({ progressPercentage: 100, currentValue: 12, trackingStatus: 'no_deadline' })]
     render(<ProgressPage />)

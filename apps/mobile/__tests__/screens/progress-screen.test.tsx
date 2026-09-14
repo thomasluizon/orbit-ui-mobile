@@ -216,6 +216,61 @@ describe('mobile ProgressContent', () => {
     expect(card.findAll((node) => typeof node.props.children === 'string' && node.props.children.startsWith('progressScreen.goals.daysOverdue'))).toHaveLength(0)
   })
 
+  it('filters the same goal list through all four views', async () => {
+    mocks.goals.data.allGoals = [
+      createMockGoal({ id: 'active', title: 'Active goal', status: 'Active', position: 0 }),
+      createMockGoal({ id: 'completed', title: 'Completed goal', status: 'Completed', position: 1 }),
+      createMockGoal({ id: 'abandoned', title: 'Abandoned goal', status: 'Abandoned', position: 2 }),
+    ]
+    const tree = await renderProgress()
+    const cards = () => tree.root.findAll((node) => typeof node.type === 'string'
+      && ['Active goal', 'Completed goal', 'Abandoned goal'].includes(String(node.props.accessibilityLabel)))
+
+    expect(cards()).toHaveLength(3)
+    for (const [view, visible] of [
+      ['active', 'Active goal'],
+      ['completed', 'Completed goal'],
+      ['abandoned', 'Abandoned goal'],
+    ] as const) {
+      const segment = tree.root.findAll((node) => typeof node.type === 'string'
+        && String(node.props.testID).startsWith(`segment-${view}-`))[0]!
+      await TestRenderer.act(() => (segment.props.onPress as () => void)())
+      expect(cards()).toHaveLength(1)
+      expect(cards()[0]!.props.accessibilityLabel).toBe(visible)
+    }
+    const all = tree.root.findAll((node) => typeof node.type === 'string'
+      && String(node.props.testID).startsWith('segment-all-'))[0]!
+    await TestRenderer.act(() => (all.props.onPress as () => void)())
+    expect(cards()).toHaveLength(3)
+  })
+
+  it('ignores goal colour, icon and emoji adornments from an oversized response', async () => {
+    mocks.goals.data.allGoals = [{
+      ...createMockGoal(),
+      color: '#ff0000',
+      emoji: '🚀',
+      icon: 'forbidden-goal-icon',
+    }]
+    const tree = await renderProgress()
+    const card = tree.root.findAll((node) => typeof node.type === 'string'
+      && node.props.accessibilityLabel === 'Read 12 Books')[0]!
+    const forbiddenColour = card.findAll((node) => {
+      const rawStyle = node.props.style
+      if (!rawStyle) return false
+      const resolvedStyle = typeof rawStyle === 'function'
+        ? (rawStyle as (state: { pressed: boolean }) => ViewStyle)({ pressed: false })
+        : rawStyle
+      const style = StyleSheet.flatten(resolvedStyle) as (ViewStyle & TextStyle) | undefined
+      if (!style) return false
+      return style.color === '#ff0000' || style.backgroundColor === '#ff0000' || style.borderColor === '#ff0000'
+    })
+
+    expect(forbiddenColour).toHaveLength(0)
+    expect(card.findAll((node) => node.props.children === '🚀')).toHaveLength(0)
+    expect(card.findAll((node) => node.props.accessibilityLabel === 'forbidden-goal-icon')).toHaveLength(0)
+    expect(card.findAll((node) => node.props.accessibilityRole === 'image')).toHaveLength(0)
+  })
+
   it('renders a reached target as a done disc with one badge and no finish entry', async () => {
     mocks.goals.data.allGoals = [createMockGoal({ progressPercentage: 100, currentValue: 12, trackingStatus: 'no_deadline' })]
     const tree = await renderProgress()
