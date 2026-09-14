@@ -507,6 +507,13 @@ describe('ProgressContent', () => {
     expect(screen.getAllByText('progressScreen.streak.lockedAction').length).toBeGreaterThan(0)
     expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
     expect(screen.getByText('streakDisplay.detail.tierTileLabel')).toBeInTheDocument()
+    const route = screen.getAllByRole('button', { name: 'progressScreen.window.lockedAction' })
+    expect(route).toHaveLength(1)
+    expect(route[0]).not.toBeDisabled()
+    expect(route[0]).not.toHaveAttribute('aria-disabled')
+    expect(route[0]!.closest('[inert]')).toBeNull()
+    fireEvent.click(route[0]!)
+    expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/upgrade')
 
     const markup = container.innerHTML
     unmount()
