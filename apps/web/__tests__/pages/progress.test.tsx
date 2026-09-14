@@ -533,7 +533,7 @@ describe('ProgressContent', () => {
     expect(route).toHaveLength(1)
     expect(route[0]).not.toBeDisabled()
     expect(route[0]).not.toHaveAttribute('aria-disabled')
-    expect(route[0]!.closest('[data-testid="progress-locked-card"]')).not.toHaveAttribute('inert')
+    expect(route[0]!.closest('[inert]')).toBeNull()
     fireEvent.click(route[0]!)
     expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/upgrade')
   })
