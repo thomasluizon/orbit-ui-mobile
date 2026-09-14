@@ -86,10 +86,11 @@ export function usePreferenceControls() {
     onError: (_error, _timeZone, context) => {
       patchProfile({ timeZone: context?.previous ?? null })
     },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: calendarKeys.all })
-      void queryClient.invalidateQueries({ queryKey: gamificationKeys.all, refetchType: 'none' })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.all })
+    onSettled: async () => {
+      await queryClient.cancelQueries({ queryKey: calendarKeys.all })
+      await queryClient.invalidateQueries({ queryKey: calendarKeys.all })
+      await queryClient.invalidateQueries({ queryKey: gamificationKeys.all, refetchType: 'none' })
+      await queryClient.invalidateQueries({ queryKey: habitKeys.all })
     },
   })
 

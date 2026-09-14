@@ -1,5 +1,6 @@
 import {
   apiKeyKeys,
+  calendarKeys,
   gamificationKeys,
   goalKeys,
   habitKeys,
@@ -582,6 +583,10 @@ async function finalizeSuccessfulFlush(
 ): Promise<void> {
   addTouchedScope(touchedScopes, mutation)
   applySuccessfulProfileMutation(mutation)
+  if (mutation.type === 'setTimeZone') {
+    await queryClient.cancelQueries({ queryKey: calendarKeys.all })
+    await queryClient.invalidateQueries({ queryKey: calendarKeys.all })
+  }
   await clearCreatedOfflineEntity(mutation, response)
   await clearDeletedOfflineEntity(mutation)
   remove(mutation.id)

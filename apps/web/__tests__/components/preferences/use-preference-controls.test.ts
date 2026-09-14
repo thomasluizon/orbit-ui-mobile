@@ -185,17 +185,18 @@ describe('usePreferenceControls', () => {
     mockPatchProfile.mockImplementation((patch: { timeZone: string }) => {
       profileRef.value = { ...profileRef.value!, ...patch }
     })
+    let resolveOptimisticRequest!: (response: Response) => void
     mockFetch
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: () => Promise.resolve([calendarEvent('2026-09-13')]),
       })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve([calendarEvent('2026-09-13')]),
-      })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveOptimisticRequest = resolve
+        }),
+      )
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -217,16 +218,15 @@ describe('usePreferenceControls', () => {
     await waitFor(() => expect(profileRef.value?.timeZone).toBe('America/Los_Angeles'))
     rerender()
     await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2))
-    await waitFor(() => {
-      expect(result.current.events.data?.status).toBe('connected')
-      if (result.current.events.data?.status === 'connected') {
-        expect(result.current.events.data.events[0]?.startDate).toBe('2026-09-13')
-      }
-    })
 
     settleTimezoneWrite()
 
     await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(3))
+    resolveOptimisticRequest({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve([calendarEvent('2026-09-13')]),
+    } as Response)
     await waitFor(() => {
       if (result.current.events.data?.status === 'connected') {
         expect(result.current.events.data.events[0]?.startDate).toBe('2026-09-12')

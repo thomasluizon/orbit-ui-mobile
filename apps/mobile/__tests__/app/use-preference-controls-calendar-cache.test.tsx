@@ -82,9 +82,14 @@ describe('mobile timezone calendar cache settlement', () => {
     mocks.patchProfile.mockImplementation((patch: Partial<Profile>) => {
       mocks.profile = { ...mocks.profile, ...patch }
     })
+    let resolveOptimisticRequest!: (events: ReturnType<typeof calendarEvent>[]) => void
     mocks.apiClient
       .mockResolvedValueOnce([calendarEvent('2026-09-13')])
-      .mockResolvedValueOnce([calendarEvent('2026-09-13')])
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveOptimisticRequest = resolve
+        }),
+      )
       .mockResolvedValueOnce([calendarEvent('2026-09-12')])
     const queryClient = new QueryClient({
       defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
@@ -125,16 +130,11 @@ describe('mobile timezone calendar cache settlement', () => {
       await Promise.resolve()
     })
     await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(2))
-    await vi.waitFor(() => {
-      expect(current.events.data?.status).toBe('connected')
-      if (current.events.data?.status === 'connected') {
-        expect(current.events.data.events[0]?.startDate).toBe('2026-09-13')
-      }
-    })
 
     settleTimezoneWrite()
 
     await vi.waitFor(() => expect(mocks.apiClient).toHaveBeenCalledTimes(3))
+    resolveOptimisticRequest([calendarEvent('2026-09-13')])
     await vi.waitFor(() => {
       if (current.events.data?.status === 'connected') {
         expect(current.events.data.events[0]?.startDate).toBe('2026-09-12')
