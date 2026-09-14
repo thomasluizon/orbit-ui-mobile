@@ -72,7 +72,7 @@ describe('WrappedPlayer', () => {
     expect(screen.getByTestId('wrapped-slide-intro')).toBeInTheDocument()
   })
 
-  it('replaces the Pager forward control with the share action on the final slide', () => {
+  it('replaces the Pager forward control with responsive share actions on the final slide', () => {
     renderPlayer()
     const lastIndex = buildWrappedSlides(createMockRecap()).length - 1
     for (let step = 0; step < lastIndex; step += 1) {
@@ -80,8 +80,12 @@ describe('WrappedPlayer', () => {
     }
     const pager = screen.getByTestId('wrapped-pager')
     expect(within(pager).queryByRole('button', { name: 'wrapped.next' })).not.toBeInTheDocument()
-    expect(within(pager).getByRole('button', { name: 'shareCard.share' })).toBeInTheDocument()
-    expect(within(pager).getByRole('button', { name: 'shareCard.download' })).toBeInTheDocument()
+    const narrowActions = within(pager).getByTestId('wrapped-share-actions-narrow')
+    const wideActions = within(pager).getByTestId('wrapped-share-actions-wide')
+    expect(within(narrowActions).getAllByRole('button').map((button) => button.textContent))
+      .toEqual(['shareCard.share', 'shareCard.download'])
+    expect(within(wideActions).getAllByRole('button').map((button) => button.textContent))
+      .toEqual(['shareCard.download', 'shareCard.share'])
     expect(screen.queryByTestId('wrapped-next-zone')).not.toBeInTheDocument()
   })
 
