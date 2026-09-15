@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useRef, useCallback, useEffectEvent } from 'react'
 // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-import { Animated, Dimensions, StyleSheet, Text, View } from 'react-native'
+import { Animated, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { Trophy } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -9,9 +9,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { toAnimatedEasing } from '@/lib/motion'
 import { createTokensV2, easings, shadowsV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window')
-const TOAST_WIDTH = Math.min(SCREEN_WIDTH - 32, 380)
+import { resolveCenteredOverlayFrame } from '@/components/ui/centered-overlay-frame'
 
 /**
  * Achievement toast: kit toast surface with a primary-tinted trophy disc and
@@ -21,6 +19,8 @@ const TOAST_WIDTH = Math.min(SCREEN_WIDTH - 32, 380)
 export function AchievementToast() {
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
+  const { width: screenWidth } = useWindowDimensions()
+  const overlayFrame = resolveCenteredOverlayFrame(screenWidth, 380)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -152,6 +152,7 @@ export function AchievementToast() {
     <Animated.View
       style={[
         styles.container,
+        overlayFrame,
         { top: insets.top + 12 },
         {
           opacity,
@@ -210,8 +211,6 @@ export function AchievementToast() {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: (SCREEN_WIDTH - TOAST_WIDTH) / 2,
-    width: TOAST_WIDTH,
     zIndex: 10000,
   },
   inner: {

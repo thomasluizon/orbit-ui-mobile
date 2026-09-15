@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { __setWindowDimensions } from '@/test-mocks/react-native'
 
 vi.unmock('@/components/bottom-sheet-modal')
 
@@ -54,7 +55,7 @@ interface ModalCallbacks {
 
 async function renderModal(open: boolean, callbacks: ModalCallbacks = {}) {
   let tree!: TestTree
-  await TestRenderer.act(async () => {
+  await TestRenderer.act(() => {
     tree = TestRenderer.create(
       <BottomSheetModal
         open={open}
@@ -69,7 +70,7 @@ async function renderModal(open: boolean, callbacks: ModalCallbacks = {}) {
 }
 
 async function setOpen(tree: TestTree, open: boolean, callbacks: ModalCallbacks = {}) {
-  await TestRenderer.act(async () => {
+  await TestRenderer.act(() => {
     tree.update(
       <BottomSheetModal
         open={open}
@@ -85,7 +86,7 @@ async function setOpen(tree: TestTree, open: boolean, callbacks: ModalCallbacks 
 async function fireNativeDidDismiss(tree: TestTree) {
   const sheet = tree.root.findAll((node) => node.type === TrueSheet)[0]
   if (!sheet) throw new Error('TrueSheet not rendered')
-  await TestRenderer.act(async () => {
+  await TestRenderer.act(() => {
     ;(sheet.props.onDidDismiss as () => void)()
   })
 }
@@ -96,6 +97,7 @@ describe('BottomSheetModal', () => {
     dismiss.mockReset()
     present.mockImplementation(() => Promise.resolve())
     dismiss.mockImplementation(() => Promise.resolve())
+    __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 })
   })
 
   it('does not dismiss the native sheet on initial mount when it was never presented', async () => {
@@ -133,7 +135,7 @@ describe('BottomSheetModal', () => {
 
   it('wraps sheet content in a scroll container by default', async () => {
     let tree!: TestTree
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <BottomSheetModal open onClose={() => {}}>
           <></>
@@ -146,7 +148,7 @@ describe('BottomSheetModal', () => {
 
   it('renders children without a scroll container when the content manages scrolling', async () => {
     let tree!: TestTree
-    await TestRenderer.act(async () => {
+    await TestRenderer.act(() => {
       tree = TestRenderer.create(
         <BottomSheetModal open onClose={() => {}} contentManagesScroll>
           <></>
@@ -155,6 +157,39 @@ describe('BottomSheetModal', () => {
     })
 
     expect(tree.root.findAll((node) => node.type === 'ScrollView')).toHaveLength(0)
+  })
+
+  it('owns safe-area adjustment and a readable maximum width for edge-to-edge large screens', async () => {
+    const tree = await renderModal(true)
+    const sheet = tree.root.findAll((node) => node.type === TrueSheet)[0]
+
+    expect(sheet?.props.insetAdjustment).toBe('automatic')
+    expect(sheet?.props.maxContentWidth).toBe(640)
+  })
+
+  it('recomputes numeric detents when a large screen rotates to landscape', async () => {
+    __setWindowDimensions({ width: 600, height: 800, scale: 1, fontScale: 1 })
+    let tree!: TestTree
+    await TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <BottomSheetModal open onClose={() => {}} snapPoints={[400]}>
+          <></>
+        </BottomSheetModal>,
+      )
+    })
+
+    expect(tree.root.findAll((node) => node.type === TrueSheet)[0]?.props.detents).toEqual([0.5])
+
+    __setWindowDimensions({ width: 800, height: 400, scale: 1, fontScale: 1 })
+    await TestRenderer.act(() => {
+      tree.update(
+        <BottomSheetModal open onClose={() => {}} snapPoints={[400]}>
+          <></>
+        </BottomSheetModal>,
+      )
+    })
+
+    expect(tree.root.findAll((node) => node.type === TrueSheet)[0]?.props.detents).toEqual([1])
   })
 
   it('does not dismiss after a present that failed, since the sheet was never shown', async () => {
