@@ -23,10 +23,10 @@ import {
   extractBackendStatus,
 } from '@orbit/shared/utils'
 import { STREAK_CROSSING_MILESTONES } from '@orbit/shared/stores'
-import { fetchJson, type ApiFetchBehavior } from '@/lib/api-fetch'
+import { fetchJson } from '@/lib/api-fetch'
 import { repairStreakGap, reportAchievementEvent } from '@/app/actions/gamification'
 
-export function useGamificationProfile(enabled = true, behavior?: ApiFetchBehavior) {
+export function useGamificationProfile(enabled = true) {
   const queryClient = useQueryClient()
   const previousLevelRef = useRef<number | null>(null)
   const previousStreakRef = useRef<number | null>(null)
@@ -35,7 +35,7 @@ export function useGamificationProfile(enabled = true, behavior?: ApiFetchBehavi
 
   const query = useQuery({
     queryKey: gamificationKeys.profile(),
-    queryFn: () => fetchJson<GamificationProfile>(API.gamification.profile, gamificationProfileSchema, behavior),
+    queryFn: () => fetchJson<GamificationProfile>(API.gamification.profile, gamificationProfileSchema, { handlesPayGate: true }),
     staleTime: QUERY_STALE_TIMES.gamification,
     refetchOnWindowFocus: true,
     enabled,

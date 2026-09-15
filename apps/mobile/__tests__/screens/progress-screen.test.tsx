@@ -22,6 +22,8 @@ type TestNode = {
 
 const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
+  gamificationEnabled: vi.fn(),
+  retrospectiveEnabled: vi.fn(),
   repair: { mutate: vi.fn(), isPending: false, isError: false, error: null as { status: number } | null },
   reorder: { mutate: vi.fn() },
   drag: vi.fn(),
@@ -139,7 +141,10 @@ vi.mock('@/hooks/use-goals', () => ({
   useUpdateGoalStatus: () => mocks.updateStatus,
 }))
 vi.mock('@/hooks/use-gamification', () => ({
-  useGamificationProfile: () => mocks.gamification,
+  useGamificationProfile: (enabled?: boolean) => {
+    mocks.gamificationEnabled(enabled)
+    return mocks.gamification
+  },
   useRepairStreak: () => mocks.repair,
   useStreakFreeze: (_profile: unknown, timeZone: unknown) => {
     if (!mocks.streakSnapshotZones || typeof timeZone !== 'string') return mocks.freeze
@@ -152,7 +157,12 @@ vi.mock('@/hooks/use-gamification', () => ({
     }
   },
 }))
-vi.mock('@/hooks/use-retrospective', () => ({ useProgressRetrospective: () => mocks.retrospective }))
+vi.mock('@/hooks/use-retrospective', () => ({
+  useProgressRetrospective: (enabled: boolean) => {
+    mocks.retrospectiveEnabled(enabled)
+    return mocks.retrospective
+  },
+}))
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: theme.mode }),
 }))
@@ -553,9 +563,13 @@ describe('mobile ProgressContent', () => {
     expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith({ pathname: '/upgrade', params: { from: '/progress' } })
   })
 
-  it('unlocks every gamification section when a free account receives a profile', async () => {
+  it('keeps the Pro window locked when free gamification succeeds but retrospective returns PAY_GATE', async () => {
     mocks.account.profile.canViewGamification = true
     mocks.account.profile.hasProAccess = false
+    mocks.retrospective.isError = true
+    mocks.retrospective.error = {
+      data: { errorCode: 'PAY_GATE' },
+    }
 
     const tree = await renderProgress()
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
@@ -565,10 +579,12 @@ describe('mobile ProgressContent', () => {
       'progressScreen.sections.goals',
     ]))
     expect(text).not.toContain('progressScreen.streak.lockedBody')
-    expect(text).not.toContain('progressScreen.window.lockedBody')
     expect(text).not.toContain('progressScreen.achievements.lockedBody')
+    expect(text).toContain('progressScreen.window.lockedBody')
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'progress-xp-summary')).toHaveLength(1)
-    expect(tree.root.findAll((node) => node.type === 'StatTile' && node.props.value === '75%')).toHaveLength(1)
+    expect(tree.root.findAll((node) => node.type === 'StatTile' && node.props.value === '75%')).toHaveLength(0)
+    expect(mocks.gamificationEnabled).toHaveBeenCalledWith(true)
+    expect(mocks.retrospectiveEnabled).toHaveBeenCalledWith(false)
   })
 
   it('renders empty weekly and habit figures without substituting unrelated totals', async () => {

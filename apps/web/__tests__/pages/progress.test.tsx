@@ -16,6 +16,8 @@ import {
 
 const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
+  gamificationEnabled: vi.fn(),
+  retrospectiveEnabled: vi.fn(),
   repair: { mutate: vi.fn(), isPending: false, isError: false, error: null as unknown },
   reorder: { mutate: vi.fn() },
   updateStatus: { mutate: vi.fn(), isPending: false },
@@ -131,7 +133,10 @@ vi.mock('@/hooks/use-goals', () => ({
   useUpdateGoalStatus: () => mocks.updateStatus,
 }))
 vi.mock('@/hooks/use-gamification', () => ({
-  useGamificationProfile: () => mocks.gamification,
+  useGamificationProfile: (enabled?: boolean) => {
+    mocks.gamificationEnabled(enabled)
+    return mocks.gamification
+  },
   useRepairStreak: () => mocks.repair,
   useStreakFreeze: (_profile: unknown, timeZone: unknown) => {
     if (!mocks.streakSnapshotZones || typeof timeZone !== 'string') return mocks.freeze
@@ -145,7 +150,10 @@ vi.mock('@/hooks/use-gamification', () => ({
   },
 }))
 vi.mock('@/hooks/use-retrospective', () => ({
-  useProgressRetrospective: () => mocks.retrospective,
+  useProgressRetrospective: (enabled: boolean) => {
+    mocks.retrospectiveEnabled(enabled)
+    return mocks.retrospective
+  },
 }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsDesktop: () => mocks.isDesktop }))
 
@@ -536,19 +544,25 @@ describe('ProgressContent', () => {
     }
   })
 
-  it('unlocks every gamification section when a free account receives a profile', () => {
+  it('keeps the Pro window locked when free gamification succeeds but retrospective returns PAY_GATE', () => {
     mocks.account.profile.canViewGamification = true
     mocks.account.profile.hasProAccess = false
+    mocks.retrospective.isError = true
+    mocks.retrospective.error = {
+      data: { errorCode: 'PAY_GATE' },
+    }
 
     render(<ProgressContent />)
 
     expect(screen.getByText('progressScreen.streak.currentLabel:{"count":4}')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
-    expect(screen.queryByText('progressScreen.window.lockedBody')).not.toBeInTheDocument()
     expect(screen.queryByText('progressScreen.achievements.lockedBody')).not.toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.lockedBody')).not.toBeInTheDocument()
+    expect(screen.getByText('progressScreen.window.lockedBody')).toBeInTheDocument()
     expect(screen.getByTestId('progress-xp-summary')).toBeInTheDocument()
-    expect(screen.getByText('75%')).toBeInTheDocument()
+    expect(screen.queryByText('75%')).not.toBeInTheDocument()
+    expect(mocks.gamificationEnabled).toHaveBeenCalledWith(true)
+    expect(mocks.retrospectiveEnabled).toHaveBeenCalledWith(false)
   })
 
   it('renders empty weekly and habit figures without substituting unrelated totals', () => {

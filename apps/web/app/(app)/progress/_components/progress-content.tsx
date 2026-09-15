@@ -362,10 +362,10 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
   )
 }
 
-function WindowSection({ gamificationAvailable }: Readonly<{ gamificationAvailable: boolean }>) {
+function WindowSection({ hasProAccess }: Readonly<{ hasProAccess: boolean }>) {
   const t = useTranslations()
-  const retrospective = useProgressRetrospective(gamificationAvailable)
-  if (!gamificationAvailable) return <WindowFrame title={t('progressScreen.sections.window')}><div className="max-w-[560px]"><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} /></div></WindowFrame>
+  const retrospective = useProgressRetrospective(hasProAccess)
+  if (!hasProAccess) return <WindowFrame title={t('progressScreen.sections.window')}><div className="max-w-[560px]"><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} /></div></WindowFrame>
   if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
   const hasNoHabits = retrospective.isError && extractBackendErrorCode(retrospective.error) === NO_HABITS_FOR_PERIOD
   if (retrospective.isError && !hasNoHabits) {
@@ -500,8 +500,10 @@ export function ProgressContent() {
   const router = useRouter()
   const account = useProfile()
   const goals = useGoals()
-  const gamification = useGamificationProfile(true, { handlesPayGate: true })
-  const gamificationAvailable = gamification.profile !== null && !isPayGateError(gamification.error)
+  const canViewGamification = account.profile?.canViewGamification ?? false
+  const hasProAccess = account.profile?.hasProAccess ?? false
+  const gamification = useGamificationProfile(canViewGamification)
+  const gamificationAvailable = canViewGamification && !isPayGateError(gamification.error)
   const allGoals = goals.data?.allGoals ?? []
   const { error, loading, empty } = deriveProgressViewState({ goalCount: allGoals.length, account, goals, gamification })
   const retry = () => {
@@ -518,7 +520,7 @@ export function ProgressContent() {
       {error ? <div className="w-full max-w-[620px]"><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
       {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {empty ? <div className="pt-12"><EmptyState title={t('progressScreen.empty')} action={<PillButton variant="ghost" size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></div> : null}
-      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection gamificationAvailable={gamificationAvailable} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
+      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasProAccess={hasProAccess} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
       </div>
     </main>
   )

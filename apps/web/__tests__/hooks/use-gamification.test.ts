@@ -14,6 +14,12 @@ import type { GamificationProfile, StreakInfo } from '@orbit/shared/types/gamifi
 
 const mockFetch = vi.fn()
 const repairStreakGap = vi.hoisted(() => vi.fn())
+const fetchJson = vi.hoisted(() => vi.fn((url: string) =>
+  fetch(url).then((res: Response) => {
+    if (!res.ok) throw new Error('Fetch failed')
+    return res.json()
+  }),
+))
 vi.stubGlobal('fetch', mockFetch)
 
 vi.mock('@/app/actions/gamification', () => ({
@@ -22,12 +28,7 @@ vi.mock('@/app/actions/gamification', () => ({
 }))
 
 vi.mock('@/lib/api-fetch', () => ({
-  fetchJson: vi.fn((url: string) =>
-    fetch(url).then((res: Response) => {
-      if (!res.ok) throw new Error('Fetch failed')
-      return res.json()
-    }),
-  ),
+  fetchJson,
 }))
 
 function createWrapper() {
@@ -128,6 +129,7 @@ function makeStreakInfo(overrides: Partial<StreakInfo> = {}): StreakInfo {
 describe('useGamificationProfile', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    fetchJson.mockClear()
   })
 
   it('fetches and returns gamification profile', async () => {
@@ -186,6 +188,27 @@ describe('useGamificationProfile', () => {
 
     expect(mockFetch).not.toHaveBeenCalled()
     expect(result.current.profile).toBeNull()
+  })
+
+  it('keeps PAY_GATE non-redirecting when two observers share the profile query', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(makeGamificationProfile()),
+    })
+
+    const { result } = renderHook(() => {
+      const layoutObserver = useGamificationProfile()
+      const progressObserver = useGamificationProfile()
+      return { layoutObserver, progressObserver }
+    }, { wrapper: createWrapper() })
+
+    await waitFor(() => expect(result.current.progressObserver.isSuccess).toBe(true))
+    expect(result.current.layoutObserver.profile).toBeDefined()
+    expect(fetchJson).toHaveBeenCalledWith(
+      API.gamification.profile,
+      expect.anything(),
+      { handlesPayGate: true },
+    )
   })
 
   it('returns 100 xpProgress when range is zero', async () => {
