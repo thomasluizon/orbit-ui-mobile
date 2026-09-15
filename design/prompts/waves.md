@@ -270,23 +270,53 @@ screen and the chat error. Every error says how to fix it, in plain language, wi
 
 ## The surface list, and when it stops being true
 
-`node tools/redesign-coverage.mjs` maps **195 surfaces across 19 groups** and is the list 17 R tickets
-cite as authoritative. It validates against the live surface manifest, so it is **correct today**: it
-maps what the code actually has.
+The pre-redesign snapshot and its R group guidance are superseded by #356. The canvas documents now
+define how each surface looks. `node tools/redesign-coverage.mjs` is the completeness check that makes
+sure no live surface is skipped, not a design authority.
 
-**It goes stale as the information architecture lands in code, not before.** Do not edit it ahead of
-the deletions; it would then disagree with the manifest and fail its own validation. Regenerate it
-after each deletion merges. The groups that shrink or disappear:
+Its current output is:
 
-* `R12-screen-insights` (6 surfaces) goes to zero. The route is cut.
-* `R4-motion-celebration` (18) collapses toward one component with four triggers.
-* `R2-primitive-shell` (8) loses the desktop stats rail and gains the composer.
-* `R6-screen-goals` (8) loses the create-goal entry and moves inside Progresso.
-* `R13-screen-social` is already zero.
+```text
+redesign coverage valid: 190 manifest surfaces accounted for, 8 deleted, 1 excluded
+  Orbit Assinatura: 0
+  Orbit Astra Conversation: 32
+  Orbit Avisos: 6
+  Orbit Busca: 3
+  Orbit Calendario: 7
+  Orbit Celebracao: 2
+  Orbit Entrar: 4
+  Orbit Estados: 9
+  Orbit Habit Create: 14
+  Orbit Habit Detail: 16
+  Orbit Hoje: 14
+  Orbit Offline: 0
+  Orbit Onboarding: 13
+  Orbit Perfil: 20
+  Orbit Pro: 5
+  Orbit Progresso: 8
+  Orbit Sobre: 8
+  Orbit Sobreposicoes: 13
+  Orbit Verificacao: 4
+  Orbit Widget Android: 1
+  Orbit Wrapped: 10
+```
 
-**Progresso is not in the list at all**, because it does not exist yet. It absorbs `R9-screen-streak`,
-`R10-screen-achievements`, `R12-screen-insights` and the goal surfaces, and it needs its own ticket
-before wave 4 draws it.
+The check derives its 21 document names from the top level of `design/canvas/`, excluding
+`superseded/`. Every live manifest surface must belong to exactly one document or carry one explicit
+exclusion. Every deleted surface must be absent from the manifest and carry the decision that removed
+it. Regenerate the manifest and update the mapping together whenever the surface set changes.
+
+The information architecture decisions behind the retired guidance still hold:
+
+* D69 removes the insights route, the retrospective routes, the desktop stats rail and the social
+  layer. Their eight surface records remain as decision-backed tombstones.
+* `Orbit Celebracao` specifies one celebration component with four triggers.
+* The authenticated shell serves Hoje, Calendario, Progresso and Perfil. It has the composer and no
+  desktop stats rail.
+* `Orbit Habit Create` and `Orbit Habit Detail` own goal creation and linking within habit flows.
+  `Orbit Progresso` owns goal detail and editing, the streak, achievements and progress figures.
+* The web only explore hub has no canvas document. Its live route remains named as the single explicit
+  exclusion instead of being assigned to an unrelated document.
 
 ## After every wave
 
