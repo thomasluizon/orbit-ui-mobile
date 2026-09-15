@@ -56,7 +56,7 @@ describe('ShareCardPanel', () => {
 
   it('shows the share card for a goal-only recap', () => {
     recapState.data = createMockRecap({
-      goalCompletions: 4,
+      goalCompletions: 2,
       metrics: createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
     })
     recapState.isError = false

@@ -30,12 +30,18 @@ vi.mock('@/components/ui/pill-button', () => ({
   }) => React.createElement('PillButtonStub', { onClick }, children),
 }))
 
-const { recapState, refetch } = vi.hoisted<{
-  recapState: { data: unknown; isLoading: boolean; isError: boolean }
-  refetch: ReturnType<typeof vi.fn>
-}>(() => ({
-  recapState: { data: undefined, isLoading: false, isError: true },
+const { refetch, recapState, shareCardState } = vi.hoisted(() => ({
   refetch: vi.fn(),
+  recapState: {
+    data: undefined as ReturnType<typeof createMockRecap> | undefined,
+    isLoading: false,
+    isError: true,
+  },
+  shareCardState: {
+    canShareFiles: false,
+    download: vi.fn(),
+    share: vi.fn(),
+  },
 }))
 
 vi.mock('@/hooks/use-recap', () => ({
@@ -47,7 +53,7 @@ vi.mock('@/hooks/use-share-card', () => ({
     shareRef: { current: null },
     isSharing: false,
     hasError: false,
-    share: vi.fn(),
+    ...shareCardState,
   }),
 }))
 
@@ -86,9 +92,28 @@ describe('ShareCardPanel (mobile)', () => {
     TestRenderer.act(() => tree!.unmount())
   })
 
+  it('makes download the only action when native sharing is unsupported', async () => {
+    recapState.data = createMockRecap()
+    recapState.isError = false
+    let tree: RenderedTree | null = null
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<ShareCardPanel open onClose={vi.fn()} />)
+      await Promise.resolve()
+    })
+
+    const buttons = tree!.root.findAll((node) => node.type === 'PillButtonStub')
+    expect(buttons.map((node) => node.props.children)).toEqual(['shareCard.download'])
+    ;(buttons[0]!.props.onClick as () => void)()
+    expect(shareCardState.download).toHaveBeenCalledTimes(1)
+
+    TestRenderer.act(() => tree!.unmount())
+    recapState.data = undefined
+    recapState.isError = true
+  })
+
   it('shows the share card for a goal-only recap', async () => {
     recapState.data = createMockRecap({
-      goalCompletions: 4,
+      goalCompletions: 2,
       metrics: createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
     })
     recapState.isError = false
@@ -102,7 +127,7 @@ describe('ShareCardPanel (mobile)', () => {
     expect(
       tree!.root.findAll((node) => node.type === 'PillButtonStub')
         .map((node) => node.props.children),
-    ).toEqual(['shareCard.share'])
+    ).toEqual(['shareCard.download'])
 
     TestRenderer.act(() => tree!.unmount())
     recapState.data = undefined

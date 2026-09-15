@@ -47,18 +47,15 @@ describe('buildShareCardStats', () => {
         bestStreak: 18,
         activeDays: 5,
       }),
-      6,
+      3,
     )
 
     expect(stats.map((stat) => stat.labelKey)).toEqual([
-      'shareCard.stats.completionRate',
       'shareCard.stats.completions',
       'shareCard.stats.bestStreak',
-      'shareCard.stats.activeDays',
       'shareCard.stats.goalsClosed',
     ])
-    expect(stats.map((stat) => stat.value)).toEqual(['74%', '40', '18', '5', '6'])
-    expect(stats.every((stat) => stat.emoji.length > 0)).toBe(true)
+    expect(stats.map((stat) => stat.value)).toEqual(['40', '18', '3'])
   })
 
   it('handles all-zero metrics without throwing', () => {
@@ -72,7 +69,7 @@ describe('buildShareCardStats', () => {
       0,
     )
 
-    expect(stats.map((stat) => stat.value)).toEqual(['0%', '0', '0', '0', '0'])
+    expect(stats.map((stat) => stat.value)).toEqual(['0', '0', '0'])
   })
 })
 
@@ -99,7 +96,7 @@ describe('isRecapShareEmpty', () => {
     expect(
       isRecapShareEmpty(
         createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
-        4,
+        3,
       ),
     ).toBe(false)
   })

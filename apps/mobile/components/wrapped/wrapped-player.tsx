@@ -19,7 +19,6 @@ interface WrappedPlayerProps {
   recap: Recap
   period: RecapSharePeriod
   tokens: Tokens
-  displayName?: string
   onClose: () => void
 }
 
@@ -30,13 +29,12 @@ export function WrappedPlayer({
   recap,
   period,
   tokens,
-  displayName,
   onClose,
 }: Readonly<WrappedPlayerProps>) {
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
   const { index, isFirst, isLast, next, prev } = useWrappedStory(slides.length)
-  const { shareRef, isSharing, hasError, share } = useShareCard()
+  const { shareRef, isSharing, hasError, canShareFiles, share, download } = useShareCard()
   const current = slides[index]
 
   function page(direction: PageDirection) {
@@ -95,7 +93,6 @@ export function WrappedPlayer({
               recap={recap}
               period={period}
               tokens={tokens}
-              displayName={displayName}
               shareRef={shareRef}
               shareError={hasError}
             />
@@ -113,8 +110,15 @@ export function WrappedPlayer({
           backLabel={t('wrapped.previous')}
           forwardLabel={t('wrapped.next')}
           shareLabel={t('shareCard.share')}
+          downloadLabel={t('shareCard.download')}
+          canShareFiles={canShareFiles}
           isSharing={isSharing}
-          onShare={() => void share(t('shareCard.shareTitle'))}
+          onShare={() => void share({
+            shareTitle: t('shareCard.shareTitle'),
+            shareText: t('shareCard.shareText'),
+            url: recap.shareDeepLink,
+          })}
+          onDownload={() => void download()}
           onPage={page}
         />
       </View>
@@ -159,8 +163,11 @@ interface PlayerPagerProps {
   backLabel: string
   forwardLabel: string
   shareLabel: string
+  downloadLabel: string
+  canShareFiles: boolean
   isSharing: boolean
   onShare: () => void
+  onDownload: () => void
   onPage: (direction: PageDirection) => void
 }
 
@@ -178,9 +185,14 @@ function PlayerPager(props: Readonly<PlayerPagerProps>) {
           {...pagerProps}
           onBack={() => props.onPage('back')}
           forwardSlot={(
-            <PillButton loading={props.isSharing} disabled={props.isSharing} onClick={props.onShare}>
-              {props.shareLabel}
-            </PillButton>
+            <ShareActions
+              canShareFiles={props.canShareFiles}
+              isSharing={props.isSharing}
+              shareLabel={props.shareLabel}
+              downloadLabel={props.downloadLabel}
+              onShare={props.onShare}
+              onDownload={props.onDownload}
+            />
           )}
         />
       ) : (
@@ -191,6 +203,35 @@ function PlayerPager(props: Readonly<PlayerPagerProps>) {
           onForward={() => props.onPage('forward')}
         />
       )}
+    </View>
+  )
+}
+
+interface ShareActionsProps {
+  canShareFiles: boolean
+  isSharing: boolean
+  shareLabel: string
+  downloadLabel: string
+  onShare: () => void
+  onDownload: () => void
+}
+
+function ShareActions(props: Readonly<ShareActionsProps>) {
+  return (
+    <View testID="wrapped-share-actions" style={styles.shareActions}>
+      {props.canShareFiles ? (
+        <PillButton loading={props.isSharing} disabled={props.isSharing} onClick={props.onShare}>
+          {props.shareLabel}
+        </PillButton>
+      ) : null}
+      <PillButton
+        variant={props.canShareFiles ? 'ghost' : 'primary'}
+        loading={props.isSharing}
+        disabled={props.isSharing}
+        onClick={props.onDownload}
+      >
+        {props.downloadLabel}
+      </PillButton>
     </View>
   )
 }

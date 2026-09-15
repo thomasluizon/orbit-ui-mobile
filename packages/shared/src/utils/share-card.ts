@@ -6,11 +6,29 @@ export const RECAP_SHARE_PERIODS = ['week', 'month', 'year'] as const
 
 export type RecapSharePeriod = (typeof RECAP_SHARE_PERIODS)[number]
 
-/** A single branded stat tile on the share card: an i18n label key, an emoji, and a pre-formatted display value. */
+export const SHARE_CARD_WIDTH = 360
+export const SHARE_CARD_HEIGHT = 640
+export const SHARE_CARD_FILE_NAME = 'orbit-recap.png'
+
+export const WRAPPED_WEEKDAY_KEYS = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+] as const
+
+/** A single figure on the share card with its existing i18n label and display value. */
 export interface ShareCardStat {
   labelKey: string
-  emoji: string
   value: string
+}
+
+export interface ShareCardWeekday {
+  labelKey: `dates.daysShort.${(typeof WRAPPED_WEEKDAY_KEYS)[number]}`
+  percentage: number
 }
 
 /** Builds the recap read URL for a share-card period (mirrors `buildRetrospectiveRequestUrl`). */
@@ -37,31 +55,32 @@ export function buildShareCardStats(
 ): ShareCardStat[] {
   return [
     {
-      labelKey: 'shareCard.stats.completionRate',
-      emoji: '🎯',
-      value: formatCompletionRate(metrics.completionRate),
-    },
-    {
       labelKey: 'shareCard.stats.completions',
-      emoji: '✅',
       value: String(metrics.totalCompletions),
     },
     {
       labelKey: 'shareCard.stats.bestStreak',
-      emoji: '🏆',
       value: String(metrics.bestStreak),
     },
     {
-      labelKey: 'shareCard.stats.activeDays',
-      emoji: '📅',
-      value: String(metrics.activeDays),
-    },
-    {
       labelKey: 'shareCard.stats.goalsClosed',
-      emoji: '🏁',
       value: String(goalCompletions),
     },
   ]
+}
+
+/** Finds the strongest Monday-first weekday and keeps its shared three-letter label key. */
+export function buildShareCardWeekday(weeklyConsistency: readonly number[]): ShareCardWeekday {
+  let strongestIndex = 0
+  for (let index = 1; index < WRAPPED_WEEKDAY_KEYS.length; index += 1) {
+    if ((weeklyConsistency[index] ?? 0) > (weeklyConsistency[strongestIndex] ?? 0)) {
+      strongestIndex = index
+    }
+  }
+
+  const key = WRAPPED_WEEKDAY_KEYS[strongestIndex]!
+  const percentage = Math.max(0, Math.min(100, Math.round(weeklyConsistency[strongestIndex] ?? 0)))
+  return { labelKey: `dates.daysShort.${key}`, percentage }
 }
 
 /** True when the recap has no habit or goal completions, so sharing never produces a blank card. */

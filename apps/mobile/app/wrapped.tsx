@@ -6,7 +6,6 @@ import type { RecapSharePeriod } from '@orbit/shared/utils'
 import { Button } from '@/components/ui/pill-button'
 import { ChevronLeft } from '@/components/ui/icons'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { useProfile } from '@/hooks/use-profile'
 import { useWrapped } from '@/hooks/use-wrapped'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -23,7 +22,6 @@ export default function WrappedScreen() {
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const { profile } = useProfile()
   const [period, setPeriod] = useState<RecapSharePeriod>('week')
   const [isPlaying, setIsPlaying] = useState(false)
   const [isRetrying, setIsRetrying] = useState(false)
@@ -68,7 +66,6 @@ export default function WrappedScreen() {
           recap={recap}
           period={period}
           tokens={tokens}
-          displayName={profile?.name ?? undefined}
           onClose={() => setIsPlaying(false)}
         />
       </View>

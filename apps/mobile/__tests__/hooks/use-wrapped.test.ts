@@ -168,6 +168,7 @@ describe('mobile useWrapped', () => {
 
     const api = await renderWrapped('month')
     expect(api.current.isEmpty).toBe(false)
+    expect(api.current.slides.at(-1)?.id).toBe('share')
     expect(api.current.slides).toContainEqual({ id: 'goals', closedGoals: 4 })
   })
 

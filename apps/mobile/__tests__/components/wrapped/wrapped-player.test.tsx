@@ -1,9 +1,20 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import type { ReactTestRenderer } from 'react-test-renderer'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { buildWrappedSlides } from '@orbit/shared/utils'
 import { WrappedPlayer } from '@/components/wrapped/wrapped-player'
+
+const translationMock = vi.hoisted<{ labels: Record<string, string> }>(() => ({ labels: {} }))
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => translationMock.labels[key] ?? key,
+  }),
+}))
 
 vi.mock('react-native-gesture-handler', () => {
   const GestureDetector = ({ children }: Readonly<{ children?: React.ReactNode }>) => children
@@ -23,12 +34,18 @@ vi.mock('@/components/wrapped/wrapped-slide', () => ({
     React.createElement('WrappedSlide', { testID: `wrapped-slide-${slide.id}` }),
 }))
 
+const shareCardMock = vi.hoisted(() => ({
+  isSharing: false,
+  hasError: false,
+  canShareFiles: true,
+  share: vi.fn(),
+  download: vi.fn(),
+}))
+
 vi.mock('@/hooks/use-share-card', () => ({
   useShareCard: () => ({
     shareRef: { current: null },
-    isSharing: false,
-    hasError: false,
-    share: vi.fn(),
+    ...shareCardMock,
   }),
 }))
 
@@ -78,6 +95,10 @@ function byTestId(tree: ReactTestRenderer, testID: string) {
   return hosts(tree).find((node) => node.props.testID === testID)
 }
 
+function allByTestId(tree: ReactTestRenderer, testID: string) {
+  return hosts(tree).filter((node) => node.props.testID === testID)
+}
+
 function press(node: ReturnType<typeof byTestId>) {
   if (!node) throw new Error('Expected button')
   void renderer.act(() => (node.props as { onPress?: () => void }).onPress?.())
@@ -87,7 +108,22 @@ function hasText(tree: ReactTestRenderer, text: string) {
   return hosts(tree).some((node) => String(node.type) === 'Text' && node.props.children === text)
 }
 
+function advanceToLastSlide(tree: ReactTestRenderer, slideCount: number) {
+  for (let index = 1; index < slideCount; index += 1) {
+    press(byTestId(tree, 'wrapped-next-zone'))
+  }
+}
+
 describe('WrappedPlayer', () => {
+  beforeEach(() => {
+    translationMock.labels = {}
+    shareCardMock.isSharing = false
+    shareCardMock.hasError = false
+    shareCardMock.canShareFiles = true
+    shareCardMock.share.mockReset()
+    shareCardMock.download.mockReset()
+  })
+
   it('puts one segment per slide in the foot Pager', () => {
     const { slides, tree } = renderPlayer()
     const playerHosts = hosts(tree)
@@ -138,11 +174,84 @@ describe('WrappedPlayer', () => {
 
   it('replaces the Pager forward control with share on the final slide', () => {
     const { slides, tree } = renderPlayer()
-    for (let index = 1; index < slides.length; index += 1) {
-      press(byTestId(tree, 'wrapped-next-zone'))
-    }
+    advanceToLastSlide(tree, slides.length)
     expect(hasText(tree, 'wrapped.next')).toBe(false)
     expect(hasText(tree, 'shareCard.share')).toBe(true)
+    expect(hasText(tree, 'shareCard.download')).toBe(true)
+    expect(byTestId(tree, 'button-primary-md')).toBeTruthy()
+    expect(byTestId(tree, 'button-ghost-md')).toBeTruthy()
     expect(byTestId(tree, 'wrapped-next-zone')).toBeUndefined()
+  })
+
+  it.each([
+    ['en', en],
+    ['pt-BR', ptBR],
+  ] as const)('keeps localized closing actions stacked beside Back in %s', (_locale, messages) => {
+    translationMock.labels = {
+      'wrapped.previous': messages.wrapped.previous,
+      'shareCard.share': messages.shareCard.share,
+      'shareCard.download': messages.shareCard.download,
+    }
+    const { slides, tree } = renderPlayer()
+    advanceToLastSlide(tree, slides.length)
+
+    const actions = byTestId(tree, 'wrapped-share-actions')
+    expect(hasText(tree, messages.wrapped.previous)).toBe(true)
+    expect(hasText(tree, messages.shareCard.share)).toBe(true)
+    expect(hasText(tree, messages.shareCard.download)).toBe(true)
+    expect(StyleSheet.flatten(actions?.props.style)).toMatchObject({
+      flexDirection: 'column',
+      alignItems: 'stretch',
+      gap: 8,
+    })
+    expect(
+      hosts(tree).some((node) => {
+        const style = StyleSheet.flatten(node.props.style) as Record<string, unknown> | undefined
+        return style?.flexDirection === 'row'
+          && style.justifyContent === 'space-between'
+          && node.findAll((child) => child === actions).length > 0
+          && node.findAll((child) => child.props.children === messages.wrapped.previous).length > 0
+      }),
+    ).toBe(true)
+  })
+
+  it('shows both final actions as busy while the card renders', () => {
+    shareCardMock.isSharing = true
+    const { slides, tree } = renderPlayer()
+    advanceToLastSlide(tree, slides.length)
+
+    expect(
+      allByTestId(tree, 'button-primary-md').some(
+        (node) => (node.props.accessibilityState as { busy?: boolean }).busy,
+      ),
+    ).toBe(true)
+    expect(
+      allByTestId(tree, 'button-ghost-md').some(
+        (node) => (node.props.accessibilityState as { busy?: boolean }).busy,
+      ),
+    ).toBe(true)
+  })
+
+  it('makes download the primary action when native sharing is unsupported', () => {
+    shareCardMock.canShareFiles = false
+    const { slides, tree } = renderPlayer()
+    advanceToLastSlide(tree, slides.length)
+
+    expect(hasText(tree, 'shareCard.share')).toBe(false)
+    expect(hasText(tree, 'shareCard.download')).toBe(true)
+    expect(byTestId(tree, 'button-primary-md')).toBeTruthy()
+    expect(allByTestId(tree, 'button-ghost-md')).toHaveLength(1)
+  })
+
+  it('hands the composed image to the platform share sheet', () => {
+    const { slides, tree } = renderPlayer()
+    advanceToLastSlide(tree, slides.length)
+    press(byTestId(tree, 'button-primary-md'))
+
+    expect(shareCardMock.share).toHaveBeenCalledWith({
+      shareTitle: 'shareCard.shareTitle',
+      shareText: 'shareCard.shareText',
+      url: createMockRecap().shareDeepLink,
+    })
   })
 })

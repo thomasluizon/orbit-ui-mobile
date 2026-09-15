@@ -6,22 +6,13 @@ import type { Recap } from '@orbit/shared/types/gamification'
 import {
   formatCompletionRate,
   getWeeklyConsistencyReading,
+  WRAPPED_WEEKDAY_KEYS,
   type RecapSharePeriod,
   type WrappedSlide as WrappedSlideModel,
 } from '@orbit/shared/utils'
 import { ShareCard } from '@/components/share/share-card'
 import { Columns } from '@/components/ui/columns'
 import { styles, type Tokens } from '@/app/wrapped-styles'
-
-const WEEKDAY_KEYS = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
-] as const
 
 function enter(step: number) {
   return FadeInDown.duration(280)
@@ -34,12 +25,11 @@ interface WrappedSlideProps {
   recap: Recap
   period: RecapSharePeriod
   tokens: Tokens
-  displayName?: string
   shareRef: Ref<View>
   shareError: boolean
 }
 
-export function WrappedSlide({ slide, recap, period, tokens, displayName, shareRef, shareError }: Readonly<WrappedSlideProps>) {
+export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareError }: Readonly<WrappedSlideProps>) {
   const { t } = useTranslation()
 
   switch (slide.id) {
@@ -145,7 +135,7 @@ export function WrappedSlide({ slide, recap, period, tokens, displayName, shareR
         </View>
       )
     case 'share':
-      return <WrappedShareSlide recap={recap} tokens={tokens} displayName={displayName} shareRef={shareRef} hasError={shareError} />
+      return <WrappedShareSlide recap={recap} tokens={tokens} shareRef={shareRef} hasError={shareError} />
   }
 }
 
@@ -183,7 +173,7 @@ function WeekdayColumns({ values }: Readonly<{ values: number[] }>) {
     <Animated.View testID="wrapped-figure" style={styles.figureWidth} entering={enter(2)}>
       <Columns
         columns={values.slice(0, 7).map((value, index) => {
-          const weekday = WEEKDAY_KEYS[index]!
+          const weekday = WRAPPED_WEEKDAY_KEYS[index]!
           return { id: weekday, label: t(`dates.daysShort.${weekday}`), value }
         })}
         height={160}
@@ -217,7 +207,7 @@ function WeekdayInterpretation({ values, tokens }: Readonly<{ values: number[]; 
         </>
       )
     case 'compared': {
-      const strongestWeekday = WEEKDAY_KEYS[reading.strongestIndex]!
+      const strongestWeekday = WRAPPED_WEEKDAY_KEYS[reading.strongestIndex]!
       return (
         <>
           <Animated.Text entering={enter(3)} style={[styles.caption, { color: tokens.fg2 }]}>
@@ -237,12 +227,11 @@ function WeekdayInterpretation({ values, tokens }: Readonly<{ values: number[]; 
 interface WrappedShareSlideProps {
   recap: Recap
   tokens: Tokens
-  displayName?: string
   shareRef: Ref<View>
   hasError: boolean
 }
 
-function WrappedShareSlide({ recap, tokens, displayName, shareRef, hasError }: Readonly<WrappedShareSlideProps>) {
+function WrappedShareSlide({ recap, tokens, shareRef, hasError }: Readonly<WrappedShareSlideProps>) {
   const { t } = useTranslation()
 
   return (
@@ -250,8 +239,10 @@ function WrappedShareSlide({ recap, tokens, displayName, shareRef, hasError }: R
       <Animated.Text entering={enter(0)} style={[styles.eyebrow, { color: tokens.fg3 }]}>
         {t('wrapped.slides.share.eyebrow')}
       </Animated.Text>
-      <Animated.View testID="wrapped-figure" entering={enter(1)}>
-        <ShareCard ref={shareRef} recap={recap} displayName={displayName} />
+      <Animated.View testID="wrapped-figure" entering={enter(1)} style={styles.sharePreview}>
+        <View style={styles.sharePreviewCard}>
+          <ShareCard ref={shareRef} recap={recap} />
+        </View>
       </Animated.View>
 
       {hasError ? (
