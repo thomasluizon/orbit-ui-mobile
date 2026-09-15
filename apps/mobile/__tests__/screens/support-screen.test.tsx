@@ -1,5 +1,4 @@
 import React from 'react'
-import { StyleSheet } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
@@ -22,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   profile: null as ReturnType<typeof createMockProfile> | null,
   goBack: vi.fn(),
   focusInput: vi.fn(),
+  announceForAccessibility: vi.fn(),
 }))
 
 vi.mock('react-native', async (importOriginal) => {
@@ -29,6 +29,11 @@ vi.mock('react-native', async (importOriginal) => {
   const ReactModule = await import('react')
   return {
     ...actual,
+    AccessibilityInfo: {
+      ...actual.AccessibilityInfo,
+      announceForAccessibility: (...args: unknown[]) =>
+        mocks.announceForAccessibility(...args),
+    },
     TextInput: ReactModule.forwardRef((props: Record<string, unknown>, ref) => {
       ReactModule.useImperativeHandle(ref, () => ({
         focus: () => mocks.focusInput(props.accessibilityLabel),
@@ -381,14 +386,10 @@ describe('SupportScreen', () => {
 
   it('sends the request, shows success, and clears the draft', async () => {
     const tree = await renderScreen()
-    const announcer = tree.root.findAll(
-      (node) => node.props.accessibilityLiveRegion === 'polite',
-    )[0]!
-    expect(announcer.props.children).toBe('')
-    const announcerStyle = StyleSheet.flatten(announcer.props.style as object) as {
-      opacity?: number
-    }
-    expect(announcerStyle.opacity ?? 1).toBeGreaterThan(0)
+    expect(mocks.announceForAccessibility).not.toHaveBeenCalled()
+    expect(
+      tree.root.findAll((node) => node.props.accessibilityLiveRegion != null),
+    ).toHaveLength(0)
     await TestRenderer.act(async () => {
       ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (v: string) => void)('Subject')
       ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (v: string) => void)('Message body')
@@ -404,7 +405,9 @@ describe('SupportScreen', () => {
     expect(
       tree.root.findAll((node) => node.props.children === 'profile.support.success').length,
     ).toBeGreaterThan(0)
-    expect(announcer.props.children).toBe('profile.support.success')
+    expect(mocks.announceForAccessibility).toHaveBeenCalledWith(
+      'profile.support.success',
+    )
   })
 
   it('surfaces a friendly error when the request fails', async () => {
@@ -423,6 +426,7 @@ describe('SupportScreen', () => {
     expect(
       tree.root.findAll((node) => node.props.children === 'profile.support.success'),
     ).toHaveLength(0)
+    expect(mocks.announceForAccessibility).not.toHaveBeenCalled()
     expect(mocks.apiClient).toHaveBeenCalledTimes(1)
     expect(mocks.setItem).toHaveBeenLastCalledWith(
       'orbit-support-draft',

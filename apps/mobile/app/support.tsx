@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
+  AccessibilityInfo,
   StyleSheet,
   Text,
   View,
@@ -315,6 +316,7 @@ export default function SupportScreen() {
         ),
       })
       setSuccess(true)
+      AccessibilityInfo.announceForAccessibility(t('profile.support.success'))
       draftRef.current = { subject: '', message: '' }
       setSubject('')
       setMessage('')
@@ -345,9 +347,6 @@ export default function SupportScreen() {
         showsVerticalScrollIndicator={false}
         keyboardVerticalOffset={12}
       >
-        <Text accessibilityLiveRegion="polite" style={styles.screenReaderOnly}>
-          {success ? t('profile.support.success') : ''}
-        </Text>
         {success ? (
           <SupportSuccessState tokens={tokens} />
         ) : (
@@ -421,13 +420,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist_400Regular',
     fontSize: 13,
     lineHeight: 19,
-  },
-  screenReaderOnly: {
-    position: 'absolute',
-    left: -96,
-    width: 1,
-    height: 1,
-    overflow: 'hidden',
   },
   successBlock: {
     paddingHorizontal: 24,
