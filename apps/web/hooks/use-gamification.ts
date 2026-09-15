@@ -147,9 +147,11 @@ export function useRepairStreak(timeZone: string | null) {
     },
     onError: async (error) => {
       if (extractBackendStatus(error) !== 409) return
-      await queryClient.invalidateQueries({ queryKey: gamificationKeys.streak(timeZone), refetchType: 'none' })
+      const queryKey = gamificationKeys.streak(timeZone)
+      await queryClient.cancelQueries({ queryKey })
+      await queryClient.invalidateQueries({ queryKey, refetchType: 'none' })
       await queryClient.fetchQuery({
-        queryKey: gamificationKeys.streak(timeZone),
+        queryKey,
         queryFn: () => fetchJson<StreakInfo>(API.gamification.streak, streakInfoSchema),
       })
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.profile() })

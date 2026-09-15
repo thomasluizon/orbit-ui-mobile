@@ -351,25 +351,45 @@ describe('useRepairStreak', () => {
     repairStreakGap.mockReset()
   })
 
-  it('reads the streak back after a conflict instead of leaving stale gap state', async () => {
+  it('reconciles a conflict with a distinct read while an older streak read is pending', async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: false }, mutations: { retry: false } } })
+    const queryKey = gamificationKeys.streak('America/Sao_Paulo')
     const staleStreak = makeStreakInfo({ repairableGapDates: ['2026-09-04'] })
     const refreshedStreak = makeStreakInfo({ repairableGapDates: [] })
-    queryClient.setQueryData(gamificationKeys.streak('America/Sao_Paulo'), staleStreak)
+    let resolveOlderRead!: (streakInfo: StreakInfo) => void
+    const olderTransport = vi.fn(() => new Promise<StreakInfo>((resolve) => {
+      resolveOlderRead = resolve
+    }))
+    queryClient.setQueryData(queryKey, staleStreak)
+    const olderRead = queryClient.fetchQuery({
+      queryKey,
+      queryFn: olderTransport,
+      staleTime: 0,
+    }).catch(() => undefined)
+    await waitFor(() => expect(olderTransport).toHaveBeenCalledOnce())
     repairStreakGap.mockRejectedValue(createApiClientError(409, null, 'Conflict'))
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(refreshedStreak),
-    })
+    let resolveRecovery: ((response: Response) => void) | undefined
+    mockFetch.mockReturnValue(new Promise<Response>((resolve) => {
+      resolveRecovery = resolve
+    }))
     const { result } = renderHook(() => useRepairStreak('America/Sao_Paulo'), {
       wrapper: createWrapper(queryClient),
     })
 
-    await expect(result.current.mutateAsync(['2026-09-04', '2026-09-05'])).rejects.toMatchObject({
+    const repair = result.current.mutateAsync(['2026-09-04', '2026-09-05'])
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    resolveOlderRead(staleStreak)
+    resolveRecovery?.({
+      ok: true,
+      json: () => Promise.resolve(refreshedStreak),
+    } as Response)
+
+    await expect(repair).rejects.toMatchObject({
       status: 409,
     })
+    await olderRead
 
     expect(mockFetch).toHaveBeenCalledWith(API.gamification.streak)
-    expect(queryClient.getQueryData(gamificationKeys.streak('America/Sao_Paulo'))).toEqual(refreshedStreak)
+    expect(queryClient.getQueryData(queryKey)).toEqual(refreshedStreak)
   })
 })
