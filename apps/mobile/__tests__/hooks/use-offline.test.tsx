@@ -13,6 +13,7 @@ type NetInfoState = {
 const mocks = vi.hoisted(() => {
   const state = {
     netInfoListener: undefined as ((value: NetInfoState) => void) | undefined,
+    appStateListener: undefined as ((value: 'active' | 'background' | 'inactive') => void) | undefined,
     queueListener: undefined as ((count: number) => void) | undefined,
     queueCount: 0,
     allowFlush: true,
@@ -76,9 +77,12 @@ vi.mock('react-native', async () => {
   return {
     ...actual,
     AppState: {
-      addEventListener: vi.fn(() => ({
-        remove: () => {},
-      })),
+      addEventListener: vi.fn(
+        (_event: string, listener: (value: 'active' | 'background' | 'inactive') => void) => {
+          mocks.state.appStateListener = listener
+          return { remove: () => { mocks.state.appStateListener = undefined } }
+        },
+      ),
     },
   }
 })
@@ -105,6 +109,7 @@ describe('useOffline', () => {
     mocks.state.queueCount = 0
     mocks.state.queueListener = undefined
     mocks.state.netInfoListener = undefined
+    mocks.state.appStateListener = undefined
     mocks.state.resolveConnectivity = undefined
     mocks.flushQueuedMutations.mockClear()
     mocks.flushQueuedMutations.mockImplementation(async () => {
@@ -139,6 +144,22 @@ describe('useOffline', () => {
     })
 
     expect(mocks.subscribeQueueCount).toHaveBeenCalledTimes(1)
+    expect(mocks.flushQueuedMutations).not.toHaveBeenCalled()
+  })
+
+  it('does not flush a persisted queue before connectivity hydration resolves offline', async () => {
+    mocks.state.queueCount = 2
+
+    await mountHook()
+
+    TestRenderer.act(() => mocks.state.appStateListener?.('active'))
+    expect(mocks.flushQueuedMutations).not.toHaveBeenCalled()
+
+    await TestRenderer.act(async () => {
+      mocks.state.resolveConnectivity?.(false)
+      await Promise.resolve()
+    })
+
     expect(mocks.flushQueuedMutations).not.toHaveBeenCalled()
   })
 
@@ -185,7 +206,10 @@ describe('useOffline', () => {
 
     await mountHook()
     await TestRenderer.act(async () => {
-      mocks.state.resolveConnectivity?.(true)
+      mocks.state.netInfoListener?.({
+        isConnected: true,
+        isInternetReachable: true,
+      })
       mocks.state.queueListener?.(1)
       await new Promise((resolve) => setTimeout(resolve, 50))
     })

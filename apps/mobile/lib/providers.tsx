@@ -54,13 +54,12 @@ function OfflineManager() {
   useEffect(() => {
     return subscribeDroppedMutations((dropped) => {
       const scope = getMutationScope(dropped.type)
-      if (!scope) return
-
       droppedDuringFlushRef.current = true
+      const terminalMessage = scope
+        ? t('common.syncDropped', { item: t(`common.syncEntity.${scope}`) })
+        : t('common.syncDroppedUnknown')
       showError(
-        `${t('common.syncDropped', {
-          item: t(`common.syncEntity.${scope}`),
-        })} ${t('common.syncRetryAction')}`,
+        `${terminalMessage} ${t('common.syncRetryAction')}`,
       )
     })
   }, [showError, t])

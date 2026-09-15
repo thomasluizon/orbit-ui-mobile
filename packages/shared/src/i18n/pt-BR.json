@@ -165,6 +165,7 @@
     "syncing": "Sincronizando",
     "synced": "Sincronizado",
     "syncDropped": "A alteração em {item} não subiu e foi descartada.",
+    "syncDroppedUnknown": "Uma alteração na fila não pôde ser sincronizada e foi descartada.",
     "syncRetryAction": "Tentar esta alteração de novo",
     "syncEntity": {
       "habits": "hábito",

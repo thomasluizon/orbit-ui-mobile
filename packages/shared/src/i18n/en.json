@@ -165,6 +165,7 @@
     "syncing": "Syncing",
     "synced": "Synced",
     "syncDropped": "The change to {item} did not go up and was dropped.",
+    "syncDroppedUnknown": "A queued change could not be synced and was dropped.",
     "syncRetryAction": "Try this change again",
     "syncEntity": {
       "habits": "habit",

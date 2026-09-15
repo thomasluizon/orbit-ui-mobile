@@ -16,6 +16,7 @@ interface UseOfflineReturn {
 
 export function useOffline(): UseOfflineReturn {
   const [isOnline, setIsOnline] = useState(true)
+  const [connectivityHydrated, setConnectivityHydrated] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
   const [isFlushing, setIsFlushing] = useState(false)
   const flushLock = useRef(false)
@@ -25,12 +26,14 @@ export function useOffline(): UseOfflineReturn {
     void getCurrentConnectivity().then((online) => {
       setCachedConnectivity(online)
       setIsOnline(online)
+      setConnectivityHydrated(true)
     })
 
     const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
       const online = state.isConnected === true && state.isInternetReachable !== false
       setCachedConnectivity(online)
       setIsOnline(online)
+      setConnectivityHydrated(true)
     })
     return () => unsubscribe()
   }, [])
@@ -55,20 +58,20 @@ export function useOffline(): UseOfflineReturn {
   }, [])
 
   useEffect(() => {
-    if (isOnline && pendingCount > 0 && !isFlushing) {
+    if (connectivityHydrated && isOnline && pendingCount > 0 && !isFlushing) {
       void flush()
     }
-  }, [isOnline, pendingCount, isFlushing, flush])
+  }, [connectivityHydrated, isOnline, pendingCount, isFlushing, flush])
 
   useEffect(() => {
     const handleAppState = (nextState: AppStateStatus) => {
-      if (nextState === 'active' && isOnline && pendingCount > 0) {
+      if (nextState === 'active' && connectivityHydrated && isOnline && pendingCount > 0) {
         void flush()
       }
     }
     const subscription = AppState.addEventListener('change', handleAppState)
     return () => subscription.remove()
-  }, [isOnline, pendingCount, flush])
+  }, [connectivityHydrated, isOnline, pendingCount, flush])
 
   const enqueue = useCallback(
     (mutation: Omit<QueuedMutation, 'retries' | 'maxRetries'>) => {

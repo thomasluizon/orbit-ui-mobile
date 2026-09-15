@@ -1,6 +1,6 @@
 import React from 'react'
 import { I18nextProvider } from 'react-i18next'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { i18n } from '@/lib/i18n'
 import { Providers } from '@/lib/providers'
 import { useAppToastStore } from '@/stores/app-toast-store'
@@ -10,11 +10,15 @@ const TestRenderer = require('react-test-renderer')
 
 vi.unmock('react-i18next')
 
-const mocks = vi.hoisted(() => ({
-  queue: { pendingCount: 1, isFlushing: true },
-  droppedListener: undefined as ((mutation: DroppedMutation) => void) | undefined,
-  initialize: vi.fn(() => Promise.resolve()),
-}))
+const mocks = vi.hoisted(() => {
+  const mutationScope: { current: string | null } = { current: 'habits' }
+  return {
+    queue: { pendingCount: 1, isFlushing: true },
+    droppedListener: undefined as ((mutation: DroppedMutation) => void) | undefined,
+    initialize: vi.fn(() => Promise.resolve()),
+    mutationScope,
+  }
+})
 
 vi.mock('expo-splash-screen', () => ({
   preventAutoHideAsync: vi.fn(() => Promise.resolve()),
@@ -72,7 +76,7 @@ vi.mock('../../lib/theme-provider', () => ({
 }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => mocks.queue }))
 vi.mock('@/lib/offline-mutations', () => ({
-  getMutationScope: () => 'habits',
+  getMutationScope: () => mocks.mutationScope.current,
   subscribeDroppedMutations: (listener: (mutation: DroppedMutation) => void) => {
     mocks.droppedListener = listener
     return () => { mocks.droppedListener = undefined }
@@ -89,16 +93,22 @@ function renderProviders() {
 }
 
 describe('offline terminal notice', () => {
+  let tree: ReturnType<typeof TestRenderer.create>
+
   beforeEach(async () => {
     Object.assign(mocks.queue, { pendingCount: 1, isFlushing: true })
     mocks.droppedListener = undefined
+    mocks.mutationScope.current = 'habits'
     mocks.initialize.mockClear()
     useAppToastStore.setState({ currentToast: null, queue: [] })
     await i18n.changeLanguage('pt-BR')
   })
 
+  afterEach(() => {
+    TestRenderer.act(() => tree.update(<></>))
+  })
+
   it('renders one terminal message without following it with queued or synced feedback', async () => {
-    let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(async () => {
       tree = renderProviders()
       await Promise.resolve()
@@ -128,6 +138,40 @@ describe('offline terminal notice', () => {
     expect(messages).toEqual([expect.objectContaining({
       variant: 'error',
       message: 'A alteração em hábito não subiu e foi descartada. Tentar esta alteração de novo',
+    })])
+  })
+
+  it('renders generic terminal feedback for a retired mutation type', async () => {
+    mocks.mutationScope.current = null
+    await TestRenderer.act(async () => {
+      tree = renderProviders()
+      await Promise.resolve()
+    })
+
+    TestRenderer.act(() => {
+      mocks.droppedListener?.({
+        id: 'failed-retired',
+        type: 'retiredMutation',
+        lastError: 'Unsupported mutation type',
+      })
+    })
+    Object.assign(mocks.queue, { pendingCount: 0, isFlushing: false })
+    await TestRenderer.act(async () => {
+      tree!.update(
+        <I18nextProvider i18n={i18n}>
+          <Providers><span>ready</span></Providers>
+        </I18nextProvider>,
+      )
+      await Promise.resolve()
+    })
+
+    const messages = [
+      useAppToastStore.getState().currentToast,
+      ...useAppToastStore.getState().queue,
+    ].filter((toast) => toast !== null)
+    expect(messages).toEqual([expect.objectContaining({
+      variant: 'error',
+      message: 'Uma alteração na fila não pôde ser sincronizada e foi descartada. Tentar esta alteração de novo',
     })])
   })
 })
