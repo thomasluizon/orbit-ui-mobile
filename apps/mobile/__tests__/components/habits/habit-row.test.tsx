@@ -1,6 +1,9 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
-import { HabitRow } from '@/components/habits/habit-row'
+import {
+  HabitRow,
+  type HabitRowActions,
+} from '@/components/habits/habit-row'
 import {
   __resetTestHostConfig,
   __setHostRefsNull,
@@ -83,24 +86,49 @@ describe('HabitRow tags (mobile)', () => {
   })
 })
 
-function renderRowWithMenu() {
+function renderRowWithMenu(
+  actions: HabitRowActions = { onEdit: vi.fn() },
+) {
   let renderer: ReturnType<typeof TestRenderer.create>
   TestRenderer.act(() => {
     renderer = TestRenderer.create(
       <HabitRow
         habit={createMockHabit({ title: 'Read' })}
-        actions={{ onEdit: vi.fn() }}
+        actions={actions}
       />,
     )
   })
   return renderer!
 }
 
-function pressMoreButton(renderer: ReturnType<typeof TestRenderer.create>) {
-  const moreButton = renderer.root.findAll(
+function getMoreButton(renderer: ReturnType<typeof TestRenderer.create>) {
+  return renderer.root.findAll(
     (node: { props: Record<string, unknown> }) =>
       node.props.accessibilityLabel === 'habits.actions.more',
   )[0]
+}
+
+function getRowBody(renderer: ReturnType<typeof TestRenderer.create>) {
+  return renderer.root.findAll(
+    (node: { props: Record<string, unknown> }) =>
+      node.props.delayLongPress === 300,
+  )[0]
+}
+
+function hasAncestor(
+  node: { parent: unknown },
+  ancestor: unknown,
+): boolean {
+  let current = node.parent as { parent: unknown } | null
+  while (current) {
+    if (current === ancestor) return true
+    current = current.parent as { parent: unknown } | null
+  }
+  return false
+}
+
+function pressMoreButton(renderer: ReturnType<typeof TestRenderer.create>) {
+  const moreButton = getMoreButton(renderer)
   TestRenderer.act(() => {
     ;(moreButton.props.onPress as () => void)()
   })
@@ -108,7 +136,59 @@ function pressMoreButton(renderer: ReturnType<typeof TestRenderer.create>) {
 
 describe('HabitRow menu (mobile)', () => {
   afterEach(() => {
+    vi.useRealTimers()
     __resetTestHostConfig()
+  })
+
+  it('keeps the menu press target outside the row press target', () => {
+    const onDetail = vi.fn()
+    const onLongPressCard = vi.fn()
+    const renderer = renderRowWithMenu({
+      onEdit: vi.fn(),
+      onDetail,
+      onLongPressCard,
+    })
+    const rowBody = getRowBody(renderer)
+    const moreButton = getMoreButton(renderer)
+
+    expect(hasAncestor(moreButton, rowBody)).toBe(false)
+
+    pressMoreButton(renderer)
+
+    expect(onDetail).not.toHaveBeenCalled()
+    expect(onLongPressCard).not.toHaveBeenCalled()
+    expect(collectStrings(renderer.toJSON())).toContain('common.edit')
+  })
+
+  it('opens the row detail without opening its menu', () => {
+    const onDetail = vi.fn()
+    const renderer = renderRowWithMenu({ onEdit: vi.fn(), onDetail })
+
+    TestRenderer.act(() => {
+      ;(getRowBody(renderer).props.onPress as () => void)()
+    })
+
+    expect(onDetail).toHaveBeenCalledOnce()
+    expect(collectStrings(renderer.toJSON())).not.toContain('common.edit')
+  })
+
+  it('does not suppress a row press after the menu closes', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-15T12:00:00Z'))
+    const onDetail = vi.fn()
+    const renderer = renderRowWithMenu({ onEdit: vi.fn(), onDetail })
+
+    pressMoreButton(renderer)
+    const menuModal = renderer.root.find(
+      (node: { props: Record<string, unknown> }) =>
+        typeof node.props.onRequestClose === 'function',
+    )
+    TestRenderer.act(() => {
+      ;(menuModal.props.onRequestClose as () => void)()
+      ;(getRowBody(renderer).props.onPress as () => void)()
+    })
+
+    expect(onDetail).toHaveBeenCalledOnce()
   })
 
   it('opens the menu even when measureInWindow never invokes its callback', () => {
