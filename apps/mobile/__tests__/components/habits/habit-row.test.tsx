@@ -4,6 +4,8 @@ import {
   HabitRow,
   type HabitRowActions,
 } from '@/components/habits/habit-row'
+import { styles } from '@/components/habits/habit-row-styles'
+import { createTokensV2 } from '@/lib/theme'
 import {
   __resetTestHostConfig,
   __setHostRefsNull,
@@ -115,6 +117,10 @@ function getRowBody(renderer: ReturnType<typeof TestRenderer.create>) {
   )[0]
 }
 
+function getRowCard(renderer: ReturnType<typeof TestRenderer.create>) {
+  return getRowBody(renderer).parent!
+}
+
 function resolveStyle(style: unknown): Record<string, unknown> {
   if (Array.isArray(style)) {
     return Object.assign({}, ...style.map(resolveStyle))
@@ -181,11 +187,23 @@ describe('HabitRow menu (mobile)', () => {
     const onLog = vi.fn()
     const renderer = renderRowWithMenu({ onEdit: vi.fn(), onDetail, onLog })
     const rowBody = getRowBody(renderer)
+    const tokens = createTokensV2('purple', 'dark')
+
+    expect(resolveStyle(getRowCard(renderer).props.style)).toMatchObject({
+      backgroundColor: tokens.bgCard,
+      borderColor: tokens.hairline,
+    })
+    expect(resolveStyle(getRowCard(renderer).props.style).transform).toBeUndefined()
 
     TestRenderer.act(() => {
       ;(rowBody.props.onPressIn as () => void)()
     })
 
+    expect(resolveStyle(getRowCard(renderer).props.style)).toMatchObject({
+      backgroundColor: tokens.bgElevPressed,
+      borderColor: tokens.hairlineStrong,
+      transform: styles.rowPressed.transform,
+    })
     expect(collectStrings(renderer.toJSON())).not.toContain('common.edit')
 
     TestRenderer.act(() => {
@@ -195,6 +213,11 @@ describe('HabitRow menu (mobile)', () => {
       ;(rowBody.props.onPressOut as () => void)()
     })
 
+    expect(resolveStyle(getRowCard(renderer).props.style)).toMatchObject({
+      backgroundColor: tokens.bgCard,
+      borderColor: tokens.hairline,
+    })
+    expect(resolveStyle(getRowCard(renderer).props.style).transform).toBeUndefined()
     expect(onDetail).toHaveBeenCalledOnce()
     expect(onLog).not.toHaveBeenCalled()
     expect(collectStrings(renderer.toJSON())).not.toContain('common.edit')
