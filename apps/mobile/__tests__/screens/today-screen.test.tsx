@@ -1,5 +1,5 @@
 import React from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createMockHabit,
   createMockProfile,
@@ -525,7 +525,7 @@ describe("TodayScreen", () => {
       (node) => node.props.testID === "today-content-column",
     )[0];
 
-    expect(contentColumn).toBeTruthy();
+    assert(contentColumn);
     expect(contentColumn.props.style).toEqual(
       expect.objectContaining({
         alignSelf: "center",
