@@ -9,7 +9,9 @@ import {
   buildSupportRequestBody,
   attachSupportVersion,
   getFriendlyErrorMessage,
+  getSupportMessageFit,
   getSupportMessageMaxLength,
+  getSupportSendReasonKey,
   normalizeSupportSubjectId,
   SUPPORT_SUBJECT_OPTIONS,
   type SupportSubjectId,
@@ -77,15 +79,20 @@ export default function SupportPage() {
   const hasSubject = subject !== null
   const hasMessage = Boolean(message.trim())
   const appVersion = packageJson.version
-  const messageMaxLength = getSupportMessageMaxLength(appVersion)
-  const isIncomplete = !hasSubject || !hasMessage
-  const incompleteReason = !isOnline || isSending || !isIncomplete
+  const messageFit = getSupportMessageFit(message, appVersion)
+  const messageMaxLength = Math.max(getSupportMessageMaxLength(appVersion), message.length)
+  const messageOverLimitHint = messageFit.fits
     ? null
-    : !hasSubject && !hasMessage
-      ? t('profile.support.sendIncomplete')
-      : !hasSubject
-        ? t('profile.support.sendNeedsSubject')
-        : t('profile.support.sendNeedsMessage')
+    : t('profile.support.messageOverLimit', { overage: messageFit.overage })
+  const isIncomplete = !hasSubject || !hasMessage
+  const disabledReasonKey = getSupportSendReasonKey({
+    hasMessage,
+    hasSubject,
+    isOnline,
+    isSending,
+    messageFits: messageFit.fits,
+  })
+  const disabledReason = disabledReasonKey ? t(disabledReasonKey) : null
 
   const persistDraft = useCallback((change: Partial<typeof initialDraft>) => {
     draftRef.current = { ...draftRef.current, ...change }
@@ -115,7 +122,7 @@ export default function SupportPage() {
   }, [message, name, profile, resolvedEmail, subject, t])
 
   const handleSend = useCallback(async () => {
-    if (!isOnline) return
+    if (!isOnline || !messageFit.fits) return
     if (!validateFields()) return
     const selectedSubject = SUPPORT_SUBJECT_OPTIONS.find((option) => option.id === subject)
     if (!selectedSubject) return
@@ -142,9 +149,9 @@ export default function SupportPage() {
     } finally {
       setIsSending(false)
     }
-  }, [appVersion, isOnline, message, name, profile, resolvedEmail, subject, t, validateFields])
+  }, [appVersion, isOnline, message, messageFit.fits, name, profile, resolvedEmail, subject, t, validateFields])
 
-  const disabled = isSending || !isOnline || isIncomplete
+  const disabled = isSending || !isOnline || isIncomplete || !messageFit.fits
 
   return (
     <div className="min-w-0 md:mx-auto md:w-full md:max-w-[620px]">
@@ -172,6 +179,7 @@ export default function SupportPage() {
                 message={message}
                 appVersion={appVersion}
                 messageMaxLength={messageMaxLength}
+                messageOverLimitHint={messageOverLimitHint}
                 error={error}
                 nameError={displayedNameError}
                 emailError={displayedEmailError}
@@ -180,7 +188,7 @@ export default function SupportPage() {
                 isSending={isSending}
                 isOnline={isOnline}
                 disabled={disabled}
-                disabledReason={incompleteReason}
+                disabledReason={disabledReason}
                 emailDisabled={Boolean(profile?.email)}
                 nameFocusRequest={nameFocusRequest}
                 emailFocusRequest={emailFocusRequest}

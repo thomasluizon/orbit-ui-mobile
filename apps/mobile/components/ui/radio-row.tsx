@@ -1,142 +1,24 @@
 import {
-  createContext,
-  useCallback,
-  useContext,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ForwardRefExoticComponent,
   type ReactNode,
-  type RefAttributes,
 } from 'react'
 import {
   Pressable,
   StyleSheet,
   Text,
   View,
-  type PressableProps,
   type ViewProps,
 } from 'react-native'
 import type { RadioRowProps } from '@orbit/shared/contracts/lists'
-import { getRadioNavigationIndex } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-interface FocusableRadio {
-  focus?: () => void
-}
-
-interface RadioKeyEvent {
-  nativeEvent: { key: string }
-  preventDefault: () => void
-}
-
-const KeyboardPressable = Pressable as ForwardRefExoticComponent<
-  PressableProps & RefAttributes<FocusableRadio> & {
-    onKeyDown?: (event: RadioKeyEvent) => void
-  }
->
-
-interface RadioItemState {
-  disabled: boolean
-  id: string
-  navigationOrder: number
-  selected: boolean
-}
-
-interface RadioGroupContextValue {
-  getTabIndex: (id: string) => 0 | -1
-  moveSelection: (id: string, key: string) => boolean
-  register: (id: string, navigationOrder?: number) => () => void
-  setElement: (id: string, element: FocusableRadio | null) => void
-  setHandler: (id: string, handler: () => void) => void
-  update: (state: RadioItemState) => void
-}
-
-const RadioGroupContext = createContext<RadioGroupContextValue | null>(null)
 
 export function RadioGroup({ children, ...props }: Readonly<
   Omit<ViewProps, 'accessibilityRole'> & { children: ReactNode }
 >) {
-  const [items, setItems] = useState<RadioItemState[]>([])
-  const elementsRef = useRef(new Map<string, FocusableRadio>())
-  const handlersRef = useRef(new Map<string, () => void>())
-  const register = useCallback((id: string, navigationOrder?: number) => {
-    setItems((current) => [...current.filter((item) => item.id !== id), {
-      disabled: false,
-      id,
-      navigationOrder: navigationOrder ?? current.length,
-      selected: false,
-    }])
-    return () => {
-      setItems((current) => current.filter((item) => item.id !== id))
-      elementsRef.current.delete(id)
-      handlersRef.current.delete(id)
-    }
-  }, [])
-  const update = useCallback((state: RadioItemState) => {
-    setItems((current) => current.map((item) => item.id === state.id ? state : item))
-  }, [])
-  const setElement = useCallback((id: string, element: FocusableRadio | null) => {
-    if (element) elementsRef.current.set(id, element)
-    else elementsRef.current.delete(id)
-  }, [])
-  const setHandler = useCallback((id: string, handler: () => void) => {
-    handlersRef.current.set(id, handler)
-  }, [])
-  const enabledItems = useMemo(() => items
-    .filter((item) => !item.disabled)
-    .sort((first, second) => first.navigationOrder - second.navigationOrder), [items])
-  const getTabIndex = useCallback((id: string): 0 | -1 => {
-    const selectedItem = enabledItems.find((item) => item.selected)
-    return (selectedItem ?? enabledItems[0])?.id === id ? 0 : -1
-  }, [enabledItems])
-  const moveSelection = useCallback((id: string, key: string) => {
-    const currentIndex = enabledItems.findIndex((item) => item.id === id)
-    if (currentIndex < 0) return false
-    const nextIndex = getRadioNavigationIndex(key, currentIndex, enabledItems.length)
-    if (nextIndex === null) return false
-    const nextItem = enabledItems[nextIndex]
-    if (!nextItem) return false
-    elementsRef.current.get(nextItem.id)?.focus?.()
-    handlersRef.current.get(nextItem.id)?.()
-    return true
-  }, [enabledItems])
-  const contextValue = useMemo(() => ({
-    getTabIndex,
-    moveSelection,
-    register,
-    setElement,
-    setHandler,
-    update,
-  }), [getTabIndex, moveSelection, register, setElement, setHandler, update])
-
-  return (
-    <RadioGroupContext.Provider value={contextValue}>
-      <View {...props} accessibilityRole="radiogroup">{children}</View>
-    </RadioGroupContext.Provider>
-  )
+  return <View {...props} accessibilityRole="radiogroup">{children}</View>
 }
 
-export function RadioRow({ label, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason, navigationOrder }: Readonly<RadioRowProps & { navigationOrder?: number }>) {
-  const group = useContext(RadioGroupContext)
-  const registerWithGroup = group?.register
-  const setGroupHandler = group?.setHandler
-  const updateGroup = group?.update
-  const id = useId()
-  useLayoutEffect(
-    () => registerWithGroup?.(id, navigationOrder),
-    [id, navigationOrder, registerWithGroup],
-  )
-  useLayoutEffect(() => {
-    updateGroup?.({ disabled, id, navigationOrder: navigationOrder ?? 0, selected })
-  }, [disabled, id, navigationOrder, selected, updateGroup])
-  useLayoutEffect(() => {
-    setGroupHandler?.(id, onSelect ?? (() => undefined))
-  }, [id, onSelect, setGroupHandler])
-
+export function RadioRow({ label, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const content = (
@@ -165,21 +47,15 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
   ]
 
   return disabled ? (
-    <View accessibilityRole="radio" accessibilityState={{ checked: selected, disabled: true }} style={rowStyle}>{content}</View>
+    <View focusable={false} accessibilityRole="radio" accessibilityState={{ checked: selected, disabled: true }} style={rowStyle}>{content}</View>
   ) : (
-    <KeyboardPressable
-      ref={(element) => group?.setElement(id, element)}
+    <Pressable
+      focusable
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
-      tabIndex={group?.getTabIndex(id) ?? 0}
-      onKeyDown={(event) => {
-        // WHY: KeyEvent.kt lines 149-152 map only arrows: https://github.com/facebook/react-native/blob/v0.86.3/packages/react-native/ReactAndroid/src/main/java/com/facebook/react/uimanager/events/KeyEvent.kt#L149-L152
-        if (!group?.moveSelection(id, event.nativeEvent.key)) return
-        event.preventDefault()
-      }}
       onPress={onSelect}
       style={({ pressed }) => [...rowStyle, pressed ? { backgroundColor: tokens.bgHover, transform: [{ scale: 0.99 }] } : null]}
-    >{content}</KeyboardPressable>
+    >{content}</Pressable>
   )
 }
 

@@ -1,11 +1,3 @@
-export type RadioNavigationKey =
-  | 'ArrowDown'
-  | 'ArrowLeft'
-  | 'ArrowRight'
-  | 'ArrowUp'
-  | 'End'
-  | 'Home'
-
 export function getRadioNavigationIndex(
   key: string,
   currentIndex: number,

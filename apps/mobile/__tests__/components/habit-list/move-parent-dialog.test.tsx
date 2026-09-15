@@ -1,5 +1,6 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import { Pressable } from 'react-native'
 import {
   MoveParentDialog,
   type MoveParentOption,
@@ -250,7 +251,7 @@ describe('MoveParentDialog', () => {
     expect(rendered).not.toContain('Zeta')
   })
 
-  it('keeps arrow navigation in rendered order after filtered rows return', () => {
+  it('keeps native focus traversal in rendered order after filtered rows return', () => {
     const options: MoveParentOption[] = [
       makeOption({ id: null, label: 'Top level' }),
       ...Array.from({ length: 9 }, (_, index) =>
@@ -267,16 +268,19 @@ describe('MoveParentDialog', () => {
     void TestRenderer.act(() => {
       ;(findSearchInputs(tree)[0]!.props.onChangeText as (value: string) => void)('')
     })
-    const zetaFour = findOptionRows(tree).find((row) =>
-      flattenInstanceText(row).includes('Zeta 4'),
+    const rows = findOptionRows(tree).filter(
+      (row) => row.type === Pressable && flattenInstanceText(row).includes('Zeta'),
     )
-    if (!zetaFour) throw new Error('Expected Zeta 4')
+    expect(rows.map(flattenInstanceText)).toEqual(
+      Array.from({ length: 9 }, (_, index) => `⭐️Zeta ${index}`),
+    )
+    expect(rows.every((row) => row.props.focusable === true)).toBe(true)
+    expect(rows.every((row) => row.props.onKeyDown === undefined)).toBe(true)
+    const zetaFive = rows[5]
+    if (!zetaFive) throw new Error('Expected Zeta 5')
 
     void TestRenderer.act(() => {
-      ;(zetaFour.props.onKeyDown as (event: unknown) => void)({
-        nativeEvent: { key: 'ArrowDown' },
-        preventDefault: vi.fn(),
-      })
+      ;(zetaFive.props.onPress as () => void)()
     })
 
     expect(props.onSelectOption).toHaveBeenLastCalledWith('zeta5')

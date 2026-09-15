@@ -248,6 +248,26 @@ describe('SupportPage', () => {
     }))
   })
 
+  it('keeps an oversized restored draft and refuses to send it', () => {
+    const translate = createTranslator({ locale: 'en', messages: en })
+    const message = 'm'.repeat(5000)
+    const overLimit = translate('profile.support.messageOverLimit', { overage: 13 })
+    const sendReason = translate('profile.support.sendNeedsShorterMessage')
+    mockI18n.overrides.set('profile.support.messageOverLimit', overLimit)
+    mockI18n.overrides.set('profile.support.sendNeedsShorterMessage', sendReason)
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ subject: 'problem', message }))
+
+    render(<SupportPage />)
+
+    expect(messageField()).toHaveValue(message)
+    expect(messageField()).toHaveAttribute('maxlength', '5000')
+    expect(messageField()).toHaveAccessibleDescription(overLimit)
+    expect(sendButton()).toBeDisabled()
+    expect(sendButton()).toHaveAccessibleDescription(sendReason)
+    fireEvent.click(sendButton())
+    expect(mockSendSupportMessage).not.toHaveBeenCalled()
+  })
+
   it('replaces an email typed while loading with the resolved profile email', async () => {
     mockProfile = null
     mockSendSupportMessage.mockResolvedValue(undefined)

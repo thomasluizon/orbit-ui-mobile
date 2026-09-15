@@ -208,36 +208,36 @@ describe('SupportScreen', () => {
     })
   })
 
-  it('uses one radio tab stop and selects with the four Android arrow keys', async () => {
+  it('uses Android focus traversal and press selection for subject choices', async () => {
     const tree = await renderScreen()
     let choices = findSubjectChoices(tree.root)
-    expect(choices.map((choice) => choice.props.tabIndex)).toEqual([0, -1, -1, -1])
+    expect(choices).toHaveLength(4)
+    expect(choices.map((choice) => choice.findAll(
+      (node) => typeof node.props.children === 'string',
+    )[0]?.props.children)).toEqual([
+      'profile.support.subjects.problem.label',
+      'profile.support.subjects.billing.label',
+      'profile.support.subjects.account.label',
+      'profile.support.subjects.other.label',
+    ])
+    expect(choices.map((choice) => choice.props.accessibilityRole)).toEqual([
+      'radio',
+      'radio',
+      'radio',
+      'radio',
+    ])
+    expect(choices.map((choice) => choice.props.focusable)).toEqual([true, true, true, true])
+    expect(choices.every((choice) => choice.props.onKeyDown === undefined)).toBe(true)
+    expect(choices.map((choice) => (
+      choice.props.accessibilityState as { checked: boolean }
+    ).checked)).toEqual([false, false, false, false])
 
     await TestRenderer.act(async () => {
-      ;(choices[0]!.props.onKeyDown as (event: unknown) => void)({
-        nativeEvent: { key: 'ArrowDown' },
-        preventDefault: vi.fn(),
-      })
+      ;(choices[1]!.props.onPress as () => void)()
       await Promise.resolve()
     })
     choices = findSubjectChoices(tree.root)
     expect((choices[1]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
-
-    for (const [from, key, selected] of [
-      [1, 'ArrowRight', 2],
-      [2, 'ArrowUp', 1],
-      [1, 'ArrowLeft', 0],
-    ] as const) {
-      await TestRenderer.act(async () => {
-        ;(choices[from]!.props.onKeyDown as (event: unknown) => void)({
-          nativeEvent: { key },
-          preventDefault: vi.fn(),
-        })
-        await Promise.resolve()
-      })
-      choices = findSubjectChoices(tree.root)
-      expect((choices[selected]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
-    }
   })
 
   it('does not show the locked email reason when the account email is editable', async () => {
@@ -345,6 +345,30 @@ describe('SupportScreen', () => {
       subject: 'profile.support.subjects.problem.label',
       message: `${message}\n\nOrbit 1.1.4`,
     })
+  })
+
+  it('keeps an oversized restored draft and refuses to send it', async () => {
+    await i18n.changeLanguage('en')
+    const message = 'm'.repeat(5000)
+    const overLimit = i18n.t('profile.support.messageOverLimit', { overage: 13 })
+    const sendReason = i18n.t('profile.support.sendNeedsShorterMessage')
+    mocks.translations.set('profile.support.messageOverLimit', overLimit)
+    mocks.translations.set('profile.support.sendNeedsShorterMessage', sendReason)
+    mocks.getItem.mockResolvedValue(JSON.stringify({ subject: 'problem', message }))
+
+    const tree = await renderScreen()
+    const messageInput = findInputByLabel(tree.root, 'profile.support.message')!
+    expect(messageInput.props.value).toBe(message)
+    expect(messageInput.props.maxLength).toBe(5000)
+    expect(messageInput.props.accessibilityHint).toBe(overLimit)
+    expect(findSendButton(tree.root)!.props.disabled).toBe(true)
+    expect(findSendButton(tree.root)!.props.accessibilityHint).toBe(sendReason)
+
+    await TestRenderer.act(async () => {
+      ;(findSendButton(tree.root)!.props.onPress as () => void)()
+      await Promise.resolve()
+    })
+    expect(mocks.apiClient).not.toHaveBeenCalled()
   })
 
   it('reserves no room and sends no suffix when the app version is absent', async () => {
@@ -617,6 +641,7 @@ describe('SupportScreen', () => {
         (choice.props.accessibilityState as { disabled?: boolean }).disabled === true),
     ).toBe(true)
     expect(choices.every((choice) => choice.props.onPress === undefined)).toBe(true)
+    expect(choices.every((choice) => choice.props.focusable === false)).toBe(true)
     expect(
       (choices[0]!.props.accessibilityState as { checked: boolean }).checked,
     ).toBe(true)

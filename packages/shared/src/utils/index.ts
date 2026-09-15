@@ -103,7 +103,6 @@ export type {
   ShellDestinationRoute,
 } from './shell-destinations'
 export { plural } from './plural'
-export { getRadioNavigationIndex, type RadioNavigationKey } from './radio-navigation'
 export { buildRecentChatHistory } from './chat-history'
 export {
   CALENDAR_NOT_CONNECTED_ERROR_CODE,
@@ -629,6 +628,8 @@ export {
   attachSupportVersion,
   buildSupportVersionSuffix,
   getSupportMessageMaxLength,
+  getSupportMessageFit,
+  getSupportSendReasonKey,
   SUPPORT_SUBJECT_OPTIONS,
 } from './support'
 export type {

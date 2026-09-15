@@ -14,7 +14,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { RadioRowProps } from '@orbit/shared/contracts/lists'
-import { getRadioNavigationIndex } from '@orbit/shared/utils'
+import { getRadioNavigationIndex } from './radio-navigation'
 
 interface RadioItemState {
   disabled: boolean

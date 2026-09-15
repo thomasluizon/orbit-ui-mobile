@@ -1414,6 +1414,8 @@
       "subjectSendingReason": "O assunto não pode mudar durante o envio.",
       "messageRequired": "Escreva sua mensagem.",
       "versionIncluded": "A versão {version} do Orbit vai junto com a sua mensagem.",
+      "messageOverLimit": "Sua mensagem tem {overage, plural, one {# caractere} other {# caracteres}} a mais.",
+      "sendNeedsShorterMessage": "Encurte sua mensagem para enviar.",
       "emailLockedReason": "A gente responde no e-mail da sua conta.",
       "sendIncomplete": "Escolha um assunto e escreva uma mensagem para enviar.",
       "sendNeedsSubject": "Escolha um assunto para enviar.",

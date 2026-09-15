@@ -16,7 +16,9 @@ import {
   buildSupportRequestBody,
   attachSupportVersion,
   getFriendlyErrorMessage,
+  getSupportMessageFit,
   getSupportMessageMaxLength,
+  getSupportSendReasonKey,
   isValidEmail,
   normalizeSupportSubjectId,
   SUPPORT_SUBJECT_OPTIONS,
@@ -81,6 +83,7 @@ interface SupportFormProps {
   message: string
   appVersion?: string
   messageMaxLength: number
+  messageOverLimitHint: string | null
   error: string | null
   nameError: string | null
   emailError: string | null
@@ -111,6 +114,7 @@ function SupportForm({
   message,
   appVersion,
   messageMaxLength,
+  messageOverLimitHint,
   error,
   nameError,
   emailError,
@@ -181,12 +185,11 @@ function SupportForm({
           onBlur={onSubjectBlur}
         >
           <RowList>
-            {SUPPORT_SUBJECT_OPTIONS.map((option, navigationOrder) => (
+            {SUPPORT_SUBJECT_OPTIONS.map((option) => (
               sending ? (
                 <RadioRow
                   key={option.id}
                   label={t(option.labelKey)}
-                  navigationOrder={navigationOrder}
                   description={t(option.descriptionKey)}
                   selected={subject === option.id}
                   disabled
@@ -196,7 +199,6 @@ function SupportForm({
                 <RadioRow
                   key={option.id}
                   label={t(option.labelKey)}
-                  navigationOrder={navigationOrder}
                   description={t(option.descriptionKey)}
                   selected={subject === option.id}
                   onSelect={() => onChangeSubject(option.id)}
@@ -218,6 +220,7 @@ function SupportForm({
         placeholder={t('profile.support.messagePlaceholder')}
         disabled={sending}
         error={messageError ?? undefined}
+        hint={messageOverLimitHint ?? undefined}
         maxLength={messageMaxLength}
         multiline
         rows={6}
@@ -268,7 +271,6 @@ export default function SupportScreen() {
   const { isOnline } = useOffline()
   const { profile } = useProfile()
   const appVersion = Constants.expoConfig?.version?.trim() || undefined
-  const messageMaxLength = getSupportMessageMaxLength(appVersion)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const draftRef = useRef<SupportDraft>({ subject: null, message: '' })
@@ -293,14 +295,20 @@ export default function SupportScreen() {
     : emailError
   const hasSubject = subject !== null
   const hasMessage = Boolean(message.trim())
-  const isIncomplete = !hasSubject || !hasMessage
-  const incompleteReason = !isOnline || sending || !isIncomplete
+  const messageFit = getSupportMessageFit(message, appVersion)
+  const messageMaxLength = Math.max(getSupportMessageMaxLength(appVersion), message.length)
+  const messageOverLimitHint = messageFit.fits
     ? null
-    : !hasSubject && !hasMessage
-      ? t('profile.support.sendIncomplete')
-      : !hasSubject
-        ? t('profile.support.sendNeedsSubject')
-        : t('profile.support.sendNeedsMessage')
+    : t('profile.support.messageOverLimit', { overage: messageFit.overage })
+  const isIncomplete = !hasSubject || !hasMessage
+  const disabledReasonKey = getSupportSendReasonKey({
+    hasMessage,
+    hasSubject,
+    isOnline,
+    isSending: sending,
+    messageFits: messageFit.fits,
+  })
+  const disabledReason = disabledReasonKey ? t(disabledReasonKey) : null
 
   useEffect(() => {
     let isMounted = true
@@ -335,7 +343,7 @@ export default function SupportScreen() {
     )
   }, [])
 
-  const validateFields = useCallback(() => {
+  const validateFields = () => {
     const effectiveName = name.trim() || profile?.name || ''
     const effectiveEmail = resolvedEmail.trim()
     const nextNameError = effectiveName ? null : t('profile.support.nameRequired')
@@ -352,10 +360,10 @@ export default function SupportScreen() {
     else if (nextEmailError) setEmailFocusRequest((request) => request + 1)
     else if (nextMessageError) setMessageFocusRequest((request) => request + 1)
     return !nextNameError && !nextEmailError && !nextSubjectError && !nextMessageError
-  }, [message, name, profile, resolvedEmail, subject, t])
+  }
 
-  const handleSend = useCallback(async () => {
-    if (!isOnline) return
+  const handleSend = async () => {
+    if (!isOnline || !messageFit.fits) return
     if (!validateFields()) return
     const selectedSubject = SUPPORT_SUBJECT_OPTIONS.find((option) => option.id === subject)
     if (!selectedSubject) return
@@ -387,9 +395,9 @@ export default function SupportScreen() {
     } finally {
       setSending(false)
     }
-  }, [appVersion, isOnline, message, name, profile, resolvedEmail, subject, t, validateFields])
+  }
 
-  const canSend = isOnline && !sending && !isIncomplete
+  const canSend = isOnline && !sending && !isIncomplete && messageFit.fits
 
   return (
     <SafeAreaView
@@ -425,13 +433,14 @@ export default function SupportScreen() {
             message={message}
             appVersion={appVersion}
             messageMaxLength={messageMaxLength}
+            messageOverLimitHint={messageOverLimitHint}
             error={error}
             nameError={displayedNameError}
             emailError={displayedEmailError}
             subjectError={subjectError}
             messageError={messageError}
             canSend={canSend}
-            disabledReason={incompleteReason}
+            disabledReason={disabledReason}
             emailDisabled={Boolean(profile?.email)}
             nameFocusRequest={nameFocusRequest}
             emailFocusRequest={emailFocusRequest}

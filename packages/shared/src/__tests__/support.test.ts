@@ -3,7 +3,9 @@ import {
   attachSupportVersion,
   buildSupportRequestBody,
   buildSupportVersionSuffix,
+  getSupportMessageFit,
   getSupportMessageMaxLength,
+  getSupportSendReasonKey,
   normalizeSupportSubjectId,
   SUPPORT_SUBJECT_OPTIONS,
 } from '../utils/support'
@@ -72,9 +74,37 @@ describe('support version metadata', () => {
     expect(attachSupportVersion(message, '0.0.1')).toBe(`${message}\n\nOrbit 0.0.1`)
   })
 
-  it('counts UTF-8 bytes and leaves messages unchanged without a version', () => {
-    expect(getSupportMessageMaxLength('v❤')).toBe(4988)
+  it('counts UTF-16 code units and leaves messages unchanged without a version', () => {
+    expect(getSupportMessageMaxLength('v❤')).toBe(4990)
     expect(getSupportMessageMaxLength(undefined)).toBe(5000)
     expect(attachSupportVersion('Message', undefined)).toBe('Message')
+  })
+
+  it('reports whether the trimmed message plus version fits the API limit', () => {
+    expect(getSupportMessageFit(`${'m'.repeat(4987)}   `, '0.0.1')).toEqual({
+      fits: true,
+      overage: 0,
+    })
+    expect(getSupportMessageFit('m'.repeat(5000), '0.0.1')).toEqual({
+      fits: false,
+      overage: 13,
+    })
+  })
+
+  it('names the active reason a support request cannot send', () => {
+    expect(getSupportSendReasonKey({
+      hasMessage: true,
+      hasSubject: true,
+      isOnline: true,
+      isSending: false,
+      messageFits: false,
+    })).toBe('profile.support.sendNeedsShorterMessage')
+    expect(getSupportSendReasonKey({
+      hasMessage: false,
+      hasSubject: true,
+      isOnline: true,
+      isSending: false,
+      messageFits: true,
+    })).toBe('profile.support.sendNeedsMessage')
   })
 })

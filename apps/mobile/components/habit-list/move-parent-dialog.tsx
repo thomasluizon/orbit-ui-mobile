@@ -53,7 +53,6 @@ function MoveTargetRow({
   currentLabel,
   tokens,
   styles,
-  navigationOrder,
   onSelect,
 }: Readonly<{
   option: MoveParentOption
@@ -62,7 +61,6 @@ function MoveTargetRow({
   currentLabel: string
   tokens: AppTokensV2
   styles: Styles
-  navigationOrder?: number
   onSelect: (optionId: string | null) => void
 }>) {
   const availability = option.disabled
@@ -72,7 +70,6 @@ function MoveTargetRow({
   return (
     <RadioRow
       label={option.label}
-      navigationOrder={navigationOrder}
       selected={selected}
       {...availability}
       depth={option.depth}
@@ -173,11 +170,10 @@ export function MoveParentDialog({
         ) : null}
 
         <RadioGroup style={styles.moveOptionsContent}>
-          {treeRows.map((option, navigationOrder) => (
+          {treeRows.map((option) => (
             <MoveTargetRow
               key={option.id}
               option={option}
-              navigationOrder={navigationOrder}
               selected={option.id === selectedMoveParentId}
               isCurrentParent={option.id === movingHabitParentId}
               currentLabel={t('habits.moveParent.currentParent')}

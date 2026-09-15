@@ -1414,6 +1414,8 @@
       "subjectSendingReason": "The subject cannot change while sending.",
       "messageRequired": "Message is required.",
       "versionIncluded": "Orbit {version} is included with your message.",
+      "messageOverLimit": "Your message is {overage, plural, one {# character} other {# characters}} too long.",
+      "sendNeedsShorterMessage": "Shorten your message to send.",
       "emailLockedReason": "We reply to the email on your account.",
       "sendIncomplete": "Choose a subject and add a message to send.",
       "sendNeedsSubject": "Choose a subject to send.",

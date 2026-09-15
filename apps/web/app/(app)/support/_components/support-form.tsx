@@ -18,6 +18,7 @@ interface SupportFormProps {
   message: string
   appVersion: string
   messageMaxLength: number
+  messageOverLimitHint: string | null
   error: string | null
   nameError: string | null
   emailError: string | null
@@ -47,6 +48,7 @@ export function SupportForm({
   message,
   appVersion,
   messageMaxLength,
+  messageOverLimitHint,
   error,
   nameError,
   emailError,
@@ -166,6 +168,7 @@ export function SupportForm({
         placeholder={t('profile.support.messagePlaceholder')}
         disabled={isSending}
         error={messageError ?? undefined}
+        hint={messageOverLimitHint ?? undefined}
         maxLength={messageMaxLength}
         multiline
         rows={6}
