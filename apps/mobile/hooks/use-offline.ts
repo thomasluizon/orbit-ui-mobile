@@ -1,9 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo'
 import { AppState, type AppStateStatus } from 'react-native'
 import * as offlineQueue from '@/lib/offline-queue'
-import { flushQueuedMutations } from '@/lib/offline-mutations'
+import {
+  canAutoFlush,
+  flushQueuedMutations,
+  getReplayState,
+  subscribeReplayState,
+  type OfflineReplayState,
+} from '@/lib/offline-mutations'
 import { getCurrentConnectivity, setCachedConnectivity } from '@/lib/offline-runtime'
+import { captureError } from '@/lib/sentry'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
 
 interface UseOfflineReturn {
@@ -12,67 +19,65 @@ interface UseOfflineReturn {
   enqueue: (mutation: Omit<QueuedMutation, 'retries' | 'maxRetries'>) => void
   flush: () => Promise<void>
   isFlushing: boolean
+  replayState: OfflineReplayState
 }
 
 export function useOffline(): UseOfflineReturn {
   const [isOnline, setIsOnline] = useState(true)
+  const [connectivityHydrated, setConnectivityHydrated] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
-  const [isFlushing, setIsFlushing] = useState(false)
-  const flushLock = useRef(false)
+  const [replayState, setReplayState] = useState(getReplayState)
+  const isFlushing = replayState === 'flushing'
 
   // react-doctor-disable-next-line effect-needs-cleanup -- FP: the effect cleans up — `return () => unsubscribe()` invokes NetInfo's unsubscribe; RD only recognizes removeEventListener/subscription.remove(), not an unsubscribe callback. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
     void getCurrentConnectivity().then((online) => {
       setCachedConnectivity(online)
       setIsOnline(online)
+      setConnectivityHydrated(true)
     })
 
     const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
       const online = state.isConnected === true && state.isInternetReachable !== false
       setCachedConnectivity(online)
       setIsOnline(online)
+      setConnectivityHydrated(true)
     })
     return () => unsubscribe()
   }, [])
 
-  // Update pending count on mount
   useEffect(() => {
     const unsubscribe = offlineQueue.subscribeQueueCount(setPendingCount)
     return () => unsubscribe()
   }, [])
 
-  // Flush queue when coming back online
+  useEffect(() => subscribeReplayState(setReplayState), [])
+
   const flush = useCallback(async () => {
-    if (flushLock.current) return
-    flushLock.current = true
-    setIsFlushing(true)
+    if (!canAutoFlush()) return
 
     try {
       await flushQueuedMutations()
     } finally {
       setPendingCount(offlineQueue.count())
-      setIsFlushing(false)
-      flushLock.current = false
     }
   }, [])
 
-  // Auto-flush when connectivity is restored
   useEffect(() => {
-    if (isOnline && pendingCount > 0 && !isFlushing) {
-      flush()
+    if (connectivityHydrated && isOnline && pendingCount > 0 && replayState === 'idle') {
+      void flush().catch(captureError)
     }
-  }, [isOnline, pendingCount, isFlushing, flush])
+  }, [connectivityHydrated, isOnline, pendingCount, replayState, flush])
 
-  // Also try flushing when app returns to foreground
   useEffect(() => {
     const handleAppState = (nextState: AppStateStatus) => {
-      if (nextState === 'active' && isOnline && pendingCount > 0) {
-        flush()
+      if (nextState === 'active' && connectivityHydrated && isOnline && pendingCount > 0) {
+        void flush().catch(captureError)
       }
     }
     const subscription = AppState.addEventListener('change', handleAppState)
     return () => subscription.remove()
-  }, [isOnline, pendingCount, flush])
+  }, [connectivityHydrated, isOnline, pendingCount, flush])
 
   const enqueue = useCallback(
     (mutation: Omit<QueuedMutation, 'retries' | 'maxRetries'>) => {
@@ -81,5 +86,5 @@ export function useOffline(): UseOfflineReturn {
     [],
   )
 
-  return { isOnline, pendingCount, enqueue, flush, isFlushing }
+  return { isOnline, pendingCount, enqueue, flush, isFlushing, replayState }
 }
