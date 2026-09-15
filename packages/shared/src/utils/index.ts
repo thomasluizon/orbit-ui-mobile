@@ -623,6 +623,8 @@ export {
 } from './fresh-start'
 export {
   buildSupportRequestBody,
+  SUPPORT_API_MESSAGE_MAX_LENGTH,
+  SUPPORT_API_SUBJECT_MAX_LENGTH,
 } from './support'
 export type {
   SupportFormFields,

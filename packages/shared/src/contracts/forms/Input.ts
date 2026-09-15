@@ -7,6 +7,7 @@ type InputBase = {
   placeholder?: string
   disabled?: boolean
   error?: string
+  hint?: string
   maxLength?: number
   kind?: 'text' | 'email' | 'number'
   inputMode?: 'text' | 'email' | 'numeric' | 'decimal' | 'tel' | 'url'
@@ -16,6 +17,7 @@ type InputBase = {
   focusRequest?: number
   name?: string
   onSubmit?: () => void
+  onBlur?: () => void
   trailing?: ReactNode
 }
 
