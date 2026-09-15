@@ -918,12 +918,22 @@ order carrying all FIX findings from that review, plus every FILE and not-applic
 must preserve. Never launch one worker per finding. A later accepted review after the head changes
 is a new batch and may launch one new worker.
 
-Either path allows one commit at most and keeps the whole sequence: fix every FIX finding; keep every
-filed-ticket disposition; test; commit; reply to and resolve every identified thread; resolve filed
-threads before push; push once; then rerun delivery verification on the new head. The whole batch is
-ONE `caps.reviewFixAttempts` attempt, regardless of actor or finding count. If the batch has only
-FILE or not-applicable findings, perform their existing reply, resolve and same-head re-review
-transitions without launching a worker or inventing a commit.
+Either path allows one commit at most. Keep every filed-ticket disposition and test every fix. Only
+the batch's single commit spends one `caps.reviewFixAttempts` attempt; a batch that writes no commit
+spends nothing. If the batch has only FILE or not-applicable findings, perform their existing reply,
+resolve and same-head re-review transitions without launching a worker or inventing a commit.
+
+When the batch needs a worker, its existing contract commits, tests and pushes before it stops and
+returns control. The orchestrator then replies to and resolves every identified thread on the new
+head and requests the fresh review that supplies the verdict:
+
+```bash
+node tools/list-bot-threads.mjs --pr <n> --repo <key> --wait-seconds <n> --re-review
+```
+
+Any review Pullfrog started from the worker's push is superseded by this requested review and is not
+read as the verdict. The stop-after-commit contract that would remove this race is filed as ticket
+#542 and does not exist yet. Then rerun delivery verification on the new head.
 
 Route a fully specified reviewer-directed test-strengthening batch to `--tier mechanical` only when
 the order names the exact experiment. Route any batch needing product, design, architecture,
@@ -978,10 +988,9 @@ write unless the node's own `repository.nameWithOwner` equals what `--repo` reso
 **A permissions error on any of these is a WRONG TARGET until proven otherwise.** The tool names the
 repository the node actually resolved to. Read that name before you retry anything.
 
-**Resolve FIRST, then push.** Keep that order; it is not a matter of tidiness. The push fires the
-incremental re-review. That re-review reads the fixes and the resolved threads together, then posts
-one fresh `pullfrog-approval` over both. Push first and the re-review runs while the threads you are
-about to resolve are still open, so it reports findings you already answered.
+**For a fix the orchestrator writes, resolve FIRST, then push.** The push fires the incremental
+re-review, which reads the fixes and resolved threads together. A worker cannot keep that order
+under today's contract, so use the explicit post-resolution re-review sequence above instead.
 
 After the push, re-run `node tools/verify-delivery.mjs`. The fix moved the head, so the earlier
 `DELIVERED` is stale until this re-runs. `DELIVERED` continues; `STALE_PR` means the push did not
