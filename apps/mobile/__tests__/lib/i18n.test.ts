@@ -54,12 +54,12 @@ const localeCases = [
     locale: 'en',
     one: {
       stripWindow: 'Activity over the last 1 day',
-      repairEmpty: 'No freeze is banked. The next freeze arrives in 1 day.',
+      repairEmpty: 'The gap is still open, but no freeze is banked to cover it. This repair offer ends today.',
       daysLeft: '1 day left',
     },
     other: {
       stripWindow: 'Activity over the last 2 days',
-      repairEmpty: 'No freeze is banked. The next freeze arrives in 2 days.',
+      repairEmpty: 'The gap is still open, but no freeze is banked to cover it. This repair offer ends today.',
       daysLeft: '2 days left',
     },
     named: 'Completion on Monday: 80%',
@@ -70,12 +70,12 @@ const localeCases = [
     locale: 'pt-BR',
     one: {
       stripWindow: 'Atividade nos últimos 1 dia',
-      repairEmpty: 'Não há congelamento guardado. O próximo chega em 1 dia.',
+      repairEmpty: 'A lacuna continua em aberto, mas não há congelamento guardado para cobri-la. Esta oferta de reparo termina hoje.',
       daysLeft: 'Falta 1 dia',
     },
     other: {
       stripWindow: 'Atividade nos últimos 2 dias',
-      repairEmpty: 'Não há congelamento guardado. O próximo chega em 2 dias.',
+      repairEmpty: 'A lacuna continua em aberto, mas não há congelamento guardado para cobri-la. Esta oferta de reparo termina hoje.',
       daysLeft: 'Faltam 2 dias',
     },
     named: 'Conclusão em segunda-feira: 80%',
