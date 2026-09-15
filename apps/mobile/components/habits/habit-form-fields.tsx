@@ -8,7 +8,6 @@ import {
 } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
-import { Sparkles } from "lucide-react-native";
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { coalesceFormText } from "@orbit/shared/utils";
@@ -16,6 +15,7 @@ import type { TagSelectionState } from "@/hooks/use-tag-selection";
 import type { HabitFormHelpers } from "@/hooks/use-habit-form";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { useHasProAccess } from "@/hooks/use-profile";
+import { AstraMark } from "@/components/ui/astra-avatar";
 import { createTokensV2 } from '@/lib/theme';
 import { useAppTheme } from "@/lib/use-app-theme";
 import {
@@ -54,7 +54,10 @@ interface HabitFormFieldsProps {
   expandAdvancedSignal?: number;
   /** When provided, renders the "Suggest with AI" affordance that requests a setup for the title. */
   onSuggestSetup?: () => void;
+  /** When provided, renders an emoji-local affordance that changes only the emoji. */
+  onSuggestEmoji?: () => void;
   isSuggesting?: boolean;
+  isSuggestingEmoji?: boolean;
   /** When set (not null), locks the FrequencyTypeCards "General" option to this value because a parent or existing children constrain it. */
   lockedGeneral?: boolean | null;
   /** Routes to the upgrade surface from pro-gated fields. The hosting sheet must run the navigation only after its native dismissal (see hooks/use-sheet-exit-action.ts). */
@@ -76,12 +79,15 @@ export function HabitFormFields({
   defaultExpanded = false,
   expandAdvancedSignal = 0,
   onSuggestSetup,
+  onSuggestEmoji,
   isSuggesting = false,
+  isSuggestingEmoji = false,
   lockedGeneral = null,
   onUpgrade,
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const { t } = useTranslation();
+  const isAnySuggestionPending = isSuggesting || isSuggestingEmoji;
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -178,30 +184,34 @@ export function HabitFormFields({
             tokens={tokens}
             styles={styles}
             onSelect={(emoji) => setValue("emoji", emoji, { shouldDirty: true })}
+            onSuggest={onSuggestEmoji}
+            canSuggest={watchedTitle.trim().length > 0}
+            isSuggesting={isSuggestingEmoji}
+            isDisabled={isAnySuggestionPending}
           />
         }
         trailing={
           onSuggestSetup ? (
             <Pressable
               onPress={onSuggestSetup}
-              disabled={isSuggesting || watchedTitle.trim().length === 0}
+              disabled={isAnySuggestionPending || watchedTitle.trim().length === 0}
               hitSlop={3}
               accessibilityRole="button"
               accessibilityLabel={t("habits.form.aiSuggest")}
               accessibilityState={{
-                disabled: isSuggesting || watchedTitle.trim().length === 0,
+                disabled: isAnySuggestionPending || watchedTitle.trim().length === 0,
                 busy: isSuggesting,
               }}
               style={({ pressed }) => [
                 styles.aiSparkButton,
-                (isSuggesting || watchedTitle.trim().length === 0) && { opacity: 0.45 },
+                (isAnySuggestionPending || watchedTitle.trim().length === 0) && { opacity: 0.45 },
                 pressed && { transform: [{ scale: 0.96 }] },
               ]}
             >
               {isSuggesting ? (
                 <ActivityIndicator size="small" color={tokens.primary} />
               ) : (
-                <Sparkles size={18} color={tokens.primary} strokeWidth={2} />
+                <AstraMark size={18} color={tokens.primary} strokeWidth={2} />
               )}
             </Pressable>
           ) : undefined

@@ -10,6 +10,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { HabitFormFields } from './habit-form-fields'
 import {
   applySuggestionChecklist,
+  applySuggestionEmoji,
   applySuggestionSchedule,
 } from './create-habit-modal/apply-suggestion'
 import { SubHabitEditor, type SubHabitEntry } from './create-habit-modal/sub-habit-editor'
@@ -39,6 +40,7 @@ import {
   MAX_GOALS_PER_HABIT,
   habitFormSchema,
 } from '@orbit/shared/validation'
+import { createSuggestionRequestCoordinator } from '@orbit/shared/hooks'
 
 function createSubHabitEntry(value = ''): SubHabitEntry {
   return { id: crypto.randomUUID(), value }
@@ -70,6 +72,7 @@ export function CreateHabitModal({
   const createHabit = useCreateHabit()
   const createSubHabit = useCreateSubHabit()
   const suggestion = useHabitSuggestion()
+  const emojiSuggestion = useHabitSuggestion()
   const { showError, showSuccess, showInfo } = useAppToast()
   const isSubHabitMode = !!parentHabit
   const hasProAccess = profile?.hasProAccess ?? false
@@ -88,6 +91,7 @@ export function CreateHabitModal({
   const titleInputRef = useRef<HTMLInputElement | null>(null)
   const [reminderWasManuallyToggled, setReminderWasManuallyToggled] = useState(false)
   const [expandAdvancedSignal, setExpandAdvancedSignal] = useState(0)
+  const [suggestionRequests] = useState(createSuggestionRequestCoordinator)
   const [initialSnapshot, setInitialSnapshot] = useState({
     tagIds: '[]',
     goalIds: '[]',
@@ -100,6 +104,18 @@ export function CreateHabitModal({
   const watchedDueTime = formHelpers.form.watch('dueTime') ?? ''
   const watchedReminderEnabled = formHelpers.form.watch('reminderEnabled') ?? false
   const watchedScheduledReminders = formHelpers.form.watch('scheduledReminders') ?? []
+  const suggestionSessionKey = open
+    ? `create:${parentHabit?.id ?? 'habit'}`
+    : null
+
+  useEffect(() => {
+    suggestionRequests.updateContext(suggestionSessionKey, watchedTitle)
+  }, [suggestionRequests, suggestionSessionKey, watchedTitle])
+
+  useEffect(
+    () => () => suggestionRequests.updateContext(null, ''),
+    [suggestionRequests],
+  )
 
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
   const isDirty =
@@ -255,12 +271,19 @@ export function CreateHabitModal({
 
   const handleSuggest = useCallback(
     async () => {
-      const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
+      const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
+      const title = currentTitle.trim()
       if (title.length === 0) return
+      suggestionRequests.updateContext(suggestionSessionKey, currentTitle)
+      const request = suggestionRequests.begin()
+      if (!request) return
       try {
-        const patch = buildHabitFormPatchFromSuggestion(
-          await suggestion.mutateAsync({ title, language: locale }),
-        )
+        const response = await suggestion.mutateAsync({ title, language: locale })
+        if (!suggestionRequests.isCurrent(
+          request,
+          coalesceFormText(formHelpers.form.getValues('title')),
+        )) return
+        const patch = buildHabitFormPatchFromSuggestion(response)
 
         applySuggestionSchedule(patch, formHelpers)
 
@@ -291,16 +314,57 @@ export function CreateHabitModal({
           showInfo(t('habits.form.aiSuggestEmpty'))
         }
       } catch (error: unknown) {
+        if (!suggestionRequests.isCurrent(
+          request,
+          coalesceFormText(formHelpers.form.getValues('title')),
+        )) return
         showError(
           extractBackendErrorCode(error) === 'PAY_GATE'
             ? t('habits.form.aiSuggestLimitReached')
             : t('habits.form.aiSuggestError'),
         )
+      } finally {
+        suggestionRequests.finish()
       }
     },
     // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; the callback keys off the resolved boolean, not the raw profile member https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-    [formHelpers, hasProAccess, locale, showError, showInfo, showSuccess, suggestion, t],
+    [formHelpers, hasProAccess, locale, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionSessionKey, t],
   )
+
+  const handleSuggestEmoji = useCallback(async () => {
+    const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
+    const title = currentTitle.trim()
+    if (title.length === 0) return
+    suggestionRequests.updateContext(suggestionSessionKey, currentTitle)
+    const request = suggestionRequests.begin()
+    if (!request) return
+
+    try {
+      const response = await emojiSuggestion.mutateAsync({ title, language: locale })
+      if (!suggestionRequests.isCurrent(
+        request,
+        coalesceFormText(formHelpers.form.getValues('title')),
+      )) return
+      const patch = buildHabitFormPatchFromSuggestion(response)
+      if (applySuggestionEmoji(patch, formHelpers.form)) {
+        showSuccess(t('habits.form.aiSuggestApplied'))
+      } else {
+        showInfo(t('habits.form.aiSuggestEmpty'))
+      }
+    } catch (error: unknown) {
+      if (!suggestionRequests.isCurrent(
+        request,
+        coalesceFormText(formHelpers.form.getValues('title')),
+      )) return
+      showError(
+        extractBackendErrorCode(error) === 'PAY_GATE'
+          ? t('habits.form.aiSuggestLimitReached')
+          : t('habits.form.aiSuggestError'),
+      )
+    } finally {
+      suggestionRequests.finish()
+    }
+  }, [emojiSuggestion, formHelpers, locale, showError, showInfo, showSuccess, suggestionRequests, suggestionSessionKey, t])
 
   const isPending = createHabit.isPending || createSubHabit.isPending
 
@@ -369,7 +433,9 @@ export function CreateHabitModal({
           onReminderEnabledChange={handleReminderEnabledChange}
           expandAdvancedSignal={expandAdvancedSignal}
           onSuggestSetup={isSubHabitMode ? undefined : () => void handleSuggest()}
+          onSuggestEmoji={() => void handleSuggestEmoji()}
           isSuggesting={suggestion.isPending}
+          isSuggestingEmoji={emojiSuggestion.isPending}
           lockedGeneral={parentHabit?.isGeneral ?? null}
         >
           {!isSubHabitMode && (

@@ -36,6 +36,7 @@ import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useHasProAccess } from '@/hooks/use-profile'
 import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { useTagSuggestions } from '@/hooks/use-tag-suggestions'
+import { AstraMark } from '@/components/ui/astra-avatar'
 
 /**
  * Whether to render the absolute-time scheduled-reminder editor: always for a non-general habit with
@@ -95,7 +96,10 @@ interface HabitFormFieldsProps {
   expandAdvancedSignal?: number
   /** When provided, renders the "Suggest with AI" affordance that requests a setup for the title. */
   onSuggestSetup?: () => void
+  /** When provided, renders an emoji-local affordance that changes only the emoji. */
+  onSuggestEmoji?: () => void
   isSuggesting?: boolean
+  isSuggestingEmoji?: boolean
   children?: ReactNode
 }
 
@@ -115,7 +119,9 @@ export function HabitFormFields({
   lockedGeneral = null,
   expandAdvancedSignal = 0,
   onSuggestSetup,
+  onSuggestEmoji,
   isSuggesting = false,
+  isSuggestingEmoji = false,
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const t = useTranslations()
@@ -231,6 +237,7 @@ export function HabitFormFields({
 
   const watchedDaySet = new Set(watchedDays)
   const selectedTagIdSet = new Set(tags.selectedTagIds)
+  const isAnySuggestionPending = isSuggesting || isSuggestingEmoji
 
   return (
     <div className="stagger-enter flex flex-col" style={{ gap: 24 }}>
@@ -242,6 +249,10 @@ export function HabitFormFields({
           <HabitEmojiSelector
             selectedEmoji={watchedEmoji}
             onSelect={(emoji) => setValue('emoji', emoji, { shouldDirty: true })}
+            onSuggest={onSuggestEmoji}
+            canSuggest={watchedTitle.trim().length > 0}
+            isSuggesting={isSuggestingEmoji}
+            isDisabled={isAnySuggestionPending}
           />
           <div className="relative flex-1 min-w-0">
             <input
@@ -269,13 +280,13 @@ export function HabitFormFields({
                 aria-busy={isSuggesting || undefined}
                 aria-label={isSuggesting ? t('habits.form.aiSuggesting') : t('habits.form.aiSuggest')}
                 title={t('habits.form.aiSuggest')}
-                disabled={isSuggesting || watchedTitle.trim().length === 0}
+                disabled={isAnySuggestionPending || watchedTitle.trim().length === 0}
                 onClick={onSuggestSetup}
               >
                 {isSuggesting ? (
                   <Loader2 className="size-[18px] animate-spin" aria-hidden="true" />
                 ) : (
-                  <Sparkles size={18} strokeWidth={2} aria-hidden="true" />
+                  <AstraMark size={18} color="currentColor" strokeWidth={2} />
                 )}
               </button>
             )}

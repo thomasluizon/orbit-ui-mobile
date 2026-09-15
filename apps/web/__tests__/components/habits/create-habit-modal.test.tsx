@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
@@ -18,6 +18,8 @@ const mockSetFlexible = vi.fn()
 const mockValidateAll = vi.fn()
 const mockResetTags = vi.fn()
 const mockShowError = vi.fn()
+const mockShowSuccess = vi.fn()
+const mockShowInfo = vi.fn()
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -119,8 +121,8 @@ vi.mock('@/stores/ui-store', () => ({
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({
     showError: mockShowError,
-    showSuccess: vi.fn(),
-    showInfo: vi.fn(),
+    showSuccess: mockShowSuccess,
+    showInfo: mockShowInfo,
   }),
 }))
 
@@ -165,14 +167,21 @@ vi.mock('./habit-form-fields', () => ({
   HabitFormFields: ({
     children,
     onSuggestSetup,
+    onSuggestEmoji,
   }: {
     children?: React.ReactNode
     onSuggestSetup?: () => void
+    onSuggestEmoji?: () => void
   }) => (
     <div data-testid="habit-form-fields">
       {onSuggestSetup && (
         <button type="button" data-testid="suggest-trigger" onClick={() => onSuggestSetup()}>
           suggest
+        </button>
+      )}
+      {onSuggestEmoji && (
+        <button type="button" data-testid="emoji-suggest-trigger" onClick={() => onSuggestEmoji()}>
+          suggest emoji
         </button>
       )}
       {children}
@@ -184,14 +193,21 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
   HabitFormFields: ({
     children,
     onSuggestSetup,
+    onSuggestEmoji,
   }: {
     children?: React.ReactNode
     onSuggestSetup?: () => void
+    onSuggestEmoji?: () => void
   }) => (
     <div data-testid="habit-form-fields">
       {onSuggestSetup && (
         <button type="button" data-testid="suggest-trigger" onClick={() => onSuggestSetup()}>
           suggest
+        </button>
+      )}
+      {onSuggestEmoji && (
+        <button type="button" data-testid="emoji-suggest-trigger" onClick={() => onSuggestEmoji()}>
+          suggest emoji
         </button>
       )}
       {children}
@@ -204,9 +220,11 @@ function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
-  return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
-  )
+  return render(ui, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    ),
+  })
 }
 
 
@@ -429,5 +447,305 @@ describe('CreateHabitModal', () => {
       ],
       { shouldDirty: true },
     )
+  })
+
+  it('changes only the emoji when the person already set a schedule by hand', async () => {
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return 'Swim'
+      return {
+        title: 'Swim',
+        frequencyUnit: 'Day',
+        frequencyQuantity: 2,
+        days: ['Tuesday'],
+        dueTime: '18:00',
+        checklistItems: [{ text: 'Pack towel', isChecked: false }],
+      }
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: '🏊',
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      days: ['Monday'],
+      isFlexible: true,
+      flexibleTarget: 3,
+      dueTime: '07:00',
+      subHabits: ['Warm up'],
+      checklistItems: ['Goggles'],
+    })
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    mockFormSetValue.mockClear()
+    mockSetFlexible.mockClear()
+    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
+
+    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
+    expect(mockFormSetValue.mock.calls).toEqual([
+      ['emoji', '🏊', { shouldDirty: true }],
+    ])
+    expect(mockSetFlexible).not.toHaveBeenCalled()
+  })
+
+  it('uses the existing pay-gate message for an emoji suggestion refusal', async () => {
+    mockFormGetValues.mockImplementation((field?: string) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockRejectedValue({ data: { errorCode: 'PAY_GATE' } })
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
+
+    await waitFor(() => {
+      expect(mockShowError).toHaveBeenCalledWith('habits.form.aiSuggestLimitReached')
+    })
+    expect(mockFormSetValue).not.toHaveBeenCalledWith(
+      'emoji',
+      expect.anything(),
+      expect.anything(),
+    )
+  })
+
+  it('leaves the form untouched and offers retry when emoji suggestion fails', async () => {
+    mockFormGetValues.mockImplementation((field?: string) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockRejectedValue(new Error('offline'))
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    mockFormSetValue.mockClear()
+    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
+
+    await waitFor(() => {
+      expect(mockShowError).toHaveBeenCalledWith('habits.form.aiSuggestError')
+    })
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+  })
+
+  it('ignores an emoji suggestion after the title changes away and back', async () => {
+    let title = 'Swim'
+    let resolveSuggestion!: (value: Record<string, unknown>) => void
+    mockFormGetValues.mockImplementation((field?: string) =>
+      field === 'title' ? title : {},
+    )
+    mockSuggestMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSuggestion = resolve
+      }),
+    )
+
+    mockFormWatch.mockImplementation((field?: string) =>
+      field === 'title' ? title : undefined,
+    )
+    const { rerender } = renderWithProviders(
+      <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
+    )
+    mockFormSetValue.mockClear()
+    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
+    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
+
+    title = 'Run'
+    rerender(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    title = 'Swim'
+    rerender(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    await act(async () => {
+      resolveSuggestion({
+        emoji: '🏊',
+        frequencyUnit: null,
+        frequencyQuantity: null,
+        days: [],
+        isFlexible: false,
+        flexibleTarget: null,
+        dueTime: null,
+        subHabits: [],
+        checklistItems: [],
+      })
+      await Promise.resolve()
+    })
+
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+  })
+
+  it('ignores a pending emoji suggestion after the create modal unmounts', async () => {
+    let resolveSuggestion!: (value: Record<string, unknown>) => void
+    mockFormGetValues.mockImplementation((field?: string) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSuggestion = resolve
+      }),
+    )
+
+    const { unmount } = renderWithProviders(
+      <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
+    )
+    mockFormSetValue.mockClear()
+    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
+    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
+
+    unmount()
+    await act(async () => {
+      resolveSuggestion({
+        emoji: '🏊',
+        frequencyUnit: null,
+        frequencyQuantity: null,
+        days: [],
+        isFlexible: false,
+        flexibleTarget: null,
+        dueTime: null,
+        subHabits: [],
+        checklistItems: [],
+      })
+      await Promise.resolve()
+    })
+
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+    expect(mockShowSuccess).not.toHaveBeenCalled()
+    expect(mockShowInfo).not.toHaveBeenCalled()
+    expect(mockShowError).not.toHaveBeenCalled()
+  })
+
+  it('starts only one request when both suggestion actions are pressed', async () => {
+    let resolveSuggestion!: (value: Record<string, unknown>) => void
+    mockFormGetValues.mockImplementation((field?: string) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSuggestion = resolve
+      }),
+    )
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
+    fireEvent.click(screen.getByTestId('suggest-trigger'))
+
+    expect(mockSuggestMutateAsync).toHaveBeenCalledOnce()
+    resolveSuggestion({
+      emoji: '🏊',
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: null,
+      subHabits: [],
+      checklistItems: [],
+    })
+    await waitFor(() => expect(mockFormSetValue).toHaveBeenCalled())
+  })
+
+  it('reports an empty emoji suggestion without changing the form', async () => {
+    mockFormGetValues.mockImplementation((field?: string) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: null,
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: null,
+      subHabits: [],
+      checklistItems: [],
+    })
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    mockFormSetValue.mockClear()
+    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
+
+    await waitFor(() => {
+      expect(mockShowInfo).toHaveBeenCalledWith('habits.form.aiSuggestEmpty')
+    })
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+    expect(mockShowSuccess).not.toHaveBeenCalled()
+  })
+
+  it('ignores a successful full suggestion after the title changes', async () => {
+    let title = 'Swim'
+    let resolveSuggestion!: (value: Record<string, unknown>) => void
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return title
+      if (field === 'checklistItems') return []
+      return {}
+    })
+    mockFormWatch.mockImplementation((field?: string) =>
+      field === 'title' ? title : undefined,
+    )
+    mockSuggestMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSuggestion = resolve
+      }),
+    )
+
+    const { rerender } = renderWithProviders(
+      <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
+    )
+    mockFormSetValue.mockClear()
+    fireEvent.click(screen.getByTestId('suggest-trigger'))
+    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
+
+    title = 'Run'
+    rerender(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    await act(async () => {
+      resolveSuggestion({
+        emoji: '🏊',
+        frequencyUnit: 'Week',
+        frequencyQuantity: 1,
+        days: ['Monday'],
+        isFlexible: false,
+        flexibleTarget: null,
+        dueTime: '07:00',
+        subHabits: [],
+        checklistItems: ['Goggles'],
+      })
+      await Promise.resolve()
+    })
+
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+    expect(mockShowSuccess).not.toHaveBeenCalled()
+    expect(mockShowInfo).not.toHaveBeenCalled()
+  })
+
+  it('ignores a failed full suggestion after the modal unmounts', async () => {
+    let rejectSuggestion!: (error: Error) => void
+    mockFormGetValues.mockImplementation((field?: string) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockReturnValue(
+      new Promise((_resolve, reject) => {
+        rejectSuggestion = reject
+      }),
+    )
+
+    const { unmount } = renderWithProviders(
+      <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByTestId('suggest-trigger'))
+    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
+
+    unmount()
+    await act(async () => {
+      rejectSuggestion(new Error('offline'))
+      await Promise.resolve()
+    })
+
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+    expect(mockShowSuccess).not.toHaveBeenCalled()
+    expect(mockShowInfo).not.toHaveBeenCalled()
+    expect(mockShowError).not.toHaveBeenCalled()
+  })
+
+  it('skips both suggestion actions when the title is empty', async () => {
+    mockFormGetValues.mockImplementation((field?: string) =>
+      field === 'title' ? '   ' : {},
+    )
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByTestId('suggest-trigger'))
+    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
+    await act(async () => Promise.resolve())
+
+    expect(mockSuggestMutateAsync).not.toHaveBeenCalled()
   })
 })
