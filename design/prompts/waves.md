@@ -270,7 +270,8 @@ screen and the chat error. Every error says how to fix it, in plain language, wi
 
 ## The surface list, and when it stops being true
 
-The pre-redesign snapshot and its R group guidance are superseded by #356. The canvas documents now
+The pre-redesign snapshot and its R group guidance are superseded by
+thomasluizon/orbit-tickets#356. The canvas documents now
 define how each surface looks. `node tools/redesign-coverage.mjs` is the completeness check that makes
 sure no live surface is skipped, not a design authority.
 
@@ -315,7 +316,9 @@ The information architecture decisions behind the retired guidance still hold:
   desktop stats rail.
 * `Orbit Habit Create` and `Orbit Habit Detail` own goal creation and linking within habit flows.
   `Orbit Progresso` owns goal detail and editing, the streak, achievements and progress figures.
-* The web only explore hub has no canvas document. Its live route remains named as the single explicit
+* The web only explore hub is absent from the live manifest. Its surface record remains one of the
+  eight decision-backed tombstones.
+* The native store-review prompt has no canvas document. It remains named as the single explicit live
   exclusion instead of being assigned to an unrelated document.
 
 ## After every wave
