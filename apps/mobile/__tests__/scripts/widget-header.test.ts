@@ -420,7 +420,7 @@ describe('Android widget header', () => {
     const prepareWidgetDay = kotlinFunctionBody(service, 'prepareWidgetDay')
 
     expect(prepareWidgetDay).toMatch(
-      /for \(habit in habits\.filter \{ it\.depth == 0 \}\) \{\s*if \(habit\.(?:hasChildren|childrenTotal > 0)\) \{\s*totalCount \+= habit\.childrenTotal\s*completedCount \+= habit\.childrenDone\s*\} else if \(!habit\.isBadHabit\) \{\s*totalCount \+= 1\s*if \(habit\.isCompleted\) completedCount \+= 1/,
+      /for \(habit in habits\.filter \{ it\.depth == 0 \}\) \{\s*if \(habit\.childrenTotal > 0\) \{\s*totalCount \+= habit\.childrenTotal\s*completedCount \+= habit\.childrenDone\s*\} else if \(!habit\.isBadHabit\) \{\s*totalCount \+= 1\s*if \(habit\.isCompleted\) completedCount \+= 1/,
     )
   })
 

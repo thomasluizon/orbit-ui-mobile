@@ -58,6 +58,28 @@ class OrbitWidgetDayStateTest {
     }
 
     @Test
+    fun `incomplete good parent with only bad children counts itself in header progress`() {
+        val badChild = habit(id = "bad-child", isCompleted = true, isBadHabit = true)
+        val parent = habit(id = "parent", children = listOf(badChild))
+
+        val dayState = prepareWidgetDay(listOf(parent), dayOffset = 0)
+
+        assertEquals(1, dayState.totalCount)
+        assertEquals(0, dayState.completedCount)
+    }
+
+    @Test
+    fun `completed good parent with only bad children counts itself in header progress`() {
+        val badChild = habit(id = "bad-child", isCompleted = true, isBadHabit = true)
+        val parent = habit(id = "parent", isCompleted = true, children = listOf(badChild))
+
+        val dayState = prepareWidgetDay(listOf(parent), dayOffset = 0)
+
+        assertEquals(1, dayState.totalCount)
+        assertEquals(1, dayState.completedCount)
+    }
+
+    @Test
     fun `flattens the complete widget row vocabulary`() {
         val greatGrandchild = habit(id = "great-grandchild")
         val grandchild = habit(id = "grandchild", children = listOf(greatGrandchild))
