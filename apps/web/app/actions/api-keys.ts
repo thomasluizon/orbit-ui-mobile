@@ -6,6 +6,7 @@ import { stepUpMessageResponseSchema } from '@orbit/shared/types/step-up'
 import {
   extractBackendError,
   extractBackendErrorCode,
+  extractBackendStatus,
   extractStepUpAttemptsRemaining,
   validateApiResponse,
 } from '@orbit/shared/utils'
@@ -15,11 +16,26 @@ type ConfirmApiKeyChallengeResult =
   | { success: true }
   | { success: false; errorCode: string | null; remaining: number | null }
 
-export async function createApiKey(request: ApiKeyCreateRequest): Promise<ApiKeyCreateResponse> {
-  return serverAuthFetch(API.apiKeys.create, {
-    method: 'POST',
-    body: JSON.stringify(request),
-  })
+export type CreateApiKeyResult =
+  | { success: true; response: ApiKeyCreateResponse }
+  | { success: false; challengeRequired: true }
+
+export async function createApiKey(request: ApiKeyCreateRequest): Promise<CreateApiKeyResult> {
+  try {
+    const response = await serverAuthFetch<ApiKeyCreateResponse>(API.apiKeys.create, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    })
+    return { success: true, response }
+  } catch (caught: unknown) {
+    if (
+      extractBackendStatus(caught) === 428
+      && extractBackendErrorCode(caught) === 'API_KEY_CREATION_CHALLENGE_REQUIRED'
+    ) {
+      return { success: false, challengeRequired: true }
+    }
+    throw caught
+  }
 }
 
 export async function revokeApiKey(keyId: string): Promise<void> {

@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
 import {
@@ -9,8 +9,6 @@ import {
   type WrappedSlide as WrappedSlideModel,
 } from '@orbit/shared/utils'
 import { ShareCard } from '@/components/share/share-card'
-import { PillButton } from '@/components/ui/pill-button'
-import { useShareCard } from '@/hooks/use-share-card'
 import {
   captionStyle,
   dayLabelStyle,
@@ -35,10 +33,11 @@ interface WrappedSlideProps {
   recap: Recap
   period: RecapSharePeriod
   displayName?: string
+  captureRef: Ref<HTMLDivElement>
+  shareError: boolean
 }
 
-/** Renders a single Orbit Wrapped story slide; the final `share` slide embeds the #197 ShareCard and its CTAs. */
-export function WrappedSlide({ slide, recap, period, displayName }: Readonly<WrappedSlideProps>) {
+export function WrappedSlide({ slide, recap, period, displayName, captureRef, shareError }: Readonly<WrappedSlideProps>) {
   const t = useTranslations()
 
   switch (slide.id) {
@@ -117,7 +116,7 @@ export function WrappedSlide({ slide, recap, period, displayName }: Readonly<Wra
         </SlideShell>
       )
     case 'share':
-      return <WrappedShareSlide recap={recap} displayName={displayName} />
+      return <WrappedShareSlide recap={recap} displayName={displayName} captureRef={captureRef} hasError={shareError} />
   }
 }
 
@@ -201,19 +200,12 @@ function WeeklyRhythm({ values }: Readonly<{ values: number[] }>) {
 interface WrappedShareSlideProps {
   recap: Recap
   displayName?: string
+  captureRef: Ref<HTMLDivElement>
+  hasError: boolean
 }
 
-function WrappedShareSlide({ recap, displayName }: Readonly<WrappedShareSlideProps>) {
+function WrappedShareSlide({ recap, displayName, captureRef, hasError }: Readonly<WrappedShareSlideProps>) {
   const t = useTranslations()
-  const { captureRef, isSharing, hasError, canShareFiles, share, download } = useShareCard()
-
-  function handleShare() {
-    void share({
-      shareTitle: t('shareCard.shareTitle'),
-      shareText: t('shareCard.shareText'),
-      url: recap.shareDeepLink,
-    })
-  }
 
   return (
     <div
@@ -230,29 +222,6 @@ function WrappedShareSlide({ recap, displayName }: Readonly<WrappedShareSlidePro
         </p>
       )}
 
-      <div className="flex w-full" style={{ gap: 10, maxWidth: 360 }}>
-        {canShareFiles && (
-          <PillButton
-
-            loading={isSharing}
-            disabled={isSharing}
-            onClick={handleShare}
-
-          >
-            {t('shareCard.share')}
-          </PillButton>
-        )}
-        <PillButton
-
-          variant={canShareFiles ? 'ghost' : 'primary'}
-          loading={isSharing}
-          disabled={isSharing}
-          onClick={() => void download()}
-
-        >
-          {t('shareCard.download')}
-        </PillButton>
-      </div>
     </div>
   )
 }

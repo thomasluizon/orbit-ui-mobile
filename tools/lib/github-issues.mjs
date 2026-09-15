@@ -251,15 +251,17 @@ export const resolveTicket = (reference) => {
       if (!/^ORB-[1-9]\d*$/.test(identifier) || !ticketsByIdentifier.has(identifier)) {
         throw new Error(`Unknown migrated ticket ${trimmed}; refusing to guess a GitHub issue number`)
       }
-      return { number: ticketsByIdentifier.get(identifier), identifier }
+      return { number: ticketsByIdentifier.get(identifier), identifier, reference: identifier }
     }
     const match = /^#?([1-9]\d*)$/.exec(trimmed)
     if (!match) throw new Error(`Ticket reference must be ORB-N, #N, or N, got ${JSON.stringify(reference)}`)
     const number = positiveIssueNumber(Number(match[1]))
-    return { number, identifier: identifiersByNumber.get(number) ?? null }
+    const identifier = identifiersByNumber.get(number) ?? null
+    return { number, identifier, reference: identifier ?? `#${number}` }
   }
   const number = positiveIssueNumber(reference)
-  return { number, identifier: identifiersByNumber.get(number) ?? null }
+  const identifier = identifiersByNumber.get(number) ?? null
+  return { number, identifier, reference: identifier ?? `#${number}` }
 }
 
 export const readTicket = async (number, { withProjectItem = true } = {}) => {

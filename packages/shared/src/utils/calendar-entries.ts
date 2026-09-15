@@ -1,5 +1,12 @@
 import type { CalendarDayEntry } from '../types/calendar'
 
+export type CalendarEventsDisplayState =
+  | 'pro-boundary'
+  | 'loading'
+  | 'failed'
+  | 'not-connected'
+  | 'ready'
+
 export const CALENDAR_MONTH_SWIPE_THRESHOLD = 60
 export const CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO = 1.2
 
@@ -30,4 +37,22 @@ export function filterRecurringDayMap(
     filtered.set(date, filterRecurringEntries(entries, false))
   }
   return filtered
+}
+
+export function resolveCalendarEventsDisplayState({
+  enabled,
+  isPending,
+  error,
+  resultStatus,
+}: Readonly<{
+  enabled: boolean
+  isPending: boolean
+  error: Error | null
+  resultStatus: 'connected' | 'not-connected' | undefined
+}>): CalendarEventsDisplayState {
+  if (!enabled) return 'pro-boundary'
+  if (error !== null) return 'failed'
+  if (isPending) return 'loading'
+  if (resultStatus === 'not-connected') return 'not-connected'
+  return 'ready'
 }

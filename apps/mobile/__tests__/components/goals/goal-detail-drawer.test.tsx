@@ -113,25 +113,6 @@ vi.mock('@/components/goals/edit-goal-modal', () => ({
   EditGoalModal: () => null,
 }))
 
-vi.mock('@/components/ui/icons', () => {
-  const createIcon = (name: string) => (props: any) => React.createElement(name, props)
-  return {
-    Minus: createIcon('Minus'),
-    Check: createIcon('Check'),
-    ChevronLeft: createIcon('ChevronLeft'),
-    ArchiveX: createIcon('ArchiveX'),
-    CheckCircle2: createIcon('CheckCircle2'),
-    ChevronRight: createIcon('ChevronRight'),
-    Flame: createIcon('Flame'),
-    PencilLine: createIcon('PencilLine'),
-    Plus: createIcon('Plus'),
-    Repeat: createIcon('Repeat'),
-    RotateCw: createIcon('RotateCw'),
-    Orbit: createIcon('Orbit'),
-    Trash2: createIcon('Trash2'),
-  }
-})
-
 vi.mock('@/hooks/use-goals', () => ({
   useGoals: () => ({
     data: {

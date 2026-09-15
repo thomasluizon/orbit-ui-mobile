@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useLocale } from 'next-intl'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { gamificationKeys, habitKeys } from '@orbit/shared/query'
+import { calendarKeys, gamificationKeys, habitKeys } from '@orbit/shared/query'
 import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
 import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
@@ -86,9 +86,11 @@ export function usePreferenceControls() {
     onError: (_error, _timeZone, context) => {
       patchProfile({ timeZone: context?.previous ?? null })
     },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: gamificationKeys.all, refetchType: 'none' })
-      void queryClient.invalidateQueries({ queryKey: habitKeys.all })
+    onSettled: async () => {
+      await queryClient.cancelQueries({ queryKey: calendarKeys.all })
+      await queryClient.invalidateQueries({ queryKey: calendarKeys.all })
+      await queryClient.invalidateQueries({ queryKey: gamificationKeys.all, refetchType: 'none' })
+      await queryClient.invalidateQueries({ queryKey: habitKeys.all })
     },
   })
 

@@ -4,6 +4,10 @@ import type { PagerProps } from '@orbit/shared/contracts/navigation'
 import { PillButton } from './pill-button'
 
 export function Pager(props: Readonly<PagerProps>) {
+  const controlsClassName = props.forwardLabel === undefined
+    ? 'flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between'
+    : 'flex items-center justify-between gap-4'
+
   return (
     <div data-index={props.index} className="flex flex-col gap-4">
       <ol aria-label={props.label} className="flex gap-1">
@@ -15,7 +19,7 @@ export function Pager(props: Readonly<PagerProps>) {
           </li>
         ))}
       </ol>
-      <div className="flex items-center justify-between gap-4">
+      <div className={controlsClassName}>
         <PillButton variant="ghost" disabled={!props.onBack} onClick={props.onBack}>{props.backLabel}</PillButton>
         {props.forwardLabel !== undefined ? (
           <PillButton disabled={!props.onForward} onClick={props.onForward}>{props.forwardLabel}</PillButton>

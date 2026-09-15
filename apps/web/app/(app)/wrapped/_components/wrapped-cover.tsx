@@ -2,32 +2,32 @@
 
 import { useTranslations } from 'next-intl'
 import { RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
-import { RingMotif } from '@/components/gamification/ring-motif'
 import { Chip } from '@/components/ui/chip'
-import { PillButton } from '@/components/ui/pill-button'
+import { ErrorState } from '@/components/ui/error-state'
+import { Icon } from '@/components/ui/icon'
 import { OrbitMark } from '@/components/ui/orbit-mark'
-import { coverSubtitleStyle, coverTitleStyle } from './wrapped-styles'
+import { Button } from '@/components/ui/pill-button'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  coverEyebrowStyle,
+  coverSubtitleStyle,
+  coverTitleStyle,
+} from './wrapped-styles'
+
+type WrappedCoverState = 'ready' | 'loading' | 'failed' | 'empty'
 
 interface WrappedCoverProps {
   period: RecapSharePeriod
   onSelectPeriod: (period: RecapSharePeriod) => void
-  isLoading: boolean
-  isError: boolean
-  isEmpty: boolean
-  canStart: boolean
+  state: WrappedCoverState
   onStart: () => void
   onRetry: () => void
 }
 
-/** Wrapped entry screen: period picker, Start CTA, and the loading / empty / error states before the player opens. */
-// react-doctor-disable-next-line no-many-boolean-props -- private single-use entry screen; the flags are independent render-state inputs (loading/error/empty/canStart), not a combinatorial API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function WrappedCover({
   period,
   onSelectPeriod,
-  isLoading,
-  isError,
-  isEmpty,
-  canStart,
+  state,
   onStart,
   onRetry,
 }: Readonly<WrappedCoverProps>) {
@@ -35,74 +35,83 @@ export function WrappedCover({
 
   return (
     <div
-      className="flex flex-1 flex-col items-center justify-center text-center md:flex-none md:min-h-[calc(100dvh-168px)]"
-      style={{ gap: 28, padding: '0 28px 32px' }}
+      className="flex min-h-dvh flex-col items-start justify-center gap-6 overflow-y-auto px-6 py-8"
+      data-state={state}
     >
-      <RingMotif
-        dashed
-        ringSize={300}
-        eyebrow={t('wrapped.coverEyebrow')}
-        anchor={
-          <div className="flex flex-col items-center" style={{ gap: 10 }}>
-            <h1 style={coverTitleStyle}>{t('wrapped.title')}</h1>
-            <p style={coverSubtitleStyle}>{t('wrapped.coverSubtitle')}</p>
-          </div>
-        }
-      />
+      <OrbitMark size={96} />
 
-      <div className="flex flex-col items-center" style={{ gap: 22 }}>
-        <div className="flex items-center justify-center" style={{ gap: 8, flexWrap: 'wrap' }}>
-          {RECAP_SHARE_PERIODS.map((value) => (
-            <Chip
-              key={value}
-              active={period === value}
-              onClick={() => onSelectPeriod(value)}
-              ariaLabel={t(`wrapped.periods.${value}`)}
-            >
-              {t(`wrapped.periods.${value}`)}
-            </Chip>
-          ))}
-        </div>
+      <div className="flex flex-col gap-2">
+        <p style={coverEyebrowStyle}>{t('wrapped.title')}</p>
+        <h1 style={coverTitleStyle}>{t(`wrapped.coverTitles.${period}`)}</h1>
+        <p style={coverSubtitleStyle}>{t('wrapped.coverSubtitle')}</p>
+      </div>
 
-        <div className="flex flex-col items-center" style={{ gap: 12, minHeight: 84 }}>
-          <PillButton
-            disabled={!canStart}
-            onClick={onStart}
-
+      <div
+        role="group"
+        aria-label={t('wrapped.periodGroup')}
+        className="flex flex-wrap gap-2"
+      >
+        {RECAP_SHARE_PERIODS.map((value) => (
+          <Chip
+            key={value}
+            active={period === value}
+            onClick={() => onSelectPeriod(value)}
+            ariaLabel={t(`wrapped.periods.${value}`)}
           >
-            {t('wrapped.start')}
-          </PillButton>
+            {t(`wrapped.periods.${value}`)}
+          </Chip>
+        ))}
+      </div>
 
-          {isLoading && (
-            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)' }}>
-              {t('wrapped.loading')}
-            </p>
-          )}
+      <CoverBody state={state} onStart={onStart} onRetry={onRetry} />
+    </div>
+  )
+}
 
-          {!isLoading && isError && (
-            <div className="flex flex-col items-center" style={{ gap: 8 }}>
-              <p
-                role="alert"
-                style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--status-bad-text)' }}
-              >
-                {t('wrapped.error')}
-              </p>
-              <button type="button" className="chip" onClick={onRetry}>
-                {t('wrapped.retry')}
-              </button>
-            </div>
-          )}
+function CoverBody({
+  state,
+  onStart,
+  onRetry,
+}: Readonly<Pick<WrappedCoverProps, 'state' | 'onStart' | 'onRetry'>>) {
+  const t = useTranslations()
 
-          {!isLoading && !isError && isEmpty && (
-            <div className="flex flex-col items-center" style={{ gap: 12 }}>
-              <OrbitMark size={96} />
-              <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)', maxWidth: 300 }}>
-                {t('wrapped.empty')}
-              </p>
-            </div>
-          )}
+  if (state === 'loading') {
+    return <Skeleton variant="settings" rows={3} label={t('wrapped.loading')} />
+  }
+  if (state === 'failed') {
+    return (
+      <div className="w-full">
+        <ErrorState
+          message={t('wrapped.error')}
+          action={<Button size="sm" onClick={onRetry}>{t('wrapped.retry')}</Button>}
+        />
+      </div>
+    )
+  }
+  if (state === 'empty') {
+    return (
+      <div className="flex w-full flex-col items-start gap-4 sm:w-auto">
+        <div className="flex items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="grid size-14 shrink-0 place-items-center rounded-[var(--r-well)] bg-[var(--bg-well)] text-[var(--fg-3)]"
+          >
+            <Icon name="satellite" size={24} />
+          </span>
+          <p className="max-w-[34ch] text-sm leading-[1.55] text-[var(--fg-2)]">
+            {t('wrapped.empty')}
+          </p>
+        </div>
+        <div className="w-full [&>button]:w-full">
+          <Button disabled>{t('wrapped.start')}</Button>
         </div>
       </div>
+    )
+  }
+
+  return (
+    <div className="w-full sm:w-auto [&>button]:w-full">
+      <Button onClick={onStart}>{t('wrapped.start')}</Button>
     </div>
   )
 }

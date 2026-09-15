@@ -30,13 +30,11 @@ export const PROFILE_SETTINGS_GROUPS: readonly ProfileSettingsGroupDefinition[] 
 export type ProfileNavVariant = 'default' | 'primary'
 
 export type ProfileNavIconKey =
-  | 'settings'
-  | 'orbit'
   | 'wrapped'
+  | 'widget'
   | 'calendar'
+  | 'support'
   | 'info'
-  | 'wrench'
-  | 'compass'
 
 export type ProfileNavHintMode = 'static' | 'gamificationProfile'
 
@@ -46,7 +44,7 @@ export interface ProfileNavItem {
   route: string
   iconKey: ProfileNavIconKey
   titleKey: string
-  hintKey: string
+  hintKey: string | null
   variant: ProfileNavVariant
   proBadge: boolean
   hintMode: ProfileNavHintMode
@@ -61,8 +59,21 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     route: '/wrapped',
     iconKey: 'wrapped',
     titleKey: 'profile.wrappedTitle',
-    hintKey: 'profile.wrappedHint',
+    hintKey: null,
     variant: 'primary',
+    proBadge: false,
+    hintMode: 'static',
+    entitlementRequirement: null,
+    entitlementMode: null,
+  },
+  {
+    id: 'android-widget',
+    section: 'features',
+    route: '/advanced',
+    iconKey: 'widget',
+    titleKey: 'profile.widgetTitle',
+    hintKey: 'profile.widgetHint',
+    variant: 'default',
     proBadge: false,
     hintMode: 'static',
     entitlementRequirement: null,
@@ -82,12 +93,25 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     entitlementMode: 'redirect',
   },
   {
+    id: 'support',
+    section: 'features',
+    route: '/support',
+    iconKey: 'support',
+    titleKey: 'profile.support.title',
+    hintKey: 'profile.support.description',
+    variant: 'default',
+    proBadge: false,
+    hintMode: 'static',
+    entitlementRequirement: null,
+    entitlementMode: null,
+  },
+  {
     id: 'about',
     section: 'features',
     route: '/about',
     iconKey: 'info',
     titleKey: 'profile.sections.aboutHelp',
-    hintKey: 'profile.sections.aboutHelpHint',
+    hintKey: null,
     variant: 'default',
     proBadge: false,
     hintMode: 'static',

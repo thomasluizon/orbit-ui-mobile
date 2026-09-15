@@ -1,153 +1,42 @@
-import { useMemo } from 'react'
-import { ScrollView, StyleSheet, Text, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2 } from '@/lib/theme'
+import { LegalDocumentLayout, type LegalDocumentSection } from '@/components/legal-document-layout'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { useAppTheme } from '@/lib/use-app-theme'
 import { useAuthStore } from '@/stores/auth-store'
-import { AppBar } from '@/components/ui/app-bar'
-import { SectionLabel } from '@/components/ui/section-label'
 
-const subscriptionKeys = ['intro', 'autoRenew', 'cancel', 'refunds'] as const
+function useTermsSections(): LegalDocumentSection[] {
+  const { t } = useTranslation()
+  return [
+    { id: 'intro', title: t('terms.intro.title'), paragraphs: [t('terms.intro.body')] },
+    { id: 'provider', title: t('terms.provider.title'), paragraphs: [t('terms.provider.body')] },
+    { id: 'eligibility', title: t('terms.eligibility.title'), paragraphs: [t('terms.eligibility.body')] },
+    { id: 'license', title: t('terms.license.title'), paragraphs: [t('terms.license.body')] },
+    { id: 'subscription', title: t('terms.subscription.title'), paragraphs: [
+      t('terms.subscription.intro'), t('terms.subscription.autoRenew'),
+      t('terms.subscription.cancel'), t('terms.subscription.refunds'),
+    ] },
+    { id: 'ai', title: t('terms.ai.title'), paragraphs: [t('terms.ai.body')] },
+    { id: 'no-medical-advice', title: t('terms.noMedicalAdvice.title'), paragraphs: [t('terms.noMedicalAdvice.body')] },
+    { id: 'warranty', title: t('terms.warranty.title'), paragraphs: [t('terms.warranty.body')] },
+    { id: 'liability', title: t('terms.liability.title'), paragraphs: [t('terms.liability.body')] },
+    { id: 'termination', title: t('terms.termination.title'), paragraphs: [t('terms.termination.body')] },
+    { id: 'governing-law', title: t('terms.governingLaw.title'), paragraphs: [t('terms.governingLaw.body')] },
+    { id: 'changes', title: t('terms.changes.title'), paragraphs: [t('terms.changes.body')] },
+  ]
+}
 
 export default function TermsScreen() {
   const goBackOrFallback = useGoBackOrFallback()
   const { t } = useTranslation()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  )
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
 
   return (
-    <SafeAreaView
-      style={[styles.safeArea, { backgroundColor: tokens.bg }]}
-      edges={['top']}
-    >
-      <AppBar
-        onBack={() => goBackOrFallback(isAuthenticated ? '/' : '/login')}
-        title={t('terms.title')}
-        backLabel={t('terms.close')}
-      />
-      <Text style={{ paddingHorizontal: 16, color: tokens.fg3 }}>{t('terms.lastUpdated')}</Text>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <SectionLabel>{t('terms.intro.title')}</SectionLabel>
-        <View style={styles.bodyBlock}>
-          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
-            {t('terms.intro.body')}
-          </Text>
-        </View>
-
-        <SectionLabel>{t('terms.provider.title')}</SectionLabel>
-        <View style={styles.bodyBlock}>
-          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
-            {t('terms.provider.body')}
-          </Text>
-        </View>
-
-        <SectionLabel>{t('terms.eligibility.title')}</SectionLabel>
-        <View style={styles.bodyBlock}>
-          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
-            {t('terms.eligibility.body')}
-          </Text>
-        </View>
-
-        <SectionLabel>{t('terms.license.title')}</SectionLabel>
-        <View style={styles.bodyBlock}>
-          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
-            {t('terms.license.body')}
-          </Text>
-        </View>
-
-        <SectionLabel>{t('terms.subscription.title')}</SectionLabel>
-        <View style={styles.bodyBlock}>
-          {subscriptionKeys.map((key) => (
-            <Text key={key} style={[styles.bodyText, { color: tokens.fg2 }]}>
-              {t(`terms.subscription.${key}`)}
-            </Text>
-          ))}
-        </View>
-
-        <SectionLabel>{t('terms.ai.title')}</SectionLabel>
-        <View style={styles.bodyBlock}>
-          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
-            {t('terms.ai.body')}
-          </Text>
-        </View>
-
-        <SectionLabel>{t('terms.noMedicalAdvice.title')}</SectionLabel>
-        <View style={styles.bodyBlock}>
-          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
-            {t('terms.noMedicalAdvice.body')}
-          </Text>
-        </View>
-
-        <SectionLabel>{t('terms.warranty.title')}</SectionLabel>
-        <View style={styles.bodyBlock}>
-          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
-            {t('terms.warranty.body')}
-          </Text>
-        </View>
-
-        <SectionLabel>{t('terms.liability.title')}</SectionLabel>
-        <View style={styles.bodyBlock}>
-          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
-            {t('terms.liability.body')}
-          </Text>
-        </View>
-
-        <SectionLabel>{t('terms.termination.title')}</SectionLabel>
-        <View style={styles.bodyBlock}>
-          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
-            {t('terms.termination.body')}
-          </Text>
-        </View>
-
-        <SectionLabel>{t('terms.governingLaw.title')}</SectionLabel>
-        <View style={styles.bodyBlock}>
-          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
-            {t('terms.governingLaw.body')}
-          </Text>
-        </View>
-
-        <SectionLabel>{t('terms.changes.title')}</SectionLabel>
-        <View style={styles.bodyBlock}>
-          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
-            {t('terms.changes.body')}
-          </Text>
-        </View>
-
-        <SectionLabel>{t('terms.contact.title')}</SectionLabel>
-        <View style={styles.bodyBlock}>
-          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
-            {t('terms.contact.body')}
-          </Text>
-        </View>
-
-        <View style={{ height: 24 }} />
-      </ScrollView>
-    </SafeAreaView>
+    <LegalDocumentLayout
+      title={t('terms.title')}
+      lastUpdated={t('terms.lastUpdated')}
+      sections={useTermsSections()}
+      closingNote={{ id: 'contact', title: t('terms.contact.title'), paragraphs: [t('terms.contact.body')] }}
+      backLabel={t('terms.close')}
+      onBack={() => goBackOrFallback(isAuthenticated ? '/' : '/login')}
+    />
   )
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  container: { flex: 1 },
-  scrollContent: { paddingBottom: 40 },
-  bodyBlock: {
-    paddingHorizontal: 20,
-    paddingBottom: 18,
-    gap: 6,
-  },
-  bodyText: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 14,
-    lineHeight: 22,
-  },
-})

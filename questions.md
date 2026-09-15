@@ -20,13 +20,12 @@ Kept so the same question is not raised twice.
 
 ### Progresso multi-day gap repair (ticket 329)
 
-Settled 2026-09-10 with the reversible default: render the gap well, state the gap, offer nothing,
-and say nothing false about why. The atomic `POST /api/gamification/streak/repair-gap` write exists,
-but the client cannot derive its scheduled-occurrence payload from calendar dates.
+Settled 2026-09-14 when the server added the optional `RepairableGapDates` field. It supplies the
+scheduled occurrences for the atomic `POST /api/gamification/streak/repair-gap` request, so the
+client offers one action for the complete gap without reconstructing schedules from calendar days.
 
-The one-day action remains available when the server returns `IsRepairAvailable` with `RepairDate`.
-The multi-day action waits on `thomasluizon/orbit-tickets#505`, which adds the server-derived
-`RepairableGapDates` to the streak read before the client offers that action.
+Older responses without the field, and responses carrying null, fall back to the server-owned
+single-day `RepairDate` offer.
 
 ### Habit form picker motion (ticket 409)
 

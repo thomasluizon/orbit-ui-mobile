@@ -6,6 +6,9 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { createTranslator } from 'next-intl'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import {
   closeChrome,
@@ -101,6 +104,7 @@ const mocks = vi.hoisted(() => ({
       canEarnMore: true,
       isRepairAvailable: false,
       repairDate: null as string | null,
+      repairableGapDates: undefined as string[] | undefined,
     },
     streakQuery: { isError: false, refetch: vi.fn() },
     isFrozenToday: false,
@@ -115,7 +119,8 @@ const mocks = vi.hoisted(() => ({
   isDesktop: false,
 }))
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next-intl')>()),
   useLocale: () => 'en',
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${JSON.stringify(values)}` : key,
@@ -132,7 +137,8 @@ vi.mock('@/hooks/use-goals', () => ({
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: () => mocks.gamification,
   useRepairStreak: () => mocks.repair,
-  useStreakFreeze: (_profile: unknown, timeZone: unknown) => {
+  useStreakFreeze: (profile: { streakFreezesAvailable?: number }, timeZone: unknown, enabled = true) => {
+    if (!enabled) return { ...mocks.freeze, streakInfo: null, streakFreezesAccumulated: profile.streakFreezesAvailable ?? 0 }
     if (!mocks.streakSnapshotZones || typeof timeZone !== 'string') return mocks.freeze
     if (mocks.streakSnapshotZones.has(timeZone)) return mocks.freeze
     return {
@@ -368,6 +374,7 @@ describe('ProgressContent', () => {
       lastActiveDate: null,
       isRepairAvailable: false,
       repairDate: null,
+      repairableGapDates: undefined,
       streakFreezesAccumulated: 2,
       maxStreakFreezesAccumulated: 3,
       daysUntilNextFreeze: 3,
@@ -498,6 +505,7 @@ describe('ProgressContent', () => {
   it('renders the remaining routed boundaries with a 16px locked-card inset', async () => {
     mocks.account.profile.canViewGamification = false
     mocks.account.profile.hasProAccess = false
+    Object.assign(mocks.account.profile, { streakFreezesAvailable: 3 })
     const { container, unmount } = render(<ProgressContent />)
 
     expect(screen.getByText('progressScreen.streak.lockedBody')).toBeInTheDocument()
@@ -506,6 +514,8 @@ describe('ProgressContent', () => {
     expect(screen.getAllByText('progressScreen.streak.lockedAction').length).toBeGreaterThan(0)
     expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
     expect(screen.getByText('streakDisplay.detail.tierTileLabel')).toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.streak.bankFull:{"count":3}')).not.toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.streak.gapTitle')).not.toBeInTheDocument()
 
     const markup = container.innerHTML
     unmount()
@@ -648,8 +658,9 @@ describe('ProgressContent', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
     mocks.freeze.streakInfo.currentStreak = 0
-    mocks.freeze.streakInfo.isRepairAvailable = true
-    mocks.freeze.streakInfo.repairDate = '2026-09-09'
+    mocks.freeze.streakInfo.isRepairAvailable = false
+    mocks.freeze.streakInfo.repairDate = null
+    mocks.freeze.streakInfo.repairableGapDates = ['2026-09-09']
     mocks.freeze.streakInfo.streakFreezesAccumulated = 0
     mocks.freeze.freezesAvailable = 0
     mocks.freeze.streakFreezesAccumulated = 0
@@ -657,8 +668,50 @@ describe('ProgressContent', () => {
     render(<ProgressContent />)
 
     expect(screen.getByText('progressScreen.streak.gapBody:{"count":1}')).toBeInTheDocument()
-    expect(screen.getByText('progressScreen.streak.repairEmpty:{"count":3}')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.streak.repairEmpty')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.repairAction:{"count":1}')).not.toBeInTheDocument()
+  })
+
+  it('shows a partly funded gap without offering an unaffordable repair', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.isRepairAvailable = false
+    mocks.freeze.streakInfo.repairDate = null
+    mocks.freeze.streakInfo.repairableGapDates = ['2026-09-07', '2026-09-08', '2026-09-09']
+    mocks.freeze.streakInfo.streakFreezesAccumulated = 2
+    mocks.freeze.freezesAvailable = 2
+    mocks.freeze.streakFreezesAccumulated = 2
+
+    render(<ProgressContent />)
+
+    expect(screen.getByText('progressScreen.streak.gapBody:{"count":3}')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.streak.repairPartial:{"needed":3,"banked":2}')).toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.streak.repairAction:{"count":3}')).not.toBeInTheDocument()
+
+    expect(createTranslator({ locale: 'en', messages: en })('progressScreen.streak.repairPartial', { needed: 3, banked: 2 }))
+      .toBe('The gap is still open. It needs 3 freezes, but only 2 are banked. This repair offer ends today.')
+    expect(createTranslator({ locale: 'pt-BR', messages: ptBR })('progressScreen.streak.repairPartial', { needed: 3, banked: 2 }))
+      .toBe('A lacuna continua em aberto. Ela precisa de 3 congelamentos, mas só há 2 guardados. Esta oferta de reparo termina hoje.')
+  })
+
+  it('shows an unrepairable capped gap without promising another freeze', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.isRepairAvailable = false
+    mocks.freeze.streakInfo.repairDate = null
+    mocks.freeze.streakInfo.repairableGapDates = ['2026-08-31', '2026-09-01', '2026-09-02', '2026-09-03']
+    mocks.freeze.streakInfo.streakFreezesAccumulated = 3
+    mocks.freeze.freezesAvailable = 3
+    mocks.freeze.streakFreezesAccumulated = 3
+    mocks.freeze.maxStreakFreezesAccumulated = 3
+
+    render(<ProgressContent />)
+
+    expect(screen.getByText('progressScreen.streak.repairCapped:{"needed":4,"banked":3}')).toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.streak.repairPartial:{"needed":4,"banked":3}')).not.toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.streak.repairAction:{"count":4}')).not.toBeInTheDocument()
   })
 
   it('shows the neutral bank limit and no next-freeze row', () => {

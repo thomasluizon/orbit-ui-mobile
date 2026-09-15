@@ -95,7 +95,7 @@ const VERDICTS = {
   ".claude/skills/drift-review/SKILL.md":
     "undeclared, inherits the session: it judges repeated evidence against the current workflow files, but every result remains a staged candidate for human review.",
   ".claude/skills/handoff/SKILL.md":
-    "current: high effort, and it earns it: it decides what a fresh session cannot rediscover, and under-thinking it is how a handoff loses the one fact written nowhere else.",
+    "current: high effort, and it earns it. It decides what survives into a spec that outlives every session, and under-thinking it is how a rule Thomas set in week one disappears by week four.",
   ".claude/skills/investigate/SKILL.md":
     "undeclared, inherits the session: root-causing a production incident across Sentry, Render, Postgres and the LSP is judgement, so this is a follow-up candidate.",
   ".claude/skills/lesson/SKILL.md":
@@ -106,6 +106,10 @@ const VERDICTS = {
     "current: high effort, and it earns it: it plans the queue, verifies delivery from artifacts and clears the review, and it is the entry point every other piece of work passes through.",
   ".claude/skills/prod-readiness/SKILL.md":
     "undeclared, inherits the session: it consolidates four child audits into one honest launch verdict, which is judgement, so this is a follow-up candidate.",
+  ".claude/skills/progress/SKILL.md":
+    "current: medium effort, because it reads live git and ticket state and must judge whether a part-built screen is honestly described, which low effort gets wrong by rounding up.",
+  ".claude/skills/questions/SKILL.md":
+    "current: high effort, because the filter decides what NOT to ask, and a wrong call either wastes his attention or ships a guess as a decision.",
   ".claude/skills/second-opinion/SKILL.md":
     "current with nothing to declare: the reasoning happens in the other model, by construction. Declaring an effort here would tune the wrong side of the call.",
   ".claude/skills/sleep/SKILL.md":
@@ -158,8 +162,7 @@ if (extra.length > 0) throw new Error(`verdict written for a file that is not in
 const config = JSON.parse(readFileSync(join(root, ".claude", "orchestrator.json"), "utf8"))
 // The ENGINE comes from config.worker, the same key launch-worker.mjs:115 reads. The invocation comes
 // from resolveWorkerInvocation itself rather than being rebuilt here, so the stamp records the WHOLE
-// vector that launches: engine args, then the models.default profile args, then the model. Reading
-// models.default.args alone left engine-level reasoning effort outside the gate entirely.
+// vector that launches: engine args, then the selected profile args, then the model.
 /**
  * The canonical resolver, imported from THIS tool's own directory rather than from `--root`. Loading
  * it out of the target tree made the pass unrunnable against any root that is not a full checkout,
@@ -168,12 +171,14 @@ const config = JSON.parse(readFileSync(join(root, ".claude", "orchestrator.json"
  * being stamped.
  */
 const workerEngine = config.worker
-const invocation = resolveWorkerInvocation(workerEngine, config.workers[workerEngine], "default")
 // The executable itself, which resolveWorkerInvocation does not return: launch-worker.mjs spawns
 // engine.command and the invocation only describes what is passed TO it.
 const workerCommand = config.workers[workerEngine].command
-const workerModel = invocation.model
-const workerArgs = invocation.args
+const workerTiers = Object.fromEntries(Object.keys(config.workers[workerEngine].models).sort().map((tier) => {
+  const invocation = resolveWorkerInvocation(workerEngine, config.workers[workerEngine], tier)
+  return [tier, { model: invocation.model, args: invocation.args }]
+}))
+const workerTierVerdict = "default handles product, design, architecture, and ambiguous orders requiring judgment; mechanical handles merge-forward work, known conflict lists, and reviewer-directed test experiments"
 
 const now = new Date()
 const calibratedAt = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`
@@ -188,8 +193,8 @@ const previous = existsSync(stampPath) ? JSON.parse(readFileSync(stampPath, "utf
 const workerMoved =
   previous.workerEngine !== workerEngine ||
   previous.workerCommand !== workerCommand ||
-  previous.workerModel !== workerModel ||
-  JSON.stringify(previous.workerArgs) !== JSON.stringify(workerArgs)
+  JSON.stringify(previous.workerTiers) !== JSON.stringify(workerTiers) ||
+  previous.workerTierVerdict !== workerTierVerdict
 
 const entries = {}
 let renewed = 0
@@ -221,14 +226,14 @@ const stamp = {
   calibratedAt,
   workerEngine,
   workerCommand,
-  workerModel,
-  workerArgs,
+  workerTiers,
+  workerTierVerdict,
   workerModelSource:
-    'resolveWorkerInvocation(config.worker, ..., "default") in tools/lib/orchestrator-config.mjs, the exact vector launch-worker.mjs launches: engine args, then models.default args, then the model',
+    "resolveWorkerInvocation(config.worker, ..., tier) in tools/lib/orchestrator-config.mjs for every configured tier, with each exact launch vector: engine args, then selected profile args, then the model",
   entries,
 }
 
 writeFileSync(stampPath, `${JSON.stringify(stamp, null, 2)}\n`, "utf8")
 console.log(
-  `stamped ${files.length} file(s) at ${calibratedAt} against ${workerEngine} ${workerModel} ${JSON.stringify(workerArgs)}; ${renewed} verdict(s) renewed, ${files.length - renewed} carried forward.`,
+  `stamped ${files.length} file(s) at ${calibratedAt} against ${workerEngine} tiers ${Object.keys(workerTiers).join(", ")}; ${renewed} verdict(s) renewed, ${files.length - renewed} carried forward.`,
 )
