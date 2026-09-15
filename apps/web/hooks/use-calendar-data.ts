@@ -15,13 +15,14 @@ import {
 } from '@orbit/shared/utils'
 import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import { sessionAwareFetch } from '@/lib/api-fetch'
 
 async function fetchCalendarMonth(
   monthStart: string,
   monthEnd: string,
 ): Promise<CalendarMonthResponse> {
   const url = `${API.habits.calendarMonth}?dateFrom=${monthStart}&dateTo=${monthEnd}`
-  const res = await fetch(url)
+  const res = await sessionAwareFetch(url)
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null
     throw new Error(body?.error ?? `Failed with status ${res.status}`)

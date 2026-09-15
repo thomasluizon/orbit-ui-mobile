@@ -9,7 +9,7 @@ import type { UserCalendar } from '@orbit/shared/types/calendar'
 const getUserCalendars = vi.fn()
 const setSelectedCalendars = vi.fn()
 
-vi.mock('@/app/actions/calendar', () => ({
+vi.mock('@/lib/actions/calendar', () => ({
   getUserCalendars: () => getUserCalendars(),
   setSelectedCalendars: (calendarIds: string[]) => setSelectedCalendars(calendarIds),
 }))

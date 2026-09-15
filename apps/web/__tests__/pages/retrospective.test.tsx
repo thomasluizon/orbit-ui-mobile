@@ -61,7 +61,7 @@ vi.mock('@/hooks/use-retrospective', () => ({
 }))
 
 const mockOpenCustomerPortal = vi.fn()
-vi.mock('@/app/actions/subscription', () => ({
+vi.mock('@/lib/actions/subscription', () => ({
   openCustomerPortal: (...args: unknown[]) => mockOpenCustomerPortal(...args),
 }))
 

@@ -37,7 +37,7 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
-vi.mock('@/app/actions/profile', () => ({
+vi.mock('@/lib/actions/profile', () => ({
   updateThemePreference: vi.fn().mockResolvedValue(undefined),
   updateColorScheme: vi.fn().mockResolvedValue(undefined),
 }))

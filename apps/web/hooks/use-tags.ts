@@ -12,7 +12,7 @@ import {
   setHabitTags,
   updateTagInList,
 } from '@orbit/shared/utils'
-import { assignTags, createTag, deleteTag, getTags, restoreTag, suggestTags, updateTag } from '@/app/actions/tags'
+import { assignTags, createTag, deleteTag, getTags, restoreTag, suggestTags, updateTag } from '@/lib/actions/tags'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
 

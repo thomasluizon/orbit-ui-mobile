@@ -13,7 +13,7 @@ import { AppOverlay } from '@/components/ui/app-overlay'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
-import { resetAccount } from '@/app/actions/profile'
+import { resetAccount } from '@/lib/actions/profile'
 
 function AmberPillButton({
   disabled = false,
@@ -29,7 +29,7 @@ function AmberPillButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex w-full cursor-pointer items-center justify-center gap-[9px] rounded-full border-0 px-[26px] py-[15px] text-[16px] font-medium transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border-0 px-[26px] py-4 text-[16px] font-medium transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
       style={{
         fontFamily: 'var(--font-sans)',
         background: 'var(--status-overdue)',

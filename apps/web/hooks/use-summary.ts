@@ -7,6 +7,7 @@ import {
   getDailySummaryTimeBucket,
   getMsUntilNextDailySummaryTimeBucket,
 } from '@orbit/shared/utils'
+import { sessionAwareFetch } from '@/lib/api-fetch'
 
 interface SummaryResponse {
   summary: string
@@ -42,7 +43,7 @@ export function useSummary({
         language: locale,
       })
 
-      const res = await fetch(`${API.habits.summary}?${params.toString()}`)
+      const res = await sessionAwareFetch(`${API.habits.summary}?${params.toString()}`)
       if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null
         throw new Error(body?.error ?? 'Failed to fetch summary')

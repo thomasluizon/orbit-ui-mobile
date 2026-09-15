@@ -37,7 +37,7 @@ describe('ExpiryWarning', () => {
     mockSessionRefreshFailed = true
     render(<ExpiryWarning />)
     expect(screen.getByRole('alert')).toBeInTheDocument()
-    expect(screen.getByText('auth.sessionExpired')).toBeInTheDocument()
+    expect(screen.getByText('auth.sessionSignedOut')).toBeInTheDocument()
   })
 
   it('offers sign in after refresh fails and never offers refresh', () => {

@@ -10,6 +10,7 @@ import {
   issuePendingOperationStepUp,
   verifyPendingOperationStepUp,
 } from '@/app/actions/chat'
+import { applyServerActionFailure } from '@/lib/client-action'
 
 type PendingExecutionResult =
   | { ok: true; response: AgentExecuteOperationResponse }
@@ -28,6 +29,7 @@ export function useChatPendingOperations(
 
   const confirmAndExecutePendingOperation = useCallback(async (pendingOperationId: string): Promise<PendingExecutionResult> => {
     const confirmation = await confirmPendingOperation(pendingOperationId)
+    applyServerActionFailure(confirmation)
     if (!confirmation.ok) {
       return { ok: false, error: getFriendlyErrorMessage(confirmation.error, t, 'chat.sendError', 'generic') }
     }
@@ -36,6 +38,7 @@ export function useChatPendingOperations(
       pendingOperationId,
       confirmation.data.confirmationToken,
     )
+    applyServerActionFailure(execution)
 
     if (!execution.ok) {
       return { ok: false, error: getFriendlyErrorMessage(execution.error, t, 'chat.sendError', 'generic') }
@@ -48,11 +51,13 @@ export function useChatPendingOperations(
   const prepareStepUpForBubble = useCallback(
     async (pendingOperationId: string) => {
       const confirmation = await confirmPendingOperation(pendingOperationId)
+      applyServerActionFailure(confirmation)
       if (!confirmation.ok) {
         return { ok: false as const, error: getFriendlyErrorMessage(confirmation.error, t, 'chat.sendError', 'generic') }
       }
 
       const challenge = await issuePendingOperationStepUp(pendingOperationId, locale)
+      applyServerActionFailure(challenge)
       if (!challenge.ok) {
         return { ok: false as const, error: getFriendlyErrorMessage(challenge.error, t, 'chat.sendError', 'generic') }
       }
@@ -78,12 +83,14 @@ export function useChatPendingOperations(
         challengeId,
         code,
       )
+      applyServerActionFailure(verification)
 
       if (!verification.ok) {
         return { ok: false as const, error: getFriendlyErrorMessage(verification.error, t, 'chat.sendError', 'generic') }
       }
 
       const execution = await executePendingOperation(pendingOperationId, confirmationToken)
+      applyServerActionFailure(execution)
       if (!execution.ok) {
         return { ok: false as const, error: getFriendlyErrorMessage(execution.error, t, 'chat.sendError', 'generic') }
       }

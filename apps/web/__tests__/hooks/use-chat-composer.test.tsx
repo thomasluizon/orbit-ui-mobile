@@ -51,6 +51,7 @@ vi.mock('@/app/actions/chat', () => ({
 
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useChatStore } from '@/stores/chat-store'
+import { useAuthStore } from '@/stores/auth-store'
 
 function makeChatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {
   return {
@@ -108,6 +109,7 @@ describe('web useChatComposer streaming send', () => {
     mocks.queryClient.invalidateQueries.mockResolvedValue(undefined)
     mocks.queryClient.setQueryData.mockClear()
     useChatStore.setState({ messages: [], isTyping: false, streamingMessageId: null })
+    useAuthStore.setState({ sessionRefreshFailed: false })
     globalThis.localStorage.clear()
     vi.stubGlobal('fetch', mocks.fetch)
   })
@@ -344,6 +346,22 @@ describe('web useChatComposer streaming send', () => {
 
     expect(result.current.sendError).toBe('chat.limitReachedError')
     expect(result.current.canRetryLastSend).toBe(false)
+  })
+
+  it('marks auth state when the chat BFF confirms refresh rejection', async () => {
+    mocks.fetch.mockResolvedValue(
+      Response.json(
+        { error: 'Unauthorized' },
+        { status: 401, headers: { 'x-orbit-session-refresh': 'failed' } },
+      ),
+    )
+    const { result } = renderHook(() => useChatComposer())
+
+    await act(async () => {
+      await result.current.sendMessage('hello')
+    })
+
+    expect(useAuthStore.getState().sessionRefreshFailed).toBe(true)
   })
 
   it('folds an attached text file into the sent user message', async () => {

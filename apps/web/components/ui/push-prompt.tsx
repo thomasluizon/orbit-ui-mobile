@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Bell, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { subscribePush } from '@/app/actions/notifications'
+import { subscribePush } from '@/lib/actions/notifications'
 import { PillButton } from '@/components/ui/pill-button'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 

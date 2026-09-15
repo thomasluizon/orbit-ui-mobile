@@ -12,7 +12,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { useProfile } from '@/hooks/use-profile'
-import { updateMarketingConsent } from '@/app/actions/profile'
+import { updateMarketingConsent } from '@/lib/actions/profile'
 
 const SETTLE_DELAY_MS = 500
 

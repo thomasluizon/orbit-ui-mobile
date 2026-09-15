@@ -8,7 +8,7 @@ const patchProfileMock = vi.fn()
 const captureExceptionMock = vi.fn()
 const profileState = { hasCompletedOnboarding: false }
 
-vi.mock('@/app/actions/onboarding', () => ({
+vi.mock('@/lib/actions/onboarding', () => ({
   applyOnboarding: (...args: unknown[]) => applyOnboardingMock(...args),
 }))
 

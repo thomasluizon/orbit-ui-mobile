@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { habitKeys } from '@orbit/shared/query'
 import { useProfile } from '@/hooks/use-profile'
 import { AppBar } from '@/components/ui/app-bar'
-import { updateAiSummary, updateProactiveAstra } from '@/app/actions/profile'
+import { updateAiSummary, updateProactiveAstra } from '@/lib/actions/profile'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AiFeatureToggles } from './_components/ai-feature-toggles'
 

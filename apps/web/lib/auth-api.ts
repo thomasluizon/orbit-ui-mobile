@@ -306,9 +306,6 @@ export async function resolveSessionTokens(options: {
       }
     }
 
-    if (refreshResult.outcome === 'rejected') {
-      await options.clearSession?.()
-    }
     return {
       token: null,
       expiresAt: null,

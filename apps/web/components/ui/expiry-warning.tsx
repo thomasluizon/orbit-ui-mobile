@@ -54,7 +54,7 @@ export function ExpiryWarning() {
           }}
         >
           <span style={{ color: 'var(--status-overdue-text)' }}>
-            {t('auth.sessionExpired')}
+            {t('auth.sessionSignedOut')}
           </span>
         </span>
         <button

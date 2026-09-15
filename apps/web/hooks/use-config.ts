@@ -4,9 +4,10 @@ import { useQuery } from '@tanstack/react-query'
 import { configKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { DEFAULT_CONFIG, type AppConfig } from '@orbit/shared/types/config'
+import { sessionAwareFetch } from '@/lib/api-fetch'
 
 async function fetchConfig(): Promise<AppConfig> {
-  const res = await fetch(API.config.get)
+  const res = await sessionAwareFetch(API.config.get)
   if (!res.ok) {
     return DEFAULT_CONFIG
   }

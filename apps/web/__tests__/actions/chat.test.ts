@@ -80,6 +80,7 @@ describe('chat server actions', () => {
         error: 'Step-up required',
         status: 403,
         code: 'STEP_UP_REQUIRED',
+        sessionRefreshFailed: false,
       })
     })
 

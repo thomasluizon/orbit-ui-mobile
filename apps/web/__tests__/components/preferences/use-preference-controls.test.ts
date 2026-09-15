@@ -31,7 +31,7 @@ vi.mock('@/stores/auth-store', () => ({
   useAuthStore: (selector: (state: { isAuthenticated: boolean }) => unknown) =>
     selector({ isAuthenticated: authRef.isAuthenticated }),
 }))
-vi.mock('@/app/actions/profile', () => ({
+vi.mock('@/lib/actions/profile', () => ({
   updateWeekStartDay: vi.fn(),
   updateColorScheme: vi.fn(),
   updateLanguage: vi.fn(),
@@ -73,7 +73,7 @@ describe('usePreferenceControls', () => {
   })
 
   it('persists the language, calls the backend, and reloads for an authenticated user', async () => {
-    const { updateLanguage } = await import('@/app/actions/profile')
+    const { updateLanguage } = await import('@/lib/actions/profile')
     vi.mocked(updateLanguage).mockResolvedValue(undefined)
     const { result } = renderHook(() => usePreferenceControls(), { wrapper })
 
@@ -88,7 +88,7 @@ describe('usePreferenceControls', () => {
   })
 
   it('reverts the language when the backend update fails', async () => {
-    const { updateLanguage } = await import('@/app/actions/profile')
+    const { updateLanguage } = await import('@/lib/actions/profile')
     vi.mocked(updateLanguage).mockRejectedValue(new Error('offline'))
     const { result } = renderHook(() => usePreferenceControls(), { wrapper })
 
@@ -102,7 +102,7 @@ describe('usePreferenceControls', () => {
 
   it('skips the backend call but still reloads when unauthenticated', async () => {
     authRef.isAuthenticated = false
-    const { updateLanguage } = await import('@/app/actions/profile')
+    const { updateLanguage } = await import('@/lib/actions/profile')
     const { result } = renderHook(() => usePreferenceControls(), { wrapper })
 
     await act(async () => {
@@ -114,7 +114,7 @@ describe('usePreferenceControls', () => {
   })
 
   it('optimistically updates the week-start day', async () => {
-    const { updateWeekStartDay } = await import('@/app/actions/profile')
+    const { updateWeekStartDay } = await import('@/lib/actions/profile')
     vi.mocked(updateWeekStartDay).mockResolvedValue(undefined)
     const { result } = renderHook(() => usePreferenceControls(), { wrapper })
 
@@ -127,7 +127,7 @@ describe('usePreferenceControls', () => {
   })
 
   it('rolls the week-start day back on error', async () => {
-    const { updateWeekStartDay } = await import('@/app/actions/profile')
+    const { updateWeekStartDay } = await import('@/lib/actions/profile')
     vi.mocked(updateWeekStartDay).mockRejectedValue(new Error('nope'))
     const { result } = renderHook(() => usePreferenceControls(), { wrapper })
 

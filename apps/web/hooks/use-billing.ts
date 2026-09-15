@@ -5,9 +5,10 @@ import { subscriptionKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
 import { isMissingBillingStatus } from '@orbit/shared/utils'
+import { sessionAwareFetch } from '@/lib/api-fetch'
 
 async function fetchBillingDetails(): Promise<BillingDetails | null> {
-  const res = await fetch(API.subscription.billing)
+  const res = await sessionAwareFetch(API.subscription.billing)
   if (isMissingBillingStatus(res.status)) {
     return null
   }

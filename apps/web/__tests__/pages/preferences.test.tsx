@@ -118,7 +118,7 @@ vi.mock('@tanstack/react-query', () => ({
   }),
 }))
 
-vi.mock('@/app/actions/profile', () => ({
+vi.mock('@/lib/actions/profile', () => ({
   updateWeekStartDay: vi.fn().mockResolvedValue({}),
   updateColorScheme: vi.fn().mockResolvedValue({}),
   updateLanguage: vi.fn().mockResolvedValue({}),

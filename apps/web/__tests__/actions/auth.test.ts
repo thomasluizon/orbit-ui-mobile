@@ -15,7 +15,7 @@ const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 const { requestDeletion, confirmDeletion } = await import(
-  '@/app/actions/auth'
+  '@/lib/actions/auth'
 )
 
 describe('auth server actions', () => {

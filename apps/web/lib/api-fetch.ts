@@ -73,6 +73,15 @@ export async function applySessionRefreshFailure(response: Response): Promise<vo
   useAuthStore.getState().markSessionRefreshFailed()
 }
 
+export async function sessionAwareFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  const response = await fetch(input, init)
+  await applySessionRefreshFailure(response)
+  return response
+}
+
 async function getStatusError(
   status: number,
   body: unknown,
@@ -122,12 +131,11 @@ export async function apiFetch<T>(
     headers.set(key, value)
   }
 
-  const res = await fetch(url, {
+  const res = await sessionAwareFetch(url, {
     ...options,
     headers,
   })
 
-  await applySessionRefreshFailure(res)
 
   if (!res.ok) {
     const body: unknown = await res.json().catch(() => null)

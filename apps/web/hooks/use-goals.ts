@@ -23,7 +23,7 @@ import {
   updateGoalStatus as updateGoalStatusAction,
   reorderGoals as reorderGoalsAction,
   linkHabitsToGoal as linkHabitsToGoalAction,
-} from '@/app/actions/goals'
+} from '@/lib/actions/goals'
 import { useUIStore } from '@/stores/ui-store'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'

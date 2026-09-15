@@ -6,6 +6,14 @@ import type { ZodType } from 'zod'
 
 const API_BASE = process.env.API_BASE ?? 'http://localhost:5000'
 
+function unauthorizedError(sessionRefreshFailed: boolean): Error {
+  const error = createApiClientError(401, { error: 'Unauthorized' }, 'Unauthorized')
+  if (sessionRefreshFailed) {
+    Object.assign(error, { sessionRefreshFailed: true })
+  }
+  return error
+}
+
 function parseResponseBody<T>(text: string, schema: ZodType<T> | undefined, path: string): T {
   return validateApiResponse(JSON.parse(text), schema, path)
 }
@@ -32,7 +40,7 @@ export async function serverAuthFetch<T = unknown>(
 
   let session = await resolveServerSession()
   if (!session.token) {
-    throw createApiClientError(401, { error: 'Unauthorized' }, 'Unauthorized')
+    throw unauthorizedError(session.refreshFailed)
   }
 
   let res = await fetch(`${API_BASE}${path}`, {
@@ -47,6 +55,8 @@ export async function serverAuthFetch<T = unknown>(
         ...init,
         headers: buildHeaders(session.token),
       })
+    } else if (session.refreshFailed) {
+      throw unauthorizedError(true)
     }
   }
 

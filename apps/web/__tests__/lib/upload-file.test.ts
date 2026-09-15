@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const signUploadMock = vi.fn()
-vi.mock('@/app/actions/uploads', () => ({
+vi.mock('@/lib/actions/uploads', () => ({
   signUpload: signUploadMock,
 }))
 

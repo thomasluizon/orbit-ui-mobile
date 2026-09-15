@@ -35,7 +35,7 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: mocks.useQueryClient,
 }))
 
-vi.mock('@/app/actions/profile', () => ({
+vi.mock('@/lib/actions/profile', () => ({
   updateTimezone: mocks.updateTimezone,
 }))
 

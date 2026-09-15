@@ -19,7 +19,7 @@ import {
   dismissCalendarSuggestion as dismissCalendarSuggestionAction,
   runCalendarSyncNow as runCalendarSyncNowAction,
   setCalendarAutoSync as setCalendarAutoSyncAction,
-} from '@/app/actions/calendar'
+} from '@/lib/actions/calendar'
 
 interface CalendarQueryOptions {
   enabled?: boolean

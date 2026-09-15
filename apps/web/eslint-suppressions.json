@@ -81,12 +81,12 @@
   },
   "app/(app)/profile/_components/delete-account-modal.tsx": {
     "local/spacing-scale": {
-      "count": 4
+      "count": 2
     }
   },
   "app/(app)/profile/_components/fresh-start-modal.tsx": {
     "local/spacing-scale": {
-      "count": 7
+      "count": 5
     }
   },
   "app/(app)/profile/_components/next-reward-carrot.tsx": {

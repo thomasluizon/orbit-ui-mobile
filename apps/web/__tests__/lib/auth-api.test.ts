@@ -215,7 +215,7 @@ describe('auth-api session helpers', () => {
     expect(mockCookieStore.set).not.toHaveBeenCalled()
   })
 
-  it('clears the session when refresh fails without a usable access token', async () => {
+  it('reports rejection without writing deletion cookies', async () => {
     const clearSession = vi.fn()
     mockFetch.mockResolvedValue({ ok: false, status: 401 })
 
@@ -232,7 +232,48 @@ describe('auth-api session helpers', () => {
       refreshed: false,
       refreshFailed: true,
     })
-    expect(clearSession).toHaveBeenCalledTimes(1)
+    expect(clearSession).not.toHaveBeenCalled()
+  })
+
+  it('does not let a late stale BFF response clear cookies from a winning rotation', async () => {
+    const expiredToken = makeJwt(Math.floor(FIXED_NOW / 1000) - 60)
+    const refreshedToken = makeJwt(Math.floor(FIXED_NOW / 1000) + 3600)
+    mockCookieStore.get.mockImplementation((name: string) => {
+      if (name === 'auth_token') return { value: expiredToken }
+      if (name === 'refresh_token') return { value: 'shared-old-refresh-token' }
+      return undefined
+    })
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          token: refreshedToken,
+          refreshToken: 'winning-refresh-token',
+        }),
+      })
+      .mockResolvedValueOnce({ ok: false, status: 401 })
+
+    const { GET } = await import('@/app/api/auth/session/route')
+    const winningResponse = await GET()
+    const lateLosingResponse = await GET()
+
+    expect(winningResponse.status).toBe(200)
+    expect(lateLosingResponse.status).toBe(401)
+    expect(await lateLosingResponse.json()).toEqual({
+      expiresAt: null,
+      refreshFailed: true,
+    })
+    expect(mockCookieStore.set).toHaveBeenCalledTimes(2)
+    expect(mockCookieStore.set).not.toHaveBeenCalledWith(
+      'auth_token',
+      '',
+      expect.objectContaining({ maxAge: 0 }),
+    )
+    expect(mockCookieStore.set).not.toHaveBeenCalledWith(
+      'refresh_token',
+      '',
+      expect.objectContaining({ maxAge: 0 }),
+    )
   })
 
   it('does not reuse a rejected access token when a forced refresh fails', async () => {
@@ -254,7 +295,7 @@ describe('auth-api session helpers', () => {
       refreshed: false,
       refreshFailed: true,
     })
-    expect(clearSession).toHaveBeenCalledTimes(1)
+    expect(clearSession).not.toHaveBeenCalled()
   })
 
   it('does not clear cookies when refresh fails and clearOnFailure is false', async () => {

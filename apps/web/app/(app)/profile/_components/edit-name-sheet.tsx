@@ -9,7 +9,7 @@ import { AppOverlay } from '@/components/ui/app-overlay'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
-import { updateName } from '@/app/actions/profile'
+import { updateName } from '@/lib/actions/profile'
 
 interface EditNameSheetProps {
   open: boolean
