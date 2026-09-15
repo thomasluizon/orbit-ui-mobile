@@ -5,6 +5,7 @@ import { createMockGamificationProfile, createMockProfile } from './factories'
 function readyProgress() {
   return {
     goalCount: 0,
+    canViewGamification: true,
     account: { isLoading: false, isError: false, profile: createMockProfile() },
     goals: { isLoading: false, isError: false },
     gamification: {

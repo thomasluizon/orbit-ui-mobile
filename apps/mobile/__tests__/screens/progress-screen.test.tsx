@@ -455,6 +455,20 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'progressbar')).toHaveLength(0)
   })
 
+  it('leaves retry when gamification access is revoked after an error', async () => {
+    mocks.gamification.isError = true
+    const initial = await renderProgress()
+    expect(initial.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'error-state')).toHaveLength(1)
+
+    mocks.account.profile.canViewGamification = false
+    mocks.account.profile.hasProAccess = false
+    const changed = await renderProgress()
+    const text = changed.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+
+    expect(changed.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'error-state')).toHaveLength(0)
+    expect(text).toContain('progressScreen.streak.lockedBody')
+  })
+
   it('retries gamification when the account capability hint is false', async () => {
     mocks.account.profile.canViewGamification = false
     mocks.goals.isError = true

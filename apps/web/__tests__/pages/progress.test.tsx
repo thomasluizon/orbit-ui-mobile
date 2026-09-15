@@ -436,6 +436,19 @@ describe('ProgressContent', () => {
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
   })
 
+  it('leaves retry when gamification access is revoked after an error', () => {
+    mocks.gamification.isError = true
+    const { rerender } = render(<ProgressPage />)
+    expect(screen.getByRole('alert')).toHaveTextContent('progressScreen.error')
+
+    mocks.account.profile.canViewGamification = false
+    mocks.account.profile.hasProAccess = false
+    rerender(<ProgressPage />)
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('progressScreen.streak.lockedBody')).toBeInTheDocument()
+  })
+
   it('retries gamification when the account capability hint is false', () => {
     mocks.account.profile.canViewGamification = false
     mocks.goals.isError = true

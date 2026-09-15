@@ -434,7 +434,13 @@ export function ProgressContent() {
   const gamification = useGamificationProfile(canViewGamification)
   const gamificationAvailable = canViewGamification && !isPayGateError(gamification.error)
   const allGoals = goals.data?.allGoals ?? []
-  const { error, loading, empty } = deriveProgressViewState({ goalCount: allGoals.length, account, goals, gamification })
+  const { error, loading, empty } = deriveProgressViewState({
+    goalCount: allGoals.length,
+    account,
+    goals,
+    gamification,
+    canViewGamification,
+  })
   const retry = () => {
     void account.refetch()
     void goals.refetch()

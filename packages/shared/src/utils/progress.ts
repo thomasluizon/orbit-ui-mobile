@@ -14,8 +14,9 @@ import { getGoalMetricsStatusPresentation } from './goal-metrics'
 
 type ProgressQueryState = { isLoading: boolean; isError: boolean }
 
-export function deriveProgressViewState({ goalCount, account, goals, gamification }: {
+export function deriveProgressViewState({ goalCount, account, goals, gamification, canViewGamification }: {
   goalCount: number
+  canViewGamification: boolean
   account: ProgressQueryState & {
     profile: Pick<Profile, 'currentStreak' | 'longestStreak' | 'totalXp'> | undefined
   }
@@ -25,13 +26,22 @@ export function deriveProgressViewState({ goalCount, account, goals, gamificatio
     profile: Pick<GamificationProfile, 'currentStreak' | 'longestStreak' | 'totalXp' | 'achievementsEarned'> | null
   }
 }): { loading: boolean; error: boolean; empty: boolean } {
-  const gamificationLocked = gamification.isError && isPayGateError(gamification.error)
-  const error = account.isError || goals.isError || (gamification.isError && !gamificationLocked)
-  const loading = !error && (account.isLoading || goals.isLoading || gamification.isLoading)
+  const gamificationLocked = canViewGamification
+    && gamification.isError
+    && isPayGateError(gamification.error)
+  const gamificationFailed = canViewGamification
+    && gamification.isError
+    && !gamificationLocked
+  const error = account.isError || goals.isError || gamificationFailed
+  const loading = !error && (
+    account.isLoading
+    || goals.isLoading
+    || (canViewGamification && gamification.isLoading)
+  )
   const empty = !loading && !error && isProgressEmpty(
     goalCount,
     account.profile,
-    gamificationLocked ? null : gamification.profile,
+    canViewGamification && !gamificationLocked ? gamification.profile : null,
   )
   return { loading, error, empty }
 }
