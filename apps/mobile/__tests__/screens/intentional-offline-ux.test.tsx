@@ -372,6 +372,6 @@ describe('intentional offline UX screens', () => {
     const tree = await renderScreen(<SupportScreen />)
 
     const texts = tree.root.findAllByType('Text').map((node: any) => flattenText(node.props.children))
-    expect(texts).toContain('offline.description')
+    expect(texts).toContain('profile.support.offlineReason')
   })
 })

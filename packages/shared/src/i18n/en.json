@@ -1376,23 +1376,49 @@
       "description": "Have a question, bug report, or feedback? Send us a message.",
       "name": "Name",
       "email": "Email",
-      "subject": "Subject",
+      "subject": "What is it about",
       "message": "Message",
       "namePlaceholder": "Your name",
       "emailPlaceholder": "Your email",
-      "subjectPlaceholder": "Subject",
       "messagePlaceholder": "Describe your issue or feedback...",
       "send": "Send",
-      "success": "Sent.",
-      "successHint": "We'll reply within a day.",
+      "success": "Your message arrived",
+      "successHint": "We will reply to {email} within one working day.",
+      "backToAbout": "Open About",
+      "failureTitle": "The message was not sent",
+      "failureBody": "Your words are still here. Try again when you are ready.",
+      "retry": "Try again",
+      "offlineReason": "No connection. Your words stay on this device, so you can send when the connection returns.",
+      "subjects": {
+        "problem": {
+          "label": "Something does not work",
+          "description": "A screen, log, or sync."
+        },
+        "billing": {
+          "label": "Billing or plan",
+          "description": "Charges, plan changes, or cancellations."
+        },
+        "account": {
+          "label": "Account and access",
+          "description": "Signing in, verification codes, or account deletion."
+        },
+        "other": {
+          "label": "Something else",
+          "description": "Suggestions and anything not listed above."
+        }
+      },
       "nameRequired": "Name is required.",
       "emailRequired": "Email is required.",
       "emailInvalid": "Please enter a valid email address.",
-      "subjectRequired": "Subject is required.",
+      "subjectRequired": "Choose a subject.",
+      "subjectSendingReason": "The subject cannot change while sending.",
       "messageRequired": "Message is required.",
+      "versionIncluded": "Orbit {version} is included with your message.",
+      "messageOverLimit": "Your message is {overage, plural, one {# character} other {# characters}} too long.",
+      "sendNeedsShorterMessage": "Shorten your message to send.",
       "emailLockedReason": "We reply to the email on your account.",
-      "sendIncomplete": "Add a subject and a message to send.",
-      "sendNeedsSubject": "Add a subject to send.",
+      "sendIncomplete": "Choose a subject and add a message to send.",
+      "sendNeedsSubject": "Choose a subject to send.",
       "sendNeedsMessage": "Add a message to send."
     },
     "logout": "Log Out",
