@@ -1,13 +1,111 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
+import {
+  buildCalendarMonthModel,
+  CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
+  formatAPIDate,
+  formatAPIDateInTimeZone,
+} from '@orbit/shared/utils'
+import type { CalendarSyncEvent } from '@orbit/shared'
+import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarAutoSyncState } from '@orbit/shared/types/calendar'
 
-let isDesktopValue = true
+const MOCK_ACCOUNT_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+function getMockAccountDateKey(): string {
+  return formatAPIDateInTimeZone(new Date(), MOCK_ACCOUNT_TIME_ZONE)
+}
+
 let isWideDesktopValue = false
-const monthQueryState: { error: string | null; refresh: ReturnType<typeof vi.fn> } = {
+let calendarGridSelectionDate = '2026-01-05'
+const calendarGridProps: Record<string, unknown> & {
+  currentMonth?: Date
+  dayMap?: Map<string, CalendarDayEntry[]>
+  selectedDateStr?: string | null
+  todayKey?: string
+} = {}
+const calendarStatsProps: Record<string, unknown> = {}
+let autoSyncState: CalendarAutoSyncState = {
+  enabled: true,
+  status: 'Idle',
+  lastSyncedAt: '2026-09-12T09:12:00Z',
+  hasGoogleConnection: true,
+}
+let autoSyncQueryOptions: {
+  enabled?: boolean
+  initialData?: CalendarAutoSyncState
+} | undefined
+const setAutoSync = vi.fn(async ({ enabled }: { enabled: boolean }) => {
+  autoSyncState = { ...autoSyncState, enabled }
+})
+const monthQueryState: {
+  dayMap: Map<string, CalendarDayEntry[]>
+  error: string | null
+  isLoading: boolean
+  refresh: ReturnType<typeof vi.fn>
+} = {
+  dayMap: new Map(),
   error: null,
+  isLoading: false,
   refresh: vi.fn(),
 }
+const profileQueryState: {
+  profile: {
+    weekStartDay: number
+    timeZone: string | null
+    hasProAccess: boolean
+    hasGoogleConnection?: boolean
+    googleCalendarAutoSyncEnabled?: boolean
+    googleCalendarAutoSyncStatus?: 'Idle' | 'ReconnectRequired' | 'TransientError'
+    googleCalendarLastSyncedAt?: string | null
+  } | undefined
+  error: Error | null
+  refetch: ReturnType<typeof vi.fn>
+} = {
+  profile: { weekStartDay: 1, timeZone: MOCK_ACCOUNT_TIME_ZONE, hasProAccess: false },
+  error: null,
+  refetch: vi.fn(),
+}
+const calendarDataCalls = vi.fn()
+const logHabitMutateAsync = vi.fn(async () => {})
+const routerPush = vi.fn()
+const calendarDayDetailProps: {
+  calendarEvents?: CalendarSyncEvent[]
+  autoSyncState?: CalendarAutoSyncState
+  calendarEventsState?: string
+  onRetryCalendarEvents?: () => void
+  onReconnectCalendarEvents?: () => void
+  onViewPro?: () => void
+  loggable?: boolean
+  onEntryChange?: (entry: CalendarDayEntry, checked: boolean) => Promise<void>
+  onCalendarAutoSyncChange?: (enabled: boolean) => Promise<void>
+  onShowRecurringChange?: (value: boolean) => void
+  showRecurring?: boolean
+  showRecurringToggle?: boolean
+} = {}
+const calendarEventsQueryState: {
+  data: { status: 'connected'; events: CalendarSyncEvent[] } | { status: 'not-connected' }
+  isPending: boolean
+  error: Error | null
+  refetch: ReturnType<typeof vi.fn>
+} = {
+  data: { status: 'connected', events: [] },
+  isPending: false,
+  error: null,
+  refetch: vi.fn(),
+}
+let calendarEventsEnabled: boolean | undefined
+let calendarEventsTimeZone: string | null | undefined
+const agendaViewProps: {
+  dayMap?: ReadonlyMap<string, CalendarDayEntry[]>
+  isLoading?: boolean
+} = {}
+let rangeLoading = false
+let rangeDayMap = new Map<string, CalendarDayEntry[]>()
+const calendarRangeViewProps: { current: Record<string, unknown> | null } = { current: null }
+
+vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -15,25 +113,54 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@/hooks/use-is-desktop', () => ({
-  useIsDesktop: () => isDesktopValue,
   useIsWideDesktop: () => isWideDesktopValue,
 }))
 
 vi.mock('@/hooks/use-calendar-data', () => ({
-  useCalendarData: () => ({
-    dayMap: new Map(),
-    isLoading: false,
+  useCalendarData: (month: Date) => {
+    calendarDataCalls(month)
+    return ({
+    dayMap: monthQueryState.dayMap,
+    isLoading: monthQueryState.isLoading,
     isFetching: false,
     error: monthQueryState.error,
     refresh: monthQueryState.refresh,
-  }),
+    })
+  },
   useCalendarRange: () => ({
-    dayMap: new Map(),
-    isLoading: false,
+    dayMap: rangeDayMap,
+    isLoading: rangeLoading,
     isFetching: false,
     error: null,
     refresh: vi.fn(),
   }),
+}))
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: routerPush }),
+}))
+
+vi.mock('@/hooks/use-calendar-events', () => ({
+  useCalendarEvents: (options?: { enabled?: boolean; timeZone?: string | null }) => {
+    calendarEventsEnabled = options?.enabled
+    calendarEventsTimeZone = options?.timeZone
+    return calendarEventsQueryState
+  },
+}))
+
+vi.mock('@/hooks/use-calendar-auto-sync', () => ({
+  useCalendarAutoSyncState: (options?: {
+    enabled?: boolean
+    initialData?: CalendarAutoSyncState
+  }) => {
+    autoSyncQueryOptions = options
+    return { data: autoSyncState }
+  },
+  useSetCalendarAutoSync: () => ({ mutateAsync: setAutoSync }),
+}))
+
+vi.mock('@/hooks/use-habits', () => ({
+  useLogHabit: () => ({ mutateAsync: logHabitMutateAsync }),
 }))
 
 vi.mock('@/hooks/use-time-format', () => ({
@@ -41,7 +168,16 @@ vi.mock('@/hooks/use-time-format', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { weekStartDay: 1 } }),
+  useProfile: () => profileQueryState,
+}))
+
+vi.mock('@/app/(app)/today-provider', () => ({
+  useToday: (timeZone?: string | null) => {
+    const today = new Date()
+    return timeZone === undefined
+      ? formatAPIDate(today)
+      : formatAPIDateInTimeZone(today, timeZone)
+  },
 }))
 
 vi.mock('@/components/ui/section-label', () => ({
@@ -49,105 +185,596 @@ vi.mock('@/components/ui/section-label', () => ({
 }))
 
 vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
-    open ? <div>{children}</div> : null,
+  useSheetHost: () => ({
+    sheetRef: { current: null },
+    closeSheet: (exitAction?: () => void) => exitAction?.(),
+  }),
+  Sheet: ({ children, open, onClose }: {
+    children: React.ReactNode
+    open: boolean
+    onClose?: () => void
+  }) => open ? (
+    <div>
+      <button type="button" aria-label="close-day-detail" onClick={onClose} />
+      {children}
+    </div>
+  ) : null,
 }))
 
 vi.mock('./_components/calendar-shell', () => ({
-  CalendarHeader: () => <div data-testid="calendar-header" />,
+  CalendarHeader: ({ onNextMonth }: { onNextMonth: () => void }) => (
+    <button type="button" data-testid="calendar-header" onClick={onNextMonth} />
+  ),
   CalendarLegend: () => <div data-testid="calendar-legend" />,
   CalendarWeekNav: () => <div data-testid="calendar-week-nav" />,
 }))
 
 vi.mock('@/app/(app)/calendar/_components/calendar-shell', () => ({
-  CalendarHeader: () => <div data-testid="calendar-header" />,
+  CalendarHeader: ({ onNextMonth }: { onNextMonth: () => void }) => (
+    <button type="button" data-testid="calendar-header" onClick={onNextMonth} />
+  ),
   CalendarLegend: () => <div data-testid="calendar-legend" />,
   CalendarWeekNav: () => <div data-testid="calendar-week-nav" />,
 }))
 
-vi.mock('@/components/calendar/calendar-grid', () => ({
-  CalendarGrid: ({ onSelectDay }: { onSelectDay?: (dateStr: string) => void }) => (
+vi.mock('@/components/calendar/calendar-grid', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/components/calendar/calendar-grid')>()
+  const ActualCalendarGrid = actual.CalendarGrid
+  return {
+    CalendarGrid: (props: {
+      onSelectDay?: (dateStr: string) => void
+      selectedDateStr?: string | null
+      [key: string]: unknown
+    }) => {
+      Object.assign(calendarGridProps, props)
+      return (
+        <>
+          <ActualCalendarGrid {...(props as React.ComponentProps<typeof ActualCalendarGrid>)} />
+          <button
+            type="button"
+            data-testid="month-view"
+            onClick={() => props.onSelectDay?.(calendarGridSelectionDate)}
+          />
+        </>
+      )
+    },
+  }
+})
+
+vi.mock('@/components/calendar/calendar-stats', () => ({
+  CalendarStats: (props: Record<string, unknown>) => {
+    Object.assign(calendarStatsProps, props)
+    const stats = props.stats as readonly { key: string; value: string | number }[]
+    return (
+      <div data-testid="month-stats" data-state={String(props.state)}>
+        {stats.map((stat) => <span key={stat.key}>{`${stat.key}:${stat.value}`}</span>)}
+      </div>
+    )
+  },
+}))
+
+vi.mock('@/components/calendar/calendar-day-detail', () => ({
+  CalendarDayDetail: (props: typeof calendarDayDetailProps) => {
+    Object.assign(calendarDayDetailProps, props)
+    const displayedAutoSyncState = props.autoSyncState
+    return (
+      <div data-testid="day-detail">
+        {props.showRecurringToggle !== false && (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={props.showRecurring}
+          aria-label="calendar.showRecurring"
+          onClick={() => props.onShowRecurringChange?.(!props.showRecurring)}
+        />
+        )}
+        {displayedAutoSyncState?.hasGoogleConnection ? (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={displayedAutoSyncState.enabled}
+            aria-label="calendar.dayDetail.autoSync"
+            onClick={() => void props.onCalendarAutoSyncChange?.(!displayedAutoSyncState.enabled)}
+          />
+        ) : null}
+      </div>
+    )
+  },
+}))
+
+vi.mock('@/components/calendar/calendar-week-view', () => ({
+  CalendarWeekView: ({
+    onShowRecurringChange,
+  }: {
+    onShowRecurringChange: (value: boolean) => void
+  }) => (
     <button
       type="button"
-      data-testid="month-view"
-      onClick={() => onSelectDay?.('2026-01-05')}
+      data-testid="week-view"
+      onClick={() => onShowRecurringChange(false)}
     />
   ),
 }))
 
-vi.mock('@/components/calendar/calendar-stats', () => ({
-  CalendarStats: () => <div data-testid="month-stats" />,
-}))
-
-vi.mock('@/components/calendar/calendar-day-detail', () => ({
-  CalendarDayDetail: () => <div data-testid="day-detail" />,
-}))
-
-vi.mock('@/components/calendar/calendar-week-view', () => ({
-  CalendarWeekView: () => <div data-testid="week-view" />,
-}))
-
 vi.mock('@/components/calendar/calendar-range-view', () => ({
-  CalendarRangeView: () => <div data-testid="range-view" />,
+  CalendarRangeView: (props: Record<string, unknown>) => {
+    calendarRangeViewProps.current = props
+    const model = props.model as { days: readonly { totalCount: number }[] }
+    const showRecurring = props.showRecurring as boolean
+    const onShowRecurringChange = props.onShowRecurringChange as (value: boolean) => void
+    return (
+      <div data-testid="range-view">
+        {model.days.some((day) => day.totalCount > 0) && (
+          <span data-testid="range-recurring-ring" />
+        )}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={showRecurring}
+          aria-label="calendar.showRecurring"
+          onClick={() => onShowRecurringChange(!showRecurring)}
+        />
+      </div>
+    )
+  },
 }))
 
 vi.mock('@/components/calendar/calendar-agenda-view', () => ({
-  CalendarAgendaView: () => <div data-testid="agenda-view" />,
+  CalendarAgendaView: (props: {
+    dayMap: ReadonlyMap<string, CalendarDayEntry[]>
+    isLoading: boolean
+  }) => {
+    agendaViewProps.dayMap = props.dayMap
+    agendaViewProps.isLoading = props.isLoading
+    return <div data-testid="agenda-view" />
+  },
 }))
 
 import CalendarPage from '@/app/(app)/calendar/page'
 
+function monthEntry(habitId: string, status: CalendarDayEntry['status']): CalendarDayEntry {
+  return {
+    habitId,
+    title: 'Habit',
+    status,
+    isBadHabit: false,
+    dueTime: null,
+    isOneTime: false,
+  }
+}
+
+function setBoundaryEntries(firstDay: string, secondDay: string) {
+  monthQueryState.dayMap = new Map([
+    [firstDay, [monthEntry('first', 'completed')]],
+    [secondDay, [monthEntry('second', 'completed'), monthEntry('missed', 'upcoming')]],
+  ])
+}
+
 describe('CalendarPage view switcher', () => {
   beforeEach(() => {
-    isDesktopValue = true
     isWideDesktopValue = false
+    calendarGridSelectionDate = '2026-01-05'
+    calendarGridProps.selectedDateStr = undefined
+    calendarDayDetailProps.calendarEvents = undefined
+    calendarDayDetailProps.autoSyncState = undefined
+    autoSyncState = {
+      enabled: true,
+      status: 'Idle',
+      lastSyncedAt: '2026-09-12T09:12:00Z',
+      hasGoogleConnection: true,
+    }
+    autoSyncQueryOptions = undefined
+    setAutoSync.mockClear()
+    calendarGridProps.dayMap = undefined
+    calendarGridProps.todayKey = undefined
+    calendarStatsProps.state = undefined
+    monthQueryState.dayMap = new Map()
     monthQueryState.error = null
+    monthQueryState.isLoading = false
     monthQueryState.refresh = vi.fn()
+    profileQueryState.profile = {
+      weekStartDay: 1,
+      timeZone: MOCK_ACCOUNT_TIME_ZONE,
+      hasProAccess: false,
+    }
+    profileQueryState.error = null
+    profileQueryState.refetch = vi.fn()
+    calendarDataCalls.mockClear()
+    logHabitMutateAsync.mockClear()
+    routerPush.mockClear()
+    calendarEventsQueryState.data = { status: 'connected', events: [] }
+    calendarEventsQueryState.isPending = false
+    calendarEventsQueryState.error = null
+    calendarEventsQueryState.refetch = vi.fn()
+    calendarEventsEnabled = undefined
+    calendarEventsTimeZone = undefined
+    delete calendarDayDetailProps.calendarEvents
+    delete calendarDayDetailProps.calendarEventsState
+    delete calendarDayDetailProps.onRetryCalendarEvents
+    delete calendarDayDetailProps.onReconnectCalendarEvents
+    delete calendarDayDetailProps.onViewPro
+    delete calendarDayDetailProps.loggable
+    delete calendarDayDetailProps.onEntryChange
+    delete calendarDayDetailProps.onCalendarAutoSyncChange
+    agendaViewProps.dayMap = undefined
+    agendaViewProps.isLoading = undefined
+    rangeLoading = false
+    rangeDayMap = new Map()
+    calendarRangeViewProps.current = null
   })
 
-  it('offers the Agenda tab only on desktop', () => {
-    const { unmount } = render(<CalendarPage />)
-    expect(screen.getByRole('tab', { name: 'calendar.viewAgenda' })).toBeDefined()
-    unmount()
+  afterEach(() => vi.useRealTimers())
 
-    isDesktopValue = false
+  it('loads calendar data concurrently while the profile resolves', () => {
+    profileQueryState.profile = undefined
     render(<CalendarPage />)
-    expect(screen.queryByRole('tab', { name: 'calendar.viewAgenda' })).toBeNull()
+
+    expect(calendarDataCalls).toHaveBeenCalledTimes(1)
+    expect(screen.getAllByRole('progressbar', { name: 'calendar.loading' })).toHaveLength(2)
+    expect(document.querySelector('[data-variant="grid"] > [data-cell="44"]')).toHaveAttribute('data-gap', '4')
   })
 
-  it('switches from the month heat-map to the agenda planner and back', () => {
+  it('does not enable the calendar event request for a free profile', () => {
+    calendarEventsQueryState.data = {
+      status: 'connected',
+      events: [
+        {
+          id: 'retained-event',
+          title: 'Retained meeting',
+          description: null,
+          startDate: getMockAccountDateKey(),
+          startTime: '09:00',
+          endTime: null,
+          isRecurring: false,
+          recurrenceRule: null,
+          reminders: [],
+        },
+      ],
+    }
+    isWideDesktopValue = true
+
+    render(<CalendarPage />)
+
+    expect(calendarEventsEnabled).toBe(false)
+    expect(calendarDayDetailProps.calendarEvents).toEqual([])
+    expect(calendarDayDetailProps.calendarEventsState).toBe('pro-boundary')
+    calendarDayDetailProps.onViewPro?.()
+    expect(routerPush).toHaveBeenCalledWith('/upgrade')
+  })
+
+  it.each([
+    ['Monday-first five-row', new Date(2026, 8, 11), 1, 5],
+    ['Monday-first six-row', new Date(2026, 7, 11), 1, 6],
+    ['Sunday-first six-row', new Date(2026, 4, 11), 0, 6],
+  ] as const)('keeps the %s profile-loading grid at the loaded month height', (_label, now, weekStartDay, expectedRows) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(now)
+    profileQueryState.profile = undefined
+    const { rerender } = render(<CalendarPage />)
+    const loadingRows = Number(document.querySelector('[data-variant="grid"] > [data-rows]')?.getAttribute('data-rows'))
+    const loadingHeight = loadingRows * 44 + (loadingRows - 1) * 4
+
+    profileQueryState.profile = { weekStartDay, timeZone: 'UTC', hasProAccess: false }
+    rerender(<CalendarPage />)
+    const loadedMonth = calendarGridProps.currentMonth as Date
+    const loadedRows = buildCalendarMonthModel(
+      loadedMonth,
+      new Map(),
+      weekStartDay,
+      formatAPIDate(now),
+    ).gridDays.length / 7
+    const loadedHeight = Number(screen.getByTestId('month-grid-days').style.minHeight.replace('px', ''))
+
+    expect(loadedRows).toBe(expectedRows)
+    expect(loadingHeight).toBe(loadedHeight)
+    expect(loadedHeight).toBe(CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT)
+  })
+
+  it('shows a retryable error when the profile request fails', () => {
+    profileQueryState.profile = undefined
+    profileQueryState.error = new Error('profile unavailable')
+    render(<CalendarPage />)
+
+    expect(screen.getByText('calendar.loadError')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(profileQueryState.refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders the agenda at phone width without folding it back to month', () => {
+    render(<CalendarPage />)
+
+    expect(screen.getAllByRole('radiogroup', { name: 'calendar.view.switchLabel' })).toHaveLength(1)
+    expect(screen.getAllByRole('radio')).toHaveLength(4)
+    expect(screen.getByRole('radio', { name: 'calendar.view.month' }).getAttribute('aria-checked')).toBe('true')
+    expect(calendarGridProps.selectedDateStr).toBe(formatAPIDate(new Date()))
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
+
+    expect(screen.getByRole('radio', { name: 'calendar.view.agenda' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByTestId('agenda-view')).toBeDefined()
+    expect(screen.queryByTestId('month-view')).toBeNull()
+  })
+
+  it('marks today in the account timezone when the browser-local date differs', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-12T01:30:00.000Z'))
+    profileQueryState.profile = {
+      weekStartDay: 1,
+      timeZone: 'Pacific/Kiritimati',
+      hasProAccess: false,
+    }
+    try {
+      render(<CalendarPage />)
+
+      expect(calendarGridProps.todayKey).toBe('2026-09-12')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it.each([
+    {
+      name: 'device date is one day ahead',
+      initialTimeZone: 'UTC',
+      deviceTimeZone: 'Pacific/Kiritimati',
+      accountTimeZone: 'America/Los_Angeles',
+      now: '2026-09-12T10:30:00.000Z',
+      firstDay: '2026-09-12',
+      secondDay: '2026-09-13',
+      expected: ['bestStreak:1', 'totalLogs:1', 'missed:0'],
+    },
+    {
+      name: 'device date is one day behind',
+      initialTimeZone: undefined,
+      deviceTimeZone: 'America/Los_Angeles',
+      accountTimeZone: 'UTC',
+      now: '2026-09-12T00:30:00.000Z',
+      firstDay: '2026-09-11',
+      secondDay: '2026-09-12',
+      expected: ['bestStreak:2', 'totalLogs:2', 'missed:1'],
+    },
+  ])('renders statistics through the account date when $name', ({
+    initialTimeZone,
+    deviceTimeZone,
+    accountTimeZone,
+    now,
+    firstDay,
+    secondDay,
+    expected,
+  }) => {
+    const workerTimeZone = process.env.TZ
+    const workerResolvedTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (initialTimeZone === undefined) delete process.env.TZ
+    else process.env.TZ = initialTimeZone
+    try {
+      const originalTimeZone = process.env.TZ
+      process.env.TZ = deviceTimeZone
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date(now))
+      profileQueryState.profile = {
+        weekStartDay: 1,
+        timeZone: accountTimeZone,
+        hasProAccess: false,
+      }
+      setBoundaryEntries(firstDay, secondDay)
+      try {
+        render(<CalendarPage />)
+
+        for (const figure of expected) expect(screen.getByText(figure)).toBeDefined()
+      } finally {
+        vi.useRealTimers()
+        if (originalTimeZone === undefined) delete process.env.TZ
+        else process.env.TZ = originalTimeZone
+      }
+
+      expect(Object.hasOwn(process.env, 'TZ')).toBe(initialTimeZone !== undefined)
+      expect(process.env.TZ).toBe(initialTimeZone)
+    } finally {
+      if (workerTimeZone === undefined) {
+        process.env.TZ = workerResolvedTimeZone
+        delete process.env.TZ
+      } else process.env.TZ = workerTimeZone
+    }
+  })
+
+  it('keeps the agenda option at desktop width', () => {
+    render(<CalendarPage />)
+
+    expect(screen.getAllByRole('radio')).toHaveLength(4)
+    expect(screen.getAllByRole('radio', { name: 'calendar.view.agenda' })).toHaveLength(1)
+  })
+
+  it('switches from the month view to the agenda list and back', () => {
     render(<CalendarPage />)
 
     expect(screen.getByTestId('month-view')).toBeDefined()
     expect(screen.queryByTestId('agenda-view')).toBeNull()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'calendar.viewAgenda' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
 
     expect(screen.getByTestId('agenda-view')).toBeDefined()
     expect(screen.queryByTestId('month-view')).toBeNull()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'calendar.view.month' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.month' }))
 
     expect(screen.getByTestId('month-view')).toBeDefined()
     expect(screen.queryByTestId('agenda-view')).toBeNull()
+  })
+
+  it('passes the range loading state to the agenda view', () => {
+    rangeLoading = true
+    render(<CalendarPage />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
+
+    expect(agendaViewProps.isLoading).toBe(true)
+  })
+
+  it('shows all agenda habits after recurring entries are hidden in another view', () => {
+    const today = getMockAccountDateKey()
+    rangeDayMap = new Map([
+      [today, [
+        monthEntry('recurring', 'upcoming'),
+        { ...monthEntry('one-time', 'upcoming'), isOneTime: true },
+      ]],
+    ])
+    render(<CalendarPage />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
+    fireEvent.click(screen.getByTestId('week-view'))
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.agenda' }))
+
+    expect(agendaViewProps.dayMap?.get(today)?.map((entry) => entry.habitId)).toEqual([
+      'recurring',
+      'one-time',
+    ])
   })
 
   it('switches to the week and range time-grid views', () => {
     render(<CalendarPage />)
 
-    fireEvent.click(screen.getByRole('tab', { name: 'calendar.view.week' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.week' }))
     expect(screen.getByTestId('week-view')).toBeDefined()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'calendar.view.range' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
     expect(screen.getByTestId('range-view')).toBeDefined()
   })
 
-  it('renders the day detail as a persistent inline panel at wide desktop', () => {
+  it('passes the pending range state through the owning composition', () => {
+    rangeLoading = true
+    const view = render(<CalendarPage />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
+    expect(calendarRangeViewProps.current?.isLoading).toBe(true)
+
+    rangeLoading = false
+    view.rerender(<CalendarPage />)
+    expect(calendarRangeViewProps.current?.isLoading).toBe(false)
+  })
+
+  it('keeps exactly one recurring setting on an entry-bearing future day at wide desktop', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 0, 10))
     isWideDesktopValue = true
+    const todayKey = getMockAccountDateKey()
+    const futureDay = '2026-02-05'
+    calendarGridSelectionDate = futureDay
+    monthQueryState.dayMap = new Map([
+      [todayKey, [monthEntry('current-recurring', 'upcoming')]],
+      [futureDay, [monthEntry('future-recurring', 'upcoming')]],
+    ])
     render(<CalendarPage />)
 
     expect(screen.getByTestId('calendar-day-panel')).toBeDefined()
     expect(screen.getByTestId('day-detail')).toBeDefined()
+    expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
+
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
+    fireEvent.click(screen.getByTestId('calendar-header'))
+    fireEvent.click(screen.getByTestId('month-view'))
+
+    expect(calendarGridProps.currentMonth).toEqual(new Date(2026, 1, 1))
+    expect(calendarGridProps.selectedDateStr).toBe(futureDay)
+    expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
+  })
+
+  it('logs a selected writable day with its selected date', async () => {
+    isWideDesktopValue = true
+    const entry: CalendarDayEntry = {
+      habitId: 'habit-1',
+      title: 'Read',
+      status: 'upcoming',
+      isBadHabit: false,
+      dueTime: null,
+      isOneTime: false,
+    }
+    const selectedDate = getMockAccountDateKey()
+    monthQueryState.dayMap = new Map([[selectedDate, [entry]]])
+    render(<CalendarPage />)
+
+    await calendarDayDetailProps.onEntryChange?.(entry, true)
+
+    expect(calendarDayDetailProps.loggable).toBe(true)
+    expect(logHabitMutateAsync).toHaveBeenCalledWith({
+      habitId: 'habit-1',
+      date: selectedDate,
+      intent: 'log',
+    })
+  })
+
+  it("passes only the selected day's Google events to the day detail", () => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true }
+    const selectedDay = formatAPIDate(new Date())
+    calendarEventsQueryState.data = {
+      status: 'connected',
+      events: [
+        {
+          id: 'selected-event',
+          title: 'Team meeting',
+          description: null,
+          startDate: selectedDay,
+          startTime: '09:00',
+          endTime: null,
+          isRecurring: false,
+          recurrenceRule: null,
+          reminders: [],
+        },
+        {
+          id: 'other-event',
+          title: 'Tomorrow',
+          description: null,
+          startDate: '2099-01-01',
+          startTime: '10:00',
+          endTime: null,
+          isRecurring: false,
+          recurrenceRule: null,
+          reminders: [],
+        },
+      ],
+    }
+    isWideDesktopValue = true
+
+    render(<CalendarPage />)
+
+    expect(calendarDayDetailProps.calendarEvents?.map((event) => event.id)).toEqual([
+      'selected-event',
+    ])
+    expect(calendarEventsTimeZone).toBe('UTC')
+  })
+
+  it('passes a failed Google events query to the selected-day panel', () => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true }
+    calendarEventsQueryState.error = new Error('calendar events unavailable')
+    isWideDesktopValue = true
+
+    render(<CalendarPage />)
+
+    expect(calendarDayDetailProps.calendarEventsState).toBe('failed')
+    calendarDayDetailProps.onRetryCalendarEvents?.()
+    expect(calendarEventsQueryState.refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes a revoked Google authorization to the selected-day panel', () => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true }
+    calendarEventsQueryState.data = { status: 'not-connected' }
+    isWideDesktopValue = true
+
+    render(<CalendarPage />)
+
+    expect(calendarDayDetailProps.calendarEventsState).toBe('not-connected')
+    expect(calendarDayDetailProps.calendarEvents).toEqual([])
+    calendarDayDetailProps.onReconnectCalendarEvents?.()
+    expect(routerPush).toHaveBeenCalledWith('/calendar-sync')
+  })
+
+  it('passes a resolved empty Google events query as ready', () => {
+    profileQueryState.profile = { weekStartDay: 1, timeZone: 'UTC', hasProAccess: true }
+    isWideDesktopValue = true
+
+    render(<CalendarPage />)
+
+    expect(calendarDayDetailProps.calendarEventsState).toBe('ready')
+    expect(calendarDayDetailProps.calendarEvents).toEqual([])
   })
 
   it('opens the day detail as an overlay below the wide-desktop breakpoint', () => {
@@ -160,6 +787,85 @@ describe('CalendarPage view switcher', () => {
     expect(screen.getByTestId('day-detail')).toBeDefined()
   })
 
+  it('keeps the changed auto-sync value after closing and reopening day detail', async () => {
+    profileQueryState.profile = {
+      weekStartDay: 1,
+      timeZone: 'UTC',
+      hasProAccess: true,
+      hasGoogleConnection: true,
+      googleCalendarAutoSyncEnabled: true,
+      googleCalendarAutoSyncStatus: 'Idle',
+      googleCalendarLastSyncedAt: '2026-09-12T09:12:00Z',
+    }
+    render(<CalendarPage />)
+
+    expect(autoSyncQueryOptions).toEqual({
+      enabled: true,
+      initialData: {
+        enabled: true,
+        status: 'Idle',
+        lastSyncedAt: '2026-09-12T09:12:00Z',
+        hasGoogleConnection: true,
+      },
+    })
+
+    fireEvent.click(screen.getByTestId('month-view'))
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
+    await waitFor(() => expect(setAutoSync).toHaveBeenCalledWith({ enabled: false }))
+    fireEvent.click(screen.getByRole('button', { name: 'close-day-detail' }))
+    fireEvent.click(screen.getByTestId('month-view'))
+
+    expect(screen.getByRole('switch', { name: 'calendar.dayDetail.autoSync' }))
+      .toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('keeps the calendar usable and offers habit creation for an empty current month', () => {
+    render(<CalendarPage />)
+
+    expect(screen.getByTestId('month-view')).toBeDefined()
+    expect(screen.getByTestId('calendar-header')).toBeDefined()
+    expect(screen.getByText('calendar.emptyMonth')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'habits.createHabit' })).toBeDefined()
+    expect(screen.queryByTestId('calendar-legend')).toBeNull()
+    expect(calendarStatsProps.state).toBe('empty')
+  })
+
+  it('keeps paging available but removes creation for a future month', () => {
+    render(<CalendarPage />)
+
+    fireEvent.click(screen.getByTestId('calendar-header'))
+
+    expect(screen.getByTestId('month-view')).toBeDefined()
+    expect(screen.getByText('calendar.futureMonth')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'habits.createHabit' })).toBeNull()
+    expect(calendarStatsProps.state).toBe('empty')
+  })
+
+  it('keeps compact loading shaped like the grid and stat tiles', () => {
+    monthQueryState.isLoading = true
+    render(<CalendarPage />)
+
+    expect(calendarGridProps.isLoading).toBe(true)
+    expect(screen.queryByTestId('calendar-day-loading')).toBeNull()
+    expect(screen.queryByTestId('calendar-legend')).toBeNull()
+    expect(calendarStatsProps.state).toBe('loading')
+  })
+
+  it('shows the legend once the month has a scheduled entry', () => {
+    monthQueryState.dayMap = new Map([[getMockAccountDateKey(), [{
+      habitId: 'habit-1',
+      title: 'Habit',
+      status: 'upcoming',
+      isBadHabit: false,
+      dueTime: '08:00',
+      isOneTime: false,
+    }]]])
+    render(<CalendarPage />)
+
+    expect(screen.getByTestId('calendar-legend')).toBeDefined()
+    expect(calendarStatsProps.state).toBe('default')
+  })
+
   it('shows a retryable error card when the calendar query fails', () => {
     monthQueryState.error = 'network down'
     render(<CalendarPage />)
@@ -169,5 +875,71 @@ describe('CalendarPage view switcher', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
     expect(monthQueryState.refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('removes recurring habits from the month and shows its honest empty state', () => {
+    const todayKey = getMockAccountDateKey()
+    monthQueryState.dayMap = new Map([[todayKey, [{
+      habitId: 'recurring',
+      title: 'Recurring habit',
+      status: 'upcoming',
+      isBadHabit: false,
+      dueTime: '08:00',
+      isOneTime: false,
+    }]]])
+    render(<CalendarPage />)
+
+    expect(screen.queryByTestId('day-detail')).toBeNull()
+    expect(screen.getByTestId('month-stats')).toBeDefined()
+    expect(screen.getAllByRole('switch', { name: 'calendar.showRecurring' })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
+
+    expect(calendarGridProps.dayMap?.get(todayKey)).toEqual([])
+    expect(screen.getByTestId('month-stats').getAttribute('data-state')).toBe('empty')
+    expect(screen.getByText('calendar.emptyMonth')).toBeDefined()
+  })
+
+  it('removes recurring status rings from the range picker when recurring is turned off', () => {
+    const todayKey = getMockAccountDateKey()
+    rangeDayMap = new Map([[todayKey, [{
+      habitId: 'recurring',
+      title: 'Recurring habit',
+      status: 'upcoming',
+      isBadHabit: false,
+      dueTime: '08:00',
+      isOneTime: false,
+    }]]])
+    render(<CalendarPage />)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
+    expect(screen.getByTestId('range-recurring-ring')).toBeDefined()
+
+    fireEvent.click(screen.getByRole('switch', { name: 'calendar.showRecurring' }))
+
+    expect(screen.queryByTestId('range-recurring-ring')).toBeNull()
+  })
+
+  it('matches mobile by paging a 61px by 45px drag after the 60px boundary', () => {
+    render(<CalendarPage />)
+    const initialMonth = calendarDataCalls.mock.calls.at(-1)?.[0] as Date
+    const initialCallCount = calendarDataCalls.mock.calls.length
+    const drag = (deltaX: number, deltaY = 0) => {
+      const target = screen.getByTestId('month-view')
+      fireEvent.touchStart(target, { touches: [{ clientX: 100, clientY: 20 }] })
+      fireEvent.touchEnd(target, {
+        changedTouches: [{ clientX: 100 + deltaX, clientY: 20 + deltaY }],
+      })
+    }
+
+    drag(-59)
+    expect(calendarDataCalls).toHaveBeenCalledTimes(initialCallCount)
+
+    drag(-61, 45)
+    expect((calendarDataCalls.mock.calls.at(-1)?.[0] as Date).getMonth())
+      .toBe((initialMonth.getMonth() + 1) % 12)
+
+    drag(61)
+    expect((calendarDataCalls.mock.calls.at(-1)?.[0] as Date).getMonth())
+      .toBe(initialMonth.getMonth())
   })
 })

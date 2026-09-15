@@ -11,9 +11,9 @@ export function createStyles(tokens: EditGoalTokens, bottomInset: number) {
     },
     form: {
       paddingTop: 8,
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingBottom: Math.max(bottomInset, 16) + 24,
-      gap: 18,
+      gap: 16,
     },
     eyebrow: {
       fontFamily: 'GeistMono_500Medium',
@@ -46,7 +46,7 @@ export function createStyles(tokens: EditGoalTokens, bottomInset: number) {
       fontFamily: 'Geist_400Regular',
       fontSize: 12,
       color: tokens.statusOverdueText,
-      marginTop: 6,
+      marginTop: 8,
     },
     deadlineRow: {
       flexDirection: 'row',
@@ -73,7 +73,7 @@ export function createStyles(tokens: EditGoalTokens, bottomInset: number) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      paddingVertical: 10,
+      paddingVertical: 12,
       alignSelf: 'flex-start',
     },
     addDeadlineText: {

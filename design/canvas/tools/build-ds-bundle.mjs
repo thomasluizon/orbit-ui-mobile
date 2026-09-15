@@ -6,11 +6,12 @@ import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, posix } from 'node:path';
 import { createRequire } from 'node:module';
 
-const require = createRequire('file:///C:/Users/thoma/Documents/Programming/Projects/orbit-ui-mobile/package.json');
-const { transformSync } = require('@babel/core');
-
 const root = process.argv[2];
 const outDir = process.argv[3];
+const tokensOnly = process.argv.includes('--tokens-only');
+const require = createRequire('file:///C:/Users/thoma/Documents/Programming/Projects/orbit-ui-mobile/package.json');
+const transformSync = tokensOnly ? null : require('@babel/core').transformSync;
+
 const NS = 'OrbitDesignSystem_918bd5';
 
 function walk(dir, out = []) {
@@ -110,24 +111,56 @@ const parts = [
   '(__ds_ns.__errors = __ds_ns.__errors || []);',
   '',
 ];
-for (const c of components) parts.push(compile(c.sourcePath), '');
-for (const c of components) parts.push(`__ds_ns.${c.name} = __ds_scope.${c.name};`, '');
-parts.push('})();');
-writeFileSync(join(outDir, '_ds_bundle.js'), parts.join('\n'));
+if (!tokensOnly) {
+  for (const c of components) parts.push(compile(c.sourcePath), '');
+  for (const c of components) parts.push(`__ds_ns.${c.name} = __ds_scope.${c.name};`, '');
+  parts.push('})();');
+  writeFileSync(join(outDir, '_ds_bundle.js'), parts.join('\n'));
+}
 
 // ---- emit the manifest, carrying every field the old one had that is not derived here ----
 // The carried fields go stale too. `tokens` is the one that bites: a token deleted from the css
-// keeps its swatch in the pane forever. So drop any token whose file no longer defines it.
+// keeps its swatch in the pane forever, while a new token is absent and changed values stay old.
 const old = JSON.parse(readFileSync(join(root, '_ds_manifest.json'), 'utf8'));
 const cssByPath = {};
-const tokens = (old.tokens || []).filter((token) => {
+const COLOR_TOKEN_PATH = 'tokens/colors.css';
+const priorByIdentity = new Map((old.tokens || []).map((token) => [`${token.scope || ''}\0${token.name}`, token]));
+const colorCss = readFileSync(join(root, COLOR_TOKEN_PATH), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+const colorTokens = [];
+for (const block of colorCss.matchAll(/(:root|\[data-mode="light"\])\s*\{([^}]*)\}/g)) {
+  const scope = block[1] === ':root' ? undefined : block[1];
+  for (const declaration of block[2].matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
+    const name = declaration[1];
+    const prior = priorByIdentity.get(`${scope || ''}\0${name}`);
+    colorTokens.push({
+      name,
+      value: declaration[2].trim(),
+      kind: prior?.kind || 'color',
+      definedIn: COLOR_TOKEN_PATH,
+      ...(scope ? { scope } : {}),
+      ...(prior?.annotation ? { annotation: prior.annotation } : {}),
+    });
+  }
+}
+let insertedColorTokens = false;
+const tokens = [];
+for (const token of old.tokens || []) {
+  if (token.definedIn === COLOR_TOKEN_PATH) {
+    if (!insertedColorTokens) tokens.push(...colorTokens);
+    insertedColorTokens = true;
+    continue;
+  }
   cssByPath[token.definedIn] ??= readFileSync(join(root, token.definedIn), 'utf8');
-  return cssByPath[token.definedIn].includes(`${token.name}:`);
-});
-const manifest = { ...old, components, cards, tokens };
+  if (cssByPath[token.definedIn].includes(`${token.name}:`)) tokens.push(token);
+}
+const manifest = tokensOnly ? { ...old, tokens } : { ...old, components, cards, tokens };
 writeFileSync(join(outDir, '_ds_manifest.json'), JSON.stringify(manifest));
 
-console.log('components', components.length);
-console.log('cards', cards.length);
-console.log('new components:', components.filter((c) => ['Composer', 'Proposed', 'BlockFrame'].includes(c.name)).map((c) => c.name).join(', ') || 'NONE');
-console.log('cards:', cards.map((c) => c.name).join(' | '));
+if (tokensOnly) {
+  console.log('tokens', tokens.length);
+} else {
+  console.log('components', components.length);
+  console.log('cards', cards.length);
+  console.log('new components:', components.filter((c) => ['Composer', 'Proposed', 'BlockFrame'].includes(c.name)).map((c) => c.name).join(', ') || 'NONE');
+  console.log('cards:', cards.map((c) => c.name).join(' | '));
+}

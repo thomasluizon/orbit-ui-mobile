@@ -1,7 +1,13 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { SaxesParser } from 'saxes'
+import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
+import {
+  PICKER_PREVIEW_FIXTURE,
+  PICKER_PREVIEW_OUTPUTS,
+  buildWidgetPreviewSvgs,
+} from '../../scripts/generate-widget-preview'
 
 const widgetRoot = resolve(
   process.cwd(),
@@ -11,7 +17,6 @@ const widgetSourceRoot = resolve(
   process.cwd(),
   'modules/orbit-widget/android/src/main/java/org/useorbit/app/widget',
 )
-
 function resourceStrings(relativePath: string) {
   const strings = new Map<string, string>()
   let currentName: string | undefined
@@ -43,24 +48,37 @@ function resourceStrings(relativePath: string) {
  * distance, so a key on the breakpoint beats the key just above it. Transcribed from
  * android/widget/RemoteViews.java: fitsIn is `ceil(host) + 1 > key` and the comparison is strict.
  */
-function fitsIn(keyDp: number, hostDp: number) {
-  return Math.ceil(hostDp) + 1 > keyDp
+type SizeDp = Readonly<{
+  width: number
+  height: number
+}>
+
+type NamedSizeDp = SizeDp & Readonly<{
+  viewName: string
+}>
+
+function fitsIn(keyDp: SizeDp, hostDp: SizeDp) {
+  return Math.ceil(hostDp.width) + 1 > keyDp.width
+    && Math.ceil(hostDp.height) + 1 > keyDp.height
 }
 
-function selectedKeyDp(keysDp: readonly number[], hostDp: number) {
-  let selected: number | null = null
+function selectedSizeKey(keysDp: readonly NamedSizeDp[], hostDp: SizeDp) {
+  let selected: NamedSizeDp | null = null
   let smallestSquareDistance = Number.POSITIVE_INFINITY
 
   for (const keyDp of keysDp) {
     if (!fitsIn(keyDp, hostDp)) continue
-    const squareDistance = (keyDp - hostDp) ** 2
+    const squareDistance = (keyDp.width - hostDp.width) ** 2
+      + (keyDp.height - hostDp.height) ** 2
     if (selected === null || squareDistance < smallestSquareDistance) {
       selected = keyDp
       smallestSquareDistance = squareDistance
     }
   }
 
-  return selected ?? Math.min(...keysDp)
+  return selected ?? keysDp.reduce((smallest, key) => (
+    key.width * key.height < smallest.width * smallest.height ? key : smallest
+  ))
 }
 
 /**
@@ -88,6 +106,37 @@ function kotlinFloatConstant(source: string, name: string) {
   const value = source.match(new RegExp(`(?:private|internal) const val ${name} = ([\\d.]+)f`))?.[1]
   if (value === undefined) throw new Error(`Missing Kotlin constant: ${name}`)
   return Number(value)
+}
+
+function kotlinFloatExpression(source: string, expression: string) {
+  const normalized = expression.trim()
+  const literal = normalized.match(/^([\d.]+)f$/)?.[1]
+  if (literal !== undefined) return Number(literal)
+
+  const addition = normalized.match(/^(\w+) \+ ([\d.]+)f$/)
+  if (addition) {
+    const [, constantName, addend] = addition
+    if (constantName === undefined || addend === undefined) {
+      throw new Error(`Malformed Kotlin float expression: ${expression}`)
+    }
+    return kotlinFloatConstant(source, constantName) + Number(addend)
+  }
+
+  return kotlinFloatConstant(source, normalized)
+}
+
+function remoteViewSizeKeys(source: string) {
+  return [...source.matchAll(/SizeF\(([^,]+), ([^)]+)\) to (\w+)/g)].map(match => {
+    const [, width, height, viewName] = match
+    if (width === undefined || height === undefined || viewName === undefined) {
+      throw new Error(`Malformed RemoteViews size key: ${match[0]}`)
+    }
+    return {
+      width: kotlinFloatExpression(source, width),
+      height: kotlinFloatExpression(source, height),
+      viewName,
+    }
+  })
 }
 
 function widgetKotlinSources() {
@@ -127,6 +176,21 @@ function layoutViews(relativePath = 'layout/widget_layout.xml') {
 
 function drawable(relativePath: string) {
   return readFileSync(resolve(widgetRoot, `drawable/${relativePath}`), 'utf8')
+}
+
+function rootAttributes(relativePath: string) {
+  let attributes: Record<string, string> | undefined
+  const parser = new SaxesParser()
+
+  parser.on('opentag', tag => {
+    if (attributes) return
+    attributes = Object.fromEntries(
+      Object.entries(tag.attributes).map(([name, value]) => [name, String(value)]),
+    )
+  })
+  parser.write(readFileSync(resolve(widgetRoot, relativePath), 'utf8')).close()
+
+  return attributes ?? {}
 }
 
 describe('Android widget header', () => {
@@ -175,7 +239,7 @@ describe('Android widget header', () => {
       'android:visibility': 'gone',
     })
     expect(views.get('widget_streak')).toMatchObject({
-      'android:textColor': '@color/widget_primary',
+      'android:textColor': '@color/widget_streak_text',
     })
     expect(views.get('widget_streak_unit')).toMatchObject({
       'android:textColor': '@color/widget_fg_3',
@@ -183,7 +247,7 @@ describe('Android widget header', () => {
     expect(
       [...views.entries()]
         .filter(([, attributes]) =>
-          Object.values(attributes).includes('@color/widget_primary'),
+          Object.values(attributes).includes('@color/widget_streak_text'),
         )
         .map(([id]) => id),
     ).toEqual(['widget_streak'])
@@ -262,27 +326,237 @@ describe('Android widget header', () => {
       expect(source).not.toContain('partiallyUpdateAppWidget')
       expect(source).not.toContain('OPTION_APPWIDGET_MIN_WIDTH')
     }
-    expect(provider).toContain('SizeF(COMPACT_IDEAL_WIDTH_DP, 1f) to compactViews')
-    expect(provider).toContain('SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, 1f) to expandedViews')
-
     const breakpointDp = kotlinFloatConstant(provider, 'STREAK_UNIT_BREAKPOINT_DP')
-    const compactKeyDp = kotlinFloatConstant(provider, 'COMPACT_IDEAL_WIDTH_DP')
-    const expandedKeyDp = breakpointDp + 1
-    const keysDp = [compactKeyDp, expandedKeyDp]
+    const keysDp = remoteViewSizeKeys(provider)
 
     expect(breakpointDp).toBe(200)
     for (const hostDp of [110, 160, 199, 199.5, 199.9, 200]) {
-      expect(selectedKeyDp(keysDp, hostDp), `${hostDp}dp`).toBe(compactKeyDp)
+      expect(
+        selectedSizeKey(keysDp, { width: hostDp, height: 96 }).width,
+        `${hostDp}dp`,
+      ).toBeLessThanOrEqual(breakpointDp)
     }
     for (const hostDp of [200.1, 200.38, 200.5, 201, 250, 400]) {
-      expect(selectedKeyDp(keysDp, hostDp), `${hostDp}dp`).toBe(expandedKeyDp)
+      expect(
+        selectedSizeKey(keysDp, { width: hostDp, height: 96 }).width,
+        `${hostDp}dp`,
+      ).toBe(breakpointDp + 1)
     }
     expect(provider).toMatch(
-      /if \(Build\.VERSION\.SDK_INT < Build\.VERSION_CODES\.S\) \{\s*return buildWidgetViews\([\s\S]*?View\.VISIBLE\s*\)\s*\}/,
+      /if \(Build\.VERSION\.SDK_INT < Build\.VERSION_CODES\.S\) \{\s*return buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_TWO_HEIGHT_DP,\s*true\s*\)\s*\}/,
     )
     expect(provider).toMatch(
-      /val compactViews = buildWidgetViews\([\s\S]*?View\.GONE\s*\)[\s\S]*?val expandedViews = buildWidgetViews\([\s\S]*?View\.VISIBLE\s*\)/,
+      /val compactViews = buildWidgetViews\([\s\S]*?View\.GONE,\s*TWO_BY_TWO_HEIGHT_DP,\s*false\s*\)/,
     )
+  })
+
+  it('offers the four launcher geometries as host-selected complete views', () => {
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    const breakpointKeyDp = kotlinFloatConstant(provider, 'STREAK_UNIT_BREAKPOINT_DP') + 1
+    const keysDp = remoteViewSizeKeys(provider)
+    const expectedSelections = [
+      { host: { width: 336, height: 96 }, viewName: 'fourByOneViews' },
+      { host: { width: 336, height: 192 }, viewName: 'fourByTwoViews' },
+      { host: { width: 336, height: 288 }, viewName: 'fourByThreeViews' },
+      { host: { width: 160, height: 192 }, viewName: 'twoByTwoViews' },
+      { host: { width: 250, height: 192 }, viewName: 'fourByTwoViews' },
+    ] as const
+
+    expect.soft(provider).toMatch(
+      /val fourByOneViews = buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_ONE_HEIGHT_DP,\s*true\s*\)/,
+    )
+    expect.soft(provider).toContain(
+      'SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_ONE_HEIGHT_DP) to fourByOneViews',
+    )
+    expect.soft(provider).toContain(
+      'SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_TWO_HEIGHT_DP) to fourByTwoViews',
+    )
+    expect.soft(provider).toMatch(
+      /val fourByThreeViews = buildWidgetViews\([\s\S]*?View\.VISIBLE,\s*FOUR_BY_THREE_HEIGHT_DP,\s*true\s*\)/,
+    )
+    expect.soft(provider).toContain(
+      'SizeF(STREAK_UNIT_BREAKPOINT_DP + 1f, FOUR_BY_THREE_HEIGHT_DP) to fourByThreeViews',
+    )
+    expect.soft(provider).toMatch(
+      /val twoByTwoViews = buildWidgetViews\([\s\S]*?View\.GONE,\s*TWO_BY_TWO_HEIGHT_DP,\s*false\s*\)/,
+    )
+    expect.soft(provider).toContain(
+      'SizeF(NARROW_WIDTH_DP, TWO_BY_TWO_HEIGHT_DP) to twoByTwoViews',
+    )
+    expect.soft(provider).toMatch(
+      /putExtra\(EXTRA_WIDGET_HEIGHT_DP, widgetHeightDp\)\s*putExtra\(EXTRA_SHOW_TIME, showTime\)\s*data = Uri\.parse\(toUri\(Intent\.URI_INTENT_SCHEME\)\)/,
+    )
+    for (const { host, viewName } of expectedSelections) {
+      expect.soft(
+        selectedSizeKey(keysDp, host).viewName,
+        `${host.width} by ${host.height}dp`,
+      ).toBe(viewName)
+    }
+    for (const viewName of ['fourByOneViews', 'fourByTwoViews', 'fourByThreeViews']) {
+      expect.soft(keysDp.find(key => key.viewName === viewName)?.width).toBe(breakpointKeyDp)
+    }
+  })
+
+  it('derives row capacity and remainder space from the drawing geometry', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const views = layoutViews()
+
+    expect.soft(service).toContain('internal fun calculateWidgetGeometry(')
+    expect.soft(service).toContain('val availableHeightDp = heightDp - HEADER_HEIGHT_DP')
+    expect.soft(service).toContain('floor(availableHeightDp / ROW_HEIGHT_DP)')
+    expect.soft(service).toContain('availableHeightDp - (fit - 1) * ROW_HEIGHT_DP >= REMAINDER_HEIGHT_DP')
+    expect.soft(service).toContain('if (canStateRemainder) maxOf(1, fit - 1)')
+    for (const index of [1, 2, 3, 4, 5]) {
+      expect.soft(views.get(`widget_skeleton_${index}`)).toMatchObject({
+        'android:layout_height': '48dp',
+        'android:gravity': 'center_vertical',
+        'android:orientation': 'horizontal',
+      })
+    }
+  })
+
+  it('draws each first-load row as a placeholder mark and name bar', () => {
+    const layout = readFileSync(resolve(widgetRoot, 'layout/widget_layout.xml'), 'utf8')
+    const views = layoutViews()
+    const mark = drawable('widget_skeleton_mark.xml')
+    const nameBar = drawable('widget_skeleton_bar.xml')
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+
+    expect(layout.match(/@drawable\/widget_skeleton_mark/g)).toHaveLength(5)
+    expect(layout.match(/@drawable\/widget_skeleton_bar/g)).toHaveLength(5)
+    for (const [index, width] of [150, 126, 102, 78, 54].entries()) {
+      expect(views.get(`widget_skeleton_bar_${index + 1}`)).toMatchObject({
+        'android:layout_width': `${width}dp`,
+        'android:layout_height': '12dp',
+      })
+    }
+    expect(mark).toContain('android:shape="oval"')
+    expect(mark).toContain('<solid android:color="@color/widget_well" />')
+    expect(nameBar).toContain('<corners android:radius="6dp" />')
+    expect(provider).toMatch(
+      /setContentDescription\(\s*R\.id\.widget_loading,[\s\S]{0,160}?WidgetString\.LOADING/,
+    )
+
+    expect(resourceStrings('values/widget_strings.xml').get('widget_loading')).toBe('Loading')
+    expect(resourceStrings('values-pt-rBR/widget_strings.xml').get('widget_loading')).toBe(
+      'Carregando',
+    )
+  })
+
+  it('dims only the rows while refresh is active and restores them for every idle render', () => {
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+
+    expect(provider).toMatch(
+      /private fun applyRefreshingState\(views: RemoteViews, refreshing: Boolean\)[\s\S]*?setViewVisibility\(R\.id\.widget_refresh, if \(refreshing\) View\.GONE else View\.VISIBLE\)[\s\S]*?setViewVisibility\(\s*R\.id\.widget_refresh_loading, if \(refreshing\) View\.VISIBLE else View\.GONE\s*\)[\s\S]*?setFloat\(R\.id\.widget_list, "setAlpha", if \(refreshing\) 0\.6f else 1f\)/,
+    )
+    expect(provider).toContain('applyRefreshingState(views, refreshing)')
+    expect(provider).not.toContain('setFloat(R.id.widget_content, "setAlpha"')
+  })
+
+  it('renders an accessible remainder item and hides only time on the narrow variant', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const remainder = layoutViews('layout/widget_remainder.xml')
+
+    expect.soft(kotlinFloatConstant(service, 'REMAINDER_HEIGHT_DP')).toBe(48)
+    expect.soft(remainder.get('widget_remainder')).toMatchObject({
+      'android:layout_height': '48dp',
+    })
+    expect.soft(remainder.get('widget_remainder_text')).toMatchObject({
+      'android:layout_height': '24dp',
+      'android:paddingStart': '12dp',
+      'android:paddingEnd': '12dp',
+      'android:textColor': '@color/widget_fg_3',
+      'android:textSize': '12sp',
+    })
+    expect.soft(service).toContain('R.layout.widget_remainder')
+    expect.soft(service).toContain(
+      'views.setTextViewText(R.id.widget_remainder_text, remainderText)',
+    )
+    expect.soft(service).toContain(
+      'views.setContentDescription(R.id.widget_remainder, remainderDescription)',
+    )
+    expect.soft(service).toContain(
+      'views.setOnClickFillInIntent(R.id.widget_remainder, Intent())',
+    )
+    expect.soft(service).toMatch(
+      /val remainderDescription = tr\(\s*context,\s*lang,\s*WidgetString\.MORE_DESCRIPTION,\s*remainderCount\s*\)/,
+    )
+    expect.soft(service).toMatch(/if \(!showTime\) \{[\s\S]*?R\.id\.item_time[\s\S]*?R\.id\.item_time_overdue/)
+    expect.soft(service).toContain('override fun getViewTypeCount(): Int = 2')
+  })
+
+  it('ships the one-count remainder format in both widget locales', () => {
+    const english = resourceStrings('values/widget_strings.xml')
+    const portuguese = resourceStrings('values-pt-rBR/widget_strings.xml')
+
+    expect.soft(english.get('widget_more')).toBe('%1$d more')
+    expect.soft(portuguese.get('widget_more')).toBe('mais %1$d')
+    expect.soft(english.get('widget_more_description')).toBe(
+      '%1$d more habits are not shown.',
+    )
+    expect.soft(portuguese.get('widget_more_description')).toBe(
+      'Mais %1$d hábitos não são exibidos.',
+    )
+    expect.soft(english.get('widget_more')?.match(/%1\$d/g)).toHaveLength(1)
+    expect.soft(portuguese.get('widget_more')?.match(/%1\$d/g)).toHaveLength(1)
+    expect.soft(english.get('widget_more_description')?.match(/%1\$d/g)).toHaveLength(1)
+    expect.soft(portuguese.get('widget_more_description')?.match(/%1\$d/g)).toHaveLength(1)
+  })
+
+  it('defaults to 4 by 2 and admits the supported resize floors', () => {
+    const provider = rootAttributes('xml/orbit_widget_info.xml')
+
+    expect.soft(provider['android:minWidth']).toBe('250dp')
+    expect.soft(provider['android:minHeight']).toBe('110dp')
+    expect.soft(provider['android:minResizeWidth']).toBe('160dp')
+    expect.soft(provider['android:minResizeHeight']).toBe('96dp')
+    expect.soft(provider['android:targetCellWidth']).toBe('4')
+    expect.soft(provider['android:targetCellHeight']).toBe('2')
+  })
+
+  it('keeps a static picker preview on every supported Android version', async () => {
+    const provider = rootAttributes('xml/orbit_widget_info.xml')
+    const generator = readFileSync(resolve(process.cwd(), 'scripts/generate-widget-preview.ts'), 'utf8')
+
+    expect(provider['android:previewImage']).toBe('@drawable/widget_picker_preview')
+    expect(provider['android:previewLayout']).toBeUndefined()
+    expect(PICKER_PREVIEW_FIXTURE).toMatchObject({
+      width: 336,
+      height: 192,
+      rows: [
+        { nameKey: 'widget_preview_done_name', status: 'done' },
+        { nameKey: 'widget_preview_overdue_name', status: 'overdue' },
+        { nameKey: 'widget_preview_pending_name', status: 'pending' },
+      ],
+    })
+    expect.soft(generator).toContain('width="34" height="18" rx="8"')
+
+    const requiredCopy = PICKER_PREVIEW_FIXTURE.rows.map(row => row.nameKey)
+    for (const resourcePath of [
+      'values/widget_strings.xml',
+      'values-pt-rBR/widget_strings.xml',
+    ]) {
+      const strings = resourceStrings(resourcePath)
+      for (const name of requiredCopy) expect(strings.get(name), `${resourcePath}:${name}`).toBeTruthy()
+    }
+
+    expect(PICKER_PREVIEW_OUTPUTS.map(output => output.directory)).toEqual([
+      'drawable-xxxhdpi',
+      'drawable-night-xxxhdpi',
+      'drawable-pt-rBR-xxxhdpi',
+      'drawable-pt-rBR-night-xxxhdpi',
+    ])
+    for (const output of PICKER_PREVIEW_OUTPUTS) {
+      const previewPath = resolve(widgetRoot, output.directory, 'widget_picker_preview.png')
+      const metadata = await sharp(previewPath).metadata()
+      expect(metadata).toMatchObject({ format: 'png', width: 1344, height: 768 })
+    }
+  })
+
+  it('matches the reproducible SVG source for every picker preview', async () => {
+    for (const { output, svg } of await buildWidgetPreviewSvgs()) {
+      expect(svg).toMatchSnapshot(output.directory)
+    }
   })
 
   it('routes every post-sync header and loading mutation through the full provider render', () => {
@@ -603,7 +877,7 @@ describe('Android widget header', () => {
 
   it('names every visible refresh spinner through the widget language path', () => {
     const makesSpinnerVisible =
-      /setViewVisibility\(R\.id\.widget_refresh_loading, (?:android\.view\.)?View\.VISIBLE\)/
+      /setViewVisibility\(\s*R\.id\.widget_refresh_loading,[\s\S]{0,80}?(?:android\.view\.)?View\.VISIBLE/
     const namesSpinner =
       /setContentDescription\(\s*R\.id\.widget_refresh_loading,[\s\S]{0,160}?WidgetString\.REFRESHING/
 
@@ -664,7 +938,7 @@ describe('Android widget habit rows', () => {
     expect(overdue).toContain('<vector')
     expect(overdue).toContain('android:strokeColor="@color/widget_overdue"')
     expect(pending).toContain('<vector')
-    expect(pending).toContain('android:strokeColor="@color/widget_fg_4"')
+    expect(pending).toContain('android:strokeColor="@color/widget_track_empty"')
   })
 
   it('ships localized checklist and deeper-tree labels with the complete row vocabulary', () => {

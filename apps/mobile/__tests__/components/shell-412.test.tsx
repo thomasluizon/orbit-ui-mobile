@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { Shell412 } from '@/components/shell/shell-412'
 import { useShellComposerSlot } from '@/components/shell/shell-composer-slot'
+import { useShellNoticeSlot } from '@orbit/shared/hooks'
 import ProgressScreen from '@/app/(tabs)/progress'
 
 vi.mock('@/components/progress/progress-content', () => ({ ProgressContent: () => React.createElement('ProgressContent') }))
@@ -83,6 +84,34 @@ describe('Shell412 mobile', () => {
 
     expect(tree.root.findAll((node) => String(node.type) === 'SelectionTray')).toHaveLength(1)
     expect(tree.root.findAll((node) => String(node.type) === 'AstraComposer')).toHaveLength(0)
+  })
+
+  it('mounts destination feedback above the persistent composer', async () => {
+    function ProfileExportNotice() {
+      useShellNoticeSlot(
+        true,
+        () => React.createElement('ExportDone'),
+        'export-done',
+      )
+      return React.createElement('ProfileScreen')
+    }
+    let tree!: ReactTestRenderer
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <Shell412
+          composer={React.createElement('AstraComposer')}
+          tabBar={React.createElement('TabBar')}
+        >
+          <ProfileExportNotice />
+        </Shell412>,
+      )
+      await Promise.resolve()
+    })
+
+    const notice = findByTestId(tree, 'shell-notice')[0]
+    expect(notice?.findAll((node) => String(node.type) === 'ExportDone')).toHaveLength(1)
+    expect(findByTestId(tree, 'shell-pinned-slot')[0]
+      ?.findAll((node) => String(node.type) === 'AstraComposer')).toHaveLength(1)
   })
 
   it('refreshes the Today composer tray when an image is selected and removed', async () => {

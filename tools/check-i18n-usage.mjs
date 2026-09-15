@@ -110,10 +110,17 @@ function localReferences(source, checker) {
   return programReferences([source], checker)
 }
 
+function isTestSource(source) {
+  const path = source.fileName.replaceAll("\\", "/")
+  return path.includes("/__tests__/") || /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(path)
+}
+
 function parameterArguments(parameter, references, checker) {
   const owner = parameter.parent
   if (!ts.isFunctionDeclaration(owner) || !owner.name) return undefined
-  const callers = references.get(referencedSymbol(owner.name, checker)) ?? []
+  const referencesToOwner = references.get(referencedSymbol(owner.name, checker)) ?? []
+  const callers = isTestSource(owner.getSourceFile()) ? referencesToOwner
+    : referencesToOwner.filter((reference) => !isTestSource(reference.getSourceFile()))
   const position = owner.parameters.indexOf(parameter)
   const argumentsFound = []
   for (const reference of callers) {
@@ -164,7 +171,9 @@ function bindingSources(source, checker, programReferences) {
   function members(expressions, name, seen) {
     if (!expressions?.length) return undefined
     const groups = expressions.map((expression) => member(expression, name, seen))
-    return groups.every((group) => group?.length) ? groups.flat() : undefined
+    if (groups.some((group) => group === undefined)) return undefined
+    if (groups.every((group) => group.length === 0)) return []
+    return groups.every((group) => group.length > 0) ? groups.flat() : undefined
   }
   function returned(call) {
     if (!ts.isIdentifier(call.expression)) return undefined

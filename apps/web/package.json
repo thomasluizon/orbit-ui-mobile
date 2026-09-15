@@ -12,7 +12,7 @@
     "test": "vitest run",
     "test:smoke": "playwright test --project=smoke",
     "test:layout": "playwright test --project=layout",
-    "perf": "cd ../.. && lhci autorun --config apps/web/lighthouserc.json",
+    "perf": "cd ../.. && lhci autorun --config apps/web/lighthouserc.json && node apps/web/perf/report-lcp.mjs",
     "clean": "rm -rf .next"
   },
   "dependencies": {

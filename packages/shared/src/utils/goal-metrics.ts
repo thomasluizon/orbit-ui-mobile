@@ -7,24 +7,6 @@ interface GoalMetricsStatusPresentation {
   tone: GoalMetricsStatusTone
 }
 
-type GoalHabitAdherenceTone = 'success' | 'primary' | 'warning'
-
-interface GoalMetricsHabitAdherence {
-  habitId: string
-  habitTitle: string
-  weeklyCompletionRate: number
-  monthlyCompletionRate: number
-  currentStreak: number
-}
-
-export interface GoalMetricsViewModel {
-  trackingStatus?: string | null
-  projectedCompletionDate: string | null
-  velocityPerDay: number
-  daysToDeadline?: number | null
-  habitAdherence: GoalMetricsHabitAdherence[]
-}
-
 export function formatGoalMetricsDate(dateStr: string, locale: string): string {
   const datePart = dateStr.slice(0, 10)
   const date = /^\d{4}-\d{2}-\d{2}$/.test(datePart)
@@ -54,12 +36,4 @@ export function getGoalMetricsStatusPresentation(
     default:
       return null
   }
-}
-
-export function getGoalHabitAdherenceTone(
-  weeklyCompletionRate: number,
-): GoalHabitAdherenceTone {
-  if (weeklyCompletionRate >= 80) return 'success'
-  if (weeklyCompletionRate >= 50) return 'primary'
-  return 'warning'
 }

@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { spawn, spawnSync } from "node:child_process"
+import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, watch, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
@@ -26,20 +27,30 @@ const launchConfig = ({ engine = {}, timeouts = {}, caps = {} } = {}) => {
  * that only sleeps. `args` is the script PATH and not `-e`, because node refuses the `--model`
  * the launcher appends after an `--eval` script ("bad option: --model"), measured.
  */
-const stubEngine = (script) => ({ engine: { args: [script], models: { default: { model: "gate-stub", args: [] } } } })
+const stubEngine = (script) => ({
+  engine: {
+    args: [script],
+    models: {
+      default: { model: "gate-stub", args: ["--gate-effort=high"] },
+      mechanical: { model: "gate-stub", args: ["--gate-effort=medium"] },
+    },
+  },
+})
 
 const SLEEPER = stage("launch-worker/sleeping-worker.js", "setTimeout(() => {}, 60000)\n")
 const IMMEDIATE = stage("launch-worker/immediate-worker.js", "process.exit(0)\n")
 /** Floods stdout the way ORB-201 did, which is how a 61.73 MB log happened. It never exits on its
  * own, so the only thing that can end it is the launcher noticing the flood. */
 const FLOODER = stage("launch-worker/flooding-worker.js", "const line = 'x'.repeat(4096)\nsetInterval(() => { for (let i = 0; i < 64; i++) process.stdout.write(line + '\\n') }, 5)\n")
+const UNBOUNDED_LOG_DRIP = stage("launch-worker/unbounded-log-drip.js", "setInterval(() => process.stdout.write('heartbeat\\n'), 250)\n")
 
 const launch = (label, config) => {
   const repo = stageRepo(`launch-worker-${label}`)
   if (!repo) return null
   repo.git(["remote", "set-url", "origin", `https://github.com/test-owner/${label}.git`])
-  const staged = stageWithConfig(`launch-worker-${label}`, TOOL, config)
-  return { ...staged, worktree: repo.path, prompt: stage(`launch-worker/${label}-prompt.md`, "the work order, verbatim\n") }
+  const configured = { ...config, repos: { ...config.repos, [config.cloud.repositoryKey]: repo.path } }
+  const staged = stageWithConfig(`launch-worker-${label}`, TOOL, configured)
+  return { ...staged, worktree: repo.path, git: repo.git, prompt: stage(`launch-worker/${label}-prompt.md`, "the work order, verbatim\n") }
 }
 
 const githubAuthEnv = () => orcaEnv([{ match: "auth token --user test-owner", stdout: "test-github-token" }])
@@ -55,7 +66,109 @@ const discardLog = (stdout) => {
   }
 }
 
-export const cases = () => {
+const readFileContents = (path) => {
+  try {
+    return readFileSync(path, "utf8")
+  } catch (error) {
+    if (error.code === "ENOENT") return null
+    throw error
+  }
+}
+
+const waitForFile = (path, expectedContents, writerResult) => {
+  const initialContents = readFileContents(path)
+  if (initialContents === expectedContents) return Promise.resolve()
+  if (initialContents !== null) return Promise.reject(new Error(`observed incomplete contents in ${path}: ${JSON.stringify(initialContents)}`))
+  return new Promise((resolve, reject) => {
+    let settled = false
+    const finish = (error) => {
+      if (settled) return
+      settled = true
+      watcher.close()
+      if (error) reject(error)
+      else resolve()
+    }
+    const watcher = watch(dirname(path), () => {
+      const contents = readFileContents(path)
+      if (contents === null) return
+      if (contents !== expectedContents) {
+        finish(new Error(`observed incomplete contents in ${path}: ${JSON.stringify(contents)}`))
+        return
+      }
+      finish()
+    })
+    writerResult?.then((result) => {
+      finish(new Error(`writer exited before publishing ${path}: ${result.stderr || result.stdout}`))
+    }, finish)
+    const contents = readFileContents(path)
+    if (contents === expectedContents) finish()
+    else if (contents !== null) finish(new Error(`observed incomplete contents in ${path}: ${JSON.stringify(contents)}`))
+  })
+}
+
+const waitForAcknowledgementPublication = (path, writerResult) => {
+  const directWriteOpened = `${path}.direct-write-opened`
+  const readerObservedIncomplete = `${path}.reader-observed-incomplete`
+  return new Promise((resolve, reject) => {
+    let observedIncomplete = false
+    let settled = false
+    const finish = (error) => {
+      if (settled) return
+      settled = true
+      watcher.close()
+      if (error) reject(error)
+      else resolve({ observedIncomplete })
+    }
+    const inspectPublication = () => {
+      const contents = readFileContents(path)
+      if (contents !== null && contents !== "") {
+        finish()
+        return
+      }
+      const directWriteState = readFileContents(directWriteOpened)
+      if (directWriteState === null) return
+      if (directWriteState !== "opened") {
+        finish(new Error(`observed invalid direct-write state in ${directWriteOpened}: ${JSON.stringify(directWriteState)}`))
+        return
+      }
+      if (observedIncomplete) return
+      observedIncomplete = true
+      publishMarker(readerObservedIncomplete, "observed")
+    }
+    const watcher = watch(dirname(path), inspectPublication)
+    writerResult.then((result) => {
+      finish(new Error(`sampler exited before publishing ${path}: ${result.stderr || result.stdout}`))
+    }, finish)
+    inspectPublication()
+  })
+}
+
+let markerPublication = 0
+const publishMarker = (path, contents) => {
+  markerPublication += 1
+  const unpublishedPath = `${path}.${process.pid}-${markerPublication}.unpublished`
+  writeFileSync(unpublishedPath, contents)
+  renameSync(unpublishedPath, path)
+}
+
+const launchAsync = (path, argv, env) => {
+  const child = spawn(process.execPath, [path, ...argv], {
+    cwd: dirname(path),
+    env: { ...process.env, ...env },
+    windowsHide: true,
+  })
+  const result = new Promise((resolve, reject) => {
+    let stdout = ""
+    let stderr = ""
+    child.stdout.on("data", (chunk) => { stdout += chunk })
+    child.stderr.on("data", (chunk) => { stderr += chunk })
+    child.on("error", reject)
+    child.on("close", (status) => resolve({ status, stdout, stderr }))
+  })
+  return { child, result }
+}
+
+export const cases = async () => {
   const fixture = launch("dry-run", launchConfig())
   if (!fixture) {
     T(`${TOOL}: a real git worktree fixture is available`, false, "could not stage a git repository")
@@ -105,6 +218,9 @@ export const cases = () => {
   check(TOOL, "refuses a malformed ticket reference", ["--issue", "ticket-201", "--worktree", fixture.worktree, "--prompt", fixture.prompt], { status: 2, stderr: /--issue must be ORB-N, #N, or N/ }, options)
   check(TOOL, "accepts a post-migration #N reference", ["--issue", "#9001", "--worktree", fixture.worktree, "--prompt", fixture.prompt, "--dry-run"], { status: 0, stdout: /"issue": "#9001"/ }, options)
   check(TOOL, "accepts a post-migration plain number and normalizes it", ["--issue", "9001", "--worktree", fixture.worktree, "--prompt", fixture.prompt, "--dry-run"], { status: 0, stdout: /"issue": "#9001"/ }, options)
+  check(TOOL, "refuses a tier outside the two order profiles", [...argv, "--tier", "expensive", "--dry-run"], { status: 2, stderr: /--tier must be default or mechanical/ }, options)
+  check(TOOL, "refuses a tier flag with no value", [...argv, "--tier"], { status: 2, stderr: /--tier must be default or mechanical/ }, options)
+  check(TOOL, "refuses an empty relaunch reason", [...argv, "--relaunch-reason", "", "--dry-run"], { status: 2, stderr: /--relaunch-reason must be non-empty text/ }, options)
   check(TOOL, "refuses a missing worktree flag", ["--issue", "ORB-201", "--prompt", fixture.prompt], { status: 2, stderr: /--worktree is required/ }, options)
   check(TOOL, "refuses a missing prompt flag", ["--issue", "ORB-201", "--worktree", fixture.worktree], { status: 2, stderr: /--prompt is required/ }, options)
   check(TOOL, "refuses a worktree that does not exist", ["--issue", "ORB-201", "--worktree", join(fixture.base, "absent"), "--prompt", fixture.prompt], { status: 2, stderr: /worktree not found/ }, options)
@@ -156,14 +272,58 @@ export const cases = () => {
     JSON.stringify(plan),
   )
   T(
-    `${TOOL}: the resolved implementer is gpt-5.6-sol at high reasoning effort (D21)`,
+    `${TOOL}: the default tier resolves gpt-5.6-sol at high reasoning effort`,
     plan !== null && plan.model === "gpt-5.6-sol" && plan.args.includes('model_reasoning_effort="high"'),
     JSON.stringify(plan?.args),
+  )
+  const mechanicalDryRun = check(TOOL, "--dry-run resolves the mechanical tier", [...argv, "--tier", "mechanical", "--dry-run"], { status: 0 }, options)
+  const mechanicalPlan = JSON.parse(mechanicalDryRun.stdout)
+  T(
+    `${TOOL}: each tier reports itself and resolves a different argument vector`,
+    mechanicalPlan.tier === "mechanical" &&
+      mechanicalPlan.args.includes('model_reasoning_effort="medium"') &&
+      JSON.stringify(mechanicalPlan.args) !== JSON.stringify(plan?.args),
+    JSON.stringify({ default: plan?.args, mechanical: mechanicalPlan.args }),
   )
   T(
     `${TOOL}: the worker is handed the prompt PATH and the branch, never the prompt text`,
     plan !== null && plan.branch === "main" && plan.args.at(-1).includes(fixture.prompt) && !plan.args.at(-1).includes("the work order, verbatim"),
     JSON.stringify(plan?.args?.at(-1)),
+  )
+
+  const capped = launch("branch-cap", launchConfig({ ...stubEngine(IMMEDIATE), caps: { workerLaunchesPerBranch: 2 } }))
+  const cappedArgs = ["--issue", "ORB-201", "--worktree", capped.worktree, "--prompt", capped.prompt]
+  const firstLaunch = check(TOOL, "the first launch below the branch cap succeeds", cappedArgs, { status: 0 }, { path: capped.path, env: githubAuthEnv() })
+  const secondLaunch = check(TOOL, "the second launch at the branch cap succeeds", [...cappedArgs, "--tier", "mechanical"], { status: 0 }, { path: capped.path, env: githubAuthEnv() })
+  discardLog(firstLaunch.stdout)
+  discardLog(secondLaunch.stdout)
+  const refusedLaunch = check(
+    TOOL,
+    "a third launch exits 2 and names both earlier launches",
+    cappedArgs,
+    { status: 2, stderr: /worker launch cap 2 reached[\s\S]*Earlier launches:[\s\S]*1\.[\s\S]*tier=default[\s\S]*2\.[\s\S]*tier=mechanical/ },
+    { path: capped.path },
+  )
+  const allowedLaunch = check(
+    TOOL,
+    "a third launch with a recorded reason succeeds",
+    [...cappedArgs, "--tier", "mechanical", "--relaunch-reason", "Pullfrog supplied a second experiment"],
+    { status: 0 },
+    { path: capped.path, env: githubAuthEnv() },
+  )
+  discardLog(allowedLaunch.stdout)
+  const ledgerPath = join(capped.worktree, ".git", "orbit-worker-launches")
+  const launchLedger = readdirSync(ledgerPath)
+    .map((name) => JSON.parse(readFileSync(join(ledgerPath, name), "utf8")))
+    .sort((left, right) => left.timestamp.localeCompare(right.timestamp))
+  T(
+    `${TOOL}: the checkout-local ledger records required fields and the override reason`,
+    launchLedger.length === 3 &&
+      launchLedger.every((row) => row.repositoryKey === "ui" && row.branch === "main" && /^[0-9a-f]{40}$/.test(row.headSha) && typeof row.timestamp === "string") &&
+      launchLedger[2].relaunchReason === "Pullfrog supplied a second experiment" &&
+      refusedLaunch.stderr.includes(launchLedger[0].headSha) &&
+      capped.git(["status", "--short"]).stdout.trim() === "",
+    JSON.stringify({ launchLedger, status: capped.git(["status", "--short"]).stdout }),
   )
   /**
    * Both clocks are read from config.timeouts, and the only way to prove that is to move them:
@@ -204,14 +364,156 @@ export const cases = () => {
   )
   discardLog(burned.stdout)
 
-  const DRIP = stage("launch-worker/dripping-worker.js", "setInterval(() => process.stdout.write('heartbeat\\n'), 250)\n")
-  const logProgress = launch("log-progress", launchConfig({ ...stubEngine(DRIP), timeouts: { hardCeilingMinutes: 0.1, noProgressMinutes: 0.03, pollSeconds: 0.2 } }))
-  const dripped = check(
-    TOOL,
-    "a worker only appending to its own log is NOT killed as stalled",
+  const dripReady = stage("launch-worker/drip-ready", "")
+  rmSync(dripReady, { force: true })
+  const dripCommand = stage("launch-worker/drip-command", "")
+  rmSync(dripCommand, { force: true })
+  const dripWritten = stage("launch-worker/drip-written", "")
+  rmSync(dripWritten, { force: true })
+  // Empty and invalid complete records keep the previous valid clock value instead of becoming 0
+  // or terminating supervision. Later records use the same append-only framing.
+  const supervisionStart = 10000
+  const supervisionClock = stage("launch-worker/supervision-clock", `${supervisionStart}\n`)
+  const supervisionClockReady = `${supervisionClock}.ready`
+  const acknowledgementPublicationProbe = stage(
+    "launch-worker/acknowledgement-publication-probe.cjs",
+    `const fs = require("node:fs")
+const { syncBuiltinESMExports } = require("node:module")
+const { dirname } = require("node:path")
+const writeFileSync = fs.writeFileSync
+fs.writeFileSync = (path, contents, options) => {
+  const clockPath = process.env.ORBIT_TEST_SUPERVISION_CLOCK
+  const acknowledgementPrefix = clockPath + ".sampled-"
+  const acknowledgementSuffix = String(path).slice(acknowledgementPrefix.length)
+  if (clockPath && String(path).startsWith(acknowledgementPrefix) && /^\\d+$/.test(acknowledgementSuffix)) {
+    const descriptor = fs.openSync(path, "w")
+    const directWriteOpened = path + ".direct-write-opened"
+    const readerObservedIncomplete = path + ".reader-observed-incomplete"
+    const readerWatcher = fs.watch(dirname(path), () => {
+      if (readFileContents(readerObservedIncomplete) !== "observed") return
+      try {
+        writeFileSync(descriptor, contents, options)
+      } finally {
+        fs.closeSync(descriptor)
+        readerWatcher.close()
+      }
+    })
+    const readFileContents = (candidate) => {
+      try {
+        return fs.readFileSync(candidate, "utf8")
+      } catch (error) {
+        if (error.code === "ENOENT") return null
+        throw error
+      }
+    }
+    const unpublishedPath = directWriteOpened + "." + process.pid + ".unpublished"
+    try {
+      writeFileSync(unpublishedPath, "opened")
+      fs.renameSync(unpublishedPath, directWriteOpened)
+    } catch (error) {
+      fs.closeSync(descriptor)
+      readerWatcher.close()
+      throw error
+    }
+    return
+  }
+  writeFileSync(path, contents, options)
+}
+syncBuiltinESMExports()
+`,
+  )
+  const DRIP = stage(
+    "launch-worker/dripping-worker.js",
+    `const { existsSync, renameSync, watch, writeFileSync } = require("node:fs")
+const { dirname } = require("node:path")
+const publishMarker = (path, contents) => {
+  const unpublishedPath = path + "." + process.pid + ".unpublished"
+  writeFileSync(unpublishedPath, contents)
+  renameSync(unpublishedPath, path)
+}
+const publishHeartbeat = () => {
+  if (!existsSync(${JSON.stringify(dripCommand)})) return false
+  process.stdout.write("heartbeat\\n", () => publishMarker(${JSON.stringify(dripWritten)}, "written"))
+  return true
+}
+const commandWatcher = watch(dirname(${JSON.stringify(dripCommand)}), () => {
+  if (publishHeartbeat()) commandWatcher.close()
+})
+publishMarker(${JSON.stringify(dripReady)}, "ready")
+if (publishHeartbeat()) commandWatcher.close()
+setInterval(() => {}, 60000)
+`,
+  )
+  const logNoProgressMinutes = 0.03
+  const logPollSeconds = 0.2
+  const logProgress = launch("log-progress", launchConfig({ ...stubEngine(DRIP), timeouts: { hardCeilingMinutes: 0.1, noProgressMinutes: logNoProgressMinutes, pollSeconds: logPollSeconds } }))
+  const logProgressEnvironment = githubAuthEnv()
+  const logProgressProcess = launchAsync(
+    logProgress.path,
     ["--issue", "ORB-201", "--worktree", logProgress.worktree, "--prompt", logProgress.prompt],
-    { status: 1, stdout: /"outcome": "KILLED_HARD_CEILING"/ },
-    { path: logProgress.path, env: githubAuthEnv() },
+    {
+      ...logProgressEnvironment,
+      NODE_OPTIONS: `${logProgressEnvironment.NODE_OPTIONS} --require "${acknowledgementPublicationProbe.replaceAll("\\", "/")}"`,
+      ORBIT_TEST_SUPERVISION_CLOCK: supervisionClock,
+    },
+  )
+  await Promise.race([
+    Promise.all([
+      waitForFile(dripReady, "ready", logProgressProcess.result),
+      waitForFile(supervisionClockReady, "ready", logProgressProcess.result),
+    ]),
+    logProgressProcess.result.then((result) => {
+      throw new Error(`log-progress exited before publishing its ready markers: ${result.stderr || result.stdout}`)
+    }),
+  ])
+  const noProgressMs = logNoProgressMinutes * 60 * 1000
+  const publishClockAndWaitForSample = async (record, expectedSample) => {
+    const publishedByteLength = Buffer.byteLength(readFileSync(supervisionClock, "utf8")) + Buffer.byteLength(record)
+    const acknowledgement = `${supervisionClock}.sampled-${publishedByteLength}`
+    rmSync(acknowledgement, { force: true })
+    appendFileSync(supervisionClock, record)
+    const publication = await waitForAcknowledgementPublication(acknowledgement, logProgressProcess.result)
+    T(
+      `${TOOL}: a sampler acknowledgement is atomically published`,
+      !publication.observedIncomplete,
+      `the reader observed incomplete contents in ${acknowledgement}`,
+    )
+    return readFileSync(acknowledgement, "utf8")
+  }
+  // The first virtual interval stays one millisecond inside the cap. Empty and invalid records are
+  // then the newest complete publications while the heartbeat resets the retained clock value.
+  const previousClockValue = supervisionStart + noProgressMs - 1
+  const afterEmptyRecord = await publishClockAndWaitForSample(`${previousClockValue}\n\n`, previousClockValue)
+  T(
+    `${TOOL}: an empty clock record retains the previous non-zero value`,
+    afterEmptyRecord === String(previousClockValue),
+    `the sampler reported ${afterEmptyRecord} instead of ${previousClockValue}`,
+  )
+  if (logProgressProcess.child.exitCode === null) {
+    publishMarker(dripCommand, "write one heartbeat")
+    await waitForFile(dripWritten, "written", logProgressProcess.result)
+    const afterInvalidRecord = await publishClockAndWaitForSample("invalid\n", previousClockValue)
+    T(
+      `${TOOL}: an invalid clock record retains the previous non-zero value`,
+      afterInvalidRecord === String(previousClockValue),
+      `the sampler reported ${afterInvalidRecord} instead of ${previousClockValue}`,
+    )
+    if (logProgressProcess.child.exitCode === null) {
+      const nextClockValue = supervisionStart + (noProgressMs * 2) - 2
+      await publishClockAndWaitForSample(`${nextClockValue}\n`, nextClockValue)
+      const afterPartialRecord = await publishClockAndWaitForSample(`${supervisionStart + (noProgressMs * 4)}`, nextClockValue)
+      T(
+        `${TOOL}: a truncated trailing clock record is ignored until publication completes`,
+        afterPartialRecord === String(nextClockValue) && logProgressProcess.child.exitCode === null,
+        `the sampler reported ${afterPartialRecord} instead of ${nextClockValue}, or shortened the worker's life`,
+      )
+    }
+  }
+  const dripped = await logProgressProcess.result
+  T(
+    `${TOOL}: a worker appending to its own log resets the injected stall clock`,
+    dripped.status === 1 && /"outcome": "KILLED_HARD_CEILING"/.test(dripped.stdout),
+    `exit ${dripped.status}: ${dripped.stderr || dripped.stdout}`,
   )
   discardLog(dripped.stdout)
 
@@ -219,7 +521,7 @@ export const cases = () => {
    * count as progress in that configuration: a flooding hung worker would otherwise hold the stall
    * clock open all the way to the ceiling, the exact ORB-201 shape. */
   const uncapped = launch("log-uncapped", (() => {
-    const config = launchConfig({ ...stubEngine(DRIP), timeouts: { hardCeilingMinutes: 0.1, noProgressMinutes: 0.03, pollSeconds: 0.2 } })
+    const config = launchConfig({ ...stubEngine(UNBOUNDED_LOG_DRIP), timeouts: { hardCeilingMinutes: 0.1, noProgressMinutes: 0.03, pollSeconds: 0.2 } })
     delete config.caps.workerLogMegabytes
     return config
   })())
@@ -264,29 +566,110 @@ export const cases = () => {
   discardLog(quiet.stdout)
 
   const wakeObservation = stage("launch-worker/wake-observation.json", "")
+  const wakeAuthEntered = stage("launch-worker/wake-auth-entered", "")
+  rmSync(wakeAuthEntered, { force: true })
+  const wakeAuthRelease = stage("launch-worker/wake-auth-release", "")
+  rmSync(wakeAuthRelease, { force: true })
+  const wakeAuthGate = stage("launch-worker/wake-auth-gate.cjs", "")
   const wakeObserver = stage("launch-worker/wake-observer.cjs", "")
   const observedLaunch = launch("wake-cleanup", launchConfig({ ...stubEngine(wakeObserver) }))
+  const wakeHooks = join(observedLaunch.base, ".claude", "hooks")
+  mkdirSync(join(observedLaunch.base, ".git"), { recursive: true })
+  mkdirSync(wakeHooks, { recursive: true })
+  cpSync(join(TOOLS_DIR, "..", ".claude", "hooks", "_lib"), join(wakeHooks, "_lib"), { recursive: true })
+  cpSync(join(TOOLS_DIR, "..", ".claude", "hooks", "require-wake-source.mjs"), join(wakeHooks, "require-wake-source.mjs"))
+  const wakeSessionId = "launch-worker-replacement"
+  writeFileSync(
+    join(observedLaunch.base, ".git", "orbit-orchestrate-run.json"),
+    JSON.stringify({ sessionId: wakeSessionId, sleep: true, remaining: ["ORB-202"] }),
+  )
+  writeFileSync(wakeAuthGate, `const { existsSync, renameSync, writeFileSync } = require("node:fs")
+const argv = process.argv.slice(1)
+if (argv[0] && existsSync(argv[0])) return
+if (!argv.join(" ").includes("auth token --user test-owner")) process.exit(9)
+const unpublishedPath = ${JSON.stringify(wakeAuthEntered)} + "." + process.pid + ".unpublished"
+writeFileSync(unpublishedPath, "authentication unresolved")
+renameSync(unpublishedPath, ${JSON.stringify(wakeAuthEntered)})
+while (!existsSync(${JSON.stringify(wakeAuthRelease)})) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20)
+}
+process.stdout.write("test-github-token")
+process.exit(0)
+`)
   writeFileSync(wakeObserver, `const { existsSync, readFileSync, writeFileSync } = require("node:fs")
+const { spawnSync } = require("node:child_process")
 const { join } = require("node:path")
 const recordPath = join(${JSON.stringify(observedLaunch.base)}, ".git", "orbit-wake-sources", process.ppid + ".json")
+const hookPath = join(${JSON.stringify(wakeHooks)}, "require-wake-source.mjs")
 const deadline = setTimeout(() => process.exit(1), 10000)
 const poll = setInterval(() => {
   if (!existsSync(recordPath)) return
-  writeFileSync(${JSON.stringify(wakeObservation)}, JSON.stringify({ recordPath, source: JSON.parse(readFileSync(recordPath, "utf8")) }))
+  const source = JSON.parse(readFileSync(recordPath, "utf8"))
+  if (source.workerPid !== process.pid) return
+  const stopped = spawnSync(process.execPath, [hookPath], {
+    input: JSON.stringify({ session_id: ${JSON.stringify(wakeSessionId)}, stop_hook_active: false }),
+    encoding: "utf8",
+    windowsHide: true,
+  })
+  writeFileSync(${JSON.stringify(wakeObservation)}, JSON.stringify({
+    recordPath,
+    source,
+    observerPid: process.pid,
+    stopStatus: stopped.status,
+    stopStderr: stopped.stderr,
+  }))
   clearTimeout(deadline)
   clearInterval(poll)
 }, 50)
 `)
-  const observed = check(
-    TOOL,
-    "a real launcher registers its identity while its worker runs and exits normally",
-    ["--issue", "ORB-201", "--worktree", observedLaunch.worktree, "--prompt", observedLaunch.prompt],
-    { status: 0, stdout: /"exitCode": 0/ },
-    { path: observedLaunch.path, env: githubAuthEnv() },
+  const observedArgv = ["--issue", "ORB-201", "--worktree", observedLaunch.worktree, "--prompt", observedLaunch.prompt]
+  const observedProcess = launchAsync(observedLaunch.path, observedArgv, {
+    GH_BIN: process.execPath,
+    ORCA_BIN: process.execPath,
+    NODE_OPTIONS: `--require "${wakeAuthGate.replaceAll("\\", "/")}"`,
+  })
+  const pendingRecordPath = join(observedLaunch.base, ".git", "orbit-wake-sources", `${observedProcess.child.pid}.json`)
+  let observed
+  try {
+    await waitForFile(wakeAuthEntered, "authentication unresolved", observedProcess.result)
+    const pendingSource = existsSync(pendingRecordPath) ? JSON.parse(readFileSync(pendingRecordPath, "utf8")) : null
+    const pendingStop = spawnSync(process.execPath, [join(wakeHooks, "require-wake-source.mjs")], {
+      input: JSON.stringify({ session_id: wakeSessionId, stop_hook_active: false }),
+      encoding: "utf8",
+      windowsHide: true,
+    })
+    T(
+      `${TOOL}: while authentication is unresolved the launcher has a fresh pending wake source`,
+      pendingSource?.pending === true &&
+        pendingSource.workerPid === null &&
+        pendingSource.pid === observedProcess.child.pid &&
+        typeof pendingSource.processStartIdentity === "string",
+      JSON.stringify(pendingSource),
+    )
+    T(
+      `${TOOL}: the pending launcher record lets the Stop adapter allow before child spawn`,
+      pendingStop.status === 0,
+      `exit ${pendingStop.status}: ${pendingStop.stderr || pendingStop.stdout}`,
+    )
+  } finally {
+    publishMarker(wakeAuthRelease, "release authentication")
+    observed = await observedProcess.result
+  }
+  T(
+    `${TOOL}: a real launcher registers its identity while its worker runs and exits normally`,
+    observed.status === 0 && /"exitCode": 0/.test(observed.stdout),
+    `exit ${observed.status}: ${observed.stderr || observed.stdout}`,
   )
   discardLog(observed.stdout)
   const observation = JSON.parse(readFileSync(wakeObservation, "utf8"))
   T(`${TOOL}: the running launcher record includes its OS start identity`, typeof observation.source.processStartIdentity === "string")
+  T(
+    `${TOOL}: spawning the child replaces the pending record with its real pid and the Stop adapter still allows`,
+    observation.source.pending !== true &&
+      observation.source.workerPid === observation.observerPid &&
+      observation.stopStatus === 0,
+    JSON.stringify(observation),
+  )
   T(`${TOOL}: after a real launch exits its observed wake record is gone`, !existsSync(observation.recordPath), observation.recordPath)
 
   const ceiling = launch("ceiling", launchConfig({ ...stubEngine(SLEEPER), timeouts: { hardCeilingMinutes: 0.02, noProgressMinutes: 5, pollSeconds: 0.2 } }))

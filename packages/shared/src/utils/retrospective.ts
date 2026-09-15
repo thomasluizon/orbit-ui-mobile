@@ -6,14 +6,6 @@ import {
 } from '../types/gamification'
 import type { z } from 'zod'
 
-export const RETROSPECTIVE_PERIODS = [
-  'week',
-  'month',
-  'quarter',
-  'semester',
-  'year',
-] as const
-
 const RETROSPECTIVE_WEEKDAY_KEYS = [
   'monday',
   'tuesday',
@@ -34,8 +26,6 @@ export type RetrospectiveMetrics = z.infer<typeof retrospectiveMetricsSchema>
 
 export type RetrospectiveResponse = z.infer<typeof retrospectiveResponseSchema>
 
-export const RETROSPECTIVE_CACHE_PREFIX = 'orbit_retrospective_cache_'
-
 export function buildRetrospectiveRequestUrl(
   period: RetrospectivePeriod,
   language: string,
@@ -46,10 +36,6 @@ export function buildRetrospectiveRequestUrl(
   })
 
   return `${API.habits.retrospective}?${params.toString()}`
-}
-
-export function getRetrospectiveCacheKey(period: RetrospectivePeriod): string {
-  return `${RETROSPECTIVE_CACHE_PREFIX}${period}`
 }
 
 /** Selects the first strongest weekday from the API's Monday-through-Sunday percentages. */

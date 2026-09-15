@@ -1,6 +1,14 @@
 export { achievementEmoji } from './achievement-emoji'
 export { createClientId } from './client-id'
-export { parseAPIDate, formatAPIDate, resolveHabitDetailRouteDate } from './dates'
+export {
+  parseAPIDate,
+  formatAPIDate,
+  formatAPIDateInTimeZone,
+  getAccountDateTime,
+  nowDate,
+  resolveHabitDetailRouteDate,
+  type AccountDateTime,
+} from './dates'
 export {
   buildHabitHistoryMonth,
   appendHabitDetailChild,
@@ -31,7 +39,13 @@ export {
   type HabitDetailChildDateModel,
   type HabitStripModel,
 } from './habit-detail-flow'
-export { buildCalendarMonthModel } from './calendar-month'
+export { buildCalendarMonthModel, deriveCalendarStats } from './calendar-month'
+export {
+  CALENDAR_MONTH_GRID_GEOMETRY,
+  CALENDAR_MONTH_GRID_RESERVED_DAY_HEIGHT,
+  resolveCalendarMonthDisplayState,
+  type CalendarMonthDisplayState,
+} from './calendar-month-state'
 export {
   buildDayCellAccessibleName,
   getDayStripStateWord,
@@ -91,13 +105,21 @@ export type {
 export { plural } from './plural'
 export { buildRecentChatHistory } from './chat-history'
 export {
+  CALENDAR_NOT_CONNECTED_ERROR_CODE,
+  CALENDAR_RECONNECT_REQUIRED_ERROR_CODE,
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
+  resolveCalendarEventsGrantRevocation,
+  type CalendarEventsGrantRevocationAction,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
+  filterCalendarSyncEventsByDate,
+  getCalendarSyncClockValue,
   isCalendarAutoSyncStatusReconnectRequired,
+  isCalendarSyncConnectionActive,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
+  reconcileCalendarAutoSyncGrantRevocation,
 } from './calendar-sync'
 export type {
   CalendarSyncEvent,
@@ -242,14 +264,22 @@ export {
 } from './time-parts'
 export type { DayPeriod, TimeParts } from './time-parts'
 export { buildYearRange } from './year-range'
-export { filterRecurringEntries } from './calendar-entries'
+export {
+  CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO,
+  CALENDAR_MONTH_SWIPE_THRESHOLD,
+  filterRecurringDayMap,
+  filterRecurringEntries,
+  resolveCalendarEventsDisplayState,
+} from './calendar-entries'
+export type { CalendarEventsDisplayState } from './calendar-entries'
 export {
   CALENDAR_MONTH_MAX_RANGE_DAYS,
-  clampRangeToMaxDays,
+  buildCalendarRangeModel,
   MAX_RANGE_DAYS,
+  resolveCalendarRangeEnd,
   splitCalendarMonthRange,
 } from './calendar-range'
-export type { CalendarRangeChunk, ClampedRange } from './calendar-range'
+export type { CalendarRangeChunk, CalendarRangeModel } from './calendar-range'
 export { fetchAllPaginatedItems } from './pagination'
 export {
   buildHabitQueryString,
@@ -391,7 +421,6 @@ export {
 } from './goal-mutations'
 export {
   formatGoalMetricsDate,
-  getGoalHabitAdherenceTone,
   getGoalMetricsStatusPresentation,
 } from './goal-metrics'
 export { normalizeGoalQueryData } from './goal-query'
@@ -421,7 +450,6 @@ export type { AgentOperationOutcome } from './agent-operation-outcomes'
 export {
   calculateXpProgress,
   deriveGamificationProfileState,
-  deriveNextRewardCarrot,
   detectCrossedStreakMilestones,
   detectGamificationMilestones,
   deriveStreakFreezeState,
@@ -435,12 +463,14 @@ export {
 export type {
   GamificationMilestoneState,
   GamificationProfileDerivedState,
-  NextRewardCarrotState,
   StreakFreezeDerivedState,
   StreakFreezeFallback,
 } from './gamification-selectors'
 export {
   buildCalendarDayMap,
+  optimisticSetCalendarHabitLog,
+  rollbackOptimisticCalendarHabitLog,
+  rollbackOptimisticHabitLogs,
   buildUnresolvedBulkFailures,
   rebaseSelectedIds,
   computeHabitReorderPositions,
@@ -463,6 +493,7 @@ export {
   canNavigateToNextDay,
   getDayOffset,
   getTodayBoundary,
+  isCalendarDayLoggable,
   type TodayBoundary,
 } from './today-date'
 export type {
@@ -523,9 +554,6 @@ export type {
 export {
   buildRetrospectiveRequestUrl,
   getBestRetrospectiveWeekdayKey,
-  getRetrospectiveCacheKey,
-  RETROSPECTIVE_CACHE_PREFIX,
-  RETROSPECTIVE_PERIODS,
 } from './retrospective'
 export type {
   RetrospectivePeriod,
@@ -611,17 +639,13 @@ export {
 export type { AchievementGlyphKey, GoalDeadlineState, ProgressGoalFilter } from './progress'
 export {
   PROFILE_NAV_ITEMS,
-  isProfileNavItemLocked,
-  resolveProfileNavHint,
   shouldRedirectProfileNavItem,
 } from './profile-navigation'
 export type {
-  ProfileNavHintContext,
   ProfileNavHintMode,
   ProfileNavIconKey,
   ProfileNavItem,
   ProfileNavSection,
-  ProfileNavTranslationAdapter,
   ProfileNavVariant,
 } from './profile-navigation'
 export * from './step-up'

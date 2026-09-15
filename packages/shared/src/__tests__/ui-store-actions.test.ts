@@ -49,19 +49,15 @@ describe('ui store toggles and setters', () => {
     expect(store.getState().manuallySelectedIds.size).toBe(0)
   })
 
-  it('updates the modal flags', () => {
+  it('updates the habit modal flag without carrying standalone goal creation', () => {
     const store = createStoreHarness()
-    const {
-      setShowCreateModal,
-      setShowCreateGoalModal,
-    } = store.getState()
+    expect(store.getState()).not.toHaveProperty('showCreateGoalModal')
+    const { setShowCreateModal } = store.getState()
 
     setShowCreateModal(true)
-    setShowCreateGoalModal(true)
 
     expect(store.getState()).toMatchObject({
       showCreateModal: true,
-      showCreateGoalModal: true,
     })
   })
 

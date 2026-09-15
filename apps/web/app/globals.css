@@ -257,6 +257,10 @@
   color: var(--status-bad);
 }
 
+.orbit-menu-item[data-destructive] .orbit-menu-label {
+  color: var(--status-bad-text);
+}
+
 .orbit-menu-item:disabled {
   cursor: not-allowed;
   opacity: 0.4;
@@ -787,18 +791,6 @@ button {
 @keyframes gentle-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
-}
-
-/* Retrospective weekly-consistency bars: rise from the baseline */
-@keyframes bar-rise {
-  from { transform: scaleY(0); }
-  to { transform: scaleY(1); }
-}
-@media (prefers-reduced-motion: no-preference) {
-  .retro-weekly-bar {
-    transform-origin: bottom;
-    animation: bar-rise var(--dur-base) var(--ease-out) both;
-  }
 }
 
 @keyframes orbit-pulse {

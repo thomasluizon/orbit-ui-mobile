@@ -47,7 +47,6 @@ describe('adapter query retry policy', () => {
 
   it.each([
     { name: 'API keys', endpoint: API.apiKeys.list, useHook: (client: QueryClient) => useApiKeyManagement({ hasProAccess: true, queryClient: client, t: (key) => key }).apiKeysQuery.error },
-    { name: 'AI capabilities', endpoint: API.ai.capabilities, useHook: (client: QueryClient) => useApiKeyManagement({ hasProAccess: true, queryClient: client, t: (key) => key }).capabilitiesQuery.error },
     { name: 'billing', endpoint: API.subscription.billing, useHook: () => useBilling(true).error },
     { name: 'calendar month', endpoint: API.habits.calendarMonth, useHook: () => useCalendarData(new Date(2026, 8, 1)).error },
     { name: 'reschedule suggestion', endpoint: API.habits.rescheduleSuggestion('habit-1'), useHook: () => useRescheduleSuggestion({ habitId: 'habit-1', locale: 'en', enabled: true }).error },

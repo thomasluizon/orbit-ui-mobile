@@ -64,7 +64,7 @@ describe('StreakBadge (mobile)', () => {
     pushMock.mockClear()
   })
 
-  it('stays visible at streak 0 and still routes to the streak page', () => {
+  it('stays visible at streak 0 and still routes to Progresso', () => {
     const tree = renderBadge({ streak: 0 })
     const [button] = findButton(tree.root)
     expect(button).toBeTruthy()
@@ -81,7 +81,7 @@ describe('StreakBadge (mobile)', () => {
     expect(typeof button.props.accessibilityLabel).toBe('string')
   })
 
-  it('navigates to the streak page on press', () => {
+  it('navigates to Progresso on press', () => {
     const tree = renderBadge({ streak: 5 })
     const [button] = findButton(tree.root)
     TestRenderer.act(() => {

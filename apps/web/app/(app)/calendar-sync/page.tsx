@@ -88,7 +88,10 @@ function CalendarSyncPageContent() {
   const [previousEventsKey, setPreviousEventsKey] = useState<string | null>(null)
   const [visibleCount, setVisibleCount] = useState(EVENTS_PAGE_SIZE)
 
-  const eventsQuery = useCalendarEvents({ enabled: isProUser && !isReviewMode })
+  const eventsQuery = useCalendarEvents({
+    enabled: isProUser && !isReviewMode,
+    timeZone: profile?.timeZone ?? null,
+  })
   const autoSyncStateQuery = useCalendarAutoSyncState({ enabled: isProUser })
   const googleConnected = autoSyncStateQuery.data?.hasGoogleConnection === true
   const suggestionsQuery = useCalendarSyncSuggestions({ enabled: isProUser && isReviewMode })
@@ -291,7 +294,7 @@ function CalendarSyncPageContent() {
       )}
 
       {step === 'not-connected' && !isReviewMode && (
-        <div className="flex flex-col items-center justify-center gap-5 pt-12" role="status" aria-live="polite">
+        <div className="flex flex-col items-center justify-center gap-4 pt-12" role="status" aria-live="polite">
           <div
             className="flex items-center justify-center rounded-full"
             style={{
@@ -325,6 +328,7 @@ function CalendarSyncPageContent() {
               {t('calendar.notConnectedDesc')}
             </p>
           </div>
+          {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
           <PillButton
             onClick={() => {
               void handleConnect()
@@ -413,7 +417,7 @@ function CalendarSyncPageContent() {
               {events.length > visibleCount && (
                 <div
                   className="flex flex-col items-center"
-                  style={{ gap: 8, padding: '14px 20px 0' }}
+                  style={{ gap: 8, padding: '12px 16px 0' }}
                 >
                   <button
                     type="button"
@@ -442,7 +446,7 @@ function CalendarSyncPageContent() {
                 </div>
               )}
 
-              <div className="md:flex md:justify-center" style={{ padding: '18px 20px 0' }}>
+              <div className="md:flex md:justify-center" style={{ padding: '16px 16px 0' }}>
                 <PillButton
 
                   disabled={selectedIds.size === 0 || !isOnline}
@@ -490,7 +494,7 @@ function CalendarSyncPageContent() {
                 fontSize: 18,
                 fontWeight: 500,
                 color: 'var(--fg-1)',
-                marginBottom: 6,
+                marginBottom: 4,
               }}
             >
               {t('calendar.importDone')}
@@ -512,6 +516,7 @@ function CalendarSyncPageContent() {
               ))}
             </div>
           )}
+          {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
           <PillButton onClick={() => router.push('/')}>
             {t('calendar.goToHabits')}
           </PillButton>
@@ -537,7 +542,7 @@ function CalendarSyncPageContent() {
                 fontSize: 18,
                 fontWeight: 500,
                 color: 'var(--fg-1)',
-                marginBottom: 6,
+                marginBottom: 4,
               }}
             >
               {t('calendar.errorTitle')}
@@ -554,6 +559,7 @@ function CalendarSyncPageContent() {
             </p>
           </div>
           <div className="flex gap-3">
+            {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
             <PillButton onClick={handleRetry}>{t('calendar.retry')}</PillButton>
             <PillButton variant="ghost" onClick={() => goBackOrFallback('/profile')}>
               {t('common.goBack')}

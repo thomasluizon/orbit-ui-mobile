@@ -71,6 +71,7 @@ import { AstraConversation } from '@/components/chat/conversation'
 import { Composer } from '@/components/shell/composer'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useOffline } from '@/hooks/use-offline'
+import { PushNotificationsProvider } from '@/hooks/use-push-notifications'
 import { captureError } from '@/lib/sentry'
 import { ThrottleScreen } from '@/components/throttle-screen'
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
@@ -86,10 +87,7 @@ const SLIDE_FROM_RIGHT_SCREENS = [
   'ai-settings',
   'advanced',
   'support',
-  'achievements',
-  'streak',
   'upgrade',
-  'retrospective',
   'wrapped',
   'calendar-sync',
   'step-up',
@@ -182,6 +180,14 @@ function RootStackScreens({
   )
 }
 
+function getNoNavigationNotice(
+  isAuthenticated: boolean,
+  topSegment: string | undefined,
+) {
+  if (!isAuthenticated || topSegment === 'wrapped') return undefined
+  return <OfflineNotice />
+}
+
 function RootLayoutNav() {
   const { t } = useTranslation()
   const router = useRouter()
@@ -220,6 +226,7 @@ function RootLayoutNav() {
     topSegment === 'chat' ||
     topSegment === 'step-up' ||
     topSegment === 'upgrade' ||
+    topSegment === 'wrapped' ||
     topSegment === 'privacy' ||
     topSegment === 'terms' ||
     topSegment === 'r'
@@ -325,7 +332,7 @@ function RootLayoutNav() {
           <Shell412
             nav={false}
             safeAreaTop={pathname === '/search'}
-            notice={isAuthenticated ? <OfflineNotice /> : undefined}
+            notice={getNoNavigationNotice(isAuthenticated, topSegment)}
           >
             <RootStackScreens
               screenBackgroundColor={surfaces.screen.backgroundColor}
@@ -557,7 +564,9 @@ function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Providers>
-        <RootLayoutContent />
+        <PushNotificationsProvider>
+          <RootLayoutContent />
+        </PushNotificationsProvider>
       </Providers>
     </GestureHandlerRootView>
   )

@@ -22,7 +22,7 @@ interface ShareCardPanelProps {
   displayName?: string
 }
 
-/** Recap share preview: period selector → recap fetch → branded ShareCard + share/download. Reused by Profile + Retrospective. */
+/** Recap share preview: period selector, recap fetch, branded ShareCard, and share or download. */
 export function ShareCardPanel({ open, onOpenChange, displayName }: Readonly<ShareCardPanelProps>) {
   const t = useTranslations()
   const [period, setPeriod] = useState<RecapSharePeriod>('week')
@@ -75,9 +75,10 @@ export function ShareCardPanel({ open, onOpenChange, displayName }: Readonly<Sha
 
         {!isLoading && isError && (
           <div className="flex flex-col items-center" style={{ gap: 12, padding: '24px 0' }}>
-            <p role="alert" style={{ margin: 0, textAlign: 'center', fontSize: 14, color: 'var(--status-bad)' }}>
+            <p role="alert" style={{ margin: 0, textAlign: 'center', fontSize: 14, color: 'var(--status-bad-text)' }}>
               {t('shareCard.error')}
             </p>
+            {/* eslint-disable-next-line local/max-button-words -- ORB-66 owns this existing share label. */}
             <PillButton variant="ghost" onClick={() => void refetch()}>
               {t('common.retry')}
             </PillButton>
@@ -103,7 +104,7 @@ export function ShareCardPanel({ open, onOpenChange, displayName }: Readonly<Sha
               </div>
 
               {hasError && (
-                <p role="alert" style={{ margin: 0, textAlign: 'center', fontSize: 13, color: 'var(--status-bad)' }}>
+                <p role="alert" style={{ margin: 0, textAlign: 'center', fontSize: 13, color: 'var(--status-bad-text)' }}>
                   {t('shareCard.shareError')}
                 </p>
               )}

@@ -41,7 +41,7 @@ interface CalendarWeekNavProps {
 }
 
 interface CalendarLegendProps {
-  todayLabel: string;
+  loggableLabel: string;
   fullLabel: string;
   partialLabel: string;
   noneLabel: string;
@@ -54,14 +54,14 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingTop: 12,
       paddingBottom: 4,
     },
     monthLabelGroup: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 2,
+      gap: 0,
     },
     monthNavButton: {
       width: 36,
@@ -80,7 +80,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
-      paddingHorizontal: 10,
+      paddingHorizontal: 8,
     },
     weekLabelButton: {
       height: 36,
@@ -127,7 +127,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderRadius: radius.lg,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      padding: 10,
+      padding: 8,
       ...shadowsV2.shadow2,
     },
     legend: {
@@ -135,21 +135,22 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       alignItems: "center",
       justifyContent: "center",
       flexWrap: "wrap",
-      paddingHorizontal: 20,
-      paddingVertical: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
       gap: 16,
     },
     legendItem: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
+      gap: 4,
     },
-    legendDotToday: {
+    legendWellLoggable: {
       width: 12,
       height: 12,
       borderRadius: 999,
-      borderWidth: 2,
-      borderColor: tokens.primary,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgWell,
     },
     legendDotFull: {
       width: 12,
@@ -162,7 +163,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       height: 12,
       borderRadius: 999,
       borderWidth: 2,
-      borderColor: tokens.fg4,
+      borderColor: tokens.statusEmpty,
     },
     legendLabel: {
       fontFamily: 'Geist_400Regular',
@@ -207,7 +208,7 @@ export function CalendarHeader({
           pressed && styles.monthNavButtonPressed,
         ]}
       >
-        <ChevronLeft size={22} color={tokens.fg2} strokeWidth={1.8} />
+        <ChevronLeft size={20} color={tokens.fg2} strokeWidth={1.8} />
       </Pressable>
       <View style={styles.monthLabelGroup}>
         <Pressable
@@ -251,7 +252,7 @@ export function CalendarHeader({
           pressed && styles.monthNavButtonPressed,
         ]}
       >
-        <ChevronRight size={22} color={tokens.fg2} strokeWidth={1.8} />
+        <ChevronRight size={20} color={tokens.fg2} strokeWidth={1.8} />
       </Pressable>
 
       <Modal
@@ -298,7 +299,7 @@ export function CalendarWeekNav({
           pressed && styles.monthNavButtonPressed,
         ]}
       >
-        <ChevronLeft size={22} color={tokens.fg2} strokeWidth={1.8} />
+        <ChevronLeft size={20} color={tokens.fg2} strokeWidth={1.8} />
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -324,14 +325,14 @@ export function CalendarWeekNav({
           pressed && styles.monthNavButtonPressed,
         ]}
       >
-        <ChevronRight size={22} color={tokens.fg2} strokeWidth={1.8} />
+        <ChevronRight size={20} color={tokens.fg2} strokeWidth={1.8} />
       </Pressable>
     </View>
   );
 }
 
 export function CalendarLegend({
-  todayLabel,
+  loggableLabel,
   fullLabel,
   partialLabel,
   noneLabel,
@@ -344,16 +345,12 @@ export function CalendarLegend({
   return (
     <View ref={legendRef} collapsable={false} style={styles.legend}>
       <View style={styles.legendItem}>
-        <View testID="calendar-legend-today" style={styles.legendDotToday} />
-        <Text style={styles.legendLabel}>{todayLabel}</Text>
-      </View>
-      <View style={styles.legendItem}>
         <View testID="calendar-legend-full" style={styles.legendDotFull} />
         <Text style={styles.legendLabel}>{fullLabel}</Text>
       </View>
       <View style={styles.legendItem}>
         <Svg testID="calendar-legend-partial" width={12} height={12}>
-          <Circle cx={6} cy={6} r={5} fill="none" stroke={tokens.fg4} strokeWidth={2} />
+          <Circle cx={6} cy={6} r={5} fill="none" stroke={tokens.statusEmpty} strokeWidth={2} />
           <Circle cx={6} cy={6} r={5} fill="none" stroke={tokens.primary} strokeDasharray={[Math.PI * 5, Math.PI * 10]} strokeLinecap="round" strokeWidth={2} rotation={-90} origin="6, 6" />
         </Svg>
         <Text style={styles.legendLabel}>{partialLabel}</Text>
@@ -361,6 +358,10 @@ export function CalendarLegend({
       <View style={styles.legendItem}>
         <View testID="calendar-legend-none" style={styles.legendDotNone} />
         <Text style={styles.legendLabel}>{noneLabel}</Text>
+      </View>
+      <View style={styles.legendItem}>
+        <View testID="calendar-legend-loggable" style={styles.legendWellLoggable} />
+        <Text style={styles.legendLabel}>{loggableLabel}</Text>
       </View>
     </View>
   );

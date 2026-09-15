@@ -204,7 +204,7 @@ function createStyles(tokens: AppTokens) {
       textDecorationColor: tokens.hairlineStrong,
     },
     placeholder: { color: tokens.fg4 },
-    error: { color: tokens.statusBad, fontFamily: 'Geist_400Regular', fontSize: 14 },
+    error: { color: tokens.statusBadText, fontFamily: 'Geist_400Regular', fontSize: 14 },
     preview: {
       gap: 16,
       padding: 24,

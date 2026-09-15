@@ -1,3 +1,4 @@
+import type { Ref } from 'react'
 import { Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
@@ -8,8 +9,6 @@ import {
   type WrappedSlide as WrappedSlideModel,
 } from '@orbit/shared/utils'
 import { ShareCard } from '@/components/share/share-card'
-import { PillButton } from '@/components/ui/pill-button'
-import { useShareCard } from '@/hooks/use-share-card'
 import { styles, type Tokens } from '@/app/wrapped-styles'
 
 const WEEKDAY_KEYS = [
@@ -34,10 +33,11 @@ interface WrappedSlideProps {
   period: RecapSharePeriod
   tokens: Tokens
   displayName?: string
+  shareRef: Ref<View>
+  shareError: boolean
 }
 
-/** Renders a single Orbit Wrapped story slide; the final `share` slide embeds the #197 ShareCard and its CTA. */
-export function WrappedSlide({ slide, recap, period, tokens, displayName }: Readonly<WrappedSlideProps>) {
+export function WrappedSlide({ slide, recap, period, tokens, displayName, shareRef, shareError }: Readonly<WrappedSlideProps>) {
   const { t } = useTranslation()
 
   switch (slide.id) {
@@ -129,7 +129,7 @@ export function WrappedSlide({ slide, recap, period, tokens, displayName }: Read
         </View>
       )
     case 'share':
-      return <WrappedShareSlide recap={recap} tokens={tokens} displayName={displayName} />
+      return <WrappedShareSlide recap={recap} tokens={tokens} displayName={displayName} shareRef={shareRef} hasError={shareError} />
   }
 }
 
@@ -195,11 +195,12 @@ interface WrappedShareSlideProps {
   recap: Recap
   tokens: Tokens
   displayName?: string
+  shareRef: Ref<View>
+  hasError: boolean
 }
 
-function WrappedShareSlide({ recap, tokens, displayName }: Readonly<WrappedShareSlideProps>) {
+function WrappedShareSlide({ recap, tokens, displayName, shareRef, hasError }: Readonly<WrappedShareSlideProps>) {
   const { t } = useTranslation()
-  const { shareRef, isSharing, hasError, share } = useShareCard()
 
   return (
     <View style={styles.shareSlide} testID="wrapped-slide-share">
@@ -220,18 +221,6 @@ function WrappedShareSlide({ recap, tokens, displayName }: Readonly<WrappedShare
         </Animated.Text>
       ) : null}
 
-      <Animated.View entering={enter(3)} style={styles.shareCtaWrap}>
-        <PillButton
-
-          loading={isSharing}
-          disabled={isSharing}
-          onClick={() => void share(t('shareCard.shareTitle'))}
-
-
-        >
-          {t('shareCard.share')}
-        </PillButton>
-      </Animated.View>
     </View>
   )
 }

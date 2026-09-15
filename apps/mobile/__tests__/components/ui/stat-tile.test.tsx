@@ -27,8 +27,8 @@ describe('StatTile (mobile)', () => {
     TestRenderer.act(() => {
       tree = TestRenderer.create(<StatTile  value={12} label="Total" />)
     })
-    const texts = tree.root.findAllByType('Text').map((node: any) => node.props.children)
-    expect(texts).toContain(12)
+    const value = tree.root.findAllByType('Text').find((node: any) => node.props.children === 12)
+    expect(StyleSheet.flatten(value.props.style).fontVariant).toEqual(['tabular-nums'])
   })
 
   it.each(['dark', 'light'] as const)('keeps empty text above the normal-text contrast floor in %s', (mode) => {

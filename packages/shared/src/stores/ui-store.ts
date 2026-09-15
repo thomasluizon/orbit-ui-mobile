@@ -115,8 +115,6 @@ export interface UIStoreState {
 
   showCreateModal: boolean;
   setShowCreateModal: (show: boolean) => void;
-  showCreateGoalModal: boolean;
-  setShowCreateGoalModal: (show: boolean) => void;
 
   /** Transient shell state. These values are deliberately excluded from persistence. */
   todayFabHidden: boolean;
@@ -360,8 +358,6 @@ export function createUIStoreState(
 
     showCreateModal: false,
     setShowCreateModal: (show) => set({ showCreateModal: show }),
-    showCreateGoalModal: false,
-    setShowCreateGoalModal: (show) => set({ showCreateGoalModal: show }),
     todayFabHidden: false,
     setTodayFabHidden: (hidden) => set({ todayFabHidden: hidden }),
     astraConversationOpen: false,

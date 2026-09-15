@@ -47,4 +47,24 @@ export const styles = StyleSheet.create({
     lineHeight: 19.6,
     marginBottom: 12,
   },
+  timeZoneOptions: {
+    gap: 8,
+  },
+  timeZoneSearch: {
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  timeZoneSearchLabel: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+  },
+  timeZoneEmpty: {
+    fontFamily: 'Geist_400Regular',
+    fontSize: 14,
+    paddingHorizontal: 4,
+    paddingVertical: 16,
+  },
+  timeZoneMore: {
+    alignItems: 'flex-start',
+  },
 })

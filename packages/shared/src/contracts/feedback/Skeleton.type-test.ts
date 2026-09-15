@@ -12,12 +12,22 @@ type Assert<T extends true> = T
 type ExpectedSkeletonGap = 0 | 4 | 8 | 12 | 16 | 24 | 32 | 48 | 64 | 96
 
 type RowVariant = Extract<SkeletonProps, { rows?: never; label: string; grouped?: never }>
+type SettingsVariant = Extract<SkeletonProps, { variant: 'settings'; label: string; grouped?: never }>
 type GridVariant = Extract<SkeletonProps, { variant: 'grid'; label: string; grouped?: never }>
 type ExpectedRowVariant = {
-  variant: 'habit-row' | 'settings' | 'stat-tile'
+  variant: 'habit-row' | 'stat-tile'
   label: string
   grouped?: never
   rows?: never
+  cols?: never
+  cell?: never
+  gap?: never
+}
+type ExpectedSettingsVariant = {
+  variant: 'settings'
+  label: string
+  grouped?: never
+  rows?: number
   cols?: never
   cell?: never
   gap?: never
@@ -34,8 +44,9 @@ type ExpectedGridVariant = {
 
 export type SkeletonTypeContract = [
   Assert<IsExactWidth<RowVariant, ExpectedRowVariant>>,
+  Assert<IsExactWidth<SettingsVariant, ExpectedSettingsVariant>>,
   Assert<IsExactWidth<GridVariant, ExpectedGridVariant>>,
-  Assert<IsExactWidth<SkeletonProps['variant'], ExpectedRowVariant['variant'] | 'grid'>>,
+  Assert<IsExactWidth<SkeletonProps['variant'], ExpectedRowVariant['variant'] | 'settings' | 'grid'>>,
   Assert<IsExactWidth<SkeletonProps['label'], string | undefined>>,
   Assert<IsExactWidth<SkeletonProps['grouped'], true | undefined>>,
   Assert<IsExactWidth<SkeletonProps['rows'], number | undefined>>,
@@ -44,6 +55,7 @@ export type SkeletonTypeContract = [
   Assert<IsExactWidth<SkeletonProps['gap'], ExpectedSkeletonGap | undefined>>,
   Assert<IsExact<{ variant: 'habit-row'; label: 'Loading habits' }, SkeletonProps>>,
   Assert<IsExact<{ variant: 'settings'; label: 'Loading settings' }, SkeletonProps>>,
+  Assert<IsExact<{ variant: 'settings'; label: 'Loading settings'; rows: 8 }, SkeletonProps>>,
   Assert<IsExact<{ variant: 'stat-tile'; label: 'Loading stats' }, SkeletonProps>>,
   Assert<IsExact<{ variant: 'grid'; label: 'Loading calendar'; rows: 6; cols: 7; cell: 40; gap: 8 }, SkeletonProps>>,
   Assert<IsExact<{ variant: 'stat-tile'; grouped: true }, SkeletonProps>>,
@@ -69,8 +81,8 @@ export type SkeletonTypeContract = [
   Assert<IsExact<{ variant: 'grid'; label: 'Loading'; rows: 6; cols: 7; gap: 8 }, SkeletonProps>>,
   // @ts-expect-error grid requires gap
   Assert<IsExact<{ variant: 'grid'; label: 'Loading'; rows: 6; cols: 7; cell: 40 }, SkeletonProps>>,
-  // @ts-expect-error non-grid variants reject rows
-  Assert<IsExact<{ variant: 'settings'; label: 'Loading'; rows: 2 }, SkeletonProps>>,
+  // @ts-expect-error non-settings row variants reject rows
+  Assert<IsExact<{ variant: 'habit-row'; label: 'Loading'; rows: 2 }, SkeletonProps>>,
   // @ts-expect-error non-grid variants reject cols
   Assert<IsExact<{ variant: 'settings'; label: 'Loading'; cols: 2 }, SkeletonProps>>,
   // @ts-expect-error non-grid variants reject cell

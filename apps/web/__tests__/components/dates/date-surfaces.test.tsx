@@ -1,6 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { DayCellWords } from '@orbit/shared/contracts/dates'
+import {
+  closeChrome,
+  registerChromeLaunchHook,
+  type Browser,
+  type BrowserLaunch,
+} from '@/__tests__/support/chromium'
 import { DayCell } from '@/components/dates/day-cell'
 import { DayStrip } from '@/components/dates/day-strip'
 import { EventRow } from '@/components/dates/event-row'
@@ -11,11 +17,8 @@ const cellWords: DayCellWords = {
   partial: 'partial',
   full: 'full',
   notScheduled: 'not scheduled',
-  unavailable: 'not loaded',
-  future: 'upcoming',
   of: 'of',
   today: 'today',
-  selected: 'selected',
   readOnly: 'read only',
 }
 
@@ -39,6 +42,9 @@ describe('DayStrip', () => {
     ])
     expect(screen.getByRole('img', { name: 'Mon 1, complete' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Wed 3, rest' })).toBeInTheDocument()
+    expect(container.querySelector('[data-state="missed"]')).toHaveStyle({
+      boxShadow: 'inset 0 0 0 1px var(--status-empty)',
+    })
   })
 
   it('marks only the account today entry as current', () => {
@@ -70,26 +76,14 @@ describe('DayCell', () => {
     expect(button).toHaveAttribute('data-outcome', 'partial')
   })
 
-  it('renders read-only, selected, outside, and derived outcomes on the cell itself', () => {
-    const { container, rerender } = render(
-      <DayCell day={13} label="March 13" words={cellWords} outcome="future" selected />,
-    )
-
-    const cell = screen.getByRole('img', { name: 'March 13, upcoming, selected, read only' })
-    expect(cell).toHaveAttribute('data-selected')
-    expect(cell.parentElement).toBe(container)
-
-    rerender(<DayCell day={13} label="March 13" words={cellWords} outcome="unavailable" />)
-    expect(screen.getByRole('img', { name: 'March 13, not loaded, read only' })).toHaveAttribute(
-      'data-outcome',
-      'unavailable',
-    )
-
-    rerender(<DayCell day={14} label="March 14" words={cellWords} scheduled={0} />)
-    expect(screen.getByRole('img', { name: 'March 14, not scheduled, read only' })).toHaveAttribute(
+  it('renders read-only, unscheduled, and outside outcomes from counts', () => {
+    const { container, rerender } = render(<DayCell day={14} label="March 14" words={cellWords} done={0} scheduled={0} />)
+    const unscheduled = screen.getByRole('img', { name: 'March 14, not scheduled, read only' })
+    expect(unscheduled).toHaveAttribute(
       'data-outcome',
       'not-scheduled',
     )
+    expect(unscheduled.firstElementChild).toHaveStyle({ background: 'transparent' })
 
     rerender(<DayCell day={30} label="April 30" words={cellWords} outsideMonth />)
     expect(container.firstElementChild).toHaveAttribute('aria-hidden', 'true')
@@ -98,30 +92,79 @@ describe('DayCell', () => {
 
   it('draws the partial arc from the exact completion fraction', () => {
     const { container, rerender } = render(
-      <DayCell day={15} label="March 15" words={cellWords} scheduled={4} done={1} />,
+      <DayCell day={15} label="March 15" words={cellWords} scheduled={3} done={1} />,
     )
-    expect(container.querySelectorAll('circle')[1]).toHaveAttribute('stroke-dasharray', '25 100')
+    expect(container.querySelectorAll('circle')[0]).toHaveAttribute('stroke', 'var(--status-empty)')
+    expect(container.querySelectorAll('circle')[1]).toHaveAttribute('stroke-dasharray', `${(1 / 3) * 100} 100`)
 
-    rerender(<DayCell day={15} label="March 15" words={cellWords} scheduled={4} done={3} />)
-    expect(container.querySelectorAll('circle')[1]).toHaveAttribute('stroke-dasharray', '75 100')
+    rerender(<DayCell day={15} label="March 15" words={cellWords} scheduled={3} done={2} />)
+    expect(container.querySelectorAll('circle')[1]).toHaveAttribute('stroke-dasharray', `${(2 / 3) * 100} 100`)
   })
 
-  it('uses the quiet habit-history treatment for completed, missed, and future days', () => {
+  it('uses the quiet habit-history treatment for completed, missed, and unscheduled days', () => {
     const { container, rerender } = render(
-      <DayCell day={15} label="March 15" words={cellWords} outcome="full" habitHistory />,
+      <DayCell day={15} label="March 15" words={cellWords} done={1} scheduled={1} habitHistory />,
     )
     expect(container.querySelector('[data-outcome="full"] span span')).toHaveStyle({ color: 'var(--bg)' })
     expect(container.querySelector('span[style*="width: 3px"]')).toBeNull()
 
-    rerender(<DayCell day={16} label="March 16" words={cellWords} outcome="none" habitHistory />)
-    expect(container.querySelector('span[style*="width: 3px"]')).toBeInTheDocument()
+    rerender(<DayCell day={16} label="March 16" words={cellWords} done={0} scheduled={1} habitHistory />)
+    const missedDot = container.querySelector('span[style*="width: 3px"]')
+    expect(missedDot).toBeInTheDocument()
+    expect(missedDot?.className).toContain('bg-[var(--status-empty)]')
 
-    rerender(<DayCell day={17} label="March 17" words={cellWords} outcome="future" habitHistory />)
-    expect(container.querySelector('[data-outcome="future"] span span')).toHaveStyle({ color: 'var(--fg-4)' })
+    rerender(<DayCell day={17} label="March 17" words={cellWords} done={0} scheduled={0} habitHistory />)
+    expect(container.querySelector('[data-outcome="not-scheduled"] span')).toHaveStyle({ opacity: '0.4' })
   })
 })
 
 describe('MonthGrid', () => {
+  describe('reserved month geometry in Chromium', () => {
+    let browserLaunch: BrowserLaunch | undefined
+    let browser: Browser
+
+    registerChromeLaunchHook(beforeAll, async (launch) => {
+      browserLaunch = launch
+      browser = await browserLaunch
+    })
+
+    afterAll(async () => { await closeChrome(browserLaunch) }, 30_000)
+
+    it.each([5, 6])('keeps 44px rows and 4px gaps across a reserved %i-row month', async (rowCount) => {
+      const { container } = render(
+        <MonthGrid
+          weekdayLabels={['S', 'M', 'T', 'W', 'T', 'F', 'S']}
+          minimumDayGridHeight={284}
+          gap={4}
+        >
+          {Array.from({ length: rowCount * 7 }, (_, index) => (
+            <span key={index} style={{ display: 'block', height: 44, width: 44 }}>{index + 1}</span>
+          ))}
+        </MonthGrid>,
+      )
+      const page = await browser.newPage()
+      try {
+        await page.setContent(`<style>.grid { display: grid; }</style>${container.innerHTML}`)
+        const measured = await page.getByTestId('month-grid-days').evaluate((grid) => {
+          const children = [...grid.children]
+          const rowTops = [...new Set(children.map((child) => child.getBoundingClientRect().top))]
+          return {
+            height: grid.getBoundingClientRect().height,
+            rowSteps: rowTops.slice(1).map((top, index) => top - rowTops[index]!),
+            childHeights: [...new Set(children.map((child) => child.getBoundingClientRect().height))],
+          }
+        })
+
+        expect(measured.height).toBe(284)
+        expect(measured.childHeights).toEqual([44])
+        expect(measured.rowSteps).toHaveLength(rowCount - 1)
+        for (const rowStep of measured.rowSteps) expect(rowStep).toBeCloseTo(48, 5)
+      } finally {
+        await page.close()
+      }
+    })
+  })
+
   it('takes its columns from the weekday labels and renders children in order', () => {
     const { rerender } = render(
       <MonthGrid weekdayLabels={['M', 'T', 'W', 'T', 'F']} label="Work week">

@@ -6,7 +6,8 @@
 //
 // The run record and the wake sources are read through tools/lib/run-state.mjs rather than
 // re-derived here: launch-worker.mjs writes them with that same module, and two definitions of
-// where the files live is how one of them silently stops finding the other.
+// where the files live is how one of them silently stops finding the other. The reader admits a
+// pending launch only while its registered process identity is live and its short window is fresh.
 //
 // This hook reads local state only: the run record, receipt files, and OS process identities. It
 // never calls GitHub. The previous revision re-verified every ledger row against live GitHub

@@ -7,13 +7,13 @@ import { API } from '@orbit/shared/api'
 import { goalKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import type { Goal, PaginatedGoalResponse } from '@orbit/shared/types/goal'
 import { apiClient } from '@/lib/api-client'
-import { useUIStore } from '@/stores/ui-store'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { KeyboardAwareFlatList } from '@/components/ui/keyboard-aware-scroll-view'
 import { ListRow } from '@/components/ui/list-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { CreateGoalFromHabitSheet } from './create-goal-from-habit-sheet'
 
 interface GoalLinkingFieldProps {
   selectedGoalIds: string[]
@@ -35,9 +35,9 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [open, setOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
   const [query, setQuery] = useState('')
   const { sheetRef, closeSheet } = useSheetHost()
-  const setShowCreateGoalModal = useUIStore((state) => state.setShowCreateGoalModal)
   const { data: goals } = useQuery({ queryKey: goalKeys.lists(), queryFn: fetchGoals, staleTime: QUERY_STALE_TIMES.goals })
   const activeGoals = useMemo(() => goals?.filter((goal) => goal.status === 'Active') ?? [], [goals])
   const selectedSet = useMemo(() => new Set(selectedGoalIds), [selectedGoalIds])
@@ -46,7 +46,7 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
   const openCreateGoal = () => closeSheet(() => {
     setOpen(false)
     setQuery('')
-    setShowCreateGoalModal(true)
+    setCreating(true)
   })
 
   const renderGoal = ({ item: goal }: { item: Goal }) => {
@@ -70,6 +70,7 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
           {activeGoals.length >= 21 ? <KeyboardAwareFlatList key={query} data={filteredGoals} renderItem={renderGoal} keyExtractor={(goal) => goal.id} style={styles.virtualList} initialNumToRender={8} windowSize={5} nestedScrollEnabled keyboardShouldPersistTaps="handled" /> : filteredGoals.map((goal) => <View key={goal.id}>{renderGoal({ item: goal })}</View>)}
         </View>}
       </Sheet> : null}
+      <CreateGoalFromHabitSheet open={creating} onClose={() => setCreating(false)} />
     </>
   )
 }

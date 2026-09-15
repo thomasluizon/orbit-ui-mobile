@@ -44,7 +44,7 @@ export function CalendarHeader({
   }
 
   return (
-    <div className="shrink-0" style={{ padding: '12px 20px 16px' }}>
+    <div className="shrink-0" style={{ padding: '12px 16px 16px' }}>
       <div
         data-tour="tour-calendar-month-nav"
         className="flex items-center justify-between w-full"
@@ -56,9 +56,9 @@ export function CalendarHeader({
           onClick={onPreviousMonth}
           className="icon-btn touch-target shrink-0"
         >
-          <ChevronLeft size={22} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+          <ChevronLeft size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
         </button>
-        <div className="flex items-center" style={{ gap: 2 }}>
+        <div className="flex items-center" style={{ gap: 0 }}>
           <button
             type="button"
             aria-label={currentMonthLabel}
@@ -66,7 +66,7 @@ export function CalendarHeader({
             className="touch-target appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
             style={{
               height: 36,
-              padding: '0 10px',
+              padding: '0 8px',
               fontFamily: 'var(--font-sans)',
               fontSize: 17,
               fontWeight: 500,
@@ -85,7 +85,7 @@ export function CalendarHeader({
             className="touch-target appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
             style={{
               height: 36,
-              padding: '0 10px',
+              padding: '0 8px',
               fontFamily: 'var(--font-mono)',
               fontSize: 17,
               fontWeight: 500,
@@ -102,7 +102,7 @@ export function CalendarHeader({
           onClick={onNextMonth}
           className="icon-btn touch-target shrink-0"
         >
-          <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+          <ChevronRight size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
         </button>
       </div>
 
@@ -135,7 +135,7 @@ export function CalendarWeekNav({
   onCurrentWeek,
 }: Readonly<CalendarWeekNavProps>) {
   return (
-    <div className="shrink-0" style={{ padding: '12px 20px 16px' }}>
+    <div className="shrink-0" style={{ padding: '12px 16px 16px' }}>
       <div className="flex items-center justify-between w-full" style={{ padding: '0 4px' }}>
         <button
           type="button"
@@ -143,7 +143,7 @@ export function CalendarWeekNav({
           onClick={onPreviousWeek}
           className="icon-btn touch-target shrink-0"
         >
-          <ChevronLeft size={22} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+          <ChevronLeft size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -168,7 +168,7 @@ export function CalendarWeekNav({
           onClick={onNextWeek}
           className="icon-btn touch-target shrink-0"
         >
-          <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+          <ChevronRight size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
         </button>
       </div>
     </div>
@@ -176,7 +176,7 @@ export function CalendarWeekNav({
 }
 
 interface CalendarLegendProps {
-  todayLabel: string
+  loggableLabel: string
   fullLabel: string
   partialLabel: string
   noneLabel: string
@@ -185,7 +185,7 @@ interface CalendarLegendProps {
 /** v8 calendar legend — inline row of colored dots + labels, no section header.
  *  Items mirror the grid's day-dot vocabulary exactly. */
 export function CalendarLegend({
-  todayLabel,
+  loggableLabel,
   fullLabel,
   partialLabel,
   noneLabel,
@@ -194,18 +194,18 @@ export function CalendarLegend({
     <div
       data-tour="tour-calendar-legend"
       className="flex flex-wrap items-center justify-center"
-      style={{ padding: '14px 20px', gap: 16 }}
+      style={{ padding: '12px 16px', gap: 16 }}
     >
-      <LegendItem outcome="today" label={todayLabel} />
       <LegendItem outcome="full" label={fullLabel} />
       <LegendItem outcome="partial" label={partialLabel} />
       <LegendItem outcome="none" label={noneLabel} />
+      <LegendItem outcome="loggable" label={loggableLabel} />
     </div>
   )
 }
 
 interface LegendItemProps {
-  outcome: 'today' | 'full' | 'partial' | 'none'
+  outcome: 'full' | 'partial' | 'none' | 'loggable'
   label: string
 }
 
@@ -213,7 +213,7 @@ function LegendSwatch({ outcome }: Readonly<Pick<LegendItemProps, 'outcome'>>) {
   if (outcome === 'partial') {
     return (
       <svg aria-hidden="true" data-legend-outcome="partial" width="12" height="12" className="shrink-0 -rotate-90">
-        <circle cx="6" cy="6" r="5" fill="none" stroke="var(--fg-4)" strokeWidth="2" />
+        <circle cx="6" cy="6" r="5" fill="none" stroke="var(--status-empty)" strokeWidth="2" />
         <circle cx="6" cy="6" r="5" fill="none" pathLength="100" stroke="var(--primary)" strokeDasharray="50 100" strokeLinecap="round" strokeWidth="2" />
       </svg>
     )
@@ -221,13 +221,15 @@ function LegendSwatch({ outcome }: Readonly<Pick<LegendItemProps, 'outcome'>>) {
 
   const style = outcome === 'full'
     ? { background: 'var(--fg-1)' }
-    : { boxShadow: `inset 0 0 0 2px ${outcome === 'today' ? 'var(--primary)' : 'var(--fg-4)'}` }
+    : outcome === 'loggable'
+      ? { background: 'var(--bg-well)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }
+      : { boxShadow: 'inset 0 0 0 2px var(--status-empty)' }
   return <span aria-hidden="true" data-legend-outcome={outcome} className="rounded-full shrink-0" style={{ width: 12, height: 12, ...style }} />
 }
 
 function LegendItem({ outcome, label }: Readonly<LegendItemProps>) {
   return (
-    <span className="inline-flex items-center" style={{ gap: 6 }}>
+    <span className="inline-flex items-center" style={{ gap: 4 }}>
       <LegendSwatch outcome={outcome} />
       <span
         style={{

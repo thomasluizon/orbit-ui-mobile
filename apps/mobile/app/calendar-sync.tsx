@@ -128,6 +128,7 @@ export default function CalendarSyncScreen() {
 
   const eventsQuery = useCalendarEvents({
     enabled: hasProAccess && !isReviewMode && isOnline,
+    timeZone: profile?.timeZone ?? null,
   })
 
   const incomingEvents = useMemo<CalendarEvent[]>(() => {
@@ -476,7 +477,7 @@ export default function CalendarSyncScreen() {
             <View
               style={[styles.stateGlyphCircle, { backgroundColor: tintFromPrimary(tokens, 0.1) }]}
             >
-              <LinkIcon size={28} color={tokens.primary} strokeWidth={1.8} />
+              <LinkIcon size={24} color={tokens.primary} strokeWidth={1.8} />
             </View>
             <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
               {t('calendar.notConnectedTitle')}
@@ -484,6 +485,7 @@ export default function CalendarSyncScreen() {
             <Text style={[styles.stateText, { color: tokens.fg3 }]}>
               {t('calendar.notConnectedDesc')}
             </Text>
+            {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
             <PillButton
               onClick={() => {
                 void handleConnect()
@@ -501,7 +503,7 @@ export default function CalendarSyncScreen() {
             accessibilityLiveRegion="polite"
             accessibilityLabel={t('offline.title')}
           >
-            <WifiOff size={28} color={tokens.fg3} strokeWidth={1.4} />
+            <WifiOff size={24} color={tokens.fg3} strokeWidth={1.4} />
             <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
               {t('offline.title')}
             </Text>
@@ -628,7 +630,7 @@ export default function CalendarSyncScreen() {
                   { backgroundColor: tintFromPrimary(tokens, 0.15) },
                 ]}
               >
-                <Check size={32} color={tokens.statusDone} strokeWidth={2.2} />
+                <Check size={24} color={tokens.statusDone} strokeWidth={2.2} />
               </View>
               <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
                 {t('calendar.importDone')}
@@ -644,6 +646,7 @@ export default function CalendarSyncScreen() {
               <SettingsRow key={habit.id} label={habit.title} accessory="none" />
             ))}
             <View style={styles.actionPad}>
+              {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
               <PillButton  onClick={() => router.replace('/')}>
                 {t('calendar.goToHabits')}
               </PillButton>
@@ -663,7 +666,7 @@ export default function CalendarSyncScreen() {
                 { backgroundColor: rgbaFromHex(tokens.statusBad, 0.15) },
               ]}
             >
-              <AlertTriangle size={32} color={tokens.statusBad} strokeWidth={1.8} />
+              <AlertTriangle size={24} color={tokens.statusBad} strokeWidth={1.8} />
             </View>
             <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
               {t('calendar.errorTitle')}
@@ -672,6 +675,7 @@ export default function CalendarSyncScreen() {
               {displayedErrorMessage}
             </Text>
             <View style={styles.errorActions}>
+              {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
               <PillButton onClick={handleRetry}>{t('calendar.retry')}</PillButton>
               <PillButton variant="ghost" onClick={handleBack}>
                 {t('common.goBack')}

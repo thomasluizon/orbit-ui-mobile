@@ -8,6 +8,10 @@ vi.mock('@/components/ui/pro-badge', () => ({
   ProBadge: () => React.createElement('ProBadge', { testID: 'pro-badge' }),
 }))
 
+vi.mock('@/lib/queued-api-mutation', () => ({
+  performQueuedApiMutation: vi.fn(),
+}))
+
 const TestRenderer = require('react-test-renderer')
 
 const tokens = createTokensV2('purple', 'dark')

@@ -63,6 +63,53 @@ i18n.t('common.save')`,
       })
   }
 
+  const boundaryPaths = [
+    "apps/mobile/app/upgrade.tsx",
+    "apps/mobile/app/use-login-flow.ts",
+    "apps/mobile/components/auth/email-step.tsx",
+    "apps/mobile/components/auth/login-content.tsx",
+    "apps/mobile/components/upgrade/billing-dashboard.tsx",
+    "apps/mobile/hooks/use-login-code-entry.ts",
+    "apps/mobile/hooks/use-tour-mock-data.ts",
+    "apps/web/app/(app)/upgrade/page.tsx",
+    "apps/web/app/(auth)/login/email-step.tsx",
+    "apps/web/app/(auth)/login/login-content.tsx",
+    "apps/web/app/(auth)/login/use-login-flow.ts",
+    "apps/web/components/upgrade/billing-dashboard.tsx",
+    "apps/web/hooks/use-login-code-entry.ts",
+    "apps/web/hooks/use-tour-mock-data.ts",
+    "packages/shared/src/tour/index.ts",
+    "packages/shared/src/tour/tour-mock-data.ts",
+  ]
+  const boundaryFiles = Object.fromEntries(boundaryPaths.map((path) => [
+    path, readFileSync(join(REPO_ROOT, path), "utf8"),
+  ]))
+  for (const [path, target, replacement] of [
+    ["apps/mobile/components/auth/email-step.tsx", "t('auth.email')", "t('ticket430.mobileEmail')"],
+    ["apps/web/app/(auth)/login/email-step.tsx", "t('auth.email')", "t('ticket430.webEmail')"],
+    ["apps/mobile/components/upgrade/billing-dashboard.tsx", "t('upgrade.billing.invoices.statusPaid')", "t('ticket430.mobileBilling')"],
+    ["apps/web/components/upgrade/billing-dashboard.tsx", "t('upgrade.billing.plan.yearlyPrice'", "t('ticket430.webBilling'"],
+    ["packages/shared/src/tour/tour-mock-data.ts", "t('tour.mockData.tags.mindfulness')", "t('ticket430.sharedTour')"],
+  ]) {
+    T(`check-i18n-usage.mjs: ${path} production probe has exactly one target`, boundaryFiles[path].split(target).length === 2)
+    boundaryFiles[path] = boundaryFiles[path].replace(target, replacement)
+  }
+  const productionBoundaries = repository("production-boundaries", boundaryFiles,
+    JSON.parse(readFileSync(join(REPO_ROOT, catalogPath("en")), "utf8")),
+    JSON.parse(readFileSync(join(REPO_ROOT, catalogPath("pt-BR")), "utf8")))
+  const productionBoundaryResult = check("check-i18n-usage.mjs", "rejects missing keys at all five production module boundaries",
+    ["--root", productionBoundaries], { status: 1 })
+  for (const [path, key] of [
+    ["apps/mobile/components/auth/email-step.tsx", "ticket430.mobileEmail"],
+    ["apps/web/app/(auth)/login/email-step.tsx", "ticket430.webEmail"],
+    ["apps/mobile/components/upgrade/billing-dashboard.tsx", "ticket430.mobileBilling"],
+    ["apps/web/components/upgrade/billing-dashboard.tsx", "ticket430.webBilling"],
+    ["packages/shared/src/tour/tour-mock-data.ts", "ticket430.sharedTour"],
+  ]) {
+    T(`check-i18n-usage.mjs: rejects the ${path} production boundary probe`,
+      productionBoundaryResult.stderr.includes(`${path}:`) && productionBoundaryResult.stderr.includes(`missing ${key} in en.json, pt-BR.json`))
+  }
+
   for (const [platform, hook, key] of [
     ["web", "const t = useTranslations('common')", "save"],
     ["mobile", "const { t } = useTranslation()", "common.save"],
@@ -108,6 +155,41 @@ export function Label({ t }) { return t('save') }`,
 export function Label({ t }) { return t('save') }`)
   check("check-i18n-usage.mjs", "rejects missing keys read through a module boundary",
     ["--root", acrossModules], { status: 1, stderr: /apps\/web\/labels.tsx:1: missing common.missing/ })
+  const productionBoundary = repository("production-boundary", {
+    "apps/web/app/page.tsx": `import { Label } from '../components/label'
+function Screen() { const t = useTranslations('common'); return <Label t={t} /> }`,
+    "apps/web/components/label.tsx": "export function Label({ t }) { return t('save') }",
+    "apps/web/__tests__/label.test.tsx": `import { Label } from '../components/label'
+const echo = (key) => key
+function Probe() { return <Label t={echo} /> }`,
+  })
+  check("check-i18n-usage.mjs", "keeps a production translator proven across a module boundary despite test-only callers",
+    ["--root", productionBoundary], { status: 0, stdout: /Unresolved translation calls: 0 in 0 files[\s\S]*1 resolved calls/ })
+  const returnedCarrierBoundary = repository("returned-carrier-boundary", {
+    "apps/web/app/page.tsx": `import { Label } from '../components/label'
+import { useFlow } from '../hooks/use-flow'
+function Screen() { const flow = useFlow(); const { t } = flow; flow.submit(); return <Label t={t} /> }`,
+    "apps/web/components/label.tsx": "export function Label({ t }) { return t('save') }",
+    "apps/web/hooks/use-flow.ts": `import { useEntry } from './use-entry'
+export function useFlow() {
+  const t = useTranslations('common')
+  const entry = useEntry()
+  return { t, ...entry }
+}`,
+    "apps/web/hooks/use-entry.ts": "export function useEntry() { function submit() {}; return { submit } }",
+  })
+  check("check-i18n-usage.mjs", "keeps a translator extracted from a returned carrier before unrelated method calls",
+    ["--root", returnedCarrierBoundary], { status: 0, stdout: /Unresolved translation calls: 0 in 0 files[\s\S]*1 resolved calls/ })
+  const unprovenBoundary = repository("unproven-boundary", {
+    "apps/web/page.tsx": `import { Label } from './label'
+function Screen() { return <Label t={unknown} /> }`,
+    "apps/web/label.tsx": "export function Label({ t }) { return t('save') }",
+  })
+  check("check-i18n-usage.mjs", "reports an unproven translator across a module boundary without failing",
+    ["--root", unprovenBoundary], {
+      status: 0,
+      stdout: /Unresolved translator bindings: 1; 1 with literal keys[\s\S]*0 resolved calls/,
+    })
   const overridden = repository("overridden-prop", { "apps/web/page.tsx": `function Screen(){
 const t = useTranslations('common'); const shared = { t }; return <Child {...shared} t={useTranslations('habits')} />
 }

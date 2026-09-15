@@ -66,7 +66,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
 
 function Section({ title, children, tokens, compact = false }: Readonly<{ title: string; children: ReactNode; tokens: AppTokensV2; compact?: boolean }>) {
-  return <View accessibilityLabel={title} style={[styles.section, compact ? styles.compactSection : undefined]}><Text accessibilityRole="header" style={[compact ? styles.compactTitle : styles.sectionTitle, { color: compact ? tokens.fg2 : tokens.fg1 }]}>{title}</Text>{children}</View>
+  return <View style={[styles.section, compact ? styles.compactSection : undefined]}><Text accessibilityRole="header" style={[compact ? styles.compactTitle : styles.sectionTitle, { color: compact ? tokens.fg2 : tokens.fg1 }]}>{title}</Text>{children}</View>
 }
 
 function WindowFigureGrid({ children }: Readonly<{ children: ReactNode[] }>) {
@@ -103,7 +103,7 @@ function WindowFrame({ children, title, tokens }: Readonly<{
   tokens: AppTokensV2
 }>) {
   return (
-    <View accessibilityLabel={title} style={styles.windowSection}>
+    <View style={styles.windowSection}>
       <Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{title}</Text>
       {children}
     </View>
@@ -113,7 +113,7 @@ function WindowFrame({ children, title, tokens }: Readonly<{
 function LockedCard({ title, body, action, tokens }: Readonly<{ title: string; body: string; action: string; tokens: AppTokensV2 }>) {
   const router = useRouter()
   return (
-    <View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
+    <View testID="progress-locked-card" style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
       <View style={styles.lockHeader}><Lock size={20} strokeWidth={2} color={tokens.fg2} /><ProBadge alwaysVisible /></View>
       <View style={styles.copy}><Text style={[styles.cardTitle, { color: tokens.fg1 }]}>{title}</Text><Text style={[styles.body, { color: tokens.fg3 }]}>{body}</Text></View>
       <View style={styles.actionStart}><PillButton variant="ghost" size="sm" onClick={() => router.push(buildUpgradeHref('/progress'))}>{action}</PillButton></View>
@@ -157,18 +157,19 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens }:
   const canRepair = freeze.freezesAvailable > 0
   const dayWords = { active: t('progressScreen.streak.active'), frozen: t('progressScreen.streak.frozen'), missed: t('progressScreen.streak.missed'), today: t('progressScreen.streak.today') }
   if (canView && freeze.streakQuery.isError) {
-    return <View style={styles.streakSection}><Text accessible accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void freeze.streakQuery.refetch()}>{t('progressScreen.retry')}</PillButton>} /></View>
+    return <View style={styles.streakSection}><Text accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void freeze.streakQuery.refetch()}>{t('progressScreen.retry')}</PillButton>} /></View>
   }
   if (canView && !freeze.streakInfo) {
-    return <View style={styles.streakSection}><Text accessible accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text><Skeleton variant="habit-row" label={t('progressScreen.loading')} /></View>
+    return <View style={styles.streakSection}><Text accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text><Skeleton variant="habit-row" label={t('progressScreen.loading')} /></View>
   }
   return (
-    <View style={styles.streakSection}><Text accessible accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text>
+    <View style={styles.streakSection}><Text accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.sections.streak')}</Text>
       <View style={styles.streakFigure}><Text style={[styles.streak, { color: tokens.fg1 }]}>{new Intl.NumberFormat(i18n.language).format(currentStreak)}</Text><Text style={[styles.streakLabel, { color: tokens.fg2 }]}>{t('progressScreen.streak.currentLabel', { count: currentStreak })}</Text></View>
       <FrozenTodayStatus isFrozenToday={freeze.isFrozenToday} tokens={tokens} />
       <DayStrip size={width >= 768 ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
       {canView && freeze.streakInfo ? <FreezeBank banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} usedThisMonth={freeze.freezesUsedThisMonth} longestValue={longestStreak} longestLabel={t('progressScreen.streak.longest')} daysTowardNext={Math.max(0, 7 - freeze.daysUntilNextFreeze)} earnRateDays={7} tierValue={tier} tierLabel={t('streakDisplay.detail.tierTileLabel')} protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, i18n.language, freeze.isFrozenToday, timeZone ?? undefined)} words={{ ...dayWords, legendLabel: t('progressScreen.streak.legend'), bankedLabel: t('progressScreen.streak.banked'), usedLabel: t('progressScreen.streak.used'), nextLabel: t('progressScreen.streak.next'), nextProgressLabel: t('progressScreen.streak.nextProgress'), nextFreezeProgress: t('progressScreen.streak.nextOf', { current: Math.max(0, 7 - freeze.daysUntilNextFreeze), total: 7 }), protectedLabel: t('progressScreen.streak.protectedDays'), protectedEmpty: t('progressScreen.streak.protectedEmpty'), protectedDay: t('progressScreen.streak.protected'), protectedToday: t('progressScreen.streak.protectedToday') }} /> : <><View style={styles.tileGrid}><View style={styles.half}><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /></View><View style={styles.half}><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></View></View><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} tokens={tokens} /></>}
-      {repairDate ? <View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}><View style={styles.copy}><Text style={[styles.cardTitle, { color: tokens.fg1 }]}>{t('progressScreen.streak.repairTitle')}</Text><Text style={[styles.body, { color: tokens.fg3 }]}>{canRepair ? t('progressScreen.streak.repairBody', { count: freeze.freezesAvailable }) : t('progressScreen.streak.repairEmpty', { count: freeze.daysUntilNextFreeze })}</Text></View>{canRepair ? <View style={styles.actionStart}><PillButton loading={repair.isPending} onClick={() => repair.mutate()}>{t('progressScreen.streak.repairAction')}</PillButton></View> : null}{repair.isError ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.statusBad }]}>{t('progressScreen.streak.repairError')}</Text> : null}</View> : null}
+      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
+      {repairDate ? <View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}><View style={styles.copy}><Text style={[styles.cardTitle, { color: tokens.fg1 }]}>{t('progressScreen.streak.repairTitle')}</Text><Text style={[styles.body, { color: tokens.fg3 }]}>{canRepair ? t('progressScreen.streak.repairBody', { count: freeze.freezesAvailable }) : t('progressScreen.streak.repairEmpty', { count: freeze.daysUntilNextFreeze })}</Text></View>{canRepair ? <View style={styles.actionStart}><PillButton loading={repair.isPending} onClick={() => repair.mutate()}>{t('progressScreen.streak.repairAction')}</PillButton></View> : null}{repair.isError ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.statusBadText }]}>{t('progressScreen.streak.repairError')}</Text> : null}</View> : null}
     </View>
   )
 }
@@ -231,9 +232,11 @@ function GoalsSection({ goals, tokens, onOpenGoal }: Readonly<{ goals: readonly 
     return <GoalCard goal={item} index={index} canReorder={filter === 'all' && !reorder.isPending} onDrag={drag} onMove={move} onOpen={() => onOpenGoal(item.id)} tokens={tokens} />
   }
   return (
-    <View accessibilityLabel={t('progressScreen.sections.goals')} style={styles.goalsSection}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
+    <View style={styles.goalsSection}><Text accessibilityRole="header" style={[styles.sectionTitle, { color: tokens.fg1 }]}>{t('progressScreen.sections.goals')}</Text>
       {goals.length > 0 ? <SegmentedControl options={options} value={filter} onChange={setFilter} label={t('progressScreen.goals.views')} /> : null}
+      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {goals.length === 0 ? <EmptyState title={t('progressScreen.goals.empty')} action={<PillButton variant="ghost" onClick={() => router.push('/')}>{t('progressScreen.startHabit')}</PillButton>} /> : null}
+      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {goals.length > 0 && filtered.length === 0 ? <View style={styles.emptyLine}><Text style={[styles.body, { color: tokens.fg3 }]}>{t('progressScreen.goals.filterEmpty')}</Text><PillButton variant="ghost" size="sm" onClick={() => setFilter('all')}>{t('progressScreen.goals.clearFilter')}</PillButton></View> : null}
       {filtered.length > 0 && filter === 'all' ? <NestableDraggableFlatList data={filtered} keyExtractor={(goal) => goal.id} renderItem={renderGoal} onDragEnd={handleDragEnd} activationDistance={5} ItemSeparatorComponent={GoalSeparator} /> : null}
       {filter !== 'all' ? filtered.map((goal) => <GoalCard key={goal.id} goal={goal} index={0} canReorder={false} onMove={move} onOpen={() => onOpenGoal(goal.id)} tokens={tokens} />) : null}
@@ -384,6 +387,7 @@ export function ProgressContent() {
       <Text accessible accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.title')}</Text>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
+      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {empty ? <View style={styles.empty}><EmptyState title={t('progressScreen.empty')} action={<PillButton variant="ghost" size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></View> : null}
       {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} tokens={tokens} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} tokens={tokens} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} tokens={tokens} /><AchievementsSection profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
     </NestableScrollContainer>

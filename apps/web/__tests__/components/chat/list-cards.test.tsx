@@ -52,7 +52,7 @@ describe('Astra list cards on web', () => {
     expect(mocks.push).toHaveBeenCalledWith('/habits/habit-1')
 
     fireEvent.click(screen.getByRole('button', { name: /chat\.habitList\.log.*Water/ }))
-    expect(mocks.mutate).toHaveBeenNthCalledWith(1, { habitId: 'habit-1' })
+    expect(mocks.mutate).toHaveBeenNthCalledWith(1, { habitId: 'habit-1', intent: 'log' })
 
     fireEvent.click(screen.getByRole('button', { name: 'chat.habitList.more' }))
     expect(screen.getByText('chat.habitList.count:{"shown":4,"total":4}')).toBeInTheDocument()
@@ -63,7 +63,7 @@ describe('Astra list cards on web', () => {
     render(<HabitListCard habitList={habits} />)
 
     fireEvent.click(screen.getByRole('button', { name: /chat\.habitList\.unlog.*Water/ }))
-    expect(mocks.mutate).toHaveBeenCalledWith({ habitId: 'habit-1' })
+    expect(mocks.mutate).toHaveBeenCalledWith({ habitId: 'habit-1', intent: 'unlog' })
   })
 
   it('withholds the toggle when the occurrence is not authoritative', () => {

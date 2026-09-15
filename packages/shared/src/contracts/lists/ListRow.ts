@@ -10,11 +10,14 @@ export interface ListRowAction {
 export interface ListRowBase {
   icon?: string | ReactNode
   title: string
+  wrapTitle?: boolean
+  accessibilityLabel?: string
   description?: string
   value?: string
   trailing?: ReactNode
   danger?: boolean
   chevron?: boolean
+  href?: string
   onClick?: () => void
   inset?: boolean
 }

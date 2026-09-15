@@ -7,7 +7,7 @@ function LegendMark({ state }: Readonly<{ state: 'active' | 'frozen' | 'missed' 
   if (state === 'frozen') return <Snowflake size={16} strokeWidth={2} color="var(--status-frozen)" aria-hidden="true" />
   const style = state === 'active'
     ? { background: 'var(--fg-1)' }
-    : { boxShadow: 'inset 0 0 0 1px var(--fg-4)' }
+    : { boxShadow: 'inset 0 0 0 1px var(--status-empty)' }
   return <span aria-hidden="true" className="size-3 rounded-[8px]" style={style} />
 }
 

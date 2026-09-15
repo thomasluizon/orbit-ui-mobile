@@ -29,4 +29,12 @@ describe('StatusRing', () => {
     rerender(<StatusRing status="done" label="Done" />)
     expect(container.querySelector('svg')).not.toBeNull()
   })
+
+  it('uses the semantic empty-track token for an empty ring', () => {
+    render(<StatusRing status="empty" label="Empty" />)
+
+    expect(screen.getByRole('img', { name: 'Empty' })).toHaveStyle({
+      boxShadow: 'inset 0 0 0 2px var(--status-empty)',
+    })
+  })
 })

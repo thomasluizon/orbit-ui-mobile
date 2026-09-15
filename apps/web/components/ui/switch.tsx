@@ -16,9 +16,7 @@ export function Switch({ label, checked, onChange }: Readonly<SwitchProps>) {
       <span
         className="inline-flex h-7 w-12 items-center rounded-[14px]"
         style={{
-          background: checked
-            ? 'var(--primary)'
-            : 'color-mix(in srgb, var(--fg-1) 16%, transparent)',
+          background: checked ? 'var(--primary)' : 'var(--track-empty)',
         }}
       >
         <span

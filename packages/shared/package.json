@@ -27,12 +27,15 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:theme": "vitest run src/__tests__/theme.test.ts",
+    "update:theme-inventory": "vitest run src/__tests__/theme.test.ts -u",
     "generate:zod": "orval --config ./orval.config.ts",
     "mutation": "stryker run",
     "clean": "rm -rf dist"
   },
   "dependencies": {
     "@tanstack/query-core": "^5.101.2",
+    "@vvo/tzdb": "^6.198.0",
     "date-fns": "^4.4.0",
     "html-entities": "2.6.0",
     "marked": "18.0.9",

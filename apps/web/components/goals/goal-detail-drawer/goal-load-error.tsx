@@ -12,16 +12,17 @@ export function GoalLoadError({ onRetry }: Readonly<GoalLoadErrorProps>) {
   const t = useTranslations()
 
   return (
-    <div style={{ padding: '10px 20px 0' }}>
+    <div style={{ padding: '12px 16px 0' }}>
       <p
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 13,
+          fontSize: 14,
           color: 'var(--status-overdue-text)',
         }}
       >
         {t('goals.detail.loadError')}
       </p>
+      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       <button
         type="button"
         onClick={onRetry}
@@ -29,7 +30,7 @@ export function GoalLoadError({ onRetry }: Readonly<GoalLoadErrorProps>) {
         style={{
           minHeight: 44,
           fontFamily: 'var(--font-sans)',
-          fontSize: 13,
+          fontSize: 14,
           fontWeight: 500,
         }}
       >

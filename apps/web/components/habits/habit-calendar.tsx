@@ -102,10 +102,8 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
     partial: t('calendar.dayCell.partial'),
     full: t('calendar.dayCell.full'),
     notScheduled: t('calendar.dayCell.notScheduled'),
-    future: t('calendar.dayCell.future'),
     of: t('calendar.dayCell.of'),
     today: t('calendar.dayCell.today'),
-    selected: t('calendar.dayCell.selected'),
     readOnly: t('calendar.dayCell.readOnly'),
   }
 
@@ -147,31 +145,52 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
       </div>
 
       <MonthGrid weekdayLabels={weekdays.map((day) => day.label)} label={monthLabel} gap={4}>
-        {calendarDays.map((day) => (
-          <span key={day.dateStr} className="flex items-center justify-center">
+        {calendarDays.map((day) => {
+          const selected = selectedDate === day.dateStr
+          const future = day.isCurrentMonth && !day.isPast && !day.isToday
+          const dateLabel = `${displayDate(day.date)}${selected ? `, ${t('calendar.dayCell.selected')}` : ''}`
+          return (
+          <span
+            key={day.dateStr}
+            className="flex items-center justify-center rounded-full"
+            style={{
+              background: selected ? 'var(--primary-dim)' : 'transparent',
+              boxShadow: selected ? 'inset 0 0 0 2px var(--primary)' : 'none',
+            }}
+          >
             {day.isCurrentMonth && day.isCompleted ? (
               <DayCell
                 day={day.dayNum}
-                outcome="full"
+                done={1}
+                scheduled={1}
                 loggable
-                selected={selectedDate === day.dateStr}
                 today={day.isToday}
-                label={displayDate(day.date)}
+                label={dateLabel}
                 words={dayCellWords}
                 onPress={() => toggleDay(day.dateStr)}
               />
+            ) : future ? (
+              <span
+                role="img"
+                aria-label={`${dateLabel}, ${t('calendar.dayCell.future')}, ${t('calendar.dayCell.readOnly')}`}
+                className="inline-flex h-11 w-11 items-center justify-center font-[var(--font-mono)] text-sm tabular-nums text-[var(--fg-2)]"
+              >
+                {day.dayNum}
+              </span>
             ) : (
               <DayCell
                 day={day.dayNum}
-                outcome={day.isCurrentMonth && !day.isPast && !day.isToday ? 'future' : 'none'}
+                done={0}
+                scheduled={day.isCurrentMonth ? 1 : 0}
                 outsideMonth={!day.isCurrentMonth}
                 today={day.isToday}
-                label={displayDate(day.date)}
+                label={dateLabel}
                 words={dayCellWords}
               />
             )}
           </span>
-        ))}
+          )
+        })}
       </MonthGrid>
 
       {selectedDate && selectedDayLogs.length > 0 && (

@@ -7,11 +7,11 @@ const TestRenderer = require('react-test-renderer')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
-let showCreateGoalModal = false
 let queryGoals: Record<string, unknown>[] = []
-const setShowCreateGoalModal = vi.fn((open: boolean) => {
-  showCreateGoalModal = open
-})
+
+vi.mock('@/components/habits/create-goal-from-habit-sheet', () => ({
+  CreateGoalFromHabitSheet: 'CreateGoalFromHabitSheet',
+}))
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -34,13 +34,6 @@ vi.mock('@/lib/use-app-theme', () => ({
 vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#000000' }),
 }))
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: (state: Record<string, unknown>) => unknown) => selector({
-    showCreateGoalModal,
-    setShowCreateGoalModal,
-  }),
-}))
-
 function createGoalButton(root: { findAll: (predicate: (node: { props: Record<string, unknown>; findAll: (childPredicate: (child: { type: unknown; props: Record<string, unknown> }) => boolean) => unknown[] }) => boolean) => { props: { onPress: () => void } }[] }) {
   return root.findAll((node) =>
     node.props.accessibilityRole === 'button' &&
@@ -50,12 +43,10 @@ function createGoalButton(root: { findAll: (predicate: (node: { props: Record<st
 
 describe.each(['Today', 'habit detail'])('GoalLinkingField lifecycle from %s', () => {
   beforeEach(() => {
-    showCreateGoalModal = false
     queryGoals = []
-    setShowCreateGoalModal.mockClear()
   })
 
-  it('closes creation and reopens the picker', async () => {
+  it('opens goal creation inside the habit surface and returns to the picker', async () => {
     let tree: ReturnType<typeof TestRenderer.create>
     await TestRenderer.act(() => {
       tree = TestRenderer.create(
@@ -71,9 +62,11 @@ describe.each(['Today', 'habit detail'])('GoalLinkingField lifecycle from %s', (
     })
 
     expect(tree.root.findAllByType('Sheet')).toHaveLength(0)
-    expect(showCreateGoalModal).toBe(true)
+    expect(tree.root.findByType('CreateGoalFromHabitSheet').props.open).toBe(true)
 
-    setShowCreateGoalModal(false)
+    await TestRenderer.act(() => {
+      tree.root.findByType('CreateGoalFromHabitSheet').props.onClose()
+    })
     await TestRenderer.act(() => {
       tree.root.findByType('ListRow').props.onClick()
     })

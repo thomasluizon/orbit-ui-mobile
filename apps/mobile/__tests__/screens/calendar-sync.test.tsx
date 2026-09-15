@@ -172,28 +172,6 @@ vi.mock("@/components/ui/offline-unavailable-state", () => ({
   OfflineUnavailableState: () => null,
 }));
 
-vi.mock("@/components/ui/icons", () => {
-  const createIcon = (name: string) => (props: any) =>
-    React.createElement(name, props);
-
-  return {
-    AlertTriangle: createIcon("AlertTriangle"),
-    ArrowLeft: createIcon("ArrowLeft"),
-    Bell: createIcon("Bell"),
-    CalendarDays: createIcon("CalendarDays"),
-    Check: createIcon("Check"),
-    CheckCheck: createIcon("CheckCheck"),
-    ChevronLeft: createIcon("ChevronLeft"),
-    ChevronRight: createIcon("ChevronRight"),
-    Link: createIcon("Link"),
-    Loader2: createIcon("Loader2"),
-    RefreshCw: createIcon("RefreshCw"),
-    SquareX: createIcon("SquareX"),
-    WifiOff: createIcon("WifiOff"),
-    X: createIcon("X"),
-  };
-});
-
 vi.mock("@/components/ui/app-bar", () => ({
   AppBar: () => null,
 }));

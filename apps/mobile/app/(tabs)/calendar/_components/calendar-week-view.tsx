@@ -31,6 +31,7 @@ interface CalendarWeekViewProps {
   language: string;
   allDayLabel: string;
   nowLabel: string;
+  timeZone: string | null;
   showRecurring: boolean;
   onShowRecurringChange: (value: boolean) => void;
   showRecurringLabel: string;
@@ -57,6 +58,7 @@ export function CalendarWeekView({
   language,
   allDayLabel,
   nowLabel,
+  timeZone,
   showRecurring,
   onShowRecurringChange,
   showRecurringLabel,
@@ -104,6 +106,7 @@ export function CalendarWeekView({
           language={language}
           allDayLabel={allDayLabel}
           nowLabel={nowLabel}
+          timeZone={timeZone}
           isLoading={isLoading}
           t={t}
           tokens={tokens}
@@ -117,7 +120,7 @@ const styles = StyleSheet.create({
   toggleRowEnd: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    paddingHorizontal: 20,
-    paddingBottom: 6,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
   },
 });

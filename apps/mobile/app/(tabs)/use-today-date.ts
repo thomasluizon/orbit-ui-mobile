@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import {
   canNavigateToNextDay,
   formatAPIDate,
+  formatAPIDateInTimeZone,
   formatLocaleDate,
 } from '@orbit/shared/utils'
 
@@ -16,8 +17,11 @@ function getMillisecondsUntilNextLocalMidnight(): number {
   return Math.max(nextMidnight.getTime() - now.getTime(), 1_000)
 }
 
-function getTodayDate(): string {
-  return formatAPIDate(new Date())
+function getTodayDate(timeZone?: string | null): string {
+  const now = new Date()
+  return timeZone === undefined
+    ? formatAPIDate(now)
+    : formatAPIDateInTimeZone(now, timeZone)
 }
 
 export interface TodayDate {
@@ -34,13 +38,42 @@ export interface TodayDate {
   goToToday: () => void
 }
 
+/** The current day as a `YYYY-MM-DD` string, optionally in the account timezone. */
+export function useCurrentDate(timeZone?: string | null): string {
+  const [, setDateTick] = useState(0)
+
+  useEffect(() => {
+    let rolloverTimer: ReturnType<typeof globalThis.setTimeout> | null = null
+    const reset = () => {
+      if (rolloverTimer) globalThis.clearTimeout(rolloverTimer)
+      rolloverTimer = globalThis.setTimeout(() => {
+        setDateTick((tick) => tick + 1)
+        reset()
+      }, timeZone === undefined ? getMillisecondsUntilNextLocalMidnight() : 60_000)
+    }
+    reset()
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        setDateTick((tick) => tick + 1)
+        reset()
+      }
+    })
+    return () => {
+      if (rolloverTimer) globalThis.clearTimeout(rolloverTimer)
+      subscription.remove()
+    }
+  }, [timeZone])
+
+  return getTodayDate(timeZone)
+}
+
 export function useTodayDate(): TodayDate {
   const { i18n } = useTranslation()
   const router = useRouter()
   const { date } = useLocalSearchParams<{ date?: string | string[] }>()
   const dateParam = Array.isArray(date) ? date[0] : date
   const pinnedDateStr = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : null
-  const [today, setToday] = useState(getTodayDate)
+  const today = useCurrentDate()
   const selectedDateStr = pinnedDateStr ?? today
   const selectedDate = useMemo(
     () => new Date(`${selectedDateStr}T00:00:00`),
@@ -55,28 +88,6 @@ export function useTodayDate(): TodayDate {
     router.push(`/?date=${formatAPIDate(addDays(selectedDate, 1))}`)
   }, [router, selectedDate, selectedDateStr, today])
   const goToToday = useCallback(() => router.navigate('/'), [router])
-
-  useEffect(() => {
-    let rolloverTimer: ReturnType<typeof globalThis.setTimeout> | null = null
-    const reset = () => {
-      if (rolloverTimer) globalThis.clearTimeout(rolloverTimer)
-      rolloverTimer = globalThis.setTimeout(() => {
-        setToday(getTodayDate())
-        reset()
-      }, getMillisecondsUntilNextLocalMidnight())
-    }
-    reset()
-    const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') {
-        setToday(getTodayDate())
-        reset()
-      }
-    })
-    return () => {
-      if (rolloverTimer) globalThis.clearTimeout(rolloverTimer)
-      subscription.remove()
-    }
-  }, [])
 
   return {
     pinnedDateStr,

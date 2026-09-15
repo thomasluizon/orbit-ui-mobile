@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ProgressBar } from '@/components/ui/progress-bar'
+import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -20,6 +21,7 @@ describe('ProgressBar (mobile)', () => {
   it('exposes progress through accessibility props', async () => {
     const tree = await renderBar(0.5, 'Daily progress')
     const track = findTrack(tree)
+    expect(track.props.style[1].backgroundColor).toBe(createTokensV2('purple', 'dark').trackEmpty)
     expect(track.props.accessibilityLabel).toBe('Daily progress')
     expect(track.props.accessibilityValue).toEqual({ min: 0, max: 1, now: 0.5 })
   })

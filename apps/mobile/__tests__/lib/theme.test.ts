@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   createSurfaces,
@@ -10,6 +12,30 @@ import {
 } from '@/lib/theme'
 
 type Rgb = readonly [number, number, number]
+
+const SCHEMES = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan'] as const
+const MODES = ['dark', 'light'] as const
+
+function tokenBlock(heading: string): string {
+  const design = readFileSync(resolve(process.cwd(), '../../DESIGN.md'), 'utf8')
+  const section = design.slice(design.indexOf(heading))
+  const blockStart = section.indexOf('```') + 3
+  const blockEnd = section.indexOf('```', blockStart)
+  return section.slice(blockStart, blockEnd)
+}
+
+function documentedTokenNames(): string[] {
+  const blocks = [
+    tokenBlock('### Dark mode (the primary theme, byte-exact)'),
+    tokenBlock('### Light mode (MANDATORY, ships with every surface)'),
+  ]
+  const cssTokens = [...new Set(blocks.flatMap((block) =>
+    [...block.matchAll(/--[a-z0-9-]+/g)].map(([token]) => token),
+  ))]
+  return cssTokens.map((token) => token
+    .slice(2)
+    .replace(/-([a-z0-9])/g, (_, character: string) => character.toUpperCase()))
+}
 
 function parseColor(color: string): { channels: Rgb; alpha: number } {
   if (color.startsWith('#')) {
@@ -79,6 +105,18 @@ describe('mobile theme runtime', () => {
     setRuntimeTheme({ scheme: 'purple', themeMode: 'dark' })
   })
 
+  for (const scheme of SCHEMES) {
+    for (const mode of MODES) {
+      it(`${scheme} ${mode} emits every active token named in DESIGN.md`, () => {
+        const resolved = createTokensV2(scheme, mode)
+        for (const token of documentedTokenNames()) {
+          expect(resolved, token).toHaveProperty(token)
+          expect(resolved[token as keyof typeof resolved], token).not.toBe('')
+        }
+      })
+    }
+  }
+
   it('dark resolves the granted accent byte-exact', () => {
     const dark = createTokensV2('purple', 'dark')
 
@@ -99,15 +137,17 @@ describe('mobile theme runtime', () => {
     expect(dark.fg2).toBe('#C9C9CC')
     expect(dark.fg3).toBe('#8F8F93')
     expect(dark.fg4).toBe('#5D5D60')
+    expect(dark.trackEmpty).toBe('#7A7A7D')
     expect(dark.primary).toBe('#C4530F')
     expect(dark.primaryHover).toBe('#B74E12')
     expect(dark.primaryPressed).toBe('#A24716')
     expect(dark.primarySoft).toBe('#C85716')
+    expect(dark.primaryText).toBe('#E16D33')
     expect(dark.primaryDim).toBe('#261611')
     expect(dark.primaryRgb).toBe('196,83,15')
     expect(dark.fgOnPrimary).toBe('#FFFFFF')
     expect(dark.statusDone).toBe('#F4F4F6')
-    expect(dark.statusEmpty).toBe('#5D5D60')
+    expect(dark.statusEmpty).toBe('#7A7A7D')
     expect(dark.statusFrozen).toBe('#C9C9CC')
     expect(dark.statusOverdue).toBe('#FE9A00')
     expect(dark.statusBad).toBe('#FB2C36')
@@ -130,8 +170,10 @@ describe('mobile theme runtime', () => {
     const light = createTokensV2('purple', 'light')
 
     expect(dark.statusOverdueText).toBe(dark.statusOverdue)
-    expect(dark.statusBadText).toBe(dark.statusBad)
-    expect(light.statusBadText).toBe(light.statusBad)
+    expect(dark.statusBadText).toBe('#FF7970')
+    expect(light.statusBadText).toBe('#D70009')
+    expect(dark.statusBadText).not.toBe(dark.statusBad)
+    expect(light.statusBadText).not.toBe(light.statusBad)
     expect(light.statusOverdue).toBe('#886100')
     expect(light.statusOverdueText).toBe('#886100')
     expect(dark.fgOnBad).toBe('#020618')
@@ -158,15 +200,17 @@ describe('mobile theme runtime', () => {
     expect(light.fg2).toBe('#424247')
     expect(light.fg3).toBe('#68686D')
     expect(light.fg4).toBe('#89898D')
+    expect(light.trackEmpty).toBe('#7F7F83')
     expect(light.primary).toBe('#C4530F')
     expect(light.primaryHover).toBe('#B74E12')
     expect(light.primaryPressed).toBe('#A24716')
     expect(light.primarySoft).toBe('#C15109')
+    expect(light.primaryText).toBe('#B64900')
     expect(light.primaryDim).toBe('#F4DDD3')
     expect(light.primaryRgb).toBe('196,83,15')
     expect(light.fgOnPrimary).toBe('#FFFFFF')
     expect(light.statusDone).toBe('#1A1A1D')
-    expect(light.statusEmpty).toBe('#89898D')
+    expect(light.statusEmpty).toBe('#7F7F83')
     expect(light.statusFrozen).toBe('#424247')
     expect(light.statusOverdue).toBe('#886100')
     expect(light.statusBad).toBe('#E7000B')

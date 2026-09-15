@@ -4,7 +4,6 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
 import UpgradeScreen from '@/app/upgrade'
 import SupportScreen from '@/app/support'
-import ProfileScreen from '@/app/(tabs)/profile'
 
 vi.mock('@/components/referral/referral-card', () => ({
   ReferralCard: () => null,
@@ -65,19 +64,6 @@ const mocks = vi.hoisted(() => {
     useTrialDaysLeft: vi.fn(() => 0),
     useTrialExpired: vi.fn(() => false),
     useTrialUrgent: vi.fn(() => false),
-    useRetrospective: vi.fn(() => ({
-      data: null,
-      setData: vi.fn(),
-      isLoading: false,
-      error: null,
-      setError: vi.fn(),
-      noData: false,
-      setNoData: vi.fn(),
-      fromCache: false,
-      period: 'week',
-      setPeriod: vi.fn(),
-      generate: vi.fn(),
-    })),
     useSubscriptionPlans: vi.fn(() => ({
       plans: null,
       isLoading: false,
@@ -237,10 +223,6 @@ vi.mock('@/hooks/use-gamification', () => ({
   useStreakInfo: () => ({ data: { currentStreak: 0, isFrozenToday: false } }),
 }))
 
-vi.mock('@/hooks/use-retrospective', () => ({
-  useRetrospective: mocks.useRetrospective,
-}))
-
 vi.mock('@/hooks/use-subscription-plans', () => ({
   useSubscriptionPlans: mocks.useSubscriptionPlans,
   formatPrice: (amount: number, currency: string) => `${currency}:${amount}`,
@@ -297,67 +279,6 @@ vi.mock('@/lib/offline-queue', () => ({
 vi.mock('@/lib/plural', () => ({
   plural: mocks.plural,
 }))
-
-vi.mock('@/components/ui/icons', () => {
-  const createIcon = (name: string) => (props: Record<string, unknown>) =>
-    React.createElement(name, props)
-
-  return {
-    AdjustmentsHorizontal: createIcon('AdjustmentsHorizontal'),
-    AlertTriangle: createIcon('AlertTriangle'),
-    ArrowLeft: createIcon('ArrowLeft'),
-    ArrowUpRight: createIcon('ArrowUpRight'),
-    BadgeCheck: createIcon('BadgeCheck'),
-    BarChart3: createIcon('BarChart3'),
-    Calendar: createIcon('Calendar'),
-    CalendarDays: createIcon('CalendarDays'),
-    Check: createIcon('Check'),
-    CheckCircle: createIcon('CheckCircle'),
-    CheckCircle2: createIcon('CheckCircle2'),
-    ChevronLeft: createIcon('ChevronLeft'),
-    ChevronRight: createIcon('ChevronRight'),
-    Compass: createIcon('Compass'),
-    Clock: createIcon('Clock'),
-    CreditCard: createIcon('CreditCard'),
-    Download: createIcon('Download'),
-    Eye: createIcon('Eye'),
-    FileText: createIcon('FileText'),
-    Share2: createIcon('Share2'),
-    Flame: createIcon('Flame'),
-    Gift: createIcon('Gift'),
-    Home: createIcon('Home'),
-    Info: createIcon('Info'),
-    Lightbulb: createIcon('Lightbulb'),
-    Lock: createIcon('Lock'),
-    LogOut: createIcon('LogOut'),
-    MessageCircle: createIcon('MessageCircle'),
-    MessageSquare: createIcon('MessageSquare'),
-    Minus: createIcon('Minus'),
-    Palette: createIcon('Palette'),
-    Pencil: createIcon('Pencil'),
-    RefreshCw: createIcon('RefreshCw'),
-    RotateCcw: createIcon('RotateCcw'),
-    Settings: createIcon('Settings'),
-    ShieldCheck: createIcon('ShieldCheck'),
-    Orbit: createIcon('Orbit'),
-    Sparkles: createIcon('Sparkles'),
-    Star: createIcon('Star'),
-    Play: createIcon('Play'),
-    Plus: createIcon('Plus'),
-    Send: createIcon('Send'),
-    Snowflake: createIcon('Snowflake'),
-    Tag: createIcon('Tag'),
-    Target: createIcon('Target'),
-    TrendingUp: createIcon('TrendingUp'),
-    TriangleAlert: createIcon('TriangleAlert'),
-    User: createIcon('User'),
-    UserX: createIcon('UserX'),
-    Trash2: createIcon('Trash2'),
-    WifiOff: createIcon('WifiOff'),
-    Wrench: createIcon('Wrench'),
-    X: createIcon('X'),
-  }
-})
 
 vi.mock('react-native-svg', () => {
   const createSvg = (name: string) => (props: Record<string, unknown>) =>
@@ -419,19 +340,6 @@ describe('intentional offline UX screens', () => {
     mocks.useTrialDaysLeft.mockReturnValue(0)
     mocks.useTrialExpired.mockReturnValue(false)
     mocks.useTrialUrgent.mockReturnValue(false)
-    mocks.useRetrospective.mockReturnValue({
-      data: null,
-      setData: vi.fn(),
-      isLoading: false,
-      error: null,
-      setError: vi.fn(),
-      noData: false,
-      setNoData: vi.fn(),
-      fromCache: false,
-      period: 'week',
-      setPeriod: vi.fn(),
-      generate: vi.fn(),
-    })
     mocks.useSubscriptionPlans.mockReturnValue({
       plans: null,
       isLoading: false,
@@ -449,23 +357,6 @@ describe('intentional offline UX screens', () => {
     mocks.router.replace.mockClear()
     mocks.apiClient.mockClear()
     mocks.logout.mockClear()
-  })
-
-  it('shows an explicit offline-unavailable state for delete-account instead of live actions', async () => {
-    const tree = await renderScreen(<ProfileScreen />)
-
-    const deleteButton = tree.root.findAll((node: any) =>
-      typeof node.props?.onPress === 'function' &&
-      node.props?.accessibilityLabel === 'profile.deleteAccount.button',
-    )[0]
-
-    await TestRenderer.act(async () => {
-      deleteButton.props.onPress()
-      await Promise.resolve()
-    })
-
-    expect(tree.root.findAll((node: any) => node.props?.testID === 'error-state').length).toBeGreaterThan(0)
-    expect(tree.root.findAllByType('TextInput')).toHaveLength(0)
   })
 
   it('suppresses live-only billing and plan error cards while offline', async () => {

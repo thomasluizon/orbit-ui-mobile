@@ -207,7 +207,7 @@ export function GoalActionRow({
           fontFamily: 'var(--font-sans)',
           fontSize: 15,
           fontWeight: 400,
-          color: destructive ? 'var(--status-bad)' : 'var(--fg-1)',
+          color: destructive ? 'var(--status-bad-text)' : 'var(--fg-1)',
         }}
       >
         {label}

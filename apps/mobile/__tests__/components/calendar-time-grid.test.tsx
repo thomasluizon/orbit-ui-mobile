@@ -1,5 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
+import { StyleSheet } from "react-native";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 
@@ -11,7 +12,11 @@ import {
 
 const TestRenderer = require("react-test-renderer");
 
-type TestNode = { type: unknown; props: Record<string, any> };
+type TestNode = {
+  type: unknown;
+  props: Record<string, any>;
+  parent?: TestNode | null;
+};
 type Tree = {
   root: { findAll: (predicate: (node: TestNode) => boolean) => TestNode[] };
 };
@@ -28,8 +33,13 @@ function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry 
   };
 }
 
-function column(dateStr: string): TimeGridColumn {
-  return { date: new Date(`${dateStr}T00:00:00`), dateStr, isToday: false };
+function column(dateStr: string, isFuture = false): TimeGridColumn {
+  return {
+    date: new Date(`${dateStr}T00:00:00`),
+    dateStr,
+    isToday: false,
+    isFuture,
+  };
 }
 
 const displayTime = (time: string) => time;
@@ -42,6 +52,8 @@ function renderGrid(
   dayMap: Map<string, CalendarDayEntry[]>,
   onSelectDay = vi.fn(),
   isLoading = false,
+  formatTime = displayTime,
+  timeZone: string | null = "UTC",
 ): Tree {
   let tree: Tree;
   TestRenderer.act(() => {
@@ -50,13 +62,14 @@ function renderGrid(
         columns={columns}
         dayMap={dayMap}
         onSelectDay={onSelectDay}
-        displayTime={displayTime}
+        displayTime={formatTime}
         language="en"
-        allDayLabel="All-day"
+        allDayLabel="No set time"
         nowLabel="Now"
         isLoading={isLoading}
         t={translate}
         tokens={tokens}
+        timeZone={timeZone}
       />,
     );
   });
@@ -88,6 +101,21 @@ function collectText(node: { props?: { children?: unknown } }): unknown[] {
   });
 }
 
+function resolveStyle(style: unknown): Record<string, unknown> {
+  const value = typeof style === "function" ? style({ pressed: false }) : style;
+  return StyleSheet.flatten(value) as Record<string, unknown>;
+}
+
+function renderedAncestorHeight(node: TestNode): number | undefined {
+  let ancestor = node.parent;
+  while (ancestor) {
+    const height = resolveStyle(ancestor.props.style).height;
+    if (typeof height === "number") return height;
+    ancestor = ancestor.parent;
+  }
+  return undefined;
+}
+
 describe("CalendarTimeGrid (mobile)", () => {
   it("places a timed habit as a block in its column", () => {
     const col = column("2025-06-16");
@@ -97,6 +125,11 @@ describe("CalendarTimeGrid (mobile)", () => {
     const tree = renderGrid([col], dayMap);
 
     expect(hostsByTestID(tree, "time-grid-event")).toHaveLength(1);
+    expect(resolveStyle(hostsByTestID(tree, "time-grid-event")[0]!.props.style)).toMatchObject({
+      top: 384,
+      width: 44,
+      height: 44,
+    });
     expect(textValuesWithin(tree, "time-grid-event")).toContain("Standup");
   });
 
@@ -109,11 +142,80 @@ describe("CalendarTimeGrid (mobile)", () => {
 
     expect(hostsByTestID(tree, "time-grid-event")).toHaveLength(0);
     expect(textValuesWithin(tree, "time-grid-all-day-event")).toContain("Read");
+    expect(textValuesWithin(tree, "time-grid-any-time-label")).toContain("No set time");
+  });
+
+  it("keeps every concurrent timed-event lane 44px wide", () => {
+    const col = column("2025-06-16");
+    const dayMap = new Map<string, CalendarDayEntry[]>([[
+      col.dateStr,
+      [
+        makeEntry({ habitId: "a", dueTime: "08:00" }),
+        makeEntry({ habitId: "b", dueTime: "08:00" }),
+      ],
+    ]]);
+    const tree = renderGrid([col], dayMap);
+
+    const widths = hostsByTestID(tree, "time-grid-event").map(
+      (event) => resolveStyle(event.props.style).width,
+    );
+    expect(widths).toEqual([44, 44]);
+  });
+
+  it("dims every future day column without lowering text contrast", () => {
+    const tree = renderGrid([column("2025-06-18", true)], new Map());
+
+    expect(resolveStyle(hostsByTestID(tree, "time-grid-col-date")[0]!.props.style)).toMatchObject({
+      color: tokens.fg3,
+    });
+    expect(resolveStyle(hostsByTestID(tree, "time-grid-all-day")[0]!.props.style)).toMatchObject({
+      borderLeftColor: tokens.hairlineGhost,
+    });
+    expect(resolveStyle(hostsByTestID(tree, "time-grid-day-column")[0]!.props.style)).toMatchObject({
+      borderLeftColor: tokens.hairlineGhost,
+    });
+  });
+
+  it("renders hour marks through both 24-hour and 12-hour formatters", () => {
+    const col = column("2025-06-16");
+    const view24 = renderGrid([col], new Map(), vi.fn(), false, (time) => time);
+    expect(textValuesWithin(view24, "time-grid-hour-label")).toContain("20:00");
+
+    const view12 = renderGrid([col], new Map(), vi.fn(), false, (time) => {
+      const hour = Number(time.slice(0, 2));
+      return `${hour % 12 || 12}:00 ${hour >= 12 ? "PM" : "AM"}`;
+    });
+    expect(textValuesWithin(view12, "time-grid-hour-label")).toContain("8:00 PM");
+  });
+
+  it("positions the now line by the account timezone", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-11T10:30:00.000Z"));
+    const today = { ...column("2026-09-12"), isToday: true };
+    try {
+      const tree = renderGrid(
+        [today],
+        new Map(),
+        vi.fn(),
+        false,
+        displayTime,
+        "Pacific/Kiritimati",
+      );
+      const nowLine = tree.root.findAll(
+        (node) =>
+          typeof node.type === "string" &&
+          node.props.accessibilityLabel === "Now",
+      )[0];
+
+      expect(resolveStyle(nowLine!.props.style)).toMatchObject({ top: 24 });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("renders one column header per day in the range", () => {
     const columns = ["2025-06-16", "2025-06-17", "2025-06-18", "2025-06-19"].map(
-      column,
+      (dateStr) => column(dateStr),
     );
     const tree = renderGrid(columns, new Map());
 
@@ -133,11 +235,24 @@ describe("CalendarTimeGrid (mobile)", () => {
     const more = hostsByTestID(tree, "time-grid-all-day-more");
     expect(more).toHaveLength(1);
     expect(textValuesWithin(tree, "time-grid-all-day-more")).toContain(4);
+    const allDayCell = hostsByTestID(tree, "time-grid-all-day")[0];
+    expect(renderedAncestorHeight(allDayCell!)).toBe(127);
 
     TestRenderer.act(() => {
       more[0]!.props.onPress();
     });
     expect(onSelectDay).toHaveBeenCalledWith("2025-06-16");
+  });
+
+  it("fits one all-day chip inside the fixed band", () => {
+    const col = column("2025-06-16");
+    const tree = renderGrid(
+      [col],
+      new Map([[col.dateStr, [makeEntry({ dueTime: null })]]]),
+    );
+    const allDayCell = hostsByTestID(tree, "time-grid-all-day")[0];
+
+    expect(renderedAncestorHeight(allDayCell!)).toBe(35);
   });
 
   it("opens the tapped day from a column header", () => {

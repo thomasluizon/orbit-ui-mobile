@@ -14,8 +14,8 @@ export function CalendarLoadError({ onRetry }: Readonly<CalendarLoadErrorProps>)
     <div
       className="flex flex-col items-center text-center"
       style={{
-        gap: 14,
-        padding: '28px 18px',
+        gap: 12,
+        padding: '24px 16px',
         borderRadius: 18,
         background: 'var(--bg-card)',
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
@@ -24,6 +24,7 @@ export function CalendarLoadError({ onRetry }: Readonly<CalendarLoadErrorProps>)
       <p className="text-sm text-[var(--fg-2)]" style={{ margin: 0 }}>
         {t('calendar.loadError')}
       </p>
+      {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       <PillButton variant="ghost" onClick={onRetry}>
         {t('common.retry')}
       </PillButton>

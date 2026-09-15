@@ -2,7 +2,7 @@ import { spawn } from "node:child_process"
 import filesystem from "node:fs"
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
 import { syncBuiltinESMExports } from "node:module"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import { setTimeout as wait } from "node:timers/promises"
 
 import {
@@ -29,8 +29,8 @@ const fixture = (label) => {
   config.repos = { ...config.repos, [config.cloud.repositoryKey]: repo.path }
   const staged = stageWithConfig(`submit-cloud-${label}`, TOOL, config)
   cpSync(toolPath("check-dashes.mjs"), join(staged.base, "tools", "check-dashes.mjs"))
-  const order = stage(`submit-cloud/${label}-order.md`, "Implement the measured cloud path.\n")
-  const log = stage(`submit-cloud/${label}-codex.jsonl`, "")
+  const order = stage(`submit-cloud/${label}/order.md`, "Implement the measured cloud path.\n")
+  const log = stage(`submit-cloud/${label}/codex.jsonl`, "")
   return { ...staged, repo, order, log, codex, config }
 }
 
@@ -39,6 +39,14 @@ const argvOf = (entry) => [
   "--env", entry.config.cloud.environmentId,
   "--branch", "main",
   "--order", entry.order,
+  "--worktree", entry.repo.path,
+]
+
+const argvFor = (entry, issue, order) => [
+  "--issue", issue,
+  "--env", entry.config.cloud.environmentId,
+  "--branch", "main",
+  "--order", order,
   "--worktree", entry.repo.path,
 ]
 
@@ -351,8 +359,8 @@ export const cases = async () => {
           const receiptsDirectory = join(retryEntry.repo.path, ".git", "orbit-cloud", "receipts")
           const retries = readdirSync(receiptsDirectory).map((name) =>
             JSON.parse(readFileSync(join(receiptsDirectory, name), "utf8"))).filter((receipt) => receipt.emptyRetryOf)
-          T(`${TOOL}: ${ending} terminal resolution never replenishes the single empty-result retry`,
-            exhausted.status === 3 && exhausted.stderr.includes("CLOUD_TASK_EMPTY") &&
+          T(`${TOOL}: ${ending} second session empty routes the next attempt locally`,
+            exhausted.status === 6 && exhausted.stderr.includes("circuit breaker") &&
               executions.length === 3 && retries.length === 1 && retries[0].emptyRetryOf === firstId,
             exhausted.stdout || exhausted.stderr)
         }
@@ -369,7 +377,9 @@ export const cases = async () => {
       const executions = readFileSync(retryEntry.log, "utf8").trim().split(/\r?\n/).map(JSON.parse).filter((args) => args[1] === "exec")
       T(
         `${TOOL}: ${ending} retry cannot loop or silently readmit the ticket`,
-        third.status === 3 && third.stderr.includes("CLOUD_TASK_EMPTY") && executions.length === 2,
+        third.status === (ending === "empty" ? 6 : 3) &&
+          third.stderr.includes(ending === "empty" ? "circuit breaker" : "CLOUD_TASK_EMPTY") &&
+          executions.length === 2,
         third.stdout || third.stderr,
       )
     }
@@ -1290,6 +1300,76 @@ if (args[1] === "list") {
       concurrentResults.every((result) => [0, 2, 3].includes(result.status)) &&
       concurrentExecs.length === 1,
     `${JSON.stringify(concurrentResults)}\n${JSON.stringify(concurrentInvocations)}`,
+  )
+
+  const breaker = fixture("session-empty-breaker")
+  const breakerReceipts = join(breaker.repo.path, ".git", "orbit-cloud", "receipts")
+  mkdirSync(breakerReceipts, { recursive: true })
+  const breakerStatePath = join(dirname(breaker.order), "cloud-circuit-breaker.json")
+  const breakerTasks = [
+    ["task_e_b4981", "#499", true],
+    ["task_e_b4982", "#500", false],
+    ["task_e_b4983", "#501", true],
+  ]
+  for (const [taskId, ticket, empty] of breakerTasks) {
+    const observedAt = `2026-09-10T0${taskId.endsWith("1") ? "1" : taskId.endsWith("2") ? "2" : "3"}:00:00.000Z`
+    persistReconciledReceipt({
+      kind: "task-receipt",
+      submissionState: "confirmed",
+      taskId,
+      environmentId: breaker.config.cloud.environmentId,
+      repositoryKey: breaker.config.cloud.repositoryKey,
+      ticket,
+      orderFile: breaker.order,
+      deadline: future,
+      worktree: breaker.repo.path,
+      baseSha: "0".repeat(40),
+      terminal: { status: "ready", observedAt },
+      ...(empty
+        ? { emptyFailure: { at: observedAt, classification: "lost-work suspect" } }
+        : { materialized: { at: observedAt, status: "M  landed.txt\n", stagedStat: "1 file changed\n" } }),
+    }, join(breakerReceipts, `${taskId}.json`), [], {
+      lockTimeoutMs: breaker.config.timeouts.receiptLockSeconds * 1000,
+    })
+  }
+  const breakerOpenedBeforeAdmission = existsSync(breakerStatePath)
+  const breakerEnv = {
+    ORBIT_FAKE_CODEX_LOG: breaker.log,
+    ORBIT_FAKE_LIST: taskPage(breakerTasks.map(([taskId]) => task(taskId, "ready", 1))),
+    ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_b4984",
+  }
+  const refusedByBreaker = run(TOOL, argvFor(breaker, "#502", breaker.order), {
+    path: breaker.path,
+    env: breakerEnv,
+  })
+  const breakerInvocations = readFileSync(breaker.log, "utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse)
+  const breakerReport = refusedByBreaker.stdout ? JSON.parse(refusedByBreaker.stdout) : null
+  const breakerState = existsSync(breakerStatePath) ? JSON.parse(readFileSync(breakerStatePath, "utf8")) : null
+  T(
+    `${TOOL}: two session empty results open the breaker despite a successful result between them`,
+    refusedByBreaker.status === 6 && breakerReport?.outcome === "CLOUD_CIRCUIT_OPEN" &&
+      breakerReport.route === "local" && breakerReport.reason.includes("circuit breaker") &&
+      breakerState?.threshold === 2 && breakerState.emptyResults.length === 2 &&
+      breakerOpenedBeforeAdmission && !breakerInvocations.some((args) => args[0] === "cloud"),
+    `exit ${refusedByBreaker.status}: ${refusedByBreaker.stdout || refusedByBreaker.stderr}`,
+  )
+  T(
+    `${TOOL}: a breaker refusal durably records the ticket as routed rather than completed`,
+    breakerState?.routes[0]?.ticket === "#502" && breakerState.routes[0].outcome === "ROUTED_TO_LOCAL" &&
+      !Object.hasOwn(breakerState.routes[0], "completed"),
+    JSON.stringify(breakerState),
+  )
+
+  const freshOrder = stage("submit-cloud/fresh-session/order.md", "Implement the measured cloud path.\n")
+  const freshResult = run(TOOL, argvFor(breaker, "#503", freshOrder), {
+    path: breaker.path,
+    env: { ...breakerEnv, ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_b4985" },
+  })
+  T(
+    `${TOOL}: a fresh session starts with the breaker clear`,
+    freshResult.status === 0 && JSON.parse(freshResult.stdout).taskId === "task_e_b4985" &&
+      !existsSync(join(dirname(freshOrder), "cloud-circuit-breaker.json")),
+    `exit ${freshResult.status}: ${freshResult.stdout || freshResult.stderr}`,
   )
 
   const staleOwner = fixture("stale-owner")

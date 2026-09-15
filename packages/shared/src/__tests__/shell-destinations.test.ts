@@ -8,10 +8,7 @@ describe('resolveShellDestination', () => {
     ['/calendar', 'calendario'],
     ['/calendar-sync', 'calendario'],
     ['/goals/123', 'progresso'],
-    ['/streak', 'progresso'],
-    ['/retrospective', 'progresso'],
     ['/wrapped', 'progresso'],
-    ['/achievements', 'progresso'],
     ['/preferences', 'perfil'],
     ['/advanced', 'perfil'],
     ['/profile/security', 'perfil'],
@@ -23,7 +20,9 @@ describe('resolveShellDestination', () => {
 
   it('leaves navigation-free and unknown routes without a selected destination', () => {
     expect(resolveShellDestination('/upgrade')).toBeNull()
+    expect(resolveShellDestination('/streak')).toBeNull()
     expect(resolveShellDestination('/unknown')).toBeNull()
+    expect(resolveShellDestination('/retrospective')).toBeNull()
     expect(resolveShellDestination('/calendarized')).toBeNull()
   })
 })

@@ -13,14 +13,14 @@
  */
 
 import { spawn, spawnSync } from "node:child_process"
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, statSync } from "node:fs"
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, extname, join, resolve } from "node:path"
 
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
-import { clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
+import { clearWakeSource, registerWakeSource, reserveWorkerLaunch } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
 
@@ -35,6 +35,10 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
   --hard-ceiling-minutes <n>
                      this ticket's hard ceiling, replacing timeouts.hardCeilingMinutes for this one
                      launch. For a ticket that legitimately outruns the fleet-wide default
+  --tier <default|mechanical>
+                     worker profile for this order (default: default)
+  --relaunch-reason <text>
+                     deliberate reason for launching after this branch reaches its configured cap
   --dry-run          print the resolved plan as JSON and exit 0, spawning nothing
   --help, -h         print this usage and exit 0
 
@@ -66,8 +70,18 @@ const issueArgument = argOf("--issue")
 const worktreeArg = argOf("--worktree")
 const promptArg = argOf("--prompt")
 const hardCeilingArg = argOf("--hard-ceiling-minutes")
+const tierValue = argOf("--tier")
+const tierArgument = tierValue ?? "default"
+const relaunchReasonArgument = argOf("--relaunch-reason")
 const measurement = process.argv.includes("--measurement")
 const dryRun = process.argv.includes("--dry-run")
+
+if ((process.argv.includes("--tier") && typeof tierValue !== "string") || !new Set(["default", "mechanical"]).has(tierArgument)) {
+  fail(2, `${USAGE}\n\n--tier must be default or mechanical, got "${tierArgument}"`)
+}
+if (process.argv.includes("--relaunch-reason") && (typeof relaunchReasonArgument !== "string" || relaunchReasonArgument.startsWith("--") || relaunchReasonArgument.trim() === "")) {
+  fail(2, `${USAGE}\n\n--relaunch-reason must be non-empty text`)
+}
 
 let issue
 try {
@@ -116,10 +130,9 @@ const engineName = config.worker
 const engine = config.workers[engineName]
 if (!engine.command) fail(2, `.claude/orchestrator.json names worker "${engineName}" but carries no command for it`)
 
-/** One ticket, one worker, one model: "default" is the only tier this launcher ever resolves. */
 let invocation
 try {
-  invocation = resolveWorkerInvocation(engineName, engine, "default")
+  invocation = resolveWorkerInvocation(engineName, engine, tierArgument)
 } catch (error) {
   fail(2, error.message)
 }
@@ -154,6 +167,36 @@ if (measurement && !(Number.isFinite(measurementNoProgressMinutes) && measuremen
 }
 const noProgressMinutes = measurement ? measurementNoProgressMinutes : config.timeouts.noProgressMinutes
 const noProgressMs = noProgressMinutes * 60 * 1000
+const supervisionClockPath = process.env.ORBIT_TEST_SUPERVISION_CLOCK
+let lastCompleteSupervisionTime = null
+let supervisionSample = null
+const publishSupervisionMarker = (path, contents) => {
+  const unpublishedPath = `${path}.${process.pid}.unpublished`
+  writeFileSync(unpublishedPath, contents)
+  renameSync(unpublishedPath, path)
+}
+const supervisionNow = () => {
+  if (!supervisionClockPath) return Date.now()
+  const clockContents = readFileSync(supervisionClockPath, "utf8")
+  const records = clockContents.split("\n")
+  records.pop()
+  let sampledTime = lastCompleteSupervisionTime
+  for (let index = records.length - 1; index >= 0; index -= 1) {
+    if (records[index].trim() === "") continue
+    const clockValue = Number(records[index])
+    if (!Number.isFinite(clockValue)) continue
+    lastCompleteSupervisionTime = clockValue
+    sampledTime = clockValue
+    break
+  }
+  supervisionSample = { byteLength: Buffer.byteLength(clockContents), sampledTime }
+  return sampledTime
+}
+
+const acknowledgeSupervisionSample = () => {
+  if (!supervisionClockPath || supervisionSample === null) return
+  publishSupervisionMarker(`${supervisionClockPath}.sampled-${supervisionSample.byteLength}`, String(supervisionSample.sampledTime))
+}
 
 const workerPointer = (worktreePath, branch) =>
   `Read ${promptFile} and execute it in full. That file is your complete work order for ${issue}. You are on branch ${branch} in ${worktreePath}. Do not summarise the file back to me, start the work now.`
@@ -225,8 +268,45 @@ if (dryRun) {
   process.exit(0)
 }
 
+const gitRepositoryIdentity = (directory) => {
+  const result = spawnSync("git", ["-C", directory, "rev-parse", "--git-common-dir"], { encoding: "utf8", windowsHide: true })
+  if (result.error || result.status !== 0 || result.stdout.trim() === "") return null
+  try {
+    const identity = realpathSync.native(resolve(directory, result.stdout.trim()))
+    return process.platform === "win32" ? identity.toLowerCase() : identity
+  } catch {
+    return null
+  }
+}
+const repositoryIdentity = gitRepositoryIdentity(runDirectory)
+if (!repositoryIdentity) fail(2, `could not resolve the Git repository identity for ${runDirectory}`)
+const repositoryKey = Object.entries(config.repos ?? {}).find(([, repository]) =>
+  typeof repository === "string" && gitRepositoryIdentity(repository) === repositoryIdentity)?.[0]
+if (!repositoryKey) fail(2, `${runDirectory} does not belong to a repository configured in .claude/orchestrator.json`)
+
+const timestamp = new Date().toISOString()
+const reservation = reserveWorkerLaunch({
+  repositoryKey,
+  branch,
+  headSha: startHead,
+  tier: invocation.tier,
+  timestamp,
+  relaunchReason: relaunchReasonArgument,
+}, config.caps.workerLaunchesPerBranch, runDirectory)
+if (!reservation.allowed) {
+  const earlier = reservation.earlierLaunches.map((launch, index) =>
+    `  ${index + 1}. ${launch.timestamp} tier=${launch.tier} head=${launch.headSha}`).join("\n")
+  fail(2, `worker launch cap ${config.caps.workerLaunchesPerBranch} reached for ${repositoryKey} branch ${branch}. Earlier launches:\n${earlier}\nPass --relaunch-reason "<text>" to record and allow another launch.`)
+}
+
 console.error(`starting the ${engineName} worker for ${issue} in ${runDirectory}; log: ${logFile}`)
 const startedAt = new Date().toISOString()
+/**
+ * The orchestrator backgrounds this launcher. Register before any awaited setup or child spawn so
+ * a Stop in that launch window can observe the live launcher. The reader expires this pending form
+ * after 45 seconds, while the process identity still proves that the launcher itself really began.
+ */
+registerWakeSource({ pid: process.pid, what: `worker ${issue}`, workerPid: null, logFile, startedAt, pending: true, pendingAt: startedAt })
 const logFd = openSync(logFile, "a")
 /**
  * stdin is CLOSED, never "inherit" and never "pipe": an inherited-but-unwritten stdin pipe hangs
@@ -264,6 +344,7 @@ const child = spawn(executable, workerArgs, {
  * session with, so this pid is the run's real wake source. Registering it here is what lets the Stop
  * hook prove an unattended run has something live to wake it rather than take its word: a run that
  * ended a turn claiming "CI will wake me" with nothing scheduled ended the whole night on 2026-08-06.
+ * This overwrites the pending form now that the child pid is known.
  */
 registerWakeSource({ pid: process.pid, what: `worker ${issue}`, workerPid: child.pid ?? null, logFile, startedAt })
 
@@ -433,10 +514,11 @@ const logByteCap = Number.isFinite(logMegabyteCap) && logMegabyteCap > 0 ? logMe
  * A tree that is idle on all three for noProgressMinutes is still killed, as it must be.
  */
 let progress = progressFingerprint()
-let lastProgressAt = Date.now()
+let lastProgressAt = supervisionNow() ?? Date.now()
+if (supervisionClockPath) publishSupervisionMarker(`${supervisionClockPath}.ready`, "ready")
 let lastLogSize = 0
 let cpuBaseline = null
-const sampler = setInterval(() => {
+const sampleProgress = () => {
   let logSize = null
   try {
     logSize = statSync(logFile).size
@@ -450,7 +532,8 @@ const sampler = setInterval(() => {
     return
   }
   const noteProgress = () => {
-    lastProgressAt = Date.now()
+    const now = supervisionNow()
+    if (now !== null) lastProgressAt = now
     if (logSize !== null) lastLogSize = logSize
     cpuBaseline = null
   }
@@ -467,8 +550,11 @@ const sampler = setInterval(() => {
     noteProgress()
     return
   }
-  const cpuMs = cpuMillisecondsOfTree(child.pid)
-  const now = Date.now()
+  // An injected wall clock has no relationship to live process CPU. Clock-driven cases isolate
+  // the filesystem and log signals rather than letting real CPU reset a virtual stall interval.
+  const cpuMs = supervisionClockPath ? null : cpuMillisecondsOfTree(child.pid)
+  const now = supervisionNow()
+  if (now === null) return
   if (cpuMs !== null) {
     if (cpuBaseline === null || cpuMs < cpuBaseline.cpuMs) {
       // First silent sample, or a child exited and took its CPU time out of the snapshot. Rebase
@@ -485,6 +571,11 @@ const sampler = setInterval(() => {
   outcome = "KILLED_NO_PROGRESS"
   console.error(`${issue} has not moved HEAD, written a file, grown its log or burned CPU for ${noProgressMinutes} minutes${measurement ? " (measurement cap)" : ""}; killing the worker process tree`)
   killTree(child.pid)
+}
+const sampler = setInterval(() => {
+  supervisionSample = null
+  sampleProgress()
+  acknowledgeSupervisionSample()
 }, config.timeouts.pollSeconds * 1000)
 
 child.on("error", (error) => {

@@ -26,36 +26,6 @@ vi.mock("@/hooks/use-tour-mock-data", () => ({
   useTourMockData: () => ({ inject: vi.fn(), restore: vi.fn() }),
 }));
 
-vi.mock("@/components/ui/icons", () => {
-  const Icon = () => null;
-  return {
-    AdjustmentsHorizontal: Icon,
-    AlertTriangle: Icon,
-    ArrowLeft: Icon,
-    ArrowUpRight: Icon,
-    Check: Icon,
-    CheckCircle2: Icon,
-    ChevronLeft: Icon,
-    ChevronRight: Icon,
-    ChevronsDownUp: Icon,
-    ChevronsUpDown: Icon,
-    CreditCard: Icon,
-    Download: Icon,
-    Eye: Icon,
-    Filter: Icon,
-    Home: Icon,
-    Minus: Icon,
-    MoreVertical: Icon,
-    Plus: Icon,
-    RefreshCw: Icon,
-    Search: Icon,
-    Snowflake: Icon,
-    Target: Icon,
-    WifiOff: Icon,
-    X: Icon,
-  };
-});
-
 const asyncStorageState = vi.hoisted(() => ({
   data: new Map<string, string>(),
 }));
@@ -95,7 +65,6 @@ describe("mobile ui store", () => {
       manuallySelectedIds: new Set<string>(),
       lastCreatedHabitId: null,
       showCreateModal: false,
-      showCreateGoalModal: false,
       searchQuery: "",
     });
   });

@@ -5,6 +5,42 @@ import org.junit.Test
 
 class OrbitWidgetDayStateTest {
     @Test
+    fun `derives capacity for all four launcher sizes`() {
+        assertEquals(1, calculateWidgetGeometry(96f, 7).visibleRowCount)
+        assertEquals(3, calculateWidgetGeometry(192f, 3).visibleRowCount)
+        assertEquals(5, calculateWidgetGeometry(288f, 5).visibleRowCount)
+        assertEquals(2, calculateWidgetGeometry(192f, 4).visibleRowCount)
+    }
+
+    @Test
+    fun `reserves one fitted row when a remainder can be stated`() {
+        val fourByTwo = calculateWidgetGeometry(192f, 5)
+        assertEquals(2, fourByTwo.visibleRowCount)
+        assertEquals(3, fourByTwo.remainderCount)
+        assertEquals(true, fourByTwo.canStateRemainder)
+
+        val fourByThree = calculateWidgetGeometry(288f, 7)
+        assertEquals(4, fourByThree.visibleRowCount)
+        assertEquals(3, fourByThree.remainderCount)
+        assertEquals(true, fourByThree.canStateRemainder)
+
+        val twoByTwo = calculateWidgetGeometry(192f, 4)
+        assertEquals(2, twoByTwo.visibleRowCount)
+        assertEquals(2, twoByTwo.remainderCount)
+        assertEquals(true, twoByTwo.canStateRemainder)
+    }
+
+    @Test
+    fun `four by one never states a remainder`() {
+        for (rowCount in 2..20) {
+            val geometry = calculateWidgetGeometry(96f, rowCount)
+            assertEquals(1, geometry.visibleRowCount)
+            assertEquals(rowCount - 1, geometry.remainderCount)
+            assertEquals(false, geometry.canStateRemainder)
+        }
+    }
+
+    @Test
     fun `bad parent keeps its non-bad child in header progress`() {
         val child = habit(id = "child", isCompleted = true, isBadHabit = false)
         val badChild = habit(id = "bad-child", isCompleted = true, isBadHabit = true)

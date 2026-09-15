@@ -7,9 +7,9 @@ import { goalKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { Goal } from '@orbit/shared/types/goal'
 import { fetchJson } from '@/lib/api-fetch'
-import { useUIStore } from '@/stores/ui-store'
 import { ListRow } from '@/components/ui/list-row'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
+import { CreateGoalFromHabitSheet } from './create-goal-from-habit-sheet'
 
 const VIRTUAL_ROW_HEIGHT = 48
 const VIRTUAL_VIEWPORT_HEIGHT = 320
@@ -75,8 +75,8 @@ function GoalPickerList({ goals, selectedIds, atLimit, onToggle }: Readonly<Goal
 export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }: Readonly<GoalLinkingFieldProps>) {
   const t = useTranslations()
   const [open, setOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
   const { sheetRef, closeSheet } = useSheetHost()
-  const setShowCreateGoalModal = useUIStore((state) => state.setShowCreateGoalModal)
   const { data: goals } = useQuery({
     queryKey: goalKeys.lists(),
     queryFn: async (): Promise<Goal[]> => {
@@ -90,7 +90,7 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
   const selectedGoals = activeGoals.filter((goal) => selectedSet.has(goal.id))
   const openCreateGoal = () => closeSheet(() => {
     setOpen(false)
-    setShowCreateGoalModal(true)
+    setCreating(true)
   })
 
   return (
@@ -114,6 +114,7 @@ export function GoalLinkingField({ selectedGoalIds, atGoalLimit, onToggleGoal }:
           )}
         </Sheet>
       ) : null}
+      <CreateGoalFromHabitSheet open={creating} onClose={() => setCreating(false)} />
     </>
   )
 }

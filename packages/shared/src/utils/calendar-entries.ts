@@ -1,5 +1,15 @@
 import type { CalendarDayEntry } from '../types/calendar'
 
+export type CalendarEventsDisplayState =
+  | 'pro-boundary'
+  | 'loading'
+  | 'failed'
+  | 'not-connected'
+  | 'ready'
+
+export const CALENDAR_MONTH_SWIPE_THRESHOLD = 60
+export const CALENDAR_HORIZONTAL_SWIPE_DIRECTION_RATIO = 1.2
+
 /**
  * Filters a day's calendar entries by the "show recurring" toggle. When the
  * toggle is off, only one-time entries remain (recurring habits are hidden).
@@ -12,4 +22,37 @@ export function filterRecurringEntries(
 ): CalendarDayEntry[] {
   if (showRecurring) return entries
   return entries.filter((entry) => entry.isOneTime)
+}
+
+/** Applies the recurring preference to every date before month figures and
+ *  rings are derived, so every month surface reads the same filtered source. */
+export function filterRecurringDayMap(
+  dayMap: Map<string, CalendarDayEntry[]>,
+  showRecurring: boolean,
+): Map<string, CalendarDayEntry[]> {
+  if (showRecurring) return dayMap
+
+  const filtered = new Map<string, CalendarDayEntry[]>()
+  for (const [date, entries] of dayMap) {
+    filtered.set(date, filterRecurringEntries(entries, false))
+  }
+  return filtered
+}
+
+export function resolveCalendarEventsDisplayState({
+  enabled,
+  isPending,
+  error,
+  resultStatus,
+}: Readonly<{
+  enabled: boolean
+  isPending: boolean
+  error: Error | null
+  resultStatus: 'connected' | 'not-connected' | undefined
+}>): CalendarEventsDisplayState {
+  if (!enabled) return 'pro-boundary'
+  if (error !== null) return 'failed'
+  if (isPending) return 'loading'
+  if (resultStatus === 'not-connected') return 'not-connected'
+  return 'ready'
 }

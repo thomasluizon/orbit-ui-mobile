@@ -41,7 +41,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
       {isLoading && (
         <div
           className="flex items-center"
-          style={{ gap: 8, padding: '6px 20px 0' }}
+          style={{ gap: 8, padding: '4px 16px 0' }}
           role="status"
           aria-live="polite"
         >
@@ -55,7 +55,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
       {isError && (
         <div
           className="flex items-center"
-          style={{ gap: 8, padding: '6px 20px 0' }}
+          style={{ gap: 8, padding: '4px 16px 0' }}
           role="alert"
         >
           <span
@@ -68,6 +68,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
           >
             {t('calendar.calendars.error')}
           </span>
+          {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
           <button type="button" className="chip shrink-0" onClick={() => void refetch()}>
             {t('calendar.retry')}
           </button>
@@ -80,7 +81,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
             fontFamily: 'var(--font-sans)',
             fontSize: 14,
             color: 'var(--fg-3)',
-            padding: '6px 20px 0',
+            padding: '4px 16px 0',
           }}
         >
           {t('calendar.calendars.empty')}

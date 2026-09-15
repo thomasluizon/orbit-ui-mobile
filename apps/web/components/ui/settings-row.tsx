@@ -17,7 +17,7 @@ interface SettingsRowProps {
   leadingDot?: string
   /** Leading Tabler icon, rendered 22/1.8 centered in a 26px slot. */
   icon?: Icon
-  /** Destructive row: title and icon render in status-bad. */
+  /** Destructive row: the icon uses the graphic role and the title uses the text role. */
   danger?: boolean
   children?: ReactNode
   ariaLabel?: string
@@ -40,7 +40,8 @@ export function SettingsRow({
 }: Readonly<SettingsRowProps>) {
   const interactive = typeof onClick === 'function'
   const RootTag = interactive ? 'button' : 'div'
-  const titleColor = danger ? 'var(--status-bad)' : 'var(--fg-1)'
+  const iconColor = danger ? 'var(--status-bad)' : 'var(--fg-1)'
+  const titleColor = danger ? 'var(--status-bad-text)' : 'var(--fg-1)'
 
   return (
     <RootTag
@@ -65,7 +66,7 @@ export function SettingsRow({
           className="inline-flex justify-center shrink-0"
           style={{ width: 26 }}
         >
-          <LeadingIcon size={22} strokeWidth={1.8} color={titleColor} />
+          <LeadingIcon size={22} strokeWidth={1.8} color={iconColor} />
         </span>
       )}
       {leadingDot && (

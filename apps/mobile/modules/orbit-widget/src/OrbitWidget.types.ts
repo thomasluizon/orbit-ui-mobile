@@ -15,7 +15,6 @@ export interface WidgetThemeColors {
   border: string
   borderMuted: string
   overdue: string
-  streak: string
   streakText: string
   statusEmpty: string
 }

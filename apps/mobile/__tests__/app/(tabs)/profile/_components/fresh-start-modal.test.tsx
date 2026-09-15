@@ -10,12 +10,6 @@ const replace = vi.fn()
 const queryClientClear = vi.fn()
 const storage = vi.hoisted(() => new Map<string, string>())
 
-vi.mock('@/components/ui/icons', () => {
-  const icon = (name: string) => (props: Record<string, unknown>) =>
-    React.createElement(name, props)
-  return { Check: icon('Check'), RotateCcw: icon('RotateCcw'), X: icon('X') }
-})
-
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,

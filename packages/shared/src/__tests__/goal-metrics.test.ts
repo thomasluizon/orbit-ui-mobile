@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatGoalMetricsDate,
-  getGoalHabitAdherenceTone,
   getGoalMetricsStatusPresentation,
 } from '../utils/goal-metrics'
 
@@ -30,12 +29,5 @@ describe('goal metrics utils', () => {
       tone: 'muted',
     })
     expect(getGoalMetricsStatusPresentation('unknown')).toBeNull()
-  })
-
-  it('maps adherence rates to tone bands', () => {
-    expect(getGoalHabitAdherenceTone(90)).toBe('success')
-    expect(getGoalHabitAdherenceTone(60)).toBe('primary')
-    expect(getGoalHabitAdherenceTone(50)).toBe('primary')
-    expect(getGoalHabitAdherenceTone(10)).toBe('warning')
   })
 })
