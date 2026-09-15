@@ -10,7 +10,7 @@ import type { Profile } from '@orbit/shared/types/profile'
 const boundaryMocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   logout: vi.fn(),
-  markSessionRefreshFailed: vi.fn(),
+  confirmSessionRefreshFailure: vi.fn(),
 }))
 
 const mockFetch = vi.fn()
@@ -28,7 +28,7 @@ vi.mock('@/stores/auth-store', () => ({
   useAuthStore: {
     getState: () => ({
       logout: boundaryMocks.logout,
-      markSessionRefreshFailed: boundaryMocks.markSessionRefreshFailed,
+      confirmSessionRefreshFailure: boundaryMocks.confirmSessionRefreshFailure,
     }),
   },
 }))
@@ -103,7 +103,7 @@ describe('useProfile', () => {
     mockFetch.mockReset()
     boundaryMocks.toastError.mockClear()
     boundaryMocks.logout.mockClear()
-    boundaryMocks.markSessionRefreshFailed.mockClear()
+    boundaryMocks.confirmSessionRefreshFailure.mockClear()
   })
 
   it('fetches and returns profile data', async () => {
@@ -148,7 +148,7 @@ describe('useProfile', () => {
     expect(result.current.isSuccess).toBe(false)
     expect(result.current.profile).toBeUndefined()
     expect(apiErrorFrom(result.current.error).status).toBe(401)
-    expect(boundaryMocks.markSessionRefreshFailed).toHaveBeenCalledTimes(1)
+    expect(boundaryMocks.confirmSessionRefreshFailure).toHaveBeenCalledTimes(1)
     expect(boundaryMocks.logout).not.toHaveBeenCalled()
     expect(boundaryMocks.toastError).not.toHaveBeenCalled()
   })

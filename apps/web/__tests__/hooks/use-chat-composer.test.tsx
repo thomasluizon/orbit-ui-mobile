@@ -348,13 +348,16 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.canRetryLastSend).toBe(false)
   })
 
-  it('marks auth state when the chat BFF confirms refresh rejection', async () => {
-    mocks.fetch.mockResolvedValue(
-      Response.json(
+  it('marks auth state when revalidation confirms the chat refresh rejection', async () => {
+    mocks.fetch
+      .mockResolvedValueOnce(Response.json(
         { error: 'Unauthorized' },
         { status: 401, headers: { 'x-orbit-session-refresh': 'failed' } },
-      ),
-    )
+      ))
+      .mockResolvedValueOnce(Response.json(
+        { expiresAt: null, refreshFailed: true },
+        { status: 401 },
+      ))
     const { result } = renderHook(() => useChatComposer())
 
     await act(async () => {

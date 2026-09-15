@@ -70,7 +70,7 @@ export async function applySessionRefreshFailure(response: Response): Promise<vo
   if (!responseReportsSessionRefreshFailure(response)) return
 
   const { useAuthStore } = await import('@/stores/auth-store')
-  useAuthStore.getState().markSessionRefreshFailed()
+  await useAuthStore.getState().confirmSessionRefreshFailure()
 }
 
 export async function sessionAwareFetch(

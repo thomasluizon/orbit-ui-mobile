@@ -11,10 +11,41 @@ interface AuthState {
   sessionRefreshFailed: boolean
 
   setAuth: (loginResponse: LoginResponse) => void
-  markSessionRefreshFailed: () => void
+  confirmSessionRefreshFailure: () => Promise<void>
   checkSession: () => Promise<void>
   startExpiryMonitor: () => () => void
   logout: () => Promise<void>
+}
+
+type SessionSnapshot =
+  | { kind: 'active'; expiresAt: number }
+  | { kind: 'inactive' }
+  | { kind: 'rejected' }
+  | { kind: 'retryable' }
+
+async function readCurrentSession(): Promise<SessionSnapshot> {
+  let response: Response
+  try {
+    response = await fetch('/api/auth/session')
+  } catch {
+    return { kind: 'retryable' }
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    const session = (await response.json().catch(() => null)) as {
+      refreshFailed?: boolean
+    } | null
+    return session?.refreshFailed === true
+      ? { kind: 'rejected' }
+      : { kind: 'retryable' }
+  }
+
+  if (!response.ok) return { kind: 'retryable' }
+
+  const session = (await response.json()) as { expiresAt: number | null }
+  return typeof session.expiresAt === 'number'
+    ? { kind: 'active', expiresAt: session.expiresAt }
+    : { kind: 'inactive' }
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -35,56 +66,53 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     })
   },
 
-  markSessionRefreshFailed: () => {
-    set({
-      isAuthenticated: false,
-      user: null,
-      expiresAt: null,
-      sessionRefreshFailed: true,
-    })
+  confirmSessionRefreshFailure: async () => {
+    const session = await readCurrentSession()
+    if (session.kind === 'active') {
+      set({
+        isAuthenticated: true,
+        expiresAt: session.expiresAt,
+        sessionRefreshFailed: false,
+      })
+      return
+    }
+    if (session.kind === 'inactive') {
+      set({
+        isAuthenticated: false,
+        user: null,
+        expiresAt: null,
+        sessionRefreshFailed: false,
+      })
+      return
+    }
+    if (session.kind === 'rejected') {
+      set({
+        isAuthenticated: false,
+        user: null,
+        expiresAt: null,
+        sessionRefreshFailed: true,
+      })
+    }
   },
 
   checkSession: async () => {
-    let response: Response
-    try {
-      response = await fetch('/api/auth/session')
-    } catch {
+    const session = await readCurrentSession()
+    if (session.kind === 'rejected') {
+      await get().confirmSessionRefreshFailure()
       return
     }
-
-    if (response.status === 401 || response.status === 403) {
-      const session = (await response.json().catch(() => null)) as {
-        refreshFailed?: boolean
-      } | null
-      set({
-        isAuthenticated: false,
-        user: null,
-        expiresAt: null,
-        sessionRefreshFailed: session?.refreshFailed === true,
-      })
-      return
-    }
-
-    if (!response.ok) {
-      return
-    }
-
-    const data = (await response.json()) as {
-      expiresAt: number | null
-      refreshFailed?: boolean
-    }
-    if (data.expiresAt) {
+    if (session.kind === 'active') {
       set({
         isAuthenticated: true,
-        expiresAt: data.expiresAt,
+        expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
       })
-    } else {
+    } else if (session.kind === 'inactive') {
       set({
         isAuthenticated: false,
         user: null,
         expiresAt: null,
-        sessionRefreshFailed: data.refreshFailed === true,
+        sessionRefreshFailed: false,
       })
     }
   },

@@ -8,12 +8,12 @@ vi.mock('sonner', () => ({
 }))
 
 const mockLogout = vi.fn()
-const mockMarkSessionRefreshFailed = vi.fn()
+const mockConfirmSessionRefreshFailure = vi.fn()
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: {
     getState: () => ({
       logout: mockLogout,
-      markSessionRefreshFailed: mockMarkSessionRefreshFailed,
+      confirmSessionRefreshFailure: mockConfirmSessionRefreshFailure,
     }),
   },
 }))
@@ -54,7 +54,7 @@ describe('apiFetch', () => {
   beforeEach(() => {
     mockFetch.mockReset()
     mockLogout.mockReset()
-    mockMarkSessionRefreshFailed.mockReset()
+    mockConfirmSessionRefreshFailure.mockReset()
     mockMarkUpgradeRequired.mockReset()
     vi.mocked(toast.error).mockReset()
   })
@@ -111,7 +111,7 @@ describe('apiFetch', () => {
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(mockMarkSessionRefreshFailed).toHaveBeenCalledTimes(1)
+    expect(mockConfirmSessionRefreshFailure).toHaveBeenCalledTimes(1)
     expect(mockLogout).not.toHaveBeenCalled()
     expect(toast.error).not.toHaveBeenCalled()
   })
@@ -125,7 +125,7 @@ describe('apiFetch', () => {
     })
 
     await expect(apiFetch('/api/subscriptions/plans')).resolves.toEqual({ plans: [] })
-    expect(mockMarkSessionRefreshFailed).toHaveBeenCalledTimes(1)
+    expect(mockConfirmSessionRefreshFailure).toHaveBeenCalledTimes(1)
     expect(mockLogout).not.toHaveBeenCalled()
     expect(toast.error).not.toHaveBeenCalled()
   })
@@ -145,7 +145,7 @@ describe('apiFetch', () => {
       expect((err as ApiError).status).toBe(401)
       expect((err as ApiError).message).toBe('Unauthorized')
     }
-    expect(mockMarkSessionRefreshFailed).not.toHaveBeenCalled()
+    expect(mockConfirmSessionRefreshFailure).not.toHaveBeenCalled()
   })
 
   it('redirects to /upgrade on a 403 PAY_GATE without toast', async () => {

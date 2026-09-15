@@ -65,10 +65,15 @@ describe('auth store', () => {
     })
   })
 
-  it('marks the session as signed out after a refresh failure', () => {
+  it('marks the session as signed out after confirming a refresh rejection', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: () => Promise.resolve({ expiresAt: null, refreshFailed: true }),
+    })
     useAuthStore.getState().setAuth(makeLoginResponse())
 
-    useAuthStore.getState().markSessionRefreshFailed()
+    await useAuthStore.getState().confirmSessionRefreshFailure()
 
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: false,
@@ -197,6 +202,37 @@ describe('auth store', () => {
 
       expect(mockFetch).toHaveBeenCalledTimes(1)
       expect(mockFetch).toHaveBeenCalledWith('/api/auth/session')
+      cleanup()
+    })
+
+    it('keeps polling after a retryable 401 and recovers on the next check', async () => {
+      const expiresAt = Date.now() + 3600000
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          json: () => Promise.resolve({ expiresAt: null, refreshFailed: false }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ expiresAt, refreshFailed: false }),
+        })
+      useAuthStore.getState().setAuth(makeLoginResponse())
+
+      const cleanup = useAuthStore.getState().startExpiryMonitor()
+      await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+
+      expect(useAuthStore.getState().isAuthenticated).toBe(true)
+
+      await vi.advanceTimersByTimeAsync(60000)
+
+      expect(mockFetch).toHaveBeenCalledTimes(2)
+      expect(useAuthStore.getState()).toMatchObject({
+        isAuthenticated: true,
+        expiresAt,
+        sessionRefreshFailed: false,
+      })
       cleanup()
     })
 

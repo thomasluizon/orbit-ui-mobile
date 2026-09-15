@@ -85,6 +85,11 @@ describe('habit server actions', () => {
         status: 401,
         sessionRefreshFailed: true,
       })
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ expiresAt: null, refreshFailed: true }),
+      })
       await expect(runServerAction(Promise.resolve(serializedResult))).rejects.toThrow(
         'Unauthorized',
       )

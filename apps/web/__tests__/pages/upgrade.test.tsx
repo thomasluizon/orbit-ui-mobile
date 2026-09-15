@@ -408,7 +408,7 @@ describe('UpgradePage', () => {
     expect(JSON.parse(requestInit?.body as string)).toEqual({ interval: 'yearly' })
   })
 
-  it('enters the sign-in prompt state when checkout confirms refresh rejection', async () => {
+  it('enters the sign-in prompt state when revalidation confirms checkout rejection', async () => {
     mockPlans = {
       monthly: { unitAmount: 999 },
       yearly: { unitAmount: 4999 },
@@ -416,12 +416,19 @@ describe('UpgradePage', () => {
       savingsPercent: 58,
       couponPercentOff: null,
     }
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 401,
-      headers: new Headers({ 'x-orbit-session-refresh': 'failed' }),
-      json: async () => ({ error: 'Unauthorized' }),
-    }))
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        headers: new Headers({ 'x-orbit-session-refresh': 'failed' }),
+        json: async () => ({ error: 'Unauthorized' }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        headers: new Headers(),
+        json: async () => ({ expiresAt: null, refreshFailed: true }),
+      }))
     vi.stubGlobal('location', { href: '', pathname: '/upgrade' })
 
     render(<UpgradePage />)

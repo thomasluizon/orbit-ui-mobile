@@ -4,9 +4,9 @@ import { createApiClientError } from '@orbit/shared'
 import type { ServerActionResult } from '@/app/actions/action-result'
 import { useAuthStore } from '@/stores/auth-store'
 
-export function applyServerActionFailure<T>(result: ServerActionResult<T>): void {
+export async function applyServerActionFailure<T>(result: ServerActionResult<T>): Promise<void> {
   if (!result.ok && result.sessionRefreshFailed) {
-    useAuthStore.getState().markSessionRefreshFailed()
+    await useAuthStore.getState().confirmSessionRefreshFailure()
   }
 }
 
@@ -16,7 +16,7 @@ export async function runServerAction<T>(
   const result = await action
   if (result.ok) return result.data
 
-  applyServerActionFailure(result)
+  await applyServerActionFailure(result)
 
   throw createApiClientError(
     result.status,
