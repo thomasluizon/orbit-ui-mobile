@@ -115,16 +115,13 @@ function getRowBody(renderer: ReturnType<typeof TestRenderer.create>) {
   )[0]
 }
 
-function hasAncestor(
-  node: { parent: unknown },
-  ancestor: unknown,
-): boolean {
-  let current = node.parent as { parent: unknown } | null
-  while (current) {
-    if (current === ancestor) return true
-    current = current.parent as { parent: unknown } | null
+function resolveStyle(style: unknown): Record<string, unknown> {
+  if (Array.isArray(style)) {
+    return Object.assign({}, ...style.map(resolveStyle))
   }
-  return false
+  return style && typeof style === 'object'
+    ? (style as Record<string, unknown>)
+    : {}
 }
 
 function pressMoreButton(renderer: ReturnType<typeof TestRenderer.create>) {
@@ -140,6 +137,16 @@ describe('HabitRow menu (mobile)', () => {
     __resetTestHostConfig()
   })
 
+  it('keeps the card padding inside the row press target', () => {
+    const renderer = renderRowWithMenu()
+
+    expect(resolveStyle(getRowBody(renderer).props.style)).toMatchObject({
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      paddingRight: 0,
+    })
+  })
+
   it('keeps the menu press target outside the row press target', () => {
     const onDetail = vi.fn()
     const onLongPressCard = vi.fn()
@@ -151,7 +158,13 @@ describe('HabitRow menu (mobile)', () => {
     const rowBody = getRowBody(renderer)
     const moreButton = getMoreButton(renderer)
 
-    expect(hasAncestor(moreButton, rowBody)).toBe(false)
+    expect(
+      rowBody.findAll(
+        (node: { props: Record<string, unknown> }) =>
+          node.props.accessibilityLabel === 'habits.actions.more',
+      ),
+    ).toHaveLength(0)
+    expect(moreButton.props.accessibilityLabel).toBe('habits.actions.more')
 
     pressMoreButton(renderer)
 

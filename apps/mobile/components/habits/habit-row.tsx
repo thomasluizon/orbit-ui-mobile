@@ -195,6 +195,9 @@ export function HabitRow({
             marginLeft: 20 + indentPx,
             marginRight: 20,
             marginBottom: HABIT_ROW_MARGIN_BOTTOM,
+            paddingVertical: 0,
+            paddingHorizontal: 0,
+            paddingRight: 16,
           },
           rowPressed ? styles.rowPressed : null,
         ]}
@@ -214,8 +217,7 @@ export function HabitRow({
             {
               flex: 1,
               minWidth: 0,
-              paddingVertical: 0,
-              paddingHorizontal: 0,
+              paddingRight: 0,
               borderWidth: 0,
               borderRadius: 0,
             },
