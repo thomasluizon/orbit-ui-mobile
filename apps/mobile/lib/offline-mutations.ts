@@ -371,24 +371,30 @@ export function resumeOfflineReplay(): void {
   }
 }
 
-function scheduleBackoffFlush(): void {
-  if (replayControlState.status === 'waiting-on-backoff') return
+function ownsBackoffTimer(timer: ReturnType<typeof setTimeout>): boolean {
+  return replayControlState.status === 'waiting-on-backoff' && replayControlState.timer === timer
+}
+
+function scheduleBackoffFlush(replaceTimer?: ReturnType<typeof setTimeout>): void {
+  if (
+    replayControlState.status === 'waiting-on-backoff' &&
+    replayControlState.timer !== replaceTimer
+  ) return
 
   const backoffAttempt = getBackoffAttempt()
   const delay = computeBackoffDelay(backoffAttempt)
   const nextBackoffAttempt = Math.min(backoffAttempt + 1, 5)
   const timer = setTimeout(() => {
-    if (replayControlState.status !== 'waiting-on-backoff' || replayControlState.timer !== timer) {
-      return
-    }
-    setReplayControlState({ status: 'idle', backoffAttempt: nextBackoffAttempt })
+    if (!ownsBackoffTimer(timer)) return
     void (async () => {
       if (count() === 0) {
         cancelScheduledFlush()
         return
       }
-      if (!(await getCurrentConnectivity())) {
-        scheduleBackoffFlush()
+      const isOnline = await getCurrentConnectivity()
+      if (!ownsBackoffTimer(timer)) return
+      if (!isOnline) {
+        scheduleBackoffFlush(timer)
         return
       }
       await flushQueuedMutations()

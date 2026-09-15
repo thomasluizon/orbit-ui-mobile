@@ -13,12 +13,15 @@ import {
   createQueuedAck,
   createTempEntityId,
   flushQueuedMutations,
+  getReplayState,
   getMutationScope,
   isQueuedResult,
   queueOrExecute,
   resumeOfflineReplay,
   runQueuedMutation,
   subscribeDroppedMutations,
+  subscribeFlushResults,
+  subscribeReplayState,
   withQueuedMarker,
 } from '@/lib/offline-mutations'
 import { consumePendingIdempotencyKey } from '@/lib/idempotency-key'
@@ -617,6 +620,7 @@ describe('offline mutations', () => {
 
     const stopped = await flushQueuedMutations()
     expect(stopped.replayState).toBe('stopped-for-auth')
+    expect(getReplayState()).toBe('stopped-for-auth')
     expect(canAutoFlush()).toBe(false)
 
     resumeOfflineReplay()
@@ -626,6 +630,70 @@ describe('offline mutations', () => {
     expect(resumed.replayState).toBe('idle')
     expect(mocks.apiClient).toHaveBeenCalledTimes(2)
     expect(mocks.queued).toHaveLength(0)
+  })
+
+  it('serializes concurrent flushes and honors cancellation through completion', async () => {
+    mocks.setOnline(true)
+    let resolveDelivery: ((value: null) => void) | undefined
+    mocks.apiClient.mockImplementationOnce(
+      () => new Promise<null>((resolve) => {
+        resolveDelivery = resolve
+      }),
+    )
+    mocks.queued.push({
+      ...buildQueuedMutation({
+        type: 'updateHabit',
+        scope: 'habits',
+        endpoint: '/api/habits/habit-1',
+        method: 'PUT',
+        payload: { title: 'One delivery' },
+      }),
+      id: 'single-flight',
+    })
+
+    const activeFlush = flushQueuedMutations()
+    await Promise.resolve()
+    const concurrentResult = await flushQueuedMutations()
+
+    expect(concurrentResult.replayState).toBe('flushing')
+    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+
+    cancelScheduledFlush()
+    resolveDelivery?.(null)
+    const completedResult = await activeFlush
+
+    expect(completedResult.replayState).toBe('idle')
+    expect(canAutoFlush()).toBe(true)
+  })
+
+  it('keeps a cancelled rejected flush idle with retained work', async () => {
+    mocks.setOnline(true)
+    mocks.apiClient.mockRejectedValueOnce(new Error('Network request failed'))
+    let rejectPersistence: ((error: Error) => void) | undefined
+    mocks.persistQueryCache.mockImplementationOnce(
+      () => new Promise<void>((_resolve, reject) => {
+        rejectPersistence = reject
+      }),
+    )
+    mocks.queued.push({
+      ...buildQueuedMutation({
+        type: 'updateHabit',
+        scope: 'habits',
+        endpoint: '/api/habits/habit-1',
+        method: 'PUT',
+        payload: { title: 'Retained' },
+      }),
+      id: 'cancelled-rejection',
+    })
+
+    const activeFlush = flushQueuedMutations()
+    await new Promise<void>((resolve) => nativeSetImmediate(resolve))
+    cancelScheduledFlush()
+    rejectPersistence?.(new Error('Queue persistence failed'))
+
+    await expect(activeFlush).rejects.toThrow('Queue persistence failed')
+    expect(mocks.queued).toHaveLength(1)
+    expect(canAutoFlush()).toBe(true)
   })
 
   it('drops a validation-rejected mutation, keeps flushing the rest, and reports the dropped one', async () => {
@@ -806,6 +874,37 @@ describe('offline mutations', () => {
     await flushQueuedMutations()
 
     expect(dropped).toEqual([])
+  })
+
+  it('publishes each completed flush result only to current subscribers', async () => {
+    mocks.setOnline(true)
+    const results: { succeeded: number; remaining: number }[] = []
+    const unsubscribe = subscribeFlushResults((result) => {
+      results.push({ succeeded: result.succeeded, remaining: result.remaining })
+    })
+    mocks.queued.push(buildQueuedMutation({
+      type: 'updateHabit',
+      scope: 'habits',
+      endpoint: '/api/habits/habit-1',
+      method: 'PUT',
+      payload: { title: 'First' },
+    }))
+
+    await flushQueuedMutations()
+
+    expect(results).toEqual([{ succeeded: 1, remaining: 0 }])
+    unsubscribe()
+    mocks.queued.push(buildQueuedMutation({
+      type: 'updateHabit',
+      scope: 'habits',
+      endpoint: '/api/habits/habit-2',
+      method: 'PUT',
+      payload: { title: 'Second' },
+    }))
+
+    await flushQueuedMutations()
+
+    expect(results).toEqual([{ succeeded: 1, remaining: 0 }])
   })
 
   it('rewrites nested array, object, and substring references when a temp id resolves online', async () => {
@@ -1050,6 +1149,52 @@ describe('offline mutations', () => {
       expect(mocks.apiClient).toHaveBeenCalledTimes(2)
       await vi.advanceTimersByTimeAsync(1)
       expect(mocks.apiClient).toHaveBeenCalledTimes(3)
+    })
+
+    it('keeps timer ownership while fresh connectivity is pending', async () => {
+      mocks.setOnline(true)
+      mocks.apiClient.mockRejectedValue(new Error('Network request failed'))
+      mocks.queued.push({
+        ...buildQueuedMutation({
+          type: 'updateHabit',
+          scope: 'habits',
+          endpoint: '/api/habits/habit-1',
+          method: 'PUT',
+          payload: { title: 'Retry me' },
+          entityType: 'habit',
+          targetEntityId: 'habit-1',
+        }),
+        id: 'update-1',
+      })
+
+      await flushQueuedMutations()
+
+      let resolveConnectivity: ((online: boolean) => void) | undefined
+      mocks.getCurrentConnectivity.mockImplementationOnce(
+        () => new Promise<boolean>((resolve) => {
+          resolveConnectivity = resolve
+        }),
+      )
+      const hookFlushes: Promise<unknown>[] = []
+      const unsubscribe = subscribeReplayState((state) => {
+        if (state === 'idle' && mocks.count() > 0) {
+          hookFlushes.push(flushQueuedMutations())
+        }
+      })
+
+      await vi.advanceTimersByTimeAsync(2_000)
+
+      expect(mocks.getCurrentConnectivity).toHaveBeenCalledTimes(1)
+      expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+      expect(mocks.queued[0]?.retries).toBe(1)
+
+      resolveConnectivity?.(false)
+      await Promise.resolve()
+      await Promise.all(hookFlushes)
+
+      expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+      expect(mocks.queued[0]?.retries).toBe(1)
+      unsubscribe()
     })
 
     it('schedules backoff when queue persistence rejects with pending work', async () => {
