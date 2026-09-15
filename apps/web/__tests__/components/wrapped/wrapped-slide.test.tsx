@@ -1,7 +1,29 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { buildWrappedSlides } from '@orbit/shared/utils'
+
+const motionTestState = vi.hoisted(() => ({ reduced: false }))
+
+vi.mock('motion/react', async () => {
+  const ReactModule = await import('react')
+  const motion = new Proxy({}, {
+    get: (_target, tag: string) => function MotionElement({
+      initial,
+      animate,
+      transition,
+      ...props
+    }: Readonly<Record<string, unknown>>) {
+      return ReactModule.createElement(tag, {
+        ...props,
+        'data-motion-initial': JSON.stringify(initial),
+        'data-motion-animate': JSON.stringify(animate),
+        'data-motion-transition': JSON.stringify(transition),
+      })
+    },
+  })
+  return { motion, useReducedMotion: () => motionTestState.reduced }
+})
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) =>
@@ -41,6 +63,10 @@ function renderSlide(slide: ReturnType<typeof buildWrappedSlides>[number]) {
 }
 
 describe('WrappedSlide', () => {
+  afterEach(() => {
+    motionTestState.reduced = false
+  })
+
   it('renders the positive goal count with its specific label and caption', () => {
     const recapWithGoalCompletions = { ...recap, goalCompletions: 4 }
     const goals = buildWrappedSlides(recapWithGoalCompletions).find((slide) => slide.id === 'goals')!
@@ -134,4 +160,64 @@ describe('WrappedSlide', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('shareCard.shareError')
     expect(screen.getByTestId('share-card')).toBeInTheDocument()
   })
+
+  it('starts every page part 16px low at full opacity on the shared timing scale', () => {
+    const intro = buildWrappedSlides(recap).find((slide) => slide.id === 'intro')!
+    renderSlide(intro)
+
+    const parts = screen.getAllByTestId('wrapped-motion-part')
+    expect(parts).toHaveLength(3)
+    for (const [index, part] of parts.entries()) {
+      expect(JSON.parse(part.dataset.motionInitial!)).toEqual({ y: 16, opacity: 1 })
+      expect(JSON.parse(part.dataset.motionAnimate!)).toEqual({ y: 0, opacity: 1 })
+      expect(JSON.parse(part.dataset.motionTransition!)).toMatchObject({ duration: 0.28, delay: index * 0.04 })
+    }
+  })
+
+  it('sweeps the streak ring exactly once on each page arrival', () => {
+    const streak = buildWrappedSlides(recap).find((slide) => slide.id === 'streak')!
+    const firstArrival = renderSlide(streak)
+
+    assertStreakRingSweep()
+    firstArrival.unmount()
+    renderSlide(streak)
+    assertStreakRingSweep()
+  })
+
+  it('animates page entry with transform and opacity only', () => {
+    const intro = buildWrappedSlides(recap).find((slide) => slide.id === 'intro')!
+    renderSlide(intro)
+
+    for (const part of screen.getAllByTestId('wrapped-motion-part')) {
+      expect(new Set(Object.keys(JSON.parse(part.dataset.motionInitial!)))).toEqual(new Set(['opacity', 'y']))
+      expect(new Set(Object.keys(JSON.parse(part.dataset.motionAnimate!)))).toEqual(new Set(['opacity', 'y']))
+    }
+  })
+
+  it('renders the reduced-motion page at its final state without rise, stagger, or sweep', () => {
+    motionTestState.reduced = true
+    const streak = buildWrappedSlides(recap).find((slide) => slide.id === 'streak')!
+    renderSlide(streak)
+
+    for (const part of screen.getAllByTestId('wrapped-motion-part')) {
+      expect(JSON.parse(part.dataset.motionInitial!)).toBe(false)
+      expect(JSON.parse(part.dataset.motionAnimate!)).toEqual({ y: 0, opacity: 1 })
+      expect(part.dataset.motionTransition).toBeUndefined()
+    }
+    const ring = screen.getByTestId('wrapped-streak-ring')
+    expect(JSON.parse(ring.dataset.motionInitial!)).toBe(false)
+    expect(JSON.parse(ring.dataset.motionAnimate!)).toEqual({ pathLength: 1 })
+    expect(ring.dataset.motionTransition).toBeUndefined()
+  })
 })
+
+function assertStreakRingSweep() {
+  const ring = screen.getByTestId('wrapped-streak-ring')
+  expect(JSON.parse(ring.dataset.motionInitial!)).toEqual({ pathLength: 0 })
+  expect(JSON.parse(ring.dataset.motionAnimate!)).toEqual({ pathLength: 1 })
+  expect(JSON.parse(ring.dataset.motionTransition!)).toEqual({
+    duration: 0.28,
+    delay: 0.04,
+    ease: [0.16, 1, 0.3, 1],
+  })
+}

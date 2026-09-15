@@ -1,9 +1,14 @@
 import React from 'react'
 import type { ReactTestRenderer } from 'react-test-renderer'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { buildWrappedSlides } from '@orbit/shared/utils'
 import { WrappedSlide } from '@/components/wrapped/wrapped-slide'
+import {
+  reanimatedTestState,
+  withDelayCalls,
+  withTimingCalls,
+} from '@/test-mocks/react-native-reanimated'
 
 vi.mock('@/components/share/share-card', () => ({
   ShareCard: () => React.createElement('ShareCard'),
@@ -40,6 +45,12 @@ function renderSlide(slide: ReturnType<typeof buildWrappedSlides>[number]) {
 }
 
 describe('mobile WrappedSlide', () => {
+  afterEach(() => {
+    reanimatedTestState.reducedMotion = false
+    withDelayCalls.length = 0
+    withTimingCalls.length = 0
+  })
+
   it('renders the positive goal count with its specific label and caption', () => {
     const recapWithGoalCompletions = { ...recap, goalCompletions: 4 }
     const goals = buildWrappedSlides(recapWithGoalCompletions).find((slide) => slide.id === 'goals')!
@@ -166,5 +177,84 @@ describe('mobile WrappedSlide', () => {
       ),
     ).toHaveLength(1)
     expect(tree.root.findAll((node) => String(node.type) === 'ShareCard')).toHaveLength(1)
+  })
+
+  it('starts every page part 16px low at full opacity on the shared timing scale', () => {
+    const intro = buildWrappedSlides(recap).find((slide) => slide.id === 'intro')!
+    const tree = renderSlide(intro)
+    const parts = tree.root.findAll((node) => (
+      typeof node.type === 'string' && String(node.props.nativeID).startsWith('wrapped-motion-part-')
+    ))
+
+    expect(parts).toHaveLength(3)
+    for (const [index, part] of parts.entries()) {
+      expect(part.props.entering).toMatchObject({
+        definitions: {
+          0: { opacity: 1, transform: [{ translateY: 16 }] },
+          100: { opacity: 1, transform: [{ translateY: 0 }] },
+        },
+        durationMs: 280,
+        delayMs: index * 40,
+      })
+    }
+  })
+
+  it('sweeps the streak ring exactly once on each page arrival', () => {
+    const streak = buildWrappedSlides(recap).find((slide) => slide.id === 'streak')!
+    const firstArrival = renderSlide(streak)
+
+    expect(firstArrival.root.findAll((node) => node.props.testID === 'wrapped-streak-ring')).toHaveLength(2)
+    expect(withTimingCalls).toHaveLength(1)
+    expect(withTimingCalls[0]).toMatchObject({ value: 0, config: { duration: 280 } })
+    expect(withDelayCalls).toEqual([{ delayMs: 40, value: 0 }])
+    firstArrival.update(<></>)
+    const secondArrival = renderSlide(streak)
+    expect(secondArrival.root.findAll((node) => node.props.testID === 'wrapped-streak-ring')).toHaveLength(2)
+    expect(withTimingCalls).toHaveLength(2)
+    expect(withDelayCalls).toEqual([
+      { delayMs: 40, value: 0 },
+      { delayMs: 40, value: 0 },
+    ])
+  })
+
+  it('animates page entry with transform and opacity only', () => {
+    const intro = buildWrappedSlides(recap).find((slide) => slide.id === 'intro')!
+    const tree = renderSlide(intro)
+
+    const parts = tree.root.findAll((node) => (
+      typeof node.type === 'string' && String(node.props.nativeID).startsWith('wrapped-motion-part-')
+    ))
+    expect(parts.length).toBeGreaterThan(0)
+    for (const part of parts) {
+      const entering = part.props.entering as { definitions: Record<number, Record<string, unknown>> }
+      expect(new Set(Object.keys(entering.definitions[0]!))).toEqual(new Set(['opacity', 'transform']))
+      expect(new Set(Object.keys(entering.definitions[100]!))).toEqual(
+        new Set(['easing', 'opacity', 'transform']),
+      )
+    }
+  })
+
+  it('renders the reduced-motion page at its final state without rise, stagger, or sweep', () => {
+    reanimatedTestState.reducedMotion = true
+    const streak = buildWrappedSlides(recap).find((slide) => slide.id === 'streak')!
+    const tree = renderSlide(streak)
+    const parts = tree.root.findAll((node) => (
+      typeof node.type === 'string' && String(node.props.nativeID).startsWith('wrapped-motion-part-')
+    ))
+
+    expect(parts.length).toBeGreaterThan(0)
+    for (const part of parts) {
+      expect(part.props.entering).toBeUndefined()
+      const partStyles = Array.isArray(part.props.style) ? part.props.style : [part.props.style]
+      expect(partStyles).toEqual(expect.arrayContaining([
+        expect.objectContaining({ opacity: 1, transform: [{ translateY: 0 }] }),
+      ]))
+    }
+    const ring = tree.root.findAll(
+      (node) => typeof node.type === 'string' && node.props.testID === 'wrapped-streak-ring',
+    )[0]!
+    expect((ring.props.animatedProps as { strokeDashoffset: number }).strokeDashoffset).toBe(0)
+    expect(withTimingCalls).toHaveLength(0)
+    expect(withDelayCalls).toHaveLength(0)
   })
 })
