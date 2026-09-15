@@ -25,6 +25,7 @@ interface BottomTabBarProps {
   astraUnread?: boolean
   /** Force-hide the FAB (also auto-hidden on the Astra tab). */
   showFab?: boolean
+  bottomInset?: number
 }
 
 interface TabDef {
@@ -48,6 +49,7 @@ export function BottomTabBar({
   onFab,
   astraUnread = false,
   showFab = true,
+  bottomInset = 0,
 }: Readonly<BottomTabBarProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -58,8 +60,10 @@ export function BottomTabBar({
 
   return (
     <View
+      testID="bottom-tab-bar"
       style={[
         styles.container,
+        { paddingBottom: bottomInset },
         {
           backgroundColor: tokens.bg,
           borderTopColor: tokens.hairline,
@@ -102,7 +106,7 @@ export function BottomTabBar({
         </Pressable>
       ) : null}
 
-      <View style={styles.tabsRow}>
+      <View testID="bottom-tab-destinations" style={styles.tabsRow}>
         {TABS.map((tab, index) => {
           const isActive = tab.id === active
           return (
@@ -221,6 +225,9 @@ const styles = StyleSheet.create({
   },
   tabsRow: {
     flexDirection: 'row',
+    width: '100%',
+    maxWidth: 740,
+    alignSelf: 'center',
   },
   tabSlot: {
     flex: 1,
