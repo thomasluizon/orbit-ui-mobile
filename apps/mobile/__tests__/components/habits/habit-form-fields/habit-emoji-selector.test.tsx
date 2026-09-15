@@ -60,4 +60,16 @@ describe('HabitEmojiSelector', () => {
     expect(button!.props.disabled).toBe(true)
     expect(button!.props.accessibilityState).toEqual({ disabled: true, busy: true })
   })
+
+  it('runs the emoji suggestion when the title is available', () => {
+    const onSuggest = vi.fn()
+    const tree = renderSelector({ canSuggest: true, onSuggest })
+    const button = tree.root.findAllByProps({ accessibilityLabel: 'Suggest an emoji' })
+      .find((node: { props: { onPress?: unknown } }) => typeof node.props.onPress === 'function')
+
+    expect(button).toBeTruthy()
+    expect(button!.props.disabled).toBe(false)
+    TestRenderer.act(() => button!.props.onPress())
+    expect(onSuggest).toHaveBeenCalledOnce()
+  })
 })

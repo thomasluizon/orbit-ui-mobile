@@ -185,12 +185,12 @@ describe('HabitFormFields (mobile)', () => {
     )
   })
 
-  it('formats dueTime as hh:mm while typing and updates form state immediately', async () => {
+  it('formats dueTime as hh:mm while typing and updates form state immediately', () => {
     const formHelpers = createMockFormHelpers()
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -211,7 +211,7 @@ describe('HabitFormFields (mobile)', () => {
 
     expect(dueTimePicker).toBeTruthy()
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       dueTimePicker.props.onChange('15:58')
     })
 
@@ -220,12 +220,12 @@ describe('HabitFormFields (mobile)', () => {
     })
   })
 
-  it('formats dueEndTime as hh:mm while typing', async () => {
+  it('formats dueEndTime as hh:mm while typing', () => {
     const formHelpers = createMockFormHelpers({ dueTime: '09:00' })
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -247,7 +247,7 @@ describe('HabitFormFields (mobile)', () => {
 
     expect(dueEndTimePicker).toBeTruthy()
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       dueEndTimePicker.props.onChange('22:15')
     })
 
@@ -256,12 +256,12 @@ describe('HabitFormFields (mobile)', () => {
     })
   })
 
-  it('opens a searchable emoji picker from the whole emoji field', async () => {
+  it('opens a searchable emoji picker from the whole emoji field', () => {
     const formHelpers = createMockFormHelpers()
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -278,19 +278,19 @@ describe('HabitFormFields (mobile)', () => {
 
     const emojiTrigger = tree.root.findByProps({ accessibilityLabel: 'habits.form.emojiOpenPicker' })
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       emojiTrigger.props.onPress()
     })
 
     const searchInput = tree.root.findByProps({ accessibilityLabel: 'habits.form.emojiSearchPlaceholder' })
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       searchInput.props.onChangeText('run')
     })
 
     const runEmoji = tree.root.findByProps({ accessibilityLabel: 'habits.form.emoji: 🏃' })
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       runEmoji.props.onPress()
     })
 
@@ -299,12 +299,49 @@ describe('HabitFormFields (mobile)', () => {
     })
   })
 
-  it('filters emojis by category when tapping a category chip', async () => {
+  it('disables both suggestion controls while the emoji request is pending', () => {
+    const onSuggestSetup = vi.fn()
+    const onSuggestEmoji = vi.fn()
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={createMockFormHelpers()}
+          tags={createMockTags()}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
+          reminderTimes={[]}
+          onReminderTimesChange={vi.fn()}
+          onSuggestSetup={onSuggestSetup}
+          onSuggestEmoji={onSuggestEmoji}
+          isSuggestingEmoji
+        />,
+      )
+    })
+
+    const setupButton = tree.root.findByProps({
+      accessibilityLabel: 'habits.form.aiSuggest',
+    })
+    const emojiButton = tree.root.findByProps({
+      accessibilityLabel: 'habits.form.emojiSuggesting',
+    })
+
+    expect(setupButton.props.disabled).toBe(true)
+    expect(setupButton.props.accessibilityState).toEqual({ disabled: true, busy: false })
+    expect(emojiButton.props.disabled).toBe(true)
+    expect(onSuggestSetup).not.toHaveBeenCalled()
+    expect(onSuggestEmoji).not.toHaveBeenCalled()
+  })
+
+  it('filters emojis by category when tapping a category chip', () => {
     const formHelpers = createMockFormHelpers()
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -321,7 +358,7 @@ describe('HabitFormFields (mobile)', () => {
 
     const emojiTrigger = tree.root.findByProps({ accessibilityLabel: 'habits.form.emojiOpenPicker' })
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       emojiTrigger.props.onPress()
     })
 
@@ -331,7 +368,7 @@ describe('HabitFormFields (mobile)', () => {
 
     expect(natureCategory).toBeTruthy()
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       natureCategory!.props.onPress()
     })
 
@@ -339,12 +376,12 @@ describe('HabitFormFields (mobile)', () => {
     expect(tree.root.findAllByProps({ accessibilityLabel: 'habits.form.emoji: 🏃' })).toHaveLength(0)
   })
 
-  it('clears the selected emoji from the picker remove button', async () => {
+  it('clears the selected emoji from the picker remove button', () => {
     const formHelpers = createMockFormHelpers({ emoji: '🏃' })
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -361,7 +398,7 @@ describe('HabitFormFields (mobile)', () => {
 
     const emojiTrigger = tree.root.findByProps({ accessibilityLabel: 'habits.form.emojiOpenPicker' })
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       emojiTrigger.props.onPress()
     })
 
@@ -371,7 +408,7 @@ describe('HabitFormFields (mobile)', () => {
 
     expect(removeButton).toBeTruthy()
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       removeButton!.props.onPress()
     })
 
@@ -380,12 +417,12 @@ describe('HabitFormFields (mobile)', () => {
     })
   })
 
-  it('hides goal linking for free users', async () => {
+  it('hides goal linking for free users', () => {
     const formHelpers = createMockFormHelpers()
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -404,13 +441,13 @@ describe('HabitFormFields (mobile)', () => {
     expect(tree.root.findAllByProps({ testID: 'goal-linking-field' })).toHaveLength(0)
   })
 
-  it('shows goal linking for pro users', async () => {
+  it('shows goal linking for pro users', () => {
     mockHasProAccess = true
     const formHelpers = createMockFormHelpers()
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -429,12 +466,12 @@ describe('HabitFormFields (mobile)', () => {
     expect(tree.root.findAllByProps({ testID: 'goal-linking-field' })).toHaveLength(1)
   })
 
-  it('renders all field sections without crashing', async () => {
+  it('renders all field sections without crashing', () => {
     const formHelpers = createMockFormHelpers({ dueTime: '09:00' })
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -461,7 +498,7 @@ describe('HabitFormFields (mobile)', () => {
     expect(hasText('habits.form.tags')).toBe(true)
   })
 
-  it('surfaces both reminder sections for a due-timed habit that also holds scheduled reminders (#447 Bug 3)', async () => {
+  it('surfaces both reminder sections for a due-timed habit that also holds scheduled reminders (#447 Bug 3)', () => {
     const formHelpers = createMockFormHelpers({
       dueTime: '09:00',
       reminderEnabled: true,
@@ -470,7 +507,7 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -501,7 +538,7 @@ describe('HabitFormFields (mobile)', () => {
     ).toHaveLength(0)
   })
 
-  it('hides the scheduled reminder section for a plain due-timed habit', async () => {
+  it('hides the scheduled reminder section for a plain due-timed habit', () => {
     const formHelpers = createMockFormHelpers({
       dueTime: '09:00',
       reminderEnabled: true,
@@ -510,7 +547,7 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -535,13 +572,13 @@ describe('HabitFormFields (mobile)', () => {
     expect(hasText('habits.form.scheduledReminder')).toBe(false)
   })
 
-  it('advances the frequency carousel to the next card when the next arrow is pressed', async () => {
+  it('advances the frequency carousel to the next card when the next arrow is pressed', () => {
     const setFlexible = vi.fn()
     const formHelpers = createMockFormHelpers(undefined, { setFlexible })
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -558,20 +595,20 @@ describe('HabitFormFields (mobile)', () => {
 
     const nextArrow = tree.root.findByProps({ accessibilityLabel: 'common.next' })
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       nextArrow.props.onPress()
     })
 
     expect(setFlexible).toHaveBeenCalled()
   })
 
-  it('moves the frequency carousel to the previous card when the previous arrow is pressed', async () => {
+  it('moves the frequency carousel to the previous card when the previous arrow is pressed', () => {
     const setOneTime = vi.fn()
     const formHelpers = createMockFormHelpers(undefined, { setOneTime })
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -588,20 +625,20 @@ describe('HabitFormFields (mobile)', () => {
 
     const previousArrow = tree.root.findByProps({ accessibilityLabel: 'common.previous' })
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       previousArrow.props.onPress()
     })
 
     expect(setOneTime).toHaveBeenCalled()
   })
 
-  it('selects the tapped frequency card instead of re-applying the active one', async () => {
+  it('selects the tapped frequency card instead of re-applying the active one', () => {
     const setOneTime = vi.fn()
     const formHelpers = createMockFormHelpers(undefined, { setOneTime })
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -620,19 +657,19 @@ describe('HabitFormFields (mobile)', () => {
       accessibilityLabel: 'habits.form.oneTimeTask',
     })
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       oneTimeCard.props.onPress()
     })
 
     expect(setOneTime).toHaveBeenCalled()
   })
 
-  it('commits the title to the form as it is typed so the shared schema gates submit', async () => {
+  it('commits the title to the form as it is typed so the shared schema gates submit', () => {
     const formHelpers = createMockFormHelpers({ title: '' })
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -654,7 +691,7 @@ describe('HabitFormFields (mobile)', () => {
     )[0]
     expect(titleInput).toBeTruthy()
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       titleInput.props.onChangeText('Read a book')
     })
     expect(formHelpers.form.setValue).toHaveBeenLastCalledWith('title', 'Read a book', {
@@ -674,7 +711,7 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags({ acceptSuggestedTag })
     let tree: any
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -699,7 +736,7 @@ describe('HabitFormFields (mobile)', () => {
 
     const healthChip = tree.root.findByProps({ accessibilityLabel: 'Health' })
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       healthChip.props.onPress()
     })
 
@@ -715,7 +752,7 @@ describe('HabitFormFields (mobile)', () => {
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -746,12 +783,12 @@ describe('HabitFormFields (mobile)', () => {
     expect(emptyState).toHaveLength(1)
   })
 
-  it('sets isBadHabit from the habit type segmented toggle', async () => {
+  it('sets isBadHabit from the habit type segmented toggle', () => {
     const formHelpers = createMockFormHelpers()
     const tags = createMockTags()
     let tree: any
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       tree = TestRenderer.create(
         <HabitFormFields
           formHelpers={formHelpers}
@@ -773,7 +810,7 @@ describe('HabitFormFields (mobile)', () => {
 
     expect(avoidSegment).toBeTruthy()
 
-    await TestRenderer.act(async () => {
+    TestRenderer.act(() => {
       avoidSegment!.props.onPress()
     })
 

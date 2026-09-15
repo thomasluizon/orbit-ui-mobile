@@ -163,6 +163,7 @@ async function renderModal(
 describe('EditHabitModal (mobile)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSuggestMutateAsync.mockReset()
     mockHabitDetailResult = { data: null, isPending: false, error: null }
     mockValidateAll.mockReturnValue(null)
     mockGetValues.mockImplementation((..._args: unknown[]): unknown => ({}))
@@ -396,5 +397,171 @@ describe('EditHabitModal (mobile)', () => {
       shouldDirty: true,
     })
     expect(mockShowSuccess).toHaveBeenCalledWith('habits.form.aiSuggestApplied')
+  })
+
+  it('reports an empty emoji suggestion without changing the form', async () => {
+    mockGetValues.mockImplementation((field?: unknown) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: null,
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: null,
+      subHabits: [],
+      checklistItems: [],
+    })
+
+    const tree = await renderModal()
+    mockSetValue.mockClear()
+
+    await TestRenderer.act(async () => {
+      await findFormFields(tree).props.onSuggestEmoji()
+    })
+
+    expect(mockShowInfo).toHaveBeenCalledWith('habits.form.aiSuggestEmpty')
+    expect(mockSetValue).not.toHaveBeenCalled()
+    expect(mockShowSuccess).not.toHaveBeenCalled()
+  })
+
+  it('reports an ordinary emoji suggestion failure without changing the form', async () => {
+    mockGetValues.mockImplementation((field?: unknown) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockRejectedValue(new Error('offline'))
+
+    const tree = await renderModal()
+    mockSetValue.mockClear()
+
+    await TestRenderer.act(async () => {
+      await findFormFields(tree).props.onSuggestEmoji()
+    })
+
+    expect(mockShowError).toHaveBeenCalledWith('habits.form.aiSuggestError')
+    expect(mockSetValue).not.toHaveBeenCalled()
+  })
+
+  it('starts only one request when both edit suggestion actions are pressed', async () => {
+    let resolveSuggestion!: (value: Record<string, unknown>) => void
+    mockGetValues.mockImplementation((field?: unknown) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSuggestion = resolve
+      }),
+    )
+
+    const tree = await renderModal()
+    let emojiRequest!: Promise<void>
+    TestRenderer.act(() => {
+      emojiRequest = findFormFields(tree).props.onSuggestEmoji()
+      void findFormFields(tree).props.onSuggestSetup()
+    })
+
+    expect(mockSuggestMutateAsync).toHaveBeenCalledOnce()
+    resolveSuggestion({
+      emoji: '🏊',
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: null,
+      subHabits: [],
+      checklistItems: [],
+    })
+    await TestRenderer.act(async () => emojiRequest)
+  })
+
+  it('ignores a successful full suggestion after the edited habit changes', async () => {
+    let resolveSuggestion!: (value: Record<string, unknown>) => void
+    mockGetValues.mockImplementation((field?: unknown) => {
+      if (field === 'title') return 'Swim'
+      if (field === 'checklistItems') return []
+      return {}
+    })
+    mockSuggestMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSuggestion = resolve
+      }),
+    )
+
+    const tree = await renderModal()
+    mockSetValue.mockClear()
+    let request!: Promise<void>
+    TestRenderer.act(() => {
+      request = findFormFields(tree).props.onSuggestSetup()
+    })
+    TestRenderer.act(() => {
+      tree.update(
+        <EditHabitModal
+          open
+          onClose={vi.fn()}
+          habit={createMockHabit({ id: 'h-2', title: 'Read' })}
+        />,
+      )
+    })
+    mockSetValue.mockClear()
+    resolveSuggestion({
+      emoji: '🏊',
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      days: ['Monday'],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: '07:00',
+      subHabits: [],
+      checklistItems: ['Goggles'],
+    })
+    await TestRenderer.act(async () => request)
+
+    expect(mockSetValue).not.toHaveBeenCalled()
+    expect(mockShowSuccess).not.toHaveBeenCalled()
+    expect(mockShowInfo).not.toHaveBeenCalled()
+  })
+
+  it('ignores a failed full suggestion after the edit modal unmounts', async () => {
+    let rejectSuggestion!: (error: Error) => void
+    mockGetValues.mockImplementation((field?: unknown) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockReturnValue(
+      new Promise((_resolve, reject) => {
+        rejectSuggestion = reject
+      }),
+    )
+
+    const tree = await renderModal()
+    let request!: Promise<void>
+    TestRenderer.act(() => {
+      request = findFormFields(tree).props.onSuggestSetup()
+    })
+
+    TestRenderer.act(() => tree.unmount())
+    rejectSuggestion(new Error('offline'))
+    await TestRenderer.act(async () => request)
+
+    expect(mockSetValue).not.toHaveBeenCalled()
+    expect(mockShowSuccess).not.toHaveBeenCalled()
+    expect(mockShowInfo).not.toHaveBeenCalled()
+    expect(mockShowError).not.toHaveBeenCalled()
+  })
+
+  it('skips both edit suggestion actions when the title is empty', async () => {
+    mockGetValues.mockImplementation((field?: unknown) =>
+      field === 'title' ? '   ' : {},
+    )
+
+    const tree = await renderModal()
+    await TestRenderer.act(async () => {
+      await findFormFields(tree).props.onSuggestSetup()
+      await findFormFields(tree).props.onSuggestEmoji()
+    })
+
+    expect(mockSuggestMutateAsync).not.toHaveBeenCalled()
   })
 })
