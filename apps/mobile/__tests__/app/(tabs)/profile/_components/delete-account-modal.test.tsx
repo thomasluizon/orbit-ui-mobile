@@ -7,10 +7,6 @@ import { DeleteAccountModal } from '@/app/(tabs)/profile/_components/delete-acco
 
 const TestRenderer = require('react-test-renderer')
 
-const PLAN_EXPIRY = '2026-09-30T12:00:00Z'
-const formattedPlanExpiry = new Date(PLAN_EXPIRY).toISOString()
-const proWarning = ptBR.profile.deleteAccount.warningPro.replace('{date}', formattedPlanExpiry)
-
 const mocks = vi.hoisted(() => ({
   apiClient: vi.fn(),
   beginChallenge: vi.fn(),
@@ -41,9 +37,6 @@ vi.mock('react-i18next', () => ({
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
 vi.mock('@/lib/step-up-storage', () => ({
   beginStepUpChallenge: (operation: string) => mocks.beginChallenge(operation),
-}))
-vi.mock('@/hooks/use-date-format', () => ({
-  useDateFormat: () => ({ displayDate: (value: Date) => value.toISOString() }),
 }))
 vi.mock('@/hooks/use-offline', () => ({
   useOffline: () => ({ isOnline: mocks.isOnline.current }),
@@ -102,22 +95,21 @@ describe('DeleteAccountModal', () => {
 
     expect(copy).toMatch(/tempo para mudar de ideia/i)
     expect(copy).toContain(ptBR.profile.deleteAccount.warningFree)
-    expect(copy).not.toContain(ptBR.profile.deleteAccount.warningPro.split('{date}')[0])
+    expect(copy).not.toContain(ptBR.profile.deleteAccount.warningPro)
     expect(copy).toContain(ptBR.profile.deleteAccount.warningDetail)
     expect(mocks.apiClient).not.toHaveBeenCalled()
     expect(mocks.beginChallenge).not.toHaveBeenCalled()
   })
 
-  it('shows the Pro warning with the formatted plan date', async () => {
+  it('shows the capped Pro deletion window without the Free warning', async () => {
     const tree = await renderModal(createMockProfile({
       hasProAccess: true,
       plan: 'pro',
-      planExpiresAt: PLAN_EXPIRY,
     }))
     const copy = textContent(tree.root)
 
-    expect(copy).toContain(proWarning)
-    expect(copy).toContain(formattedPlanExpiry)
+    expect(copy).toContain('no máximo 30 dias a partir de hoje')
+    expect(copy).toContain(ptBR.profile.deleteAccount.warningPro)
     expect(copy).not.toContain(ptBR.profile.deleteAccount.warningFree)
   })
 
