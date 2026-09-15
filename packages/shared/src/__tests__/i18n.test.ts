@@ -36,6 +36,25 @@ function placeholderNames(value: string): Set<string> {
   return names
 }
 
+function unsafeIcuApostropheOffsets(value: string): number[] {
+  const offsets: number[] = []
+
+  for (let index = 0; index < value.length;) {
+    if (value[index] !== "'") {
+      index += 1
+      continue
+    }
+
+    const start = index
+    while (value[index] === "'") index += 1
+    const hasUnpairedApostrophe = (index - start) % 2 === 1
+    const bordersIcuSyntax = value[start - 1] === '}' || value[index] === '{' || value[index] === '#'
+    if (hasUnpairedApostrophe && bordersIcuSyntax) offsets.push(start)
+  }
+
+  return offsets
+}
+
 describe('shared i18n exports', () => {
   it('exposes the default locale and supported locales', () => {
     expect(defaultLocale).toBe('en')
@@ -84,6 +103,20 @@ describe('i18n locale parity', () => {
     }
 
     expect(mismatches).toEqual([])
+  })
+
+  it('escapes apostrophes bordering ICU syntax in every locale message', () => {
+    const violations: string[] = []
+
+    for (const [locale, messages] of [['en', enFlat], ['pt-BR', ptFlat]] as const) {
+      for (const [key, value] of messages) {
+        for (const offset of unsafeIcuApostropheOffsets(value)) {
+          violations.push(`${locale}:${key}@${offset}`)
+        }
+      }
+    }
+
+    expect(violations).toEqual([])
   })
 
   it('does not expose retired relationship translation groups', () => {

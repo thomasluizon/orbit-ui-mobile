@@ -856,7 +856,6 @@
       "createCount": "nenhum hábito | Criar {n} hábito | Criar {n} hábitos",
       "createdSuccess": "nenhum hábito criado | {n} hábito criado | {n} hábitos criados",
       "createAsParent": "Agrupar como hábito principal",
-      "createAsParentSuccess": "'{name}' criado com {n} sub-hábito | '{name}' criado com {n} sub-hábitos",
       "every": "a cada",
       "frequencyQuantityLabel": "Intervalo de frequência",
       "removeHabit": "Remover {name}"
@@ -869,7 +868,7 @@
         "threePerWeek": "3 vezes por semana",
         "oneTime": "Tarefa única"
       },
-      "successCreated": "'{name}' criado",
+      "successCreated": "''{name}'' criado",
       "errorExpired": "Esta pergunta expirou. Pode perguntar de novo.",
       "errorAlreadyResolved": "Isso já foi resolvido. Pode perguntar de novo.",
       "errorGeneric": "Algo deu errado. Tente de novo."

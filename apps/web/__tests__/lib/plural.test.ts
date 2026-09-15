@@ -78,4 +78,13 @@ describe('plural', () => {
 
     expect(plural(t('goals.detail.derivedStreak', { count }), count)).toBe(expected)
   })
+
+  it.each([
+    { locale: 'en', messages: en, expected: "Created 'Corrida'" },
+    { locale: 'pt-BR', messages: ptBR, expected: "'Corrida' criado" },
+  ] as const)('renders a quoted name in $locale through next-intl', ({ locale, messages, expected }) => {
+    const t = createTranslator({ locale, messages })
+
+    expect(t('habits.clarification.successCreated', { name: 'Corrida' })).toBe(expected)
+  })
 })

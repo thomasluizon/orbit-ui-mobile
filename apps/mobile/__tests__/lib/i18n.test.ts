@@ -63,6 +63,7 @@ const localeCases = [
       daysLeft: '2 days left',
     },
     named: 'Completion on Monday: 80%',
+    created: "Created 'Corrida'",
     streak: '4-day streak',
   },
   {
@@ -78,11 +79,12 @@ const localeCases = [
       daysLeft: 'Faltam 2 dias',
     },
     named: 'Conclusão em segunda-feira: 80%',
+    created: "'Corrida' criado",
     streak: 'Sequência de 4 dias',
   },
 ] as const
 
-describe.each(localeCases)('mobile i18n in $locale', ({ locale, one, other, named, streak }) => {
+describe.each(localeCases)('mobile i18n in $locale', ({ locale, one, other, named, created, streak }) => {
   it('renders ICU plurals and plain interpolation through the real configuration', async () => {
     await i18n.changeLanguage(locale)
 
@@ -93,6 +95,7 @@ describe.each(localeCases)('mobile i18n in $locale', ({ locale, one, other, name
     expect(i18n.t('progressScreen.goals.daysLeft', { count: 1 })).toBe(one.daysLeft)
     expect(i18n.t('progressScreen.goals.daysLeft', { count: 2 })).toBe(other.daysLeft)
     expect(i18n.t('shareCard.weeklyBarLabel', { day: locale === 'en' ? 'Monday' : 'segunda-feira', percent: 80 })).toBe(named)
+    expect(i18n.t('habits.clarification.successCreated', { name: 'Corrida' })).toBe(created)
     expect(i18n.t('shareCard.streak', { count: 4 })).toBe(streak)
   })
 })
