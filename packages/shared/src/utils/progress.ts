@@ -152,6 +152,7 @@ type StreakRepairSource = Pick<
 export type StreakRepairState = {
   dates: string[]
   count: number
+  banked: number
   canRepair: boolean
   showGap: boolean
   gapUnavailable: boolean
@@ -186,7 +187,7 @@ export function deriveStreakRepairState({
   now?: Date
   accountTimeZone?: string | null
 }): StreakRepairState {
-  const dates = streak?.repairableGapDates !== undefined
+  const dates = streak?.repairableGapDates != null
     ? streak.repairableGapDates.filter(isApiDate)
     : streak?.isRepairAvailable === true && isApiDate(streak.repairDate)
       ? [streak.repairDate]
@@ -200,8 +201,9 @@ export function deriveStreakRepairState({
   return {
     dates,
     count,
+    banked,
     canRepair,
-    showGap: gapUnavailable || (count > 0 && (canRepair || banked === 0)),
+    showGap: gapUnavailable || count > 0,
     gapUnavailable,
     bankFull: banked >= ceiling,
   }

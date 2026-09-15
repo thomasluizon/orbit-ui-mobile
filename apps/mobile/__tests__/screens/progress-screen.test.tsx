@@ -633,6 +633,25 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.streak.repairAction:{"count":1}')).toHaveLength(0)
   })
 
+  it('shows a partly funded gap without offering an unaffordable repair', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.isRepairAvailable = false
+    mocks.freeze.streakInfo.repairDate = null
+    mocks.freeze.streakInfo.repairableGapDates = ['2026-09-08', '2026-09-09']
+    mocks.freeze.streakInfo.streakFreezesAccumulated = 1
+    mocks.freeze.freezesAvailable = 1
+    mocks.freeze.streakFreezesAccumulated = 1
+
+    const tree = await renderProgress()
+    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+
+    expect(text).toContain('progressScreen.streak.gapBody:{"count":2}')
+    expect(text).toContain('progressScreen.streak.repairPartial:{"needed":2,"banked":1,"days":3}')
+    expect(tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.streak.repairAction:{"count":2}')).toHaveLength(0)
+  })
+
   it('shows the neutral bank limit and no next-freeze row', async () => {
     mocks.freeze.streakInfo.streakFreezesAccumulated = 3
     mocks.freeze.streakFreezesAccumulated = 3

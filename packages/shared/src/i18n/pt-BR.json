@@ -2451,6 +2451,7 @@
       "gapUnavailable": "Um intervalo encerrou a sequência anterior. Hoje começa uma nova; os hábitos não mudaram.",
       "repairAction": "Usar {count, plural, one {# congelamento} other {# congelamentos}}",
       "repairEmpty": "Não há congelamento guardado. A sequência começa de novo hoje, e o próximo congelamento chega em {count, plural, one {# dia} other {# dias}}.",
+      "repairPartial": "Esta lacuna precisa de {needed, plural, one {# congelamento} other {# congelamentos}} e você tem {banked}. O próximo chega em {days, plural, one {# dia} other {# dias}}.",
       "repairError": "Não foi possível reparar o intervalo. Tente novamente.",
       "repairRateLimited": "Houve tentativas demais de reparo. Tente novamente em breve.",
       "bankFull": "{count} congelamentos é o limite. O próximo chega depois que você usar um."

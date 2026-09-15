@@ -616,6 +616,24 @@ describe('ProgressContent', () => {
     expect(screen.queryByText('progressScreen.streak.repairAction:{"count":1}')).not.toBeInTheDocument()
   })
 
+  it('shows a partly funded gap without offering an unaffordable repair', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.isRepairAvailable = false
+    mocks.freeze.streakInfo.repairDate = null
+    mocks.freeze.streakInfo.repairableGapDates = ['2026-09-08', '2026-09-09']
+    mocks.freeze.streakInfo.streakFreezesAccumulated = 1
+    mocks.freeze.freezesAvailable = 1
+    mocks.freeze.streakFreezesAccumulated = 1
+
+    render(<ProgressContent />)
+
+    expect(screen.getByText('progressScreen.streak.gapBody:{"count":2}')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.streak.repairPartial:{"needed":2,"banked":1,"days":3}')).toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.streak.repairAction:{"count":2}')).not.toBeInTheDocument()
+  })
+
   it('shows the neutral bank limit and no next-freeze row', () => {
     mocks.freeze.streakInfo.streakFreezesAccumulated = 3
     mocks.freeze.streakFreezesAccumulated = 3

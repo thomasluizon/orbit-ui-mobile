@@ -157,6 +157,17 @@ function FrozenTodayStatus({ isFrozenToday }: Readonly<{ isFrozenToday: boolean 
   )
 }
 
+function RepairUnavailableCopy({ state, daysUntilNextFreeze }: Readonly<{
+  state: StreakRepairState
+  daysUntilNextFreeze: number
+}>) {
+  const t = useTranslations()
+  const message = state.banked === 0
+    ? t('progressScreen.streak.repairEmpty', { count: daysUntilNextFreeze })
+    : t('progressScreen.streak.repairPartial', { needed: state.count, banked: state.banked, days: daysUntilNextFreeze })
+  return <p className="text-[14px] leading-5 text-[var(--fg-2)]">{message}</p>
+}
+
 function StreakRepairPanel({
   state,
   daysUntilNextFreeze,
@@ -184,7 +195,7 @@ function StreakRepairPanel({
       <div className="flex flex-col items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-4">
         <p className="text-[16px] leading-6 text-[var(--fg-1)]">{t('progressScreen.streak.gapBody', { count: state.count })}</p>
         {state.canRepair ? <PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" loading={repair.isPending} onClick={() => repair.mutate(state.dates)}>{t('progressScreen.streak.repairAction', { count: state.count })}</PillButton> : null}
-        {!state.canRepair ? <p className="text-[14px] leading-5 text-[var(--fg-2)]">{t('progressScreen.streak.repairEmpty', { count: daysUntilNextFreeze })}</p> : null}
+        {!state.canRepair ? <RepairUnavailableCopy state={state} daysUntilNextFreeze={daysUntilNextFreeze} /> : null}
         {repair.isError && repairStatus !== 409 ? <p role="alert" className="text-[14px] text-[var(--status-bad-text)]">{t(getStreakRepairErrorMessageKey(repairStatus))}</p> : null}
       </div>
     )
