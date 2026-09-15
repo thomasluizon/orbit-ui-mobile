@@ -169,7 +169,7 @@ export function AppToast({ placement = 'overlay' }: Readonly<{ placement?: 'over
   if (placement === 'slot') return <Toast {...hostedToast} />
 
   return (
-    <View pointerEvents="box-none" style={[styles.host, styles.overlay, overlayFrame, { bottom: insets.bottom }]}>
+    <View pointerEvents="box-none" style={[styles.host, styles.overlay, overlayFrame, { bottom: insets.bottom + 16 }]}>
       <Toast {...hostedToast} />
     </View>
   )

@@ -40,6 +40,7 @@ describe('mobile Toast', () => {
     const heightWithoutToast = route.getComputedHeight()
     TestRenderer.act(() => { useAppToastStore.getState().showInfo('Feedback') })
     const hostStyle = StyleSheet.flatten(tree.root.findByProps({ pointerEvents: 'box-none' }).props.style)
+    expect(hostStyle).toMatchObject({ bottom: 16, left: 16, position: 'absolute', width: 380 })
     const host = Yoga.Node.create()
     const content = Yoga.Node.create()
     content.setHeight(toastHeight)
