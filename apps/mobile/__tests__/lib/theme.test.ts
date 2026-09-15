@@ -47,8 +47,8 @@ describe('mobile theme runtime', () => {
     const light = createTokensV2('purple', 'light')
 
     expect(dark.statusOverdueText).toBe(dark.statusOverdue)
-    expect(dark.statusBadText).toBe(dark.statusBad)
-    expect(light.statusBadText).toBe(light.statusBad)
+    expect(dark.statusBadText).toBe('#ff7970')
+    expect(light.statusBadText).toBe('#d70009')
     expect(light.statusOverdue).toBe('#e17100')
     expect(light.statusOverdueText).toBe('#b45b00')
     expect(dark.fgOnBad).toBe('#020618')
