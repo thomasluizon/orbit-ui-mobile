@@ -24,6 +24,7 @@ import {
   getGamificationLevelTitleKey,
   getStreakRepairErrorMessageKey,
   getStreakTierLabelKey,
+  isPayGateError,
   deriveProgressViewState,
   visibleProgressAchievements,
   type ProgressGoalFilter,
@@ -299,10 +300,10 @@ function GoalSeparator() {
   return <View style={styles.goalSeparator} />
 }
 
-function WindowSection({ hasProAccess, tokens }: Readonly<{ hasProAccess: boolean; tokens: AppTokensV2 }>) {
+function WindowSection({ tokens }: Readonly<{ tokens: AppTokensV2 }>) {
   const { t } = useTranslation()
-  const retrospective = useProgressRetrospective(hasProAccess)
-  if (!hasProAccess) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><View style={styles.windowLock}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} tokens={tokens} /></View></WindowFrame>
+  const retrospective = useProgressRetrospective()
+  if (isPayGateError(retrospective.error)) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><View style={styles.windowLock}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} tokens={tokens} /></View></WindowFrame>
   if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
   const hasNoHabits = retrospective.isError && extractBackendErrorCode(retrospective.error) === NO_HABITS_FOR_PERIOD
   if (retrospective.isError && !hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void retrospective.refetch()}>{t('progressScreen.retry')}</PillButton>} /></WindowFrame>
@@ -368,9 +369,28 @@ function AchievementTile({ achievement, tokens, wide }: Readonly<{ achievement: 
   )
 }
 
-function AchievementsSection({ profile, xpProgress, tokens }: Readonly<{ profile: ReturnType<typeof useGamificationProfile>['profile']; xpProgress: number; tokens: AppTokensV2 }>) {
+function AchievementsSection({ gamificationAvailable, profile, xpProgress, tokens }: Readonly<{
+  gamificationAvailable: boolean
+  profile: ReturnType<typeof useGamificationProfile>['profile']
+  xpProgress: number
+  tokens: AppTokensV2
+}>) {
   const { t } = useTranslation()
   const { width } = useWindowDimensions()
+  if (!gamificationAvailable) {
+    return (
+      <Section compact title={t('progressScreen.sections.achievements')} tokens={tokens}>
+        <View style={styles.windowLock}>
+          <LockedCard
+            title={t('progressScreen.achievements.lockedTitle')}
+            body={t('progressScreen.achievements.lockedBody')}
+            action={t('progressScreen.achievements.lockedAction')}
+            tokens={tokens}
+          />
+        </View>
+      </Section>
+    )
+  }
   if (!profile) return null
   const achievements = visibleProgressAchievements(profile.achievements)
   const categories = Array.from(new Set(achievements.map((achievement) => achievement.category)))
@@ -420,15 +440,22 @@ export function ProgressContent() {
   const theme = useAppTheme()
   const tokens = useMemo(() => createTokensV2(theme.currentScheme, theme.currentTheme), [theme.currentScheme, theme.currentTheme])
   const account = useProfile()
-  const canView = account.profile?.canViewGamification ?? false
   const goals = useGoals()
-  const gamification = useGamificationProfile(canView)
+  const canViewGamification = account.profile?.canViewGamification ?? false
+  const gamification = useGamificationProfile(canViewGamification)
+  const gamificationAvailable = canViewGamification && !isPayGateError(gamification.error)
   const allGoals = goals.data?.allGoals ?? []
-  const { error, loading, empty } = deriveProgressViewState({ goalCount: allGoals.length, account, goals, gamification, canView })
+  const { error, loading, empty } = deriveProgressViewState({
+    goalCount: allGoals.length,
+    account,
+    goals,
+    gamification,
+    canViewGamification,
+  })
   const retry = () => {
     void account.refetch()
     void goals.refetch()
-    if (canView) void gamification.refetch()
+    void gamification.refetch()
   }
   return (
     <>
@@ -439,7 +466,7 @@ export function ProgressContent() {
       {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
       {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {empty ? <View style={styles.empty}><EmptyState title={t('progressScreen.empty')} action={<PillButton variant="ghost" size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></View> : null}
-      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} tokens={tokens} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} tokens={tokens} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} tokens={tokens} /><AchievementsSection profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
+      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
     </NestableScrollContainer>
     </>
   )
