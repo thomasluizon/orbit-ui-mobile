@@ -198,6 +198,64 @@ describe('catch-all API proxy route', () => {
     )
   })
 
+  it('does not report refresh failure when the refreshed endpoint still returns 401', async () => {
+    vi.mocked(resolveServerSession)
+      .mockResolvedValueOnce({
+        token: 'initial-token',
+        expiresAt: Date.now() + 30000,
+        refreshed: false,
+        refreshFailed: false,
+      })
+      .mockResolvedValueOnce({
+        token: 'refreshed-token',
+        expiresAt: Date.now() + 3600000,
+        refreshed: true,
+        refreshFailed: false,
+      })
+    mockFetch.mockResolvedValue(
+      new Response('unauthorized', {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+
+    const response = await GET(createRequest('profile/me'), {
+      params: Promise.resolve({ path: ['profile', 'me'] }),
+    })
+
+    expect(response.status).toBe(401)
+    expect(response.headers.get('x-orbit-session-refresh')).toBeNull()
+  })
+
+  it('reports a confirmed refresh rejection on the BFF response', async () => {
+    vi.mocked(resolveServerSession)
+      .mockResolvedValueOnce({
+        token: 'initial-token',
+        expiresAt: Date.now() + 30000,
+        refreshed: false,
+        refreshFailed: false,
+      })
+      .mockResolvedValueOnce({
+        token: null,
+        expiresAt: null,
+        refreshed: false,
+        refreshFailed: true,
+      })
+    mockFetch.mockResolvedValue(
+      new Response('unauthorized', {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+
+    const response = await GET(createRequest('profile/me'), {
+      params: Promise.resolve({ path: ['profile', 'me'] }),
+    })
+
+    expect(response.status).toBe(401)
+    expect(response.headers.get('x-orbit-session-refresh')).toBe('failed')
+  })
+
   it('does not recurse when the proxied refresh endpoint returns 401', async () => {
     vi.mocked(resolveServerSession)
       .mockResolvedValueOnce({

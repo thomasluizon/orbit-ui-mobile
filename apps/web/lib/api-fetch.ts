@@ -13,7 +13,7 @@ import type { ZodType } from 'zod'
  * Centralized API fetch with error categorization.
  *
  * Handles:
- * - 401: expose the failed-refresh sign-in state (no toast)
+ * - 401: expose failed-refresh state only when the BFF confirms it (no toast)
  * - 403 PAY_GATE: redirect to /upgrade (no toast)
  * - 403 other (e.g. NO_PERMISSION) + 400/404/409/429/5xx: categorized error toast
  */
@@ -68,10 +68,13 @@ export class ApiError extends Error {
 async function getStatusError(
   status: number,
   body: unknown,
+  sessionRefreshFailed: boolean,
 ): Promise<ApiError | null> {
   if (status === 401) {
-    const { useAuthStore } = await import('@/stores/auth-store')
-    useAuthStore.getState().markSessionRefreshFailed()
+    if (sessionRefreshFailed) {
+      const { useAuthStore } = await import('@/stores/auth-store')
+      useAuthStore.getState().markSessionRefreshFailed()
+    }
     return new ApiError(status, 'Unauthorized', body)
   }
 
@@ -125,7 +128,9 @@ export async function apiFetch<T>(
     const body: unknown = await res.json().catch(() => null)
     const status = res.status
 
-    const statusError = await getStatusError(status, body)
+    const sessionRefreshFailed =
+      status === 401 && res.headers.get('x-orbit-session-refresh') === 'failed'
+    const statusError = await getStatusError(status, body, sessionRefreshFailed)
     if (statusError) {
       throw statusError
     }

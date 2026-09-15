@@ -106,6 +106,7 @@ describe('apiFetch', () => {
     mockFetch.mockResolvedValue({
       ok: false,
       status: 401,
+      headers: new Headers({ 'x-orbit-session-refresh': 'failed' }),
       json: () => Promise.resolve({ error: 'Unauthorized' }),
     })
 
@@ -119,6 +120,7 @@ describe('apiFetch', () => {
     mockFetch.mockResolvedValue({
       ok: false,
       status: 401,
+      headers: new Headers(),
       json: () => Promise.resolve({ error: 'Token expired' }),
     })
 
@@ -129,6 +131,7 @@ describe('apiFetch', () => {
       expect((err as ApiError).status).toBe(401)
       expect((err as ApiError).message).toBe('Unauthorized')
     }
+    expect(mockMarkSessionRefreshFailed).not.toHaveBeenCalled()
   })
 
   it('redirects to /upgrade on a 403 PAY_GATE without toast', async () => {

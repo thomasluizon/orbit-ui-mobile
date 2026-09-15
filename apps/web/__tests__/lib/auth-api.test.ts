@@ -177,8 +177,47 @@ describe('auth-api session helpers', () => {
     expect(clearSession).not.toHaveBeenCalled()
   })
 
+  it('keeps an expired session retryable when the refresh request throws', async () => {
+    mockCookieStore.get.mockImplementation((name: string) => {
+      if (name === 'refresh_token') return { value: 'refresh-token' }
+      return undefined
+    })
+    mockFetch.mockRejectedValue(new Error('network unavailable'))
+
+    const { resolveServerSession } = await import('@/lib/auth-api')
+    const session = await resolveServerSession()
+
+    expect(session).toEqual({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    expect(mockCookieStore.set).not.toHaveBeenCalled()
+  })
+
+  it('keeps an expired session retryable after a non-auth refresh response', async () => {
+    mockCookieStore.get.mockImplementation((name: string) => {
+      if (name === 'refresh_token') return { value: 'refresh-token' }
+      return undefined
+    })
+    mockFetch.mockResolvedValue({ ok: false, status: 503 })
+
+    const { resolveServerSession } = await import('@/lib/auth-api')
+    const session = await resolveServerSession()
+
+    expect(session).toEqual({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: false,
+    })
+    expect(mockCookieStore.set).not.toHaveBeenCalled()
+  })
+
   it('clears the session when refresh fails without a usable access token', async () => {
     const clearSession = vi.fn()
+    mockFetch.mockResolvedValue({ ok: false, status: 401 })
 
     const { resolveSessionTokens } = await import('@/lib/auth-api')
     const session = await resolveSessionTokens({
@@ -199,6 +238,7 @@ describe('auth-api session helpers', () => {
   it('does not reuse a rejected access token when a forced refresh fails', async () => {
     const currentToken = makeJwt(Math.floor(FIXED_NOW / 1000) + 3600)
     const clearSession = vi.fn()
+    mockFetch.mockResolvedValue({ ok: false, status: 401 })
 
     const { resolveSessionTokens } = await import('@/lib/auth-api')
     const session = await resolveSessionTokens({

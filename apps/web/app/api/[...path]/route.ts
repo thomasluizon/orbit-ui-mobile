@@ -161,12 +161,20 @@ function buildResponseHeaders(source: Response): Headers {
 
 const NULL_BODY_STATUSES = new Set([204, 205, 304])
 const REFRESH_PATH = API.auth.refresh.replace(/^\/api\//, '')
+const SESSION_REFRESH_HEADER = 'x-orbit-session-refresh'
 
-async function toNextResponse(source: Response): Promise<NextResponse> {
+async function toNextResponse(
+  source: Response,
+  sessionRefreshFailed = false,
+): Promise<NextResponse> {
   const body = NULL_BODY_STATUSES.has(source.status) ? null : await source.text()
+  const headers = buildResponseHeaders(source)
+  if (sessionRefreshFailed) {
+    headers.set(SESSION_REFRESH_HEADER, 'failed')
+  }
   return new NextResponse(body, {
     status: source.status,
-    headers: buildResponseHeaders(source),
+    headers,
   })
 }
 
@@ -180,6 +188,7 @@ async function handleProxy(request: NextRequest, path: string) {
       const retryResponse = await proxyRequest(request, path, refreshedSession.token)
       return toNextResponse(retryResponse)
     }
+    return toNextResponse(response, refreshedSession.refreshFailed)
   }
 
   return toNextResponse(response)

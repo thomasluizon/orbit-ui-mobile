@@ -2,12 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest, NextResponse } from 'next/server'
 import { unstable_doesMiddlewareMatch } from 'next/experimental/testing/server'
 import { config, proxy } from '@/proxy'
-import { resolveSessionTokens, setSessionCookies } from '@/lib/auth-api'
+import {
+  clearSessionCookies,
+  resolveSessionTokens,
+  setSessionCookies,
+} from '@/lib/auth-api'
 import nextConfig from '../next.config'
 
 vi.mock('@/lib/auth-api', () => ({
   AUTH_COOKIE: 'auth_token',
   REFRESH_COOKIE: 'refresh_token',
+  clearSessionCookies: vi.fn(),
   resolveSessionTokens: vi.fn(),
   setSessionCookies: vi.fn(),
 }))
@@ -49,6 +54,7 @@ describe('proxy', () => {
     vi.mocked(NextResponse.next).mockClear()
     vi.mocked(NextResponse.redirect).mockClear()
     vi.mocked(resolveSessionTokens).mockReset()
+    vi.mocked(clearSessionCookies).mockReset()
     vi.mocked(setSessionCookies).mockReset()
   })
 
@@ -171,6 +177,58 @@ describe('proxy', () => {
       'fresh-refresh',
       expect.objectContaining({ set: expect.any(Function) }),
     )
+  })
+
+  it('does not let a stale refresh loser erase a winning rotation', async () => {
+    let requestNumber = 0
+    let releaseLoser = () => {}
+    const loserGate = new Promise<void>((resolve) => {
+      releaseLoser = resolve
+    })
+    vi.mocked(resolveSessionTokens).mockImplementation(async (options) => {
+      requestNumber += 1
+      if (requestNumber === 1) {
+        await options.persistSession?.({
+          token: 'fresh-token',
+          refreshToken: 'fresh-refresh',
+        })
+        return {
+          token: 'fresh-token',
+          expiresAt: Date.now() + 3600000,
+          refreshed: true,
+          refreshFailed: false,
+        }
+      }
+
+      await loserGate
+      await options.clearSession?.()
+      return {
+        token: null,
+        expiresAt: null,
+        refreshed: false,
+        refreshFailed: true,
+      }
+    })
+
+    const requestCookies = { refresh_token: 'shared-old-refresh' }
+    const winnerRequest = proxy(createRequest('/login', { cookies: requestCookies }))
+    const loserRequest = proxy(createRequest('/login', { cookies: requestCookies }))
+    const winnerResponse = await winnerRequest
+    releaseLoser()
+    const loserResponse = await loserRequest
+
+    expect(winnerResponse).toMatchObject({ type: 'redirect' })
+    expect(loserResponse).toMatchObject({ type: 'next' })
+    expect(resolveSessionTokens).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ refreshToken: 'shared-old-refresh' }),
+    )
+    expect(resolveSessionTokens).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ refreshToken: 'shared-old-refresh' }),
+    )
+    expect(setSessionCookies).toHaveBeenCalledTimes(1)
+    expect(clearSessionCookies).not.toHaveBeenCalled()
   })
 
   it('redirects authenticated users away from login', async () => {

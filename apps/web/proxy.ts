@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 import {
   AUTH_COOKIE,
   REFRESH_COOKIE,
-  clearSessionCookies,
   resolveSessionTokens,
   setSessionCookies,
   type SessionTokens,
@@ -33,12 +32,10 @@ function isPublicPath(pathname: string): boolean {
 async function resolveProxySession(request: NextRequest): Promise<{
   token: string | null
   refreshedTokens: SessionTokens | null
-  sessionCookiesCleared: boolean
 }> {
   const authToken = request.cookies.get(AUTH_COOKIE)?.value ?? null
   const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value ?? null
   let refreshedTokens: SessionTokens | null = null
-  let sessionCookiesCleared = false
 
   const session = await resolveSessionTokens({
     authToken,
@@ -46,22 +43,17 @@ async function resolveProxySession(request: NextRequest): Promise<{
     persistSession: (tokens) => {
       refreshedTokens = tokens
     },
-    clearSession: () => {
-      sessionCookiesCleared = true
-    },
   })
 
   return {
     token: session.token,
     refreshedTokens,
-    sessionCookiesCleared,
   }
 }
 
 async function applyRefreshedSession(
   response: NextResponse,
   refreshedTokens: SessionTokens | null,
-  sessionCookiesCleared = false,
 ): Promise<NextResponse> {
   if (refreshedTokens) {
     await setSessionCookies(
@@ -69,8 +61,6 @@ async function applyRefreshedSession(
       refreshedTokens.refreshToken,
       response.cookies,
     )
-  } else if (sessionCookiesCleared) {
-    await clearSessionCookies(response.cookies)
   }
 
   return response
@@ -128,7 +118,7 @@ export async function proxy(request: NextRequest) {
   const shouldResolveSession = pathname === '/login' || !isPublic
   const session = shouldResolveSession
     ? await resolveProxySession(request)
-    : { token: null, refreshedTokens: null, sessionCookiesCleared: false }
+    : { token: null, refreshedTokens: null }
 
   if (!session.token && !isPublic) {
     const url = request.nextUrl.clone()
@@ -147,7 +137,6 @@ export async function proxy(request: NextRequest) {
       await applyRefreshedSession(
         NextResponse.redirect(url),
         session.refreshedTokens,
-        session.sessionCookiesCleared,
       ),
       contentSecurityPolicy,
     )
@@ -157,7 +146,6 @@ export async function proxy(request: NextRequest) {
     await applyRefreshedSession(
       NextResponse.next({ request: { headers: requestHeaders } }),
       session.refreshedTokens,
-      session.sessionCookiesCleared,
     ),
     contentSecurityPolicy,
   )

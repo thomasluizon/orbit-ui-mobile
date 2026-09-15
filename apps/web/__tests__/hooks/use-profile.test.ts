@@ -78,10 +78,15 @@ function mockProfileResponse(profile: Profile) {
   })
 }
 
-function mockErrorResponse(status: number, body: unknown = {}) {
+function mockErrorResponse(
+  status: number,
+  body: unknown = {},
+  headers?: HeadersInit,
+) {
   mockFetch.mockResolvedValue({
     ok: false,
     status,
+    headers: new Headers(headers),
     json: () => Promise.resolve(body),
   })
 }
@@ -128,7 +133,11 @@ describe('useProfile', () => {
   })
 
   it('surfaces a 401 and exposes the failed-refresh sign-in state', async () => {
-    mockErrorResponse(401, { error: 'Unauthorized' })
+    mockErrorResponse(
+      401,
+      { error: 'Unauthorized' },
+      { 'x-orbit-session-refresh': 'failed' },
+    )
 
     const { result } = renderHook(() => useProfile(), {
       wrapper: createWrapper(),
