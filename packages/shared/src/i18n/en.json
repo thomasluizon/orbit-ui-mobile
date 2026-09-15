@@ -856,7 +856,6 @@
       "createCount": "no habits | Create {n} habit | Create {n} habits",
       "createdSuccess": "no habits created | Created {n} habit successfully | Created {n} habits successfully",
       "createAsParent": "Group as parent habit",
-      "createAsParentSuccess": "Created '{name}' with {n} sub-habit | Created '{name}' with {n} sub-habits",
       "every": "every",
       "frequencyQuantityLabel": "Frequency interval",
       "removeHabit": "Remove {name}"
@@ -869,7 +868,7 @@
         "threePerWeek": "3 times per week",
         "oneTime": "One-time task"
       },
-      "successCreated": "Created '{name}'",
+      "successCreated": "Created ''{name}''",
       "errorExpired": "This clarification expired. Please ask again.",
       "errorAlreadyResolved": "Already handled. Please ask again.",
       "errorGeneric": "Something went wrong. Please try again."
