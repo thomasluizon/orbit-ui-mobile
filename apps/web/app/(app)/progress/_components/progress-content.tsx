@@ -164,7 +164,9 @@ function RepairUnavailableCopy({ state, daysUntilNextFreeze }: Readonly<{
   const t = useTranslations()
   const message = state.banked === 0
     ? t('progressScreen.streak.repairEmpty', { count: daysUntilNextFreeze })
-    : t('progressScreen.streak.repairPartial', { needed: state.count, banked: state.banked, days: daysUntilNextFreeze })
+    : state.bankFull
+      ? t('progressScreen.streak.repairCapped', { needed: state.count, banked: state.banked })
+      : t('progressScreen.streak.repairPartial', { needed: state.count, banked: state.banked, days: daysUntilNextFreeze })
   return <p className="text-[14px] leading-5 text-[var(--fg-2)]">{message}</p>
 }
 

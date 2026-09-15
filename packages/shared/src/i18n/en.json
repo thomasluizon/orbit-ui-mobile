@@ -2452,6 +2452,7 @@
       "repairAction": "Spend {count, plural, one {# freeze} other {# freezes}}",
       "repairEmpty": "No freeze is banked. The streak starts again today, and the next freeze arrives in {count, plural, one {# day} other {# days}}.",
       "repairPartial": "This gap needs {needed, plural, one {# freeze} other {# freezes}} and you have {banked}. The next one arrives in {days, plural, one {# day} other {# days}}.",
+      "repairCapped": "This gap needs {needed, plural, one {# freeze} other {# freezes}} and {banked} is the most you can bank, so it cannot be repaired.",
       "repairError": "The gap could not be repaired. Try again.",
       "repairRateLimited": "There were too many repair attempts. Try again shortly.",
       "bankFull": "{count} freezes is the limit. The next one arrives after you spend one."

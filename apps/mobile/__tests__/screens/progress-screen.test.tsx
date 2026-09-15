@@ -652,6 +652,26 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.streak.repairAction:{"count":2}')).toHaveLength(0)
   })
 
+  it('shows an unrepairable capped gap without promising another freeze', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-09-10T15:00:00Z'))
+    mocks.freeze.streakInfo.currentStreak = 0
+    mocks.freeze.streakInfo.isRepairAvailable = false
+    mocks.freeze.streakInfo.repairDate = null
+    mocks.freeze.streakInfo.repairableGapDates = ['2026-08-31', '2026-09-01', '2026-09-02', '2026-09-03']
+    mocks.freeze.streakInfo.streakFreezesAccumulated = 3
+    mocks.freeze.freezesAvailable = 3
+    mocks.freeze.streakFreezesAccumulated = 3
+    mocks.freeze.maxStreakFreezesAccumulated = 3
+
+    const tree = await renderProgress()
+    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+
+    expect(text).toContain('progressScreen.streak.repairCapped:{"needed":4,"banked":3}')
+    expect(text).not.toContain('progressScreen.streak.repairPartial:{"needed":4,"banked":3,"days":3}')
+    expect(tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.streak.repairAction:{"count":4}')).toHaveLength(0)
+  })
+
   it('shows the neutral bank limit and no next-freeze row', async () => {
     mocks.freeze.streakInfo.streakFreezesAccumulated = 3
     mocks.freeze.streakFreezesAccumulated = 3
