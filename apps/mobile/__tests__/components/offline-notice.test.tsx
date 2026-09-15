@@ -64,7 +64,7 @@ describe.each(['en', 'pt-BR'])('derived offline notice in %s', (locale) => {
     Object.assign(mocks.queue, { isOnline: false, pendingCount: 0, isFlushing: false, hasFailed: false })
     mocks.enqueue.mockClear()
     mocks.push.mockClear()
-    useOfflineSyncStore.setState({ drops: [], isFlushing: false })
+    useOfflineSyncStore.setState({ drops: [] })
     useAppToastStore.setState({ currentToast: null, queue: [] })
     toastChanges.mockClear()
     unsubscribeToasts = useAppToastStore.subscribe(toastChanges)

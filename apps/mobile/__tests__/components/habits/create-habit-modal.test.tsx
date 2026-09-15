@@ -235,6 +235,20 @@ describe('CreateHabitModal (mobile)', () => {
     expect(hasText(tree.root, 'habits.createHabit')).toBe(true)
   })
 
+  it('shows orphan recovery context when supplied', () => {
+    const tree = renderModal(
+      <CreateHabitModal open onClose={vi.fn()} recoveryMessage="Create Morning walk" />,
+    )
+
+    const recoveryCopy = tree.root.findAll(
+      (node: any) =>
+        node.type === 'Text' &&
+        Array.isArray(node.props.children) &&
+        node.props.children.join('') === 'Create Morning walk common.syncOrphanedDetail',
+    )
+    expect(recoveryCopy).toHaveLength(1)
+  })
+
   it('uses the sub-habit title and hides the sub-habit section in sub-habit mode', () => {
     const parentHabit = createMockHabit({ id: 'parent-1', title: 'Parent' })
     const tree = renderModal(
@@ -466,6 +480,7 @@ describe('CreateHabitModal (mobile)', () => {
     await TestRenderer.act(async () => {
 await Promise.resolve()
       findSubmit(tree.root).props.onPress()
+      await Promise.resolve()
     })
 
     expect(mockCreateMutateAsync).toHaveBeenCalledTimes(1)
@@ -535,6 +550,7 @@ await Promise.resolve()
     await TestRenderer.act(async () => {
 await Promise.resolve()
       findSubmit(tree.root).props.onPress()
+      await Promise.resolve()
     })
 
     expect(mockShowError).toHaveBeenCalledWith('habits.form.errors.title')
@@ -550,6 +566,7 @@ await Promise.resolve()
     await TestRenderer.act(async () => {
 await Promise.resolve()
       findSubmit(tree.root).props.onPress()
+      await Promise.resolve()
     })
 
     expect(mockShowError).toHaveBeenCalledTimes(1)
