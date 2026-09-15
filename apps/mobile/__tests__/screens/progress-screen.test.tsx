@@ -173,9 +173,6 @@ vi.mock('@/components/goals/goal-detail-drawer', () => ({ GoalDetailDrawer: (pro
 vi.mock('@/components/ui/pro-badge', () => ({
   ProBadge: () => React.createElement('ProBadge'),
 }))
-vi.mock('@/components/ui/pill-button', () => ({
-  PillButton: (props: Record<string, unknown>) => React.createElement('PillButton', props, props.children as React.ReactNode),
-}))
 vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/components/ui/stat-tile')>()),
   StatTile: (props: Record<string, unknown>) => React.createElement('StatTile', props),
@@ -213,7 +210,13 @@ function captureGoalCardRendering(card: TestNode) {
 }
 
 function findPill(root: TestNode, label: string): TestNode {
-  return root.findAll((node) => node.type === 'PillButton' && node.props.children === label)[0]!
+  return pillButtons(root).find((button) => button.findAll((node) => node.type === 'Text' && node.props.children === label).length > 0)!
+}
+
+function pillButtons(root: TestNode): TestNode[] {
+  return root.findAll((node) => node.type === 'Pressable'
+    && typeof node.props.testID === 'string'
+    && node.props.testID.startsWith('button-'))
 }
 
 function isAccessibilityHidden(node: TestNode): boolean {
@@ -319,7 +322,7 @@ describe('mobile ProgressContent', () => {
     await TestRenderer.act(() => (tab.props.onPress as () => void)())
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.goals.filterEmpty').length).toBeGreaterThan(0)
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.empty')).toHaveLength(0)
-    await TestRenderer.act(() => (findPill(tree.root, 'progressScreen.goals.clearFilter').props.onClick as () => void)())
+    await TestRenderer.act(() => (findPill(tree.root, 'progressScreen.goals.clearFilter').props.onPress as () => void)())
     expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Read 12 Books').length).toBeGreaterThan(0)
   })
 
@@ -427,7 +430,7 @@ describe('mobile ProgressContent', () => {
       'skeleton-unit-stat-tile', 'skeleton-unit-stat-tile', 'skeleton-unit-stat-tile', 'skeleton-unit-stat-tile',
       'skeleton-unit-habit-row', 'skeleton-unit-habit-row', 'skeleton-unit-habit-row',
     ])
-    expect(tree.root.findAll((node) => node.type === 'PillButton')).toHaveLength(0)
+    expect(pillButtons(tree.root)).toHaveLength(0)
   })
 
   it.each(['loading', 'error', 'empty', 'populated'])('exposes one screen heading in the %s state', async (state) => {
@@ -446,9 +449,9 @@ describe('mobile ProgressContent', () => {
     mocks[query].isError = true
     const tree = await renderProgress()
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'error-state')).toHaveLength(1)
-    expect(tree.root.findAll((node) => node.type === 'PillButton')).toHaveLength(1)
+    expect(pillButtons(tree.root)).toHaveLength(1)
     await TestRenderer.act(() => {
-      ;(findPill(tree.root, 'progressScreen.retry').props.onClick as () => void)()
+      ;(findPill(tree.root, 'progressScreen.retry').props.onPress as () => void)()
     })
     for (const request of [mocks.account, mocks.goals, mocks.gamification]) expect(request.refetch).toHaveBeenCalledTimes(1)
     mocks[query].isError = false
@@ -470,7 +473,7 @@ describe('mobile ProgressContent', () => {
     mocks.goals.isError = true
     const tree = await renderProgress()
     await TestRenderer.act(() => {
-      ;(findPill(tree.root, 'progressScreen.retry').props.onClick as () => void)()
+      ;(findPill(tree.root, 'progressScreen.retry').props.onPress as () => void)()
     })
     expect(mocks.account.refetch).toHaveBeenCalledTimes(1)
     expect(mocks.goals.refetch).toHaveBeenCalledTimes(1)
@@ -484,9 +487,9 @@ describe('mobile ProgressContent', () => {
     const tree = await renderProgress()
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.empty').length).toBeGreaterThan(0)
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'empty-state-mark-orbit')).toHaveLength(1)
-    expect(tree.root.findAll((node) => node.type === 'PillButton')).toHaveLength(1)
+    expect(pillButtons(tree.root)).toHaveLength(1)
     await TestRenderer.act(() => {
-      ;(findPill(tree.root, 'progressScreen.emptyAction').props.onClick as () => void)()
+      ;(findPill(tree.root, 'progressScreen.emptyAction').props.onPress as () => void)()
     })
     expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith('/')
     expect(tree.root.findAll((node) => node.props.children === 'progressScreen.sections.streak')).toHaveLength(0)
@@ -577,10 +580,13 @@ describe('mobile ProgressContent', () => {
     ]))
     expect(text).not.toContain('progressScreen.streak.lockedBody')
     expect(text).not.toContain('progressScreen.achievements.lockedBody')
-    const routes = tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.window.lockedAction')
-    expect(routes).toHaveLength(1)
+    const route = findPill(tree.root, 'progressScreen.window.lockedAction')
+    const routeProps = route.props as Readonly<{ onPress?: unknown; disabled?: boolean; accessibilityState?: { disabled?: boolean } }>
+    expect(routeProps.onPress).toEqual(expect.any(Function))
+    expect(routeProps.disabled).not.toBe(true)
+    expect(routeProps.accessibilityState?.disabled).not.toBe(true)
     await TestRenderer.act(() => {
-      ;(routes[0]!.props.onClick as () => void)()
+      ;(routeProps.onPress as () => void)()
     })
     expect(mocks.router.push).toHaveBeenCalledExactlyOnceWith({ pathname: '/upgrade', params: { from: '/progress' } })
   })
@@ -679,7 +685,7 @@ describe('mobile ProgressContent', () => {
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
 
     expect(text).toContain('progressScreen.streak.gapUnavailable')
-    expect(tree.root.findAll((node) => node.type === 'PillButton' && typeof node.props.children === 'string' && node.props.children.startsWith('progressScreen.streak.repairAction'))).toHaveLength(0)
+    expect(pillButtons(tree.root).filter((button) => button.findAll((node) => typeof node.props.children === 'string' && node.props.children.startsWith('progressScreen.streak.repairAction')).length > 0)).toHaveLength(0)
     expect(mocks.repair.mutate).not.toHaveBeenCalled()
   })
 
@@ -694,8 +700,8 @@ describe('mobile ProgressContent', () => {
     const tree = await renderProgress()
     const action = findPill(tree.root, 'progressScreen.streak.repairAction:{"count":1}')
 
-    expect(action.props).toMatchObject({ variant: 'secondary', size: 'sm' })
-    await TestRenderer.act(() => (action.props.onClick as () => void)())
+    expect(action.props.testID).toBe('button-secondary-sm')
+    await TestRenderer.act(() => (action.props.onPress as () => void)())
     expect(mocks.repair.mutate).toHaveBeenCalledWith(['2026-09-09'])
     dimensions.mockRestore()
   })
@@ -716,7 +722,7 @@ describe('mobile ProgressContent', () => {
 
     expect(text).toContain('progressScreen.streak.gapBody:{"count":1}')
     expect(text).toContain('progressScreen.streak.repairEmpty')
-    expect(tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.streak.repairAction:{"count":1}')).toHaveLength(0)
+    expect(pillButtons(tree.root).filter((button) => button.findAll((node) => node.props.children === 'progressScreen.streak.repairAction:{"count":1}').length > 0)).toHaveLength(0)
   })
 
   it('shows a partly funded gap without offering an unaffordable repair', async () => {
@@ -735,7 +741,7 @@ describe('mobile ProgressContent', () => {
 
     expect(text).toContain('progressScreen.streak.gapBody:{"count":3}')
     expect(text).toContain('progressScreen.streak.repairPartial:{"needed":3,"banked":2}')
-    expect(tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.streak.repairAction:{"count":3}')).toHaveLength(0)
+    expect(pillButtons(tree.root).filter((button) => button.findAll((node) => node.props.children === 'progressScreen.streak.repairAction:{"count":3}').length > 0)).toHaveLength(0)
   })
 
   it.each([
@@ -781,7 +787,7 @@ describe('mobile ProgressContent', () => {
 
     expect(text).toContain('progressScreen.streak.repairCapped:{"needed":4,"banked":3}')
     expect(text).not.toContain('progressScreen.streak.repairPartial:{"needed":4,"banked":3}')
-    expect(tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.streak.repairAction:{"count":4}')).toHaveLength(0)
+    expect(pillButtons(tree.root).filter((button) => button.findAll((node) => node.props.children === 'progressScreen.streak.repairAction:{"count":4}').length > 0)).toHaveLength(0)
   })
 
   it('shows the neutral bank limit and no next-freeze row', async () => {
@@ -875,7 +881,7 @@ describe('mobile ProgressContent', () => {
     tree = await renderProgress()
     const retry = findPill(tree.root, 'progressScreen.retry')
     await TestRenderer.act(() => {
-      ;(retry.props.onClick as () => void)()
+      ;(retry.props.onPress as () => void)()
     })
     expect(mocks.freeze.streakQuery.refetch).toHaveBeenCalledTimes(1)
 
