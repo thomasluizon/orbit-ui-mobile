@@ -5,12 +5,10 @@ import Yoga from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
-import en from '@orbit/shared/i18n/en.json'
-import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { createTranslator } from 'next-intl'
 
 import ProgressScreen from '@/app/(tabs)/progress'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
+import { i18n } from '@/lib/i18n'
 import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer = require('react-test-renderer')
@@ -120,13 +118,18 @@ const mocks = vi.hoisted(() => ({
   streakSnapshotZones: null as Set<string> | null,
 }))
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, values?: Record<string, unknown>) =>
-      values ? `${key}:${JSON.stringify(values)}` : key,
-    i18n: { language: 'en' },
-  }),
-}))
+vi.mock('react-i18next', async () => {
+  const actual = await vi.importActual<typeof import('react-i18next')>('react-i18next')
+
+  return {
+    ...actual,
+    useTranslation: () => ({
+      t: (key: string, values?: Record<string, unknown>) =>
+        values ? `${key}:${JSON.stringify(values)}` : key,
+      i18n: { language: 'en' },
+    }),
+  }
+})
 vi.mock('expo-router', () => ({ useRouter: () => mocks.router }))
 vi.mock('react-native-draggable-flatlist', () => ({
   NestableScrollContainer: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -657,11 +660,32 @@ describe('mobile ProgressContent', () => {
     expect(text).toContain('progressScreen.streak.gapBody:{"count":3}')
     expect(text).toContain('progressScreen.streak.repairPartial:{"needed":3,"banked":2}')
     expect(tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.streak.repairAction:{"count":3}')).toHaveLength(0)
+  })
 
-    expect(createTranslator({ locale: 'en', messages: en })('progressScreen.streak.repairPartial', { needed: 3, banked: 2 }))
-      .toBe('The gap is still open. It needs 3 freezes, but only 2 are banked. This repair offer ends today.')
-    expect(createTranslator({ locale: 'pt-BR', messages: ptBR })('progressScreen.streak.repairPartial', { needed: 3, banked: 2 }))
-      .toBe('A lacuna continua em aberto. Ela precisa de 3 congelamentos, mas só há 2 guardados. Esta oferta de reparo termina hoje.')
+  it.each([
+    { locale: 'en', banked: 1, expected: 'The gap is still open. It needs 3 freezes, but only 1 is banked. This repair offer ends today.' },
+    { locale: 'en', banked: 2, expected: 'The gap is still open. It needs 3 freezes, but only 2 are banked. This repair offer ends today.' },
+    { locale: 'pt-BR', banked: 1, expected: 'A lacuna continua em aberto. Ela precisa de 3 congelamentos, mas só há 1 guardado. Esta oferta de reparo termina hoje.' },
+    { locale: 'pt-BR', banked: 2, expected: 'A lacuna continua em aberto. Ela precisa de 3 congelamentos, mas só há 2 guardados. Esta oferta de reparo termina hoje.' },
+  ])('renders partly funded repair copy through mobile i18n in $locale with $banked banked', async ({ locale, banked, expected }) => {
+    await i18n.changeLanguage(locale)
+    try {
+      expect(i18n.t('progressScreen.streak.repairPartial', { needed: 3, banked })).toBe(expected)
+    } finally {
+      await i18n.changeLanguage('en')
+    }
+  })
+
+  it.each([
+    { locale: 'en', expected: 'The gap is still open, but no freeze is banked to cover it. This repair offer ends today.' },
+    { locale: 'pt-BR', expected: 'A lacuna continua em aberto, mas não há congelamento guardado para cobri-la. Esta oferta de reparo termina hoje.' },
+  ])('renders empty-bank repair copy through mobile i18n in $locale', async ({ locale, expected }) => {
+    await i18n.changeLanguage(locale)
+    try {
+      expect(i18n.t('progressScreen.streak.repairEmpty')).toBe(expected)
+    } finally {
+      await i18n.changeLanguage('en')
+    }
   })
 
   it('shows an unrepairable capped gap without promising another freeze', async () => {
