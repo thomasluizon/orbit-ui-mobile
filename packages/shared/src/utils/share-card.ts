@@ -56,7 +56,10 @@ export function buildShareCardStats(metrics: RetrospectiveMetrics): ShareCardSta
   ]
 }
 
-/** True when the recap has no logged activity, so the share sheet can show an empty state instead of a blank card. */
-export function isRecapShareEmpty(metrics: RetrospectiveMetrics): boolean {
-  return metrics.totalCompletions === 0 && metrics.activeDays === 0
+/** True when the recap has no habit or goal completions, so sharing never produces a blank card. */
+export function isRecapShareEmpty(
+  metrics: RetrospectiveMetrics,
+  goalCompletions: number,
+): boolean {
+  return metrics.totalCompletions === 0 && metrics.activeDays === 0 && goalCompletions === 0
 }

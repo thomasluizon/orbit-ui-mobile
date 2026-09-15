@@ -29,7 +29,7 @@ export function ShareCardPanel({ open, onOpenChange, displayName }: Readonly<Sha
   const { data: recap, isLoading, isError, refetch } = useRecap(period, open)
   const { captureRef, isSharing, hasError, canShareFiles, share, download } = useShareCard()
 
-  const isEmpty = recap ? isRecapShareEmpty(recap.metrics) : false
+  const isEmpty = recap ? isRecapShareEmpty(recap.metrics, recap.goalCompletions) : false
   const showCard = !isLoading && !isError && recap && !isEmpty
 
   function handleShare() {

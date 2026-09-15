@@ -1,6 +1,10 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+import {
+  createMockRecap,
+  createMockRetrospectiveMetrics,
+} from '@orbit/shared/__tests__/factories'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -48,5 +52,21 @@ describe('ShareCardPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
 
     expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows the share card for a goal-only recap', () => {
+    recapState.data = createMockRecap({
+      goalCompletions: 4,
+      metrics: createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
+    })
+    recapState.isError = false
+
+    render(<ShareCardPanel open onOpenChange={vi.fn()} />)
+
+    expect(screen.getByTestId('share-card')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'shareCard.download' })).toBeInTheDocument()
+
+    recapState.data = undefined
+    recapState.isError = true
   })
 })
