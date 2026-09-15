@@ -1,11 +1,14 @@
 ---
 name: progress
-description: Answer "where is the redesign" in product terms: what a person can now do in Orbit, what is half built, and what Thomas has to decide. Reads live state, never a remembered summary. Use when he asks for a progress update, how the redesign is going, or says /progress.
-argument-hint: [optional area, for example "calendar" or "perfil"]
+description: Answer "what happened" in product terms: what a person can now do, what is half built, and what Thomas has to decide. Reads live state, never a remembered summary. Defaults to THIS SESSION; --full adds the whole effort's spec below it. Use when he asks for a progress update, how something is going, or says /progress.
+argument-hint: "[--full] [optional area, for example \"calendar\" or \"perfil\"]"
 effort: medium
 ---
 
 # Progress
+
+**Input**: `$ARGUMENTS`. `--full` anywhere in it adds the whole-effort section. Anything else is an
+area to narrow to.
 
 **At a glance:** Thomas asks what the product does now. Answer in screens and behaviours. A ticket
 number, a pull request number or a commit SHA belongs in this answer only when he asks which one.
@@ -16,32 +19,52 @@ number, a pull request number or a commit SHA belongs in this answer only when h
 
 He is not asking which tickets closed. Numbers are how the work is tracked, not what it is.
 
+## Two scopes, and the default is the session
+
+| invocation | what it answers |
+|---|---|
+| `/progress` | what THIS SESSION changed, and nothing else |
+| `/progress --full` | this session first, then the whole effort below it |
+| `/progress <area>` | the same, narrowed to one screen or surface |
+
+The default is deliberately narrow. Mid-run he is asking what just happened, and a whole-effort
+summary buries that under work he already knows about.
+
 ## Read live state first
 
-Never answer from memory or from `hot.md`. Both go stale within a day.
+Never answer from memory, and never from a standing notes file such as `hot.md`. Both go stale
+within a day.
 
-1. `git fetch origin redesign/main`, then read `git log --oneline origin/main..origin/redesign/main`.
-2. `gh pr list --repo thomasluizon/orbit-ui-mobile --state open` for what is mid flight.
-3. For a screen you are unsure about, read its ticket body for the stage list and compare against
-   the merged commits.
+**Find the working branch rather than assuming one.** `git rev-parse --abbrev-ref HEAD` in the
+repository you are in. Compare against its integration branch: the one the open pull requests target,
+read from `gh pr list --json baseRefName`, not a name you remember.
 
-A stage that merged is shipped to `redesign/main`. Nothing on that branch reaches a real person
-until the redesign ships, so say "built" rather than "live".
+For the session scope:
 
-## The screens, and what each one means to a person
+1. `readRunState` in `tools/lib/run-state.mjs` gives this session's `merged` and `remaining` when an
+   orchestrated run wrote one. Use it only when its `sessionId` is this session's.
+2. `git log --oneline <branch>@{<when the session started>}..<branch>`, or the merge commits whose
+   times fall inside the session, for what actually landed.
+3. `gh pr list --state open` for what is mid flight, and the session's own decision log if one exists.
 
-| ticket | say this |
-|---|---|
-| #56 | the calendar: month, week, range and agenda views, logging the last seven days, Google events beside habits, and the sync boundary |
-| #63 | Wrapped, the year in review, and its share card |
-| #67 | onboarding, the tour, and the feature guide |
-| #71 | Perfil: your account, preferences, theme, Astra settings, API keys, sign out and delete |
-| #73 | About, privacy, terms, and the support form |
-| #76 | the Android home screen widget |
-| #329 | Progresso, the screen that answers "am I moving" |
+For the full scope, add:
 
-Name the behaviour, not the stage. "The calendar has its month, week and range views and logs the
-last seven days" beats "stages 1 to 9 merged".
+4. The effort's spec under `.claude/specs/<slug>.md`. Find it the way `/handoff` does: if the opening
+   prompt names one, use that one; otherwise match by scope, never by feel. Read its State section
+   for what it claims, then CHECK the claim against the tree rather than repeating it.
+5. The ticket list for the effort, and for any screen you are unsure about, its ticket body's stage
+   list compared against the merged commits.
+
+A stage that merged is shipped to the integration branch. If nothing on that branch reaches a real
+person yet, say "built" rather than "live", and say so once rather than in every line.
+
+## Name the behaviour, not the stage
+
+Derive what each ticket MEANS to a person from its own title and body, at the time you answer. Do not
+carry a table of tickets in this file: it rots the moment a ticket is retitled, split or closed.
+
+"The calendar has its month, week and range views and logs the last seven days" beats "stages 1 to 9
+merged".
 
 ## Shape of the answer
 
@@ -51,18 +74,27 @@ Three things, in this order:
 2. What is half built, and what is missing from it.
 3. What is waiting on Thomas, phrased as the decision, not the ticket.
 
+With `--full`, answer those three for the session, then the same three for the whole effort
+underneath, clearly separated and clearly labelled. The session part comes first and stays first,
+even when the effort part is larger.
+
 Keep it under his writing contract: 12 lines, 200 words. If that will not fit, you are including
-detail he did not ask for.
+detail he did not ask for. `--full` earns more room, because two scopes cannot fit in one: run long
+the way the contract allows, and add a heading per scope so he can skim back.
 
 ## Be honest about half done
 
 A screen with six of nine stages built is not "nearly done", it is missing three behaviours. Name
-them. A screen blocked on an `orbit-api` capability is blocked, not in progress.
+them. A screen blocked on a capability in another repository is blocked, not in progress.
 
-If a defect shipped and was caught, say what it would have done to someone: "a second tap could
-undo the first write" tells him more than "fixed a data-loss bug".
+If a defect shipped and was caught, say what it would have done to someone: "a second tap could undo
+the first write" tells him more than "fixed a data-loss bug".
+
+A session that merged nothing says so. A run whose only output was review rounds is a run that
+merged nothing, however much it did.
 
 ## When he names an area
 
 `/progress calendar` answers for that screen only, in the same three parts, with room for one more
-sentence of detail.
+sentence of detail. `--full` combines with an area: this session's changes to that screen, then that
+screen's whole state.
