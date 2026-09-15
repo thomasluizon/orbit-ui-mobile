@@ -11,7 +11,7 @@ export function useResolveClarification() {
   return useMutation({
     mutationFn: async ({ operationId, value }: { operationId: string; value: string }) => {
       const result = await resolveClarification(operationId, value)
-      applyServerActionFailure(result)
+      await applyServerActionFailure(result)
       return result
     },
 
