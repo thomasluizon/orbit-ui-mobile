@@ -20,7 +20,6 @@ import {
 const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
   gamificationEnabled: vi.fn(),
-  retrospectiveEnabled: vi.fn(),
   repair: { mutate: vi.fn(), isPending: false, isError: false, error: null as unknown },
   reorder: { mutate: vi.fn() },
   updateStatus: { mutate: vi.fn(), isPending: false },
@@ -156,10 +155,7 @@ vi.mock('@/hooks/use-gamification', () => ({
   },
 }))
 vi.mock('@/hooks/use-retrospective', () => ({
-  useProgressRetrospective: (enabled: boolean) => {
-    mocks.retrospectiveEnabled(enabled)
-    return mocks.retrospective
-  },
+  useProgressRetrospective: () => mocks.retrospective,
 }))
 vi.mock('@/hooks/use-is-desktop', () => ({ useIsDesktop: () => mocks.isDesktop }))
 
@@ -597,7 +593,6 @@ describe('ProgressContent', () => {
     expect(screen.getByTestId('progress-xp-summary')).toBeInTheDocument()
     expect(screen.queryByText('75%')).not.toBeInTheDocument()
     expect(mocks.gamificationEnabled).toHaveBeenCalledWith(true)
-    expect(mocks.retrospectiveEnabled).toHaveBeenCalledWith(true)
   })
 
   it('renders a server-authorized window for a free account', () => {
@@ -608,7 +603,6 @@ describe('ProgressContent', () => {
     const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
     expect(within(windowSection).getByText('75%')).toBeInTheDocument()
     expect(within(windowSection).queryByText('progressScreen.window.lockedBody')).not.toBeInTheDocument()
-    expect(mocks.retrospectiveEnabled).toHaveBeenCalledWith(true)
   })
 
   it('renders a retryable window error when a free retrospective request fails', () => {
@@ -623,7 +617,6 @@ describe('ProgressContent', () => {
     expect(within(windowSection).queryByText('progressScreen.window.lockedBody')).not.toBeInTheDocument()
     fireEvent.click(within(windowSection).getByRole('button', { name: 'progressScreen.retry' }))
     expect(mocks.retrospective.refetch).toHaveBeenCalledTimes(1)
-    expect(mocks.retrospectiveEnabled).toHaveBeenCalledWith(true)
   })
 
   it('renders empty weekly and habit figures without substituting unrelated totals', () => {

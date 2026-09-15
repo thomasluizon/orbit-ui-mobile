@@ -30,7 +30,6 @@ type TestTree = {
 const mocks = vi.hoisted(() => ({
   router: { push: vi.fn() },
   gamificationEnabled: vi.fn(),
-  retrospectiveEnabled: vi.fn(),
   repair: { mutate: vi.fn(), isPending: false, isError: false, error: null as { status: number } | null },
   reorder: { mutate: vi.fn() },
   drag: vi.fn(),
@@ -172,10 +171,7 @@ vi.mock('@/hooks/use-gamification', () => ({
   },
 }))
 vi.mock('@/hooks/use-retrospective', () => ({
-  useProgressRetrospective: (enabled: boolean) => {
-    mocks.retrospectiveEnabled(enabled)
-    return mocks.retrospective
-  },
+  useProgressRetrospective: () => mocks.retrospective,
 }))
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: theme.mode }),
@@ -632,7 +628,6 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'progress-xp-summary')).toHaveLength(1)
     expect(tree.root.findAll((node) => node.type === 'StatTile' && node.props.value === '75%')).toHaveLength(0)
     expect(mocks.gamificationEnabled).toHaveBeenCalledWith(true)
-    expect(mocks.retrospectiveEnabled).toHaveBeenCalledWith(true)
   })
 
   it('renders a server-authorized window for a free account', async () => {
@@ -643,7 +638,6 @@ describe('mobile ProgressContent', () => {
 
     expect(tree.root.findAll((node) => node.type === 'StatTile' && node.props.value === '75%')).toHaveLength(1)
     expect(text).not.toContain('progressScreen.window.lockedBody')
-    expect(mocks.retrospectiveEnabled).toHaveBeenCalledWith(true)
   })
 
   it('renders a retryable window error when a free retrospective request fails', async () => {
@@ -660,7 +654,6 @@ describe('mobile ProgressContent', () => {
       ;(findPill(tree.root, 'progressScreen.retry').props.onPress as () => void)()
     })
     expect(mocks.retrospective.refetch).toHaveBeenCalledTimes(1)
-    expect(mocks.retrospectiveEnabled).toHaveBeenCalledWith(true)
   })
 
   it('renders empty weekly and habit figures without substituting unrelated totals', async () => {
