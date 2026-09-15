@@ -12,7 +12,10 @@ import TodayScreen, {
   resolveTodayView,
   shouldRedirectGoalsTab,
 } from "@/app/(tabs)/index";
-import { BackHandler } from "@/test-mocks/react-native";
+import {
+  BackHandler,
+  __setWindowDimensions,
+} from "@/test-mocks/react-native";
 
 vi.mock("@/components/referral/referral-card", () => ({
   ReferralCard: () => null,
@@ -478,6 +481,7 @@ describe("TodayScreen", () => {
     uiState.selectedHabitIds = new Set<string>();
     uiState.showCreateModal = false;
     uiState.showCreateGoalModal = false;
+    __setWindowDimensions({ width: 412, height: 892, scale: 1, fontScale: 1 });
   });
 
   afterEach(() => {
@@ -511,6 +515,24 @@ describe("TodayScreen", () => {
       tree.root.findAll((node) => node.props.testID === "bulk-action-bar")
         .length,
     ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("keeps the Today list readable on a large landscape screen", async () => {
+    __setWindowDimensions({ width: 1280, height: 800, scale: 1, fontScale: 1 });
+
+    const tree = await renderTodayScreen();
+    const contentColumn = tree.root.findAll(
+      (node) => node.props.testID === "today-content-column",
+    )[0];
+
+    expect(contentColumn).toBeTruthy();
+    expect(contentColumn.props.style).toEqual(
+      expect.objectContaining({
+        alignSelf: "center",
+        maxWidth: 740,
+        width: "100%",
+      }),
+    );
   });
 
   it("clears the selection when hardware back is pressed in select mode", async () => {
