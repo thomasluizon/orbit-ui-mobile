@@ -150,10 +150,12 @@ describe('HabitRow menu (mobile)', () => {
   it('keeps the menu press target outside the row press target', () => {
     const onDetail = vi.fn()
     const onLongPressCard = vi.fn()
+    const onLog = vi.fn()
     const renderer = renderRowWithMenu({
       onEdit: vi.fn(),
       onDetail,
       onLongPressCard,
+      onLog,
     })
     const rowBody = getRowBody(renderer)
     const moreButton = getMoreButton(renderer)
@@ -170,18 +172,31 @@ describe('HabitRow menu (mobile)', () => {
 
     expect(onDetail).not.toHaveBeenCalled()
     expect(onLongPressCard).not.toHaveBeenCalled()
+    expect(onLog).not.toHaveBeenCalled()
     expect(collectStrings(renderer.toJSON())).toContain('common.edit')
   })
 
   it('opens the row detail without opening its menu', () => {
     const onDetail = vi.fn()
-    const renderer = renderRowWithMenu({ onEdit: vi.fn(), onDetail })
+    const onLog = vi.fn()
+    const renderer = renderRowWithMenu({ onEdit: vi.fn(), onDetail, onLog })
+    const rowBody = getRowBody(renderer)
 
     TestRenderer.act(() => {
-      ;(getRowBody(renderer).props.onPress as () => void)()
+      ;(rowBody.props.onPressIn as () => void)()
+    })
+
+    expect(collectStrings(renderer.toJSON())).not.toContain('common.edit')
+
+    TestRenderer.act(() => {
+      ;(rowBody.props.onPress as () => void)()
+    })
+    TestRenderer.act(() => {
+      ;(rowBody.props.onPressOut as () => void)()
     })
 
     expect(onDetail).toHaveBeenCalledOnce()
+    expect(onLog).not.toHaveBeenCalled()
     expect(collectStrings(renderer.toJSON())).not.toContain('common.edit')
   })
 
