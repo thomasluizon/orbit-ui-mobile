@@ -1,20 +1,26 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
+  AccessibilityInfo,
   StyleSheet,
   Text,
   View,
 } from 'react-native'
-import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Check } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
-import { buildSupportRequestBody, getFriendlyErrorMessage } from '@orbit/shared/utils'
+import {
+  buildSupportRequestBody,
+  getFriendlyErrorMessage,
+  isValidEmail,
+  SUPPORT_API_MESSAGE_MAX_LENGTH,
+  SUPPORT_API_SUBJECT_MAX_LENGTH,
+} from '@orbit/shared/utils'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
-import { AppTextInput } from '@/components/ui/app-text-input'
+import { Input } from '@/components/ui/input'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -27,42 +33,6 @@ type Tokens = ReturnType<typeof createTokensV2>
 
 const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
 
-interface SupportFieldProps {
-  label: string
-  value: string
-  onChangeText: (v: string) => void
-  placeholder: string
-  multiline?: boolean
-  tokens: Tokens
-}
-
-function SupportField({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  multiline = false,
-  tokens,
-}: Readonly<SupportFieldProps>) {
-  return (
-    <View style={styles.fieldWrap}>
-      <Text style={[styles.fieldLabel, { color: tokens.fg2 }]}>
-        {label}
-      </Text>
-      <AppTextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        multiline={multiline}
-        numberOfLines={multiline ? 6 : 1}
-        textAlignVertical={multiline ? 'top' : 'auto'}
-        accessibilityLabel={label}
-        style={multiline ? styles.inputMultiline : null}
-      />
-    </View>
-  )
-}
-
 function SupportSuccessState({ tokens }: Readonly<{ tokens: Tokens }>) {
   const { t } = useTranslation()
   return (
@@ -73,7 +43,7 @@ function SupportSuccessState({ tokens }: Readonly<{ tokens: Tokens }>) {
           { backgroundColor: tintFromPrimary(tokens, 0.15) },
         ]}
       >
-        <Check size={34} color={tokens.primary} strokeWidth={1.8} />
+        <Check size={24} color={tokens.primary} strokeWidth={1.8} />
       </View>
       <Text style={[styles.successTitle, { color: tokens.fg1 }]}>
         {t('profile.support.success')}
@@ -89,12 +59,28 @@ interface SupportFormProps {
   tokens: Tokens
   isOnline: boolean
   sending: boolean
+  name: string
+  email: string
   subject: string
   message: string
   error: string | null
+  nameError: string | null
+  emailError: string | null
+  subjectError: string | null
+  messageError: string | null
   canSend: boolean
+  disabledReason: string | null
+  emailDisabled: boolean
+  nameFocusRequest: number
+  emailFocusRequest: number
+  subjectFocusRequest: number
+  messageFocusRequest: number
+  onChangeName: (value: string) => void
+  onChangeEmail: (value: string) => void
   onChangeSubject: (value: string) => void
   onChangeMessage: (value: string) => void
+  onSubjectBlur: () => void
+  onMessageBlur: () => void
   onSend: () => void
 }
 
@@ -102,58 +88,110 @@ function SupportForm({
   tokens,
   isOnline,
   sending,
+  name,
+  email,
   subject,
   message,
   error,
+  nameError,
+  emailError,
+  subjectError,
+  messageError,
   canSend,
+  disabledReason,
+  emailDisabled,
+  nameFocusRequest,
+  emailFocusRequest,
+  subjectFocusRequest,
+  messageFocusRequest,
+  onChangeName,
+  onChangeEmail,
   onChangeSubject,
   onChangeMessage,
+  onSubjectBlur,
+  onMessageBlur,
   onSend,
 }: Readonly<SupportFormProps>) {
   const { t } = useTranslation()
   return (
-    <Animated.View
-      style={styles.formBlock}
-      entering={FadeInDown.duration(280).reduceMotion(ReduceMotion.System)}
-    >
+    <View style={styles.formBlock}>
       {!isOnline ? (
         <ErrorState message={t('offline.description')} />
       ) : null}
-      <Text style={[styles.formDescription, { color: tokens.fg3 }]}>
+      <Text style={[styles.formDescription, { color: tokens.fg2 }]}>
         {t('profile.support.description')}
       </Text>
-      <SupportField
+      <Input
+        label={t('profile.support.name')}
+        value={name}
+        onChange={onChangeName}
+        placeholder={t('profile.support.namePlaceholder')}
+        disabled={sending}
+        error={nameError ?? undefined}
+        autoComplete="name"
+        focusRequest={nameFocusRequest}
+      />
+      <Input
+        label={t('profile.support.email')}
+        value={email}
+        onChange={onChangeEmail}
+        placeholder={t('profile.support.emailPlaceholder')}
+        disabled={sending || emailDisabled}
+        error={emailError ?? undefined}
+        hint={emailDisabled ? t('profile.support.emailLockedReason') : undefined}
+        kind="email"
+        inputMode="email"
+        autoComplete="email"
+        focusRequest={emailFocusRequest}
+      />
+      <Input
         label={t('profile.support.subject')}
         value={subject}
-        onChangeText={onChangeSubject}
+        onChange={onChangeSubject}
         placeholder={t('profile.support.subjectPlaceholder')}
-        tokens={tokens}
+        disabled={sending}
+        error={subjectError ?? undefined}
+        maxLength={SUPPORT_API_SUBJECT_MAX_LENGTH}
+        focusRequest={subjectFocusRequest}
+        onBlur={onSubjectBlur}
       />
-      <SupportField
+      <Input
         label={t('profile.support.message')}
         value={message}
-        onChangeText={onChangeMessage}
+        onChange={onChangeMessage}
         placeholder={t('profile.support.messagePlaceholder')}
+        disabled={sending}
+        error={messageError ?? undefined}
+        maxLength={SUPPORT_API_MESSAGE_MAX_LENGTH}
         multiline
-        tokens={tokens}
+        rows={6}
+        focusRequest={messageFocusRequest}
+        onBlur={onMessageBlur}
       />
       {error ? (
-        <Text style={[styles.formErrorText, { color: tokens.statusBadText }]}>
+        <Text
+          accessibilityRole="alert"
+          style={[styles.formErrorText, { color: tokens.statusBadText }]}
+        >
           {error}
         </Text>
       ) : null}
-      <View style={styles.actionPad}>
+      {disabledReason ? (
+        <Text style={[styles.formDescription, { color: tokens.fg2 }]}>
+          {disabledReason}
+        </Text>
+      ) : null}
+      <View>
         <PillButton
           onClick={onSend}
           disabled={!canSend}
           loading={sending}
-
-
+          hint={disabledReason ?? undefined}
         >
           {t('profile.support.send')}
         </PillButton>
       </View>
-    </Animated.View>
+    </View>
   )
 }
 
@@ -167,23 +205,54 @@ export default function SupportScreen() {
   )
   const { isOnline } = useOffline()
   const { profile } = useProfile()
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const draftRef = useRef({ subject: '', message: '' })
+  const draftChangedRef = useRef(false)
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [nameError, setNameError] = useState<string | null>(null)
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [subjectError, setSubjectError] = useState<string | null>(null)
+  const [messageError, setMessageError] = useState<string | null>(null)
+  const [nameFocusRequest, setNameFocusRequest] = useState(0)
+  const [emailFocusRequest, setEmailFocusRequest] = useState(0)
+  const [subjectFocusRequest, setSubjectFocusRequest] = useState(0)
+  const [messageFocusRequest, setMessageFocusRequest] = useState(0)
+  const resolvedEmail = profile?.email || email
+  const displayedName = name || profile?.name || ''
+  const displayedNameError = displayedName.trim() ? null : nameError
+  const displayedEmailError = resolvedEmail.trim() && isValidEmail(resolvedEmail)
+    ? null
+    : emailError
+  const hasSubject = Boolean(subject.trim())
+  const hasMessage = Boolean(message.trim())
+  const isIncomplete = !hasSubject || !hasMessage
+  const incompleteReason = !isOnline || sending || !isIncomplete
+    ? null
+    : !hasSubject && !hasMessage
+      ? t('profile.support.sendIncomplete')
+      : !hasSubject
+        ? t('profile.support.sendNeedsSubject')
+        : t('profile.support.sendNeedsMessage')
 
   useEffect(() => {
     let isMounted = true
     void AsyncStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)
       .then((storedDraft) => {
-        if (!isMounted || !storedDraft) return
+        if (!isMounted || !storedDraft || draftChangedRef.current) return
         try {
-          const draft = JSON.parse(storedDraft) as Partial<
-            Record<'subject' | 'message', string>
-          >
-          setSubject(draft.subject ?? '')
-          setMessage(draft.message ?? '')
+          const draft = JSON.parse(storedDraft) as Record<string, unknown>
+          const restoredDraft = {
+            subject: typeof draft.subject === 'string' ? draft.subject : '',
+            message: typeof draft.message === 'string' ? draft.message : '',
+          }
+          draftRef.current = restoredDraft
+          setSubject(restoredDraft.subject)
+          setMessage(restoredDraft.message)
         } catch {
           void AsyncStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
         }
@@ -194,25 +263,41 @@ export default function SupportScreen() {
     }
   }, [])
 
-  useEffect(() => {
-    const draft = { subject, message }
-    const hasDraft = Object.values(draft).some(
-      (value) => value.trim().length > 0,
+  const persistDraft = useCallback((change: Partial<typeof draftRef.current>) => {
+    draftChangedRef.current = true
+    draftRef.current = { ...draftRef.current, ...change }
+    void AsyncStorage.setItem(
+      SUPPORT_DRAFT_STORAGE_KEY,
+      JSON.stringify(draftRef.current),
     )
+  }, [])
 
-    if (!hasDraft) {
-      void AsyncStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
-      return
-    }
-    void AsyncStorage.setItem(SUPPORT_DRAFT_STORAGE_KEY, JSON.stringify(draft))
-  }, [message, subject])
+  const validateFields = useCallback(() => {
+    const effectiveName = name.trim() || profile?.name || ''
+    const effectiveEmail = resolvedEmail.trim()
+    const nextNameError = effectiveName ? null : t('profile.support.nameRequired')
+    const nextEmailError = !effectiveEmail
+      ? t('profile.support.emailRequired')
+      : isValidEmail(effectiveEmail) ? null : t('profile.support.emailInvalid')
+    const nextSubjectError = subject.trim() ? null : t('profile.support.subjectRequired')
+    const nextMessageError = message.trim() ? null : t('profile.support.messageRequired')
+    setNameError(nextNameError)
+    setEmailError(nextEmailError)
+    setSubjectError(nextSubjectError)
+    setMessageError(nextMessageError)
+    if (nextNameError) setNameFocusRequest((request) => request + 1)
+    else if (nextEmailError) setEmailFocusRequest((request) => request + 1)
+    else if (nextSubjectError) setSubjectFocusRequest((request) => request + 1)
+    else if (nextMessageError) setMessageFocusRequest((request) => request + 1)
+    return !nextNameError && !nextEmailError && !nextSubjectError && !nextMessageError
+  }, [message, name, profile, resolvedEmail, subject, t])
 
   const handleSend = useCallback(async () => {
     if (!isOnline) {
       setError(t('offline.title'))
       return
     }
-    if (!subject.trim() || !message.trim()) return
+    if (!validateFields()) return
 
     setSending(true)
     setError(null)
@@ -223,14 +308,16 @@ export default function SupportScreen() {
         method: 'POST',
         body: JSON.stringify(
           buildSupportRequestBody(profile, {
-            name: '',
-            email: '',
+            name,
+            email: resolvedEmail,
             subject,
             message,
           }),
         ),
       })
       setSuccess(true)
+      AccessibilityInfo.announceForAccessibility(t('profile.support.success'))
+      draftRef.current = { subject: '', message: '' }
       setSubject('')
       setMessage('')
       void AsyncStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
@@ -239,10 +326,9 @@ export default function SupportScreen() {
     } finally {
       setSending(false)
     }
-  }, [isOnline, message, profile, subject, t])
+  }, [isOnline, message, name, profile, resolvedEmail, subject, t, validateFields])
 
-  const canSend =
-    subject.trim().length > 0 && message.trim().length > 0 && isOnline && !sending
+  const canSend = isOnline && !sending && !isIncomplete
 
   return (
     <SafeAreaView
@@ -268,18 +354,51 @@ export default function SupportScreen() {
             tokens={tokens}
             isOnline={isOnline}
             sending={sending}
+            name={displayedName}
+            email={resolvedEmail}
             subject={subject}
             message={message}
             error={error}
+            nameError={displayedNameError}
+            emailError={displayedEmailError}
+            subjectError={subjectError}
+            messageError={messageError}
             canSend={canSend}
-            onChangeSubject={setSubject}
-            onChangeMessage={setMessage}
+            disabledReason={incompleteReason}
+            emailDisabled={Boolean(profile?.email)}
+            nameFocusRequest={nameFocusRequest}
+            emailFocusRequest={emailFocusRequest}
+            subjectFocusRequest={subjectFocusRequest}
+            messageFocusRequest={messageFocusRequest}
+            onChangeName={(next) => {
+              setName(next)
+              setNameError(null)
+            }}
+            onChangeEmail={(next) => {
+              setEmail(next)
+              setEmailError(null)
+            }}
+            onChangeSubject={(next) => {
+              setSubject(next)
+              setSubjectError(null)
+              persistDraft({ subject: next })
+            }}
+            onSubjectBlur={() => {
+              if (!subject.trim()) setSubjectError(t('profile.support.subjectRequired'))
+            }}
+            onChangeMessage={(next) => {
+              setMessage(next)
+              setMessageError(null)
+              persistDraft({ message: next })
+            }}
+            onMessageBlur={() => {
+              if (!message.trim()) setMessageError(t('profile.support.messageRequired'))
+            }}
             onSend={() => {
               void handleSend()
             }}
           />
         )}
-        <View style={{ height: 24 }} />
       </KeyboardAwareScrollView>
     </SafeAreaView>
   )
@@ -288,40 +407,25 @@ export default function SupportScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
-  scrollContent: { paddingBottom: 40 },
+  scrollContent: { padding: 16, paddingBottom: 24 },
   formBlock: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    gap: 16,
-  },
-  fieldWrap: {
-    gap: 8,
-  },
-  fieldLabel: {
-    fontFamily: 'Geist_500Medium',
-    fontSize: 14,
+    gap: 24,
   },
   formDescription: {
     fontFamily: 'Geist_400Regular',
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  inputMultiline: {
-    minHeight: 132,
+    fontSize: 16,
+    lineHeight: 24,
   },
   formErrorText: {
     fontFamily: 'Geist_400Regular',
     fontSize: 13,
     lineHeight: 19,
   },
-  actionPad: {
-    paddingTop: 8,
-  },
   successBlock: {
     paddingHorizontal: 24,
     paddingVertical: 48,
     alignItems: 'center',
-    gap: 14,
+    gap: 16,
   },
   successIconCircle: {
     width: 80,

@@ -23,8 +23,8 @@ const BAD_TEXT_SOURCE_SITES = [
     pattern: /\.orbit-menu-item\[data-destructive\] \.orbit-menu-label \{\s+color: var\(--status-bad-text\);/,
   },
   {
-    name: 'web support field error',
-    path: 'apps/web/app/(app)/support/_components/support-field.tsx',
+    name: 'web support request error',
+    path: 'apps/web/app/(app)/support/_components/support-form.tsx',
     pattern: /\{error && \([\s\S]*?color: 'var\(--status-bad-text\)'/,
   },
   {

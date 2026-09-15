@@ -1,7 +1,10 @@
-import { describe, expect, it, vi } from 'vitest'
 import { StyleSheet } from 'react-native'
+import { describe, expect, it, vi } from 'vitest'
 import type { Recap } from '@orbit/shared/types/gamification'
-import { createMockRecap } from '@orbit/shared/__tests__/factories'
+import {
+  createMockRecap,
+  createMockRetrospectiveMetrics,
+} from '@orbit/shared/__tests__/factories'
 import { ShareCard } from '@/components/share/share-card'
 
 const TestRenderer = require('react-test-renderer')
@@ -75,5 +78,27 @@ describe('ShareCard (mobile)', () => {
     )[0]
 
     expect(collectText(weekday)).toContain('dates.daysShort.monday')
+  })
+
+  it('renders closed goals for a goal-only recap', () => {
+    const text = collectText(
+      render({
+        recap: createMockRecap({
+          goalCompletions: 3,
+          shareDeepLink: '',
+          metrics: createMockRetrospectiveMetrics({
+            completionRate: 0,
+            totalCompletions: 0,
+            bestStreak: 0,
+            currentStreak: 0,
+            activeDays: 0,
+            topHabits: [],
+            weeklyConsistency: [0, 0, 0, 0, 0, 0, 0],
+          }),
+        }),
+      }).toJSON(),
+    )
+
+    expect(text).toContain('3 shareCard.stats.goalsClosed')
   })
 })

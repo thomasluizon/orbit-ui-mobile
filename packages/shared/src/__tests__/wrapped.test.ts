@@ -79,19 +79,18 @@ describe('buildWrappedSlides', () => {
 })
 
 describe('getWeeklyConsistencyReading', () => {
-  it('returns thin when exactly one weekday carries completions', () => {
-    expect(getWeeklyConsistencyReading([0, 20, 0, 0, 0, 0, 0])).toEqual({ kind: 'thin' })
+  it('returns thin when no weekday carries completions', () => {
+    expect(getWeeklyConsistencyReading([0, 0, 0, 0, 0, 0, 0])).toEqual({ kind: 'thin' })
   })
 
-  it('returns even when all logged weekdays carry the same average', () => {
+  it('returns even when multiple weekdays share the highest average', () => {
     expect(getWeeklyConsistencyReading([50, 50, 0, 0, 0, 0, 0])).toEqual({ kind: 'even' })
   })
 
-  it('returns different strongest and weakest weekdays when their averages differ', () => {
-    expect(getWeeklyConsistencyReading([90, 20, 0, 0, 0, 0, 0])).toEqual({
+  it('returns the only strongest weekday when one maximum stands alone', () => {
+    expect(getWeeklyConsistencyReading([0, 20, 0, 0, 0, 60, 0])).toEqual({
       kind: 'compared',
-      strongestIndex: 0,
-      weakestIndex: 1,
+      strongestIndex: 5,
     })
   })
 })

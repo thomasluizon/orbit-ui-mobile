@@ -8,6 +8,7 @@ import {
   streakInfoSchema,
 } from '../types/gamification'
 import { profileSchema } from '../types/profile'
+import { deriveStreakRepairState } from '../utils/progress'
 import { createMockGamificationProfile, createMockProfile } from './factories'
 
 describe('nextRewardCarrotSchema', () => {
@@ -120,6 +121,31 @@ describe('streakInfoSchema repair offer', () => {
     })
 
     expect(parsed.repairDate).toBe('2026-08-27')
+  })
+
+  it('preserves the streak when repairable gap dates are null', () => {
+    const payload = {
+      currentStreak: 4,
+      longestStreak: 9,
+      lastActiveDate: '2026-08-26',
+      freezesUsedThisMonth: 1,
+      freezesAvailable: 2,
+      maxFreezesPerMonth: 3,
+      isFrozenToday: false,
+      recentFreezeDates: ['2026-08-20'],
+      isRepairAvailable: true,
+      repairDate: '2026-08-27',
+      repairableGapDates: null,
+    }
+    const parsed = streakInfoSchema.parse(payload)
+
+    expect(parsed).toMatchObject(payload)
+    expect(deriveStreakRepairState({
+      streak: parsed,
+      freezesAvailable: 2,
+      banked: 2,
+      ceiling: 3,
+    })).toMatchObject({ dates: ['2026-08-27'], count: 1, canRepair: true })
   })
 })
 

@@ -29,6 +29,7 @@ export function Button({
   iconOnly,
   label,
   formId,
+  descriptionId,
 }: Readonly<ButtonProps>) {
   const sizeSpec = BUTTON_SIZES[size]
 
@@ -40,6 +41,7 @@ export function Button({
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       aria-label={iconOnly ? label : accessibleName}
+      aria-describedby={descriptionId}
       data-variant={variant}
       data-size={size}
       data-loading={loading || undefined}

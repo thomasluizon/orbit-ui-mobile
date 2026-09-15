@@ -20,37 +20,28 @@ export type WrappedSlideId = WrappedSlide['id']
 export type WeeklyConsistencyReading =
   | { kind: 'thin' }
   | { kind: 'even' }
-  | { kind: 'compared'; strongestIndex: number; weakestIndex: number }
+  | { kind: 'compared'; strongestIndex: number }
 
 export function getWeeklyConsistencyReading(
   weeklyConsistency: readonly number[],
 ): WeeklyConsistencyReading {
-  const loggedWeekdays = weeklyConsistency
-    .slice(0, 7)
-    .map((value, index) => ({ index, value }))
-    .filter(({ value }) => value > 0)
-  if (loggedWeekdays.length < 2) return { kind: 'thin' }
+  const weekdayAverages = weeklyConsistency.slice(0, 7)
+  const highestAverage = Math.max(...weekdayAverages)
+  if (highestAverage <= 0) return { kind: 'thin' }
 
-  let strongest = loggedWeekdays[0]!
-  let weakest = strongest
-  for (const weekday of loggedWeekdays.slice(1)) {
-    if (weekday.value > strongest.value) strongest = weekday
-    if (weekday.value < weakest.value) weakest = weekday
-  }
+  const strongestWeekdays = weekdayAverages
+    .map((average, index) => ({ average, index }))
+    .filter(({ average }) => average === highestAverage)
+  if (strongestWeekdays.length !== 1) return { kind: 'even' }
 
-  if (strongest.value === weakest.value) return { kind: 'even' }
-  return {
-    kind: 'compared',
-    strongestIndex: strongest.index,
-    weakestIndex: weakest.index,
-  }
+  return { kind: 'compared', strongestIndex: strongestWeekdays[0]!.index }
 }
 
 /**
  * Builds the ordered Orbit Wrapped story from a recap: a fixed positive-only
  * sequence (intro → completions → active days → consistency → best streak →
- * standout habit), omitting the standout slide when there are no top habits,
- * and always ending on the shareable card slide.
+ * standout habit → goals), omitting the standout slide when there are no top
+ * habits, and always ending on the shareable card slide.
  */
 export function buildWrappedSlides(recap: Recap): WrappedSlide[] {
   const { metrics } = recap

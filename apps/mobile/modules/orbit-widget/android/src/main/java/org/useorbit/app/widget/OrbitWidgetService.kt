@@ -127,7 +127,7 @@ internal fun prepareWidgetDay(apiHabits: List<ApiHabit>, dayOffset: Int): Widget
     var completedCount = 0
 
     for (habit in habits.filter { it.depth == 0 }) {
-        if (habit.hasChildren) {
+        if (habit.childrenTotal > 0) {
             totalCount += habit.childrenTotal
             completedCount += habit.childrenDone
         } else if (!habit.isBadHabit) {

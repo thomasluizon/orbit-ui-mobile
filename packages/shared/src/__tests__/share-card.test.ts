@@ -53,7 +53,7 @@ describe('buildShareCardStats', () => {
     expect(stats.map((stat) => stat.labelKey)).toEqual([
       'shareCard.stats.completions',
       'shareCard.stats.bestStreak',
-      'progressScreen.sections.goals',
+      'shareCard.stats.goalsClosed',
     ])
     expect(stats.map((stat) => stat.value)).toEqual(['40', '18', '3'])
   })

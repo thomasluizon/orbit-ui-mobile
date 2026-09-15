@@ -856,7 +856,6 @@
       "createCount": "no habits | Create {n} habit | Create {n} habits",
       "createdSuccess": "no habits created | Created {n} habit successfully | Created {n} habits successfully",
       "createAsParent": "Group as parent habit",
-      "createAsParentSuccess": "Created '{name}' with {n} sub-habit | Created '{name}' with {n} sub-habits",
       "every": "every",
       "frequencyQuantityLabel": "Frequency interval",
       "removeHabit": "Remove {name}"
@@ -869,7 +868,7 @@
         "threePerWeek": "3 times per week",
         "oneTime": "One-time task"
       },
-      "successCreated": "Created '{name}'",
+      "successCreated": "Created ''{name}''",
       "errorExpired": "This clarification expired. Please ask again.",
       "errorAlreadyResolved": "Already handled. Please ask again.",
       "errorGeneric": "Something went wrong. Please try again."
@@ -1388,7 +1387,13 @@
       "successHint": "We'll reply within a day.",
       "nameRequired": "Name is required.",
       "emailRequired": "Email is required.",
-      "emailInvalid": "Please enter a valid email address."
+      "emailInvalid": "Please enter a valid email address.",
+      "subjectRequired": "Subject is required.",
+      "messageRequired": "Message is required.",
+      "emailLockedReason": "We reply to the email on your account.",
+      "sendIncomplete": "Add a subject and a message to send.",
+      "sendNeedsSubject": "Add a subject to send.",
+      "sendNeedsMessage": "Add a message to send."
     },
     "logout": "Log Out",
     "wrappedTitle": "Your Wrapped",
@@ -1424,7 +1429,7 @@
       "confirmHeading": "This erases everything",
       "willDelete": "What will be deleted",
       "willKeep": "What stays",
-      "description": "Start over with a clean slate. This permanently deletes all your data.",
+      "description": "Start over with a clean slate. This permanently deletes what you track, and keeps your account.",
       "deleteHabits": "All habits, sub-habits, and completion history",
       "deleteGoals": "All goals and progress logs",
       "deleteChat": "AI chat conversations",
@@ -1448,9 +1453,9 @@
       "headingAreYouSure": "This deletes your account",
       "headingConfirmCode": "Confirm with code",
       "headingDeactivated": "Account deactivated",
-      "warning": "This action is irreversible.",
+      "warning": "You have time to change your mind. After that, the deletion is permanent and cannot be undone.",
       "warningFree": "Your account will be deactivated and permanently deleted after 7 days. Log back in anytime before then to cancel.",
-      "warningPro": "Your account will be deactivated and permanently deleted 7 days after your plan expires on {date}. Log back in anytime before then to cancel.",
+      "warningPro": "Your account will be deactivated now and permanently deleted up to 30 days from today. Log back in anytime before then to cancel.",
       "warningDetail": "All your data will be permanently deleted, including your habits, completion history, AI conversations, and settings. We'll email you a confirmation code to continue.",
       "sendCode": "Send code",
       "sending": "Sending...",
@@ -1532,7 +1537,8 @@
       "completions": "Completions",
       "bestStreak": "Best streak",
       "activeDays": "Active days",
-      "topHabits": "Top habits"
+      "topHabits": "Top habits",
+      "goalsClosed": "Goals closed"
     },
     "streak": "{count}-day streak"
   },
@@ -1583,9 +1589,8 @@
       "consistency": {
         "eyebrow": "Your rhythm",
         "title": "Your weekly rhythm",
-        "caption": "How your last seven days landed.",
-        "summary": "{strong} is your strongest day. {weak} is your quietest.",
-        "even": "Your days are even. No single day stands out.",
+        "summary": "{strong} is your strongest day.",
+        "even": "No single day stands out.",
         "note": "Each bar is that day's average across the period.",
         "thin": "Not enough logged yet to compare your days."
       },
@@ -1599,7 +1604,8 @@
         "caption": "{rate} completion, your most consistent habit."
       },
       "goals": {
-        "zero": "No goals closed this time."
+        "zero": "No goals closed this time.",
+        "some": "{count, plural, one {You closed one goal this period.} other {You closed # goals this period.}}"
       },
       "share": {
         "eyebrow": "That's a wrap",
@@ -2454,11 +2460,15 @@
       "lockedTitle": "Freeze protection",
       "lockedBody": "Orbit Pro keeps a freeze bank for missed days.",
       "lockedAction": "See Orbit Pro",
-      "repairTitle": "Yesterday is still open",
-      "repairBody": "One day is open and {count, plural, one {# freeze is} other {# freezes are}} available.",
-      "repairAction": "Spend 1 freeze",
-      "repairEmpty": "No freeze is banked. The next freeze arrives in {count, plural, one {# day} other {# days}}.",
-      "repairError": "The streak could not be repaired. Try again."
+      "gapBody": "{count, plural, one {One day with nothing logged.} other {# days with nothing logged.}} The habits are as they were.",
+      "gapUnavailable": "A gap ended the previous streak. Today starts a new one; the habits are unchanged.",
+      "repairAction": "Spend {count, plural, one {# freeze} other {# freezes}}",
+      "repairEmpty": "The gap is still open, but no freeze is banked to cover it. This repair offer ends today.",
+      "repairPartial": "The gap is still open. It needs {needed, plural, one {# freeze} other {# freezes}}, but {banked, plural, one {only # is banked} other {only # are banked}}. This repair offer ends today.",
+      "repairCapped": "This gap needs {needed, plural, one {# freeze} other {# freezes}} and {banked} is the most you can bank, so it cannot be repaired.",
+      "repairError": "The gap could not be repaired. Try again.",
+      "repairRateLimited": "There were too many repair attempts. Try again shortly.",
+      "bankFull": "{count} freezes is the limit. The next one arrives after you spend one."
     },
     "goals": {
       "views": "Goal views",

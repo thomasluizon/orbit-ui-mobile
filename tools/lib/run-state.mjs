@@ -7,13 +7,14 @@
  * artifact trail identical to a run that finished. A queue that ends silently is worse than one that
  * fails loudly, because nobody looks for it.
  *
- * Two files, in `.git/`, because that directory is per-checkout, never committed, always writable,
+ * These records live in `.git/`, because that directory is per-checkout, never committed, writable,
  * and needs no gitignore entry:
  *
  *   .git/orbit-orchestrate-run.json     the ORCHESTRATOR is its only writer: which session, whether
  *                                       --sleep is on, and which tickets remain.
  *   .git/orbit-wake-sources/<pid>.json  one file per live wake source, written by launch-worker.mjs
  *                                       when it starts and removed when it exits.
+ *   .git/orbit-worker-launches/<id>.json one file per attempted worker launch that was admitted.
  *
  * One file per wake source rather than an array in one file: under `--parallel` three launchers write
  * at once, and a read-modify-write on a shared array loses entries. A crashed launcher leaks its file
@@ -24,7 +25,8 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { createHash, randomUUID } from "node:crypto"
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -54,6 +56,86 @@ export const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url))
 
 export const runStatePath = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-orchestrate-run.json")
 export const wakeSourceDirectory = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-wake-sources")
+export const workerLaunchDirectory = (repoRoot = REPO_ROOT) => join(gitDirectoryOf(repoRoot), "orbit-worker-launches")
+
+const readWorkerLaunchRecords = (repoRoot = REPO_ROOT) => {
+  const directory = workerLaunchDirectory(repoRoot)
+  let names
+  try {
+    names = readdirSync(directory).filter((name) => name.endsWith(".json"))
+  } catch {
+    return []
+  }
+  const records = []
+  for (const name of names) {
+    try {
+      records.push({ name, launch: JSON.parse(readFileSync(join(directory, name), "utf8")) })
+    } catch {
+      /* an unreadable launch cannot prove that the branch cap was reached */
+    }
+  }
+  return records.sort((left, right) =>
+    String(left.launch?.timestamp).localeCompare(String(right.launch?.timestamp)) || left.name.localeCompare(right.name))
+}
+
+export const readWorkerLaunches = (repoRoot = REPO_ROOT) => readWorkerLaunchRecords(repoRoot).map((record) => record.launch)
+
+const readLaunchFiles = (paths) => paths.flatMap((path) => {
+  try {
+    return [JSON.parse(readFileSync(path, "utf8"))]
+  } catch {
+    return []
+  }
+})
+
+const claimLaunchFile = (path, launch) => {
+  let fileDescriptor
+  try {
+    fileDescriptor = openSync(path, "wx")
+  } catch {
+    return { claimed: false, occupied: existsSync(path), recorded: false }
+  }
+  try {
+    writeFileSync(fileDescriptor, `${JSON.stringify(launch, null, 2)}\n`)
+    return { claimed: true, occupied: true, recorded: true }
+  } catch {
+    return { claimed: true, occupied: true, recorded: false }
+  } finally {
+    try {
+      closeSync(fileDescriptor)
+    } catch {
+      /* the exclusive create already claimed the slot, so closing remains fail-soft */
+    }
+  }
+}
+
+/** Each exact slot name can be claimed once, so no read-then-decide race can exceed the cap. */
+export const reserveWorkerLaunch = (launch, cap, repoRoot = REPO_ROOT) => {
+  const directory = workerLaunchDirectory(repoRoot)
+  try {
+    mkdirSync(directory, { recursive: true })
+  } catch {
+    return { allowed: true, earlierLaunches: [], recorded: false }
+  }
+  const branchKey = createHash("sha256").update(`${launch.repositoryKey}\0${launch.branch}`).digest("hex")
+  const slotPaths = Array.from({ length: cap }, (_, index) => join(directory, `${branchKey}-slot-${index + 1}.json`))
+  for (let index = 0; index < slotPaths.length; index++) {
+    const claim = claimLaunchFile(slotPaths[index], launch)
+    if (claim.claimed) {
+      return { allowed: true, earlierLaunches: readLaunchFiles(slotPaths.slice(0, index)), recorded: claim.recorded }
+    }
+    if (!claim.occupied) {
+      return { allowed: true, earlierLaunches: readLaunchFiles(slotPaths.slice(0, index)), recorded: false }
+    }
+  }
+  const earlierLaunches = readLaunchFiles(slotPaths)
+  if (launch.relaunchReason === null) {
+    return { allowed: false, earlierLaunches, recorded: false }
+  }
+  const overridePath = join(directory, `${branchKey}-override-${randomUUID()}.json`)
+  const override = claimLaunchFile(overridePath, launch)
+  return { allowed: true, earlierLaunches, recorded: override.recorded }
+}
 
 /** The orchestrator's own run record, or null when no run has written one. */
 export const readRunState = (repoRoot = REPO_ROOT) => {
