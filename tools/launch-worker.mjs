@@ -13,14 +13,14 @@
  */
 
 import { spawn, spawnSync } from "node:child_process"
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs"
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { delimiter, dirname, extname, join, resolve } from "node:path"
 
 import { githubEnvironment, redactSecrets } from "./lib/github-auth.mjs"
 import { resolveTicket } from "./lib/github-issues.mjs"
 import { readOrchestratorConfig, resolveWorkerInvocation } from "./lib/orchestrator-config.mjs"
-import { clearWakeSource, registerWakeSource } from "./lib/run-state.mjs"
+import { clearWakeSource, registerWakeSource, reserveWorkerLaunch } from "./lib/run-state.mjs"
 
 const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> --prompt <file> [options]
 
@@ -35,6 +35,10 @@ const USAGE = `usage: launch-worker.mjs --issue <ORB-N|#N|N> --worktree <path> -
   --hard-ceiling-minutes <n>
                      this ticket's hard ceiling, replacing timeouts.hardCeilingMinutes for this one
                      launch. For a ticket that legitimately outruns the fleet-wide default
+  --tier <default|mechanical>
+                     worker profile for this order (default: default)
+  --relaunch-reason <text>
+                     deliberate reason for launching after this branch reaches its configured cap
   --dry-run          print the resolved plan as JSON and exit 0, spawning nothing
   --help, -h         print this usage and exit 0
 
@@ -66,8 +70,18 @@ const issueArgument = argOf("--issue")
 const worktreeArg = argOf("--worktree")
 const promptArg = argOf("--prompt")
 const hardCeilingArg = argOf("--hard-ceiling-minutes")
+const tierValue = argOf("--tier")
+const tierArgument = tierValue ?? "default"
+const relaunchReasonArgument = argOf("--relaunch-reason")
 const measurement = process.argv.includes("--measurement")
 const dryRun = process.argv.includes("--dry-run")
+
+if ((process.argv.includes("--tier") && typeof tierValue !== "string") || !new Set(["default", "mechanical"]).has(tierArgument)) {
+  fail(2, `${USAGE}\n\n--tier must be default or mechanical, got "${tierArgument}"`)
+}
+if (process.argv.includes("--relaunch-reason") && (typeof relaunchReasonArgument !== "string" || relaunchReasonArgument.startsWith("--") || relaunchReasonArgument.trim() === "")) {
+  fail(2, `${USAGE}\n\n--relaunch-reason must be non-empty text`)
+}
 
 let issue
 try {
@@ -116,10 +130,9 @@ const engineName = config.worker
 const engine = config.workers[engineName]
 if (!engine.command) fail(2, `.claude/orchestrator.json names worker "${engineName}" but carries no command for it`)
 
-/** One ticket, one worker, one model: "default" is the only tier this launcher ever resolves. */
 let invocation
 try {
-  invocation = resolveWorkerInvocation(engineName, engine, "default")
+  invocation = resolveWorkerInvocation(engineName, engine, tierArgument)
 } catch (error) {
   fail(2, error.message)
 }
@@ -253,6 +266,37 @@ const logFile = join(logDirectory, `${issue}-${Date.now()}.log`)
 if (dryRun) {
   console.log(JSON.stringify({ issue, engine: engineName, tier: invocation.tier, model: invocation.model, measurement, noProgressMinutes, hardCeilingMinutes, runDirectory, branch, promptFile, executable, args: workerArgs, logFile, dryRun: true }, null, 2))
   process.exit(0)
+}
+
+const gitRepositoryIdentity = (directory) => {
+  const result = spawnSync("git", ["-C", directory, "rev-parse", "--git-common-dir"], { encoding: "utf8", windowsHide: true })
+  if (result.error || result.status !== 0 || result.stdout.trim() === "") return null
+  try {
+    const identity = realpathSync.native(resolve(directory, result.stdout.trim()))
+    return process.platform === "win32" ? identity.toLowerCase() : identity
+  } catch {
+    return null
+  }
+}
+const repositoryIdentity = gitRepositoryIdentity(runDirectory)
+if (!repositoryIdentity) fail(2, `could not resolve the Git repository identity for ${runDirectory}`)
+const repositoryKey = Object.entries(config.repos ?? {}).find(([, repository]) =>
+  typeof repository === "string" && gitRepositoryIdentity(repository) === repositoryIdentity)?.[0]
+if (!repositoryKey) fail(2, `${runDirectory} does not belong to a repository configured in .claude/orchestrator.json`)
+
+const timestamp = new Date().toISOString()
+const reservation = reserveWorkerLaunch({
+  repositoryKey,
+  branch,
+  headSha: startHead,
+  tier: invocation.tier,
+  timestamp,
+  relaunchReason: relaunchReasonArgument,
+}, config.caps.workerLaunchesPerBranch, runDirectory)
+if (!reservation.allowed) {
+  const earlier = reservation.earlierLaunches.map((launch, index) =>
+    `  ${index + 1}. ${launch.timestamp} tier=${launch.tier} head=${launch.headSha}`).join("\n")
+  fail(2, `worker launch cap ${config.caps.workerLaunchesPerBranch} reached for ${repositoryKey} branch ${branch}. Earlier launches:\n${earlier}\nPass --relaunch-reason "<text>" to record and allow another launch.`)
 }
 
 console.error(`starting the ${engineName} worker for ${issue} in ${runDirectory}; log: ${logFile}`)

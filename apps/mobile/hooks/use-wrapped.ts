@@ -33,11 +33,16 @@ export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions 
 
   const recap = query.data ?? null
   const slides = recap ? buildWrappedSlides(recap) : []
-  const isEmpty = recap ? isRecapShareEmpty(recap.metrics) : false
+  const isEmpty = recap ? isRecapShareEmpty(recap.metrics, recap.goalCompletions) : false
 
   useEffect(() => {
     const currentRecap = query.data ?? null
-    if (!active || period !== 'year' || !currentRecap || isRecapShareEmpty(currentRecap.metrics)) {
+    if (
+      !active
+      || period !== 'year'
+      || !currentRecap
+      || isRecapShareEmpty(currentRecap.metrics, currentRecap.goalCompletions)
+    ) {
       return
     }
     let cancelled = false

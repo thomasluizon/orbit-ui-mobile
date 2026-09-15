@@ -68,6 +68,7 @@
     "hermes-compiler": "250829098.0.14",
     "html-parse-stringify": "^3.0.1",
     "i18next": "^26.0.3",
+    "i18next-icu": "^2.4.4",
     "memoize-one": "^5.0.0",
     "promise": "^8.3.0",
     "react": "19.2.3",

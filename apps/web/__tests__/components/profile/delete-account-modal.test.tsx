@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import en from '@orbit/shared/i18n/en.json'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
@@ -14,8 +15,16 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
-    params ? `${key}:${JSON.stringify(params)}` : key,
+  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+    const warningKey = key.slice('profile.deleteAccount.'.length)
+    const warning = key.startsWith('profile.deleteAccount.warning')
+      ? Reflect.get(en.profile.deleteAccount, warningKey) as unknown
+      : undefined
+    if (typeof warning === 'string') {
+      return warning.replace(/\{(\w+)\}/g, (_, token: string) => String(params?.[token]))
+    }
+    return params ? `${key}:${JSON.stringify(params)}` : key
+  },
   useLocale: () => 'en',
 }))
 
@@ -32,6 +41,42 @@ vi.mock('@/components/ui/sheet', async () =>
 
 import { DeleteAccountModal } from '@/app/(app)/profile/_components/delete-account-modal'
 
+const profile = {
+  name: 'Thomas',
+  email: 'thomas@example.com',
+  timeZone: 'America/Sao_Paulo',
+  aiSummaryEnabled: true,
+  hasCompletedOnboarding: true,
+  hasCompletedTour: false,
+  language: 'en' as const,
+  plan: 'free' as const,
+  hasProAccess: false,
+  isTrialActive: false,
+  trialEndsAt: null,
+  planExpiresAt: null,
+  aiMessagesUsed: 0,
+  aiMessagesLimit: 20,
+  hasImportedCalendar: false,
+  hasSeenImportPrompt: false,
+  hasGoogleConnection: false,
+  subscriptionInterval: null,
+  subscriptionSource: null,
+  isLifetimePro: false,
+  weekStartDay: 0 as const,
+  totalXp: 0,
+  level: 1,
+  levelTitle: 'Beginner',
+  adRewardsClaimedToday: 0,
+  currentStreak: 0,
+  longestStreak: 0,
+  streakFreezesAvailable: 0,
+  themePreference: null,
+  colorScheme: null,
+  googleCalendarAutoSyncEnabled: false,
+  googleCalendarAutoSyncStatus: 'Idle' as const,
+  googleCalendarLastSyncedAt: null,
+}
+
 describe('DeleteAccountModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -39,25 +84,77 @@ describe('DeleteAccountModal', () => {
     mocks.requestDeletion.mockResolvedValue(undefined)
   })
 
-  it('keeps the confirmation and warning as the first gate', () => {
-    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} />)
+  it('keeps the cancellation path in the pre-confirmation copy', () => {
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
 
     expect(screen.getByText('profile.deleteAccount.headingAreYouSure')).toBeInTheDocument()
-    expect(screen.getByText('profile.deleteAccount.warning')).toBeInTheDocument()
-    expect(screen.getByText('profile.deleteAccount.warningDetail')).toBeInTheDocument()
+    expect(screen.getByText(/time to change your mind/i)).toBeInTheDocument()
+    expect(screen.getByText(en.profile.deleteAccount.warningFree)).toBeInTheDocument()
+    expect(screen.queryByText(en.profile.deleteAccount.warningPro)).not.toBeInTheDocument()
+    expect(screen.getByText(en.profile.deleteAccount.warningDetail)).toBeInTheDocument()
     expect(screen.getByText('profile.deleteAccount.sendCode')).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
-  it('does not add a plan-specific reversible warning', () => {
-    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} />)
+  it('shows the Pro deletion upper bound without tying it to the plan ending', () => {
+    render(
+      <DeleteAccountModal
+        open
+        onOpenChange={mocks.onOpenChange}
+        profile={{
+          ...profile,
+          plan: 'pro',
+          hasProAccess: true,
+          planExpiresAt: '2999-01-01T00:00:00Z',
+        }}
+      />,
+    )
 
-    expect(screen.queryByText('profile.deleteAccount.warningFree')).not.toBeInTheDocument()
-    expect(document.body.textContent).not.toContain('profile.deleteAccount.warningPro')
+    expect(screen.getByText(/up to 30 days from today/i)).toHaveTextContent(
+      en.profile.deleteAccount.warningPro,
+    )
+    expect(screen.queryByText(/after your plan ends/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(en.profile.deleteAccount.warningFree)).not.toBeInTheDocument()
+  })
+
+  it('shows the Free warning for Pro access without a plan expiry', () => {
+    render(
+      <DeleteAccountModal
+        open
+        onOpenChange={mocks.onOpenChange}
+        profile={{
+          ...profile,
+          plan: 'pro',
+          hasProAccess: true,
+          planExpiresAt: null,
+        }}
+      />,
+    )
+
+    expect(screen.getByText(en.profile.deleteAccount.warningFree)).toBeInTheDocument()
+    expect(screen.queryByText(en.profile.deleteAccount.warningPro)).not.toBeInTheDocument()
+  })
+
+  it('shows the Free warning for Pro access with a past plan expiry', () => {
+    render(
+      <DeleteAccountModal
+        open
+        onOpenChange={mocks.onOpenChange}
+        profile={{
+          ...profile,
+          plan: 'pro',
+          hasProAccess: true,
+          planExpiresAt: '2000-01-01T00:00:00Z',
+        }}
+      />,
+    )
+
+    expect(screen.getByText(en.profile.deleteAccount.warningFree)).toBeInTheDocument()
+    expect(screen.queryByText(en.profile.deleteAccount.warningPro)).not.toBeInTheDocument()
   })
 
   it('persists the send time and routes to the deletion step up screen', async () => {
-    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} />)
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
 
     fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
 
@@ -69,7 +166,7 @@ describe('DeleteAccountModal', () => {
 
   it('waits for sheet dismissal before closing and navigating', async () => {
     sheetTestControls.defer(true)
-    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} />)
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
 
     fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
 
@@ -86,7 +183,7 @@ describe('DeleteAccountModal', () => {
 
   it('keeps the first gate open and reports a safe error when sending fails', async () => {
     mocks.requestDeletion.mockRejectedValueOnce(new Error('private backend detail'))
-    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} />)
+    render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
 
     fireEvent.click(screen.getByText('profile.deleteAccount.sendCode'))
 
@@ -97,7 +194,7 @@ describe('DeleteAccountModal', () => {
 
   it('renders nothing while closed', () => {
     const { container } = render(
-      <DeleteAccountModal open={false} onOpenChange={mocks.onOpenChange} />,
+      <DeleteAccountModal open={false} onOpenChange={mocks.onOpenChange} profile={profile} />,
     )
     expect(container).toBeEmptyDOMElement()
   })

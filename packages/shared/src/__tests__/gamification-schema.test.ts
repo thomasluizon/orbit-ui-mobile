@@ -8,6 +8,7 @@ import {
   streakInfoSchema,
 } from '../types/gamification'
 import { profileSchema } from '../types/profile'
+import { deriveStreakRepairState } from '../utils/progress'
 import { createMockGamificationProfile, createMockProfile } from './factories'
 
 describe('nextRewardCarrotSchema', () => {
@@ -121,9 +122,57 @@ describe('streakInfoSchema repair offer', () => {
 
     expect(parsed.repairDate).toBe('2026-08-27')
   })
+
+  it('preserves the streak when repairable gap dates are null', () => {
+    const payload = {
+      currentStreak: 4,
+      longestStreak: 9,
+      lastActiveDate: '2026-08-26',
+      freezesUsedThisMonth: 1,
+      freezesAvailable: 2,
+      maxFreezesPerMonth: 3,
+      isFrozenToday: false,
+      recentFreezeDates: ['2026-08-20'],
+      isRepairAvailable: true,
+      repairDate: '2026-08-27',
+      repairableGapDates: null,
+    }
+    const parsed = streakInfoSchema.parse(payload)
+
+    expect(parsed).toMatchObject(payload)
+    expect(deriveStreakRepairState({
+      streak: parsed,
+      freezesAvailable: 2,
+      banked: 2,
+      ceiling: 3,
+    })).toMatchObject({ dates: ['2026-08-27'], count: 1, canRepair: true })
+  })
 })
 
 describe('recapResponseSchema', () => {
+  it('preserves the API goal completion count', () => {
+    const parsed = recapResponseSchema.parse({
+      period: 'month',
+      shareDeepLink: 'https://app.useorbit.org/r/ABCD2345?recap=month',
+      goalCompletions: 4,
+      metrics: {
+        completionRate: 0,
+        totalCompletions: 0,
+        totalScheduled: 0,
+        activeDays: 0,
+        periodDays: 30,
+        currentStreak: 0,
+        bestStreak: 0,
+        badHabitSlips: 0,
+        weeklyConsistency: [0, 0, 0, 0, 0, 0, 0],
+        topHabits: [],
+        needsAttention: [],
+      },
+    })
+
+    expect(parsed.goalCompletions).toBe(4)
+  })
+
   it('parses a metrics-only recap with a share deep link', () => {
     const parsed = recapResponseSchema.parse({
       period: 'week',

@@ -84,7 +84,7 @@ const ROUTES: Record<BottomTab, string> = {
 }
 
 function hasPrimaryNavigation(pathname: string): boolean {
-  return pathname !== '/upgrade'
+  return pathname !== '/upgrade' && pathname !== '/wrapped'
 }
 
 function getAccountLabel(profile: { name: string; email: string } | null | undefined) {
@@ -208,6 +208,10 @@ function DestinationShellContent({
       onCreateHabit={() => setShowCreateModal(true)}
     />
   )
+
+  if (pathname === '/wrapped') {
+    return children
+  }
 
   if (!navigationEnabled) {
     const flow = wide ? (

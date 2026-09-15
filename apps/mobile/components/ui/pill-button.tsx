@@ -21,6 +21,7 @@ export function Button({
   accessibleName,
   iconOnly,
   label,
+  hint,
 }: Readonly<ButtonProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -71,6 +72,7 @@ export function Button({
       disabled={disabled || loading}
       accessibilityRole="button"
       accessibilityLabel={iconOnly ? label : accessibleName}
+      accessibilityHint={hint}
       accessibilityState={{ disabled: disabled || loading, busy: loading }}
       testID={`button-${variant}-${size}`}
       style={({ pressed }) => [

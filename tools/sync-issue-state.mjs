@@ -39,7 +39,7 @@ const known = new Set([...valueFlags, "--help", "-h"])
 const unknown = process.argv.slice(2).filter((value, index, argv) => value.startsWith("-") && !known.has(value) && !valueFlags.has(argv[index - 1]))
 if (unknown.length > 0) fail(2, `${USAGE}\n\nunknown option(s): ${unknown.join(" ")}`)
 
-const issue = argOf("--issue")
+const issueArgument = argOf("--issue")
 const repoKey = argOf("--repo")
 const prNumber = Number(argOf("--pr"))
 const stateKey = argOf("--state")
@@ -48,7 +48,7 @@ const baseSha = argOf("--base-sha")
 const messageFile = argOf("--message-file")
 // Bounds the direct pull request read that binds this write to the intended ticket.
 const commandTimeoutSeconds = Number(argOf("--command-timeout-seconds") ?? "45")
-if (!issue || !repoKey || !Number.isInteger(prNumber) || !["working", "ready", "blocked"].includes(stateKey) || !/^[0-9a-f]{40}$/i.test(headSha ?? "") || !/^[0-9a-f]{40}$/i.test(baseSha ?? "") || !messageFile) fail(2, USAGE)
+if (!issueArgument || !repoKey || !Number.isInteger(prNumber) || !["working", "ready", "blocked"].includes(stateKey) || !/^[0-9a-f]{40}$/i.test(headSha ?? "") || !/^[0-9a-f]{40}$/i.test(baseSha ?? "") || !messageFile) fail(2, USAGE)
 
 let message
 try {
@@ -70,11 +70,12 @@ if (typeof repoRoot !== "string") fail(2, `unknown repository key "${repoKey}"; 
 let resolved
 let current
 try {
-  resolved = resolveTicket(issue)
+  resolved = resolveTicket(issueArgument)
   current = await readTicket(resolved.number)
 } catch (error) {
   fail(2, `ticket read failed: ${error.message}`)
 }
+const issue = resolved.reference
 if (current.state === "CLOSED") fail(1, `${issue} is closed; readiness synchronization never regresses a closed ticket`)
 
 /**
@@ -136,12 +137,19 @@ if (
 }
 if (pullRequest.number !== prNumber) fail(2, `GitHub returned pull request ${pullRequest.number}, not ${prNumber}. Nothing was written`)
 
-// `issue` is caller supplied, so it is escaped before it becomes a pattern. The identifier is also
-// validated above and cannot currently carry a metacharacter, but building a regular expression out
-// of an argument is the injection shape whatever today's validation happens to allow.
+// Every value interpolated here came through resolveTicket, but escaping keeps this safe if ticket
+// syntax or the configured repository name later admits regular-expression metacharacters.
 const escapeForPattern = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-const issueReference = new RegExp(`(?:^|[^A-Z0-9])${escapeForPattern(issue)}(?:$|[^A-Z0-9])`, "i")
-if (![pullRequest.headRefName, pullRequest.title, pullRequest.body].some((value) => issueReference.test(value))) {
+const qualifiedReference = `${config.tickets.repository}#${resolved.number}`
+const ticketMention = new RegExp(
+  `(?:(?:^|[^A-Z0-9])${escapeForPattern(issue)}(?:$|[^A-Z0-9])|(?:^|[^A-Z0-9])#${resolved.number}(?:$|[^A-Z0-9])|(?:^|[^A-Z0-9_./-])${escapeForPattern(qualifiedReference)}(?:$|[^A-Z0-9]))`,
+  "i",
+)
+const branchTicketMention = new RegExp(`(?:^|[^A-Z0-9])ticket-${resolved.number}-`, "i")
+const referencesTicket =
+  branchTicketMention.test(pullRequest.headRefName) ||
+  [pullRequest.headRefName, pullRequest.title, pullRequest.body].some((value) => ticketMention.test(value))
+if (!referencesTicket) {
   fail(2, `Pull request ${expectedSlug}#${prNumber} does not reference ${issue} in its branch, title, or body. Nothing was written`)
 }
 

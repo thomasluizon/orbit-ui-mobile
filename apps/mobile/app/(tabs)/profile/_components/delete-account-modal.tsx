@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import type { Profile } from '@orbit/shared/types/profile'
 import { stepUpMessageResponseSchema } from '@orbit/shared/types/step-up'
 import { API } from '@orbit/shared/api'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
@@ -18,11 +19,13 @@ import { ErrorState } from '@/components/ui/error-state'
 interface DeleteAccountModalProps {
   open: boolean
   onClose: () => void
+  profile: Profile | undefined
 }
 
 export function DeleteAccountModal({
   open,
   onClose,
+  profile,
 }: Readonly<DeleteAccountModalProps>) {
   const { t } = useTranslation()
   const router = useRouter()
@@ -32,6 +35,18 @@ export function DeleteAccountModal({
   const { sheetRef, closeSheet } = useSheetHost()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const warningMessage = (() => {
+    // WHY: Mirrors https://github.com/thomasluizon/orbit-api/blob/main/src/Orbit.Application/Auth/Commands/ConfirmAccountDeletionCommand.cs#L31-L33.
+    if (
+      profile?.hasProAccess &&
+      profile.planExpiresAt !== null &&
+      new Date(profile.planExpiresAt) > new Date()
+    ) {
+      return t('profile.deleteAccount.warningPro')
+    }
+    return t('profile.deleteAccount.warningFree')
+  })()
 
   function handleClose() {
     setLoading(false)
@@ -93,6 +108,7 @@ export function DeleteAccountModal({
               <Text style={[styles.title, { color: tokens.statusBadText }]}>
                 {t('profile.deleteAccount.warning')}
               </Text>
+              <Text style={[styles.title, { color: tokens.fg1 }]}>{warningMessage}</Text>
               <Text style={[styles.description, { color: tokens.fg2 }]}>
                 {t('profile.deleteAccount.warningDetail')}
               </Text>

@@ -569,8 +569,15 @@ export {
   recapPeriodLabelKey,
 } from './share-card'
 export type { RecapSharePeriod, ShareCardStat } from './share-card'
-export { buildWrappedSlides } from './wrapped'
-export type { WrappedSlide, WrappedSlideId } from './wrapped'
+export {
+  buildWrappedSlides,
+  getWeeklyConsistencyReading,
+} from './wrapped'
+export type {
+  WeeklyConsistencyReading,
+  WrappedSlide,
+  WrappedSlideId,
+} from './wrapped'
 export {
   canAccessEntitlement,
   DEFAULT_FREE_COLOR_SCHEME,
@@ -616,6 +623,8 @@ export {
 } from './fresh-start'
 export {
   buildSupportRequestBody,
+  SUPPORT_API_MESSAGE_MAX_LENGTH,
+  SUPPORT_API_SUBJECT_MAX_LENGTH,
 } from './support'
 export type {
   SupportFormFields,
@@ -629,14 +638,20 @@ export {
   deriveProgressViewState,
   filterProgressGoals,
   getProgressGoalLabelKey,
-  getAvailableStreakRepairDate,
+  deriveStreakRepairState,
+  getStreakRepairErrorMessageKey,
   getGoalDeadlinePresentation,
   getGamificationLevelTitleKey,
   PROGRESS_GOAL_FILTERS,
   visibleProgressAchievements,
   isProgressEmpty,
 } from './progress'
-export type { AchievementGlyphKey, GoalDeadlineState, ProgressGoalFilter } from './progress'
+export type {
+  AchievementGlyphKey,
+  GoalDeadlineState,
+  ProgressGoalFilter,
+  StreakRepairState,
+} from './progress'
 export {
   PROFILE_NAV_ITEMS,
   shouldRedirectProfileNavItem,
