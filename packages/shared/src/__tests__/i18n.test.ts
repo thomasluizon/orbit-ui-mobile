@@ -48,7 +48,7 @@ function unsafeIcuApostropheOffsets(value: string): number[] {
     const start = index
     while (value[index] === "'") index += 1
     const hasUnpairedApostrophe = (index - start) % 2 === 1
-    const bordersIcuSyntax = value[start - 1] === '}' || value[index] === '{' || value[index] === '#'
+    const bordersIcuSyntax = value[index] === '{' || value[index] === '}' || value[index] === '#'
     if (hasUnpairedApostrophe && bordersIcuSyntax) offsets.push(start)
   }
 
@@ -117,6 +117,16 @@ describe('i18n locale parity', () => {
     }
 
     expect(violations).toEqual([])
+  })
+
+  it('flags an unpaired apostrophe before an ICU closing brace', () => {
+    const key = 'apostropheBeforeClosingBrace'
+    const value = "{count, plural, one {day'} other {days}}"
+    const violations = unsafeIcuApostropheOffsets(value).map(
+      (offset) => `fixture:${key}@${offset}`,
+    )
+
+    expect(violations).toEqual(['fixture:apostropheBeforeClosingBrace@24'])
   })
 
   it('does not expose retired relationship translation groups', () => {
