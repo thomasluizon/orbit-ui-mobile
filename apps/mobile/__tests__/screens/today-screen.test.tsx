@@ -231,6 +231,13 @@ vi.mock("@/components/habit-list", () => ({
     ref: React.ForwardedRef<unknown>,
   ) {
     React.useImperativeHandle(ref, () => habitListHandle);
+    const reportedIds = habitListHandle.allLoadedIds;
+    React.useEffect(() => {
+      const reportLoadedIds = props.onAllLoadedIdsChange as
+        | ((ids: Set<string>) => void)
+        | undefined;
+      reportLoadedIds?.(reportedIds);
+    }, [props.onAllLoadedIdsChange, reportedIds]);
     return React.createElement(
       "HabitList",
       props,
@@ -929,6 +936,7 @@ describe("TodayScreen overdue bulk selection", () => {
 
   it("includes the overdue habit when selecting all", async () => {
     const overdue = seedOverdueHabit();
+    habitListHandle.allLoadedIds = new Set([overdue.id]);
 
     const tree = await renderTodayScreen();
 
@@ -941,6 +949,58 @@ describe("TodayScreen overdue bulk selection", () => {
     expect(uiState.selectAllHabits).toHaveBeenCalledWith(
       expect.arrayContaining([overdue.id]),
     );
+  });
+
+  it("keeps hidden historical completions out of bulk selection", async () => {
+    const historicalCompletion = createMockHabit({
+      id: "historical-completion",
+      title: "Historical completion",
+      frequencyUnit: null,
+      dueDate: "2026-04-01",
+      scheduledDates: [],
+      isCompleted: true,
+      isLoggedInRange: false,
+      instances: [],
+    });
+    mockHabitsData.habitsById = new Map([
+      [historicalCompletion.id, historicalCompletion],
+    ]);
+    mockHabitsData.topLevelHabits = [historicalCompletion];
+    habitListHandle.allLoadedIds = new Set();
+    uiState.showCompleted = true;
+    uiState.selectAllHabits.mockImplementation((ids: string[]) => {
+      uiState.selectedHabitIds = new Set(ids);
+    });
+
+    const tree = await renderTodayScreen();
+    const bulkBar = tree.root.findByType("BulkActionBarV2");
+
+    await TestRenderer.act(() => {
+      (bulkBar.props.onSelectAll as () => void)();
+    });
+
+    expect(uiState.selectAllHabits).toHaveBeenCalledWith([]);
+
+    const updatedTree = await renderTodayScreen();
+    const updatedBulkBar = updatedTree.root.findByType("BulkActionBarV2");
+    expect(updatedBulkBar.props.count).toBe(0);
+
+    await TestRenderer.act(() => {
+      (updatedBulkBar.props.onLog as () => void)();
+      (updatedBulkBar.props.onSkip as () => void)();
+      (updatedBulkBar.props.onDelete as () => void)();
+    });
+
+    const bulkDialogs = updatedTree.root
+      .findAllByType("ConfirmDialog")
+      .filter((dialog) =>
+        [
+          "habits.bulkLogTitle",
+          "habits.bulkSkipTitle",
+          "habits.bulkDeleteTitle",
+        ].includes(dialog.props.title as string),
+      );
+    expect(bulkDialogs.every((dialog) => dialog.props.open === false)).toBe(true);
   });
 
   it("dispatches a bulk log for a selected overdue habit without a date", async () => {
