@@ -18,6 +18,7 @@ import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { useBilling } from '@/hooks/use-billing'
 import { openCustomerPortal } from '@/app/actions/subscription'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { applySessionRefreshFailure } from '@/lib/api-fetch'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
 
@@ -62,6 +63,7 @@ export default function UpgradePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ interval }),
       })
+      await applySessionRefreshFailure(response)
       if (!response.ok) {
         const errorBody: unknown = await response.json().catch(() => null)
         throw createApiClientError(response.status, errorBody, `Failed with status ${response.status}`)

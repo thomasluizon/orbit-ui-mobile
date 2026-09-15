@@ -8,6 +8,7 @@ import {
   validateApiResponse,
 } from '@orbit/shared/utils'
 import type { ZodType } from 'zod'
+import { responseReportsSessionRefreshFailure } from './session-refresh'
 
 /**
  * Centralized API fetch with error categorization.
@@ -65,16 +66,18 @@ export class ApiError extends Error {
   }
 }
 
+export async function applySessionRefreshFailure(response: Response): Promise<void> {
+  if (!responseReportsSessionRefreshFailure(response)) return
+
+  const { useAuthStore } = await import('@/stores/auth-store')
+  useAuthStore.getState().markSessionRefreshFailed()
+}
+
 async function getStatusError(
   status: number,
   body: unknown,
-  sessionRefreshFailed: boolean,
 ): Promise<ApiError | null> {
   if (status === 401) {
-    if (sessionRefreshFailed) {
-      const { useAuthStore } = await import('@/stores/auth-store')
-      useAuthStore.getState().markSessionRefreshFailed()
-    }
     return new ApiError(status, 'Unauthorized', body)
   }
 
@@ -124,13 +127,13 @@ export async function apiFetch<T>(
     headers,
   })
 
+  await applySessionRefreshFailure(res)
+
   if (!res.ok) {
     const body: unknown = await res.json().catch(() => null)
     const status = res.status
 
-    const sessionRefreshFailed =
-      status === 401 && res.headers.get('x-orbit-session-refresh') === 'failed'
-    const statusError = await getStatusError(status, body, sessionRefreshFailed)
+    const statusError = await getStatusError(status, body)
     if (statusError) {
       throw statusError
     }

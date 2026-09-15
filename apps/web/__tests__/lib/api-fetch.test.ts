@@ -116,6 +116,20 @@ describe('apiFetch', () => {
     expect(toast.error).not.toHaveBeenCalled()
   })
 
+  it('shows the failed-refresh state when a public endpoint still succeeds', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'x-orbit-session-refresh': 'failed' }),
+      json: () => Promise.resolve({ plans: [] }),
+    })
+
+    await expect(apiFetch('/api/subscriptions/plans')).resolves.toEqual({ plans: [] })
+    expect(mockMarkSessionRefreshFailed).toHaveBeenCalledTimes(1)
+    expect(mockLogout).not.toHaveBeenCalled()
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
   it('throws ApiError with status 401', async () => {
     mockFetch.mockResolvedValue({
       ok: false,

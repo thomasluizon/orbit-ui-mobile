@@ -92,6 +92,27 @@ describe('subscriptions checkout route', () => {
     expect(resolveServerSession).toHaveBeenCalledTimes(1)
   })
 
+  it('reports a proactive refresh rejection before calling the upstream API', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: true,
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ priceId: 'price_123' }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(401)
+    expect(response.headers.get('x-orbit-session-refresh')).toBe('failed')
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
   it('propagates a backend 400 for an invalid checkout payload without coercing the status', async () => {
     vi.mocked(resolveServerSession).mockResolvedValue({
       token: 'token',
@@ -224,8 +245,43 @@ describe('subscriptions checkout route', () => {
     const response = await POST(request)
 
     expect(response.status).toBe(401)
+    expect(response.headers.get('x-orbit-session-refresh')).toBe('failed')
     expect(await response.text()).toBe('{"error":"unauthorized"}')
     expect(mockFetch).toHaveBeenCalledTimes(1)
     expect(resolveServerSession).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not report refresh failure when the refreshed endpoint still returns 401', async () => {
+    vi.mocked(resolveServerSession)
+      .mockResolvedValueOnce({
+        token: 'stale-token',
+        expiresAt: Date.now() + 3600000,
+        refreshed: false,
+        refreshFailed: false,
+      })
+      .mockResolvedValueOnce({
+        token: 'fresh-token',
+        expiresAt: Date.now() + 3600000,
+        refreshed: true,
+        refreshFailed: false,
+      })
+    mockFetch.mockResolvedValue(
+      new Response('{"error":"unauthorized"}', {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+
+    const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ priceId: 'price_123' }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(401)
+    expect(response.headers.get('x-orbit-session-refresh')).toBeNull()
+    expect(mockFetch).toHaveBeenCalledTimes(2)
   })
 })

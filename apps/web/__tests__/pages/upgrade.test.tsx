@@ -88,6 +88,7 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 
 
 import UpgradePage from '@/app/(app)/upgrade/page'
+import { useAuthStore } from '@/stores/auth-store'
 
 
 describe('UpgradePage', () => {
@@ -110,6 +111,7 @@ describe('UpgradePage', () => {
     mockIsBillingLoading = false
     mockIsBillingError = false
     mockUseBilling.mockClear()
+    useAuthStore.setState({ sessionRefreshFailed: false })
   })
 
   afterEach(() => {
@@ -404,5 +406,30 @@ describe('UpgradePage', () => {
     expect(requestUrl.startsWith('/api/subscriptions/checkout')).toBe(true)
     expect(requestInit?.method).toBe('POST')
     expect(JSON.parse(requestInit?.body as string)).toEqual({ interval: 'yearly' })
+  })
+
+  it('enters the sign-in prompt state when checkout confirms refresh rejection', async () => {
+    mockPlans = {
+      monthly: { unitAmount: 999 },
+      yearly: { unitAmount: 4999 },
+      currency: 'usd',
+      savingsPercent: 58,
+      couponPercentOff: null,
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      headers: new Headers({ 'x-orbit-session-refresh': 'failed' }),
+      json: async () => ({ error: 'Unauthorized' }),
+    }))
+    vi.stubGlobal('location', { href: '', pathname: '/upgrade' })
+
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByTestId('paywall-checkout'))
+
+    await waitFor(() => {
+      expect(useAuthStore.getState().sessionRefreshFailed).toBe(true)
+    })
+    expect(globalThis.location.href).toBe('')
   })
 })
