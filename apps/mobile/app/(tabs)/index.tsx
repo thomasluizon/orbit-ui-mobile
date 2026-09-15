@@ -46,7 +46,7 @@ export default function TodayScreen() {
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false)
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null)
   const [editHabitOnSaved, setEditHabitOnSaved] = useState<(() => void | Promise<void>) | null>(null)
-  const [allLoadedIds, setAllLoadedIds] = useState<Set<string>>(() => new Set())
+  const [allLoadedIds, setAllLoadedIds] = useState<Set<string> | null>(null)
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
   const [todayFocused, setTodayFocused] = useState(false)
   const [listSurfaceOpen, setListSurfaceOpen] = useState(false)
@@ -76,14 +76,12 @@ export default function TodayScreen() {
     filterMotionKey: date.dateStr,
     isRefetching: Boolean(habitsQuery.data && habitsQuery.isFetching),
   })
-  const visibleHabitIds = useMemo(() => new Set(habitsById.keys()), [habitsById])
   const closeControlsMenu = useCallback(() => {}, [])
   const selection = useTodaySelection({
     selectedDateStr: date.dateStr,
     today: date.today,
     habitListRef,
     habitListAllLoadedIds: allLoadedIds,
-    visibleHabitIds,
     habitsById,
     closeControlsMenu,
   })
