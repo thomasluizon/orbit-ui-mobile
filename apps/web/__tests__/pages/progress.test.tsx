@@ -87,7 +87,7 @@ const mocks = vi.hoisted(() => ({
     },
     isLoading: false,
     isError: false,
-    error: null as { data: { errorCode: string } } | null,
+    error: null as { status?: number; data: { errorCode: string } } | null,
     refetch: vi.fn(),
   },
   freeze: {
@@ -528,7 +528,7 @@ describe('ProgressContent', () => {
     ])
   })
 
-  it('renders a pay-gate refusal as the three locked sections', async () => {
+  it('renders pay-gate refusals as the three locked sections', async () => {
     mocks.account.profile.hasProAccess = false
     Object.assign(mocks.account.profile, { streakFreezesAvailable: 3 })
     mocks.gamification.isError = true
@@ -536,6 +536,8 @@ describe('ProgressContent', () => {
       status: 403,
       data: { error: 'Gamification is a Pro feature. Upgrade to unlock!', errorCode: 'PAY_GATE' },
     }
+    mocks.retrospective.isError = true
+    mocks.retrospective.error = { status: 403, data: { errorCode: 'PAY_GATE' } }
     const { container, unmount } = render(<ProgressContent />)
 
     expect(screen.queryByTestId('error-state')).not.toBeInTheDocument()
@@ -581,6 +583,7 @@ describe('ProgressContent', () => {
     mocks.account.profile.hasProAccess = false
     mocks.retrospective.isError = true
     mocks.retrospective.error = {
+      status: 403,
       data: { errorCode: 'PAY_GATE' },
     }
 
@@ -594,7 +597,33 @@ describe('ProgressContent', () => {
     expect(screen.getByTestId('progress-xp-summary')).toBeInTheDocument()
     expect(screen.queryByText('75%')).not.toBeInTheDocument()
     expect(mocks.gamificationEnabled).toHaveBeenCalledWith(true)
-    expect(mocks.retrospectiveEnabled).toHaveBeenCalledWith(false)
+    expect(mocks.retrospectiveEnabled).toHaveBeenCalledWith(true)
+  })
+
+  it('renders a server-authorized window for a free account', () => {
+    mocks.account.profile.hasProAccess = false
+
+    render(<ProgressContent />)
+
+    const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
+    expect(within(windowSection).getByText('75%')).toBeInTheDocument()
+    expect(within(windowSection).queryByText('progressScreen.window.lockedBody')).not.toBeInTheDocument()
+    expect(mocks.retrospectiveEnabled).toHaveBeenCalledWith(true)
+  })
+
+  it('renders a retryable window error when a free retrospective request fails', () => {
+    mocks.account.profile.hasProAccess = false
+    mocks.retrospective.isError = true
+    mocks.retrospective.error = { status: 500, data: { errorCode: 'INTERNAL_SERVER_ERROR' } }
+
+    render(<ProgressContent />)
+
+    const windowSection = screen.getByRole('region', { name: 'progressScreen.sections.window' })
+    expect(within(windowSection).getByRole('alert')).toHaveTextContent('progressScreen.error')
+    expect(within(windowSection).queryByText('progressScreen.window.lockedBody')).not.toBeInTheDocument()
+    fireEvent.click(within(windowSection).getByRole('button', { name: 'progressScreen.retry' }))
+    expect(mocks.retrospective.refetch).toHaveBeenCalledTimes(1)
+    expect(mocks.retrospectiveEnabled).toHaveBeenCalledWith(true)
   })
 
   it('renders empty weekly and habit figures without substituting unrelated totals', () => {

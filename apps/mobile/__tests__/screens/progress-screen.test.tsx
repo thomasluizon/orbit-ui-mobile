@@ -93,7 +93,7 @@ const mocks = vi.hoisted(() => ({
     },
     isLoading: false,
     isError: false,
-    error: null as { data: { errorCode: string } } | null,
+    error: null as { status?: number; data: { errorCode: string } } | null,
     refetch: vi.fn(),
   },
   freeze: {
@@ -573,7 +573,7 @@ describe('mobile ProgressContent', () => {
     ])
   })
 
-  it('renders a pay-gate refusal as the three locked sections', async () => {
+  it('renders pay-gate refusals as the three locked sections', async () => {
     mocks.account.profile.hasProAccess = false
     Object.assign(mocks.account.profile, { streakFreezesAvailable: 3 })
     mocks.gamification.isError = true
@@ -581,6 +581,8 @@ describe('mobile ProgressContent', () => {
       status: 403,
       data: { error: 'Gamification is a Pro feature. Upgrade to unlock!', errorCode: 'PAY_GATE' },
     }
+    mocks.retrospective.isError = true
+    mocks.retrospective.error = { status: 403, data: { errorCode: 'PAY_GATE' } }
     const tree = await renderProgress()
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
     expect(text).toEqual(expect.arrayContaining([
@@ -613,6 +615,7 @@ describe('mobile ProgressContent', () => {
     mocks.account.profile.hasProAccess = false
     mocks.retrospective.isError = true
     mocks.retrospective.error = {
+      status: 403,
       data: { errorCode: 'PAY_GATE' },
     }
 
@@ -629,7 +632,35 @@ describe('mobile ProgressContent', () => {
     expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'progress-xp-summary')).toHaveLength(1)
     expect(tree.root.findAll((node) => node.type === 'StatTile' && node.props.value === '75%')).toHaveLength(0)
     expect(mocks.gamificationEnabled).toHaveBeenCalledWith(true)
-    expect(mocks.retrospectiveEnabled).toHaveBeenCalledWith(false)
+    expect(mocks.retrospectiveEnabled).toHaveBeenCalledWith(true)
+  })
+
+  it('renders a server-authorized window for a free account', async () => {
+    mocks.account.profile.hasProAccess = false
+
+    const tree = await renderProgress()
+    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+
+    expect(tree.root.findAll((node) => node.type === 'StatTile' && node.props.value === '75%')).toHaveLength(1)
+    expect(text).not.toContain('progressScreen.window.lockedBody')
+    expect(mocks.retrospectiveEnabled).toHaveBeenCalledWith(true)
+  })
+
+  it('renders a retryable window error when a free retrospective request fails', async () => {
+    mocks.account.profile.hasProAccess = false
+    mocks.retrospective.isError = true
+    mocks.retrospective.error = { status: 500, data: { errorCode: 'INTERNAL_SERVER_ERROR' } }
+
+    const tree = await renderProgress()
+    const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+
+    expect(tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'error-state')).toHaveLength(1)
+    expect(text).not.toContain('progressScreen.window.lockedBody')
+    await TestRenderer.act(() => {
+      ;(findPill(tree.root, 'progressScreen.retry').props.onPress as () => void)()
+    })
+    expect(mocks.retrospective.refetch).toHaveBeenCalledTimes(1)
+    expect(mocks.retrospectiveEnabled).toHaveBeenCalledWith(true)
   })
 
   it('renders empty weekly and habit figures without substituting unrelated totals', async () => {
