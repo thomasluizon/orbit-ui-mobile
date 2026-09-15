@@ -22,6 +22,13 @@ function isPickerCancellation(error: unknown) {
     && error.code === PICKER_CANCELLED_CODE
 }
 
+function getDownloadDestination(directory: Directory) {
+  const existingFile = directory.list().find(
+    (entry) => entry instanceof File && entry.name === SHARE_CARD_FILE_NAME,
+  )
+  return existingFile ?? directory.createFile(SHARE_CARD_FILE_NAME, 'image/png')
+}
+
 /** Captures a ShareCard View to a temp PNG and opens the native share sheet. */
 export function useShareCard() {
   const shareRef = useRef<View>(null)
@@ -73,7 +80,7 @@ export function useShareCard() {
         throw error
       }
       const source = new File(uri)
-      const destination = new File(directory, SHARE_CARD_FILE_NAME)
+      const destination = getDownloadDestination(directory)
       await source.copy(destination, { overwrite: true })
       reportEvent(ACHIEVEMENT_EVENT_KEYS.cardShared)
     } catch {

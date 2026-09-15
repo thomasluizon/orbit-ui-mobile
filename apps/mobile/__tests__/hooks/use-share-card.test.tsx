@@ -86,9 +86,17 @@ describe('mobile useShareCard', () => {
       await hook.current.download()
     })
 
-    expect(expoFileSystemMock.copyCalls).toEqual([
-      expect.objectContaining({ destinationUri: 'content://downloads/orbit-recap.png' }),
-    ])
+    expect(expoFileSystemMock.createFileCalls).toEqual([{
+      directoryUri: 'content://downloads',
+      name: 'orbit-recap.png',
+      mimeType: 'image/png',
+      uri: 'content://mock-document/1',
+    }])
+    expect(expoFileSystemMock.copyCalls).toEqual([{
+      sourceUri: 'file:///cache/share-card.png',
+      destinationUri: 'content://mock-document/1',
+      options: { overwrite: true },
+    }])
     expect(mocks.reportEvent).toHaveBeenCalledWith('card_shared')
     expect(hook.current.hasError).toBe(false)
   })
@@ -114,7 +122,12 @@ describe('mobile useShareCard', () => {
       await hook.current.download()
     })
 
+    expect(expoFileSystemMock.createFileCalls).toHaveLength(1)
     expect(expoFileSystemMock.copyCalls).toHaveLength(2)
+    expect(expoFileSystemMock.copyCalls.map(({ destinationUri }) => destinationUri)).toEqual([
+      'content://mock-document/1',
+      'content://mock-document/1',
+    ])
     expect(expoFileSystemMock.copyCalls[1]?.options).toEqual({ overwrite: true })
     expect(mocks.reportEvent).toHaveBeenCalledTimes(2)
     expect(hook.current.hasError).toBe(false)

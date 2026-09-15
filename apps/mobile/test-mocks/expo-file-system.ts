@@ -3,13 +3,20 @@ export class File extends Blob {
 
   constructor(...segments: ({ uri: string } | string)[]) {
     super(['mock-file-content'])
+    const segmentUris = segments.map((segment) => (typeof segment === 'string' ? segment : segment.uri))
+    if (segmentUris.length > 1 && segmentUris[0]?.startsWith('content://')) {
+      throw codedError(
+        'ERR_SAF_PATH_JOIN',
+        'SAF children must be created through Directory.createFile',
+      )
+    }
     this.uri = segments
       .map((segment) => (typeof segment === 'string' ? segment : segment.uri))
       .join('/')
   }
 
   get name() {
-    return this.uri.split('/').pop() ?? 'file'
+    return expoFileSystemMock.fileNames.get(this.uri) ?? this.uri.split('/').pop() ?? 'file'
   }
 
   create() {}
@@ -55,6 +62,23 @@ export class Directory {
     }
     return Promise.resolve(new Directory('content://downloads'))
   }
+
+  list() {
+    return [...(expoFileSystemMock.directoryFiles.get(this.uri)?.values() ?? [])]
+      .map((uri) => new File(uri))
+  }
+
+  createFile(name: string, mimeType: string | null) {
+    const uri = `content://mock-document/${expoFileSystemMock.nextDocumentId}`
+    expoFileSystemMock.nextDocumentId += 1
+    const directoryFiles = expoFileSystemMock.directoryFiles.get(this.uri) ?? new Map<string, string>()
+    directoryFiles.set(name, uri)
+    expoFileSystemMock.directoryFiles.set(this.uri, directoryFiles)
+    expoFileSystemMock.fileNames.set(uri, name)
+    expoFileSystemMock.existingFiles.add(uri)
+    expoFileSystemMock.createFileCalls.push({ directoryUri: this.uri, name, mimeType, uri })
+    return new File(uri)
+  }
 }
 
 interface CopyCall {
@@ -63,13 +87,24 @@ interface CopyCall {
   options?: { overwrite?: boolean }
 }
 
+interface CreateFileCall {
+  directoryUri: string
+  name: string
+  mimeType: string | null
+  uri: string
+}
+
 function codedError(code: string, message: string) {
   return Object.assign(new Error(message), { code })
 }
 
 export const expoFileSystemMock = {
   copyCalls: [] as CopyCall[],
+  createFileCalls: [] as CreateFileCall[],
+  directoryFiles: new Map<string, Map<string, string>>(),
   existingFiles: new Set<string>(),
+  fileNames: new Map<string, string>(),
+  nextDocumentId: 1,
   nextCopyError: null as Error | null,
   nextDirectoryError: null as Error | null,
   cancelNextDirectoryPick() {
@@ -83,7 +118,11 @@ export const expoFileSystemMock = {
   },
   reset() {
     this.copyCalls = []
+    this.createFileCalls = []
+    this.directoryFiles.clear()
     this.existingFiles.clear()
+    this.fileNames.clear()
+    this.nextDocumentId = 1
     this.nextCopyError = null
     this.nextDirectoryError = null
   },
