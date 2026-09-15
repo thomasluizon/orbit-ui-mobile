@@ -2,11 +2,26 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import CalendarScreen from '@/app/(tabs)/calendar'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
-import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import type { CalendarAutoSyncState, CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 const mockPush = vi.fn()
+const mockSetAutoSync = vi.fn(({ enabled }: { enabled: boolean }) => {
+  autoSyncState = { ...autoSyncState, enabled }
+  return Promise.resolve()
+})
 
 let calendarIsLoading = false
+let profileHasProAccess = true
+let autoSyncState: CalendarAutoSyncState = {
+  enabled: true,
+  status: 'Idle',
+  lastSyncedAt: '2026-09-12T09:12:00Z',
+  hasGoogleConnection: true,
+}
+let autoSyncQueryOptions: {
+  enabled?: boolean
+  initialData?: CalendarAutoSyncState
+} | undefined
 let calendarDayMap = new Map<string, CalendarDayEntry[]>()
 const mockLogHabit = vi.fn(async () => {})
 vi.mock('react-native', async () => {
@@ -62,11 +77,42 @@ vi.mock('@/hooks/use-habits', () => ({
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { weekStartDay: 1 } }),
+  useProfile: () => ({
+    profile: {
+      weekStartDay: 1,
+      timeZone: 'UTC',
+      hasProAccess: profileHasProAccess,
+      hasGoogleConnection: true,
+      googleCalendarAutoSyncEnabled: true,
+      googleCalendarAutoSyncStatus: 'Idle',
+      googleCalendarLastSyncedAt: '2026-09-12T09:12:00Z',
+    },
+  }),
 }))
 
 vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({ displayTime: (value: string) => value }),
+}))
+
+vi.mock('@/hooks/use-calendar-events', () => ({
+  useCalendarEvents: () => ({
+    data: { status: 'connected', events: [] },
+  }),
+}))
+
+vi.mock('@/hooks/use-calendar-auto-sync', () => ({
+  useCalendarAutoSyncState: (options?: {
+    enabled?: boolean
+    initialData?: CalendarAutoSyncState
+  }) => {
+    autoSyncQueryOptions = options
+    return { data: autoSyncState }
+  },
+  useSetCalendarAutoSync: () => ({ mutateAsync: mockSetAutoSync }),
+}))
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showError: vi.fn() }),
 }))
 
 vi.mock('@/hooks/use-tour-target', () => ({
@@ -118,6 +164,14 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     vi.setSystemTime(new Date(2026, 7, 15))
     vi.clearAllMocks()
     calendarIsLoading = false
+    profileHasProAccess = true
+    autoSyncState = {
+      enabled: true,
+      status: 'Idle',
+      lastSyncedAt: '2026-09-12T09:12:00Z',
+      hasGoogleConnection: true,
+    }
+    autoSyncQueryOptions = undefined
     calendarDayMap = new Map()
     sheetTestControls.defer(true)
   })
@@ -163,6 +217,77 @@ describe('CalendarScreen day-detail navigation (mobile)', () => {
     })
 
     expect(mockPush).toHaveBeenCalledTimes(1)
+  })
+
+  it('dismisses the free-plan day sheet before opening Orbit Pro', () => {
+    profileHasProAccess = false
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />)
+    })
+
+    TestRenderer.act(() => {
+      ;(findGridDayCell(tree.root, '2026-08-15').props.onPress as () => void)()
+    })
+    TestRenderer.act(() => {
+      pressButton(tree.root, 'calendar.proBoundary.action')
+    })
+
+    expect(mockPush).not.toHaveBeenCalled()
+    expect(sheetTestControls.isDismissPending).toBe(true)
+
+    TestRenderer.act(() => {
+      sheetTestControls.completeDismissal()
+    })
+
+    expect(mockPush).toHaveBeenCalledOnce()
+    expect(mockPush).toHaveBeenCalledWith('/upgrade')
+    expect(tree.root.findAll((node) => node.type === 'Sheet')).toHaveLength(0)
+  })
+
+  it('keeps the changed auto-sync value after closing and reopening day detail', async () => {
+    let tree!: TestTree
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />)
+    })
+
+    expect(autoSyncQueryOptions).toEqual({
+      enabled: true,
+      initialData: {
+        enabled: true,
+        status: 'Idle',
+        lastSyncedAt: '2026-09-12T09:12:00Z',
+        hasGoogleConnection: true,
+      },
+    })
+    TestRenderer.act(() => {
+      ;(findGridDayCell(tree.root, '2026-08-15').props.onPress as () => void)()
+    })
+
+    const autoSync = tree.root.findAll(
+      (node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.dayDetail.autoSync',
+    )[0]!
+    await TestRenderer.act(() => {
+      ;(autoSync.props.onPress as () => void)()
+      return Promise.resolve()
+    })
+
+    TestRenderer.act(() => {
+      const dismiss = tree.root.findAll(
+        (node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'attempt-dismiss',
+      )[0]!
+      ;(dismiss.props.onPress as () => void)()
+      sheetTestControls.completeDismissal()
+    })
+    TestRenderer.act(() => {
+      ;(findGridDayCell(tree.root, '2026-08-15').props.onPress as () => void)()
+    })
+
+    const reopened = tree.root.findAll(
+      (node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'calendar.dayDetail.autoSync',
+    )[0]!
+    const accessibilityState = reopened.props.accessibilityState as { checked?: boolean }
+    expect(accessibilityState.checked).toBe(false)
   })
 
   it('opens an older current-month day through its read-only selection path', () => {

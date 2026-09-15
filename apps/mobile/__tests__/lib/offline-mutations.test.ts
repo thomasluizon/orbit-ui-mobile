@@ -5,7 +5,7 @@ import type {
   QueuedMutation,
 } from '@orbit/shared/types/sync'
 import { logHabitResponseSchema } from '@orbit/shared/types/habit'
-import { habitKeys } from '@orbit/shared/query'
+import { calendarKeys, habitKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { ApiClientError } from '@orbit/shared/utils'
 
@@ -114,6 +114,7 @@ const mocks = vi.hoisted(() => {
   )
 
   const persistQueryCache = vi.fn(() => Promise.resolve())
+  const cancelQueries = vi.fn(() => Promise.resolve())
   const invalidateQueries = vi.fn(() => Promise.resolve())
   const setQueryData = vi.fn()
 
@@ -148,6 +149,7 @@ const mocks = vi.hoisted(() => {
     resolveOfflineEntity,
     getResolvedEntityId,
     persistQueryCache,
+    cancelQueries,
     invalidateQueries,
     setQueryData,
     apiClient,
@@ -186,6 +188,7 @@ vi.mock('@/lib/offline-runtime', () => ({
 vi.mock('@/lib/query-client', () => ({
   persistQueryCache: mocks.persistQueryCache,
   queryClient: {
+    cancelQueries: mocks.cancelQueries,
     invalidateQueries: mocks.invalidateQueries,
     setQueryData: mocks.setQueryData,
     getQueriesData: vi.fn(() => []),
@@ -213,6 +216,7 @@ describe('offline mutations', () => {
     mocks.resolveOfflineEntity.mockClear()
     mocks.getResolvedEntityId.mockClear()
     mocks.persistQueryCache.mockClear()
+    mocks.cancelQueries.mockClear()
     mocks.invalidateQueries.mockClear()
     mocks.setQueryData.mockClear()
     mocks.apiClient.mockReset()
@@ -838,7 +842,9 @@ describe('offline mutations', () => {
 
     await flushQueuedMutations()
 
+    expect(mocks.cancelQueries).toHaveBeenCalledWith({ queryKey: calendarKeys.all })
     expect(mocks.invalidateQueries.mock.calls).toEqual([
+      [{ queryKey: calendarKeys.all }],
       [{ queryKey: ['profile'] }],
       [{ queryKey: ['gamification'], refetchType: 'none' }],
     ])

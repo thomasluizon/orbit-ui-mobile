@@ -43,10 +43,6 @@ vi.mock('@/components/ui/bottom-sheet-app-text-input', () => ({
   BottomSheetAppTextInput: (props: Record<string, unknown>) => React.createElement('TextInput', props),
 }))
 
-vi.mock('@/components/ui/icons', () => ({
-  X: (props: Record<string, unknown>) => React.createElement('X', props),
-}))
-
 interface TestNode {
   type: unknown
   props: Record<string, unknown>

@@ -158,15 +158,25 @@ function FrozenTodayStatus({ isFrozenToday }: Readonly<{ isFrozenToday: boolean 
   )
 }
 
+function RepairUnavailableCopy({ state }: Readonly<{
+  state: StreakRepairState
+}>) {
+  const t = useTranslations()
+  const message = state.banked === 0
+    ? t('progressScreen.streak.repairEmpty')
+    : state.bankFull
+      ? t('progressScreen.streak.repairCapped', { needed: state.count, banked: state.banked })
+      : t('progressScreen.streak.repairPartial', { needed: state.count, banked: state.banked })
+  return <p className="text-[14px] leading-5 text-[var(--fg-2)]">{message}</p>
+}
+
 function StreakRepairPanel({
   state,
-  daysUntilNextFreeze,
   ceiling,
   repair,
   isDesktop,
 }: Readonly<{
   state: StreakRepairState
-  daysUntilNextFreeze: number
   ceiling: number
   repair: ReturnType<typeof useRepairStreak>
   isDesktop: boolean
@@ -185,7 +195,7 @@ function StreakRepairPanel({
       <div className="flex flex-col items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-4">
         <p className="text-[16px] leading-6 text-[var(--fg-1)]">{t('progressScreen.streak.gapBody', { count: state.count })}</p>
         {state.canRepair ? <PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" loading={repair.isPending} onClick={() => repair.mutate(state.dates)}>{t('progressScreen.streak.repairAction', { count: state.count })}</PillButton> : null}
-        {!state.canRepair ? <p className="text-[14px] leading-5 text-[var(--fg-2)]">{t('progressScreen.streak.repairEmpty', { count: daysUntilNextFreeze })}</p> : null}
+        {!state.canRepair ? <RepairUnavailableCopy state={state} /> : null}
         {repair.isError && repairStatus !== 409 ? <p role="alert" className="text-[14px] text-[var(--status-bad-text)]">{t(getStreakRepairErrorMessageKey(repairStatus))}</p> : null}
       </div>
     )
@@ -276,7 +286,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
           }}
         />
       ) : <><div className="grid grid-cols-2 gap-3"><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></div><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} /></>}
-      <StreakRepairPanel state={repairState} daysUntilNextFreeze={freeze.daysUntilNextFreeze} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} isDesktop={isDesktop} />
+      {canView && freeze.streakInfo ? <StreakRepairPanel state={repairState} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} isDesktop={isDesktop} /> : null}
     </section>
   )
 }

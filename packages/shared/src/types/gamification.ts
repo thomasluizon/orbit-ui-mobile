@@ -120,6 +120,7 @@ export const recapResponseSchema = z.object({
   period: z.enum(['week', 'month', 'quarter', 'semester', 'year']),
   metrics: retrospectiveMetricsSchema,
   shareDeepLink: z.string(),
+  goalCompletions: z.number().default(0),
 })
 
 export type Recap = z.infer<typeof recapResponseSchema>
@@ -140,6 +141,7 @@ export const streakInfoSchema = z.object({
   canEarnMore: z.boolean().default(true),
   isRepairAvailable: z.boolean().optional(),
   repairDate: z.string().nullable().optional(),
+  repairableGapDates: z.array(z.string()).nullable().optional(),
 })
 
 export type StreakInfo = z.infer<typeof streakInfoSchema>

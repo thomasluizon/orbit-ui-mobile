@@ -22,6 +22,7 @@ type ExpectedBase = {
   trailing?: ReactNode
   danger?: boolean
   chevron?: boolean
+  href?: string
   onClick?: () => void
   inset?: boolean
 }
@@ -67,6 +68,7 @@ export type ListRowTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<ListRowProps['trailing'], ReactNode>>,
   Assert<IsExactWidth<ListRowProps['danger'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['chevron'], boolean | undefined>>,
+  Assert<IsExactWidth<ListRowProps['href'], string | undefined>>,
   Assert<IsExactWidth<ListRowProps['onClick'], (() => void) | undefined>>,
   Assert<IsExactWidth<ListRowProps['inset'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['readOnly'], boolean | undefined>>,
