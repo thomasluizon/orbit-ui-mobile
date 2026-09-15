@@ -17,6 +17,10 @@ interface ButtonBase {
   onClick?: () => void
   /** Associates a web submit button with a form outside its DOM subtree. Native ignores this adapter hint. */
   formId?: string
+  /** Announces why an action is unavailable. */
+  hint?: string
+  /** Web adapter id for visible descriptive text. */
+  descriptionId?: string
 }
 
 /** The ordinary button: its visible text is its accessible name. */

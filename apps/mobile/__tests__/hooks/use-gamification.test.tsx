@@ -5,6 +5,7 @@ import { API } from '@orbit/shared/api'
 import { gamificationKeys } from '@orbit/shared/query'
 import type { StreakInfo } from '@orbit/shared/types/gamification'
 import { streakInfoSchema } from '@orbit/shared/types/gamification'
+import { QueryClient } from '@tanstack/query-core'
 
 import {
   useGamificationProfile,
@@ -30,8 +31,11 @@ const mocks = vi.hoisted(() => {
   }
 
   const queryClient = {
+    cancelQueries: vi.fn(async () => {}),
     invalidateQueries: vi.fn(async () => {}),
+    fetchQuery: vi.fn(() => Promise.resolve(state.streakInfo)),
   }
+  const useQueryClient = vi.fn<() => QueryClient | typeof queryClient>(() => queryClient)
 
   return {
     state,
@@ -65,7 +69,7 @@ const mocks = vi.hoisted(() => {
         error: null,
       }
     }),
-    useQueryClient: vi.fn(() => queryClient),
+    useQueryClient,
     useMutation: vi.fn((options: unknown) => options),
     apiClient: vi.fn(),
   }
@@ -255,21 +259,61 @@ describe('mobile useRepairStreak', () => {
     mocks.apiClient.mockReset()
     mocks.useMutation.mockClear()
     mocks.queryClient.invalidateQueries.mockClear()
+    mocks.queryClient.cancelQueries.mockClear()
+    mocks.queryClient.fetchQuery.mockClear()
   })
 
-  it('posts the confirmed empty repair body and validates the streak response', async () => {
+  it('posts exactly the selected dates and validates the streak response', async () => {
     mocks.apiClient.mockResolvedValue(mocks.state.streakInfo)
     await renderHookValue(() => useRepairStreak('America/Sao_Paulo'))
     const options = mocks.useMutation.mock.calls[0]![0] as {
-      mutationFn: () => Promise<StreakInfo>
+      mutationFn: (dates: string[]) => Promise<StreakInfo>
     }
 
-    await options.mutationFn()
+    await options.mutationFn(['2026-09-04', '2026-09-05'])
 
     expect(mocks.apiClient).toHaveBeenCalledWith(
-      API.gamification.repairStreak,
-      { method: 'POST', body: '{}' },
+      API.gamification.repairStreakGap,
+      { method: 'POST', body: JSON.stringify({ dates: ['2026-09-04', '2026-09-05'] }) },
       streakInfoSchema,
     )
+  })
+
+  it('reconciles a conflict with a distinct read while an older streak read is pending', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: false } } })
+    const queryKey = gamificationKeys.streak('America/Sao_Paulo')
+    const staleStreak = { ...mocks.state.streakInfo, repairableGapDates: ['2026-09-04'] }
+    const refreshedStreak = { ...mocks.state.streakInfo, repairableGapDates: [] }
+    let resolveOlderRead!: (streakInfo: StreakInfo) => void
+    const olderTransport = vi.fn(() => new Promise<StreakInfo>((resolve) => {
+      resolveOlderRead = resolve
+    }))
+    queryClient.setQueryData(queryKey, staleStreak)
+    const olderRead = queryClient.fetchQuery({
+      queryKey,
+      queryFn: olderTransport,
+      staleTime: 0,
+    }).catch(() => undefined)
+    await Promise.resolve()
+    expect(olderTransport).toHaveBeenCalledOnce()
+    let resolveRecovery: ((streakInfo: StreakInfo) => void) | undefined
+    mocks.apiClient.mockReturnValue(new Promise<StreakInfo>((resolve) => {
+      resolveRecovery = resolve
+    }))
+    mocks.useQueryClient.mockReturnValueOnce(queryClient)
+    await renderHookValue(() => useRepairStreak('America/Sao_Paulo'))
+    const options = mocks.useMutation.mock.calls[0]![0] as {
+      onError: (error: unknown) => Promise<void>
+    }
+
+    const reconciliation = options.onError({ status: 409 })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    resolveOlderRead(staleStreak)
+    resolveRecovery?.(refreshedStreak)
+    await reconciliation
+    await olderRead
+
+    expect(mocks.apiClient).toHaveBeenCalledWith(API.gamification.streak, undefined, streakInfoSchema)
+    expect(queryClient.getQueryData(queryKey)).toEqual(refreshedStreak)
   })
 })

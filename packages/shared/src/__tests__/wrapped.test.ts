@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildWrappedSlides } from '../utils/wrapped'
+import { buildWrappedSlides, getWeeklyConsistencyReading } from '../utils/wrapped'
 import { createMockRecap, createMockRetrospectiveMetrics } from './factories'
 
 describe('buildWrappedSlides', () => {
@@ -75,5 +75,22 @@ describe('buildWrappedSlides', () => {
 
     const consistency = slides.find((slide) => slide.id === 'consistency')
     expect(consistency).toMatchObject({ weeklyConsistency: [1, 2, 3, 4, 5, 6, 7] })
+  })
+})
+
+describe('getWeeklyConsistencyReading', () => {
+  it('returns thin when no weekday carries completions', () => {
+    expect(getWeeklyConsistencyReading([0, 0, 0, 0, 0, 0, 0])).toEqual({ kind: 'thin' })
+  })
+
+  it('returns even when multiple weekdays share the highest average', () => {
+    expect(getWeeklyConsistencyReading([50, 50, 0, 0, 0, 0, 0])).toEqual({ kind: 'even' })
+  })
+
+  it('returns the only strongest weekday when one maximum stands alone', () => {
+    expect(getWeeklyConsistencyReading([0, 20, 0, 0, 0, 60, 0])).toEqual({
+      kind: 'compared',
+      strongestIndex: 5,
+    })
   })
 })

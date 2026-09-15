@@ -121,7 +121,7 @@ node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format mar
 node tools/comment-ticket.mjs    --issue "<ticket-ref>" --body-file <path|->
 node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>] [--cloud]
-node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>]
+node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical>] [--relaunch-reason <text>]
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
 node tools/submit-cloud-worker.mjs --watch <receiptPath>
 node tools/submit-cloud-worker.mjs --clear-unknown <reservation-file> --assert-no-task-exists
@@ -643,7 +643,7 @@ a non-empty remote diff keeps the task unresolved.
 ### Local execution
 
 ```bash
-node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical>] [--relaunch-reason <text>]
 ```
 
 Headless, `stdin=NUL`, `cwd` = the worktree, log to the scratchpad.
@@ -654,6 +654,18 @@ killing the whole process tree on either. Pass `--hard-ceiling-minutes` at launc
 plan already shows outrunning the fleet-wide ceiling: a large migration, a subsystem ticket, or one
 whose test matrix is the work. Three finished workers died at the fixed 45 on 2026-08-22 for
 exactly that shape.
+
+Every local order names its tier. Use `--tier default` for an original implementation. Use
+`--tier mechanical` only for a merge-forward whose conflicts are already known, or for
+reviewer-directed test strengthening whose order names the exact experiment. A review fix that
+still needs product, design, architecture, security or ambiguous judgement stays `--tier default`.
+The mechanical tier means the answer is fully specified; it is never a synonym for small.
+
+`launch-worker.mjs` records launches per branch and enforces `caps.workerLaunchesPerBranch`. A
+deliberate launch beyond that cap passes `--relaunch-reason "<concrete reason this additional order
+is necessary>"`. Name the new evidence or changed work that makes the launch necessary, never a
+generic retry. The reason is recorded beside the launch; it does not bypass, reset or clear the
+ledger. A capped launch without that concrete reason must fail.
 
 The orchestrator launches it as a **background shell task and ends its turn.** Zero tokens burn
 while the worker runs, and the process exiting is what wakes the session.
@@ -792,8 +804,12 @@ the run asked Thomas. **A harness converting its own gap into an interruption is
 - **Re-run a CI job whose failure you have READ and attributed to infrastructure or flake**, naming
   the evidence: a failed STEP of `Set up job`, or an assertion that touches no file in the diff.
 
-**You MAY NOT, ever:** invent a green test receipt, write new implementation code yourself,
-force-push, or merge. Those are the line between finishing a delivery and doing the ticket.
+**You MAY NOT, ever, IN A SALVAGE:** invent a green test receipt, write new implementation code
+yourself, force-push, or merge. Those are the line between finishing a delivery and doing the ticket.
+
+**This prohibition is about salvage and nothing else.** Salvage asks whether a dead worker's ticket
+gets finished by hand, and the answer is never. Answering a Pullfrog finding at step 8 is a different
+act with its own rule; see **Who writes the fix** there.
 
 **Never push a worker's uncommitted work without running its tests first.** That is a precondition,
 not a preference. Both salvages that worked that night, ORB-39 and ORB-98, were verified before the
@@ -856,23 +872,25 @@ complaint there and no thread has to repeat it. `counts{}` describes threads onl
 with zero threads is a clean pull request only when `reviewBody` is null as well. Read a non-null
 `reviewBody` and split it exactly like a thread.
 
-**A body finding you FILE rather than fix needs its own transition, and this is the one place the
-loop can fail to converge.** It carries no thread id, so `resolve-bot-thread.mjs` cannot answer it.
-Filing changes no code, so nothing pushes, so the head never moves and the red
-`pullfrog-approval` is never re-adjudicated. Do this instead, and never invent an empty commit to
+**A body finding you FILE or mark not applicable needs its own transition, and this is the one place
+the loop can fail to converge.** It carries no thread id, so `resolve-bot-thread.mjs` cannot answer
+or resolve it. Either disposition changes no code, so nothing pushes, the head never moves and the
+red `pullfrog-approval` is never re-adjudicated. Do this instead, and never invent an empty commit to
 manufacture a push:
 
-1. Post the disposition as a pull request comment. Name the ticket you filed.
+1. Post the disposition as a pull request comment. Name the ticket for FILE, or record why the
+   finding does not apply.
 2. Re-adjudicate the same head:
 
 ```bash
-node tools/list-bot-threads.mjs --pr <n> --repo <key> --re-review --wait-seconds 900
+node tools/list-bot-threads.mjs --pr <n> --repo <key> --wait-seconds 900 --re-review
 ```
 
 `--re-review` posts `@pullfrog review` even though the head is already reviewed, and it accepts
 only a review submitted AFTER the one that was present when the run started. That timestamp
 comparison is what makes it terminate: without it the run reads back the review it was sent to
-replace and reports the finding it just answered.
+replace and reports the finding it just answered. Only a fresh `APPROVED` review of that same head
+clears `pullfrog-approval`.
 
 A body finding you FIX needs none of this. The fix moves the head, and the push re-reviews it.
 
@@ -882,6 +900,68 @@ A body finding you FIX needs none of this. The fix moves the head, and the push 
   finding is never closed by a ticket.
 - **FILE it as an `orbit-tickets` issue** otherwise, name that issue in the reply, and drop it from
   this run.
+
+### Compose one review batch
+
+Build ONE classified finding set for ONE accepted Pullfrog review of the current head. `threads[]`
+and a non-null `reviewBody` are two inputs to that same set, never two queues. Split both surfaces
+into findings, then deduplicate descriptions of the same required code change. Preserve every
+contributing `threads[].id` on the surviving finding so each thread can receive its own reply and
+resolution. Do not deduplicate merely similar observations that require different changes or
+dispositions.
+
+Classify every surviving finding as FIX, FILE or not applicable. File every FILE finding through
+`node tools/create-ticket.mjs` and retain its ticket and all thread ids in the batch. Zero findings
+launches no worker. The orchestrator answers every FIX it can inside its narrow authority below, in
+ONE commit. If any FIX is large enough to be its own work order, compose and dispatch ONE worker
+order carrying all FIX findings from that review, plus every FILE and not-applicable disposition it
+must preserve. Never launch one worker per finding. A later accepted review after the head changes
+is a new batch and may launch one new worker.
+
+Either path allows one commit at most. Keep every filed-ticket disposition and test every fix. Only
+the batch's single commit spends one `caps.reviewFixAttempts` attempt; a batch that writes no commit
+spends nothing. If the batch has only FILE or not-applicable findings, perform their existing reply,
+resolve and same-head re-review transitions without launching a worker or inventing a commit.
+
+When the batch needs a worker, its existing contract commits, tests and pushes before it stops and
+returns control. The orchestrator then replies to and resolves every identified thread on the new
+head and requests the fresh review that supplies the verdict:
+
+```bash
+node tools/list-bot-threads.mjs --pr <n> --repo <key> --wait-seconds <n> --re-review
+```
+
+`--re-review` may accept any current-head review submitted after the request, including one whose
+run started from the worker's push. Acceptance is progress, not the verdict. A registered
+`pullfrog-approval` SUCCESS at the current head is the verdict. When that check is ABSENT from the
+rollup, a Pullfrog review with `reviewState` `APPROVED` and `reviewedCommit` equal to that head stands
+in for it. A `COMMENTED` review is not a verdict, regardless of when it arrived or what triggered it,
+and a review with an empty body is a progress marker rather than a review. An early
+push-triggered run cannot approve a head whose threads were open when it ran; the requested review
+supplies the verdict because it can approve after resolution. The stop-after-commit contract that
+would remove this race is filed as thomasluizon/orbit-tickets#542 and does not exist yet. Then rerun
+delivery verification on the new head.
+
+Route a fully specified reviewer-directed test-strengthening batch to `--tier mechanical` only when
+the order names the exact experiment. Route any batch needing product, design, architecture,
+security or ambiguous judgement to `--tier default`.
+
+### Who writes the fix
+
+**The orchestrator edits the code for a review finding on a pull request it is already driving**,
+inside the `caps.reviewFixAttempts` bound. This is the ONE place `.claude/rules/core.md` section
+9's "Codex writes every code change; Claude never edits code" does not apply, and it is narrow on
+purpose: a review finding is usually a few lines, the context needed to answer it is the review
+itself, and spawning a worker per round is what turns a six-round review into a lost night.
+
+Everything else stays with a worker. A finding large enough to be its own work order is composed
+and dispatched, never typed here. Implementing a ticket is never this step.
+
+**Stated because it used to be left to inference.** Step 7 forbids writing implementation code during
+a SALVAGE and this step orders a fix, so the skill named two acts and no actor. Sessions filled that
+gap by carrying a claimed standing override forward in handoff prompts, where it lived in no decision
+record and drifted wider each time it was copied. Thomas deleted that override on 2026-09-10 and
+replaced it with the sentence above.
 
 **`isOutdated` is not evidence.** It means the code moved under the comment, not that anyone
 addressed the comment. Treat that thread like any other.
@@ -915,16 +995,16 @@ write unless the node's own `repository.nameWithOwner` equals what `--repo` reso
 **A permissions error on any of these is a WRONG TARGET until proven otherwise.** The tool names the
 repository the node actually resolved to. Read that name before you retry anything.
 
-**Resolve FIRST, then push.** Keep that order; it is not a matter of tidiness. The push fires the
-incremental re-review. That re-review reads the fixes and the resolved threads together, then posts
-one fresh `pullfrog-approval` over both. Push first and the re-review runs while the threads you are
-about to resolve are still open, so it reports findings you already answered.
+**For a fix the orchestrator writes, resolve FIRST, then push.** The push fires the incremental
+re-review, which reads the fixes and resolved threads together. A worker cannot keep that order
+under today's contract, so use the explicit post-resolution re-review sequence above instead.
 
 After the push, re-run `node tools/verify-delivery.mjs`. The fix moved the head, so the earlier
 `DELIVERED` is stale until this re-runs. `DELIVERED` continues; `STALE_PR` means the push did not
 land.
 
-**Count one review fix attempt for each commit you make to answer a Pullfrog pass, and never exceed
+**Count at most one review fix attempt for the single batched commit that answers a Pullfrog pass,
+and never exceed
 the positive `caps.reviewFixAttempts` value from `.claude/orchestrator.json` (currently 3).** A
 Pullfrog pass that still blocks after that bound is a named exhausted-fixer blocker, never a clean
 handoff.
@@ -1073,11 +1153,12 @@ runs for merged tickets only, including those merged under D88/D90 standing auth
 | Role | Model |
 |---|---|
 | Orchestrator | Opus 5 @ high, or Sol @ high |
-| Implementer | `codex exec` Astra @ high, resolved from `.claude/orchestrator.json` |
+| Implementer | `codex exec` at the order's `default` or `mechanical` tier, resolved from `.claude/orchestrator.json` |
 
 The reviewer is absent from this table because this harness launches none. Pullfrog reviews in
 GitHub Actions, and its model and effort are set in the Pullfrog console rather than in any file
-here. `launch-worker.mjs` resolves one model tier, so a run cannot route a review at all.
+here. `launch-worker.mjs` resolves the requested worker tier; tier selection routes the resulting
+order, never the Pullfrog review itself.
 
 ## §5.7 The queue
 
@@ -1219,5 +1300,8 @@ the wrong branch loses the entire night. Discover it at the start, not at 03:00.
 - The composed prompt is written to the scratchpad, never inside a repo.
 - No auto-relaunch on a failed verdict except the single reserved `CLOUD_TASK_EMPTY` retry above.
   After that retry, stop the ticket and report its outcome.
-- Never edit this skill, a tool under `tools/`, or a CI gate from inside a run. A run that edits the
-  contract it is executing describes no consistent system afterwards. Record it, repair it after.
+- **Never edit this skill, a tool under `tools/`, or a CI gate to change what THIS run is judged by
+  or permitted to do, and never inside the pull request whose review such an edit would excuse.** A
+  contract change a ticket owns is prepared and merged like any other change, and it takes effect
+  for the NEXT run: this run keeps executing the contract it read at entry. D95 is the narrower case
+  and stays absolute, so a gate found broken mid-run gets its own ticket, never a self-authored fix.

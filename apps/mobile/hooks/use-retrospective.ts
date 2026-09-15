@@ -5,7 +5,7 @@ import { i18n } from '@/lib/i18n'
 import { buildRetrospectiveRequestUrl } from '@orbit/shared/utils/retrospective'
 import { apiClient } from '@/lib/api-client'
 
-export function useProgressRetrospective(enabled: boolean) {
+export function useProgressRetrospective() {
   return useQuery({
     queryKey: habitKeys.retrospective('month'),
     queryFn: () =>
@@ -15,6 +15,5 @@ export function useProgressRetrospective(enabled: boolean) {
         retrospectiveResponseSchema,
       ),
     staleTime: QUERY_STALE_TIMES.gamification,
-    enabled,
   })
 }

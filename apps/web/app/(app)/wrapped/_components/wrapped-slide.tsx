@@ -7,6 +7,7 @@ import type { Recap } from '@orbit/shared/types/gamification'
 import { motionDurations, motionEasings, orbitalMotion } from '@orbit/shared/theme'
 import {
   formatCompletionRate,
+  getWeeklyConsistencyReading,
   WRAPPED_WEEKDAY_KEYS,
   type RecapSharePeriod,
   type WrappedSlide as WrappedSlideModel,
@@ -103,6 +104,7 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError }: R
             {t('wrapped.slides.consistency.title')}
           </motion.h2>
           <WeekdayColumns values={slide.weeklyConsistency} reducedMotion={reducedMotion} />
+          <WeekdayInterpretation values={slide.weeklyConsistency} reducedMotion={reducedMotion} />
         </SlideShell>
       )
     case 'streak':
@@ -162,8 +164,13 @@ export function WrappedSlide({ slide, recap, period, captureRef, shareError }: R
             {slide.closedGoals}
           </motion.span>
           <motion.span data-testid="wrapped-motion-part" {...motionProps(1, reducedMotion)} style={labelStyle}>
-            {t('progressScreen.sections.goals')}
+            {t('shareCard.stats.goalsClosed')}
           </motion.span>
+          <motion.p data-testid="wrapped-motion-part" {...motionProps(2, reducedMotion)} style={captionStyle}>
+            {slide.closedGoals > 0
+              ? t('wrapped.slides.goals.some', { count: slide.closedGoals })
+              : t('wrapped.slides.goals.zero')}
+          </motion.p>
         </SlideShell>
       )
     case 'share':
@@ -302,6 +309,48 @@ function StreakSlide(props: Readonly<Omit<HeroStatSlideProps, 'testId'>>) {
       </motion.p>
     </SlideShell>
   )
+}
+
+function WeekdayInterpretation({
+  values,
+  reducedMotion,
+}: Readonly<{ values: number[]; reducedMotion: boolean }>) {
+  const t = useTranslations()
+  const reading = getWeeklyConsistencyReading(values)
+  switch (reading.kind) {
+    case 'thin':
+      return (
+        <motion.p data-testid="wrapped-motion-part" {...motionProps(3, reducedMotion)} style={captionStyle}>
+          {t('wrapped.slides.consistency.thin')}
+        </motion.p>
+      )
+    case 'even':
+      return (
+        <>
+          <motion.p data-testid="wrapped-motion-part" {...motionProps(3, reducedMotion)} style={captionStyle}>
+            {t('wrapped.slides.consistency.even')}
+          </motion.p>
+          <motion.p data-testid="wrapped-motion-part" {...motionProps(4, reducedMotion)} style={captionStyle}>
+            {t('wrapped.slides.consistency.note')}
+          </motion.p>
+        </>
+      )
+    case 'compared': {
+      const strongestWeekday = WRAPPED_WEEKDAY_KEYS[reading.strongestIndex]!
+      return (
+        <>
+          <motion.p data-testid="wrapped-motion-part" {...motionProps(3, reducedMotion)} style={captionStyle}>
+            {t('wrapped.slides.consistency.summary', {
+              strong: t(`dates.daysShort.${strongestWeekday}`),
+            })}
+          </motion.p>
+          <motion.p data-testid="wrapped-motion-part" {...motionProps(4, reducedMotion)} style={captionStyle}>
+            {t('wrapped.slides.consistency.note')}
+          </motion.p>
+        </>
+      )
+    }
+  }
 }
 
 interface WrappedShareSlideProps {

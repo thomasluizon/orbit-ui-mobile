@@ -55,7 +55,7 @@ const stage = (label, stamp) => {
   write(
     join(fixture, ".claude", "orchestrator.json"),
     `${JSON.stringify(
-      { worker: "codex", workers: { codex: { command: "codex", args: ["exec"], models: { default: { model: "gpt-5.6-sol", args: [] } } } } },
+      { worker: "codex", workers: { codex: { command: "codex", args: ["exec"], models: { default: { model: "gpt-5.6-sol", args: [] }, mechanical: { model: "gpt-5.6-sol", args: ["-c", 'model_reasoning_effort="medium"'] } } } } },
       null,
       2,
     )}\n`,
@@ -149,7 +149,9 @@ export const cases = () => {
    * against the model that reads it. Carrying dates forward there would be the same silent renewal
    * in the opposite direction.
    */
-  const moved = stage("worker-moved", backdated(first, 200, { workerModel: "gpt-6-next" }))
+  const moved = stage("worker-moved", backdated(first, 200, {
+    workerTiers: { ...first.workerTiers, default: { ...first.workerTiers.default, model: "gpt-6-next" } },
+  }))
   check(TOOL, "a moved worker model renews every verdict, because it decays all of them at once", ["--root", moved], {
     status: 0,
     stdout: new RegExp(`${COUNT} verdict\\(s\\) renewed, 0 carried forward`),
@@ -172,7 +174,7 @@ export const cases = () => {
   for (const file of FILES.filter((entry) => entry.path !== A_SKILL)) write(join(deleted, ...file.path.split("/")), file.body)
   write(
     join(deleted, ".claude", "orchestrator.json"),
-    `${JSON.stringify({ worker: "codex", workers: { codex: { command: "codex", args: ["exec"], models: { default: { model: "gpt-5.6-sol", args: [] } } } } }, null, 2)}\n`,
+    `${JSON.stringify({ worker: "codex", workers: { codex: { command: "codex", args: ["exec"], models: { default: { model: "gpt-5.6-sol", args: [] }, mechanical: { model: "gpt-5.6-sol", args: ["-c", 'model_reasoning_effort="medium"'] } } } } }, null, 2)}\n`,
   )
   check(TOOL, "a verdict whose file is gone is refused, so a deleted skill cannot leave one behind", ["--root", deleted], {
     nonZero: true,

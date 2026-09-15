@@ -168,6 +168,33 @@ describe('apiFetch', () => {
     expect(toast.error).not.toHaveBeenCalled()
   })
 
+  it('returns a pay-gate error without redirecting when the caller handles it', async () => {
+    const locationOnProgress = {
+      href: 'https://app.useorbit.org/progress',
+      pathname: '/progress',
+    }
+    Object.defineProperty(globalThis, 'location', {
+      value: locationOnProgress,
+      writable: true,
+      configurable: true,
+    })
+
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: () => Promise.resolve({
+        error: 'Gamification is a Pro feature. Upgrade to unlock!',
+        errorCode: 'PAY_GATE',
+      }),
+    })
+
+    await expect(apiFetch('/api/gamification/profile', undefined, undefined, {
+      handlesPayGate: true,
+    })).rejects.toThrow(ApiError)
+    expect(locationOnProgress.href).toBe('https://app.useorbit.org/progress')
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
   it('does not redirect on a non-PAY_GATE 403 and shows an error toast', async () => {
     const mockHref = { href: '', pathname: '/today' }
     Object.defineProperty(globalThis, 'location', {

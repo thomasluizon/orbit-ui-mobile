@@ -17,11 +17,31 @@ export type WrappedSlide =
 
 export type WrappedSlideId = WrappedSlide['id']
 
+export type WeeklyConsistencyReading =
+  | { kind: 'thin' }
+  | { kind: 'even' }
+  | { kind: 'compared'; strongestIndex: number }
+
+export function getWeeklyConsistencyReading(
+  weeklyConsistency: readonly number[],
+): WeeklyConsistencyReading {
+  const weekdayAverages = weeklyConsistency.slice(0, 7)
+  const highestAverage = Math.max(...weekdayAverages)
+  if (highestAverage <= 0) return { kind: 'thin' }
+
+  const strongestWeekdays = weekdayAverages
+    .map((average, index) => ({ average, index }))
+    .filter(({ average }) => average === highestAverage)
+  if (strongestWeekdays.length !== 1) return { kind: 'even' }
+
+  return { kind: 'compared', strongestIndex: strongestWeekdays[0]!.index }
+}
+
 /**
  * Builds the ordered Orbit Wrapped story from a recap: a fixed positive-only
  * sequence (intro → completions → active days → consistency → best streak →
- * standout habit), omitting the standout slide when there are no top habits,
- * and always ending on the shareable card slide.
+ * standout habit → goals), omitting the standout slide when there are no top
+ * habits, and always ending on the shareable card slide.
  */
 export function buildWrappedSlides(recap: Recap): WrappedSlide[] {
   const { metrics } = recap

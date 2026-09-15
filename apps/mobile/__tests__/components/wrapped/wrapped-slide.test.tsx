@@ -51,13 +51,30 @@ describe('mobile WrappedSlide', () => {
     withTimingCalls.length = 0
   })
 
-  it('renders the nonzero goal completion count from the recap', () => {
+  it('renders the positive goal count with its specific label and caption', () => {
     const recapWithGoalCompletions = { ...recap, goalCompletions: 4 }
     const goals = buildWrappedSlides(recapWithGoalCompletions).find((slide) => slide.id === 'goals')!
     const tree = renderSlide(goals)
     const figure = tree.root.findAll((node) => node.props.testID === 'wrapped-figure')[0]!
 
     expect(figure.props.children).toBe(4)
+    expect(tree.root.findAll((node) => node.props.children === 'shareCard.stats.goalsClosed')[0]).toBeTruthy()
+    expect(
+      tree.root.findAll((node) => node.props.children === 'wrapped.slides.goals.some:{"count":4}')[0],
+    ).toBeTruthy()
+  })
+
+  it('renders the zero goal caption under the specific label', () => {
+    const recapWithNoGoalCompletions = { ...recap, goalCompletions: 0 }
+    const goals = buildWrappedSlides(recapWithNoGoalCompletions).find((slide) => slide.id === 'goals')!
+    const tree = renderSlide(goals)
+
+    expect(tree.root.findAll((node) => node.props.children === 'shareCard.stats.goalsClosed')[0]).toBeTruthy()
+    expect(tree.root.findAll((node) => node.props.children === 'wrapped.slides.goals.zero')[0]).toBeTruthy()
+    expect(
+      tree.root.findAll((node) =>
+        typeof node.props.children === 'string' && node.props.children.startsWith('wrapped.slides.goals.some')),
+    ).toHaveLength(0)
   })
 
   it('renders the weekday average as Monday-first Columns with initials and no date copy', () => {
@@ -75,7 +92,57 @@ describe('mobile WrappedSlide', () => {
       'dates.daysShort.saturday',
       'dates.daysShort.sunday',
     ])
-    expect(tree.root.findAll((node) => node.props.children === 'wrapped.slides.consistency.caption')).toHaveLength(0)
+  })
+
+  it('names only the strongest weekday when one maximum stands alone', () => {
+    const comparisonRecap = createMockRecap({
+      metrics: createMockRetrospectiveMetrics({ weeklyConsistency: [0, 20, 0, 0, 60, 0, 0] }),
+    })
+    const consistency = buildWrappedSlides(comparisonRecap).find((slide) => slide.id === 'consistency')!
+    const tree = renderSlide(consistency)
+
+    expect(
+      tree.root.findAll((node) =>
+        node.props.children ===
+        'wrapped.slides.consistency.summary:{"strong":"dates.daysShort.friday"}')[0],
+    ).toBeTruthy()
+    expect(
+      tree.root.findAll((node) =>
+        typeof node.props.children === 'string' && node.props.children.includes('dates.daysShort.tuesday')),
+    ).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.props.children === 'wrapped.slides.consistency.note')[0]).toBeTruthy()
+  })
+
+  it('explains that no logged weekday is too thin to compare', () => {
+    const thinRecap = createMockRecap({
+      metrics: createMockRetrospectiveMetrics({ weeklyConsistency: [0, 0, 0, 0, 0, 0, 0] }),
+    })
+    const consistency = buildWrappedSlides(thinRecap).find((slide) => slide.id === 'consistency')!
+    const tree = renderSlide(consistency)
+
+    expect(tree.root.findAll((node) => node.props.children === 'wrapped.slides.consistency.thin')[0]).toBeTruthy()
+    expect(
+      tree.root.findAll((node) =>
+        typeof node.props.children === 'string' &&
+        node.props.children.startsWith('wrapped.slides.consistency.summary')),
+    ).toHaveLength(0)
+  })
+
+  it('explains equal logged weekdays without naming one as strongest and quietest', () => {
+    const evenRecap = createMockRecap({
+      metrics: createMockRetrospectiveMetrics({ weeklyConsistency: [50, 50, 0, 0, 0, 0, 0] }),
+    })
+    const consistency = buildWrappedSlides(evenRecap).find((slide) => slide.id === 'consistency')!
+    const tree = renderSlide(consistency)
+
+    expect(
+      tree.root.findAll((node) => node.props.children === 'wrapped.slides.consistency.even')[0],
+    ).toBeTruthy()
+    expect(
+      tree.root.findAll((node) =>
+        typeof node.props.children === 'string' &&
+        node.props.children.startsWith('wrapped.slides.consistency.summary')),
+    ).toHaveLength(0)
   })
 
   it('gives every page exactly one focal figure', () => {
@@ -88,7 +155,6 @@ describe('mobile WrappedSlide', () => {
       tree.update(<></>)
     }
   })
-
   it('renders the share failure state without leaving the final page blank', () => {
     const share = buildWrappedSlides(recap).find((slide) => slide.id === 'share')!
     let tree!: ReactTestRenderer
