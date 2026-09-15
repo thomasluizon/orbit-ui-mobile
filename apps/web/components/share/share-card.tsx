@@ -52,7 +52,7 @@ interface ShareCardProps {
 export function ShareCard({ recap, displayName, ref }: Readonly<ShareCardProps>) {
   const t = useTranslations()
   const { metrics, shareDeepLink } = recap
-  const stats = buildShareCardStats(metrics)
+  const stats = buildShareCardStats(metrics, recap.goalCompletions)
   const topHabits = metrics.topHabits.slice(0, 3)
   const shortLink = shareDeepLink.replace(/^https?:\/\//, '')
   const eyebrow = [displayName, t(recapPeriodLabelKey(recap.period))]

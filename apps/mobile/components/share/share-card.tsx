@@ -35,7 +35,7 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const { metrics, shareDeepLink } = recap
-  const stats = buildShareCardStats(metrics)
+  const stats = buildShareCardStats(metrics, recap.goalCompletions)
   const topHabits = metrics.topHabits.slice(0, 3)
   const shortLink = shareDeepLink.replace(/^https?:\/\//, '')
   const eyebrow = [displayName, t(recapPeriodLabelKey(recap.period))]
@@ -64,6 +64,9 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
           <View style={styles.statsRow}>
             <StatTile  value={stats[2]!.value} label={t(stats[2]!.labelKey)} />
             <StatTile  value={stats[3]!.value} label={t(stats[3]!.labelKey)} />
+          </View>
+          <View style={styles.statsRow}>
+            <StatTile value={stats[4]!.value} label={t(stats[4]!.labelKey)} />
           </View>
         </View>
 

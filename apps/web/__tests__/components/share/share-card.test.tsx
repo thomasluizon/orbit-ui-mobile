@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { createMockRecap } from '@orbit/shared/__tests__/factories'
+import {
+  createMockRecap,
+  createMockRetrospectiveMetrics,
+} from '@orbit/shared/__tests__/factories'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) =>
@@ -33,5 +36,28 @@ describe('ShareCard', () => {
   it('hides the scannable link footer when the recap has no deep link', () => {
     render(<ShareCard recap={createMockRecap({ shareDeepLink: '' })} />)
     expect(screen.queryByText('shareCard.scanToJoin')).not.toBeInTheDocument()
+  })
+
+  it('renders closed goals for a goal-only recap', () => {
+    render(
+      <ShareCard
+        recap={createMockRecap({
+          goalCompletions: 3,
+          shareDeepLink: '',
+          metrics: createMockRetrospectiveMetrics({
+            completionRate: 0,
+            totalCompletions: 0,
+            bestStreak: 0,
+            currentStreak: 0,
+            activeDays: 0,
+            topHabits: [],
+            weeklyConsistency: [0, 0, 0, 0, 0, 0, 0],
+          }),
+        })}
+      />,
+    )
+
+    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText('shareCard.stats.goalsClosed')).toBeInTheDocument()
   })
 })

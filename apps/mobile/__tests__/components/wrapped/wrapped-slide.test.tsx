@@ -81,7 +81,6 @@ describe('mobile WrappedSlide', () => {
       'dates.daysShort.saturday',
       'dates.daysShort.sunday',
     ])
-    expect(tree.root.findAll((node) => node.props.children === 'wrapped.slides.consistency.caption')).toHaveLength(0)
   })
 
   it('names only the strongest weekday when one maximum stands alone', () => {

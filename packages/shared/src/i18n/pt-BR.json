@@ -1583,7 +1583,6 @@
       "consistency": {
         "eyebrow": "Seu ritmo",
         "title": "Seu ritmo semanal",
-        "caption": "Como foram seus últimos sete dias.",
         "summary": "{strong} é o seu dia mais forte.",
         "even": "Nenhum dia se destaca.",
         "note": "Cada barra é a média daquele dia no período.",

@@ -40,8 +40,8 @@ export function getWeeklyConsistencyReading(
 /**
  * Builds the ordered Orbit Wrapped story from a recap: a fixed positive-only
  * sequence (intro → completions → active days → consistency → best streak →
- * standout habit), omitting the standout slide when there are no top habits,
- * and always ending on the shareable card slide.
+ * standout habit → goals), omitting the standout slide when there are no top
+ * habits, and always ending on the shareable card slide.
  */
 export function buildWrappedSlides(recap: Recap): WrappedSlide[] {
   const { metrics } = recap

@@ -71,7 +71,6 @@ describe('WrappedSlide', () => {
     expect(screen.getByTestId('weekday-columns')).toHaveTextContent(
       'dates.daysShort.mondaydates.daysShort.tuesdaydates.daysShort.wednesdaydates.daysShort.thursdaydates.daysShort.fridaydates.daysShort.saturdaydates.daysShort.sunday',
     )
-    expect(screen.queryByText('wrapped.slides.consistency.caption')).not.toBeInTheDocument()
   })
 
   it('names only the strongest weekday when one maximum stands alone', () => {

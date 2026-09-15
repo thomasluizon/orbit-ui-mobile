@@ -47,6 +47,7 @@ describe('buildShareCardStats', () => {
         bestStreak: 18,
         activeDays: 5,
       }),
+      6,
     )
 
     expect(stats.map((stat) => stat.labelKey)).toEqual([
@@ -54,8 +55,9 @@ describe('buildShareCardStats', () => {
       'shareCard.stats.completions',
       'shareCard.stats.bestStreak',
       'shareCard.stats.activeDays',
+      'shareCard.stats.goalsClosed',
     ])
-    expect(stats.map((stat) => stat.value)).toEqual(['74%', '40', '18', '5'])
+    expect(stats.map((stat) => stat.value)).toEqual(['74%', '40', '18', '5', '6'])
     expect(stats.every((stat) => stat.emoji.length > 0)).toBe(true)
   })
 
@@ -67,9 +69,10 @@ describe('buildShareCardStats', () => {
         bestStreak: 0,
         activeDays: 0,
       }),
+      0,
     )
 
-    expect(stats.map((stat) => stat.value)).toEqual(['0%', '0', '0', '0'])
+    expect(stats.map((stat) => stat.value)).toEqual(['0%', '0', '0', '0', '0'])
   })
 })
 

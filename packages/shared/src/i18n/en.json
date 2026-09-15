@@ -1583,7 +1583,6 @@
       "consistency": {
         "eyebrow": "Your rhythm",
         "title": "Your weekly rhythm",
-        "caption": "How your last seven days landed.",
         "summary": "{strong} is your strongest day.",
         "even": "No single day stands out.",
         "note": "Each bar is that day's average across the period.",

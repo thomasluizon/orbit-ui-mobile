@@ -100,6 +100,24 @@ describe.each(localeCases)('mobile i18n in $locale', ({ locale, one, other, name
   })
 })
 
+it.each([
+  {
+    locale: 'en',
+    one: 'You closed one goal this period.',
+    other: 'You closed 4 goals this period.',
+  },
+  {
+    locale: 'pt-BR',
+    one: 'Você fechou uma meta neste período.',
+    other: 'Você fechou 4 metas neste período.',
+  },
+])('renders exact Wrapped goal captions in $locale', async ({ locale, one, other }) => {
+  await i18n.changeLanguage(locale)
+
+  expect(i18n.t('wrapped.slides.goals.some', { count: 1 })).toBe(one)
+  expect(i18n.t('wrapped.slides.goals.some', { count: 4 })).toBe(other)
+})
+
 afterAll(async () => {
   await i18n.changeLanguage('en')
 })
