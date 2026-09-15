@@ -127,7 +127,7 @@ try {
   /** Labels are the only field asserted here, so the board read is pure cost on the hottest path. */
   const liveTicket = await readTicket(resolvedTicket.number, { withProjectItem: false })
   assertRepositoryLabel(liveTicket, repoKey)
-  issue = resolvedTicket.identifier ?? `#${resolvedTicket.number}`
+  issue = resolvedTicket.reference
   ticketReference = `${config.tickets.repository}#${resolvedTicket.number}`
 } catch (error) {
   fail(2, `ticket assertion failed: ${error.message}`)

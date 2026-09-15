@@ -6,14 +6,8 @@ import { useTranslations } from 'next-intl'
 import { ListRow } from '@/components/ui/list-row'
 import { ShareCardPanel } from './share-card-panel'
 
-interface ShareCardEntryButtonProps {
-  displayName?: string
-}
-
 /** Opens the recap share sheet from the profile action row. */
-export function ShareCardEntryButton({
-  displayName,
-}: Readonly<ShareCardEntryButtonProps>) {
+export function ShareCardEntryButton() {
   const t = useTranslations()
   const [open, setOpen] = useState(false)
 
@@ -25,7 +19,7 @@ export function ShareCardEntryButton({
         chevron={false}
         onClick={() => setOpen(true)}
       />
-      <ShareCardPanel open={open} onOpenChange={setOpen} displayName={displayName} />
+      <ShareCardPanel open={open} onOpenChange={setOpen} />
     </>
   )
 }

@@ -20,6 +20,7 @@ import {
   detectCrossedStreakMilestones,
   detectGamificationMilestones,
   deriveStreakFreezeState,
+  createApiClientError,
   extractBackendStatus,
 } from '@orbit/shared/utils'
 import { STREAK_CROSSING_MILESTONES } from '@orbit/shared/stores'
@@ -35,7 +36,7 @@ export function useGamificationProfile(enabled = true) {
 
   const query = useQuery({
     queryKey: gamificationKeys.profile(),
-    queryFn: () => fetchJson<GamificationProfile>(API.gamification.profile, gamificationProfileSchema),
+    queryFn: () => fetchJson<GamificationProfile>(API.gamification.profile, gamificationProfileSchema, { handlesPayGate: true }),
     staleTime: QUERY_STALE_TIMES.gamification,
     refetchOnWindowFocus: true,
     enabled,
@@ -140,15 +141,28 @@ export function useStreakFreeze(
 export function useRepairStreak(timeZone: string | null) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: repairStreakGap,
+    mutationFn: async (dates: string[]) => {
+      const result = await repairStreakGap(dates)
+      if (!result.ok) {
+        throw createApiClientError(
+          result.status,
+          { error: result.error, errorCode: result.code },
+          result.error,
+        )
+      }
+      return result.data
+    },
     onSuccess: (streakInfo) => {
       queryClient.setQueryData(gamificationKeys.streak(timeZone), streakInfo)
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.profile() })
     },
     onError: async (error) => {
       if (extractBackendStatus(error) !== 409) return
+      const queryKey = gamificationKeys.streak(timeZone)
+      await queryClient.cancelQueries({ queryKey })
+      await queryClient.invalidateQueries({ queryKey, refetchType: 'none' })
       await queryClient.fetchQuery({
-        queryKey: gamificationKeys.streak(timeZone),
+        queryKey,
         queryFn: () => fetchJson<StreakInfo>(API.gamification.streak, streakInfoSchema),
       })
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.profile() })

@@ -1,5 +1,9 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import {
+  createMockRecap,
+  createMockRetrospectiveMetrics,
+} from '@orbit/shared/__tests__/factories'
 
 import { ShareCardPanel } from '@/components/share/share-card-panel'
 
@@ -12,6 +16,10 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
+vi.mock('@/components/share/share-card', () => ({
+  ShareCard: () => React.createElement('ShareCardStub'),
+}))
+
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({
     children,
@@ -22,10 +30,22 @@ vi.mock('@/components/ui/pill-button', () => ({
   }) => React.createElement('PillButtonStub', { onClick }, children),
 }))
 
-const { refetch } = vi.hoisted(() => ({ refetch: vi.fn() }))
+const { refetch, recapState, shareCardState } = vi.hoisted(() => ({
+  refetch: vi.fn(),
+  recapState: {
+    data: undefined as ReturnType<typeof createMockRecap> | undefined,
+    isLoading: false,
+    isError: true,
+  },
+  shareCardState: {
+    canShareFiles: false,
+    download: vi.fn(),
+    share: vi.fn(),
+  },
+}))
 
 vi.mock('@/hooks/use-recap', () => ({
-  useRecap: () => ({ data: undefined, isLoading: false, isError: true, refetch }),
+  useRecap: () => ({ ...recapState, refetch }),
 }))
 
 vi.mock('@/hooks/use-share-card', () => ({
@@ -33,7 +53,7 @@ vi.mock('@/hooks/use-share-card', () => ({
     shareRef: { current: null },
     isSharing: false,
     hasError: false,
-    share: vi.fn(),
+    ...shareCardState,
   }),
 }))
 
@@ -70,5 +90,47 @@ describe('ShareCardPanel (mobile)', () => {
     expect(refetch).toHaveBeenCalledTimes(1)
 
     TestRenderer.act(() => tree!.unmount())
+  })
+
+  it('makes download the only action when native sharing is unsupported', async () => {
+    recapState.data = createMockRecap()
+    recapState.isError = false
+    let tree: RenderedTree | null = null
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<ShareCardPanel open onClose={vi.fn()} />)
+      await Promise.resolve()
+    })
+
+    const buttons = tree!.root.findAll((node) => node.type === 'PillButtonStub')
+    expect(buttons.map((node) => node.props.children)).toEqual(['shareCard.download'])
+    ;(buttons[0]!.props.onClick as () => void)()
+    expect(shareCardState.download).toHaveBeenCalledTimes(1)
+
+    TestRenderer.act(() => tree!.unmount())
+    recapState.data = undefined
+    recapState.isError = true
+  })
+
+  it('shows the share card for a goal-only recap', async () => {
+    recapState.data = createMockRecap({
+      goalCompletions: 2,
+      metrics: createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
+    })
+    recapState.isError = false
+    let tree: RenderedTree | null = null
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<ShareCardPanel open onClose={vi.fn()} />)
+      await Promise.resolve()
+    })
+
+    expect(tree!.root.findAll((node) => node.type === 'ShareCardStub')).toHaveLength(1)
+    expect(
+      tree!.root.findAll((node) => node.type === 'PillButtonStub')
+        .map((node) => node.props.children),
+    ).toEqual(['shareCard.download'])
+
+    TestRenderer.act(() => tree!.unmount())
+    recapState.data = undefined
+    recapState.isError = true
   })
 })

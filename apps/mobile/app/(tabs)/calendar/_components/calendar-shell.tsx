@@ -54,14 +54,14 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       paddingTop: 12,
       paddingBottom: 4,
     },
     monthLabelGroup: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 2,
+      gap: 0,
     },
     monthNavButton: {
       width: 36,
@@ -80,7 +80,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
-      paddingHorizontal: 10,
+      paddingHorizontal: 8,
     },
     weekLabelButton: {
       height: 36,
@@ -127,7 +127,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderRadius: radius.lg,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      padding: 10,
+      padding: 8,
       ...shadowsV2.shadow2,
     },
     legend: {
@@ -135,14 +135,14 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       alignItems: "center",
       justifyContent: "center",
       flexWrap: "wrap",
-      paddingHorizontal: 20,
-      paddingVertical: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
       gap: 16,
     },
     legendItem: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 6,
+      gap: 4,
     },
     legendWellLoggable: {
       width: 12,
@@ -208,7 +208,7 @@ export function CalendarHeader({
           pressed && styles.monthNavButtonPressed,
         ]}
       >
-        <ChevronLeft size={22} color={tokens.fg2} strokeWidth={1.8} />
+        <ChevronLeft size={20} color={tokens.fg2} strokeWidth={1.8} />
       </Pressable>
       <View style={styles.monthLabelGroup}>
         <Pressable
@@ -252,7 +252,7 @@ export function CalendarHeader({
           pressed && styles.monthNavButtonPressed,
         ]}
       >
-        <ChevronRight size={22} color={tokens.fg2} strokeWidth={1.8} />
+        <ChevronRight size={20} color={tokens.fg2} strokeWidth={1.8} />
       </Pressable>
 
       <Modal
@@ -299,7 +299,7 @@ export function CalendarWeekNav({
           pressed && styles.monthNavButtonPressed,
         ]}
       >
-        <ChevronLeft size={22} color={tokens.fg2} strokeWidth={1.8} />
+        <ChevronLeft size={20} color={tokens.fg2} strokeWidth={1.8} />
       </Pressable>
       <Pressable
         accessibilityRole="button"
@@ -325,7 +325,7 @@ export function CalendarWeekNav({
           pressed && styles.monthNavButtonPressed,
         ]}
       >
-        <ChevronRight size={22} color={tokens.fg2} strokeWidth={1.8} />
+        <ChevronRight size={20} color={tokens.fg2} strokeWidth={1.8} />
       </Pressable>
     </View>
   );

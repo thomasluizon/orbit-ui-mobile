@@ -30,6 +30,7 @@ import {
   getGamificationLevelTitleKey,
   getStreakRepairErrorMessageKey,
   getStreakTierLabelKey,
+  isPayGateError,
   deriveProgressViewState,
   visibleProgressAchievements,
   type ProgressGoalFilter,
@@ -157,15 +158,25 @@ function FrozenTodayStatus({ isFrozenToday }: Readonly<{ isFrozenToday: boolean 
   )
 }
 
+function RepairUnavailableCopy({ state }: Readonly<{
+  state: StreakRepairState
+}>) {
+  const t = useTranslations()
+  const message = state.banked === 0
+    ? t('progressScreen.streak.repairEmpty')
+    : state.bankFull
+      ? t('progressScreen.streak.repairCapped', { needed: state.count, banked: state.banked })
+      : t('progressScreen.streak.repairPartial', { needed: state.count, banked: state.banked })
+  return <p className="text-[14px] leading-5 text-[var(--fg-2)]">{message}</p>
+}
+
 function StreakRepairPanel({
   state,
-  daysUntilNextFreeze,
   ceiling,
   repair,
   isDesktop,
 }: Readonly<{
   state: StreakRepairState
-  daysUntilNextFreeze: number
   ceiling: number
   repair: ReturnType<typeof useRepairStreak>
   isDesktop: boolean
@@ -184,7 +195,7 @@ function StreakRepairPanel({
       <div className="flex flex-col items-start gap-3 rounded-[12px] bg-[var(--bg-well)] p-4">
         <p className="text-[16px] leading-6 text-[var(--fg-1)]">{t('progressScreen.streak.gapBody', { count: state.count })}</p>
         {state.canRepair ? <PillButton variant={isDesktop ? 'secondary' : 'primary'} size="sm" loading={repair.isPending} onClick={() => repair.mutate(state.dates)}>{t('progressScreen.streak.repairAction', { count: state.count })}</PillButton> : null}
-        {!state.canRepair ? <p className="text-[14px] leading-5 text-[var(--fg-2)]">{t('progressScreen.streak.repairEmpty', { count: daysUntilNextFreeze })}</p> : null}
+        {!state.canRepair ? <RepairUnavailableCopy state={state} /> : null}
         {repair.isError && repairStatus !== 409 ? <p role="alert" className="text-[14px] text-[var(--status-bad-text)]">{t(getStreakRepairErrorMessageKey(repairStatus))}</p> : null}
       </div>
     )
@@ -275,7 +286,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
           }}
         />
       ) : <><div className="grid grid-cols-2 gap-3"><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></div><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} /></>}
-      <StreakRepairPanel state={repairState} daysUntilNextFreeze={freeze.daysUntilNextFreeze} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} isDesktop={isDesktop} />
+      {canView && freeze.streakInfo ? <StreakRepairPanel state={repairState} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} isDesktop={isDesktop} /> : null}
     </section>
   )
 }
@@ -361,10 +372,10 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
   )
 }
 
-function WindowSection({ hasProAccess }: Readonly<{ hasProAccess: boolean }>) {
+function WindowSection() {
   const t = useTranslations()
-  const retrospective = useProgressRetrospective(hasProAccess)
-  if (!hasProAccess) return <WindowFrame title={t('progressScreen.sections.window')}><div className="max-w-[560px]"><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} /></div></WindowFrame>
+  const retrospective = useProgressRetrospective()
+  if (isPayGateError(retrospective.error)) return <WindowFrame title={t('progressScreen.sections.window')}><div className="max-w-[560px]"><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} /></div></WindowFrame>
   if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
   const hasNoHabits = retrospective.isError && extractBackendErrorCode(retrospective.error) === NO_HABITS_FOR_PERIOD
   if (retrospective.isError && !hasNoHabits) {
@@ -454,13 +465,13 @@ function AchievementTile({ achievement }: Readonly<{ achievement: Achievement }>
   )
 }
 
-function AchievementsSection({ hasProAccess, profile, xpProgress }: Readonly<{
-  hasProAccess: boolean
+function AchievementsSection({ gamificationAvailable, profile, xpProgress }: Readonly<{
+  gamificationAvailable: boolean
   profile: ReturnType<typeof useGamificationProfile>['profile']
   xpProgress: number
 }>) {
   const t = useTranslations()
-  if (!hasProAccess) {
+  if (!gamificationAvailable) {
     return (
       <Section compact title={t('progressScreen.sections.achievements')}>
         <div className="max-w-[560px]">
@@ -498,15 +509,22 @@ export function ProgressContent() {
   const t = useTranslations()
   const router = useRouter()
   const account = useProfile()
-  const canView = account.profile?.canViewGamification ?? false
   const goals = useGoals()
-  const gamification = useGamificationProfile(canView)
+  const canViewGamification = account.profile?.canViewGamification ?? false
+  const gamification = useGamificationProfile(canViewGamification)
+  const gamificationAvailable = canViewGamification && !isPayGateError(gamification.error)
   const allGoals = goals.data?.allGoals ?? []
-  const { error, loading, empty } = deriveProgressViewState({ goalCount: allGoals.length, account, goals, gamification, canView })
+  const { error, loading, empty } = deriveProgressViewState({
+    goalCount: allGoals.length,
+    account,
+    goals,
+    gamification,
+    canViewGamification,
+  })
   const retry = () => {
     void account.refetch()
     void goals.refetch()
-    if (canView) void gamification.refetch()
+    void gamification.refetch()
   }
   return (
     <main className="flex w-full flex-col gap-8 px-4 py-4 md:px-0">
@@ -517,7 +535,7 @@ export function ProgressContent() {
       {error ? <div className="w-full max-w-[620px]"><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></div> : null}
       {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {empty ? <div className="pt-12"><EmptyState title={t('progressScreen.empty')} action={<PillButton variant="ghost" size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></div> : null}
-      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} /><AchievementsSection hasProAccess={account.profile?.hasProAccess ?? false} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
+      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} /><WindowSection /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} /></> : null}
       </div>
     </main>
   )

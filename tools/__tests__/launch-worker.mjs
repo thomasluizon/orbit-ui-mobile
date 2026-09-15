@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process"
-import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, watch, writeFileSync } from "node:fs"
+import { appendFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, watch, writeFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 
 import { processIsRunning, T, check, orcaEnv, realOrchestratorConfig, run, stage, stageRepo, stageWithConfig, TOOLS_DIR } from "./_harness.mjs"
@@ -27,7 +27,15 @@ const launchConfig = ({ engine = {}, timeouts = {}, caps = {} } = {}) => {
  * that only sleeps. `args` is the script PATH and not `-e`, because node refuses the `--model`
  * the launcher appends after an `--eval` script ("bad option: --model"), measured.
  */
-const stubEngine = (script) => ({ engine: { args: [script], models: { default: { model: "gate-stub", args: [] } } } })
+const stubEngine = (script) => ({
+  engine: {
+    args: [script],
+    models: {
+      default: { model: "gate-stub", args: ["--gate-effort=high"] },
+      mechanical: { model: "gate-stub", args: ["--gate-effort=medium"] },
+    },
+  },
+})
 
 const SLEEPER = stage("launch-worker/sleeping-worker.js", "setTimeout(() => {}, 60000)\n")
 const IMMEDIATE = stage("launch-worker/immediate-worker.js", "process.exit(0)\n")
@@ -40,8 +48,9 @@ const launch = (label, config) => {
   const repo = stageRepo(`launch-worker-${label}`)
   if (!repo) return null
   repo.git(["remote", "set-url", "origin", `https://github.com/test-owner/${label}.git`])
-  const staged = stageWithConfig(`launch-worker-${label}`, TOOL, config)
-  return { ...staged, worktree: repo.path, prompt: stage(`launch-worker/${label}-prompt.md`, "the work order, verbatim\n") }
+  const configured = { ...config, repos: { ...config.repos, [config.cloud.repositoryKey]: repo.path } }
+  const staged = stageWithConfig(`launch-worker-${label}`, TOOL, configured)
+  return { ...staged, worktree: repo.path, git: repo.git, prompt: stage(`launch-worker/${label}-prompt.md`, "the work order, verbatim\n") }
 }
 
 const githubAuthEnv = () => orcaEnv([{ match: "auth token --user test-owner", stdout: "test-github-token" }])
@@ -209,6 +218,9 @@ export const cases = async () => {
   check(TOOL, "refuses a malformed ticket reference", ["--issue", "ticket-201", "--worktree", fixture.worktree, "--prompt", fixture.prompt], { status: 2, stderr: /--issue must be ORB-N, #N, or N/ }, options)
   check(TOOL, "accepts a post-migration #N reference", ["--issue", "#9001", "--worktree", fixture.worktree, "--prompt", fixture.prompt, "--dry-run"], { status: 0, stdout: /"issue": "#9001"/ }, options)
   check(TOOL, "accepts a post-migration plain number and normalizes it", ["--issue", "9001", "--worktree", fixture.worktree, "--prompt", fixture.prompt, "--dry-run"], { status: 0, stdout: /"issue": "#9001"/ }, options)
+  check(TOOL, "refuses a tier outside the two order profiles", [...argv, "--tier", "expensive", "--dry-run"], { status: 2, stderr: /--tier must be default or mechanical/ }, options)
+  check(TOOL, "refuses a tier flag with no value", [...argv, "--tier"], { status: 2, stderr: /--tier must be default or mechanical/ }, options)
+  check(TOOL, "refuses an empty relaunch reason", [...argv, "--relaunch-reason", "", "--dry-run"], { status: 2, stderr: /--relaunch-reason must be non-empty text/ }, options)
   check(TOOL, "refuses a missing worktree flag", ["--issue", "ORB-201", "--prompt", fixture.prompt], { status: 2, stderr: /--worktree is required/ }, options)
   check(TOOL, "refuses a missing prompt flag", ["--issue", "ORB-201", "--worktree", fixture.worktree], { status: 2, stderr: /--prompt is required/ }, options)
   check(TOOL, "refuses a worktree that does not exist", ["--issue", "ORB-201", "--worktree", join(fixture.base, "absent"), "--prompt", fixture.prompt], { status: 2, stderr: /worktree not found/ }, options)
@@ -260,14 +272,58 @@ export const cases = async () => {
     JSON.stringify(plan),
   )
   T(
-    `${TOOL}: the resolved implementer is gpt-5.6-sol at high reasoning effort (D21)`,
+    `${TOOL}: the default tier resolves gpt-5.6-sol at high reasoning effort`,
     plan !== null && plan.model === "gpt-5.6-sol" && plan.args.includes('model_reasoning_effort="high"'),
     JSON.stringify(plan?.args),
+  )
+  const mechanicalDryRun = check(TOOL, "--dry-run resolves the mechanical tier", [...argv, "--tier", "mechanical", "--dry-run"], { status: 0 }, options)
+  const mechanicalPlan = JSON.parse(mechanicalDryRun.stdout)
+  T(
+    `${TOOL}: each tier reports itself and resolves a different argument vector`,
+    mechanicalPlan.tier === "mechanical" &&
+      mechanicalPlan.args.includes('model_reasoning_effort="medium"') &&
+      JSON.stringify(mechanicalPlan.args) !== JSON.stringify(plan?.args),
+    JSON.stringify({ default: plan?.args, mechanical: mechanicalPlan.args }),
   )
   T(
     `${TOOL}: the worker is handed the prompt PATH and the branch, never the prompt text`,
     plan !== null && plan.branch === "main" && plan.args.at(-1).includes(fixture.prompt) && !plan.args.at(-1).includes("the work order, verbatim"),
     JSON.stringify(plan?.args?.at(-1)),
+  )
+
+  const capped = launch("branch-cap", launchConfig({ ...stubEngine(IMMEDIATE), caps: { workerLaunchesPerBranch: 2 } }))
+  const cappedArgs = ["--issue", "ORB-201", "--worktree", capped.worktree, "--prompt", capped.prompt]
+  const firstLaunch = check(TOOL, "the first launch below the branch cap succeeds", cappedArgs, { status: 0 }, { path: capped.path, env: githubAuthEnv() })
+  const secondLaunch = check(TOOL, "the second launch at the branch cap succeeds", [...cappedArgs, "--tier", "mechanical"], { status: 0 }, { path: capped.path, env: githubAuthEnv() })
+  discardLog(firstLaunch.stdout)
+  discardLog(secondLaunch.stdout)
+  const refusedLaunch = check(
+    TOOL,
+    "a third launch exits 2 and names both earlier launches",
+    cappedArgs,
+    { status: 2, stderr: /worker launch cap 2 reached[\s\S]*Earlier launches:[\s\S]*1\.[\s\S]*tier=default[\s\S]*2\.[\s\S]*tier=mechanical/ },
+    { path: capped.path },
+  )
+  const allowedLaunch = check(
+    TOOL,
+    "a third launch with a recorded reason succeeds",
+    [...cappedArgs, "--tier", "mechanical", "--relaunch-reason", "Pullfrog supplied a second experiment"],
+    { status: 0 },
+    { path: capped.path, env: githubAuthEnv() },
+  )
+  discardLog(allowedLaunch.stdout)
+  const ledgerPath = join(capped.worktree, ".git", "orbit-worker-launches")
+  const launchLedger = readdirSync(ledgerPath)
+    .map((name) => JSON.parse(readFileSync(join(ledgerPath, name), "utf8")))
+    .sort((left, right) => left.timestamp.localeCompare(right.timestamp))
+  T(
+    `${TOOL}: the checkout-local ledger records required fields and the override reason`,
+    launchLedger.length === 3 &&
+      launchLedger.every((row) => row.repositoryKey === "ui" && row.branch === "main" && /^[0-9a-f]{40}$/.test(row.headSha) && typeof row.timestamp === "string") &&
+      launchLedger[2].relaunchReason === "Pullfrog supplied a second experiment" &&
+      refusedLaunch.stderr.includes(launchLedger[0].headSha) &&
+      capped.git(["status", "--short"]).stdout.trim() === "",
+    JSON.stringify({ launchLedger, status: capped.git(["status", "--short"]).stdout }),
   )
   /**
    * Both clocks are read from config.timeouts, and the only way to prove that is to move them:

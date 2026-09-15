@@ -24,6 +24,7 @@ import {
   getGamificationLevelTitleKey,
   getStreakRepairErrorMessageKey,
   getStreakTierLabelKey,
+  isPayGateError,
   deriveProgressViewState,
   visibleProgressAchievements,
   type ProgressGoalFilter,
@@ -141,9 +142,21 @@ function FrozenTodayStatus({ isFrozenToday, tokens }: Readonly<{ isFrozenToday: 
   )
 }
 
-function StreakRepairPanel({ state, daysUntilNextFreeze, ceiling, repair, tokens, isWide }: Readonly<{
+function RepairUnavailableCopy({ state, tokens }: Readonly<{
   state: StreakRepairState
-  daysUntilNextFreeze: number
+  tokens: AppTokensV2
+}>) {
+  const { t } = useTranslation()
+  const message = state.banked === 0
+    ? t('progressScreen.streak.repairEmpty')
+    : state.bankFull
+      ? t('progressScreen.streak.repairCapped', { needed: state.count, banked: state.banked })
+      : t('progressScreen.streak.repairPartial', { needed: state.count, banked: state.banked })
+  return <Text style={[styles.body, { color: tokens.fg2 }]}>{message}</Text>
+}
+
+function StreakRepairPanel({ state, ceiling, repair, tokens, isWide }: Readonly<{
+  state: StreakRepairState
   ceiling: number
   repair: ReturnType<typeof useRepairStreak>
   tokens: AppTokensV2
@@ -163,7 +176,7 @@ function StreakRepairPanel({ state, daysUntilNextFreeze, ceiling, repair, tokens
       <View style={[styles.gapWell, { backgroundColor: tokens.bgWell }]}>
         <Text style={[styles.gapBody, { color: tokens.fg1 }]}>{t('progressScreen.streak.gapBody', { count: state.count })}</Text>
         {state.canRepair ? <View style={styles.actionStart}><PillButton variant={isWide ? 'secondary' : 'primary'} size="sm" loading={repair.isPending} onClick={() => repair.mutate(state.dates)}>{t('progressScreen.streak.repairAction', { count: state.count })}</PillButton></View> : null}
-        {!state.canRepair ? <Text style={[styles.body, { color: tokens.fg2 }]}>{t('progressScreen.streak.repairEmpty', { count: daysUntilNextFreeze })}</Text> : null}
+        {!state.canRepair ? <RepairUnavailableCopy state={state} tokens={tokens} /> : null}
         {repair.isError && repairStatus !== 409 ? <Text accessibilityRole="alert" style={[styles.body, { color: tokens.statusBadText }]}>{t(getStreakRepairErrorMessageKey(repairStatus))}</Text> : null}
       </View>
     )
@@ -207,7 +220,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile, tokens }:
       <FrozenTodayStatus isFrozenToday={freeze.isFrozenToday} tokens={tokens} />
       <DayStrip size={width >= 768 ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
       {canView && freeze.streakInfo ? <FreezeBank banked={freeze.streakFreezesAccumulated} ceiling={freeze.maxStreakFreezesAccumulated} usedThisMonth={freeze.freezesUsedThisMonth} longestValue={longestStreak} longestLabel={t('progressScreen.streak.longest')} daysTowardNext={Math.max(0, 7 - freeze.daysUntilNextFreeze)} earnRateDays={7} tierValue={tier} tierLabel={t('streakDisplay.detail.tierTileLabel')} protectedDays={buildProtectedDayLabels(freeze.streakInfo.recentFreezeDates, i18n.language, freeze.isFrozenToday, timeZone ?? undefined)} words={{ ...dayWords, legendLabel: t('progressScreen.streak.legend'), bankedLabel: t('progressScreen.streak.banked'), usedLabel: t('progressScreen.streak.used'), nextLabel: t('progressScreen.streak.next'), nextProgressLabel: t('progressScreen.streak.nextProgress'), nextFreezeProgress: t('progressScreen.streak.nextOf', { current: Math.max(0, 7 - freeze.daysUntilNextFreeze), total: 7 }), protectedLabel: t('progressScreen.streak.protectedDays'), protectedEmpty: t('progressScreen.streak.protectedEmpty'), protectedDay: t('progressScreen.streak.protected'), protectedToday: t('progressScreen.streak.protectedToday') }} /> : <><View style={styles.tileGrid}><View style={styles.half}><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /></View><View style={styles.half}><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></View></View><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} tokens={tokens} /></>}
-      <StreakRepairPanel state={repairState} daysUntilNextFreeze={freeze.daysUntilNextFreeze} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} tokens={tokens} isWide={width >= 768} />
+      {canView && freeze.streakInfo ? <StreakRepairPanel state={repairState} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} tokens={tokens} isWide={width >= 768} /> : null}
     </View>
   )
 }
@@ -287,10 +300,10 @@ function GoalSeparator() {
   return <View style={styles.goalSeparator} />
 }
 
-function WindowSection({ hasProAccess, tokens }: Readonly<{ hasProAccess: boolean; tokens: AppTokensV2 }>) {
+function WindowSection({ tokens }: Readonly<{ tokens: AppTokensV2 }>) {
   const { t } = useTranslation()
-  const retrospective = useProgressRetrospective(hasProAccess)
-  if (!hasProAccess) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><View style={styles.windowLock}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} tokens={tokens} /></View></WindowFrame>
+  const retrospective = useProgressRetrospective()
+  if (isPayGateError(retrospective.error)) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><View style={styles.windowLock}><LockedCard title={t('progressScreen.window.lockedTitle')} body={t('progressScreen.window.lockedBody')} action={t('progressScreen.window.lockedAction')} tokens={tokens} /></View></WindowFrame>
   if (retrospective.isLoading) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><WindowFigureLoading label={t('progressScreen.loading')} /></WindowFrame>
   const hasNoHabits = retrospective.isError && extractBackendErrorCode(retrospective.error) === NO_HABITS_FOR_PERIOD
   if (retrospective.isError && !hasNoHabits) return <WindowFrame title={t('progressScreen.sections.window')} tokens={tokens}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" onClick={() => void retrospective.refetch()}>{t('progressScreen.retry')}</PillButton>} /></WindowFrame>
@@ -356,15 +369,15 @@ function AchievementTile({ achievement, tokens, wide }: Readonly<{ achievement: 
   )
 }
 
-function AchievementsSection({ hasProAccess, profile, xpProgress, tokens }: Readonly<{
-  hasProAccess: boolean
+function AchievementsSection({ gamificationAvailable, profile, xpProgress, tokens }: Readonly<{
+  gamificationAvailable: boolean
   profile: ReturnType<typeof useGamificationProfile>['profile']
   xpProgress: number
   tokens: AppTokensV2
 }>) {
   const { t } = useTranslation()
   const { width } = useWindowDimensions()
-  if (!hasProAccess) {
+  if (!gamificationAvailable) {
     return (
       <Section compact title={t('progressScreen.sections.achievements')} tokens={tokens}>
         <View style={styles.windowLock}>
@@ -427,15 +440,22 @@ export function ProgressContent() {
   const theme = useAppTheme()
   const tokens = useMemo(() => createTokensV2(theme.currentScheme, theme.currentTheme), [theme.currentScheme, theme.currentTheme])
   const account = useProfile()
-  const canView = account.profile?.canViewGamification ?? false
   const goals = useGoals()
-  const gamification = useGamificationProfile(canView)
+  const canViewGamification = account.profile?.canViewGamification ?? false
+  const gamification = useGamificationProfile(canViewGamification)
+  const gamificationAvailable = canViewGamification && !isPayGateError(gamification.error)
   const allGoals = goals.data?.allGoals ?? []
-  const { error, loading, empty } = deriveProgressViewState({ goalCount: allGoals.length, account, goals, gamification, canView })
+  const { error, loading, empty } = deriveProgressViewState({
+    goalCount: allGoals.length,
+    account,
+    goals,
+    gamification,
+    canViewGamification,
+  })
   const retry = () => {
     void account.refetch()
     void goals.refetch()
-    if (canView) void gamification.refetch()
+    void gamification.refetch()
   }
   return (
     <>
@@ -446,7 +466,7 @@ export function ProgressContent() {
       {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
       {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
       {empty ? <View style={styles.empty}><EmptyState title={t('progressScreen.empty')} action={<PillButton variant="ghost" size="sm" onClick={() => router.push('/')}>{t('progressScreen.emptyAction')}</PillButton>} /></View> : null}
-      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={canView} gamificationProfile={gamification.profile} tokens={tokens} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} tokens={tokens} /><WindowSection hasProAccess={account.profile?.hasProAccess ?? false} tokens={tokens} /><AchievementsSection hasProAccess={account.profile?.hasProAccess ?? false} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
+      {!loading && !error && !empty ? <><StreakSection accountProfile={account.profile} canView={gamificationAvailable} gamificationProfile={gamification.profile} tokens={tokens} /><GoalsSection onOpenGoal={setDetailGoalId} goals={allGoals} tokens={tokens} /><WindowSection tokens={tokens} /><AchievementsSection gamificationAvailable={gamificationAvailable} profile={gamification.profile} xpProgress={gamification.xpProgress} tokens={tokens} /></> : null}
     </NestableScrollContainer>
     </>
   )

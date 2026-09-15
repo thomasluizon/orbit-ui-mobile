@@ -10,6 +10,7 @@ import {
   useAuthStore,
   whenProfileHydrated,
 } from '@/stores/auth-store'
+import { clearStepUpState, isStepUpVerified, markStepUpVerified } from '@/lib/step-up-storage'
 
 const {
   replaceMock,
@@ -150,6 +151,7 @@ function makeJwtWithClaims(expirySeconds: number, userId = 'jwt-user', email = '
 
 describe('mobile auth store security paths', () => {
   beforeEach(() => {
+    clearStepUpState()
     replaceMock.mockReset()
     getTokenMock.mockReset()
     setTokenMock.mockReset()
@@ -564,10 +566,12 @@ describe('mobile auth store security paths', () => {
   it('returns false from checkAuth when an expired token cannot be refreshed', async () => {
     getTokenMock.mockResolvedValue(makeJwt(Math.floor(Date.now() / 1000) - 10))
     getRefreshTokenMock.mockResolvedValue(null)
+    markStepUpVerified('keys')
 
     const isValid = await useAuthStore.getState().checkAuth()
 
     expect(isValid).toBe(false)
+    expect(isStepUpVerified('keys')).toBe(false)
   })
 
   it('refreshes an expired token in checkAuth and authenticates with the rotated token', async () => {
@@ -597,6 +601,7 @@ describe('mobile auth store security paths', () => {
 
   it('marks the session unauthenticated when initialize finds no token', async () => {
     getTokenMock.mockResolvedValue(null)
+    markStepUpVerified('keys')
 
     await useAuthStore.getState().initialize()
 
@@ -605,6 +610,7 @@ describe('mobile auth store security paths', () => {
       user: null,
       isLoading: false,
     })
+    expect(isStepUpVerified('keys')).toBe(false)
   })
 
   it('recovers to a signed-out state when initialize throws while reading the token', async () => {
@@ -654,6 +660,24 @@ describe('mobile auth store security paths', () => {
       expect.any(String),
       expect.objectContaining({ method: 'POST' }),
     )
+  })
+
+  it('does not carry API key visibility into a replacement account', async () => {
+    await useAuthStore.getState().login('account-a-token', null, {
+      userId: 'account-a',
+      email: 'account-a@example.com',
+      name: 'Account A',
+    })
+    markStepUpVerified('keys')
+
+    await useAuthStore.getState().logout()
+    await useAuthStore.getState().login('account-b-token', null, {
+      userId: 'account-b',
+      email: 'account-b@example.com',
+      name: 'Account B',
+    })
+
+    expect(isStepUpVerified('keys')).toBe(false)
   })
 
   it('applies the profile language and theme during login hydration', async () => {

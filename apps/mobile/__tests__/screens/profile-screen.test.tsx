@@ -1,6 +1,8 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { API } from '@orbit/shared/api'
+import { createApiClientError } from '@orbit/shared/utils'
 
 import ProfileScreen from '@/app/(tabs)/profile'
 import { PreferenceSettingsList } from '@/components/profile/preferences-sections'
@@ -30,6 +32,10 @@ const {
   mockPatchProfile,
   mockRouterPush,
   mockProfileState,
+  mockSearchParams,
+  mockStepUpVerified,
+  mockCreateGrant,
+  mockApiKeys,
 } = vi.hoisted(() => ({
   mockApiClient: vi.fn(),
   mockPerformQueuedApiMutation: vi.fn(),
@@ -43,6 +49,10 @@ const {
   mockPatchProfile: vi.fn(),
   mockShellNoticeSlot: vi.fn(),
   mockRouterPush: vi.fn(),
+  mockSearchParams: { current: {} },
+  mockStepUpVerified: { current: false },
+  mockCreateGrant: { consumed: false },
+  mockApiKeys: { current: [] as Record<string, unknown>[] },
   mockProfileState: {
     current: {
       profile: undefined as ReturnType<typeof createMockProfile> | undefined,
@@ -53,8 +63,12 @@ const {
 }))
 
 vi.mock('expo-sharing', () => {
-  return { shareAsync: mockShareAsync }
+  return { isAvailableAsync: vi.fn().mockResolvedValue(true), shareAsync: mockShareAsync }
 })
+
+vi.mock('@react-native-clipboard/clipboard', () => ({
+  default: { setString: vi.fn() },
+}))
 
 vi.mock('expo-device', () => ({
   __esModule: true,
@@ -63,7 +77,7 @@ vi.mock('expo-device', () => ({
 }))
 
 vi.mock('expo-router', () => ({
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => mockSearchParams.current,
   useRouter: () => ({
     push: mockRouterPush,
     replace: vi.fn(),
@@ -82,7 +96,12 @@ vi.mock('react-i18next', () => ({
 }))
 
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({ data: undefined, isLoading: false, isError: false }),
+  useQuery: ({ queryKey }: { queryKey?: string[] }) => ({
+    data: queryKey?.[0] === 'apiKeys' ? mockApiKeys.current : undefined,
+    error: null,
+    isLoading: false,
+    isError: false,
+  }),
   useQueryClient: () => ({
     invalidateQueries: vi.fn(),
     clear: vi.fn(),
@@ -167,6 +186,18 @@ vi.mock('@/lib/theme', () => ({
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: mockApiClient,
+}))
+
+vi.mock('@/lib/step-up-storage', () => ({
+  beginStepUpChallenge: vi.fn(),
+  isStepUpVerified: () => mockStepUpVerified.current,
+  hasApiKeyCreationGrant: () => mockStepUpVerified.current && !mockCreateGrant.consumed,
+  consumeApiKeyCreationGrant: () => {
+    mockCreateGrant.consumed = true
+  },
+  clearApiKeyCreationGrant: () => {
+    mockCreateGrant.consumed = true
+  },
 }))
 
 vi.mock('@/lib/queued-api-mutation', () => ({
@@ -274,66 +305,78 @@ vi.mock('@/components/ui/row-list', () => ({
   RowList: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }))
 
+vi.mock('@/components/ui/sheet', () => ({
+  useSheetHost: () => {
+    const sheetRef = React.useRef<{ requestClose: (exitAction?: () => void) => void } | null>(null)
+    return {
+      sheetRef,
+      closeSheet: (exitAction?: () => void) => sheetRef.current?.requestClose(exitAction),
+    }
+  },
+  Sheet: React.forwardRef(function SheetStub(
+    {
+      title,
+      actions,
+      onClose,
+      children,
+    }: {
+      title: string
+      actions?: React.ReactNode
+      onClose?: () => void
+      children: React.ReactNode
+    },
+    ref: React.ForwardedRef<{ requestClose: (exitAction?: () => void) => void }>,
+  ) {
+    React.useImperativeHandle(ref, () => ({
+      requestClose: (exitAction?: () => void) => {
+        if (exitAction) exitAction()
+        else onClose?.()
+      },
+    }), [onClose])
+    return React.createElement('SheetStub', { title }, children, actions)
+  }),
+}))
+
 vi.mock('@/components/ui/list-row', () => ({
   ListRow: ({
     title,
     description,
     value,
+    trailing,
     onClick,
     accessibilityLabel,
     chevron = true,
+    action,
+    readOnly = false,
   }: {
     title: string
     description?: string
     value?: string
+    trailing?: React.ReactNode
     onClick?: () => void
     accessibilityLabel?: string
     chevron?: boolean
-  }) => React.createElement('SettingsRowStub', {
-    label: title,
-    hint: description,
-    value,
-    onPress: onClick,
-    chevron,
-    accessibilityRole: onClick ? 'button' : undefined,
-    accessibilityLabel: accessibilityLabel ?? title,
-  }),
+    action?: { label: string; onPress: () => void }
+    readOnly?: boolean
+  }) => React.createElement(
+    'SettingsRowStub',
+    {
+      label: title,
+      hint: description,
+      value,
+      hasTrailing: Boolean(trailing),
+      onPress: readOnly ? undefined : onClick,
+      chevron,
+      accessibilityRole: !readOnly && onClick ? 'button' : undefined,
+      accessibilityLabel: accessibilityLabel ?? title,
+    },
+    action ? React.createElement('RowActionStub', {
+      accessibilityRole: 'button',
+      accessibilityLabel: action.label,
+      onPress: action.onPress,
+    }) : null,
+  ),
 }))
-
-vi.mock('@/components/ui/icons', () => {
-  const createIcon = (name: string) => () => React.createElement(name)
-  return {
-    LogOut: createIcon('LogOut'),
-    RotateCcw: createIcon('RotateCcw'),
-    Trash2: createIcon('Trash2'),
-    ChevronRight: createIcon('ChevronRight'),
-    Clock: createIcon('Clock'),
-    BadgeCheck: createIcon('BadgeCheck'),
-    Orbit: createIcon('Orbit'),
-    X: createIcon('X'),
-    Check: createIcon('Check'),
-    Compass: createIcon('Compass'),
-    CreditCard: createIcon('CreditCard'),
-    User: createIcon('User'),
-    ChevronLeft: createIcon('ChevronLeft'),
-    Flame: createIcon('Flame'),
-    Lock: createIcon('Lock'),
-    Download: createIcon('Download'),
-    Share2: createIcon('Share2'),
-    Pencil: createIcon('Pencil'),
-    UserX: createIcon('UserX'),
-    TriangleAlert: createIcon('TriangleAlert'),
-    BellRing: createIcon('BellRing'),
-    Bell: createIcon('Bell'),
-    Calendar: createIcon('Calendar'),
-    Languages: createIcon('Languages'),
-    Mail: createIcon('Mail'),
-    MessageSquare: createIcon('MessageSquare'),
-    Moon: createIcon('Moon'),
-    Satellite: createIcon('Satellite'),
-    Search: createIcon('Search'),
-  }
-})
 
 vi.mock('react-native-svg', () => ({
   __esModule: true,
@@ -350,9 +393,11 @@ interface SettingsRowStubNode {
     label?: string
     hint?: string
     value?: string
+    hasTrailing?: boolean
     onPress?: () => void
     chevron?: boolean
     accessibilityRole?: string
+    accessibilityState?: { disabled?: boolean }
   }
 }
 
@@ -377,6 +422,22 @@ function findRowByLabel(
   return row
 }
 
+function nodeText(node: unknown): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (!node || typeof node !== 'object' || !('children' in node)) return ''
+  return (node as { children: unknown[] }).children.map(nodeText).join('')
+}
+
+function findButtonByText(
+  tree: ReturnType<typeof TestRenderer.create>,
+  label: string,
+) {
+  return tree.root.find(
+    (node: { props: { accessibilityRole?: string }; children: unknown[] }) =>
+      node.props.accessibilityRole === 'button' && nodeText(node) === label,
+  )
+}
+
 describe('ProfileScreen', () => {
   beforeEach(() => {
     mockApiClient.mockReset()
@@ -386,6 +447,10 @@ describe('ProfileScreen', () => {
     mockPatchProfile.mockReset()
     mockUseGamificationProfile.mockClear()
     mockRouterPush.mockClear()
+    mockSearchParams.current = {}
+    mockStepUpVerified.current = false
+    mockCreateGrant.consumed = false
+    mockApiKeys.current = []
     mockProfileState.current = {
       profile: createMockProfile({
         plan: 'free',
@@ -416,15 +481,30 @@ describe('ProfileScreen', () => {
       ).toBeGreaterThan(0)
     }
 
-    expect(findRowByLabel(tree, 'profile.wrappedTitle').props.hint).toBe(
-      'profile.wrappedHint',
+    expect(findRowByLabel(tree, 'profile.wrappedTitle').props.hint).toBeUndefined()
+    expect(findRowByLabel(tree, 'profile.widgetTitle').props.hint).toBe(
+      'profile.widgetHint',
     )
     expect(findRowByLabel(tree, 'calendar.profileButton').props.hint).toBe(
       'calendar.profileHint',
     )
-    expect(findRowByLabel(tree, 'profile.sections.aboutHelp').props.hint).toBe(
-      'profile.sections.aboutHelpHint',
+    expect(findRowByLabel(tree, 'profile.support.title').props.hint).toBe(
+      'profile.support.description',
     )
+    expect(findRowByLabel(tree, 'profile.sections.aboutHelp').props.hint).toBeUndefined()
+
+    const more = tree.root.findByProps({ testID: 'profile-settings-group-more' })
+    expect(
+      more.findAll((node: SettingsRowStubNode) => node.type === 'SettingsRowStub')
+        .map((node: SettingsRowStubNode) => node.props.label),
+    ).toEqual([
+      'profile.wrappedTitle',
+      'profile.widgetTitle',
+      'calendar.profileButton',
+      'profile.support.title',
+      'profile.sections.aboutHelp',
+      'shareCard.entry',
+    ])
 
     for (const movedLabel of [
       'profile.sections.preferences',
@@ -462,14 +542,14 @@ describe('ProfileScreen', () => {
       'settings.weekStartDay.title',
       'preferences.themeMode',
       'profile.subscription.plan',
-      'profile.settingsRows.apiKeysMcp',
       'profile.wrappedTitle',
+      'profile.widgetTitle',
       'calendar.profileButton',
+      'profile.support.title',
       'profile.sections.aboutHelp',
       'dataExport.button',
-      'shareCard.entry',
-      'profile.freshStart.button',
       'profile.logout',
+      'profile.freshStart.button',
       'profile.deleteAccount.button',
     ]
 
@@ -485,7 +565,55 @@ describe('ProfileScreen', () => {
     }
   })
 
-  it('shows the free daily allowance and routes its only plan action to Pro', async () => {
+  it('keeps the share card reachable outside Ending things', async () => {
+    const tree = await renderProfileScreen()
+    const shareCardEntry = findRowByLabel(tree, 'shareCard.entry')
+    const ending = tree.root.findByProps({ testID: 'profile-settings-group-ending' })
+
+    expect(shareCardEntry).toBeDefined()
+    expect(
+      ending.findAll(
+        (node: SettingsRowStubNode) =>
+          node.type === 'SettingsRowStub' && node.props.label === 'shareCard.entry',
+      ),
+    ).toHaveLength(0)
+  })
+
+  it('puts Sign out first in Ending things', async () => {
+    const tree = await renderProfileScreen()
+    const ending = tree.root.findByProps({ testID: 'profile-settings-group-ending' })
+    const rows = ending.findAll(
+      (node: SettingsRowStubNode) => node.type === 'SettingsRowStub',
+    ) as SettingsRowStubNode[]
+
+    expect(rows[0]?.props.label).toBe('profile.logout')
+  })
+
+  it('puts Fresh Start directly after Sign out', async () => {
+    const tree = await renderProfileScreen()
+    const ending = tree.root.findByProps({ testID: 'profile-settings-group-ending' })
+    const labels = ending.findAll(
+      (node: SettingsRowStubNode) => node.type === 'SettingsRowStub',
+    ).map((node: SettingsRowStubNode) => node.props.label)
+
+    expect(labels.slice(0, 2)).toEqual(['profile.logout', 'profile.freshStart.button'])
+  })
+
+  it('keeps Delete account last in the three-row ending group', async () => {
+    const tree = await renderProfileScreen()
+    const ending = tree.root.findByProps({ testID: 'profile-settings-group-ending' })
+    const labels = ending.findAll(
+      (node: SettingsRowStubNode) => node.type === 'SettingsRowStub',
+    ).map((node: SettingsRowStubNode) => node.props.label)
+
+    expect(labels).toEqual([
+      'profile.logout',
+      'profile.freshStart.button',
+      'profile.deleteAccount.button',
+    ])
+  })
+
+  it('shows the free daily allowance as an enabled route to Pro', async () => {
     const tree = await renderProfileScreen()
     const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
     const progress = astra.findByProps({
@@ -497,14 +625,32 @@ describe('ProfileScreen', () => {
       astra.findAll((node: { children: unknown[] }) =>
         node.children.includes('profile.allowance.spent')),
     ).toHaveLength(0)
+    const allowance = tree.root.findByProps({ testID: 'astra-allowance-panel' })
+    const allowanceGate = allowance.findByProps({
+      accessibilityRole: 'button',
+      accessibilityLabel: 'profile.allowance.seePro',
+    })
+
+    TestRenderer.act(() => {
+      allowanceGate.props.onPress()
+    })
+    expect(allowanceGate.props.accessibilityState.disabled).toBe(false)
+    expect(mockRouterPush).toHaveBeenNthCalledWith(1, {
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
+  })
+
+  it('shows both free Astra switch gates as enabled routes to Pro', async () => {
+    const tree = await renderProfileScreen()
     const proactiveGate = findRowByLabel(tree, 'profile.proactiveAstra.title')
     const summaryGate = findRowByLabel(tree, 'profile.aiSummary.title')
 
+    expect(proactiveGate.props.accessibilityRole).toBe('button')
+    expect(summaryGate.props.accessibilityRole).toBe('button')
+    expect(proactiveGate.props.onPress).toEqual(expect.any(Function))
+    expect(summaryGate.props.onPress).toEqual(expect.any(Function))
     TestRenderer.act(() => {
-      tree.root.findByProps({
-        accessibilityRole: 'button',
-        accessibilityLabel: 'profile.allowance.seePro',
-      }).props.onPress()
       proactiveGate.props.onPress?.()
       summaryGate.props.onPress?.()
     })
@@ -516,10 +662,249 @@ describe('ProfileScreen', () => {
       pathname: '/upgrade',
       params: { from: '/profile' },
     })
-    expect(mockRouterPush).toHaveBeenNthCalledWith(3, {
+  })
+
+  it('shows only the API key description and upgrade row to free accounts', async () => {
+    const tree = await renderProfileScreen()
+    const astra = tree.root.findByProps({ testID: 'profile-settings-group-astra' })
+
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.apiKeys.description')),
+    ).toHaveLength(1)
+    const upgradeRow = findRowByLabel(tree, 'profile.apiKeys.unlock')
+    expect(upgradeRow.props.accessibilityRole).toBe('button')
+    expect(upgradeRow.props.onPress).toEqual(expect.any(Function))
+    expect(
+      astra.findAll((node: { children: unknown[] }) =>
+        node.children.includes('orbitMcp.noKeys')),
+    ).toHaveLength(0)
+
+    TestRenderer.act(() => {
+      upgradeRow.props.onPress?.()
+    })
+    expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/upgrade',
       params: { from: '/profile' },
     })
+  })
+
+  it('keeps every free API key state on the enabled lock route', async () => {
+    mockStepUpVerified.current = true
+    mockApiKeys.current = [{
+      id: 'key-1',
+      name: 'Work key',
+      keyPrefix: 'orb_live_1234',
+    }]
+    const tree = await renderProfileScreen()
+
+    const upgradeRow = findRowByLabel(tree, 'profile.apiKeys.unlock')
+    expect(upgradeRow.props.accessibilityRole).toBe('button')
+    expect(upgradeRow.props.onPress).toEqual(expect.any(Function))
+    expect(
+      tree.root.findAll((node: { children: unknown[] }) =>
+        node.children.includes('Work key')),
+    ).toHaveLength(0)
+    TestRenderer.act(() => upgradeRow.props.onPress?.())
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
+  })
+
+  it('puts the step up before the API key list for Pro accounts', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    const tree = await renderProfileScreen()
+
+    TestRenderer.act(() => {
+      findRowByLabel(tree, 'profile.apiKeys.open').props.onPress?.()
+    })
+    expect(
+      tree.root.findAll((node: { children: unknown[] }) =>
+        node.children.includes('profile.apiKeys.stepUpAction')),
+    ).toHaveLength(1)
+  })
+
+  it('does not unlock API keys from a manually typed return hint', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockSearchParams.current = { 'api-keys': '1' }
+    mockApiKeys.current = [{
+      id: 'key-1',
+      name: 'Work key',
+      keyPrefix: 'orb_live_1234',
+    }]
+
+    const tree = await renderProfileScreen()
+
+    expect(findRowByLabel(tree, 'profile.apiKeys.open')).toBeDefined()
+    expect(
+      tree.root.findAll((node: { children: unknown[] }) =>
+        node.children.includes('Work key')),
+    ).toHaveLength(0)
+  })
+
+  it('shows verified keys with a named revoke action', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockStepUpVerified.current = true
+    mockApiKeys.current = [{
+      id: 'key-1',
+      name: 'Work key',
+      keyPrefix: 'orb_live_1234',
+      scopes: [],
+      isReadOnly: false,
+      expiresAtUtc: null,
+      createdAtUtc: '2026-09-14T12:00:00Z',
+      lastUsedAtUtc: null,
+      isRevoked: false,
+    }]
+    const tree = await renderProfileScreen()
+
+    const keyRow = findRowByLabel(tree, 'Work key')
+    expect(keyRow.props.value).toBe('orb_live_1234…')
+    const revoke = tree.root.findByProps({
+      accessibilityRole: 'button',
+      accessibilityLabel: 'profile.apiKeys.revokeNamed',
+    })
+    TestRenderer.act(() => revoke.props.onPress())
+    expect(
+      tree.root.findAll((node: { type: unknown; props: { title?: string } }) =>
+        node.type === 'SheetStub' && node.props.title === 'profile.apiKeys.revokeNamedQuestion'),
+    ).toHaveLength(1)
+  })
+
+  it('resets scoped creation after cancellation and successful creation', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockStepUpVerified.current = true
+    mockApiClient
+      .mockRejectedValueOnce(new Error('failed'))
+      .mockResolvedValueOnce({ id: 'key-2', key: 'orb_secret' })
+    const tree = await renderProfileScreen()
+
+    await TestRenderer.act(async () => {
+      findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress()
+      await Promise.resolve()
+    })
+    const firstInput = tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' })
+    await TestRenderer.act(async () => {
+      firstInput.props.onChangeText('stale:scope')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      findButtonByText(tree, 'profile.apiKeys.scopeAction').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(nodeText(tree.root)).toContain('orbitMcp.createKeyError')
+    TestRenderer.act(() => findButtonByText(tree, 'common.cancel').props.onPress())
+
+    TestRenderer.act(() => findButtonByText(tree, 'profile.apiKeys.createScoped').props.onPress())
+    expect(tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.value).toBe('')
+    expect(nodeText(tree.root)).not.toContain('orbitMcp.createKeyError')
+    await TestRenderer.act(async () => {
+      tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('fresh:scope')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      findButtonByText(tree, 'profile.apiKeys.scopeAction').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(nodeText(tree.root)).toContain('orb_secret')
+    TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.done').props.onPress())
+
+    tree.unmount()
+    mockCreateGrant.consumed = false
+    const secondTree = await renderProfileScreen()
+    TestRenderer.act(() => findButtonByText(secondTree, 'profile.apiKeys.createScoped').props.onPress())
+    expect(secondTree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.value).toBe('')
+  })
+
+  it('requires a fresh verified grant before creating a second key', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockStepUpVerified.current = true
+    const createdKeys = [
+      { id: 'key-1', key: 'orb_first' },
+      { id: 'key-2', key: 'orb_second' },
+    ]
+    mockApiClient.mockImplementation((endpoint: string) =>
+      Promise.resolve(endpoint === API.apiKeys.create ? createdKeys.shift() : undefined))
+    const tree = await renderProfileScreen()
+
+    await TestRenderer.act(async () => {
+      findButtonByText(tree, 'profile.apiKeys.create').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.copy').props.onPress())
+    expect(nodeText(tree.root)).toContain('orbitMcp.copied')
+    TestRenderer.act(() => findButtonByText(tree, 'orbitMcp.done').props.onPress())
+
+    await TestRenderer.act(async () => {
+      findButtonByText(tree, 'profile.apiKeys.create').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/step-up?operation=keys')
+    expect(mockApiClient.mock.calls.filter(([endpoint]) => endpoint === API.apiKeys.create)).toHaveLength(1)
+
+    tree.unmount()
+    mockStepUpVerified.current = true
+    mockCreateGrant.consumed = false
+    const secondTree = await renderProfileScreen()
+    await TestRenderer.act(async () => {
+      findButtonByText(secondTree, 'profile.apiKeys.create').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(nodeText(secondTree.root)).toContain('orb_second')
+    expect(nodeText(secondTree.root)).toContain('orbitMcp.copy')
+  })
+
+  it('restarts step up when the API rejects a stale create grant', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockStepUpVerified.current = true
+    mockApiClient
+      .mockRejectedValueOnce(createApiClientError(428, {
+        error: 'Confirm the emailed code before creating an API key.',
+        errorCode: 'API_KEY_CREATION_CHALLENGE_REQUIRED',
+      }, 'Challenge required'))
+      .mockResolvedValueOnce(undefined)
+    const tree = await renderProfileScreen()
+
+    await TestRenderer.act(async () => {
+      findButtonByText(tree, 'profile.apiKeys.create').props.onPress()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/step-up?operation=keys')
+    expect(mockCreateGrant.consumed).toBe(true)
+    expect(nodeText(tree.root)).not.toContain('orbitMcp.createKeyError')
   })
 
   it('shows trial copy and routes its allowance action to the trial pitch', async () => {
@@ -758,27 +1143,71 @@ describe('ProfileScreen', () => {
 
   it('redirects gated feature rows to upgrade for free users', async () => {
     const tree = await renderProfileScreen()
+    const calendarRow = findRowByLabel(tree, 'calendar.profileButton')
 
     await TestRenderer.act(async () => {
-      findRowByLabel(tree, 'calendar.profileButton').props.onPress?.()
+      calendarRow.props.onPress?.()
       await Promise.resolve()
     })
 
+    expect(calendarRow.props.chevron).toBe(false)
+    expect(calendarRow.props.hasTrailing).toBe(true)
+    expect(calendarRow.props.accessibilityRole).toBe('button')
+    expect(calendarRow.props.onPress).toEqual(expect.any(Function))
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/upgrade',
       params: { from: '/profile' },
     })
   })
 
-  it('navigates directly to ungated feature rows', async () => {
+  it('routes every More of Orbit row', async () => {
     const tree = await renderProfileScreen()
 
     await TestRenderer.act(async () => {
       findRowByLabel(tree, 'profile.wrappedTitle').props.onPress?.()
       await Promise.resolve()
     })
-
     expect(mockRouterPush).toHaveBeenCalledWith('/wrapped')
+    mockRouterPush.mockClear()
+
+    await TestRenderer.act(async () => {
+      findRowByLabel(tree, 'profile.widgetTitle').props.onPress?.()
+      await Promise.resolve()
+    })
+    expect(mockRouterPush).toHaveBeenCalledWith('/advanced')
+    mockRouterPush.mockClear()
+
+    await TestRenderer.act(async () => {
+      findRowByLabel(tree, 'profile.support.title').props.onPress?.()
+      await Promise.resolve()
+    })
+    expect(mockRouterPush).toHaveBeenCalledWith('/support')
+    mockRouterPush.mockClear()
+
+    await TestRenderer.act(async () => {
+      findRowByLabel(tree, 'profile.sections.aboutHelp').props.onPress?.()
+      await Promise.resolve()
+    })
+    expect(mockRouterPush).toHaveBeenCalledWith('/about')
+  })
+
+  it('opens calendar sync directly for Pro', async () => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    const tree = await renderProfileScreen()
+    const calendarRow = findRowByLabel(tree, 'calendar.profileButton')
+
+    await TestRenderer.act(async () => {
+      calendarRow.props.onPress?.()
+      await Promise.resolve()
+    })
+
+    expect(calendarRow.props.chevron).toBe(true)
+    expect(calendarRow.props.hasTrailing).toBe(false)
+    expect(mockRouterPush).toHaveBeenCalledWith('/calendar-sync')
   })
 })
 

@@ -15,7 +15,8 @@ vi.mock('@/stores/auth-store', () => ({
   },
 }))
 
-vi.mock('@orbit/shared/utils', () => ({
+vi.mock('@orbit/shared/utils', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@orbit/shared/utils')>()),
   buildClientTimeZoneHeaders: vi.fn(() => ({
     'X-Orbit-Time-Zone': 'America/Sao_Paulo',
   })),

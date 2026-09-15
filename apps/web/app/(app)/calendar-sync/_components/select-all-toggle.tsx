@@ -28,9 +28,9 @@ export function SelectAllToggle({
       title={label}
     >
       {allSelected ? (
-        <SquareX size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+        <SquareX size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
       ) : (
-        <CheckCheck size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+        <CheckCheck size={20} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
       )}
     </button>
   )

@@ -19,17 +19,16 @@ import { ShareCard } from './share-card'
 interface ShareCardPanelProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  displayName?: string
 }
 
 /** Recap share preview: period selector, recap fetch, branded ShareCard, and share or download. */
-export function ShareCardPanel({ open, onOpenChange, displayName }: Readonly<ShareCardPanelProps>) {
+export function ShareCardPanel({ open, onOpenChange }: Readonly<ShareCardPanelProps>) {
   const t = useTranslations()
   const [period, setPeriod] = useState<RecapSharePeriod>('week')
   const { data: recap, isLoading, isError, refetch } = useRecap(period, open)
   const { captureRef, isSharing, hasError, canShareFiles, share, download } = useShareCard()
 
-  const isEmpty = recap ? isRecapShareEmpty(recap.metrics) : false
+  const isEmpty = recap ? isRecapShareEmpty(recap.metrics, recap.goalCompletions) : false
   const showCard = !isLoading && !isError && recap && !isEmpty
 
   function handleShare() {
@@ -64,7 +63,7 @@ export function ShareCardPanel({ open, onOpenChange, displayName }: Readonly<Sha
           <div className="flex flex-col items-center" style={{ gap: 12 }} aria-hidden="true">
             <div
               className="skeleton-pulse w-full rounded-[20px]"
-              style={{ maxWidth: 360, height: 430, background: 'var(--bg-elev-2)' }}
+              style={{ maxWidth: 216, height: 384, background: 'var(--bg-elev-2)' }}
             />
             <div
               className="skeleton-pulse w-full rounded-full"
@@ -100,7 +99,11 @@ export function ShareCardPanel({ open, onOpenChange, displayName }: Readonly<Sha
               style={{ gap: 16 }}
             >
               <div className="flex justify-center">
-                <ShareCard ref={captureRef} recap={recap} displayName={displayName} />
+                <div style={{ width: 216, height: 384, overflow: 'hidden' }}>
+                  <div style={{ transform: 'scale(0.6)', transformOrigin: 'top left' }}>
+                    <ShareCard ref={captureRef} recap={recap} />
+                  </div>
+                </div>
               </div>
 
               {hasError && (

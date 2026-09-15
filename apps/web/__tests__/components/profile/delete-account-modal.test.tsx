@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import en from '@orbit/shared/i18n/en.json'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
@@ -14,8 +15,16 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, params?: Record<string, unknown>) =>
-    params ? `${key}:${JSON.stringify(params)}` : key,
+  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+    const warningKey = key.slice('profile.deleteAccount.'.length)
+    const warning = key.startsWith('profile.deleteAccount.warning')
+      ? Reflect.get(en.profile.deleteAccount, warningKey) as unknown
+      : undefined
+    if (typeof warning === 'string') {
+      return warning.replace(/\{(\w+)\}/g, (_, token: string) => String(params?.[token]))
+    }
+    return params ? `${key}:${JSON.stringify(params)}` : key
+  },
   useLocale: () => 'en',
 }))
 
@@ -75,17 +84,19 @@ describe('DeleteAccountModal', () => {
     mocks.requestDeletion.mockResolvedValue(undefined)
   })
 
-  it('keeps the confirmation and warning as the first gate', () => {
+  it('keeps the cancellation path in the pre-confirmation copy', () => {
     render(<DeleteAccountModal open onOpenChange={mocks.onOpenChange} profile={profile} />)
 
     expect(screen.getByText('profile.deleteAccount.headingAreYouSure')).toBeInTheDocument()
-    expect(screen.getByText('profile.deleteAccount.warningFree')).toBeInTheDocument()
-    expect(screen.getByText('profile.deleteAccount.warningDetail')).toBeInTheDocument()
+    expect(screen.getByText(/time to change your mind/i)).toBeInTheDocument()
+    expect(screen.getByText(en.profile.deleteAccount.warningFree)).toBeInTheDocument()
+    expect(screen.queryByText(en.profile.deleteAccount.warningPro)).not.toBeInTheDocument()
+    expect(screen.getByText(en.profile.deleteAccount.warningDetail)).toBeInTheDocument()
     expect(screen.getByText('profile.deleteAccount.sendCode')).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
-  it('shows the Pro warning with the formatted plan date', () => {
+  it('shows the Pro deletion upper bound without tying it to the plan ending', () => {
     render(
       <DeleteAccountModal
         open
@@ -94,12 +105,52 @@ describe('DeleteAccountModal', () => {
           ...profile,
           plan: 'pro',
           hasProAccess: true,
-          planExpiresAt: '2026-09-30T00:00:00Z',
+          planExpiresAt: '2999-01-01T00:00:00Z',
         }}
       />,
     )
 
-    expect(document.body.textContent).toContain('profile.deleteAccount.warningPro')
+    expect(screen.getByText(/up to 30 days from today/i)).toHaveTextContent(
+      en.profile.deleteAccount.warningPro,
+    )
+    expect(screen.queryByText(/after your plan ends/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(en.profile.deleteAccount.warningFree)).not.toBeInTheDocument()
+  })
+
+  it('shows the Free warning for Pro access without a plan expiry', () => {
+    render(
+      <DeleteAccountModal
+        open
+        onOpenChange={mocks.onOpenChange}
+        profile={{
+          ...profile,
+          plan: 'pro',
+          hasProAccess: true,
+          planExpiresAt: null,
+        }}
+      />,
+    )
+
+    expect(screen.getByText(en.profile.deleteAccount.warningFree)).toBeInTheDocument()
+    expect(screen.queryByText(en.profile.deleteAccount.warningPro)).not.toBeInTheDocument()
+  })
+
+  it('shows the Free warning for Pro access with a past plan expiry', () => {
+    render(
+      <DeleteAccountModal
+        open
+        onOpenChange={mocks.onOpenChange}
+        profile={{
+          ...profile,
+          plan: 'pro',
+          hasProAccess: true,
+          planExpiresAt: '2000-01-01T00:00:00Z',
+        }}
+      />,
+    )
+
+    expect(screen.getByText(en.profile.deleteAccount.warningFree)).toBeInTheDocument()
+    expect(screen.queryByText(en.profile.deleteAccount.warningPro)).not.toBeInTheDocument()
   })
 
   it('persists the send time and routes to the deletion step up screen', async () => {

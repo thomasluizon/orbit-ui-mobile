@@ -59,10 +59,9 @@ const USAGE = `usage: check-calibration.mjs [--root <path>]
     3. each entry's recorded model and effort match what the file declares today, AND its recorded
        digest matches the file's complete normalized content, so rewriting a prompt body invalidates
        the verdict that was written about the old text
-    4. the stamp's workerCommand, workerModel and workerArgs match what launch-worker.mjs actually
-       resolves, taken from resolveWorkerInvocation itself rather than rebuilt here, so workerArgs is
-       the WHOLE argument vector: engine-level args, then the models.default profile args, then the
-       model. Comparing the profile half alone let engine-level tuning move without reseeding
+    4. the stamp's workerCommand and every workerTiers vector match what launch-worker.mjs actually
+       resolves, taken from resolveWorkerInvocation itself rather than rebuilt here. Each args value
+       is the WHOLE vector: engine-level args, then the selected profile args, then the model
     5. EVERY entry's own calibratedAt is a real date, is not in the future, is no older than the
        stamp date, and is at most 90 days old, the backstop for a model alias whose target moved
        without its declared string changing. Per entry rather than stamp-wide, because one date for
@@ -86,24 +85,18 @@ const fail = (code, message) => {
 /** The backstop for a model alias whose target moved without the declared string changing. */
 const MAX_AGE_DAYS = 90
 /**
- * The profile tier `launch-worker.mjs` resolves the implementer from, at `:122`:
- * `resolveWorkerInvocation(engineName, engine, "default")`.
- *
  * The ENGINE is read from `config.worker` rather than hardcoded, because that is what
  * `launch-worker.mjs:115-116` does (`const engineName = config.worker`, then
  * `config.workers[engineName]`). Naming `codex` here would have compared the wrong profile the moment
  * the engine switched, and read a path that no longer exists.
  *
- * The stamp records the RESOLVED argument vector alongside its `model`, because the reasoning effort
- * lives in the args (`model_reasoning_effort="high"`), so a model string that never moves can still
- * have its tuning changed underneath. An args-only edit has to go red too.
+ * The stamp records every RESOLVED argument vector alongside its `model`, because the reasoning
+ * effort lives in the args. A model string that never moves can still have its tuning changed.
  *
  * The whole vector, not the profile half: `resolveWorkerInvocation` launches
  * `[...engine.args, ...profile.args, "--model", model]`, so tuning declared at the ENGINE level is
- * just as load-bearing as tuning declared in the profile. Stamping only `models.default.args` left
- * engine-level effort outside the gate entirely.
+ * just as load-bearing as tuning declared in the profile.
  */
-const AUTHORITATIVE_TIER = "default"
 
 let repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const positional = process.argv.slice(2)
@@ -127,13 +120,23 @@ if (stamp === null || typeof stamp !== "object" || Array.isArray(stamp)) fail(2,
 if (typeof stamp.calibratedAt !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(stamp.calibratedAt)) {
   fail(2, `check-calibration: calibratedAt must be a YYYY-MM-DD date, got ${JSON.stringify(stamp.calibratedAt)}`)
 }
-if (typeof stamp.workerModel !== "string" || stamp.workerModel === "") fail(2, "check-calibration: workerModel must be a non-empty string")
 if (typeof stamp.workerEngine !== "string" || stamp.workerEngine === "") fail(2, "check-calibration: workerEngine must be a non-empty string")
 if (typeof stamp.workerCommand !== "string" || stamp.workerCommand === "") {
   fail(2, "check-calibration: workerCommand must be a non-empty string, because the executable is what actually runs the work")
 }
-if (!Array.isArray(stamp.workerArgs) || stamp.workerArgs.some((argument) => typeof argument !== "string")) {
-  fail(2, "check-calibration: workerArgs must be an array of strings, because it is the resolved launch vector and the reasoning effort lives in it")
+if (stamp.workerTiers === null || typeof stamp.workerTiers !== "object" || Array.isArray(stamp.workerTiers)) {
+  fail(2, "check-calibration: workerTiers must be an object keyed by configured tier")
+}
+for (const [tier, profile] of Object.entries(stamp.workerTiers)) {
+  if (profile === null || typeof profile !== "object" || Array.isArray(profile) || typeof profile.model !== "string" || profile.model === "") {
+    fail(2, `check-calibration: workerTiers.${tier}.model must be a non-empty string`)
+  }
+  if (!Array.isArray(profile.args) || profile.args.some((argument) => typeof argument !== "string")) {
+    fail(2, `check-calibration: workerTiers.${tier}.args must be an array of strings`)
+  }
+}
+if (typeof stamp.workerTierVerdict !== "string" || stamp.workerTierVerdict.trim() === "") {
+  fail(2, "check-calibration: workerTierVerdict must name which orders use each tier")
 }
 if (stamp.entries === null || typeof stamp.entries !== "object" || Array.isArray(stamp.entries)) {
   fail(2, "check-calibration: entries must be an object keyed by repository-relative path")
@@ -253,20 +256,22 @@ if (typeof configuredEngine !== "string" || configuredEngine === "") {
   fail(2, "check-calibration: .claude/orchestrator.json declares no `worker`, so there is no engine to resolve the implementer profile from")
 }
 /**
- * Resolved by the CANONICAL resolver, never rebuilt here. `resolveWorkerInvocation` prepends the
- * engine's own args before the profile's, so reading `models.default.args` alone stamped half of what
- * launches: an engine-level `-c model_reasoning_effort="low"` beside an empty profile args array left
- * this gate green while every worker launched at low effort. A gate that cannot see the tuning it
- * exists to pin is the gate-that-cannot-fail this tool was written to undo.
+ * Resolved by the CANONICAL resolver, never rebuilt here. Every configured tier is stamped because
+ * either can now launch a worker, and omitting one would let its effort drift without failing CI.
  */
-let configuredInvocation
+const configuredTierNames = Object.keys(orchestrator?.workers?.[configuredEngine]?.models ?? {}).sort()
+const configuredTiers = {}
 try {
-  configuredInvocation = resolveWorkerInvocation(configuredEngine, orchestrator?.workers?.[configuredEngine], AUTHORITATIVE_TIER)
+  if (configuredTierNames.length === 0) {
+    resolveWorkerInvocation(configuredEngine, orchestrator?.workers?.[configuredEngine])
+  }
+  for (const tier of configuredTierNames) {
+    const invocation = resolveWorkerInvocation(configuredEngine, orchestrator?.workers?.[configuredEngine], tier)
+    configuredTiers[tier] = { model: invocation.model, args: invocation.args }
+  }
 } catch (error) {
   fail(2, `check-calibration: ${error.message}, so the model-match assertion has nothing to compare against`)
 }
-const configuredModel = configuredInvocation.model
-const configuredArgs = configuredInvocation.args
 /**
  * The EXECUTABLE, which `resolveWorkerInvocation` does not return: `launch-worker.mjs:194` spawns
  * `engine.command` and the invocation only describes what is passed TO it. Swapping that command while
@@ -280,13 +285,20 @@ if (stamp.workerEngine !== configuredEngine) {
 if (stamp.workerCommand !== configuredCommand) {
   problems.push(`the worker command is ${JSON.stringify(configuredCommand ?? null)} and the stamp was taken against ${JSON.stringify(stamp.workerCommand)}; a different executable is a different implementer, so recalibrate`)
 }
-if (stamp.workerModel !== configuredModel) {
-  problems.push(`the worker model is ${configuredModel} and the stamp was taken against ${stamp.workerModel}; recalibrate in the same pull request that moved it`)
+const stampedTierNames = Object.keys(stamp.workerTiers).sort()
+if (JSON.stringify(stampedTierNames) !== JSON.stringify(configuredTierNames)) {
+  problems.push(`the configured worker tiers are ${configuredTierNames.join(", ") || "none"} and the stamp names ${stampedTierNames.join(", ") || "none"}; recalibrate every selectable launch vector`)
 }
-if (JSON.stringify(stamp.workerArgs) !== JSON.stringify(configuredArgs)) {
-  problems.push(
-    `the worker args are ${JSON.stringify(configuredArgs)} and the stamp was taken against ${JSON.stringify(stamp.workerArgs)}; this is the whole resolved launch vector, engine args included, so an args-only change decays the tuning exactly like a model change`,
-  )
+for (const tier of configuredTierNames) {
+  const configured = configuredTiers[tier]
+  const stamped = stamp.workerTiers[tier]
+  if (!stamped) continue
+  if (stamped.model !== configured.model) {
+    problems.push(`the ${tier} tier worker model is ${configured.model} and the stamp was taken against ${stamped.model}; recalibrate in the same pull request that moved it`)
+  }
+  if (JSON.stringify(stamped.args) !== JSON.stringify(configured.args)) {
+    problems.push(`the ${tier} tier worker args are ${JSON.stringify(configured.args)} and the stamp was taken against ${JSON.stringify(stamped.args)}; this is the whole resolved launch vector, engine args included`)
+  }
 }
 
 /**
@@ -354,5 +366,5 @@ if (problems.length > 0) {
 
 const oldestVerdictAge = Object.values(stamp.entries).reduce((oldest, entry) => Math.max(oldest, ageInDays(entry.calibratedAt, "entry calibratedAt")), 0)
 console.log(
-  `check-calibration: ${files.length} calibrated file(s) stamped ${stamp.calibratedAt} against ${configuredEngine} ${configuredModel} ${JSON.stringify(configuredArgs)}, oldest verdict ${oldestVerdictAge} day(s) old.`,
+  `check-calibration: ${files.length} calibrated file(s) stamped ${stamp.calibratedAt} against ${configuredEngine} tiers ${configuredTierNames.join(", ")}, oldest verdict ${oldestVerdictAge} day(s) old.`,
 )

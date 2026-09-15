@@ -1,9 +1,10 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { Worker } from "node:worker_threads"
 
 import { T, root } from "./_harness.mjs"
 
-const { clearWakeSource, readRunState, readWakeSources, registerWakeSource, runStatePath, wakeSourceDirectory, writeRunState } = await import("../lib/run-state.mjs")
+const { clearWakeSource, readRunState, readWakeSources, readWorkerLaunches, registerWakeSource, reserveWorkerLaunch, runStatePath, wakeSourceDirectory, workerLaunchDirectory, writeRunState } = await import("../lib/run-state.mjs")
 
 const TOOL = "lib/run-state.mjs"
 
@@ -14,7 +15,97 @@ const stageCheckout = (label) => {
   return repoRoot
 }
 
-export const cases = () => {
+const reserveTogether = (moduleUrl, repoRoot, launch, cap) => {
+  const signal = new SharedArrayBuffer(2 * Int32Array.BYTES_PER_ELEMENT)
+  const workerSource = `
+const fs = require("node:fs")
+const { syncBuiltinESMExports } = require("node:module")
+const { parentPort, workerData } = require("node:worker_threads")
+const signal = new Int32Array(workerData.signal)
+const originalOpenSync = fs.openSync
+let synchronized = false
+fs.openSync = (...args) => {
+  if (!synchronized && String(args[0]).includes("orbit-worker-launches") && args[1] === "wx") {
+    synchronized = true
+    if (Atomics.add(signal, 0, 1) + 1 === 2) {
+      Atomics.store(signal, 1, 1)
+      Atomics.notify(signal, 1, 2)
+    } else {
+      while (Atomics.load(signal, 1) === 0) Atomics.wait(signal, 1, 0)
+    }
+  }
+  return originalOpenSync(...args)
+}
+syncBuiltinESMExports()
+import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
+  parentPort.postMessage(reserveWorkerLaunch(workerData.launch, workerData.cap, workerData.repoRoot))
+})
+`
+  return Promise.all([1, 2].map((index) => new Promise((resolve, reject) => {
+    const worker = new Worker(workerSource, {
+      eval: true,
+      execArgv: [],
+      workerData: {
+        signal,
+        moduleUrl,
+        repoRoot,
+        cap,
+        launch: { ...launch, timestamp: `2026-09-14T00:0${index}:00.000Z` },
+      },
+    })
+    worker.once("message", resolve)
+    worker.once("error", reject)
+  })))
+}
+
+const reserveAfterLaterReturns = (moduleUrl, repoRoot, launch) => {
+  const signal = new SharedArrayBuffer(2 * Int32Array.BYTES_PER_ELEMENT)
+  const workerSource = `
+const fs = require("node:fs")
+const { syncBuiltinESMExports } = require("node:module")
+const { parentPort, workerData } = require("node:worker_threads")
+const signal = new Int32Array(workerData.signal)
+if (workerData.earlier) {
+  const originalOpenSync = fs.openSync
+  fs.openSync = (...args) => {
+    if (String(args[0]).includes("orbit-worker-launches") && args[1] === "wx") {
+      Atomics.store(signal, 0, 1)
+      Atomics.notify(signal, 0)
+      while (Atomics.load(signal, 1) === 0) Atomics.wait(signal, 1, 0)
+    }
+    return originalOpenSync(...args)
+  }
+  syncBuiltinESMExports()
+} else {
+  while (Atomics.load(signal, 0) === 0) Atomics.wait(signal, 0, 0)
+}
+import(workerData.moduleUrl).then(({ reserveWorkerLaunch }) => {
+  const reservation = reserveWorkerLaunch(workerData.launch, 1, workerData.repoRoot)
+  if (!workerData.earlier) {
+    Atomics.store(signal, 1, 1)
+    Atomics.notify(signal, 1)
+  }
+  parentPort.postMessage(reservation)
+})
+`
+  return Promise.all([true, false].map((earlier) => new Promise((resolve, reject) => {
+    const worker = new Worker(workerSource, {
+      eval: true,
+      execArgv: [],
+      workerData: {
+        signal,
+        moduleUrl,
+        repoRoot,
+        earlier,
+        launch: { ...launch, timestamp: earlier ? "2026-09-14T00:01:00.000Z" : "2026-09-14T00:02:00.000Z" },
+      },
+    })
+    worker.once("message", resolve)
+    worker.once("error", reject)
+  })))
+}
+
+export const cases = async () => {
   const repoRoot = stageCheckout("basic")
   T(`${TOOL}: no run has written a record, so there is no state and no wake source`, readRunState(repoRoot) === null && readWakeSources(repoRoot).length === 0)
 
@@ -59,6 +150,49 @@ export const cases = () => {
   writeRunState({ sessionId: "s2", sleep: true, remaining: ["ORB-9"], pullRequests: [] }, repoRoot)
   T(`${TOOL}: a new session starts with a fresh readiness ledger`, readRunState(repoRoot)?.readinessLedger?.length === 0, JSON.stringify(readRunState(repoRoot)))
 
+  const launch = { repositoryKey: "ui", branch: "chore/test", headSha: "a".repeat(40), tier: "default", timestamp: "2026-09-14T00:00:00.000Z", relaunchReason: null }
+  const firstReservation = reserveWorkerLaunch(launch, 1, repoRoot)
+  const refusedReservation = reserveWorkerLaunch({ ...launch, timestamp: "2026-09-14T00:01:00.000Z" }, 1, repoRoot)
+  const reasonedReservation = reserveWorkerLaunch({ ...launch, timestamp: "2026-09-14T00:02:00.000Z", relaunchReason: "known conflict list" }, 1, repoRoot)
+  T(
+    `${TOOL}: the worker ledger records below-cap launches, refuses the cap, and records a deliberate override`,
+    firstReservation.allowed && !refusedReservation.allowed && reasonedReservation.allowed &&
+      readWorkerLaunches(repoRoot).length === 2 &&
+      readWorkerLaunches(repoRoot)[1].relaunchReason === "known conflict list" &&
+      existsSync(workerLaunchDirectory(repoRoot)),
+    JSON.stringify(readWorkerLaunches(repoRoot)),
+  )
+
+  const raceRoot = stageCheckout("launch-race")
+  const racingReservations = await reserveTogether(new URL("../lib/run-state.mjs", import.meta.url).href, raceRoot, launch, 1)
+  const raceLedger = readWorkerLaunches(raceRoot)
+  T(
+    `${TOOL}: simultaneous reservations admit exactly one launch and retain its record`,
+    racingReservations.filter((reservation) => reservation.allowed).length === 1 && raceLedger.length === 1,
+    JSON.stringify({ racingReservations, raceLedger }),
+  )
+
+  const freeSlotRoot = stageCheckout("launch-race-free-slot")
+  reserveWorkerLaunch(launch, 2, freeSlotRoot)
+  const contenders = await reserveTogether(new URL("../lib/run-state.mjs", import.meta.url).href, freeSlotRoot, launch, 2)
+  const freeSlotLedger = readWorkerLaunches(freeSlotRoot)
+  T(
+    `${TOOL}: simultaneous contenders use the one free slot instead of both yielding it`,
+    contenders.filter((reservation) => reservation.allowed).length === 1 &&
+      contenders.filter((reservation) => !reservation.allowed).length === 1 &&
+      freeSlotLedger.length === 2,
+    JSON.stringify({ contenders, freeSlotLedger }),
+  )
+
+  const delayedCreateRoot = stageCheckout("launch-race-delayed-create")
+  const delayedCreateReservations = await reserveAfterLaterReturns(new URL("../lib/run-state.mjs", import.meta.url).href, delayedCreateRoot, launch)
+  const delayedCreateLedger = readWorkerLaunches(delayedCreateRoot)
+  T(
+    `${TOOL}: a contender returning before an earlier contender creates cannot exceed the cap`,
+    delayedCreateReservations.filter((reservation) => reservation.allowed).length === 1 && delayedCreateLedger.length === 1,
+    JSON.stringify({ delayedCreateReservations, delayedCreateLedger }),
+  )
+
   registerWakeSource({ pid: process.pid, what: "worker ORB-1" }, repoRoot)
   registerWakeSource({ pid: process.ppid, what: "worker ORB-2" }, repoRoot)
   T(
@@ -100,6 +234,7 @@ export const cases = () => {
   try {
     registerWakeSource({ pid: 5252, what: "worker ORB-9" }, notADirectory)
     clearWakeSource(5252, notADirectory)
+    reserveWorkerLaunch(launch, 1, notADirectory)
   } catch {
     threw = true
   }

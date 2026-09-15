@@ -1,11 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { calendarKeys } from '@orbit/shared/query'
 import React from 'react'
 import { usePreferenceControls } from '@/app/(app)/preferences/_components/use-preference-controls'
+import { useCalendarEvents } from '@/hooks/use-calendar-events'
 
 const mockPatchProfile = vi.fn()
 const mockApplyTheme = vi.fn()
+const mockFetch = vi.fn()
+
+vi.stubGlobal('fetch', mockFetch)
 
 const profileRef = vi.hoisted(() => ({
   value: {} as { hasProAccess: boolean; weekStartDay: 0 | 1; colorScheme: string; timeZone: string } | undefined,
@@ -43,9 +48,31 @@ function wrapper({ children }: { children: React.ReactNode }) {
   return React.createElement(QueryClientProvider, { client: queryClient }, children)
 }
 
+function wrapperFor(queryClient: QueryClient) {
+  return function QueryWrapper({ children }: { children: React.ReactNode }) {
+    return React.createElement(QueryClientProvider, { client: queryClient }, children)
+  }
+}
+
+function calendarEvent(startDate: string) {
+  return {
+    id: 'meeting',
+    title: 'Meeting',
+    description: null,
+    startDate,
+    startTime: '00:30',
+    endTime: '01:00',
+    isRecurring: false,
+    recurrenceRule: null,
+    reminders: [],
+  }
+}
+
 describe('usePreferenceControls', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockFetch.mockReset()
+    mockPatchProfile.mockReset()
     localStorage.clear()
     profileRef.value = { hasProAccess: true, weekStartDay: 0, colorScheme: 'purple', timeZone: 'UTC' }
     authRef.isAuthenticated = true
@@ -145,6 +172,69 @@ describe('usePreferenceControls', () => {
 
     expect(mockPatchProfile).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
     expect(updateTimezone).toHaveBeenCalledWith({ timeZone: 'America/Sao_Paulo' })
+  })
+
+  it('refetches every calendar event timezone after the timezone write settles', async () => {
+    const { updateTimezone } = await import('@/app/actions/profile')
+    let settleTimezoneWrite!: () => void
+    vi.mocked(updateTimezone).mockReturnValue(
+      new Promise((resolve) => {
+        settleTimezoneWrite = () => resolve(undefined)
+      }),
+    )
+    mockPatchProfile.mockImplementation((patch: { timeZone: string }) => {
+      profileRef.value = { ...profileRef.value!, ...patch }
+    })
+    let resolveOptimisticRequest!: (response: Response) => void
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve([calendarEvent('2026-09-13')]),
+      })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveOptimisticRequest = resolve
+        }),
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve([calendarEvent('2026-09-12')]),
+      })
+    const queryClient = new QueryClient({
+      defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
+    })
+    const { result, rerender } = renderHook(
+      () => ({
+        controls: usePreferenceControls(),
+        events: useCalendarEvents({ timeZone: profileRef.value?.timeZone ?? null }),
+      }),
+      { wrapper: wrapperFor(queryClient) },
+    )
+    await waitFor(() => expect(result.current.events.data?.status).toBe('connected'))
+
+    act(() => result.current.controls.timeZoneMutation.mutate('America/Los_Angeles'))
+    await waitFor(() => expect(profileRef.value?.timeZone).toBe('America/Los_Angeles'))
+    rerender()
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2))
+
+    settleTimezoneWrite()
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(3))
+    resolveOptimisticRequest({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve([calendarEvent('2026-09-13')]),
+    } as Response)
+    await waitFor(() => {
+      if (result.current.events.data?.status === 'connected') {
+        expect(result.current.events.data.events[0]?.startDate).toBe('2026-09-12')
+      }
+    })
+    expect(
+      queryClient.getQueryState([...calendarKeys.all, 'manual-fetch', 'UTC'])?.isInvalidated,
+    ).toBe(true)
   })
 
   it('ignores a theme change to the already-active mode', () => {

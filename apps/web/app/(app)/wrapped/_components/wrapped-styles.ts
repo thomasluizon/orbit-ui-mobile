@@ -48,28 +48,26 @@ export const titleStyle: CSSProperties = {
 
 export const coverTitleStyle: CSSProperties = {
   fontFamily: 'var(--font-display)',
-  fontSize: 44,
+  fontSize: 34,
   lineHeight: 1.1,
-  fontWeight: 700,
-  letterSpacing: '-0.02em',
+  fontWeight: 500,
+  letterSpacing: '-0.03em',
   color: 'var(--fg-1)',
-  textWrap: 'balance',
+  textWrap: 'pretty',
 }
 
 export const coverSubtitleStyle: CSSProperties = {
   fontFamily: 'var(--font-sans)',
-  fontSize: 14,
-  color: 'var(--fg-2)',
-  maxWidth: 300,
+  fontSize: 16,
+  lineHeight: 1.55,
+  color: 'var(--fg-3)',
   textWrap: 'pretty',
 }
 
-export const dayLabelStyle: CSSProperties = {
+export const coverEyebrowStyle: CSSProperties = {
   fontFamily: 'var(--font-mono)',
   fontSize: 12,
-  fontWeight: 400,
-  letterSpacing: '0.02em',
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
   color: 'var(--fg-3)',
-  fontVariantNumeric: 'tabular-nums',
-  textAlign: 'center',
 }
