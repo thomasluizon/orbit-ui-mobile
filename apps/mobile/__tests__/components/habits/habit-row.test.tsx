@@ -153,6 +153,35 @@ describe('HabitRow menu (mobile)', () => {
     })
   })
 
+  it('keeps the full select-mode card inside the selection target', () => {
+    const onToggleSelection = vi.fn()
+    let renderer: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      renderer = TestRenderer.create(
+        <HabitRow
+          habit={createMockHabit({ title: 'Read', linkedGoals: [] })}
+          isSelectMode
+          actions={{ onToggleSelection }}
+        />,
+      )
+    })
+    const rowBody = getRowBody(renderer)
+    const rowCard = getRowCard(renderer)
+
+    expect(resolveStyle(rowBody.props.style)).toMatchObject({
+      flex: 1,
+      paddingRight: 16,
+    })
+    expect(resolveStyle(rowCard.props.style).paddingRight).toBe(0)
+    expect(rowCard.children).toHaveLength(1)
+
+    TestRenderer.act(() => {
+      ;(rowBody.props.onPress as () => void)()
+    })
+
+    expect(onToggleSelection).toHaveBeenCalledOnce()
+  })
+
   it('keeps the menu press target outside the row press target', () => {
     const onDetail = vi.fn()
     const onLongPressCard = vi.fn()

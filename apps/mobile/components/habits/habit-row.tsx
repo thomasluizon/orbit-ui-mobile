@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import {
   Pressable,
   View,
@@ -53,6 +53,26 @@ export interface HabitRowActions {
 
 const EMPTY_HABIT_ROW_ACTIONS: HabitRowActions = {}
 const HABIT_ROW_MARGIN_BOTTOM = 10
+
+function resolveTrailingLayout(
+  isSelectMode: boolean,
+  trailingContent: ReactNode,
+) {
+  if (isSelectMode) {
+    return {
+      cardPaddingRight: 0,
+      bodyPaddingRight: 16,
+      bodyTrailingContent: trailingContent,
+      siblingTrailingContent: null,
+    }
+  }
+  return {
+    cardPaddingRight: 16,
+    bodyPaddingRight: 0,
+    bodyTrailingContent: null,
+    siblingTrailingContent: trailingContent,
+  }
+}
 
 interface HabitRowProps {
   habit: NormalizedHabit
@@ -179,6 +199,26 @@ export function HabitRow({
   )
 
   const indentPx = depth * 16
+  const trailingContent = (
+    <HabitRowTrailing
+      habit={habit}
+      isSelectMode={isSelectMode}
+      hasChildren={hasChildren}
+      childrenDone={childrenDone}
+      childrenTotal={childrenTotal}
+      linkedGoal={linkedGoal}
+      isDoneForRange={isDoneForRange}
+      canLog={canLog}
+      dotState={dotState}
+      hasMenuActions={hasMenuActions}
+      menuButtonRef={menuButtonRef}
+      actions={actions}
+      tokens={tokens}
+      onToggleStatus={handleToggleStatus}
+      onOpenMenu={openMenu}
+    />
+  )
+  const trailingLayout = resolveTrailingLayout(isSelectMode, trailingContent)
 
   return (
     <View style={style}>
@@ -197,7 +237,7 @@ export function HabitRow({
             marginBottom: HABIT_ROW_MARGIN_BOTTOM,
             paddingVertical: 0,
             paddingHorizontal: 0,
-            paddingRight: 16,
+            paddingRight: trailingLayout.cardPaddingRight,
           },
           rowPressed ? styles.rowPressed : null,
         ]}
@@ -217,7 +257,7 @@ export function HabitRow({
             {
               flex: 1,
               minWidth: 0,
-              paddingRight: 0,
+              paddingRight: trailingLayout.bodyPaddingRight,
               borderWidth: 0,
               borderRadius: 0,
             },
@@ -248,25 +288,10 @@ export function HabitRow({
             streak={streak}
             tokens={tokens}
           />
+          {trailingLayout.bodyTrailingContent}
         </Pressable>
 
-        <HabitRowTrailing
-          habit={habit}
-          isSelectMode={isSelectMode}
-          hasChildren={hasChildren}
-          childrenDone={childrenDone}
-          childrenTotal={childrenTotal}
-          linkedGoal={linkedGoal}
-          isDoneForRange={isDoneForRange}
-          canLog={canLog}
-          dotState={dotState}
-          hasMenuActions={hasMenuActions}
-          menuButtonRef={menuButtonRef}
-          actions={actions}
-          tokens={tokens}
-          onToggleStatus={handleToggleStatus}
-          onOpenMenu={openMenu}
-        />
+        {trailingLayout.siblingTrailingContent}
       </View>
 
       {hasMenuActions ? (
