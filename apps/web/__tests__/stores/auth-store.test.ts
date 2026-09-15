@@ -11,6 +11,7 @@ describe('auth store', () => {
       isAuthenticated: false,
       user: null,
       expiresAt: null,
+      sessionRefreshFailed: false,
     })
     mockFetch.mockReset()
     mockFetch.mockResolvedValue({
@@ -60,6 +61,20 @@ describe('auth store', () => {
       isAuthenticated: false,
       user: null,
       expiresAt: null,
+      sessionRefreshFailed: false,
+    })
+  })
+
+  it('marks the session as signed out after a refresh failure', () => {
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    useAuthStore.getState().markSessionRefreshFailed()
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      user: null,
+      expiresAt: null,
+      sessionRefreshFailed: true,
     })
   })
 
@@ -76,6 +91,7 @@ describe('auth store', () => {
     expect(useAuthStore.getState()).toMatchObject({
       isAuthenticated: true,
       expiresAt,
+      sessionRefreshFailed: false,
     })
   })
 
@@ -92,6 +108,7 @@ describe('auth store', () => {
       isAuthenticated: false,
       user: null,
       expiresAt: null,
+      sessionRefreshFailed: false,
     })
   })
 
@@ -111,7 +128,7 @@ describe('auth store', () => {
     mockFetch.mockResolvedValue({
       ok: false,
       status: 401,
-      json: () => Promise.resolve({ expiresAt: null }),
+      json: () => Promise.resolve({ expiresAt: null, refreshFailed: true }),
     })
     useAuthStore.getState().setAuth(makeLoginResponse())
 
@@ -121,6 +138,7 @@ describe('auth store', () => {
       isAuthenticated: false,
       user: null,
       expiresAt: null,
+      sessionRefreshFailed: true,
     })
   })
 

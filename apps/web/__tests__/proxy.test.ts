@@ -135,6 +135,7 @@ describe('proxy', () => {
       token: null,
       expiresAt: null,
       refreshed: false,
+      refreshFailed: false,
     })
 
     await proxy(createRequest('/habits'))
@@ -156,6 +157,7 @@ describe('proxy', () => {
         token: 'fresh-token',
         expiresAt: Date.now() + 3600000,
         refreshed: true,
+        refreshFailed: false,
       }
     })
 
@@ -176,6 +178,7 @@ describe('proxy', () => {
       token: 'valid-token',
       expiresAt: Date.now() + 3600000,
       refreshed: false,
+      refreshFailed: false,
     })
 
     await proxy(createRequest('/login', {

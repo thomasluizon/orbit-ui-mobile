@@ -13,7 +13,7 @@ import type { ZodType } from 'zod'
  * Centralized API fetch with error categorization.
  *
  * Handles:
- * - 401: auto-logout (no toast)
+ * - 401: expose the failed-refresh sign-in state (no toast)
  * - 403 PAY_GATE: redirect to /upgrade (no toast)
  * - 403 other (e.g. NO_PERMISSION) + 400/404/409/429/5xx: categorized error toast
  */
@@ -71,7 +71,7 @@ async function getStatusError(
 ): Promise<ApiError | null> {
   if (status === 401) {
     const { useAuthStore } = await import('@/stores/auth-store')
-    void useAuthStore.getState().logout()
+    useAuthStore.getState().markSessionRefreshFailed()
     return new ApiError(status, 'Unauthorized', body)
   }
 

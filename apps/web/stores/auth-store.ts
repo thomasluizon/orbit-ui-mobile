@@ -8,8 +8,10 @@ interface AuthState {
   isAuthenticated: boolean
   user: User | null
   expiresAt: number | null
+  sessionRefreshFailed: boolean
 
   setAuth: (loginResponse: LoginResponse) => void
+  markSessionRefreshFailed: () => void
   checkSession: () => Promise<void>
   startExpiryMonitor: () => () => void
   logout: () => Promise<void>
@@ -19,6 +21,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   user: null,
   expiresAt: null,
+  sessionRefreshFailed: false,
 
   setAuth: (loginResponse: LoginResponse) => {
     set({
@@ -28,6 +31,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         name: loginResponse.name,
         email: loginResponse.email,
       },
+      sessionRefreshFailed: false,
+    })
+  },
+
+  markSessionRefreshFailed: () => {
+    set({
+      isAuthenticated: false,
+      user: null,
+      expiresAt: null,
+      sessionRefreshFailed: true,
     })
   },
 
@@ -40,7 +53,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     if (response.status === 401 || response.status === 403) {
-      set({ isAuthenticated: false, user: null, expiresAt: null })
+      const session = (await response.json().catch(() => null)) as {
+        refreshFailed?: boolean
+      } | null
+      set({
+        isAuthenticated: false,
+        user: null,
+        expiresAt: null,
+        sessionRefreshFailed: session?.refreshFailed === true,
+      })
       return
     }
 
@@ -48,11 +69,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
 
-    const data = (await response.json()) as { expiresAt: number | null }
+    const data = (await response.json()) as {
+      expiresAt: number | null
+      refreshFailed?: boolean
+    }
     if (data.expiresAt) {
-      set({ isAuthenticated: true, expiresAt: data.expiresAt })
+      set({
+        isAuthenticated: true,
+        expiresAt: data.expiresAt,
+        sessionRefreshFailed: false,
+      })
     } else {
-      set({ isAuthenticated: false, user: null, expiresAt: null })
+      set({
+        isAuthenticated: false,
+        user: null,
+        expiresAt: null,
+        sessionRefreshFailed: data.refreshFailed === true,
+      })
     }
   },
 
@@ -77,7 +110,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {
     }
 
-    set({ isAuthenticated: false, user: null, expiresAt: null })
+    set({
+      isAuthenticated: false,
+      user: null,
+      expiresAt: null,
+      sessionRefreshFailed: false,
+    })
     useOnboardingDraftStore.getState().reset()
 
     if ('location' in globalThis) {

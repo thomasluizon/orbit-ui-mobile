@@ -21,6 +21,7 @@ describe('subscriptions plans route', () => {
       token: 'token',
       expiresAt: Date.now() + 3600000,
       refreshed: false,
+      refreshFailed: false,
     })
     mockFetch.mockResolvedValue(
       new Response('[]', {

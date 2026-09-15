@@ -1,10 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useAuthStore } from '@/stores/auth-store'
-
-const WARN_AT_MINUTES = 5
 
 const EXPIRY_ACTION_STYLE = {
   minHeight: 44,
@@ -20,40 +18,13 @@ const EXPIRY_ACTION_STYLE = {
 
 export function ExpiryWarning() {
   const t = useTranslations()
-  const { expiresAt, logout } = useAuthStore()
-  const [minutesLeft, setMinutesLeft] = useState<number | null>(null)
-  const [isExpired, setIsExpired] = useState(false)
+  const { sessionRefreshFailed, logout } = useAuthStore()
 
-  useEffect(() => {
-    if (!expiresAt) return
-
-    function check() {
-      const now = Date.now()
-      const remaining = (expiresAt ?? 0) - now
-      const mins = Math.floor(remaining / 60000)
-
-      if (remaining <= 0) {
-        setIsExpired(true)
-        setMinutesLeft(0)
-      } else if (mins <= WARN_AT_MINUTES) {
-        setMinutesLeft(mins)
-        setIsExpired(false)
-      } else {
-        setMinutesLeft(null)
-        setIsExpired(false)
-      }
-    }
-
-    check()
-    const interval = setInterval(check, 30000)
-    return () => clearInterval(interval)
-  }, [expiresAt])
-
-  const handleLogin = useCallback(() => {
+  const handleSignIn = useCallback(() => {
     void logout()
   }, [logout])
 
-  if (minutesLeft === null && !isExpired) return null
+  if (!sessionRefreshFailed) return null
 
   return (
     <div
@@ -82,32 +53,17 @@ export function ExpiryWarning() {
             color: 'var(--fg-2)',
           }}
         >
-          {isExpired ? (
-            <span style={{ color: 'var(--status-overdue-text)' }}>
-              {t('auth.sessionExpired')}
-            </span>
-          ) : (
-            <>
-              {t('auth.sessionExpiringPrefix')}{' '}
-              <span
-                style={{
-                  color: 'var(--status-overdue-text)',
-                  fontFamily: 'var(--font-mono)',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {t('auth.minutesShort', { minutes: minutesLeft ?? 0 })}
-              </span>
-            </>
-          )}
+          <span style={{ color: 'var(--status-overdue-text)' }}>
+            {t('auth.sessionExpired')}
+          </span>
         </span>
         <button
           type="button"
           className="inline-flex appearance-none items-center justify-center border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
-          onClick={handleLogin}
+          onClick={handleSignIn}
           style={EXPIRY_ACTION_STYLE}
         >
-          {isExpired ? t('auth.login') : t('auth.refresh')}
+          {t('auth.login')}
         </button>
       </div>
     </div>

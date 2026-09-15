@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET, PUT } from '@/app/api/[...path]/route'
 import { resolveServerSession } from '@/lib/auth-api'
+import { API } from '@orbit/shared/api'
 
 vi.mock('@/lib/auth-api', () => ({
   resolveServerSession: vi.fn(),
@@ -88,6 +89,7 @@ describe('catch-all API proxy route', () => {
       token: 'initial-token',
       expiresAt: Date.now() + 3600000,
       refreshed: false,
+      refreshFailed: false,
     })
     mockFetch.mockResolvedValue(
       new Response('{"ok":true}', {
@@ -115,11 +117,13 @@ describe('catch-all API proxy route', () => {
         token: 'initial-token',
         expiresAt: Date.now() + 30000,
         refreshed: false,
+        refreshFailed: false,
       })
       .mockResolvedValueOnce({
         token: 'refreshed-token',
         expiresAt: Date.now() + 3600000,
         refreshed: true,
+        refreshFailed: false,
       })
     mockFetch
       .mockResolvedValueOnce(
@@ -158,6 +162,7 @@ describe('catch-all API proxy route', () => {
     expect(response.status).toBe(200)
     expect(await response.text()).toBe('{"ok":true}')
     expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
+    expect(resolveServerSession).toHaveBeenCalledTimes(2)
     expect(resolveServerSession).toHaveBeenNthCalledWith(2, { forceRefresh: true })
     expect(mockFetch).toHaveBeenCalledTimes(2)
     expect(mockFetch).toHaveBeenNthCalledWith(
@@ -193,11 +198,44 @@ describe('catch-all API proxy route', () => {
     )
   })
 
+  it('does not recurse when the proxied refresh endpoint returns 401', async () => {
+    vi.mocked(resolveServerSession)
+      .mockResolvedValueOnce({
+        token: 'stale-token',
+        expiresAt: Date.now() + 30000,
+        refreshed: false,
+        refreshFailed: false,
+      })
+      .mockResolvedValueOnce({
+        token: 'unexpected-token',
+        expiresAt: Date.now() + 3600000,
+        refreshed: true,
+        refreshFailed: false,
+      })
+    mockFetch.mockResolvedValue(
+      new Response('unauthorized', {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+    const proxyPath = API.auth.refresh.replace(/^\/api\//, '')
+    const request = createRequest(proxyPath)
+
+    const response = await GET(request, {
+      params: Promise.resolve({ path: proxyPath.split('/') }),
+    })
+
+    expect(response.status).toBe(401)
+    expect(resolveServerSession).toHaveBeenCalledTimes(1)
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
   it('allows AI metadata routes through the proxy allowlist', async () => {
     vi.mocked(resolveServerSession).mockResolvedValue({
       token: 'initial-token',
       expiresAt: Date.now() + 3600000,
       refreshed: false,
+      refreshFailed: false,
     })
     mockFetch.mockResolvedValue(
       new Response('[]', {
@@ -223,6 +261,7 @@ describe('catch-all API proxy route', () => {
       token: 'initial-token',
       expiresAt: Date.now() + 3600000,
       refreshed: false,
+      refreshFailed: false,
     })
     mockFetch.mockResolvedValue(new Response(null, { status: 204 }))
 

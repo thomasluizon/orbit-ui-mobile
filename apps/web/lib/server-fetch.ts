@@ -1,5 +1,6 @@
 import { resolveServerSession } from '@/lib/auth-api'
 import { createApiClientError } from '@orbit/shared'
+import { API } from '@orbit/shared/api'
 import { APP_VERSION_HEADER, validateApiResponse } from '@orbit/shared/utils'
 import type { ZodType } from 'zod'
 
@@ -39,7 +40,7 @@ export async function serverAuthFetch<T = unknown>(
     headers: buildHeaders(session.token),
   })
 
-  if (res.status === 401) {
+  if (res.status === 401 && path !== API.auth.refresh) {
     session = await resolveServerSession({ forceRefresh: true })
     if (session.token) {
       res = await fetch(`${API_BASE}${path}`, {

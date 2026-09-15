@@ -8,10 +8,12 @@ vi.mock('sonner', () => ({
 }))
 
 const mockLogout = vi.fn()
+const mockMarkSessionRefreshFailed = vi.fn()
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: {
     getState: () => ({
       logout: mockLogout,
+      markSessionRefreshFailed: mockMarkSessionRefreshFailed,
     }),
   },
 }))
@@ -52,6 +54,7 @@ describe('apiFetch', () => {
   beforeEach(() => {
     mockFetch.mockReset()
     mockLogout.mockReset()
+    mockMarkSessionRefreshFailed.mockReset()
     mockMarkUpgradeRequired.mockReset()
     vi.mocked(toast.error).mockReset()
   })
@@ -99,7 +102,7 @@ describe('apiFetch', () => {
     expect(headers.get('X-Orbit-Time-Zone')).toBe('America/Sao_Paulo')
   })
 
-  it('calls logout on 401 without toast', async () => {
+  it('shows the failed-refresh state on 401 without logging out or showing a toast', async () => {
     mockFetch.mockResolvedValue({
       ok: false,
       status: 401,
@@ -107,7 +110,8 @@ describe('apiFetch', () => {
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
-    expect(mockLogout).toHaveBeenCalled()
+    expect(mockMarkSessionRefreshFailed).toHaveBeenCalledTimes(1)
+    expect(mockLogout).not.toHaveBeenCalled()
     expect(toast.error).not.toHaveBeenCalled()
   })
 

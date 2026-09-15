@@ -21,6 +21,7 @@ describe('subscriptions checkout route', () => {
       token: 'token',
       expiresAt: Date.now() + 3600000,
       refreshed: false,
+      refreshFailed: false,
     })
     mockFetch.mockResolvedValue(
       new Response('{"url":"https://example.com"}', {
@@ -74,6 +75,7 @@ describe('subscriptions checkout route', () => {
       token: null,
       expiresAt: null,
       refreshed: false,
+      refreshFailed: false,
     })
 
     const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
@@ -95,6 +97,7 @@ describe('subscriptions checkout route', () => {
       token: 'token',
       expiresAt: Date.now() + 3600000,
       refreshed: false,
+      refreshFailed: false,
     })
     mockFetch.mockResolvedValue(
       new Response('{"error":"priceId is required"}', {
@@ -121,6 +124,7 @@ describe('subscriptions checkout route', () => {
       token: 'token',
       expiresAt: Date.now() + 3600000,
       refreshed: false,
+      refreshFailed: false,
     })
     mockFetch.mockResolvedValue(
       new Response('{"error":"checkout provider unavailable"}', {
@@ -148,11 +152,13 @@ describe('subscriptions checkout route', () => {
         token: 'stale-token',
         expiresAt: Date.now() + 3600000,
         refreshed: false,
+        refreshFailed: false,
       })
       .mockResolvedValueOnce({
         token: 'fresh-token',
         expiresAt: Date.now() + 3600000,
         refreshed: true,
+        refreshFailed: false,
       })
     mockFetch
       .mockResolvedValueOnce(
@@ -194,11 +200,13 @@ describe('subscriptions checkout route', () => {
         token: 'stale-token',
         expiresAt: Date.now() + 3600000,
         refreshed: false,
+        refreshFailed: false,
       })
       .mockResolvedValueOnce({
         token: null,
         expiresAt: null,
         refreshed: false,
+        refreshFailed: true,
       })
     mockFetch.mockResolvedValue(
       new Response('{"error":"unauthorized"}', {

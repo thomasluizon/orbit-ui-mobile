@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers'
+import { API } from '@orbit/shared/api'
 
 export const AUTH_COOKIE = 'auth_token'
 export const REFRESH_COOKIE = 'refresh_token'
@@ -37,6 +38,7 @@ type ResolvedServerSession = {
   token: string | null
   expiresAt: number | null
   refreshed: boolean
+  refreshFailed: boolean
 }
 
 const refreshRequests = new Map<string, Promise<SessionTokens | null>>()
@@ -164,7 +166,7 @@ export async function refreshSessionTokens(
 
   const request = (async () => {
     try {
-      const response = await fetch(`${apiBase}/api/auth/refresh`, {
+      const response = await fetch(`${apiBase}${API.auth.refresh}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
@@ -238,8 +240,8 @@ export async function resolveServerSession(options?: {
     persistSession: async (tokens) => {
       await setSessionCookies(tokens.token, tokens.refreshToken, cookieStore)
     },
-    clearRefreshToken: async () => {
-      await clearRefreshCookie(cookieStore)
+    clearSession: async () => {
+      await clearSessionCookies(cookieStore)
     },
   })
 }
@@ -250,7 +252,7 @@ export async function resolveSessionTokens(options: {
   forceRefresh?: boolean
   refreshThresholdMs?: number
   persistSession?: (tokens: SessionTokens) => void | Promise<void>
-  clearRefreshToken?: () => void | Promise<void>
+  clearSession?: () => void | Promise<void>
 }): Promise<ResolvedServerSession> {
   const forceRefresh = options.forceRefresh ?? false
   const refreshThresholdMs =
@@ -269,6 +271,7 @@ export async function resolveSessionTokens(options: {
       token: options.authToken,
       expiresAt: currentExpiry,
       refreshed: false,
+      refreshFailed: false,
     }
   }
 
@@ -280,25 +283,45 @@ export async function resolveSessionTokens(options: {
         token: refreshedTokens.token,
         expiresAt: getTokenExpiry(refreshedTokens.token),
         refreshed: true,
+        refreshFailed: false,
       }
+    }
+
+    if (!forceRefresh && options.authToken && currentExpiry && currentExpiry > Date.now()) {
+      return {
+        token: options.authToken,
+        expiresAt: currentExpiry,
+        refreshed: false,
+        refreshFailed: false,
+      }
+    }
+
+    await options.clearSession?.()
+    return {
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+      refreshFailed: true,
     }
   }
 
-  if (options.authToken && currentExpiry && currentExpiry > Date.now()) {
+  if (!forceRefresh && options.authToken && currentExpiry && currentExpiry > Date.now()) {
     return {
       token: options.authToken,
       expiresAt: currentExpiry,
       refreshed: false,
+      refreshFailed: false,
     }
   }
 
-  if (options.refreshToken) {
-    await options.clearRefreshToken?.()
+  if (forceRefresh) {
+    await options.clearSession?.()
   }
 
   return {
     token: null,
     expiresAt: null,
     refreshed: false,
+    refreshFailed: false,
   }
 }
