@@ -96,7 +96,7 @@ describe('DeleteAccountModal', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
-  it('shows the capped Pro deletion window without the Free warning', () => {
+  it('shows the Pro deletion upper bound without tying it to the plan ending', () => {
     render(
       <DeleteAccountModal
         open
@@ -110,9 +110,10 @@ describe('DeleteAccountModal', () => {
       />,
     )
 
-    expect(screen.getByText(/at most 30 days from today/i)).toHaveTextContent(
+    expect(screen.getByText(/up to 30 days from today/i)).toHaveTextContent(
       en.profile.deleteAccount.warningPro,
     )
+    expect(screen.queryByText(/after your plan ends/i)).not.toBeInTheDocument()
     expect(screen.queryByText(en.profile.deleteAccount.warningFree)).not.toBeInTheDocument()
   })
 

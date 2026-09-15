@@ -29,7 +29,7 @@ export function DeleteAccountModal({
   const [error, setError] = useState('')
 
   const warningMessage = (() => {
-    // WHY: Mirrors https://github.com/thomasluizon/orbit-api/blob/main/src/Orbit.Application/Profile/Commands/ConfirmAccountDeletionCommand.cs#L31-L33.
+    // WHY: Mirrors https://github.com/thomasluizon/orbit-api/blob/main/src/Orbit.Application/Auth/Commands/ConfirmAccountDeletionCommand.cs#L31-L33.
     if (
       profile?.hasProAccess &&
       profile.planExpiresAt !== null &&

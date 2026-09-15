@@ -1450,7 +1450,7 @@
       "headingDeactivated": "Account deactivated",
       "warning": "You have time to change your mind. After that, the deletion is permanent and cannot be undone.",
       "warningFree": "Your account will be deactivated and permanently deleted after 7 days. Log back in anytime before then to cancel.",
-      "warningPro": "Your account will be deactivated now and permanently deleted after your plan ends, at most 30 days from today. Log back in anytime before then to cancel.",
+      "warningPro": "Your account will be deactivated now and permanently deleted up to 30 days from today. Log back in anytime before then to cancel.",
       "warningDetail": "All your data will be permanently deleted, including your habits, completion history, AI conversations, and settings. We'll email you a confirmation code to continue.",
       "sendCode": "Send code",
       "sending": "Sending...",

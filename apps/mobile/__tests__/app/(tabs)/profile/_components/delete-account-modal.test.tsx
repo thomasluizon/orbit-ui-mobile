@@ -101,7 +101,7 @@ describe('DeleteAccountModal', () => {
     expect(mocks.beginChallenge).not.toHaveBeenCalled()
   })
 
-  it('shows the capped Pro deletion window without the Free warning', async () => {
+  it('shows the Pro deletion upper bound without tying it to the plan ending', async () => {
     const tree = await renderModal(createMockProfile({
       hasProAccess: true,
       plan: 'pro',
@@ -109,7 +109,8 @@ describe('DeleteAccountModal', () => {
     }))
     const copy = textContent(tree.root)
 
-    expect(copy).toContain('no máximo 30 dias a partir de hoje')
+    expect(copy).toContain('em até 30 dias a partir de hoje')
+    expect(copy).not.toContain('depois que o seu plano terminar')
     expect(copy).toContain(ptBR.profile.deleteAccount.warningPro)
     expect(copy).not.toContain(ptBR.profile.deleteAccount.warningFree)
   })
