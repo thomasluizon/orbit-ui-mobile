@@ -55,16 +55,6 @@ vi.mock('@/lib/use-app-theme', () => ({
   }),
 }))
 
-vi.mock('@/components/ui/icons', () => {
-  const createIcon = (name: string) => (props: Record<string, unknown>) =>
-    React.createElement(name, props)
-
-  return {
-    Bell: createIcon('Bell'),
-    X: createIcon('X'),
-  }
-})
-
 vi.mock('react-native', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-native')>()
   const start = (callback?: () => void) => {

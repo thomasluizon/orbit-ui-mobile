@@ -856,7 +856,6 @@
       "createCount": "nenhum hábito | Criar {n} hábito | Criar {n} hábitos",
       "createdSuccess": "nenhum hábito criado | {n} hábito criado | {n} hábitos criados",
       "createAsParent": "Agrupar como hábito principal",
-      "createAsParentSuccess": "'{name}' criado com {n} sub-hábito | '{name}' criado com {n} sub-hábitos",
       "every": "a cada",
       "frequencyQuantityLabel": "Intervalo de frequência",
       "removeHabit": "Remover {name}"
@@ -869,7 +868,7 @@
         "threePerWeek": "3 vezes por semana",
         "oneTime": "Tarefa única"
       },
-      "successCreated": "'{name}' criado",
+      "successCreated": "''{name}'' criado",
       "errorExpired": "Esta pergunta expirou. Pode perguntar de novo.",
       "errorAlreadyResolved": "Isso já foi resolvido. Pode perguntar de novo.",
       "errorGeneric": "Algo deu errado. Tente de novo."
@@ -916,7 +915,19 @@
     "loadError": "Não foi possível carregar o calendário. Tente de novo.",
     "dayDetail": {
       "completionSummary": "{done} de {total} registrados",
-      "nothingDue": "nada programado"
+      "nothingDue": "nada programado",
+      "eventsTitle": "Disponíveis para importar",
+      "googleConnected": "Google Calendar conectado",
+      "lastSynced": "Última sincronização {time}",
+      "autoSync": "Sincronizar sozinho",
+      "disconnectedTitle": "Google Calendar desconectado",
+      "disconnectedBody": "Reconecte para ver os eventos que você pode importar.",
+      "noEventsToImport": "Nada para importar do Google Calendar neste dia."
+    },
+    "proBoundary": {
+      "title": "Sincronizar com o Google Calendar faz parte do Orbit Pro.",
+      "body": "Com ele, os seus compromissos aparecem ao lado dos hábitos do dia.",
+      "action": "Ver o Pro"
     },
     "noHabitsScheduled": "Nenhum hábito estava programado neste dia.",
     "goToDay": "Abrir este dia no Hoje",
@@ -1294,6 +1305,24 @@
       "seePro": "Ver o Pro",
       "manageSubscription": "Gerir assinatura"
     },
+    "apiKeys": {
+      "description": "Para ligar o Orbit a outras ferramentas pela API ou por um cliente MCP.",
+      "unlock": "Ver Pro",
+      "open": "Abrir as chaves",
+      "create": "Criar chave",
+      "createScoped": "Criar chave com escopo",
+      "newKeyName": "Nova chave",
+      "scopeTitle": "Chave com escopo",
+      "scopeLabel": "Escopo",
+      "scopeAction": "Criar",
+      "mcpTitle": "Conectar por MCP",
+      "mcpLine": "Cole uma chave ativa nas configurações do seu cliente MCP. As instruções completas ficam nesta seção no app.",
+      "stepUpBody": "Para mexer em chaves ou apagar a conta, entre de novo. O Orbit nunca pede a sua senha dentro de uma conversa.",
+      "stepUpAction": "Entrar de novo",
+      "revokeNamed": "Revogar {name}",
+      "revokeNamedQuestion": "Revogar {name}?",
+      "revokeBody": "O que usa esta chave para de funcionar na hora. Não há como restaurar a chave."
+    },
     "timezonePicker": {
       "search": "Buscar fusos horários",
       "noResults": "Nenhum fuso horário encontrado",
@@ -1358,7 +1387,13 @@
       "successHint": "A gente responde em até um dia.",
       "nameRequired": "Digite seu nome.",
       "emailRequired": "Digite seu e-mail.",
-      "emailInvalid": "Digite um e-mail válido."
+      "emailInvalid": "Digite um e-mail válido.",
+      "subjectRequired": "Digite um assunto.",
+      "messageRequired": "Escreva sua mensagem.",
+      "emailLockedReason": "A gente responde no e-mail da sua conta.",
+      "sendIncomplete": "Escreva um assunto e uma mensagem para enviar.",
+      "sendNeedsSubject": "Escreva um assunto para enviar.",
+      "sendNeedsMessage": "Escreva uma mensagem para enviar."
     },
     "logout": "Sair",
     "wrappedTitle": "Seu Wrapped",
@@ -1394,7 +1429,7 @@
       "confirmHeading": "Isso apaga tudo",
       "willDelete": "O que será excluído",
       "willKeep": "O que continua",
-      "description": "Comece do zero. Isso apaga todos os seus dados para sempre.",
+      "description": "Comece do zero. Isso apaga para sempre o que você acompanha, e mantém a sua conta.",
       "deleteHabits": "Todos os hábitos, sub-hábitos e o histórico de conclusão",
       "deleteGoals": "Todas as metas e os registros de progresso",
       "deleteChat": "As conversas com a IA",
@@ -1418,9 +1453,9 @@
       "headingAreYouSure": "Isso exclui sua conta",
       "headingConfirmCode": "Confirme com o código",
       "headingDeactivated": "Conta desativada",
-      "warning": "Esta ação não tem volta.",
+      "warning": "Você tem tempo para mudar de ideia. Depois disso, a exclusão é definitiva e não dá para desfazer.",
       "warningFree": "Sua conta será desativada e apagada de vez depois de 7 dias. Entre de novo antes disso para cancelar.",
-      "warningPro": "Sua conta será desativada e apagada de vez 7 dias depois de o seu plano expirar, em {date}. Entre de novo antes disso para cancelar.",
+      "warningPro": "Sua conta será desativada agora e apagada de vez em até 30 dias a partir de hoje. Entre de novo antes disso para cancelar.",
       "warningDetail": "Todos os seus dados serão apagados de vez: hábitos, histórico de conclusão, conversas com a IA e configurações. Vamos enviar um código de confirmação para o seu e-mail.",
       "sendCode": "Enviar código",
       "sending": "Enviando...",
@@ -1502,7 +1537,8 @@
       "completions": "Conclusões",
       "bestStreak": "Melhor sequência",
       "activeDays": "Dias ativos",
-      "topHabits": "Principais hábitos"
+      "topHabits": "Principais hábitos",
+      "goalsClosed": "Metas fechadas"
     },
     "streak": "Sequência de {count} dias"
   },
@@ -1512,6 +1548,12 @@
     "entry": "Seu Wrapped",
     "coverEyebrow": "Seus hábitos em replay",
     "coverSubtitle": "Escolha um período para começar.",
+    "coverTitles": {
+      "week": "Feche a semana.",
+      "month": "Feche o mês.",
+      "year": "Feche o ano."
+    },
+    "periodGroup": "Período",
     "start": "Começar",
     "close": "Fechar Wrapped",
     "next": "Próximo",
@@ -1547,7 +1589,10 @@
       "consistency": {
         "eyebrow": "Seu ritmo",
         "title": "Seu ritmo semanal",
-        "caption": "Como foram seus últimos sete dias."
+        "summary": "{strong} é o seu dia mais forte.",
+        "even": "Nenhum dia se destaca.",
+        "note": "Cada barra é a média daquele dia no período.",
+        "thin": "Ainda não há registros suficientes para comparar os seus dias."
       },
       "streak": {
         "eyebrow": "Melhor sequência",
@@ -1557,6 +1602,10 @@
       "topHabit": {
         "eyebrow": "Seu destaque",
         "caption": "{rate} de conclusão, seu hábito mais consistente."
+      },
+      "goals": {
+        "zero": "Nenhuma meta fechada desta vez.",
+        "some": "{count, plural, one {Você fechou uma meta neste período.} other {Você fechou # metas neste período.}}"
       },
       "share": {
         "eyebrow": "É isso aí",
@@ -2414,7 +2463,9 @@
       "gapBody": "{count, plural, one {Um dia sem registro.} other {# dias sem registro.}} Os hábitos continuam como estavam.",
       "gapUnavailable": "Um intervalo encerrou a sequência anterior. Hoje começa uma nova; os hábitos não mudaram.",
       "repairAction": "Usar {count, plural, one {# congelamento} other {# congelamentos}}",
-      "repairEmpty": "Não há congelamento guardado. A sequência começa de novo hoje, e o próximo congelamento chega em {count, plural, one {# dia} other {# dias}}.",
+      "repairEmpty": "A lacuna continua em aberto, mas não há congelamento guardado para cobri-la. Esta oferta de reparo termina hoje.",
+      "repairPartial": "A lacuna continua em aberto. Ela precisa de {needed, plural, one {# congelamento} other {# congelamentos}}, mas {banked, plural, one {só há # guardado} other {só há # guardados}}. Esta oferta de reparo termina hoje.",
+      "repairCapped": "Esta lacuna precisa de {needed, plural, one {# congelamento} other {# congelamentos}} e {banked} é o máximo que dá para guardar, então ela não pode ser reparada.",
       "repairError": "Não foi possível reparar o intervalo. Tente novamente.",
       "repairRateLimited": "Houve tentativas demais de reparo. Tente novamente em breve.",
       "bankFull": "{count} congelamentos é o limite. O próximo chega depois que você usar um."
@@ -2763,7 +2814,11 @@
   },
   "about": {
     "title": "Sobre e Ajuda",
-    "version": "Versão {version}"
+    "version": "Versão {version}",
+    "tagline": "Uma IA que acompanha hábitos, para quem não consegue manter uma rotina.",
+    "versionLabel": "Versão",
+    "accountLabel": "Conta",
+    "credit": "Orbit e Astra são nomes próprios e não são traduzidos."
   },
   "advancedSettings": {
     "title": "Avançado",

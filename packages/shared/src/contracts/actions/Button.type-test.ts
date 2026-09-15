@@ -21,6 +21,8 @@ type ExpectedButtonBase = {
   disabled?: boolean
   onClick?: () => void
   formId?: string
+  hint?: string
+  descriptionId?: string
 }
 type ExpectedLabelledVariant = ExpectedButtonBase & {
   children: string

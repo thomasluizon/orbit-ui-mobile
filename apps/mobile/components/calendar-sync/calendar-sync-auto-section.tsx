@@ -59,7 +59,7 @@ export function CalendarAutoSyncSection({
           ]}
         >
           <View style={styles.connectionIconSlot}>
-            <CalendarDays size={22} color={tokens.fg1} strokeWidth={1.8} />
+            <CalendarDays size={20} color={tokens.fg1} strokeWidth={1.8} />
           </View>
           <View style={styles.connectionBody}>
             <Text style={[styles.connectionTitle, { color: tokens.fg1 }]}>
@@ -112,7 +112,7 @@ export function CalendarAutoSyncSection({
             {isSyncNowPending ? (
               <ActivityIndicator size={14} color={tokens.fg2} />
             ) : (
-              <RefreshCw size={13} color={tokens.fg2} strokeWidth={2} />
+              <RefreshCw size={16} color={tokens.fg2} strokeWidth={2} />
             )}
             <Text style={[styles.quietActionText, { color: tokens.fg2 }]}>
               {isSyncNowPending

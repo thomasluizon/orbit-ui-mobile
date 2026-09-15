@@ -3,11 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { parseISO } from 'date-fns'
 import type { Profile } from '@orbit/shared/types/profile'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { requestDeletion } from '@/app/actions/auth'
-import { useDateFormat } from '@/hooks/use-date-format'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
@@ -26,16 +24,18 @@ export function DeleteAccountModal({
 }: Readonly<DeleteAccountModalProps>) {
   const t = useTranslations()
   const router = useRouter()
-  const { displayDate } = useDateFormat()
   const { sheetRef, closeSheet } = useSheetHost()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const warningMessage = (() => {
-    if (profile?.hasProAccess && profile.planExpiresAt) {
-      return t('profile.deleteAccount.warningPro', {
-        date: displayDate(parseISO(profile.planExpiresAt)),
-      })
+    // WHY: Mirrors https://github.com/thomasluizon/orbit-api/blob/main/src/Orbit.Application/Auth/Commands/ConfirmAccountDeletionCommand.cs#L31-L33.
+    if (
+      profile?.hasProAccess &&
+      profile.planExpiresAt !== null &&
+      new Date(profile.planExpiresAt) > new Date()
+    ) {
+      return t('profile.deleteAccount.warningPro')
     }
     return t('profile.deleteAccount.warningFree')
   })()
@@ -94,6 +94,9 @@ export function DeleteAccountModal({
             <TriangleAlert size={34} strokeWidth={1.8} color="var(--status-bad)" />
           </div>
           <div className="flex flex-col" style={{ gap: 8 }}>
+            <p style={{ color: 'var(--status-bad-text)', fontSize: 15, fontWeight: 500, lineHeight: 1.5 }}>
+              {t('profile.deleteAccount.warning')}
+            </p>
             <p style={{ color: 'var(--fg-1)', fontSize: 15, fontWeight: 500, lineHeight: 1.5 }}>
               {warningMessage}
             </p>

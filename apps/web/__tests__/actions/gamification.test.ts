@@ -14,12 +14,13 @@ describe('gamification actions', () => {
   it('sends exactly the complete gap to the atomic repair write', async () => {
     serverAuthFetch.mockResolvedValue({ currentStreak: 8 })
 
-    await repairStreakGap(['2026-09-04', '2026-09-05'])
+    const result = await repairStreakGap(['2026-09-04', '2026-09-05'])
 
     expect(serverAuthFetch).toHaveBeenCalledWith(
       API.gamification.repairStreakGap,
       { method: 'POST', body: JSON.stringify({ dates: ['2026-09-04', '2026-09-05'] }) },
       streakInfoSchema,
     )
+    expect(result).toEqual({ ok: true, data: { currentStreak: 8 } })
   })
 })

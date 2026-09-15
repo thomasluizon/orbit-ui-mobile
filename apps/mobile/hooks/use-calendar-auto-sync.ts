@@ -16,16 +16,22 @@ interface CalendarQueryOptions {
   enabled?: boolean
 }
 
+interface CalendarAutoSyncQueryOptions extends CalendarQueryOptions {
+  initialData?: CalendarAutoSyncState
+}
+
 async function fetchAutoSyncState(): Promise<CalendarAutoSyncState> {
   const raw = await apiClient<unknown>(API.calendar.autoSyncState)
   return calendarAutoSyncStateSchema.parse(raw)
 }
 
-export function useCalendarAutoSyncState(options?: CalendarQueryOptions) {
+export function useCalendarAutoSyncState(options?: CalendarAutoSyncQueryOptions) {
   return useQuery({
     queryKey: calendarKeys.autoSyncState(),
     queryFn: fetchAutoSyncState,
     enabled: options?.enabled ?? true,
+    initialData: options?.initialData,
+    initialDataUpdatedAt: options?.initialData ? 0 : undefined,
     staleTime: 30_000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,

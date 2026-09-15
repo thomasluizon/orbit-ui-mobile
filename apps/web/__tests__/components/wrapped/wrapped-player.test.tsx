@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { createMockRecap, createMockRetrospectiveMetrics } from '@orbit/shared/__tests__/factories'
 import { buildWrappedSlides } from '@orbit/shared/utils'
 
@@ -17,7 +17,7 @@ vi.mock('@/hooks/use-share-card', () => ({
     captureRef: { current: null },
     isSharing: false,
     hasError: false,
-    canShareFiles: false,
+    canShareFiles: true,
     share: vi.fn(),
     download: vi.fn(),
   }),
@@ -41,58 +41,64 @@ function renderPlayer(onClose = vi.fn()) {
 }
 
 describe('WrappedPlayer', () => {
-  it('opens on the intro slide and renders one progress segment per slide', () => {
+  it('opens on the intro slide and puts one segment per slide in the foot pager', () => {
     const { slides } = renderPlayer()
+    const pager = screen.getByTestId('wrapped-pager')
     expect(screen.getByTestId('wrapped-slide-intro')).toBeInTheDocument()
-    expect(screen.getByTestId('wrapped-progress').children).toHaveLength(slides.length)
+    expect(within(pager).getAllByRole('listitem')).toHaveLength(slides.length)
+    expect(
+      screen.getByTestId('wrapped-slide-intro').compareDocumentPosition(pager)
+      & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(within(pager).getAllByRole('listitem')).toHaveLength(8)
   })
 
-  it('advances through every slide and ends on the share card', () => {
-    const { slides } = renderPlayer()
-    const order = slides.map((slide) => slide.id)
-
-    order.slice(1).forEach((id) => {
-      fireEvent.click(screen.getByLabelText('wrapped.next'))
-      expect(screen.getByTestId(`wrapped-slide-${id}`)).toBeInTheDocument()
-    })
-
-    expect(screen.getByTestId('wrapped-slide-share')).toBeInTheDocument()
+  it('pages forward and back through the Pager controls', () => {
+    renderPlayer()
+    const pager = screen.getByTestId('wrapped-pager')
+    fireEvent.click(within(pager).getByRole('button', { name: 'wrapped.next' }))
+    expect(screen.getByTestId('wrapped-slide-completions')).toBeInTheDocument()
+    fireEvent.click(within(pager).getByRole('button', { name: 'wrapped.previous' }))
+    expect(screen.getByTestId('wrapped-slide-intro')).toBeInTheDocument()
   })
 
-  it('swaps the tap zones for a header previous control and the share CTA on the final slide', () => {
+  it('pages through the transparent tap zones', () => {
+    renderPlayer()
+    const previousZone = screen.getByTestId('wrapped-previous-zone')
+    expect(previousZone).toBeDisabled()
+    expect(previousZone).toHaveAttribute('tabindex', '-1')
+    fireEvent.click(screen.getByTestId('wrapped-next-zone'))
+    expect(screen.getByTestId('wrapped-slide-completions')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('wrapped-previous-zone'))
+    expect(screen.getByTestId('wrapped-slide-intro')).toBeInTheDocument()
+  })
+
+  it('replaces the Pager forward control with responsive share actions on the final slide', () => {
     renderPlayer()
     const lastIndex = buildWrappedSlides(createMockRecap()).length - 1
     for (let step = 0; step < lastIndex; step += 1) {
-      fireEvent.click(screen.getByLabelText('wrapped.next'))
+      fireEvent.click(screen.getByTestId('wrapped-next-zone'))
     }
-    expect(screen.queryByLabelText('wrapped.next')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('wrapped.previous')).toBeInTheDocument()
-    expect(screen.getByText('shareCard.download')).toBeInTheDocument()
-  })
-
-  it('steps back from the last slide with the header previous control', () => {
-    renderPlayer()
-    const slides = buildWrappedSlides(createMockRecap())
-    const lastIndex = slides.length - 1
-    for (let step = 0; step < lastIndex; step += 1) {
-      fireEvent.click(screen.getByLabelText('wrapped.next'))
-    }
-    expect(screen.getByTestId('wrapped-slide-share')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByLabelText('wrapped.previous'))
-    expect(screen.getByTestId(`wrapped-slide-${slides[lastIndex - 1]!.id}`)).toBeInTheDocument()
-  })
-
-  it('steps backward with the previous zone and clamps at the first slide', () => {
-    renderPlayer()
-    fireEvent.click(screen.getByLabelText('wrapped.next'))
-    expect(screen.getByTestId('wrapped-slide-completions')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByLabelText('wrapped.previous'))
-    expect(screen.getByTestId('wrapped-slide-intro')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByLabelText('wrapped.previous'))
-    expect(screen.getByTestId('wrapped-slide-intro')).toBeInTheDocument()
+    const pager = screen.getByTestId('wrapped-pager')
+    expect(within(pager).queryByRole('button', { name: 'wrapped.next' })).not.toBeInTheDocument()
+    const narrowActions = within(pager).getByTestId('wrapped-share-actions-narrow')
+    const wideActions = within(pager).getByTestId('wrapped-share-actions-wide')
+    const controls = within(pager).getByRole('button', { name: 'wrapped.previous' }).parentElement
+    expect(narrowActions).toHaveClass('flex', 'flex-col', 'items-stretch', 'sm:hidden')
+    expect(wideActions).toHaveClass('hidden', 'items-center', 'sm:flex')
+    expect(controls).toHaveClass(
+      'flex',
+      'flex-col',
+      'items-stretch',
+      'sm:flex-row',
+      'sm:items-center',
+      'sm:justify-between',
+    )
+    expect(within(narrowActions).getAllByRole('button').map((button) => button.textContent))
+      .toEqual(['shareCard.share', 'shareCard.download'])
+    expect(within(wideActions).getAllByRole('button').map((button) => button.textContent))
+      .toEqual(['shareCard.download', 'shareCard.share'])
+    expect(screen.queryByTestId('wrapped-next-zone')).not.toBeInTheDocument()
   })
 
   it('responds to ArrowRight / ArrowLeft and closes on Escape', () => {
@@ -118,6 +124,6 @@ describe('WrappedPlayer', () => {
     )
 
     expect(screen.queryByTestId('wrapped-slide-topHabit')).not.toBeInTheDocument()
-    expect(screen.getByTestId('wrapped-progress').children).toHaveLength(6)
+    expect(within(screen.getByTestId('wrapped-pager')).getAllByRole('listitem')).toHaveLength(7)
   })
 })

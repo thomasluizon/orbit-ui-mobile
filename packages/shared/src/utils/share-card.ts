@@ -31,7 +31,10 @@ export function formatCompletionRate(rate: number): string {
 }
 
 /** Derives the ordered stat-tile model for the share card so web and mobile render identical content. */
-export function buildShareCardStats(metrics: RetrospectiveMetrics): ShareCardStat[] {
+export function buildShareCardStats(
+  metrics: RetrospectiveMetrics,
+  goalCompletions: number,
+): ShareCardStat[] {
   return [
     {
       labelKey: 'shareCard.stats.completionRate',
@@ -53,10 +56,18 @@ export function buildShareCardStats(metrics: RetrospectiveMetrics): ShareCardSta
       emoji: '📅',
       value: String(metrics.activeDays),
     },
+    {
+      labelKey: 'shareCard.stats.goalsClosed',
+      emoji: '🏁',
+      value: String(goalCompletions),
+    },
   ]
 }
 
-/** True when the recap has no logged activity, so the share sheet can show an empty state instead of a blank card. */
-export function isRecapShareEmpty(metrics: RetrospectiveMetrics): boolean {
-  return metrics.totalCompletions === 0 && metrics.activeDays === 0
+/** True when the recap has no habit or goal completions, so sharing never produces a blank card. */
+export function isRecapShareEmpty(
+  metrics: RetrospectiveMetrics,
+  goalCompletions: number,
+): boolean {
+  return metrics.totalCompletions === 0 && metrics.activeDays === 0 && goalCompletions === 0
 }

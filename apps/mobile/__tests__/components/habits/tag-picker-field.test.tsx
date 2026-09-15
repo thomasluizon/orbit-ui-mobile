@@ -16,10 +16,6 @@ vi.mock('@/components/ui/sheet', async () =>
 vi.mock('@/components/ui/list-row', () => ({
   ListRow: (props: Record<string, unknown>) => React.createElement('ListRow', props),
 }))
-vi.mock('@/components/ui/icons', () => ({
-  Pencil: 'Pencil',
-  Trash2: 'Trash2',
-}))
 vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'default', currentTheme: 'light' }),
 }))

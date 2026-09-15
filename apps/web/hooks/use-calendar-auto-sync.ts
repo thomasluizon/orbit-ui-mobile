@@ -25,7 +25,11 @@ interface CalendarQueryOptions {
   enabled?: boolean
 }
 
-export function useCalendarAutoSyncState(options?: CalendarQueryOptions) {
+interface CalendarAutoSyncQueryOptions extends CalendarQueryOptions {
+  initialData?: CalendarAutoSyncState
+}
+
+export function useCalendarAutoSyncState(options?: CalendarAutoSyncQueryOptions) {
   return useQuery<CalendarAutoSyncState>({
     queryKey: calendarKeys.autoSyncState(),
     queryFn: async () => {
@@ -33,6 +37,8 @@ export function useCalendarAutoSyncState(options?: CalendarQueryOptions) {
       return calendarAutoSyncStateSchema.parse(raw)
     },
     enabled: options?.enabled ?? true,
+    initialData: options?.initialData,
+    initialDataUpdatedAt: options?.initialData ? 0 : undefined,
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,

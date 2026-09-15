@@ -1,6 +1,10 @@
+import { StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import type { Recap } from '@orbit/shared/types/gamification'
-import { createMockRecap } from '@orbit/shared/__tests__/factories'
+import {
+  createMockRecap,
+  createMockRetrospectiveMetrics,
+} from '@orbit/shared/__tests__/factories'
 import { ShareCard } from '@/components/share/share-card'
 
 const TestRenderer = require('react-test-renderer')
@@ -25,7 +29,11 @@ function collectText(node: unknown): string {
 function render(props: { recap: Recap; displayName?: string }) {
   let tree: {
     toJSON: () => unknown
-    root: { findAll: (predicate: (node: { props?: Record<string, unknown> }) => boolean) => unknown[] }
+    root: {
+      findAll: (
+        predicate: (node: { props?: Record<string, unknown> }) => boolean,
+      ) => { children: unknown[]; props: Record<string, unknown> }[]
+    }
   }
   TestRenderer.act(() => {
     tree = TestRenderer.create(<ShareCard {...props} />)
@@ -54,5 +62,39 @@ describe('ShareCard (mobile)', () => {
   it('hides the scannable link footer when the recap has no deep link', () => {
     const text = collectText(render({ recap: createMockRecap({ shareDeepLink: '' }) }).toJSON())
     expect(text).not.toContain('shareCard.scanToJoin')
+  })
+
+  it('renders closed goals for a goal-only recap', () => {
+    const text = collectText(
+      render({
+        recap: createMockRecap({
+          goalCompletions: 3,
+          shareDeepLink: '',
+          metrics: createMockRetrospectiveMetrics({
+            completionRate: 0,
+            totalCompletions: 0,
+            bestStreak: 0,
+            currentStreak: 0,
+            activeDays: 0,
+            topHabits: [],
+            weeklyConsistency: [0, 0, 0, 0, 0, 0, 0],
+          }),
+        }),
+      }).toJSON(),
+    )
+
+    expect(text).toContain('3 shareCard.stats.goalsClosed')
+  })
+
+  it('renders the fifth stat alone in a full-width row', () => {
+    const tree = render({ recap: createMockRecap() })
+    const finalStatRows = tree.root.findAll(
+      (node) => node.props?.testID === 'share-card-final-stat-row',
+    )
+
+    const finalStatRow = finalStatRows[0]
+    expect(finalStatRow).toMatchObject({ children: [expect.anything()] })
+    expect(StyleSheet.flatten(finalStatRow!.props.style)).toMatchObject({ width: '100%' })
+    expect(collectText(finalStatRow)).toContain('shareCard.stats.goalsClosed')
   })
 })

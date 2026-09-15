@@ -4,9 +4,12 @@ import {
   buildCalendarSyncImportRequest,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
+  getCalendarSyncClockValue,
   isCalendarAutoSyncStatusReconnectRequired,
+  isCalendarSyncConnectionActive,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
+  resolveCalendarEventsGrantRevocation,
 } from '../utils/calendar-sync'
 
 describe('calendar-sync utils', () => {
@@ -113,6 +116,37 @@ describe('calendar-sync utils', () => {
     expect(isCalendarAutoSyncStatusReconnectRequired('ReconnectRequired')).toBe(true)
     expect(isCalendarAutoSyncStatusReconnectRequired('Idle')).toBe(false)
     expect(isCalendarAutoSyncStatusReconnectRequired(null)).toBe(false)
+  })
+
+  it('recognizes the events signals that revoke a cached connection', () => {
+    const connectedState = {
+      enabled: true,
+      status: 'Idle' as const,
+      lastSyncedAt: null,
+      hasGoogleConnection: true,
+    }
+
+    expect(resolveCalendarEventsGrantRevocation('CALENDAR_RECONNECT_REQUIRED', undefined))
+      .toBe('reconcile')
+    expect(resolveCalendarEventsGrantRevocation('CALENDAR_NOT_CONNECTED', connectedState))
+      .toBe('reconcile')
+    expect(resolveCalendarEventsGrantRevocation('CALENDAR_NOT_CONNECTED', undefined))
+      .toBe('cancel-state-read')
+    expect(resolveCalendarEventsGrantRevocation('CALENDAR_FETCH_FAILED', connectedState))
+      .toBeNull()
+  })
+
+  it('derives the connection line from confirmed profile fields', () => {
+    expect(isCalendarSyncConnectionActive(true, 'Idle')).toBe(true)
+    expect(isCalendarSyncConnectionActive(true, 'TransientError')).toBe(true)
+    expect(isCalendarSyncConnectionActive(true, 'ReconnectRequired')).toBe(false)
+    expect(isCalendarSyncConnectionActive(false, 'Idle')).toBe(false)
+  })
+
+  it('extracts the local clock value from the last sync timestamp', () => {
+    expect(getCalendarSyncClockValue('2026-09-12T09:12:00')).toBe('09:12')
+    expect(getCalendarSyncClockValue(null)).toBeNull()
+    expect(getCalendarSyncClockValue('invalid')).toBeNull()
   })
 
   it('recognizes not-connected messages', () => {

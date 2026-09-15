@@ -105,13 +105,21 @@ export type {
 export { plural } from './plural'
 export { buildRecentChatHistory } from './chat-history'
 export {
+  CALENDAR_NOT_CONNECTED_ERROR_CODE,
+  CALENDAR_RECONNECT_REQUIRED_ERROR_CODE,
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
+  resolveCalendarEventsGrantRevocation,
+  type CalendarEventsGrantRevocationAction,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
+  filterCalendarSyncEventsByDate,
+  getCalendarSyncClockValue,
   isCalendarAutoSyncStatusReconnectRequired,
+  isCalendarSyncConnectionActive,
   isCalendarSyncNotConnectedMessage,
   parseCalendarSyncRecurrence,
+  reconcileCalendarAutoSyncGrantRevocation,
 } from './calendar-sync'
 export type {
   CalendarSyncEvent,
@@ -261,7 +269,9 @@ export {
   CALENDAR_MONTH_SWIPE_THRESHOLD,
   filterRecurringDayMap,
   filterRecurringEntries,
+  resolveCalendarEventsDisplayState,
 } from './calendar-entries'
+export type { CalendarEventsDisplayState } from './calendar-entries'
 export {
   CALENDAR_MONTH_MAX_RANGE_DAYS,
   buildCalendarRangeModel,
@@ -559,8 +569,15 @@ export {
   recapPeriodLabelKey,
 } from './share-card'
 export type { RecapSharePeriod, ShareCardStat } from './share-card'
-export { buildWrappedSlides } from './wrapped'
-export type { WrappedSlide, WrappedSlideId } from './wrapped'
+export {
+  buildWrappedSlides,
+  getWeeklyConsistencyReading,
+} from './wrapped'
+export type {
+  WeeklyConsistencyReading,
+  WrappedSlide,
+  WrappedSlideId,
+} from './wrapped'
 export {
   canAccessEntitlement,
   DEFAULT_FREE_COLOR_SCHEME,
@@ -606,6 +623,8 @@ export {
 } from './fresh-start'
 export {
   buildSupportRequestBody,
+  SUPPORT_API_MESSAGE_MAX_LENGTH,
+  SUPPORT_API_SUBJECT_MAX_LENGTH,
 } from './support'
 export type {
   SupportFormFields,

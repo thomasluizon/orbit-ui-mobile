@@ -52,7 +52,7 @@ interface ShareCardProps {
 export function ShareCard({ recap, displayName, ref }: Readonly<ShareCardProps>) {
   const t = useTranslations()
   const { metrics, shareDeepLink } = recap
-  const stats = buildShareCardStats(metrics)
+  const stats = buildShareCardStats(metrics, recap.goalCompletions)
   const topHabits = metrics.topHabits.slice(0, 3)
   const shortLink = shareDeepLink.replace(/^https?:\/\//, '')
   const eyebrow = [displayName, t(recapPeriodLabelKey(recap.period))]
@@ -93,9 +93,18 @@ export function ShareCard({ recap, displayName, ref }: Readonly<ShareCardProps>)
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 16 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          {stats.map((stat) => (
-            <StatTile key={stat.labelKey}  value={stat.value} label={t(stat.labelKey)} />
-          ))}
+          {stats.map((stat, index) => {
+            const isFinalOddStat = index === stats.length - 1 && stats.length % 2 === 1
+            return (
+              <div
+                key={stat.labelKey}
+                data-testid={isFinalOddStat ? 'share-card-final-stat' : undefined}
+                style={{ display: 'flex', gridColumn: isFinalOddStat ? '1 / -1' : undefined }}
+              >
+                <StatTile value={stat.value} label={t(stat.labelKey)} />
+              </div>
+            )
+          })}
         </div>
 
         <div style={weeklyBarsStyle}>

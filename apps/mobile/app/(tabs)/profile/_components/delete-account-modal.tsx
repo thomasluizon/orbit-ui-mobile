@@ -2,14 +2,12 @@ import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { parseISO } from 'date-fns'
 import type { Profile } from '@orbit/shared/types/profile'
 import { stepUpMessageResponseSchema } from '@orbit/shared/types/step-up'
 import { API } from '@orbit/shared/api'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { beginStepUpChallenge } from '@/lib/step-up-storage'
-import { useDateFormat } from '@/hooks/use-date-format'
 import { useOffline } from '@/hooks/use-offline'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -31,7 +29,6 @@ export function DeleteAccountModal({
 }: Readonly<DeleteAccountModalProps>) {
   const { t } = useTranslation()
   const router = useRouter()
-  const { displayDate } = useDateFormat()
   const { isOnline } = useOffline()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -40,10 +37,13 @@ export function DeleteAccountModal({
   const [error, setError] = useState('')
 
   const warningMessage = (() => {
-    if (profile?.hasProAccess && profile.planExpiresAt) {
-      return t('profile.deleteAccount.warningPro', {
-        date: displayDate(parseISO(profile.planExpiresAt)),
-      })
+    // WHY: Mirrors https://github.com/thomasluizon/orbit-api/blob/main/src/Orbit.Application/Auth/Commands/ConfirmAccountDeletionCommand.cs#L31-L33.
+    if (
+      profile?.hasProAccess &&
+      profile.planExpiresAt !== null &&
+      new Date(profile.planExpiresAt) > new Date()
+    ) {
+      return t('profile.deleteAccount.warningPro')
     }
     return t('profile.deleteAccount.warningFree')
   })()
@@ -105,6 +105,9 @@ export function DeleteAccountModal({
               <TriangleAlert size={34} color={tokens.statusBad} strokeWidth={1.8} />
             </View>
             <View style={styles.copy}>
+              <Text style={[styles.title, { color: tokens.statusBadText }]}>
+                {t('profile.deleteAccount.warning')}
+              </Text>
               <Text style={[styles.title, { color: tokens.fg1 }]}>{warningMessage}</Text>
               <Text style={[styles.description, { color: tokens.fg2 }]}>
                 {t('profile.deleteAccount.warningDetail')}

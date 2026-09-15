@@ -24,19 +24,6 @@ vi.mock('@/lib/theme', () => ({
   radius: new Proxy({}, { get: () => 12 }),
 }))
 
-vi.mock('@/components/ui/icons', () => {
-  const React = require('react')
-  const createIcon = (name: string) => (props: any) => React.createElement(name, props)
-  return {
-    CheckCircle: createIcon('CheckCircle'),
-    Target: createIcon('Target'),
-    MessageCircle: createIcon('MessageCircle'),
-    CalendarDays: createIcon('CalendarDays'),
-    User: createIcon('User'),
-    Play: createIcon('Play'),
-  }
-})
-
 vi.mock('@/lib/api-client', () => ({
   apiClient: (...args: unknown[]) => mocks.apiClient(...(args as [])),
 }))

@@ -72,7 +72,7 @@ export function ShareCardPanel({ open, onClose, displayName }: Readonly<ShareCar
   const { data: recap, isLoading, isError, refetch } = useRecap(period, open)
   const { shareRef, isSharing, hasError, share } = useShareCard()
 
-  const isEmpty = recap ? isRecapShareEmpty(recap.metrics) : false
+  const isEmpty = recap ? isRecapShareEmpty(recap.metrics, recap.goalCompletions) : false
   const showCard = !isLoading && !isError && recap && !isEmpty
 
   return (
