@@ -2,49 +2,54 @@
 
 import { Check } from '@/components/ui/icons'
 import { useTranslations } from 'next-intl'
+import { PillButton } from '@/components/ui/pill-button'
 
-export function SupportSuccessState() {
+export function SupportSuccessState({ email, onBack }: Readonly<{ email: string; onBack: () => void }>) {
   const t = useTranslations()
 
   return (
     <div
-      className="flex flex-col items-center text-center animate-scale-in"
+      className="flex min-w-0 flex-col items-start animate-scale-in"
       style={{ padding: '48px 24px', gap: 16 }}
     >
       <span
-        className="flex items-center justify-center rounded-full"
+        className="flex items-center justify-center rounded-full bg-[var(--fg-1)] text-[var(--bg)]"
         style={{
-          width: 80,
-          height: 80,
-          background: 'rgba(var(--primary-rgb), 0.15)',
+          width: 44,
+          height: 44,
         }}
         aria-hidden="true"
       >
-        <Check size={24} strokeWidth={1.8} color="var(--primary)" />
+        <Check size={24} strokeWidth={1.8} />
       </span>
-      <span
+      <h2
         style={{
-          fontFamily: 'var(--font-sans)',
+          fontFamily: 'var(--font-display)',
           fontSize: 22,
           fontWeight: 500,
-          letterSpacing: '-0.01em',
+          lineHeight: 1.2,
+          letterSpacing: '-0.02em',
           color: 'var(--fg-1)',
-        }}
-      >
-        {t('profile.support.success')}
-      </span>
-      <span
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 15,
-          lineHeight: 1.5,
-          color: 'var(--fg-2)',
-          maxWidth: 320,
           textWrap: 'pretty',
         }}
       >
-        {t('profile.support.successHint')}
-      </span>
+        {t('profile.support.success')}
+      </h2>
+      <p
+        style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 16,
+          lineHeight: 1.55,
+          color: 'var(--fg-2)',
+          textWrap: 'pretty',
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {t('profile.support.successHint', { email })}
+      </p>
+      <PillButton variant="ghost" onClick={onBack}>
+        {t('profile.support.backToAbout')}
+      </PillButton>
     </div>
   )
 }

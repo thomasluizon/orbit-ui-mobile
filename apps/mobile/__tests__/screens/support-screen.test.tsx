@@ -1,8 +1,10 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
+import { Pressable, Text } from 'react-native'
 
 import SupportScreen from '@/app/support'
+import { i18n } from '@/lib/i18n'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -20,8 +22,10 @@ const mocks = vi.hoisted(() => ({
   isOnline: true,
   profile: null as ReturnType<typeof createMockProfile> | null,
   goBack: vi.fn(),
+  routerPush: vi.fn(),
   focusInput: vi.fn(),
   announceForAccessibility: vi.fn(),
+  translations: new Map<string, string>(),
 }))
 
 vi.mock('react-native', async (importOriginal) => {
@@ -44,9 +48,10 @@ vi.mock('react-native', async (importOriginal) => {
 })
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty', init: () => undefined },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}(${JSON.stringify(params)})` : key,
+      mocks.translations.get(key) ?? (params ? `${key}(${JSON.stringify(params)})` : key),
   }),
 }))
 
@@ -62,6 +67,7 @@ vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
 vi.mock('@/hooks/use-offline', () => ({ useOffline: () => ({ isOnline: mocks.isOnline }) }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile }) }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => mocks.goBack }))
+vi.mock('expo-router', () => ({ useRouter: () => ({ push: mocks.routerPush }) }))
 
 const tokensProxy = new Proxy({}, { get: () => '#111111' }) as Record<string, string>
 vi.mock('@/lib/use-app-theme', () => ({
@@ -100,6 +106,19 @@ function findSendButton(root: TestNode) {
   )[0]
 }
 
+function findSubjectChoices(root: TestNode) {
+  return root.findAll(
+    (node) => node.type === Pressable && node.props.accessibilityRole === 'radio',
+  )
+}
+
+async function selectSubject(root: TestNode, index = 0) {
+  await TestRenderer.act(async () => {
+    ;(findSubjectChoices(root)[index]!.props.onPress as () => void)()
+    await Promise.resolve()
+  })
+}
+
 function sentRequestBody() {
   const request = mocks.apiClient.mock.calls[0]?.[1] as { body: string } | undefined
   if (!request) throw new Error('Expected a support request')
@@ -115,12 +134,15 @@ describe('SupportScreen', () => {
     mocks.setItem.mockResolvedValue(undefined)
     mocks.removeItem.mockResolvedValue(undefined)
     mocks.apiClient.mockResolvedValue(undefined)
+    mocks.translations.clear()
   })
 
   it('hydrates the form from a persisted draft', async () => {
     mocks.getItem.mockResolvedValue(JSON.stringify({ subject: 'Bug', message: 'It broke' }))
     const tree = await renderScreen()
-    expect(findInputByLabel(tree.root, 'profile.support.subject')!.props.value).toBe('Bug')
+    expect(
+      (findSubjectChoices(tree.root)[3]!.props.accessibilityState as { checked: boolean }).checked,
+    ).toBe(true)
     expect(findInputByLabel(tree.root, 'profile.support.message')!.props.value).toBe('It broke')
   })
 
@@ -146,6 +168,36 @@ describe('SupportScreen', () => {
     ).not.toHaveLength(0)
   })
 
+  it('renders four subject choices and sends the selected wording', async () => {
+    await i18n.changeLanguage('en')
+    const problemLabel = i18n.t('profile.support.subjects.problem.label')
+    mocks.translations.set('profile.support.subjects.problem.label', problemLabel)
+    const tree = await renderScreen()
+    const choices = findSubjectChoices(tree.root)
+    expect(choices).toHaveLength(4)
+    expect(
+      tree.root.findAll(
+        (node) => node.props.children === 'profile.support.subjects.problem.description',
+      ),
+    ).not.toHaveLength(0)
+
+    await TestRenderer.act(async () => {
+      ;(choices[0]!.props.onPress as () => void)()
+      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('The log disappeared')
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      ;(findSendButton(tree.root)!.props.onPress as () => void)()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(sentRequestBody()).toMatchObject({
+      subject: problemLabel,
+      message: 'The log disappeared',
+    })
+  })
+
   it('does not show the locked email reason when the account email is editable', async () => {
     mocks.profile = null
     const tree = await renderScreen()
@@ -161,14 +213,17 @@ describe('SupportScreen', () => {
     ).toHaveLength(0)
   })
 
-  it('shows the required subject error and focuses the subject', async () => {
+  it('shows the required subject error beside the picker', async () => {
     const tree = await renderScreen()
     await TestRenderer.act(async () => {
       ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('Message')
       await Promise.resolve()
     })
     await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onBlur as () => void)()
+      const group = tree.root.findAll(
+        (node) => node.props.accessibilityRole === 'radiogroup',
+      )[0]!
+      ;(group.props.onBlur as () => void)()
       await Promise.resolve()
     })
 
@@ -181,10 +236,7 @@ describe('SupportScreen', () => {
 
   it('shows the required message error and focuses the message', async () => {
     const tree = await renderScreen()
-    await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (value: string) => void)('Subject')
-      await Promise.resolve()
-    })
+    await selectSubject(tree.root)
     await TestRenderer.act(async () => {
       ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onBlur as () => void)()
       await Promise.resolve()
@@ -211,24 +263,11 @@ describe('SupportScreen', () => {
     expect(findSendButton(tree.root)!.props.accessibilityHint).toBe(
       'profile.support.sendNeedsSubject',
     )
-    await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (value: string) => void)('Subject')
-      await Promise.resolve()
-    })
+    await selectSubject(tree.root)
     expect(findSendButton(tree.root)!.props.disabled).toBe(false)
     expect(findSendButton(tree.root)!.props.accessibilityHint).toBeUndefined()
 
     await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (value: string) => void)('   ')
-      await Promise.resolve()
-    })
-    expect(findSendButton(tree.root)!.props.disabled).toBe(true)
-    expect(findSendButton(tree.root)!.props.accessibilityHint).toBe(
-      'profile.support.sendNeedsSubject',
-    )
-
-    await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (value: string) => void)('Subject')
       ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('   ')
       await Promise.resolve()
     })
@@ -238,17 +277,14 @@ describe('SupportScreen', () => {
     )
   })
 
-  it('accepts the API subject and message length boundaries', async () => {
+  it('accepts the API message length boundary', async () => {
     const tree = await renderScreen()
-    const subjectInput = findInputByLabel(tree.root, 'profile.support.subject')!
     const messageInput = findInputByLabel(tree.root, 'profile.support.message')!
-    const subject = 's'.repeat(200)
     const message = 'm'.repeat(5000)
 
-    expect(subjectInput.props.maxLength).toBe(200)
     expect(messageInput.props.maxLength).toBe(5000)
+    await selectSubject(tree.root)
     await TestRenderer.act(async () => {
-      ;(subjectInput.props.onChangeText as (value: string) => void)(subject)
       ;(messageInput.props.onChangeText as (value: string) => void)(message)
       await Promise.resolve()
     })
@@ -259,7 +295,7 @@ describe('SupportScreen', () => {
     })
 
     expect(sentRequestBody()).toMatchObject({
-      subject,
+      subject: 'profile.support.subjects.problem.label',
       message,
     })
   })
@@ -271,10 +307,10 @@ describe('SupportScreen', () => {
     await TestRenderer.act(async () => {
       ;(findInputByLabel(tree.root, 'profile.support.name')!.props.onChangeText as (value: string) => void)('Orbit User')
       ;(findInputByLabel(tree.root, 'profile.support.email')!.props.onChangeText as (value: string) => void)('stale@example.com')
-      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (value: string) => void)('Subject')
       ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('Message')
       await Promise.resolve()
     })
+    await selectSubject(tree.root)
     mocks.profile = { ...createMockProfile(), email: 'profile@example.com' }
     await TestRenderer.act(async () => {
       tree.update(<SupportScreen />)
@@ -298,8 +334,8 @@ describe('SupportScreen', () => {
   it('clears stale account errors when profile hydration supplies valid values', async () => {
     mocks.profile = null
     const tree = await renderScreen()
+    await selectSubject(tree.root)
     await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (value: string) => void)('Subject')
       ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('Message')
       await Promise.resolve()
       ;(findSendButton(tree.root)!.props.onPress as () => void)()
@@ -323,31 +359,29 @@ describe('SupportScreen', () => {
     expect(mocks.removeItem).toHaveBeenCalledWith('orbit-support-draft')
   })
 
-  it('persists a draft on every keystroke, including when both fields are emptied', async () => {
+  it('persists the picker selection and message on every change', async () => {
     const tree = await renderScreen()
-    await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (v: string) => void)('Hello')
-      await Promise.resolve()
-    })
+    await selectSubject(tree.root)
     expect(mocks.setItem).toHaveBeenCalledWith(
       'orbit-support-draft',
-      JSON.stringify({ subject: 'Hello', message: '' }),
+      JSON.stringify({ subject: 'problem', message: '' }),
     )
     await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (v: string) => void)('')
+      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (v: string) => void)('Draft')
+      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (v: string) => void)('')
       await Promise.resolve()
     })
     expect(mocks.setItem).toHaveBeenLastCalledWith(
       'orbit-support-draft',
-      JSON.stringify({ subject: '', message: '' }),
+      JSON.stringify({ subject: 'problem', message: '' }),
     )
   })
 
   it('places the existing contact errors beside their system inputs', async () => {
     mocks.profile = null
     const tree = await renderScreen()
+    await selectSubject(tree.root)
     await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (v: string) => void)('Subject')
       ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (v: string) => void)('Message')
       await Promise.resolve()
     })
@@ -380,8 +414,12 @@ describe('SupportScreen', () => {
     })
     expect(mocks.apiClient).not.toHaveBeenCalled()
     expect(
-      tree.root.findAll((node) => node.props.children === 'offline.title').length,
-    ).toBeGreaterThan(0)
+      tree.root.findAll((node) => node.props.children === 'profile.support.offlineReason'),
+    ).not.toHaveLength(0)
+    expect(findSendButton(tree.root)!.props.disabled).toBe(true)
+    expect(findSendButton(tree.root)!.props.accessibilityHint).toBe(
+      'profile.support.offlineReason',
+    )
   })
 
   it('sends the request, shows success, and clears the draft', async () => {
@@ -390,8 +428,8 @@ describe('SupportScreen', () => {
     expect(
       tree.root.findAll((node) => node.props.accessibilityLiveRegion != null),
     ).toHaveLength(0)
+    await selectSubject(tree.root)
     await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (v: string) => void)('Subject')
       ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (v: string) => void)('Message body')
       await Promise.resolve()
     })
@@ -405,6 +443,33 @@ describe('SupportScreen', () => {
     expect(
       tree.root.findAll((node) => node.props.children === 'profile.support.success').length,
     ).toBeGreaterThan(0)
+    expect(
+      tree.root.findAll(
+        (node) => node.type === Text
+          && node.props.accessibilityRole === 'header'
+          && node.props.children === 'profile.support.success',
+      ),
+    ).toHaveLength(1)
+    expect(
+      tree.root.findAll(
+        (node) => node.type === Text
+          && node.props.children === 'profile.support.successHint({"email":"thomas@example.com"})',
+      ),
+    ).toHaveLength(1)
+    expect(
+      tree.root.findAll(
+        (node) => node.type === Text
+          && node.props.children === 'profile.support.backToAbout',
+      ),
+    ).toHaveLength(1)
+    const backButton = tree.root.findAll(
+      (node) => node.props.testID === 'button-ghost-md',
+    )[0]!
+    await TestRenderer.act(async () => {
+      ;(backButton.props.onPress as () => void)()
+      await Promise.resolve()
+    })
+    expect(mocks.routerPush).toHaveBeenCalledWith('/about')
     expect(mocks.announceForAccessibility).toHaveBeenCalledWith(
       'profile.support.success',
     )
@@ -413,8 +478,8 @@ describe('SupportScreen', () => {
   it('surfaces a friendly error when the request fails', async () => {
     mocks.apiClient.mockRejectedValue(new Error('boom'))
     const tree = await renderScreen()
+    await selectSubject(tree.root)
     await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (v: string) => void)('Subject')
       ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (v: string) => void)('Message body')
       await Promise.resolve()
     })
@@ -428,9 +493,17 @@ describe('SupportScreen', () => {
     ).toHaveLength(0)
     expect(mocks.announceForAccessibility).not.toHaveBeenCalled()
     expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+    expect(
+      tree.root.findAll((node) => node.props.children === 'profile.support.failureTitle'),
+    ).not.toHaveLength(0)
+    expect(
+      tree.root.findAll(
+        (node) => node.type === Text && node.props.children === 'profile.support.retry',
+      ),
+    ).toHaveLength(1)
     expect(mocks.setItem).toHaveBeenLastCalledWith(
       'orbit-support-draft',
-      JSON.stringify({ subject: 'Subject', message: 'Message body' }),
+      JSON.stringify({ subject: 'problem', message: 'Message body' }),
     )
   })
 
@@ -440,8 +513,8 @@ describe('SupportScreen', () => {
       () => new Promise<void>((resolve) => { finishSend = resolve }),
     )
     const tree = await renderScreen()
+    await selectSubject(tree.root)
     await TestRenderer.act(async () => {
-      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (v: string) => void)('Subject')
       ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (v: string) => void)('Message')
       await Promise.resolve()
     })
@@ -453,7 +526,9 @@ describe('SupportScreen', () => {
     expect(
       (findSendButton(tree.root)!.props.accessibilityState as { busy?: boolean }).busy,
     ).toBe(true)
-    expect(findInputByLabel(tree.root, 'profile.support.subject')!.props.editable).toBe(false)
+    expect(
+      (findSubjectChoices(tree.root)[0]!.props.accessibilityState as { checked: boolean }).checked,
+    ).toBe(true)
     expect(findInputByLabel(tree.root, 'profile.support.message')!.props.editable).toBe(false)
     await TestRenderer.act(async () => {
       finishSend?.()

@@ -1376,23 +1376,45 @@
       "description": "Tem uma dúvida, encontrou um bug ou quer dar um feedback? É só escrever.",
       "name": "Nome",
       "email": "E-mail",
-      "subject": "Assunto",
+      "subject": "Sobre o que é",
       "message": "Mensagem",
       "namePlaceholder": "Seu nome",
       "emailPlaceholder": "Seu e-mail",
-      "subjectPlaceholder": "Assunto",
       "messagePlaceholder": "Conte qual é o problema ou o feedback...",
       "send": "Enviar",
-      "success": "Enviado.",
-      "successHint": "A gente responde em até um dia.",
+      "success": "A sua mensagem chegou",
+      "successHint": "A gente responde em {email} em até um dia útil.",
+      "backToAbout": "Sobre",
+      "failureTitle": "A mensagem não foi enviada",
+      "failureBody": "O que você escreveu continua aqui. Tente de novo quando quiser.",
+      "retry": "Tentar novamente",
+      "offlineReason": "Sem conexão. A mensagem sai quando a conexão voltar, e o que você escreveu fica guardado neste aparelho.",
+      "subjects": {
+        "problem": {
+          "label": "Algo não funciona",
+          "description": "Uma tela, um registro ou uma sincronização."
+        },
+        "billing": {
+          "label": "Cobrança ou plano",
+          "description": "Valores, troca de plano ou cancelamento."
+        },
+        "account": {
+          "label": "Conta e acesso",
+          "description": "Entrar, código de verificação ou apagar a conta."
+        },
+        "other": {
+          "label": "Outro assunto",
+          "description": "Sugestões e o que não couber acima."
+        }
+      },
       "nameRequired": "Digite seu nome.",
       "emailRequired": "Digite seu e-mail.",
       "emailInvalid": "Digite um e-mail válido.",
-      "subjectRequired": "Digite um assunto.",
+      "subjectRequired": "Escolha um assunto.",
       "messageRequired": "Escreva sua mensagem.",
       "emailLockedReason": "A gente responde no e-mail da sua conta.",
-      "sendIncomplete": "Escreva um assunto e uma mensagem para enviar.",
-      "sendNeedsSubject": "Escreva um assunto para enviar.",
+      "sendIncomplete": "Escolha um assunto e escreva uma mensagem para enviar.",
+      "sendNeedsSubject": "Escolha um assunto para enviar.",
       "sendNeedsMessage": "Escreva uma mensagem para enviar."
     },
     "logout": "Sair",

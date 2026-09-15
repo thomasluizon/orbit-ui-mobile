@@ -3,15 +3,19 @@
 import { useTranslations } from 'next-intl'
 import {
   SUPPORT_API_MESSAGE_MAX_LENGTH,
-  SUPPORT_API_SUBJECT_MAX_LENGTH,
+  SUPPORT_SUBJECT_OPTIONS,
+  type SupportSubjectId,
 } from '@orbit/shared/utils'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
+import { RadioRow } from '@/components/ui/radio-row'
+import { RowList } from '@/components/ui/row-list'
+import { WifiOff } from '@/components/ui/icons'
 
 interface SupportFormProps {
   name: string
   email: string
-  subject: string
+  subject: SupportSubjectId | null
   message: string
   error: string | null
   nameError: string | null
@@ -19,16 +23,16 @@ interface SupportFormProps {
   subjectError: string | null
   messageError: string | null
   isSending: boolean
+  isOnline: boolean
   disabled: boolean
   disabledReason: string | null
   emailDisabled: boolean
   nameFocusRequest: number
   emailFocusRequest: number
-  subjectFocusRequest: number
   messageFocusRequest: number
   onNameChange: (next: string) => void
   onEmailChange: (next: string) => void
-  onSubjectChange: (next: string) => void
+  onSubjectChange: (next: SupportSubjectId) => void
   onMessageChange: (next: string) => void
   onSubjectBlur: () => void
   onMessageBlur: () => void
@@ -46,12 +50,12 @@ export function SupportForm({
   subjectError,
   messageError,
   isSending,
+  isOnline,
   disabled,
   disabledReason,
   emailDisabled,
   nameFocusRequest,
   emailFocusRequest,
-  subjectFocusRequest,
   messageFocusRequest,
   onNameChange,
   onEmailChange,
@@ -103,17 +107,35 @@ export function SupportForm({
         autoComplete="email"
         focusRequest={emailFocusRequest}
       />
-      <Input
-        label={t('profile.support.subject')}
-        value={subject}
-        onChange={onSubjectChange}
-        placeholder={t('profile.support.subjectPlaceholder')}
-        disabled={isSending}
-        error={subjectError ?? undefined}
-        maxLength={SUPPORT_API_SUBJECT_MAX_LENGTH}
-        focusRequest={subjectFocusRequest}
-        onBlur={onSubjectBlur}
-      />
+      <div className="flex min-w-0 flex-col gap-2">
+        <span id="support-subject-label" className="text-sm font-medium text-[var(--fg-2)]">
+          {t('profile.support.subject')}
+        </span>
+        <div
+          role="radiogroup"
+          aria-labelledby="support-subject-label"
+          aria-describedby={subjectError ? 'support-subject-error' : undefined}
+          aria-invalid={subjectError ? true : undefined}
+          onBlur={onSubjectBlur}
+        >
+          <RowList>
+            {SUPPORT_SUBJECT_OPTIONS.map((option) => (
+              <RadioRow
+                key={option.id}
+                label={t(option.labelKey)}
+                description={t(option.descriptionKey)}
+                selected={subject === option.id}
+                onSelect={() => onSubjectChange(option.id)}
+              />
+            ))}
+          </RowList>
+        </div>
+        {subjectError ? (
+          <p id="support-subject-error" role="alert" className="text-sm text-[var(--status-bad-text)]">
+            {subjectError}
+          </p>
+        ) : null}
+      </div>
       <Input
         label={t('profile.support.message')}
         value={message}
@@ -127,19 +149,28 @@ export function SupportForm({
         focusRequest={messageFocusRequest}
         onBlur={onMessageBlur}
       />
-      {error && (
-        <div
-          role="alert"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            color: 'var(--status-bad-text)',
-          }}
-        >
-          {error}
+      {error ? (
+        <div role="alert" className="flex flex-col gap-2 rounded-[var(--r-well)] bg-[var(--bg-well)] p-4">
+          <p className="text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">
+            {t('profile.support.failureTitle')}
+          </p>
+          <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">
+            {t('profile.support.failureBody')}
+          </p>
         </div>
-      )}
-      {disabledReason ? (
+      ) : null}
+      {!isOnline ? (
+        <div
+          id="support-send-reason"
+          role="status"
+          className="flex min-w-0 items-center gap-3 rounded-[var(--r-well)] bg-[var(--bg-well)] p-3"
+        >
+          <WifiOff size={20} aria-hidden className="shrink-0 text-[var(--fg-4)]" />
+          <p className="min-w-0 flex-1 text-pretty text-sm leading-[1.5] text-[var(--fg-2)]">
+            {t('profile.support.offlineReason')}
+          </p>
+        </div>
+      ) : disabledReason ? (
         <p id="support-send-reason" className="text-sm text-[var(--fg-2)]">
           {disabledReason}
         </p>
@@ -148,9 +179,9 @@ export function SupportForm({
         <PillButton
           disabled={disabled}
           loading={isSending}
-          descriptionId={disabledReason ? 'support-send-reason' : undefined}
+          descriptionId={!isOnline || disabledReason ? 'support-send-reason' : undefined}
         >
-          {t('profile.support.send')}
+          {error ? t('profile.support.retry') : t('profile.support.send')}
         </PillButton>
       </div>
     </form>
