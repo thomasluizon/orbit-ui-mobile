@@ -1,5 +1,10 @@
-import { useCallback, useMemo, useRef } from 'react'
-import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
+import { useMemo, useState, type ReactNode } from 'react'
+import {
+  Pressable,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native'
 import { useTranslation } from 'react-i18next'
 import {
   canLogHabitOnDate,
@@ -47,6 +52,27 @@ export interface HabitRowActions {
 }
 
 const EMPTY_HABIT_ROW_ACTIONS: HabitRowActions = {}
+const HABIT_ROW_MARGIN_BOTTOM = 10
+
+function resolveTrailingLayout(
+  isSelectMode: boolean,
+  trailingContent: ReactNode,
+) {
+  if (isSelectMode) {
+    return {
+      cardPaddingRight: 0,
+      bodyPaddingRight: 16,
+      bodyTrailingContent: trailingContent,
+      siblingTrailingContent: null,
+    }
+  }
+  return {
+    cardPaddingRight: 16,
+    bodyPaddingRight: 0,
+    bodyTrailingContent: null,
+    siblingTrailingContent: trailingContent,
+  }
+}
 
 interface HabitRowProps {
   habit: NormalizedHabit
@@ -126,25 +152,14 @@ export function HabitRow({
     anchorRef: menuButtonRef,
     visible: menuVisible,
     anchorRect: menuAnchorRect,
-    open: openAnchoredMenu,
-    close: closeAnchoredMenu,
+    open: openMenu,
+    close: closeMenu,
   } = useAnchoredMenu()
-  const menuActivityAt = useRef(0)
+  const [rowPressed, setRowPressed] = useState(false)
 
   const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode)
 
-  const openMenu = useCallback(() => {
-    menuActivityAt.current = Date.now()
-    openAnchoredMenu()
-  }, [openAnchoredMenu])
-
-  const closeMenu = useCallback(() => {
-    menuActivityAt.current = Date.now()
-    closeAnchoredMenu()
-  }, [closeAnchoredMenu])
-
   const handlePress = () => {
-    if (Date.now() - menuActivityAt.current < 500) return
     if (isSelectMode) {
       actions.onToggleSelection?.()
     } else {
@@ -184,79 +199,100 @@ export function HabitRow({
   )
 
   const indentPx = depth * 16
+  const trailingContent = (
+    <HabitRowTrailing
+      habit={habit}
+      isSelectMode={isSelectMode}
+      hasChildren={hasChildren}
+      childrenDone={childrenDone}
+      childrenTotal={childrenTotal}
+      linkedGoal={linkedGoal}
+      isDoneForRange={isDoneForRange}
+      canLog={canLog}
+      dotState={dotState}
+      hasMenuActions={hasMenuActions}
+      menuButtonRef={menuButtonRef}
+      actions={actions}
+      tokens={tokens}
+      onToggleStatus={handleToggleStatus}
+      onOpenMenu={openMenu}
+    />
+  )
+  const trailingLayout = resolveTrailingLayout(isSelectMode, trailingContent)
 
   return (
     <View style={style}>
-      <Pressable
-        onPress={handlePress}
-        onLongPress={
-          isSelectMode ? undefined : actions.onLongPressCard
-        }
-        delayLongPress={300}
-        accessibilityRole="button"
-        accessibilityLabel={rowAccessibilityLabel}
-        style={({ pressed }) => {
-          const pressedBackground = pressed ? tokens.bgElevPressed : tokens.bgCard
-          return [
+      <View
+        style={[
+          styles.row,
+          {
+            backgroundColor: isSelected
+              ? tokens.bgSunk
+              : rowPressed
+                ? tokens.bgElevPressed
+                : tokens.bgCard,
+            borderColor: rowPressed ? tokens.hairlineStrong : tokens.hairline,
+            marginLeft: 20 + indentPx,
+            marginRight: 20,
+            marginBottom: HABIT_ROW_MARGIN_BOTTOM,
+            paddingVertical: 0,
+            paddingHorizontal: 0,
+            paddingRight: trailingLayout.cardPaddingRight,
+          },
+          rowPressed ? styles.rowPressed : null,
+        ]}
+      >
+        <Pressable
+          onPress={handlePress}
+          onPressIn={() => setRowPressed(true)}
+          onPressOut={() => setRowPressed(false)}
+          onLongPress={
+            isSelectMode ? undefined : actions.onLongPressCard
+          }
+          delayLongPress={300}
+          accessibilityRole="button"
+          accessibilityLabel={rowAccessibilityLabel}
+          style={[
             styles.row,
             {
-              backgroundColor: isSelected ? tokens.bgSunk : pressedBackground,
-              borderColor: pressed ? tokens.hairlineStrong : tokens.hairline,
-              marginLeft: 20 + indentPx,
-              marginRight: 20,
-              marginBottom: 10,
+              flex: 1,
+              minWidth: 0,
+              paddingRight: trailingLayout.bodyPaddingRight,
+              borderWidth: 0,
+              borderRadius: 0,
             },
-            pressed ? styles.rowPressed : null,
-          ]
-        }}
-      >
-        <HabitRowLeading
-          habitTitle={habit.title}
-          emoji={emoji}
-          emojiSize={emojiSize}
-          wellSize={wellSize}
-          wellRadius={wellRadius}
-          isSelectMode={isSelectMode}
-          isSelected={isSelected}
-          hasChildren={hasChildren}
-          isExpanded={isExpanded}
-          onToggleSelection={actions.onToggleSelection}
-          onToggleExpand={actions.onToggleExpand}
-          tokens={tokens}
-        />
+          ]}
+        >
+          <HabitRowLeading
+            habitTitle={habit.title}
+            emoji={emoji}
+            emojiSize={emojiSize}
+            wellSize={wellSize}
+            wellRadius={wellRadius}
+            isSelectMode={isSelectMode}
+            isSelected={isSelected}
+            hasChildren={hasChildren}
+            isExpanded={isExpanded}
+            onToggleSelection={actions.onToggleSelection}
+            onToggleExpand={actions.onToggleExpand}
+            tokens={tokens}
+          />
 
-        <HabitRowContent
-          habit={habit}
-          titleSize={titleSize}
-          titleColor={titleColor}
-          isDoneForRange={isDoneForRange}
-          metaParts={metaParts}
-          showStreak={showStreak}
-          streak={streak}
-          tokens={tokens}
-        />
+          <HabitRowContent
+            habit={habit}
+            titleSize={titleSize}
+            titleColor={titleColor}
+            isDoneForRange={isDoneForRange}
+            metaParts={metaParts}
+            showStreak={showStreak}
+            streak={streak}
+            tokens={tokens}
+          />
+          {trailingLayout.bodyTrailingContent}
+        </Pressable>
 
-        <HabitRowTrailing
-          habit={habit}
-          isSelectMode={isSelectMode}
-          hasChildren={hasChildren}
-          childrenDone={childrenDone}
-          childrenTotal={childrenTotal}
-          linkedGoal={linkedGoal}
-          isDoneForRange={isDoneForRange}
-          canLog={canLog}
-          dotState={dotState}
-          hasMenuActions={hasMenuActions}
-          menuButtonRef={menuButtonRef}
-          actions={actions}
-          tokens={tokens}
-          onToggleStatus={handleToggleStatus}
-          onOpenMenu={openMenu}
-          onMenuActivity={() => {
-            menuActivityAt.current = Date.now()
-          }}
-        />
-      </Pressable>
+        {trailingLayout.siblingTrailingContent}
+      </View>
 
       {hasMenuActions ? (
         <AnchoredMenu

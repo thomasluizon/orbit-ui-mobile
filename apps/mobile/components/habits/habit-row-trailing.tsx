@@ -26,7 +26,6 @@ interface HabitRowTrailingProps {
   tokens: ReturnType<typeof createTokensV2>
   onToggleStatus: () => void
   onOpenMenu: () => void
-  onMenuActivity: () => void
 }
 
 function resolveLogAction(
@@ -71,7 +70,6 @@ export function HabitRowTrailing({
   tokens,
   onToggleStatus,
   onOpenMenu,
-  onMenuActivity,
 }: Readonly<HabitRowTrailingProps>) {
   const { t } = useTranslation()
   return (
@@ -129,7 +127,6 @@ export function HabitRowTrailing({
       {!isSelectMode && hasMenuActions ? (
         <MenuAnchorHost anchorRef={menuButtonRef}>
           <Pressable
-            onPressIn={onMenuActivity}
             onPress={onOpenMenu}
             hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
             accessibilityRole="button"
