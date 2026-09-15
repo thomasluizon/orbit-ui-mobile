@@ -1,7 +1,8 @@
 import { useState, useMemo, useCallback } from 'react'
-import { X, Plus, Sparkles, Loader2 } from 'lucide-react'
+import { X, Plus, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { HABIT_EMOJI_CATEGORIES, filterHabitEmojiCategories } from '@orbit/shared/utils'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import { CenteredOverlay } from '@/components/ui/centered-overlay'
 
 interface HabitEmojiSelectorProps {
@@ -87,7 +88,7 @@ export function HabitEmojiSelector({
               {isSuggesting ? (
                 <Loader2 className="size-[18px] animate-spin" aria-hidden="true" />
               ) : (
-                <Sparkles size={18} strokeWidth={2} aria-hidden="true" />
+                <AstraMark size={18} color="currentColor" strokeWidth={2} />
               )}
             </button>
             {!canSuggest && (

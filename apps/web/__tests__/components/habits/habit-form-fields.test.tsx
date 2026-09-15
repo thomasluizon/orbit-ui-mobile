@@ -63,6 +63,10 @@ vi.mock('@/components/ui/app-select', () => ({
   ),
 }))
 
+vi.mock('@/components/ui/astra-avatar', () => ({
+  AstraMark: () => <span data-testid="astra-mark" />,
+}))
+
 vi.mock('@/app/actions/tags', () => ({
   getTags: vi.fn().mockResolvedValue([]),
   createTag: vi.fn(),
@@ -343,6 +347,29 @@ describe('HabitFormFields', () => {
 
     expect(screen.getByTestId('habit-suggest-setup')).toBeDisabled()
     expect(screen.getByTestId('habit-suggest-emoji')).toBeDisabled()
+  })
+
+  it('uses the Astra marker for both habit suggestion controls', () => {
+    const formHelpers = createMockFormHelpers()
+    const baseWatch = formHelpers.form.watch as unknown as (field: string) => unknown
+    formHelpers.form.watch = ((field: string) =>
+      field === 'title' ? 'Read' : baseWatch(field)) as typeof formHelpers.form.watch
+
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={createMockTags()}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+        onSuggestSetup={vi.fn()}
+        onSuggestEmoji={vi.fn()}
+      />,
+    )
+
+    expect(screen.getAllByTestId('astra-mark')).toHaveLength(2)
   })
 
   it('filters emojis by category when clicking a category chip', () => {

@@ -36,6 +36,7 @@ import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useHasProAccess } from '@/hooks/use-profile'
 import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { useTagSuggestions } from '@/hooks/use-tag-suggestions'
+import { AstraMark } from '@/components/ui/astra-avatar'
 
 /**
  * Whether to render the absolute-time scheduled-reminder editor: always for a non-general habit with
@@ -285,7 +286,7 @@ export function HabitFormFields({
                 {isSuggesting ? (
                   <Loader2 className="size-[18px] animate-spin" aria-hidden="true" />
                 ) : (
-                  <Sparkles size={18} strokeWidth={2} aria-hidden="true" />
+                  <AstraMark size={18} color="currentColor" strokeWidth={2} />
                 )}
               </button>
             )}

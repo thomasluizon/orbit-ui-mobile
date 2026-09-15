@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
 import { ActivityIndicator, View, Text, Pressable, ScrollView } from "react-native";
-import { Plus, Sparkles, X } from "lucide-react-native";
+import { Plus, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
   HABIT_EMOJI_CATEGORIES,
@@ -8,6 +8,7 @@ import {
 } from "@orbit/shared/utils";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
+import { AstraMark } from "@/components/ui/astra-avatar";
 import { type AppTokens, createStyles } from "./styles";
 
 interface HabitEmojiSelectorProps {
@@ -98,7 +99,7 @@ export function HabitEmojiSelector({
             {isSuggesting ? (
               <ActivityIndicator size="small" color={tokens.primary} />
             ) : (
-              <Sparkles size={18} color={tokens.primary} strokeWidth={2} />
+              <AstraMark size={18} color={tokens.primary} strokeWidth={2} />
             )}
           </Pressable>
         ) : null}

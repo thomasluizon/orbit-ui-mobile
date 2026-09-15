@@ -71,6 +71,10 @@ vi.mock('@/components/ui/pro-badge', () => ({
   ProBadge: () => React.createElement('View'),
 }))
 
+vi.mock('@/components/ui/astra-avatar', () => ({
+  AstraMark: (props: Record<string, unknown>) => React.createElement('AstraMark', props),
+}))
+
 type MockControl = {
   values: Record<string, unknown>
 }
@@ -334,6 +338,29 @@ describe('HabitFormFields (mobile)', () => {
     expect(emojiButton.props.disabled).toBe(true)
     expect(onSuggestSetup).not.toHaveBeenCalled()
     expect(onSuggestEmoji).not.toHaveBeenCalled()
+  })
+
+  it('uses the Astra marker for both habit suggestion controls', () => {
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={createMockFormHelpers()}
+          tags={createMockTags()}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          onUpgrade={vi.fn()}
+          reminderTimes={[]}
+          onReminderTimesChange={vi.fn()}
+          onSuggestSetup={vi.fn()}
+          onSuggestEmoji={vi.fn()}
+        />,
+      )
+    })
+
+    expect(tree.root.findAllByType('AstraMark')).toHaveLength(2)
   })
 
   it('filters emojis by category when tapping a category chip', () => {
