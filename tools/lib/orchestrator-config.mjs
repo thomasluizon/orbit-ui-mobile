@@ -131,6 +131,9 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
   positive(config.timeouts?.noProgressMinutes, "timeouts.noProgressMinutes")
   positive(config.timeouts?.pollSeconds, "timeouts.pollSeconds")
   positive(config.caps?.reviewFixAttempts, "caps.reviewFixAttempts")
+  if (!Number.isInteger(config.caps?.workerLaunchesPerBranch) || config.caps.workerLaunchesPerBranch <= 0) {
+    throw new Error(".claude/orchestrator.json caps.workerLaunchesPerBranch must be a positive integer")
+  }
   if (!Number.isInteger(config.caps?.cloudParallelTasks) || config.caps.cloudParallelTasks < 4 || config.caps.cloudParallelTasks > 8) {
     throw new Error(".claude/orchestrator.json caps.cloudParallelTasks must be an integer from 4 through 8")
   }
@@ -146,11 +149,8 @@ export const readOrchestratorConfig = (configUrl = DEFAULT_CONFIG_URL, baseBranc
 }
 
 /**
- * `tier` is a plain string, not a label array. The tier:cheap / tier:deep label machinery is gone
- * with the wave planner that set it: one ticket, one worker, one model. D21 fixes the implementer
- * at one model @ high, gpt-5.6-sol since 2026-09-07, so "default" is the only tier any launch resolves.
- * The harness no longer runs a reviewer of its own: Pullfrog reviews in GitHub Actions and publishes the
- * `pullfrog-approval` required check, so there is no second tier to declare.
+ * `tier` is a plain string, not a label array. The caller chooses the configured profile for the
+ * order in front of it; the resolver owns the one argument path shared by every tier.
  */
 export const resolveWorkerInvocation = (engineName, engine, tier = "default") => {
   if (!isRecord(engine)) {

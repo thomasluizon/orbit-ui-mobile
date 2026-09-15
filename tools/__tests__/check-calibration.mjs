@@ -39,7 +39,7 @@ const stageHarness = (label, { stamp, model = "gpt-5.6-sol", engine = "codex", c
   for (const [relativePath, body] of Object.entries(extraFiles)) write(join(fixture, relativePath), body)
   write(
     join(fixture, ".claude", "orchestrator.json"),
-    `${JSON.stringify({ caps: { parallelTickets: 3 }, worker: engine, workers: { [engine]: { command, args: engineArgs, models: { default: { model, args } } } } }, null, 2)}\n`,
+    `${JSON.stringify({ caps: { parallelTickets: 3 }, worker: engine, workers: { [engine]: { command, args: engineArgs, models: { default: { model, args }, mechanical: { model, args: ["-c", 'model_reasoning_effort="medium"'] } } } } }, null, 2)}\n`,
   )
   if (stamp !== null) write(join(fixture, ".claude", "calibration.json"), `${JSON.stringify(stamp, null, 2)}\n`)
   return fixture
@@ -53,10 +53,12 @@ const currentStamp = (overrides = {}) => {
     calibratedAt,
     workerEngine: "codex",
     workerCommand: "codex",
-    workerModel: "gpt-5.6-sol",
-    // The RESOLVED vector launch-worker.mjs launches: engine args, then profile args, then the model.
-    workerArgs: ["exec", "-c", 'model_reasoning_effort="high"', "--model", "gpt-5.6-sol"],
-    workerModelSource: "resolveWorkerInvocation(config.worker, ..., default) in tools/lib/orchestrator-config.mjs",
+    workerTiers: {
+      default: { model: "gpt-5.6-sol", args: ["exec", "-c", 'model_reasoning_effort="high"', "--model", "gpt-5.6-sol"] },
+      mechanical: { model: "gpt-5.6-sol", args: ["exec", "-c", 'model_reasoning_effort="medium"', "--model", "gpt-5.6-sol"] },
+    },
+    workerTierVerdict: "default for judgment; mechanical for specified procedures",
+    workerModelSource: "resolveWorkerInvocation(config.worker, ..., tier) in tools/lib/orchestrator-config.mjs",
     entries: {
       ".claude/agents/design-reviewer.md": { model: "sonnet", effort: "medium", digest: digestOf(AGENT), calibratedAt, verdict: "current" },
       ".claude/skills/lesson/SKILL.md": { model: null, effort: null, digest: digestOf(UNTUNED_SKILL), calibratedAt, verdict: "undeclared, inherits the session" },
@@ -75,7 +77,7 @@ const withEntries = (mutate) => {
 export const cases = () => {
   check(TOOL, "a stamp covering every agent and skill file exits 0", ["--root", stageHarness("clean", { stamp: currentStamp() })], {
     status: 0,
-    stdout: /3 calibrated file\(s\) stamped .* against codex gpt-5\.6-sol \["exec","-c","model_reasoning_effort=\\"high\\"","--model","gpt-5\.6-sol"\]/,
+    stdout: /3 calibrated file\(s\) stamped .* against codex tiers default, mechanical/,
   })
 
   // The denominator is a glob, so a file added without a verdict is the case that catches the failure
@@ -113,7 +115,7 @@ export const cases = () => {
     TOOL,
     "editing the worker model without a fresh stamp exits 1",
     ["--root", stageHarness("model-moved", { stamp: currentStamp(), model: "gpt-6-next" })],
-    { status: 1, stderr: /the worker model is gpt-6-next and the stamp was taken against gpt-5\.6-sol/ },
+    { status: 1, stderr: /the default tier worker model is gpt-6-next and the stamp was taken against gpt-5\.6-sol/ },
   )
 
   check(
@@ -224,7 +226,7 @@ export const cases = () => {
     TOOL,
     "changing only the reasoning effort in the profile args exits 1",
     ["--root", stageHarness("args-changed", { stamp: currentStamp(), args: ["-c", 'model_reasoning_effort="low"'] })],
-    { status: 1, stderr: /this is the whole resolved launch vector, engine args included/ },
+    { status: 1, stderr: /default tier worker args[\s\S]*whole resolved launch vector, engine args included/ },
   )
   /**
    * The half this gate could not see. `resolveWorkerInvocation` prepends `engine.args` to every launch,
@@ -239,7 +241,7 @@ export const cases = () => {
       "--root",
       stageHarness("engine-args-changed", { stamp: currentStamp(), args: [], engineArgs: ["exec", "-c", 'model_reasoning_effort="low"'] }),
     ],
-    { status: 1, stderr: /this is the whole resolved launch vector, engine args included/ },
+    { status: 1, stderr: /default tier worker args[\s\S]*whole resolved launch vector, engine args included/ },
   )
   /**
    * And the same configuration with the stamp reseeded against it passes, so the case above proves the
@@ -251,7 +253,12 @@ export const cases = () => {
     [
       "--root",
       stageHarness("engine-args-reseeded", {
-        stamp: currentStamp({ workerArgs: ["exec", "-c", 'model_reasoning_effort="low"', "--model", "gpt-5.6-sol"] }),
+        stamp: currentStamp({
+          workerTiers: {
+            default: { model: "gpt-5.6-sol", args: ["exec", "-c", 'model_reasoning_effort="low"', "--model", "gpt-5.6-sol"] },
+            mechanical: { model: "gpt-5.6-sol", args: ["exec", "-c", 'model_reasoning_effort="low"', "-c", 'model_reasoning_effort="medium"', "--model", "gpt-5.6-sol"] },
+          },
+        }),
         args: [],
         engineArgs: ["exec", "-c", 'model_reasoning_effort="low"'],
       }),
@@ -481,7 +488,7 @@ export const cases = () => {
   )
   write(
     join(emptyTree, ".claude", "calibration.json"),
-    `${JSON.stringify({ calibratedAt: today(), workerEngine: "codex", workerCommand: "codex", workerModel: "gpt-5.6-sol", workerArgs: ["--model", "gpt-5.6-sol"], entries: {} }, null, 2)}\n`,
+    `${JSON.stringify({ calibratedAt: today(), workerEngine: "codex", workerCommand: "codex", workerTiers: { default: { model: "gpt-5.6-sol", args: ["--model", "gpt-5.6-sol"] } }, workerTierVerdict: "default for judgment", entries: {} }, null, 2)}\n`,
   )
   check(TOOL, "a tree with no agent and no skill exits 2 rather than reporting a vacuous green", ["--root", emptyTree], {
     status: 2,

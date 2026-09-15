@@ -246,9 +246,8 @@ describe('ProfilePage', () => {
       'preferences.themeMode',
       'profile.subscription.plan',
       'dataExport.button',
-      'shareCard.entry',
-      'profile.freshStart.button',
       'profile.logout',
+      'profile.freshStart.button',
       'profile.deleteAccount.button',
     ]
 
@@ -272,13 +271,52 @@ describe('ProfilePage', () => {
     ).toBeInTheDocument()
   })
 
+  it('keeps the share card reachable outside Ending things', () => {
+    render(<ProfilePage />)
+
+    const shareCardEntry = screen.getByRole('button', { name: /shareCard\.entry/i })
+    const ending = screen.getByTestId('profile-settings-group-ending')
+
+    expect(shareCardEntry).toBeInTheDocument()
+    expect(ending).not.toContainElement(shareCardEntry)
+  })
+
+  it('puts Sign out first in Ending things', () => {
+    render(<ProfilePage />)
+    const ending = screen.getByTestId('profile-settings-group-ending')
+
+    expect(within(ending).getAllByRole('button')[0]).toHaveTextContent('profile.logout')
+  })
+
+  it('puts Fresh Start directly after Sign out', () => {
+    render(<ProfilePage />)
+    const ending = screen.getByTestId('profile-settings-group-ending')
+    const labels = within(ending).getAllByRole('button').map((button) => button.textContent)
+
+    expect(labels.slice(0, 2)).toEqual(['profile.logout', 'profile.freshStart.button'])
+  })
+
+  it('keeps Delete account last in the three-row ending group', () => {
+    render(<ProfilePage />)
+    const ending = screen.getByTestId('profile-settings-group-ending')
+    const labels = within(ending).getAllByRole('button').map((button) => button.textContent)
+
+    expect(labels).toEqual([
+      'profile.logout',
+      'profile.freshStart.button',
+      'profile.deleteAccount.button',
+    ])
+  })
+
   it('routes every More of Orbit row', () => {
     const view = render(<ProfilePage />)
     const freeMore = within(screen.getByTestId('profile-settings-group-more'))
 
     expect(freeMore.getByRole('link', { name: /profile\.wrappedTitle/i })).toHaveAttribute('href', '/wrapped')
     expect(freeMore.getByRole('link', { name: /profile\.widgetTitle/i })).toHaveAttribute('href', '/advanced')
-    expect(freeMore.getByRole('link', { name: /calendar\.profileButton/i })).toHaveAttribute('href', '/upgrade')
+    const calendarGate = freeMore.getByRole('link', { name: /calendar\.profileButton/i })
+    expect(calendarGate).toHaveAttribute('href', '/upgrade')
+    expect(calendarGate).not.toHaveAttribute('aria-disabled', 'true')
     expect(freeMore.getByRole('link', { name: /profile\.support\.title/i })).toHaveAttribute('href', '/support')
     expect(freeMore.getByRole('link', { name: /profile\.sections\.aboutHelp/i })).toHaveAttribute('href', '/about')
     expect(freeMore.getByText('common.proBadge')).toBeInTheDocument()
@@ -296,7 +334,7 @@ describe('ProfilePage', () => {
     expect(proMore.queryByText('common.proBadge')).not.toBeInTheDocument()
   })
 
-  it('shows the free daily allowance and routes its only plan action to Pro', () => {
+  it('shows the free daily allowance as an enabled route to Pro', () => {
     render(<ProfilePage />)
 
     const astra = within(screen.getByTestId('profile-settings-group-astra'))
@@ -305,11 +343,22 @@ describe('ProfilePage', () => {
     expect(progress).toHaveAttribute('aria-valuemax', '5')
     expect(astra.getByText('profile.allowance.usage')).toBeInTheDocument()
     expect(astra.queryByText('profile.allowance.spent')).not.toBeInTheDocument()
-    const proactiveGate = astra.getByRole('button', { name: /profile\.proactiveAstra\.title/i })
-    const summaryGate = astra.getByRole('button', { name: /profile\.aiSummary\.title/i })
     expect(astra.queryByRole('link', { name: 'profile.allowance.manageSubscription' })).not.toBeInTheDocument()
 
-    expect(astra.getByRole('link', { name: 'profile.allowance.seePro' })).toHaveAttribute('href', '/upgrade')
+    const allowanceGate = astra.getByRole('link', { name: 'profile.allowance.seePro' })
+    expect(allowanceGate).toHaveAttribute('href', '/upgrade')
+    expect(allowanceGate).not.toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('shows both free Astra switch gates as enabled routes to Pro', () => {
+    render(<ProfilePage />)
+
+    const astra = within(screen.getByTestId('profile-settings-group-astra'))
+    const proactiveGate = astra.getByRole('button', { name: /profile\.proactiveAstra\.title/i })
+    const summaryGate = astra.getByRole('button', { name: /profile\.aiSummary\.title/i })
+
+    expect(proactiveGate).toBeEnabled()
+    expect(summaryGate).toBeEnabled()
     fireEvent.click(proactiveGate)
     fireEvent.click(summaryGate)
     expect(mockRouterPush).toHaveBeenNthCalledWith(1, '/upgrade')
@@ -323,7 +372,26 @@ describe('ProfilePage', () => {
     expect(apiKeys.getByText('profile.apiKeys.description')).toBeInTheDocument()
     const upgradeRow = apiKeys.getByRole('button', { name: 'profile.apiKeys.unlock' })
     expect(apiKeys.queryByText('orbitMcp.noKeys')).not.toBeInTheDocument()
+    expect(upgradeRow).toBeEnabled()
 
+    fireEvent.click(upgradeRow)
+    expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
+  })
+
+  it('keeps every free API key state on the enabled lock route', () => {
+    mockStepUpVerified.current = true
+    mockApiKeys.current = [{
+      id: 'key-1',
+      name: 'Work key',
+      keyPrefix: 'orb_live_1234',
+    }]
+
+    render(<ProfilePage />)
+
+    const apiKeys = within(screen.getByTestId('profile-api-keys'))
+    const upgradeRow = apiKeys.getByRole('button', { name: 'profile.apiKeys.unlock' })
+    expect(upgradeRow).toBeEnabled()
+    expect(apiKeys.queryByText('Work key')).not.toBeInTheDocument()
     fireEvent.click(upgradeRow)
     expect(mockRouterPush).toHaveBeenCalledWith('/upgrade')
   })

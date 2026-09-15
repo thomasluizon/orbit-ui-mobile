@@ -65,9 +65,10 @@ export const cases = async () => {
   )
 
   const migrated = githubIssues.resolveTicket("orb-215")
-  T(`${TOOL}: resolves a migrated ORB identifier only through the recorded map`, migrated.number === 221 && migrated.identifier === "ORB-215", JSON.stringify(migrated))
-  T(`${TOOL}: resolves a raw migrated issue number back to its identifier`, githubIssues.resolveTicket("#221").identifier === "ORB-215")
-  T(`${TOOL}: leaves a post-migration raw issue without an invented identifier`, githubIssues.resolveTicket(9999).identifier === null)
+  T(`${TOOL}: resolves a migrated ORB identifier only through the recorded map`, migrated.number === 221 && migrated.identifier === "ORB-215" && migrated.reference === "ORB-215", JSON.stringify(migrated))
+  T(`${TOOL}: resolves every migrated spelling to one recorded reference`, ["221", "#221", "ORB-215"].every((reference) => githubIssues.resolveTicket(reference).reference === "ORB-215"))
+  const unmigrated = githubIssues.resolveTicket(9999)
+  T(`${TOOL}: leaves a post-migration raw issue without an invented identifier`, unmigrated.identifier === null && unmigrated.reference === "#9999", JSON.stringify(unmigrated))
   T(
     `${TOOL}: refuses an ORB identifier absent from the migration map`,
     /Unknown migrated ticket ORB-999999/.test(await messageOf(() => githubIssues.resolveTicket("ORB-999999")) ?? ""),

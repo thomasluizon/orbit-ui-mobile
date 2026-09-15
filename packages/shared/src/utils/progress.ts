@@ -5,28 +5,44 @@ import {
   parseISO,
   startOfDay,
 } from 'date-fns'
-import type { Achievement, GamificationProfile } from '../types/gamification'
+import type { Achievement, GamificationProfile, StreakInfo } from '../types/gamification'
 import type { Goal, GoalPositionItem, GoalStatus } from '../types/goal'
 import type { Profile } from '../types/profile'
 import { formatAPIDateInTimeZone, nowDate } from './dates'
+import { isPayGateError } from './error-utils'
 import { getGoalMetricsStatusPresentation } from './goal-metrics'
 
 type ProgressQueryState = { isLoading: boolean; isError: boolean }
 
-export function deriveProgressViewState({ goalCount, account, goals, gamification, canView }: {
+export function deriveProgressViewState({ goalCount, account, goals, gamification, canViewGamification }: {
   goalCount: number
+  canViewGamification: boolean
   account: ProgressQueryState & {
     profile: Pick<Profile, 'currentStreak' | 'longestStreak' | 'totalXp'> | undefined
   }
   goals: ProgressQueryState
   gamification: ProgressQueryState & {
+    error?: unknown
     profile: Pick<GamificationProfile, 'currentStreak' | 'longestStreak' | 'totalXp' | 'achievementsEarned'> | null
   }
-  canView: boolean
 }): { loading: boolean; error: boolean; empty: boolean } {
-  const error = account.isError || goals.isError || (canView && gamification.isError)
-  const loading = !error && (account.isLoading || goals.isLoading || (canView && gamification.isLoading))
-  const empty = !loading && !error && isProgressEmpty(goalCount, account.profile, canView ? gamification.profile : null)
+  const gamificationLocked = canViewGamification
+    && gamification.isError
+    && isPayGateError(gamification.error)
+  const gamificationFailed = canViewGamification
+    && gamification.isError
+    && !gamificationLocked
+  const error = account.isError || goals.isError || gamificationFailed
+  const loading = !error && (
+    account.isLoading
+    || goals.isLoading
+    || (canViewGamification && gamification.isLoading)
+  )
+  const empty = !loading && !error && isProgressEmpty(
+    goalCount,
+    account.profile,
+    canViewGamification && !gamificationLocked ? gamification.profile : null,
+  )
   return { loading, error, empty }
 }
 
@@ -139,15 +155,78 @@ export function getGamificationLevelTitleKey(level: number): string {
   return `progressScreen.achievements.levelTitles.${GAMIFICATION_LEVEL_TITLE_KEYS[index]}`
 }
 
-export function getAvailableStreakRepairDate(
-  isRepairAvailable: boolean | undefined,
-  repairDate: string | null | undefined,
-): string | null {
-  return isRepairAvailable === true && repairDate ? repairDate : null
+type StreakRepairSource = Pick<
+  StreakInfo,
+  | 'currentStreak'
+  | 'isRepairAvailable'
+  | 'lastActiveDate'
+  | 'longestStreak'
+  | 'repairDate'
+  | 'repairableGapDates'
+>
+
+export type StreakRepairState = {
+  dates: string[]
+  count: number
+  banked: number
+  canRepair: boolean
+  showGap: boolean
+  gapUnavailable: boolean
+  bankFull: boolean
 }
 
-function getProtectedAccountToday(timeZone?: string | null): string {
-  return formatAPIDateInTimeZone(nowDate(), timeZone)
+export function getStreakRepairErrorMessageKey(status: number | undefined):
+  'progressScreen.streak.repairError' | 'progressScreen.streak.repairRateLimited' {
+  return status === 429
+    ? 'progressScreen.streak.repairRateLimited'
+    : 'progressScreen.streak.repairError'
+}
+
+function isApiDate(value: string | null | undefined): value is string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const parsed = startOfDay(parseISO(value))
+  return isValid(parsed) && format(parsed, 'yyyy-MM-dd') === value
+}
+
+export function deriveStreakRepairState({
+  streak,
+  freezesAvailable,
+  banked,
+  ceiling,
+  now = nowDate(),
+  accountTimeZone,
+}: {
+  streak: StreakRepairSource | null | undefined
+  freezesAvailable: number
+  banked: number
+  ceiling: number
+  now?: Date
+  accountTimeZone?: string | null
+}): StreakRepairState {
+  const dates = streak?.repairableGapDates != null
+    ? streak.repairableGapDates.filter(isApiDate)
+    : streak?.isRepairAvailable === true && isApiDate(streak.repairDate)
+      ? [streak.repairDate]
+      : []
+  const count = dates.length
+  const canRepair = count > 0 && freezesAvailable >= count
+  const gapUnavailable = count === 0
+    && streak?.currentStreak === 1
+    && streak.longestStreak > 1
+    && streak.lastActiveDate === getAccountToday(accountTimeZone, now)
+  return {
+    dates,
+    count,
+    banked,
+    canRepair,
+    showGap: gapUnavailable || count > 0,
+    gapUnavailable,
+    bankFull: banked >= ceiling,
+  }
+}
+
+function getAccountToday(timeZone?: string | null, now = nowDate()): string {
+  return formatAPIDateInTimeZone(now, timeZone)
 }
 
 export function buildProtectedDayLabels(
@@ -156,7 +235,7 @@ export function buildProtectedDayLabels(
   isFrozenToday = false,
   accountTimeZone?: string | null,
 ): { id: string; dateLabel: string; isToday: boolean }[] {
-  const accountToday = isFrozenToday ? getProtectedAccountToday(accountTimeZone) : null
+  const accountToday = isFrozenToday ? getAccountToday(accountTimeZone) : null
   const protectedDays = [...new Set(dates)].sort((leftDate, rightDate) => {
     if (leftDate === rightDate) return 0
     return leftDate < rightDate ? 1 : -1

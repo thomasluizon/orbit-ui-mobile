@@ -205,7 +205,7 @@ function TimeZonePicker({ controls, profile, t, tokens }: Readonly<TimeZonePicke
 }
 
 function buildMoreRows({ profile, router, t, tokens }: RowContext) {
-  return PROFILE_NAV_ITEMS.map((item) => {
+  const navigationRows = PROFILE_NAV_ITEMS.map((item) => {
     const redirectsToUpgrade = shouldRedirectProfileNavItem(item, profile)
     return (
       <ListRow
@@ -225,6 +225,11 @@ function buildMoreRows({ profile, router, t, tokens }: RowContext) {
       />
     )
   })
+
+  return [
+    ...navigationRows,
+    <ShareCardEntryButton key="share" />,
+  ]
 }
 
 interface EndingRowsOptions {
@@ -241,9 +246,8 @@ function buildEndingRows({
   onLogout,
 }: EndingRowsOptions) {
   return [
-    <ShareCardEntryButton key="share" />,
-    <ListRow key="fresh-start" icon={icon(RotateCcw, tokens.fg1)} title={t('profile.freshStart.button')} chevron={false} onClick={onFreshStart} />,
     <ListRow key="logout" icon={icon(LogOut, tokens.fg1)} title={t('profile.logout')} chevron={false} onClick={onLogout} />,
+    <ListRow key="fresh-start" icon={icon(RotateCcw, tokens.fg1)} title={t('profile.freshStart.button')} chevron={false} onClick={onFreshStart} />,
     <ListRow key="delete" icon={icon(UserX, tokens.fg1)} title={t('profile.deleteAccount.button')} danger chevron={false} onClick={onDeleteAccount} />,
   ]
 }

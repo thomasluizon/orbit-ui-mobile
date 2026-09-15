@@ -1,8 +1,197 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "groups": {
-    "R1-primitive-overlay": [
-      "m-overlay-share-share-card-panel",
+    "Orbit Assinatura": [],
+    "Orbit Astra Conversation": [
+      "block-chat-action-chips",
+      "block-chat-breakdown-suggestion",
+      "block-chat-chat-empty-state",
+      "block-chat-clarification-card",
+      "block-chat-composer",
+      "block-chat-conflict-warning",
+      "block-chat-conversation",
+      "block-chat-goal-list-card",
+      "block-chat-habit-list-card",
+      "block-chat-message-bubble",
+      "block-chat-operation-outcomes",
+      "block-chat-pending-operation-card",
+      "block-chat-suggestion-chips",
+      "m-block-chat-action-chips",
+      "m-block-chat-breakdown-suggestion",
+      "m-block-chat-chat-empty-state",
+      "m-block-chat-clarification-card",
+      "m-block-chat-composer",
+      "m-block-chat-conflict-warning",
+      "m-block-chat-conversation",
+      "m-block-chat-goal-list-card",
+      "m-block-chat-habit-list-card",
+      "m-block-chat-message-bubble",
+      "m-block-chat-operation-outcomes",
+      "m-block-chat-pending-operation-card",
+      "m-block-chat-suggestion-chips",
+      "m-overlay-chat-breakdown-suggestion",
+      "m-overlay-chat-pending-operation-card",
+      "m-route-ai-settings",
+      "m-route-chat",
+      "route-ai-settings",
+      "route-chat"
+    ],
+    "Orbit Avisos": [
+      "m-overlay-navigation-notification-detail-modal",
+      "m-overlay-navigation-notification-inbox",
+      "m-route-notifications",
+      "overlay-navigation-notification-detail-modal",
+      "overlay-navigation-notification-inbox",
+      "route-notifications"
+    ],
+    "Orbit Busca": [
+      "m-route-search",
+      "overlay-command-command-palette",
+      "route-search"
+    ],
+    "Orbit Calendario": [
+      "m-overlay-components-calendar-shell",
+      "m-overlay-onboarding-calendar-import-prompt",
+      "m-route-calendar-sync",
+      "m-route-tabs-calendar",
+      "overlay-components-calendar-shell",
+      "route-calendar",
+      "route-calendar-sync"
+    ],
+    "Orbit Celebracao": [],
+    "Orbit Entrar": [
+      "m-route-login",
+      "m-route-r-code",
+      "route-login",
+      "route-r-code"
+    ],
+    "Orbit Estados": [
+      "error-app",
+      "error-auth",
+      "error-global",
+      "m-error-root",
+      "m-not-found-root",
+      "m-overlay-components-throttle-screen",
+      "m-overlay-components-upgrade-required-screen",
+      "m-overlay-components-version-update-drawer",
+      "not-found-root"
+    ],
+    "Orbit Habit Create": [
+      "m-overlay-create-goal-from-habit-goal-deadline-field",
+      "m-overlay-habit-form-fields-habit-emoji-selector",
+      "m-overlay-habit-form-fields-scheduled-reminder-section",
+      "m-overlay-habit-form-fields-tag-picker-field",
+      "m-overlay-habits-create-goal-from-habit-sheet",
+      "m-overlay-habits-create-habit-modal",
+      "m-overlay-habits-habit-form-fields",
+      "overlay-create-goal-from-habit-goal-deadline-field",
+      "overlay-habit-form-fields-habit-emoji-selector",
+      "overlay-habit-form-fields-scheduled-reminder-section",
+      "overlay-habit-form-fields-tag-picker-field",
+      "overlay-habits-create-goal-from-habit-sheet",
+      "overlay-habits-create-habit-modal",
+      "overlay-habits-habit-form-fields"
+    ],
+    "Orbit Habit Detail": [
+      "m-overlay-habits-checklist-templates",
+      "m-overlay-habits-description-viewer",
+      "m-overlay-habits-edit-habit-modal",
+      "m-overlay-habits-goal-linking-field",
+      "m-overlay-habits-habit-detail-fields",
+      "m-overlay-habits-habit-detail-screen",
+      "m-overlay-habits-reschedule-sheet",
+      "m-route-habits-id",
+      "overlay-habits-checklist-templates",
+      "overlay-habits-description-viewer",
+      "overlay-habits-edit-habit-modal",
+      "overlay-habits-goal-linking-field",
+      "overlay-habits-habit-detail-fields",
+      "overlay-habits-habit-detail-screen",
+      "overlay-habits-reschedule-sheet",
+      "route-habits-id"
+    ],
+    "Orbit Hoje": [
+      "m-overlay-habit-list-confirm-dialogs",
+      "m-overlay-habit-list-move-parent-dialog",
+      "m-overlay-habits-habit-row",
+      "m-overlay-habits-habit-row-trailing",
+      "m-overlay-today-today-date-control",
+      "m-overlay-today-today-modals",
+      "m-route-tabs-index",
+      "overlay-app-layout",
+      "overlay-app-today-page-view",
+      "overlay-app-today-shell",
+      "overlay-habit-list-confirm-dialogs",
+      "overlay-habit-list-move-parent-overlay",
+      "overlay-habits-habit-row-trailing",
+      "route-root"
+    ],
+    "Orbit Offline": [],
+    "Orbit Onboarding": [
+      "m-overlay-onboarding-onboarding-flow",
+      "m-overlay-tour-tour-overlay",
+      "m-overlay-tour-tour-replay-modal",
+      "m-overlay-ui-push-prompt",
+      "m-route-onboarding-index",
+      "overlay-onboarding-onboarding-flow",
+      "overlay-tour-tour-replay-modal",
+      "overlay-tour-tour-spotlight",
+      "overlay-tour-tour-tooltip",
+      "route-onboarding"
+    ],
+    "Orbit Perfil": [
+      "m-overlay-components-delete-account-modal",
+      "m-overlay-components-edit-name-sheet",
+      "m-overlay-components-fresh-start-modal",
+      "m-overlay-components-profile-settings-content",
+      "m-overlay-marketing-consent-marketing-consent-prompt",
+      "m-overlay-profile-advanced-sections",
+      "m-overlay-profile-preferences-sections",
+      "m-overlay-profile-profile-api-keys",
+      "m-route-advanced",
+      "m-route-preferences",
+      "m-route-tabs-profile",
+      "overlay-advanced-advanced-sections",
+      "overlay-components-delete-account-modal",
+      "overlay-components-edit-name-sheet",
+      "overlay-components-fresh-start-modal",
+      "overlay-components-preference-picker-sheet",
+      "overlay-marketing-consent-marketing-consent-prompt",
+      "overlay-profile-profile-api-keys",
+      "route-advanced",
+      "route-delete-account",
+      "route-preferences",
+      "route-profile"
+    ],
+    "Orbit Pro": [
+      "m-overlay-ui-trial-expired-modal",
+      "m-route-upgrade",
+      "overlay-ui-trial-expired-modal",
+      "route-upgrade"
+    ],
+    "Orbit Progresso": [
+      "m-overlay-edit-goal-modal-edit-goal-deadline-field",
+      "m-overlay-goals-edit-goal-modal",
+      "m-overlay-goals-goal-detail-drawer",
+      "m-route-tabs-progress",
+      "overlay-edit-goal-modal-edit-goal-deadline-field",
+      "overlay-goals-edit-goal-modal",
+      "overlay-goals-goal-detail-drawer",
+      "route-progress"
+    ],
+    "Orbit Sobre": [
+      "m-overlay-onboarding-feature-guide-drawer",
+      "m-route-about",
+      "m-route-privacy",
+      "m-route-support",
+      "m-route-terms",
+      "overlay-onboarding-feature-guide-drawer",
+      "route-about",
+      "route-privacy",
+      "route-support",
+      "route-terms"
+    ],
+    "Orbit Sobreposicoes": [
       "m-overlay-ui-confirm-sheet",
       "m-overlay-ui-date-field",
       "m-overlay-ui-discard-changes-sheet",
@@ -10,7 +199,6 @@
       "m-overlay-ui-selection-field",
       "m-overlay-ui-sheet",
       "m-overlay-ui-time-field",
-      "overlay-share-share-card-panel",
       "overlay-ui-confirm-sheet",
       "overlay-ui-date-field",
       "overlay-ui-discard-changes-sheet",
@@ -18,216 +206,79 @@
       "overlay-ui-sheet",
       "overlay-ui-time-field"
     ],
-    "R2-primitive-shell": [
-      "error-app",
-      "error-global",
-      "not-found-root",
-      "overlay-app-layout",
-      "overlay-command-command-palette",
-      "route-search",
-      "route-step-up",
-      "m-not-found-root",
-      "m-error-root",
-      "m-route-search",
-      "m-route-step-up",
-      "m-overlay-components-throttle-screen",
-      "m-overlay-components-upgrade-required-screen"
-    ],
-    "R3-primitive-row": [
-      "m-overlay-habit-list-confirm-dialogs",
-      "m-overlay-habit-list-move-parent-dialog",
-      "m-overlay-habits-habit-row",
-      "m-overlay-habits-habit-row-trailing",
-      "overlay-habit-list-confirm-dialogs",
-      "overlay-habit-list-move-parent-overlay",
-      "overlay-habits-habit-row-trailing"
-    ],
-    "R4-motion-celebration": [
-      "overlay-components-fresh-start-modal",
-      "m-overlay-components-fresh-start-modal"
-    ],
-    "R5-screen-today": [
-      "m-overlay-today-today-modals",
-      "m-route-tabs-index",
-      "overlay-app-today-page-view",
-      "overlay-app-today-shell",
-      "route-root",
-      "m-overlay-today-today-date-control"
-    ],
-    "R6-screen-goals": [],
-    "R7-screen-habits-crud": [
-      "m-overlay-habit-form-fields-habit-emoji-selector",
-      "m-overlay-habit-form-fields-scheduled-reminder-section",
-      "m-overlay-habits-create-habit-modal",
-      "m-overlay-habits-description-viewer",
-      "m-overlay-habits-edit-habit-modal",
-      "m-overlay-habits-reschedule-sheet",
-      "overlay-habit-form-fields-habit-emoji-selector",
-      "overlay-habit-form-fields-scheduled-reminder-section",
-      "overlay-habits-create-habit-modal",
-      "overlay-habits-description-viewer",
-      "overlay-habits-edit-habit-modal",
-      "overlay-habits-habit-form-fields",
-      "overlay-habits-reschedule-sheet",
-      "m-overlay-habit-form-fields-tag-picker-field",
-      "m-overlay-habits-checklist-templates",
-      "m-overlay-habits-goal-linking-field",
-      "m-overlay-habits-habit-detail-fields",
-      "m-overlay-habits-habit-detail-screen",
-      "m-overlay-habits-habit-form-fields",
-      "m-route-habits-id",
-      "overlay-habit-form-fields-tag-picker-field",
-      "overlay-habits-checklist-templates",
-      "overlay-habits-goal-linking-field",
-      "overlay-habits-habit-detail-fields",
-      "overlay-habits-habit-detail-screen",
-      "route-habits-id",
-      "m-overlay-create-goal-from-habit-goal-deadline-field",
-      "m-overlay-habits-create-goal-from-habit-sheet",
-      "overlay-create-goal-from-habit-goal-deadline-field",
-      "overlay-habits-create-goal-from-habit-sheet"
-    ],
-    "R8-screen-calendar": [
-      "route-calendar-sync",
-      "route-calendar",
-      "overlay-components-calendar-shell",
-      "m-route-tabs-calendar",
-      "m-route-calendar-sync",
-      "m-overlay-components-calendar-shell"
-    ],
-    "R9-screen-streak": [],
-    "R10-screen-achievements": [],
-    "R11-screen-astra": [
-      "route-ai-settings",
-      "route-chat",
-      "block-chat-chat-empty-state",
-      "block-chat-action-chips",
-      "block-chat-breakdown-suggestion",
-      "block-chat-clarification-card",
-      "block-chat-composer",
-      "block-chat-conflict-warning",
-      "block-chat-goal-list-card",
-      "block-chat-habit-list-card",
-      "block-chat-message-bubble",
-      "block-chat-pending-operation-card",
-      "block-chat-suggestion-chips",
-      "m-route-ai-settings",
-      "m-route-chat",
-      "m-block-chat-action-chips",
-      "m-block-chat-breakdown-suggestion",
-      "m-block-chat-chat-empty-state",
-      "m-block-chat-clarification-card",
-      "m-block-chat-composer",
-      "m-block-chat-conflict-warning",
-      "m-block-chat-goal-list-card",
-      "m-block-chat-habit-list-card",
-      "m-block-chat-pending-operation-card",
-      "m-block-chat-suggestion-chips",
-      "m-block-chat-message-bubble",
-      "block-chat-conversation",
-      "block-chat-operation-outcomes",
-      "m-block-chat-conversation",
-      "m-block-chat-operation-outcomes",
-      "m-overlay-chat-breakdown-suggestion",
-      "m-overlay-chat-pending-operation-card"
-    ],
-    "R12-screen-insights": [
-      "route-progress",
-      "m-route-tabs-progress",
-      "route-wrapped",
-      "m-route-wrapped",
-      "m-overlay-edit-goal-modal-edit-goal-deadline-field",
-      "m-overlay-goals-edit-goal-modal",
-      "m-overlay-goals-goal-detail-drawer",
-      "overlay-edit-goal-modal-edit-goal-deadline-field",
-      "overlay-goals-edit-goal-modal",
-      "overlay-goals-goal-detail-drawer"
-    ],
-    "R13-screen-social": [],
-    "R14-screen-onboarding": [
-      "route-onboarding",
-      "overlay-onboarding-feature-guide-drawer",
-      "overlay-onboarding-onboarding-flow",
-      "overlay-tour-tour-replay-modal",
-      "overlay-tour-tour-spotlight",
-      "overlay-tour-tour-tooltip",
-      "m-route-onboarding-index",
-      "m-overlay-onboarding-astra-import-prompt",
-      "m-overlay-onboarding-calendar-import-prompt",
-      "m-overlay-onboarding-feature-guide-drawer",
-      "m-overlay-onboarding-onboarding-flow",
-      "m-overlay-tour-tour-overlay",
-      "m-overlay-tour-tour-replay-modal",
-      "m-overlay-ui-push-prompt"
-    ],
-    "R15-screen-auth": [
-      "route-auth-callback",
-      "route-login",
-      "error-auth",
+    "Orbit Verificacao": [
       "m-route-auth-callback",
-      "m-route-login"
+      "m-route-step-up",
+      "route-auth-callback",
+      "route-step-up"
     ],
-    "R16-screen-settings": [
-      "route-advanced",
-      "route-preferences",
-      "route-profile",
-      "route-delete-account",
-      "route-notifications",
-      "overlay-components-preference-picker-sheet",
-      "overlay-components-delete-account-modal",
-      "overlay-components-edit-name-sheet",
-      "overlay-advanced-advanced-sections",
-      "overlay-navigation-notification-inbox",
-      "overlay-navigation-notification-detail-modal",
-      "overlay-ui-create-api-key-modal",
-      "m-route-tabs-profile",
-      "m-route-advanced",
-      "m-route-notifications",
-      "m-route-preferences",
-      "m-overlay-components-profile-settings-content",
-      "m-overlay-components-delete-account-modal",
-      "m-overlay-components-edit-name-sheet",
-      "m-overlay-profile-advanced-sections",
-      "m-overlay-profile-preferences-sections",
-      "m-overlay-navigation-notification-inbox",
-      "m-overlay-navigation-notification-detail-modal",
-      "m-overlay-ui-create-api-key-modal",
-      "m-overlay-components-version-update-drawer"
+    "Orbit Widget Android": [
+      "m-widget-orbit-widget"
     ],
-    "R17-screen-monetization": [
-      "route-upgrade",
-      "route-r-code",
-      "overlay-marketing-consent-marketing-consent-prompt",
-      "overlay-milestone-share-milestone-share-prompt",
-      "overlay-referral-referral-drawer",
-      "overlay-referral-referral-prompt",
-      "overlay-ui-trial-expired-modal",
-      "m-route-r-code",
-      "m-route-upgrade",
-      "m-overlay-marketing-consent-marketing-consent-prompt",
+    "Orbit Wrapped": [
       "m-overlay-milestone-share-milestone-share-prompt",
       "m-overlay-referral-referral-drawer",
       "m-overlay-referral-referral-prompt",
-      "m-overlay-review-moment-review-moment-sheet",
-      "m-overlay-ui-expiry-warning",
-      "m-overlay-ui-trial-expired-modal"
-    ],
-    "R18-screen-static": [
-      "route-about",
-      "route-support",
-      "route-privacy",
-      "route-terms",
-      "m-route-about",
-      "m-route-privacy",
-      "m-route-support",
-      "m-route-terms"
-    ],
-    "R21-widget": [
-      "m-widget-orbit-widget"
+      "m-overlay-share-share-card-panel",
+      "m-route-wrapped",
+      "overlay-milestone-share-milestone-share-prompt",
+      "overlay-referral-referral-drawer",
+      "overlay-referral-referral-prompt",
+      "overlay-share-share-card-panel",
+      "route-wrapped"
     ]
   },
-  "excluded": [],
+  "deleted": [
+    {
+      "surfaceId": "route-insights",
+      "decision": "D69 (2026-08-16): the /insights route was deleted and its figures moved to Orbit Progresso."
+    },
+    {
+      "surfaceId": "route-retrospective",
+      "decision": "D69 (2026-08-16): the retrospective became an Astra-delivered event with no dedicated route."
+    },
+    {
+      "surfaceId": "route-retrospective-empty",
+      "decision": "D69 (2026-08-16): the retrospective empty screen became unreachable when its dedicated route was deleted."
+    },
+    {
+      "surfaceId": "route-retrospective-locked",
+      "decision": "D69 (2026-08-16): the retrospective locked screen became unreachable when its dedicated route was deleted."
+    },
+    {
+      "surfaceId": "route-retrospective-no-data",
+      "decision": "D69 (2026-08-16): the retrospective no-data screen became unreachable when its dedicated route was deleted."
+    },
+    {
+      "surfaceId": "desktop-stats-rail",
+      "decision": "D69 (2026-08-16): Orbit Progresso owns these figures and the rail width moved to the conversation panel."
+    },
+    {
+      "surfaceId": "route-explore",
+      "decision": "Pre-D69 social deletion, retained by D69 (2026-08-16): the web-only /explore hub was removed with the social layer."
+    },
+    {
+      "surfaceId": "social-layer",
+      "decision": "Pre-D69 social deletion, retained by D69 (2026-08-16): friends, feed, cheers, challenges, accountability, and public profiles were removed."
+    }
+  ],
+  "excluded": [
+    {
+      "surfaceId": "m-overlay-onboarding-astra-import-prompt",
+      "reason": "No current canvas document specifies the post-onboarding Astra import prompt; it remains a named live coverage gap."
+    },
+    {
+      "surfaceId": "m-overlay-review-moment-review-moment-sheet",
+      "reason": "No current canvas document draws the native store-review prompt; it remains a named live coverage gap."
+    },
+    {
+      "surfaceId": "m-overlay-ui-expiry-warning",
+      "reason": "No current canvas document specifies the access-session expiry warning; it remains a named live coverage gap."
+    }
+  ],
   "notes": {
-    "m-widget-orbit-widget": "D66 adds the Android widget to the manifest and assigns it to #76 (R21)."
+    "m-overlay-habits-goal-linking-field": "Orbit Habit Detail is the representative owner for the shared goal-linking field; Orbit Habit Create also draws it in the creation flow.",
+    "m-widget-orbit-widget": "D66 added the Android widget to the manifest; the 2026-08-24 decision assigns it to its canvas document instead of excluding it.",
+    "overlay-app-layout": "Orbit Hoje is the representative owner for the authenticated shell shared across Hoje, Calendario, Progresso, and Perfil, as defined by DESIGN.md."
   }
 }

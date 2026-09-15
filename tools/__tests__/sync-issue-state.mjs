@@ -176,6 +176,25 @@ export const cases = () => {
     "a refusal must write nothing",
   )
 
+  /** Migrated identity and the numeric reference forms must compose without weakening the binding. */
+  for (const [name, issueReference, pr] of [
+    ["a fully qualified ticket reference", "ORB-215", pullRequest({ headRefName: "fix/something-else", title: "fix: x", body: "Refs thomasluizon/orbit-tickets#221" })],
+    ["a ticket-number branch reference", "#221", pullRequest({ headRefName: "feature/ticket-221-work", title: "fix: x", body: "no reference" })],
+    ["a numeric issue argument with only its mapped ORB reference", "#221", pullRequest({ headRefName: "fix/something-else", title: "fix: x", body: "Refs ORB-215" })],
+  ]) {
+    const referenceStatus = stage(`sync-issue-state/reference-status-${issueReference}`, "status")
+    const referenceComment = stage(`sync-issue-state/reference-comment-${issueReference}`, "comment")
+    const referenceBody = stage(`sync-issue-state/reference-body-${issueReference}`, "")
+    const referenceArgv = [...argv]
+    referenceArgv[referenceArgv.indexOf("--issue") + 1] = issueReference
+    const result = run(TOOL, referenceArgv, {
+      path: staged.path,
+      env: orcaEnv([...readPlan(issue(), pr), ...writePlan(referenceStatus, referenceComment, referenceBody)]),
+    })
+    const synchronized = JSON.parse(result.stdout || "null")
+    T(`${TOOL}: ${name} synchronizes with the canonical artifact identity`, result.status === 0 && synchronized?.issue === "ORB-215", result.stderr || result.stdout)
+  }
+
   /** The reference may live in any of the three fields, so each one is proven to satisfy it. */
   for (const [field, pr] of [
     ["branch", pullRequest({ headRefName: "fix/orb-215-work", title: "fix: x", body: "no reference" })],

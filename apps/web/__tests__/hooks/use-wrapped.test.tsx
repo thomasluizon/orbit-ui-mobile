@@ -37,10 +37,10 @@ describe('web useWrapped', () => {
     expect(result.current.isEmpty).toBe(true)
   })
 
-  it('keeps a goal-only recap available to the player', () => {
+  it('keeps Start enabled and reaches the goals slide for a goal-only recap', () => {
     mocks.useQuery.mockReturnValue({
       data: createMockRecap({
-        goalCompletions: 2,
+        goalCompletions: 4,
         metrics: createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
       }),
       isLoading: false,
@@ -51,5 +51,6 @@ describe('web useWrapped', () => {
     const { result } = renderHook(() => useWrapped('month'))
     expect(result.current.isEmpty).toBe(false)
     expect(result.current.slides.at(-1)?.id).toBe('share')
+    expect(result.current.slides).toContainEqual({ id: 'goals', closedGoals: 4 })
   })
 })

@@ -8,6 +8,7 @@ import type {
 } from '@orbit/shared/types/gamification'
 import { reportEventResponseSchema, streakInfoSchema } from '@orbit/shared/types/gamification'
 import { serverAuthFetch } from '@/lib/server-fetch'
+import { wrapServerAction, type ServerActionResult } from './action-result'
 
 export async function reportAchievementEvent(
   eventKey: AchievementEventKey,
@@ -22,10 +23,12 @@ export async function reportAchievementEvent(
   )
 }
 
-export async function repairStreak(): Promise<StreakInfo> {
-  return serverAuthFetch(
-    API.gamification.repairStreak,
-    { method: 'POST', body: '{}' },
-    streakInfoSchema,
+export async function repairStreakGap(dates: string[]): Promise<ServerActionResult<StreakInfo>> {
+  return wrapServerAction(() =>
+    serverAuthFetch(
+      API.gamification.repairStreakGap,
+      { method: 'POST', body: JSON.stringify({ dates }) },
+      streakInfoSchema,
+    ),
   )
 }

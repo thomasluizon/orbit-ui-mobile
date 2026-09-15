@@ -165,9 +165,9 @@ describe('mobile useWrapped', () => {
     expect(mocks.reportEvent).not.toHaveBeenCalled()
   })
 
-  it('keeps a goal-only recap available to the player', async () => {
+  it('keeps Start enabled and reaches the goals slide for a goal-only recap', async () => {
     const goalOnlyRecap = createMockRecap({
-      goalCompletions: 2,
+      goalCompletions: 4,
       metrics: createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
     })
     mocks.useQuery.mockReturnValue({
@@ -180,6 +180,7 @@ describe('mobile useWrapped', () => {
     const api = await renderWrapped('month')
     expect(api.current.isEmpty).toBe(false)
     expect(api.current.slides.at(-1)?.id).toBe('share')
+    expect(api.current.slides).toContainEqual({ id: 'goals', closedGoals: 4 })
   })
 
   it('reports the wrapped-viewed achievement once for a fresh active year recap', async () => {

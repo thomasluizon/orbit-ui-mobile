@@ -100,7 +100,7 @@ export function buildShareCardStats(
       value: String(metrics.bestStreak),
     },
     {
-      labelKey: 'progressScreen.sections.goals',
+      labelKey: 'shareCard.stats.goalsClosed',
       value: String(goalCompletions),
     },
   ]
@@ -120,7 +120,7 @@ export function buildShareCardWeekday(weeklyConsistency: readonly number[]): Sha
   return { labelKey: `dates.daysShort.${key}`, percentage }
 }
 
-/** True when the recap has no logged activity, so the share sheet can show an empty state instead of a blank card. */
+/** True when the recap has no habit or goal completions, so sharing never produces a blank card. */
 export function isRecapShareEmpty(
   metrics: RetrospectiveMetrics,
   goalCompletions: number,

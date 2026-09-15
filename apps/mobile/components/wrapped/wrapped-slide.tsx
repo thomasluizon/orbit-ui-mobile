@@ -15,6 +15,7 @@ import type { Recap } from '@orbit/shared/types/gamification'
 import { motionDurations, motionEasings, orbitalMotion } from '@orbit/shared/theme'
 import {
   formatCompletionRate,
+  getWeeklyConsistencyReading,
   WRAPPED_WEEKDAY_KEYS,
   type RecapSharePeriod,
   type WrappedSlide as WrappedSlideModel,
@@ -104,6 +105,11 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
             {t('wrapped.slides.consistency.title')}
           </Animated.Text>
           <WeekdayColumns values={slide.weeklyConsistency} reducedMotion={reducedMotion} />
+          <WeekdayInterpretation
+            values={slide.weeklyConsistency}
+            tokens={tokens}
+            reducedMotion={reducedMotion}
+          />
         </View>
       )
     case 'streak':
@@ -147,8 +153,21 @@ export function WrappedSlide({ slide, recap, period, tokens, shareRef, shareErro
           <Animated.Text testID="wrapped-figure" nativeID="wrapped-motion-part-0" entering={enter(0, reducedMotion)} style={[styles.heroNumeral, motionFinalStyle, { color: tokens.fg1 }]}>
             {slide.closedGoals}
           </Animated.Text>
-          <Animated.Text nativeID="wrapped-motion-part-1" entering={enter(1, reducedMotion)} style={[styles.label, motionFinalStyle, { color: tokens.fg2 }]}>
-            {t('progressScreen.sections.goals')}
+          <Animated.Text
+            nativeID="wrapped-motion-part-1"
+            entering={enter(1, reducedMotion)}
+            style={[styles.label, motionFinalStyle, { color: tokens.fg2 }]}
+          >
+            {t('shareCard.stats.goalsClosed')}
+          </Animated.Text>
+          <Animated.Text
+            nativeID="wrapped-motion-part-2"
+            entering={enter(2, reducedMotion)}
+            style={[styles.caption, motionFinalStyle, { color: tokens.fg2 }]}
+          >
+            {slide.closedGoals > 0
+              ? t('wrapped.slides.goals.some', { count: slide.closedGoals })
+              : t('wrapped.slides.goals.zero')}
           </Animated.Text>
         </View>
       )
@@ -202,6 +221,69 @@ function WeekdayColumns({ values, reducedMotion }: Readonly<{ values: number[]; 
       />
     </Animated.View>
   )
+}
+
+function WeekdayInterpretation({
+  values,
+  tokens,
+  reducedMotion,
+}: Readonly<{ values: number[]; tokens: Tokens; reducedMotion: boolean }>) {
+  const { t } = useTranslation()
+  const reading = getWeeklyConsistencyReading(values)
+  switch (reading.kind) {
+    case 'thin':
+      return (
+        <Animated.Text
+          nativeID="wrapped-motion-part-3"
+          entering={enter(3, reducedMotion)}
+          style={[styles.caption, motionFinalStyle, { color: tokens.fg2 }]}
+        >
+          {t('wrapped.slides.consistency.thin')}
+        </Animated.Text>
+      )
+    case 'even':
+      return (
+        <>
+          <Animated.Text
+            nativeID="wrapped-motion-part-3"
+            entering={enter(3, reducedMotion)}
+            style={[styles.caption, motionFinalStyle, { color: tokens.fg2 }]}
+          >
+            {t('wrapped.slides.consistency.even')}
+          </Animated.Text>
+          <Animated.Text
+            nativeID="wrapped-motion-part-4"
+            entering={enter(4, reducedMotion)}
+            style={[styles.caption, motionFinalStyle, { color: tokens.fg2 }]}
+          >
+            {t('wrapped.slides.consistency.note')}
+          </Animated.Text>
+        </>
+      )
+    case 'compared': {
+      const strongestWeekday = WRAPPED_WEEKDAY_KEYS[reading.strongestIndex]!
+      return (
+        <>
+          <Animated.Text
+            nativeID="wrapped-motion-part-3"
+            entering={enter(3, reducedMotion)}
+            style={[styles.caption, motionFinalStyle, { color: tokens.fg2 }]}
+          >
+            {t('wrapped.slides.consistency.summary', {
+              strong: t(`dates.daysShort.${strongestWeekday}`),
+            })}
+          </Animated.Text>
+          <Animated.Text
+            nativeID="wrapped-motion-part-4"
+            entering={enter(4, reducedMotion)}
+            style={[styles.caption, motionFinalStyle, { color: tokens.fg2 }]}
+          >
+            {t('wrapped.slides.consistency.note')}
+          </Animated.Text>
+        </>
+      )
+    }
+  }
 }
 
 function StreakSlide(props: Readonly<Omit<HeroStatSlideProps, 'testID'>>) {
