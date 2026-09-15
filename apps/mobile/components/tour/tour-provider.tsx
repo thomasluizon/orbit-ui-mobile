@@ -175,7 +175,7 @@ export function TourProvider({ children }: Readonly<{ children: React.ReactNode 
       const ref = tourTargetRegistry.getRef(targetId)
       if (!ref?.current) return false
 
-      // react-doctor-disable-next-line rn-no-dimensions-get -- Read imperatively at scroll-into-view time (alongside the imperative measureInWindow below) to center the tour target against the live viewport at the interaction moment; useWindowDimensions would only supply a render-time snapshot and would ripple its value through this measurement callback and waitForTarget for no benefit on the fixed-orientation Android app. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+      // react-doctor-disable-next-line rn-no-dimensions-get -- Read imperatively at scroll-into-view time (alongside the imperative measureInWindow below) to center the tour target against the live viewport at the interaction moment; useWindowDimensions would only supply a render-time snapshot and would ripple its value through this measurement callback and waitForTarget. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       const screenHeight = Dimensions.get('window').height
       const scrollEntry = tourScrollRegistry.get(route)
 

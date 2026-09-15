@@ -622,7 +622,7 @@ export default function TodayScreen() {
   );
 
   return (
-    <View style={styles.safeArea}>
+    <View testID="today-content-column" style={styles.safeArea}>
       <TodayScreenBody
         currentActiveView={currentActiveView}
         showHabitsLoadError={showHabitsLoadError}
@@ -732,6 +732,9 @@ export function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     safeArea: {
       flex: 1,
+      width: "100%",
+      maxWidth: 740,
+      alignSelf: "center",
       backgroundColor: tokens.bg,
     },
     scrollContentWithBulkBar: {
