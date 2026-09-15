@@ -19,14 +19,14 @@ const mocks = vi.hoisted(() => {
   }
 
   const flushQueuedMutations = vi.fn(
-    async (): Promise<{
+    (): Promise<{
       succeeded: number
       failed: number
       remaining: number
-      droppedMutations: Array<{ id: string; type: string; lastError: string | null }>
+      droppedMutations: { id: string; type: string; lastError: string | null }[]
     }> => {
       state.queueCount = 0
-      return { succeeded: 1, failed: 0, remaining: 0, droppedMutations: [] }
+      return Promise.resolve({ succeeded: 1, failed: 0, remaining: 0, droppedMutations: [] })
     },
   )
 
@@ -90,17 +90,26 @@ vi.mock('@/lib/offline-queue', () => ({
   enqueue: mocks.enqueue,
   subscribeQueueCount: mocks.subscribeQueueCount,
   count: mocks.count,
+  getAll: () => [],
 }))
 
 vi.mock('@/lib/offline-mutations', () => ({
+  canAutoFlush: () => true,
   flushQueuedMutations: mocks.flushQueuedMutations,
   getMutationScope: mocks.getMutationScope,
+}))
+
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+
+vi.mock('@/stores/offline-sync-store', () => ({
+  useOfflineSyncStore: (selector: (state: { isFlushing: boolean; isRetrying: boolean }) => unknown) =>
+    selector({ isFlushing: false, isRetrying: false }),
 }))
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, options?: Record<string, unknown>) =>
-      options?.item ? `${key}:${String(options.item)}` : key,
+      typeof options?.item === 'string' ? `${key}:${options.item}` : key,
   }),
 }))
 
@@ -115,7 +124,7 @@ vi.mock('@/hooks/use-app-toast', () => ({
 }))
 
 function HookHarness() {
-  useOffline()
+  useOffline(true)
   return null
 }
 
@@ -126,9 +135,9 @@ describe('useOffline', () => {
     mocks.state.netInfoListener = undefined
     mocks.state.resolveConnectivity = undefined
     mocks.flushQueuedMutations.mockClear()
-    mocks.flushQueuedMutations.mockImplementation(async () => {
+    mocks.flushQueuedMutations.mockImplementation(() => {
       mocks.state.queueCount = 0
-      return { succeeded: 1, failed: 0, remaining: 0, droppedMutations: [] }
+      return Promise.resolve({ succeeded: 1, failed: 0, remaining: 0, droppedMutations: [] })
     })
     mocks.getMutationScope.mockClear()
     mocks.showError.mockClear()

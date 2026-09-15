@@ -4,6 +4,21 @@ import { render } from '@testing-library/react'
 import { Markdown } from '@/components/ui/markdown'
 
 describe('Markdown', () => {
+  it.each([
+    'see https://useorbit.org for more',
+    '[docs](https://useorbit.org/docs)',
+  ])('opens absolute web links outside the Orbit tab: %s', (content) => {
+    const { container } = render(<Markdown content={content} />)
+    const link = container.querySelector('a')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it.each(['mailto:a@b.com', '/habits', '#notes'])('keeps %s in the current tab', (href) => {
+    const { container } = render(<Markdown content={`[label](${href})`} />)
+    expect(container.querySelector('a')).not.toHaveAttribute('target')
+  })
+
   it('renders bold, lists, and headings from markdown', () => {
     const { container } = render(
       <Markdown content={'# Title\n\n**bold** text\n\n- one\n- two'} />,

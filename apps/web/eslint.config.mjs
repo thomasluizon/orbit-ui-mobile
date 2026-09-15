@@ -114,13 +114,10 @@ export default [
       "local/require-dialog-title": "error",
       "local/will-change-discipline": "error",
 
-      // Staged at `warn`: current code violates these, and the fix is not this bundle's.
-      // Bundle 5 (#539) de-decorates the UI — it deletes the glow/gradient tokens and their
-      // ~46 call sites — and flips these two to `error` in the same PR. `error` today would
-      // fail CI on code that is only waiting its turn.
+      // Decorative glow remains staged for #539. Ticket #381 removed gradients and closed its gate.
       // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
       "local/no-decorative-glow": "warn",
-      "local/no-raw-gradient": "warn",
+      "local/no-raw-gradient": "error",
 
       // Staged at `warn`: pre-existing violations that are NOT bundle 5's de-decoration work.
       // Each needs its own judgement call (a11y fix, motion fix, perf rewrite, React 19

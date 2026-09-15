@@ -128,12 +128,10 @@ module.exports = defineConfig([
       "local/no-side-stripe-border": "error",
       "local/no-unjustified-disable": "error",
 
-      // Staged at `warn`: bundle 5 (#539) de-decorates both platforms — it deletes the glow
-      // and gradient tokens and their call sites (LinearGradient here, GradientTop on web) —
-      // and flips these to `error` in the same PR.
+      // Decorative glow remains staged for #539. Ticket #381 removed gradients and closed its gate.
       // https://github.com/thomasluizon/orbit-ui-mobile/issues/539
       "local/no-decorative-glow": "warn",
-      "local/no-raw-gradient": "warn",
+      "local/no-raw-gradient": "error",
     },
   },
   {
@@ -163,6 +161,13 @@ module.exports = defineConfig([
   {
     files: ["**/supabase.ts"],
     rules: { "local/mobile-supabase-lazy": "error" },
+  },
+  {
+    files: ["app/(tabs)/calendar/_components/calendar-loading-bar.tsx"],
+    rules: {
+      // A moving progress indicator is the explicit non-decorative exception in #381.
+      "local/no-raw-gradient": "off",
+    },
   },
   {
     plugins: { "react-hooks": reactHooks },

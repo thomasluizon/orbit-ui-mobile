@@ -4,50 +4,12 @@ import Animated, { FadeInLeft, ReduceMotion } from "react-native-reanimated";
 import { CheckCircle, XCircle, Info } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ActionResult } from "@orbit/shared/types/chat";
+import { resolveActionLabelKey } from "@orbit/shared/chat";
 import { ConflictWarning } from "./conflict-warning";
 import { createTokensV2, radius } from '@/lib/theme';
 import { useAppTheme } from "@/lib/use-app-theme"
 
 type AppTokens = ReturnType<typeof createTokensV2>;
-
-const ACTION_LABELS: Record<string, string> = {
-  log_habit: "chat.action.logged",
-  create_habit: "chat.action.created",
-  update_habit: "chat.action.updated",
-  delete_habit: "chat.action.deleted",
-  skip_habit: "chat.action.skipped",
-  create_sub_habit: "chat.action.createdSubHabit",
-  suggest_breakdown: "chat.action.breakdown",
-  assign_tags: "chat.action.tagsUpdated",
-  duplicate_habit: "chat.action.duplicated",
-  move_habit: "chat.action.moved",
-  LogHabit: "chat.action.logged",
-  CreateHabit: "chat.action.created",
-  UpdateHabit: "chat.action.updated",
-  DeleteHabit: "chat.action.deleted",
-  SkipHabit: "chat.action.skipped",
-  CreateSubHabit: "chat.action.createdSubHabit",
-  SuggestBreakdown: "chat.action.breakdown",
-  AssignTags: "chat.action.tagsUpdated",
-  BulkLogHabits: "chat.action.logged",
-  BulkSkipHabits: "chat.action.skipped",
-  CreateGoal: "chat.action.createdGoal",
-  UpdateGoal: "chat.action.updatedGoal",
-  DeleteGoal: "chat.action.deletedGoal",
-  UpdateGoalProgress: "chat.action.updatedGoalProgress",
-  UpdateGoalStatus: "chat.action.updatedGoalStatus",
-  LinkHabitsToGoal: "chat.action.linkedGoalHabits",
-  create_tag: "chat.action.createdTag",
-  update_tag: "chat.action.updatedTag",
-  delete_tag: "chat.action.deletedTag",
-  reorder_goals: "chat.action.reorderedGoals",
-  reorder_habits: "chat.action.reorderedHabits",
-  CreateTag: "chat.action.createdTag",
-  UpdateTag: "chat.action.updatedTag",
-  DeleteTag: "chat.action.deletedTag",
-  ReorderGoals: "chat.action.reorderedGoals",
-  ReorderHabits: "chat.action.reorderedHabits",
-};
 
 const NON_NAVIGABLE_ACTION_TYPES = new Set([
   "delete_habit",
@@ -96,9 +58,9 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   function actionLabel(action: ActionResult): string {
-    const name = action.entityName || t("chat.unknownEntity");
-    const labelKey = ACTION_LABELS[action.type];
-    if (labelKey) return t(labelKey, { name });
+    const name = action.entityName || (action.status === "Failed" ? undefined : t("chat.unknownEntity"));
+    const labelKey = resolveActionLabelKey(action.type, action.status, action.entityName);
+    if (labelKey) return name ? t(labelKey, { name }) : t(labelKey);
     return `${action.type.replaceAll("_", " ")}: ${name}`;
   }
 

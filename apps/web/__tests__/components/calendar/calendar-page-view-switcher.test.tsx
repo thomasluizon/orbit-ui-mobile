@@ -44,10 +44,6 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { weekStartDay: 1 } }),
 }))
 
-vi.mock('@/components/ui/gradient-top', () => ({
-  GradientTop: () => null,
-}))
-
 vi.mock('@/components/ui/section-label', () => ({
   SectionLabel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))

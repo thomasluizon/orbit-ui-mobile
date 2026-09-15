@@ -64,11 +64,7 @@ export default [
       // this at error; the gap was flagged by the rule-vs-gate audit.
             "no-console": "error",
 
-      // The #539 gates with a surface in pure data. Unlike apps/web and apps/mobile, this
-      // package is already clean of all four, so they land at `error` directly. Note that
-      // `theme/color-schemes.ts` owns `gradientHeaderFrom` as an object KEY, which these
-      // rules deliberately do not match — bundle 5 deletes the token itself; a gate on the
-      // file that defines it would report only its own definition.
+      // The #539 gates with a surface in pure data. This package is clean, so they are errors.
       "local/no-decorative-glow": "error",
       "local/no-overshoot-easing": "error",
       "local/no-raw-font-feature-tag": "error",

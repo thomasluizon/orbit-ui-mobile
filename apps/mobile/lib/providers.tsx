@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import * as SplashScreen from 'expo-splash-screen'
 import { reconcileSessionOnForeground } from './session-resume'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -26,9 +26,6 @@ import { AppState, type AppStateStatus, View, ActivityIndicator } from 'react-na
 import { createTokensV2, getRuntimeTheme } from './theme'
 import { ThemeProvider } from './theme-provider'
 import { useOffline } from '@/hooks/use-offline'
-import { subscribeDroppedMutations, getMutationScope } from '@/lib/offline-mutations'
-import { useAppToast } from '@/hooks/use-app-toast'
-import { useTranslation } from 'react-i18next'
 import { useOnboardingDraftHydrated } from '@/stores/onboarding-draft-store'
 import './i18n'
 
@@ -43,50 +40,7 @@ interface ProvidersProps {
 }
 
 function OfflineManager() {
-  const { pendingCount, isFlushing } = useOffline()
-  const { t } = useTranslation()
-  const { showInfo, showQueued, showSuccess, showError } = useAppToast()
-  const initializedRef = useRef(false)
-  const previousPendingRef = useRef(0)
-  const previousFlushingRef = useRef(false)
-
-  useEffect(() => {
-    return subscribeDroppedMutations((dropped) => {
-      const scope = getMutationScope(dropped.type)
-      if (!scope) return
-
-      showError(
-        t('common.syncDropped', {
-          item: t(`common.syncEntity.${scope}`),
-        }),
-      )
-    })
-  }, [showError, t])
-
-  useEffect(() => {
-    if (!initializedRef.current) {
-      initializedRef.current = true
-      previousPendingRef.current = pendingCount
-      previousFlushingRef.current = isFlushing
-      return
-    }
-
-    if (pendingCount > previousPendingRef.current) {
-      showQueued(t('common.queued'))
-    }
-
-    if (!previousFlushingRef.current && isFlushing) {
-      showInfo(t('common.syncing'))
-    }
-
-    if (previousFlushingRef.current && !isFlushing && pendingCount === 0 && previousPendingRef.current > 0) {
-      showSuccess(t('common.synced'))
-    }
-
-    previousPendingRef.current = pendingCount
-    previousFlushingRef.current = isFlushing
-  }, [isFlushing, pendingCount, showInfo, showQueued, showSuccess, t])
-
+  useOffline(true)
   return null
 }
 

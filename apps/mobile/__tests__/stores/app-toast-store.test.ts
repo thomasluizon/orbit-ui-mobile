@@ -113,6 +113,18 @@ describe('app toast store', () => {
     ])
   })
 
+  it('does not stack duplicate non-action toasts', () => {
+    const store = useAppToastStore.getState()
+
+    store.showInfo('Syncing')
+    store.showInfo('Syncing')
+    store.showError('Blocked')
+    store.showError('Blocked')
+
+    expect(useAppToastStore.getState().currentToast?.message).toBe('Syncing')
+    expect(useAppToastStore.getState().queue.map((toast) => toast.message)).toEqual(['Blocked'])
+  })
+
   it('queues success and queued toasts behind an active toast', () => {
     const store = useAppToastStore.getState()
 

@@ -26,8 +26,6 @@ describe('mobile theme runtime', () => {
     expect(dark.bgElev).toBe('rgba(248, 250, 252, 0.06)')
     expect(dark.primary).toBe('#7f46f7')
     expect(dark.fgOnPrimary).toBe('#ffffff')
-    expect(dark.gradientHeaderFrom).toBe('#22094f')
-    expect(dark.gradientHeaderTo).toBe('rgba(2, 6, 24, 0)')
   })
 
   it('resolves fg-on-primary per scheme and mode (AA flips to canvas ink)', () => {

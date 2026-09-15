@@ -11,7 +11,7 @@ import {
 import { Bell, Check, Clock, X } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { schemes } from '@orbit/shared/theme'
+import { schemes, zLayers } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import { toAnimatedEasing } from '@/lib/motion'
 import {
@@ -44,7 +44,9 @@ interface VariantStyle {
  * accent action. Preserves the existing store contract (queue + variants,
  * including the offline `queued` kind).
  */
-export function AppToast() {
+export function AppToast({ placement = 'overlay' }: Readonly<{
+  placement?: 'overlay' | 'slot'
+}>) {
   const insets = useSafeAreaInsets()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -54,7 +56,7 @@ export function AppToast() {
   const currentToast = useAppToastStore((state) => state.currentToast)
   const dismissToast = useAppToastStore((state) => state.dismissToast)
   const triggerAction = useAppToastStore((state) => state.triggerAction)
-  const translateY = useMemo(() => new Animated.Value(-48), [])
+  const translateY = useMemo(() => new Animated.Value(48), [])
   const opacity = useMemo(() => new Animated.Value(0), [])
   const scale = useMemo(() => new Animated.Value(0.96), [])
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -70,7 +72,7 @@ export function AppToast() {
     clearTimer()
     Animated.parallel([
       Animated.timing(translateY, {
-        toValue: -48,
+        toValue: 48,
         duration: 220,
         useNativeDriver: true,
       }),
@@ -93,7 +95,7 @@ export function AppToast() {
   useEffect(() => {
     if (!currentToast) {
       clearTimer()
-      translateY.setValue(-48)
+      translateY.setValue(48)
       opacity.setValue(0)
       scale.setValue(0.96)
       return
@@ -102,7 +104,7 @@ export function AppToast() {
     Animated.parallel([
       Animated.timing(translateY, {
         toValue: 0,
-        duration: 400,
+        duration: 280,
         easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }),
@@ -114,7 +116,7 @@ export function AppToast() {
       }),
       Animated.timing(scale, {
         toValue: 1,
-        duration: 400,
+        duration: 280,
         easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }),
@@ -140,9 +142,9 @@ export function AppToast() {
     <Animated.View
       pointerEvents="box-none"
       style={[
-        styles.container,
+        placement === 'overlay' ? styles.container : styles.slot,
         {
-          top: insets.top + 12,
+          bottom: placement === 'overlay' ? insets.bottom + 12 : undefined,
           opacity,
           transform: [{ translateY }, { scale }],
         },
@@ -228,7 +230,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: (SCREEN_WIDTH - TOAST_WIDTH) / 2,
     width: TOAST_WIDTH,
-    zIndex: 10000,
+    zIndex: zLayers.toast,
+  },
+  slot: {
+    width: '100%',
+    paddingHorizontal: 16,
+    zIndex: zLayers.toast,
   },
   toast: {
     flexDirection: 'row',
