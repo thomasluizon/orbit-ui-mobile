@@ -17,6 +17,16 @@ function getKeyboardType(kind: InputKind, inputMode: InputMode) {
   return 'default'
 }
 
+function getAccessibilityHint(error: string | undefined, hint: string | undefined) {
+  if (error && hint) return `${error} ${hint}`
+  return error ?? hint
+}
+
+function InputHint({ hint, color }: Readonly<{ hint: string | undefined; color: string }>) {
+  if (!hint) return null
+  return <Text style={[styles.caption, { color }]}>{hint}</Text>
+}
+
 export function Input({
   label,
   value,
@@ -24,6 +34,7 @@ export function Input({
   placeholder,
   disabled = false,
   error,
+  hint,
   maxLength,
   kind = 'text',
   inputMode,
@@ -48,6 +59,7 @@ export function Input({
   const [focused, setFocused] = useState(false)
   const multiline = shape.multiline === true
   const borderColor = error ? tokens.statusBad : tokens.borderControl
+  const accessibilityHint = getAccessibilityHint(error, hint)
 
   return (
     <View style={styles.root} data-multiline={multiline ? '' : undefined} data-error={error ? '' : undefined}>
@@ -72,7 +84,7 @@ export function Input({
           onSubmitEditing={onSubmit}
           accessibilityLabel={label}
           accessibilityState={{ disabled }}
-          accessibilityHint={error}
+          accessibilityHint={accessibilityHint}
           onFocus={() => {
             setFocused(true)
             keyboardAware?.revealInput(inputRef.current)
@@ -101,6 +113,7 @@ export function Input({
           {error}
         </Text>
       ) : null}
+      <InputHint hint={hint} color={tokens.fg2} />
     </View>
   )
 }

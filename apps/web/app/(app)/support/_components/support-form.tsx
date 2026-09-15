@@ -84,25 +84,19 @@ export function SupportForm({
         autoComplete="name"
         focusRequest={nameFocusRequest}
       />
-      <div className="flex flex-col gap-2">
-        <Input
-          label={t('profile.support.email')}
-          value={email}
-          onChange={onEmailChange}
-          placeholder={t('profile.support.emailPlaceholder')}
-          disabled={isSending || emailDisabled}
-          error={emailError ?? undefined}
-          kind="email"
-          inputMode="email"
-          autoComplete="email"
-          focusRequest={emailFocusRequest}
-        />
-        {emailDisabled ? (
-          <p className="text-xs text-[var(--fg-2)]">
-            {t('profile.support.emailLockedReason')}
-          </p>
-        ) : null}
-      </div>
+      <Input
+        label={t('profile.support.email')}
+        value={email}
+        onChange={onEmailChange}
+        placeholder={t('profile.support.emailPlaceholder')}
+        disabled={isSending || emailDisabled}
+        error={emailError ?? undefined}
+        hint={emailDisabled ? t('profile.support.emailLockedReason') : undefined}
+        kind="email"
+        inputMode="email"
+        autoComplete="email"
+        focusRequest={emailFocusRequest}
+      />
       <Input
         label={t('profile.support.subject')}
         value={subject}

@@ -124,25 +124,19 @@ function SupportForm({
         autoComplete="name"
         focusRequest={nameFocusRequest}
       />
-      <View style={styles.fieldWithHelper}>
-        <Input
-          label={t('profile.support.email')}
-          value={email}
-          onChange={onChangeEmail}
-          placeholder={t('profile.support.emailPlaceholder')}
-          disabled={sending || emailDisabled}
-          error={emailError ?? undefined}
-          kind="email"
-          inputMode="email"
-          autoComplete="email"
-          focusRequest={emailFocusRequest}
-        />
-        {emailDisabled ? (
-          <Text style={[styles.fieldHelper, { color: tokens.fg2 }]}>
-            {t('profile.support.emailLockedReason')}
-          </Text>
-        ) : null}
-      </View>
+      <Input
+        label={t('profile.support.email')}
+        value={email}
+        onChange={onChangeEmail}
+        placeholder={t('profile.support.emailPlaceholder')}
+        disabled={sending || emailDisabled}
+        error={emailError ?? undefined}
+        hint={emailDisabled ? t('profile.support.emailLockedReason') : undefined}
+        kind="email"
+        inputMode="email"
+        autoComplete="email"
+        focusRequest={emailFocusRequest}
+      />
       <Input
         label={t('profile.support.subject')}
         value={subject}
@@ -383,12 +377,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist_400Regular',
     fontSize: 16,
     lineHeight: 24,
-  },
-  fieldWithHelper: { gap: 8 },
-  fieldHelper: {
-    fontFamily: 'Geist_400Regular',
-    fontSize: 12,
-    lineHeight: 18,
   },
   formErrorText: {
     fontFamily: 'Geist_400Regular',

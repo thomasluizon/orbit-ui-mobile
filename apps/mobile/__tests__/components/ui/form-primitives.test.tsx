@@ -95,6 +95,23 @@ describe('form primitives on mobile', () => {
     expect(style()).toEqual(resting)
   })
 
+  it('announces an error before its hint', () => {
+    const tree = render(
+      <Input
+        label="Email"
+        value="invalid"
+        onChange={vi.fn()}
+        error="Enter a valid email."
+        hint="We reply to this address."
+      />,
+    )
+    const input = tree.root.findAllByType('TextInput')[0]!
+
+    expect(prop(input, 'accessibilityHint')).toBe(
+      'Enter a valid email. We reply to this address.',
+    )
+  })
+
   it.each([undefined, 'Wrong code'])('distinguishes OTP focus entering and leaving with error=%s', (error) => {
     const tokens = createTokensV2('purple', 'dark')
     const tree = render(<OtpInput label="Code" value="12" onChange={vi.fn()} autoFocus={false} error={error} />)

@@ -131,6 +131,9 @@ describe('SupportScreen', () => {
     )
     expect(findInputByLabel(tree.root, 'profile.support.email')!.props.editable).toBe(false)
     expect(
+      findInputByLabel(tree.root, 'profile.support.email')!.props.accessibilityHint,
+    ).toBe('profile.support.emailLockedReason')
+    expect(
       tree.root.findAll(
         (node) => node.props.children === 'profile.support.emailLockedReason',
       ),
@@ -142,6 +145,9 @@ describe('SupportScreen', () => {
     const tree = await renderScreen()
 
     expect(findInputByLabel(tree.root, 'profile.support.email')!.props.editable).toBe(true)
+    expect(
+      findInputByLabel(tree.root, 'profile.support.email')!.props.accessibilityHint,
+    ).toBeUndefined()
     expect(
       tree.root.findAll(
         (node) => node.props.children === 'profile.support.emailLockedReason',

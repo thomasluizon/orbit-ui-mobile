@@ -44,6 +44,24 @@ describe('form primitives on web', () => {
     expect(input).toHaveAttribute('spellcheck', 'false')
   })
 
+  it('announces an error before its hint', () => {
+    render(
+      <Input
+        label="Email"
+        value="invalid"
+        onChange={vi.fn()}
+        error="Enter a valid email."
+        hint="We reply to this address."
+      />,
+    )
+    const input = screen.getByRole('textbox')
+    const descriptionIds = input.getAttribute('aria-describedby')?.split(' ') ?? []
+
+    expect(descriptionIds).toHaveLength(2)
+    expect(document.getElementById(descriptionIds[0]!)).toHaveTextContent('Enter a valid email.')
+    expect(document.getElementById(descriptionIds[1]!)).toHaveTextContent('We reply to this address.')
+  })
+
   it('renders labelled single and multiline inputs with their shared limits', () => {
     const onChange = vi.fn()
     const { rerender } = render(

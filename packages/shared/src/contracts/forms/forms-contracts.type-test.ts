@@ -36,6 +36,7 @@ type ExpectedSingleLineVariant = {
   placeholder?: string
   disabled?: boolean
   error?: string
+  hint?: string
   maxLength?: number
   kind?: 'text' | 'email' | 'number'
   inputMode?: 'text' | 'email' | 'numeric' | 'decimal' | 'tel' | 'url'
@@ -149,6 +150,7 @@ export type FormContractAssertionsWidthAssertions = [
   Assert<IsExactWidth<InputProps['placeholder'], string | undefined>>,
   Assert<IsExactWidth<InputProps['disabled'], boolean | undefined>>,
   Assert<IsExactWidth<InputProps['error'], string | undefined>>,
+  Assert<IsExactWidth<InputProps['hint'], string | undefined>>,
   Assert<IsExactWidth<InputProps['maxLength'], number | undefined>>,
   Assert<IsExactWidth<InputProps['kind'], 'text' | 'email' | 'number' | undefined>>,
   Assert<IsExactWidth<InputProps['inputMode'], 'text' | 'email' | 'numeric' | 'decimal' | 'tel' | 'url' | undefined>>,

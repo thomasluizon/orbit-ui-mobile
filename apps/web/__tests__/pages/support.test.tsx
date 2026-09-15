@@ -97,7 +97,9 @@ describe('SupportPage', () => {
     expect(nameField()).toHaveValue('Orbit User')
     expect(emailField()).toHaveValue('orbit@example.com')
     expect(emailField()).toBeDisabled()
-    expect(screen.getByText('profile.support.emailLockedReason')).toBeInTheDocument()
+    const lockedReason = screen.getByText('profile.support.emailLockedReason')
+    expect(lockedReason).toBeInTheDocument()
+    expect(emailField()).toHaveAttribute('aria-describedby', lockedReason.id)
     expect(sendButton().parentElement).toHaveClass(
       'md:[&_button]:bg-[var(--fg-1)]',
     )
