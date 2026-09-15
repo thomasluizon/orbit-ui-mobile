@@ -86,17 +86,25 @@ describe('mobile useShareCard', () => {
       await hook.current.download()
     })
 
-    expect(expoFileSystemMock.createFileCalls).toEqual([{
-      directoryUri: 'content://downloads',
-      name: 'orbit-recap.png',
-      mimeType: 'image/png',
-      uri: 'content://mock-document/1',
-    }])
-    expect(expoFileSystemMock.copyCalls).toEqual([{
-      sourceUri: 'file:///cache/share-card.png',
-      destinationUri: 'content://mock-document/1',
-      options: { overwrite: true },
-    }])
+    expect(expoFileSystemMock.createFileCalls).toEqual([])
+    expect(expoFileSystemMock.copyCalls).toEqual([
+      {
+        sourceUri: 'file:///cache/share-card.png',
+        destinationUri: 'file:///cache/orbit-recap.png',
+        destinationKind: 'file',
+        resultingUri: 'file:///cache/orbit-recap.png',
+        options: { overwrite: true },
+      },
+      {
+        sourceUri: 'file:///cache/orbit-recap.png',
+        destinationUri: 'content://downloads',
+        destinationKind: 'directory',
+        resultingUri: 'content://mock-document/1',
+        options: { overwrite: true },
+      },
+    ])
+    expect([...expoFileSystemMock.directoryFiles.get('content://downloads')?.entries() ?? []])
+      .toEqual([['orbit-recap.png', 'content://mock-document/1']])
     expect(mocks.reportEvent).toHaveBeenCalledWith('card_shared')
     expect(hook.current.hasError).toBe(false)
   })
@@ -122,13 +130,29 @@ describe('mobile useShareCard', () => {
       await hook.current.download()
     })
 
-    expect(expoFileSystemMock.createFileCalls).toHaveLength(1)
-    expect(expoFileSystemMock.copyCalls).toHaveLength(2)
-    expect(expoFileSystemMock.copyCalls.map(({ destinationUri }) => destinationUri)).toEqual([
-      'content://mock-document/1',
-      'content://mock-document/1',
+    expect(expoFileSystemMock.createFileCalls).toEqual([])
+    expect(expoFileSystemMock.copyCalls).toHaveLength(4)
+    const containerCopies = expoFileSystemMock.copyCalls.filter(
+      ({ destinationKind }) => destinationKind === 'directory',
+    )
+    expect(containerCopies).toEqual([
+      {
+        sourceUri: 'file:///cache/orbit-recap.png',
+        destinationUri: 'content://downloads',
+        destinationKind: 'directory',
+        resultingUri: 'content://mock-document/1',
+        options: { overwrite: true },
+      },
+      {
+        sourceUri: 'file:///cache/orbit-recap.png',
+        destinationUri: 'content://downloads',
+        destinationKind: 'directory',
+        resultingUri: 'content://mock-document/2',
+        options: { overwrite: true },
+      },
     ])
-    expect(expoFileSystemMock.copyCalls[1]?.options).toEqual({ overwrite: true })
+    expect([...expoFileSystemMock.directoryFiles.get('content://downloads')?.entries() ?? []])
+      .toEqual([['orbit-recap.png', 'content://mock-document/2']])
     expect(mocks.reportEvent).toHaveBeenCalledTimes(2)
     expect(hook.current.hasError).toBe(false)
   })

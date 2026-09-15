@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import type { View } from 'react-native'
 import Share from 'react-native-share'
 import { captureRef } from 'react-native-view-shot'
-import { Directory, File } from 'expo-file-system'
+import { Directory, File, Paths } from 'expo-file-system'
 import { ACHIEVEMENT_EVENT_KEYS } from '@orbit/shared/types/gamification'
 import { SHARE_CARD_FILE_NAME } from '@orbit/shared/utils'
 import { useReportEvent } from '@/hooks/use-gamification'
@@ -20,13 +20,6 @@ function isPickerCancellation(error: unknown) {
     && error !== null
     && 'code' in error
     && error.code === PICKER_CANCELLED_CODE
-}
-
-function getDownloadDestination(directory: Directory) {
-  const existingFile = directory.list().find(
-    (entry) => entry instanceof File && entry.name === SHARE_CARD_FILE_NAME,
-  )
-  return existingFile ?? directory.createFile(SHARE_CARD_FILE_NAME, 'image/png')
 }
 
 /** Captures a ShareCard View to a temp PNG and opens the native share sheet. */
@@ -79,9 +72,10 @@ export function useShareCard() {
         if (isPickerCancellation(error)) return
         throw error
       }
-      const source = new File(uri)
-      const destination = getDownloadDestination(directory)
-      await source.copy(destination, { overwrite: true })
+      const capture = new File(uri)
+      const namedSource = new File(Paths.cache, SHARE_CARD_FILE_NAME)
+      await capture.copy(namedSource, { overwrite: true })
+      await namedSource.copy(directory, { overwrite: true })
       reportEvent(ACHIEVEMENT_EVENT_KEYS.cardShared)
     } catch {
       setHasError(true)
