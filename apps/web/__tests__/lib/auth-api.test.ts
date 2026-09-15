@@ -1,12 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockCookieStore = {
-  get: vi.fn(),
-  set: vi.fn(),
-}
+const { mockCookies, mockCookieStore } = vi.hoisted(() => {
+  const cookieStore = {
+    get: vi.fn(),
+    set: vi.fn(),
+  }
+  return {
+    mockCookies: vi.fn(() => Promise.resolve(cookieStore)),
+    mockCookieStore: cookieStore,
+  }
+})
 
 vi.mock('next/headers', () => ({
-  cookies: vi.fn(() => Promise.resolve(mockCookieStore)),
+  cookies: mockCookies,
 }))
 
 const mockFetch = vi.fn()
@@ -23,6 +29,8 @@ const FIXED_NOW = Date.UTC(2026, 3, 22, 12, 0, 0)
 
 describe('auth-api session helpers', () => {
   beforeEach(() => {
+    mockCookies.mockReset()
+    mockCookies.mockResolvedValue(mockCookieStore)
     mockCookieStore.get.mockReset()
     mockCookieStore.set.mockReset()
     mockFetch.mockReset()
@@ -238,12 +246,29 @@ describe('auth-api session helpers', () => {
   it('does not let a late stale BFF response clear cookies from a winning rotation', async () => {
     const expiredToken = makeJwt(Math.floor(FIXED_NOW / 1000) - 60)
     const refreshedToken = makeJwt(Math.floor(FIXED_NOW / 1000) + 3600)
-    mockCookieStore.get.mockImplementation((name: string) => {
-      if (name === 'auth_token') return { value: expiredToken }
-      if (name === 'refresh_token') return { value: 'shared-old-refresh-token' }
-      return undefined
+    const createRequestCookieStore = () => ({
+      get: vi.fn((name: string) => {
+        if (name === 'auth_token') return { value: expiredToken }
+        if (name === 'refresh_token') return { value: 'shared-old-refresh-token' }
+        return undefined
+      }),
+      set: vi.fn(),
+    })
+    const losingCookieStore = createRequestCookieStore()
+    const winningCookieStore = createRequestCookieStore()
+    mockCookies
+      .mockResolvedValueOnce(losingCookieStore)
+      .mockResolvedValueOnce(winningCookieStore)
+
+    let releaseLosingRefresh = () => {}
+    const losingRefreshGate = new Promise<void>((resolve) => {
+      releaseLosingRefresh = resolve
     })
     mockFetch
+      .mockImplementationOnce(async () => {
+        await losingRefreshGate
+        return { ok: false, status: 401 }
+      })
       .mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
@@ -251,11 +276,17 @@ describe('auth-api session helpers', () => {
           refreshToken: 'winning-refresh-token',
         }),
       })
-      .mockResolvedValueOnce({ ok: false, status: 401 })
 
-    const { GET } = await import('@/app/api/auth/session/route')
-    const winningResponse = await GET()
-    const lateLosingResponse = await GET()
+    vi.resetModules()
+    const { GET: getLosingSession } = await import('@/app/api/auth/session/route')
+    const losingResponsePromise = getLosingSession()
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
+
+    vi.resetModules()
+    const { GET: getWinningSession } = await import('@/app/api/auth/session/route')
+    const winningResponse = await getWinningSession()
+    releaseLosingRefresh()
+    const lateLosingResponse = await losingResponsePromise
 
     expect(winningResponse.status).toBe(200)
     expect(lateLosingResponse.status).toBe(401)
@@ -263,17 +294,8 @@ describe('auth-api session helpers', () => {
       expiresAt: null,
       refreshFailed: true,
     })
-    expect(mockCookieStore.set).toHaveBeenCalledTimes(2)
-    expect(mockCookieStore.set).not.toHaveBeenCalledWith(
-      'auth_token',
-      '',
-      expect.objectContaining({ maxAge: 0 }),
-    )
-    expect(mockCookieStore.set).not.toHaveBeenCalledWith(
-      'refresh_token',
-      '',
-      expect.objectContaining({ maxAge: 0 }),
-    )
+    expect(winningCookieStore.set).toHaveBeenCalledTimes(2)
+    expect(losingCookieStore.set).not.toHaveBeenCalled()
   })
 
   it('does not reuse a rejected access token when a forced refresh fails', async () => {
