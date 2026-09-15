@@ -106,4 +106,24 @@ describe('MoveParentOverlay', () => {
     expect(screen.getByText('Bravo')).toBeInTheDocument()
     expect(screen.queryByText('Zeta 0')).not.toBeInTheDocument()
   })
+
+  it('keeps arrow navigation in rendered order after filtered rows return', () => {
+    const { onSelectOption } = renderOverlay([
+      makeOption({ id: null, label: 'habits.moveParent.toRoot' }),
+      ...Array.from({ length: 9 }, (_, index) =>
+        makeOption({ id: `zeta${index}`, label: `Zeta ${index}` }),
+      ),
+    ])
+    const search = screen.getByPlaceholderText('habits.moveParent.searchPlaceholder')
+
+    fireEvent.change(search, { target: { value: 'Zeta 5' } })
+    fireEvent.change(search, { target: { value: '' } })
+    const zetaFour = screen.getByRole('radio', { name: /Zeta 4/ })
+    const zetaFive = screen.getByRole('radio', { name: /Zeta 5/ })
+    zetaFour.focus()
+    fireEvent.keyDown(zetaFour, { key: 'ArrowDown' })
+
+    expect(zetaFive).toHaveFocus()
+    expect(onSelectOption).toHaveBeenLastCalledWith('zeta5')
+  })
 })

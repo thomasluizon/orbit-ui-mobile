@@ -15,13 +15,16 @@ Two outputs, both committed files in this repo:
 
 | file | what it is |
 |---|---|
-| `.claude/specs/<slug>.md` | the effort's living spec. Survives every session. |
-| `.claude/handoffs/<YYYY-MM-DDTHHmmZ>-<slug>.md` | the prompt for the next session. |
+| `.claude/specs/<slug>.md` | the effort's living spec. One per effort. Survives every session. |
+| `.claude/handoffs/NEXT.md` | the prompt for the next session. **Exactly one, always at this path.** |
 
-The prompt's name carries UTC time to the minute, and you create it exclusively: if that path
-already exists, another run got there first, so pick the next free minute rather than overwriting.
-Two handoffs on one day for one effort are normal, and a date-only name silently destroys the first
-one's inventory and instructions.
+**The prompt path never changes.** Thomas, 2026-09-15: "i want one handoff, always, just combine
+both in one ... you need to put always in the same place, in a way that i can just ctrl + click and
+open the file." Overwrite `NEXT.md` every time. Git history keeps every earlier version, so nothing
+is lost by overwriting and he never has to pick between two files or read a timestamp to find the
+current one.
+
+A timestamped name is forbidden. So is a second prompt file.
 
 ## The spec is the memory; the prompt is the instruction
 
@@ -31,7 +34,7 @@ think to repeat, which is how a rule set in week one disappears by week four.
 So the spec holds everything durable and the prompt holds only what to do next. When they disagree
 about where something goes, it goes in the spec.
 
-## One spec per effort, and one handoff per effort
+## One spec per effort, ONE prompt for all of them
 
 A session that opened from a handoff already has a spec; its path is in the opening prompt. Read the
 first user message and use that one.
@@ -39,8 +42,12 @@ first user message and use that one.
 Otherwise match by scope, not by feel: a spec covers this work if the files you changed and the
 tickets you touched fall inside the scope it names. Create a new spec only when none does.
 
-**A session that moved more than one effort runs this skill once per effort.** Folding unrelated
-progress into whichever spec you happened to open loses it for the effort that owns it.
+**A session that moved more than one effort updates each effort's SPEC separately**, because folding
+unrelated progress into whichever spec you happened to open loses it for the effort that owns it.
+
+**But it writes exactly ONE prompt**, `NEXT.md`, covering every live effort. It opens by naming each
+spec to read, states the goal for each, and says plainly which effort outranks the other when they
+compete for the machine. Two prompt files is the failure Thomas named on 2026-09-15.
 
 ## What belongs in the spec
 
@@ -204,7 +211,7 @@ squashed away, and a session opening anywhere else finds neither path. If the cu
 that one, write and commit them in the main checkout with the integration branch checked out.
 
 **Always commit both files, by path, in their own commit**, whatever else is in the tree:
-`git commit -- .claude/specs/<slug>.md .claude/handoffs/<file>.md`. A pathspec commit takes only
+`git commit -- .claude/specs/<slug>.md .claude/handoffs/NEXT.md`. A pathspec commit takes only
 those two, so unrelated work is untouched and nothing has to be stashed. Push if the branch has a
 remote. If a hook rejects the commit, fix what it names and commit again; never bypass it and never
 leave the files uncommitted.
@@ -212,7 +219,7 @@ leave the files uncommitted.
 Leaving them staged hands nothing over. A staged file lives in one worktree's index, so a session
 opening elsewhere never sees it, and any reset destroys the whole handoff.
 
-Then reply with one line: the prompt's path and the branch it is on. If the tree still holds
+Then reply with one line: `.claude/handoffs/NEXT.md` and the branch it is on. If the tree still holds
 unrelated uncommitted work, that fact belongs in the same line, because he is about to act on the
 handoff and needs to know his tree is not clean. Nothing else, before or after.
 
