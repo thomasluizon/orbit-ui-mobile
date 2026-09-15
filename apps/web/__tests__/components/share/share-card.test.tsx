@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import {
   createMockRecap,
   createMockRetrospectiveMetrics,
@@ -59,5 +59,13 @@ describe('ShareCard', () => {
 
     expect(screen.getByText('3')).toBeInTheDocument()
     expect(screen.getByText('shareCard.stats.goalsClosed')).toBeInTheDocument()
+  })
+
+  it('spans the fifth stat across both columns', () => {
+    render(<ShareCard recap={createMockRecap()} />)
+
+    const finalStat = screen.getByTestId('share-card-final-stat')
+    expect(finalStat).toHaveStyle({ gridColumn: '1 / -1' })
+    expect(within(finalStat).getByText('shareCard.stats.goalsClosed')).toBeInTheDocument()
   })
 })

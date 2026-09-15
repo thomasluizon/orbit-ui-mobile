@@ -65,7 +65,7 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
             <StatTile  value={stats[2]!.value} label={t(stats[2]!.labelKey)} />
             <StatTile  value={stats[3]!.value} label={t(stats[3]!.labelKey)} />
           </View>
-          <View style={styles.statsRow}>
+          <View testID="share-card-final-stat-row" style={[styles.statsRow, styles.finalStatsRow]}>
             <StatTile value={stats[4]!.value} label={t(stats[4]!.labelKey)} />
           </View>
         </View>
@@ -182,6 +182,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     statsRow: {
       flexDirection: 'row',
       gap: 12,
+    },
+    finalStatsRow: {
+      width: '100%',
     },
     weeklyCard: {
       flexDirection: 'row',

@@ -1,3 +1,4 @@
+import { StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import type { Recap } from '@orbit/shared/types/gamification'
 import {
@@ -28,7 +29,11 @@ function collectText(node: unknown): string {
 function render(props: { recap: Recap; displayName?: string }) {
   let tree: {
     toJSON: () => unknown
-    root: { findAll: (predicate: (node: { props?: Record<string, unknown> }) => boolean) => unknown[] }
+    root: {
+      findAll: (
+        predicate: (node: { props?: Record<string, unknown> }) => boolean,
+      ) => { children: unknown[]; props: Record<string, unknown> }[]
+    }
   }
   TestRenderer.act(() => {
     tree = TestRenderer.create(<ShareCard {...props} />)
@@ -79,5 +84,17 @@ describe('ShareCard (mobile)', () => {
     )
 
     expect(text).toContain('3 shareCard.stats.goalsClosed')
+  })
+
+  it('renders the fifth stat alone in a full-width row', () => {
+    const tree = render({ recap: createMockRecap() })
+    const finalStatRows = tree.root.findAll(
+      (node) => node.props?.testID === 'share-card-final-stat-row',
+    )
+
+    const finalStatRow = finalStatRows[0]
+    expect(finalStatRow).toMatchObject({ children: [expect.anything()] })
+    expect(StyleSheet.flatten(finalStatRow!.props.style)).toMatchObject({ width: '100%' })
+    expect(collectText(finalStatRow)).toContain('shareCard.stats.goalsClosed')
   })
 })
