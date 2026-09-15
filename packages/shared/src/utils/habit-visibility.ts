@@ -147,7 +147,7 @@ export function createHabitVisibilityHelpers({
   const hasVisibleContent = (habit: NormalizedHabit): boolean => {
     if (recentlyCompletedIds.has(habit.id)) return true
     const loggedOnSelectedDate = isLoggedOnSelectedDate(habit)
-    if (showCompleted && (habit.isCompleted || loggedOnSelectedDate)) return true
+    if (showCompleted && loggedOnSelectedDate) return true
     const hasOpenOwnContent = habit.isGeneral || isDueOnSelectedDate(habit) || habit.isOverdue
     if (!habit.isCompleted && !loggedOnSelectedDate && hasOpenOwnContent) {
       return true
@@ -176,12 +176,12 @@ export function createHabitVisibilityHelpers({
       return children.filter((child) => isChildVisibleInAllView(child, showCompleted))
     }
 
-    if (showCompleted) return children
-
     if (view === 'general') {
-      return children.filter(
-        (child) => !child.isCompleted || recentlyCompletedIds.has(child.id),
-      )
+      return showCompleted
+        ? children
+        : children.filter(
+            (child) => !child.isCompleted || recentlyCompletedIds.has(child.id),
+          )
     }
 
     return children.filter((child) => hasVisibleContent(child))

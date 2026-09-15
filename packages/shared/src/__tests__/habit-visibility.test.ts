@@ -191,6 +191,69 @@ describe('habit-visibility', () => {
     expect(isHabitVisibleInAllView(logged, false)).toBe(true)
   })
 
+  it('does not treat lifetime completion as completion on the selected date', () => {
+    const completedOnAnotherDate = createMockHabit({
+      id: 'completed-on-another-date',
+      frequencyUnit: null,
+      isCompleted: true,
+      isLoggedInRange: false,
+      instances: [],
+      scheduledDates: [],
+    })
+    const helpers = createHabitVisibilityHelpers({
+      habitsById: buildHabitMap([completedOnAnotherDate]),
+      childrenByParent: new Map(),
+      selectedDate: '2026-09-15',
+      searchQuery: '',
+      showCompleted: true,
+      recentlyCompletedIds: new Set(),
+    })
+
+    expect(helpers.hasVisibleContent(completedOnAnotherDate)).toBe(false)
+  })
+
+  it('keeps a parent reachable when a child was completed on the selected date', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      isCompleted: false,
+      instances: [],
+      scheduledDates: [],
+    })
+    const completedToday = createMockHabit({
+      id: 'completed-today',
+      parentId: 'parent',
+      frequencyUnit: null,
+      isCompleted: true,
+      isLoggedInRange: true,
+      instances: [],
+      scheduledDates: [],
+    })
+    const completedEarlier = createMockHabit({
+      id: 'completed-earlier',
+      parentId: 'parent',
+      frequencyUnit: null,
+      isCompleted: true,
+      isLoggedInRange: false,
+      instances: [],
+      scheduledDates: [],
+    })
+    const helpers = createHabitVisibilityHelpers({
+      habitsById: buildHabitMap([parent, completedToday, completedEarlier]),
+      childrenByParent: new Map([
+        ['parent', ['completed-today', 'completed-earlier']],
+      ]),
+      selectedDate: '2026-09-15',
+      searchQuery: '',
+      showCompleted: true,
+      recentlyCompletedIds: new Set(),
+    })
+
+    expect(helpers.hasVisibleContent(parent)).toBe(true)
+    expect(
+      helpers.getVisibleChildren('parent', 'today').map((habit) => habit.id),
+    ).toEqual(['completed-today'])
+  })
+
   it('hides completed one-time and general children in all view when showCompleted is off', () => {
     const completedOneTime = createMockHabit({
       id: 'completed-one-time',
