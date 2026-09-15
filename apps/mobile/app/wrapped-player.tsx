@@ -3,7 +3,6 @@ import { BackHandler, Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { scheduleOnRN } from 'react-native-worklets'
-import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg'
 import { ChevronLeft, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { Recap } from '@orbit/shared/types/gamification'
@@ -62,17 +61,6 @@ export function WrappedPlayer({
   return (
     <GestureDetector gesture={swipeDown}>
       <View style={[styles.player, { backgroundColor: tokens.bg }]}>
-        <Svg style={styles.gradientBackdrop} width="100%" height="100%" pointerEvents="none">
-          <Defs>
-            <RadialGradient id="wrappedWash" cx="50%" cy="0%" rx="135%" ry="100%">
-              <Stop offset="0" stopColor={`rgb(${tokens.primaryRgb})`} stopOpacity={0.32} />
-              <Stop offset="0.4" stopColor={`rgb(${tokens.primaryRgb})`} stopOpacity={0.1} />
-              <Stop offset="0.72" stopColor={`rgb(${tokens.primaryRgb})`} stopOpacity={0} />
-            </RadialGradient>
-          </Defs>
-          <Rect x="0" y="0" width="100%" height="100%" fill="url(#wrappedWash)" />
-        </Svg>
-
         <View style={[styles.headerRow, { paddingTop: insets.top + 12 }]}>
           {isLast ? (
             <Pressable

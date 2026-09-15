@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import * as SplashScreen from 'expo-splash-screen'
 import { reconcileSessionOnForeground } from './session-resume'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -26,9 +26,6 @@ import { AppState, type AppStateStatus, View, ActivityIndicator } from 'react-na
 import { createTokensV2, getRuntimeTheme } from './theme'
 import { ThemeProvider } from './theme-provider'
 import { useOffline } from '@/hooks/use-offline'
-import { subscribeDroppedMutations, subscribeFlushResults, getMutationScope } from '@/lib/offline-mutations'
-import { useAppToast } from '@/hooks/use-app-toast'
-import { useTranslation } from 'react-i18next'
 import { useOnboardingDraftHydrated } from '@/stores/onboarding-draft-store'
 import './i18n'
 
@@ -43,53 +40,7 @@ interface ProvidersProps {
 }
 
 function OfflineManager() {
-  const { pendingCount, replayState } = useOffline()
-  const { t } = useTranslation()
-  const { showInfo, showQueued, showSuccess, showError } = useAppToast()
-  const initializedRef = useRef(false)
-  const previousPendingRef = useRef(0)
-  const previousReplayStateRef = useRef(replayState)
-
-  useEffect(() => {
-    return subscribeDroppedMutations((dropped) => {
-      const scope = getMutationScope(dropped.type)
-      const terminalMessage = scope
-        ? t('common.syncDropped', { item: t(`common.syncEntity.${scope}`) })
-        : t('common.syncDroppedUnknown')
-      showError(
-        `${terminalMessage} ${t('common.syncRetryAction')}`,
-      )
-    })
-  }, [showError, t])
-
-  useEffect(() => {
-    return subscribeFlushResults((result) => {
-      if (result.remaining === 0 && result.succeeded > 0 && result.droppedMutations.length === 0) {
-        showSuccess(t('common.synced'))
-      }
-    })
-  }, [showSuccess, t])
-
-  useEffect(() => {
-    if (!initializedRef.current) {
-      initializedRef.current = true
-      previousPendingRef.current = pendingCount
-      previousReplayStateRef.current = replayState
-      return
-    }
-
-    if (pendingCount > previousPendingRef.current) {
-      showQueued(t('common.queued'))
-    }
-
-    if (previousReplayStateRef.current !== 'flushing' && replayState === 'flushing') {
-      showInfo(t('common.syncing'))
-    }
-
-    previousPendingRef.current = pendingCount
-    previousReplayStateRef.current = replayState
-  }, [pendingCount, replayState, showInfo, showQueued, t])
-
+  useOffline(true)
   return null
 }
 

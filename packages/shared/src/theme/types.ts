@@ -14,5 +14,4 @@ export interface ColorSchemeDefinition {
   neutralHue: number
   chromaScaleBg: number
   chromaScaleFg: number
-  gradientHeaderFrom: Record<SchemeMode, string>
 }

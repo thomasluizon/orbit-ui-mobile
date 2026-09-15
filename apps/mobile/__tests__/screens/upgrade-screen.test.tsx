@@ -88,7 +88,6 @@ vi.mock('@/lib/theme', async (importOriginal) => {
 })
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
-vi.mock('@/components/ui/gradient-top', () => ({ GradientTop: () => null }))
 vi.mock('@/components/ui/offline-unavailable-state', () => ({
   OfflineUnavailableState: () => React.createElement('OfflineUnavailableState'),
 }))

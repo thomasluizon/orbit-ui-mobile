@@ -77,9 +77,9 @@ describe('ActionChips', () => {
   })
 
   it('handles unknown action types with fallback', () => {
-    const actions = [makeAction({ type: 'LogHabit', entityName: null })]
+    const actions = [makeAction({ type: 'custom_action', entityName: null })]
     render(<ActionChips actions={actions} />)
-    expect(document.body.textContent).toContain('chat.unknownEntity')
+    expect(document.body.textContent).toContain('custom action: chat.unknownEntity')
   })
 
   it('renders localized labels for the new tag and reorder action types', () => {

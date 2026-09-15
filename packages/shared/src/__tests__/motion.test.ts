@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   motionDurations,
+  motionEasings,
   orbitalMotion,
   motionPresets,
   motionScenarios,
@@ -9,6 +10,19 @@ import {
 } from '../theme/motion'
 
 describe('motion theme contract', () => {
+  it('keeps every shared easing within the no-overshoot control bounds', () => {
+    for (const easing of Object.values(motionEasings)) {
+      expect(easing[1]).toBeGreaterThanOrEqual(0)
+      expect(easing[1]).toBeLessThanOrEqual(1)
+      expect(easing[3]).toBeGreaterThanOrEqual(0)
+      expect(easing[3]).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('uses the entrance easing for success feedback', () => {
+    expect(resolveMotionPreset('success-feedback').enterEasing).toEqual(motionEasings.enter)
+  })
+
   it('defines the full shared scenario vocabulary', () => {
     expect(motionScenarios).toEqual([
       'tab-switch',

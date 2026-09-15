@@ -3,7 +3,6 @@
 import { User } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
@@ -22,17 +21,6 @@ export function ProfileHeaderBar({ streak, error }: Readonly<ProfileHeaderBarPro
 
   return (
     <>
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-y-0 -z-10 md:hidden"
-        style={{
-          left: 'calc(var(--app-px) * -1)',
-          right: 'calc(var(--app-px) * -1)',
-        }}
-      >
-        <GradientTop height={300} />
-      </div>
-
       <AppBar
         leadingIcon={<User size={22} strokeWidth={1.8} color="var(--fg-1)" />}
         trailing={

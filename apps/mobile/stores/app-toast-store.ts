@@ -42,6 +42,16 @@ function createToast(
   }
 }
 
+function isDuplicateToast(state: AppToastStore, toast: AppToastItem): boolean {
+  if (toast.onAction) return false
+  return [state.currentToast, state.queue.at(-1)].some(
+    (item) =>
+      !item?.onAction &&
+      item?.message === toast.message &&
+      item.variant === toast.variant,
+  )
+}
+
 export const useAppToastStore = create<AppToastStore>((set) => ({
   currentToast: null,
   queue: [],
@@ -57,6 +67,7 @@ export const useAppToastStore = create<AppToastStore>((set) => ({
     )
 
     set((state) => {
+      if (isDuplicateToast(state, nextToast)) return state
       if (!state.currentToast) {
         return { currentToast: nextToast }
       }
@@ -73,6 +84,7 @@ export const useAppToastStore = create<AppToastStore>((set) => ({
 
       void triggerHaptic('warning')
       const nextToast = createToast(trimmedMessage, 'error')
+      if (isDuplicateToast(state, nextToast)) return state
       if (!state.currentToast) return { ...state, currentToast: nextToast }
       return { ...state, queue: [...state.queue, nextToast] }
     }),
@@ -83,6 +95,7 @@ export const useAppToastStore = create<AppToastStore>((set) => ({
 
       void triggerHaptic('success')
       const nextToast = createToast(trimmedMessage, 'success')
+      if (isDuplicateToast(state, nextToast)) return state
       if (!state.currentToast) return { ...state, currentToast: nextToast }
       return { ...state, queue: [...state.queue, nextToast] }
     }),
@@ -92,6 +105,7 @@ export const useAppToastStore = create<AppToastStore>((set) => ({
       if (!trimmedMessage) return state
 
       const nextToast = createToast(trimmedMessage, 'info')
+      if (isDuplicateToast(state, nextToast)) return state
       if (!state.currentToast) return { ...state, currentToast: nextToast }
       return { ...state, queue: [...state.queue, nextToast] }
     }),
@@ -102,6 +116,7 @@ export const useAppToastStore = create<AppToastStore>((set) => ({
 
       void triggerHaptic('selection')
       const nextToast = createToast(trimmedMessage, 'queued', actionLabel, onAction)
+      if (isDuplicateToast(state, nextToast)) return state
       if (!state.currentToast) return { ...state, currentToast: nextToast }
       return { ...state, queue: [...state.queue, nextToast] }
     }),

@@ -20,6 +20,7 @@ import {
   queueOrExecute,
 } from '@/lib/offline-mutations'
 import * as offlineQueue from '@/lib/offline-queue'
+import { useOfflineSyncStore } from '@/stores/offline-sync-store'
 import { clearPersistedQueryCache } from '@/lib/query-client'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { AppTextInput } from '@/components/ui/app-text-input'
@@ -146,6 +147,7 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
       })
 
       offlineQueue.clear()
+      await useOfflineSyncStore.getState().clearDrops()
       if (isQueuedResult(result)) {
         offlineQueue.enqueue(queuedResetMutation)
       }

@@ -156,10 +156,14 @@ ruleTester.run('no-overshoot-easing', rule('no-overshoot-easing'), {
   valid: [
     'const e = "cubic-bezier(0.2, 0, 0, 1)"',
     'const e = "cubic-bezier(0.4, 0, 0.2, 1)"',
+    'const icon = { bounce: 0 }',
+    'const e = [0.2, 0, 0, 1]',
+    'const calendarCell = [2026, 9, 15, 1.2]',
   ],
   invalid: [
     { code: 'const e = "cubic-bezier(0.34, 1.56, 0.64, 1)"', errors: [{ messageId: 'noOvershoot' }] },
     { code: 'const e = "cubic-bezier(0.5, -0.5, 0.5, 1)"', errors: [{ messageId: 'noOvershoot' }] },
+    { code: 'const e = [0.34, 1.56, 0.64, 1]', errors: [{ messageId: 'noOvershoot' }] },
   ],
 })
 

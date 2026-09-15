@@ -34,7 +34,6 @@ function splitAllDay(allDay: CalendarDayEntry[]): {
 const CARD_BG = 'var(--bg-card)'
 const pinnedPaneBackground = {
   backgroundColor: 'var(--bg)',
-  backgroundImage: 'linear-gradient(var(--bg-card), var(--bg-card))',
 } as const
 
 export interface TimeGridColumn {
@@ -433,7 +432,7 @@ export function CalendarTimeGrid({
                   data-date={column.dateStr}
                   className="flex flex-col"
                   style={{
-                    gap: 3,
+                    gap: 4,
                     minHeight: 34,
                     padding: '6px 3px',
                     borderLeft: '1px solid var(--hairline)',
@@ -484,12 +483,16 @@ export function CalendarTimeGrid({
                   position: 'relative',
                   height: DAY_HEIGHT,
                   borderLeft: '1px solid var(--hairline)',
-                  backgroundImage:
-                    'repeating-linear-gradient(to bottom, var(--hairline) 0, var(--hairline) 1px, transparent 1px, transparent ' +
-                    HOUR_HEIGHT +
-                    'px)',
                 }}
               >
+                {HOURS.map((hour) => (
+                  <span
+                    key={hour}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0 border-t border-[var(--hairline)]"
+                    style={{ top: hour * HOUR_HEIGHT }}
+                  />
+                ))}
                 {timed.map((block) => (
                   <TimedBlock
                     key={block.entry.habitId}
@@ -506,7 +509,7 @@ export function CalendarTimeGrid({
                   >
                     <span
                       className="shrink-0 rounded-full"
-                      style={{ width: 7, height: 7, marginLeft: -3, background: 'var(--primary)' }}
+                      style={{ width: 7, height: 7, marginLeft: -4, background: 'var(--primary)' }}
                     />
                     <span style={{ height: 1.5, flex: 1, background: 'var(--primary)' }} />
                   </div>
