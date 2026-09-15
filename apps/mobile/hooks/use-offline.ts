@@ -6,6 +6,7 @@ import {
   canAutoFlush,
   flushQueuedMutations,
   getReplayState,
+  resumeOfflineReplay,
   subscribeReplayState,
   type OfflineReplayState,
 } from '@/lib/offline-mutations'
@@ -41,12 +42,15 @@ export function useOffline(manageQueue = false): UseOfflineReturn {
 
     const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
       const online = state.isConnected === true && state.isInternetReachable !== false
+      if (manageQueue && online && getReplayState() === 'stopped-for-auth') {
+        resumeOfflineReplay()
+      }
       setCachedConnectivity(online)
       setIsOnline(online)
       setConnectivityReady(true)
     })
     return () => unsubscribe()
-  }, [])
+  }, [manageQueue])
 
   useEffect(() => {
     const unsubscribe = offlineQueue.subscribeQueueCount((nextCount) => {
@@ -90,6 +94,7 @@ export function useOffline(manageQueue = false): UseOfflineReturn {
         isOnline &&
         pendingCount > 0
       ) {
+        if (getReplayState() === 'stopped-for-auth') resumeOfflineReplay()
         void flush()
       }
     }

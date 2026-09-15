@@ -19,6 +19,14 @@ describe('Markdown', () => {
     expect(container.querySelector('a')).not.toHaveAttribute('target')
   })
 
+  it('drops malformed link attributes instead of throwing', () => {
+    const { container } = render(<Markdown content="[label](http://[)" />)
+    const link = container.querySelector('a')
+
+    expect(link).not.toHaveAttribute('href')
+    expect(link).not.toHaveAttribute('target')
+  })
+
   it('renders bold, lists, and headings from markdown', () => {
     const { container } = render(
       <Markdown content={'# Title\n\n**bold** text\n\n- one\n- two'} />,

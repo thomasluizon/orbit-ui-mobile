@@ -240,7 +240,7 @@
   --status-bad:     #fb2c36;
   --status-frozen:  #00d3f3;
   --status-overdue-text: #fe9a00;
-  --status-bad-text:     #fb2c36;
+  --status-bad-text:     #ff7970;
   --fg-on-bad:           #020618;
   --fg-on-overdue:       #020618;
 
@@ -286,7 +286,7 @@
   --status-bad:     #e7000b;
   --status-frozen:  #0092b8;
   --status-overdue-text: #b45b00;
-  --status-bad-text:     #e7000b;
+  --status-bad-text:     #d70009;
   --fg-on-bad:           #ffffff;
   --fg-on-overdue:       #020618;
 

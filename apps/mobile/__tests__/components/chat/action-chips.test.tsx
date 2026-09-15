@@ -70,10 +70,6 @@ function makeAction(overrides: Partial<ActionResult> = {}): ActionResult {
 }
 
 function findPressableByType(root: any) {
-  // Pressable from react-native expands into a host View AND a function-component
-  // node in react-test-renderer; both inherit accessibilityRole and onPress.
-  // Count only the outermost owner: nodes whose `type` is a function/object
-  // (the Pressable component itself), not the inner host View string.
   return root.findAll(
     (node: any) =>
       node.props &&
@@ -156,7 +152,7 @@ describe('ActionChips (mobile)', () => {
   })
 
   it('renders localized labels for the new tag and reorder action types', () => {
-    const cases: Array<[string, string]> = [
+    const cases: [string, string][] = [
       ['CreateTag', 'chat.action.createdTag'],
       ['UpdateTag', 'chat.action.updatedTag'],
       ['DeleteTag', 'chat.action.deletedTag'],
@@ -177,6 +173,20 @@ describe('ActionChips (mobile)', () => {
       )
       expect(matches.length).toBeGreaterThan(0)
     }
+  })
+
+  it('renders fallback copy for an unknown action type', () => {
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <ActionChips actions={[makeAction({ type: 'custom_action', entityName: null })]} />,
+      )
+    })
+
+    const matches = tree.root.findAll(
+      (node: any) => node.props?.children === 'custom action: chat.unknownEntity',
+    )
+    expect(matches.length).toBeGreaterThan(0)
   })
 
 })

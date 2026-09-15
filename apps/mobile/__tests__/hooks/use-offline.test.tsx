@@ -22,12 +22,19 @@ const mocks = vi.hoisted(() => {
     replayState: 'idle' as ReplayState,
     replayStateListener: undefined as ((state: ReplayState) => void) | undefined,
     resolveConnectivity: undefined as ((value: boolean) => void) | undefined,
+    hookIsOnline: true,
+    hookPendingCount: 0,
   }
 
   const flushQueuedMutations = vi.fn(async () => {
     state.queueCount = 0
     await Promise.resolve()
     return { succeeded: 1, failed: 0, remaining: 0, droppedMutations: [] }
+  })
+  const resumeOfflineReplay = vi.fn(() => {
+    state.allowFlush = true
+    state.replayState = 'idle'
+    state.replayStateListener?.('idle')
   })
 
   const enqueue = vi.fn()
@@ -49,6 +56,7 @@ const mocks = vi.hoisted(() => {
   return {
     state,
     flushQueuedMutations,
+    resumeOfflineReplay,
     enqueue,
     subscribeQueueCount,
     count,
@@ -92,6 +100,11 @@ vi.mock('@/lib/offline-queue', () => ({
   getAll: () => [],
 }))
 
+vi.mock('@/lib/offline-runtime', () => ({
+  getCurrentConnectivity: mocks.getCurrentConnectivity,
+  setCachedConnectivity: vi.fn(),
+}))
+
 vi.mock('@/lib/offline-mutations', () => ({
   flushQueuedMutations: mocks.flushQueuedMutations,
   canAutoFlush: () => mocks.state.allowFlush,
@@ -101,6 +114,7 @@ vi.mock('@/lib/offline-mutations', () => ({
     listener?.(mocks.state.replayState)
     return () => { mocks.state.replayStateListener = undefined }
   },
+  resumeOfflineReplay: mocks.resumeOfflineReplay,
 }))
 
 vi.mock('@/lib/sentry', () => ({
@@ -108,7 +122,9 @@ vi.mock('@/lib/sentry', () => ({
 }))
 
 function HookHarness() {
-  useOffline(true)
+  const { isOnline, pendingCount } = useOffline(true)
+  mocks.state.hookIsOnline = isOnline
+  mocks.state.hookPendingCount = pendingCount
   return null
 }
 
@@ -122,7 +138,10 @@ describe('useOffline', () => {
     mocks.state.netInfoListener = undefined
     mocks.state.appStateListener = undefined
     mocks.state.resolveConnectivity = undefined
+    mocks.state.hookIsOnline = true
+    mocks.state.hookPendingCount = 0
     mocks.flushQueuedMutations.mockClear()
+    mocks.resumeOfflineReplay.mockClear()
     mocks.flushQueuedMutations.mockImplementation(async () => {
       mocks.state.queueCount = 0
       await Promise.resolve()
@@ -187,7 +206,6 @@ describe('useOffline', () => {
       mocks.state.queueListener?.(1)
       await Promise.resolve()
     })
-
     await TestRenderer.act(async () => {
       mocks.state.netInfoListener?.({ isConnected: true, isInternetReachable: true })
       await Promise.resolve()
@@ -241,5 +259,52 @@ describe('useOffline', () => {
     expect(mocks.captureError).toHaveBeenCalledWith(
       expect.objectContaining({ message: 'Queue bookkeeping failed' }),
     )
+  })
+
+  it('resumes retained authenticated work when connectivity returns', async () => {
+    mocks.state.queueCount = 1
+    mocks.state.allowFlush = false
+    mocks.state.replayState = 'stopped-for-auth'
+    await mountHook()
+
+    await TestRenderer.act(async () => {
+      mocks.state.resolveConnectivity?.(false)
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      mocks.state.netInfoListener?.({ isConnected: true, isInternetReachable: true })
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mocks.resumeOfflineReplay).toHaveBeenCalledTimes(1)
+    expect(mocks.flushQueuedMutations).toHaveBeenCalledTimes(1)
+  })
+
+  it('resumes retained authenticated work when the app returns to foreground', async () => {
+    mocks.state.queueCount = 1
+    mocks.state.allowFlush = false
+    mocks.state.replayState = 'stopped-for-auth'
+    mocks.getCurrentConnectivity.mockResolvedValueOnce(true)
+    await mountHook()
+    await TestRenderer.act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    await TestRenderer.act(async () => {
+      mocks.state.queueListener?.(1)
+      await Promise.resolve()
+    })
+    expect(mocks.state.hookIsOnline).toBe(true)
+    expect(mocks.state.hookPendingCount).toBe(1)
+    expect(mocks.state.appStateListener).toBeTypeOf('function')
+    await TestRenderer.act(async () => {
+      mocks.state.appStateListener?.('active')
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mocks.resumeOfflineReplay).toHaveBeenCalledTimes(1)
+    expect(mocks.flushQueuedMutations).toHaveBeenCalledTimes(1)
   })
 })

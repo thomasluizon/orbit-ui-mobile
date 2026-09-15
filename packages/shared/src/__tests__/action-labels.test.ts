@@ -18,6 +18,12 @@ describe('resolveActionLabelKey', () => {
     expect(resolveActionLabelKey('CreateHabit', 'Failed', null)).toBe('chat.action.failed')
   })
 
+  it('uses the named fallback for an unknown failed action', () => {
+    expect(resolveActionLabelKey('unknown_action', 'Failed', 'Morning walk')).toBe(
+      'chat.action.failedNamed',
+    )
+  })
+
   it('keeps successful labels unchanged', () => {
     expect(resolveActionLabelKey('CreateHabit', 'Success', 'Meditate')).toBe(
       'chat.action.created',

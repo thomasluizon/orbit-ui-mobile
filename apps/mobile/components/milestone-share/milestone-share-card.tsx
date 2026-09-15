@@ -34,7 +34,7 @@ export const MilestoneShareCard = forwardRef<View, MilestoneShareCardProps>(
 
     return (
       <View ref={ref} testID="milestone-share-card" style={styles.card}>
-        <View style={styles.band}>
+        <View testID="milestone-share-card-band" style={styles.band}>
           <View style={styles.brandRow}>
             <Image source={logoSource} style={styles.logo} resizeMode="contain" />
             <Text style={styles.wordmark}>Orbit</Text>
@@ -100,6 +100,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingTop: 20,
       paddingHorizontal: 22,
       paddingBottom: 24,
+      backgroundColor: tokens.bgCard,
     },
     brandRow: {
       flexDirection: 'row',
