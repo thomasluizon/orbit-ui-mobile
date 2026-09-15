@@ -105,12 +105,37 @@ describe('DeleteAccountModal', () => {
     const tree = await renderModal(createMockProfile({
       hasProAccess: true,
       plan: 'pro',
+      planExpiresAt: '2999-01-01T00:00:00Z',
     }))
     const copy = textContent(tree.root)
 
     expect(copy).toContain('no máximo 30 dias a partir de hoje')
     expect(copy).toContain(ptBR.profile.deleteAccount.warningPro)
     expect(copy).not.toContain(ptBR.profile.deleteAccount.warningFree)
+  })
+
+  it('shows the Free warning for Pro access without a plan expiry', async () => {
+    const tree = await renderModal(createMockProfile({
+      hasProAccess: true,
+      plan: 'pro',
+      planExpiresAt: null,
+    }))
+    const copy = textContent(tree.root)
+
+    expect(copy).toContain(ptBR.profile.deleteAccount.warningFree)
+    expect(copy).not.toContain(ptBR.profile.deleteAccount.warningPro)
+  })
+
+  it('shows the Free warning for Pro access with a past plan expiry', async () => {
+    const tree = await renderModal(createMockProfile({
+      hasProAccess: true,
+      plan: 'pro',
+      planExpiresAt: '2000-01-01T00:00:00Z',
+    }))
+    const copy = textContent(tree.root)
+
+    expect(copy).toContain(ptBR.profile.deleteAccount.warningFree)
+    expect(copy).not.toContain(ptBR.profile.deleteAccount.warningPro)
   })
 
   it('requests the code before entering the deletion step up', async () => {

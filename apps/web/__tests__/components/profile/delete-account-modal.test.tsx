@@ -105,6 +105,7 @@ describe('DeleteAccountModal', () => {
           ...profile,
           plan: 'pro',
           hasProAccess: true,
+          planExpiresAt: '2999-01-01T00:00:00Z',
         }}
       />,
     )
@@ -113,6 +114,42 @@ describe('DeleteAccountModal', () => {
       en.profile.deleteAccount.warningPro,
     )
     expect(screen.queryByText(en.profile.deleteAccount.warningFree)).not.toBeInTheDocument()
+  })
+
+  it('shows the Free warning for Pro access without a plan expiry', () => {
+    render(
+      <DeleteAccountModal
+        open
+        onOpenChange={mocks.onOpenChange}
+        profile={{
+          ...profile,
+          plan: 'pro',
+          hasProAccess: true,
+          planExpiresAt: null,
+        }}
+      />,
+    )
+
+    expect(screen.getByText(en.profile.deleteAccount.warningFree)).toBeInTheDocument()
+    expect(screen.queryByText(en.profile.deleteAccount.warningPro)).not.toBeInTheDocument()
+  })
+
+  it('shows the Free warning for Pro access with a past plan expiry', () => {
+    render(
+      <DeleteAccountModal
+        open
+        onOpenChange={mocks.onOpenChange}
+        profile={{
+          ...profile,
+          plan: 'pro',
+          hasProAccess: true,
+          planExpiresAt: '2000-01-01T00:00:00Z',
+        }}
+      />,
+    )
+
+    expect(screen.getByText(en.profile.deleteAccount.warningFree)).toBeInTheDocument()
+    expect(screen.queryByText(en.profile.deleteAccount.warningPro)).not.toBeInTheDocument()
   })
 
   it('persists the send time and routes to the deletion step up screen', async () => {
