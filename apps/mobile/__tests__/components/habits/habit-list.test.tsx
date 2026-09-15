@@ -613,6 +613,49 @@ describe('HabitList', () => {
     })
   })
 
+  it('hides completed general habits unless they were just completed', () => {
+    const active = createMockHabit({
+      id: 'active',
+      isGeneral: true,
+      isCompleted: false,
+    })
+    const completed = createMockHabit({
+      id: 'completed',
+      isGeneral: true,
+      isCompleted: true,
+    })
+    const recentlyCompleted = createMockHabit({
+      id: 'recently-completed',
+      isGeneral: true,
+      isCompleted: true,
+    })
+    seedHabits([active, completed, recentlyCompleted])
+
+    const ref = React.createRef<HabitListHandle>()
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          ref={ref}
+          view="general"
+          filters={{}}
+          showCompleted={false}
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    TestRenderer.act(() => {
+      ref.current?.markRecentlyCompleted('recently-completed')
+    })
+
+    expect(
+      tree.root
+        .findAllByType(HabitRow)
+        .map((node: { props: { habit: NormalizedHabit } }) => node.props.habit.id),
+    ).toEqual(['active', 'recently-completed'])
+  })
+
   it('hides only completed one-time habits in all view when showCompleted is false', () => {
     const active = createMockHabit({ id: 'active', title: 'Active', isCompleted: false })
     const completedOneTime = createMockHabit({

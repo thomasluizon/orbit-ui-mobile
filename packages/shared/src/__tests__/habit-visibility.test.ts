@@ -314,6 +314,48 @@ describe('habit-visibility', () => {
     ).toEqual(['completed-today'])
   })
 
+  it('applies completion visibility to children in the general view', () => {
+    const parent = createMockHabit({ id: 'parent' })
+    const active = createMockHabit({
+      id: 'active',
+      parentId: 'parent',
+      isGeneral: true,
+      isCompleted: false,
+    })
+    const completed = createMockHabit({
+      id: 'completed',
+      parentId: 'parent',
+      isGeneral: true,
+      isCompleted: true,
+    })
+    const recentlyCompleted = createMockHabit({
+      id: 'recently-completed',
+      parentId: 'parent',
+      isGeneral: true,
+      isCompleted: true,
+    })
+    const options = {
+      habitsById: buildHabitMap([parent, active, completed, recentlyCompleted]),
+      childrenByParent: new Map([
+        ['parent', ['active', 'completed', 'recently-completed']],
+      ]),
+      selectedDate: '2026-09-15',
+      searchQuery: '',
+      recentlyCompletedIds: new Set(['recently-completed']),
+    }
+
+    expect(
+      createHabitVisibilityHelpers({ ...options, showCompleted: false })
+        .getVisibleChildren('parent', 'general')
+        .map((habit) => habit.id),
+    ).toEqual(['active', 'recently-completed'])
+    expect(
+      createHabitVisibilityHelpers({ ...options, showCompleted: true })
+        .getVisibleChildren('parent', 'general')
+        .map((habit) => habit.id),
+    ).toEqual(['active', 'completed', 'recently-completed'])
+  })
+
   it('hides completed one-time and general children in all view when showCompleted is off', () => {
     const completedOneTime = createMockHabit({
       id: 'completed-one-time',
