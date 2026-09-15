@@ -90,20 +90,6 @@
       "count": 1
     }
   },
-  "components/habits/create-habit-modal/sub-habit-editor.tsx": {
-    "local/icon-size-grid": {
-      "count": 1
-    },
-    "local/no-space-x-y": {
-      "count": 1
-    },
-    "local/require-focus-replacement": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 1
-    }
-  },
   "components/habits/description-viewer.tsx": {
     "local/icon-size-grid": {
       "count": 2
@@ -126,55 +112,6 @@
     },
     "local/spacing-scale": {
       "count": 3
-    }
-  },
-  "components/habits/habit-form-fields/habit-tag-chip.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/spacing-scale": {
-      "count": 3
-    }
-  },
-  "components/habits/habit-form-fields/reminder-section.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/no-space-x-y": {
-      "count": 2
-    },
-    "local/require-focus-replacement": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 10
-    }
-  },
-  "components/habits/habit-form-fields/scheduled-reminder-section.tsx": {
-    "local/icon-size-grid": {
-      "count": 2
-    },
-    "local/no-space-x-y": {
-      "count": 3
-    },
-    "local/spacing-scale": {
-      "count": 6
-    }
-  },
-  "components/habits/habit-form-fields/slip-alert-section.tsx": {
-    "local/no-space-x-y": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 4
-    }
-  },
-  "components/habits/habit-form-fields/tag-editor-row.tsx": {
-    "local/require-focus-replacement": {
-      "count": 1
-    },
-    "local/spacing-scale": {
-      "count": 4
     }
   },
   "components/habits/habit-list/date-group-section.tsx": {
