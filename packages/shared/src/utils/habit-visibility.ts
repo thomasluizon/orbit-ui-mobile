@@ -147,7 +147,9 @@ export function createHabitVisibilityHelpers({
   const hasVisibleContent = (habit: NormalizedHabit): boolean => {
     if (recentlyCompletedIds.has(habit.id)) return true
     const loggedOnSelectedDate = isLoggedOnSelectedDate(habit)
-    if (showCompleted && loggedOnSelectedDate) return true
+    if (showCompleted && (loggedOnSelectedDate || (habit.isGeneral && habit.isCompleted))) {
+      return true
+    }
     const hasOpenOwnContent = habit.isGeneral || isDueOnSelectedDate(habit) || habit.isOverdue
     if (!habit.isCompleted && !loggedOnSelectedDate && hasOpenOwnContent) {
       return true

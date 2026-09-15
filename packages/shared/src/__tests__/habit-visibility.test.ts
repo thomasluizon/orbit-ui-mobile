@@ -212,6 +212,66 @@ describe('habit-visibility', () => {
     expect(helpers.hasVisibleContent(completedOnAnotherDate)).toBe(false)
   })
 
+  it('shows a completed top-level general habit only when completed items are enabled', () => {
+    const completedGeneral = createMockHabit({
+      id: 'completed-general',
+      isGeneral: true,
+      isCompleted: true,
+      isLoggedInRange: false,
+      instances: [],
+      scheduledDates: [],
+    })
+    const options = {
+      habitsById: buildHabitMap([completedGeneral]),
+      childrenByParent: new Map<string, string[]>(),
+      selectedDate: '2026-09-15',
+      searchQuery: '',
+      recentlyCompletedIds: new Set<string>(),
+    }
+
+    expect(
+      createHabitVisibilityHelpers({ ...options, showCompleted: false })
+        .hasVisibleContent(completedGeneral),
+    ).toBe(false)
+    expect(
+      createHabitVisibilityHelpers({ ...options, showCompleted: true })
+        .hasVisibleContent(completedGeneral),
+    ).toBe(true)
+  })
+
+  it('shows a completed general descendant only when completed items are enabled', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      isCompleted: false,
+      instances: [],
+      scheduledDates: [],
+    })
+    const completedGeneral = createMockHabit({
+      id: 'completed-general',
+      parentId: 'parent',
+      isGeneral: true,
+      isCompleted: true,
+      isLoggedInRange: false,
+      instances: [],
+      scheduledDates: [],
+    })
+    const options = {
+      habitsById: buildHabitMap([parent, completedGeneral]),
+      childrenByParent: new Map([['parent', ['completed-general']]]),
+      selectedDate: '2026-09-15',
+      searchQuery: '',
+      recentlyCompletedIds: new Set<string>(),
+    }
+
+    const hidden = createHabitVisibilityHelpers({ ...options, showCompleted: false })
+    const visible = createHabitVisibilityHelpers({ ...options, showCompleted: true })
+
+    expect(hidden.hasVisibleContent(parent)).toBe(false)
+    expect(hidden.getVisibleChildren('parent', 'today')).toEqual([])
+    expect(visible.hasVisibleContent(parent)).toBe(true)
+    expect(visible.getVisibleChildren('parent', 'today')).toEqual([completedGeneral])
+  })
+
   it('keeps a parent reachable when a child was completed on the selected date', () => {
     const parent = createMockHabit({
       id: 'parent',
