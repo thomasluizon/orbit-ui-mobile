@@ -121,7 +121,7 @@ node tools/plan-queue.mjs        (--tickets ORB-1,ORB-2 | --board) [--format mar
 node tools/comment-ticket.mjs    --issue "<ticket-ref>" --body-file <path|->
 node tools/complete-ticket.mjs   --issue "<ticket-ref>" [--preflight]
 node tools/compose-prompt.mjs    --issue "<ticket-ref>" --repo <key> --out <file> [--worktree <p>] [--branch <b>] [--base <ref>] [--cloud]
-node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>]
+node tools/launch-worker.mjs     --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical>] [--relaunch-reason <text>]
 node tools/submit-cloud-worker.mjs --issue "<ticket-ref>" --env <id> --branch <b> --order <f> --worktree <p>
 node tools/submit-cloud-worker.mjs --watch <receiptPath>
 node tools/submit-cloud-worker.mjs --clear-unknown <reservation-file> --assert-no-task-exists
@@ -643,7 +643,7 @@ a non-empty remote diff keeps the task unresolved.
 ### Local execution
 
 ```bash
-node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>]
+node tools/launch-worker.mjs --issue "<ticket-ref>" --worktree <p> --prompt <f> [--hard-ceiling-minutes <n>] [--tier <default|mechanical>] [--relaunch-reason <text>]
 ```
 
 Headless, `stdin=NUL`, `cwd` = the worktree, log to the scratchpad.
@@ -872,23 +872,25 @@ complaint there and no thread has to repeat it. `counts{}` describes threads onl
 with zero threads is a clean pull request only when `reviewBody` is null as well. Read a non-null
 `reviewBody` and split it exactly like a thread.
 
-**A body finding you FILE rather than fix needs its own transition, and this is the one place the
-loop can fail to converge.** It carries no thread id, so `resolve-bot-thread.mjs` cannot answer it.
-Filing changes no code, so nothing pushes, so the head never moves and the red
-`pullfrog-approval` is never re-adjudicated. Do this instead, and never invent an empty commit to
+**A body finding you FILE or mark not applicable needs its own transition, and this is the one place
+the loop can fail to converge.** It carries no thread id, so `resolve-bot-thread.mjs` cannot answer
+or resolve it. Either disposition changes no code, so nothing pushes, the head never moves and the
+red `pullfrog-approval` is never re-adjudicated. Do this instead, and never invent an empty commit to
 manufacture a push:
 
-1. Post the disposition as a pull request comment. Name the ticket you filed.
+1. Post the disposition as a pull request comment. Name the ticket for FILE, or record why the
+   finding does not apply.
 2. Re-adjudicate the same head:
 
 ```bash
-node tools/list-bot-threads.mjs --pr <n> --repo <key> --re-review --wait-seconds 900
+node tools/list-bot-threads.mjs --pr <n> --repo <key> --wait-seconds 900 --re-review
 ```
 
 `--re-review` posts `@pullfrog review` even though the head is already reviewed, and it accepts
 only a review submitted AFTER the one that was present when the run started. That timestamp
 comparison is what makes it terminate: without it the run reads back the review it was sent to
-replace and reports the finding it just answered.
+replace and reports the finding it just answered. Only a fresh `APPROVED` review of that same head
+clears `pullfrog-approval`.
 
 A body finding you FIX needs none of this. The fix moves the head, and the push re-reviews it.
 
@@ -908,20 +910,20 @@ contributing `threads[].id` on the surviving finding so each thread can receive 
 resolution. Do not deduplicate merely similar observations that require different changes or
 dispositions.
 
-Classify every surviving finding as FIX, FILE or not applicable before dispatch. File every FILE
-finding through `node tools/create-ticket.mjs` and retain its ticket and all thread ids in the batch.
-Zero findings launches no worker. If at least one finding is FIX, compose ONE worker order containing
-all FIX findings from that review, plus every FILE and not-applicable disposition the worker must
-preserve while it fixes. Never launch one worker per finding. A later accepted review after the head
-changes is a new batch and may launch one new worker.
+Classify every surviving finding as FIX, FILE or not applicable. File every FILE finding through
+`node tools/create-ticket.mjs` and retain its ticket and all thread ids in the batch. Zero findings
+launches no worker. The orchestrator answers every FIX it can inside its narrow authority below, in
+ONE commit. If any FIX is large enough to be its own work order, compose and dispatch ONE worker
+order carrying all FIX findings from that review, plus every FILE and not-applicable disposition it
+must preserve. Never launch one worker per finding. A later accepted review after the head changes
+is a new batch and may launch one new worker.
 
-The batched order requires one commit at most and spells out the whole sequence: fix every FIX
-finding; keep every filed-ticket disposition; test; commit; return the commit SHA; then let the
-orchestrator reply to and resolve every identified thread, resolve filed threads before push, push
-once, and rerun delivery verification on the new head. One batched commit is ONE
-`caps.reviewFixAttempts` attempt, regardless of its finding count. If the batch has only FILE or
-not-applicable findings, perform their existing reply, resolve and same-head re-review transitions
-without launching a worker or inventing a commit.
+Either path allows one commit at most and keeps the whole sequence: fix every FIX finding; keep every
+filed-ticket disposition; test; commit; reply to and resolve every identified thread; resolve filed
+threads before push; push once; then rerun delivery verification on the new head. The whole batch is
+ONE `caps.reviewFixAttempts` attempt, regardless of actor or finding count. If the batch has only
+FILE or not-applicable findings, perform their existing reply, resolve and same-head re-review
+transitions without launching a worker or inventing a commit.
 
 Route a fully specified reviewer-directed test-strengthening batch to `--tier mechanical` only when
 the order names the exact experiment. Route any batch needing product, design, architecture,
