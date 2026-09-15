@@ -41,6 +41,7 @@ import { FreezeBank } from '@/components/ui/freeze-bank'
 import {
   Calendar,
   Flame,
+  Gift,
   Lock,
   Satellite,
   Shield,
@@ -53,6 +54,8 @@ import {
   type IconProps,
 } from '@/components/ui/icons'
 import { PillButton } from '@/components/ui/pill-button'
+import { ListRow } from '@/components/ui/list-row'
+import { RowList } from '@/components/ui/row-list'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -462,6 +465,15 @@ export function ProgressContent() {
       {detailGoalId ? <ScrollView style={[styles.root, { backgroundColor: tokens.bg }]} contentContainerStyle={styles.content}><GoalDetailDrawer key={detailGoalId} inline open onClose={() => setDetailGoalId(null)} goalId={detailGoalId} /></ScrollView> : null}
     <NestableScrollContainer style={[styles.root, { backgroundColor: tokens.bg }, detailGoalId ? { display: 'none' } : undefined]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Text accessible accessibilityRole="header" style={styles.screenReaderTitle}>{t('progressScreen.title')}</Text>
+      <RowList>
+        <ListRow
+          accessibilityLabel={t('profile.wrappedTitle')}
+          icon={<Gift size={24} strokeWidth={1.8} color={tokens.fg1} />}
+          title={t('profile.wrappedTitle')}
+          description={t('profile.wrappedHint')}
+          onClick={() => router.push('/wrapped')}
+        />
+      </RowList>
       {loading ? <ProgressLoading label={t('progressScreen.loading')} /> : null}
       {error ? <View style={styles.error}><ErrorState message={t('progressScreen.error')} action={<PillButton variant="ghost" size="sm" onClick={retry}>{t('progressScreen.retry')}</PillButton>} /></View> : null}
       {/* eslint-disable-next-line local/max-button-words -- ORB-68 owns this existing label. */}
