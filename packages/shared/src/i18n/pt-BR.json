@@ -1384,7 +1384,7 @@
       "send": "Enviar",
       "success": "A sua mensagem chegou",
       "successHint": "A gente responde em {email} em até um dia útil.",
-      "backToAbout": "Sobre",
+      "backToAbout": "Abrir Sobre",
       "failureTitle": "A mensagem não foi enviada",
       "failureBody": "O que você escreveu continua aqui. Tente de novo quando quiser.",
       "retry": "Tentar novamente",

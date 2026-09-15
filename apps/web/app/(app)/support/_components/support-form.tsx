@@ -84,6 +84,16 @@ export function SupportForm({
       >
         {t('profile.support.description')}
       </p>
+      {error ? (
+        <div role="alert" className="flex flex-col gap-2 rounded-[var(--r-well)] bg-[var(--bg-well)] p-4">
+          <p className="text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">
+            {t('profile.support.failureTitle')}
+          </p>
+          <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">
+            {t('profile.support.failureBody')}
+          </p>
+        </div>
+      ) : null}
       <Input
         label={t('profile.support.name')}
         value={name}
@@ -149,16 +159,6 @@ export function SupportForm({
         focusRequest={messageFocusRequest}
         onBlur={onMessageBlur}
       />
-      {error ? (
-        <div role="alert" className="flex flex-col gap-2 rounded-[var(--r-well)] bg-[var(--bg-well)] p-4">
-          <p className="text-[17px] font-medium leading-[1.4] text-[var(--fg-1)]">
-            {t('profile.support.failureTitle')}
-          </p>
-          <p className="text-pretty text-sm leading-[1.55] text-[var(--fg-2)]">
-            {t('profile.support.failureBody')}
-          </p>
-        </div>
-      ) : null}
       {!isOnline ? (
         <div
           id="support-send-reason"

@@ -1384,7 +1384,7 @@
       "send": "Send",
       "success": "Your message arrived",
       "successHint": "We will reply to {email} within one working day.",
-      "backToAbout": "About",
+      "backToAbout": "Open About",
       "failureTitle": "The message was not sent",
       "failureBody": "Your words are still here. Try again when you are ready.",
       "retry": "Try again",
