@@ -289,6 +289,39 @@ no 320px width, `#536` worker cost (964), `#537` batch Pullfrog fixes, `#538` re
 (MERGED as 965, **ticket still open, close it**), `#539` api redesign CI (MERGED as 524), `#540`
 mobile ICU (in flight).
 
+In flight through UI pull request 968:
+
+- **`thomasluizon/orbit-tickets#356`, regenerating the redesign coverage mapping.** The command is now
+  keyed by the real top-level `design/canvas/*.dc.html` documents and validates that exact document
+  set. Every live manifest surface belongs to one document or a named exclusion for a surface no
+  document draws. Decision-backed tombstones must remain absent from the live manifest. Current
+  `node tools/redesign-coverage.mjs` output:
+
+  ```text
+  redesign coverage valid: 190 manifest surfaces accounted for, 8 deleted, 3 excluded
+    Orbit Assinatura: 0
+    Orbit Astra Conversation: 32
+    Orbit Avisos: 6
+    Orbit Busca: 3
+    Orbit Calendario: 7
+    Orbit Celebracao: 0
+    Orbit Entrar: 4
+    Orbit Estados: 9
+    Orbit Habit Create: 14
+    Orbit Habit Detail: 16
+    Orbit Hoje: 14
+    Orbit Offline: 0
+    Orbit Onboarding: 10
+    Orbit Perfil: 22
+    Orbit Pro: 4
+    Orbit Progresso: 8
+    Orbit Sobre: 10
+    Orbit Sobreposicoes: 13
+    Orbit Verificacao: 4
+    Orbit Widget Android: 1
+    Orbit Wrapped: 10
+  ```
+
 Not started:
 
 - **`#76` needs a stage 8.** Its criteria demand a Vitest test for the progress figure rule and there
@@ -299,11 +332,6 @@ Not started:
 - About stage 3 (feature guide subjects, facts posted on `#73`), stages 6, 7 and 8.
 - Onboarding, the tour and the feature guide (`#67`): nothing built, almost entirely copy.
 - Progresso's six accessibility sweeps: `#472`, `#473`, `#476`, `#477`, `#478`, `#480`.
-- **`#356`, regenerating the redesign coverage mapping.** This is the completion check for the whole
-  effort and it is provably stale: `R6-screen-goals`, `R9-screen-streak` and `R10-screen-achievements`
-  hold ZERO surfaces while `overlay-goals-goal-detail-drawer` sits under `R12-screen-insights`, a
-  route D69 deleted, and `#56` cites "all 10 surfaces under `R8-screen-calendar`" where the tool
-  reports 6. **No screen ticket can be honestly closed before this runs.**
 
 ## Pull requests 890 and 964, and ticket #537
 
