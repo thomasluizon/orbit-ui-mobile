@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
-import { readFileSync } from "node:fs"
+import { readdirSync, readFileSync } from "node:fs"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const MANIFEST_PATH = join(REPO_ROOT, ".claude", "manifests", "surfaces.json")
 const MAPPING_PATH = join(REPO_ROOT, "tools", "redesign-groups.json")
+const CANVAS_DIRECTORY = join(REPO_ROOT, "design", "canvas")
 
 const USAGE = `redesign-coverage - validate and print the authoritative redesign surface groups.
 
@@ -14,7 +15,7 @@ Usage:
   node tools/redesign-coverage.mjs [--json] [--help]
 
 Modes:
-  default  validate that every manifest surfaceId is assigned to one canvas document or recorded as deleted
+  default  validate every live surfaceId has one canvas document or named exclusion, and every deleted surface is absent
   --json   validate, then print { "<canvas document>": ["<surfaceId>", ...], ... }
 
 Exit codes:
@@ -31,7 +32,14 @@ function readJson(path, label) {
   }
 }
 
-function validate(manifest, mapping) {
+function readCanvasDocuments() {
+  return readdirSync(CANVAS_DIRECTORY, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith(".dc.html"))
+    .map((entry) => entry.name.slice(0, -".dc.html".length))
+    .sort()
+}
+
+function validate(manifest, mapping, canvasDocuments) {
   const errors = []
   if (!Array.isArray(manifest?.cells)) errors.push("manifest cells must be an array")
   if (!mapping?.groups || Array.isArray(mapping.groups) || typeof mapping.groups !== "object") {
@@ -53,7 +61,6 @@ function validate(manifest, mapping) {
   const assignments = new Map()
   const groups = {}
   for (const [group, surfaceIds] of Object.entries(mapping.groups)) {
-    if (!/^Orbit .+/.test(group)) errors.push(`invalid canvas document key: ${group}`)
     if (!Array.isArray(surfaceIds)) {
       errors.push(`group ${group} must be an array`)
       continue
@@ -69,6 +76,14 @@ function validate(manifest, mapping) {
       else assignments.set(surfaceId, group)
       groups[group].push(surfaceId)
     }
+  }
+  const canvasDocumentSet = new Set(canvasDocuments)
+  const groupSet = new Set(Object.keys(mapping.groups))
+  for (const document of canvasDocuments) {
+    if (!groupSet.has(document)) errors.push(`canvas document has no mapping group: ${document}`)
+  }
+  for (const group of [...groupSet].sort()) {
+    if (!canvasDocumentSet.has(group)) errors.push(`mapping group has no canvas document: ${group}`)
   }
 
   for (const [index, entry] of mapping.excluded.entries()) {
@@ -93,9 +108,10 @@ function validate(manifest, mapping) {
       continue
     }
     if (typeof decision !== "string" || decision.trim().length === 0) errors.push(`deleted ${surfaceId} has no decision`)
+    if (deletedIds.has(surfaceId)) errors.push(`${surfaceId} is listed as deleted more than once`)
     const previous = assignments.get(surfaceId)
-    if (previous) errors.push(`${surfaceId} is mapped more than once: ${previous} and deleted`)
-    else assignments.set(surfaceId, "deleted")
+    if (previous) errors.push(`${surfaceId} appears in ${previous} and deleted`)
+    if (manifestIds.has(surfaceId)) errors.push(`deleted surfaceId is still present in manifest: ${surfaceId}`)
     deletedIds.add(surfaceId)
   }
 
@@ -103,7 +119,7 @@ function validate(manifest, mapping) {
     if (!assignments.has(surfaceId)) errors.push(`manifest surfaceId is not mapped: ${surfaceId}`)
   }
   for (const surfaceId of [...assignments.keys()].sort()) {
-    if (!manifestIds.has(surfaceId) && !deletedIds.has(surfaceId)) errors.push(`mapping surfaceId is absent from manifest: ${surfaceId}`)
+    if (!manifestIds.has(surfaceId)) errors.push(`mapping surfaceId is absent from manifest: ${surfaceId}`)
   }
 
   if (mapping.notes !== undefined) {
@@ -136,7 +152,7 @@ function main() {
 
   let result
   try {
-    result = validate(readJson(MANIFEST_PATH, "surface manifest"), readJson(MAPPING_PATH, "redesign mapping"))
+    result = validate(readJson(MANIFEST_PATH, "surface manifest"), readJson(MAPPING_PATH, "redesign mapping"), readCanvasDocuments())
   } catch (error) {
     process.stderr.write(`redesign-coverage: ${error.message}\n`)
     return 1

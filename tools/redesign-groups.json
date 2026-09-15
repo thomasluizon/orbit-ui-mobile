@@ -1,15 +1,7 @@
 {
   "schemaVersion": 2,
   "groups": {
-    "Orbit Assinatura": [
-      "m-overlay-marketing-consent-marketing-consent-prompt",
-      "m-overlay-referral-referral-drawer",
-      "m-overlay-referral-referral-prompt",
-      "m-overlay-review-moment-review-moment-sheet",
-      "overlay-marketing-consent-marketing-consent-prompt",
-      "overlay-referral-referral-drawer",
-      "overlay-referral-referral-prompt"
-    ],
+    "Orbit Assinatura": [],
     "Orbit Astra Conversation": [
       "block-chat-action-chips",
       "block-chat-breakdown-suggestion",
@@ -88,14 +80,18 @@
       "not-found-root"
     ],
     "Orbit Habit Create": [
+      "m-overlay-create-goal-from-habit-goal-deadline-field",
       "m-overlay-habit-form-fields-habit-emoji-selector",
       "m-overlay-habit-form-fields-scheduled-reminder-section",
       "m-overlay-habit-form-fields-tag-picker-field",
+      "m-overlay-habits-create-goal-from-habit-sheet",
       "m-overlay-habits-create-habit-modal",
       "m-overlay-habits-habit-form-fields",
+      "overlay-create-goal-from-habit-goal-deadline-field",
       "overlay-habit-form-fields-habit-emoji-selector",
       "overlay-habit-form-fields-scheduled-reminder-section",
       "overlay-habit-form-fields-tag-picker-field",
+      "overlay-habits-create-goal-from-habit-sheet",
       "overlay-habits-create-habit-modal",
       "overlay-habits-habit-form-fields"
     ],
@@ -103,6 +99,7 @@
       "m-overlay-habits-checklist-templates",
       "m-overlay-habits-description-viewer",
       "m-overlay-habits-edit-habit-modal",
+      "m-overlay-habits-goal-linking-field",
       "m-overlay-habits-habit-detail-fields",
       "m-overlay-habits-habit-detail-screen",
       "m-overlay-habits-reschedule-sheet",
@@ -110,6 +107,7 @@
       "overlay-habits-checklist-templates",
       "overlay-habits-description-viewer",
       "overlay-habits-edit-habit-modal",
+      "overlay-habits-goal-linking-field",
       "overlay-habits-habit-detail-fields",
       "overlay-habits-habit-detail-screen",
       "overlay-habits-reschedule-sheet",
@@ -123,6 +121,7 @@
       "m-overlay-today-today-date-control",
       "m-overlay-today-today-modals",
       "m-route-tabs-index",
+      "overlay-app-layout",
       "overlay-app-today-page-view",
       "overlay-app-today-shell",
       "overlay-habit-list-confirm-dialogs",
@@ -150,6 +149,7 @@
       "m-overlay-components-delete-account-modal",
       "m-overlay-components-edit-name-sheet",
       "m-overlay-components-profile-settings-content",
+      "m-overlay-marketing-consent-marketing-consent-prompt",
       "m-overlay-profile-advanced-sections",
       "m-overlay-profile-preferences-sections",
       "m-overlay-profile-profile-api-keys",
@@ -157,10 +157,10 @@
       "m-route-preferences",
       "m-route-tabs-profile",
       "overlay-advanced-advanced-sections",
-      "overlay-app-layout",
       "overlay-components-delete-account-modal",
       "overlay-components-edit-name-sheet",
       "overlay-components-preference-picker-sheet",
+      "overlay-marketing-consent-marketing-consent-prompt",
       "overlay-profile-profile-api-keys",
       "route-advanced",
       "route-delete-account",
@@ -175,19 +175,13 @@
       "route-upgrade"
     ],
     "Orbit Progresso": [
-      "m-overlay-create-goal-from-habit-goal-deadline-field",
       "m-overlay-edit-goal-modal-edit-goal-deadline-field",
       "m-overlay-goals-edit-goal-modal",
       "m-overlay-goals-goal-detail-drawer",
-      "m-overlay-habits-create-goal-from-habit-sheet",
-      "m-overlay-habits-goal-linking-field",
       "m-route-tabs-progress",
-      "overlay-create-goal-from-habit-goal-deadline-field",
       "overlay-edit-goal-modal-edit-goal-deadline-field",
       "overlay-goals-edit-goal-modal",
       "overlay-goals-goal-detail-drawer",
-      "overlay-habits-create-goal-from-habit-sheet",
-      "overlay-habits-goal-linking-field",
       "route-progress"
     ],
     "Orbit Sobre": [
@@ -226,9 +220,13 @@
     ],
     "Orbit Wrapped": [
       "m-overlay-milestone-share-milestone-share-prompt",
+      "m-overlay-referral-referral-drawer",
+      "m-overlay-referral-referral-prompt",
       "m-overlay-share-share-card-panel",
       "m-route-wrapped",
       "overlay-milestone-share-milestone-share-prompt",
+      "overlay-referral-referral-drawer",
+      "overlay-referral-referral-prompt",
       "overlay-share-share-card-panel",
       "route-wrapped"
     ]
@@ -267,8 +265,15 @@
       "decision": "Pre-D69 social deletion, retained by D69 (2026-08-16): friends, feed, cheers, challenges, accountability, and public profiles were removed."
     }
   ],
-  "excluded": [],
+  "excluded": [
+    {
+      "surfaceId": "m-overlay-review-moment-review-moment-sheet",
+      "reason": "No current canvas document draws the native store-review prompt; it remains a named live coverage gap."
+    }
+  ],
   "notes": {
-    "m-widget-orbit-widget": "D66 added the Android widget to the manifest; the 2026-08-24 decision assigns it to its canvas document instead of excluding it."
+    "m-overlay-habits-goal-linking-field": "Orbit Habit Detail is the representative owner for the shared goal-linking field; Orbit Habit Create also draws it in the creation flow.",
+    "m-widget-orbit-widget": "D66 added the Android widget to the manifest; the 2026-08-24 decision assigns it to its canvas document instead of excluding it.",
+    "overlay-app-layout": "Orbit Hoje is the representative owner for the authenticated shell shared across Hoje, Calendario, Progresso, and Perfil, as defined by DESIGN.md."
   }
 }
