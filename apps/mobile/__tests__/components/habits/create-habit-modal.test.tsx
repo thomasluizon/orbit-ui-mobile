@@ -328,12 +328,97 @@ describe('CreateHabitModal (mobile)', () => {
     )
   })
 
+  it('changes only the emoji when the person already set a schedule by hand', async () => {
+    mockGetValues.mockImplementation((field?: unknown) => {
+      if (field === 'title') return 'Swim'
+      return {
+        title: 'Swim',
+        frequencyUnit: 'Day',
+        frequencyQuantity: 2,
+        days: ['Tuesday'],
+        dueTime: '18:00',
+        checklistItems: [{ text: 'Pack towel', isChecked: false }],
+      }
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: '🏊',
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      days: ['Monday'],
+      isFlexible: true,
+      flexibleTarget: 3,
+      dueTime: '07:00',
+      subHabits: ['Warm up'],
+      checklistItems: ['Goggles'],
+    })
+
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    const formFields = tree.root.findAll(
+      (node: { type: unknown }) => node.type === 'HabitFormFields',
+    )[0]
+    mockSetValue.mockClear()
+    mockSetFlexible.mockClear()
+
+    await TestRenderer.act(async () => {
+      await formFields.props.onSuggestEmoji()
+    })
+
+    expect(mockSetValue.mock.calls).toEqual([
+      ['emoji', '🏊', { shouldDirty: true }],
+    ])
+    expect(mockSetFlexible).not.toHaveBeenCalled()
+  })
+
+  it('uses the existing pay-gate message for an emoji suggestion refusal', async () => {
+    mockGetValues.mockImplementation((field?: unknown) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockRejectedValue({ data: { errorCode: 'PAY_GATE' } })
+
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    const formFields = tree.root.findAll(
+      (node: { type: unknown }) => node.type === 'HabitFormFields',
+    )[0]
+
+    await TestRenderer.act(async () => {
+      await formFields.props.onSuggestEmoji()
+    })
+
+    expect(mockShowError).toHaveBeenCalledWith('habits.form.aiSuggestLimitReached')
+    expect(mockSetValue).not.toHaveBeenCalledWith(
+      'emoji',
+      expect.anything(),
+      expect.anything(),
+    )
+  })
+
+  it('leaves the form untouched and offers retry when emoji suggestion fails', async () => {
+    mockGetValues.mockImplementation((field?: unknown) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockRejectedValue(new Error('offline'))
+
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    const formFields = tree.root.findAll(
+      (node: { type: unknown }) => node.type === 'HabitFormFields',
+    )[0]
+    mockSetValue.mockClear()
+
+    await TestRenderer.act(async () => {
+      await formFields.props.onSuggestEmoji()
+    })
+
+    expect(mockShowError).toHaveBeenCalledWith('habits.form.aiSuggestError')
+    expect(mockSetValue).not.toHaveBeenCalled()
+  })
+
   it('creates the habit and closes on a successful submit', async () => {
     const onClose = vi.fn()
     const tree = renderModal(<CreateHabitModal open onClose={onClose} />)
 
     await TestRenderer.act(async () => {
       findSubmit(tree.root).props.onPress()
+      await Promise.resolve()
     })
 
     expect(mockCreateMutateAsync).toHaveBeenCalledTimes(1)
@@ -348,6 +433,7 @@ describe('CreateHabitModal (mobile)', () => {
 
     await TestRenderer.act(async () => {
       findSubmit(tree.root).props.onPress()
+      await Promise.resolve()
     })
 
     expect(mockShowError).toHaveBeenCalledWith('habits.form.errors.title')
@@ -362,6 +448,7 @@ describe('CreateHabitModal (mobile)', () => {
 
     await TestRenderer.act(async () => {
       findSubmit(tree.root).props.onPress()
+      await Promise.resolve()
     })
 
     expect(mockShowError).toHaveBeenCalledTimes(1)

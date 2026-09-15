@@ -12,6 +12,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { HabitFormFields } from './habit-form-fields'
 import {
   applySuggestionChecklist,
+  applySuggestionEmoji,
   applySuggestionSchedule,
 } from './create-habit-modal/apply-suggestion'
 import { SubHabitEditor, type SubHabitEntry } from './create-habit-modal/sub-habit-editor'
@@ -378,6 +379,29 @@ export function CreateHabitModal({
     // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [formHelpers, hasProAccess, i18n.language, showError, showInfo, showSuccess, suggestion, t])
 
+  const handleSuggestEmoji = useCallback(async () => {
+    flushBufferedInputsRef.current()
+    const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
+    if (title.length === 0) return
+
+    try {
+      const patch = buildHabitFormPatchFromSuggestion(
+        await suggestion.mutateAsync({ title, language: i18n.language }),
+      )
+      if (applySuggestionEmoji(patch, formHelpers.form)) {
+        showSuccess(t('habits.form.aiSuggestApplied'))
+      } else {
+        showInfo(t('habits.form.aiSuggestEmpty'))
+      }
+    } catch (error: unknown) {
+      showError(
+        extractBackendErrorCode(error) === 'PAY_GATE'
+          ? t('habits.form.aiSuggestLimitReached')
+          : t('habits.form.aiSuggestError'),
+      )
+    }
+  }, [formHelpers, i18n.language, showError, showInfo, showSuccess, suggestion, t])
+
   const isPending = createHabit.isPending || createSubHabit.isPending
   const submitDisabled = isPending || watchedTitle.trim().length === 0
 
@@ -428,6 +452,7 @@ export function CreateHabitModal({
             onFlushBufferedInputsReady={handleBufferedInputsReady}
             expandAdvancedSignal={expandAdvancedSignal}
             onSuggestSetup={isSubHabitMode ? undefined : () => void handleSuggest()}
+            onSuggestEmoji={() => void handleSuggestEmoji()}
             isSuggesting={suggestion.isPending}
             lockedGeneral={parentHabit ? parentHabit.isGeneral : null}
             onUpgrade={navigateToUpgrade}

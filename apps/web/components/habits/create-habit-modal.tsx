@@ -10,6 +10,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { HabitFormFields } from './habit-form-fields'
 import {
   applySuggestionChecklist,
+  applySuggestionEmoji,
   applySuggestionSchedule,
 } from './create-habit-modal/apply-suggestion'
 import { SubHabitEditor, type SubHabitEntry } from './create-habit-modal/sub-habit-editor'
@@ -302,6 +303,28 @@ export function CreateHabitModal({
     [formHelpers, hasProAccess, locale, showError, showInfo, showSuccess, suggestion, t],
   )
 
+  const handleSuggestEmoji = useCallback(async () => {
+    const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
+    if (title.length === 0) return
+
+    try {
+      const patch = buildHabitFormPatchFromSuggestion(
+        await suggestion.mutateAsync({ title, language: locale }),
+      )
+      if (applySuggestionEmoji(patch, formHelpers.form)) {
+        showSuccess(t('habits.form.aiSuggestApplied'))
+      } else {
+        showInfo(t('habits.form.aiSuggestEmpty'))
+      }
+    } catch (error: unknown) {
+      showError(
+        extractBackendErrorCode(error) === 'PAY_GATE'
+          ? t('habits.form.aiSuggestLimitReached')
+          : t('habits.form.aiSuggestError'),
+      )
+    }
+  }, [formHelpers, locale, showError, showInfo, showSuccess, suggestion, t])
+
   const isPending = createHabit.isPending || createSubHabit.isPending
 
   const updateSubHabitValue = useCallback((id: string, value: string) => {
@@ -369,6 +392,7 @@ export function CreateHabitModal({
           onReminderEnabledChange={handleReminderEnabledChange}
           expandAdvancedSignal={expandAdvancedSignal}
           onSuggestSetup={isSubHabitMode ? undefined : () => void handleSuggest()}
+          onSuggestEmoji={() => void handleSuggestEmoji()}
           isSuggesting={suggestion.isPending}
           lockedGeneral={parentHabit?.isGeneral ?? null}
         >

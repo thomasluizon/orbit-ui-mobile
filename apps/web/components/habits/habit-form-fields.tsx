@@ -95,6 +95,8 @@ interface HabitFormFieldsProps {
   expandAdvancedSignal?: number
   /** When provided, renders the "Suggest with AI" affordance that requests a setup for the title. */
   onSuggestSetup?: () => void
+  /** When provided, renders an emoji-local affordance that changes only the emoji. */
+  onSuggestEmoji?: () => void
   isSuggesting?: boolean
   children?: ReactNode
 }
@@ -115,6 +117,7 @@ export function HabitFormFields({
   lockedGeneral = null,
   expandAdvancedSignal = 0,
   onSuggestSetup,
+  onSuggestEmoji,
   isSuggesting = false,
   children,
 }: Readonly<HabitFormFieldsProps>) {
@@ -242,6 +245,9 @@ export function HabitFormFields({
           <HabitEmojiSelector
             selectedEmoji={watchedEmoji}
             onSelect={(emoji) => setValue('emoji', emoji, { shouldDirty: true })}
+            onSuggest={onSuggestEmoji}
+            canSuggest={watchedTitle.trim().length > 0}
+            isSuggesting={isSuggesting}
           />
           <div className="relative flex-1 min-w-0">
             <input

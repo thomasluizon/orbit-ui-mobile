@@ -243,6 +243,57 @@ describe('HabitFormFields', () => {
     )
   })
 
+  it('names the emoji suggestion control and states why an empty title disables it', () => {
+    const formHelpers = createMockFormHelpers()
+    const tags = createMockTags()
+
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+        onSuggestEmoji={vi.fn()}
+      />,
+    )
+
+    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggest' })
+    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('title', 'habits.form.titleRequired')
+    expect(button).toHaveAccessibleDescription('habits.form.titleRequired')
+  })
+
+  it('disables the emoji suggestion control and names its pending state', () => {
+    const formHelpers = createMockFormHelpers()
+    const baseWatch = formHelpers.form.watch as unknown as (field: string) => unknown
+    formHelpers.form.watch = ((field: string) =>
+      field === 'title' ? 'Read' : baseWatch(field)) as typeof formHelpers.form.watch
+    const onSuggestEmoji = vi.fn()
+
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={createMockTags()}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+        onSuggestEmoji={onSuggestEmoji}
+        isSuggesting
+      />,
+    )
+
+    const button = screen.getByRole('button', { name: 'habits.form.emojiSuggesting' })
+    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    fireEvent.click(button)
+    expect(onSuggestEmoji).not.toHaveBeenCalled()
+  })
+
   it('filters emojis by category when clicking a category chip', () => {
     const formHelpers = createMockFormHelpers()
     const tags = createMockTags()

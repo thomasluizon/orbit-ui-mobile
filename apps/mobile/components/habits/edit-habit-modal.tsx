@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { HabitFormFields } from './habit-form-fields'
 import {
   applySuggestionChecklist,
+  applySuggestionEmoji,
   applySuggestionSchedule,
 } from './create-habit-modal/apply-suggestion'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
@@ -257,6 +258,29 @@ export function EditHabitModal({
     }
   }, [formHelpers, i18n.language, showError, showInfo, showSuccess, suggestion, t])
 
+  const handleSuggestEmoji = useCallback(async () => {
+    flushBufferedInputsRef.current()
+    const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
+    if (title.length === 0) return
+
+    try {
+      const patch = buildHabitFormPatchFromSuggestion(
+        await suggestion.mutateAsync({ title, language: i18n.language }),
+      )
+      if (applySuggestionEmoji(patch, formHelpers.form)) {
+        showSuccess(t('habits.form.aiSuggestApplied'))
+      } else {
+        showInfo(t('habits.form.aiSuggestEmpty'))
+      }
+    } catch (error: unknown) {
+      showError(
+        extractBackendErrorCode(error) === 'PAY_GATE'
+          ? t('habits.form.aiSuggestLimitReached')
+          : t('habits.form.aiSuggestError'),
+      )
+    }
+  }, [formHelpers, i18n.language, showError, showInfo, showSuccess, suggestion, t])
+
   const watchedTitle = coalesceFormText(
     useWatch({
       control: formHelpers.form.control,
@@ -303,6 +327,7 @@ export function EditHabitModal({
               hasScheduledReminders={(habit?.scheduledReminders.length ?? 0) > 0}
               onFlushBufferedInputsReady={handleBufferedInputsReady}
               onSuggestSetup={() => void handleSuggest()}
+              onSuggestEmoji={() => void handleSuggestEmoji()}
               isSuggesting={suggestion.isPending}
               defaultExpanded={true}
               lockedGeneral={lockedGeneral}

@@ -469,6 +469,8 @@
       "description": "Description",
       "descriptionPlaceholder": "Optional description",
       "emoji": "Emoji",
+      "emojiSuggest": "Suggest an emoji",
+      "emojiSuggesting": "Finding an emoji…",
       "emojiDescription": "Choose a visual cue for this habit",
       "emojiOpenPicker": "Choose habit emoji",
       "emojiPickerTitle": "Choose an emoji",

@@ -54,6 +54,8 @@ interface HabitFormFieldsProps {
   expandAdvancedSignal?: number;
   /** When provided, renders the "Suggest with AI" affordance that requests a setup for the title. */
   onSuggestSetup?: () => void;
+  /** When provided, renders an emoji-local affordance that changes only the emoji. */
+  onSuggestEmoji?: () => void;
   isSuggesting?: boolean;
   /** When set (not null), locks the FrequencyTypeCards "General" option to this value because a parent or existing children constrain it. */
   lockedGeneral?: boolean | null;
@@ -76,6 +78,7 @@ export function HabitFormFields({
   defaultExpanded = false,
   expandAdvancedSignal = 0,
   onSuggestSetup,
+  onSuggestEmoji,
   isSuggesting = false,
   lockedGeneral = null,
   onUpgrade,
@@ -178,6 +181,9 @@ export function HabitFormFields({
             tokens={tokens}
             styles={styles}
             onSelect={(emoji) => setValue("emoji", emoji, { shouldDirty: true })}
+            onSuggest={onSuggestEmoji}
+            canSuggest={watchedTitle.trim().length > 0}
+            isSuggesting={isSuggesting}
           />
         }
         trailing={

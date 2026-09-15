@@ -154,6 +154,7 @@ async function renderModal() {
     tree = TestRenderer.create(
       <EditHabitModal open onClose={vi.fn()} habit={habit} />,
     )
+    await Promise.resolve()
   })
   return tree
 }
@@ -235,6 +236,44 @@ describe('EditHabitModal (mobile)', () => {
       { shouldDirty: true },
     )
     expect(mockShowSuccess).toHaveBeenCalledWith('habits.form.aiSuggestApplied')
+  })
+
+  it('changes only the emoji in edit mode when the schedule was set by hand', async () => {
+    mockGetValues.mockImplementation((field?: unknown) => {
+      if (field === 'title') return 'Swim'
+      return {
+        title: 'Swim',
+        frequencyUnit: 'Day',
+        frequencyQuantity: 2,
+        days: ['Tuesday'],
+        dueTime: '18:00',
+        checklistItems: [{ text: 'Pack towel', isChecked: false }],
+      }
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: '🏊',
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      days: ['Monday'],
+      isFlexible: true,
+      flexibleTarget: 3,
+      dueTime: '07:00',
+      subHabits: ['Warm up'],
+      checklistItems: ['Goggles'],
+    })
+
+    const tree = await renderModal()
+    mockSetValue.mockClear()
+    mockSetFlexible.mockClear()
+
+    await TestRenderer.act(async () => {
+      await findFormFields(tree).props.onSuggestEmoji()
+    })
+
+    expect(mockSetValue.mock.calls).toEqual([
+      ['emoji', '🏊', { shouldDirty: true }],
+    ])
+    expect(mockSetFlexible).not.toHaveBeenCalled()
   })
 
   it('shows the empty toast when the AI suggestion applies nothing', async () => {

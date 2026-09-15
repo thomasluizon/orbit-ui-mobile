@@ -156,10 +156,12 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
   HabitFormFields: ({
     children,
     onSuggestSetup,
+    onSuggestEmoji,
     lockedGeneral,
   }: {
     children?: React.ReactNode
     onSuggestSetup?: () => void
+    onSuggestEmoji?: () => void
     lockedGeneral?: boolean | null
   }) => (
     <div data-testid="habit-form-fields">
@@ -171,6 +173,15 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
           onClick={() => onSuggestSetup()}
         >
           suggest
+        </button>
+      )}
+      {onSuggestEmoji && (
+        <button
+          type="button"
+          data-testid="emoji-suggest-trigger"
+          onClick={() => onSuggestEmoji()}
+        >
+          suggest emoji
         </button>
       )}
       {children}
@@ -417,6 +428,44 @@ describe('EditHabitModal', () => {
       { shouldDirty: true },
     )
     expect(mockShowSuccess).toHaveBeenCalledWith('habits.form.aiSuggestApplied')
+  })
+
+  it('changes only the emoji in edit mode when the schedule was set by hand', async () => {
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return 'Swim'
+      return {
+        title: 'Swim',
+        frequencyUnit: 'Day',
+        frequencyQuantity: 2,
+        days: ['Tuesday'],
+        dueTime: '18:00',
+        checklistItems: [{ text: 'Pack towel', isChecked: false }],
+      }
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: '🏊',
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      days: ['Monday'],
+      isFlexible: true,
+      flexibleTarget: 3,
+      dueTime: '07:00',
+      subHabits: ['Warm up'],
+      checklistItems: ['Goggles'],
+    })
+
+    renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+    )
+    mockFormSetValue.mockClear()
+    mockSetFlexible.mockClear()
+    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
+
+    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
+    expect(mockFormSetValue.mock.calls).toEqual([
+      ['emoji', '🏊', { shouldDirty: true }],
+    ])
+    expect(mockSetFlexible).not.toHaveBeenCalled()
   })
 
   it('shows the empty toast when the AI suggestion applies nothing', async () => {

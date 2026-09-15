@@ -165,14 +165,21 @@ vi.mock('./habit-form-fields', () => ({
   HabitFormFields: ({
     children,
     onSuggestSetup,
+    onSuggestEmoji,
   }: {
     children?: React.ReactNode
     onSuggestSetup?: () => void
+    onSuggestEmoji?: () => void
   }) => (
     <div data-testid="habit-form-fields">
       {onSuggestSetup && (
         <button type="button" data-testid="suggest-trigger" onClick={() => onSuggestSetup()}>
           suggest
+        </button>
+      )}
+      {onSuggestEmoji && (
+        <button type="button" data-testid="emoji-suggest-trigger" onClick={() => onSuggestEmoji()}>
+          suggest emoji
         </button>
       )}
       {children}
@@ -184,14 +191,21 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
   HabitFormFields: ({
     children,
     onSuggestSetup,
+    onSuggestEmoji,
   }: {
     children?: React.ReactNode
     onSuggestSetup?: () => void
+    onSuggestEmoji?: () => void
   }) => (
     <div data-testid="habit-form-fields">
       {onSuggestSetup && (
         <button type="button" data-testid="suggest-trigger" onClick={() => onSuggestSetup()}>
           suggest
+        </button>
+      )}
+      {onSuggestEmoji && (
+        <button type="button" data-testid="emoji-suggest-trigger" onClick={() => onSuggestEmoji()}>
+          suggest emoji
         </button>
       )}
       {children}
@@ -429,5 +443,76 @@ describe('CreateHabitModal', () => {
       ],
       { shouldDirty: true },
     )
+  })
+
+  it('changes only the emoji when the person already set a schedule by hand', async () => {
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return 'Swim'
+      return {
+        title: 'Swim',
+        frequencyUnit: 'Day',
+        frequencyQuantity: 2,
+        days: ['Tuesday'],
+        dueTime: '18:00',
+        checklistItems: [{ text: 'Pack towel', isChecked: false }],
+      }
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: '🏊',
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      days: ['Monday'],
+      isFlexible: true,
+      flexibleTarget: 3,
+      dueTime: '07:00',
+      subHabits: ['Warm up'],
+      checklistItems: ['Goggles'],
+    })
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    mockFormSetValue.mockClear()
+    mockSetFlexible.mockClear()
+    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
+
+    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
+    expect(mockFormSetValue.mock.calls).toEqual([
+      ['emoji', '🏊', { shouldDirty: true }],
+    ])
+    expect(mockSetFlexible).not.toHaveBeenCalled()
+  })
+
+  it('uses the existing pay-gate message for an emoji suggestion refusal', async () => {
+    mockFormGetValues.mockImplementation((field?: string) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockRejectedValue({ data: { errorCode: 'PAY_GATE' } })
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
+
+    await waitFor(() => {
+      expect(mockShowError).toHaveBeenCalledWith('habits.form.aiSuggestLimitReached')
+    })
+    expect(mockFormSetValue).not.toHaveBeenCalledWith(
+      'emoji',
+      expect.anything(),
+      expect.anything(),
+    )
+  })
+
+  it('leaves the form untouched and offers retry when emoji suggestion fails', async () => {
+    mockFormGetValues.mockImplementation((field?: string) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockRejectedValue(new Error('offline'))
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    mockFormSetValue.mockClear()
+    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
+
+    await waitFor(() => {
+      expect(mockShowError).toHaveBeenCalledWith('habits.form.aiSuggestError')
+    })
+    expect(mockFormSetValue).not.toHaveBeenCalled()
   })
 })

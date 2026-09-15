@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
-import { View, Text, Pressable, ScrollView } from "react-native";
-import { Plus, X } from "lucide-react-native";
+import { ActivityIndicator, View, Text, Pressable, ScrollView } from "react-native";
+import { Plus, Sparkles, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
   HABIT_EMOJI_CATEGORIES,
@@ -15,6 +15,9 @@ interface HabitEmojiSelectorProps {
   tokens: AppTokens;
   styles: ReturnType<typeof createStyles>;
   onSelect: (emoji: string) => void;
+  onSuggest?: () => void;
+  canSuggest?: boolean;
+  isSuggesting?: boolean;
 }
 
 export function HabitEmojiSelector({
@@ -22,6 +25,9 @@ export function HabitEmojiSelector({
   tokens,
   styles,
   onSelect,
+  onSuggest,
+  canSuggest = false,
+  isSuggesting = false,
 }: Readonly<HabitEmojiSelectorProps>) {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -52,26 +58,49 @@ export function HabitEmojiSelector({
 
   return (
     <>
-      <Pressable
-        style={({ pressed }) => [
-          styles.emojiWell,
-          pressed
-            ? {
-                backgroundColor: tokens.bgElevPressed,
-                transform: [{ scale: 0.96 }],
-              }
-            : null,
-        ]}
-        onPress={() => setPickerOpen(true)}
-        accessibilityRole="button"
-        accessibilityLabel={t("habits.form.emojiOpenPicker")}
-      >
-        {selectedEmoji ? (
-          <Text style={styles.emojiWellText}>{selectedEmoji}</Text>
-        ) : (
-          <Plus size={22} color={tokens.fg3} strokeWidth={1.8} />
-        )}
-      </Pressable>
+      <View style={styles.emojiField}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.emojiWell,
+            pressed
+              ? {
+                  backgroundColor: tokens.bgElevPressed,
+                  transform: [{ scale: 0.96 }],
+                }
+              : null,
+          ]}
+          onPress={() => setPickerOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel={t("habits.form.emojiOpenPicker")}
+        >
+          {selectedEmoji ? (
+            <Text style={styles.emojiWellText}>{selectedEmoji}</Text>
+          ) : (
+            <Plus size={22} color={tokens.fg3} strokeWidth={1.8} />
+          )}
+        </Pressable>
+        {onSuggest ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.emojiSuggestButton,
+              (isSuggesting || !canSuggest) ? styles.emojiSuggestButtonDisabled : null,
+              pressed ? { transform: [{ scale: 0.96 }] } : null,
+            ]}
+            onPress={onSuggest}
+            disabled={isSuggesting || !canSuggest}
+            accessibilityRole="button"
+            accessibilityLabel={t(isSuggesting ? "habits.form.emojiSuggesting" : "habits.form.emojiSuggest")}
+            accessibilityHint={!canSuggest ? t("habits.form.titleRequired") : undefined}
+            accessibilityState={{ disabled: isSuggesting || !canSuggest, busy: isSuggesting }}
+          >
+            {isSuggesting ? (
+              <ActivityIndicator size="small" color={tokens.primary} />
+            ) : (
+              <Sparkles size={18} color={tokens.primary} strokeWidth={2} />
+            )}
+          </Pressable>
+        ) : null}
+      </View>
 
       <BottomSheetModal
         open={pickerOpen}
