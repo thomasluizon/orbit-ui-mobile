@@ -31,7 +31,7 @@ function linkifyText(text: string): string {
   const result = parts.map((part, i) => {
     const escaped = escapeHtml(part)
     if (i % 2 === 1) {
-      return `<a href="${escaped}" target="_blank" rel="noopener noreferrer" class="wrap-anywhere text-[var(--primary-soft)] hover:underline">${escaped}</a>`
+      return `<a href="${escaped}" target="_blank" rel="noopener noreferrer" class="wrap-anywhere text-[var(--primary-soft)] underline">${escaped}</a>`
     }
     return escaped
   }).join('')

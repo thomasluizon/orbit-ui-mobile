@@ -28,11 +28,19 @@ vi.mock('react-native-marked', () => {
 })
 
 interface LinkElement {
-  props: { onPress?: () => void }
+  props: { onPress?: () => void; accessibilityRole?: string }
 }
 
 interface CapturedRenderer {
   link(children: unknown, href: string): ReactElement & LinkElement
+}
+
+function renderLink(element: ReactElement): LinkElement {
+  let tree!: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => {
+    tree = TestRenderer.create(element)
+  })
+  return tree.root.findByType('Text')
 }
 
 function resetCapturedMarkedProps(): void {
@@ -65,8 +73,10 @@ describe('mobile Markdown wrapper', () => {
     for (const href of ['https://orbit.app', 'http://x', 'mailto:a@b.com']) {
       const element = renderer.link(['label'], href)
       expect(isValidElement(element)).toBe(true)
-      expect(typeof element.props.onPress).toBe('function')
-      element.props.onPress?.()
+      const link = renderLink(element)
+      expect(typeof link.props.onPress).toBe('function')
+      expect(link.props.accessibilityRole).toBe('link')
+      link.props.onPress?.()
     }
 
     expect(openURL).toHaveBeenCalledTimes(3)
@@ -78,8 +88,9 @@ describe('mobile Markdown wrapper', () => {
     const renderer = props.renderer as CapturedRenderer
 
     for (const href of ['javascript:alert(1)', 'data:text/html,<script>']) {
-      const element = renderer.link(['label'], href)
-      expect(element.props.onPress).toBeUndefined()
+      const link = renderLink(renderer.link(['label'], href))
+      expect(link.props.onPress).toBeUndefined()
+      expect(link.props.accessibilityRole).toBeUndefined()
     }
     expect(openURL).not.toHaveBeenCalled()
   })

@@ -56,6 +56,7 @@ import { type StreakFreezeCelebrationHandle } from '@/components/gamification/st
 import { OverlayLayer } from '@/components/global-overlays'
 import * as Sentry from '@sentry/react-native'
 import { AppToast } from '@/components/ui/app-toast'
+import { OfflineNotice } from '@/components/offline-notice'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
 import { captureError } from '@/lib/sentry'
 import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
@@ -237,13 +238,20 @@ function RootLayoutNav() {
           />
         </View>
 
+        {isAuthenticated ? (
+          <>
+            <OfflineNotice />
+            <AppToast placement="slot" />
+          </>
+        ) : null}
+
         {showBottomNav ? (
           <AppBottomTabBar onCreate={handleCreate} pathname={pathname} />
         ) : null}
       </View>
 
       {isAuthenticated ? <GlobalOverlays profile={profile} /> : null}
-      <AppToast />
+      {!isAuthenticated ? <AppToast /> : null}
     </>
   )
 }

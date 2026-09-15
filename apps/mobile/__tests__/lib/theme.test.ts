@@ -26,8 +26,6 @@ describe('mobile theme runtime', () => {
     expect(dark.bgElev).toBe('rgba(248, 250, 252, 0.06)')
     expect(dark.primary).toBe('#7f46f7')
     expect(dark.fgOnPrimary).toBe('#ffffff')
-    expect(dark.gradientHeaderFrom).toBe('#22094f')
-    expect(dark.gradientHeaderTo).toBe('rgba(2, 6, 24, 0)')
   })
 
   it('resolves fg-on-primary per scheme and mode (AA flips to canvas ink)', () => {
@@ -49,8 +47,8 @@ describe('mobile theme runtime', () => {
     const light = createTokensV2('purple', 'light')
 
     expect(dark.statusOverdueText).toBe(dark.statusOverdue)
-    expect(dark.statusBadText).toBe(dark.statusBad)
-    expect(light.statusBadText).toBe(light.statusBad)
+    expect(dark.statusBadText).toBe('#ff7970')
+    expect(light.statusBadText).toBe('#d70009')
     expect(light.statusOverdue).toBe('#e17100')
     expect(light.statusOverdueText).toBe('#b45b00')
     expect(dark.fgOnBad).toBe('#020618')

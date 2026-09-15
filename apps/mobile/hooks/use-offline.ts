@@ -6,6 +6,7 @@ import {
   canAutoFlush,
   flushQueuedMutations,
   getReplayState,
+  resumeOfflineReplay,
   subscribeReplayState,
   type OfflineReplayState,
 } from '@/lib/offline-mutations'
@@ -16,16 +17,18 @@ import type { QueuedMutation } from '@orbit/shared/types/sync'
 interface UseOfflineReturn {
   isOnline: boolean
   pendingCount: number
+  hasFailed: boolean
   enqueue: (mutation: Omit<QueuedMutation, 'retries' | 'maxRetries'>) => void
   flush: () => Promise<void>
   isFlushing: boolean
   replayState: OfflineReplayState
 }
 
-export function useOffline(): UseOfflineReturn {
+export function useOffline(manageQueue = false): UseOfflineReturn {
   const [isOnline, setIsOnline] = useState(true)
-  const [connectivityHydrated, setConnectivityHydrated] = useState(false)
+  const [connectivityReady, setConnectivityReady] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
+  const [hasFailed, setHasFailed] = useState(false)
   const [replayState, setReplayState] = useState(getReplayState)
   const isFlushing = replayState === 'flushing'
 
@@ -34,20 +37,26 @@ export function useOffline(): UseOfflineReturn {
     void getCurrentConnectivity().then((online) => {
       setCachedConnectivity(online)
       setIsOnline(online)
-      setConnectivityHydrated(true)
+      setConnectivityReady(true)
     })
 
     const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
       const online = state.isConnected === true && state.isInternetReachable !== false
+      if (manageQueue && online && getReplayState() === 'stopped-for-auth') {
+        resumeOfflineReplay()
+      }
       setCachedConnectivity(online)
       setIsOnline(online)
-      setConnectivityHydrated(true)
+      setConnectivityReady(true)
     })
     return () => unsubscribe()
-  }, [])
+  }, [manageQueue])
 
   useEffect(() => {
-    const unsubscribe = offlineQueue.subscribeQueueCount(setPendingCount)
+    const unsubscribe = offlineQueue.subscribeQueueCount((nextCount) => {
+      setPendingCount(nextCount)
+      setHasFailed(offlineQueue.getAll().some((mutation) => mutation.status === 'failed'))
+    })
     return () => unsubscribe()
   }, [])
 
@@ -55,29 +64,43 @@ export function useOffline(): UseOfflineReturn {
 
   const flush = useCallback(async () => {
     if (!canAutoFlush()) return
-
     try {
       await flushQueuedMutations()
+    } catch (error) {
+      captureError(error)
     } finally {
       setPendingCount(offlineQueue.count())
     }
   }, [])
 
   useEffect(() => {
-    if (connectivityHydrated && isOnline && pendingCount > 0 && replayState === 'idle') {
-      void flush().catch(captureError)
+    if (
+      manageQueue &&
+      connectivityReady &&
+      isOnline &&
+      pendingCount > 0 &&
+      replayState === 'idle'
+    ) {
+      void flush()
     }
-  }, [connectivityHydrated, isOnline, pendingCount, replayState, flush])
+  }, [manageQueue, connectivityReady, isOnline, pendingCount, replayState, flush])
 
   useEffect(() => {
     const handleAppState = (nextState: AppStateStatus) => {
-      if (nextState === 'active' && connectivityHydrated && isOnline && pendingCount > 0) {
-        void flush().catch(captureError)
+      if (
+        manageQueue &&
+        connectivityReady &&
+        nextState === 'active' &&
+        isOnline &&
+        pendingCount > 0
+      ) {
+        if (getReplayState() === 'stopped-for-auth') resumeOfflineReplay()
+        void flush()
       }
     }
     const subscription = AppState.addEventListener('change', handleAppState)
     return () => subscription.remove()
-  }, [connectivityHydrated, isOnline, pendingCount, flush])
+  }, [manageQueue, connectivityReady, isOnline, pendingCount, flush])
 
   const enqueue = useCallback(
     (mutation: Omit<QueuedMutation, 'retries' | 'maxRetries'>) => {
@@ -86,5 +109,13 @@ export function useOffline(): UseOfflineReturn {
     [],
   )
 
-  return { isOnline, pendingCount, enqueue, flush, isFlushing, replayState }
+  return {
+    isOnline,
+    pendingCount,
+    hasFailed: hasFailed || replayState === 'waiting-on-backoff',
+    enqueue,
+    flush,
+    isFlushing,
+    replayState,
+  }
 }

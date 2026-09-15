@@ -154,6 +154,15 @@ vi.mock('@/lib/offline-queue', () => ({
   replaceEntityReferences: mocks.replaceEntityReferences,
 }))
 
+vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
+
+vi.mock('@/stores/offline-sync-store', () => ({
+  useOfflineSyncStore: {
+    getState: () => ({ addDrop: vi.fn() }),
+    setState: vi.fn(),
+  },
+}))
+
 vi.mock('@/lib/offline-state', () => ({
   upsertOfflineEntity: mocks.upsertOfflineEntity,
   setOfflineEntityStatus: mocks.setOfflineEntityStatus,
@@ -171,6 +180,7 @@ vi.mock('@/lib/query-client', () => ({
   persistQueryCache: mocks.persistQueryCache,
   queryClient: {
     invalidateQueries: mocks.invalidateQueries,
+    getQueriesData: () => [],
   },
 }))
 
@@ -550,6 +560,7 @@ describe('offline mutations', () => {
   })
 
   it('stops flushing on unauthorized errors and leaves the remaining queue intact', async () => {
+    vi.useFakeTimers()
     mocks.setOnline(true)
     mocks.apiClient.mockRejectedValueOnce(new Error('Unauthorized'))
 
@@ -595,11 +606,14 @@ describe('offline mutations', () => {
     })
     expect(mocks.apiClient).toHaveBeenCalledTimes(1)
     expect(mocks.update).toHaveBeenCalledWith(firstMutation.id, {
-      retries: 1,
       status: 'failed',
       lastError: 'Unauthorized',
     })
     expect(mocks.remove).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+    cancelScheduledFlush()
+    vi.useRealTimers()
   })
 
   it('reopens retained work after the authenticated session recovers', async () => {
@@ -735,13 +749,15 @@ describe('offline mutations', () => {
 
     const result = await flushQueuedMutations()
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       succeeded: 1,
       failed: 1,
       remaining: 0,
-      droppedMutations: [
-        { id: 'update-bad', type: 'updateHabit', lastError: '400 validation failed' },
-      ],
+      droppedMutations: [expect.objectContaining({
+        id: 'update-bad',
+        type: 'updateHabit',
+        lastError: '400 validation failed',
+      })],
       replayState: 'idle',
     })
 
@@ -819,12 +835,12 @@ describe('offline mutations', () => {
 
     expect(getMutationScope(retiredType)).toBeUndefined()
     expect(mocks.invalidateQueries).not.toHaveBeenCalled()
-    expect(result.droppedMutations).toEqual([
-      {
+    expect(result.droppedMutations).toMatchObject([
+      expect.objectContaining({
         id: 'retired-rejected-operation',
         type: retiredType,
         lastError: '400 validation failed',
-      },
+      }),
     ])
   })
 
@@ -1348,6 +1364,102 @@ describe('offline mutations', () => {
       await vi.advanceTimersByTimeAsync(2_000)
 
       expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+    })
+
+    it('backs off a no-progress dependency pass instead of replaying immediately', async () => {
+      mocks.setOnline(true)
+      mocks.queued.push({
+        ...buildQueuedMutation({
+          type: 'updateHabit',
+          scope: 'habits',
+          endpoint: '/api/habits/offline-habit-stuck',
+          method: 'PUT',
+          payload: { title: 'Blocked' },
+          entityType: 'habit',
+          targetEntityId: 'offline-habit-stuck',
+        }),
+        id: 'dependency-blocked',
+      })
+
+      const firstRun = await flushQueuedMutations()
+
+      expect(firstRun.remaining).toBe(1)
+      expect(mocks.apiClient).not.toHaveBeenCalled()
+      const callsBeforeTimer = mocks.getAll.mock.calls.length
+      await vi.advanceTimersByTimeAsync(1_999)
+      expect(mocks.getAll).toHaveBeenCalledTimes(callsBeforeTimer)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(mocks.getAll.mock.calls.length).toBeGreaterThan(callsBeforeTimer)
+    })
+
+    it('drops an expired orphan dependency but preserves a live producer', async () => {
+      mocks.setOnline(true)
+      const oldTimestamp = Date.now() - 24 * 60 * 60 * 1000 - 1
+      mocks.apiClient.mockRejectedValueOnce(new Error('500 internal server error'))
+      mocks.queued.push(
+        {
+          ...buildQueuedMutation({
+            type: 'createHabit',
+            scope: 'habits',
+            endpoint: '/api/habits',
+            method: 'POST',
+            payload: { title: 'Producer' },
+            entityType: 'habit',
+            clientEntityId: 'offline-habit-live',
+          }),
+          id: 'producer',
+          timestamp: oldTimestamp,
+        },
+        {
+          ...buildQueuedMutation({
+            type: 'updateHabit',
+            scope: 'habits',
+            endpoint: '/api/habits/offline-habit-live',
+            method: 'PUT',
+            payload: { title: 'Dependent' },
+            entityType: 'habit',
+            targetEntityId: 'offline-habit-live',
+          }),
+          id: 'dependent',
+          timestamp: oldTimestamp,
+        },
+      )
+
+      const liveProducerRun = await flushQueuedMutations()
+      expect(liveProducerRun.droppedMutations).toEqual([])
+      expect(mocks.queued.map((mutation) => mutation.id)).toEqual(['producer', 'dependent'])
+      cancelScheduledFlush()
+
+      mocks.queued.splice(0, 1)
+      const orphanRun = await flushQueuedMutations()
+      expect(orphanRun.droppedMutations).toMatchObject([
+        expect.objectContaining({ id: 'dependent', type: 'updateHabit' }),
+      ])
+    })
+
+    it('does not treat user text beginning with offline as an entity reference', async () => {
+      mocks.setOnline(true)
+      mocks.queued.push({
+        ...buildQueuedMutation({
+          type: 'updateTag',
+          scope: 'tags',
+          endpoint: '/api/tags/tag-1',
+          method: 'PUT',
+          payload: { name: 'offline-work' },
+          entityType: 'tag',
+          targetEntityId: 'tag-1',
+        }),
+        id: 'tag-name',
+      })
+
+      const result = await flushQueuedMutations()
+
+      expect(result.succeeded).toBe(1)
+      expect(mocks.apiClient).toHaveBeenCalledWith(
+        '/api/tags/tag-1',
+        expect.anything(),
+        undefined,
+      )
     })
   })
 

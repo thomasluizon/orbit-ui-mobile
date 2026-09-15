@@ -13,7 +13,6 @@ import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { useUIStore } from '@/stores/ui-store'
-import { GradientTop } from '@/components/ui/gradient-top'
 
 const eyebrowStyle: CSSProperties = {
   fontFamily: 'var(--font-sans)',
@@ -130,7 +129,6 @@ export function LevelUpOverlay({
         style={{ background: 'var(--bg)', opacity: 0.96 }}
         onClick={() => dismiss(activeLevelUp?.id)}
       />
-      <GradientTop height={520} />
       <div
         className="pointer-events-none relative z-[1] flex flex-1 flex-col items-center justify-center"
         style={{ gap: 12, padding: '0 32px' }}

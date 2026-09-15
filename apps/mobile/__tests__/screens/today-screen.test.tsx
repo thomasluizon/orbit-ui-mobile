@@ -344,7 +344,6 @@ vi.mock("@/lib/theme", () => ({
   createTokensV2: () => colorProxy,
   tintFromPrimary: () => "rgba(127, 70, 247, 0.1)",
   easings: {
-    spring: [0.34, 1.56, 0.64, 1],
     out: [0.16, 1, 0.3, 1],
     smooth: [0.2, 0, 0, 1],
   },

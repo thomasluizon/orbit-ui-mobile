@@ -9,12 +9,17 @@ async function loadOfflineStateModule(overrides?: Partial<AsyncStorageMock>) {
   vi.resetModules()
 
   const asyncStorage: AsyncStorageMock = {
-    getItem: overrides?.getItem ?? vi.fn(async () => null),
-    setItem: overrides?.setItem ?? vi.fn(async () => {}),
+    getItem: overrides?.getItem ?? vi.fn(() => Promise.resolve(null)),
+    setItem: overrides?.setItem ?? vi.fn(() => Promise.resolve()),
   }
 
   vi.doMock('@react-native-async-storage/async-storage', () => ({
     default: asyncStorage,
+  }))
+  vi.doMock('@/stores/offline-sync-store', () => ({
+    useOfflineSyncStore: {
+      getState: () => ({ clearDrops: vi.fn(() => Promise.resolve()) }),
+    },
   }))
 
   const offlineState = await import('@/lib/offline-state')
@@ -175,7 +180,7 @@ describe('offline-state', () => {
       },
     })
     const { getResolvedEntityId } = await loadOfflineStateModule({
-      getItem: vi.fn(async () => persisted),
+      getItem: vi.fn(() => Promise.resolve(persisted)),
     })
 
     expect(await getResolvedEntityId('habit', 'offline-habit-9')).toBe('habit-9')
@@ -206,12 +211,8 @@ describe('offline-state', () => {
       markOfflineTombstone,
       upsertOfflineEntity,
     } = await loadOfflineStateModule({
-      getItem: vi.fn(async () => {
-        throw new Error('read failed')
-      }),
-      setItem: vi.fn(async () => {
-        throw new Error('write failed')
-      }),
+      getItem: vi.fn(() => Promise.reject(new Error('read failed'))),
+      setItem: vi.fn(() => Promise.reject(new Error('write failed'))),
     })
 
     await expect(

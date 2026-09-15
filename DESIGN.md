@@ -250,11 +250,9 @@ Use the semantic classes (web `.t-*`) / shared role data (`packages/shared/src/t
 > *(spec-only)* are ahead of `main` until the redesign's primitive tickets land: the `--scrim` token,
 > PillButton's `caution` variant and `xs` size, `EmptyState.matchActionFooterWidth`, `InfoCard.tone`,
 > ListRow's rule handoff (`settings-row` on `main` still draws its own default bottom hairline via
-> `divider`), InfoCard's borderless body (`main` still paints an inset primary ring), StatTile's
+> `divider`), InfoCard's borderless body (`main` still paints an inset primary ring), and StatTile's
 > `--bg-card` fill and fixed value/label boxes (`main` is still on `--bg-field` with no
-> truncation or clamp), and every "no glow" / "GradientTop is deleted" claim (`GradientTop`,
-> `--gradient-header`, and the PillButton/FAB glow are still live on `main`, staged behind the
-> `no-decorative-glow` warn-to-error flip in the Enforcement table). Everything else in the table
+> truncation or clamp). Everything else in the table
 > exists on `main` today.
 
 Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same name, same props, same behavior.
@@ -282,7 +280,7 @@ Web in `apps/web/components/`, mobile mirror in `apps/mobile/components/`: same 
 | ProgressRing | thin band, `innerRadius` 0.94 (~6px stroke), primary sweep on a fg-4 track | right rail / Today | same |
 | HabitRow | inside a tonal panel: 46px emoji well radius 14 `--bg-well`, name Rubik 16/500, meta 13 fg-3 + streak flame, trailing 30px check ring, per-row `⋮` overflow menu | `habits/habit-row.tsx` | `habits/habit-row.tsx` |
 
-`GradientTop` is **deleted** in the #539 target. It backed the `--gradient-header` wash. *(Spec-only, see note: both are still live on `main`, staged behind the `no-decorative-glow` Enforcement row.)*
+`GradientTop` is deleted. It backed the retired `--gradient-header` wash.
 
 ## Buttons
 

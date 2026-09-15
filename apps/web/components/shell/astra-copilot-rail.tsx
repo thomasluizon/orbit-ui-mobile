@@ -70,11 +70,6 @@ function AstraRailHeader({
 
   return (
     <header className="relative shrink-0 px-4 pb-3 pt-4">
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 z-0"
-        style={{ height: 96, background: 'var(--gradient-header)' }}
-      />
       <div className="relative z-10 mx-auto flex w-full max-w-[var(--content-max-w)] items-center gap-3">
         <span
           className="inline-flex shrink-0 items-center justify-center rounded-full"

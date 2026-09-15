@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Linking, Text, type TextStyle } from 'react-native'
 import RNMarkdown, {
   Renderer,
@@ -21,18 +21,20 @@ interface ProseColors {
   body: string
   heading: string
   link: string
+  activeLink: TextStyle
 }
 
 function resolveProseColors(tokens: AppTokens, tone: MarkdownTone): ProseColors {
   if (tone === "muted")
-    return { body: tokens.fg3, heading: tokens.fg2, link: tokens.primarySoft }
+    return { body: tokens.fg3, heading: tokens.fg2, link: tokens.primarySoft, activeLink: { color: tokens.fg1 } }
   if (tone === "onPrimary")
     return {
       body: tokens.fgOnPrimary,
       heading: tokens.fgOnPrimary,
       link: tokens.fgOnPrimary,
+      activeLink: { color: tokens.fgOnPrimary, backgroundColor: tokens.primaryPressed },
     }
-  return { body: tokens.fg2, heading: tokens.fg1, link: tokens.primarySoft }
+  return { body: tokens.fg2, heading: tokens.fg1, link: tokens.primarySoft, activeLink: { color: tokens.fg1 } }
 }
 
 const SAFE_LINK_SCHEME = /^(https?:|mailto:)/i
@@ -42,29 +44,53 @@ const SAFE_LINK_SCHEME = /^(https?:|mailto:)/i
  * link handler passes the raw href straight to Linking.openURL, which would
  * happily attempt javascript:/data: URLs — so we reject anything else.
  */
+function ProseLink({ children, href, styles, colors }: Readonly<{
+  children: ReactNode
+  href: string
+  styles?: TextStyle
+  colors: ProseColors
+}>) {
+  const [pressed, setPressed] = useState(false)
+  const safe = SAFE_LINK_SCHEME.test(href.trim())
+  return (
+    <Text
+      selectable
+      accessibilityRole={safe ? 'link' : undefined}
+      style={[
+        styles,
+        safe
+          ? { color: colors.link, textDecorationLine: 'underline' }
+          : { color: colors.body, textDecorationLine: 'none' },
+        safe && pressed ? colors.activeLink : undefined,
+      ]}
+      onPress={safe ? () => { void Linking.openURL(href) } : undefined}
+      onPressIn={safe ? () => setPressed(true) : undefined}
+      onPressOut={safe ? () => setPressed(false) : undefined}
+    >
+      {children}
+    </Text>
+  )
+}
+
 class SafeLinkRenderer extends Renderer implements RendererInterface {
+  constructor(private readonly colors: ProseColors) {
+    super()
+  }
+
   override link(
     children: string | ReactNode[],
     href: string,
     styles?: TextStyle,
   ): ReactNode {
-    const safe = SAFE_LINK_SCHEME.test(href.trim())
     return (
-      <Text
+      <ProseLink
         key={this.getKey()}
-        selectable
-        accessibilityRole="link"
-        style={styles}
-        onPress={
-          safe
-            ? () => {
-                void Linking.openURL(href)
-              }
-            : undefined
-        }
+        href={href}
+        styles={styles}
+        colors={this.colors}
       >
         {children}
-      </Text>
+      </ProseLink>
     )
   }
 }
@@ -146,7 +172,7 @@ export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>
     () => createMarkedStyles(tokens, colors),
     [tokens, colors],
   )
-  const renderer = useMemo(() => new SafeLinkRenderer(), [])
+  const renderer = useMemo(() => new SafeLinkRenderer(colors), [colors])
 
   return (
     <RNMarkdown
