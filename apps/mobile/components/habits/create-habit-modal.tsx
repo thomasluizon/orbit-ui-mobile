@@ -83,6 +83,7 @@ export function CreateHabitModal({
   const createHabit = useCreateHabit()
   const createSubHabit = useCreateSubHabit()
   const suggestion = useHabitSuggestion()
+  const emojiSuggestion = useHabitSuggestion()
   const { showError, showSuccess, showInfo } = useAppToast()
   const isSubHabitMode = !!parentHabit
   const hasProAccess = profile?.hasProAccess ?? false
@@ -386,7 +387,7 @@ export function CreateHabitModal({
 
     try {
       const patch = buildHabitFormPatchFromSuggestion(
-        await suggestion.mutateAsync({ title, language: i18n.language }),
+        await emojiSuggestion.mutateAsync({ title, language: i18n.language }),
       )
       if (applySuggestionEmoji(patch, formHelpers.form)) {
         showSuccess(t('habits.form.aiSuggestApplied'))
@@ -400,7 +401,7 @@ export function CreateHabitModal({
           : t('habits.form.aiSuggestError'),
       )
     }
-  }, [formHelpers, i18n.language, showError, showInfo, showSuccess, suggestion, t])
+  }, [emojiSuggestion, formHelpers, i18n.language, showError, showInfo, showSuccess, t])
 
   const isPending = createHabit.isPending || createSubHabit.isPending
   const submitDisabled = isPending || watchedTitle.trim().length === 0
@@ -454,6 +455,7 @@ export function CreateHabitModal({
             onSuggestSetup={isSubHabitMode ? undefined : () => void handleSuggest()}
             onSuggestEmoji={() => void handleSuggestEmoji()}
             isSuggesting={suggestion.isPending}
+            isSuggestingEmoji={emojiSuggestion.isPending}
             lockedGeneral={parentHabit ? parentHabit.isGeneral : null}
             onUpgrade={navigateToUpgrade}
           >

@@ -283,7 +283,7 @@ describe('HabitFormFields', () => {
         reminderTimes={[]}
         onReminderTimesChange={vi.fn()}
         onSuggestEmoji={onSuggestEmoji}
-        isSuggesting
+        isSuggestingEmoji
       />,
     )
 

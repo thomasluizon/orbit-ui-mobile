@@ -66,6 +66,7 @@ export function EditHabitModal({
   const updateHabit = useUpdateHabit()
   const assignTags = useAssignTags()
   const suggestion = useHabitSuggestion()
+  const emojiSuggestion = useHabitSuggestion()
   const { showError, showSuccess, showInfo } = useAppToast()
 
   const formHelpers = useHabitForm()
@@ -265,7 +266,7 @@ export function EditHabitModal({
 
     try {
       const patch = buildHabitFormPatchFromSuggestion(
-        await suggestion.mutateAsync({ title, language: i18n.language }),
+        await emojiSuggestion.mutateAsync({ title, language: i18n.language }),
       )
       if (applySuggestionEmoji(patch, formHelpers.form)) {
         showSuccess(t('habits.form.aiSuggestApplied'))
@@ -279,7 +280,7 @@ export function EditHabitModal({
           : t('habits.form.aiSuggestError'),
       )
     }
-  }, [formHelpers, i18n.language, showError, showInfo, showSuccess, suggestion, t])
+  }, [emojiSuggestion, formHelpers, i18n.language, showError, showInfo, showSuccess, t])
 
   const watchedTitle = coalesceFormText(
     useWatch({
@@ -329,6 +330,7 @@ export function EditHabitModal({
               onSuggestSetup={() => void handleSuggest()}
               onSuggestEmoji={() => void handleSuggestEmoji()}
               isSuggesting={suggestion.isPending}
+              isSuggestingEmoji={emojiSuggestion.isPending}
               defaultExpanded={true}
               lockedGeneral={lockedGeneral}
               onUpgrade={navigateToUpgrade}

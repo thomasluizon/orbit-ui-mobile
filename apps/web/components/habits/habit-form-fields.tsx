@@ -98,6 +98,7 @@ interface HabitFormFieldsProps {
   /** When provided, renders an emoji-local affordance that changes only the emoji. */
   onSuggestEmoji?: () => void
   isSuggesting?: boolean
+  isSuggestingEmoji?: boolean
   children?: ReactNode
 }
 
@@ -119,6 +120,7 @@ export function HabitFormFields({
   onSuggestSetup,
   onSuggestEmoji,
   isSuggesting = false,
+  isSuggestingEmoji = false,
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const t = useTranslations()
@@ -247,7 +249,7 @@ export function HabitFormFields({
             onSelect={(emoji) => setValue('emoji', emoji, { shouldDirty: true })}
             onSuggest={onSuggestEmoji}
             canSuggest={watchedTitle.trim().length > 0}
-            isSuggesting={isSuggesting}
+            isSuggesting={isSuggestingEmoji}
           />
           <div className="relative flex-1 min-w-0">
             <input

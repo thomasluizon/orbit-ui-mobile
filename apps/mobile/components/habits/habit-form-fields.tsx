@@ -57,6 +57,7 @@ interface HabitFormFieldsProps {
   /** When provided, renders an emoji-local affordance that changes only the emoji. */
   onSuggestEmoji?: () => void;
   isSuggesting?: boolean;
+  isSuggestingEmoji?: boolean;
   /** When set (not null), locks the FrequencyTypeCards "General" option to this value because a parent or existing children constrain it. */
   lockedGeneral?: boolean | null;
   /** Routes to the upgrade surface from pro-gated fields. The hosting sheet must run the navigation only after its native dismissal (see hooks/use-sheet-exit-action.ts). */
@@ -80,6 +81,7 @@ export function HabitFormFields({
   onSuggestSetup,
   onSuggestEmoji,
   isSuggesting = false,
+  isSuggestingEmoji = false,
   lockedGeneral = null,
   onUpgrade,
   children,
@@ -183,7 +185,7 @@ export function HabitFormFields({
             onSelect={(emoji) => setValue("emoji", emoji, { shouldDirty: true })}
             onSuggest={onSuggestEmoji}
             canSuggest={watchedTitle.trim().length > 0}
-            isSuggesting={isSuggesting}
+            isSuggesting={isSuggestingEmoji}
           />
         }
         trailing={
