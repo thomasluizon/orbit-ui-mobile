@@ -236,6 +236,36 @@ describe('auth store', () => {
       cleanup()
     })
 
+    it('keeps polling after a confirmed failure so a delayed winner can recover', async () => {
+      const expiresAt = Date.now() + 3600000
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ expiresAt, refreshFailed: false }),
+      })
+      useAuthStore.getState().setAuth(makeLoginResponse())
+
+      const cleanup = useAuthStore.getState().startExpiryMonitor()
+      await vi.waitFor(() => expect(useAuthStore.getState().expiresAt).toBe(expiresAt))
+      mockFetch.mockClear()
+      useAuthStore.setState({
+        isAuthenticated: false,
+        user: null,
+        expiresAt: null,
+        sessionRefreshFailed: true,
+      })
+
+      await vi.advanceTimersByTimeAsync(60000)
+
+      expect(mockFetch).toHaveBeenCalledTimes(1)
+      expect(useAuthStore.getState()).toMatchObject({
+        isAuthenticated: true,
+        expiresAt,
+        sessionRefreshFailed: false,
+      })
+      cleanup()
+    })
+
     it('skips interval polling when not authenticated', async () => {
       const cleanup = useAuthStore.getState().startExpiryMonitor()
       mockFetch.mockClear()

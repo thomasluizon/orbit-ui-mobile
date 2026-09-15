@@ -3,6 +3,14 @@ import type { User, LoginResponse } from '@orbit/shared/types/auth'
 import { useOnboardingDraftStore } from './onboarding-draft-store'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
+let sessionRevalidationQueue: Promise<void> = Promise.resolve()
+let sessionRecoveryUser: User | null = null
+
+function queueSessionRevalidation(task: () => Promise<void>): Promise<void> {
+  const next = sessionRevalidationQueue.then(task, task)
+  sessionRevalidationQueue = next.catch(() => {})
+  return next
+}
 
 interface AuthState {
   isAuthenticated: boolean
@@ -12,6 +20,7 @@ interface AuthState {
 
   setAuth: (loginResponse: LoginResponse) => void
   confirmSessionRefreshFailure: () => Promise<void>
+  recoverSessionRefreshFailure: () => Promise<void>
   checkSession: () => Promise<void>
   startExpiryMonitor: () => () => void
   logout: () => Promise<void>
@@ -55,6 +64,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   sessionRefreshFailed: false,
 
   setAuth: (loginResponse: LoginResponse) => {
+    sessionRecoveryUser = null
     set({
       isAuthenticated: true,
       user: {
@@ -66,17 +76,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     })
   },
 
-  confirmSessionRefreshFailure: async () => {
+  confirmSessionRefreshFailure: () => queueSessionRevalidation(async () => {
     const session = await readCurrentSession()
     if (session.kind === 'active') {
+      const user = get().user ?? sessionRecoveryUser
+      sessionRecoveryUser = null
       set({
         isAuthenticated: true,
+        user,
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
       })
       return
     }
     if (session.kind === 'inactive') {
+      sessionRecoveryUser = null
       set({
         isAuthenticated: false,
         user: null,
@@ -86,6 +100,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
     if (session.kind === 'rejected') {
+      sessionRecoveryUser ??= get().user
       set({
         isAuthenticated: false,
         user: null,
@@ -93,7 +108,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         sessionRefreshFailed: true,
       })
     }
-  },
+  }),
+
+  recoverSessionRefreshFailure: () => queueSessionRevalidation(async () => {
+    if (!get().sessionRefreshFailed) return
+
+    const session = await readCurrentSession()
+    if (session.kind === 'active') {
+      const user = get().user ?? sessionRecoveryUser
+      sessionRecoveryUser = null
+      set({
+        isAuthenticated: true,
+        user,
+        expiresAt: session.expiresAt,
+        sessionRefreshFailed: false,
+      })
+    } else if (session.kind === 'inactive') {
+      sessionRecoveryUser = null
+      set({
+        isAuthenticated: false,
+        user: null,
+        expiresAt: null,
+        sessionRefreshFailed: false,
+      })
+    }
+  }),
 
   checkSession: async () => {
     const session = await readCurrentSession()
@@ -102,12 +141,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return
     }
     if (session.kind === 'active') {
+      const user = get().user ?? sessionRecoveryUser
+      sessionRecoveryUser = null
       set({
         isAuthenticated: true,
+        user,
         expiresAt: session.expiresAt,
         sessionRefreshFailed: false,
       })
     } else if (session.kind === 'inactive') {
+      sessionRecoveryUser = null
       set({
         isAuthenticated: false,
         user: null,
@@ -121,8 +164,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     void get().checkSession()
 
     const intervalId = setInterval(() => {
-      const { isAuthenticated } = get()
-      if (!isAuthenticated) {
+      const { isAuthenticated, sessionRefreshFailed } = get()
+      if (!isAuthenticated && !sessionRefreshFailed) {
         return
       }
 
@@ -138,6 +181,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch {
     }
 
+    sessionRecoveryUser = null
     set({
       isAuthenticated: false,
       user: null,

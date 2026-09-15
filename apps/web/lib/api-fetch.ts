@@ -67,10 +67,13 @@ export class ApiError extends Error {
 }
 
 export async function applySessionRefreshFailure(response: Response): Promise<void> {
-  if (!responseReportsSessionRefreshFailure(response)) return
-
   const { useAuthStore } = await import('@/stores/auth-store')
-  await useAuthStore.getState().confirmSessionRefreshFailure()
+  if (responseReportsSessionRefreshFailure(response)) {
+    await useAuthStore.getState().confirmSessionRefreshFailure()
+    return
+  }
+
+  await useAuthStore.getState().recoverSessionRefreshFailure()
 }
 
 export async function sessionAwareFetch(

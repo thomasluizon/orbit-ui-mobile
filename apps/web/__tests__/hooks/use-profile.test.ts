@@ -11,6 +11,7 @@ const boundaryMocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   logout: vi.fn(),
   confirmSessionRefreshFailure: vi.fn(),
+  recoverSessionRefreshFailure: vi.fn(),
 }))
 
 const mockFetch = vi.fn()
@@ -29,6 +30,7 @@ vi.mock('@/stores/auth-store', () => ({
     getState: () => ({
       logout: boundaryMocks.logout,
       confirmSessionRefreshFailure: boundaryMocks.confirmSessionRefreshFailure,
+      recoverSessionRefreshFailure: boundaryMocks.recoverSessionRefreshFailure,
     }),
   },
 }))
@@ -104,6 +106,7 @@ describe('useProfile', () => {
     boundaryMocks.toastError.mockClear()
     boundaryMocks.logout.mockClear()
     boundaryMocks.confirmSessionRefreshFailure.mockClear()
+    boundaryMocks.recoverSessionRefreshFailure.mockClear()
   })
 
   it('fetches and returns profile data', async () => {

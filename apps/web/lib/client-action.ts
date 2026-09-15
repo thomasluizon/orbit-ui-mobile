@@ -7,7 +7,10 @@ import { useAuthStore } from '@/stores/auth-store'
 export async function applyServerActionFailure<T>(result: ServerActionResult<T>): Promise<void> {
   if (!result.ok && result.sessionRefreshFailed) {
     await useAuthStore.getState().confirmSessionRefreshFailure()
+    return
   }
+
+  await useAuthStore.getState().recoverSessionRefreshFailure()
 }
 
 export async function runServerAction<T>(

@@ -9,11 +9,13 @@ vi.mock('sonner', () => ({
 
 const mockLogout = vi.fn()
 const mockConfirmSessionRefreshFailure = vi.fn()
+const mockRecoverSessionRefreshFailure = vi.fn()
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: {
     getState: () => ({
       logout: mockLogout,
       confirmSessionRefreshFailure: mockConfirmSessionRefreshFailure,
+      recoverSessionRefreshFailure: mockRecoverSessionRefreshFailure,
     }),
   },
 }))
@@ -55,6 +57,7 @@ describe('apiFetch', () => {
     mockFetch.mockReset()
     mockLogout.mockReset()
     mockConfirmSessionRefreshFailure.mockReset()
+    mockRecoverSessionRefreshFailure.mockReset()
     mockMarkUpgradeRequired.mockReset()
     vi.mocked(toast.error).mockReset()
   })
