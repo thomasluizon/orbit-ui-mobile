@@ -7,7 +7,9 @@ import { useProfile } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
 import {
   buildSupportRequestBody,
+  attachSupportVersion,
   getFriendlyErrorMessage,
+  getSupportMessageMaxLength,
   normalizeSupportSubjectId,
   SUPPORT_SUBJECT_OPTIONS,
   type SupportSubjectId,
@@ -18,6 +20,7 @@ import { AppBar } from '@/components/ui/app-bar'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { SupportSuccessState } from './_components/support-success-state'
 import { SupportForm } from './_components/support-form'
+import packageJson from '@/package.json'
 
 const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
 
@@ -73,6 +76,8 @@ export default function SupportPage() {
     : emailError
   const hasSubject = subject !== null
   const hasMessage = Boolean(message.trim())
+  const appVersion = packageJson.version
+  const messageMaxLength = getSupportMessageMaxLength(appVersion)
   const isIncomplete = !hasSubject || !hasMessage
   const incompleteReason = !isOnline || isSending || !isIncomplete
     ? null
@@ -124,7 +129,7 @@ export default function SupportPage() {
         name,
         email: resolvedEmail,
         subject: t(selectedSubject.labelKey),
-        message,
+        message: attachSupportVersion(message, appVersion),
       })
       await sendSupportMessage(payload)
       setSuccess(true)
@@ -137,7 +142,7 @@ export default function SupportPage() {
     } finally {
       setIsSending(false)
     }
-  }, [isOnline, message, name, profile, resolvedEmail, subject, t, validateFields])
+  }, [appVersion, isOnline, message, name, profile, resolvedEmail, subject, t, validateFields])
 
   const disabled = isSending || !isOnline || isIncomplete
 
@@ -165,6 +170,8 @@ export default function SupportPage() {
                 email={resolvedEmail}
                 subject={subject}
                 message={message}
+                appVersion={appVersion}
+                messageMaxLength={messageMaxLength}
                 error={error}
                 nameError={displayedNameError}
                 emailError={displayedEmailError}

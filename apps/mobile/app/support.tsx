@@ -8,15 +8,17 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import Constants from 'expo-constants'
 import { Check, WifiOff } from '@/components/ui/icons'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import {
   buildSupportRequestBody,
+  attachSupportVersion,
   getFriendlyErrorMessage,
+  getSupportMessageMaxLength,
   isValidEmail,
   normalizeSupportSubjectId,
-  SUPPORT_API_MESSAGE_MAX_LENGTH,
   SUPPORT_SUBJECT_OPTIONS,
   type SupportSubjectId,
 } from '@orbit/shared/utils'
@@ -77,6 +79,8 @@ interface SupportFormProps {
   email: string
   subject: SupportSubjectId | null
   message: string
+  appVersion?: string
+  messageMaxLength: number
   error: string | null
   nameError: string | null
   emailError: string | null
@@ -105,6 +109,8 @@ function SupportForm({
   email,
   subject,
   message,
+  appVersion,
+  messageMaxLength,
   error,
   nameError,
   emailError,
@@ -175,11 +181,12 @@ function SupportForm({
           onBlur={onSubjectBlur}
         >
           <RowList>
-            {SUPPORT_SUBJECT_OPTIONS.map((option) => (
+            {SUPPORT_SUBJECT_OPTIONS.map((option, navigationOrder) => (
               sending ? (
                 <RadioRow
                   key={option.id}
                   label={t(option.labelKey)}
+                  navigationOrder={navigationOrder}
                   description={t(option.descriptionKey)}
                   selected={subject === option.id}
                   disabled
@@ -189,6 +196,7 @@ function SupportForm({
                 <RadioRow
                   key={option.id}
                   label={t(option.labelKey)}
+                  navigationOrder={navigationOrder}
                   description={t(option.descriptionKey)}
                   selected={subject === option.id}
                   onSelect={() => onChangeSubject(option.id)}
@@ -210,12 +218,17 @@ function SupportForm({
         placeholder={t('profile.support.messagePlaceholder')}
         disabled={sending}
         error={messageError ?? undefined}
-        maxLength={SUPPORT_API_MESSAGE_MAX_LENGTH}
+        maxLength={messageMaxLength}
         multiline
         rows={6}
         focusRequest={messageFocusRequest}
         onBlur={onMessageBlur}
       />
+      {appVersion ? (
+        <Text style={[styles.versionIncluded, { color: tokens.fg3 }]}>
+          {t('profile.support.versionIncluded', { version: appVersion })}
+        </Text>
+      ) : null}
       {!isOnline ? (
         <View accessibilityLiveRegion="polite" style={[styles.offlineNotice, { backgroundColor: tokens.bgWell }]}>
           <WifiOff size={20} color={tokens.fg4} accessible={false} />
@@ -254,6 +267,8 @@ export default function SupportScreen() {
   )
   const { isOnline } = useOffline()
   const { profile } = useProfile()
+  const appVersion = Constants.expoConfig?.version?.trim() || undefined
+  const messageMaxLength = getSupportMessageMaxLength(appVersion)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const draftRef = useRef<SupportDraft>({ subject: null, message: '' })
@@ -357,7 +372,7 @@ export default function SupportScreen() {
             name,
             email: resolvedEmail,
             subject: t(selectedSubject.labelKey),
-            message,
+            message: attachSupportVersion(message, appVersion),
           }),
         ),
       })
@@ -372,7 +387,7 @@ export default function SupportScreen() {
     } finally {
       setSending(false)
     }
-  }, [isOnline, message, name, profile, resolvedEmail, subject, t, validateFields])
+  }, [appVersion, isOnline, message, name, profile, resolvedEmail, subject, t, validateFields])
 
   const canSend = isOnline && !sending && !isIncomplete
 
@@ -408,6 +423,8 @@ export default function SupportScreen() {
             email={resolvedEmail}
             subject={subject}
             message={message}
+            appVersion={appVersion}
+            messageMaxLength={messageMaxLength}
             error={error}
             nameError={displayedNameError}
             emailError={displayedEmailError}
@@ -471,6 +488,7 @@ const styles = StyleSheet.create({
   subjectField: { gap: 8 },
   subjectLabel: { fontFamily: 'Geist_500Medium', fontSize: 14, lineHeight: 19.6 },
   subjectError: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
+  versionIncluded: { fontFamily: 'Geist_400Regular', fontSize: 14, lineHeight: 21 },
   offlineNotice: {
     flexDirection: 'row',
     alignItems: 'center',

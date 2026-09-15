@@ -160,7 +160,7 @@ describe('SupportPage', () => {
       name: 'Orbit User',
       email: 'orbit@example.com',
       subject: problemLabel,
-      message: 'The log disappeared',
+      message: 'The log disappeared\n\nOrbit 0.0.1',
     }))
   })
 
@@ -232,8 +232,9 @@ describe('SupportPage', () => {
     mockSendSupportMessage.mockResolvedValue(undefined)
     render(<SupportPage />)
 
-    const message = 'm'.repeat(5000)
-    expect(messageField()).toHaveAttribute('maxlength', '5000')
+    const message = 'm'.repeat(4987)
+    expect(messageField()).toHaveAttribute('maxlength', '4987')
+    expect(screen.getByText('profile.support.versionIncluded')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('profile.support.subjects.problem.label'))
     fireEvent.change(messageField(), { target: { value: message } })
@@ -243,7 +244,7 @@ describe('SupportPage', () => {
       name: 'Orbit User',
       email: 'orbit@example.com',
       subject: 'profile.support.subjects.problem.label',
-      message,
+      message: `${message}\n\nOrbit 0.0.1`,
     }))
   })
 
@@ -267,7 +268,7 @@ describe('SupportPage', () => {
       name: 'Orbit User',
       email: 'profile@example.com',
       subject: 'profile.support.subjects.problem.label',
-      message: 'Message',
+      message: 'Message\n\nOrbit 0.0.1',
     }))
   })
 
@@ -321,7 +322,7 @@ describe('SupportPage', () => {
       name: 'Orbit User',
       email: 'orbit@example.com',
       subject: 'profile.support.subjects.account.label',
-      message: 'Google button spins forever',
+      message: 'Google button spins forever\n\nOrbit 0.0.1',
     })
     expect(localStorage.getItem(DRAFT_KEY)).toBeNull()
     expect(announcer).toHaveTextContent('profile.support.success')

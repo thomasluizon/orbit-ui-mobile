@@ -2,7 +2,6 @@
 
 import { useTranslations } from 'next-intl'
 import {
-  SUPPORT_API_MESSAGE_MAX_LENGTH,
   SUPPORT_SUBJECT_OPTIONS,
   type SupportSubjectId,
 } from '@orbit/shared/utils'
@@ -17,6 +16,8 @@ interface SupportFormProps {
   email: string
   subject: SupportSubjectId | null
   message: string
+  appVersion: string
+  messageMaxLength: number
   error: string | null
   nameError: string | null
   emailError: string | null
@@ -44,6 +45,8 @@ export function SupportForm({
   email,
   subject,
   message,
+  appVersion,
+  messageMaxLength,
   error,
   nameError,
   emailError,
@@ -163,12 +166,15 @@ export function SupportForm({
         placeholder={t('profile.support.messagePlaceholder')}
         disabled={isSending}
         error={messageError ?? undefined}
-        maxLength={SUPPORT_API_MESSAGE_MAX_LENGTH}
+        maxLength={messageMaxLength}
         multiline
         rows={6}
         focusRequest={messageFocusRequest}
         onBlur={onMessageBlur}
       />
+      <p className="text-pretty text-sm leading-[1.5] text-[var(--fg-3)]">
+        {t('profile.support.versionIncluded', { version: appVersion })}
+      </p>
       {!isOnline ? (
         <div
           id="support-send-reason"

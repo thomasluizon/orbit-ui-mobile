@@ -42,13 +42,14 @@ const KeyboardPressable = Pressable as ForwardRefExoticComponent<
 interface RadioItemState {
   disabled: boolean
   id: string
+  navigationOrder: number
   selected: boolean
 }
 
 interface RadioGroupContextValue {
   getTabIndex: (id: string) => 0 | -1
   moveSelection: (id: string, key: string) => boolean
-  register: (id: string) => () => void
+  register: (id: string, navigationOrder?: number) => () => void
   setElement: (id: string, element: FocusableRadio | null) => void
   setHandler: (id: string, handler: () => void) => void
   update: (state: RadioItemState) => void
@@ -62,8 +63,13 @@ export function RadioGroup({ children, ...props }: Readonly<
   const [items, setItems] = useState<RadioItemState[]>([])
   const elementsRef = useRef(new Map<string, FocusableRadio>())
   const handlersRef = useRef(new Map<string, () => void>())
-  const register = useCallback((id: string) => {
-    setItems((current) => [...current.filter((item) => item.id !== id), { disabled: false, id, selected: false }])
+  const register = useCallback((id: string, navigationOrder?: number) => {
+    setItems((current) => [...current.filter((item) => item.id !== id), {
+      disabled: false,
+      id,
+      navigationOrder: navigationOrder ?? current.length,
+      selected: false,
+    }])
     return () => {
       setItems((current) => current.filter((item) => item.id !== id))
       elementsRef.current.delete(id)
@@ -80,7 +86,9 @@ export function RadioGroup({ children, ...props }: Readonly<
   const setHandler = useCallback((id: string, handler: () => void) => {
     handlersRef.current.set(id, handler)
   }, [])
-  const enabledItems = useMemo(() => items.filter((item) => !item.disabled), [items])
+  const enabledItems = useMemo(() => items
+    .filter((item) => !item.disabled)
+    .sort((first, second) => first.navigationOrder - second.navigationOrder), [items])
   const getTabIndex = useCallback((id: string): 0 | -1 => {
     const selectedItem = enabledItems.find((item) => item.selected)
     return (selectedItem ?? enabledItems[0])?.id === id ? 0 : -1
@@ -112,16 +120,19 @@ export function RadioGroup({ children, ...props }: Readonly<
   )
 }
 
-export function RadioRow({ label, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps>) {
+export function RadioRow({ label, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason, navigationOrder }: Readonly<RadioRowProps & { navigationOrder?: number }>) {
   const group = useContext(RadioGroupContext)
   const registerWithGroup = group?.register
   const setGroupHandler = group?.setHandler
   const updateGroup = group?.update
   const id = useId()
-  useLayoutEffect(() => registerWithGroup?.(id), [id, registerWithGroup])
+  useLayoutEffect(
+    () => registerWithGroup?.(id, navigationOrder),
+    [id, navigationOrder, registerWithGroup],
+  )
   useLayoutEffect(() => {
-    updateGroup?.({ disabled, id, selected })
-  }, [disabled, id, selected, updateGroup])
+    updateGroup?.({ disabled, id, navigationOrder: navigationOrder ?? 0, selected })
+  }, [disabled, id, navigationOrder, selected, updateGroup])
   useLayoutEffect(() => {
     setGroupHandler?.(id, onSelect ?? (() => undefined))
   }, [id, onSelect, setGroupHandler])
@@ -162,6 +173,7 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
       accessibilityState={{ checked: selected }}
       tabIndex={group?.getTabIndex(id) ?? 0}
       onKeyDown={(event) => {
+        // WHY: KeyEvent.kt lines 149-152 map only arrows: https://github.com/facebook/react-native/blob/v0.86.3/packages/react-native/ReactAndroid/src/main/java/com/facebook/react/uimanager/events/KeyEvent.kt#L149-L152
         if (!group?.moveSelection(id, event.nativeEvent.key)) return
         event.preventDefault()
       }}

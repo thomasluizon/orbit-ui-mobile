@@ -250,6 +250,38 @@ describe('MoveParentDialog', () => {
     expect(rendered).not.toContain('Zeta')
   })
 
+  it('keeps arrow navigation in rendered order after filtered rows return', () => {
+    const options: MoveParentOption[] = [
+      makeOption({ id: null, label: 'Top level' }),
+      ...Array.from({ length: 9 }, (_, index) =>
+        makeOption({ id: `zeta${index}`, label: `Zeta ${index}` }),
+      ),
+    ]
+    const { tree, props } = renderDialog({ options })
+    const searchInput = findSearchInputs(tree)[0]
+    if (!searchInput) throw new Error('Expected the search field')
+
+    void TestRenderer.act(() => {
+      ;(searchInput.props.onChangeText as (value: string) => void)('Zeta 5')
+    })
+    void TestRenderer.act(() => {
+      ;(findSearchInputs(tree)[0]!.props.onChangeText as (value: string) => void)('')
+    })
+    const zetaFour = findOptionRows(tree).find((row) =>
+      flattenInstanceText(row).includes('Zeta 4'),
+    )
+    if (!zetaFour) throw new Error('Expected Zeta 4')
+
+    void TestRenderer.act(() => {
+      ;(zetaFour.props.onKeyDown as (event: unknown) => void)({
+        nativeEvent: { key: 'ArrowDown' },
+        preventDefault: vi.fn(),
+      })
+    })
+
+    expect(props.onSelectOption).toHaveBeenLastCalledWith('zeta5')
+  })
+
   it('locks the sheet and swaps to the moving label while pending', () => {
     const { tree } = renderDialog({ isPending: true })
 

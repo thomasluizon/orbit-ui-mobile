@@ -57,12 +57,26 @@ export function RadioGroup({ children, ...props }: Readonly<
   const setHandler = useCallback((id: string, handler: () => void) => {
     handlersRef.current.set(id, handler)
   }, [])
-  const enabledItems = useMemo(() => items.filter((item) => !item.disabled), [items])
+  const getEnabledItems = useCallback(() => items
+    .filter((item) => !item.disabled)
+    .sort((first, second) => {
+      const firstElement = elementsRef.current.get(first.id)
+      const secondElement = elementsRef.current.get(second.id)
+      if (!firstElement || !secondElement) return 0
+      const nodeType = firstElement.ownerDocument.defaultView?.Node
+      if (!nodeType) return 0
+      const position = firstElement.compareDocumentPosition(secondElement)
+      if (position & nodeType.DOCUMENT_POSITION_FOLLOWING) return -1
+      if (position & nodeType.DOCUMENT_POSITION_PRECEDING) return 1
+      return 0
+    }), [items])
   const getTabIndex = useCallback((id: string): 0 | -1 => {
+    const enabledItems = getEnabledItems()
     const selectedItem = enabledItems.find((item) => item.selected)
     return (selectedItem ?? enabledItems[0])?.id === id ? 0 : -1
-  }, [enabledItems])
+  }, [getEnabledItems])
   const moveSelection = useCallback((id: string, key: string) => {
+    const enabledItems = getEnabledItems()
     const currentIndex = enabledItems.findIndex((item) => item.id === id)
     if (currentIndex < 0) return false
     const nextIndex = getRadioNavigationIndex(key, currentIndex, enabledItems.length)
@@ -72,7 +86,7 @@ export function RadioGroup({ children, ...props }: Readonly<
     elementsRef.current.get(nextItem.id)?.focus()
     handlersRef.current.get(nextItem.id)?.()
     return true
-  }, [enabledItems])
+  }, [getEnabledItems])
   const contextValue = useMemo(() => ({
     getTabIndex,
     moveSelection,

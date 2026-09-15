@@ -25,7 +25,16 @@ const mocks = vi.hoisted(() => ({
   routerPush: vi.fn(),
   focusInput: vi.fn(),
   announceForAccessibility: vi.fn(),
+  expoVersion: new Map<string, string>().get('version'),
   translations: new Map<string, string>(),
+}))
+
+vi.mock('expo-constants', () => ({
+  default: {
+    get expoConfig() {
+      return mocks.expoVersion ? { version: mocks.expoVersion } : undefined
+    },
+  },
 }))
 
 vi.mock('react-native', async (importOriginal) => {
@@ -134,6 +143,7 @@ describe('SupportScreen', () => {
     mocks.setItem.mockResolvedValue(undefined)
     mocks.removeItem.mockResolvedValue(undefined)
     mocks.apiClient.mockResolvedValue(undefined)
+    mocks.expoVersion = '1.1.4'
     mocks.translations.clear()
   })
 
@@ -194,11 +204,11 @@ describe('SupportScreen', () => {
 
     expect(sentRequestBody()).toMatchObject({
       subject: problemLabel,
-      message: 'The log disappeared',
+      message: 'The log disappeared\n\nOrbit 1.1.4',
     })
   })
 
-  it('uses one radio tab stop and selects with arrow, Home, and End keys', async () => {
+  it('uses one radio tab stop and selects with the four Android arrow keys', async () => {
     const tree = await renderScreen()
     let choices = findSubjectChoices(tree.root)
     expect(choices.map((choice) => choice.props.tabIndex)).toEqual([0, -1, -1, -1])
@@ -213,30 +223,10 @@ describe('SupportScreen', () => {
     choices = findSubjectChoices(tree.root)
     expect((choices[1]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
 
-    await TestRenderer.act(async () => {
-      ;(choices[1]!.props.onKeyDown as (event: unknown) => void)({
-        nativeEvent: { key: 'End' },
-        preventDefault: vi.fn(),
-      })
-      await Promise.resolve()
-    })
-    choices = findSubjectChoices(tree.root)
-    expect((choices[3]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
-
-    await TestRenderer.act(async () => {
-      ;(choices[3]!.props.onKeyDown as (event: unknown) => void)({
-        nativeEvent: { key: 'Home' },
-        preventDefault: vi.fn(),
-      })
-      await Promise.resolve()
-    })
-    choices = findSubjectChoices(tree.root)
-    expect((choices[0]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
-
     for (const [from, key, selected] of [
-      [0, 'ArrowUp', 3],
-      [3, 'ArrowRight', 0],
-      [0, 'ArrowLeft', 3],
+      [1, 'ArrowRight', 2],
+      [2, 'ArrowUp', 1],
+      [1, 'ArrowLeft', 0],
     ] as const) {
       await TestRenderer.act(async () => {
         ;(choices[from]!.props.onKeyDown as (event: unknown) => void)({
@@ -332,9 +322,14 @@ describe('SupportScreen', () => {
   it('accepts the API message length boundary', async () => {
     const tree = await renderScreen()
     const messageInput = findInputByLabel(tree.root, 'profile.support.message')!
-    const message = 'm'.repeat(5000)
+    const message = 'm'.repeat(4987)
 
-    expect(messageInput.props.maxLength).toBe(5000)
+    expect(messageInput.props.maxLength).toBe(4987)
+    expect(
+      tree.root.findAll(
+        (node) => node.props.children === 'profile.support.versionIncluded({"version":"1.1.4"})',
+      ),
+    ).not.toHaveLength(0)
     await selectSubject(tree.root)
     await TestRenderer.act(async () => {
       ;(messageInput.props.onChangeText as (value: string) => void)(message)
@@ -348,8 +343,35 @@ describe('SupportScreen', () => {
 
     expect(sentRequestBody()).toMatchObject({
       subject: 'profile.support.subjects.problem.label',
-      message,
+      message: `${message}\n\nOrbit 1.1.4`,
     })
+  })
+
+  it('reserves no room and sends no suffix when the app version is absent', async () => {
+    mocks.expoVersion = undefined
+    const tree = await renderScreen()
+    const messageInput = findInputByLabel(tree.root, 'profile.support.message')!
+    const message = 'm'.repeat(5000)
+
+    expect(messageInput.props.maxLength).toBe(5000)
+    expect(
+      tree.root.findAll((node) =>
+        typeof node.props.children === 'string'
+        && node.props.children.startsWith('profile.support.versionIncluded'),
+      ),
+    ).toHaveLength(0)
+    await selectSubject(tree.root)
+    await TestRenderer.act(async () => {
+      ;(messageInput.props.onChangeText as (value: string) => void)(message)
+      await Promise.resolve()
+    })
+    await TestRenderer.act(async () => {
+      ;(findSendButton(tree.root)!.props.onPress as () => void)()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(sentRequestBody().message).toBe(message)
   })
 
   it('replaces an email typed while loading with the resolved profile email', async () => {

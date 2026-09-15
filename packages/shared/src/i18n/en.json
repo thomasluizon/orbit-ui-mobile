@@ -1413,6 +1413,7 @@
       "subjectRequired": "Choose a subject.",
       "subjectSendingReason": "The subject cannot change while sending.",
       "messageRequired": "Message is required.",
+      "versionIncluded": "Orbit {version} is included with your message.",
       "emailLockedReason": "We reply to the email on your account.",
       "sendIncomplete": "Choose a subject and add a message to send.",
       "sendNeedsSubject": "Choose a subject to send.",

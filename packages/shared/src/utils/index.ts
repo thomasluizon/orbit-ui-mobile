@@ -626,6 +626,9 @@ export {
   buildSupportRequestBody,
   normalizeSupportSubjectId,
   SUPPORT_API_MESSAGE_MAX_LENGTH,
+  attachSupportVersion,
+  buildSupportVersionSuffix,
+  getSupportMessageMaxLength,
   SUPPORT_SUBJECT_OPTIONS,
 } from './support'
 export type {

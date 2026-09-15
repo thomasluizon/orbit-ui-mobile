@@ -18,6 +18,29 @@ export interface SupportRequestBody {
 }
 
 export const SUPPORT_API_MESSAGE_MAX_LENGTH = 5000
+const SUPPORT_VERSION_PREFIX = '\n\nOrbit '
+
+function utf8ByteLength(value: string): number {
+  let byteLength = 0
+  for (const character of value) {
+    const codePoint = character.codePointAt(0) ?? 0
+    byteLength += codePoint <= 0x7f ? 1 : codePoint <= 0x7ff ? 2 : codePoint <= 0xffff ? 3 : 4
+  }
+  return byteLength
+}
+
+export function buildSupportVersionSuffix(appVersion?: string | null): string {
+  const version = appVersion?.trim()
+  return version ? `${SUPPORT_VERSION_PREFIX}${version}` : ''
+}
+
+export function getSupportMessageMaxLength(appVersion?: string | null): number {
+  return SUPPORT_API_MESSAGE_MAX_LENGTH - utf8ByteLength(buildSupportVersionSuffix(appVersion))
+}
+
+export function attachSupportVersion(message: string, appVersion?: string | null): string {
+  return `${message.trim()}${buildSupportVersionSuffix(appVersion)}`
+}
 
 export const SUPPORT_SUBJECT_OPTIONS = [
   {

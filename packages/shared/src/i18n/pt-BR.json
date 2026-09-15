@@ -1413,6 +1413,7 @@
       "subjectRequired": "Escolha um assunto.",
       "subjectSendingReason": "O assunto não pode mudar durante o envio.",
       "messageRequired": "Escreva sua mensagem.",
+      "versionIncluded": "A versão {version} do Orbit vai junto com a sua mensagem.",
       "emailLockedReason": "A gente responde no e-mail da sua conta.",
       "sendIncomplete": "Escolha um assunto e escreva uma mensagem para enviar.",
       "sendNeedsSubject": "Escolha um assunto para enviar.",

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  attachSupportVersion,
   buildSupportRequestBody,
+  buildSupportVersionSuffix,
+  getSupportMessageMaxLength,
   normalizeSupportSubjectId,
   SUPPORT_SUBJECT_OPTIONS,
 } from '../utils/support'
@@ -57,5 +60,21 @@ describe('support subject options', () => {
     expect(normalizeSupportSubjectId('Old free-text subject')).toBe('other')
     expect(normalizeSupportSubjectId('   ')).toBeNull()
     expect(normalizeSupportSubjectId(null)).toBeNull()
+  })
+})
+
+describe('support version metadata', () => {
+  it('reserves the suffix bytes and appends the version once', () => {
+    const message = 'm'.repeat(4987)
+
+    expect(buildSupportVersionSuffix('0.0.1')).toBe('\n\nOrbit 0.0.1')
+    expect(getSupportMessageMaxLength('0.0.1')).toBe(4987)
+    expect(attachSupportVersion(message, '0.0.1')).toBe(`${message}\n\nOrbit 0.0.1`)
+  })
+
+  it('counts UTF-8 bytes and leaves messages unchanged without a version', () => {
+    expect(getSupportMessageMaxLength('v❤')).toBe(4988)
+    expect(getSupportMessageMaxLength(undefined)).toBe(5000)
+    expect(attachSupportVersion('Message', undefined)).toBe('Message')
   })
 })
