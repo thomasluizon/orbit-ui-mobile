@@ -20,7 +20,7 @@ vi.mock('@/stores/auth-store', () => ({
 const mockRequestDeletion = vi.fn()
 const mockConfirmDeletion = vi.fn()
 
-vi.mock('@/app/actions/auth', () => ({
+vi.mock('@/lib/actions/auth', () => ({
   requestDeletion: (...args: unknown[]) => mockRequestDeletion(...args),
   confirmDeletion: (...args: unknown[]) => mockConfirmDeletion(...args),
 }))
