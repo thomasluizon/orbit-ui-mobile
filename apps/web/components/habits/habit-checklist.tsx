@@ -47,6 +47,7 @@ export function HabitChecklist({
 }: Readonly<HabitChecklistProps>) {
   const t = useTranslations()
   const newItemInputId = useId()
+  const dndContextId = useId()
   const [newItemText, setNewItemText] = useState('')
   const [justCheckedIndex, setJustCheckedIndex] = useState(-1)
   const checkPopTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -172,6 +173,7 @@ export function HabitChecklist({
 
       {editable ? (
         <DndContext
+          id={dndContextId}
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
@@ -227,8 +229,8 @@ export function HabitChecklist({
               fontFamily: 'var(--font-sans)',
               fontSize: 12,
               fontWeight: 500,
-              padding: '13px 8px',
-              margin: '-13px -8px',
+              padding: '12px 8px',
+              margin: '-12px -8px',
             }}
             onClick={clearAll}
           >

@@ -85,7 +85,6 @@ export const radius: AppRadius = {
 
 /** Raw bezier control points for use with Easing.bezier(...) */
 export const easings = {
-  spring: motionEasings.emphasize,
   out: motionEasings.enter,
   smooth: motionEasings.standard,
 }
@@ -118,8 +117,6 @@ export interface AppTokensV2 {
   primaryRgb: string
   /** Soft accent foreground (lightened primary on dark, primary on light). */
   primarySoft: string
-  gradientHeaderFrom: string
-  gradientHeaderTo: string
   statusDone: string
   statusEmpty: string
   statusSkip: string
@@ -176,11 +173,9 @@ export function createTokensV2(
   const fgOnPrimary = schemes[colorScheme].fgOnPrimary[themeMode]
   const alpha = alphaSurfaces[themeMode]
   const status = statusConstants[themeMode]
-  const gradientFrom = schemes[colorScheme].gradientHeaderFrom[themeMode]
 
   if (themeMode === 'light') {
     const neutrals = resolveLightNeutrals(colorScheme)
-    const [r, g, b] = hexChannels(neutrals.bg)
     return {
       bg: neutrals.bg,
       bgCard: alpha.bgCard,
@@ -202,8 +197,6 @@ export function createTokensV2(
       primaryPressed: accent.primaryPressed,
       primaryRgb: accent.primaryRgb,
       primarySoft: accent.primary,
-      gradientHeaderFrom: gradientFrom,
-      gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
       statusDone: accent.primary,
       statusEmpty: alpha.statusEmpty,
       statusSkip: neutrals.fg3,
@@ -219,7 +212,6 @@ export function createTokensV2(
   }
 
   const neutrals = resolveDarkNeutrals(colorScheme)
-  const [r, g, b] = hexChannels(neutrals.bg)
   return {
     bg: neutrals.bg,
     bgCard: alpha.bgCard,
@@ -241,8 +233,6 @@ export function createTokensV2(
     primaryPressed: accent.primaryPressed,
     primaryRgb: accent.primaryRgb,
     primarySoft: lightenHex(accent.primary, 0.45),
-    gradientHeaderFrom: gradientFrom,
-    gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
     statusDone: accent.primary,
     statusEmpty: alpha.statusEmpty,
     statusSkip: neutrals.fg3,

@@ -12,7 +12,6 @@ import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { RingMotif } from './ring-motif'
 
 const streakCountStyle: CSSProperties = {
@@ -88,7 +87,6 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
             style={{ background: 'var(--bg)', opacity: 0.96 }}
             onClick={dismiss}
           />
-          <GradientTop height={520} />
           <div
             className="pointer-events-none relative z-[1] flex flex-1 flex-col items-center justify-center"
             style={{ gap: 12, padding: '0 32px' }}

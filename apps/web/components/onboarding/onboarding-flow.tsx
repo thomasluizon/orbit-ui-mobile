@@ -19,7 +19,6 @@ import {
   useOnboardingHasProAccess,
   useOnboardingIsLive,
 } from './onboarding-actions-context'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
 import { QuietLink } from '@/components/ui/quiet-link'
 import { OnboardingWelcome } from './onboarding-welcome'
@@ -240,7 +239,6 @@ export function OnboardingFlow() {
       aria-labelledby="onboarding-title"
     >
       <div className="flex flex-col min-h-dvh relative">
-        <GradientTop height={520} />
         <div
           className="relative z-[1] flex items-center justify-between"
           style={{ padding: '8px 20px', minHeight: 56 }}

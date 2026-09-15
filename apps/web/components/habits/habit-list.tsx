@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback, useEffect, useRef as useReactRef, forwardRef, useImperativeHandle } from 'react'
+import { useState, useMemo, useCallback, useEffect, useId, useRef as useReactRef, forwardRef, useImperativeHandle } from 'react'
 import {
   ArrowLeft,
   Home,
@@ -130,6 +130,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const { profile } = useProfile()
   const locale = useLocale()
   const { displayTime } = useTimeFormat()
+  const dndContextId = useId()
 
   const habitsQuery = useHabits(filters)
   const logHabit = useLogHabit()
@@ -1078,6 +1079,7 @@ const isPostponeAction = useMemo(() => {
     if (isDndEnabled) {
       return (
         <DndContext
+          id={dndContextId}
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragStart={handleDragStart}

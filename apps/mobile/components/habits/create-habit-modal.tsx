@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 import { Check } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useWatch } from 'react-hook-form'
@@ -56,16 +56,20 @@ function createSubHabitEntry(value = ''): SubHabitEntry {
 interface CreateHabitModalProps {
   open: boolean
   onClose: () => void
+  onCreated?: () => void
   initialDate?: string | null
   parentHabit?: NormalizedHabit | null
+  recoveryMessage?: string
 }
 
 // react-doctor-disable-next-line no-giant-component -- form-modal shell already decomposed into create-habit-modal/* and HabitFormFields subcomponents; the remaining body is cohesive submit/suggest/reset orchestration, extraction deferred to avoid regression without device QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function CreateHabitModal({
   open,
   onClose,
+  onCreated,
   initialDate,
   parentHabit,
+  recoveryMessage,
 }: Readonly<CreateHabitModalProps>) {
   const { t, i18n } = useTranslation()
   const router = useRouter()
@@ -317,6 +321,7 @@ export function CreateHabitModal({
         await createHabit.mutateAsync(request)
       }
       onClose()
+      onCreated?.()
     } catch (error: unknown) {
       showError(
         getFriendlyErrorMessage(
@@ -341,6 +346,7 @@ export function CreateHabitModal({
     hasProAccess,
     navigateToUpgrade,
     onClose,
+    onCreated,
     showError,
     translate,
   ])
@@ -474,6 +480,11 @@ export function CreateHabitModal({
         onAttemptDismiss={dismissGuard.requestDismiss}
         contentManagesScroll
       >
+        {recoveryMessage ? (
+          <Text style={{ color: tokens.fg2 }}>
+            {recoveryMessage} {t('common.syncOrphanedDetail')}
+          </Text>
+        ) : null}
         <KeyboardAwareBottomSheetScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}

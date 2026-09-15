@@ -235,6 +235,20 @@ describe('CreateHabitModal (mobile)', () => {
     expect(hasText(tree.root, 'habits.createHabit')).toBe(true)
   })
 
+  it('shows orphan recovery context when supplied', () => {
+    const tree = renderModal(
+      <CreateHabitModal open onClose={vi.fn()} recoveryMessage="Create Morning walk" />,
+    )
+
+    const recoveryCopy = tree.root.findAll(
+      (node: any) =>
+        node.type === 'Text' &&
+        Array.isArray(node.props.children) &&
+        node.props.children.join('') === 'Create Morning walk common.syncOrphanedDetail',
+    )
+    expect(recoveryCopy).toHaveLength(1)
+  })
+
   it('uses the sub-habit title and hides the sub-habit section in sub-habit mode', () => {
     mockHasProAccess = true
     const parentHabit = createMockHabit({ id: 'parent-1', title: 'Parent' })

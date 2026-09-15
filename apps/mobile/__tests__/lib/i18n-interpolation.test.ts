@@ -10,7 +10,7 @@ describe('i18n interpolation config', () => {
       item: i18n.t('common.syncEntity.habits'),
     })
 
-    expect(message).toBe('The change to habit did not go up and was dropped.')
+    expect(message).toBe('The log for habit did not go up and was dropped.')
   })
 
   it('resolves the dropped-sync placeholder in pt-BR too', async () => {
@@ -20,6 +20,6 @@ describe('i18n interpolation config', () => {
       item: i18n.t('common.syncEntity.goals'),
     })
 
-    expect(message).toBe('A alteração em meta não subiu e foi descartada.')
+    expect(message).toBe('O registro de meta não subiu e foi descartado.')
   })
 })

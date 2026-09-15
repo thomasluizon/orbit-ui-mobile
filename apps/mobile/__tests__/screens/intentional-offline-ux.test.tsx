@@ -105,17 +105,19 @@ const mocks = vi.hoisted(() => {
       currentScheme: 'purple',
       currentTheme: 'dark',
     })),
-    asyncStorageGetItem: vi.fn(async (key: string) => storage.get(key) ?? null),
-    asyncStorageSetItem: vi.fn(async (key: string, value: string) => {
+    asyncStorageGetItem: vi.fn((key: string) => Promise.resolve(storage.get(key) ?? null)),
+    asyncStorageSetItem: vi.fn((key: string, value: string) => {
       storage.set(key, value)
+      return Promise.resolve()
     }),
-    asyncStorageRemoveItem: vi.fn(async (key: string) => {
+    asyncStorageRemoveItem: vi.fn((key: string) => {
       storage.delete(key)
+      return Promise.resolve()
     }),
     buildQueuedMutation: vi.fn((mutation: Record<string, unknown>) => mutation),
     createQueuedAck: vi.fn((queuedMutationId: string) => ({ queued: true, queuedMutationId })),
     isQueuedResult: vi.fn(() => false),
-    queueOrExecute: vi.fn(async () => ({ queued: false, queuedMutationId: 'mutation-1' })),
+    queueOrExecute: vi.fn(() => Promise.resolve({ queued: false, queuedMutationId: 'mutation-1' })),
     clearChecklistTemplates: vi.fn(async () => {}),
     clearPersistedQueryCache: vi.fn(async () => {}),
     plural: vi.fn((value: string) => value),
@@ -132,8 +134,8 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
   },
 }))
 
-vi.mock('react-native', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react-native')>()
+vi.mock('react-native', async () => {
+  const actual = await import('../../test-mocks/react-native')
   const keyboardListener = {
     remove: vi.fn(),
   }
@@ -151,6 +153,10 @@ vi.mock('react-native', async (importOriginal) => {
 vi.mock('expo', () => ({
   __esModule: true,
   requireNativeModule: vi.fn(() => ({})),
+}))
+
+vi.mock('@/stores/offline-sync-store', () => ({
+  useOfflineSyncStore: { getState: () => ({ clearDrops: vi.fn(() => Promise.resolve()) }) },
 }))
 
 vi.mock('expo-router', () => ({
@@ -194,7 +200,7 @@ vi.mock('@/components/ui/theme-toggle', () => ({
 }))
 
 vi.mock('@/components/ui/app-bar', () => ({
-  AppBar: ({ trailing }: { trailing?: React.ReactNode }) => React.createElement(React.Fragment, null, trailing as React.ReactNode),
+  AppBar: ({ trailing }: { trailing?: React.ReactNode }) => React.createElement(React.Fragment, null, trailing),
 }))
 
 vi.mock('@/components/ui/section-label', () => ({

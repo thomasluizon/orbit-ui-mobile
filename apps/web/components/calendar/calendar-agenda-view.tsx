@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
   addDays,
   subDays,
@@ -48,7 +48,6 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 
 const pinnedPaneBackground = {
   backgroundColor: 'var(--bg)',
-  backgroundImage: 'linear-gradient(var(--bg-card), var(--bg-card))',
 } as const
 
 function currentMinutes(): number {
@@ -401,6 +400,7 @@ export function CalendarAgendaView({
   const queryClient = useQueryClient()
   const updateHabit = useUpdateHabit()
   const { showSuccess, showError } = useAppToast()
+  const dndContextId = useId()
 
   const [selectedDate, setSelectedDate] = useState(() => new Date())
   const dateStr = formatAPIDate(selectedDate)
@@ -510,7 +510,7 @@ export function CalendarAgendaView({
         <ShowRecurringToggle checked={showRecurring} onChange={onShowRecurringChange} />
       </div>
 
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <DndContext id={dndContextId} sensors={sensors} onDragEnd={handleDragEnd}>
         <div
           data-testid="calendar-agenda"
           style={{
@@ -584,12 +584,16 @@ export function CalendarAgendaView({
                   position: 'relative',
                   height: DAY_HEIGHT,
                   borderLeft: '1px solid var(--hairline)',
-                  backgroundImage:
-                    'repeating-linear-gradient(to bottom, var(--hairline) 0, var(--hairline) 1px, transparent 1px, transparent ' +
-                    HOUR_HEIGHT +
-                    'px)',
                 }}
               >
+                {HOURS.map((hour) => (
+                  <span
+                    key={hour}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0 border-t border-[var(--hairline)]"
+                    style={{ top: hour * HOUR_HEIGHT }}
+                  />
+                ))}
                 {timedBlocks.map((block) => (
                   <AgendaEventBlock
                     key={block.entry.habitId}

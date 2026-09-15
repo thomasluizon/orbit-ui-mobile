@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { marked } from 'marked'
+import { marked, Renderer, type Tokens } from 'marked'
 import DOMPurify from 'dompurify'
 
 interface MarkdownProps {
@@ -32,6 +32,40 @@ const ALLOWED_TAGS = [
   'td',
 ]
 const ALLOWED_ATTR = ['href', 'target', 'rel']
+const LINK_BASE_ORIGIN = 'https://markdown.invalid'
+const LINK_COMPARISON_ORIGIN = 'https://markdown-secondary.invalid'
+
+function escapeAttribute(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+}
+
+function linkAttributes(href: string, title?: string | null): string {
+  let target = ''
+  try {
+    const resolved = new URL(href, LINK_BASE_ORIGIN)
+    const comparison = new URL(href, LINK_COMPARISON_ORIGIN)
+    if (
+      (resolved.protocol === 'http:' || resolved.protocol === 'https:') &&
+      resolved.origin === comparison.origin
+    ) {
+      target = ' target="_blank" rel="noopener noreferrer"'
+    }
+  } catch {
+    return ''
+  }
+  const titleAttribute = title ? ` title="${escapeAttribute(title)}"` : ''
+  return ` href="${escapeAttribute(href)}"${titleAttribute}${target}`
+}
+
+class ProseRenderer extends Renderer {
+  override link({ href, title, tokens }: Tokens.Link): string {
+    return `<a${linkAttributes(href, title)}>${this.parser.parseInline(tokens)}</a>`
+  }
+}
 
 /**
  * The single web markdown renderer for chat messages and habit/goal
@@ -40,9 +74,10 @@ const ALLOWED_ATTR = ['href', 'target', 'rel']
  * renders inside the `.prose-orbit` typographic scope.
  */
 export function Markdown({ content, className }: Readonly<MarkdownProps>) {
+  const renderer = useMemo(() => new ProseRenderer(), [])
   const html = useMemo(() => {
     if (!content) return ''
-    const raw = marked.parse(content, { async: false })
+    const raw = marked.parse(content, { async: false, renderer })
     const sanitized = DOMPurify.sanitize(raw, {
       ALLOWED_TAGS,
       ALLOWED_ATTR,
@@ -50,7 +85,7 @@ export function Markdown({ content, className }: Readonly<MarkdownProps>) {
     return sanitized
       .replaceAll('<pre>', '<pre tabindex="0">')
       .replaceAll('<table>', '<table tabindex="0">')
-  }, [content])
+  }, [content, renderer])
 
   if (!html) return null
 

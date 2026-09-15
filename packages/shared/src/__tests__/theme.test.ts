@@ -56,10 +56,6 @@ describe('color schemes', () => {
       }
     })
 
-    it(`${name}: gradient header stops are valid hexes`, () => {
-      expect(schemes[name].gradientHeaderFrom.dark).toMatch(HEX)
-      expect(schemes[name].gradientHeaderFrom.light).toMatch(HEX)
-    })
   }
 })
 
@@ -130,11 +126,6 @@ describe('neutral ramp resolution', () => {
     })
   })
 
-  it('purple gradient header stops equal the handoff literals', () => {
-    expect(schemes.purple.gradientHeaderFrom.dark).toBe('#22094f')
-    expect(schemes.purple.gradientHeaderFrom.light).toBe('#e9d4ff')
-  })
-
   for (const name of ALL_SCHEMES) {
     it(`${name}: all neutrals resolve to valid hexes in both modes`, () => {
       const dark = resolveDarkNeutrals(name)
@@ -176,7 +167,7 @@ describe('alpha surfaces and status constants', () => {
       bad: '#fb2c36',
       frozen: '#00d3f3',
       overdueText: '#fe9a00',
-      badText: '#fb2c36',
+      badText: '#ff7970',
       fgOnBad: '#020618',
     })
     expect(statusConstants.light).toEqual({
@@ -184,15 +175,15 @@ describe('alpha surfaces and status constants', () => {
       bad: '#e7000b',
       frozen: '#0092b8',
       overdueText: '#b45b00',
-      badText: '#e7000b',
+      badText: '#d70009',
       fgOnBad: '#ffffff',
     })
   })
 
-  it('status text variants equal the base except the darkened light overdue', () => {
+  it('keeps bad text distinct from the fill role in both modes', () => {
     expect(statusConstants.dark.overdueText).toBe(statusConstants.dark.overdue)
-    expect(statusConstants.dark.badText).toBe(statusConstants.dark.bad)
-    expect(statusConstants.light.badText).toBe(statusConstants.light.bad)
+    expect(statusConstants.dark.badText).not.toBe(statusConstants.dark.bad)
+    expect(statusConstants.light.badText).not.toBe(statusConstants.light.bad)
     expect(statusConstants.light.overdueText).not.toBe(statusConstants.light.overdue)
   })
 

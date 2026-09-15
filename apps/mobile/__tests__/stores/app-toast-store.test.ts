@@ -113,6 +113,34 @@ describe('app toast store', () => {
     ])
   })
 
+  it('does not stack duplicate non-action toasts', () => {
+    const store = useAppToastStore.getState()
+
+    store.showInfo('Syncing')
+    store.showInfo('Syncing')
+    store.showError('Blocked')
+    store.showError('Blocked')
+
+    expect(useAppToastStore.getState().currentToast?.message).toBe('Syncing')
+    expect(useAppToastStore.getState().queue.map((toast) => toast.message)).toEqual(['Blocked'])
+  })
+
+  it('deduplicates every public non-action toast path', () => {
+    const store = useAppToastStore.getState()
+
+    store.showToast({ message: 'Direct', variant: 'info' })
+    store.showToast({ message: 'Direct', variant: 'info' })
+    store.showSuccess('Saved')
+    store.showSuccess('Saved')
+    store.showQueued('Queued')
+    store.showQueued('Queued')
+
+    expect(useAppToastStore.getState().queue.map((toast) => toast.message)).toEqual([
+      'Saved',
+      'Queued',
+    ])
+  })
+
   it('queues success and queued toasts behind an active toast', () => {
     const store = useAppToastStore.getState()
 

@@ -13,7 +13,6 @@ import { createTokensV2, easings, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { toAnimatedEasing } from '@/lib/motion'
 import { useUIStore } from '@/stores/ui-store'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
 import { useCelebrationEntrance } from './celebration-motion'
 import { RingMotif } from './ring-motif'
@@ -94,7 +93,6 @@ export function GoalCompletedCelebration() {
         accessibilityLabel={t('goals.completedCelebrationTitle')}
       >
         <View style={[styles.backdrop, { backgroundColor: tokens.bg }]} />
-        <GradientTop height={520} />
         <View style={styles.content} pointerEvents="none">
           <RingMotif
             ringCount={4}

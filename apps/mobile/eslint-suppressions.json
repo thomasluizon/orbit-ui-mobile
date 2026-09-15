@@ -552,9 +552,6 @@
     }
   },
   "components/ui/app-toast.tsx": {
-    "local/no-arbitrary-zindex": {
-      "count": 1
-    },
     "local/spacing-scale": {
       "count": 2
     }

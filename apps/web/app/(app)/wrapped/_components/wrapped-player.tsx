@@ -56,10 +56,7 @@ export function WrappedPlayer({
       aria-modal="true"
       aria-label={t('wrapped.title')}
       className="fixed inset-0 z-50 flex flex-col overflow-y-auto"
-      style={{
-        background:
-          'radial-gradient(135% 100% at 50% 0%, rgba(var(--primary-rgb), 0.32) 0%, rgba(var(--primary-rgb), 0.1) 40%, transparent 72%), var(--bg)',
-      }}
+      style={{ background: 'var(--bg)' }}
     >
       <div className="mx-auto flex w-full flex-1 flex-col md:max-w-[480px]">
         <div className="flex items-center" style={{ gap: 6, padding: '12px 16px 4px' }}>

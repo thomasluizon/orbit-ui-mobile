@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Recap } from '@orbit/shared/types/gamification'
 import { createMockRecap } from '@orbit/shared/__tests__/factories'
 import { ShareCard } from '@/components/share/share-card'
+import { MilestoneShareCard } from '@/components/milestone-share/milestone-share-card'
+import { createTokensV2 } from '@/lib/theme'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -34,6 +36,29 @@ function render(props: { recap: Recap; displayName?: string }) {
 }
 
 describe('ShareCard (mobile)', () => {
+  it('uses the card surface for both replacement header bands', () => {
+    const recapTree = render({ recap: createMockRecap() })
+    const recapBand = recapTree.root.findAll(
+      (node) => node.props?.testID === 'share-card-band',
+    )[0] as { props: { style?: { backgroundColor?: string } } }
+    let milestoneTree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => {
+      milestoneTree = TestRenderer.create(
+        <MilestoneShareCard
+          variant={{ kind: 'streak', streak: 30 }}
+          referralUrl="https://useorbit.org/r/XY"
+        />,
+      )
+    })
+    const milestoneBand = milestoneTree.root.findAll(
+      (node: { props?: Record<string, unknown> }) => node.props?.testID === 'milestone-share-card-band',
+    )[0] as { props: { style?: { backgroundColor?: string } } }
+    const expectedSurface = createTokensV2('purple', 'dark').bgCard
+
+    expect(recapBand.props.style?.backgroundColor).toBe(expectedSurface)
+    expect(milestoneBand.props.style?.backgroundColor).toBe(expectedSurface)
+  })
+
   it('renders the branded capture target from a recap', () => {
     const tree = render({ recap: createMockRecap() })
     const roots = tree.root.findAll((node) => node.props?.testID === 'share-card')

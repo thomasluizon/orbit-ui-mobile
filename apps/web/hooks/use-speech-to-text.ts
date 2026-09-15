@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
 import { API } from '@orbit/shared/api'
 import {
@@ -17,19 +17,32 @@ interface TranscriptionResponse {
   errorCode?: string
 }
 
+function subscribeToRecordingSupport(): () => void {
+  return () => {}
+}
+
+function getRecordingSupportSnapshot(): boolean {
+  return (
+    'mediaDevices' in navigator &&
+    typeof navigator.mediaDevices.getUserMedia === 'function' &&
+    typeof MediaRecorder !== 'undefined'
+  )
+}
+
+function getServerRecordingSupportSnapshot(): boolean {
+  return false
+}
+
 export function useSpeechToText() {
   const t = useTranslations()
 
   const [isRecording, setIsRecording] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
-  const [isSupported] = useState(() => {
-    if (typeof navigator === 'undefined') return false
-    return (
-      'mediaDevices' in navigator &&
-      typeof navigator.mediaDevices.getUserMedia === 'function' &&
-      typeof MediaRecorder !== 'undefined'
-    )
-  })
+  const isSupported = useSyncExternalStore(
+    subscribeToRecordingSupport,
+    getRecordingSupportSnapshot,
+    getServerRecordingSupportSnapshot,
+  )
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [recordingDuration, setRecordingDuration] = useState(0)
