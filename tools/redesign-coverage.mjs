@@ -14,8 +14,8 @@ Usage:
   node tools/redesign-coverage.mjs [--json] [--help]
 
 Modes:
-  default  validate that every manifest surfaceId is assigned exactly once
-  --json   validate, then print { "<group>": ["<surfaceId>", ...], ... }
+  default  validate that every manifest surfaceId is assigned to one canvas document or recorded as deleted
+  --json   validate, then print { "<canvas document>": ["<surfaceId>", ...], ... }
 
 Exit codes:
   0  coverage is complete and valid
@@ -38,6 +38,7 @@ function validate(manifest, mapping) {
     errors.push("mapping groups must be an object")
   }
   if (!Array.isArray(mapping?.excluded)) errors.push("mapping excluded must be an array")
+  if (!Array.isArray(mapping?.deleted)) errors.push("mapping deleted must be an array")
   if (errors.length > 0) return { errors, groups: {} }
 
   const manifestIds = new Set()
@@ -52,7 +53,7 @@ function validate(manifest, mapping) {
   const assignments = new Map()
   const groups = {}
   for (const [group, surfaceIds] of Object.entries(mapping.groups)) {
-    if (!/^R(?:[1-9]|1\d|2[01])-[a-z0-9-]+$/.test(group)) errors.push(`invalid group key: ${group}`)
+    if (!/^Orbit .+/.test(group)) errors.push(`invalid canvas document key: ${group}`)
     if (!Array.isArray(surfaceIds)) {
       errors.push(`group ${group} must be an array`)
       continue
@@ -83,11 +84,26 @@ function validate(manifest, mapping) {
     else assignments.set(surfaceId, "excluded")
   }
 
+  const deletedIds = new Set()
+  for (const [index, entry] of mapping.deleted.entries()) {
+    const surfaceId = entry?.surfaceId
+    const decision = entry?.decision
+    if (typeof surfaceId !== "string" || surfaceId.length === 0) {
+      errors.push(`deleted[${index}] has no surfaceId`)
+      continue
+    }
+    if (typeof decision !== "string" || decision.trim().length === 0) errors.push(`deleted ${surfaceId} has no decision`)
+    const previous = assignments.get(surfaceId)
+    if (previous) errors.push(`${surfaceId} is mapped more than once: ${previous} and deleted`)
+    else assignments.set(surfaceId, "deleted")
+    deletedIds.add(surfaceId)
+  }
+
   for (const surfaceId of [...manifestIds].sort()) {
     if (!assignments.has(surfaceId)) errors.push(`manifest surfaceId is not mapped: ${surfaceId}`)
   }
   for (const surfaceId of [...assignments.keys()].sort()) {
-    if (!manifestIds.has(surfaceId)) errors.push(`mapping surfaceId is absent from manifest: ${surfaceId}`)
+    if (!manifestIds.has(surfaceId) && !deletedIds.has(surfaceId)) errors.push(`mapping surfaceId is absent from manifest: ${surfaceId}`)
   }
 
   if (mapping.notes !== undefined) {
@@ -99,7 +115,7 @@ function validate(manifest, mapping) {
       }
   }
 
-  return { errors, groups, surfaceCount: manifestIds.size, excludedCount: mapping.excluded.length }
+  return { errors, groups, surfaceCount: manifestIds.size, excludedCount: mapping.excluded.length, deletedCount: mapping.deleted.length }
 }
 
 function main() {
@@ -132,7 +148,7 @@ function main() {
 
   if (args.includes("--json")) process.stdout.write(`${JSON.stringify(result.groups, null, 2)}\n`)
   else {
-    process.stdout.write(`redesign coverage valid: ${result.surfaceCount} surfaces mapped, ${result.excludedCount} excluded\n`)
+    process.stdout.write(`redesign coverage valid: ${result.surfaceCount} manifest surfaces accounted for, ${result.deletedCount} deleted, ${result.excludedCount} excluded\n`)
     for (const [group, surfaceIds] of Object.entries(result.groups)) {
       process.stdout.write(`  ${group}: ${surfaceIds.length}\n`)
     }
