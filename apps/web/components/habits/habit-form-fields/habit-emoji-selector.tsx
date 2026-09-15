@@ -10,6 +10,7 @@ interface HabitEmojiSelectorProps {
   onSuggest?: () => void
   canSuggest?: boolean
   isSuggesting?: boolean
+  isDisabled?: boolean
 }
 
 export function HabitEmojiSelector({
@@ -18,6 +19,7 @@ export function HabitEmojiSelector({
   onSuggest,
   canSuggest = false,
   isSuggesting = false,
+  isDisabled = false,
 }: Readonly<HabitEmojiSelectorProps>) {
   const t = useTranslations()
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -71,13 +73,16 @@ export function HabitEmojiSelector({
             <button
               type="button"
               data-testid="habit-suggest-emoji"
-              className="grid size-11 shrink-0 place-items-center rounded-full bg-[rgba(var(--primary-rgb),0.10)] text-[var(--primary)] shadow-[inset_0_0_0_1px_rgba(var(--primary-rgb),0.22)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[rgba(var(--primary-rgb),0.18)] active:scale-[0.96] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] disabled:cursor-not-allowed disabled:opacity-45"
+              className="grid size-11 shrink-0 place-items-center rounded-full bg-[rgba(var(--primary-rgb),0.10)] text-[var(--primary)] shadow-[inset_0_0_0_1px_rgba(var(--primary-rgb),0.22)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[rgba(var(--primary-rgb),0.18)] active:scale-[0.96] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] aria-disabled:cursor-not-allowed aria-disabled:opacity-45 disabled:cursor-not-allowed disabled:opacity-45"
               aria-busy={isSuggesting || undefined}
               aria-label={isSuggesting ? t('habits.form.emojiSuggesting') : t('habits.form.emojiSuggest')}
+              aria-disabled={!canSuggest || undefined}
               aria-describedby={!canSuggest ? 'habit-emoji-suggest-reason' : undefined}
               title={!canSuggest ? t('habits.form.titleRequired') : t('habits.form.emojiSuggest')}
-              disabled={isSuggesting || !canSuggest}
-              onClick={onSuggest}
+              disabled={isSuggesting || isDisabled}
+              onClick={() => {
+                if (canSuggest && !isDisabled && !isSuggesting) onSuggest()
+              }}
             >
               {isSuggesting ? (
                 <Loader2 className="size-[18px] animate-spin" aria-hidden="true" />

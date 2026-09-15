@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
@@ -218,9 +218,11 @@ function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
-  return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
-  )
+  return render(ui, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    ),
+  })
 }
 
 
@@ -514,5 +516,79 @@ describe('CreateHabitModal', () => {
       expect(mockShowError).toHaveBeenCalledWith('habits.form.aiSuggestError')
     })
     expect(mockFormSetValue).not.toHaveBeenCalled()
+  })
+
+  it('ignores an emoji suggestion after the title changes away and back', async () => {
+    let title = 'Swim'
+    let resolveSuggestion!: (value: Record<string, unknown>) => void
+    mockFormGetValues.mockImplementation((field?: string) =>
+      field === 'title' ? title : {},
+    )
+    mockSuggestMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSuggestion = resolve
+      }),
+    )
+
+    mockFormWatch.mockImplementation((field?: string) =>
+      field === 'title' ? title : undefined,
+    )
+    const { rerender } = renderWithProviders(
+      <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
+    )
+    mockFormSetValue.mockClear()
+    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
+    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
+
+    title = 'Run'
+    rerender(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    title = 'Swim'
+    rerender(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    await act(async () => {
+      resolveSuggestion({
+        emoji: '🏊',
+        frequencyUnit: null,
+        frequencyQuantity: null,
+        days: [],
+        isFlexible: false,
+        flexibleTarget: null,
+        dueTime: null,
+        subHabits: [],
+        checklistItems: [],
+      })
+      await Promise.resolve()
+    })
+
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+  })
+
+  it('starts only one request when both suggestion actions are pressed', async () => {
+    let resolveSuggestion!: (value: Record<string, unknown>) => void
+    mockFormGetValues.mockImplementation((field?: string) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSuggestion = resolve
+      }),
+    )
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
+    fireEvent.click(screen.getByTestId('suggest-trigger'))
+
+    expect(mockSuggestMutateAsync).toHaveBeenCalledOnce()
+    resolveSuggestion({
+      emoji: '🏊',
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: null,
+      subHabits: [],
+      checklistItems: [],
+    })
+    await waitFor(() => expect(mockFormSetValue).toHaveBeenCalled())
   })
 })

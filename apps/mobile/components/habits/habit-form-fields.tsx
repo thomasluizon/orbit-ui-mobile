@@ -87,6 +87,7 @@ export function HabitFormFields({
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const { t } = useTranslation();
+  const isAnySuggestionPending = isSuggesting || isSuggestingEmoji;
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -186,23 +187,24 @@ export function HabitFormFields({
             onSuggest={onSuggestEmoji}
             canSuggest={watchedTitle.trim().length > 0}
             isSuggesting={isSuggestingEmoji}
+            isDisabled={isAnySuggestionPending}
           />
         }
         trailing={
           onSuggestSetup ? (
             <Pressable
               onPress={onSuggestSetup}
-              disabled={isSuggesting || watchedTitle.trim().length === 0}
+              disabled={isAnySuggestionPending || watchedTitle.trim().length === 0}
               hitSlop={3}
               accessibilityRole="button"
               accessibilityLabel={t("habits.form.aiSuggest")}
               accessibilityState={{
-                disabled: isSuggesting || watchedTitle.trim().length === 0,
+                disabled: isAnySuggestionPending || watchedTitle.trim().length === 0,
                 busy: isSuggesting,
               }}
               style={({ pressed }) => [
                 styles.aiSparkButton,
-                (isSuggesting || watchedTitle.trim().length === 0) && { opacity: 0.45 },
+                (isAnySuggestionPending || watchedTitle.trim().length === 0) && { opacity: 0.45 },
                 pressed && { transform: [{ scale: 0.96 }] },
               ]}
             >

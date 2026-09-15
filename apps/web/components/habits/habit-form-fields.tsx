@@ -236,6 +236,7 @@ export function HabitFormFields({
 
   const watchedDaySet = new Set(watchedDays)
   const selectedTagIdSet = new Set(tags.selectedTagIds)
+  const isAnySuggestionPending = isSuggesting || isSuggestingEmoji
 
   return (
     <div className="stagger-enter flex flex-col" style={{ gap: 24 }}>
@@ -250,6 +251,7 @@ export function HabitFormFields({
             onSuggest={onSuggestEmoji}
             canSuggest={watchedTitle.trim().length > 0}
             isSuggesting={isSuggestingEmoji}
+            isDisabled={isAnySuggestionPending}
           />
           <div className="relative flex-1 min-w-0">
             <input
@@ -277,7 +279,7 @@ export function HabitFormFields({
                 aria-busy={isSuggesting || undefined}
                 aria-label={isSuggesting ? t('habits.form.aiSuggesting') : t('habits.form.aiSuggest')}
                 title={t('habits.form.aiSuggest')}
-                disabled={isSuggesting || watchedTitle.trim().length === 0}
+                disabled={isAnySuggestionPending || watchedTitle.trim().length === 0}
                 onClick={onSuggestSetup}
               >
                 {isSuggesting ? (

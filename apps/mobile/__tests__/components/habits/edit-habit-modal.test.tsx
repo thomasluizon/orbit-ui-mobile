@@ -147,8 +147,9 @@ function findFieldsWrapper(tree: {
   )[0]
 }
 
-async function renderModal() {
-  const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
+async function renderModal(
+  habit = createMockHabit({ id: 'h-1', title: 'Exercise' }),
+) {
   let tree: any
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(
@@ -274,6 +275,50 @@ describe('EditHabitModal (mobile)', () => {
       ['emoji', '🏊', { shouldDirty: true }],
     ])
     expect(mockSetFlexible).not.toHaveBeenCalled()
+  })
+
+  it('ignores an emoji suggestion after the edited habit changes', async () => {
+    let resolveSuggestion!: (value: Record<string, unknown>) => void
+    mockGetValues.mockImplementation((field?: unknown) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSuggestion = resolve
+      }),
+    )
+
+    const tree = await renderModal()
+    mockSetValue.mockClear()
+    let request!: Promise<void>
+    TestRenderer.act(() => {
+      request = findFormFields(tree).props.onSuggestEmoji()
+    })
+    TestRenderer.act(() => {
+      tree.update(
+        <EditHabitModal
+          open
+          onClose={vi.fn()}
+          habit={createMockHabit({ id: 'h-2', title: 'Read' })}
+        />,
+      )
+    })
+    mockSetValue.mockClear()
+    resolveSuggestion({
+      emoji: '🏊',
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: null,
+      subHabits: [],
+      checklistItems: [],
+    })
+    await TestRenderer.act(async () => request)
+
+    expect(mockSetValue).not.toHaveBeenCalled()
+    expect(mockShowSuccess).not.toHaveBeenCalled()
   })
 
   it('shows the empty toast when the AI suggestion applies nothing', async () => {

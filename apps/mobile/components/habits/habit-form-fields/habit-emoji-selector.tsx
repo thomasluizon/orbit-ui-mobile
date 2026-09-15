@@ -18,6 +18,7 @@ interface HabitEmojiSelectorProps {
   onSuggest?: () => void;
   canSuggest?: boolean;
   isSuggesting?: boolean;
+  isDisabled?: boolean;
 }
 
 export function HabitEmojiSelector({
@@ -28,6 +29,7 @@ export function HabitEmojiSelector({
   onSuggest,
   canSuggest = false,
   isSuggesting = false,
+  isDisabled = false,
 }: Readonly<HabitEmojiSelectorProps>) {
   const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -83,15 +85,15 @@ export function HabitEmojiSelector({
           <Pressable
             style={({ pressed }) => [
               styles.emojiSuggestButton,
-              (isSuggesting || !canSuggest) ? styles.emojiSuggestButtonDisabled : null,
+              (isSuggesting || isDisabled || !canSuggest) ? styles.emojiSuggestButtonDisabled : null,
               pressed ? { transform: [{ scale: 0.96 }] } : null,
             ]}
             onPress={onSuggest}
-            disabled={isSuggesting || !canSuggest}
+            disabled={isSuggesting || isDisabled || !canSuggest}
             accessibilityRole="button"
             accessibilityLabel={t(isSuggesting ? "habits.form.emojiSuggesting" : "habits.form.emojiSuggest")}
             accessibilityHint={!canSuggest ? t("habits.form.titleRequired") : undefined}
-            accessibilityState={{ disabled: isSuggesting || !canSuggest, busy: isSuggesting }}
+            accessibilityState={{ disabled: isSuggesting || isDisabled || !canSuggest, busy: isSuggesting }}
           >
             {isSuggesting ? (
               <ActivityIndicator size="small" color={tokens.primary} />

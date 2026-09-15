@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
@@ -194,9 +194,11 @@ function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
-  return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
-  )
+  return render(ui, {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    ),
+  })
 }
 
 
@@ -466,6 +468,51 @@ describe('EditHabitModal', () => {
       ['emoji', '🏊', { shouldDirty: true }],
     ])
     expect(mockSetFlexible).not.toHaveBeenCalled()
+  })
+
+  it('ignores an emoji suggestion after the edited habit changes', async () => {
+    let resolveSuggestion!: (value: Record<string, unknown>) => void
+    mockFormGetValues.mockImplementation((field?: string) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSuggestion = resolve
+      }),
+    )
+
+    const { rerender } = renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+    )
+    mockFormSetValue.mockClear()
+    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
+    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
+
+    rerender(
+      <EditHabitModal
+        open={true}
+        onOpenChange={vi.fn()}
+        habit={createMockHabit({ id: 'h-2', title: 'Read' })}
+      />,
+    )
+    mockFormSetValue.mockClear()
+    await act(async () => {
+      resolveSuggestion({
+        emoji: '🏊',
+        frequencyUnit: null,
+        frequencyQuantity: null,
+        days: [],
+        isFlexible: false,
+        flexibleTarget: null,
+        dueTime: null,
+        subHabits: [],
+        checklistItems: [],
+      })
+      await Promise.resolve()
+    })
+
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+    expect(mockShowSuccess).not.toHaveBeenCalled()
   })
 
   it('shows the empty toast when the AI suggestion applies nothing', async () => {

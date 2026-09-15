@@ -43,6 +43,7 @@ import {
   buildCreateHabitRequest,
 } from '@/lib/habit-request-builders'
 import { MAX_GOALS_PER_HABIT, habitFormSchema } from '@orbit/shared/validation'
+import { createSuggestionRequestCoordinator } from '@orbit/shared/hooks'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -101,6 +102,7 @@ export function CreateHabitModal({
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
   const [reminderWasManuallyToggled, setReminderWasManuallyToggled] = useState(false)
   const [expandAdvancedSignal, setExpandAdvancedSignal] = useState(0)
+  const [suggestionRequests] = useState(createSuggestionRequestCoordinator)
   const flushBufferedInputsRef = useRef<() => void>(() => {})
   const [initialTagIdsSnapshot, setInitialTagIdsSnapshot] = useState('[]')
   const [initialGoalIdsSnapshot, setInitialGoalIdsSnapshot] = useState('[]')
@@ -114,6 +116,13 @@ export function CreateHabitModal({
       name: 'title',
     }),
   )
+  const suggestionSessionKey = open
+    ? `create:${parentHabit?.id ?? 'habit'}`
+    : null
+
+  useEffect(() => {
+    suggestionRequests.updateContext(suggestionSessionKey, watchedTitle)
+  }, [suggestionRequests, suggestionSessionKey, watchedTitle])
   const watchedDueTime =
     useWatch({ control: formHelpers.form.control, name: 'dueTime' }) ?? ''
   const watchedReminderEnabled =
@@ -334,13 +343,20 @@ export function CreateHabitModal({
 
   const handleSuggest = useCallback(async () => {
     flushBufferedInputsRef.current()
-    const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
+    const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
+    const title = currentTitle.trim()
     if (title.length === 0) return
+    suggestionRequests.updateContext(suggestionSessionKey, currentTitle)
+    const request = suggestionRequests.begin()
+    if (!request) return
 
     try {
-      const patch = buildHabitFormPatchFromSuggestion(
-        await suggestion.mutateAsync({ title, language: i18n.language }),
-      )
+      const response = await suggestion.mutateAsync({ title, language: i18n.language })
+      if (!suggestionRequests.isCurrent(
+        request,
+        coalesceFormText(formHelpers.form.getValues('title')),
+      )) return
+      const patch = buildHabitFormPatchFromSuggestion(response)
 
       applySuggestionSchedule(patch, formHelpers)
 
@@ -371,37 +387,56 @@ export function CreateHabitModal({
         showInfo(t('habits.form.aiSuggestEmpty'))
       }
     } catch (error: unknown) {
+      if (!suggestionRequests.isCurrent(
+        request,
+        coalesceFormText(formHelpers.form.getValues('title')),
+      )) return
       showError(
         extractBackendErrorCode(error) === 'PAY_GATE'
           ? t('habits.form.aiSuggestLimitReached')
           : t('habits.form.aiSuggestError'),
       )
+    } finally {
+      suggestionRequests.finish()
     }
     // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
-  }, [formHelpers, hasProAccess, i18n.language, showError, showInfo, showSuccess, suggestion, t])
+  }, [formHelpers, hasProAccess, i18n.language, showError, showInfo, showSuccess, suggestion, suggestionRequests, suggestionSessionKey, t])
 
   const handleSuggestEmoji = useCallback(async () => {
     flushBufferedInputsRef.current()
-    const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
+    const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
+    const title = currentTitle.trim()
     if (title.length === 0) return
+    suggestionRequests.updateContext(suggestionSessionKey, currentTitle)
+    const request = suggestionRequests.begin()
+    if (!request) return
 
     try {
-      const patch = buildHabitFormPatchFromSuggestion(
-        await emojiSuggestion.mutateAsync({ title, language: i18n.language }),
-      )
+      const response = await emojiSuggestion.mutateAsync({ title, language: i18n.language })
+      if (!suggestionRequests.isCurrent(
+        request,
+        coalesceFormText(formHelpers.form.getValues('title')),
+      )) return
+      const patch = buildHabitFormPatchFromSuggestion(response)
       if (applySuggestionEmoji(patch, formHelpers.form)) {
         showSuccess(t('habits.form.aiSuggestApplied'))
       } else {
         showInfo(t('habits.form.aiSuggestEmpty'))
       }
     } catch (error: unknown) {
+      if (!suggestionRequests.isCurrent(
+        request,
+        coalesceFormText(formHelpers.form.getValues('title')),
+      )) return
       showError(
         extractBackendErrorCode(error) === 'PAY_GATE'
           ? t('habits.form.aiSuggestLimitReached')
           : t('habits.form.aiSuggestError'),
       )
+    } finally {
+      suggestionRequests.finish()
     }
-  }, [emojiSuggestion, formHelpers, i18n.language, showError, showInfo, showSuccess, t])
+  }, [emojiSuggestion, formHelpers, i18n.language, showError, showInfo, showSuccess, suggestionRequests, suggestionSessionKey, t])
 
   const isPending = createHabit.isPending || createSubHabit.isPending
   const submitDisabled = isPending || watchedTitle.trim().length === 0
