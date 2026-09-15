@@ -188,7 +188,7 @@ export default function TodayScreen() {
   )
 
   return (
-    <View style={[styles.screen, { backgroundColor: tokens.bg }]}>
+    <View testID="today-content-column" style={[styles.screen, { backgroundColor: tokens.bg }]}>
       <Animated.View style={[styles.listBand, motion.refetchAnimatedStyle]}>
         <Animated.View style={[styles.listBand, motion.dayAnimatedStyle]}>
           <HabitList
@@ -240,7 +240,7 @@ export default function TodayScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
+  screen: { alignSelf: 'center', flex: 1, maxWidth: 740, width: '100%' },
   listBand: { flex: 1 },
   header: { gap: 24, paddingBottom: 24 },
   notice: { paddingHorizontal: 0 },
