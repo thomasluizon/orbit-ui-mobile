@@ -211,7 +211,13 @@ module.exports = defineConfig([
     },
   },
   {
-    files: ["scripts/**/*.js", "app.config.js", "metro.config.js", "babel.config.js"],
+    files: [
+      "scripts/**/*.js",
+      "plugins/**/*.js",
+      "app.config.js",
+      "metro.config.js",
+      "babel.config.js",
+    ],
     languageOptions: {
       globals: {
         __dirname: "readonly",

@@ -433,17 +433,13 @@ function AppBottomTabBar({
   }
 
   return (
-    <View
-      style={[
-        bottomTabStyles.container,
-        { paddingBottom: insets.bottom },
-      ]}
-    >
+    <View style={bottomTabStyles.container}>
       <View ref={fabRef} collapsable={false}>
         <BottomTabBar
           active={active}
           onTab={handleTab}
           onFab={onCreate}
+          bottomInset={insets.bottom}
         />
       </View>
     </View>

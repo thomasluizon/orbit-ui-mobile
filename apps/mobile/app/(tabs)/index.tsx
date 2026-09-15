@@ -17,19 +17,15 @@ import { useTranslation } from "react-i18next";
 import {
   computeDayProgress,
   formatAPIDate,
-  isHabitVisibleInAllView,
   parseShowGeneralOnTodayPreference,
 } from "@orbit/shared/utils";
-import { useHabitVisibility } from "@/hooks/use-habit-visibility";
 import type { HabitsFilter, NormalizedHabit } from "@orbit/shared/types/habit";
 import type { Goal } from "@orbit/shared/types/goal";
 import { plural } from "@/lib/plural";
 import { useAdMob } from "@/hooks/use-ad-mob";
 import { useProfile } from "@/hooks/use-profile";
 import {
-  EMPTY_CHILDREN_BY_PARENT,
   EMPTY_HABITS_BY_ID,
-  EMPTY_NORMALIZED_HABITS,
   useHabits,
 } from "@/hooks/use-habits";
 import { useTags } from "@/hooks/use-tags";
@@ -139,8 +135,8 @@ export default function TodayScreen() {
     habitListRef.current?.scrollToOffset(0);
   }, []);
   const [habitListAllLoadedIds, setHabitListAllLoadedIds] = useState<
-    Set<string>
-  >(() => new Set());
+    Set<string> | null
+  >(null);
   const habitsTourRef = useRef<View>(null);
   useTourTarget("tour-habit-list", habitsTourRef);
   const goalsScrollRef = useRef<FlatList<Goal>>(null);
@@ -298,54 +294,6 @@ export default function TodayScreen() {
   const isRefetching = habitsQuery.isFetching && hasFetchedHabits;
   const showHabitsLoadError = habitsQuery.isError && !hasFetchedHabits;
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID;
-  const childrenByParent =
-    habitsQuery.data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT;
-
-  const visibility = useHabitVisibility({
-    habitsById,
-    childrenByParent,
-    selectedDate: dateStr,
-    searchQuery: searchQueryStore,
-    showCompleted,
-    recentlyCompletedIds: useMemo(() => new Set<string>(), []),
-  });
-
-  const visibleTopLevelHabits = useMemo(() => {
-    const habits = habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS;
-    if (currentActiveView === "today") {
-      if (showCompleted) return habits;
-      return habits.filter((habit) => visibility.hasVisibleContent(habit));
-    }
-    if (currentActiveView === "all") {
-      return habits.filter((habit) =>
-        isHabitVisibleInAllView(habit, showCompleted),
-      );
-    }
-    if (showCompleted) return habits;
-    return habits.filter((habit) => !habit.isCompleted);
-  }, [
-    currentActiveView,
-    habitsQuery.data?.topLevelHabits,
-    showCompleted,
-    visibility,
-  ]);
-
-  const visibleHabitIds = useMemo(() => {
-    const ids = new Set<string>();
-
-    const visit = (habit: NormalizedHabit) => {
-      ids.add(habit.id);
-      for (const child of habitsQuery.getChildren(habit.id)) {
-        visit(child);
-      }
-    };
-
-    for (const habit of visibleTopLevelHabits) {
-      visit(habit);
-    }
-
-    return ids;
-  }, [habitsQuery, visibleTopLevelHabits]);
 
   const dayProgress = useMemo(
     () => computeDayProgress(habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID, dateStr),
@@ -376,7 +324,6 @@ export default function TodayScreen() {
     habitsById,
     habitListRef,
     habitListAllLoadedIds,
-    visibleHabitIds,
     closeControlsMenu,
   });
 
@@ -620,7 +567,7 @@ export default function TodayScreen() {
   );
 
   return (
-    <View style={styles.safeArea}>
+    <View testID="today-content-column" style={styles.safeArea}>
       <TodayScreenBody
         currentActiveView={currentActiveView}
         showHabitsLoadError={showHabitsLoadError}
@@ -730,6 +677,9 @@ export function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     safeArea: {
       flex: 1,
+      width: "100%",
+      maxWidth: 740,
+      alignSelf: "center",
       backgroundColor: tokens.bg,
     },
     scrollContentWithBulkBar: {

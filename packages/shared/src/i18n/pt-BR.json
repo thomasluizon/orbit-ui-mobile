@@ -177,6 +177,7 @@
     "syncReviewAction": "Revisar a alteração",
     "syncChangeDroppedDetail": "O resto da fila subiu.",
     "syncHabitNotCreated": "O hábito {item} não foi criado.",
+    "syncDroppedUnknown": "Uma alteração na fila não pôde ser sincronizada e foi descartada.",
     "syncEntity": {
       "habits": "hábito",
       "goals": "meta",

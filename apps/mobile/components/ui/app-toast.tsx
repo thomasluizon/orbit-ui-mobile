@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useCallback } from 'react'
 import {
   // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives transform/opacity on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
-  Dimensions,
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native'
 import { Bell, Check, Clock, X } from 'lucide-react-native'
@@ -24,9 +24,8 @@ import {
 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAppToastStore } from '@/stores/app-toast-store'
+import { resolveCenteredOverlayFrame } from './centered-overlay-frame'
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window')
-const TOAST_WIDTH = Math.min(SCREEN_WIDTH - 32, 420)
 const TOAST_DURATION_MS = 4500
 const ACTION_TOAST_DURATION_MS = 6000
 
@@ -48,6 +47,8 @@ export function AppToast({ placement = 'overlay' }: Readonly<{
   placement?: 'overlay' | 'slot'
 }>) {
   const insets = useSafeAreaInsets()
+  const { width: screenWidth } = useWindowDimensions()
+  const overlayFrame = resolveCenteredOverlayFrame(screenWidth, 420)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -143,6 +144,7 @@ export function AppToast({ placement = 'overlay' }: Readonly<{
       pointerEvents="box-none"
       style={[
         placement === 'overlay' ? styles.container : styles.slot,
+        placement === 'overlay' ? overlayFrame : null,
         {
           bottom: placement === 'overlay' ? insets.bottom + 12 : undefined,
           opacity,
@@ -228,8 +230,6 @@ function getVariantStyle(
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: (SCREEN_WIDTH - TOAST_WIDTH) / 2,
-    width: TOAST_WIDTH,
     zIndex: zLayers.toast,
   },
   slot: {

@@ -2,10 +2,15 @@ import { useState, useEffect, useCallback } from 'react'
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo'
 import { AppState, type AppStateStatus } from 'react-native'
 import * as offlineQueue from '@/lib/offline-queue'
-import { canAutoFlush, flushQueuedMutations } from '@/lib/offline-mutations'
-import { useOfflineSyncStore } from '@/stores/offline-sync-store'
-import { captureError } from '@/lib/sentry'
+import {
+  canAutoFlush,
+  flushQueuedMutations,
+  getReplayState,
+  subscribeReplayState,
+  type OfflineReplayState,
+} from '@/lib/offline-mutations'
 import { getCurrentConnectivity, setCachedConnectivity } from '@/lib/offline-runtime'
+import { captureError } from '@/lib/sentry'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
 
 interface UseOfflineReturn {
@@ -15,6 +20,7 @@ interface UseOfflineReturn {
   enqueue: (mutation: Omit<QueuedMutation, 'retries' | 'maxRetries'>) => void
   flush: () => Promise<void>
   isFlushing: boolean
+  replayState: OfflineReplayState
 }
 
 export function useOffline(manageQueue = false): UseOfflineReturn {
@@ -22,8 +28,8 @@ export function useOffline(manageQueue = false): UseOfflineReturn {
   const [connectivityReady, setConnectivityReady] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
   const [hasFailed, setHasFailed] = useState(false)
-  const isFlushing = useOfflineSyncStore((state) => state.isFlushing)
-  const isRetrying = useOfflineSyncStore((state) => state.isRetrying)
+  const [replayState, setReplayState] = useState(getReplayState)
+  const isFlushing = replayState === 'flushing'
 
   // react-doctor-disable-next-line effect-needs-cleanup -- FP: the effect cleans up — `return () => unsubscribe()` invokes NetInfo's unsubscribe; RD only recognizes removeEventListener/subscription.remove(), not an unsubscribe callback. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
@@ -45,12 +51,12 @@ export function useOffline(manageQueue = false): UseOfflineReturn {
   useEffect(() => {
     const unsubscribe = offlineQueue.subscribeQueueCount((nextCount) => {
       setPendingCount(nextCount)
-      setHasFailed(
-        offlineQueue.getAll().some((mutation) => mutation.status === 'failed'),
-      )
+      setHasFailed(offlineQueue.getAll().some((mutation) => mutation.status === 'failed'))
     })
     return () => unsubscribe()
   }, [])
+
+  useEffect(() => subscribeReplayState(setReplayState), [])
 
   const flush = useCallback(async () => {
     if (!canAutoFlush()) return
@@ -64,10 +70,16 @@ export function useOffline(manageQueue = false): UseOfflineReturn {
   }, [])
 
   useEffect(() => {
-    if (manageQueue && connectivityReady && isOnline && pendingCount > 0 && !isFlushing) {
+    if (
+      manageQueue &&
+      connectivityReady &&
+      isOnline &&
+      pendingCount > 0 &&
+      replayState === 'idle'
+    ) {
       void flush()
     }
-  }, [manageQueue, connectivityReady, isOnline, pendingCount, isFlushing, flush])
+  }, [manageQueue, connectivityReady, isOnline, pendingCount, replayState, flush])
 
   useEffect(() => {
     const handleAppState = (nextState: AppStateStatus) => {
@@ -95,9 +107,10 @@ export function useOffline(manageQueue = false): UseOfflineReturn {
   return {
     isOnline,
     pendingCount,
-    hasFailed: hasFailed || isRetrying,
+    hasFailed: hasFailed || replayState === 'waiting-on-backoff',
     enqueue,
     flush,
     isFlushing,
+    replayState,
   }
 }

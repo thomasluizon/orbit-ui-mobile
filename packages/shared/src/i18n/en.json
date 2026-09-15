@@ -177,6 +177,7 @@
     "syncReviewAction": "Review the change",
     "syncChangeDroppedDetail": "The rest of the queue landed.",
     "syncHabitNotCreated": "The habit {item} was not created.",
+    "syncDroppedUnknown": "A queued change could not be synced and was dropped.",
     "syncEntity": {
       "habits": "habit",
       "goals": "goal",
