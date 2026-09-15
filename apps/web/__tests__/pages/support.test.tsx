@@ -104,6 +104,41 @@ describe('SupportPage', () => {
     expect(document.getElementById('support-send-reason')).toContainElement(reason)
   })
 
+  it('uses one radio tab stop and selects with arrow, Home, and End keys', () => {
+    render(<SupportPage />)
+
+    const radios = screen.getAllByRole('radio')
+    expect(radios.map((radio) => radio.tabIndex)).toEqual([0, -1, -1, -1])
+
+    radios[0]!.focus()
+    fireEvent.keyDown(radios[0]!, { key: 'ArrowDown' })
+    expect(radios[1]).toHaveFocus()
+    expect(radios[1]).toHaveAttribute('aria-checked', 'true')
+    expect(radios.map((radio) => radio.tabIndex)).toEqual([-1, 0, -1, -1])
+
+    fireEvent.keyDown(radios[1]!, { key: 'End' })
+    expect(radios[3]).toHaveFocus()
+    expect(radios[3]).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.keyDown(radios[3]!, { key: 'Home' })
+    expect(radios[0]).toHaveFocus()
+    expect(radios[0]).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.keyDown(radios[0]!, { key: 'ArrowUp' })
+    expect(radios[3]).toHaveFocus()
+    fireEvent.keyDown(radios[3]!, { key: 'ArrowRight' })
+    expect(radios[0]).toHaveFocus()
+    fireEvent.keyDown(radios[0]!, { key: 'ArrowLeft' })
+    expect(radios[3]).toHaveFocus()
+  })
+
+  it('uses the truthful offline reason', () => {
+    const translate = createTranslator({ locale: 'en', messages: en })
+    expect(translate('profile.support.offlineReason')).toBe(
+      'No connection. Your words stay on this device, so you can send when the connection returns.',
+    )
+  })
+
   it('renders four subject choices and sends the selected wording', async () => {
     mockSendSupportMessage.mockResolvedValue(undefined)
     const translate = createTranslator({ locale: 'en', messages: en })
@@ -377,9 +412,12 @@ describe('SupportPage', () => {
     fireEvent.click(sendButton())
 
     await waitFor(() => expect(sendButton()).toHaveAttribute('aria-busy', 'true'))
-    expect(screen.getByRole('radio', {
-      name: 'profile.support.subjects.problem.labelprofile.support.subjects.problem.description',
-    })).toHaveAttribute('aria-checked', 'true')
+    const disabledRadios = screen.getAllByRole('radio')
+    expect(disabledRadios).toHaveLength(4)
+    expect(disabledRadios.every((radio) => radio.getAttribute('aria-disabled') === 'true')).toBe(true)
+    fireEvent.click(screen.getByText('profile.support.subjects.billing.label'))
+    expect(disabledRadios[0]).toHaveAttribute('aria-checked', 'true')
+    expect(disabledRadios[1]).toHaveAttribute('aria-checked', 'false')
     expect(messageField()).toBeDisabled()
     finishSend?.()
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('profile.support.success'))

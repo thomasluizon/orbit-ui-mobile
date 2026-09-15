@@ -1,7 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
-import { Pressable, Text } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 
 import SupportScreen from '@/app/support'
 import { i18n } from '@/lib/i18n'
@@ -196,6 +196,58 @@ describe('SupportScreen', () => {
       subject: problemLabel,
       message: 'The log disappeared',
     })
+  })
+
+  it('uses one radio tab stop and selects with arrow, Home, and End keys', async () => {
+    const tree = await renderScreen()
+    let choices = findSubjectChoices(tree.root)
+    expect(choices.map((choice) => choice.props.tabIndex)).toEqual([0, -1, -1, -1])
+
+    await TestRenderer.act(async () => {
+      ;(choices[0]!.props.onKeyDown as (event: unknown) => void)({
+        nativeEvent: { key: 'ArrowDown' },
+        preventDefault: vi.fn(),
+      })
+      await Promise.resolve()
+    })
+    choices = findSubjectChoices(tree.root)
+    expect((choices[1]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
+
+    await TestRenderer.act(async () => {
+      ;(choices[1]!.props.onKeyDown as (event: unknown) => void)({
+        nativeEvent: { key: 'End' },
+        preventDefault: vi.fn(),
+      })
+      await Promise.resolve()
+    })
+    choices = findSubjectChoices(tree.root)
+    expect((choices[3]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
+
+    await TestRenderer.act(async () => {
+      ;(choices[3]!.props.onKeyDown as (event: unknown) => void)({
+        nativeEvent: { key: 'Home' },
+        preventDefault: vi.fn(),
+      })
+      await Promise.resolve()
+    })
+    choices = findSubjectChoices(tree.root)
+    expect((choices[0]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
+
+    for (const [from, key, selected] of [
+      [0, 'ArrowUp', 3],
+      [3, 'ArrowRight', 0],
+      [0, 'ArrowLeft', 3],
+    ] as const) {
+      await TestRenderer.act(async () => {
+        ;(choices[from]!.props.onKeyDown as (event: unknown) => void)({
+          nativeEvent: { key },
+          preventDefault: vi.fn(),
+        })
+        await Promise.resolve()
+      })
+      choices = findSubjectChoices(tree.root)
+      expect((choices[selected]!.props.accessibilityState as { checked: boolean }).checked).toBe(true)
+    }
   })
 
   it('does not show the locked email reason when the account email is editable', async () => {
@@ -422,6 +474,14 @@ describe('SupportScreen', () => {
     )
   })
 
+  it('uses the truthful offline reason from the app i18n instance', async () => {
+    await i18n.changeLanguage('pt-BR')
+    expect(i18n.t('profile.support.offlineReason')).toBe(
+      'Sem conexão. O que você escreveu fica guardado neste aparelho, então você pode enviar quando a conexão voltar.',
+    )
+    await i18n.changeLanguage('en')
+  })
+
   it('sends the request, shows success, and clears the draft', async () => {
     const tree = await renderScreen()
     expect(mocks.announceForAccessibility).not.toHaveBeenCalled()
@@ -526,9 +586,21 @@ describe('SupportScreen', () => {
     expect(
       (findSendButton(tree.root)!.props.accessibilityState as { busy?: boolean }).busy,
     ).toBe(true)
+    const choices = tree.root.findAll(
+      (node) => node.type === View && node.props.accessibilityRole === 'radio',
+    )
+    expect(choices).toHaveLength(4)
     expect(
-      (findSubjectChoices(tree.root)[0]!.props.accessibilityState as { checked: boolean }).checked,
+      choices.every((choice) =>
+        (choice.props.accessibilityState as { disabled?: boolean }).disabled === true),
     ).toBe(true)
+    expect(choices.every((choice) => choice.props.onPress === undefined)).toBe(true)
+    expect(
+      (choices[0]!.props.accessibilityState as { checked: boolean }).checked,
+    ).toBe(true)
+    expect(
+      (choices[1]!.props.accessibilityState as { checked: boolean }).checked,
+    ).toBe(false)
     expect(findInputByLabel(tree.root, 'profile.support.message')!.props.editable).toBe(false)
     await TestRenderer.act(async () => {
       finishSend?.()

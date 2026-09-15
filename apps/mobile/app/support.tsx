@@ -30,7 +30,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
-import { RadioRow } from '@/components/ui/radio-row'
+import { RadioGroup, RadioRow } from '@/components/ui/radio-row'
 import { RowList } from '@/components/ui/row-list'
 
 type Tokens = ReturnType<typeof createTokensV2>
@@ -170,23 +170,33 @@ function SupportForm({
         <Text style={[styles.subjectLabel, { color: tokens.fg2 }]}>
           {t('profile.support.subject')}
         </Text>
-        <View
-          accessibilityRole="radiogroup"
+        <RadioGroup
           accessibilityLabel={t('profile.support.subject')}
           onBlur={onSubjectBlur}
         >
           <RowList>
             {SUPPORT_SUBJECT_OPTIONS.map((option) => (
-              <RadioRow
-                key={option.id}
-                label={t(option.labelKey)}
-                description={t(option.descriptionKey)}
-                selected={subject === option.id}
-                onSelect={() => onChangeSubject(option.id)}
-              />
+              sending ? (
+                <RadioRow
+                  key={option.id}
+                  label={t(option.labelKey)}
+                  description={t(option.descriptionKey)}
+                  selected={subject === option.id}
+                  disabled
+                  reason={t('profile.support.subjectSendingReason')}
+                />
+              ) : (
+                <RadioRow
+                  key={option.id}
+                  label={t(option.labelKey)}
+                  description={t(option.descriptionKey)}
+                  selected={subject === option.id}
+                  onSelect={() => onChangeSubject(option.id)}
+                />
+              )
             ))}
           </RowList>
-        </View>
+        </RadioGroup>
         {subjectError ? (
           <Text accessibilityRole="alert" style={[styles.subjectError, { color: tokens.statusBadText }]}>
             {subjectError}

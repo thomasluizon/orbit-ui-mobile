@@ -1,6 +1,93 @@
 'use client'
 
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentPropsWithoutRef,
+  type KeyboardEvent,
+  type ReactNode,
+} from 'react'
 import type { RadioRowProps } from '@orbit/shared/contracts/lists'
+import { getRadioNavigationIndex } from '@orbit/shared/utils'
+
+interface RadioItemState {
+  disabled: boolean
+  id: string
+  selected: boolean
+}
+
+interface RadioGroupContextValue {
+  getTabIndex: (id: string) => 0 | -1
+  moveSelection: (id: string, key: string) => boolean
+  register: (id: string) => () => void
+  setElement: (id: string, element: HTMLButtonElement | null) => void
+  setHandler: (id: string, handler: () => void) => void
+  update: (state: RadioItemState) => void
+}
+
+const RadioGroupContext = createContext<RadioGroupContextValue | null>(null)
+
+export function RadioGroup({ children, ...props }: Readonly<
+  Omit<ComponentPropsWithoutRef<'div'>, 'role'> & { children: ReactNode }
+>) {
+  const [items, setItems] = useState<RadioItemState[]>([])
+  const elementsRef = useRef(new Map<string, HTMLButtonElement>())
+  const handlersRef = useRef(new Map<string, () => void>())
+  const register = useCallback((id: string) => {
+    setItems((current) => [...current.filter((item) => item.id !== id), { disabled: false, id, selected: false }])
+    return () => {
+      setItems((current) => current.filter((item) => item.id !== id))
+      elementsRef.current.delete(id)
+      handlersRef.current.delete(id)
+    }
+  }, [])
+  const update = useCallback((state: RadioItemState) => {
+    setItems((current) => current.map((item) => item.id === state.id ? state : item))
+  }, [])
+  const setElement = useCallback((id: string, element: HTMLButtonElement | null) => {
+    if (element) elementsRef.current.set(id, element)
+    else elementsRef.current.delete(id)
+  }, [])
+  const setHandler = useCallback((id: string, handler: () => void) => {
+    handlersRef.current.set(id, handler)
+  }, [])
+  const enabledItems = useMemo(() => items.filter((item) => !item.disabled), [items])
+  const getTabIndex = useCallback((id: string): 0 | -1 => {
+    const selectedItem = enabledItems.find((item) => item.selected)
+    return (selectedItem ?? enabledItems[0])?.id === id ? 0 : -1
+  }, [enabledItems])
+  const moveSelection = useCallback((id: string, key: string) => {
+    const currentIndex = enabledItems.findIndex((item) => item.id === id)
+    if (currentIndex < 0) return false
+    const nextIndex = getRadioNavigationIndex(key, currentIndex, enabledItems.length)
+    if (nextIndex === null) return false
+    const nextItem = enabledItems[nextIndex]
+    if (!nextItem) return false
+    elementsRef.current.get(nextItem.id)?.focus()
+    handlersRef.current.get(nextItem.id)?.()
+    return true
+  }, [enabledItems])
+  const contextValue = useMemo(() => ({
+    getTabIndex,
+    moveSelection,
+    register,
+    setElement,
+    setHandler,
+    update,
+  }), [getTabIndex, moveSelection, register, setElement, setHandler, update])
+
+  return (
+    <RadioGroupContext.Provider value={contextValue}>
+      <div {...props} role="radiogroup">{children}</div>
+    </RadioGroupContext.Provider>
+  )
+}
 
 function RadioGlyph({ selected }: Readonly<{ selected: boolean }>) {
   return (
@@ -20,6 +107,23 @@ function RadioGlyph({ selected }: Readonly<{ selected: boolean }>) {
 }
 
 export function RadioRow({ label, description, selected = false, onSelect, leading, depth = 0, meta, tag, disabled = false, reason }: Readonly<RadioRowProps>) {
+  const group = useContext(RadioGroupContext)
+  const registerWithGroup = group?.register
+  const setGroupHandler = group?.setHandler
+  const updateGroup = group?.update
+  const id = useId()
+  useLayoutEffect(() => registerWithGroup?.(id), [id, registerWithGroup])
+  useLayoutEffect(() => {
+    updateGroup?.({ disabled, id, selected })
+  }, [disabled, id, selected, updateGroup])
+  useLayoutEffect(() => {
+    setGroupHandler?.(id, onSelect ?? (() => undefined))
+  }, [id, onSelect, setGroupHandler])
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (!group?.moveSelection(id, event.key)) return
+    event.preventDefault()
+  }
   const content = (
     <>
       {leading ? <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[var(--r-well)]">{leading}</span> : null}
@@ -48,6 +152,16 @@ export function RadioRow({ label, description, selected = false, onSelect, leadi
   return disabled ? (
     <div role="radio" aria-checked={selected} aria-disabled="true" className="flex items-center" style={style}>{content}</div>
   ) : (
-    <button type="button" role="radio" aria-checked={selected} onClick={onSelect} className="flex w-full cursor-pointer items-center border-0 text-left hover:bg-[var(--bg-elev)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]" style={style}>{content}</button>
+    <button
+      ref={(element) => group?.setElement(id, element)}
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      tabIndex={group?.getTabIndex(id) ?? 0}
+      onClick={onSelect}
+      onKeyDown={handleKeyDown}
+      className="flex w-full cursor-pointer items-center border-0 text-left hover:bg-[var(--bg-elev)] active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--primary)]"
+      style={style}
+    >{content}</button>
   )
 }

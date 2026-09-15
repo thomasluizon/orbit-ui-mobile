@@ -5,7 +5,7 @@ import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
-import { RadioRow } from '@/components/ui/radio-row'
+import { RadioGroup, RadioRow } from '@/components/ui/radio-row'
 import { createTokensV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -169,7 +169,7 @@ export function MoveParentDialog({
           <Text style={styles.eyebrow}>{t('habits.moveParent.destinations')}</Text>
         ) : null}
 
-        <View style={styles.moveOptionsContent}>
+        <RadioGroup style={styles.moveOptionsContent}>
           {treeRows.map((option) => (
             <MoveTargetRow
               key={option.id}
@@ -187,7 +187,7 @@ export function MoveParentDialog({
               {t('habits.moveParent.noSearchResults')}
             </Text>
           ) : null}
-        </View>
+        </RadioGroup>
 
         <View style={styles.footer}>
           <PillButton

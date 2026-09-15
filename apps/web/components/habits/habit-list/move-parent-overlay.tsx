@@ -6,7 +6,7 @@ import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
 import { Input } from '@/components/ui/input'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
-import { RadioRow } from '@/components/ui/radio-row'
+import { RadioGroup, RadioRow } from '@/components/ui/radio-row'
 
 export interface MoveParentOption {
   id: string | null
@@ -169,7 +169,7 @@ export function MoveParentOverlay({
           <span style={eyebrowStyle}>{t('habits.moveParent.destinations')}</span>
         )}
 
-        <div className="flex flex-col" role="radiogroup" style={{ gap: 6 }}>
+        <RadioGroup className="flex flex-col" style={{ gap: 6 }}>
           {treeRows.map((option) => (
             <MoveTargetRow
               key={option.id}
@@ -180,7 +180,7 @@ export function MoveParentOverlay({
               onSelect={onSelectOption}
             />
           ))}
-        </div>
+        </RadioGroup>
 
         {isSearchEmpty && (
           <p

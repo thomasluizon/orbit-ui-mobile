@@ -1388,7 +1388,7 @@
       "failureTitle": "The message was not sent",
       "failureBody": "Your words are still here. Try again when you are ready.",
       "retry": "Try again",
-      "offlineReason": "No connection. The message will go out when your connection returns, and your words stay on this device.",
+      "offlineReason": "No connection. Your words stay on this device, so you can send when the connection returns.",
       "subjects": {
         "problem": {
           "label": "Something does not work",
@@ -1411,6 +1411,7 @@
       "emailRequired": "Email is required.",
       "emailInvalid": "Please enter a valid email address.",
       "subjectRequired": "Choose a subject.",
+      "subjectSendingReason": "The subject cannot change while sending.",
       "messageRequired": "Message is required.",
       "emailLockedReason": "We reply to the email on your account.",
       "sendIncomplete": "Choose a subject and add a message to send.",

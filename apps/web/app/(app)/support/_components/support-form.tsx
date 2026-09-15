@@ -8,7 +8,7 @@ import {
 } from '@orbit/shared/utils'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
-import { RadioRow } from '@/components/ui/radio-row'
+import { RadioGroup, RadioRow } from '@/components/ui/radio-row'
 import { RowList } from '@/components/ui/row-list'
 import { WifiOff } from '@/components/ui/icons'
 
@@ -121,8 +121,7 @@ export function SupportForm({
         <span id="support-subject-label" className="text-sm font-medium text-[var(--fg-2)]">
           {t('profile.support.subject')}
         </span>
-        <div
-          role="radiogroup"
+        <RadioGroup
           aria-labelledby="support-subject-label"
           aria-describedby={subjectError ? 'support-subject-error' : undefined}
           aria-invalid={subjectError ? true : undefined}
@@ -130,16 +129,27 @@ export function SupportForm({
         >
           <RowList>
             {SUPPORT_SUBJECT_OPTIONS.map((option) => (
-              <RadioRow
-                key={option.id}
-                label={t(option.labelKey)}
-                description={t(option.descriptionKey)}
-                selected={subject === option.id}
-                onSelect={() => onSubjectChange(option.id)}
-              />
+              isSending ? (
+                <RadioRow
+                  key={option.id}
+                  label={t(option.labelKey)}
+                  description={t(option.descriptionKey)}
+                  selected={subject === option.id}
+                  disabled
+                  reason={t('profile.support.subjectSendingReason')}
+                />
+              ) : (
+                <RadioRow
+                  key={option.id}
+                  label={t(option.labelKey)}
+                  description={t(option.descriptionKey)}
+                  selected={subject === option.id}
+                  onSelect={() => onSubjectChange(option.id)}
+                />
+              )
             ))}
           </RowList>
-        </div>
+        </RadioGroup>
         {subjectError ? (
           <p id="support-subject-error" role="alert" className="text-sm text-[var(--status-bad-text)]">
             {subjectError}

@@ -1388,7 +1388,7 @@
       "failureTitle": "A mensagem não foi enviada",
       "failureBody": "O que você escreveu continua aqui. Tente de novo quando quiser.",
       "retry": "Tentar novamente",
-      "offlineReason": "Sem conexão. A mensagem sai quando a conexão voltar, e o que você escreveu fica guardado neste aparelho.",
+      "offlineReason": "Sem conexão. O que você escreveu fica guardado neste aparelho, então você pode enviar quando a conexão voltar.",
       "subjects": {
         "problem": {
           "label": "Algo não funciona",
@@ -1411,6 +1411,7 @@
       "emailRequired": "Digite seu e-mail.",
       "emailInvalid": "Digite um e-mail válido.",
       "subjectRequired": "Escolha um assunto.",
+      "subjectSendingReason": "O assunto não pode mudar durante o envio.",
       "messageRequired": "Escreva sua mensagem.",
       "emailLockedReason": "A gente responde no e-mail da sua conta.",
       "sendIncomplete": "Escolha um assunto e escreva uma mensagem para enviar.",
