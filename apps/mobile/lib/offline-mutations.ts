@@ -30,6 +30,7 @@ import { clearOfflineEntity, getResolvedEntityId, markOfflineTombstone, resolveO
 import { getCurrentConnectivity } from './offline-runtime'
 import { setPendingIdempotencyKey } from './idempotency-key'
 import { persistQueryCache, queryClient } from './query-client'
+import { captureError } from './sentry'
 
 type InvalidationQueryKey = readonly unknown[]
 
@@ -327,7 +328,7 @@ function scheduleBackoffFlush(): void {
         return
       }
       await flushQueuedMutations()
-    })()
+    })().catch(captureError)
   }, delay)
 }
 

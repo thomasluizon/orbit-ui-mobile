@@ -107,6 +107,7 @@ const mocks = vi.hoisted(() => {
   })
 
   const getCurrentConnectivity = vi.fn(() => Promise.resolve(online))
+  const captureError = vi.fn()
 
   return {
     queued,
@@ -131,6 +132,7 @@ const mocks = vi.hoisted(() => {
     invalidateQueries,
     apiClient,
     getCurrentConnectivity,
+    captureError,
   }
 })
 
@@ -168,6 +170,12 @@ vi.mock('@/lib/query-client', () => ({
   },
 }))
 
+vi.mock('@/lib/sentry', () => ({
+  captureError: mocks.captureError,
+}))
+
+const nativeSetImmediate = setImmediate
+
 describe('offline mutations', () => {
   beforeEach(() => {
     mocks.queued.length = 0
@@ -194,6 +202,7 @@ describe('offline mutations', () => {
       Promise.resolve(endpoint === '/api/habits' ? { id: 'habit-1' } : null),
     )
     mocks.getCurrentConnectivity.mockClear()
+    mocks.captureError.mockClear()
     cancelScheduledFlush()
   })
 
@@ -1004,6 +1013,46 @@ describe('offline mutations', () => {
       await vi.advanceTimersByTimeAsync(1)
       expect(mocks.apiClient).toHaveBeenCalledTimes(2)
       expect(mocks.queued).toHaveLength(0)
+    })
+
+    it('settles and reports a second persistence rejection from a timer retry', async () => {
+      mocks.setOnline(true)
+      mocks.apiClient.mockRejectedValue(new Error('Network request failed'))
+      mocks.persistQueryCache
+        .mockRejectedValueOnce(new Error('Initial queue persistence failed'))
+        .mockRejectedValueOnce(new Error('Timer queue persistence failed'))
+      mocks.queued.push({
+        ...buildQueuedMutation({
+          type: 'updateHabit',
+          scope: 'habits',
+          endpoint: '/api/habits/habit-1',
+          method: 'PUT',
+          payload: { title: 'Retry me' },
+          entityType: 'habit',
+          targetEntityId: 'habit-1',
+        }),
+        id: 'update-1',
+      })
+
+      const unhandledRejections: unknown[] = []
+      const recordUnhandledRejection = (reason: unknown) => {
+        unhandledRejections.push(reason)
+      }
+      process.on('unhandledRejection', recordUnhandledRejection)
+
+      try {
+        await expect(flushQueuedMutations()).rejects.toThrow('Initial queue persistence failed')
+        await vi.advanceTimersByTimeAsync(2_000)
+        await new Promise<void>((resolve) => nativeSetImmediate(resolve))
+
+        expect(unhandledRejections).toEqual([])
+        expect(mocks.captureError).toHaveBeenCalledWith(
+          expect.objectContaining({ message: 'Timer queue persistence failed' }),
+        )
+        expect(canAutoFlush()).toBe(false)
+      } finally {
+        process.off('unhandledRejection', recordUnhandledRejection)
+      }
     })
 
     it('bounds repeated request failures at the mutation retry limit', async () => {
