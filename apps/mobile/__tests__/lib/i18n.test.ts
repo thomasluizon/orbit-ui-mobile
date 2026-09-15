@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { i18n } from '@/lib/i18n'
 import { plural } from '@/lib/plural'
 
@@ -47,4 +47,56 @@ describe('mobile i18n interpolation', () => {
 
     await i18n.changeLanguage('en')
   })
+})
+
+const localeCases = [
+  {
+    locale: 'en',
+    one: {
+      stripWindow: 'Activity over the last 1 day',
+      repairEmpty: 'No freeze is banked. The next freeze arrives in 1 day.',
+      daysLeft: '1 day left',
+    },
+    other: {
+      stripWindow: 'Activity over the last 2 days',
+      repairEmpty: 'No freeze is banked. The next freeze arrives in 2 days.',
+      daysLeft: '2 days left',
+    },
+    named: 'Completion on Monday: 80%',
+    streak: '4-day streak',
+  },
+  {
+    locale: 'pt-BR',
+    one: {
+      stripWindow: 'Atividade nos últimos 1 dia',
+      repairEmpty: 'Não há congelamento guardado. O próximo chega em 1 dia.',
+      daysLeft: 'Falta 1 dia',
+    },
+    other: {
+      stripWindow: 'Atividade nos últimos 2 dias',
+      repairEmpty: 'Não há congelamento guardado. O próximo chega em 2 dias.',
+      daysLeft: 'Faltam 2 dias',
+    },
+    named: 'Conclusão em segunda-feira: 80%',
+    streak: 'Sequência de 4 dias',
+  },
+] as const
+
+describe.each(localeCases)('mobile i18n in $locale', ({ locale, one, other, named, streak }) => {
+  it('renders ICU plurals and plain interpolation through the real configuration', async () => {
+    await i18n.changeLanguage(locale)
+
+    expect(i18n.t('progressScreen.streak.stripWindow', { count: 1 })).toBe(one.stripWindow)
+    expect(i18n.t('progressScreen.streak.stripWindow', { count: 2 })).toBe(other.stripWindow)
+    expect(i18n.t('progressScreen.streak.repairEmpty', { count: 1 })).toBe(one.repairEmpty)
+    expect(i18n.t('progressScreen.streak.repairEmpty', { count: 2 })).toBe(other.repairEmpty)
+    expect(i18n.t('progressScreen.goals.daysLeft', { count: 1 })).toBe(one.daysLeft)
+    expect(i18n.t('progressScreen.goals.daysLeft', { count: 2 })).toBe(other.daysLeft)
+    expect(i18n.t('shareCard.weeklyBarLabel', { day: locale === 'en' ? 'Monday' : 'segunda-feira', percent: 80 })).toBe(named)
+    expect(i18n.t('shareCard.streak', { count: 4 })).toBe(streak)
+  })
+})
+
+afterAll(async () => {
+  await i18n.changeLanguage('en')
 })
