@@ -1,4 +1,5 @@
 import React from 'react'
+import { StyleSheet } from 'react-native'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
@@ -211,6 +212,25 @@ describe('SupportScreen', () => {
     })
     expect(findSendButton(tree.root)!.props.disabled).toBe(false)
     expect(findSendButton(tree.root)!.props.accessibilityHint).toBeUndefined()
+
+    await TestRenderer.act(async () => {
+      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (value: string) => void)('   ')
+      await Promise.resolve()
+    })
+    expect(findSendButton(tree.root)!.props.disabled).toBe(true)
+    expect(findSendButton(tree.root)!.props.accessibilityHint).toBe(
+      'profile.support.sendNeedsSubject',
+    )
+
+    await TestRenderer.act(async () => {
+      ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (value: string) => void)('Subject')
+      ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (value: string) => void)('   ')
+      await Promise.resolve()
+    })
+    expect(findSendButton(tree.root)!.props.disabled).toBe(true)
+    expect(findSendButton(tree.root)!.props.accessibilityHint).toBe(
+      'profile.support.sendNeedsMessage',
+    )
   })
 
   it('accepts the API subject and message length boundaries', async () => {
@@ -365,6 +385,10 @@ describe('SupportScreen', () => {
       (node) => node.props.accessibilityLiveRegion === 'polite',
     )[0]!
     expect(announcer.props.children).toBe('')
+    const announcerStyle = StyleSheet.flatten(announcer.props.style as object) as {
+      opacity?: number
+    }
+    expect(announcerStyle.opacity ?? 1).toBeGreaterThan(0)
     await TestRenderer.act(async () => {
       ;(findInputByLabel(tree.root, 'profile.support.subject')!.props.onChangeText as (v: string) => void)('Subject')
       ;(findInputByLabel(tree.root, 'profile.support.message')!.props.onChangeText as (v: string) => void)('Message body')

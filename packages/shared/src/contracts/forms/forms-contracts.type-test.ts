@@ -46,6 +46,7 @@ type ExpectedSingleLineVariant = {
   focusRequest?: number
   name?: string
   onSubmit?: () => void
+  onBlur?: () => void
   trailing?: ReactNode
   multiline?: never
   rows?: never

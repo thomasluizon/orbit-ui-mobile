@@ -227,12 +227,14 @@ export default function SupportScreen() {
   const displayedEmailError = resolvedEmail.trim() && isValidEmail(resolvedEmail)
     ? null
     : emailError
-  const isIncomplete = !subject || !message.length
+  const hasSubject = Boolean(subject.trim())
+  const hasMessage = Boolean(message.trim())
+  const isIncomplete = !hasSubject || !hasMessage
   const incompleteReason = !isOnline || sending || !isIncomplete
     ? null
-    : !subject && !message.length
+    : !hasSubject && !hasMessage
       ? t('profile.support.sendIncomplete')
-      : !subject
+      : !hasSubject
         ? t('profile.support.sendNeedsSubject')
         : t('profile.support.sendNeedsMessage')
 
@@ -422,9 +424,10 @@ const styles = StyleSheet.create({
   },
   screenReaderOnly: {
     position: 'absolute',
+    left: -96,
     width: 1,
     height: 1,
-    opacity: 0,
+    overflow: 'hidden',
   },
   successBlock: {
     paddingHorizontal: 24,

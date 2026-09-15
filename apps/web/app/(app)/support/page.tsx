@@ -60,12 +60,14 @@ export default function SupportPage() {
   const displayedEmailError = resolvedEmail.trim() && isValidEmail(resolvedEmail)
     ? null
     : emailError
-  const isIncomplete = !subject || !message.length
+  const hasSubject = Boolean(subject.trim())
+  const hasMessage = Boolean(message.trim())
+  const isIncomplete = !hasSubject || !hasMessage
   const incompleteReason = !isOnline || isSending || !isIncomplete
     ? null
-    : !subject && !message.length
+    : !hasSubject && !hasMessage
       ? t('profile.support.sendIncomplete')
-      : !subject
+      : !hasSubject
         ? t('profile.support.sendNeedsSubject')
         : t('profile.support.sendNeedsMessage')
 

@@ -147,6 +147,15 @@ describe('SupportPage', () => {
     fireEvent.change(subjectField(), { target: { value: 'Subject' } })
     expect(sendButton()).toBeEnabled()
     expect(sendButton()).not.toHaveAttribute('aria-describedby')
+
+    fireEvent.change(subjectField(), { target: { value: '   ' } })
+    expect(sendButton()).toBeDisabled()
+    expect(screen.getByText('profile.support.sendNeedsSubject')).toBeInTheDocument()
+
+    fireEvent.change(subjectField(), { target: { value: 'Subject' } })
+    fireEvent.change(messageField(), { target: { value: '   ' } })
+    expect(sendButton()).toBeDisabled()
+    expect(screen.getByText('profile.support.sendNeedsMessage')).toBeInTheDocument()
   })
 
   it('accepts the API subject and message length boundaries', async () => {
