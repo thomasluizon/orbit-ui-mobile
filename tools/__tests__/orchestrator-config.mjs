@@ -96,9 +96,15 @@ export const cases = async () => {
     JSON.stringify(invocation),
   )
   T(
-    `${NAME}: the shipped implementer is gpt-5.6-sol at high reasoning effort (D21)`,
+    `${NAME}: the shipped default implementer is gpt-5.6-sol at high reasoning effort`,
     invocation.model === "gpt-5.6-sol" && invocation.args.includes('model_reasoning_effort="high"'),
     `.claude/orchestrator.json resolved ${invocation.model} with ${JSON.stringify(invocation.args)}`,
+  )
+  const mechanicalInvocation = resolveWorkerInvocation(engineName, engine, "mechanical")
+  T(
+    `${NAME}: the shipped mechanical implementer keeps the model and lowers reasoning effort`,
+    mechanicalInvocation.model === invocation.model && mechanicalInvocation.args.includes('model_reasoning_effort="medium"'),
+    JSON.stringify(mechanicalInvocation),
   )
 
   const readAndFail = (label, config) => thrown(() => readOrchestratorConfig(configUrl(label, JSON.stringify(config))))
@@ -203,6 +209,13 @@ export const cases = async () => {
     "a zero review fixer bound was accepted",
   )
   T(
+    `${NAME}: a branch launch cap must be a positive integer`,
+    /caps\.workerLaunchesPerBranch must be a positive integer/.test(
+      readAndFail("fractional-launch-cap", { ...real, caps: { ...real.caps, workerLaunchesPerBranch: 1.5 } }) ?? "",
+    ),
+    "a fractional worker launch cap was accepted",
+  )
+  T(
     `${NAME}: a cloud cap outside the measured 4 through 8 range is refused`,
     /caps\.cloudParallelTasks must be an integer from 4 through 8/.test(
       readAndFail("cloud-cap-too-high", { ...real, caps: { ...real.caps, cloudParallelTasks: 9 } }) ?? "",
@@ -248,6 +261,7 @@ export const cases = async () => {
       real.timeouts.receiptLockSeconds === 1 &&
       real.caps.cloudParallelTasks === 8 &&
       real.caps.parallelTickets === 3 &&
+      real.caps.workerLaunchesPerBranch === 2 &&
       real.caps.workerLogMegabytes === 512,
     JSON.stringify({ cloud: real.cloud, timeouts: real.timeouts, caps: real.caps }),
   )
