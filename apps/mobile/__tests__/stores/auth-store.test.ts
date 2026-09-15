@@ -31,6 +31,7 @@ const {
   fetchMock,
   setQueryCacheScopeMock,
   cancelScheduledFlushMock,
+  resumeOfflineReplayMock,
   cancelPersistentReminderMock,
 } = vi.hoisted(() => ({
   replaceMock: vi.fn(),
@@ -54,6 +55,7 @@ const {
   fetchMock: vi.fn(),
   setQueryCacheScopeMock: vi.fn(),
   cancelScheduledFlushMock: vi.fn(),
+  resumeOfflineReplayMock: vi.fn(),
   cancelPersistentReminderMock: vi.fn(),
 }))
 
@@ -91,6 +93,7 @@ vi.mock('@/lib/offline-queue', () => ({
 
 vi.mock('@/lib/offline-mutations', () => ({
   cancelScheduledFlush: cancelScheduledFlushMock,
+  resumeOfflineReplay: resumeOfflineReplayMock,
 }))
 
 vi.mock('@/lib/offline-state', () => ({
@@ -165,6 +168,7 @@ describe('mobile auth store security paths', () => {
     fetchMock.mockReset()
     setQueryCacheScopeMock.mockReset()
     cancelScheduledFlushMock.mockReset()
+    resumeOfflineReplayMock.mockReset()
     cancelPersistentReminderMock.mockReset()
     cancelPersistentReminderMock.mockResolvedValue(undefined)
     setQueryCacheScopeMock.mockResolvedValue(undefined)
@@ -201,11 +205,13 @@ describe('mobile auth store security paths', () => {
 
   it('persists the new tokens before clearing cached query data on login', async () => {
     const callOrder: string[] = []
-    setTokenMock.mockImplementation(async () => {
+    setTokenMock.mockImplementation(() => {
       callOrder.push('setToken')
+      return Promise.resolve()
     })
-    setRefreshTokenMock.mockImplementation(async () => {
+    setRefreshTokenMock.mockImplementation(() => {
       callOrder.push('setRefreshToken')
+      return Promise.resolve()
     })
     queryClientClearMock.mockImplementation(() => {
       callOrder.push('queryClient.clear')
@@ -226,8 +232,9 @@ describe('mobile auth store security paths', () => {
     expect(isAuthTransitionInFlight()).toBe(false)
 
     let flagDuringSetToken = false
-    setTokenMock.mockImplementation(async () => {
+    setTokenMock.mockImplementation(() => {
       flagDuringSetToken = isAuthTransitionInFlight()
+      return Promise.resolve()
     })
 
     await useAuthStore.getState().login('access-token', 'refresh-token', {
@@ -388,11 +395,13 @@ describe('mobile auth store security paths', () => {
   it('attempts a best-effort push unsubscribe before clearing tokens on logout', async () => {
     getRefreshTokenMock.mockResolvedValue(null)
     const order: string[] = []
-    unsubscribePushTokenMock.mockImplementation(async () => {
+    unsubscribePushTokenMock.mockImplementation(() => {
       order.push('unsubscribePush')
+      return Promise.resolve()
     })
-    clearAllTokensMock.mockImplementation(async () => {
+    clearAllTokensMock.mockImplementation(() => {
       order.push('clearAllTokens')
+      return Promise.resolve()
     })
     useAuthStore.setState({
       isAuthenticated: true,
@@ -456,8 +465,9 @@ describe('mobile auth store security paths', () => {
     offlineQueueClearMock.mockImplementation(() => {
       order.push('offlineQueue.clear')
     })
-    clearOfflineStateMock.mockImplementation(async () => {
+    clearOfflineStateMock.mockImplementation(() => {
       order.push('clearOfflineState')
+      return Promise.resolve()
     })
 
     await useAuthStore.getState().login('access-token', 'refresh-token', {
@@ -487,6 +497,7 @@ describe('mobile auth store security paths', () => {
     expect(setTokenMock).toHaveBeenCalledWith(rotatedToken)
     expect(setRefreshTokenMock).toHaveBeenCalledWith('next-refresh')
     expect(saveWidgetTokenMock).toHaveBeenCalledWith(rotatedToken)
+    expect(resumeOfflineReplayMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState().user).toMatchObject({
       userId: 'rotated-user',
       email: 'rotated@example.com',

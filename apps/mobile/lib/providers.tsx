@@ -26,7 +26,7 @@ import { AppState, type AppStateStatus, View, ActivityIndicator } from 'react-na
 import { createTokensV2, getRuntimeTheme } from './theme'
 import { ThemeProvider } from './theme-provider'
 import { useOffline } from '@/hooks/use-offline'
-import { subscribeDroppedMutations, getMutationScope } from '@/lib/offline-mutations'
+import { subscribeDroppedMutations, subscribeFlushResults, getMutationScope } from '@/lib/offline-mutations'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useTranslation } from 'react-i18next'
 import { useOnboardingDraftHydrated } from '@/stores/onboarding-draft-store'
@@ -43,31 +43,38 @@ interface ProvidersProps {
 }
 
 function OfflineManager() {
-  const { pendingCount, isFlushing } = useOffline()
+  const { pendingCount, replayState } = useOffline()
   const { t } = useTranslation()
   const { showInfo, showQueued, showSuccess, showError } = useAppToast()
   const initializedRef = useRef(false)
   const previousPendingRef = useRef(0)
-  const previousFlushingRef = useRef(false)
+  const previousReplayStateRef = useRef(replayState)
 
   useEffect(() => {
     return subscribeDroppedMutations((dropped) => {
       const scope = getMutationScope(dropped.type)
-      if (!scope) return
-
+      const terminalMessage = scope
+        ? t('common.syncDropped', { item: t(`common.syncEntity.${scope}`) })
+        : t('common.syncDroppedUnknown')
       showError(
-        t('common.syncDropped', {
-          item: t(`common.syncEntity.${scope}`),
-        }),
+        `${terminalMessage} ${t('common.syncRetryAction')}`,
       )
     })
   }, [showError, t])
 
   useEffect(() => {
+    return subscribeFlushResults((result) => {
+      if (result.remaining === 0 && result.succeeded > 0 && result.droppedMutations.length === 0) {
+        showSuccess(t('common.synced'))
+      }
+    })
+  }, [showSuccess, t])
+
+  useEffect(() => {
     if (!initializedRef.current) {
       initializedRef.current = true
       previousPendingRef.current = pendingCount
-      previousFlushingRef.current = isFlushing
+      previousReplayStateRef.current = replayState
       return
     }
 
@@ -75,17 +82,13 @@ function OfflineManager() {
       showQueued(t('common.queued'))
     }
 
-    if (!previousFlushingRef.current && isFlushing) {
+    if (previousReplayStateRef.current !== 'flushing' && replayState === 'flushing') {
       showInfo(t('common.syncing'))
     }
 
-    if (previousFlushingRef.current && !isFlushing && pendingCount === 0 && previousPendingRef.current > 0) {
-      showSuccess(t('common.synced'))
-    }
-
     previousPendingRef.current = pendingCount
-    previousFlushingRef.current = isFlushing
-  }, [isFlushing, pendingCount, showInfo, showQueued, showSuccess, t])
+    previousReplayStateRef.current = replayState
+  }, [pendingCount, replayState, showInfo, showQueued, t])
 
   return null
 }
