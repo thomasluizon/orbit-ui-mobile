@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => {
     queueListener: undefined as ((count: number) => void) | undefined,
     queueCount: 0,
     allowFlush: true,
+    replayState: 'idle' as 'idle' | 'flushing' | 'waiting-on-backoff' | 'stopped-for-auth',
+    replayStateListener: undefined as ((state: 'idle' | 'flushing' | 'waiting-on-backoff' | 'stopped-for-auth') => void) | undefined,
     resolveConnectivity: undefined as ((value: boolean) => void) | undefined,
   }
 
@@ -97,6 +99,12 @@ vi.mock('@/lib/offline-queue', () => ({
 vi.mock('@/lib/offline-mutations', () => ({
   flushQueuedMutations: mocks.flushQueuedMutations,
   canAutoFlush: () => mocks.state.allowFlush,
+  getReplayState: () => mocks.state.replayState,
+  subscribeReplayState: (listener: typeof mocks.state.replayStateListener) => {
+    mocks.state.replayStateListener = listener
+    listener?.(mocks.state.replayState)
+    return () => { mocks.state.replayStateListener = undefined }
+  },
 }))
 
 vi.mock('@/lib/sentry', () => ({
@@ -111,6 +119,8 @@ function HookHarness() {
 describe('useOffline', () => {
   beforeEach(() => {
     mocks.state.allowFlush = true
+    mocks.state.replayState = 'idle'
+    mocks.state.replayStateListener = undefined
     mocks.state.queueCount = 0
     mocks.state.queueListener = undefined
     mocks.state.netInfoListener = undefined
@@ -226,7 +236,12 @@ describe('useOffline', () => {
   it('does not re-enter when a rejected flush leaves pending work behind the retry gate', async () => {
     mocks.state.queueCount = 1
     mocks.flushQueuedMutations
-      .mockRejectedValueOnce(new Error('Queue bookkeeping failed'))
+      .mockImplementationOnce(() => {
+        mocks.state.allowFlush = false
+        mocks.state.replayState = 'waiting-on-backoff'
+        mocks.state.replayStateListener?.('waiting-on-backoff')
+        return Promise.reject(new Error('Queue bookkeeping failed'))
+      })
       .mockImplementationOnce(async () => {
         mocks.state.queueCount = 0
         await Promise.resolve()

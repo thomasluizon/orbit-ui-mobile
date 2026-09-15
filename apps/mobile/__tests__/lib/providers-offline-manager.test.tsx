@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { i18n } from '@/lib/i18n'
 import { Providers } from '@/lib/providers'
 import { useAppToastStore } from '@/stores/app-toast-store'
-import type { DroppedMutation } from '@/lib/offline-mutations'
+import type { DroppedMutation, OfflineFlushResult } from '@/lib/offline-mutations'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -13,8 +13,9 @@ vi.unmock('react-i18next')
 const mocks = vi.hoisted(() => {
   const mutationScope: { current: string | null } = { current: 'habits' }
   return {
-    queue: { pendingCount: 1, isFlushing: true },
+    queue: { pendingCount: 1, isFlushing: true, replayState: 'flushing' },
     droppedListener: undefined as ((mutation: DroppedMutation) => void) | undefined,
+    flushResultListener: undefined as ((result: OfflineFlushResult) => void) | undefined,
     initialize: vi.fn(() => Promise.resolve()),
     mutationScope,
   }
@@ -81,6 +82,10 @@ vi.mock('@/lib/offline-mutations', () => ({
     mocks.droppedListener = listener
     return () => { mocks.droppedListener = undefined }
   },
+  subscribeFlushResults: (listener: (result: OfflineFlushResult) => void) => {
+    mocks.flushResultListener = listener
+    return () => { mocks.flushResultListener = undefined }
+  },
 }))
 vi.mock('@/stores/onboarding-draft-store', () => ({ useOnboardingDraftHydrated: () => true }))
 
@@ -96,8 +101,9 @@ describe('offline terminal notice', () => {
   let tree: ReturnType<typeof TestRenderer.create>
 
   beforeEach(async () => {
-    Object.assign(mocks.queue, { pendingCount: 1, isFlushing: true })
+    Object.assign(mocks.queue, { pendingCount: 1, isFlushing: true, replayState: 'flushing' })
     mocks.droppedListener = undefined
+    mocks.flushResultListener = undefined
     mocks.mutationScope.current = 'habits'
     mocks.initialize.mockClear()
     useAppToastStore.setState({ currentToast: null, queue: [] })
@@ -114,14 +120,7 @@ describe('offline terminal notice', () => {
       await Promise.resolve()
     })
 
-    TestRenderer.act(() => {
-      mocks.droppedListener?.({
-        id: 'failed-1',
-        type: 'updateHabit',
-        lastError: 'Network request failed',
-      })
-    })
-    Object.assign(mocks.queue, { pendingCount: 0, isFlushing: false })
+    Object.assign(mocks.queue, { pendingCount: 0, isFlushing: false, replayState: 'idle' })
     await TestRenderer.act(async () => {
       tree!.update(
         <I18nextProvider i18n={i18n}>
@@ -129,6 +128,13 @@ describe('offline terminal notice', () => {
         </I18nextProvider>,
       )
       await Promise.resolve()
+    })
+    TestRenderer.act(() => {
+      mocks.droppedListener?.({
+        id: 'failed-1',
+        type: 'updateHabit',
+        lastError: 'Network request failed',
+      })
     })
 
     const messages = [
@@ -139,6 +145,43 @@ describe('offline terminal notice', () => {
       variant: 'error',
       message: 'A alteração em hábito não subiu e foi descartada. Tentar esta alteração de novo',
     })])
+
+    useAppToastStore.setState({ currentToast: null, queue: [] })
+    Object.assign(mocks.queue, { pendingCount: 1, isFlushing: true, replayState: 'flushing' })
+    await TestRenderer.act(async () => {
+      tree.update(
+        <I18nextProvider i18n={i18n}>
+          <Providers><span>ready</span></Providers>
+        </I18nextProvider>,
+      )
+      await Promise.resolve()
+    })
+    Object.assign(mocks.queue, { pendingCount: 0, isFlushing: false, replayState: 'idle' })
+    await TestRenderer.act(async () => {
+      tree.update(
+        <I18nextProvider i18n={i18n}>
+          <Providers><span>ready</span></Providers>
+        </I18nextProvider>,
+      )
+      await Promise.resolve()
+    })
+    TestRenderer.act(() => {
+      mocks.flushResultListener?.({
+        succeeded: 1,
+        failed: 0,
+        remaining: 0,
+        droppedMutations: [],
+        replayState: 'idle',
+      })
+    })
+    const unrelatedMessages = [
+      useAppToastStore.getState().currentToast,
+      ...useAppToastStore.getState().queue,
+    ].filter((toast) => toast !== null)
+    expect(unrelatedMessages).toContainEqual(expect.objectContaining({
+      variant: 'success',
+      message: i18n.t('common.synced'),
+    }))
   })
 
   it('renders generic terminal feedback for a retired mutation type', async () => {
@@ -155,7 +198,7 @@ describe('offline terminal notice', () => {
         lastError: 'Unsupported mutation type',
       })
     })
-    Object.assign(mocks.queue, { pendingCount: 0, isFlushing: false })
+    Object.assign(mocks.queue, { pendingCount: 0, isFlushing: false, replayState: 'idle' })
     await TestRenderer.act(async () => {
       tree!.update(
         <I18nextProvider i18n={i18n}>
