@@ -392,4 +392,32 @@ describe('useRepairStreak', () => {
     expect(mockFetch).toHaveBeenCalledWith(API.gamification.streak)
     expect(queryClient.getQueryData(queryKey)).toEqual(refreshedStreak)
   })
+
+  it('reconciles a serialized conflict action result', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { staleTime: 5 * 60 * 1000, retry: false },
+        mutations: { retry: false },
+      },
+    })
+    const queryKey = gamificationKeys.streak('America/Sao_Paulo')
+    const staleStreak = makeStreakInfo({ repairableGapDates: ['2026-09-04'] })
+    const refreshedStreak = makeStreakInfo({ repairableGapDates: [] })
+    queryClient.setQueryData(queryKey, staleStreak)
+    repairStreakGap.mockResolvedValue({ ok: false, error: 'Conflict', status: 409 })
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(refreshedStreak),
+    } as Response)
+    const { result } = renderHook(() => useRepairStreak('America/Sao_Paulo'), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await expect(result.current.mutateAsync(['2026-09-04'])).rejects.toMatchObject({
+      status: 409,
+    })
+
+    expect(mockFetch).toHaveBeenCalledWith(API.gamification.streak)
+    expect(queryClient.getQueryData(queryKey)).toEqual(refreshedStreak)
+  })
 })

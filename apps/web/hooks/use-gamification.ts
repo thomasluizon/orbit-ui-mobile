@@ -20,6 +20,7 @@ import {
   detectCrossedStreakMilestones,
   detectGamificationMilestones,
   deriveStreakFreezeState,
+  createApiClientError,
   extractBackendStatus,
 } from '@orbit/shared/utils'
 import { STREAK_CROSSING_MILESTONES } from '@orbit/shared/stores'
@@ -140,7 +141,17 @@ export function useStreakFreeze(
 export function useRepairStreak(timeZone: string | null) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: repairStreakGap,
+    mutationFn: async (dates: string[]) => {
+      const result = await repairStreakGap(dates)
+      if (!result.ok) {
+        throw createApiClientError(
+          result.status,
+          { error: result.error, errorCode: result.code },
+          result.error,
+        )
+      }
+      return result.data
+    },
     onSuccess: (streakInfo) => {
       queryClient.setQueryData(gamificationKeys.streak(timeZone), streakInfo)
       void queryClient.invalidateQueries({ queryKey: gamificationKeys.profile() })

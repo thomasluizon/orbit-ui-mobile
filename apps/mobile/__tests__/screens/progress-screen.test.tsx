@@ -633,7 +633,7 @@ describe('mobile ProgressContent', () => {
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
 
     expect(text).toContain('progressScreen.streak.gapBody:{"count":1}')
-    expect(text).toContain('progressScreen.streak.repairEmpty:{"count":3}')
+    expect(text).toContain('progressScreen.streak.repairEmpty')
     expect(tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.streak.repairAction:{"count":1}')).toHaveLength(0)
   })
 
@@ -652,7 +652,7 @@ describe('mobile ProgressContent', () => {
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
 
     expect(text).toContain('progressScreen.streak.gapBody:{"count":2}')
-    expect(text).toContain('progressScreen.streak.repairPartial:{"needed":2,"banked":1,"days":3}')
+    expect(text).toContain('progressScreen.streak.repairPartial:{"needed":2,"banked":1}')
     expect(tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.streak.repairAction:{"count":2}')).toHaveLength(0)
   })
 
@@ -672,7 +672,7 @@ describe('mobile ProgressContent', () => {
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
 
     expect(text).toContain('progressScreen.streak.repairCapped:{"needed":4,"banked":3}')
-    expect(text).not.toContain('progressScreen.streak.repairPartial:{"needed":4,"banked":3,"days":3}')
+    expect(text).not.toContain('progressScreen.streak.repairPartial:{"needed":4,"banked":3}')
     expect(tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.streak.repairAction:{"count":4}')).toHaveLength(0)
   })
 

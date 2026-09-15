@@ -616,7 +616,7 @@ describe('ProgressContent', () => {
     render(<ProgressContent />)
 
     expect(screen.getByText('progressScreen.streak.gapBody:{"count":1}')).toBeInTheDocument()
-    expect(screen.getByText('progressScreen.streak.repairEmpty:{"count":3}')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.streak.repairEmpty')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.repairAction:{"count":1}')).not.toBeInTheDocument()
   })
 
@@ -634,7 +634,7 @@ describe('ProgressContent', () => {
     render(<ProgressContent />)
 
     expect(screen.getByText('progressScreen.streak.gapBody:{"count":2}')).toBeInTheDocument()
-    expect(screen.getByText('progressScreen.streak.repairPartial:{"needed":2,"banked":1,"days":3}')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.streak.repairPartial:{"needed":2,"banked":1}')).toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.repairAction:{"count":2}')).not.toBeInTheDocument()
   })
 
@@ -653,7 +653,7 @@ describe('ProgressContent', () => {
     render(<ProgressContent />)
 
     expect(screen.getByText('progressScreen.streak.repairCapped:{"needed":4,"banked":3}')).toBeInTheDocument()
-    expect(screen.queryByText('progressScreen.streak.repairPartial:{"needed":4,"banked":3,"days":3}')).not.toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.streak.repairPartial:{"needed":4,"banked":3}')).not.toBeInTheDocument()
     expect(screen.queryByText('progressScreen.streak.repairAction:{"count":4}')).not.toBeInTheDocument()
   })
 
