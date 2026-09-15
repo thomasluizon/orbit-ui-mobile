@@ -1,7 +1,9 @@
 const {
   withAppBuildGradle,
+  withAndroidStyles,
   withProjectBuildGradle,
   withGradleProperties,
+  AndroidConfig,
 } = require('@expo/config-plugins')
 
 const RELEASE_BUILD_HEAP_SIZE = '6144m'
@@ -107,6 +109,20 @@ function withAndroidReleaseBuildFixes(config) {
   })
 
   nextConfig = withRaisedReleaseBuildJvmMemory(nextConfig)
+  nextConfig = withAndroidStyles(nextConfig, (mod) => {
+    const appTheme = AndroidConfig.Styles.getAppThemeGroup()
+    mod.modResults = AndroidConfig.Styles.removeStylesItem({
+      name: 'android:statusBarColor',
+      xml: mod.modResults,
+      parent: appTheme,
+    })
+    mod.modResults = AndroidConfig.Styles.removeStylesItem({
+      name: 'android:navigationBarColor',
+      xml: mod.modResults,
+      parent: appTheme,
+    })
+    return mod
+  })
 
   return nextConfig
 }

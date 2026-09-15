@@ -2,10 +2,10 @@ import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } fro
 import {
   // react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
-  Dimensions,
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native'
 import { Gift } from 'lucide-react-native'
@@ -16,9 +16,8 @@ import { useProfile } from '@/hooks/use-profile'
 import { toAnimatedEasing } from '@/lib/motion'
 import { createTokensV2, easings, shadowsV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { resolveCenteredOverlayFrame } from '@/components/ui/centered-overlay-frame'
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window')
-const TOAST_WIDTH = Math.min(SCREEN_WIDTH - 32, 380)
 const STORAGE_LAST_VISIT = 'orbit_last_visit'
 const STORAGE_REFERRAL_APPLIED = 'orbit_referral_applied'
 
@@ -32,6 +31,8 @@ type ToastVariant = 'welcome' | 'referral'
 export function WelcomeBackToast() {
   const { t } = useTranslation()
   const insets = useSafeAreaInsets()
+  const { width: screenWidth } = useWindowDimensions()
+  const overlayFrame = resolveCenteredOverlayFrame(screenWidth, 380)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -172,6 +173,7 @@ export function WelcomeBackToast() {
     <Animated.View
       style={[
         styles.container,
+        overlayFrame,
         { top: insets.top + 12 },
         {
           opacity,
@@ -221,8 +223,6 @@ export function WelcomeBackToast() {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: (SCREEN_WIDTH - TOAST_WIDTH) / 2,
-    width: TOAST_WIDTH,
     zIndex: 10000,
   },
   toast: {

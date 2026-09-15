@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react'
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
@@ -32,9 +32,9 @@ interface BottomSheetModalProps {
 }
 
 const DEFAULT_SNAP_POINTS: (string | number)[] = ['50%', '80%']
-const SCREEN_HEIGHT = Dimensions.get('window').height
 const CORNER_RADIUS = 26
 const MIN_DETENT = 0.1
+const MAX_CONTENT_WIDTH = 640
 
 /**
  * Shared bottom-sheet wrapper backed by a native sheet (react-native-true-sheet).
@@ -62,6 +62,7 @@ export function BottomSheetModal({
   children,
 }: Readonly<BottomSheetModalProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
+  const { height: windowHeight } = useWindowDimensions()
   const { t } = useTranslation()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -77,8 +78,8 @@ export function BottomSheetModal({
   const presentedRef = useRef(false)
 
   const detents = useMemo(
-    () => (snapPointsProp ?? DEFAULT_SNAP_POINTS).map(toDetent),
-    [snapPointsProp],
+    () => (snapPointsProp ?? DEFAULT_SNAP_POINTS).map((point) => toDetent(point, windowHeight)),
+    [snapPointsProp, windowHeight],
   )
 
   const dismissible = canDismiss && !isDirty
@@ -123,6 +124,8 @@ export function BottomSheetModal({
       detents={detents}
       dismissible={dismissible}
       cornerRadius={CORNER_RADIUS}
+      maxContentWidth={MAX_CONTENT_WIDTH}
+      insetAdjustment="automatic"
       backgroundColor={tokens.bgSheet}
       grabber
       grabberOptions={{
@@ -174,9 +177,9 @@ export function BottomSheetModal({
   )
 }
 
-function toDetent(point: string | number): number {
+function toDetent(point: string | number, windowHeight: number): number {
   if (typeof point === 'number') {
-    return clampDetent(point > 1 ? point / SCREEN_HEIGHT : point)
+    return clampDetent(point > 1 ? point / windowHeight : point)
   }
   const value = Number.parseFloat(point)
   if (!Number.isFinite(value)) return 0.5
