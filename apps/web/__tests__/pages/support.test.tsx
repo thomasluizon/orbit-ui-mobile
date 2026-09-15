@@ -117,11 +117,10 @@ describe('SupportPage', () => {
     render(<SupportPage />)
     fireEvent.change(messageField(), { target: { value: 'Message' } })
 
-    fireEvent.submit(subjectField().closest('form')!)
+    fireEvent.blur(subjectField())
 
     expect(await screen.findByText('profile.support.subjectRequired')).toBeInTheDocument()
-    expect(subjectField()).toHaveFocus()
-    expect(sendButton()).toBeEnabled()
+    expect(sendButton()).toBeDisabled()
     expect(mockSendSupportMessage).not.toHaveBeenCalled()
   })
 
@@ -129,12 +128,25 @@ describe('SupportPage', () => {
     render(<SupportPage />)
     fireEvent.change(subjectField(), { target: { value: 'Subject' } })
 
-    fireEvent.submit(messageField().closest('form')!)
+    fireEvent.blur(messageField())
 
     expect(await screen.findByText('profile.support.messageRequired')).toBeInTheDocument()
-    expect(messageField()).toHaveFocus()
-    expect(sendButton()).toBeEnabled()
+    expect(sendButton()).toBeDisabled()
     expect(mockSendSupportMessage).not.toHaveBeenCalled()
+  })
+
+  it('keeps Send disabled with an announced reason until subject and message are filled', () => {
+    render(<SupportPage />)
+
+    const reason = screen.getByText('profile.support.sendIncomplete')
+    expect(sendButton()).toBeDisabled()
+    expect(sendButton()).toHaveAttribute('aria-describedby', reason.id)
+
+    fireEvent.change(messageField(), { target: { value: 'Message' } })
+    expect(screen.getByText('profile.support.sendNeedsSubject')).toBeInTheDocument()
+    fireEvent.change(subjectField(), { target: { value: 'Subject' } })
+    expect(sendButton()).toBeEnabled()
+    expect(sendButton()).not.toHaveAttribute('aria-describedby')
   })
 
   it('accepts the API subject and message length boundaries', async () => {
@@ -182,6 +194,23 @@ describe('SupportPage', () => {
     }))
   })
 
+  it('clears stale account errors when profile hydration supplies valid values', async () => {
+    mockProfile = null
+    const view = render(<SupportPage />)
+    fireEvent.change(subjectField(), { target: { value: 'Subject' } })
+    fireEvent.change(messageField(), { target: { value: 'Message' } })
+    fireEvent.click(sendButton())
+    expect(await screen.findByText('profile.support.nameRequired')).toBeInTheDocument()
+    expect(screen.getByText('profile.support.emailRequired')).toBeInTheDocument()
+
+    mockProfile = { name: 'Profile User', email: 'profile@example.com' }
+    view.rerender(<SupportPage />)
+    expect(screen.queryByText('profile.support.nameRequired')).not.toBeInTheDocument()
+    expect(screen.queryByText('profile.support.emailRequired')).not.toBeInTheDocument()
+    expect(nameField()).not.toHaveAttribute('aria-invalid')
+    expect(emailField()).not.toHaveAttribute('aria-invalid')
+  })
+
   it('places the existing contact errors beside their system inputs', async () => {
     mockProfile = null
     render(<SupportPage />)
@@ -203,14 +232,14 @@ describe('SupportPage', () => {
     mockSendSupportMessage.mockResolvedValue(undefined)
     localStorage.setItem(DRAFT_KEY, JSON.stringify({ subject: 'x', message: 'y' }))
     render(<SupportPage />)
+    const announcer = screen.getByRole('status')
+    expect(announcer).toBeEmptyDOMElement()
 
     fireEvent.change(subjectField(), { target: { value: 'Cannot log in' } })
     fireEvent.change(messageField(), { target: { value: 'Google button spins forever' } })
     fireEvent.click(sendButton())
 
-    await waitFor(() =>
-      expect(screen.getByText('profile.support.success')).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(announcer).toHaveTextContent('profile.support.success'))
     expect(mockSendSupportMessage).toHaveBeenCalledWith({
       name: 'Orbit User',
       email: 'orbit@example.com',
@@ -218,6 +247,7 @@ describe('SupportPage', () => {
       message: 'Google button spins forever',
     })
     expect(localStorage.getItem(DRAFT_KEY)).toBeNull()
+    expect(announcer).toHaveTextContent('profile.support.success')
   })
 
   it('surfaces a friendly error when the send fails and stays on the form', async () => {
@@ -282,7 +312,7 @@ describe('SupportPage', () => {
     expect(subjectField()).toBeDisabled()
     expect(messageField()).toBeDisabled()
     finishSend?.()
-    await waitFor(() => expect(screen.getByText('profile.support.success')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('profile.support.success'))
   })
 
   it('ignores clicks while offline even with a valid form', () => {

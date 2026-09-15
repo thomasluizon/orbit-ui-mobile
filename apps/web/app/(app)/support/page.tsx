@@ -55,6 +55,19 @@ export default function SupportPage() {
   const [subjectFocusRequest, setSubjectFocusRequest] = useState(0)
   const [messageFocusRequest, setMessageFocusRequest] = useState(0)
   const resolvedEmail = profile?.email || email
+  const displayedName = name || profile?.name || ''
+  const displayedNameError = displayedName.trim() ? null : nameError
+  const displayedEmailError = resolvedEmail.trim() && isValidEmail(resolvedEmail)
+    ? null
+    : emailError
+  const isIncomplete = !subject || !message.length
+  const incompleteReason = !isOnline || isSending || !isIncomplete
+    ? null
+    : !subject && !message.length
+      ? t('profile.support.sendIncomplete')
+      : !subject
+        ? t('profile.support.sendNeedsSubject')
+        : t('profile.support.sendNeedsMessage')
 
   const persistDraft = useCallback((change: Partial<typeof initialDraft>) => {
     draftRef.current = { ...draftRef.current, ...change }
@@ -112,7 +125,7 @@ export default function SupportPage() {
     }
   }, [isOnline, message, name, profile, resolvedEmail, subject, t, validateFields])
 
-  const disabled = isSending || !isOnline
+  const disabled = isSending || !isOnline || isIncomplete
 
   return (
     <div className="min-w-0 md:mx-auto md:w-full md:max-w-[620px]">
@@ -123,6 +136,9 @@ export default function SupportPage() {
           title={t('profile.support.title')}
         />
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          <p role="status" aria-live="polite" className="sr-only">
+            {success ? t('profile.support.success') : ''}
+          </p>
           {!isOnline && (
             <div className="mb-4">
               <ErrorState message={t('offline.description')} />
@@ -134,17 +150,18 @@ export default function SupportPage() {
           ) : (
             <div className="min-w-0 md:max-w-[520px]">
               <SupportForm
-                name={name || profile?.name || ''}
+                name={displayedName}
                 email={resolvedEmail}
                 subject={subject}
                 message={message}
                 error={error}
-                nameError={nameError}
-                emailError={emailError}
+                nameError={displayedNameError}
+                emailError={displayedEmailError}
                 subjectError={subjectError}
                 messageError={messageError}
                 isSending={isSending}
                 disabled={disabled}
+                disabledReason={incompleteReason}
                 emailDisabled={Boolean(profile?.email)}
                 nameFocusRequest={nameFocusRequest}
                 emailFocusRequest={emailFocusRequest}
@@ -163,10 +180,16 @@ export default function SupportPage() {
                   setSubjectError(null)
                   persistDraft({ subject: next })
                 }}
+                onSubjectBlur={() => {
+                  if (!subject.trim()) setSubjectError(t('profile.support.subjectRequired'))
+                }}
                 onMessageChange={(next) => {
                   setMessage(next)
                   setMessageError(null)
                   persistDraft({ message: next })
+                }}
+                onMessageBlur={() => {
+                  if (!message.trim()) setMessageError(t('profile.support.messageRequired'))
                 }}
                 onSend={() => void handleSend()}
               />

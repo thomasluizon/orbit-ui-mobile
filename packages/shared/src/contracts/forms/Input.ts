@@ -17,6 +17,7 @@ type InputBase = {
   focusRequest?: number
   name?: string
   onSubmit?: () => void
+  onBlur?: () => void
   trailing?: ReactNode
 }
 

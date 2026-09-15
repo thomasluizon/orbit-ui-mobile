@@ -44,6 +44,7 @@ export function Input({
   focusRequest = 0,
   name,
   onSubmit,
+  onBlur,
   trailing,
   ...shape
 }: Readonly<InputProps>) {
@@ -77,6 +78,7 @@ export function Input({
     'aria-invalid': error ? true : undefined,
     'aria-describedby': descriptionId,
     onChange: handleChange,
+    onBlur,
     onKeyDown: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       if (event.key === 'Enter' && !multiline) onSubmit?.()
     },

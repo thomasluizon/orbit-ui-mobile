@@ -8,7 +8,6 @@ export function SupportSuccessState() {
 
   return (
     <div
-      role="status"
       className="flex flex-col items-center text-center animate-scale-in"
       style={{ padding: '48px 24px', gap: 16 }}
     >

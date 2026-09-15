@@ -1391,7 +1391,10 @@
       "emailInvalid": "Digite um e-mail válido.",
       "subjectRequired": "Digite um assunto.",
       "messageRequired": "Escreva sua mensagem.",
-      "emailLockedReason": "A gente responde no e-mail da sua conta."
+      "emailLockedReason": "A gente responde no e-mail da sua conta.",
+      "sendIncomplete": "Escreva um assunto e uma mensagem para enviar.",
+      "sendNeedsSubject": "Escreva um assunto para enviar.",
+      "sendNeedsMessage": "Escreva uma mensagem para enviar."
     },
     "logout": "Sair",
     "wrappedTitle": "Seu Wrapped",

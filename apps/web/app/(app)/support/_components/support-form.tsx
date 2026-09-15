@@ -20,6 +20,7 @@ interface SupportFormProps {
   messageError: string | null
   isSending: boolean
   disabled: boolean
+  disabledReason: string | null
   emailDisabled: boolean
   nameFocusRequest: number
   emailFocusRequest: number
@@ -29,6 +30,8 @@ interface SupportFormProps {
   onEmailChange: (next: string) => void
   onSubjectChange: (next: string) => void
   onMessageChange: (next: string) => void
+  onSubjectBlur: () => void
+  onMessageBlur: () => void
   onSend: () => void
 }
 
@@ -44,6 +47,7 @@ export function SupportForm({
   messageError,
   isSending,
   disabled,
+  disabledReason,
   emailDisabled,
   nameFocusRequest,
   emailFocusRequest,
@@ -53,6 +57,8 @@ export function SupportForm({
   onEmailChange,
   onSubjectChange,
   onMessageChange,
+  onSubjectBlur,
+  onMessageBlur,
   onSend,
 }: Readonly<SupportFormProps>) {
   const t = useTranslations()
@@ -106,6 +112,7 @@ export function SupportForm({
         error={subjectError ?? undefined}
         maxLength={SUPPORT_API_SUBJECT_MAX_LENGTH}
         focusRequest={subjectFocusRequest}
+        onBlur={onSubjectBlur}
       />
       <Input
         label={t('profile.support.message')}
@@ -118,6 +125,7 @@ export function SupportForm({
         multiline
         rows={6}
         focusRequest={messageFocusRequest}
+        onBlur={onMessageBlur}
       />
       {error && (
         <div
@@ -131,10 +139,16 @@ export function SupportForm({
           {error}
         </div>
       )}
+      {disabledReason ? (
+        <p id="support-send-reason" className="text-sm text-[var(--fg-2)]">
+          {disabledReason}
+        </p>
+      ) : null}
       <div className="[&_button]:w-full md:[&_button]:bg-[var(--fg-1)] md:[&_button]:text-[var(--bg)] md:[&_button:enabled:hover]:opacity-90 md:[&_button:enabled:active]:opacity-85">
         <PillButton
           disabled={disabled}
           loading={isSending}
+          descriptionId={disabledReason ? 'support-send-reason' : undefined}
         >
           {t('profile.support.send')}
         </PillButton>

@@ -43,6 +43,7 @@ export function Input({
   autoFocus = false,
   focusRequest = 0,
   onSubmit,
+  onBlur,
   trailing,
   ...shape
 }: Readonly<InputProps>) {
@@ -89,7 +90,10 @@ export function Input({
             setFocused(true)
             keyboardAware?.revealInput(inputRef.current)
           }}
-          onBlur={() => setFocused(false)}
+          onBlur={() => {
+            setFocused(false)
+            onBlur?.()
+          }}
           style={[
             styles.input,
             multiline ? styles.multiline : null,

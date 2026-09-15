@@ -35,7 +35,7 @@ const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
 function SupportSuccessState({ tokens }: Readonly<{ tokens: Tokens }>) {
   const { t } = useTranslation()
   return (
-    <View accessibilityLiveRegion="polite" style={styles.successBlock}>
+    <View style={styles.successBlock}>
       <View
         style={[
           styles.successIconCircle,
@@ -68,6 +68,7 @@ interface SupportFormProps {
   subjectError: string | null
   messageError: string | null
   canSend: boolean
+  disabledReason: string | null
   emailDisabled: boolean
   nameFocusRequest: number
   emailFocusRequest: number
@@ -77,6 +78,8 @@ interface SupportFormProps {
   onChangeEmail: (value: string) => void
   onChangeSubject: (value: string) => void
   onChangeMessage: (value: string) => void
+  onSubjectBlur: () => void
+  onMessageBlur: () => void
   onSend: () => void
 }
 
@@ -94,6 +97,7 @@ function SupportForm({
   subjectError,
   messageError,
   canSend,
+  disabledReason,
   emailDisabled,
   nameFocusRequest,
   emailFocusRequest,
@@ -103,6 +107,8 @@ function SupportForm({
   onChangeEmail,
   onChangeSubject,
   onChangeMessage,
+  onSubjectBlur,
+  onMessageBlur,
   onSend,
 }: Readonly<SupportFormProps>) {
   const { t } = useTranslation()
@@ -146,6 +152,7 @@ function SupportForm({
         error={subjectError ?? undefined}
         maxLength={SUPPORT_API_SUBJECT_MAX_LENGTH}
         focusRequest={subjectFocusRequest}
+        onBlur={onSubjectBlur}
       />
       <Input
         label={t('profile.support.message')}
@@ -158,6 +165,7 @@ function SupportForm({
         multiline
         rows={6}
         focusRequest={messageFocusRequest}
+        onBlur={onMessageBlur}
       />
       {error ? (
         <Text
@@ -167,11 +175,17 @@ function SupportForm({
           {error}
         </Text>
       ) : null}
+      {disabledReason ? (
+        <Text style={[styles.formDescription, { color: tokens.fg2 }]}>
+          {disabledReason}
+        </Text>
+      ) : null}
       <View>
         <PillButton
           onClick={onSend}
           disabled={!canSend}
           loading={sending}
+          hint={disabledReason ?? undefined}
         >
           {t('profile.support.send')}
         </PillButton>
@@ -208,6 +222,19 @@ export default function SupportScreen() {
   const [subjectFocusRequest, setSubjectFocusRequest] = useState(0)
   const [messageFocusRequest, setMessageFocusRequest] = useState(0)
   const resolvedEmail = profile?.email || email
+  const displayedName = name || profile?.name || ''
+  const displayedNameError = displayedName.trim() ? null : nameError
+  const displayedEmailError = resolvedEmail.trim() && isValidEmail(resolvedEmail)
+    ? null
+    : emailError
+  const isIncomplete = !subject || !message.length
+  const incompleteReason = !isOnline || sending || !isIncomplete
+    ? null
+    : !subject && !message.length
+      ? t('profile.support.sendIncomplete')
+      : !subject
+        ? t('profile.support.sendNeedsSubject')
+        : t('profile.support.sendNeedsMessage')
 
   useEffect(() => {
     let isMounted = true
@@ -297,7 +324,7 @@ export default function SupportScreen() {
     }
   }, [isOnline, message, name, profile, resolvedEmail, subject, t, validateFields])
 
-  const canSend = isOnline && !sending
+  const canSend = isOnline && !sending && !isIncomplete
 
   return (
     <SafeAreaView
@@ -316,6 +343,9 @@ export default function SupportScreen() {
         showsVerticalScrollIndicator={false}
         keyboardVerticalOffset={12}
       >
+        <Text accessibilityLiveRegion="polite" style={styles.screenReaderOnly}>
+          {success ? t('profile.support.success') : ''}
+        </Text>
         {success ? (
           <SupportSuccessState tokens={tokens} />
         ) : (
@@ -323,16 +353,17 @@ export default function SupportScreen() {
             tokens={tokens}
             isOnline={isOnline}
             sending={sending}
-            name={name || profile?.name || ''}
+            name={displayedName}
             email={resolvedEmail}
             subject={subject}
             message={message}
             error={error}
-            nameError={nameError}
-            emailError={emailError}
+            nameError={displayedNameError}
+            emailError={displayedEmailError}
             subjectError={subjectError}
             messageError={messageError}
             canSend={canSend}
+            disabledReason={incompleteReason}
             emailDisabled={Boolean(profile?.email)}
             nameFocusRequest={nameFocusRequest}
             emailFocusRequest={emailFocusRequest}
@@ -351,10 +382,16 @@ export default function SupportScreen() {
               setSubjectError(null)
               persistDraft({ subject: next })
             }}
+            onSubjectBlur={() => {
+              if (!subject.trim()) setSubjectError(t('profile.support.subjectRequired'))
+            }}
             onChangeMessage={(next) => {
               setMessage(next)
               setMessageError(null)
               persistDraft({ message: next })
+            }}
+            onMessageBlur={() => {
+              if (!message.trim()) setMessageError(t('profile.support.messageRequired'))
             }}
             onSend={() => {
               void handleSend()
@@ -382,6 +419,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist_400Regular',
     fontSize: 13,
     lineHeight: 19,
+  },
+  screenReaderOnly: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
   },
   successBlock: {
     paddingHorizontal: 24,
