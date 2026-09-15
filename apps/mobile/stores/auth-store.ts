@@ -16,7 +16,7 @@ import { clearWidgetToken, saveWidgetToken } from '@/lib/orbit-widget'
 import { cancelPersistentReminder } from '@/lib/persistent-reminder'
 import { apiClient } from '@/lib/api-client'
 import * as offlineQueue from '@/lib/offline-queue'
-import { cancelScheduledFlush } from '@/lib/offline-mutations'
+import { cancelScheduledFlush, resumeOfflineReplay } from '@/lib/offline-mutations'
 import { clearOfflineState } from '@/lib/offline-state'
 import { clearPersistedQueryCache, queryClient, setQueryCacheScope } from '@/lib/query-client'
 import { i18n } from '@/lib/i18n'
@@ -215,6 +215,7 @@ export async function refreshSession(options?: {
     user: currentUser ?? tokenUser,
     expiresAt: getExpiresAt(data.token),
   })
+  resumeOfflineReplay()
 
   return { status: 'refreshed', token: data.token }
 }
