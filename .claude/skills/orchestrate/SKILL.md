@@ -655,6 +655,18 @@ plan already shows outrunning the fleet-wide ceiling: a large migration, a subsy
 whose test matrix is the work. Three finished workers died at the fixed 45 on 2026-08-22 for
 exactly that shape.
 
+Every local order names its tier. Use `--tier default` for an original implementation. Use
+`--tier mechanical` only for a merge-forward whose conflicts are already known, or for
+reviewer-directed test strengthening whose order names the exact experiment. A review fix that
+still needs product, design, architecture, security or ambiguous judgement stays `--tier default`.
+The mechanical tier means the answer is fully specified; it is never a synonym for small.
+
+`launch-worker.mjs` records launches per branch and enforces `caps.workerLaunchesPerBranch`. A
+deliberate launch beyond that cap passes `--relaunch-reason "<concrete reason this additional order
+is necessary>"`. Name the new evidence or changed work that makes the launch necessary, never a
+generic retry. The reason is recorded beside the launch; it does not bypass, reset or clear the
+ledger. A capped launch without that concrete reason must fail.
+
 The orchestrator launches it as a **background shell task and ends its turn.** Zero tokens burn
 while the worker runs, and the process exiting is what wakes the session.
 
@@ -887,16 +899,44 @@ A body finding you FIX needs none of this. The fix moves the head, and the push 
 - **FILE it as an `orbit-tickets` issue** otherwise, name that issue in the reply, and drop it from
   this run.
 
+### Compose one review batch
+
+Build ONE classified finding set for ONE accepted Pullfrog review of the current head. `threads[]`
+and a non-null `reviewBody` are two inputs to that same set, never two queues. Split both surfaces
+into findings, then deduplicate descriptions of the same required code change. Preserve every
+contributing `threads[].id` on the surviving finding so each thread can receive its own reply and
+resolution. Do not deduplicate merely similar observations that require different changes or
+dispositions.
+
+Classify every surviving finding as FIX, FILE or not applicable before dispatch. File every FILE
+finding through `node tools/create-ticket.mjs` and retain its ticket and all thread ids in the batch.
+Zero findings launches no worker. If at least one finding is FIX, compose ONE worker order containing
+all FIX findings from that review, plus every FILE and not-applicable disposition the worker must
+preserve while it fixes. Never launch one worker per finding. A later accepted review after the head
+changes is a new batch and may launch one new worker.
+
+The batched order requires one commit at most and spells out the whole sequence: fix every FIX
+finding; keep every filed-ticket disposition; test; commit; return the commit SHA; then let the
+orchestrator reply to and resolve every identified thread, resolve filed threads before push, push
+once, and rerun delivery verification on the new head. One batched commit is ONE
+`caps.reviewFixAttempts` attempt, regardless of its finding count. If the batch has only FILE or
+not-applicable findings, perform their existing reply, resolve and same-head re-review transitions
+without launching a worker or inventing a commit.
+
+Route a fully specified reviewer-directed test-strengthening batch to `--tier mechanical` only when
+the order names the exact experiment. Route any batch needing product, design, architecture,
+security or ambiguous judgement to `--tier default`.
+
 ### Who writes the fix
 
 **The orchestrator edits the code for a review finding on a pull request it is already driving**,
-inside the `caps.reviewFixAttempts` bound. This is the ONE place D89's "Codex writes every code
-change, Claude never edits code" does not apply, and it is narrow on purpose: a review finding is
-usually a few lines, the context needed to answer it is the review itself, and spawning a worker per
-round is what turns a six-round review into a lost night.
+inside the `caps.reviewFixAttempts` bound. This is the ONE place `.claude/rules/core.md` section
+9's "Codex writes every code change; Claude never edits code" does not apply, and it is narrow on
+purpose: a review finding is usually a few lines, the context needed to answer it is the review
+itself, and spawning a worker per round is what turns a six-round review into a lost night.
 
-Everything else stays with a worker. A finding large enough to be its own work order is composed and
-dispatched, never typed here. Implementing a ticket is never this step.
+Everything else stays with a worker. A finding large enough to be its own work order is composed
+and dispatched, never typed here. Implementing a ticket is never this step.
 
 **Stated because it used to be left to inference.** Step 7 forbids writing implementation code during
 a SALVAGE and this step orders a fix, so the skill named two acts and no actor. Sessions filled that
@@ -945,7 +985,8 @@ After the push, re-run `node tools/verify-delivery.mjs`. The fix moved the head,
 `DELIVERED` is stale until this re-runs. `DELIVERED` continues; `STALE_PR` means the push did not
 land.
 
-**Count one review fix attempt for each commit you make to answer a Pullfrog pass, and never exceed
+**Count at most one review fix attempt for the single batched commit that answers a Pullfrog pass,
+and never exceed
 the positive `caps.reviewFixAttempts` value from `.claude/orchestrator.json` (currently 3).** A
 Pullfrog pass that still blocks after that bound is a named exhausted-fixer blocker, never a clean
 handoff.
@@ -1094,11 +1135,12 @@ runs for merged tickets only, including those merged under D88/D90 standing auth
 | Role | Model |
 |---|---|
 | Orchestrator | Opus 5 @ high, or Sol @ high |
-| Implementer | `codex exec` Astra @ high, resolved from `.claude/orchestrator.json` |
+| Implementer | `codex exec` at the order's `default` or `mechanical` tier, resolved from `.claude/orchestrator.json` |
 
 The reviewer is absent from this table because this harness launches none. Pullfrog reviews in
 GitHub Actions, and its model and effort are set in the Pullfrog console rather than in any file
-here. `launch-worker.mjs` resolves one model tier, so a run cannot route a review at all.
+here. `launch-worker.mjs` resolves the requested worker tier; tier selection routes the resulting
+order, never the Pullfrog review itself.
 
 ## §5.7 The queue
 
@@ -1240,5 +1282,8 @@ the wrong branch loses the entire night. Discover it at the start, not at 03:00.
 - The composed prompt is written to the scratchpad, never inside a repo.
 - No auto-relaunch on a failed verdict except the single reserved `CLOUD_TASK_EMPTY` retry above.
   After that retry, stop the ticket and report its outcome.
-- Never edit this skill, a tool under `tools/`, or a CI gate from inside a run. A run that edits the
-  contract it is executing describes no consistent system afterwards. Record it, repair it after.
+- **Never edit this skill, a tool under `tools/`, or a CI gate to change what THIS run is judged by
+  or permitted to do, and never inside the pull request whose review such an edit would excuse.** A
+  contract change a ticket owns is prepared and merged like any other change, and it takes effect
+  for the NEXT run: this run keeps executing the contract it read at entry. D95 is the narrower case
+  and stays absolute, so a gate found broken mid-run gets its own ticket, never a self-authored fix.
