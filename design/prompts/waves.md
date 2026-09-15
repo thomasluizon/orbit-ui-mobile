@@ -278,24 +278,24 @@ sure no live surface is skipped, not a design authority.
 Its current output is:
 
 ```text
-redesign coverage valid: 190 manifest surfaces accounted for, 8 deleted, 1 excluded
+redesign coverage valid: 190 manifest surfaces accounted for, 8 deleted, 3 excluded
   Orbit Assinatura: 0
   Orbit Astra Conversation: 32
   Orbit Avisos: 6
   Orbit Busca: 3
   Orbit Calendario: 7
-  Orbit Celebracao: 2
+  Orbit Celebracao: 0
   Orbit Entrar: 4
   Orbit Estados: 9
   Orbit Habit Create: 14
   Orbit Habit Detail: 16
   Orbit Hoje: 14
   Orbit Offline: 0
-  Orbit Onboarding: 13
-  Orbit Perfil: 20
-  Orbit Pro: 5
+  Orbit Onboarding: 10
+  Orbit Perfil: 22
+  Orbit Pro: 4
   Orbit Progresso: 8
-  Orbit Sobre: 8
+  Orbit Sobre: 10
   Orbit Sobreposicoes: 13
   Orbit Verificacao: 4
   Orbit Widget Android: 1
@@ -318,8 +318,9 @@ The information architecture decisions behind the retired guidance still hold:
   `Orbit Progresso` owns goal detail and editing, the streak, achievements and progress figures.
 * The web only explore hub is absent from the live manifest. Its surface record remains one of the
   eight decision-backed tombstones.
-* The native store-review prompt has no canvas document. It remains named as the single explicit live
-  exclusion instead of being assigned to an unrelated document.
+* The native store-review prompt, post-onboarding Astra import prompt and access-session expiry
+  warning have no canvas document. They remain named as explicit live exclusions instead of being
+  assigned to unrelated documents.
 
 ## After every wave
 

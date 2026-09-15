@@ -58,10 +58,7 @@
       "route-calendar",
       "route-calendar-sync"
     ],
-    "Orbit Celebracao": [
-      "m-overlay-components-fresh-start-modal",
-      "overlay-components-fresh-start-modal"
-    ],
+    "Orbit Celebracao": [],
     "Orbit Entrar": [
       "m-route-login",
       "m-route-r-code",
@@ -131,14 +128,11 @@
     ],
     "Orbit Offline": [],
     "Orbit Onboarding": [
-      "m-overlay-onboarding-astra-import-prompt",
-      "m-overlay-onboarding-feature-guide-drawer",
       "m-overlay-onboarding-onboarding-flow",
       "m-overlay-tour-tour-overlay",
       "m-overlay-tour-tour-replay-modal",
       "m-overlay-ui-push-prompt",
       "m-route-onboarding-index",
-      "overlay-onboarding-feature-guide-drawer",
       "overlay-onboarding-onboarding-flow",
       "overlay-tour-tour-replay-modal",
       "overlay-tour-tour-spotlight",
@@ -148,6 +142,7 @@
     "Orbit Perfil": [
       "m-overlay-components-delete-account-modal",
       "m-overlay-components-edit-name-sheet",
+      "m-overlay-components-fresh-start-modal",
       "m-overlay-components-profile-settings-content",
       "m-overlay-marketing-consent-marketing-consent-prompt",
       "m-overlay-profile-advanced-sections",
@@ -159,6 +154,7 @@
       "overlay-advanced-advanced-sections",
       "overlay-components-delete-account-modal",
       "overlay-components-edit-name-sheet",
+      "overlay-components-fresh-start-modal",
       "overlay-components-preference-picker-sheet",
       "overlay-marketing-consent-marketing-consent-prompt",
       "overlay-profile-profile-api-keys",
@@ -168,7 +164,6 @@
       "route-profile"
     ],
     "Orbit Pro": [
-      "m-overlay-ui-expiry-warning",
       "m-overlay-ui-trial-expired-modal",
       "m-route-upgrade",
       "overlay-ui-trial-expired-modal",
@@ -185,10 +180,12 @@
       "route-progress"
     ],
     "Orbit Sobre": [
+      "m-overlay-onboarding-feature-guide-drawer",
       "m-route-about",
       "m-route-privacy",
       "m-route-support",
       "m-route-terms",
+      "overlay-onboarding-feature-guide-drawer",
       "route-about",
       "route-privacy",
       "route-support",
@@ -267,8 +264,16 @@
   ],
   "excluded": [
     {
+      "surfaceId": "m-overlay-onboarding-astra-import-prompt",
+      "reason": "No current canvas document specifies the post-onboarding Astra import prompt; it remains a named live coverage gap."
+    },
+    {
       "surfaceId": "m-overlay-review-moment-review-moment-sheet",
       "reason": "No current canvas document draws the native store-review prompt; it remains a named live coverage gap."
+    },
+    {
+      "surfaceId": "m-overlay-ui-expiry-warning",
+      "reason": "No current canvas document specifies the access-session expiry warning; it remains a named live coverage gap."
     }
   ],
   "notes": {
