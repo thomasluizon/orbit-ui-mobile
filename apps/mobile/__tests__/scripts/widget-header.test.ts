@@ -87,7 +87,7 @@ function selectedSizeKey(keysDp: readonly NamedSizeDp[], hostDp: SizeDp) {
  * so deleting the successful sync's own render left every widget test green.
  */
 function kotlinFunctionBody(source: string, name: string) {
-  const declaration = source.indexOf(`private fun ${name}(`)
+  const declaration = source.search(new RegExp(`(?:private|internal) fun ${name}\\(`))
   if (declaration < 0) throw new Error(`Missing Kotlin function: ${name}`)
 
   const open = source.indexOf('{', declaration)
@@ -413,6 +413,25 @@ describe('Android widget header', () => {
         'android:orientation': 'horizontal',
       })
     }
+  })
+
+  it('counts parents by non-bad children, good leaves as one, and bad leaves as nothing', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const prepareWidgetDay = kotlinFunctionBody(service, 'prepareWidgetDay')
+
+    expect(prepareWidgetDay).toMatch(
+      /for \(habit in habits\.filter \{ it\.depth == 0 \}\) \{\s*if \(habit\.(?:hasChildren|childrenTotal > 0)\) \{\s*totalCount \+= habit\.childrenTotal\s*completedCount \+= habit\.childrenDone\s*\} else if \(!habit\.isBadHabit\) \{\s*totalCount \+= 1\s*if \(habit\.isCompleted\) completedCount \+= 1/,
+    )
+  })
+
+  it('counts a good parent itself when all its children are bad habits', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const prepareWidgetDay = kotlinFunctionBody(service, 'prepareWidgetDay')
+
+    expect(prepareWidgetDay).toMatch(
+      /if \(habit\.childrenTotal > 0\) \{[\s\S]*?\} else if \(!habit\.isBadHabit\) \{\s*totalCount \+= 1\s*if \(habit\.isCompleted\) completedCount \+= 1/,
+    )
+    expect(prepareWidgetDay).not.toContain('if (habit.hasChildren)')
   })
 
   it('draws each first-load row as a placeholder mark and name bar', () => {
