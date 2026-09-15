@@ -246,9 +246,8 @@ describe('ProfilePage', () => {
       'preferences.themeMode',
       'profile.subscription.plan',
       'dataExport.button',
-      'shareCard.entry',
-      'profile.freshStart.button',
       'profile.logout',
+      'profile.freshStart.button',
       'profile.deleteAccount.button',
     ]
 
@@ -270,6 +269,43 @@ describe('ProfilePage', () => {
     expect(
       screen.getByRole('button', { name: 'profile.marketingEmails.decline' }),
     ).toBeInTheDocument()
+  })
+
+  it('keeps the share card reachable outside Ending things', () => {
+    render(<ProfilePage />)
+
+    const shareCardEntry = screen.getByRole('button', { name: /shareCard\.entry/i })
+    const ending = screen.getByTestId('profile-settings-group-ending')
+
+    expect(shareCardEntry).toBeInTheDocument()
+    expect(ending).not.toContainElement(shareCardEntry)
+  })
+
+  it('puts Sign out first in Ending things', () => {
+    render(<ProfilePage />)
+    const ending = screen.getByTestId('profile-settings-group-ending')
+
+    expect(within(ending).getAllByRole('button')[0]).toHaveTextContent('profile.logout')
+  })
+
+  it('puts Fresh Start directly after Sign out', () => {
+    render(<ProfilePage />)
+    const ending = screen.getByTestId('profile-settings-group-ending')
+    const labels = within(ending).getAllByRole('button').map((button) => button.textContent)
+
+    expect(labels.slice(0, 2)).toEqual(['profile.logout', 'profile.freshStart.button'])
+  })
+
+  it('keeps Delete account last in the three-row ending group', () => {
+    render(<ProfilePage />)
+    const ending = screen.getByTestId('profile-settings-group-ending')
+    const labels = within(ending).getAllByRole('button').map((button) => button.textContent)
+
+    expect(labels).toEqual([
+      'profile.logout',
+      'profile.freshStart.button',
+      'profile.deleteAccount.button',
+    ])
   })
 
   it('routes every More of Orbit row', () => {
