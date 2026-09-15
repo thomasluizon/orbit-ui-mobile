@@ -162,8 +162,7 @@ if (extra.length > 0) throw new Error(`verdict written for a file that is not in
 const config = JSON.parse(readFileSync(join(root, ".claude", "orchestrator.json"), "utf8"))
 // The ENGINE comes from config.worker, the same key launch-worker.mjs:115 reads. The invocation comes
 // from resolveWorkerInvocation itself rather than being rebuilt here, so the stamp records the WHOLE
-// vector that launches: engine args, then the models.default profile args, then the model. Reading
-// models.default.args alone left engine-level reasoning effort outside the gate entirely.
+// vector that launches: engine args, then the selected profile args, then the model.
 /**
  * The canonical resolver, imported from THIS tool's own directory rather than from `--root`. Loading
  * it out of the target tree made the pass unrunnable against any root that is not a full checkout,
@@ -172,12 +171,14 @@ const config = JSON.parse(readFileSync(join(root, ".claude", "orchestrator.json"
  * being stamped.
  */
 const workerEngine = config.worker
-const invocation = resolveWorkerInvocation(workerEngine, config.workers[workerEngine], "default")
 // The executable itself, which resolveWorkerInvocation does not return: launch-worker.mjs spawns
 // engine.command and the invocation only describes what is passed TO it.
 const workerCommand = config.workers[workerEngine].command
-const workerModel = invocation.model
-const workerArgs = invocation.args
+const workerTiers = Object.fromEntries(Object.keys(config.workers[workerEngine].models).sort().map((tier) => {
+  const invocation = resolveWorkerInvocation(workerEngine, config.workers[workerEngine], tier)
+  return [tier, { model: invocation.model, args: invocation.args }]
+}))
+const workerTierVerdict = "default handles product, design, architecture, and ambiguous orders requiring judgment; mechanical handles merge-forward work, known conflict lists, and reviewer-directed test experiments"
 
 const now = new Date()
 const calibratedAt = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-${String(now.getUTCDate()).padStart(2, "0")}`
@@ -192,8 +193,8 @@ const previous = existsSync(stampPath) ? JSON.parse(readFileSync(stampPath, "utf
 const workerMoved =
   previous.workerEngine !== workerEngine ||
   previous.workerCommand !== workerCommand ||
-  previous.workerModel !== workerModel ||
-  JSON.stringify(previous.workerArgs) !== JSON.stringify(workerArgs)
+  JSON.stringify(previous.workerTiers) !== JSON.stringify(workerTiers) ||
+  previous.workerTierVerdict !== workerTierVerdict
 
 const entries = {}
 let renewed = 0
@@ -225,14 +226,14 @@ const stamp = {
   calibratedAt,
   workerEngine,
   workerCommand,
-  workerModel,
-  workerArgs,
+  workerTiers,
+  workerTierVerdict,
   workerModelSource:
-    'resolveWorkerInvocation(config.worker, ..., "default") in tools/lib/orchestrator-config.mjs, the exact vector launch-worker.mjs launches: engine args, then models.default args, then the model',
+    "resolveWorkerInvocation(config.worker, ..., tier) in tools/lib/orchestrator-config.mjs for every configured tier, with each exact launch vector: engine args, then selected profile args, then the model",
   entries,
 }
 
 writeFileSync(stampPath, `${JSON.stringify(stamp, null, 2)}\n`, "utf8")
 console.log(
-  `stamped ${files.length} file(s) at ${calibratedAt} against ${workerEngine} ${workerModel} ${JSON.stringify(workerArgs)}; ${renewed} verdict(s) renewed, ${files.length - renewed} carried forward.`,
+  `stamped ${files.length} file(s) at ${calibratedAt} against ${workerEngine} tiers ${Object.keys(workerTiers).join(", ")}; ${renewed} verdict(s) renewed, ${files.length - renewed} carried forward.`,
 )

@@ -16,6 +16,17 @@ const CONTROL_STYLE = {
   padding: '15px 16px',
 } as const
 
+function getDescriptionId(
+  error: string | undefined,
+  hint: string | undefined,
+  errorId: string,
+  hintId: string,
+) {
+  if (error && hint) return `${errorId} ${hintId}`
+  if (error) return errorId
+  return hint ? hintId : undefined
+}
+
 export function Input({
   label,
   value,
@@ -23,6 +34,7 @@ export function Input({
   placeholder,
   disabled = false,
   error,
+  hint,
   maxLength,
   kind = 'text',
   inputMode,
@@ -32,13 +44,16 @@ export function Input({
   focusRequest = 0,
   name,
   onSubmit,
+  onBlur,
   trailing,
   ...shape
 }: Readonly<InputProps>) {
   const controlId = useId()
   const errorId = useId()
+  const hintId = useId()
   const multiline = shape.multiline === true
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
+  const descriptionId = getDescriptionId(error, hint, errorId, hintId)
 
   useEffect(() => {
     if (focusRequest) inputRef.current?.focus()
@@ -61,8 +76,9 @@ export function Input({
     spellCheck: kind === 'email' ? false : undefined,
     autoFocus,
     'aria-invalid': error ? true : undefined,
-    'aria-describedby': error ? errorId : undefined,
+    'aria-describedby': descriptionId,
     onChange: handleChange,
+    onBlur,
     onKeyDown: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       if (event.key === 'Enter' && !multiline) onSubmit?.()
     },
@@ -92,6 +108,11 @@ export function Input({
       {error ? (
         <span id={errorId} role="alert" className="text-xs text-[var(--status-bad-text)]">
           {error}
+        </span>
+      ) : null}
+      {hint ? (
+        <span id={hintId} className="text-xs text-[var(--fg-2)]">
+          {hint}
         </span>
       ) : null}
     </div>

@@ -17,6 +17,9 @@ export interface SupportRequestBody {
   message: string
 }
 
+export const SUPPORT_API_SUBJECT_MAX_LENGTH = 200
+export const SUPPORT_API_MESSAGE_MAX_LENGTH = 5000
+
 export function buildSupportRequestBody(
   profile: SupportProfileFields | null | undefined,
   fields: SupportFormFields,
