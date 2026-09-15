@@ -278,11 +278,15 @@ async function resolveMutationReferences<T extends PersistedQueuedMutation>(muta
 
 const BACKOFF_BASE_DELAY_MS = 2_000
 const BACKOFF_MAX_DELAY_MS = 60_000
-const BACKOFF_MAX_ATTEMPTS = 6
 
 let backoffAttempt = 0
 let backoffTimer: ReturnType<typeof setTimeout> | null = null
 let flushInFlight = false
+let flushStoppedForAuth = false
+
+export function canAutoFlush(): boolean {
+  return !flushInFlight && !flushStoppedForAuth && backoffTimer === null
+}
 
 function computeBackoffDelay(attempt: number): number {
   return Math.min(BACKOFF_BASE_DELAY_MS * 2 ** attempt, BACKOFF_MAX_DELAY_MS)
@@ -303,22 +307,25 @@ function clearBackoffTimer(): void {
 export function cancelScheduledFlush(): void {
   clearBackoffTimer()
   backoffAttempt = 0
+  flushStoppedForAuth = false
 }
 
 function scheduleBackoffFlush(): void {
   if (backoffTimer !== null) return
-  if (backoffAttempt >= BACKOFF_MAX_ATTEMPTS) return
 
   const delay = computeBackoffDelay(backoffAttempt)
-  backoffAttempt += 1
+  backoffAttempt = Math.min(backoffAttempt + 1, 5)
   backoffTimer = setTimeout(() => {
     backoffTimer = null
     void (async () => {
       if (count() === 0) {
-        backoffAttempt = 0
+        cancelScheduledFlush()
         return
       }
-      if (!(await getCurrentConnectivity())) return
+      if (!(await getCurrentConnectivity())) {
+        scheduleBackoffFlush()
+        return
+      }
       await flushQueuedMutations()
     })()
   }, delay)
@@ -536,12 +543,8 @@ async function handleFlushFailure(
   stopReason: FlushStopReason
   dropped: DroppedMutation | null
 }> {
-  if (isTransientNetworkError(error)) {
-    update(mutation.id, { status: 'failed', lastError: getErrorMessage(error) })
-    return { incrementFailed: false, stopReason: 'network', dropped: null }
-  }
-
   const lastError = getErrorMessage(error)
+  const transientNetworkFailure = isTransientNetworkError(error)
   const nextRetries = mutation.retries + 1
   const dropMutation = shouldDropMutation(error, nextRetries, mutation.maxRetries)
   let dropped: DroppedMutation | null = null
@@ -573,8 +576,12 @@ async function handleFlushFailure(
   }
 
   return {
-    incrementFailed: true,
-    stopReason: shouldStopFlushing(error) ? 'auth' : null,
+    incrementFailed: !transientNetworkFailure || dropped !== null,
+    stopReason: shouldStopFlushing(error)
+      ? 'auth'
+      : transientNetworkFailure
+        ? 'network'
+        : null,
     dropped,
   }
 }
@@ -691,7 +698,11 @@ export async function flushQueuedMutations(): Promise<{
     flushInFlight = false
   }
 
-  if (outcome.stopReason === 'network' && outcome.remaining > 0) {
+  const drained = outcome.succeeded + outcome.droppedMutations.length
+  if (outcome.stopReason === 'auth') {
+    cancelScheduledFlush()
+    flushStoppedForAuth = true
+  } else if (outcome.remaining > 0 && drained === 0) {
     scheduleBackoffFlush()
   } else {
     cancelScheduledFlush()

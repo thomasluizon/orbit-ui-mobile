@@ -967,12 +967,44 @@ describe('offline mutations', () => {
 
       const firstRun = await flushQueuedMutations()
       expect(firstRun).toEqual({ succeeded: 0, failed: 0, remaining: 1, droppedMutations: [] })
+      expect(mocks.queued[0]?.retries).toBe(1)
       expect(mocks.apiClient).toHaveBeenCalledTimes(1)
 
       await vi.advanceTimersByTimeAsync(2_000)
 
       expect(mocks.apiClient).toHaveBeenCalledTimes(2)
       expect(mocks.queued).toHaveLength(0)
+    })
+
+    it('bounds repeated request failures at the mutation retry limit', async () => {
+      mocks.setOnline(true)
+      mocks.apiClient.mockRejectedValue(new TypeError('Network request failed'))
+      const dropped: { id: string; type: string }[] = []
+      const unsubscribe = subscribeDroppedMutations((mutation) => {
+        dropped.push({ id: mutation.id, type: mutation.type })
+      })
+
+      mocks.queued.push({
+        ...buildQueuedMutation({
+          type: 'updateHabit',
+          scope: 'habits',
+          endpoint: '/api/habits/habit-1',
+          method: 'PUT',
+          payload: { title: 'Walk' },
+        }),
+        id: 'bounded-retry',
+      })
+
+      await flushQueuedMutations()
+      expect(mocks.queued[0]?.retries).toBe(1)
+      await vi.advanceTimersByTimeAsync(2_000)
+      expect(mocks.queued[0]?.retries).toBe(2)
+      await vi.advanceTimersByTimeAsync(4_000)
+
+      expect(mocks.apiClient).toHaveBeenCalledTimes(3)
+      expect(mocks.count()).toBe(0)
+      expect(dropped).toEqual([{ id: 'bounded-retry', type: 'updateHabit' }])
+      unsubscribe()
     })
 
     it('cancelScheduledFlush prevents a pending retry from firing', async () => {
@@ -1170,7 +1202,7 @@ describe('offline mutations', () => {
       const timedOut = mocks.queued.find((mutation) => mutation.id === 'update-slow')
       expect(timedOut?.status).toBe('failed')
       expect(timedOut?.lastError).toContain('timed out')
-      expect(timedOut?.retries).toBe(0)
+      expect(timedOut?.retries).toBe(1)
 
       const untouched = mocks.queued.find((mutation) => mutation.id === 'update-tail')
       expect(untouched?.status).toBe('pending')

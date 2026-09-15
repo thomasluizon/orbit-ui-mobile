@@ -49,16 +49,18 @@ function OfflineManager() {
   const initializedRef = useRef(false)
   const previousPendingRef = useRef(0)
   const previousFlushingRef = useRef(false)
+  const droppedDuringFlushRef = useRef(false)
 
   useEffect(() => {
     return subscribeDroppedMutations((dropped) => {
       const scope = getMutationScope(dropped.type)
       if (!scope) return
 
+      droppedDuringFlushRef.current = true
       showError(
-        t('common.syncDropped', {
+        `${t('common.syncDropped', {
           item: t(`common.syncEntity.${scope}`),
-        }),
+        })} ${t('common.syncRetryAction')}`,
       )
     })
   }, [showError, t])
@@ -79,7 +81,10 @@ function OfflineManager() {
       showInfo(t('common.syncing'))
     }
 
-    if (previousFlushingRef.current && !isFlushing && pendingCount === 0 && previousPendingRef.current > 0) {
+    const queueJustDrained = pendingCount === 0 && previousPendingRef.current > 0
+    if (queueJustDrained && droppedDuringFlushRef.current) {
+      droppedDuringFlushRef.current = false
+    } else if (previousFlushingRef.current && !isFlushing && queueJustDrained) {
       showSuccess(t('common.synced'))
     }
 
