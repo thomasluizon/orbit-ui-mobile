@@ -8,10 +8,19 @@ import { HabitList, type HabitListHandle } from '@/components/habit-list'
 import { HabitRow } from '@/components/habits/habit-row'
 import { tourScrollRegistry } from '@/components/tour/tour-target-context'
 import { useTourStore } from '@/stores/tour-store'
+import { i18n } from '@/lib/i18n'
 
 const TODAY = formatAPIDate(new Date())
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
+const visibilityMockState = vi.hoisted(() => ({ useRealTodayVisibility: false }))
+const translationMockState = vi.hoisted(() => ({
+  language: 'en',
+  translate: (key: string, _params?: Record<string, unknown>) => key,
+}))
+
+translationMockState.language = i18n.language
+translationMockState.translate = (key, params) => i18n.t(key, params)
 
 const TestRenderer = require('react-test-renderer')
 
@@ -49,10 +58,13 @@ const mockDrillState = {
 }
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: {
+    type: '3rdParty',
+    init: () => {},
+  },
   useTranslation: () => ({
-    t: (key: string, params?: Record<string, unknown>) =>
-      params ? `${key}(${JSON.stringify(params)})` : key,
-    i18n: { language: 'en' },
+    t: translationMockState.translate,
+    i18n: { language: translationMockState.language },
   }),
 }))
 
@@ -111,7 +123,7 @@ vi.mock('@/hooks/use-config', () => ({
 }))
 
 vi.mock('@/hooks/use-habit-visibility', async () => {
-  const { createHabitVisibilityHelpers } = await import('@orbit/shared/utils/habit-visibility')
+  const { createHabitVisibilityHelpers, getChildrenFromIndex } = await import('@orbit/shared/utils/habit-visibility')
 
   return {
     useHabitVisibility: (options: HabitVisibilityOptions) => {
@@ -119,7 +131,19 @@ vi.mock('@/hooks/use-habit-visibility', async () => {
 
       return {
         ...helpers,
-        hasVisibleContent: () => true,
+        hasVisibleContent: visibilityMockState.useRealTodayVisibility
+          ? helpers.hasVisibleContent
+          : () => true,
+        getVisibleChildren: visibilityMockState.useRealTodayVisibility
+          ? helpers.getVisibleChildren
+          : (parentId: string, view: 'today' | 'all' | 'general') =>
+              options.showCompleted && view !== 'all'
+                ? getChildrenFromIndex(
+                    parentId,
+                    options.habitsById,
+                    options.childrenByParent,
+                  )
+                : helpers.getVisibleChildren(parentId, view),
         isRelevantToday: () => true,
         isDueOnSelectedDate: () => true,
       }
@@ -225,6 +249,7 @@ describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockHabitsDataUpdatedAt = 1
+    visibilityMockState.useRealTodayVisibility = false
     logMutateAsync.mockReset()
     skipMutateAsync.mockReset()
     logMutateAsync.mockImplementation(({ habitId }: { habitId: string }) => {
@@ -243,6 +268,93 @@ describe('HabitList', () => {
     mockDrillState.drillLoading = false
     mockDrillState.drillError = null
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
+  })
+
+  it('hides one-time tasks completed before the selected day when completed items are shown', () => {
+    visibilityMockState.useRealTodayVisibility = true
+    const dueToday = createMockHabit({
+      id: 'due-today',
+      dueDate: '2026-09-15',
+      scheduledDates: ['2026-09-15'],
+      instances: [{ date: '2026-09-15', status: 'Pending', logId: null }],
+    })
+    const completedEarlier = createMockHabit({
+      id: 'completed-earlier',
+      frequencyUnit: null,
+      isCompleted: true,
+      isLoggedInRange: false,
+      dueDate: '2026-08-01',
+      scheduledDates: [],
+      instances: [],
+    })
+    seedHabits([dueToday, completedEarlier])
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{ dateFrom: '2026-09-15', dateTo: '2026-09-15' }}
+          selectedDate={new Date(2026, 8, 15, 12)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    expect(
+      tree.root
+        .findAllByType(HabitRow)
+        .map((node: { props: { habit: NormalizedHabit } }) => node.props.habit.id),
+    ).toEqual(['due-today'])
+  })
+
+  it('shows only selected-day completions alongside habits due that day', () => {
+    visibilityMockState.useRealTodayVisibility = true
+    const dueToday = createMockHabit({
+      id: 'due-today',
+      dueDate: '2026-09-15',
+      scheduledDates: ['2026-09-15'],
+      instances: [{ date: '2026-09-15', status: 'Pending', logId: null }],
+    })
+    const completedToday = createMockHabit({
+      id: 'completed-today',
+      frequencyUnit: null,
+      isCompleted: true,
+      isLoggedInRange: true,
+      dueDate: '2026-09-15',
+      scheduledDates: [],
+      instances: [],
+    })
+    const completedEarlier = createMockHabit({
+      id: 'completed-earlier',
+      frequencyUnit: null,
+      isCompleted: true,
+      isLoggedInRange: false,
+      dueDate: '2026-08-01',
+      scheduledDates: [],
+      instances: [],
+    })
+    seedHabits([dueToday, completedToday, completedEarlier])
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{ dateFrom: '2026-09-15', dateTo: '2026-09-15' }}
+          selectedDate={new Date(2026, 8, 15, 12)}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    expect(
+      tree.root
+        .findAllByType(HabitRow)
+        .map((node: { props: { habit: NormalizedHabit } }) => node.props.habit.id),
+    ).toEqual(['due-today', 'completed-today'])
   })
 
   it('shows a skip confirmation before skipping a recurring habit', async () => {
@@ -272,9 +384,9 @@ describe('HabitList', () => {
 
     const skipDialog = tree.root
       .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.skipConfirmTitle')
+      .find((node: any) => node.props.title === i18n.t('habits.skipConfirmTitle'))
 
-    expect(skipDialog?.props.description).toBe('habits.skipConfirmMessage')
+    expect(skipDialog?.props.description).toBe(i18n.t('habits.skipConfirmMessage'))
 
     await TestRenderer.act(async () => {
       await skipDialog.props.onConfirm()
@@ -350,10 +462,10 @@ describe('HabitList', () => {
 
     const postponeDialog = tree.root
       .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.postponeConfirmTitle')
+      .find((node: any) => node.props.title === i18n.t('habits.postponeConfirmTitle'))
 
-    expect(postponeDialog?.props.description).toBe('habits.postponeConfirmMessage')
-    expect(postponeDialog?.props.confirmLabel).toBe('habits.postponeConfirmButton')
+    expect(postponeDialog?.props.description).toBe(i18n.t('habits.postponeConfirmMessage'))
+    expect(postponeDialog?.props.confirmLabel).toBe(i18n.t('habits.postponeConfirmButton'))
   })
 
   it('logs a habit immediately from the card action', async () => {
@@ -499,6 +611,49 @@ describe('HabitList', () => {
       resolveLog?.()
       await pendingLog
     })
+  })
+
+  it('hides completed general habits unless they were just completed', () => {
+    const active = createMockHabit({
+      id: 'active',
+      isGeneral: true,
+      isCompleted: false,
+    })
+    const completed = createMockHabit({
+      id: 'completed',
+      isGeneral: true,
+      isCompleted: true,
+    })
+    const recentlyCompleted = createMockHabit({
+      id: 'recently-completed',
+      isGeneral: true,
+      isCompleted: true,
+    })
+    seedHabits([active, completed, recentlyCompleted])
+
+    const ref = React.createRef<HabitListHandle>()
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          ref={ref}
+          view="general"
+          filters={{}}
+          showCompleted={false}
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    TestRenderer.act(() => {
+      ref.current?.markRecentlyCompleted('recently-completed')
+    })
+
+    expect(
+      tree.root
+        .findAllByType(HabitRow)
+        .map((node: { props: { habit: NormalizedHabit } }) => node.props.habit.id),
+    ).toEqual(['active', 'recently-completed'])
   })
 
   it('hides only completed one-time habits in all view when showCompleted is false', () => {
@@ -756,7 +911,7 @@ describe('HabitList', () => {
     expect(flattenRenderedText(emptyStateTree.toJSON())).toContain('boom')
 
     const retryButton = emptyStateTree.root.findAll(
-      (node: any) => node.props?.accessibilityLabel === 'common.retry',
+      (node: any) => node.props?.accessibilityLabel === i18n.t('common.retry'),
     )[0]
     TestRenderer.act(() => {
       retryButton.props.onPress()
@@ -1021,7 +1176,7 @@ describe('HabitList', () => {
 
     const forceLogDialog = tree.root
       .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.forceLogTitle')
+      .find((node: any) => node.props.title === i18n.t('habits.forceLogTitle'))
 
     expect(forceLogDialog).toBeTruthy()
 
@@ -1069,7 +1224,7 @@ describe('HabitList', () => {
 
     const autoLogDialog = tree.root
       .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+      .find((node: any) => node.props.title === i18n.t('habits.autoLogParentTitle'))
 
     expect(autoLogDialog?.props.description).toContain('"Parent"')
   })
@@ -1117,7 +1272,7 @@ describe('HabitList', () => {
 
     const autoLogDialog = tree.root
       .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+      .find((node: any) => node.props.title === i18n.t('habits.autoLogParentTitle'))
 
     expect(autoLogDialog?.props.description).toContain('"Parent"')
   })
@@ -1161,7 +1316,7 @@ describe('HabitList', () => {
 
     const autoLogDialog = tree.root
       .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+      .find((node: any) => node.props.title === i18n.t('habits.autoLogParentTitle'))
 
     expect(autoLogDialog?.props.description).toContain('"Parent"')
   })
@@ -1204,7 +1359,7 @@ describe('HabitList', () => {
 
     const autoLogDialog = tree.root
       .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+      .find((node: any) => node.props.title === i18n.t('habits.autoLogParentTitle'))
 
     expect(autoLogDialog).toBeUndefined()
   })
@@ -1252,7 +1407,7 @@ describe('HabitList', () => {
 
     let autoLogDialog = tree.root
       .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+      .find((node: any) => node.props.title === i18n.t('habits.autoLogParentTitle'))
 
     expect(autoLogDialog?.props.description).toContain('"Parent"')
 
@@ -1265,7 +1420,7 @@ describe('HabitList', () => {
 
     autoLogDialog = tree.root
       .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+      .find((node: any) => node.props.title === i18n.t('habits.autoLogParentTitle'))
 
     expect(autoLogDialog).toBeTruthy()
     expect(autoLogDialog?.props.description).toContain('"Grandparent"')
@@ -1300,7 +1455,7 @@ describe('HabitList', () => {
       })
       const skipDialog = tree.root
         .findAllByType('ConfirmDialog')
-        .find((node: any) => node.props.title === 'habits.skipConfirmTitle')
+        .find((node: any) => node.props.title === i18n.t('habits.skipConfirmTitle'))
       await TestRenderer.act(async () => {
         await skipDialog.props.onConfirm()
       })
@@ -1311,14 +1466,14 @@ describe('HabitList', () => {
     expect(
       tree.root
         .findAllByType('ConfirmDialog')
-        .find((node: any) => node.props.title === 'habits.autoSkipParentTitle'),
+        .find((node: any) => node.props.title === i18n.t('habits.autoSkipParentTitle')),
     ).toBeUndefined()
 
     await skipChild('child-b')
 
     const skipParentDialog = tree.root
       .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.autoSkipParentTitle')
+      .find((node: any) => node.props.title === i18n.t('habits.autoSkipParentTitle'))
 
     expect(skipParentDialog?.props.description).toContain('"Parent"')
     expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a' })
@@ -1335,13 +1490,13 @@ describe('HabitList', () => {
     expect(
       tree.root
         .findAllByType('ConfirmDialog')
-        .find((node: any) => node.props.title === 'habits.autoSkipParentTitle'),
+        .find((node: any) => node.props.title === i18n.t('habits.autoSkipParentTitle')),
     ).toBeUndefined()
     await skipChild('child-a')
     expect(
       tree.root
         .findAllByType('ConfirmDialog')
-        .find((node: any) => node.props.title === 'habits.autoSkipParentTitle'),
+        .find((node: any) => node.props.title === i18n.t('habits.autoSkipParentTitle')),
     ).toBeTruthy()
   })
 
@@ -1447,7 +1602,7 @@ describe('HabitList', () => {
 
     const skipDialog = tree.root
       .findAllByType('ConfirmDialog')
-      .find((node: any) => node.props.title === 'habits.postponeConfirmTitle')
+      .find((node: any) => node.props.title === i18n.t('habits.postponeConfirmTitle'))
 
     await TestRenderer.act(async () => {
       await skipDialog.props.onConfirm()
@@ -1515,7 +1670,7 @@ describe('HabitList', () => {
       )
     })
 
-    expect(flattenRenderedText(tree.toJSON())).toContain('habits.overdue')
+    expect(flattenRenderedText(tree.toJSON())).toContain(i18n.t('habits.overdue'))
   })
 
   it('shows a future meta token for a habit due in six days', () => {
@@ -1534,8 +1689,7 @@ describe('HabitList', () => {
     })
 
     const renderedText = flattenRenderedText(tree.toJSON())
-    expect(renderedText).toContain('habits.schedule.dueInDays')
-    expect(renderedText).toContain('"count":6')
+    expect(renderedText).toContain(i18n.t('habits.schedule.dueInDays', { count: 6 }))
   })
 
   it('renders the status dot disabled for a non-loggable row and interactive for a loggable one', () => {
@@ -1569,12 +1723,12 @@ describe('HabitList', () => {
     const nonLoggableDot = nonLoggableTree.root.find(
       (node: any) =>
         typeof node.props?.accessibilityLabel === 'string' &&
-        node.props.accessibilityLabel.includes('habits.logHabit'),
+        node.props.accessibilityLabel.includes(i18n.t('habits.logHabit', { title: 'Daily yoga' })),
     )
     const loggableDot = loggableTree.root.find(
       (node: any) =>
         typeof node.props?.accessibilityLabel === 'string' &&
-        node.props.accessibilityLabel.includes('habits.logHabit'),
+        node.props.accessibilityLabel.includes(i18n.t('habits.logHabit', { title: 'Pay rent' })),
     )
 
     expect(nonLoggableDot.props.disabled).toBe(true)
@@ -1633,14 +1787,14 @@ describe('HabitList', () => {
 
     const openDialogs = tree.root
       .findAllByType('ConfirmDialog')
-      .filter((node: any) => node.props.title === 'habits.autoLogParentTitle')
+      .filter((node: any) => node.props.title === i18n.t('habits.autoLogParentTitle'))
 
     expect(openDialogs).toHaveLength(1)
 
     TestRenderer.act(() => {
       const dialog = tree.root
         .findAllByType('ConfirmDialog')
-        .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+        .find((node: any) => node.props.title === i18n.t('habits.autoLogParentTitle'))
       dialog?.props.onCancel()
     })
 
@@ -1650,7 +1804,7 @@ describe('HabitList', () => {
 
     const reopenedDialogs = tree.root
       .findAllByType('ConfirmDialog')
-      .filter((node: any) => node.props.title === 'habits.autoLogParentTitle')
+      .filter((node: any) => node.props.title === i18n.t('habits.autoLogParentTitle'))
 
     expect(reopenedDialogs).toHaveLength(0)
   })
@@ -1668,7 +1822,7 @@ describe('HabitList', () => {
       mockHabitsDataUpdatedAt += 1
       tree.update(renderList())
     })
-    const findDialog = () => tree.root.findAllByType('ConfirmDialog').find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+    const findDialog = () => tree.root.findAllByType('ConfirmDialog').find((node: any) => node.props.title === i18n.t('habits.autoLogParentTitle'))
     TestRenderer.act(() => ref.current?.checkAndPromptParentLog('child'))
     TestRenderer.act(() => findDialog()?.props.onCancel())
     refetch()

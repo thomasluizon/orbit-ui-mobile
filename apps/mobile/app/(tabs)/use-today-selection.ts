@@ -9,10 +9,11 @@ import { shouldResetSelectionForViewChange } from "@/lib/habit-selection-state";
 interface TodaySelectionInput {
   habitsById: Map<string, NormalizedHabit>;
   habitListRef: RefObject<HabitListHandle | null>;
-  habitListAllLoadedIds: Set<string>;
-  visibleHabitIds: Set<string>;
+  habitListAllLoadedIds: Set<string> | null;
   closeControlsMenu: () => void;
 }
+
+const NO_LOADED_HABIT_IDS = new Set<string>();
 
 /**
  * Owns the Today screen's multi-select / bulk-action concern: the bulk
@@ -24,7 +25,6 @@ export function useTodaySelection({
   habitsById,
   habitListRef,
   habitListAllLoadedIds,
-  visibleHabitIds,
   closeControlsMenu,
 }: TodaySelectionInput) {
   const activeView = useUIStore((s) => s.activeView);
@@ -48,8 +48,7 @@ export function useTodaySelection({
     setShowBulkSkipConfirm,
   } = bulkActions;
 
-  const allLoadedIds =
-    habitListAllLoadedIds.size > 0 ? habitListAllLoadedIds : visibleHabitIds;
+  const allLoadedIds = habitListAllLoadedIds ?? NO_LOADED_HABIT_IDS;
 
   const allSelected =
     allLoadedIds.size > 0 &&

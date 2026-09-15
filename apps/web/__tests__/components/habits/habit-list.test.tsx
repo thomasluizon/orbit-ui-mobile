@@ -10,6 +10,7 @@ import type { HabitVisibilityOptions } from '@orbit/shared/utils/habit-visibilit
 const TODAY = formatAPIDate(new Date())
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
+const visibilityMockState = vi.hoisted(() => ({ useRealTodayVisibility: false }))
 
 
 const mockHabitsData = {
@@ -87,7 +88,9 @@ vi.mock('@/hooks/use-habit-visibility', async () => {
 
       return {
         ...helpers,
-        hasVisibleContent: () => true,
+        hasVisibleContent: visibilityMockState.useRealTodayVisibility
+          ? helpers.hasVisibleContent
+          : () => true,
         isRelevantToday: () => true,
         isDueOnSelectedDate: () => true,
       }
@@ -326,6 +329,7 @@ describe('HabitList', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockHabitsDataUpdatedAt = 1
+    visibilityMockState.useRealTodayVisibility = false
     drillRefreshCurrent.mockReset()
     drillInto.mockReset()
     getDrillChildrenMock.mockReset()
@@ -401,6 +405,85 @@ describe('HabitList', () => {
     expect(
       screen.getByTestId(`habit-card-${TOUR_FEATURED_HABIT_ID}`),
     ).toHaveAttribute('data-tour', 'tour-habit-card')
+  })
+
+  it('hides one-time tasks completed before the selected day when completed items are shown', () => {
+    visibilityMockState.useRealTodayVisibility = true
+    const dueToday = createMockHabit({
+      id: 'due-today',
+      dueDate: '2026-09-15',
+      scheduledDates: ['2026-09-15'],
+      instances: [{ date: '2026-09-15', status: 'Pending', logId: null }],
+    })
+    const completedEarlier = createMockHabit({
+      id: 'completed-earlier',
+      frequencyUnit: null,
+      isCompleted: true,
+      isLoggedInRange: false,
+      dueDate: '2026-08-01',
+      scheduledDates: [],
+      instances: [],
+    })
+    mockHabitsData.habitsById = new Map([
+      [dueToday.id, dueToday],
+      [completedEarlier.id, completedEarlier],
+    ])
+    mockHabitsData.topLevelHabits = [dueToday, completedEarlier]
+
+    renderWithProviders(
+      <HabitList
+        filters={{ dateFrom: '2026-09-15', dateTo: '2026-09-15' }}
+        selectedDate={new Date(2026, 8, 15, 12)}
+        showCompleted
+      />,
+    )
+
+    expect(screen.getByTestId('habit-card-due-today')).toBeDefined()
+    expect(screen.queryByTestId('habit-card-completed-earlier')).toBeNull()
+  })
+
+  it('shows only selected-day completions alongside habits due that day', () => {
+    visibilityMockState.useRealTodayVisibility = true
+    const dueToday = createMockHabit({
+      id: 'due-today',
+      dueDate: '2026-09-15',
+      scheduledDates: ['2026-09-15'],
+      instances: [{ date: '2026-09-15', status: 'Pending', logId: null }],
+    })
+    const completedToday = createMockHabit({
+      id: 'completed-today',
+      frequencyUnit: null,
+      isCompleted: true,
+      isLoggedInRange: true,
+      dueDate: '2026-09-15',
+      scheduledDates: [],
+      instances: [],
+    })
+    const completedEarlier = createMockHabit({
+      id: 'completed-earlier',
+      frequencyUnit: null,
+      isCompleted: true,
+      isLoggedInRange: false,
+      dueDate: '2026-08-01',
+      scheduledDates: [],
+      instances: [],
+    })
+    mockHabitsData.habitsById = new Map(
+      [dueToday, completedToday, completedEarlier].map((habit) => [habit.id, habit]),
+    )
+    mockHabitsData.topLevelHabits = [dueToday, completedToday, completedEarlier]
+
+    renderWithProviders(
+      <HabitList
+        filters={{ dateFrom: '2026-09-15', dateTo: '2026-09-15' }}
+        selectedDate={new Date(2026, 8, 15, 12)}
+        showCompleted
+      />,
+    )
+
+    expect(screen.getByTestId('habit-card-due-today')).toBeDefined()
+    expect(screen.getByTestId('habit-card-completed-today')).toBeDefined()
+    expect(screen.queryByTestId('habit-card-completed-earlier')).toBeNull()
   })
 
   it('hides only completed one-time habits in all view when showCompleted is false', () => {
