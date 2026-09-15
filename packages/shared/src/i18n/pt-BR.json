@@ -2451,7 +2451,7 @@
       "gapUnavailable": "Um intervalo encerrou a sequência anterior. Hoje começa uma nova; os hábitos não mudaram.",
       "repairAction": "Usar {count, plural, one {# congelamento} other {# congelamentos}}",
       "repairEmpty": "A lacuna continua em aberto, mas não há congelamento guardado para cobri-la. Esta oferta de reparo termina hoje.",
-      "repairPartial": "A lacuna continua em aberto. Ela precisa de {needed, plural, one {# congelamento} other {# congelamentos}}, mas só há {banked} guardado. Esta oferta de reparo termina hoje.",
+      "repairPartial": "A lacuna continua em aberto. Ela precisa de {needed, plural, one {# congelamento} other {# congelamentos}}, mas {banked, plural, one {só há # guardado} other {só há # guardados}}. Esta oferta de reparo termina hoje.",
       "repairCapped": "Esta lacuna precisa de {needed, plural, one {# congelamento} other {# congelamentos}} e {banked} é o máximo que dá para guardar, então ela não pode ser reparada.",
       "repairError": "Não foi possível reparar o intervalo. Tente novamente.",
       "repairRateLimited": "Houve tentativas demais de reparo. Tente novamente em breve.",

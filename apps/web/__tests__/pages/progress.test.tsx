@@ -6,6 +6,9 @@ import postcss from 'postcss'
 import tailwind from '@tailwindcss/postcss'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { createTranslator } from 'next-intl'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import {
   closeChrome,
@@ -116,7 +119,8 @@ const mocks = vi.hoisted(() => ({
   isDesktop: false,
 }))
 
-vi.mock('next-intl', () => ({
+vi.mock('next-intl', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('next-intl')>()),
   useLocale: () => 'en',
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${JSON.stringify(values)}` : key,
@@ -626,16 +630,21 @@ describe('ProgressContent', () => {
     mocks.freeze.streakInfo.currentStreak = 0
     mocks.freeze.streakInfo.isRepairAvailable = false
     mocks.freeze.streakInfo.repairDate = null
-    mocks.freeze.streakInfo.repairableGapDates = ['2026-09-08', '2026-09-09']
-    mocks.freeze.streakInfo.streakFreezesAccumulated = 1
-    mocks.freeze.freezesAvailable = 1
-    mocks.freeze.streakFreezesAccumulated = 1
+    mocks.freeze.streakInfo.repairableGapDates = ['2026-09-07', '2026-09-08', '2026-09-09']
+    mocks.freeze.streakInfo.streakFreezesAccumulated = 2
+    mocks.freeze.freezesAvailable = 2
+    mocks.freeze.streakFreezesAccumulated = 2
 
     render(<ProgressContent />)
 
-    expect(screen.getByText('progressScreen.streak.gapBody:{"count":2}')).toBeInTheDocument()
-    expect(screen.getByText('progressScreen.streak.repairPartial:{"needed":2,"banked":1}')).toBeInTheDocument()
-    expect(screen.queryByText('progressScreen.streak.repairAction:{"count":2}')).not.toBeInTheDocument()
+    expect(screen.getByText('progressScreen.streak.gapBody:{"count":3}')).toBeInTheDocument()
+    expect(screen.getByText('progressScreen.streak.repairPartial:{"needed":3,"banked":2}')).toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.streak.repairAction:{"count":3}')).not.toBeInTheDocument()
+
+    expect(createTranslator({ locale: 'en', messages: en })('progressScreen.streak.repairPartial', { needed: 3, banked: 2 }))
+      .toBe('The gap is still open. It needs 3 freezes, but only 2 are banked. This repair offer ends today.')
+    expect(createTranslator({ locale: 'pt-BR', messages: ptBR })('progressScreen.streak.repairPartial', { needed: 3, banked: 2 }))
+      .toBe('A lacuna continua em aberto. Ela precisa de 3 congelamentos, mas só há 2 guardados. Esta oferta de reparo termina hoje.')
   })
 
   it('shows an unrepairable capped gap without promising another freeze', () => {

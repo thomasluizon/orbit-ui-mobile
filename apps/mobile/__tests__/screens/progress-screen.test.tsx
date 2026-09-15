@@ -5,6 +5,9 @@ import Yoga from 'yoga-layout'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { contrastOnSurface } from '@orbit/shared/__tests__/contrast'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { createTranslator } from 'next-intl'
 
 import ProgressScreen from '@/app/(tabs)/progress'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
@@ -643,17 +646,22 @@ describe('mobile ProgressContent', () => {
     mocks.freeze.streakInfo.currentStreak = 0
     mocks.freeze.streakInfo.isRepairAvailable = false
     mocks.freeze.streakInfo.repairDate = null
-    mocks.freeze.streakInfo.repairableGapDates = ['2026-09-08', '2026-09-09']
-    mocks.freeze.streakInfo.streakFreezesAccumulated = 1
-    mocks.freeze.freezesAvailable = 1
-    mocks.freeze.streakFreezesAccumulated = 1
+    mocks.freeze.streakInfo.repairableGapDates = ['2026-09-07', '2026-09-08', '2026-09-09']
+    mocks.freeze.streakInfo.streakFreezesAccumulated = 2
+    mocks.freeze.freezesAvailable = 2
+    mocks.freeze.streakFreezesAccumulated = 2
 
     const tree = await renderProgress()
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
 
-    expect(text).toContain('progressScreen.streak.gapBody:{"count":2}')
-    expect(text).toContain('progressScreen.streak.repairPartial:{"needed":2,"banked":1}')
-    expect(tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.streak.repairAction:{"count":2}')).toHaveLength(0)
+    expect(text).toContain('progressScreen.streak.gapBody:{"count":3}')
+    expect(text).toContain('progressScreen.streak.repairPartial:{"needed":3,"banked":2}')
+    expect(tree.root.findAll((node) => node.type === 'PillButton' && node.props.children === 'progressScreen.streak.repairAction:{"count":3}')).toHaveLength(0)
+
+    expect(createTranslator({ locale: 'en', messages: en })('progressScreen.streak.repairPartial', { needed: 3, banked: 2 }))
+      .toBe('The gap is still open. It needs 3 freezes, but only 2 are banked. This repair offer ends today.')
+    expect(createTranslator({ locale: 'pt-BR', messages: ptBR })('progressScreen.streak.repairPartial', { needed: 3, banked: 2 }))
+      .toBe('A lacuna continua em aberto. Ela precisa de 3 congelamentos, mas só há 2 guardados. Esta oferta de reparo termina hoje.')
   })
 
   it('shows an unrepairable capped gap without promising another freeze', async () => {
