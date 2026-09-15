@@ -931,9 +931,15 @@ head and requests the fresh review that supplies the verdict:
 node tools/list-bot-threads.mjs --pr <n> --repo <key> --wait-seconds <n> --re-review
 ```
 
-Any review Pullfrog started from the worker's push is superseded by this requested review and is not
-read as the verdict. The stop-after-commit contract that would remove this race is filed as ticket
-#542 and does not exist yet. Then rerun delivery verification on the new head.
+`--re-review` may accept any current-head review submitted after the request, including one whose
+run started from the worker's push. Acceptance is progress, not the verdict. The verdict requires
+the `pullfrog-approval` check run at the exact head and an `APPROVED` review whose `commit_id` is that
+same head. A `COMMENTED` review is not a verdict, regardless of when it arrived or what triggered
+it, and a review with an empty body is a progress marker rather than a review. An early
+push-triggered run cannot approve a head whose threads were open when it ran; the requested review
+supplies the verdict because it can approve after resolution. The stop-after-commit contract that
+would remove this race is filed as thomasluizon/orbit-tickets#542 and does not exist yet. Then rerun
+delivery verification on the new head.
 
 Route a fully specified reviewer-directed test-strengthening batch to `--tier mechanical` only when
 the order names the exact experiment. Route any batch needing product, design, architecture,
