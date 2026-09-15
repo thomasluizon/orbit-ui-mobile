@@ -141,7 +141,8 @@ vi.mock('@/hooks/use-goals', () => ({
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: () => mocks.gamification,
   useRepairStreak: () => mocks.repair,
-  useStreakFreeze: (_profile: unknown, timeZone: unknown) => {
+  useStreakFreeze: (profile: { streakFreezesAvailable?: number }, timeZone: unknown, enabled = true) => {
+    if (!enabled) return { ...mocks.freeze, streakInfo: null, streakFreezesAccumulated: profile.streakFreezesAvailable ?? 0 }
     if (!mocks.streakSnapshotZones || typeof timeZone !== 'string') return mocks.freeze
     if (mocks.streakSnapshotZones.has(timeZone)) return mocks.freeze
     return {
@@ -461,6 +462,7 @@ describe('mobile ProgressContent', () => {
   it('renders the remaining routed plan boundaries', async () => {
     mocks.account.profile.canViewGamification = false
     mocks.account.profile.hasProAccess = false
+    Object.assign(mocks.account.profile, { streakFreezesAvailable: 3 })
     const tree = await renderProgress()
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
     expect(text).toEqual(expect.arrayContaining([
@@ -468,6 +470,8 @@ describe('mobile ProgressContent', () => {
       'progressScreen.window.lockedBody',
     ]))
     expect(text).not.toContain('progressScreen.achievements.lockedBody')
+    expect(text).not.toContain('progressScreen.streak.bankFull:{"count":3}')
+    expect(text).not.toContain('progressScreen.streak.gapTitle')
     const lockedCards = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'progress-locked-card')
     expect(lockedCards).toHaveLength(2)
     expect(lockedCards.map((card) => StyleSheet.flatten(card.props.style as ViewStyle).padding)).toEqual([16, 16])

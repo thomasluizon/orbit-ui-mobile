@@ -133,7 +133,8 @@ vi.mock('@/hooks/use-goals', () => ({
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: () => mocks.gamification,
   useRepairStreak: () => mocks.repair,
-  useStreakFreeze: (_profile: unknown, timeZone: unknown) => {
+  useStreakFreeze: (profile: { streakFreezesAvailable?: number }, timeZone: unknown, enabled = true) => {
+    if (!enabled) return { ...mocks.freeze, streakInfo: null, streakFreezesAccumulated: profile.streakFreezesAvailable ?? 0 }
     if (!mocks.streakSnapshotZones || typeof timeZone !== 'string') return mocks.freeze
     if (mocks.streakSnapshotZones.has(timeZone)) return mocks.freeze
     return {
@@ -452,6 +453,7 @@ describe('ProgressContent', () => {
   it('renders the remaining routed boundaries with a 16px locked-card inset', async () => {
     mocks.account.profile.canViewGamification = false
     mocks.account.profile.hasProAccess = false
+    Object.assign(mocks.account.profile, { streakFreezesAvailable: 3 })
     const { container, unmount } = render(<ProgressContent />)
 
     expect(screen.getByText('progressScreen.streak.lockedBody')).toBeInTheDocument()
@@ -460,6 +462,8 @@ describe('ProgressContent', () => {
     expect(screen.getAllByText('progressScreen.streak.lockedAction').length).toBeGreaterThan(0)
     expect(screen.getByText('progressScreen.streak.longest')).toBeInTheDocument()
     expect(screen.getByText('streakDisplay.detail.tierTileLabel')).toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.streak.bankFull:{"count":3}')).not.toBeInTheDocument()
+    expect(screen.queryByText('progressScreen.streak.gapTitle')).not.toBeInTheDocument()
 
     const markup = container.innerHTML
     unmount()

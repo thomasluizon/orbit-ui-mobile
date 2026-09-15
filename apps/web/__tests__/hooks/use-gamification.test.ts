@@ -3,6 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { API } from '@orbit/shared/api'
+import { gamificationKeys } from '@orbit/shared/query'
 import { createApiClientError } from '@orbit/shared'
 import {
   useGamificationProfile,
@@ -30,13 +31,12 @@ vi.mock('@/lib/api-fetch', () => ({
   ),
 }))
 
-function createWrapper() {
-  const queryClient = new QueryClient({
+function createWrapper(queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
       mutations: { retry: false },
     },
-  })
+  })) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return React.createElement(QueryClientProvider, { client: queryClient }, children)
   }
@@ -352,13 +352,17 @@ describe('useRepairStreak', () => {
   })
 
   it('reads the streak back after a conflict instead of leaving stale gap state', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: false }, mutations: { retry: false } } })
+    const staleStreak = makeStreakInfo({ repairableGapDates: ['2026-09-04'] })
+    const refreshedStreak = makeStreakInfo({ repairableGapDates: [] })
+    queryClient.setQueryData(gamificationKeys.streak('America/Sao_Paulo'), staleStreak)
     repairStreakGap.mockRejectedValue(createApiClientError(409, null, 'Conflict'))
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve(makeStreakInfo()),
+      json: () => Promise.resolve(refreshedStreak),
     })
     const { result } = renderHook(() => useRepairStreak('America/Sao_Paulo'), {
-      wrapper: createWrapper(),
+      wrapper: createWrapper(queryClient),
     })
 
     await expect(result.current.mutateAsync(['2026-09-04', '2026-09-05'])).rejects.toMatchObject({
@@ -366,6 +370,6 @@ describe('useRepairStreak', () => {
     })
 
     expect(mockFetch).toHaveBeenCalledWith(API.gamification.streak)
+    expect(queryClient.getQueryData(gamificationKeys.streak('America/Sao_Paulo'))).toEqual(refreshedStreak)
   })
 })
-

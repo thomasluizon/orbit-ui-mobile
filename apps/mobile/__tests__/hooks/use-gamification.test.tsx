@@ -5,6 +5,7 @@ import { API } from '@orbit/shared/api'
 import { gamificationKeys } from '@orbit/shared/query'
 import type { StreakInfo } from '@orbit/shared/types/gamification'
 import { streakInfoSchema } from '@orbit/shared/types/gamification'
+import { QueryClient } from '@tanstack/query-core'
 
 import {
   useGamificationProfile,
@@ -276,6 +277,12 @@ describe('mobile useRepairStreak', () => {
   })
 
   it('reads the streak back after a conflict instead of surfacing a stale failure', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: 5 * 60 * 1000, retry: false } } })
+    const staleStreak = { ...mocks.state.streakInfo, repairableGapDates: ['2026-09-04'] }
+    const refreshedStreak = { ...mocks.state.streakInfo, repairableGapDates: [] }
+    queryClient.setQueryData(gamificationKeys.streak('America/Sao_Paulo'), staleStreak)
+    mocks.apiClient.mockResolvedValue(refreshedStreak)
+    mocks.useQueryClient.mockReturnValueOnce(queryClient)
     await renderHookValue(() => useRepairStreak('America/Sao_Paulo'))
     const options = mocks.useMutation.mock.calls[0]![0] as {
       onError: (error: unknown) => Promise<void>
@@ -283,11 +290,7 @@ describe('mobile useRepairStreak', () => {
 
     await options.onError({ status: 409 })
 
-    expect(mocks.queryClient.fetchQuery).toHaveBeenCalledWith(expect.objectContaining({
-      queryKey: gamificationKeys.streak('America/Sao_Paulo'),
-    }))
-    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: gamificationKeys.profile(),
-    })
+    expect(mocks.apiClient).toHaveBeenCalledWith(API.gamification.streak, undefined, streakInfoSchema)
+    expect(queryClient.getQueryData(gamificationKeys.streak('America/Sao_Paulo'))).toEqual(refreshedStreak)
   })
 })

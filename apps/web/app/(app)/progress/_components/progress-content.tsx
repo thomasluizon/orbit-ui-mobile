@@ -288,7 +288,7 @@ function StreakSection({ accountProfile, canView, gamificationProfile }: Readonl
           }}
         />
       ) : <><div className="grid grid-cols-2 gap-3"><StatTile value={longestStreak} label={t('progressScreen.streak.longest')} /><StatTile value={tier} label={t('streakDisplay.detail.tierTileLabel')} /></div><LockedCard title={t('progressScreen.streak.lockedTitle')} body={t('progressScreen.streak.lockedBody')} action={t('progressScreen.streak.lockedAction')} /></>}
-      <StreakRepairPanel state={repairState} daysUntilNextFreeze={freeze.daysUntilNextFreeze} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} isDesktop={isDesktop} />
+      {canView && freeze.streakInfo ? <StreakRepairPanel state={repairState} daysUntilNextFreeze={freeze.daysUntilNextFreeze} ceiling={freeze.maxStreakFreezesAccumulated} repair={repair} isDesktop={isDesktop} /> : null}
     </section>
   )
 }
