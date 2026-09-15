@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildWrappedSlides } from '../utils/wrapped'
+import { buildWrappedSlides, getWeeklyConsistencyReading } from '../utils/wrapped'
 import { createMockRecap, createMockRetrospectiveMetrics } from './factories'
 
 describe('buildWrappedSlides', () => {
@@ -13,8 +13,10 @@ describe('buildWrappedSlides', () => {
       'consistency',
       'streak',
       'topHabit',
+      'goals',
       'share',
     ])
+    expect(slides).toHaveLength(8)
   })
 
   it('omits the standout-habit slide when there are no top habits, keeping share last', () => {
@@ -28,14 +30,17 @@ describe('buildWrappedSlides', () => {
       'activeDays',
       'consistency',
       'streak',
+      'goals',
       'share',
     ])
+    expect(slides).toHaveLength(7)
     expect(slides.at(-1)?.id).toBe('share')
   })
 
   it('carries the recap metric values on each stat slide', () => {
     const slides = buildWrappedSlides(
       createMockRecap({
+        goalCompletions: 4,
         metrics: createMockRetrospectiveMetrics({
           totalCompletions: 42,
           activeDays: 5,
@@ -56,6 +61,7 @@ describe('buildWrappedSlides', () => {
     expect(byId.streak).toMatchObject({ bestStreak: 18, currentStreak: 9 })
     expect(byId.consistency).toMatchObject({ weeklyConsistency: [10, 20, 30, 40, 50, 60, 70] })
     expect(byId.topHabit).toMatchObject({ habit: { name: 'Read' } })
+    expect(byId.goals).toMatchObject({ closedGoals: 4 })
   })
 
   it('caps the consistency slide at seven days', () => {
@@ -69,5 +75,22 @@ describe('buildWrappedSlides', () => {
 
     const consistency = slides.find((slide) => slide.id === 'consistency')
     expect(consistency).toMatchObject({ weeklyConsistency: [1, 2, 3, 4, 5, 6, 7] })
+  })
+})
+
+describe('getWeeklyConsistencyReading', () => {
+  it('returns thin when no weekday carries completions', () => {
+    expect(getWeeklyConsistencyReading([0, 0, 0, 0, 0, 0, 0])).toEqual({ kind: 'thin' })
+  })
+
+  it('returns even when multiple weekdays share the highest average', () => {
+    expect(getWeeklyConsistencyReading([50, 50, 0, 0, 0, 0, 0])).toEqual({ kind: 'even' })
+  })
+
+  it('returns the only strongest weekday when one maximum stands alone', () => {
+    expect(getWeeklyConsistencyReading([0, 20, 0, 0, 0, 60, 0])).toEqual({
+      kind: 'compared',
+      strongestIndex: 5,
+    })
   })
 })

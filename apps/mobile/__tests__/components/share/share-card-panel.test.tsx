@@ -1,5 +1,9 @@
 import React from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import {
+  createMockRecap,
+  createMockRetrospectiveMetrics,
+} from '@orbit/shared/__tests__/factories'
 
 import { ShareCardPanel } from '@/components/share/share-card-panel'
 
@@ -12,6 +16,10 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
+vi.mock('@/components/share/share-card', () => ({
+  ShareCard: () => React.createElement('ShareCardStub'),
+}))
+
 vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({
     children,
@@ -22,10 +30,16 @@ vi.mock('@/components/ui/pill-button', () => ({
   }) => React.createElement('PillButtonStub', { onClick }, children),
 }))
 
-const { refetch } = vi.hoisted(() => ({ refetch: vi.fn() }))
+const { recapState, refetch } = vi.hoisted<{
+  recapState: { data: unknown; isLoading: boolean; isError: boolean }
+  refetch: ReturnType<typeof vi.fn>
+}>(() => ({
+  recapState: { data: undefined, isLoading: false, isError: true },
+  refetch: vi.fn(),
+}))
 
 vi.mock('@/hooks/use-recap', () => ({
-  useRecap: () => ({ data: undefined, isLoading: false, isError: true, refetch }),
+  useRecap: () => ({ ...recapState, refetch }),
 }))
 
 vi.mock('@/hooks/use-share-card', () => ({
@@ -70,5 +84,28 @@ describe('ShareCardPanel (mobile)', () => {
     expect(refetch).toHaveBeenCalledTimes(1)
 
     TestRenderer.act(() => tree!.unmount())
+  })
+
+  it('shows the share card for a goal-only recap', async () => {
+    recapState.data = createMockRecap({
+      goalCompletions: 4,
+      metrics: createMockRetrospectiveMetrics({ totalCompletions: 0, activeDays: 0 }),
+    })
+    recapState.isError = false
+    let tree: RenderedTree | null = null
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<ShareCardPanel open onClose={vi.fn()} />)
+      await Promise.resolve()
+    })
+
+    expect(tree!.root.findAll((node) => node.type === 'ShareCardStub')).toHaveLength(1)
+    expect(
+      tree!.root.findAll((node) => node.type === 'PillButtonStub')
+        .map((node) => node.props.children),
+    ).toEqual(['shareCard.share'])
+
+    TestRenderer.act(() => tree!.unmount())
+    recapState.data = undefined
+    recapState.isError = true
   })
 })

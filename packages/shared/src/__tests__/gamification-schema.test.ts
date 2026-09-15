@@ -150,6 +150,29 @@ describe('streakInfoSchema repair offer', () => {
 })
 
 describe('recapResponseSchema', () => {
+  it('preserves the API goal completion count', () => {
+    const parsed = recapResponseSchema.parse({
+      period: 'month',
+      shareDeepLink: 'https://app.useorbit.org/r/ABCD2345?recap=month',
+      goalCompletions: 4,
+      metrics: {
+        completionRate: 0,
+        totalCompletions: 0,
+        totalScheduled: 0,
+        activeDays: 0,
+        periodDays: 30,
+        currentStreak: 0,
+        bestStreak: 0,
+        badHabitSlips: 0,
+        weeklyConsistency: [0, 0, 0, 0, 0, 0, 0],
+        topHabits: [],
+        needsAttention: [],
+      },
+    })
+
+    expect(parsed.goalCompletions).toBe(4)
+  })
+
   it('parses a metrics-only recap with a share deep link', () => {
     const parsed = recapResponseSchema.parse({
       period: 'week',

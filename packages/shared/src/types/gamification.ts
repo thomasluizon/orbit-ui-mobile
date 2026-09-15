@@ -120,6 +120,7 @@ export const recapResponseSchema = z.object({
   period: z.enum(['week', 'month', 'quarter', 'semester', 'year']),
   metrics: retrospectiveMetricsSchema,
   shareDeepLink: z.string(),
+  goalCompletions: z.number().default(0),
 })
 
 export type Recap = z.infer<typeof recapResponseSchema>

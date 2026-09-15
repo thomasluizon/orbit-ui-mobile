@@ -32,11 +32,6 @@
       "count": 5
     }
   },
-  "app/wrapped-styles.ts": {
-    "local/spacing-scale": {
-      "count": 6
-    }
-  },
   "components/chat/conflict-warning.tsx": {
     "local/icon-size-grid": {
       "count": 1

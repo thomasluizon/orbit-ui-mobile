@@ -5,13 +5,14 @@ import { useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
 import {
   formatCompletionRate,
+  getWeeklyConsistencyReading,
   type RecapSharePeriod,
   type WrappedSlide as WrappedSlideModel,
 } from '@orbit/shared/utils'
 import { ShareCard } from '@/components/share/share-card'
+import { Columns } from '@/components/ui/columns'
 import {
   captionStyle,
-  dayLabelStyle,
   eyebrowStyle,
   heroNumeralStyle,
   labelStyle,
@@ -45,7 +46,7 @@ export function WrappedSlide({ slide, recap, period, displayName, captureRef, sh
       return (
         <SlideShell testId="wrapped-slide-intro">
           <span style={eyebrowStyle}>{t('wrapped.slides.intro.eyebrow')}</span>
-          <h1 style={titleStyle}>{t(`wrapped.slides.intro.${period}`)}</h1>
+          <h1 data-wrapped-figure="primary" style={titleStyle}>{t(`wrapped.slides.intro.${period}`)}</h1>
           <p style={captionStyle}>{t('wrapped.slides.intro.caption')}</p>
         </SlideShell>
       )
@@ -76,8 +77,8 @@ export function WrappedSlide({ slide, recap, period, displayName, captureRef, sh
         <SlideShell testId="wrapped-slide-consistency">
           <span style={eyebrowStyle}>{t('wrapped.slides.consistency.eyebrow')}</span>
           <h2 style={titleStyle}>{t('wrapped.slides.consistency.title')}</h2>
-          <WeeklyRhythm values={slide.weeklyConsistency} />
-          <p style={captionStyle}>{t('wrapped.slides.consistency.caption')}</p>
+          <WeekdayColumns values={slide.weeklyConsistency} />
+          <WeekdayInterpretation values={slide.weeklyConsistency} />
         </SlideShell>
       )
     case 'streak':
@@ -94,7 +95,7 @@ export function WrappedSlide({ slide, recap, period, displayName, captureRef, sh
       return (
         <SlideShell testId="wrapped-slide-topHabit">
           <span style={eyebrowStyle}>{t('wrapped.slides.topHabit.eyebrow')}</span>
-          <span style={{ fontSize: 72, lineHeight: 1 }} aria-hidden="true">
+          <span data-wrapped-figure="primary" style={{ fontSize: 72, lineHeight: 1 }} aria-hidden="true">
             {slide.habit.emoji ?? '⭐'}
           </span>
           <h2
@@ -115,6 +116,18 @@ export function WrappedSlide({ slide, recap, period, displayName, captureRef, sh
           </p>
         </SlideShell>
       )
+    case 'goals':
+      return (
+        <SlideShell testId="wrapped-slide-goals">
+          <span data-wrapped-figure="primary" style={heroNumeralStyle}>{slide.closedGoals}</span>
+          <span style={labelStyle}>{t('shareCard.stats.goalsClosed')}</span>
+          <p style={captionStyle}>
+            {slide.closedGoals > 0
+              ? t('wrapped.slides.goals.some', { count: slide.closedGoals })
+              : t('wrapped.slides.goals.zero')}
+          </p>
+        </SlideShell>
+      )
     case 'share':
       return <WrappedShareSlide recap={recap} displayName={displayName} captureRef={captureRef} hasError={shareError} />
   }
@@ -130,7 +143,7 @@ function SlideShell({ children, testId }: Readonly<SlideShellProps>) {
     <div
       data-testid={testId}
       className="stagger-enter flex flex-1 flex-col items-center justify-center text-center"
-      style={{ gap: 18, padding: '0 28px' }}
+      style={{ gap: 16, padding: '0 24px' }}
     >
       {children}
     </div>
@@ -149,52 +162,58 @@ function HeroStatSlide({ testId, eyebrow, value, label, caption }: Readonly<Hero
   return (
     <SlideShell testId={testId}>
       <span style={eyebrowStyle}>{eyebrow}</span>
-      <span style={heroNumeralStyle}>{value}</span>
+      <span data-wrapped-figure="primary" style={heroNumeralStyle}>{value}</span>
       <span style={labelStyle}>{label}</span>
       <p style={captionStyle}>{caption}</p>
     </SlideShell>
   )
 }
 
-function WeeklyRhythm({ values }: Readonly<{ values: number[] }>) {
+function WeekdayColumns({ values }: Readonly<{ values: number[] }>) {
   const t = useTranslations()
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(7, 1fr)',
-        gap: 10,
-        width: '100%',
-        maxWidth: 320,
-        marginTop: 6,
-      }}
-    >
-      {values.slice(0, 7).map((value, index) => {
-        const clamped = Math.max(0, Math.min(100, value))
-        return (
-          <div
-            key={WEEKDAY_KEYS[index]}
-            className="flex flex-col items-center"
-            style={{ gap: 8 }}
-          >
-            <div className="flex w-full items-end" style={{ height: 132 }}>
-              <div
-                aria-hidden="true"
-                style={{
-                  width: '100%',
-                  height: `${Math.max(8, (clamped / 100) * 132)}px`,
-                  borderRadius: 7,
-                  background: 'var(--primary)',
-                  opacity: clamped === 0 ? 0.25 : 1,
-                }}
-              />
-            </div>
-            <span style={dayLabelStyle}>{t(`dates.daysShort.${WEEKDAY_KEYS[index]}`)}</span>
-          </div>
-        )
-      })}
+    <div data-wrapped-figure="primary" className="w-full max-w-sm">
+      <Columns
+        columns={values.slice(0, 7).map((value, index) => {
+          const weekday = WEEKDAY_KEYS[index]!
+          return { id: weekday, label: t(`dates.daysShort.${weekday}`), value }
+        })}
+        height={160}
+        showValues
+        label={t('wrapped.slides.consistency.title')}
+        emptyLabel={t('calendar.emptyStat')}
+      />
     </div>
   )
+}
+
+function WeekdayInterpretation({ values }: Readonly<{ values: number[] }>) {
+  const t = useTranslations()
+  const reading = getWeeklyConsistencyReading(values)
+  switch (reading.kind) {
+    case 'thin':
+      return <p style={captionStyle}>{t('wrapped.slides.consistency.thin')}</p>
+    case 'even':
+      return (
+        <>
+          <p style={captionStyle}>{t('wrapped.slides.consistency.even')}</p>
+          <p style={captionStyle}>{t('wrapped.slides.consistency.note')}</p>
+        </>
+      )
+    case 'compared': {
+      const strongestWeekday = WEEKDAY_KEYS[reading.strongestIndex]!
+      return (
+        <>
+          <p style={captionStyle}>
+            {t('wrapped.slides.consistency.summary', {
+              strong: t(`dates.daysShort.${strongestWeekday}`),
+            })}
+          </p>
+          <p style={captionStyle}>{t('wrapped.slides.consistency.note')}</p>
+        </>
+      )
+    }
+  }
 }
 
 interface WrappedShareSlideProps {
@@ -211,10 +230,12 @@ function WrappedShareSlide({ recap, displayName, captureRef, hasError }: Readonl
     <div
       data-testid="wrapped-slide-share"
       className="stagger-enter flex flex-1 flex-col items-center justify-center"
-      style={{ gap: 16, padding: '8px 22px 28px' }}
+      style={{ gap: 16, padding: '8px 24px 24px' }}
     >
       <span style={eyebrowStyle}>{t('wrapped.slides.share.eyebrow')}</span>
-      <ShareCard ref={captureRef} recap={recap} displayName={displayName} />
+      <div data-wrapped-figure="primary">
+        <ShareCard ref={captureRef} recap={recap} displayName={displayName} />
+      </div>
 
       {hasError && (
         <p role="alert" style={{ textAlign: 'center', fontSize: 13, color: 'var(--status-bad-text)' }}>
