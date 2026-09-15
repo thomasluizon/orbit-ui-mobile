@@ -157,6 +157,18 @@ vi.mock('@/hooks/use-is-desktop', () => ({ useIsDesktop: () => mocks.isDesktop }
 import ProgressPage from '@/app/(app)/progress/page'
 import { ProgressContent } from '@/app/(app)/progress/_components/progress-content'
 
+function captureGoalCardRendering(card: HTMLElement) {
+  const elements = [card, ...card.querySelectorAll<HTMLElement>('*')]
+  return {
+    structure: card.outerHTML,
+    styles: elements.map((element) => {
+      const style = getComputedStyle(element)
+      return Object.fromEntries(Array.from(style).sort((left, right) => left.localeCompare(right))
+        .map((property) => [property, style.getPropertyValue(property)]))
+    }),
+  }
+}
+
 describe('ProgressContent', () => {
   let browserLaunch: BrowserLaunch | undefined
   let browser: Browser
@@ -218,6 +230,41 @@ describe('ProgressContent', () => {
     expect(card.querySelectorAll('[data-variant="solid"]')).toHaveLength(1)
     expect(within(card).queryByText(/^progressScreen\.goals\.daysOverdue(?::|$)/)).not.toBeInTheDocument()
     expect(within(card).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '25')
+  })
+
+  it('filters the same goal list through all four views', () => {
+    mocks.goals.data.allGoals = [
+      createMockGoal({ id: 'active', title: 'Active goal', status: 'Active', position: 0 }),
+      createMockGoal({ id: 'completed', title: 'Completed goal', status: 'Completed', position: 1 }),
+      createMockGoal({ id: 'abandoned', title: 'Abandoned goal', status: 'Abandoned', position: 2 }),
+    ]
+    render(<ProgressPage />)
+
+    expect(screen.getAllByRole('button', { name: / goal$/ })).toHaveLength(3)
+    for (const [view, visible] of [
+      ['active', 'Active goal'],
+      ['completed', 'Completed goal'],
+      ['abandoned', 'Abandoned goal'],
+    ] as const) {
+      fireEvent.click(screen.getByRole('radio', { name: `progressScreen.goals.${view}` }))
+      expect(screen.getByRole('button', { name: visible })).toBeInTheDocument()
+      expect(screen.getAllByRole('button', { name: / goal$/ })).toHaveLength(1)
+    }
+    fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.all' }))
+    expect(screen.getAllByRole('button', { name: / goal$/ })).toHaveLength(3)
+  })
+
+  it('ignores goal colour, icon and emoji adornments from an oversized response', () => {
+    const goal = createMockGoal()
+    mocks.goals.data.allGoals = [goal]
+    const { rerender } = render(<ProgressPage />)
+    const unadorned = captureGoalCardRendering(screen.getByRole('button', { name: goal.title }))
+    mocks.goals.data.allGoals = [{ ...goal, color: 'blue', emoji: '🎯', icon: 'target' }]
+    rerender(<ProgressPage />)
+    const oversized = captureGoalCardRendering(screen.getByRole('button', { name: goal.title }))
+
+    expect.soft(oversized.structure).toBe(unadorned.structure)
+    expect.soft(oversized.styles).toEqual(unadorned.styles)
   })
 
   it('keeps reached targets active with a done disc and opens detail from the whole card', () => {
@@ -298,6 +345,7 @@ describe('ProgressContent', () => {
     expect(mocks.reorder.mutate).not.toHaveBeenCalled()
     await act(() => vi.advanceTimersByTime(50))
     fireEvent.click(screen.getByRole('radio', { name: 'progressScreen.goals.active' }))
+    expect(card).not.toHaveAttribute('aria-roledescription')
     fireEvent.mouseDown(card, { clientX: 0, clientY: 0, button: 0 })
     fireEvent.mouseMove(document, { clientX: 0, clientY: 100 })
     fireEvent.mouseUp(document)

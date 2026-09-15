@@ -18,7 +18,13 @@ type TestNode = {
   type: unknown
   props: Record<string, unknown>
   parent: TestNode | null
+  children: (TestNode | string | number)[]
   findAll: (predicate: (node: TestNode) => boolean) => TestNode[]
+}
+
+type TestTree = {
+  root: TestNode
+  update: (element: React.ReactElement) => void
 }
 
 const mocks = vi.hoisted(() => ({
@@ -175,13 +181,35 @@ vi.mock('@/components/ui/stat-tile', async (importOriginal) => ({
   StatTile: (props: Record<string, unknown>) => React.createElement('StatTile', props),
 }))
 
-async function renderProgress(): Promise<{ root: TestNode }> {
-  let tree: { root: TestNode } | undefined
+async function renderProgress(): Promise<TestTree> {
+  let tree: TestTree | undefined
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(<ProgressScreen />)
     await Promise.resolve()
   })
   return tree!
+}
+
+function captureGoalCardRendering(card: TestNode) {
+  const structure = (node: TestNode | string | number): unknown[] => {
+    if (typeof node !== 'object') return [node]
+    if (typeof node.type !== 'string') return node.children.flatMap(structure)
+    return [{
+      type: node.type,
+      props: Object.fromEntries(Object.entries(node.props).filter(([key, value]) =>
+        key !== 'children' && key !== 'style' && typeof value !== 'function')),
+      children: node.children.flatMap(structure),
+    }]
+  }
+  const styles = card.findAll((node) => typeof node.type === 'string').map((node) => {
+    const rawStyle = node.props.style
+    if (!rawStyle) return undefined
+    const resolve = (pressed: boolean) => StyleSheet.flatten(typeof rawStyle === 'function'
+      ? (rawStyle as (state: { pressed: boolean }) => ViewStyle)({ pressed })
+      : rawStyle)
+    return { resting: resolve(false), pressed: resolve(true) }
+  })
+  return { structure: structure(card)[0], styles }
 }
 
 function findPill(root: TestNode, label: string): TestNode {
@@ -222,6 +250,52 @@ describe('mobile ProgressContent', () => {
     expect(card.findAll((node) => node.props.children === 'goals.status.active')).toHaveLength(0)
     expect(card.findAll((node) => typeof node.type === 'string' && node.props.testID === 'badge-solid')).toHaveLength(1)
     expect(card.findAll((node) => typeof node.props.children === 'string' && node.props.children.startsWith('progressScreen.goals.daysOverdue'))).toHaveLength(0)
+  })
+
+  it('filters the same goal list through all four views', async () => {
+    mocks.goals.data.allGoals = [
+      createMockGoal({ id: 'active', title: 'Active goal', status: 'Active', position: 0 }),
+      createMockGoal({ id: 'completed', title: 'Completed goal', status: 'Completed', position: 1 }),
+      createMockGoal({ id: 'abandoned', title: 'Abandoned goal', status: 'Abandoned', position: 2 }),
+    ]
+    const tree = await renderProgress()
+    const cards = () => tree.root.findAll((node) => typeof node.type === 'string'
+      && ['Active goal', 'Completed goal', 'Abandoned goal'].includes(String(node.props.accessibilityLabel)))
+
+    expect(cards()).toHaveLength(3)
+    for (const [view, visible] of [
+      ['active', 'Active goal'],
+      ['completed', 'Completed goal'],
+      ['abandoned', 'Abandoned goal'],
+    ] as const) {
+      const segment = tree.root.findAll((node) => typeof node.type === 'string'
+        && String(node.props.testID).startsWith(`segment-${view}-`))[0]!
+      await TestRenderer.act(() => (segment.props.onPress as () => void)())
+      expect(cards()).toHaveLength(1)
+      expect(cards()[0]!.props.accessibilityLabel).toBe(visible)
+    }
+    const all = tree.root.findAll((node) => typeof node.type === 'string'
+      && String(node.props.testID).startsWith('segment-all-'))[0]!
+    await TestRenderer.act(() => (all.props.onPress as () => void)())
+    expect(cards()).toHaveLength(3)
+  })
+
+  it('ignores goal colour, icon and emoji adornments from an oversized response', async () => {
+    const goal = createMockGoal()
+    mocks.goals.data.allGoals = [goal]
+    const tree = await renderProgress()
+    const findCard = () => tree.root.findAll((node) => typeof node.type === 'string'
+      && node.props.accessibilityLabel === goal.title)[0]!
+    const unadorned = captureGoalCardRendering(findCard())
+    mocks.goals.data.allGoals = [{ ...goal, color: 'blue', emoji: '🎯', icon: 'target' }]
+    await TestRenderer.act(async () => {
+      tree.update(<ProgressScreen />)
+      await Promise.resolve()
+    })
+    const oversized = captureGoalCardRendering(findCard())
+
+    expect.soft(oversized.structure).toEqual(unadorned.structure)
+    expect.soft(oversized.styles).toEqual(unadorned.styles)
   })
 
   it('renders a reached target as a done disc with one badge and no finish entry', async () => {
@@ -265,6 +339,8 @@ describe('mobile ProgressContent', () => {
     const tab = tree.root.findAll((node) => typeof node.type === 'string' && node.props.testID === 'segment-active-unselected-enabled')[0]!
     await TestRenderer.act(() => (tab.props.onPress as () => void)())
     expect(tree.root.findAll((node) => node.type === 'DraggableFlatList')).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.props.accessibilityLabel === 'Read 12 Books')[0]!.props.accessibilityActions).toBeUndefined()
+    expect(mocks.reorder.mutate).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -822,10 +898,12 @@ describe('mobile ProgressContent', () => {
 
     expect(list.props.activationDistance).toBe(5)
     expect(firstGoal.props.accessibilityActions).toHaveLength(2)
+    expect(mocks.reorder.mutate).not.toHaveBeenCalled()
 
     await TestRenderer.act(() => {
       ;(list.props.onDragEnd as (params: unknown) => void)({ from: 0, to: 1, data: [goalTwo, goalOne] })
     })
+    expect(mocks.reorder.mutate).toHaveBeenCalledTimes(1)
     expect(mocks.reorder.mutate).toHaveBeenCalledWith([
       { id: 'goal-2', position: 0 },
       { id: 'goal-1', position: 1 },
