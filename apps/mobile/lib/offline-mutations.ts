@@ -694,6 +694,13 @@ export async function flushQueuedMutations(): Promise<{
   let outcome: FlushOutcome
   try {
     outcome = await runQueueFlush()
+  } catch (error: unknown) {
+    if (count() > 0) {
+      scheduleBackoffFlush()
+    } else {
+      cancelScheduledFlush()
+    }
+    throw error
   } finally {
     flushInFlight = false
   }

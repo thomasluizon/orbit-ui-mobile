@@ -56,6 +56,7 @@ const mocks = vi.hoisted(() => {
     subscribeQueueCount,
     count,
     getCurrentConnectivity,
+    captureError: vi.fn(),
   }
 })
 
@@ -98,6 +99,10 @@ vi.mock('@/lib/offline-mutations', () => ({
   canAutoFlush: () => mocks.state.allowFlush,
 }))
 
+vi.mock('@/lib/sentry', () => ({
+  captureError: mocks.captureError,
+}))
+
 function HookHarness() {
   useOffline()
   return null
@@ -121,6 +126,7 @@ describe('useOffline', () => {
     mocks.subscribeQueueCount.mockClear()
     mocks.count.mockClear()
     mocks.getCurrentConnectivity.mockClear()
+    mocks.captureError.mockClear()
   })
 
   async function mountHook() {
@@ -215,6 +221,33 @@ describe('useOffline', () => {
     })
 
     expect(mocks.flushQueuedMutations).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not re-enter when a rejected flush leaves pending work behind the retry gate', async () => {
+    mocks.state.queueCount = 1
+    mocks.flushQueuedMutations
+      .mockRejectedValueOnce(new Error('Queue bookkeeping failed'))
+      .mockImplementationOnce(async () => {
+        mocks.state.queueCount = 0
+        await Promise.resolve()
+        return { succeeded: 0, failed: 0, remaining: 0, droppedMutations: [] }
+      })
+
+    await mountHook()
+    await TestRenderer.act(async () => {
+      mocks.state.netInfoListener?.({
+        isConnected: true,
+        isInternetReachable: true,
+      })
+      mocks.state.queueListener?.(1)
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(mocks.flushQueuedMutations).toHaveBeenCalledTimes(1)
+    expect(mocks.captureError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Queue bookkeeping failed' }),
+    )
   })
 
 })

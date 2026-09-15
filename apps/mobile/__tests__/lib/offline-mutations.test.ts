@@ -8,6 +8,7 @@ import { logHabitResponseSchema } from '@orbit/shared/types/habit'
 
 import {
   buildQueuedMutation,
+  canAutoFlush,
   cancelScheduledFlush,
   createQueuedAck,
   createTempEntityId,
@@ -972,6 +973,35 @@ describe('offline mutations', () => {
 
       await vi.advanceTimersByTimeAsync(2_000)
 
+      expect(mocks.apiClient).toHaveBeenCalledTimes(2)
+      expect(mocks.queued).toHaveLength(0)
+    })
+
+    it('schedules backoff when queue persistence rejects with pending work', async () => {
+      mocks.setOnline(true)
+      mocks.apiClient.mockRejectedValueOnce(new Error('Network request failed'))
+      mocks.persistQueryCache.mockRejectedValueOnce(new Error('Queue persistence failed'))
+      mocks.queued.push({
+        ...buildQueuedMutation({
+          type: 'updateHabit',
+          scope: 'habits',
+          endpoint: '/api/habits/habit-1',
+          method: 'PUT',
+          payload: { title: 'Retry me' },
+          entityType: 'habit',
+          targetEntityId: 'habit-1',
+        }),
+        id: 'update-1',
+      })
+
+      await expect(flushQueuedMutations()).rejects.toThrow('Queue persistence failed')
+      expect(canAutoFlush()).toBe(false)
+      expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+
+      await vi.advanceTimersByTimeAsync(1_999)
+      expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+
+      await vi.advanceTimersByTimeAsync(1)
       expect(mocks.apiClient).toHaveBeenCalledTimes(2)
       expect(mocks.queued).toHaveLength(0)
     })

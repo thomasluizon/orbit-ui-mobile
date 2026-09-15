@@ -4,6 +4,7 @@ import { AppState, type AppStateStatus } from 'react-native'
 import * as offlineQueue from '@/lib/offline-queue'
 import { canAutoFlush, flushQueuedMutations } from '@/lib/offline-mutations'
 import { getCurrentConnectivity, setCachedConnectivity } from '@/lib/offline-runtime'
+import { captureError } from '@/lib/sentry'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
 
 interface UseOfflineReturn {
@@ -20,6 +21,7 @@ export function useOffline(): UseOfflineReturn {
   const [pendingCount, setPendingCount] = useState(0)
   const [isFlushing, setIsFlushing] = useState(false)
   const flushLock = useRef(false)
+  const skipNextAutomaticFlush = useRef(false)
 
   // react-doctor-disable-next-line effect-needs-cleanup -- FP: the effect cleans up — `return () => unsubscribe()` invokes NetInfo's unsubscribe; RD only recognizes removeEventListener/subscription.remove(), not an unsubscribe callback. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
@@ -50,6 +52,9 @@ export function useOffline(): UseOfflineReturn {
 
     try {
       await flushQueuedMutations()
+    } catch (error: unknown) {
+      skipNextAutomaticFlush.current = true
+      throw error
     } finally {
       setPendingCount(offlineQueue.count())
       setIsFlushing(false)
@@ -58,15 +63,22 @@ export function useOffline(): UseOfflineReturn {
   }, [])
 
   useEffect(() => {
+    if (pendingCount === 0) {
+      skipNextAutomaticFlush.current = false
+    }
     if (connectivityHydrated && isOnline && pendingCount > 0 && !isFlushing) {
-      void flush()
+      if (skipNextAutomaticFlush.current) {
+        skipNextAutomaticFlush.current = false
+        return
+      }
+      void flush().catch(captureError)
     }
   }, [connectivityHydrated, isOnline, pendingCount, isFlushing, flush])
 
   useEffect(() => {
     const handleAppState = (nextState: AppStateStatus) => {
       if (nextState === 'active' && connectivityHydrated && isOnline && pendingCount > 0) {
-        void flush()
+        void flush().catch(captureError)
       }
     }
     const subscription = AppState.addEventListener('change', handleAppState)
