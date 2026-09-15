@@ -161,6 +161,7 @@ function renderModal(ui: React.ReactElement) {
   let tree: {
     root: { findAll: (predicate: (node: any) => boolean) => any[] }
     update: (nextUi: React.ReactElement) => void
+    unmount: () => void
   }
   TestRenderer.act(() => {
     tree = TestRenderer.create(
@@ -174,7 +175,12 @@ function renderModal(ui: React.ReactElement) {
       )
     })
   }
-  return { root: tree!.root, updateModal }
+  const unmount = () => {
+    TestRenderer.act(() => {
+      tree.unmount()
+    })
+  }
+  return { root: tree!.root, updateModal, unmount }
 }
 
 function hasText(root: { findAll: (predicate: (node: any) => boolean) => any[] }, value: string) {
@@ -455,6 +461,47 @@ describe('CreateHabitModal (mobile)', () => {
     await TestRenderer.act(async () => request)
 
     expect(mockSetValue).not.toHaveBeenCalled()
+  })
+
+  it('ignores a pending emoji suggestion after the create modal unmounts', async () => {
+    let resolveSuggestion!: (value: Record<string, unknown>) => void
+    mockGetValues.mockImplementation((field?: unknown) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSuggestion = resolve
+      }),
+    )
+
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    const formFields = tree.root.findAll(
+      (node: { type: unknown }) => node.type === 'HabitFormFields',
+    )[0]
+    mockSetValue.mockClear()
+
+    let request!: Promise<void>
+    TestRenderer.act(() => {
+      request = formFields.props.onSuggestEmoji()
+    })
+    tree.unmount()
+    resolveSuggestion({
+      emoji: '🏊',
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: null,
+      subHabits: [],
+      checklistItems: [],
+    })
+    await TestRenderer.act(async () => request)
+
+    expect(mockSetValue).not.toHaveBeenCalled()
+    expect(mockShowSuccess).not.toHaveBeenCalled()
+    expect(mockShowInfo).not.toHaveBeenCalled()
+    expect(mockShowError).not.toHaveBeenCalled()
   })
 
   it('starts only one request when both suggestion actions are pressed', async () => {

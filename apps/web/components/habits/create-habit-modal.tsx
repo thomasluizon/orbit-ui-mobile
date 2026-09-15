@@ -112,6 +112,11 @@ export function CreateHabitModal({
     suggestionRequests.updateContext(suggestionSessionKey, watchedTitle)
   }, [suggestionRequests, suggestionSessionKey, watchedTitle])
 
+  useEffect(
+    () => () => suggestionRequests.updateContext(null, ''),
+    [suggestionRequests],
+  )
+
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
   const isDirty =
     formHelpers.form.formState.isDirty ||

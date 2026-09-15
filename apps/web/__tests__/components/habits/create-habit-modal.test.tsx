@@ -18,6 +18,8 @@ const mockSetFlexible = vi.fn()
 const mockValidateAll = vi.fn()
 const mockResetTags = vi.fn()
 const mockShowError = vi.fn()
+const mockShowSuccess = vi.fn()
+const mockShowInfo = vi.fn()
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -119,8 +121,8 @@ vi.mock('@/stores/ui-store', () => ({
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({
     showError: mockShowError,
-    showSuccess: vi.fn(),
-    showInfo: vi.fn(),
+    showSuccess: mockShowSuccess,
+    showInfo: mockShowInfo,
   }),
 }))
 
@@ -560,6 +562,46 @@ describe('CreateHabitModal', () => {
     })
 
     expect(mockFormSetValue).not.toHaveBeenCalled()
+  })
+
+  it('ignores a pending emoji suggestion after the create modal unmounts', async () => {
+    let resolveSuggestion!: (value: Record<string, unknown>) => void
+    mockFormGetValues.mockImplementation((field?: string) =>
+      field === 'title' ? 'Swim' : {},
+    )
+    mockSuggestMutateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSuggestion = resolve
+      }),
+    )
+
+    const { unmount } = renderWithProviders(
+      <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
+    )
+    mockFormSetValue.mockClear()
+    fireEvent.click(screen.getByTestId('emoji-suggest-trigger'))
+    await waitFor(() => expect(mockSuggestMutateAsync).toHaveBeenCalledOnce())
+
+    unmount()
+    await act(async () => {
+      resolveSuggestion({
+        emoji: '🏊',
+        frequencyUnit: null,
+        frequencyQuantity: null,
+        days: [],
+        isFlexible: false,
+        flexibleTarget: null,
+        dueTime: null,
+        subHabits: [],
+        checklistItems: [],
+      })
+      await Promise.resolve()
+    })
+
+    expect(mockFormSetValue).not.toHaveBeenCalled()
+    expect(mockShowSuccess).not.toHaveBeenCalled()
+    expect(mockShowInfo).not.toHaveBeenCalled()
+    expect(mockShowError).not.toHaveBeenCalled()
   })
 
   it('starts only one request when both suggestion actions are pressed', async () => {

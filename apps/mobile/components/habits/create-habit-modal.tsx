@@ -123,6 +123,10 @@ export function CreateHabitModal({
   useEffect(() => {
     suggestionRequests.updateContext(suggestionSessionKey, watchedTitle)
   }, [suggestionRequests, suggestionSessionKey, watchedTitle])
+  useEffect(
+    () => () => suggestionRequests.updateContext(null, ''),
+    [suggestionRequests],
+  )
   const watchedDueTime =
     useWatch({ control: formHelpers.form.control, name: 'dueTime' }) ?? ''
   const watchedReminderEnabled =

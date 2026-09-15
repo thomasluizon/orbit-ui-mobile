@@ -239,6 +239,11 @@ export function EditHabitModal({
     suggestionRequests.updateContext(suggestionSessionKey, watchedTitle)
   }, [suggestionRequests, suggestionSessionKey, watchedTitle])
 
+  useEffect(
+    () => () => suggestionRequests.updateContext(null, ''),
+    [suggestionRequests],
+  )
+
   const handleSuggest = useCallback(async () => {
     flushBufferedInputsRef.current()
     const currentTitle = coalesceFormText(formHelpers.form.getValues('title'))
