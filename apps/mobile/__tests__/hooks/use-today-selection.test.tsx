@@ -45,8 +45,7 @@ type SelectionApi = ReturnType<typeof useTodaySelection>
 interface RenderOptions {
   selectedDateStr?: string
   today?: string
-  habitListAllLoadedIds?: Set<string>
-  visibleHabitIds?: Set<string>
+  habitListAllLoadedIds?: Set<string> | null
   closeControlsMenu?: () => void
 }
 
@@ -61,8 +60,7 @@ function renderSelection(options: RenderOptions = {}) {
       selectedDateStr,
       today,
       habitListRef,
-      habitListAllLoadedIds: options.habitListAllLoadedIds ?? new Set<string>(),
-      visibleHabitIds: options.visibleHabitIds ?? new Set<string>(),
+      habitListAllLoadedIds: options.habitListAllLoadedIds ?? null,
       habitsById: new Map(),
       closeControlsMenu: options.closeControlsMenu ?? vi.fn(),
     })
@@ -128,16 +126,15 @@ describe('mobile useTodaySelection', () => {
     expect(api.current.selectedCount).toBe(0)
   })
 
-  it('falls back to the visible ids when no full page has loaded', () => {
+  it('keeps an intentionally empty loaded set authoritative', () => {
     mocks.store.selectedHabitIds = new Set(['x'])
     const { api } = renderSelection({
       habitListAllLoadedIds: new Set<string>(),
-      visibleHabitIds: new Set(['x']),
     })
 
-    expect(api.current.allSelected).toBe(true)
+    expect(api.current.allSelected).toBe(false)
     api.current.handleSelectAll()
-    expect(mocks.store.selectAllHabits).toHaveBeenCalledWith(['x'])
+    expect(mocks.store.selectAllHabits).toHaveBeenCalledWith([])
   })
 
   it('clears the selection and closes the menu when leaving select mode', () => {

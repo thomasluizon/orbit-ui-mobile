@@ -5,8 +5,6 @@ import type { DroppedMutation } from '@/lib/offline-mutations'
 import { captureError } from '@/lib/sentry'
 
 interface OfflineSyncState {
-  isFlushing: boolean
-  isRetrying: boolean
   drops: DroppedMutation[]
   addDrop: (drop: DroppedMutation) => void
   dismissDrop: (id: string) => void
@@ -19,8 +17,6 @@ let isHydrating = false
 const dismissedDuringHydration = new Set<string>()
 
 export const useOfflineSyncStore = create<OfflineSyncState>()(persist((set) => ({
-  isFlushing: false,
-  isRetrying: false,
   drops: [],
   addDrop: (drop) => set((state) => ({
     drops: state.drops.some((entry) => entry.id === drop.id)

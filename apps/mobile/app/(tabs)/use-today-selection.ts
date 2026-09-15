@@ -11,11 +11,12 @@ interface TodaySelectionInput {
   selectedDateStr: string;
   today: string;
   habitListRef: RefObject<HabitListHandle | null>;
-  habitListAllLoadedIds: Set<string>;
-  visibleHabitIds: Set<string>;
+  habitListAllLoadedIds: Set<string> | null;
   habitsById: Map<string, NormalizedHabit>;
   closeControlsMenu: () => void;
 }
+
+const NO_LOADED_HABIT_IDS = new Set<string>();
 
 /**
  * Owns the Today screen's multi-select / bulk-action concern: the bulk
@@ -28,7 +29,6 @@ export function useTodaySelection({
   today,
   habitListRef,
   habitListAllLoadedIds,
-  visibleHabitIds,
   habitsById,
   closeControlsMenu,
 }: TodaySelectionInput) {
@@ -56,8 +56,7 @@ export function useTodaySelection({
   const { setShowBulkDeleteConfirm, confirmBulkLog, confirmBulkSkip } =
     bulkActions;
 
-  const allLoadedIds =
-    habitListAllLoadedIds.size > 0 ? habitListAllLoadedIds : visibleHabitIds;
+  const allLoadedIds = habitListAllLoadedIds ?? NO_LOADED_HABIT_IDS;
 
   const allSelected =
     allLoadedIds.size > 0 &&
