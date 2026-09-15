@@ -9,7 +9,7 @@ const TestRenderer = require('react-test-renderer')
 
 const mocks = vi.hoisted(() => ({
   store: {
-    activeView: 'today' as string,
+    activeView: 'today',
     isSelectMode: false,
     selectedHabitIds: new Set<string>(),
     toggleSelectMode: vi.fn(),
@@ -44,8 +44,7 @@ function asMockBackHandler(handler: unknown): { emitBackPress: () => boolean } {
 type SelectionApi = ReturnType<typeof useTodaySelection>
 
 interface RenderOptions {
-  habitListAllLoadedIds?: Set<string>
-  visibleHabitIds?: Set<string>
+  habitListAllLoadedIds?: Set<string> | null
   closeControlsMenu?: () => void
 }
 
@@ -59,25 +58,24 @@ function renderSelection(options: RenderOptions = {}) {
     ref.current = useTodaySelection({
       habitsById: new Map<string, NormalizedHabit>(),
       habitListRef,
-      habitListAllLoadedIds: options.habitListAllLoadedIds ?? new Set<string>(),
-      visibleHabitIds: options.visibleHabitIds ?? new Set<string>(),
+      habitListAllLoadedIds: options.habitListAllLoadedIds ?? null,
       closeControlsMenu: options.closeControlsMenu ?? vi.fn(),
     })
     return null
   }
 
-  let tree: { update: (node: React.ReactElement) => void; unmount: () => void } | null = null
+  let tree!: { update: (node: React.ReactElement) => void; unmount: () => void }
   TestRenderer.act(() => {
     tree = TestRenderer.create(React.createElement(Harness))
   })
 
-  if (!ref.current || !tree) throw new Error('useTodaySelection did not render')
+  if (!ref.current) throw new Error('useTodaySelection did not render')
   mountedTrees.push(tree)
   return {
     api: ref as { current: SelectionApi },
     rerender: () =>
       TestRenderer.act(() => {
-        tree!.update(React.createElement(Harness))
+        tree.update(React.createElement(Harness))
       }),
   }
 }
@@ -116,16 +114,15 @@ describe('mobile useTodaySelection', () => {
     expect(api.current.selectedCount).toBe(0)
   })
 
-  it('falls back to the visible ids when no full page has loaded', () => {
+  it('keeps an intentionally empty loaded set authoritative', () => {
     mocks.store.selectedHabitIds = new Set(['x'])
     const { api } = renderSelection({
       habitListAllLoadedIds: new Set<string>(),
-      visibleHabitIds: new Set(['x']),
     })
 
-    expect(api.current.allSelected).toBe(true)
+    expect(api.current.allSelected).toBe(false)
     api.current.handleSelectAll()
-    expect(mocks.store.selectAllHabits).toHaveBeenCalledWith(['x'])
+    expect(mocks.store.selectAllHabits).toHaveBeenCalledWith([])
   })
 
   it('clears the selection and closes the menu when leaving select mode', () => {
