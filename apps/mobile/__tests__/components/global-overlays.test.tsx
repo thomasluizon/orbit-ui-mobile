@@ -71,7 +71,6 @@ function buildProps(
 ): OverlayLayerProps {
   return {
     hasCompletedOnboarding: false,
-    hasProAccess: false,
     showRetainedOnboarding: false,
     onboardingActions: onboardingActionsStub,
     ...overrides,
@@ -138,7 +137,6 @@ describe('OverlayLayer mount matrix', () => {
     const preOnboarding = await renderLayer({ hasCompletedOnboarding: false })
     const postOnboarding = await renderLayer({
       hasCompletedOnboarding: true,
-      hasProAccess: true,
     })
 
     for (const overlay of GAMIFICATION_OVERLAYS) {

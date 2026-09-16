@@ -1810,10 +1810,7 @@
         "subtitle": "Everything is real. Your habit and progress are already saved.",
         "start": "Start using Orbit",
         "recap": {
-          "habit": "Habit created",
-          "goal": "Goal created",
-          "theme": "Theme personalized",
-          "astra": "AI assistant"
+          "habit": "Habit created"
         },
         "trialTitle": "7 days of Pro, free",
         "trialDesc": "No card required. You have full Pro access until {date}."

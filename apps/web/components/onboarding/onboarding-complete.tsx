@@ -36,16 +36,12 @@ const subtitleStyle: CSSProperties = {
 
 interface OnboardingCompleteProps {
   createdHabit: string
-  createdGoal: boolean
-  hasProAccess: boolean
   finishLabel?: string
   onFinish: () => void
 }
 
 export function OnboardingComplete({
   createdHabit,
-  createdGoal,
-  hasProAccess,
   finishLabel,
   onFinish,
 }: Readonly<OnboardingCompleteProps>) {
@@ -61,31 +57,14 @@ export function OnboardingComplete({
     // react-doctor-disable-next-line exhaustive-deps -- trialEndsAt already aliases profile.trialEndsAt in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [trialEndsAt, displayDate])
 
-  const recapItems = useMemo(() => {
-    const items = [
+  const recapItems = createdHabit
+    ? [
       {
         key: 'habit',
         label: t('onboarding.flow.complete.recap.habit'),
-        show: !!createdHabit,
-      },
-      {
-        key: 'goal',
-        label: t('onboarding.flow.complete.recap.goal'),
-        show: createdGoal,
-      },
-      {
-        key: 'theme',
-        label: t('onboarding.flow.complete.recap.theme'),
-        show: hasProAccess,
-      },
-      {
-        key: 'astra',
-        label: t('onboarding.flow.complete.recap.astra'),
-        show: true,
       },
     ]
-    return items.filter((item) => item.show)
-  }, [createdHabit, createdGoal, hasProAccess, t])
+    : []
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 22, padding: '12px 0' }}>

@@ -82,8 +82,6 @@ export function OnboardingFlow() {
           <OnboardingComplete
             key="complete"
             createdHabit={createdHabitTitle}
-            createdGoal={false}
-            hasProAccess={false}
             finishLabel={!isLive ? t('onboarding.flow.saveYourPlan.cta') : undefined}
             onFinish={handleFinish}
           />

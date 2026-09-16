@@ -48,7 +48,6 @@ import {
   useBufferOnboardingActions,
   useLiveOnboardingActions,
   useOnboardingActions,
-  useOnboardingHasProAccess,
   useOnboardingIsLive,
   OnboardingActionsProvider,
   type OnboardingActions,
@@ -189,22 +188,20 @@ describe('onboarding actions context provider', () => {
     )
   })
 
-  it('exposes the actions, pro access, and live flags to consumers', () => {
+  it('exposes the actions and live flag to consumers', () => {
     const wrapper = ({ children }: { children: React.ReactNode }) => (
-      <OnboardingActionsProvider actions={actions} hasProAccess isLive={false}>
+      <OnboardingActionsProvider actions={actions} isLive={false}>
         {children}
       </OnboardingActionsProvider>
     )
     const { result } = renderHook(
       () => ({
         actions: useOnboardingActions(),
-        hasPro: useOnboardingHasProAccess(),
         isLive: useOnboardingIsLive(),
       }),
       { wrapper },
     )
     expect(result.current.actions).toBe(actions)
-    expect(result.current.hasPro).toBe(true)
     expect(result.current.isLive).toBe(false)
   })
 })

@@ -59,7 +59,6 @@ function OnboardingStepContent({
         <OnboardingComplete
           key="complete"
           createdHabit={createdHabitTitle}
-          createdGoal={false}
           finishLabel={finishLabel}
           onFinish={onFinish}
         />

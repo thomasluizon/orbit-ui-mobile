@@ -391,7 +391,6 @@ function GlobalOverlays({
 }: Readonly<{
   profile: ReturnType<typeof useProfile>['profile']
 }>) {
-  const hasProAccess = profile?.hasProAccess ?? false
   const canViewGamification = profile?.canViewGamification ?? false
   const gamification = useGamificationProfile(canViewGamification)
   const { clearLevelUp, leveledUp, newLevel } = gamification
@@ -474,7 +473,6 @@ function GlobalOverlays({
   return (
     <OverlayLayer
       hasCompletedOnboarding={profile?.hasCompletedOnboarding ?? false}
-      hasProAccess={hasProAccess}
       showRetainedOnboarding={showRetainedOnboarding}
       onboardingActions={liveOnboardingActions}
     />

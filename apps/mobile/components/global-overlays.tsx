@@ -15,7 +15,6 @@ import { VersionUpdateDrawer } from '@/components/version-update-drawer'
 
 export interface OverlayLayerProps {
   hasCompletedOnboarding: boolean
-  hasProAccess: boolean
   showRetainedOnboarding: boolean
   onboardingActions: OnboardingActions
 }
@@ -32,7 +31,6 @@ export interface OverlayLayerProps {
  */
 export function OverlayLayer({
   hasCompletedOnboarding,
-  hasProAccess,
   showRetainedOnboarding,
   onboardingActions,
 }: Readonly<OverlayLayerProps>) {
@@ -43,7 +41,6 @@ export function OverlayLayer({
       {showRetainedOnboarding ? (
         <OnboardingActionsProvider
           actions={onboardingActions}
-          hasProAccess={hasProAccess}
           isLive
         >
           <OnboardingFlow />

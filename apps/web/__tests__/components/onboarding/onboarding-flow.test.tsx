@@ -39,7 +39,7 @@ const actions: OnboardingActions = {
 
 function renderFlow() {
   return render(
-    <OnboardingActionsProvider actions={actions} hasProAccess isLive>
+    <OnboardingActionsProvider actions={actions} isLive>
       <OnboardingFlow />
     </OnboardingActionsProvider>,
   )
