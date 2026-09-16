@@ -24,6 +24,7 @@ type ExpectedBase = {
   chevron?: boolean
   href?: string
   onClick?: () => void
+  disabled?: boolean
   inset?: boolean
 }
 type ExpectedReadOnlyVariant = ExpectedBase & { readOnly: true; action?: never }
@@ -70,6 +71,7 @@ export type ListRowTypeAssertionsWidthAssertions = [
   Assert<IsExactWidth<ListRowProps['chevron'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['href'], string | undefined>>,
   Assert<IsExactWidth<ListRowProps['onClick'], (() => void) | undefined>>,
+  Assert<IsExactWidth<ListRowProps['disabled'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['inset'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['readOnly'], boolean | undefined>>,
   Assert<IsExactWidth<ListRowProps['action'], ListRowAction | undefined>>,

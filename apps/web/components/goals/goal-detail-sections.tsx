@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useMemo, type ReactNode } from 'react'
-import { Repeat, type Icon } from '@/components/ui/icons'
-import type { Goal } from '@orbit/shared/types/goal'
+import { useState, useMemo, type MouseEvent, type ReactNode } from 'react'
+import { ListRow } from '@/components/ui/list-row'
+import type { Goal, GoalMetrics } from '@orbit/shared/types/goal'
 
 interface GoalProgressHistoryEntry {
   createdAtUtc: string
@@ -119,6 +119,9 @@ interface GoalLinkedHabitsSectionProps {
   title: string
   emptyLabel: string
   linkedHabits: NonNullable<Goal['linkedHabits']>
+  habitAdherence: GoalMetrics['habitAdherence']
+  formatValue: (currentStreak: number) => string
+  onLinkedHabitNavigate?: (habitId: string, event: MouseEvent<HTMLElement>) => void
   notice?: ReactNode
 }
 
@@ -126,94 +129,39 @@ export function GoalLinkedHabitsSection({
   title,
   emptyLabel,
   linkedHabits,
+  habitAdherence,
+  formatValue,
+  onLinkedHabitNavigate,
   notice,
 }: Readonly<GoalLinkedHabitsSectionProps>) {
+  const adherenceByHabitId = useMemo(
+    () => new Map(habitAdherence.map((metrics) => [metrics.habitId, metrics])),
+    [habitAdherence],
+  )
+
   return (
     <div className="flex flex-col gap-3">
       <h3 className="text-[20px] font-medium text-[var(--fg-1)]">{title}</h3>
       {notice}
       {linkedHabits.length === 0 ? (
         <p className="text-[14px] text-[var(--fg-3)]">{emptyLabel}</p>
-      ) : <ul className="list-none" style={{ margin: 0, padding: 0 }}>
-        {linkedHabits.map((habit) => (
-          <li
-            key={habit.id}
-            className="flex items-center"
-            style={{
-              padding: '8px 0',
-                            gap: 12,
-            }}
-          >
-            <span
-              className="inline-flex shrink-0 items-center justify-center rounded-[12px] bg-[var(--bg-field)]"
-              style={{ width: 36, height: 36, boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
-              aria-hidden="true"
-            >
-              <Repeat size={24} strokeWidth={1.5} color="var(--fg-2)" />
-            </span>
-            <span
-              className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis"
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 16,
-                color: 'var(--fg-1)',
-              }}
-            >
-              {habit.title}
-            </span>
-          </li>
-        ))}
+      ) : <ul className="-mx-4 list-none" style={{ marginBlock: 0, padding: 0 }}>
+        {linkedHabits.map((habit) => {
+          const adherence = adherenceByHabitId.get(habit.id)
+          const value = adherence ? formatValue(adherence.currentStreak) : undefined
+          return (
+            <li key={habit.id}>
+              <ListRow
+                title={habit.title}
+                value={value}
+                accessibilityLabel={value ? `${habit.title}, ${value}` : habit.title}
+                href={`/habits/${habit.id}`}
+                onClick={onLinkedHabitNavigate ? (event) => onLinkedHabitNavigate(habit.id, event) : undefined}
+              />
+            </li>
+          )
+        })}
       </ul>}
     </div>
-  )
-}
-
-interface GoalActionRowProps {
-  label: string
-  icon: Icon
-  onClick: () => void
-  disabled?: boolean
-  destructive?: boolean
-}
-
-/** Menu-item action row: leading icon + label, pressed-token hover,
- *  status-bad label + icon when destructive. No dividers, spacing groups the cluster. */
-export function GoalActionRow({
-  label,
-  icon: Icon,
-  onClick,
-  disabled = false,
-  destructive = false,
-}: Readonly<GoalActionRowProps>) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="appearance-none w-full bg-transparent cursor-pointer text-left flex items-center transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-hover)] active:scale-[0.99] disabled:opacity-50 disabled:cursor-default disabled:hover:bg-transparent"
-      style={{
-        padding: '12px 0',
-        gap: 12,
-        border: 0,
-      }}
-    >
-      <Icon
-        size={24}
-        strokeWidth={1.5}
-        color={destructive ? 'var(--status-bad)' : 'var(--fg-3)'}
-        aria-hidden="true"
-        className="shrink-0"
-      />
-      <span
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 15,
-          fontWeight: 400,
-          color: destructive ? 'var(--status-bad-text)' : 'var(--fg-1)',
-        }}
-      >
-        {label}
-      </span>
-    </button>
   )
 }

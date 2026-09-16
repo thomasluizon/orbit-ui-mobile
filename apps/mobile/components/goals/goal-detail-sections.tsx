@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Repeat } from '@/components/ui/icons'
-import type { Goal } from '@orbit/shared/types/goal'
+import { ListRow } from '@/components/ui/list-row'
+import type { Goal, GoalMetrics } from '@orbit/shared/types/goal'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -84,16 +84,26 @@ interface GoalLinkedHabitsSectionProps {
   title: string
   emptyLabel: string
   linkedHabits: NonNullable<Goal['linkedHabits']>
+  habitAdherence: GoalMetrics['habitAdherence']
+  formatValue: (currentStreak: number) => string
+  onOpenHabit: (habitId: string) => void
 }
 
 export function GoalLinkedHabitsSection({
   title,
   emptyLabel,
   linkedHabits,
+  habitAdherence,
+  formatValue,
+  onOpenHabit,
 }: Readonly<GoalLinkedHabitsSectionProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createStyles(tokens), [tokens])
+  const adherenceByHabitId = useMemo(
+    () => new Map(habitAdherence.map((metrics) => [metrics.habitId, metrics])),
+    [habitAdherence],
+  )
 
   return (
     <View
@@ -103,16 +113,19 @@ export function GoalLinkedHabitsSection({
     >
       {linkedHabits.length === 0 ? (
         <Text style={styles.emptyLabel}>{emptyLabel}</Text>
-      ) : linkedHabits.map((habit) => (
-        <View key={habit.id} style={styles.linkedRow}>
-          <View style={styles.linkedWell}>
-            <Repeat size={24} strokeWidth={1.5} color={tokens.fg2} />
-          </View>
-          <Text style={styles.linkedTitle} numberOfLines={1}>
-            {habit.title}
-          </Text>
-        </View>
-      ))}
+      ) : linkedHabits.map((habit) => {
+        const adherence = adherenceByHabitId.get(habit.id)
+        const value = adherence ? formatValue(adherence.currentStreak) : undefined
+        return (
+          <ListRow
+            key={habit.id}
+            title={habit.title}
+            value={value}
+            accessibilityLabel={value ? `${habit.title}, ${value}` : habit.title}
+            onClick={() => onOpenHabit(habit.id)}
+          />
+        )
+      })}
     </View>
   )
 }
@@ -165,30 +178,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       lineHeight: 20,
       paddingHorizontal: 0,
       paddingVertical: 8,
-    },
-    linkedRow: {
-      paddingHorizontal: 0,
-      paddingVertical: 8,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
-    linkedWell: {
-      width: 36,
-      height: 36,
-      borderRadius: 12,
-      backgroundColor: tokens.bgField,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
-    },
-    linkedTitle: {
-      flex: 1,
-      fontFamily: 'Geist_400Regular',
-      fontSize: 16,
-      color: tokens.fg1,
     },
   })
 }

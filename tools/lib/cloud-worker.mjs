@@ -137,8 +137,10 @@ export const runCodex = async (command, args, options = {}) => {
     throw new Error("runCodex requires a positive timeoutMs")
   }
   const invocation = resolveCodexCommand(command, options.resolution)
+  const cwd = options.cwd === undefined ? cloudStateRoot(process.cwd()) : options.cwd
+  if (options.cwd === undefined) mkdirSync(cwd, { recursive: true })
   const result = await runBounded(invocation.executable, [...invocation.argsPrefix, ...args], {
-    cwd: options.cwd,
+    cwd,
     env: options.env ?? process.env,
     maxBuffer: MAX_OUTPUT_BYTES,
     input: options.input,

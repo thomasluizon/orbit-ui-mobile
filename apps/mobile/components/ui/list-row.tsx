@@ -13,11 +13,15 @@ const PRESS_TRANSITION = {
   transition: 'transform 150ms cubic-bezier(0.16, 1, 0.3, 1)',
 } as const
 
+function getDisabledStyle(disabled: boolean) {
+  return disabled ? styles.disabled : null
+}
+
 export function ListRow(props: Readonly<ListRowProps>) {
   const [bodyPressed, setBodyPressed] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { accessibilityLabel, icon, title, wrapTitle, description, value, trailing, danger = false, action, chevron = true, onClick, readOnly = false } = props
+  const { accessibilityLabel, icon, title, wrapTitle, description, value, trailing, danger = false, action, chevron = true, disabled = false, onClick, readOnly = false } = props
   const iconColor = danger ? tokens.statusBad : tokens.fg1
   const titleColor = danger ? tokens.statusBadText : tokens.fg1
   const bodyStyle = [styles.body, action ? styles.bodyWithAction : null]
@@ -43,7 +47,7 @@ export function ListRow(props: Readonly<ListRowProps>) {
       {readOnly || !onClick ? (
         <View style={bodyStyle}>{body}</View>
       ) : (
-        <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onClick} onPressIn={() => setBodyPressed(true)} onPressOut={() => setBodyPressed(false)} style={bodyStyle}>{body}</Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled }} disabled={disabled} onPress={onClick} onPressIn={() => setBodyPressed(true)} onPressOut={() => setBodyPressed(false)} style={[bodyStyle, getDisabledStyle(disabled)]}>{body}</Pressable>
       )}
       {action ? (
         <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={styles.action}>
@@ -71,4 +75,5 @@ const styles = StyleSheet.create({
   value: { fontFamily: 'GeistMono_400Regular', fontSize: 13, fontVariant: ['tabular-nums'], flexShrink: 1, maxWidth: '50%' },
   trailing: { flexShrink: 0, paddingHorizontal: 8 },
   control: { width: 44, height: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  disabled: { opacity: 0.5 },
 })

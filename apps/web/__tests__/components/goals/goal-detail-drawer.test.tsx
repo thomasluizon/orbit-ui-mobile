@@ -17,13 +17,6 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
-const routerPush = vi.fn()
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: routerPush,
-  }),
-}))
-
 vi.mock('dompurify', () => ({
   default: { sanitize: (html: string) => html },
 }))
@@ -31,6 +24,7 @@ vi.mock('dompurify', () => ({
 const listGoal = createMockGoal({ id: '1', title: 'Read 12 books', currentValue: 3, targetValue: 12, unit: 'books', progressPercentage: 25 })
 
 let detailGoal: GoalDetailWithMetrics['goal'] = { ...listGoal, progressHistory: [] }
+let habitAdherence: GoalDetailWithMetrics['metrics']['habitAdherence'] = []
 let detailLoadError = false
 const refetchDetail = vi.fn()
 const updateStatusMutateAsync = vi.fn()
@@ -45,7 +39,7 @@ vi.mock('@/hooks/use-goals', () => ({
     },
   }),
   useGoalDetail: (id: string | null) => ({
-    data: id ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline', habitAdherence: [] } } : null,
+    data: id ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline', habitAdherence } } : null,
     isLoading: false,
     isError: detailLoadError,
     refetch: refetchDetail,
@@ -69,12 +63,12 @@ describe('GoalDetailDrawer', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
     detailGoal = { ...listGoal, progressHistory: [] }
+    habitAdherence = []
     detailLoadError = false
     refetchDetail.mockClear()
     updateStatusMutateAsync.mockClear()
     updateProgressMutateAsync.mockClear()
     deleteMutateAsync.mockClear()
-    routerPush.mockClear()
     useChatStore.setState({ draft: '', draftHydrated: true })
     useUIStore.setState({ astraConversationOpen: false })
   })
@@ -136,6 +130,75 @@ describe('GoalDetailDrawer', () => {
 
     expect(screen.getByText('goals.linkedHabits')).toBeInTheDocument()
     expect(screen.getByText('goals.noLinkedHabits')).toBeInTheDocument()
+  })
+
+  it('opens each linked habit with its own adherence value', () => {
+    detailGoal = {
+      ...listGoal,
+      linkedHabits: [
+        { id: 'habit-read', title: 'Read every night' },
+        { id: 'habit-stretch', title: 'Stretch' },
+      ],
+      progressHistory: [],
+    }
+    habitAdherence = [
+      { habitId: 'habit-stretch', habitTitle: 'Stretch', weeklyCompletionRate: 75, monthlyCompletionRate: 80, currentStreak: 4 },
+      { habitId: 'habit-read', habitTitle: 'Read every night', weeklyCompletionRate: 90, monthlyCompletionRate: 85, currentStreak: 12 },
+    ]
+
+    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+
+    const readRow = screen.getByRole('link', { name: 'Read every night, goals.detail.linkedHabitStreak:{"count":12}' })
+    const stretchRow = screen.getByRole('link', { name: 'Stretch, goals.detail.linkedHabitStreak:{"count":4}' })
+    expect(readRow).toHaveTextContent('goals.detail.linkedHabitStreak:{"count":12}')
+    expect(stretchRow).toHaveTextContent('goals.detail.linkedHabitStreak:{"count":4}')
+    expect(readRow).toHaveAttribute('href', '/habits/habit-read')
+    expect(stretchRow).toHaveAttribute('href', '/habits/habit-stretch')
+  })
+
+  it('passes linked habit link activations to its modal owner', () => {
+    detailGoal = {
+      ...listGoal,
+      linkedHabits: [{ id: 'habit-read', title: 'Read every night' }],
+      progressHistory: [],
+    }
+    const onLinkedHabitNavigate = vi.fn()
+
+    render(
+      <GoalDetailDrawer
+        open
+        onOpenChange={vi.fn()}
+        onLinkedHabitNavigate={onLinkedHabitNavigate}
+        goalId="1"
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('link', { name: 'Read every night' }))
+
+    expect(onLinkedHabitNavigate).toHaveBeenCalledOnce()
+    expect(onLinkedHabitNavigate.mock.calls[0]?.[0]).toBe('habit-read')
+  })
+
+  it('keeps inline linked habit navigation native without closing the detail', () => {
+    detailGoal = {
+      ...listGoal,
+      linkedHabits: [{ id: 'habit-read', title: 'Read every night' }],
+      progressHistory: [],
+    }
+    const onOpenChange = vi.fn()
+
+    render(<GoalDetailDrawer inline open onOpenChange={onOpenChange} goalId="1" />)
+
+    expect(screen.getByRole('link', { name: 'Read every night' })).toHaveAttribute('href', '/habits/habit-read')
+    expect(onOpenChange).not.toHaveBeenCalled()
+  })
+
+  it('composes footer actions from canonical ListRow controls', () => {
+    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+
+    for (const label of ['goals.detail.edit', 'goals.detail.markAbandoned', 'goals.detail.delete']) {
+      expect(screen.getByRole('button', { name: label })).toHaveClass('orbit-list-row-body')
+    }
   })
 
   it.each([
