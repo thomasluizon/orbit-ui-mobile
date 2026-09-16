@@ -37,6 +37,7 @@ const MOBILE_API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbi
 let authTransitionInFlight = false
 
 let profileHydrationInFlight: Promise<void> | null = null
+let refreshSessionInFlight: Promise<RefreshSessionOutcome> | null = null
 
 /**
  * True while login() is swapping the session — between persisting the new token
@@ -115,7 +116,7 @@ export async function clearSessionAndResetAuth(): Promise<void> {
   await clearOfflineState()
   useChatStore.getState().clearMessages()
   useReviewReminderStore.getState().setAccountScope(null)
-  useOnboardingDraftStore.getState().reset()
+  resetOnboardingDraftForSignOut()
   useAuthStore.setState({ isAuthenticated: false, user: null, expiresAt: null })
 }
 
@@ -144,23 +145,25 @@ function isTransientNetworkError(error: unknown): boolean {
   )
 }
 
+function resetOnboardingDraftForSignOut(): void {
+  const onboardingLocallyDone = useOnboardingDraftStore.getState().onboardingLocallyDone
+  useOnboardingDraftStore.getState().reset()
+  if (onboardingLocallyDone) {
+    useOnboardingDraftStore.getState().markOnboardingLocallyDone()
+  }
+}
+
 /**
  * Rotates the access token using the stored refresh token. Uses raw fetch, not
  * apiClient: apiClient's own 401 handler calls this function, so routing it back
  * through apiClient would invert the dependency and lose the clearOnFailure
  * contract (apiClient throws + clears unconditionally; this returns a discriminated
- * outcome and honours clearOnFailure). A transient network failure preserves the
- * session; a real auth rejection clears it when clearOnFailure.
+ * outcome. A transient network failure preserves the session and a real auth
+ * rejection is reported to the coordinated caller.
  */
-export async function refreshSession(options?: {
-  clearOnFailure?: boolean
-}): Promise<RefreshSessionOutcome> {
-  const clearOnFailure = options?.clearOnFailure ?? true
+async function rotateSessionToken(): Promise<RefreshSessionOutcome> {
   const refreshToken = await getRefreshToken()
   if (!refreshToken) {
-    if (clearOnFailure) {
-      await clearSessionAndResetAuth()
-    }
     return { status: 'unauthorized' }
   }
 
@@ -173,9 +176,6 @@ export async function refreshSession(options?: {
     })
   } catch (error: unknown) {
     if (!isTransientNetworkError(error)) {
-      if (clearOnFailure) {
-        await clearSessionAndResetAuth()
-      }
       return { status: 'unauthorized' }
     }
     return { status: 'network-error' }
@@ -184,9 +184,6 @@ export async function refreshSession(options?: {
   if (!response.ok) {
     if (response.status === 429) {
       useThrottleStore.getState().show(response.status, await response.json().catch(() => null))
-    }
-    if (clearOnFailure) {
-      await clearSessionAndResetAuth()
     }
     return { status: 'unauthorized' }
   }
@@ -207,6 +204,27 @@ export async function refreshSession(options?: {
   resumeOfflineReplay()
 
   return { status: 'refreshed', token: data.token }
+}
+
+async function runRefreshSession(): Promise<RefreshSessionOutcome> {
+  try {
+    return await rotateSessionToken()
+  } finally {
+    refreshSessionInFlight = null
+  }
+}
+
+export async function refreshSession(options?: {
+  clearOnFailure?: boolean
+}): Promise<RefreshSessionOutcome> {
+  const clearOnFailure = options?.clearOnFailure ?? true
+  const outcome = await (refreshSessionInFlight ??= runRefreshSession())
+
+  if (outcome.status === 'unauthorized' && clearOnFailure) {
+    await clearSessionAndResetAuth()
+  }
+
+  return outcome
 }
 
 /**
@@ -343,7 +361,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await clearOfflineState()
     useChatStore.getState().clearMessages()
     useReviewReminderStore.getState().setAccountScope(null)
-    useOnboardingDraftStore.getState().reset()
+    resetOnboardingDraftForSignOut()
   },
 
   checkAuth: async () => {

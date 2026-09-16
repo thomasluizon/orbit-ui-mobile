@@ -1,7 +1,12 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { I18nextProvider } from 'react-i18next'
 
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
+import { i18n } from '@/lib/i18n'
+import { useAuthStore } from '@/stores/auth-store'
+
+vi.unmock('react-i18next')
 
 interface TestNode {
   type: unknown
@@ -29,20 +34,37 @@ const mocks = vi.hoisted(() => {
     expiresAt: 0,
     isAuthenticated: true,
   }
+  const authListeners = new Set<() => void>()
   return {
     authState,
+    authListeners,
+    currentRoute: null as string | null,
     logout: vi.fn(),
     refreshSession: vi.fn(),
     clearSessionAndResetAuth: vi.fn(),
+    setAuthState: (nextState: Partial<typeof authState>) => {
+      Object.assign(authState, nextState)
+      authListeners.forEach((listener) => listener())
+    },
   }
 })
 
-vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: (selector: (state: typeof mocks.authState) => unknown) =>
-    selector(mocks.authState),
-  refreshSession: mocks.refreshSession,
-  clearSessionAndResetAuth: mocks.clearSessionAndResetAuth,
-}))
+vi.mock('@/stores/auth-store', async () => {
+  const { useSyncExternalStore } = await import('react')
+  return {
+    useAuthStore: (selector: (state: typeof mocks.authState) => unknown) =>
+      useSyncExternalStore(
+        (listener) => {
+          mocks.authListeners.add(listener)
+          return () => mocks.authListeners.delete(listener)
+        },
+        () => selector(mocks.authState),
+        () => selector(mocks.authState),
+      ),
+    refreshSession: mocks.refreshSession,
+    clearSessionAndResetAuth: mocks.clearSessionAndResetAuth,
+  }
+})
 
 vi.mock('@/hooks/use-logout', () => ({
   useLogout: () => mocks.logout,
@@ -50,10 +72,19 @@ vi.mock('@/hooks/use-logout', () => ({
 
 let tree: TestInstance | null = null
 
+function AuthenticatedRoot() {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  return isAuthenticated ? <ExpiryWarning /> : null
+}
+
 async function renderExpiredWarning(): Promise<TestInstance> {
-  mocks.authState.expiresAt = Date.now() - 60_000
+  mocks.setAuthState({ expiresAt: Date.now() - 60_000 })
   await TestRenderer.act(() => {
-    tree = TestRenderer.create(<ExpiryWarning />)
+    tree = TestRenderer.create(
+      <I18nextProvider i18n={i18n}>
+        <AuthenticatedRoot />
+      </I18nextProvider>,
+    )
   })
   return tree!
 }
@@ -83,14 +114,18 @@ function action(instance: TestInstance, label: string): TestNode {
 beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-09-16T12:00:00Z'))
-  mocks.authState.isAuthenticated = true
-  mocks.authState.expiresAt = null
+  mocks.currentRoute = null
+  mocks.setAuthState({ isAuthenticated: true, expiresAt: null })
   mocks.logout.mockReset()
+  mocks.logout.mockImplementation(() => {
+    mocks.currentRoute = '/login'
+    mocks.setAuthState({ isAuthenticated: false, expiresAt: null })
+    return Promise.resolve()
+  })
   mocks.refreshSession.mockReset()
   mocks.clearSessionAndResetAuth.mockReset()
   mocks.clearSessionAndResetAuth.mockImplementation(() => {
-    mocks.authState.isAuthenticated = false
-    mocks.authState.expiresAt = null
+    mocks.setAuthState({ isAuthenticated: false, expiresAt: null })
   })
 })
 
@@ -105,20 +140,21 @@ afterEach(async () => {
 describe('ExpiryWarning', () => {
   it('recovers an elapsed session without asking for credentials', async () => {
     mocks.refreshSession.mockImplementation(() => {
-      mocks.authState.isAuthenticated = true
-      mocks.authState.expiresAt = Date.now() + 60 * 60_000
+      mocks.setAuthState({
+        isAuthenticated: true,
+        expiresAt: Date.now() + 60 * 60_000,
+      })
       return { status: 'refreshed', token: 'fresh-access-token' }
     })
     const instance = await renderExpiredWarning()
 
-    expect(renderedText(instance)).toContain('auth.sessionExpired')
-    expect(renderedText(instance)).toContain('auth.refresh')
-    expect(renderedText(instance)).not.toContain('auth.login')
+    expect(renderedText(instance)).toContain(i18n.t('auth.sessionExpired'))
+    expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
+    expect(renderedText(instance)).not.toContain(i18n.t('auth.login'))
 
     await TestRenderer.act(async () => {
-      await (action(instance, 'auth.refresh').props.onPress as () => Promise<void>)()
+      await (action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>)()
     })
-    await TestRenderer.act(() => instance.update(<ExpiryWarning />))
 
     expect(mocks.refreshSession).toHaveBeenCalledWith({ clearOnFailure: false })
     expect(mocks.authState.isAuthenticated).toBe(true)
@@ -131,24 +167,18 @@ describe('ExpiryWarning', () => {
     mocks.refreshSession.mockResolvedValue({ status: 'unauthorized' })
     const instance = await renderExpiredWarning()
 
-    expect(renderedText(instance)).toContain('auth.refresh')
-    expect(renderedText(instance)).not.toContain('auth.login')
+    expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
+    expect(renderedText(instance)).not.toContain(i18n.t('auth.login'))
 
     await TestRenderer.act(async () => {
-      await (action(instance, 'auth.refresh').props.onPress as () => Promise<void>)()
+      await (action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>)()
     })
 
-    expect(renderedText(instance)).toContain('auth.sessionSignedOut')
-    expect(renderedText(instance)).toContain('auth.login')
-    expect(renderedText(instance)).not.toContain('auth.refresh')
-    expect(mocks.clearSessionAndResetAuth).toHaveBeenCalledOnce()
-    expect(mocks.authState.isAuthenticated).toBe(false)
-    expect(mocks.logout).not.toHaveBeenCalled()
-
-    await TestRenderer.act(async () => {
-      await (action(instance, 'auth.login').props.onPress as () => Promise<void>)()
-    })
+    expect(mocks.currentRoute).toBe('/login')
     expect(mocks.logout).toHaveBeenCalledOnce()
+    expect(mocks.clearSessionAndResetAuth).not.toHaveBeenCalled()
+    expect(mocks.authState.isAuthenticated).toBe(false)
+    expect(hostNodes(instance, 'View')).toHaveLength(0)
   })
 
   it('keeps recovery available after a network failure', async () => {
@@ -156,12 +186,12 @@ describe('ExpiryWarning', () => {
     const instance = await renderExpiredWarning()
 
     await TestRenderer.act(async () => {
-      await (action(instance, 'auth.refresh').props.onPress as () => Promise<void>)()
+      await (action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>)()
     })
 
-    expect(renderedText(instance)).toContain('auth.sessionRefreshFailed')
-    expect(renderedText(instance)).toContain('auth.refresh')
-    expect(renderedText(instance)).not.toContain('auth.login')
+    expect(renderedText(instance)).toContain(i18n.t('auth.sessionRefreshFailed'))
+    expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
+    expect(renderedText(instance)).not.toContain(i18n.t('auth.login'))
     expect(mocks.clearSessionAndResetAuth).not.toHaveBeenCalled()
     expect(mocks.authState.isAuthenticated).toBe(true)
   })
@@ -179,13 +209,13 @@ describe('ExpiryWarning', () => {
     let refreshPromise!: Promise<void>
 
     await TestRenderer.act(async () => {
-      refreshPromise = (action(instance, 'auth.refresh').props.onPress as () => Promise<void>)()
+      refreshPromise = (action(instance, i18n.t('auth.refresh')).props.onPress as () => Promise<void>)()
       await Promise.resolve()
     })
 
-    expect(action(instance, 'auth.refresh').props.disabled).toBe(true)
+    expect(action(instance, i18n.t('auth.refresh')).props.disabled).toBe(true)
     expect(hostNodes(instance, 'ActivityIndicator')).toHaveLength(1)
-    expect(renderedText(instance)).toContain('auth.refresh')
+    expect(renderedText(instance)).toContain(i18n.t('auth.refresh'))
 
     await TestRenderer.act(async () => {
       resolveRefresh({ status: 'refreshed', token: 'fresh-access-token' })

@@ -11,6 +11,8 @@ import {
   whenProfileHydrated,
 } from '@/stores/auth-store'
 import { clearStepUpState, isStepUpVerified, markStepUpVerified } from '@/lib/step-up-storage'
+import { shouldExposeOnboardingRoute } from '@/lib/capture-mode'
+import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
 const {
   replaceMock,
@@ -195,6 +197,7 @@ describe('mobile auth store security paths', () => {
       isLoading: true,
       expiresAt: null,
     })
+    useOnboardingDraftStore.setState({ onboardingLocallyDone: false })
   })
 
   it('clears any stale refresh token during login when no new refresh token is provided', async () => {
@@ -416,6 +419,26 @@ describe('mobile auth store security paths', () => {
     })
   })
 
+  it('keeps onboarding hidden after a returning person signs out', async () => {
+    getRefreshTokenMock.mockResolvedValue(null)
+    useOnboardingDraftStore.getState().markOnboardingLocallyDone()
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: { userId: 'user-1', email: 'user@example.com', name: 'User' },
+      isLoading: false,
+      expiresAt: Date.now() + 3600_000,
+    })
+
+    await useAuthStore.getState().logout()
+
+    const { isAuthenticated } = useAuthStore.getState()
+    const { onboardingLocallyDone } = useOnboardingDraftStore.getState()
+    expect(onboardingLocallyDone).toBe(true)
+    expect(
+      shouldExposeOnboardingRoute(false, isAuthenticated, onboardingLocallyDone),
+    ).toBe(false)
+  })
+
   it('attempts a best-effort push unsubscribe before clearing tokens on logout', async () => {
     getRefreshTokenMock.mockResolvedValue(null)
     const order: string[] = []
@@ -527,6 +550,52 @@ describe('mobile auth store security paths', () => {
       userId: 'rotated-user',
       email: 'rotated@example.com',
     })
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+  })
+
+  it('shares one token rotation across concurrent refresh callers', async () => {
+    const rotatedToken = makeJwtWithClaims(
+      Math.floor(Date.now() / 1000) + 3600,
+      'rotated-user',
+      'rotated@example.com',
+    )
+    getRefreshTokenMock.mockResolvedValue('refresh-token')
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: { userId: 'user-1', email: 'user@example.com', name: 'User' },
+      isLoading: false,
+      expiresAt: Date.now() - 1000,
+    })
+
+    let resolveWinningRequest!: (response: Response) => void
+    let resolveLosingRequest: ((response: Response) => void) | undefined
+    fetchMock
+      .mockImplementationOnce(
+        () => new Promise<Response>((resolve) => { resolveWinningRequest = resolve }),
+      )
+      .mockImplementationOnce(
+        () => new Promise<Response>((resolve) => { resolveLosingRequest = resolve }),
+      )
+
+    const bannerRefresh = refreshSession()
+    const apiRefresh = refreshSession()
+    await vi.waitFor(() => expect(resolveWinningRequest).toBeTypeOf('function'))
+
+    resolveWinningRequest(Response.json({
+      token: rotatedToken,
+      refreshToken: 'next-refresh',
+    }))
+    await vi.waitFor(() => expect(setTokenMock).toHaveBeenCalledWith(rotatedToken))
+    resolveLosingRequest?.(new Response(null, { status: 401 }))
+
+    const outcomes = await Promise.all([bannerRefresh, apiRefresh])
+
+    expect(outcomes).toEqual([
+      { status: 'refreshed', token: rotatedToken },
+      { status: 'refreshed', token: rotatedToken },
+    ])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(clearAllTokensMock).not.toHaveBeenCalled()
     expect(useAuthStore.getState().isAuthenticated).toBe(true)
   })
 

@@ -1,11 +1,7 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import {
-  clearSessionAndResetAuth,
-  refreshSession,
-  useAuthStore,
-} from '@/stores/auth-store'
+import { refreshSession, useAuthStore } from '@/stores/auth-store'
 import { useLogout } from '@/hooks/use-logout'
 import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -124,8 +120,8 @@ export function ExpiryWarning() {
       return
     }
 
-    await clearSessionAndResetAuth()
     setRefreshState('rejected')
+    await handleLogout()
   }, [handleLogout, isExpired, isTerminal, refreshState])
 
   if (minutesLeft === null && !isExpired && !isTerminal) return null
