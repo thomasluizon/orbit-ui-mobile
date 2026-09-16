@@ -11,7 +11,6 @@ import {
 } from 'react'
 import { DndContext, closestCenter } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { Achievement } from '@orbit/shared/types/gamification'
@@ -322,7 +321,7 @@ function GoalCard({ goal, index, canReorder, onMove, onOpen }: Readonly<{
     <button type="button" aria-label={goal.title} data-goal-id={goal.id} data-dragging={isDragging}
       ref={setNodeRef} {...listeners}
       style={{
-        transform: CSS.Transform.toString(transform),
+        translate: transform ? `${transform.x}px ${transform.y}px` : undefined,
         transition: 'background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), scale 150ms var(--ease-out)',
       }}
       aria-roledescription={canReorder ? t('goals.dragItem') : undefined}
