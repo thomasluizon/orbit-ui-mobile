@@ -59,6 +59,12 @@ describe('OnboardingFlow', () => {
     await TestRenderer.act(() => {
       tree = TestRenderer.create(<OnboardingFlow />)
     })
-    expect(tree.root.findByType('OnboardingWelcome')).toBeDefined()
+    expect(
+      tree.root.findAll((node: { type: unknown }) => node.type === 'OnboardingWelcome'),
+    ).toHaveLength(1)
+    const progressText = tree.root
+      .findAll((node: { type: unknown }) => node.type === 'Text')
+      .flatMap((node: { props: { children?: unknown } }) => node.props.children)
+    expect(progressText).toContain('03')
   })
 })
