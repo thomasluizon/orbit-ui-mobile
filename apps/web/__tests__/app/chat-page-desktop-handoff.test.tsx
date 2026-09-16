@@ -46,9 +46,21 @@ const mocks = vi.hoisted(() => ({
     verifyStepUpForBubble: vi.fn(),
     scrollToBottom: vi.fn(),
   },
+  goal: {
+    id: 'goal-9',
+    title: 'Goal nine',
+    status: 'Active',
+    targetValue: 10,
+    unit: 'pages',
+    linkedHabits: [{ id: 'linked-habit', title: 'linked habit sentinel' }],
+    progressHistory: [],
+  },
 }))
 
-vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+  useLocale: () => 'en',
+}))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mocks.push }) }))
 vi.mock('@/stores/ui-store', () => ({
   useUIStore: (selector: (state: { setAstraConversationOpen: typeof mocks.setOpen }) => unknown) =>
@@ -69,13 +81,38 @@ vi.mock('@/components/chat/chat-empty-state', () => ({
     return <div data-testid="empty-state" />
   },
 }))
-vi.mock('@/components/goals/goal-detail-drawer', () => ({
-  GoalDetailDrawer: ({ goalId, onOpenChange }: { goalId: string; onOpenChange: (open: boolean) => void }) => (
-    <div data-testid="goal-drawer">
-      {goalId}
-      <button onClick={() => onOpenChange(false)}>close goal sentinel</button>
-    </div>
-  ),
+vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
+vi.mock('@/hooks/use-goals', () => ({
+  useGoals: () => ({ data: { goalsById: new Map([[mocks.goal.id, mocks.goal]]) } }),
+  useGoalDetail: (goalId: string | null) => ({
+    data: goalId ? {
+      goal: mocks.goal,
+      metrics: {
+        trackingStatus: 'no_deadline',
+        habitAdherence: [{ habitId: 'linked-habit', currentStreak: 4 }],
+      },
+    } : null,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
+  useDeleteGoal: () => ({ mutateAsync: vi.fn() }),
+}))
+vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn() }) }))
+vi.mock('@/components/goals/edit-goal-modal', () => ({ EditGoalModal: () => null }))
+vi.mock('@/components/ui/confirm-sheet', () => ({ ConfirmSheet: () => null }))
+vi.mock('@/components/goals/goal-detail-drawer/goal-progress-block', () => ({ GoalProgressBlock: () => null }))
+vi.mock('@/components/goals/goal-detail-drawer/goal-action-footer', () => ({ GoalActionFooter: () => null }))
+vi.mock('@/components/goals/goal-detail-drawer/use-goal-status-actions', () => ({
+  useGoalStatusActions: () => ({
+    isUpdatingStatus: false,
+    markCompleted: vi.fn(),
+    markAbandoned: vi.fn(),
+    reactivate: vi.fn(),
+  }),
+}))
+vi.mock('@/components/goals/goal-detail-drawer/use-goal-drawer-initial-action', () => ({
+  useGoalDrawerInitialAction: vi.fn(),
 }))
 vi.mock('@/components/chat/typing-indicator', () => ({
   TypingIndicator: () => <div data-testid="typing-indicator" />,
@@ -85,6 +122,7 @@ vi.mock('@/hooks/use-chat-composer', () => ({ useChatComposer: () => mocks.compo
 
 import { AstraConversation } from '@/components/chat/conversation'
 import { useChatComposer } from '@/hooks/use-chat-composer'
+import { sheetTestControls } from '@/__tests__/support/sheet-double'
 
 function ChatPage() {
   return <AstraConversation chat={useChatComposer()} />
@@ -103,6 +141,7 @@ describe('ChatPage', () => {
     mocks.composer.isTyping = false
     mocks.composer.isOnline = true
     mocks.composer.sendError = null
+    sheetTestControls.defer(false)
   })
 
   it('renders as shell conversation content without route navigation', () => {
@@ -209,7 +248,7 @@ describe('ChatPage', () => {
     act(() => mocks.onActionChipClick?.('goal-1', goalActionType))
 
     expect(mocks.push).not.toHaveBeenCalledWith('/upgrade')
-    expect(screen.getByTestId('goal-drawer')).toHaveTextContent('goal-1')
+    expect(screen.getByRole('dialog', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
   })
 
   it('opens the goal drawer for a goal action chip when pro', () => {
@@ -219,17 +258,59 @@ describe('ChatPage', () => {
 
     act(() => mocks.onActionChipClick?.('goal-9', goalActionType))
 
-    expect(screen.getByTestId('goal-drawer')).toHaveTextContent('goal-9')
-    fireEvent.click(screen.getByRole('button', { name: 'close goal sentinel' }))
-    expect(screen.queryByTestId('goal-drawer')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'close-overlay' }))
+    expect(screen.queryByRole('dialog', { name: 'progressScreen.sections.goals' })).not.toBeInTheDocument()
   })
 
-  it('routes a non-goal action chip into the habit flow', () => {
+  it('waits for the goal sheet dismissal before closing owners and navigating', () => {
+    mocks.composer.messages = [{ id: 'm1' }]
+    sheetTestControls.defer(true)
+    render(<ChatPage />)
+
+    act(() => mocks.onActionChipClick?.('goal-9', goalActionType))
+    const browserHandlesNavigation = fireEvent.click(screen.getByRole('link', { name: /linked habit sentinel/ }))
+
+    expect(browserHandlesNavigation).toBe(false)
+    expect(sheetTestControls.isDismissPending).toBe(true)
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+    expect(mocks.setOpen).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+
+    act(() => sheetTestControls.completeDismissal())
+
+    expect(screen.queryByTestId('sheet')).not.toBeInTheDocument()
+    expect(mocks.setOpen).toHaveBeenCalledWith(false)
+    expect(mocks.push).toHaveBeenCalledOnce()
+    expect(mocks.push).toHaveBeenCalledWith('/habits/linked-habit')
+    expect(mocks.setOpen.mock.invocationCallOrder[0]!).toBeLessThan(mocks.push.mock.invocationCallOrder[0]!)
+  })
+
+  it('leaves modified linked habit clicks to the browser', () => {
+    mocks.composer.messages = [{ id: 'm1' }]
+    render(<ChatPage />)
+
+    act(() => mocks.onActionChipClick?.('goal-9', goalActionType))
+    const browserHandlesNavigation = fireEvent.click(
+      screen.getByRole('link', { name: /linked habit sentinel/ }),
+      { metaKey: true },
+    )
+
+    expect(browserHandlesNavigation).toBe(true)
+    expect(screen.getByRole('dialog', { name: 'progressScreen.sections.goals' })).toBeInTheDocument()
+    expect(sheetTestControls.isDismissPending).toBe(false)
+    expect(mocks.setOpen).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
+  })
+
+  it('closes the conversation before routing a habit action chip', () => {
     mocks.composer.messages = [{ id: 'm1' }]
     render(<ChatPage />)
 
     act(() => mocks.onActionChipClick?.('habit-3', 'view_habit'))
 
+    expect(mocks.setOpen).toHaveBeenCalledWith(false)
     expect(mocks.push).toHaveBeenCalledWith('/habits/habit-3')
+    expect(mocks.setOpen.mock.invocationCallOrder[0]!).toBeLessThan(mocks.push.mock.invocationCallOrder[0]!)
   })
 })

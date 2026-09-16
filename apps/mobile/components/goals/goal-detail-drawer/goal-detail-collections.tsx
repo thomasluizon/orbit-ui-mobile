@@ -12,16 +12,20 @@ import {
 
 interface GoalDetailCollectionsProps {
   linkedHabits: NonNullable<Goal['linkedHabits']>
+  habitAdherence: GoalDetailWithMetrics['metrics']['habitAdherence']
   entries: GoalDetailWithMetrics['goal']['progressHistory']
   unit: Goal['unit']
   formatDate: (dateStr: string) => string
+  onOpenHabit: (habitId: string) => void
 }
 
 export function GoalDetailCollections({
   linkedHabits,
+  habitAdherence,
   entries,
   unit,
   formatDate,
+  onOpenHabit,
 }: Readonly<GoalDetailCollectionsProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -35,6 +39,9 @@ export function GoalDetailCollections({
         title={t('goals.linkedHabits')}
         emptyLabel={t('goals.noLinkedHabits')}
         linkedHabits={linkedHabits}
+        habitAdherence={habitAdherence}
+        formatValue={(currentStreak) => t('goals.detail.linkedHabitStreak', { count: currentStreak })}
+        onOpenHabit={onOpenHabit}
       />
     </View>
   )
