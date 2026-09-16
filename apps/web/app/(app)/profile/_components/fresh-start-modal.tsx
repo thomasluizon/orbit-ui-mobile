@@ -13,7 +13,7 @@ import {
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
-import { resetAccount } from '@/app/actions/profile'
+import { resetAccount } from '@/lib/actions/profile'
 
 function AmberPillButton({
   disabled = false,

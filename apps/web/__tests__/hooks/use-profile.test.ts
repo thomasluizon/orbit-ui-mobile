@@ -10,6 +10,8 @@ import type { Profile } from '@orbit/shared/types/profile'
 const boundaryMocks = vi.hoisted(() => ({
   toastError: vi.fn(),
   logout: vi.fn(),
+  confirmSessionRefreshFailure: vi.fn(),
+  recoverSessionRefreshFailure: vi.fn(),
 }))
 
 const mockFetch = vi.fn()
@@ -24,14 +26,20 @@ vi.mock('sonner', () => ({
 }))
 
 vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: { getState: () => ({ logout: boundaryMocks.logout }) },
+  useAuthStore: {
+    getState: () => ({
+      logout: boundaryMocks.logout,
+      confirmSessionRefreshFailure: boundaryMocks.confirmSessionRefreshFailure,
+      recoverSessionRefreshFailure: boundaryMocks.recoverSessionRefreshFailure,
+    }),
+  },
 }))
 
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
-vi.mock('@/app/actions/profile', () => ({
+vi.mock('@/lib/actions/profile', () => ({
   updateThemePreference: vi.fn().mockResolvedValue(undefined),
   updateColorScheme: vi.fn().mockResolvedValue(undefined),
 }))
@@ -72,10 +80,15 @@ function mockProfileResponse(profile: Profile) {
   })
 }
 
-function mockErrorResponse(status: number, body: unknown = {}) {
+function mockErrorResponse(
+  status: number,
+  body: unknown = {},
+  headers?: HeadersInit,
+) {
   mockFetch.mockResolvedValue({
     ok: false,
     status,
+    headers: new Headers(headers),
     json: () => Promise.resolve(body),
   })
 }
@@ -92,6 +105,8 @@ describe('useProfile', () => {
     mockFetch.mockReset()
     boundaryMocks.toastError.mockClear()
     boundaryMocks.logout.mockClear()
+    boundaryMocks.confirmSessionRefreshFailure.mockClear()
+    boundaryMocks.recoverSessionRefreshFailure.mockClear()
   })
 
   it('fetches and returns profile data', async () => {
@@ -120,8 +135,12 @@ describe('useProfile', () => {
     expect(result.current.isLoading).toBe(true)
   })
 
-  it('surfaces a 401 as an ApiError and triggers auto-logout instead of a silent success', async () => {
-    mockErrorResponse(401, { error: 'Unauthorized' })
+  it('surfaces a 401 and exposes the failed-refresh sign-in state', async () => {
+    mockErrorResponse(
+      401,
+      { error: 'Unauthorized' },
+      { 'x-orbit-session-refresh': 'failed' },
+    )
 
     const { result } = renderHook(() => useProfile(), {
       wrapper: createWrapper(),
@@ -132,7 +151,8 @@ describe('useProfile', () => {
     expect(result.current.isSuccess).toBe(false)
     expect(result.current.profile).toBeUndefined()
     expect(apiErrorFrom(result.current.error).status).toBe(401)
-    expect(boundaryMocks.logout).toHaveBeenCalledTimes(1)
+    expect(boundaryMocks.confirmSessionRefreshFailure).toHaveBeenCalledTimes(1)
+    expect(boundaryMocks.logout).not.toHaveBeenCalled()
     expect(boundaryMocks.toastError).not.toHaveBeenCalled()
   })
 

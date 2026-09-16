@@ -1,6 +1,8 @@
+import { StyleSheet } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
 import { press, renderNavigation } from '../ui/navigation-render'
+
 const items = [{ id: 'today', label: 'Hoje' }, { id: 'calendar', label: 'Calendário' }, { id: 'progress', label: 'Progresso' }, { id: 'profile', label: 'Perfil' }]
 
 describe('BottomTabBar', () => {
@@ -16,6 +18,17 @@ describe('BottomTabBar', () => {
     press(tabs[1]!)
     expect(onSelect).toHaveBeenCalledExactlyOnceWith('calendar')
     expect(tabs[1]!.props.accessibilityState?.selected).toBe(true)
+    tree.unmount()
+  })
+
+  it('keeps destinations within the large-screen content column', () => {
+    const tree = renderNavigation(<BottomTabBar items={items} activeId="today" onSelect={vi.fn()} label="Navigation" />)
+    const destinations = tree.hosts().find((node) => node.props.testID === 'bottom-tab-destinations')
+    expect(StyleSheet.flatten(destinations?.props.style)).toMatchObject({
+      alignSelf: 'center',
+      maxWidth: 740,
+      width: '100%',
+    })
     tree.unmount()
   })
 })

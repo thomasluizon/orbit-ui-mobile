@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import { PillButton } from '@/components/ui/pill-button'
 import { RowList } from '@/components/ui/row-list'
 import { useProfile } from '@/hooks/use-profile'
-import { updateMarketingConsent } from '@/app/actions/profile'
+import { updateMarketingConsent } from '@/lib/actions/profile'
 
 /** Self-contained "Product updates by email" preference row: reflects and optimistically toggles marketing-email consent, rolling back on error. Never Pro-gated. */
 export function MarketingConsentSection({

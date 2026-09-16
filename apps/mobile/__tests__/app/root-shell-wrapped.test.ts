@@ -154,7 +154,6 @@ vi.mock('@/components/upgrade-required-screen', () => ({
   UpgradeRequiredScreen: () => null,
 }))
 
-vi.mock('@/hooks/use-tour-target', () => ({ useTourTarget: vi.fn() }))
 vi.mock('@/hooks/use-chat-composer', () => ({
   useChatComposer: () => ({ composerProps: {} }),
 }))

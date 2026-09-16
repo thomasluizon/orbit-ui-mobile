@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Calendar, ChartLine, CircleDot, Home, Trash2, User } from '@/components/ui/icons'
+import { Calendar, ChartLine, CircleDot, Gift, Home, Trash2, User } from '@/components/ui/icons'
 import { formatNotificationRelativeTime, getNotificationTargetKey } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { createTokensV2 } from '@/lib/theme'
@@ -12,6 +12,7 @@ const TARGET_ICONS = {
   'nav.calendar': Calendar,
   'nav.progress': ChartLine,
   'nav.profile': User,
+  'profile.wrappedTitle': Gift,
   'notifications.habit': CircleDot,
 }
 

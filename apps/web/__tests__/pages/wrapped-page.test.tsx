@@ -6,6 +6,8 @@ const refetch = vi.fn()
 const goBackOrFallback = vi.fn()
 
 const mocks = vi.hoisted(() => ({
+  searchParams: new URLSearchParams(),
+  useWrapped: vi.fn(),
   wrapped: {
     recap: { id: 'recap-1' } as unknown,
     slides: [] as unknown[],
@@ -16,12 +18,16 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
+vi.mock('next/navigation', () => ({ useSearchParams: () => mocks.searchParams }))
 vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: { name: 'Ada' } }) }))
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({
   useGoBackOrFallback: () => goBackOrFallback,
 }))
 vi.mock('@/hooks/use-wrapped', () => ({
-  useWrapped: () => ({ ...mocks.wrapped, refetch }),
+  useWrapped: (...args: unknown[]) => {
+    mocks.useWrapped(...args)
+    return { ...mocks.wrapped, refetch }
+  },
 }))
 vi.mock('@/app/(app)/wrapped/_components/wrapped-cover', () => ({
   WrappedCover: ({ period, onSelectPeriod, onStart, state }: {
@@ -49,6 +55,8 @@ describe('WrappedPage', () => {
   beforeEach(() => {
     refetch.mockClear()
     goBackOrFallback.mockClear()
+    mocks.searchParams = new URLSearchParams()
+    mocks.useWrapped.mockClear()
     mocks.wrapped = { recap: { id: 'recap-1' }, slides: [], isEmpty: false, isLoading: false, isError: false }
   })
 
@@ -57,6 +65,17 @@ describe('WrappedPage', () => {
     expect(screen.getByTestId('period')).toHaveTextContent('week')
     expect(screen.getByTestId('cover-state')).toHaveTextContent('ready')
     expect(screen.queryByTestId('player')).not.toBeInTheDocument()
+  })
+
+  it('opens a notification-carried closed month instead of the current period', () => {
+    mocks.searchParams = new URLSearchParams('period=month&year=2026&month=8')
+    render(<WrappedPage />)
+
+    expect(screen.getByTestId('period')).toHaveTextContent('month')
+    expect(mocks.useWrapped).toHaveBeenLastCalledWith('month', {
+      active: false,
+      closedMonth: { year: 2026, month: 8 },
+    })
   })
 
   it('opens the player only after Start is pressed with a recap present', () => {

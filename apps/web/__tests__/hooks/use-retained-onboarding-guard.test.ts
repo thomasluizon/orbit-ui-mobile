@@ -7,7 +7,7 @@ const completeOnboardingMock = vi.fn()
 const patchProfileMock = vi.fn()
 const habitCount = { count: 0, isLoaded: true }
 
-vi.mock('@/app/actions/profile', () => ({
+vi.mock('@/lib/actions/profile', () => ({
   completeOnboarding: (...args: unknown[]) => completeOnboardingMock(...args),
 }))
 

@@ -1,8 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import type { RecapSharePeriod } from '@orbit/shared/utils'
+import { useSearchParams } from 'next/navigation'
+import {
+  parseWrappedRouteSelection,
+  type RecapSharePeriod,
+  type WrappedRouteSelection,
+} from '@orbit/shared/utils'
 import { Button } from '@/components/ui/pill-button'
 import { ChevronLeft } from '@/components/ui/icons'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -11,17 +16,43 @@ import { WrappedCover } from './_components/wrapped-cover'
 import { WrappedPlayer } from './_components/wrapped-player'
 
 export default function WrappedPage() {
+  return (
+    <Suspense fallback={null}>
+      <WrappedPageRoute />
+    </Suspense>
+  )
+}
+
+function WrappedPageRoute() {
+  const searchParams = useSearchParams()
+  const initialSelection = parseWrappedRouteSelection(
+    searchParams.get('period'),
+    searchParams.get('year'),
+    searchParams.get('month'),
+  )
+  const routeKey = initialSelection.closedMonth
+    ? `${initialSelection.period}:${initialSelection.closedMonth.year}:${initialSelection.closedMonth.month}`
+    : initialSelection.period
+
+  return <WrappedPageContent key={routeKey} initialSelection={initialSelection} />
+}
+
+function WrappedPageContent({ initialSelection }: Readonly<{
+  initialSelection: WrappedRouteSelection
+}>) {
   const t = useTranslations()
   const goBackOrFallback = useGoBackOrFallback()
-  const [period, setPeriod] = useState<RecapSharePeriod>('week')
+  const [selection, setSelection] = useState(initialSelection)
+  const { period, closedMonth } = selection
   const [isPlaying, setIsPlaying] = useState(false)
   const [isRetrying, setIsRetrying] = useState(false)
   const { recap, slides, isEmpty, isLoading, isError, refetch } = useWrapped(period, {
     active: isPlaying,
+    closedMonth,
   })
 
   function selectPeriod(next: RecapSharePeriod) {
-    setPeriod(next)
+    setSelection({ period: next })
     setIsPlaying(false)
   }
 

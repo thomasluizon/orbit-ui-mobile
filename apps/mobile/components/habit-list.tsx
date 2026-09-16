@@ -60,13 +60,10 @@ import { getHabitListExtraData } from '@/lib/habit-selection-state'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
-import { useTourScrollContainer } from '@/hooks/use-tour-scroll-container'
-import { useTourStore } from '@/stores/tour-store'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
 import { HabitRow } from '@/components/habits/habit-row'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useTourTarget } from '@/hooks/use-tour-target'
 import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
 import {
   getEmptyHabitsMessage,
@@ -89,25 +86,6 @@ import {
   type DragItem,
 } from './habit-list/tree-helpers'
 import { createStyles } from './habit-list/styles'
-
-/**
- * Wraps a HabitRow in a measurable View that registers itself with the tour
- * registry. v8's HabitRow has no internal tour-target prop so we anchor here
- * from the parent. Renders no extra layout — the wrapping View is a sibling
- * of the row, sized to fit content.
- */
-function HabitRowTourAnchor({
-  targetId,
-  children,
-}: Readonly<{ targetId: string; children: ReactElement }>) {
-  const anchorRef = useRef<View>(null)
-  useTourTarget(targetId, anchorRef)
-  return (
-    <View ref={anchorRef} collapsable={false}>
-      {children}
-    </View>
-  )
-}
 
 interface HabitListProps {
   view?: 'today' | 'all' | 'general'
@@ -149,8 +127,6 @@ export interface HabitListHandle {
   refetch: () => void
   scrollToOffset: (offset: number) => void
 }
-
-const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
 const SKELETON_KEYS = [
   'skeleton-1',
@@ -369,10 +345,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const scrollContainerRef = useRef<GHFlatList<DragItem>>(null)
     const allViewListRef = useRef<FlatList<HabitListDateGroup>>(null)
     const drillListRef = useRef<FlatList<NormalizedHabit>>(null)
-    const scrollTo = useCallback((y: number) => {
-      scrollContainerRef.current?.scrollToOffset({ offset: y, animated: true })
-    }, [])
-    const { onTourScrollOffset } = useTourScrollContainer('/', scrollTo)
     const handleListScroll = useCallback(
       (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         onScroll?.(e.nativeEvent.contentOffset.y)
@@ -381,33 +353,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
     const handleMainListOffsetChange = useCallback(
       (offsetY: number) => {
-        onTourScrollOffset(offsetY)
         onScroll?.(offsetY)
       },
-      [onScroll, onTourScrollOffset],
+      [onScroll],
     )
-
-    const isTourActive = useTourStore((s) => s.isActive)
-    const tourStepIndex = useTourStore((s) => s.currentStepIndex)
-    useEffect(() => {
-      if (!isTourActive) return
-      const stepId = useTourStore.getState().getCurrentStep()?.id
-      if (!stepId) return
-      if (
-        stepId === 'habits-tabs' ||
-        stepId === 'habits-date-nav' ||
-        stepId === 'habits-streak' ||
-        stepId === 'habits-notifications'
-      ) {
-        const timer = setTimeout(() => {
-          scrollContainerRef.current?.scrollToOffset({
-            offset: 0,
-            animated: true,
-          })
-        }, 400)
-        return () => clearTimeout(timer)
-      }
-    }, [isTourActive, tourStepIndex])
 
     const { config: appConfig } = useConfig()
     const maxHabitDepth = appConfig.limits.maxHabitDepth
@@ -416,9 +365,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const topLevelHabits =
       habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
 
-    const tourCardHabitId = habitsById.has(TOUR_FEATURED_HABIT_ID)
-      ? TOUR_FEATURED_HABIT_ID
-      : topLevelHabits[0]?.id
     const totalCount = habitsQuery.data?.totalCount ?? 0
     const isLoading = habitsQuery.isLoading
     const isError = habitsQuery.isError
@@ -579,7 +525,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const visibleHabits = useMemo(() => {
       if (view === 'today') {
-        if (showCompleted) return topLevelHabits
         return topLevelHabits.filter((habit) =>
           visibility.hasVisibleContent(habit),
         )
@@ -591,10 +536,11 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         )
       }
 
-      if (showCompleted) return topLevelHabits
-      return topLevelHabits.filter(
-        (habit) => !habit.isCompleted || recentlyCompletedIds.has(habit.id),
-      )
+      return showCompleted
+        ? topLevelHabits
+        : topLevelHabits.filter(
+            (habit) => !habit.isCompleted || recentlyCompletedIds.has(habit.id),
+          )
     // react-doctor-disable-next-line exhaustive-deps -- topLevelHabits is the extracted habitsQuery.data.topLevelHabits and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     }, [recentlyCompletedIds, showCompleted, topLevelHabits, view, visibility])
 
@@ -1427,7 +1373,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         options?: {
           isDrillCard?: boolean
           onLongPressCard?: () => void
-          tourTargetId?: string
           panelStart?: boolean
           panelEnd?: boolean
         },
@@ -1508,17 +1453,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           />
         )
 
-        if (options?.tourTargetId) {
-          return (
-            <HabitRowTourAnchor
-              key={habit.id}
-              targetId={options.tourTargetId}
-            >
-              {row}
-            </HabitRowTourAnchor>
-          )
-        }
-
         return row
       },
       [
@@ -1560,10 +1494,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             onLongPressCard: isDndEnabled
               ? () => prepareDrag(item, drag)
               : undefined,
-            tourTargetId:
-              item.habit.id === tourCardHabitId
-                ? 'tour-habit-card'
-                : undefined,
             panelStart: item.depth === 0,
             panelEnd: !nextItem || nextItem.depth === 0,
           },
@@ -1574,7 +1504,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         isDndEnabled,
         prepareDrag,
         renderHabitCard,
-        tourCardHabitId,
       ],
     )
 

@@ -67,6 +67,8 @@ const DISCLOSURE_EXIT = new Keyframe({
 interface HabitFormFieldsProps extends HabitFormCommonProps<HabitFormHelpers, TagSelectionState, ReactNode> {
   onFlushBufferedInputsReady?: (flush: () => void) => void
   onUpgrade: () => void
+  onSuggestEmoji?: () => void
+  isSuggestingEmoji?: boolean
 }
 
 function renderSubHabitChildren(
@@ -248,7 +250,9 @@ export function HabitFormFields({
   onResolveSubHabitProposalReady,
   expandAdvancedSignal = 0,
   onSuggestSetup,
+  onSuggestEmoji,
   isSuggesting = false,
+  isSuggestingEmoji = false,
   readPhraseLocally = false,
   lockedGeneral = null,
   onUpgrade,
@@ -409,6 +413,9 @@ export function HabitFormFields({
         onIntervalWeeksChange={controller.setIntervalWeeks}
         onToggleDay={controller.toggleDay}
         onEmojiSelect={controller.setEmoji}
+        onSuggestEmoji={onSuggestEmoji}
+        isSuggestingEmoji={isSuggestingEmoji}
+        isSuggestionDisabled={isSuggesting || isSuggestingEmoji}
         onValueChange={controller.setTitle}
         proposed={proposal.setup}
         scheduleLocked={lockedGeneral === true}

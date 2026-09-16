@@ -70,16 +70,12 @@ i18n.t('common.save')`,
     "apps/mobile/components/auth/login-content.tsx",
     "apps/mobile/components/upgrade/billing-dashboard.tsx",
     "apps/mobile/hooks/use-login-code-entry.ts",
-    "apps/mobile/hooks/use-tour-mock-data.ts",
     "apps/web/app/(app)/upgrade/page.tsx",
     "apps/web/app/(auth)/login/email-step.tsx",
     "apps/web/app/(auth)/login/login-content.tsx",
     "apps/web/app/(auth)/login/use-login-flow.ts",
     "apps/web/components/upgrade/billing-dashboard.tsx",
     "apps/web/hooks/use-login-code-entry.ts",
-    "apps/web/hooks/use-tour-mock-data.ts",
-    "packages/shared/src/tour/index.ts",
-    "packages/shared/src/tour/tour-mock-data.ts",
   ]
   const boundaryFiles = Object.fromEntries(boundaryPaths.map((path) => [
     path, readFileSync(join(REPO_ROOT, path), "utf8"),
@@ -89,7 +85,6 @@ i18n.t('common.save')`,
     ["apps/web/app/(auth)/login/email-step.tsx", "t('auth.email')", "t('ticket430.webEmail')"],
     ["apps/mobile/components/upgrade/billing-dashboard.tsx", "t('upgrade.billing.invoices.statusPaid')", "t('ticket430.mobileBilling')"],
     ["apps/web/components/upgrade/billing-dashboard.tsx", "t('upgrade.billing.plan.yearlyPrice'", "t('ticket430.webBilling'"],
-    ["packages/shared/src/tour/tour-mock-data.ts", "t('tour.mockData.tags.mindfulness')", "t('ticket430.sharedTour')"],
   ]) {
     T(`check-i18n-usage.mjs: ${path} production probe has exactly one target`, boundaryFiles[path].split(target).length === 2)
     boundaryFiles[path] = boundaryFiles[path].replace(target, replacement)
@@ -97,14 +92,13 @@ i18n.t('common.save')`,
   const productionBoundaries = repository("production-boundaries", boundaryFiles,
     JSON.parse(readFileSync(join(REPO_ROOT, catalogPath("en")), "utf8")),
     JSON.parse(readFileSync(join(REPO_ROOT, catalogPath("pt-BR")), "utf8")))
-  const productionBoundaryResult = check("check-i18n-usage.mjs", "rejects missing keys at all five production module boundaries",
+  const productionBoundaryResult = check("check-i18n-usage.mjs", "rejects missing keys at all four production module boundaries",
     ["--root", productionBoundaries], { status: 1 })
   for (const [path, key] of [
     ["apps/mobile/components/auth/email-step.tsx", "ticket430.mobileEmail"],
     ["apps/web/app/(auth)/login/email-step.tsx", "ticket430.webEmail"],
     ["apps/mobile/components/upgrade/billing-dashboard.tsx", "ticket430.mobileBilling"],
     ["apps/web/components/upgrade/billing-dashboard.tsx", "ticket430.webBilling"],
-    ["packages/shared/src/tour/tour-mock-data.ts", "ticket430.sharedTour"],
   ]) {
     T(`check-i18n-usage.mjs: rejects the ${path} production boundary probe`,
       productionBoundaryResult.stderr.includes(`${path}:`) && productionBoundaryResult.stderr.includes(`missing ${key} in en.json, pt-BR.json`))

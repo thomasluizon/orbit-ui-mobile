@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { exportUserData } from '@/app/actions/profile'
+import { exportUserData } from '@/lib/actions/profile'
 
 export function useDataExport() {
   const t = useTranslations()

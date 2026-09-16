@@ -22,7 +22,7 @@ import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboar
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import { UsageStats } from '@/components/upgrade/usage-stats'
 import { SubscriptionNotice } from '@/components/upgrade/subscription-notice'
-import { openCustomerPortal } from '@/app/actions/subscription'
+import { openCustomerPortal } from '@/lib/actions/subscription'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useBilling } from '@/hooks/use-billing'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'

@@ -11,7 +11,6 @@ import {
   View,
 } from "react-native";
 import Svg, { Circle } from "react-native-svg";
-import { useTourTarget } from "@/hooks/use-tour-target";
 import { createTokensV2, radius, shadowsV2 } from "@/lib/theme";
 import { YearPicker } from "@/components/ui/year-picker";
 
@@ -188,7 +187,6 @@ export function CalendarHeader({
 }: Readonly<CalendarHeaderProps>) {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const monthNavRef = useRef<View>(null);
-  useTourTarget("tour-calendar-month-nav", monthNavRef);
   const [isYearOpen, setIsYearOpen] = useState(false);
 
   const handleSelectYear = (nextYear: number) => {
@@ -340,7 +338,6 @@ export function CalendarLegend({
 }: Readonly<CalendarLegendProps>) {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const legendRef = useRef<View>(null);
-  useTourTarget("tour-calendar-legend", legendRef);
 
   return (
     <View ref={legendRef} collapsable={false} style={styles.legend}>

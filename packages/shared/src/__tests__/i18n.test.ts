@@ -78,6 +78,17 @@ describe('i18n locale parity', () => {
   const enFlat = flatten(en as JsonValue)
   const ptFlat = flatten(ptBR as JsonValue)
 
+  it('separates timed-out mobile copy from confirmed web sign-out copy', () => {
+    expect(en.auth.sessionExpired).toBe('Your session timed out.')
+    expect(ptBR.auth.sessionExpired).toBe('Sua sessão expirou.')
+    expect(en.auth.sessionSignedOut).toBe(
+      'You were signed out. Sign in to pick up where you left off.',
+    )
+    expect(ptBR.auth.sessionSignedOut).toBe(
+      'Você saiu da conta. Entre para continuar de onde parou.',
+    )
+  })
+
   it('has identical key-path sets across en and pt-BR', () => {
     const enKeys = new Set(enFlat.keys())
     const ptKeys = new Set(ptFlat.keys())
@@ -153,11 +164,4 @@ describe('i18n locale parity', () => {
     }
   })
 
-  it('labels every coach-mark tour section in both locales', () => {
-    for (const flat of [enFlat, ptFlat]) {
-      expect(flat.get('tour.sections.coach-today')).toBeTruthy()
-      expect(flat.get('tour.sections.coach-astra')).toBeTruthy()
-      expect(flat.get('tour.sections.coach-calendar')).toBeTruthy()
-    }
-  })
 })

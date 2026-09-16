@@ -35,12 +35,6 @@ export interface NativePushStatusSnapshot {
   isRegistered: boolean
 }
 
-export interface NativePushPromptSnapshot extends NativePushStatusSnapshot {
-  hasCompletedOnboarding: boolean
-  isSupported: boolean
-  isDismissed: boolean
-}
-
 export function getPushStatusToneClass(tone: PushStatusTone): string {
   if (tone === 'critical') {
     return 'text-[var(--status-bad-text)]'
@@ -158,35 +152,4 @@ export function getWebPushStatusPresentation(
     messageKey: getWebPushStatusMessageKey(status, permission),
     tone: getWebPushStatusTone(status),
   }
-}
-
-export function shouldShowNativePushPrompt({
-  hasCompletedOnboarding,
-  isDismissed,
-  isEnabled,
-  isRegistered,
-  isSupported,
-  permissionStatus,
-  registrationStatus,
-}: NativePushPromptSnapshot): boolean {
-  if (!hasCompletedOnboarding || isDismissed) {
-    return false
-  }
-
-  if (
-    !isSupported ||
-    permissionStatus === null ||
-    permissionStatus === 'denied' ||
-    registrationStatus === 'unsupported' ||
-    registrationStatus === 'permission-denied' ||
-    registrationStatus === 'disabled' ||
-    registrationStatus === 'registering' ||
-    registrationStatus === 'registered' ||
-    isEnabled ||
-    isRegistered
-  ) {
-    return false
-  }
-
-  return true
 }

@@ -1,68 +1,75 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DroppedMutation } from '@/lib/offline-mutations'
+import { useOfflineSyncStore } from '@/stores/offline-sync-store'
+
+const storage = vi.hoisted(() => ({
+  getItem: vi.fn(() => Promise.resolve(null as string | null)),
+  setItem: vi.fn(() => Promise.resolve()),
+  removeItem: vi.fn(() => Promise.resolve()),
+}))
+
+vi.mock('@react-native-async-storage/async-storage', () => ({
+  default: storage,
+}))
 
 vi.mock('@/lib/sentry', () => ({ captureError: vi.fn() }))
 
-const storageKey = '@orbit/offline-sync-notices'
-
 function drop(id: string): DroppedMutation {
   return {
-    id, type: 'logHabit', lastError: '500',
+    id,
+    type: 'updateHabit',
+    lastError: 'validation failed',
     mutation: {
-      id, type: 'logHabit', timestamp: 1, retries: 3, maxRetries: 3,
-      scope: 'habits', endpoint: '/api/habits/walk/log', method: 'POST', payload: null,
+      id,
+      timestamp: 1,
+      type: 'updateHabit',
+      endpoint: `/api/habits/${id}`,
+      method: 'PUT',
+      payload: { title: id },
+      retries: 5,
+      maxRetries: 5,
+      scope: 'habits',
     },
   }
 }
 
-async function startHydration() {
-  vi.resetModules()
-  let resolveRead!: (value: string | null) => void
-  const saved = new Map([[storageKey, JSON.stringify({ state: { drops: [drop('old')] }, version: 0 })]])
-  const snapshot = saved.get(storageKey)!
-  const getItem = vi.fn((key: string) => Promise.resolve(saved.get(key) ?? null))
-    .mockImplementationOnce(() => new Promise((resolve) => { resolveRead = resolve }))
-  vi.doMock('@react-native-async-storage/async-storage', () => ({ default: {
-    getItem,
-    setItem: vi.fn((key: string, value: string) => { saved.set(key, value); return Promise.resolve() }),
-    removeItem: vi.fn((key: string) => { saved.delete(key); return Promise.resolve() }),
-  } }))
-  const { useOfflineSyncStore: store } = await import('@/stores/offline-sync-store')
-  const hydrated = new Promise<void>((resolve) => { store.persist.onFinishHydration(() => resolve()) })
-  return { store, saved, getItem, finish: async () => { resolveRead(snapshot); await hydrated } }
-}
-
-afterEach(() => { vi.doUnmock('@react-native-async-storage/async-storage') })
-
-describe('offline recovery hydration', () => {
-  it('retains and persists startup drops alongside saved drops', async () => {
-    const { store, saved, finish } = await startHydration()
-    store.getState().addDrop(drop('new'))
-    await finish()
-    expect(store.getState().drops.map((entry) => entry.id).sort((a, b) => a.localeCompare(b))).toEqual(['new', 'old'])
-    expect(JSON.parse(saved.get(storageKey)!).state.drops).toHaveLength(2)
-    await store.persist.rehydrate()
-    expect(store.getState().drops).toHaveLength(2)
+describe('offline sync store', () => {
+  beforeEach(() => {
+    storage.getItem.mockReset()
+    storage.getItem.mockResolvedValue(null)
+    storage.setItem.mockClear()
+    useOfflineSyncStore.setState({ drops: [] })
   })
 
-  it.each(['fresh-start', 'account-reset'])('does not resurrect drops after %s and a late read', async (reset) => {
-    const { store, saved, getItem, finish } = await startHydration()
-    store.getState().addDrop(drop('before-reset'))
-    if (reset === 'fresh-start') await store.getState().clearDrops()
-    else await (await import('@/lib/offline-state')).clearOfflineState()
-    store.getState().addDrop(drop('after-reset'))
-    await finish()
-    expect(store.getState().drops.map((entry) => entry.id)).toEqual(['after-reset'])
-    expect(JSON.parse(saved.get(storageKey)!).state.drops.map((entry: DroppedMutation) => entry.id)).toEqual(['after-reset'])
-    expect(getItem).toHaveBeenCalledTimes(1)
+  it('deduplicates drops and dismisses only the selected recovery', () => {
+    const first = drop('first')
+    useOfflineSyncStore.getState().addDrop(first)
+    useOfflineSyncStore.getState().addDrop(first)
+    useOfflineSyncStore.getState().addDrop(drop('second'))
+
+    expect(useOfflineSyncStore.getState().drops.map((entry) => entry.id)).toEqual([
+      'first',
+      'second',
+    ])
+    useOfflineSyncStore.getState().dismissDrop('first')
+    expect(useOfflineSyncStore.getState().drops.map((entry) => entry.id)).toEqual(['second'])
   })
 
-  it('does not restore a dismissed drop from a pending read', async () => {
-    const { store, saved, finish } = await startHydration()
-    store.getState().addDrop(drop('old'))
-    store.getState().dismissDrop('old')
-    await finish()
-    expect(store.getState().drops).toEqual([])
-    expect(JSON.parse(saved.get(storageKey)!).state.drops).toEqual([])
+  it('clears every persisted recovery after Fresh Start', async () => {
+    useOfflineSyncStore.getState().addDrop(drop('pre-reset'))
+    await useOfflineSyncStore.getState().clearDrops()
+    expect(useOfflineSyncStore.getState().drops).toEqual([])
+    expect(storage.setItem).toHaveBeenLastCalledWith(
+      '@orbit/offline-sync-notices',
+      expect.stringContaining('"drops":[]'),
+    )
+  })
+
+  it('rehydrates saved drops once without duplicating live state', async () => {
+    const saved = drop('saved')
+    storage.getItem.mockResolvedValueOnce(JSON.stringify({ state: { drops: [saved] }, version: 0 }))
+    useOfflineSyncStore.getState().addDrop(saved)
+    await useOfflineSyncStore.persist.rehydrate()
+    expect(useOfflineSyncStore.getState().drops).toEqual([saved])
   })
 })

@@ -13,7 +13,6 @@ import { WifiOff } from '@/components/ui/icons'
 import { BackToTop } from '@/components/ui/back-to-top'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
-import { PushPrompt } from '@/components/ui/push-prompt'
 import { Sheet } from '@/components/ui/sheet'
 import { PillButton } from '@/components/ui/pill-button'
 import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onboarding-overlay'
@@ -35,8 +34,8 @@ import {
   getMilestoneShareStreakKey,
   MARKETING_CONSENT_MILESTONE_KEY,
 } from '@orbit/shared/stores'
-import { dismissCalendarImport } from '@/app/actions/calendar'
-import { dismissImportPrompt } from '@/app/actions/onboarding'
+import { dismissCalendarImport } from '@/lib/actions/calendar'
+import { dismissImportPrompt } from '@/lib/actions/onboarding'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import {
@@ -45,8 +44,6 @@ import {
 } from '@/stores/onboarding-draft-store'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { CHAT_TEXT_FILE_WEB_ACCEPT } from '@orbit/shared/chat'
-import { TourProvider } from '@/components/tour/tour-provider'
-import { TourOverlay } from '@/components/tour/tour-overlay'
 import { Composer } from '@/components/shell/composer'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
@@ -300,8 +297,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         />
       )}
       <ApiFetchI18nProvider />
-      <TourProvider />
-      <TourOverlay />
     </CommandPaletteBackground>
   )
 }
@@ -354,7 +349,6 @@ function GlobalOverlays({
   useEffect(() => {
     if (
       profile?.hasCompletedOnboarding &&
-      profile.hasCompletedTour &&
       profile.hasSeenImportPrompt &&
       profile.marketingEmailConsent === null
     ) {
@@ -362,7 +356,6 @@ function GlobalOverlays({
     }
   }, [
     profile?.hasCompletedOnboarding,
-    profile?.hasCompletedTour,
     profile?.hasSeenImportPrompt,
     profile?.marketingEmailConsent,
     armConsentPrompt,
@@ -396,7 +389,6 @@ function GlobalOverlays({
     <div className="contents">
       <ExpiryWarning />
       <TrialExpiredModal />
-      {profile?.hasCompletedOnboarding && <PushPrompt />}
       {showRetainedOnboarding && <RetainedOnboardingOverlay />}
       {profile?.hasCompletedOnboarding && <MarketingConsentPrompt />}
       {profile?.hasCompletedOnboarding && <ReferralPrompt />}

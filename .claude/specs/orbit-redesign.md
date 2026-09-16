@@ -76,6 +76,15 @@ These stay until he changes them. Keep his words.
   possible" narrows HOW, never WHAT: it means stop idling a worker slot and stop opening fronts that
   do not close a ticket. It does not license a cheaper implementation, and it never overrides
   "always the best implementation".
+- **2026-09-16** **Do not ask permission for work he already asked for.** After the beta release
+  was held pending a confirmation he had already given in writing: "you shouldnt have asked me
+  to say 'go', you could've just shipped it." A written instruction IS the authorisation.
+  Ask again only when the scope or the inputs changed.
+- **2026-09-16** Answered directly, both recorded on their tickets: **centred phone IS the
+  large-screen answer**, so no tablet layout is filed and none should be; and the **public Play
+  developer name becomes TL SOFTWARE ENGINEERING LTDA**.
+- **2026-09-16** **The local worker cap is TWO, not three.** Four were killed at once for low
+  memory, every one of them after committing. This supersedes D89's figure of three on this machine.
 - **Standing** Ticket `#74` owns existing copy.
 - **Standing** Never boot the Android emulator. It is his visual testing surface.
 - **Standing** `redesign/main` stays unprotected. Settled; never raise it.
@@ -275,16 +284,19 @@ Pointers, not restatements. The reasoning lives in the ADR.
   literal paths or a small node script.
 - **`compose-prompt.mjs` appends EVERY ticket comment in order**, so the newest comment is the
   freshest instruction a worker sees. Post a routing comment LAST, naming the round.
-- **Cloud has a circuit breaker and it is OPEN for any session that hits two empty diffs.** It fired
-  on 2026-09-15 at 10:46 after `#76` stage 9 returned `files_changed: 0` twice, once on the retry that
-  puts the commit instruction first. `materialize-cloud-result.mjs` exits 3 with `CLOUD_TASK_EMPTY`
-  and classification `lost-work suspect`; `#433`, which owned that detection, is CLOSED and the
-  harness behaved correctly. The container is what fails.
+- **Cloud is UNUSABLE and is being turned off by default.** On 2026-09-15 it returned an empty diff
+  **five times out of five**: twice on `#76` stage 9, then on `#56` stage 13, `#545` stage 1 and
+  `#547`. `materialize-cloud-result.mjs` exits 3 with `CLOUD_TASK_EMPTY` and classification
+  `lost-work suspect`; the harness behaves correctly and the container is what fails. Thomas: "if
+  cloud is bugged, just remove this funcionality ... just disable it by default". Ticket `#551`.
+  **Do not pass `--cloud` until it lands.**
 - **A Cloud container has NO origin remote, cannot fetch, and installs no dependencies reliably.** So
   a merge-forward is always local, and a Cloud handoff's `testResults` is a CLAIM. On 2026-09-15 a
   container reported "PASS: npm run type-check completed for @orbit/shared, @orbit/web, and
   @orbit/mobile" while the root type-check failed with five errors. **Re-run every check locally.**
-- **The local worker pool is ONE at a time on this machine.** Two was the old figure.
+- **The local worker pool is THREE at a time on this machine.** One was the old figure; Thomas asked
+  for parallel worktrees on 2026-09-15, and five concurrent workers then drove the machine to 45% CPU
+  with 6.6 GB free and he asked for it cut. Three holds at about 8% CPU and 8 GB free.
 - **`caps.workerLaunchesPerBranch` is 2 and it WILL refuse a legitimate review-fix round.** Pass
   `--relaunch-reason "<text>"` naming the new head and the new findings. Do not raise the cap.
 - **The ORCHESTRATING checkout's dependencies go stale too.** On 2026-09-15 the root type-check
@@ -365,98 +377,135 @@ Two rules for this work, both learned the hard way:
 - **A worker order that says "read pull request N" or "fetch a branch" must run LOCAL.**
 - **Post a routing comment LAST, naming the round.**
 
+
+## What 2026-09-15 into 09-16 proved about reviews and checks
+
+- **A forced `--re-review` is worth its cost.** Four times in one night it returned a NEW P1 on a
+  head that already carried a green approval. The worst was 972: an empty rendered set fell back to
+  a stale visibility calculation, so Select all reached habits the screen was not showing and bulk
+  delete could remove them. Ask for one on any head that matters.
+- **`pullfrog-approval` does not publish on a MERGE-ONLY head.** A push with a real diff publishes
+  it; an `update-branch` or a bare merge commit does not, even though Pullfrog reviews and APPROVES
+  that exact commit. It arrives later from the mention runs, so wait. **Never push an empty commit
+  to manufacture a diff**: a required check satisfied by a commit written to satisfy it proves
+  nothing.
+- **A red check is not always a defect.** On 974 a `Type Check` red was `npm error code ECONNRESET`
+  inside `npm ci`, while the same commit passed uncached locally. Read the log before ordering a
+  round.
+- **Rounds that keep opening new findings mean the STATE MODEL is wrong.** 973 took six. Rounds 3
+  and 4 each fixed one finding and opened the next, until round 5 replaced four disagreeing replay
+  flags with one state. Order the model change rather than a third guard.
+- **A test that was never shown to fail has not been shown to notice anything.** 971 shipped eight
+  press tests that all stayed green with both handlers replaced by no-ops. The order that fixed it
+  required running that no-op experiment and capturing the output before and after.
+- **A worker killed for memory or ceiling has usually COMMITTED.** All six did. Read the worktree
+  before assuming loss. The orchestrator may then run the verification and push that commit itself,
+  which is delivery rather than editing and saves a launch. Say so plainly in the pull request body,
+  and never claim red-first runs that happened only inside the killed session.
+- **A refusal with a reason beats a guess.** `#551` round 1 was pointed at `main`, where no Cloud
+  system exists at all, and the worker stopped before editing anything rather than inventing a
+  config block. Verify such a refusal, then fix the ORDER.
 ## State
 
-Read live 2026-09-15 at 14:04 UTC. `redesign/main` is `52ec075e`. `orbit-api` `main` is `fb61d921`.
+Read live 2026-09-16 at 01:30 UTC. `redesign/main` is `c4071c5a`. `main` is `adc070bc` and FINAL:
+the beta release shipped and no pull request is open against it.
 
-### Merged during the 2026-09-15 daytime run
+**The second effort is DONE.** `.claude/specs/beta-release.md` is now a record, not a queue. Its
+constraints still bite and are worth reading once. Its five merges reach this branch through the
+drift merge, `#556`, which is the one piece of integration work left over from it.
 
-954 Perfil s9, 957 Progresso s6, 961 Wrapped s5, 958 Progresso s7. In product terms: Wrapped's share
-card saves into a folder the person picks on Android and survives a repeat save; Progresso shows a
-free account the locked window card instead of navigating them to `/upgrade`; Perfil's plan gates are
-covered.
+### Merged to `redesign/main` on 2026-09-15 into 09-16
 
-### Built and merged before that
+    969  c9883aca  About stages 6 to 8, the support request states
+    959  f3ea49ca  Progresso stage 5b, the linked goal limit ordering
+    980  c4071c5a  Cloud submissions off by default (`#551`, closed)
 
-- **The calendar**, all twelve stages. **Privacy and Terms.** **The Android widget**, all eight stages.
-- **Perfil** has its five groups, data export, the Astra allowance panel, the email consent question,
-  API keys and MCP behind the plan gate, the more-of-Orbit routes and its ending actions.
-- **About** stages 1, 2, 4 and 5.
-- **Wrapped** has its cover, paging, stage 4 and its share page and card.
-- **Progresso** exists as the fourth destination with XP, achievements, streak and the goal list.
-- **Mobile renders ICU.** **The harness work is done** (`#536`, `#537`, `#356`, `#540`).
-- The standalone streak, achievements, insights and retrospective routes are GONE on both platforms,
-  mobile ships four tabs, and `apps/mobile/app/+native-intent.tsx:14-19` redirects `/streak` to
-  `/progress`. So `#57` and `#58` have no removal work left; their content is `#329`'s stack.
+`#551` is worth knowing about: a Cloud submission now exits before any lock, receipt or Codex
+contact, the flag cannot be bypassed from the command line, and the recovery paths for
+already-started work still function. That closes the failure that returned five empty diffs in one
+day. **Do not pass `--cloud`; it will refuse, and that is correct.**
 
-### The completion check
+### Open pull requests against `redesign/main`
 
-`node tools/redesign-coverage.mjs` reports `redesign coverage valid: 190 manifest surfaces accounted
-for, 8 deleted, 3 excluded`. **It is necessary and NOT sufficient**: it validates the mapping, never
-whether a surface satisfies its ticket, and it reads a manifest nothing regenerates automatically.
+| pull request | head | state |
+|---|---|---|
+| 979 | `cbe08904` | the drift merge, `#556`. A worker is mid-merge. Approved earlier at `aa1b8105`, and its one finding is already fixed in `e9ecd7fd` |
+| 963 | `8d69cb53` | Wrapped stage 7. Two P1s were opened on 2026-09-15 and are NOT fixed: the `"0000"` year and the Expo cached launch response. Round 2 order is on `#63` |
+| 970 | `e15d5228` | `/progress` generic plus `--full`. DIRTY, two findings, no round run |
 
-### Open pull requests
+### The drift merge, `#556`, is the first thing to finish
 
-| pull request | base | head | state |
-|---|---|---|---|
-| 970 | `redesign/main` | `e15d5228` | `/progress` generic plus `--full`. No review yet |
-| 969 | `redesign/main` | `6f4a669e` | About s6-8, round 3 pushed, awaiting review |
-| 962 | `redesign/main` | `10d02060` | Wrapped s6, APPROVED, merge-forward done, awaiting re-review |
-| 963 | 962's branch | `b34c0d88` | Wrapped s7, APPROVED, CONFLICTING. Retarget then merge-forward |
-| 959 | `redesign/main` | `4557939f` | Progresso s5b, APPROVED, CONFLICTING. A worker is mid merge-forward |
+It exists because `redesign/main` no longer contained `main`, and that broke more than tidiness:
+every orchestrator tool refuses to run from a stale `redesign/main` checkout, including
+`launch-worker.mjs`. The workaround was to move the orchestrating checkout to `main`, which cost the
+`progress`, `questions`, `drift-review` and `sleep` skills, because those exist only on
+`redesign/main`.
 
-Four dependabot pull requests sit on UI `main` and are not this effort.
+Rounds 1 and 2 kept re-conflicting because each `main` merge moved the target. `main` is now final,
+so round 3 merges once and stays merged. **Once 979 lands, put the orchestrating checkout back on
+`redesign/main` and the skills return.**
 
-`orbit-api`: **521** (`cc86c612`, `#526`) has ONE live P1, that the end-time guard compares full
-precision while both response strings truncate to `HH:mm`, so 10:00:10 through 10:00:50 emits two equal
-times. **520** (`ce610484`, `#229`) has ONE live P1, that `accessRequirement` recognises a single
-ternary shape and silently writes `planRequirement: null` for any other, downgrading an enforced gate
-to ungated. Orders for both are the newest comments on their tickets. Three dependabot ones sit beside
-them. `orbit-api` has no dirty worktree and no stash.
+Four behaviours from `main` must survive its conflicts, each a defect someone hit:
+bulk selection targeting only rendered habits including a valid empty set; one replay state for the
+offline queue; the Astra marker rather than `Sparkles`; and the corrected AA status text colours.
 
 ### Not started, or half started
 
-- **`#67` onboarding stage 1 is BUILT and STAGED, not committed.** A Cloud task applied 132 files,
-  +133 and -10,822, into `ticket-67-onboarding-s1`: the tour, the push prompt and the template pack
-  step are deleted on both platforms and suppressions fall web 180 to 142 and mobile 187 to 150. It
-  CANNOT be committed as it stands: the root type-check fails with five `TS2554`s in
-  `packages/shared/src/__tests__/onboarding-steps-branches.test.ts`, and the surface manifest and
-  `redesign-groups.json` are untouched. A round 2 order is the newest comment on `#67`. Dependencies
-  are installed in that worktree.
-- **`#76` stage 9**, the second widget empty string plus two untested states. Branch
-  `feature/ticket-76-widget-s9` is pushed at `e2f34493` with no work and no dependencies installed.
-  Cloud returned empty twice, so it is LOCAL now.
-- **`#56` stage 13**, the calendar import prompt's spacing suppressions. Order posted.
-- **`#71` stage 10**, Perfil's phase 6 suppression sweep, thirteen files plus three shared
-  `settings-*` primitives. Order posted, with an errata forbidding the "no way back" criterion.
-- **`#73` stage 3**, the feature guide subjects. Verified product facts are on the ticket.
-- **`#53` Goals**, four stages, stage 1 being the goal list block inside Progresso.
-- **`#74`'s copy pass**, 32 drafted labels across 58 sites, never landed.
-- **Progresso's six accessibility sweeps**: `#472`, `#473`, `#476`, `#477`, `#478`, `#480`.
-- **`#543`**, the custom radio callers the shared `RadioGroup` could not take.
-- **`#544`**, the Codex root `error.log` leak.
+- **`#545`**, 196 suppressed violations on surfaces whose screen ticket already closed. Stage 1 IS
+  committed as `49a913bb` in `ticket-545-form-fields`, 14 files with 63 suppressions dropped from
+  `apps/web/eslint-suppressions.json`, seven commits unpushed. It needs a merge-forward and a push,
+  not a rewrite. A delivery-only order is already the newest comment on `#545`.
+- **`#67` onboarding stage 1** is BUILT and STAGED, not committed: 132 files in
+  `ticket-67-onboarding-s1`. Round 2 order is the newest comment on `#67`.
+- **`#557`**, filed 2026-09-15: Android says "You were signed out" and offers Log in while the
+  session is still recoverable. `expiry-warning.tsx:116` renders `auth.login` with `handleLogin()`
+  behind it, and nothing in that component clears auth state, while the API client would have
+  refreshed silently on its next request. 974 fixed the WORDS; this fixes the ACTION.
+- **`#546`**, the Gate Charter that never installs `js-yaml`. **D95 still forbids the run that is
+  judged by `Guards` from fixing it.**
+- **`#76` stage 9**, **`#56` stage 13**, **`#71` stage 10**, **`#73` stage 3**, **`#53`**, **`#74`**,
+  **`#543`**, **`#544`**, and Progresso's six sweeps `#472`, `#473`, `#476`, `#477`, `#478`, `#480`.
 
-### Worktree and branch debt, read 2026-09-15 at 14:04 UTC
+### `orbit-api`, both still open on `main`
 
-Dirty: `ticket-67-onboarding-s1` 132 files, which is LIVE work; `ticket-329-progresso-s5b` 268 files,
-which is the running merge-forward; `ticket-351-primitives` 179, `orb-70-android-widget` 34,
-`orb65-red-evidence` 4 on a detached HEAD, `ticket-174-measure` 1, all old debt that blocks nothing.
-Four stashes, all from tickets that shipped. Three detached HEADs whose commits are reachable.
-`feature/ticket-335-avisos` shows 11 unpushed commits, an artefact of a squash that landed as 843.
+Each has exactly ONE live finding and everything else green. Both were re-read at 19:46 UTC.
 
-Remote branches with no open pull request: `feature/ticket-67-onboarding-s1` and
-`feature/ticket-76-widget-s9`, both live work above; `feature/ticket-329-progresso-s7b` and
-`feature/ticket-63-wrapped-s5`, both merged and undeleted; and six older ones that block nothing.
+- **521** `cc86c612`, `GetCalendarEventsQuery.cs:46`: `TimeOfDay` keeps seconds while the response is
+  truncated to `HH:mm`, so 10:00:10 to 10:00:50 emits equal times the bulk import rejects. Two other
+  threads on this pull request are already resolved.
+- **520** `ce610484`, `tools/gating-matrix.mjs:434`: `planRequirement` becomes `null` for any gate
+  not written in the one ternary shape the parser knows, publishing every caller as ungated while
+  tests stay green. The order refuses the cheap fix of adding a pattern and requires a three-way
+  distinction with a fail-closed unknown.
+
+A fresh order naming the exact live finding is the newest comment on `#526` and `#229`.
+
+### Worktree and branch debt, read 2026-09-16 at 01:30
+
+Holding real work: `ticket-545-form-fields` 7 unpushed; `ticket-556-drift-merge` 161 dirty with a
+merge in progress, which is the live worker; `ticket-67-onboarding-s1` 132 staged;
+`ticket-335-avisos` 11 unpushed, an artefact of a squash that landed as 843.
+
+Old debt that blocks nothing: `ticket-351-primitives` 179 dirty, `orb-70-android-widget` 34,
+`ticket-174-measure` 1, `ticket-329-progresso-s5b` 2.
+
+Four stashes, all from tickets that shipped. Four detached HEADs: `orb65-red-evidence` at `20d729c6`,
+`ticket-397-accent` at `a27a8e43`, `ticket-468-control` at `f1b2991c`, and `ticket-550-r3-red` at
+`386939e0`. Their commits are reachable.
+
+Two worktrees were created on 2026-09-16 and can be removed once used:
+`ticket-551-cloud-default`, cut from `main` and holding nothing, and `handoff-0916`.
+**Never `git worktree remove --force` on Windows**: it follows a junction and deletes the target.
+Remove junctions with `rmdir` first.
 
 ### Tickets
 
-**123 carry `repo:ui`.** Eleven screen tickets remain open: `#53`, `#56`, `#57`, `#58`, `#63`, `#67`,
-`#71`, `#73`, `#74`, `#76`, `#329`. Reproduce with
+**129 carry `repo:ui`**, down from 133. Reproduce with
 
-    gh issue list --repo thomasluizon/orbit-tickets --state open --label "repo:ui" --limit 200
+    gh issue list --repo thomasluizon/orbit-tickets --state open --label "repo:ui" --limit 300
 
-`#57` and `#58` are not judged yet on purpose: both close on Progresso carrying their sections, and
-959 is still open.
+All eleven screen tickets are still open: `#53`, `#56`, `#57`, `#58`, `#63`, `#67`, `#71`, `#73`,
+`#74`, `#76`, `#329`.
 
 ## Open questions
 

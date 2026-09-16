@@ -2,37 +2,54 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { useProfile } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
-import { buildSupportRequestBody, getFriendlyErrorMessage } from '@orbit/shared/utils'
+import {
+  buildSupportRequestBody,
+  attachSupportVersion,
+  getFriendlyErrorMessage,
+  getSupportMessageFit,
+  getSupportMessageMaxLength,
+  getSupportSendReasonKey,
+  normalizeSupportSubjectId,
+  SUPPORT_SUBJECT_OPTIONS,
+  type SupportSubjectId,
+} from '@orbit/shared/utils'
 import { isValidEmail } from '@orbit/shared/utils/email'
-import { sendSupportMessage } from '@/app/actions/support'
+import { sendSupportMessage } from '@/lib/actions/support'
 import { AppBar } from '@/components/ui/app-bar'
-import { ErrorState } from '@/components/ui/error-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { SupportSuccessState } from './_components/support-success-state'
 import { SupportForm } from './_components/support-form'
+import packageJson from '@/package.json'
 
 const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
 
-function readSupportDraft() {
-  if (typeof localStorage === 'undefined') return { subject: '', message: '' }
+interface SupportDraft {
+  subject: SupportSubjectId | null
+  message: string
+}
+
+function readSupportDraft(): SupportDraft {
+  if (typeof localStorage === 'undefined') return { subject: null, message: '' }
   const stored = localStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)
-  if (!stored) return { subject: '', message: '' }
+  if (!stored) return { subject: null, message: '' }
   try {
     const draft = JSON.parse(stored) as Record<string, unknown>
     return {
-      subject: typeof draft.subject === 'string' ? draft.subject : '',
+      subject: normalizeSupportSubjectId(draft.subject),
       message: typeof draft.message === 'string' ? draft.message : '',
     }
   } catch {
     localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
-    return { subject: '', message: '' }
+    return { subject: null, message: '' }
   }
 }
 
 export default function SupportPage() {
   const t = useTranslations()
+  const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { profile } = useProfile()
   const { isOnline } = useOffline()
@@ -52,7 +69,6 @@ export default function SupportPage() {
   const [messageError, setMessageError] = useState<string | null>(null)
   const [nameFocusRequest, setNameFocusRequest] = useState(0)
   const [emailFocusRequest, setEmailFocusRequest] = useState(0)
-  const [subjectFocusRequest, setSubjectFocusRequest] = useState(0)
   const [messageFocusRequest, setMessageFocusRequest] = useState(0)
   const resolvedEmail = profile?.email || email
   const displayedName = name || profile?.name || ''
@@ -60,16 +76,23 @@ export default function SupportPage() {
   const displayedEmailError = resolvedEmail.trim() && isValidEmail(resolvedEmail)
     ? null
     : emailError
-  const hasSubject = Boolean(subject.trim())
+  const hasSubject = subject !== null
   const hasMessage = Boolean(message.trim())
-  const isIncomplete = !hasSubject || !hasMessage
-  const incompleteReason = !isOnline || isSending || !isIncomplete
+  const appVersion = packageJson.version
+  const messageFit = getSupportMessageFit(message, appVersion)
+  const messageMaxLength = Math.max(getSupportMessageMaxLength(appVersion), message.length)
+  const messageOverLimitHint = messageFit.fits
     ? null
-    : !hasSubject && !hasMessage
-      ? t('profile.support.sendIncomplete')
-      : !hasSubject
-        ? t('profile.support.sendNeedsSubject')
-        : t('profile.support.sendNeedsMessage')
+    : t('profile.support.messageOverLimit', { overage: messageFit.overage })
+  const isIncomplete = !hasSubject || !hasMessage
+  const disabledReasonKey = getSupportSendReasonKey({
+    hasMessage,
+    hasSubject,
+    isOnline,
+    isSending,
+    messageFits: messageFit.fits,
+  })
+  const disabledReason = disabledReasonKey ? t(disabledReasonKey) : null
 
   const persistDraft = useCallback((change: Partial<typeof initialDraft>) => {
     draftRef.current = { ...draftRef.current, ...change }
@@ -86,7 +109,7 @@ export default function SupportPage() {
     const nextEmailError = !effectiveEmail
       ? t('profile.support.emailRequired')
       : isValidEmail(effectiveEmail) ? null : t('profile.support.emailInvalid')
-    const nextSubjectError = subject.trim() ? null : t('profile.support.subjectRequired')
+    const nextSubjectError = subject ? null : t('profile.support.subjectRequired')
     const nextMessageError = message.trim() ? null : t('profile.support.messageRequired')
     setNameError(nextNameError)
     setEmailError(nextEmailError)
@@ -94,14 +117,15 @@ export default function SupportPage() {
     setMessageError(nextMessageError)
     if (nextNameError) setNameFocusRequest((request) => request + 1)
     else if (nextEmailError) setEmailFocusRequest((request) => request + 1)
-    else if (nextSubjectError) setSubjectFocusRequest((request) => request + 1)
     else if (nextMessageError) setMessageFocusRequest((request) => request + 1)
     return !nextNameError && !nextEmailError && !nextSubjectError && !nextMessageError
   }, [message, name, profile, resolvedEmail, subject, t])
 
   const handleSend = useCallback(async () => {
-    if (!isOnline) return
+    if (!isOnline || !messageFit.fits) return
     if (!validateFields()) return
+    const selectedSubject = SUPPORT_SUBJECT_OPTIONS.find((option) => option.id === subject)
+    if (!selectedSubject) return
 
     setIsSending(true)
     setError(null)
@@ -111,13 +135,13 @@ export default function SupportPage() {
       const payload = buildSupportRequestBody(profile, {
         name,
         email: resolvedEmail,
-        subject,
-        message,
+        subject: t(selectedSubject.labelKey),
+        message: attachSupportVersion(message, appVersion),
       })
       await sendSupportMessage(payload)
       setSuccess(true)
-      draftRef.current = { subject: '', message: '' }
-      setSubject('')
+      draftRef.current = { subject: null, message: '' }
+      setSubject(null)
       setMessage('')
       globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
     } catch (err: unknown) {
@@ -125,9 +149,9 @@ export default function SupportPage() {
     } finally {
       setIsSending(false)
     }
-  }, [isOnline, message, name, profile, resolvedEmail, subject, t, validateFields])
+  }, [appVersion, isOnline, message, messageFit.fits, name, profile, resolvedEmail, subject, t, validateFields])
 
-  const disabled = isSending || !isOnline || isIncomplete
+  const disabled = isSending || !isOnline || isIncomplete || !messageFit.fits
 
   return (
     <div className="min-w-0 md:mx-auto md:w-full md:max-w-[620px]">
@@ -141,14 +165,11 @@ export default function SupportPage() {
           <p role="status" aria-live="polite" className="sr-only">
             {success ? t('profile.support.success') : ''}
           </p>
-          {!isOnline && (
-            <div className="mb-4">
-              <ErrorState message={t('offline.description')} />
-            </div>
-          )}
-
           {success ? (
-            <SupportSuccessState />
+            <SupportSuccessState
+              email={resolvedEmail}
+              onBack={() => router.push('/about')}
+            />
           ) : (
             <div className="min-w-0 md:max-w-[520px]">
               <SupportForm
@@ -156,18 +177,21 @@ export default function SupportPage() {
                 email={resolvedEmail}
                 subject={subject}
                 message={message}
+                appVersion={appVersion}
+                messageMaxLength={messageMaxLength}
+                messageOverLimitHint={messageOverLimitHint}
                 error={error}
                 nameError={displayedNameError}
                 emailError={displayedEmailError}
                 subjectError={subjectError}
                 messageError={messageError}
                 isSending={isSending}
+                isOnline={isOnline}
                 disabled={disabled}
-                disabledReason={incompleteReason}
+                disabledReason={disabledReason}
                 emailDisabled={Boolean(profile?.email)}
                 nameFocusRequest={nameFocusRequest}
                 emailFocusRequest={emailFocusRequest}
-                subjectFocusRequest={subjectFocusRequest}
                 messageFocusRequest={messageFocusRequest}
                 onNameChange={(next) => {
                   setName(next)
@@ -183,7 +207,7 @@ export default function SupportPage() {
                   persistDraft({ subject: next })
                 }}
                 onSubjectBlur={() => {
-                  if (!subject.trim()) setSubjectError(t('profile.support.subjectRequired'))
+                  if (!subject) setSubjectError(t('profile.support.subjectRequired'))
                 }}
                 onMessageChange={(next) => {
                   setMessage(next)

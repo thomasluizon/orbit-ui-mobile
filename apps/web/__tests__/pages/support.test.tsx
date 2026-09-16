@@ -1,9 +1,16 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import en from '@orbit/shared/i18n/en.json'
+import { createTranslator } from 'next-intl'
 
-vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
-}))
+const mockI18n = vi.hoisted(() => ({ overrides: new Map<string, string>() }))
+vi.mock('next-intl', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next-intl')>()
+  return {
+    ...actual,
+    useTranslations: () => (key: string) => mockI18n.overrides.get(key) ?? key,
+  }
+})
 
 vi.mock('next/link', () => ({
   default: ({ children, href, ...props }: { children: React.ReactNode; href: string; [key: string]: unknown }) => (
@@ -11,8 +18,13 @@ vi.mock('next/link', () => ({
   ),
 }))
 
+const mockGoBackOrFallback = vi.fn()
+const mockRouterPush = vi.fn()
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({
-  useGoBackOrFallback: () => vi.fn(),
+  useGoBackOrFallback: () => mockGoBackOrFallback,
+}))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockRouterPush }),
 }))
 
 let mockProfile: Record<string, unknown> | null = null
@@ -27,7 +39,7 @@ vi.mock('@/hooks/use-offline', () => ({
 }))
 
 const mockSendSupportMessage = vi.fn()
-vi.mock('@/app/actions/support', () => ({
+vi.mock('@/lib/actions/support', () => ({
   sendSupportMessage: (...args: unknown[]) => mockSendSupportMessage(...args),
 }))
 
@@ -53,9 +65,6 @@ import SupportPage from '@/app/(app)/support/page'
 
 const DRAFT_KEY = 'orbit-support-draft'
 
-function subjectField() {
-  return screen.getByRole('textbox', { name: 'profile.support.subject' })
-}
 function messageField() {
   return screen.getByRole('textbox', { name: 'profile.support.message' })
 }
@@ -74,6 +83,9 @@ describe('SupportPage', () => {
     mockProfile = { name: 'Orbit User', email: 'orbit@example.com' }
     mockIsOnline = true
     mockSendSupportMessage.mockReset()
+    mockGoBackOrFallback.mockReset()
+    mockRouterPush.mockReset()
+    mockI18n.overrides.clear()
     localStorage.clear()
   })
 
@@ -85,8 +97,71 @@ describe('SupportPage', () => {
     mockIsOnline = false
     render(<SupportPage />)
 
-    expect(screen.getByText('offline.description')).toBeInTheDocument()
+    const reason = screen.getByText('profile.support.offlineReason')
+    expect(reason).toBeInTheDocument()
     expect(sendButton()).toBeDisabled()
+    expect(sendButton()).toHaveAttribute('aria-describedby', 'support-send-reason')
+    expect(document.getElementById('support-send-reason')).toContainElement(reason)
+  })
+
+  it('uses one radio tab stop and selects with arrow, Home, and End keys', () => {
+    render(<SupportPage />)
+
+    const radios = screen.getAllByRole('radio')
+    expect(radios.map((radio) => radio.tabIndex)).toEqual([0, -1, -1, -1])
+
+    radios[0]!.focus()
+    fireEvent.keyDown(radios[0]!, { key: 'ArrowDown' })
+    expect(radios[1]).toHaveFocus()
+    expect(radios[1]).toHaveAttribute('aria-checked', 'true')
+    expect(radios.map((radio) => radio.tabIndex)).toEqual([-1, 0, -1, -1])
+
+    fireEvent.keyDown(radios[1]!, { key: 'End' })
+    expect(radios[3]).toHaveFocus()
+    expect(radios[3]).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.keyDown(radios[3]!, { key: 'Home' })
+    expect(radios[0]).toHaveFocus()
+    expect(radios[0]).toHaveAttribute('aria-checked', 'true')
+
+    fireEvent.keyDown(radios[0]!, { key: 'ArrowUp' })
+    expect(radios[3]).toHaveFocus()
+    fireEvent.keyDown(radios[3]!, { key: 'ArrowRight' })
+    expect(radios[0]).toHaveFocus()
+    fireEvent.keyDown(radios[0]!, { key: 'ArrowLeft' })
+    expect(radios[3]).toHaveFocus()
+  })
+
+  it('uses the truthful offline reason', () => {
+    const translate = createTranslator({ locale: 'en', messages: en })
+    expect(translate('profile.support.offlineReason')).toBe(
+      'No connection. Your words stay on this device, so you can send when the connection returns.',
+    )
+  })
+
+  it('renders four subject choices and sends the selected wording', async () => {
+    mockSendSupportMessage.mockResolvedValue(undefined)
+    const translate = createTranslator({ locale: 'en', messages: en })
+    const problemLabel = translate('profile.support.subjects.problem.label')
+    mockI18n.overrides.set('profile.support.subjects.problem.label', problemLabel)
+    render(<SupportPage />)
+
+    expect(screen.getAllByRole('radio')).toHaveLength(4)
+    expect(screen.getByText('profile.support.subjects.problem.description')).toBeInTheDocument()
+    expect(screen.getByText('profile.support.subjects.billing.description')).toBeInTheDocument()
+    expect(screen.getByText('profile.support.subjects.account.description')).toBeInTheDocument()
+    expect(screen.getByText('profile.support.subjects.other.description')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText(problemLabel))
+    fireEvent.change(messageField(), { target: { value: 'The log disappeared' } })
+    fireEvent.click(sendButton())
+
+    await waitFor(() => expect(mockSendSupportMessage).toHaveBeenCalledWith({
+      name: 'Orbit User',
+      email: 'orbit@example.com',
+      subject: problemLabel,
+      message: 'The log disappeared\n\nOrbit 0.0.1',
+    }))
   })
 
   it('uses the system inputs, including a six-row message and the disabled account email', () => {
@@ -113,11 +188,11 @@ describe('SupportPage', () => {
     expect(screen.queryByText('profile.support.emailLockedReason')).not.toBeInTheDocument()
   })
 
-  it('shows the required subject error and focuses the subject', async () => {
+  it('shows the required subject error beside the picker', async () => {
     render(<SupportPage />)
     fireEvent.change(messageField(), { target: { value: 'Message' } })
 
-    fireEvent.blur(subjectField())
+    fireEvent.blur(screen.getByRole('radiogroup'))
 
     expect(await screen.findByText('profile.support.subjectRequired')).toBeInTheDocument()
     expect(sendButton()).toBeDisabled()
@@ -126,7 +201,7 @@ describe('SupportPage', () => {
 
   it('shows the required message error and focuses the message', async () => {
     render(<SupportPage />)
-    fireEvent.change(subjectField(), { target: { value: 'Subject' } })
+    fireEvent.click(screen.getByText('profile.support.subjects.problem.label'))
 
     fireEvent.blur(messageField())
 
@@ -144,39 +219,53 @@ describe('SupportPage', () => {
 
     fireEvent.change(messageField(), { target: { value: 'Message' } })
     expect(screen.getByText('profile.support.sendNeedsSubject')).toBeInTheDocument()
-    fireEvent.change(subjectField(), { target: { value: 'Subject' } })
+    fireEvent.click(screen.getByText('profile.support.subjects.problem.label'))
     expect(sendButton()).toBeEnabled()
     expect(sendButton()).not.toHaveAttribute('aria-describedby')
 
-    fireEvent.change(subjectField(), { target: { value: '   ' } })
-    expect(sendButton()).toBeDisabled()
-    expect(screen.getByText('profile.support.sendNeedsSubject')).toBeInTheDocument()
-
-    fireEvent.change(subjectField(), { target: { value: 'Subject' } })
     fireEvent.change(messageField(), { target: { value: '   ' } })
     expect(sendButton()).toBeDisabled()
     expect(screen.getByText('profile.support.sendNeedsMessage')).toBeInTheDocument()
   })
 
-  it('accepts the API subject and message length boundaries', async () => {
+  it('accepts the API message length boundary', async () => {
     mockSendSupportMessage.mockResolvedValue(undefined)
     render(<SupportPage />)
 
-    const subject = 's'.repeat(200)
-    const message = 'm'.repeat(5000)
-    expect(subjectField()).toHaveAttribute('maxlength', '200')
-    expect(messageField()).toHaveAttribute('maxlength', '5000')
+    const message = 'm'.repeat(4987)
+    expect(messageField()).toHaveAttribute('maxlength', '4987')
+    expect(screen.getByText('profile.support.versionIncluded')).toBeInTheDocument()
 
-    fireEvent.change(subjectField(), { target: { value: subject } })
+    fireEvent.click(screen.getByText('profile.support.subjects.problem.label'))
     fireEvent.change(messageField(), { target: { value: message } })
     fireEvent.click(sendButton())
 
     await waitFor(() => expect(mockSendSupportMessage).toHaveBeenCalledWith({
       name: 'Orbit User',
       email: 'orbit@example.com',
-      subject,
-      message,
+      subject: 'profile.support.subjects.problem.label',
+      message: `${message}\n\nOrbit 0.0.1`,
     }))
+  })
+
+  it('keeps an oversized restored draft and refuses to send it', () => {
+    const translate = createTranslator({ locale: 'en', messages: en })
+    const message = 'm'.repeat(5000)
+    const overLimit = translate('profile.support.messageOverLimit', { overage: 13 })
+    const sendReason = translate('profile.support.sendNeedsShorterMessage')
+    mockI18n.overrides.set('profile.support.messageOverLimit', overLimit)
+    mockI18n.overrides.set('profile.support.sendNeedsShorterMessage', sendReason)
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ subject: 'problem', message }))
+
+    render(<SupportPage />)
+
+    expect(messageField()).toHaveValue(message)
+    expect(messageField()).toHaveAttribute('maxlength', '5000')
+    expect(messageField()).toHaveAccessibleDescription(overLimit)
+    expect(sendButton()).toBeDisabled()
+    expect(sendButton()).toHaveAccessibleDescription(sendReason)
+    fireEvent.click(sendButton())
+    expect(mockSendSupportMessage).not.toHaveBeenCalled()
   })
 
   it('replaces an email typed while loading with the resolved profile email', async () => {
@@ -186,7 +275,7 @@ describe('SupportPage', () => {
 
     fireEvent.change(nameField(), { target: { value: 'Orbit User' } })
     fireEvent.change(emailField(), { target: { value: 'stale@example.com' } })
-    fireEvent.change(subjectField(), { target: { value: 'Subject' } })
+    fireEvent.click(screen.getByText('profile.support.subjects.problem.label'))
     fireEvent.change(messageField(), { target: { value: 'Message' } })
 
     mockProfile = { name: 'Profile User', email: 'profile@example.com' }
@@ -198,15 +287,15 @@ describe('SupportPage', () => {
     await waitFor(() => expect(mockSendSupportMessage).toHaveBeenCalledWith({
       name: 'Orbit User',
       email: 'profile@example.com',
-      subject: 'Subject',
-      message: 'Message',
+      subject: 'profile.support.subjects.problem.label',
+      message: 'Message\n\nOrbit 0.0.1',
     }))
   })
 
   it('clears stale account errors when profile hydration supplies valid values', async () => {
     mockProfile = null
     const view = render(<SupportPage />)
-    fireEvent.change(subjectField(), { target: { value: 'Subject' } })
+    fireEvent.click(screen.getByText('profile.support.subjects.problem.label'))
     fireEvent.change(messageField(), { target: { value: 'Message' } })
     fireEvent.click(sendButton())
     expect(await screen.findByText('profile.support.nameRequired')).toBeInTheDocument()
@@ -224,7 +313,7 @@ describe('SupportPage', () => {
     mockProfile = null
     render(<SupportPage />)
 
-    fireEvent.change(subjectField(), { target: { value: 'Subject' } })
+    fireEvent.click(screen.getByText('profile.support.subjects.problem.label'))
     fireEvent.change(messageField(), { target: { value: 'Message' } })
     fireEvent.click(sendButton())
 
@@ -239,12 +328,12 @@ describe('SupportPage', () => {
 
   it('sends the built payload, shows success, and clears the draft', async () => {
     mockSendSupportMessage.mockResolvedValue(undefined)
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({ subject: 'x', message: 'y' }))
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ subject: 'billing', message: 'y' }))
     render(<SupportPage />)
     const announcer = screen.getByRole('status')
     expect(announcer).toBeEmptyDOMElement()
 
-    fireEvent.change(subjectField(), { target: { value: 'Cannot log in' } })
+    fireEvent.click(screen.getByText('profile.support.subjects.account.label'))
     fireEvent.change(messageField(), { target: { value: 'Google button spins forever' } })
     fireEvent.click(sendButton())
 
@@ -252,34 +341,59 @@ describe('SupportPage', () => {
     expect(mockSendSupportMessage).toHaveBeenCalledWith({
       name: 'Orbit User',
       email: 'orbit@example.com',
-      subject: 'Cannot log in',
-      message: 'Google button spins forever',
+      subject: 'profile.support.subjects.account.label',
+      message: 'Google button spins forever\n\nOrbit 0.0.1',
     })
     expect(localStorage.getItem(DRAFT_KEY)).toBeNull()
     expect(announcer).toHaveTextContent('profile.support.success')
+    expect(screen.getByRole('heading', { name: 'profile.support.success' })).toBeInTheDocument()
+    expect(screen.getByText('profile.support.successHint')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'profile.support.backToAbout' })).toHaveAttribute(
+      'data-variant',
+      'ghost',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'profile.support.backToAbout' }))
+    expect(mockRouterPush).toHaveBeenCalledWith('/about')
   })
 
   it('surfaces a friendly error when the send fails and stays on the form', async () => {
     mockSendSupportMessage.mockRejectedValue(new Error('boom'))
     render(<SupportPage />)
 
-    fireEvent.change(subjectField(), { target: { value: 'Subject' } })
+    fireEvent.click(screen.getByText('profile.support.subjects.problem.label'))
     fireEvent.change(messageField(), { target: { value: 'Message body' } })
     fireEvent.click(sendButton())
 
-    await waitFor(() => expect(screen.getByText('support.sendError')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('profile.support.failureTitle')).toBeInTheDocument())
+    expect(screen.getByText('profile.support.failureTitle')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'profile.support.retry' })).toHaveAttribute(
+      'data-variant',
+      'primary',
+    )
     expect(screen.queryByText('profile.support.success')).not.toBeInTheDocument()
     expect(JSON.parse(localStorage.getItem(DRAFT_KEY) ?? '{}')).toEqual({
-      subject: 'Subject',
+      subject: 'problem',
       message: 'Message body',
     })
   })
 
   it('hydrates the form from a stored draft', () => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify({ subject: 'Saved subject', message: 'Saved message' }))
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ subject: 'billing', message: 'Saved message' }))
     render(<SupportPage />)
 
-    expect(subjectField()).toHaveValue('Saved subject')
+    expect(screen.getByRole('radio', {
+      name: 'profile.support.subjects.billing.labelprofile.support.subjects.billing.description',
+    })).toHaveAttribute('aria-checked', 'true')
+    expect(messageField()).toHaveValue('Saved message')
+  })
+
+  it('maps a legacy free-text draft to the catch-all subject without losing the message', () => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ subject: 'Old subject', message: 'Saved message' }))
+    render(<SupportPage />)
+
+    expect(screen.getByRole('radio', {
+      name: 'profile.support.subjects.other.labelprofile.support.subjects.other.description',
+    })).toHaveAttribute('aria-checked', 'true')
     expect(messageField()).toHaveValue('Saved message')
   })
 
@@ -287,21 +401,22 @@ describe('SupportPage', () => {
     localStorage.setItem(DRAFT_KEY, '{not valid json')
     render(<SupportPage />)
 
-    expect(subjectField()).toHaveValue('')
+    expect(screen.getAllByRole('radio').every((radio) => radio.getAttribute('aria-checked') === 'false')).toBe(true)
     expect(localStorage.getItem(DRAFT_KEY)).toBeNull()
   })
 
-  it('persists the draft on every keystroke, including when both fields are emptied', () => {
+  it('persists the picker selection and message on every change', () => {
     render(<SupportPage />)
 
-    fireEvent.change(subjectField(), { target: { value: 'Draft subject' } })
+    fireEvent.click(screen.getByText('profile.support.subjects.billing.label'))
     expect(JSON.parse(localStorage.getItem(DRAFT_KEY) ?? '{}')).toMatchObject({
-      subject: 'Draft subject',
+      subject: 'billing',
     })
 
-    fireEvent.change(subjectField(), { target: { value: '' } })
+    fireEvent.change(messageField(), { target: { value: 'Draft message' } })
+    fireEvent.change(messageField(), { target: { value: '' } })
     expect(JSON.parse(localStorage.getItem(DRAFT_KEY) ?? '{}')).toEqual({
-      subject: '',
+      subject: 'billing',
       message: '',
     })
   })
@@ -313,12 +428,17 @@ describe('SupportPage', () => {
     )
     render(<SupportPage />)
 
-    fireEvent.change(subjectField(), { target: { value: 'Subject' } })
+    fireEvent.click(screen.getByText('profile.support.subjects.problem.label'))
     fireEvent.change(messageField(), { target: { value: 'Message' } })
     fireEvent.click(sendButton())
 
     await waitFor(() => expect(sendButton()).toHaveAttribute('aria-busy', 'true'))
-    expect(subjectField()).toBeDisabled()
+    const disabledRadios = screen.getAllByRole('radio')
+    expect(disabledRadios).toHaveLength(4)
+    expect(disabledRadios.every((radio) => radio.getAttribute('aria-disabled') === 'true')).toBe(true)
+    fireEvent.click(screen.getByText('profile.support.subjects.billing.label'))
+    expect(disabledRadios[0]).toHaveAttribute('aria-checked', 'true')
+    expect(disabledRadios[1]).toHaveAttribute('aria-checked', 'false')
     expect(messageField()).toBeDisabled()
     finishSend?.()
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('profile.support.success'))
@@ -328,7 +448,7 @@ describe('SupportPage', () => {
     mockIsOnline = false
     render(<SupportPage />)
 
-    fireEvent.change(subjectField(), { target: { value: 'Subject' } })
+    fireEvent.click(screen.getByText('profile.support.subjects.problem.label'))
     fireEvent.change(messageField(), { target: { value: 'Message' } })
     act(() => {
       fireEvent.click(sendButton())

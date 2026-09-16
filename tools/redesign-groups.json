@@ -129,14 +129,8 @@
     "Orbit Offline": [],
     "Orbit Onboarding": [
       "m-overlay-onboarding-onboarding-flow",
-      "m-overlay-tour-tour-overlay",
-      "m-overlay-tour-tour-replay-modal",
-      "m-overlay-ui-push-prompt",
       "m-route-onboarding-index",
       "overlay-onboarding-onboarding-flow",
-      "overlay-tour-tour-replay-modal",
-      "overlay-tour-tour-spotlight",
-      "overlay-tour-tour-tooltip",
       "route-onboarding"
     ],
     "Orbit Perfil": [
@@ -260,6 +254,30 @@
     {
       "surfaceId": "social-layer",
       "decision": "Pre-D69 social deletion, retained by D69 (2026-08-16): friends, feed, cheers, challenges, accountability, and public profiles were removed."
+    },
+    {
+      "surfaceId": "m-overlay-tour-tour-overlay",
+      "decision": "D69 item 17 (2026-08-16): the onboarding tour was deleted."
+    },
+    {
+      "surfaceId": "m-overlay-tour-tour-replay-modal",
+      "decision": "D69 item 17 (2026-08-16): the onboarding tour was deleted."
+    },
+    {
+      "surfaceId": "m-overlay-ui-push-prompt",
+      "decision": "D69 item 17 (2026-08-16): notification permission moved into onboarding, deleting the standalone push prompt."
+    },
+    {
+      "surfaceId": "overlay-tour-tour-replay-modal",
+      "decision": "D69 item 17 (2026-08-16): the onboarding tour was deleted."
+    },
+    {
+      "surfaceId": "overlay-tour-tour-spotlight",
+      "decision": "D69 item 17 (2026-08-16): the onboarding tour was deleted."
+    },
+    {
+      "surfaceId": "overlay-tour-tour-tooltip",
+      "decision": "D69 item 17 (2026-08-16): the onboarding tour was deleted."
     }
   ],
   "excluded": [

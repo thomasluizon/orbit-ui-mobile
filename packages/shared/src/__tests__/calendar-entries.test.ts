@@ -4,6 +4,7 @@ import {
   CALENDAR_MONTH_SWIPE_THRESHOLD,
   filterRecurringDayMap,
   filterRecurringEntries,
+  resolveCalendarEventsDisplayState,
 } from '../utils/calendar-entries'
 import type { CalendarDayEntry } from '../types/calendar'
 
@@ -61,4 +62,24 @@ describe('calendar month controls', () => {
     ]))
     expect(filterRecurringDayMap(source, true)).toBe(source)
   })
+})
+
+describe('calendar events display state', () => {
+  it.each([
+    ['Pro boundary', false, false, null, undefined, 'pro-boundary'],
+    ['request failure', true, false, new Error('Calendar unavailable'), undefined, 'failed'],
+    ['loading', true, true, null, undefined, 'loading'],
+    ['disconnected account', true, false, null, 'not-connected', 'not-connected'],
+    ['connected account', true, false, null, 'connected', 'ready'],
+  ] as const)(
+    'shows the %s state',
+    (_caseName, enabled, isPending, error, resultStatus, expected) => {
+      expect(resolveCalendarEventsDisplayState({
+        enabled,
+        isPending,
+        error,
+        resultStatus,
+      })).toBe(expected)
+    },
+  )
 })

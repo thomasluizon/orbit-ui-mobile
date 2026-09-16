@@ -118,8 +118,8 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
   },
 }))
 
-vi.mock('react-native', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react-native')>()
+vi.mock('react-native', async () => {
+  const actual = await import('../../test-mocks/react-native')
   const keyboardListener = {
     remove: vi.fn(),
   }
@@ -137,6 +137,10 @@ vi.mock('react-native', async (importOriginal) => {
 vi.mock('expo', () => ({
   __esModule: true,
   requireNativeModule: vi.fn(() => ({})),
+}))
+
+vi.mock('@/stores/offline-sync-store', () => ({
+  useOfflineSyncStore: { getState: () => ({ clearDrops: vi.fn(() => Promise.resolve()) }) },
 }))
 
 vi.mock('expo-router', () => ({
@@ -200,9 +204,6 @@ vi.mock('@/components/profile/profile-nav-icon', () => ({
 }))
 
 
-vi.mock('@/components/tour/tour-replay-modal', () => ({
-  TourReplayModal: () => null,
-}))
 
 vi.mock('@/hooks/use-offline', () => ({
   useOffline: mocks.useOffline,
@@ -372,6 +373,6 @@ describe('intentional offline UX screens', () => {
     const tree = await renderScreen(<SupportScreen />)
 
     const texts = tree.root.findAllByType('Text').map((node: any) => flattenText(node.props.children))
-    expect(texts).toContain('offline.description')
+    expect(texts).toContain('profile.support.offlineReason')
   })
 })

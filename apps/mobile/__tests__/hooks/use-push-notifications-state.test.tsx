@@ -1,4 +1,5 @@
 import React from 'react'
+import type { ReactTestRenderer } from 'react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 
@@ -102,6 +103,7 @@ vi.mock('@/stores/auth-store', () => {
 
 type NotificationsModule = typeof import('expo-notifications')
 type PermissionResponse = Awaited<ReturnType<NotificationsModule['getPermissionsAsync']>>
+type NotificationResponse = NonNullable<ReturnType<NotificationsModule['getLastNotificationResponse']>>
 type UsePushNotificationsHook = typeof import('@/hooks/use-push-notifications')['usePushNotifications']
 type UsePushNotificationsModule = typeof import('@/hooks/use-push-notifications')
 type PushNotificationsResult = ReturnType<UsePushNotificationsHook>
@@ -115,6 +117,20 @@ function createPermissionResponse(
     granted: status === 'granted',
     canAskAgain,
   } as PermissionResponse
+}
+
+function createNotificationResponse(identifier: string, url: string): NotificationResponse {
+  return {
+    actionIdentifier: 'expo.modules.notifications.actions.DEFAULT',
+    notification: {
+      date: 1788670800000,
+      request: {
+        identifier,
+        trigger: { type: 'push', channelId: null },
+        content: { title: 'Reminder', data: { url } },
+      },
+    },
+  } as unknown as NotificationResponse
 }
 
 describe('usePushNotifications', () => {
@@ -151,14 +167,16 @@ describe('usePushNotifications', () => {
   }
 
   async function renderHarness() {
+    let renderer: ReactTestRenderer | undefined
     await TestRenderer.act(async () => {
-      TestRenderer.create(
+      renderer = TestRenderer.create(
         <PushNotificationsProvider>
           <Harness />
         </PushNotificationsProvider>,
       )
       await Promise.resolve()
     })
+    return renderer!
   }
 
   async function flush() {
@@ -201,6 +219,9 @@ describe('usePushNotifications', () => {
       type: 'fcm',
       data: 'native-token',
     })
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReset()
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(null)
+    vi.mocked(notificationsModule.clearLastNotificationResponse).mockReset()
     vi.mocked(notificationsModule.addNotificationResponseReceivedListener).mockReset()
     vi.mocked(notificationsModule.addNotificationResponseReceivedListener).mockImplementation(() => ({
       remove: vi.fn(),
@@ -481,7 +502,7 @@ describe('usePushNotifications', () => {
     ['/retrospective/year', '/progress', false],
     ['/', '/', false],
     ['/calendar', '/calendar', false],
-    ['/progress?wrapped=month&year=2026&month=8', '/progress?wrapped=month&year=2026&month=8', false],
+    ['/progress?wrapped=month&year=2026&month=8', '/wrapped?period=month&year=2026&month=8', false],
     ['/profile', '/profile', false],
   ])('routes the accepted push %s and applies its Astra overlay intent', async (url, destination, opensAstra) => {
     await renderHarness()
@@ -502,6 +523,82 @@ describe('usePushNotifications', () => {
     expect(mocks.router.push).toHaveBeenCalledWith(destination)
     if (opensAstra) expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(true)
     else expect(mocks.setAstraConversationOpen).not.toHaveBeenCalled()
+  })
+
+  it('routes the Wrapped response that launched the app before listener registration', async () => {
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(
+      createNotificationResponse('wrapped-startup', '/progress?wrapped=month&year=2026&month=8'),
+    )
+
+    await renderHarness()
+    await flush()
+
+    expect(mocks.router.push).toHaveBeenCalledWith('/wrapped?period=month&year=2026&month=8')
+  })
+
+  it('navigates once when startup recovery and the live listener receive the same response', async () => {
+    const response = createNotificationResponse(
+      'wrapped-duplicate',
+      '/progress?wrapped=month&year=2026&month=8',
+    )
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(response)
+
+    await renderHarness()
+    await flush()
+    const listener = vi.mocked(
+      notificationsModule.addNotificationResponseReceivedListener,
+    ).mock.calls.at(-1)![0]
+    await TestRenderer.act(() => listener(response))
+
+    expect(notificationsModule.getLastNotificationResponse).toHaveBeenCalledTimes(1)
+    expect(mocks.router.push).toHaveBeenCalledTimes(1)
+    expect(mocks.router.push).toHaveBeenCalledWith('/wrapped?period=month&year=2026&month=8')
+  })
+
+  it('does not replay a handled startup response after the provider remounts', async () => {
+    const response = createNotificationResponse(
+      'wrapped-retry',
+      '/progress?wrapped=month&year=2026&month=8',
+    )
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(response)
+    vi.mocked(notificationsModule.clearLastNotificationResponse).mockImplementation(() => {
+      vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(null)
+    })
+
+    const firstRenderer = await renderHarness()
+    await flush()
+    await TestRenderer.act(() => firstRenderer.update(
+      <PushNotificationsProvider key="retry">
+        <Harness />
+      </PushNotificationsProvider>,
+    ))
+    await flush()
+
+    expect(notificationsModule.clearLastNotificationResponse).toHaveBeenCalledTimes(1)
+    expect(mocks.router.push).toHaveBeenCalledTimes(1)
+    expect(mocks.router.push).toHaveBeenCalledWith('/wrapped?period=month&year=2026&month=8')
+  })
+
+  it('navigates for a startup response followed by a different live response', async () => {
+    const startupResponse = createNotificationResponse(
+      'wrapped-startup',
+      '/progress?wrapped=month&year=2026&month=8',
+    )
+    vi.mocked(notificationsModule.getLastNotificationResponse).mockReturnValue(startupResponse)
+
+    await renderHarness()
+    await flush()
+    const listener = vi.mocked(
+      notificationsModule.addNotificationResponseReceivedListener,
+    ).mock.calls.at(-1)![0]
+    await TestRenderer.act(() => listener(createNotificationResponse('chat-live', '/chat')))
+
+    expect(mocks.router.push).toHaveBeenNthCalledWith(
+      1,
+      '/wrapped?period=month&year=2026&month=8',
+    )
+    expect(mocks.router.push).toHaveBeenNthCalledWith(2, '/')
+    expect(mocks.setAstraConversationOpen).toHaveBeenCalledWith(true)
   })
 
   it('reports unsupported and no-ops the actions when the module is unavailable', async () => {

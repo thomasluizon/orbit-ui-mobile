@@ -1,9 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  createTourUIState,
   createUIStoreState,
   getPersistedUIState,
-  getTourSessionUIState,
   migratePersistedUIState,
   type UIStoreState,
 } from "../stores/ui-store";
@@ -156,21 +154,6 @@ describe("shared ui store", () => {
     expect(store.getState().queuedCelebrations).toEqual([]);
     expect(store.getState().goalCompletedCelebration).toBeNull();
     expect(store.getState().streakCelebration).toEqual({ streak: 7 });
-  });
-
-  it("creates a canonical tour ui state with no filters", () => {
-    expect(createTourUIState()).toEqual({
-      activeFilters: {},
-      activeView: "today",
-      searchQuery: "",
-    });
-  });
-
-  it("keeps the active search in the tour session snapshot", () => {
-    const store = createStoreHarness();
-    store.getState().setSearchQuery("focus");
-
-    expect(getTourSessionUIState(store.getState()).searchQuery).toBe("focus");
   });
 
   it("returns cloned persisted ui state snapshots", () => {

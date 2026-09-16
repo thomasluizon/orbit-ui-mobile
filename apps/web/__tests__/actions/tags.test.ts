@@ -15,7 +15,7 @@ const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 const { getTags, createTag, updateTag, deleteTag, assignTags } =
-  await import('@/app/actions/tags')
+  await import('@/lib/actions/tags')
 
 describe('tag server actions', () => {
   beforeEach(() => {

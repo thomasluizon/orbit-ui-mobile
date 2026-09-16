@@ -17,6 +17,12 @@ const SENTENCE_EASING = Easing.bezier(0.2, 0, 0, 1)
 const SENTENCE_ENTER = FadeIn.duration(160).easing(SENTENCE_EASING)
 const SENTENCE_EXIT = FadeOut.duration(160).easing(SENTENCE_EASING)
 
+type HabitUnderstandingWithEmojiSuggestionProps = HabitUnderstandingProps & {
+  onSuggestEmoji?: () => void
+  isSuggestingEmoji?: boolean
+  isSuggestionDisabled?: boolean
+}
+
 export function HabitUnderstanding({
   value,
   error,
@@ -32,12 +38,15 @@ export function HabitUnderstanding({
   scheduleLocked = false,
   onValueChange,
   onEmojiSelect,
+  onSuggestEmoji,
+  isSuggestingEmoji = false,
+  isSuggestionDisabled = false,
   onToggleDay,
   onQuantityChange,
   onModeChange,
   onIntervalWeeksChange,
   labels,
-}: Readonly<HabitUnderstandingProps>) {
+}: Readonly<HabitUnderstandingWithEmojiSuggestionProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -87,6 +96,10 @@ export function HabitUnderstanding({
                 styles={formStyles}
                 wellSize={46}
                 onSelect={onEmojiSelect}
+                onSuggest={onSuggestEmoji}
+                canSuggest={hasValue}
+                isSuggesting={isSuggestingEmoji}
+                isDisabled={isSuggestionDisabled}
               />
               <Text style={styles.meta}>{proposed ? labels.understoodAstra : labels.understood}</Text>
             </View>

@@ -68,7 +68,8 @@ exit codes: 0 submitted and receipt persisted, 1 cloud or Git command failed,
             2 usage, configuration, order, or worktree error,
             3 cloud capacity is full or recovery safety blocks clearing,
             4 a Codex cloud command timed out, 5 receipt lock acquisition timed out,
-            6 the session Cloud circuit breaker routed the ticket to the local lane
+            6 the session Cloud circuit breaker routed the ticket to the local lane,
+            7 Cloud submission is disabled by cloud.enabled in .claude/orchestrator.json
 
   --clear-unknown <file>      select an unknown reservation for explicit human release
   --assert-no-task-exists     assert that the Codex UI shows no task for that reservation
@@ -460,6 +461,13 @@ try {
   config = readOrchestratorConfig()
 } catch (error) {
   fail(2, error.message)
+}
+if (!config.cloud.enabled) {
+  fail(
+    7,
+    "Cloud submission is disabled because .claude/orchestrator.json cloud.enabled is false. " +
+      "Set cloud.enabled to true in that file to turn Cloud submission back on.",
+  )
 }
 if (config.cloud.environmentId !== environmentId) {
   fail(2, `--env must match .claude/orchestrator.json cloud.environmentId (${config.cloud.environmentId})`)

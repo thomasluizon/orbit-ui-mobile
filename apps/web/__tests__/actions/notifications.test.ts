@@ -21,7 +21,7 @@ const {
   deleteAllNotifications,
   subscribePush,
   unsubscribePush,
-} = await import('@/app/actions/notifications')
+} = await import('@/lib/actions/notifications')
 
 describe('notification server actions', () => {
   beforeEach(() => {

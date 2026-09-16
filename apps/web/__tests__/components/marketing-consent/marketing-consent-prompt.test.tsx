@@ -39,7 +39,7 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 
 const updateMarketingConsent = vi.fn().mockResolvedValue(undefined)
-vi.mock('@/app/actions/profile', () => ({
+vi.mock('@/lib/actions/profile', () => ({
   updateMarketingConsent: (data: { enabled: boolean }) =>
     updateMarketingConsent(data),
 }))

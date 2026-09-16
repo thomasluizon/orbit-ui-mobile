@@ -9,12 +9,13 @@ import {
   validateApiResponse,
 } from '@orbit/shared/utils'
 import type { ZodType } from 'zod'
+import { responseReportsSessionRefreshFailure } from './session-refresh'
 
 /**
  * Centralized API fetch with error categorization.
  *
  * Handles:
- * - 401: auto-logout (no toast)
+ * - 401: expose failed-refresh state only when the BFF confirms it (no toast)
  * - 403 PAY_GATE: redirect to /upgrade (no toast)
  * - 403 other (e.g. NO_PERMISSION) + 400/404/409/429/5xx: categorized error toast
  */
@@ -87,14 +88,31 @@ export function reportApiError(error: unknown): void {
   })
 }
 
+export async function applySessionRefreshFailure(response: Response): Promise<void> {
+  const { useAuthStore } = await import('@/stores/auth-store')
+  if (responseReportsSessionRefreshFailure(response)) {
+    await useAuthStore.getState().confirmSessionRefreshFailure()
+    return
+  }
+
+  await useAuthStore.getState().recoverSessionRefreshFailure()
+}
+
+export async function sessionAwareFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  const response = await fetch(input, init)
+  await applySessionRefreshFailure(response)
+  return response
+}
+
 async function getStatusError(
   status: number,
   body: unknown,
   behavior?: ApiFetchBehavior,
 ): Promise<ApiError | null> {
   if (status === 401) {
-    const { useAuthStore } = await import('@/stores/auth-store')
-    void useAuthStore.getState().logout()
     return new ApiError(status, 'Unauthorized', body)
   }
 
@@ -141,7 +159,7 @@ export async function apiFetch<T>(
     headers.set(key, value)
   }
 
-  const res = await fetch(url, {
+  const res = await sessionAwareFetch(url, {
     ...options,
     headers,
   })

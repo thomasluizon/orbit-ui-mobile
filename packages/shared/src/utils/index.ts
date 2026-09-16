@@ -318,31 +318,16 @@ export {
   getOnboardingHabitFrequencyLabelKey,
   getOnboardingNextStep,
   getOnboardingPreviousStep,
-  ONBOARDING_COMPLETE_HABIT_STEP,
   ONBOARDING_COMPLETE_STEP,
-  ONBOARDING_CREATE_GOAL_STEP,
   ONBOARDING_CREATE_HABIT_STEP,
-  ONBOARDING_FEATURES_STEP,
-  ONBOARDING_GOAL_SUGGESTIONS,
   ONBOARDING_HABIT_FREQUENCIES,
   ONBOARDING_HABIT_SUGGESTIONS,
-  ONBOARDING_TEMPLATE_PACKS_STEP,
   ONBOARDING_TOTAL_STEPS,
   ONBOARDING_WEEK_START_OPTIONS,
   resolveRetainedOnboarding,
   shouldHideOnboardingFooter,
 } from './onboarding'
 export type { RetainedOnboardingAction } from './onboarding'
-export {
-  buildBulkItemsFromPack,
-  getTemplatePackById,
-  TEMPLATE_PACKS,
-  templatePackDescriptionKey,
-  templatePackHabitTitleKey,
-  templatePackNameKey,
-  templatePackTagKey,
-} from './template-packs'
-export type { TemplatePack, TemplatePackHabit } from './template-packs'
 export {
   isMissingBillingError,
   isMissingBillingStatus,
@@ -567,6 +552,7 @@ export {
   buildShareCardWeekday,
   formatCompletionRate,
   isRecapShareEmpty,
+  parseWrappedRouteSelection,
   RECAP_SHARE_PERIODS,
   SHARE_CARD_FILE_NAME,
   SHARE_CARD_HEIGHT,
@@ -574,7 +560,13 @@ export {
   WRAPPED_WEEKDAY_KEYS,
   recapPeriodLabelKey,
 } from './share-card'
-export type { RecapSharePeriod, ShareCardStat, ShareCardWeekday } from './share-card'
+export type {
+  ClosedRecapMonth,
+  RecapSharePeriod,
+  ShareCardStat,
+  ShareCardWeekday,
+  WrappedRouteSelection,
+} from './share-card'
 export {
   buildWrappedSlides,
   getWeeklyConsistencyReading,
@@ -629,13 +621,20 @@ export {
 } from './fresh-start'
 export {
   buildSupportRequestBody,
+  normalizeSupportSubjectId,
   SUPPORT_API_MESSAGE_MAX_LENGTH,
-  SUPPORT_API_SUBJECT_MAX_LENGTH,
+  attachSupportVersion,
+  buildSupportVersionSuffix,
+  getSupportMessageMaxLength,
+  getSupportMessageFit,
+  getSupportSendReasonKey,
+  SUPPORT_SUBJECT_OPTIONS,
 } from './support'
 export type {
   SupportFormFields,
   SupportProfileFields,
   SupportRequestBody,
+  SupportSubjectId,
 } from './support'
 export {
   achievementGlyphKey,
@@ -675,14 +674,12 @@ export {
   getNativePushStatusPresentation,
   getNativePushStatusTone,
   getPushStatusToneClass,
-  shouldShowNativePushPrompt,
   getWebPushStatusMessageKey,
   getWebPushStatusPresentation,
   getWebPushStatusTone,
 } from './push-notification-settings'
 export type {
   NativePushPermissionStatus,
-  NativePushPromptSnapshot,
   NativePushRegistrationStatus,
   NativePushStatusSnapshot,
   PushStatusPresentation,

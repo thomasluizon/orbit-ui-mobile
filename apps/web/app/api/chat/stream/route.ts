@@ -1,6 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { resolveServerSession } from '@/lib/auth-api'
 import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-context'
+import { buildSessionRefreshHeaders } from '@/lib/session-refresh'
 
 /**
  * BFF: streaming proxy for the chat SSE endpoint. The catch-all proxy buffers
@@ -28,10 +29,17 @@ async function forwardStream(
   })
 }
 
+function unauthorizedResponse(refreshFailed: boolean): Response {
+  return Response.json(
+    { error: 'Unauthorized' },
+    { status: 401, headers: buildSessionRefreshHeaders(refreshFailed) },
+  )
+}
+
 export async function POST(request: NextRequest) {
   const session = await resolveServerSession()
   if (!session.token) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    return unauthorizedResponse(session.refreshFailed)
   }
 
   const formData = await request.formData()
@@ -40,7 +48,7 @@ export async function POST(request: NextRequest) {
   if (upstream.status === 401) {
     const refreshedSession = await resolveServerSession({ forceRefresh: true })
     if (!refreshedSession.token) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 })
+      return unauthorizedResponse(refreshedSession.refreshFailed)
     }
     upstream = await forwardStream(request, formData, refreshedSession.token)
   }

@@ -115,13 +115,7 @@ vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({ showError: vi.fn() }),
 }))
 
-vi.mock('@/hooks/use-tour-target', () => ({
-  useTourTarget: () => {},
-}))
 
-vi.mock('@/hooks/use-tour-scroll-container', () => ({
-  useTourScrollContainer: () => ({ onTourScroll: vi.fn() }),
-}))
 
 interface TestNode {
   type: unknown
