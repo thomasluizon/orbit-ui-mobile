@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useRouter } from 'expo-router'
 import { BackHandler, StyleSheet, View } from 'react-native'
 import { formatLocaleDateTime, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
@@ -27,6 +28,7 @@ interface GoalDetailDrawerProps {
 
 export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Readonly<GoalDetailDrawerProps>) {
   const { t, i18n } = useTranslation()
+  const router = useRouter()
   const locale = i18n.language
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -43,6 +45,9 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
     if (inline) onClose()
     else closeSheet(onClose)
   }, [inline, closeSheet, onClose])
+  const openHabit = useCallback((habitId: string) => {
+    router.push({ pathname: '/habits/[id]', params: { id: habitId } })
+  }, [router])
   const actions = useGoalStatusActions({
     goalId,
     goalName: goal?.title,
@@ -71,7 +76,7 @@ export function GoalDetailDrawer({ open, inline = false, goalId, onClose }: Read
     <View style={layout.body}>
       {goal ? <>
         <GoalProgressBlock key={`progress-${goalId}`} goal={{ ...goal, trackingStatus: detailData?.metrics.trackingStatus ?? goal.trackingStatus }} isUpdatingStatus={actions.isUpdatingStatus} onComplete={() => void actions.markCompleted()} refetchDetail={refetch} />
-        <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} entries={detailData?.goal.progressHistory ?? []} unit={goal.unit} formatDate={formatDate} />
+        <GoalDetailCollections key={`collections-${goalId}`} linkedHabits={goal.linkedHabits} habitAdherence={detailData?.metrics.habitAdherence ?? []} entries={detailData?.goal.progressHistory ?? []} unit={goal.unit} formatDate={formatDate} onOpenHabit={openHabit} />
         <GoalActionFooter isActive={goal.status === 'Active'} isAbandoned={goal.status === 'Abandoned'} isUpdatingStatus={actions.isUpdatingStatus} onMarkAbandoned={() => void actions.markAbandoned()} onReactivate={() => void actions.reactivate()} onEdit={() => setEditing(true)} onDelete={() => setDeleting(true)} iconColor={tokens.fg3} dangerColor={tokens.statusBad} styles={styles} />
       </> : isLoading ? <Skeleton variant="settings" label={t('progressScreen.loading')} /> : null}
       {isError ? <GoalLoadError onRetry={() => void refetch()} styles={styles} /> : null}

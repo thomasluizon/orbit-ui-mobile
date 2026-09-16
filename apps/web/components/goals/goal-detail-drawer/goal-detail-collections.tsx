@@ -11,16 +11,20 @@ import {
 
 interface GoalDetailCollectionsProps {
   linkedHabits: NonNullable<Goal['linkedHabits']>
+  habitAdherence: GoalDetailWithMetrics['metrics']['habitAdherence']
   entries: GoalDetailWithMetrics['goal']['progressHistory']
   unit: Goal['unit']
   formatDate: (dateStr: string) => string
+  onOpenHabit: (habitId: string) => void
 }
 
 export function GoalDetailCollections({
   linkedHabits,
+  habitAdherence,
   entries,
   unit,
   formatDate,
+  onOpenHabit,
 }: Readonly<GoalDetailCollectionsProps>) {
   const t = useTranslations()
 
@@ -30,6 +34,9 @@ export function GoalDetailCollections({
         title={t('goals.linkedHabits')}
         emptyLabel={t('goals.noLinkedHabits')}
         linkedHabits={linkedHabits}
+        habitAdherence={habitAdherence}
+        formatValue={(currentStreak) => t('goals.detail.linkedHabitStreak', { count: currentStreak })}
+        onOpenHabit={onOpenHabit}
         notice={linkedHabits.length >= MAX_HABITS_PER_GOAL ? <CapacityNotice message={t('goals.detail.linkedLimit', { count: MAX_HABITS_PER_GOAL })} /> : null}
       />
       <GoalProgressHistorySection title={t('goals.progressHistory')} entries={entries} formatDate={formatDate}

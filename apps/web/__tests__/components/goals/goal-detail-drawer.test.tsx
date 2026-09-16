@@ -28,6 +28,7 @@ vi.mock('dompurify', () => ({
 const listGoal = createMockGoal({ id: '1', title: 'Read 12 books', currentValue: 3, targetValue: 12, unit: 'books', progressPercentage: 25 })
 
 let detailGoal: GoalDetailWithMetrics['goal'] = { ...listGoal, progressHistory: [] }
+let habitAdherence: GoalDetailWithMetrics['metrics']['habitAdherence'] = []
 let detailLoadError = false
 const refetchDetail = vi.fn()
 const updateStatusMutateAsync = vi.fn()
@@ -42,7 +43,7 @@ vi.mock('@/hooks/use-goals', () => ({
     },
   }),
   useGoalDetail: (id: string | null) => ({
-    data: id ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline', habitAdherence: [] } } : null,
+    data: id ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline', habitAdherence } } : null,
     isLoading: false,
     isError: detailLoadError,
     refetch: refetchDetail,
@@ -66,6 +67,7 @@ describe('GoalDetailDrawer', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
     detailGoal = { ...listGoal, progressHistory: [] }
+    habitAdherence = []
     detailLoadError = false
     refetchDetail.mockClear()
     updateStatusMutateAsync.mockClear()
@@ -95,6 +97,42 @@ describe('GoalDetailDrawer', () => {
 
     expect(screen.getByText('goals.linkedHabits')).toBeInTheDocument()
     expect(screen.getByText('goals.noLinkedHabits')).toBeInTheDocument()
+  })
+
+  it('opens each linked habit with its own adherence value', () => {
+    detailGoal = {
+      ...listGoal,
+      linkedHabits: [
+        { id: 'habit-read', title: 'Read every night' },
+        { id: 'habit-stretch', title: 'Stretch' },
+      ],
+      progressHistory: [],
+    }
+    habitAdherence = [
+      { habitId: 'habit-stretch', habitTitle: 'Stretch', weeklyCompletionRate: 75, monthlyCompletionRate: 80, currentStreak: 4 },
+      { habitId: 'habit-read', habitTitle: 'Read every night', weeklyCompletionRate: 90, monthlyCompletionRate: 85, currentStreak: 12 },
+    ]
+
+    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+
+    const readRow = screen.getByRole('button', { name: 'Read every night, goals.detail.linkedHabitStreak:{"count":12}' })
+    const stretchRow = screen.getByRole('button', { name: 'Stretch, goals.detail.linkedHabitStreak:{"count":4}' })
+    expect(readRow).toHaveTextContent('goals.detail.linkedHabitStreak:{"count":12}')
+    expect(stretchRow).toHaveTextContent('goals.detail.linkedHabitStreak:{"count":4}')
+
+    fireEvent.click(readRow)
+    fireEvent.click(stretchRow)
+
+    expect(routerPush).toHaveBeenNthCalledWith(1, '/habits/habit-read')
+    expect(routerPush).toHaveBeenNthCalledWith(2, '/habits/habit-stretch')
+  })
+
+  it('composes footer actions from canonical ListRow controls', () => {
+    render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
+
+    for (const label of ['goals.detail.edit', 'goals.detail.markAbandoned', 'goals.detail.delete']) {
+      expect(screen.getByRole('button', { name: label })).toHaveClass('orbit-list-row-body')
+    }
   })
 
   it.each([

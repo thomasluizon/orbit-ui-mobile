@@ -30,6 +30,7 @@ const colorProxy: Record<string, string> = new Proxy(
 const listGoal = createMockGoal({ id: '1', title: 'Read 12 books', currentValue: 3, targetValue: 12, unit: 'books', progressPercentage: 25 })
 
 let detailGoal: GoalDetailWithMetrics['goal'] = { ...listGoal, progressHistory: [] }
+let habitAdherence: GoalDetailWithMetrics['metrics']['habitAdherence'] = []
 let detailLoadError = false
 const refetchDetail = vi.fn()
 const updateProgressMutateAsync = vi.fn()
@@ -121,7 +122,7 @@ vi.mock('@/hooks/use-goals', () => ({
     },
   }),
   useGoalDetail: (id: string | null) => ({
-    data: id ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline', habitAdherence: [] } } : null,
+    data: id ? { goal: detailGoal, metrics: { progressPercentage: detailGoal.progressPercentage, velocityPerDay: 0, projectedCompletionDate: null, daysToDeadline: null, trackingStatus: 'no_deadline', habitAdherence } } : null,
     isLoading: false,
     isError: detailLoadError,
     refetch: refetchDetail,
@@ -152,6 +153,7 @@ const linkedHabits = [{ id: 'h1', title: 'Read every night' }]
 describe('GoalDetailDrawer', () => {
   beforeEach(() => {
     detailGoal = { ...listGoal, progressHistory: [] }
+    habitAdherence = []
     detailLoadError = false
     refetchDetail.mockClear()
     mockDeleteMutateAsync.mockReset()
@@ -299,6 +301,43 @@ describe('GoalDetailDrawer', () => {
     })
 
     expect(collectText(tree.toJSON())).toContain('goals.noLinkedHabits')
+  })
+
+  it('opens each linked habit with its own adherence value', () => {
+    detailGoal = {
+      ...listGoal,
+      linkedHabits: [
+        { id: 'habit-read', title: 'Read every night' },
+        { id: 'habit-stretch', title: 'Stretch' },
+      ],
+      progressHistory: [],
+    }
+    habitAdherence = [
+      { habitId: 'habit-stretch', habitTitle: 'Stretch', weeklyCompletionRate: 75, monthlyCompletionRate: 80, currentStreak: 4 },
+      { habitId: 'habit-read', habitTitle: 'Read every night', weeklyCompletionRate: 90, monthlyCompletionRate: 85, currentStreak: 12 },
+    ]
+    const tree = renderDrawer()
+    const readLabel = 'Read every night, goals.detail.linkedHabitStreak:{"count":12}'
+    const stretchLabel = 'Stretch, goals.detail.linkedHabitStreak:{"count":4}'
+
+    expect(collectText(tree.toJSON())).toContain('goals.detail.linkedHabitStreak:{"count":12}')
+    expect(collectText(tree.toJSON())).toContain('goals.detail.linkedHabitStreak:{"count":4}')
+
+    press(tree, readLabel)
+    press(tree, stretchLabel)
+
+    expect(mockPush).toHaveBeenNthCalledWith(1, { pathname: '/habits/[id]', params: { id: 'habit-read' } })
+    expect(mockPush).toHaveBeenNthCalledWith(2, { pathname: '/habits/[id]', params: { id: 'habit-stretch' } })
+  })
+
+  it('composes footer actions from canonical ListRow controls', () => {
+    const tree = renderDrawer()
+
+    for (const label of ['goals.detail.edit', 'goals.detail.markAbandoned', 'goals.detail.delete']) {
+      const row = tree.root.findAll((node: any) => node.type === 'Pressable' && node.props.accessibilityLabel === label)[0]
+      expect(row?.props.onPressIn).toBeTypeOf('function')
+      expect(row?.props.onPressOut).toBeTypeOf('function')
+    }
   })
 
   it('orders linked habits before history for standard goals', () => {
