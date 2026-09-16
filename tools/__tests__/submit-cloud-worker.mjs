@@ -17,7 +17,13 @@ import {
   toolPath,
 } from "./_harness.mjs"
 import { cloudConfig, fakeCodex, task, taskPage } from "./cloud-worker.mjs"
-import { receiptBlocksTicketAdmission, acquireSubmissionLock, CLOUD_FINISHING_CONTRACT, persistReconciledReceipt } from "../lib/cloud-worker.mjs"
+import {
+  receiptBlocksTicketAdmission,
+  acquireSubmissionLock,
+  CLOUD_FINISHING_CONTRACT,
+  cloudStateRoot,
+  persistReconciledReceipt,
+} from "../lib/cloud-worker.mjs"
 
 const TOOL = "submit-cloud-worker.mjs"
 
@@ -133,6 +139,40 @@ const replacementOwnerSurvives = (interleave, duringRelease = false) => {
 }
 
 export const cases = async () => {
+  const disabled = fixture("disabled")
+  disabled.config.cloud.enabled = false
+  writeFileSync(disabled.configPath, `${JSON.stringify(disabled.config, null, 2)}\n`)
+  const disabledEnvironment = {
+    ORBIT_FAKE_CODEX_LOG: disabled.log,
+    ORBIT_FAKE_EXEC_URL: "https://chatgpt.com/codex/tasks/task_e_d15ab1ed",
+  }
+  const refused = run(TOOL, argvOf(disabled), { path: disabled.path, env: disabledEnvironment })
+  const stateRoot = cloudStateRoot(disabled.repo.path)
+  T(
+    `${TOOL}: cloud.enabled false refuses before Codex contact, reservation, or receipt`,
+    refused.status === 7 && refused.stderr.includes("cloud.enabled is false") &&
+      refused.stderr.includes("Set cloud.enabled to true") && readFileSync(disabled.log, "utf8") === "" &&
+      !existsSync(join(stateRoot, "receipts")) && !existsSync(join(stateRoot, "reservations")),
+    refused.stderr,
+  )
+  const bypass = run(TOOL, [...argvOf(disabled), "--force"], { path: disabled.path, env: disabledEnvironment })
+  T(
+    `${TOOL}: no command-line force flag bypasses cloud.enabled false`,
+    bypass.status === 2 && bypass.stderr.includes("unknown option(s): --force") &&
+      readFileSync(disabled.log, "utf8") === "",
+    bypass.stderr,
+  )
+  disabled.config.cloud.enabled = true
+  writeFileSync(disabled.configPath, `${JSON.stringify(disabled.config, null, 2)}\n`)
+  const enabled = run(TOOL, argvOf(disabled), { path: disabled.path, env: disabledEnvironment })
+  const enabledCodexArgs = JSON.parse(readFileSync(disabled.log, "utf8").trim())
+  T(
+    `${TOOL}: the same submission proceeds only after cloud.enabled becomes true`,
+    enabled.status === 0 && JSON.parse(enabled.stdout).taskId === "task_e_d15ab1ed" &&
+      enabledCodexArgs[0] === "cloud" && enabledCodexArgs[1] === "exec",
+    enabled.stdout || enabled.stderr,
+  )
+
   const legacyRoot = join(stage("submit-cloud/legacy-replacement/fixture", ""), "..")
   const legacyDirectory = join(legacyRoot, "submit.lock")
   const legacyOwner = join(legacyDirectory, "owner.json")
