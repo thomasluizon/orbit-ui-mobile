@@ -2,6 +2,7 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SelectionField } from '@/components/ui/selection-field'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
+import { __resetTestHostConfig, __setFocusImpl } from '../../../test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -64,6 +65,7 @@ function sheetCount(tree: any) {
 describe('SelectionField', () => {
   beforeEach(() => {
     sheetTestControls.defer(false)
+    __resetTestHostConfig()
   })
 
   afterEach(() => {
@@ -160,5 +162,30 @@ describe('SelectionField', () => {
 
     expect(onChange).toHaveBeenCalledWith('daily')
     expect(sheetCount(tree)).toBe(0)
+  })
+
+  it('enters once and skips a disabled option with ArrowDown', () => {
+    const focusedLabels: string[] = []
+    __setFocusImpl((props) => focusedLabels.push(String(props.accessibilityLabel)))
+    const { tree, onChange } = render({
+      value: 'daily',
+      options: [
+        OPTIONS[0]!,
+        { value: 'blocked', label: 'Blocked', disabled: true },
+        OPTIONS[1]!,
+      ],
+    })
+
+    openSheet(tree)
+    const options = findByRole(tree, 'radio')
+    expect(options.map((option: any) => option.props.tabIndex)).toEqual([0, -1, -1])
+    const preventDefault = vi.fn()
+    TestRenderer.act(() => {
+      options[0].props.onKeyDown({ nativeEvent: { key: 'ArrowDown' }, preventDefault })
+    })
+
+    expect(preventDefault).toHaveBeenCalledOnce()
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('weekly')
+    expect(focusedLabels.at(-1)).toBe('Every week')
   })
 })

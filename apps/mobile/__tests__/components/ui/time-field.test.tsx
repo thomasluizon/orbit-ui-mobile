@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { formatLocaleTime } from '@orbit/shared/utils'
 import {
   __resetTestHostConfig,
+  __setFocusImpl,
   __setScrollToImpl,
 } from '../../../test-mocks/react-native'
 
@@ -176,12 +177,14 @@ await Promise.resolve()
     await openPicker(tree)
     const hours = column(tree, 'common.hours')
     const minutes = column(tree, 'common.minutes')
-    expect(hours.props.nestedScrollEnabled).toBe(true)
-    expect(minutes.props.nestedScrollEnabled).toBe(true)
+    const hoursScroll = hours.findAll((node: any) => node.type === 'ScrollView')[0]
+    const minutesScroll = minutes.findAll((node: any) => node.type === 'ScrollView')[0]
+    expect(hoursScroll.props.nestedScrollEnabled).toBe(true)
+    expect(minutesScroll.props.nestedScrollEnabled).toBe(true)
 
     TestRenderer.act(() => {
-      hours.props.onLayout()
-      minutes.props.onLayout()
+      hoursScroll.props.onLayout()
+      minutesScroll.props.onLayout()
     })
 
     expect(scrollTo).toHaveBeenCalledWith({ y: 924, animated: false })
@@ -230,5 +233,44 @@ await Promise.resolve()
     )
 
     expect(clearButton).toBeUndefined()
+  })
+
+  it('keeps one tab stop per column and moves selection and focus with radio keys', async () => {
+    const focusedLabels: string[] = []
+    __setFocusImpl((props) => focusedLabels.push(String(props.accessibilityLabel)))
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      await Promise.resolve()
+      tree = TestRenderer.create(
+        <TimeField value="23:59" onChange={vi.fn()} placeholder="HH:MM" />,
+      )
+    })
+    await openPicker(tree)
+    const hours = column(tree, 'common.hours').findAll(
+      (node: any) => typeof node.type === 'string' && node.props?.accessibilityRole === 'radio',
+    )
+    const minutes = column(tree, 'common.minutes').findAll(
+      (node: any) => typeof node.type === 'string' && node.props?.accessibilityRole === 'radio',
+    )
+    expect(hours.filter((option: any) => option.props.tabIndex === 0)).toHaveLength(1)
+    expect(minutes.filter((option: any) => option.props.tabIndex === 0)).toHaveLength(1)
+
+    const preventDefault = vi.fn()
+    TestRenderer.act(() => {
+      radioOption(tree, 'common.hours', '23').props.onKeyDown({ nativeEvent: { key: 'ArrowDown' }, preventDefault })
+    })
+    expect(radioOption(tree, 'common.hours', '00').props.accessibilityState.checked).toBe(true)
+    expect(focusedLabels.at(-1)).toBe('00')
+    TestRenderer.act(() => {
+      radioOption(tree, 'common.minutes', '59').props.onKeyDown({ nativeEvent: { key: 'Home' }, preventDefault })
+    })
+    expect(radioOption(tree, 'common.minutes', '00').props.accessibilityState.checked).toBe(true)
+    expect(focusedLabels.at(-1)).toBe('00')
+    TestRenderer.act(() => {
+      radioOption(tree, 'common.minutes', '00').props.onKeyDown({ nativeEvent: { key: 'End' }, preventDefault })
+    })
+    expect(radioOption(tree, 'common.minutes', '59').props.accessibilityState.checked).toBe(true)
+    expect(focusedLabels.at(-1)).toBe('59')
   })
 })

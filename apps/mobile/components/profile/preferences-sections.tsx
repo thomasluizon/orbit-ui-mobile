@@ -15,6 +15,7 @@ import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { Switch } from '@/components/ui/switch'
 import { RadioRow } from '@/components/ui/select-check'
+import { RadioGroup } from '@/components/ui/radio-group'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { RowList } from '@/components/ui/row-list'
@@ -69,15 +70,17 @@ function TimeZoneOptions({
         placeholder={searchLabel}
         style={styles.timeZoneSearch}
       />
-      {visible.map((option, index) => (
-        <RadioRow
-          key={option}
-          label={option}
-          selected={selected === option}
-          divider={index < visible.length - 1}
-          onPress={() => onSelect(option)}
-        />
-      ))}
+      <RadioGroup accessibilityLabel={searchLabel}>
+        {visible.map((option, index) => (
+          <RadioRow
+            key={option}
+            label={option}
+            selected={selected === option}
+            divider={index < visible.length - 1}
+            onPress={() => onSelect(option)}
+          />
+        ))}
+      </RadioGroup>
       {visible.length === 0 ? (
         <Text style={[styles.timeZoneEmpty, { color: tokens.fg3 }]}>{noResultsLabel}</Text>
       ) : null}
@@ -462,8 +465,9 @@ export function PreferencePickerSheet({
             {pickerDescriptions[activePicker]}
           </Text>
         ) : null}
-        {activePicker === 'language' &&
-          LANGUAGE_OPTIONS.map((lang, index) => (
+        {activePicker === 'language' ? (
+          <RadioGroup accessibilityLabel={pickerTitles.language}>
+            {LANGUAGE_OPTIONS.map((lang, index) => (
             <RadioRow
               key={lang.value}
               label={lang.label}
@@ -471,9 +475,12 @@ export function PreferencePickerSheet({
               divider={index < LANGUAGE_OPTIONS.length - 1}
               onPress={() => selectAndClose(() => onLanguageChange(lang.value))}
             />
-          ))}
-        {activePicker === 'theme' &&
-          themeModeOptions.map((mode, index) => (
+            ))}
+          </RadioGroup>
+        ) : null}
+        {activePicker === 'theme' ? (
+          <RadioGroup accessibilityLabel={pickerTitles.theme}>
+            {themeModeOptions.map((mode, index) => (
             <RadioRow
               key={mode.value}
               label={mode.label}
@@ -481,7 +488,9 @@ export function PreferencePickerSheet({
               divider={index < themeModeOptions.length - 1}
               onPress={() => selectAndClose(() => onThemeModeChange(mode.value))}
             />
-          ))}
+            ))}
+          </RadioGroup>
+        ) : null}
         {activePicker === 'timeZone' ? (
           <TimeZoneOptions
             tokens={tokens}
@@ -492,8 +501,9 @@ export function PreferencePickerSheet({
             onSelect={(option) => selectAndClose(() => onTimeZoneChange(option))}
           />
         ) : null}
-        {activePicker === 'weekStart' &&
-          weekStartOptions.map((option, index) => (
+        {activePicker === 'weekStart' ? (
+          <RadioGroup accessibilityLabel={pickerTitles.weekStart}>
+            {weekStartOptions.map((option, index) => (
             <RadioRow
               key={option.value}
               label={option.label}
@@ -501,7 +511,9 @@ export function PreferencePickerSheet({
               divider={index < weekStartOptions.length - 1}
               onPress={() => selectAndClose(() => onWeekStartChange(option.value))}
             />
-          ))}
+            ))}
+          </RadioGroup>
+        ) : null}
       </View>
     </Sheet>) : null
   )

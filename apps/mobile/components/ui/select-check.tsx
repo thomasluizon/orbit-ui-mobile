@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useRadioGroupItem } from '@/components/ui/radio-group'
 
 /** Kit Radio glyph (visual only) — for rows that manage their own press target. */
 export function RadioGlyph({
@@ -87,6 +88,7 @@ interface RadioRowProps {
   dot?: string
   onPress?: () => void
   divider?: boolean
+  disabled?: boolean
 }
 
 export function RadioRow({
@@ -95,22 +97,30 @@ export function RadioRow({
   dot,
   onPress,
   divider = true,
+  disabled = false,
 }: Readonly<RadioRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const { elementRef, onKeyDown, tabIndex } = useRadioGroupItem({ disabled, onSelect: onPress, selected })
+  const keyProps = { onKeyDown }
 
   return (
     <Pressable
-      onPress={onPress}
+      {...keyProps}
+      ref={elementRef}
+      tabIndex={tabIndex}
+      disabled={disabled}
+      onPress={disabled ? undefined : onPress}
       accessibilityRole="radio"
       accessibilityLabel={label}
-      accessibilityState={{ checked: selected }}
+      accessibilityState={{ checked: selected, disabled }}
       style={[
         styles.radioRow,
         {
           borderBottomColor: tokens.hairline,
           borderBottomWidth: divider ? StyleSheet.hairlineWidth : 0,
         },
+        disabled ? styles.disabled : null,
       ]}
     >
       <RadioGlyph selected={selected} size={24} tokens={tokens} />
@@ -152,5 +162,8 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 999,
     flexShrink: 0,
+  },
+  disabled: {
+    opacity: 0.4,
   },
 })

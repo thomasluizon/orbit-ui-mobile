@@ -6,6 +6,7 @@ import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
 import { PillButton } from '@/components/ui/pill-button'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { RadioRow } from '@/components/ui/select-check'
+import { RadioGroup } from '@/components/ui/radio-row'
 
 export type PreferencePicker = 'language' | 'theme' | 'timeZone' | 'weekStart'
 
@@ -53,7 +54,7 @@ function TimeZoneOptions({
           placeholder={searchLabel}
         />
       </label>
-      <div role="radiogroup" aria-label={searchLabel}>
+      <RadioGroup aria-label={searchLabel}>
         {visible.map((option, index) => (
           <RadioRow
             key={option}
@@ -63,7 +64,7 @@ function TimeZoneOptions({
             onClick={() => onSelect(option)}
           />
         ))}
-      </div>
+      </RadioGroup>
       {visible.length === 0 ? (
         <p className="m-0 px-1 py-4 text-sm text-[var(--fg-3)]">{noResultsLabel}</p>
       ) : null}
@@ -142,8 +143,9 @@ export function PreferencePickerSheet({
       <p className="mb-3 text-sm text-[var(--fg-3)]">
         {pickerDescriptions[activePicker]}
       </p>
-      {activePicker === 'language' &&
-        LANGUAGE_OPTIONS.map((lang, index) => (
+      {activePicker === 'language' ? (
+        <RadioGroup aria-label={pickerTitles.language}>
+          {LANGUAGE_OPTIONS.map((lang, index) => (
           <RadioRow
             key={lang.value}
             label={lang.label}
@@ -151,9 +153,12 @@ export function PreferencePickerSheet({
             divider={index < LANGUAGE_OPTIONS.length - 1}
             onClick={() => selectAndClose(() => onLanguageChange(lang.value))}
           />
-        ))}
-      {activePicker === 'theme' &&
-        themeModeOptions.map((mode, index) => (
+          ))}
+        </RadioGroup>
+      ) : null}
+      {activePicker === 'theme' ? (
+        <RadioGroup aria-label={pickerTitles.theme}>
+          {themeModeOptions.map((mode, index) => (
           <RadioRow
             key={mode.value}
             label={mode.label}
@@ -161,7 +166,9 @@ export function PreferencePickerSheet({
             divider={index < themeModeOptions.length - 1}
             onClick={() => selectAndClose(() => onThemeModeChange(mode.value))}
           />
-        ))}
+          ))}
+        </RadioGroup>
+      ) : null}
       {activePicker === 'timeZone' ? (
         <TimeZoneOptions
           selected={mounted ? timeZone : null}
@@ -171,8 +178,9 @@ export function PreferencePickerSheet({
           onSelect={(option) => selectAndClose(() => onTimeZoneChange(option))}
         />
       ) : null}
-      {activePicker === 'weekStart' &&
-        weekStartOptions.map((option, index) => (
+      {activePicker === 'weekStart' ? (
+        <RadioGroup aria-label={pickerTitles.weekStart}>
+          {weekStartOptions.map((option, index) => (
           <RadioRow
             key={option.value}
             label={option.label}
@@ -180,7 +188,9 @@ export function PreferencePickerSheet({
             divider={index < weekStartOptions.length - 1}
             onClick={() => selectAndClose(() => onWeekStartChange(option.value))}
           />
-        ))}
+          ))}
+        </RadioGroup>
+      ) : null}
     </Sheet>
   )
 }

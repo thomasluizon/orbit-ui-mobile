@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Pressable, StyleSheet, Text } from 'react-native'
 import { ChevronDown } from '@/components/ui/icons'
 import { RadioRow } from '@/components/ui/select-check'
+import { RadioGroup } from '@/components/ui/radio-group'
 import { Sheet, useSheetHost } from '@/components/ui/sheet'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -9,6 +10,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 interface SelectionFieldOption {
   value: string
   label: string
+  disabled?: boolean
 }
 
 interface SelectionFieldProps {
@@ -47,20 +49,23 @@ export function SelectionField({ value, onChange, options, label }: Readonly<Sel
       </Pressable>
       {open ? (
         <Sheet ref={sheetRef} open title={label} onClose={() => setOpen(false)}>
-          {options.map((option, index) => (
-            <RadioRow
-              key={option.value}
-              label={option.label}
-              selected={option.value === value}
-              divider={index < options.length - 1}
-              onPress={() =>
-                closeSheet(() => {
-                  setOpen(false)
-                  onChange(option.value)
-                })
-              }
-            />
-          ))}
+          <RadioGroup accessibilityLabel={label}>
+            {options.map((option, index) => (
+              <RadioRow
+                key={option.value}
+                label={option.label}
+                selected={option.value === value}
+                disabled={option.disabled}
+                divider={index < options.length - 1}
+                onPress={() =>
+                  closeSheet(() => {
+                    setOpen(false)
+                    onChange(option.value)
+                  })
+                }
+              />
+            ))}
+          </RadioGroup>
         </Sheet>
       ) : null}
     </>

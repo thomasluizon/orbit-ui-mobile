@@ -96,4 +96,18 @@ describe('PreferencePickerSheet', () => {
     const checked = screen.getByRole('radio', { checked: true })
     expect(checked).toHaveTextContent('English')
   })
+
+  it('enters the language group once and selects the next option with ArrowDown', () => {
+    const props = { ...baseProps(), activePicker: 'language' as const }
+    render(<PreferencePickerSheet {...props} />)
+    const english = screen.getByRole('radio', { name: 'English' })
+    const portuguese = screen.getByRole('radio', { name: 'Português' })
+
+    expect([english.tabIndex, portuguese.tabIndex]).toEqual([0, -1])
+    const focus = vi.spyOn(portuguese, 'focus')
+    english.focus()
+    fireEvent.keyDown(english, { key: 'ArrowDown' })
+    expect(props.onLanguageChange).toHaveBeenCalledExactlyOnceWith('pt-BR')
+    expect(focus).toHaveBeenCalledOnce()
+  })
 })

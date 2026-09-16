@@ -17,12 +17,14 @@ type ScrollToImpl = (options: {
   y?: number
   animated?: boolean
 }) => void
+type FocusImpl = (props: HostProps) => void
 
 const DEFAULT_MEASURE_IN_WINDOW: MeasureInWindowImpl = (callback) =>
   callback(0, 0, 32, 32)
 
 let measureInWindowImpl: MeasureInWindowImpl = DEFAULT_MEASURE_IN_WINDOW
 let scrollToImpl: ScrollToImpl = () => {}
+let focusImpl: FocusImpl = () => {}
 let hostRefsNull = false
 const DEFAULT_WINDOW_DIMENSIONS = { width: 412, height: 892, scale: 1, fontScale: 1 }
 let windowDimensions = DEFAULT_WINDOW_DIMENSIONS
@@ -39,6 +41,10 @@ export function __setScrollToImpl(impl: ScrollToImpl) {
   scrollToImpl = impl
 }
 
+export function __setFocusImpl(impl: FocusImpl) {
+  focusImpl = impl
+}
+
 export function __setWindowDimensions(
   nextDimensions: Readonly<typeof DEFAULT_WINDOW_DIMENSIONS>,
 ) {
@@ -50,6 +56,7 @@ const keyboardListeners = new Map<string, Set<(payload: unknown) => void>>()
 export function __resetTestHostConfig() {
   measureInWindowImpl = DEFAULT_MEASURE_IN_WINDOW
   scrollToImpl = () => {}
+  focusImpl = () => {}
   hostRefsNull = false
   windowDimensions = DEFAULT_WINDOW_DIMENSIONS
   keyboardListeners.clear()
@@ -66,7 +73,7 @@ function createHostComponent(name: string) {
         if (callback) measureInWindowImpl(callback)
       },
       setNativeProps: () => {},
-      focus: () => {},
+      focus: () => focusImpl(props),
       blur: () => {},
       scrollTo: scrollToImpl,
       scrollToEnd: () => {},

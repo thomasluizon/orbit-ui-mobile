@@ -1,14 +1,18 @@
-import { useState } from 'react'
-import { Pressable, type PressableProps } from 'react-native'
+import { forwardRef, useState } from 'react'
+import { Pressable, type PressableProps, type View } from 'react-native'
 import Animated from 'react-native-reanimated'
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
 
-export function MotionPressable({ style, children, onPressIn, onPressOut, ...props }: Readonly<PressableProps>) {
+export const MotionPressable = forwardRef<View, Readonly<PressableProps>>(function MotionPressable(
+  { style, children, onPressIn, onPressOut, ...props },
+  ref,
+) {
   const [pressed, setPressed] = useState(false)
 
   return (
     <AnimatedPressable
+      ref={ref}
       {...props}
       onPressIn={(event) => { setPressed(true); onPressIn?.(event) }}
       onPressOut={(event) => { setPressed(false); onPressOut?.(event) }}
@@ -23,4 +27,4 @@ export function MotionPressable({ style, children, onPressIn, onPressOut, ...pro
       {typeof children === 'function' ? children({ pressed }) : children}
     </AnimatedPressable>
   )
-}
+})
