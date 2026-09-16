@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { SubHabitEditor } from '@/components/habits/create-habit-modal/sub-habit-editor'
@@ -35,6 +37,15 @@ const translate = (key: string, values?: Record<string, unknown>) =>
   values ? `${key}(${JSON.stringify(values)})` : key
 
 describe('habit form focus treatments', () => {
+  it('restores a system outline that outranks utilities in forced colors', () => {
+    const stylesheet = readFileSync(resolve(process.cwd(), 'app/globals.css'), 'utf8')
+      .replaceAll('\r\n', '\n')
+
+    expect(stylesheet).toMatch(
+      /@media \(forced-colors: active\) \{\s*:focus-visible \{[^}]*outline: 2px solid CanvasText !important;[^}]*\}\s*\}/,
+    )
+  })
+
   it('shows the design-system focus shadow on the custom reminder input', () => {
     render(
       <ReminderSection
