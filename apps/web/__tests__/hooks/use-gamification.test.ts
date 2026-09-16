@@ -25,9 +25,6 @@ vi.stubGlobal('fetch', mockFetch)
 
 vi.mock('@/app/actions/gamification', () => ({
   repairStreakGap,
-}))
-
-vi.mock('@/lib/actions/gamification', () => ({
   reportAchievementEvent: vi.fn(),
 }))
 
