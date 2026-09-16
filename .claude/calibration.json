@@ -176,9 +176,9 @@
     ".claude/skills/orchestrate/SKILL.md": {
       "model": null,
       "effort": "high",
-      "digest": "f608550f7697cb39",
+      "digest": "9ee7460e68ada09e",
       "calibratedAt": "2026-09-16",
-      "verdict": "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, verifies delivery from artifacts and clears the review."
+      "verdict": "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, owns local post-materialization review work, verifies delivery from artifacts and clears the review."
     },
     ".claude/skills/prod-readiness/SKILL.md": {
       "model": null,

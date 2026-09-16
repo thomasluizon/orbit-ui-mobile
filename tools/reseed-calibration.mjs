@@ -103,7 +103,7 @@ const VERDICTS = {
   ".claude/skills/merge-prs/SKILL.md":
     "undeclared, inherits the session: the dangerous half of this skill is mechanical (an exact-head preflight, an ordered admin squash), and its safety comes from the preflight rather than from reasoning depth.",
   ".claude/skills/orchestrate/SKILL.md":
-    "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, verifies delivery from artifacts and clears the review.",
+    "current: high effort, and it earns it: it plans the queue, enforces standing admission controls such as cloud.enabled, owns local post-materialization review work, verifies delivery from artifacts and clears the review.",
   ".claude/skills/prod-readiness/SKILL.md":
     "undeclared, inherits the session: it consolidates four child audits into one honest launch verdict, which is judgement, so this is a follow-up candidate.",
   ".claude/skills/progress/SKILL.md":
