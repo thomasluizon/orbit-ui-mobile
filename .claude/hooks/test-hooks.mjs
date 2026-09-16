@@ -1169,6 +1169,18 @@ T("progress: a missing session baseline degrades explicitly to effort scope", {
   fallsBackToEffortScope: progressSkill.includes("report the effort scope instead"),
   admitsLinkedWorktreeBlindSpot: progressSkill.includes("linked worktrees"),
 }, { namesMissingBaseline: true, fallsBackToEffortScope: true, admitsLinkedWorktreeBlindSpot: true })
+T("progress: each ledger repository resolves and refreshes its own integration branch", {
+  readsLiveBase: progressSkill.includes("gh pr view <number> --json state,mergeCommit,baseRefName"),
+  anchorsResolutionToSessionPullRequest: progressSkill.includes("repository's session pull request"),
+  resolvesInsideMappedRepository: progressSkill.includes("in that mapped repository"),
+  scopesFetchFailure: progressSkill.includes("does not affect the other repositories"),
+}, { readsLiveBase: true, anchorsResolutionToSessionPullRequest: true, resolvesInsideMappedRepository: true, scopesFetchFailure: true })
+T("progress: stacked squash merges do not make an impossible ancestry promise", {
+  limitsAncestryToDirectIntegrationMerges: progressSkill.includes("equals that repository's resolved integration branch"),
+  reportsImmediateBase: progressSkill.includes("landed into `<baseRefName>`"),
+  admitsSquashBoundary: progressSkill.includes("cannot prove arrival across that squash boundary"),
+  namesRetargetPractice: /retargets a stacked child onto the integration branch before\s+merging\s+its parent/.test(progressSkill),
+}, { limitsAncestryToDirectIntegrationMerges: true, reportsImmediateBase: true, admitsSquashBoundary: true, namesRetargetPractice: true })
 
 /**
  * Unresolved conflict markers, committed twice during the GitHub migration and caught both times by

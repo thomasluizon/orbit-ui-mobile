@@ -190,9 +190,9 @@
     ".claude/skills/progress/SKILL.md": {
       "model": null,
       "effort": "medium",
-      "digest": "241df3f7958149f1",
+      "digest": "1b899090c694b67f",
       "calibratedAt": "2026-09-16",
-      "verdict": "current: medium effort, because it reads live git and ticket state and must judge whether a part-built screen is honestly described, which low effort gets wrong by rounding up. The 2026-09-15 rewrite made it effort-agnostic and added --full, so it now resolves its own branch, spec and ticket meanings at answer time instead of reading them from a table here; that is more judgement per call, not less."
+      "verdict": "current: medium effort, because it reads live git and ticket state and must judge whether a part-built screen is honestly described, which low effort gets wrong by rounding up. The effort-agnostic rewrite now resolves integration per repository and distinguishes direct ancestry from an unprovable stacked squash boundary, so the answer requires evidence-led judgement rather than table lookup."
     },
     ".claude/skills/questions/SKILL.md": {
       "model": null,

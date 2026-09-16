@@ -35,20 +35,24 @@ summary buries that under work he already knows about.
 Never answer from memory, and never from a standing notes file such as `hot.md`. Both go stale
 within a day.
 
-**State the integration branch rather than assuming one.** Resolve it this way:
+**State the integration branch rather than assuming one.** Resolve it separately inside every
+repository whose work you report, using one base-chain rule:
 
-1. Read the checkout branch with `git rev-parse --abbrev-ref HEAD`.
-2. Read the repository's open pull requests with
+1. In that repository, read its open pull requests with
    `gh pr list --state open --limit 100 --json number,headRefName,baseRefName`.
-3. If one row's `headRefName` exactly matches the checkout branch, start with its `baseRefName`.
-   While that candidate is itself an open row's `headRefName`, it is a stacked pull request head,
+2. Choose the anchor that identifies the work in that repository. For the current checkout, read
+   `git rev-parse --abbrev-ref HEAD`; if one open row's `headRefName` exactly matches it, start with
+   that row's `baseRefName`, otherwise start with the checkout branch itself. For a session ledger
+   row, use the row's `prNumber` to find that repository's session pull request and start with its
+   `baseRefName`; do not assume the orchestrating checkout's branch exists in a sibling repository.
+3. While the candidate is itself one open row's `headRefName`, it is a stacked pull request head,
    not the integration branch; replace it with that row's `baseRefName`. The first candidate that is
-   not an open head is the integration branch. If no row matches the checkout branch, the checkout
-   branch itself is the integration branch. A duplicate matching head or a cycle is ambiguity: say
-   so and do not guess. This rule is anchored to one exact head, so unrelated bases cannot tie it.
-4. State the resolved branch in the answer. Run `git fetch origin <integration-branch>` before
-   comparing commits, and read `origin/<integration-branch>`. If the fetch fails, say it could not be
-   verified rather than claiming work landed.
+   not an open head is the integration branch. A duplicate matching head or a cycle is ambiguity:
+   say so and do not guess. This walk begins from one exact anchor, so unrelated bases cannot tie it.
+4. State the current checkout's resolved branch in the answer. Before comparing commits, run
+   `git fetch origin <integration-branch>` in that mapped repository and read
+   `origin/<integration-branch>` there. A failed fetch makes arrival unverifiable for that repository
+   only; it does not affect the other repositories.
 
 For the session scope:
 
@@ -60,14 +64,23 @@ For the session scope:
 2. Enumerate the matching record's append-only `readinessLedger`. Each row's `repositoryKey` maps to
    a repository path in `.claude/orchestrator.json`; `prNumber` identifies the session-owned pull
    request; `receiptPath` is provenance, not merge status. Ignore any undeclared top-level key.
-3. In each mapped repository, run `gh pr view <number> --json state,mergeCommit` at answer time.
-   `OPEN` is mid flight and `CLOSED` did not merge. For `MERGED` with a non-null `mergeCommit.oid`,
-   run `git merge-base --is-ancestor <merge-commit-oid> origin/<integration-branch>` in that
-   repository. Only exit 0 proves the merge commit reached the integration branch. A stacked child
-   merged into its parent's head cannot pass until that commit arrives on the integration branch.
-   If the field is absent or the check errors, say arrival could not be verified. Read the pull
-   request and its ticket for the behaviour it carries. The ledger establishes session ownership;
-   commit ancestry establishes what landed.
+3. In each mapped repository, run
+   `gh pr view <number> --json state,mergeCommit,baseRefName` at answer time. Use this pull request's
+   `baseRefName` as the session anchor for the same base-chain rule above, then fetch that repository's
+   resolved integration branch there. `OPEN` is mid flight and `CLOSED` did not merge. For `MERGED`:
+   - When `baseRefName` equals that repository's resolved integration branch and `mergeCommit.oid` is
+     non-null, run
+     `git merge-base --is-ancestor <merge-commit-oid> origin/<integration-branch>` there. Only exit 0
+     proves direct arrival.
+   - With any other `baseRefName`, say the pull request landed into `<baseRefName>` and that ancestry
+     cannot prove arrival across that squash boundary. Name the base so Thomas can follow it. Do not
+     claim the work will reach integration or already did.
+   If a required field is absent, the fetch fails, or the ancestry check errors, say arrival could
+   not be verified for that repository. Read the pull request and its ticket for the behaviour it
+   carries. The ledger establishes session ownership; direct-base ancestry establishes what landed.
+
+The standing orchestrator practice retargets a stacked child onto the integration branch before merging
+its parent. `.claude/specs/orbit-redesign.md` and `/merge-prs` own that rule.
 4. Run `git status --short` in the current checkout so work before its first commit or pull request is
    visible there. This does not create a session baseline. It also cannot see uncommitted work in
    linked worktrees from the orchestrating checkout. When no ledger row names that work yet, say the
