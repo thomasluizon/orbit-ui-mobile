@@ -136,7 +136,6 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         <textarea
           rows={1}
           data-composer-input
-          data-tour="tour-chat-input"
           aria-label={props.words.placeholder}
           disabled={inputDisabled}
           placeholder={props.words.placeholder}
@@ -174,7 +173,6 @@ function ComposerInputRow({ props }: Readonly<{ props: WebComposerProps }>) {
         {props.onVoice ? (
           <button
             type="button"
-            data-tour="tour-chat-voice"
             aria-label={isRecording ? props.voiceWords.stop : props.voiceWords.start}
             disabled={voiceDisabled}
             onClick={props.onVoice}

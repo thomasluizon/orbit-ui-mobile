@@ -4,7 +4,7 @@ import tailwind from '@tailwindcss/postcss'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { PillButton } from '@/components/ui/pill-button'
+import { PillButton, PillLink } from '@/components/ui/pill-button'
 import {
   closeChrome,
   registerChromeLaunchHook,
@@ -86,6 +86,30 @@ describe('PillButton', () => {
   it('renders its label', () => {
     render(<PillButton onClick={() => {}}>Continue</PillButton>)
     expect(screen.getByRole('button', { name: 'Continue' })).toHaveClass('whitespace-nowrap')
+  })
+
+  it('gives pill links the interactive states their button variants expose', () => {
+    render(
+      <>
+        <PillLink href="/primary">Primary</PillLink>
+        <PillLink href="/secondary" variant="secondary">Secondary</PillLink>
+        <PillLink href="/ghost" variant="ghost">Ghost</PillLink>
+      </>,
+    )
+
+    expect(screen.getByRole('link', { name: 'Primary' })).toHaveClass(
+      'hover:bg-[var(--primary-hover)]',
+      'active:scale-[0.96]',
+    )
+    expect(screen.getByRole('link', { name: 'Secondary' })).toHaveClass(
+      'hover:opacity-90',
+      'active:scale-[0.96]',
+      'active:opacity-85',
+    )
+    expect(screen.getByRole('link', { name: 'Ghost' })).toHaveClass(
+      'hover:bg-[var(--bg-card)]',
+      'active:scale-[0.96]',
+    )
   })
 
   it('fires onClick when clicked', () => {

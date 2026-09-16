@@ -8,7 +8,7 @@ import {
 
 describe('onboarding overlay state machine', () => {
   describe('isCalendarPromptCriteriaMet', () => {
-    it('is met once onboarding and the tour are done and the calendar is not yet imported', () => {
+    it('is met once onboarding is done and the calendar is not yet imported', () => {
       const profile = createMockProfile({
         hasCompletedOnboarding: true,
         hasCompletedTour: true,
@@ -26,13 +26,13 @@ describe('onboarding overlay state machine', () => {
       expect(isCalendarPromptCriteriaMet(profile, '/calendar-sync')).toBe(false)
     })
 
-    it('is not met before the tour is complete', () => {
+    it('does not wait for the retired tour state', () => {
       const profile = createMockProfile({
         hasCompletedOnboarding: true,
         hasCompletedTour: false,
         hasImportedCalendar: false,
       })
-      expect(isCalendarPromptCriteriaMet(profile, '/')).toBe(false)
+      expect(isCalendarPromptCriteriaMet(profile, '/')).toBe(true)
     })
 
     it('is not met without a profile', () => {
@@ -56,23 +56,6 @@ describe('onboarding overlay state machine', () => {
           hasPendingOnboardingAnswers: false,
         }),
       ).toBe(true)
-    })
-
-    it('defers while the feature tour is still running', () => {
-      expect(
-        isImportPromptCriteriaMet(
-          createMockProfile({
-            hasCompletedOnboarding: true,
-            hasCompletedTour: false,
-            hasSeenImportPrompt: false,
-          }),
-          {
-            calendarPromptCriteriaMet: false,
-            showCalendarPrompt: false,
-            hasPendingOnboardingAnswers: false,
-          },
-        ),
-      ).toBe(false)
     })
 
     it('defers while the calendar prompt is eligible', () => {

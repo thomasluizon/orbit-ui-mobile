@@ -36,7 +36,7 @@ export function HabitTagChip({
     >
       <button
         type="button"
-        className="pl-3 pr-1 py-2 flex items-center gap-1.5 hover:opacity-80"
+        className="pl-3 pr-1 py-2 flex items-center gap-1 hover:opacity-80"
         aria-pressed={selected}
         aria-disabled={!selected && atLimit}
         disabled={!selected && atLimit}
@@ -46,25 +46,25 @@ export function HabitTagChip({
       </button>
       <button
         type="button"
-        className={`grid min-h-11 min-w-8 -my-2 place-items-center pl-0.5 hover:opacity-60 transition-opacity ${
+        className={`grid min-h-11 min-w-8 -my-2 place-items-center pl-1 hover:opacity-60 transition-opacity ${
           'text-[var(--fg-3)]'
         }`}
         aria-label={editAriaLabel}
         disabled={disabled}
         onClick={onEdit}
       >
-        <PenSquare size={13} strokeWidth={1.8} aria-hidden="true" />
+        <PenSquare size={16} strokeWidth={1.8} aria-hidden="true" />
       </button>
       <button
         type="button"
-        className={`grid min-h-11 min-w-8 -my-2 place-items-center pr-2.5 pl-1 hover:opacity-60 transition-opacity ${
+        className={`grid min-h-11 min-w-8 -my-2 place-items-center pr-2 pl-1 hover:opacity-60 transition-opacity ${
           'text-[var(--fg-3)]'
         }`}
         aria-label={deleteAriaLabel}
         disabled={disabled}
         onClick={onDelete}
       >
-        <X size={13} strokeWidth={1.8} aria-hidden="true" />
+        <X size={16} strokeWidth={1.8} aria-hidden="true" />
       </button>
     </div>
   )

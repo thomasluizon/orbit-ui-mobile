@@ -39,13 +39,10 @@ vi.mock('@/components/ui/update-available-banner', () => ({ UpdateAvailableBanne
 vi.mock('@/components/ui/back-to-top', () => ({ BackToTop: () => null }))
 vi.mock('@/components/ui/trial-expired-modal', () => ({ TrialExpiredModal: () => null }))
 vi.mock('@/components/ui/expiry-warning', () => ({ ExpiryWarning: () => null }))
-vi.mock('@/components/ui/push-prompt', () => ({ PushPrompt: () => null }))
 vi.mock('@/components/onboarding/retained-onboarding-overlay', () => ({ RetainedOnboardingOverlay: () => null }))
 vi.mock('@/components/referral/referral-prompt', () => ({ ReferralPrompt: () => null }))
 vi.mock('@/components/milestone-share/milestone-share-prompt', () => ({ MilestoneSharePrompt: () => null }))
 vi.mock('@/components/marketing-consent/marketing-consent-prompt', () => ({ MarketingConsentPrompt: () => null }))
-vi.mock('@/components/tour/tour-provider', () => ({ TourProvider: () => null }))
-vi.mock('@/components/tour/tour-overlay', () => ({ TourOverlay: () => null }))
 vi.mock('@/components/shell/composer', () => ({ Composer: () => null }))
 vi.mock('@/lib/api-fetch-i18n-provider', () => ({ ApiFetchI18nProvider: () => null }))
 

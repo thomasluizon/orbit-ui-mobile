@@ -5,7 +5,6 @@ import {
   useBufferOnboardingActions,
   useLiveOnboardingActions,
   useOnboardingActions,
-  useOnboardingHasProAccess,
   useOnboardingIsLive,
 } from '@/components/onboarding/onboarding-actions-context'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -227,30 +226,27 @@ const stubActions: OnboardingActions = {
 }
 
 describe('OnboardingActionsProvider', () => {
-  it('exposes the actions, pro access, and live flag to consumers', () => {
+  it('exposes the actions and live flag to consumers', () => {
     const captured = {
       actions: null as OnboardingActions | null,
-      pro: false,
       live: false,
     }
 
     function Child() {
       captured.actions = useOnboardingActions()
-      captured.pro = useOnboardingHasProAccess()
       captured.live = useOnboardingIsLive()
       return null
     }
 
     TestRenderer.act(() => {
       TestRenderer.create(
-        <OnboardingActionsProvider actions={stubActions} hasProAccess isLive>
+        <OnboardingActionsProvider actions={stubActions} isLive>
           <Child />
         </OnboardingActionsProvider>,
       )
     })
 
     expect(captured.actions).toBe(stubActions)
-    expect(captured.pro).toBe(true)
     expect(captured.live).toBe(true)
   })
 

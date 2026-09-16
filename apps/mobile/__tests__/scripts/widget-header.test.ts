@@ -205,6 +205,7 @@ describe('Android widget header', () => {
       widget_completed: 'completed',
       widget_streak_unit: 'days',
       widget_all_clear: 'All clear',
+      widget_nothing_scheduled: 'Nothing scheduled',
       widget_refresh: 'Refresh',
     })
     expect(Object.fromEntries(portuguese)).toMatchObject({
@@ -214,8 +215,28 @@ describe('Android widget header', () => {
       widget_completed: 'concluídos',
       widget_streak_unit: 'dias',
       widget_all_clear: 'Tudo feito',
+      widget_nothing_scheduled: 'Nada agendado',
       widget_refresh: 'Atualizar',
     })
+  })
+
+  it('selects empty copy from the payload reason with the completed case as fallback', () => {
+    const service = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetService.kt'), 'utf8')
+    const provider = readFileSync(resolve(widgetSourceRoot, 'OrbitWidgetProvider.kt'), 'utf8')
+    const emptyWidgetString = kotlinFunctionBody(service, 'emptyWidgetString')
+    const loadWidgetData = kotlinFunctionBody(service, 'loadWidgetData')
+    const buildWidgetViews = kotlinFunctionBody(provider, 'buildWidgetViews')
+
+    expect(service).toContain('val emptyReason: String? = null')
+    expect(emptyWidgetString).toMatch(
+      /"nothing-scheduled" -> WidgetString\.NOTHING_SCHEDULED/,
+    )
+    expect(emptyWidgetString).toContain('else -> WidgetString.ALL_CLEAR')
+    expect(loadWidgetData).toContain('.putString("empty_reason", widgetData.emptyReason)')
+    expect(buildWidgetViews).toContain(
+      'val emptyReason = prefs.getString("empty_reason", null)',
+    )
+    expect(buildWidgetViews).toContain('emptyWidgetString(emptyReason)')
   })
 
   it('renders a compact two-line header with one accent element', () => {

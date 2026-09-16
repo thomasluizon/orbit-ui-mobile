@@ -45,13 +45,6 @@
       "switchToDark": "Mudar para o modo escuro"
     }
   },
-  "pushPrompt": {
-    "title": "Não perca o ritmo",
-    "description": "Ative as notificações para receber lembretes dos seus hábitos",
-    "enable": "Ativar",
-    "later": "Agora não",
-    "retryHint": "Não deu para configurar as notificações. Toque em Ativar para tentar de novo."
-  },
   "notFoundPage": {
     "title": "Esta página não existe",
     "description": "O endereço pode ter mudado, ou o item foi apagado. O seu dia continua onde estava.",
@@ -1034,7 +1027,6 @@
   "explore": {
     "title": "Explorar",
     "subtitle": "Tudo o que o Orbit pode fazer, em um só lugar.",
-    "tourHint": "Reveja o tour guiado de cada área",
     "sections": {
       "discover": "Descobrir",
       "progress": "Seu progresso",
@@ -1775,86 +1767,11 @@
   },
   "onboarding": {
     "flow": {
-      "templatePacks": {
-        "title": "Comece com um pacote",
-        "subtitle": "Escolha um conjunto de hábitos para começar. Você pode ajustar tudo depois.",
-        "customizeTitle": "Personalize seu pacote",
-        "customizeSubtitle": "Desative o que não quiser. Adicionamos o resto.",
-        "createCta": "Adicionar {count} hábitos",
-        "createCtaOne": "Adicionar 1 hábito",
-        "createOwn": "Prefiro criar o meu",
-        "skip": "Pular por agora",
-        "created": "Seus hábitos estão prontos",
-        "packs": {
-          "morningRoutine": {
-            "name": "Rotina Matinal",
-            "description": "Comece todo dia com intenção.",
-            "habits": {
-              "makeBed": "Arrume sua cama",
-              "water": "Beba um copo de água",
-              "stretch": "Alongamento de 5 minutos",
-              "breakfast": "Tome um café da manhã saudável",
-              "planDay": "Planeje suas 3 tarefas principais"
-            }
-          },
-          "fitnessMovement": {
-            "name": "Fitness e Movimento",
-            "description": "Mantenha o corpo ativo e forte.",
-            "habits": {
-              "walk": "Caminhada de 30 minutos",
-              "strength": "Treino de força",
-              "mobility": "Mobilidade de 10 minutos",
-              "stairs": "Use as escadas",
-              "steps": "Atinja sua meta de passos"
-            }
-          },
-          "studyFocus": {
-            "name": "Estudo e Foco",
-            "description": "Desenvolva foco profundo, sem distrações.",
-            "habits": {
-              "deepWork": "Bloco de trabalho focado",
-              "read": "Leia por 20 minutos",
-              "reviewNotes": "Revise suas anotações",
-              "phoneFree": "Primeira hora sem celular",
-              "singleTask": "Faça uma tarefa por vez"
-            }
-          },
-          "mindfulnessWellbeing": {
-            "name": "Mindfulness e Bem-estar",
-            "description": "Desacelere e cuide de você.",
-            "habits": {
-              "meditate": "Medite por 10 minutos",
-              "gratitude": "Diário de gratidão",
-              "digitalSunset": "Pôr do sol digital",
-              "breathing": "Respiração profunda",
-              "reachOut": "Fale com alguém"
-            }
-          }
-        },
-        "tags": {
-          "morning": "manhã",
-          "health": "saúde",
-          "movement": "movimento",
-          "focus": "foco",
-          "fitness": "fitness",
-          "learning": "aprendizado",
-          "mindfulness": "mindfulness",
-          "journal": "diário",
-          "sleep": "sono",
-          "social": "social"
-        }
-      },
       "step": "{current} de {total}",
       "skip": "Pular",
       "next": "Continuar",
       "begin": "Começar",
       "back": "Voltar",
-      "meetAstra": {
-        "title": "Conheça a Astra.",
-        "subtitle": "A assistente do Orbit. Ela cria hábitos, resume o seu dia, planeja o que vem e percebe o que saiu do eixo. Fale com naturalidade. Ela escuta.",
-        "import": "Importar de outro app",
-        "importPrompt": "Me ajude a importar meus hábitos de outro app. Vou anexar um arquivo ou colar minha lista, e você cria os hábitos."
-      },
       "welcome": {
         "title": "Boas-vindas ao Orbit",
         "subtitle": "Vamos deixar tudo do seu jeito e criar seu primeiro hábito.",
@@ -1890,69 +1807,18 @@
           "meditate": "Meditar"
         }
       },
-      "completeHabit": {
-        "title": "Agora conclua",
-        "instruction": "Toque no círculo para marcar como feito",
-        "tapHint": "Toque no círculo para concluir",
-        "success": "Sua sequência começa agora"
-      },
-      "createGoal": {
-        "title": "Defina uma meta",
-        "proTag": "PRO",
-        "starters": "Ou experimente",
-        "subtitle": "As metas dão um propósito maior aos seus hábitos.",
-        "descriptionLabel": "Meta",
-        "descriptionPlaceholder": "ex: Ler 12 livros este ano",
-        "targetLabel": "Quantidade-alvo",
-        "targetPlaceholder": "Quantidade",
-        "unitLabel": "Unidade",
-        "unitPlaceholder": "Unidade (km, livros...)",
-        "create": "Criar meta",
-        "creating": "Criando...",
-        "success": "Meta criada",
-        "skipStep": "Pular por enquanto",
-        "suggestions": {
-          "run": "Correr 100km",
-          "books": "Ler 12 livros",
-          "booksUnit": "livros",
-          "save": "Economizar R$5000"
-        }
-      },
-      "features": {
-        "title": "Mais para explorar",
-        "chat": {
-          "title": "Converse com a Astra",
-          "desc": "Peça à Astra para criar hábitos, obter insights ou analisar seu progresso."
-        },
-        "subHabits": {
-          "title": "Sub-hábitos",
-          "desc": "Divida hábitos grandes em passos menores, dentro de um hábito principal."
-        },
-        "calendar": {
-          "title": "Calendário",
-          "desc": "Veja seu histórico em um mapa de calor colorido."
-        },
-        "achievements": {
-          "title": "Conquistas",
-          "desc": "Ganhe XP, suba de nível e colecione badges conforme suas sequências crescem."
-        },
-        "notifications": {
-          "title": "Notificações",
-          "desc": "Receba lembretes antes da hora de cada hábito."
-        }
-      },
       "complete": {
         "title": "Tudo pronto",
         "subtitle": "É tudo de verdade. Seu hábito e seu progresso já estão salvos.",
         "start": "Começar a usar o Orbit",
         "recap": {
-          "habit": "Hábito criado",
-          "goal": "Meta criada",
-          "theme": "Tema personalizado",
-          "astra": "Assistente de IA"
+          "habit": "Hábito criado"
         },
         "trialTitle": "7 dias de Pro, grátis",
         "trialDesc": "Sem cartão. Você tem acesso Pro completo até {date}."
+      },
+      "meetAstra": {
+        "importPrompt": "Me ajude a importar meus hábitos de outro app. Vou anexar um arquivo ou colar minha lista, e você cria os hábitos."
       }
     },
     "wizard": {
@@ -2406,7 +2272,7 @@
       "decrease": "Diminuir progresso",
       "derivedStreak": "O progresso da sequência é calculado automaticamente, então não pode ser editado aqui. | Vem da sequência atual do hábito ligado a esta meta, então não pode ser editado aqui. | Vem da menor sequência atual entre os {count} hábitos ligados a esta meta, então não pode ser editado aqui.",
       "derivedHabits": "O progresso vem dos registros dos hábitos ligados a esta meta, então não é editável aqui.",
-      "completeWhyDerived": "A meta chegou ao alvo e continua ativa até você concluir, porque o número é recalculado a cada leitura.",
+      "completeWhy": "Esta meta alcançou o alvo, mas continua ativa. Conclua quando quiser.",
       "linkedLimit": "{count} hábitos é o limite por meta.",
       "deleteNamed": "A meta “{title}” sai da sua lista. Os hábitos ligados a ela continuam como estão.",
       "markCompleted": "Concluir meta",
@@ -2422,15 +2288,6 @@
       "askAstraSeedDefault": "Me ajuda a montar um plano de check-in semanal para a meta \"{title}\".",
       "askAstraEyebrow": "PERGUNTE À ASTRA",
       "statusLabel": "Status"
-    },
-    "filters": {
-      "all": "Todas",
-      "active": "Ativas",
-      "completed": "Concluídas",
-      "abandoned": "Abandonadas",
-      "statusFilter": "Filtrar por status",
-      "clearFilter": "Limpar filtro",
-      "emptyFiltered": "Nenhuma meta corresponde a este filtro"
     },
     "deadline": {
       "overdue": "Atrasada",
@@ -2896,181 +2753,6 @@
       "progress": "{done} de {total} concluídos",
       "complete": "Tudo pronto.",
       "dismiss": "Dispensar"
-    }
-  },
-  "tour": {
-    "coachmarks": {
-      "today": {
-        "title": "Seu dia, num relance",
-        "description": "Todo hábito de hoje fica aqui. Toque no círculo para concluir."
-      },
-      "astra": {
-        "title": "Conheça a Astra",
-        "description": "Seu assistente de IA. Peça para criar hábitos, planejar ou resumir o dia."
-      },
-      "calendar": {
-        "title": "Veja seu histórico",
-        "description": "Um mapa de calor colorido de tudo que você concluiu ao longo do tempo."
-      }
-    },
-    "mockData": {
-      "habits": {
-        "meditation": {
-          "title": "Meditação Matinal",
-          "description": "10 minutos de atenção plena para começar o dia"
-        },
-        "exercise": {
-          "title": "Exercício",
-          "description": "Mantenha-se ativo com treinos regulares"
-        },
-        "pushups": {
-          "title": "Flexões"
-        },
-        "stretching": {
-          "title": "Alongamento"
-        },
-        "screenTime": {
-          "title": "Reduzir Tempo de Tela",
-          "description": "Manter o tempo de tela abaixo de 2 horas por dia"
-        },
-        "readBooks": {
-          "title": "Ler Livros",
-          "description": "Ler pelo menos 5 vezes por semana"
-        },
-        "drinkWater": {
-          "title": "Beber Mais Água",
-          "description": "Mantenha-se hidratado ao longo do dia"
-        }
-      },
-      "goals": {
-        "marathon": {
-          "title": "Correr uma Maratona",
-          "description": "Treinar e completar uma maratona"
-        },
-        "readGoal": {
-          "title": "Ler 24 Livros",
-          "description": "Ler 2 livros por mês este ano"
-        }
-      },
-      "tags": {
-        "mindfulness": "Atenção Plena",
-        "health": "Saúde",
-        "learning": "Aprendizado"
-      },
-      "checklists": {
-        "warmUp": "Aquecimento",
-        "mainWorkout": "Treino principal",
-        "coolDown": "Desaquecimento"
-      }
-    },
-    "ui": {
-      "next": "Próximo",
-      "back": "Voltar",
-      "skip": "Pular tour",
-      "finish": "Finalizar",
-      "stepOf": "Passo {current} de {total}",
-      "pro": "PRO"
-    },
-    "sections": {
-      "habits": "Hábitos",
-      "goals": "Metas",
-      "chat": "Chat IA",
-      "calendar": "Calendário",
-      "profile": "Perfil",
-      "coach-today": "Hoje",
-      "coach-astra": "Astra",
-      "coach-calendar": "Calendário"
-    },
-    "replay": {
-      "title": "Tour de recursos",
-      "hint": "Conheça todos os recursos num tour guiado",
-      "modalTitle": "Repetir tour",
-      "replayAll": "Repetir o tour completo",
-      "steps": "{count} passos"
-    },
-    "habits": {
-      "list": {
-        "title": "Seus hábitos",
-        "description": "Este é o seu painel do dia. Ele mostra todos os hábitos agendados para hoje, organizados por prioridade. Os concluídos aparecem com um tique."
-      },
-      "card": {
-        "title": "Cartão do hábito",
-        "description": "Cada hábito mostra status, tags e frequência. Toque no círculo para marcar como concluído, ou use o menu para mais opções, como editar, pular ou excluir."
-      },
-      "tabs": {
-        "title": "Abas de visualização",
-        "description": "Use os quatro destinos: Hoje, Calendário, Progresso e Perfil. As metas ficam dentro de Progresso."
-      },
-      "dateNav": {
-        "title": "Navegação por data",
-        "description": "Passe de um dia para outro para ver conclusões passadas ou hábitos por vir. Toque nas setas ou deslize para mudar de data."
-      },
-      "fab": {
-        "title": "Criar novo",
-        "description": "Toque aqui para criar um hábito. Crie uma meta a partir de um hábito ou pedindo à Astra."
-      },
-      "streak": {
-        "title": "Contador de sequência",
-        "description": "Sua sequência conta os dias seguidos em que você concluiu todos os hábitos agendados. Mantenha-a viva para ganhar conquistas e criar embalo"
-      },
-      "notifications": {
-        "title": "Notificações",
-        "description": "Veja lembretes, alertas de conquistas e novidades aqui. Ative as notificações push nas configurações para nunca esquecer um hábito."
-      }
-    },
-    "chat": {
-      "area": {
-        "title": "Chat com IA",
-        "description": "Seu assistente de IA cria, edita e gerencia hábitos com linguagem natural. É só dizer o que você quer e ele cuida do resto."
-      },
-      "input": {
-        "title": "Campo do chat",
-        "description": "Digite sua mensagem, anexe imagens para dar contexto ou use a voz. Faça perguntas, peça insights ou gerencie seus hábitos conversando."
-      },
-      "suggestions": {
-        "title": "Sugestões rápidas",
-        "description": "Toque em qualquer chip de sugestão para começar uma conversa num instante. São ações comuns para te ajudar a começar."
-      },
-      "voice": {
-        "title": "Entrada por voz",
-        "description": "Fale para registrar hábitos ou fazer perguntas. Funciona em vários idiomas, com conversão automática de fala para texto."
-      }
-    },
-    "calendar": {
-      "grid": {
-        "title": "Visão do calendário",
-        "description": "Veja seu histórico de conclusões num relance. Cada dia recebe uma cor conforme quantos hábitos você concluiu."
-      },
-      "legend": {
-        "title": "Legenda de cores",
-        "description": "Sua cor de destaque marca o dia de hoje. Um círculo neutro cheio indica todos os hábitos feitos, o anel de progresso primário indica conclusão parcial e um contorno neutro indica que nenhum foi registrado. Monte uma sequência de dias cheios"
-      },
-      "monthNav": {
-        "title": "Navegação por mês",
-        "description": "Passe de um mês para outro para rever a sua constância ao longo do tempo. Deslize para a esquerda ou para a direita para ir rápido."
-      },
-      "day": {
-        "title": "Detalhe do dia",
-        "description": "Toque em qualquer dia para ver quais hábitos estavam agendados, concluídos ou perdidos. Você também pode registrar conclusões de dias passados."
-      }
-    },
-    "profile": {
-      "streak": {
-        "title": "Sequência e congelamentos",
-        "description": "Veja sua sequência atual e a mais longa. Ative os congelamentos para proteger sua sequência nos dias de folga (com limite por mês)."
-      },
-      "preferences": {
-        "title": "Preferências",
-        "description": "Deixe tudo do seu jeito: idioma, fuso horário, dia de início da semana, notificações push e mais."
-      },
-      "subscription": {
-        "title": "Assinatura",
-        "description": "O plano grátis inclui 5 mensagens da Astra por dia. O Pro inclui 50, dez vezes mais."
-      },
-      "achievements": {
-        "title": "Conquistas e níveis",
-        "description": "Ganhe XP e suba de nível conforme cria hábitos. Ganhe conquistas em marcos como recordes de sequência, taxas de conclusão e mais."
-      }
     }
   },
   "terms": {

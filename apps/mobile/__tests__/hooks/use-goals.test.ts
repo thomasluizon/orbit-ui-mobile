@@ -354,6 +354,55 @@ describe('mobile goal hooks', () => {
     expect(mocks.state.details.get(JSON.stringify(goalKeys.detail('goal-1')))?.goal.currentValue).toBe(3)
   })
 
+  it('queues a manual target update offline with a completed optimistic detail', async () => {
+    const manualGoal = createMockGoal({
+      id: 'goal-1',
+      currentValue: 11,
+      targetValue: 12,
+      progressPercentage: 92,
+      status: 'Active',
+      isProgressDerived: false,
+    })
+    mocks.state.lists = [{ key: goalKeys.lists(), value: [manualGoal] }]
+    mocks.state.details = new Map([
+      [
+        JSON.stringify(goalKeys.detail('goal-1')),
+        {
+          goal: { ...manualGoal, progressHistory: [] },
+          metrics: {
+            progressPercentage: 92,
+            velocityPerDay: 0,
+            projectedCompletionDate: null,
+            daysToDeadline: null,
+            trackingStatus: 'on_track',
+            habitAdherence: [],
+          },
+        },
+      ],
+    ])
+    mocks.queueOrExecute.mockResolvedValue({
+      queued: true,
+      queuedMutationId: 'mutation-1',
+    })
+    const mutation = useUpdateGoalProgress() as unknown as MutationConfig<
+      { queued: true; queuedMutationId: string },
+      { goalId: string; data: { currentValue: number } },
+      unknown
+    >
+    const variables = { goalId: 'goal-1', data: { currentValue: 12 } }
+
+    await mutation.onMutate?.(variables)
+    const result = await mutation.mutationFn(variables)
+    mutation.onSuccess?.(result, variables, undefined)
+    mutation.onSettled?.(result, null, variables, undefined)
+
+    expect(result).toEqual({ queued: true, queuedMutationId: 'mutation-1' })
+    expect(mocks.state.lists[0]?.value[0]?.status).toBe('Completed')
+    expect(mocks.state.details.get(JSON.stringify(goalKeys.detail('goal-1')))?.goal.status).toBe('Completed')
+    expect(mocks.setGoalCompletedCelebration).not.toHaveBeenCalled()
+    expect(mocks.invalidateGoalQueries).not.toHaveBeenCalled()
+  })
+
   it('enqueues one named online progress completion at the target', () => {
     const mutation = useUpdateGoalProgress() as unknown as MutationConfig<
       undefined | { queued: true; queuedMutationId: string },

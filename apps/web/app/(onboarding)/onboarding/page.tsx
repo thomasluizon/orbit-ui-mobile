@@ -10,7 +10,7 @@ export default function OnboardingPage() {
   const actions = useBufferOnboardingActions()
 
   return (
-    <OnboardingActionsProvider actions={actions} hasProAccess isLive={false}>
+    <OnboardingActionsProvider actions={actions} isLive={false}>
       <OnboardingFlow />
     </OnboardingActionsProvider>
   )

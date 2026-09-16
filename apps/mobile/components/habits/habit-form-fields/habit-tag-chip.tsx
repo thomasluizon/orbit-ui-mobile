@@ -92,7 +92,7 @@ export function HabitTagChip({
         onPress={onEdit}
       >
         <PenSquare
-          size={13}
+          size={16}
           strokeWidth={1.8}
           color={tokens.fg3}
         />
@@ -110,7 +110,7 @@ export function HabitTagChip({
         onPress={onDelete}
       >
         <X
-          size={13}
+          size={16}
           strokeWidth={1.8}
           color={tokens.fg3}
         />

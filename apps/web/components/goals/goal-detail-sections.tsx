@@ -129,7 +129,7 @@ export function GoalLinkedHabitsSection({
   notice,
 }: Readonly<GoalLinkedHabitsSectionProps>) {
   return (
-    <div data-tour="tour-goal-link" className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3">
       <h3 className="text-[20px] font-medium text-[var(--fg-1)]">{title}</h3>
       {notice}
       {linkedHabits.length === 0 ? (

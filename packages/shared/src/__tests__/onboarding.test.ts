@@ -6,7 +6,6 @@ import {
   getOnboardingHabitFrequencyLabelKey,
   getOnboardingNextStep,
   getOnboardingPreviousStep,
-  ONBOARDING_GOAL_SUGGESTIONS,
   ONBOARDING_HABIT_FREQUENCIES,
   ONBOARDING_HABIT_SUGGESTIONS,
   ONBOARDING_WEEK_START_OPTIONS,
@@ -27,22 +26,14 @@ describe('onboarding helpers', () => {
       'Week',
       'one-time',
     ])
-    expect(ONBOARDING_GOAL_SUGGESTIONS.map((suggestion) => suggestion.key)).toEqual([
-      'run',
-      'books',
-      'save',
-    ])
     expect(ONBOARDING_WEEK_START_OPTIONS.map((option) => option.value)).toEqual([1, 0])
   })
 
   it('derives onboarding progress consistently', () => {
-    expect(getOnboardingDisplayTotal(true)).toBe(7)
-    expect(getOnboardingDisplayTotal(false)).toBe(6)
-    expect(getOnboardingDisplayStep(0, true)).toBe(1)
-    expect(getOnboardingDisplayStep(5, false)).toBe(5)
-    expect(getOnboardingNextStep(3, true)).toBe(4)
-    expect(getOnboardingNextStep(3, false)).toBe(5)
-    expect(getOnboardingPreviousStep(5, false)).toBe(3)
+    expect(getOnboardingDisplayTotal()).toBe(3)
+    expect(getOnboardingDisplayStep(0)).toBe(1)
+    expect(getOnboardingNextStep(1)).toBe(2)
+    expect(getOnboardingPreviousStep(2)).toBe(1)
     expect(shouldHideOnboardingFooter(1)).toBe(true)
     expect(shouldHideOnboardingFooter(5)).toBe(false)
     expect(shouldHideOnboardingFooter(0)).toBe(false)
