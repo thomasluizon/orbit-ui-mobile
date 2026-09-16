@@ -1084,6 +1084,7 @@ describe('mobile ProgressContent', () => {
   })
 
   it('announces accessibility moves, boundaries and preserves errors and filtered state', async () => {
+    const announceForAccessibility = vi.spyOn(ReactNative.AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => undefined)
     const goalOne = createMockGoal({ id: 'goal-1', title: 'Goal one', position: 0 })
     const goalTwo = createMockGoal({ id: 'goal-2', title: 'Goal two', position: 1 })
     mocks.goals.data.allGoals = [goalOne, goalTwo]
@@ -1095,6 +1096,9 @@ describe('mobile ProgressContent', () => {
     expect(status.props.accessibilityLabel).toBe('')
     await TestRenderer.act(() => (firstGoal.props.onAccessibilityAction as (event: unknown) => void)({ nativeEvent: { actionName: 'decrement' } }))
     expect(status.props.accessibilityLabel).toBe('progressScreen.goals.reorderBoundary:{"title":"Goal one","position":1,"total":2}')
+    await TestRenderer.act(() => (firstGoal.props.onAccessibilityAction as (event: unknown) => void)({ nativeEvent: { actionName: 'decrement' } }))
+    expect(announceForAccessibility).toHaveBeenNthCalledWith(1, 'progressScreen.goals.reorderBoundary:{"title":"Goal one","position":1,"total":2}')
+    expect(announceForAccessibility).toHaveBeenNthCalledWith(2, 'progressScreen.goals.reorderBoundary:{"title":"Goal one","position":1,"total":2}')
     await TestRenderer.act(() => (secondGoal.props.onAccessibilityAction as (event: unknown) => void)({ nativeEvent: { actionName: 'increment' } }))
     expect(status.props.accessibilityLabel).toBe('progressScreen.goals.reorderBoundary:{"title":"Goal two","position":2,"total":2}')
     await TestRenderer.act(() => (secondGoal.props.onAccessibilityAction as (event: unknown) => void)({ nativeEvent: { actionName: 'decrement' } }))

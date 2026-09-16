@@ -397,7 +397,8 @@ describe('ProgressContent', () => {
     expect(mocks.reorder.mutate).not.toHaveBeenCalled()
   })
 
-  it('announces keyboard moves, boundaries and preserves errors and filtered state', () => {
+  it('announces keyboard moves, boundaries and preserves errors and filtered state', async () => {
+    vi.useFakeTimers()
     mocks.goals.data.allGoals = [createMockGoal({ title: 'Goal one' }), createMockGoal({ id: 'goal-2', title: 'Goal two', position: 1 })]
     render(<ProgressPage />)
     const status = screen.getByTestId('goal-reorder-status')
@@ -406,16 +407,24 @@ describe('ProgressContent', () => {
 
     expect(status).toBeEmptyDOMElement()
     fireEvent.keyDown(firstGoal, { altKey: true, key: 'ArrowUp' })
+    await act(() => vi.runOnlyPendingTimers())
+    expect(status).toHaveTextContent('progressScreen.goals.reorderBoundary:{"title":"Goal one","position":1,"total":2}')
+    fireEvent.keyDown(firstGoal, { altKey: true, key: 'ArrowUp' })
+    expect(status).toBeEmptyDOMElement()
+    await act(() => vi.runOnlyPendingTimers())
     expect(status).toHaveTextContent('progressScreen.goals.reorderBoundary:{"title":"Goal one","position":1,"total":2}')
     fireEvent.keyDown(secondGoal, { altKey: true, key: 'ArrowDown' })
+    await act(() => vi.runOnlyPendingTimers())
     expect(status).toHaveTextContent('progressScreen.goals.reorderBoundary:{"title":"Goal two","position":2,"total":2}')
     fireEvent.keyDown(secondGoal, { altKey: true, key: 'ArrowUp' })
     const moveUpOptions = mocks.reorder.mutate.mock.calls.at(-1)?.[1] as { onSuccess: () => void }
     act(() => moveUpOptions.onSuccess())
+    await act(() => vi.runOnlyPendingTimers())
     expect(status).toHaveTextContent('progressScreen.goals.reorderMoved:{"title":"Goal two","position":1,"total":2}')
     fireEvent.keyDown(firstGoal, { altKey: true, key: 'ArrowDown' })
     const moveDownOptions = mocks.reorder.mutate.mock.calls.at(-1)?.[1] as { onSuccess: () => void }
     act(() => moveDownOptions.onSuccess())
+    await act(() => vi.runOnlyPendingTimers())
     expect(status).toHaveTextContent('progressScreen.goals.reorderMoved:{"title":"Goal one","position":2,"total":2}')
     expect(screen.getByTestId('goal-reorder-status')).toBe(status)
 

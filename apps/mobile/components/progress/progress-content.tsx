@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
+import { AccessibilityInfo, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
@@ -282,13 +282,17 @@ function GoalsSection({ goals, tokens, onOpenGoal }: Readonly<{ goals: readonly 
   const reorder = useReorderGoals()
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
   const [reorderAnnouncement, setReorderAnnouncement] = useState('')
+  const announceReorderResult = (message: string) => {
+    setReorderAnnouncement(message)
+    AccessibilityInfo.announceForAccessibility(message)
+  }
   const filtered = filterProgressGoals(goals, filter)
   const options = [{ value: 'all', label: t('progressScreen.goals.all') }, { value: 'active', label: t('progressScreen.goals.active') }, { value: 'completed', label: t('progressScreen.goals.completed') }, { value: 'abandoned', label: t('progressScreen.goals.abandoned') }] as const
   const commitMove = (positions: GoalPositionItem[], goalId: string, target: number) => {
     const goal = goals.find((item) => item.id === goalId)
     if (!goal) return
     reorder.mutate(positions, {
-      onSuccess: () => setReorderAnnouncement(t('progressScreen.goals.reorderMoved', { title: goal.title, position: target + 1, total: goals.length })),
+      onSuccess: () => announceReorderResult(t('progressScreen.goals.reorderMoved', { title: goal.title, position: target + 1, total: goals.length })),
     })
   }
   const handleDragEnd = ({ data, from, to }: DragEndParams<Goal>) => {
@@ -303,7 +307,7 @@ function GoalsSection({ goals, tokens, onOpenGoal }: Readonly<{ goals: readonly 
     const boundedTarget = Math.max(0, Math.min(goals.length - 1, target))
     const positions = buildGoalMovePositions(goals, goalId, target)
     if (!positions) {
-      setReorderAnnouncement(t('progressScreen.goals.reorderBoundary', { title: goal.title, position: currentIndex + 1, total: goals.length }))
+      announceReorderResult(t('progressScreen.goals.reorderBoundary', { title: goal.title, position: currentIndex + 1, total: goals.length }))
       return
     }
     commitMove(positions, goalId, boundedTarget)

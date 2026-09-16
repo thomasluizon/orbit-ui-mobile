@@ -356,12 +356,16 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
   const reorder = useReorderGoals()
   const [filter, setFilter] = useState<ProgressGoalFilter>('all')
   const [reorderAnnouncement, setReorderAnnouncement] = useState('')
+  const announceReorderResult = (message: string) => {
+    setReorderAnnouncement('')
+    setTimeout(() => setReorderAnnouncement(message), 0)
+  }
   const filtered = filterProgressGoals(goals, filter)
   const commitMove = (positions: NonNullable<ReturnType<typeof buildGoalMovePositions>>, goalId: string, target: number) => {
     const goal = goals.find((item) => item.id === goalId)
     if (!goal) return
     reorder.mutate(positions, {
-      onSuccess: () => setReorderAnnouncement(t('progressScreen.goals.reorderMoved', { title: goal.title, position: target + 1, total: goals.length })),
+      onSuccess: () => announceReorderResult(t('progressScreen.goals.reorderMoved', { title: goal.title, position: target + 1, total: goals.length })),
     })
   }
   const drag = useGoalDrag(goals, filter === 'all' && !reorder.isPending, reorder.mutate)
@@ -372,7 +376,7 @@ function GoalsSection({ goals, onOpenGoal }: Readonly<{ goals: readonly Goal[]; 
     const boundedTarget = Math.max(0, Math.min(goals.length - 1, target))
     const positions = buildGoalMovePositions(goals, goalId, target)
     if (!positions) {
-      setReorderAnnouncement(t('progressScreen.goals.reorderBoundary', { title: goal.title, position: currentIndex + 1, total: goals.length }))
+      announceReorderResult(t('progressScreen.goals.reorderBoundary', { title: goal.title, position: currentIndex + 1, total: goals.length }))
       return
     }
     commitMove(positions, goalId, boundedTarget)
