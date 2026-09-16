@@ -311,8 +311,6 @@ function GoalCard({ goal, index, canReorder, onMove, onOpen }: Readonly<{
 }>) {
   const t = useTranslations()
   const { setNodeRef, listeners, transform, isDragging } = useSortable({ id: goal.id, disabled: !canReorder })
-  const sortableTransform = CSS.Transform.toString(transform)
-  const cardTransform = isDragging ? `${sortableTransform ?? ''} scale(0.96)`.trim() : sortableTransform
   const labelKey = getProgressGoalLabelKey(goal)
   const abandoned = goal.status === 'Abandoned'
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
@@ -324,14 +322,14 @@ function GoalCard({ goal, index, canReorder, onMove, onOpen }: Readonly<{
     <button type="button" aria-label={goal.title} data-goal-id={goal.id} data-dragging={isDragging}
       ref={setNodeRef} {...listeners}
       style={{
-        transform: cardTransform,
-        transition: 'background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), transform 150ms var(--ease-out)',
+        transform: CSS.Transform.toString(transform),
+        transition: 'background-color 380ms var(--ease-standard), box-shadow 380ms var(--ease-standard), scale 150ms var(--ease-out)',
       }}
       aria-roledescription={canReorder ? t('goals.dragItem') : undefined}
       aria-keyshortcuts={canReorder ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
       onKeyDown={canReorder ? handleKeyDown : undefined}
       onClick={onOpen}
-      className="relative flex w-full cursor-pointer select-none items-center gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 text-left shadow-[inset_0_0_0_1px_var(--hairline-ghost)] hover:bg-[var(--bg-hover)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)] active:scale-[0.96] data-[dragging=true]:z-[2] data-[dragging=true]:opacity-50 data-[dragging=true]:shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
+      className="relative flex w-full cursor-pointer select-none items-center gap-3 rounded-[20px] bg-[var(--bg-card)] p-4 text-left shadow-[inset_0_0_0_1px_var(--hairline-ghost)] hover:bg-[var(--bg-hover)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)] active:scale-[0.96] data-[dragging=true]:z-[2] data-[dragging=true]:scale-[0.96] data-[dragging=true]:opacity-50 data-[dragging=true]:shadow-[var(--sh-2),inset_0_0_0_1px_var(--hairline-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]">
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span className={`text-[17px] font-medium ${abandoned ? 'text-[var(--fg-3)]' : 'text-[var(--fg-1)]'}`}>{goal.title}</span>
         <span className="flex flex-wrap items-center gap-2">
