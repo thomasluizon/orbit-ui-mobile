@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { act } from 'react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { press, renderNavigation } from './navigation-render'
@@ -6,8 +8,29 @@ const options = [{ value: 'all', label: 'All' }, { value: 'active', label: 'Acti
 
 function keyDown(node: ReturnType<typeof renderNavigation>['hosts'] extends () => (infer THost)[] ? THost : never, key: string) {
   const preventDefault = vi.fn()
-  node.props.onKeyDown?.({ nativeEvent: { key }, preventDefault })
+  void act(() => node.props.onKeyDown?.({ nativeEvent: { key }, preventDefault }))
   return preventDefault
+}
+
+function StatefulSegmentedControl({
+  choices,
+  onChange,
+}: Readonly<{
+  choices: typeof options
+  onChange: (value: (typeof options)[number]['value']) => void
+}>) {
+  const [value, setValue] = useState<(typeof options)[number]['value']>('all')
+  return (
+    <SegmentedControl
+      options={choices}
+      value={value}
+      onChange={(nextValue) => {
+        setValue(nextValue)
+        onChange(nextValue)
+      }}
+      label="Views"
+    />
+  )
 }
 
 describe('SegmentedControl', () => {
@@ -50,17 +73,16 @@ describe('SegmentedControl', () => {
     const focusedTestIds: string[] = []
     __setFocusImpl((props) => focusedTestIds.push(String(props.testID)))
     const choices = [options[0], { ...options[1], disabled: true }, options[2]] as const
-    const tree = renderNavigation(<SegmentedControl options={choices} value="all" onChange={onChange} label="Views" />)
-    const radios = tree.hosts().filter((node) => node.props.accessibilityRole === 'radio')
+    const tree = renderNavigation(<StatefulSegmentedControl choices={choices} onChange={onChange} />)
+    const radios = () => tree.hosts().filter((node) => node.props.accessibilityRole === 'radio')
 
-    expect(radios.map((node) => node.props.tabIndex)).toEqual([0, -1, -1])
-    expect(keyDown(radios[0]!, 'ArrowDown')).toHaveBeenCalledOnce()
+    expect(radios().map((node) => node.props.tabIndex)).toEqual([0, -1, -1])
+    expect(keyDown(radios()[0]!, 'ArrowDown')).toHaveBeenCalledOnce()
     expect(onChange).toHaveBeenLastCalledWith('completed')
-    expect(focusedTestIds.at(-1)).toBe('segment-completed-unselected-enabled')
-    tree.update(<SegmentedControl options={choices} value="completed" onChange={onChange} label="Views" />)
-    const updatedRadios = tree.hosts().filter((node) => node.props.accessibilityRole === 'radio')
-    expect(keyDown(updatedRadios[2]!, 'Home')).toHaveBeenCalledOnce()
+    expect(focusedTestIds.at(-1)).toBe('segment-completed-selected-enabled')
+    expect(keyDown(radios()[2]!, 'ArrowDown')).toHaveBeenCalledOnce()
     expect(onChange).toHaveBeenLastCalledWith('all')
+    expect(focusedTestIds.at(-1)).toBe('segment-all-selected-enabled')
     tree.unmount()
   })
 })

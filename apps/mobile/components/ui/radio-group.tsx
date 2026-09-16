@@ -35,8 +35,10 @@ export function RadioGroup({ children, ...props }: Readonly<
   Omit<ViewProps, 'accessibilityRole'> & { children: ReactNode }
 >) {
   const [items, setItems] = useState<RadioItemState[]>([])
+  const [tabbableId, setTabbableId] = useState<string | null>(null)
   const elementsRef = useRef(new Map<string, View>())
   const handlersRef = useRef(new Map<string, () => void>())
+  const pendingFocusIdRef = useRef<string | null>(null)
   const register = useCallback((id: string) => {
     setItems((current) => [...current.filter((item) => item.id !== id), { disabled: false, id, selected: false }])
     return () => {
@@ -47,6 +49,9 @@ export function RadioGroup({ children, ...props }: Readonly<
   }, [])
   const update = useCallback((state: RadioItemState) => {
     setItems((current) => current.map((item) => item.id === state.id ? state : item))
+    if (state.selected && pendingFocusIdRef.current === null) {
+      setTabbableId(state.id)
+    }
   }, [])
   const setElement = useCallback((id: string, element: View | null) => {
     if (element) elementsRef.current.set(id, element)
@@ -56,10 +61,17 @@ export function RadioGroup({ children, ...props }: Readonly<
     handlersRef.current.set(id, handler)
   }, [])
   const enabledItems = items.filter((item) => !item.disabled)
+  useLayoutEffect(() => {
+    const pendingFocusId = pendingFocusIdRef.current
+    if (!pendingFocusId || pendingFocusId !== tabbableId) return
+    elementsRef.current.get(pendingFocusId)?.focus()
+    pendingFocusIdRef.current = null
+  }, [items, tabbableId])
   const getTabIndex = useCallback((id: string): 0 | -1 => {
+    const activeItem = enabledItems.find((item) => item.id === tabbableId)
     const selectedItem = enabledItems.find((item) => item.selected)
-    return (selectedItem ?? enabledItems[0])?.id === id ? 0 : -1
-  }, [enabledItems])
+    return (activeItem ?? selectedItem ?? enabledItems[0])?.id === id ? 0 : -1
+  }, [enabledItems, tabbableId])
   const moveSelection = useCallback((id: string, key: string) => {
     const currentIndex = enabledItems.findIndex((item) => item.id === id)
     if (currentIndex < 0) return false
@@ -67,8 +79,13 @@ export function RadioGroup({ children, ...props }: Readonly<
     if (nextIndex === null) return false
     const nextItem = enabledItems[nextIndex]
     if (!nextItem) return false
-    elementsRef.current.get(nextItem.id)?.focus()
+    pendingFocusIdRef.current = nextItem.id
+    setTabbableId(nextItem.id)
     handlersRef.current.get(nextItem.id)?.()
+    if (nextItem.selected) {
+      elementsRef.current.get(nextItem.id)?.focus()
+      pendingFocusIdRef.current = null
+    }
     return true
   }, [enabledItems])
   const contextValue = useMemo(() => ({

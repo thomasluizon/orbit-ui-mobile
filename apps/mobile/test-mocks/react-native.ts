@@ -73,7 +73,9 @@ function createHostComponent(name: string) {
         if (callback) measureInWindowImpl(callback)
       },
       setNativeProps: () => {},
-      focus: () => focusImpl(props),
+      focus: () => {
+        if (props.tabIndex !== -1) focusImpl(props)
+      },
       blur: () => {},
       scrollTo: scrollToImpl,
       scrollToEnd: () => {},

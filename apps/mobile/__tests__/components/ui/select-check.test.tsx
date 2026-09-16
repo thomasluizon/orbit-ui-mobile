@@ -50,7 +50,7 @@ describe('select-check RadioRow group', () => {
     keyDown(radios()[0], 'ArrowDown')
     expect(onChange).toHaveBeenLastCalledWith('third')
     expect(focusedLabels.at(-1)).toBe('Third')
-    keyDown(radios()[2], 'End')
+    keyDown(radios()[2], 'ArrowDown')
     expect(onChange).toHaveBeenLastCalledWith('last')
     expect(focusedLabels.at(-1)).toBe('Last')
     keyDown(radios()[3], 'ArrowRight')

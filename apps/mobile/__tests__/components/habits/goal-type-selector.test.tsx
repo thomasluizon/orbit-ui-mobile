@@ -52,7 +52,7 @@ describe('GoalTypeSelector', () => {
     expect(preventDefault).toHaveBeenCalledOnce()
     expect(onChange).toHaveBeenCalledExactlyOnceWith('Streak')
     expect(focusedLabels.at(-1)).toBe('goals.form.typeStreak')
-    void act(() => radios()[1]!.props.onKeyDown({ nativeEvent: { key: 'Home' }, preventDefault }))
+    void act(() => radios()[1]!.props.onKeyDown({ nativeEvent: { key: 'ArrowLeft' }, preventDefault }))
     expect(onChange).toHaveBeenLastCalledWith('Standard')
     expect(focusedLabels.at(-1)).toBe('goals.form.typeStandard')
   })

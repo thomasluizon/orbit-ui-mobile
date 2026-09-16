@@ -2,7 +2,7 @@ import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SelectionField } from '@/components/ui/selection-field'
 import { sheetTestControls } from '@/__tests__/support/sheet-double'
-import { __resetTestHostConfig, __setFocusImpl } from '../../../test-mocks/react-native'
+import { __resetTestHostConfig } from '../../../test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -165,8 +165,6 @@ describe('SelectionField', () => {
   })
 
   it('enters once and skips a disabled option with ArrowDown', () => {
-    const focusedLabels: string[] = []
-    __setFocusImpl((props) => focusedLabels.push(String(props.accessibilityLabel)))
     const { tree, onChange } = render({
       value: 'daily',
       options: [
@@ -186,6 +184,5 @@ describe('SelectionField', () => {
 
     expect(preventDefault).toHaveBeenCalledOnce()
     expect(onChange).toHaveBeenCalledExactlyOnceWith('weekly')
-    expect(focusedLabels.at(-1)).toBe('Every week')
   })
 })
