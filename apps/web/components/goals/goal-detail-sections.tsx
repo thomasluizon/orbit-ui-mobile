@@ -121,7 +121,6 @@ interface GoalLinkedHabitsSectionProps {
   linkedHabits: NonNullable<Goal['linkedHabits']>
   habitAdherence: GoalMetrics['habitAdherence']
   formatValue: (currentStreak: number) => string
-  onOpenHabit: (habitId: string) => void
   notice?: ReactNode
 }
 
@@ -131,7 +130,6 @@ export function GoalLinkedHabitsSection({
   linkedHabits,
   habitAdherence,
   formatValue,
-  onOpenHabit,
   notice,
 }: Readonly<GoalLinkedHabitsSectionProps>) {
   const adherenceByHabitId = useMemo(
@@ -155,7 +153,7 @@ export function GoalLinkedHabitsSection({
                 title={habit.title}
                 value={value}
                 accessibilityLabel={value ? `${habit.title}, ${value}` : habit.title}
-                onClick={() => onOpenHabit(habit.id)}
+                href={`/habits/${habit.id}`}
               />
             </li>
           )

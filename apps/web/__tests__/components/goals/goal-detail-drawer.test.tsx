@@ -14,13 +14,6 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
-const routerPush = vi.fn()
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: routerPush,
-  }),
-}))
-
 vi.mock('dompurify', () => ({
   default: { sanitize: (html: string) => html },
 }))
@@ -73,7 +66,6 @@ describe('GoalDetailDrawer', () => {
     updateStatusMutateAsync.mockClear()
     updateProgressMutateAsync.mockClear()
     deleteMutateAsync.mockClear()
-    routerPush.mockClear()
     useChatStore.setState({ draft: '', draftHydrated: true })
     useUIStore.setState({ astraConversationOpen: false })
   })
@@ -115,16 +107,12 @@ describe('GoalDetailDrawer', () => {
 
     render(<GoalDetailDrawer open onOpenChange={vi.fn()} goalId="1" />)
 
-    const readRow = screen.getByRole('button', { name: 'Read every night, goals.detail.linkedHabitStreak:{"count":12}' })
-    const stretchRow = screen.getByRole('button', { name: 'Stretch, goals.detail.linkedHabitStreak:{"count":4}' })
+    const readRow = screen.getByRole('link', { name: 'Read every night, goals.detail.linkedHabitStreak:{"count":12}' })
+    const stretchRow = screen.getByRole('link', { name: 'Stretch, goals.detail.linkedHabitStreak:{"count":4}' })
     expect(readRow).toHaveTextContent('goals.detail.linkedHabitStreak:{"count":12}')
     expect(stretchRow).toHaveTextContent('goals.detail.linkedHabitStreak:{"count":4}')
-
-    fireEvent.click(readRow)
-    fireEvent.click(stretchRow)
-
-    expect(routerPush).toHaveBeenNthCalledWith(1, '/habits/habit-read')
-    expect(routerPush).toHaveBeenNthCalledWith(2, '/habits/habit-stretch')
+    expect(readRow).toHaveAttribute('href', '/habits/habit-read')
+    expect(stretchRow).toHaveAttribute('href', '/habits/habit-stretch')
   })
 
   it('composes footer actions from canonical ListRow controls', () => {
